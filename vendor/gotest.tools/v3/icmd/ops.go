@@ -38,6 +38,20 @@ func WithStdin(r io.Reader) CmdOp {
 	}
 }
 
+// WithStdout sets the standard output of the command to the specified writer
+func WithStdout(w io.Writer) CmdOp {
+	return func(c *Cmd) {
+		c.Stdout = w
+	}
+}
+
+// WithStderr sets the standard error of the command to the specified writer
+func WithStderr(w io.Writer) CmdOp {
+	return func(c *Cmd) {
+		c.Stderr = w
+	}
+}
+
 // WithExtraFile adds a file descriptor to the command
 func WithExtraFile(f *os.File) CmdOp {
 	return func(c *Cmd) {

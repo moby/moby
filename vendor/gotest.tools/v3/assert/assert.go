@@ -4,7 +4,7 @@ values in tests. When an assertion fails a helpful error message is printed.
 
 # Example usage
 
-All the assertions in this package use testing.T.Helper to mark themselves as
+All the assertions in this package use [testing.T.Helper] to mark themselves as
 test helpers. This allows the testing package to print the filename and line
 number of the file function that failed.
 
@@ -67,19 +67,19 @@ message is omitted from these examples for brevity.
 
 # Assert and Check
 
-Assert and Check are very similar, they both accept a Comparison, and fail
+[Assert] and [Check] are very similar, they both accept a [cmp.Comparison], and fail
 the test when the comparison fails. The one difference is that Assert uses
-testing.T.FailNow to fail the test, which will end the test execution immediately.
-Check uses testing.T.Fail to fail the test, which allows it to return the
+[testing.T.FailNow] to fail the test, which will end the test execution immediately.
+Check uses [testing.T.Fail] to fail the test, which allows it to return the
 result of the comparison, then proceed with the rest of the test case.
 
-Like testing.T.FailNow, Assert must be called from the goroutine running the test,
-not from other goroutines created during the test. Check is safe to use from any
+Like [testing.T.FailNow], [Assert] must be called from the goroutine running the test,
+not from other goroutines created during the test. [Check] is safe to use from any
 goroutine.
 
 # Comparisons
 
-Package http://pkg.go.dev/gotest.tools/v3/assert/cmp provides
+Package [gotest.tools/v3/assert/cmp] provides
 many common comparisons. Additional comparisons can be written to compare
 values in other ways. See the example Assert (CustomComparison).
 
@@ -98,11 +98,11 @@ import (
 	"gotest.tools/v3/internal/assert"
 )
 
-// BoolOrComparison can be a bool, cmp.Comparison, or error. See Assert for
+// BoolOrComparison can be a bool, [cmp.Comparison], or error. See [Assert] for
 // details about how this type is used.
 type BoolOrComparison interface{}
 
-// TestingT is the subset of testing.T used by the assert package.
+// TestingT is the subset of [testing.T] (see also [testing.TB]) used by the assert package.
 type TestingT interface {
 	FailNow()
 	Fail()
@@ -133,11 +133,11 @@ type helperT interface {
 //
 // Extra details can be added to the failure message using msgAndArgs. msgAndArgs
 // may be either a single string, or a format string and args that will be
-// passed to fmt.Sprintf.
+// passed to [fmt.Sprintf].
 //
-// Assert uses t.FailNow to fail the test. Like t.FailNow, Assert must be called
+// Assert uses [testing.TB.FailNow] to fail the test. Like t.FailNow, Assert must be called
 // from the goroutine running the test function, not from other
-// goroutines created during the test. Use Check from other goroutines.
+// goroutines created during the test. Use [Check] from other goroutines.
 func Assert(t TestingT, comparison BoolOrComparison, msgAndArgs ...interface{}) {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
@@ -151,7 +151,7 @@ func Assert(t TestingT, comparison BoolOrComparison, msgAndArgs ...interface{}) 
 // failed, a failure message is printed, and Check returns false. If the comparison
 // is successful Check returns true. Check may be called from any goroutine.
 //
-// See Assert for details about the comparison arg and failure messages.
+// See [Assert] for details about the comparison arg and failure messages.
 func Check(t TestingT, comparison BoolOrComparison, msgAndArgs ...interface{}) bool {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
@@ -166,9 +166,9 @@ func Check(t TestingT, comparison BoolOrComparison, msgAndArgs ...interface{}) b
 // NilError fails the test immediately if err is not nil, and includes err.Error
 // in the failure message.
 //
-// NilError uses t.FailNow to fail the test. Like t.FailNow, NilError must be
+// NilError uses [testing.TB.FailNow] to fail the test. Like t.FailNow, NilError must be
 // called from the goroutine running the test function, not from other
-// goroutines created during the test. Use Check from other goroutines.
+// goroutines created during the test. Use [Check] from other goroutines.
 func NilError(t TestingT, err error, msgAndArgs ...interface{}) {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
@@ -193,9 +193,9 @@ func NilError(t TestingT, err error, msgAndArgs ...interface{}) {
 // the unified diff will be augmented by replacing whitespace characters with
 // visible characters to identify the whitespace difference.
 //
-// Equal uses t.FailNow to fail the test. Like t.FailNow, Equal must be
+// Equal uses [testing.T.FailNow] to fail the test. Like t.FailNow, Equal must be
 // called from the goroutine running the test function, not from other
-// goroutines created during the test. Use Check with cmp.Equal from other
+// goroutines created during the test. Use [Check] with [cmp.Equal] from other
 // goroutines.
 func Equal(t TestingT, x, y interface{}, msgAndArgs ...interface{}) {
 	if ht, ok := t.(helperT); ok {
@@ -206,15 +206,15 @@ func Equal(t TestingT, x, y interface{}, msgAndArgs ...interface{}) {
 	}
 }
 
-// DeepEqual uses google/go-cmp (https://godoc.org/github.com/google/go-cmp/cmp)
+// DeepEqual uses [github.com/google/go-cmp/cmp]
 // to assert two values are equal and fails the test if they are not equal.
 //
-// Package http://pkg.go.dev/gotest.tools/v3/assert/opt provides some additional
+// Package [gotest.tools/v3/assert/opt] provides some additional
 // commonly used Options.
 //
-// DeepEqual uses t.FailNow to fail the test. Like t.FailNow, DeepEqual must be
+// DeepEqual uses [testing.T.FailNow] to fail the test. Like t.FailNow, DeepEqual must be
 // called from the goroutine running the test function, not from other
-// goroutines created during the test. Use Check with cmp.DeepEqual from other
+// goroutines created during the test. Use [Check] with [cmp.DeepEqual] from other
 // goroutines.
 func DeepEqual(t TestingT, x, y interface{}, opts ...gocmp.Option) {
 	if ht, ok := t.(helperT); ok {
@@ -227,13 +227,13 @@ func DeepEqual(t TestingT, x, y interface{}, opts ...gocmp.Option) {
 
 // Error fails the test if err is nil, or if err.Error is not equal to expected.
 // Both err.Error and expected will be included in the failure message.
-// Error performs an exact match of the error text. Use ErrorContains if only
-// part of the error message is relevant. Use ErrorType or ErrorIs to compare
+// Error performs an exact match of the error text. Use [ErrorContains] if only
+// part of the error message is relevant. Use [ErrorType] or [ErrorIs] to compare
 // errors by type.
 //
-// Error uses t.FailNow to fail the test. Like t.FailNow, Error must be
+// Error uses [testing.T.FailNow] to fail the test. Like t.FailNow, Error must be
 // called from the goroutine running the test function, not from other
-// goroutines created during the test. Use Check with cmp.Error from other
+// goroutines created during the test. Use [Check] with [cmp.Error] from other
 // goroutines.
 func Error(t TestingT, err error, expected string, msgAndArgs ...interface{}) {
 	if ht, ok := t.(helperT); ok {
@@ -248,9 +248,9 @@ func Error(t TestingT, err error, expected string, msgAndArgs ...interface{}) {
 // contain the expected substring. Both err.Error and the expected substring
 // will be included in the failure message.
 //
-// ErrorContains uses t.FailNow to fail the test. Like t.FailNow, ErrorContains
+// ErrorContains uses [testing.T.FailNow] to fail the test. Like t.FailNow, ErrorContains
 // must be called from the goroutine running the test function, not from other
-// goroutines created during the test. Use Check with cmp.ErrorContains from other
+// goroutines created during the test. Use [Check] with [cmp.ErrorContains] from other
 // goroutines.
 func ErrorContains(t TestingT, err error, substring string, msgAndArgs ...interface{}) {
 	if ht, ok := t.(helperT); ok {
@@ -262,8 +262,7 @@ func ErrorContains(t TestingT, err error, substring string, msgAndArgs ...interf
 }
 
 // ErrorType fails the test if err is nil, or err is not the expected type.
-// Most new code should use ErrorIs instead. ErrorType may be deprecated in the
-// future.
+// New code should use ErrorIs instead.
 //
 // Expected can be one of:
 //
@@ -281,10 +280,12 @@ func ErrorContains(t TestingT, err error, substring string, msgAndArgs ...interf
 //	reflect.Type
 //	  The assertion fails if err does not implement the reflect.Type.
 //
-// ErrorType uses t.FailNow to fail the test. Like t.FailNow, ErrorType
+// ErrorType uses [testing.T.FailNow] to fail the test. Like t.FailNow, ErrorType
 // must be called from the goroutine running the test function, not from other
-// goroutines created during the test. Use Check with cmp.ErrorType from other
+// goroutines created during the test. Use [Check] with [cmp.ErrorType] from other
 // goroutines.
+//
+// Deprecated: Use [ErrorIs]
 func ErrorType(t TestingT, err error, expected interface{}, msgAndArgs ...interface{}) {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
@@ -295,12 +296,12 @@ func ErrorType(t TestingT, err error, expected interface{}, msgAndArgs ...interf
 }
 
 // ErrorIs fails the test if err is nil, or the error does not match expected
-// when compared using errors.Is. See https://golang.org/pkg/errors/#Is for
+// when compared using errors.Is. See [errors.Is] for
 // accepted arguments.
 //
-// ErrorIs uses t.FailNow to fail the test. Like t.FailNow, ErrorIs
+// ErrorIs uses [testing.T.FailNow] to fail the test. Like t.FailNow, ErrorIs
 // must be called from the goroutine running the test function, not from other
-// goroutines created during the test. Use Check with cmp.ErrorIs from other
+// goroutines created during the test. Use [Check] with [cmp.ErrorIs] from other
 // goroutines.
 func ErrorIs(t TestingT, err error, expected error, msgAndArgs ...interface{}) {
 	if ht, ok := t.(helperT); ok {

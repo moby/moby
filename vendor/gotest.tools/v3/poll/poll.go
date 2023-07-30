@@ -11,13 +11,13 @@ import (
 	"gotest.tools/v3/internal/assert"
 )
 
-// TestingT is the subset of testing.T used by WaitOn
+// TestingT is the subset of [testing.T] used by [WaitOn]
 type TestingT interface {
 	LogT
 	Fatalf(format string, args ...interface{})
 }
 
-// LogT is a logging interface that is passed to the WaitOn check function
+// LogT is a logging interface that is passed to the [WaitOn] check function
 type LogT interface {
 	Log(args ...interface{})
 	Logf(format string, args ...interface{})
@@ -27,7 +27,7 @@ type helperT interface {
 	Helper()
 }
 
-// Settings are used to configure the behaviour of WaitOn
+// Settings are used to configure the behaviour of [WaitOn]
 type Settings struct {
 	// Timeout is the maximum time to wait for the condition. Defaults to 10s.
 	Timeout time.Duration
@@ -57,7 +57,7 @@ func WithTimeout(timeout time.Duration) SettingOp {
 	}
 }
 
-// Result of a check performed by WaitOn
+// Result of a check performed by [WaitOn]
 type Result interface {
 	// Error indicates that the check failed and polling should stop, and the
 	// the has failed
@@ -86,20 +86,20 @@ func (r result) Error() error {
 	return r.err
 }
 
-// Continue returns a Result that indicates to WaitOn that it should continue
+// Continue returns a [Result] that indicates to [WaitOn] that it should continue
 // polling. The message text will be used as the failure message if the timeout
 // is reached.
 func Continue(message string, args ...interface{}) Result {
 	return result{message: fmt.Sprintf(message, args...)}
 }
 
-// Success returns a Result where Done() returns true, which indicates to WaitOn
+// Success returns a [Result] where Done() returns true, which indicates to [WaitOn]
 // that it should stop polling and exit without an error.
 func Success() Result {
 	return result{done: true}
 }
 
-// Error returns a Result that indicates to WaitOn that it should fail the test
+// Error returns a [Result] that indicates to [WaitOn] that it should fail the test
 // and stop polling.
 func Error(err error) Result {
 	return result{err: err}
@@ -143,9 +143,9 @@ func WaitOn(t TestingT, check Check, pollOps ...SettingOp) {
 	}
 }
 
-// Compare values using the cmp.Comparison. If the comparison fails return a
+// Compare values using the [cmp.Comparison]. If the comparison fails return a
 // result which indicates to WaitOn that it should continue waiting.
-// If the comparison is successful then WaitOn stops polling.
+// If the comparison is successful then [WaitOn] stops polling.
 func Compare(compare cmp.Comparison) Result {
 	buf := new(logBuffer)
 	if assert.RunComparison(buf, assert.ArgsAtZeroIndex, compare) {
