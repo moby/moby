@@ -251,13 +251,3 @@ type IPv6AddrNoMatchError net.IPNet
 func (ipv6 *IPv6AddrNoMatchError) Error() string {
 	return fmt.Sprintf("bridge IPv6 addresses do not match the expected bridge configuration %s", (*net.IPNet)(ipv6).String())
 }
-
-// InvalidLinkIPAddrError is returned when a link is configured to a container with an invalid ip address
-type InvalidLinkIPAddrError string
-
-func (address InvalidLinkIPAddrError) Error() string {
-	return fmt.Sprintf("Cannot link to a container with Invalid IP Address '%s'", string(address))
-}
-
-// BadRequest denotes the type of this error
-func (address InvalidLinkIPAddrError) BadRequest() {}
