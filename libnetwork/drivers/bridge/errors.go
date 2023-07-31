@@ -245,18 +245,12 @@ func (ipv4 *IPv4AddrNoMatchError) Error() string {
 	return fmt.Sprintf("bridge IPv4 (%s) does not match requested configuration %s", ipv4.IP, ipv4.CfgIP)
 }
 
-// BadRequest denotes the type of this error
-func (ipv4 *IPv4AddrNoMatchError) BadRequest() {}
-
 // IPv6AddrNoMatchError is returned when the bridge's IPv6 address does not match configured.
 type IPv6AddrNoMatchError net.IPNet
 
 func (ipv6 *IPv6AddrNoMatchError) Error() string {
 	return fmt.Sprintf("bridge IPv6 addresses do not match the expected bridge configuration %s", (*net.IPNet)(ipv6).String())
 }
-
-// BadRequest denotes the type of this error
-func (ipv6 *IPv6AddrNoMatchError) BadRequest() {}
 
 // InvalidLinkIPAddrError is returned when a link is configured to a container with an invalid ip address
 type InvalidLinkIPAddrError string
