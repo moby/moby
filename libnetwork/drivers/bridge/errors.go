@@ -209,16 +209,6 @@ func (fcv6 *FixedCIDRv6Error) Error() string {
 // InternalError denotes the type of this error
 func (fcv6 *FixedCIDRv6Error) InternalError() {}
 
-// InvalidIPTablesCfgError is returned when an invalid ip tables configuration is entered
-type InvalidIPTablesCfgError string
-
-func (action InvalidIPTablesCfgError) Error() string {
-	return fmt.Sprintf("Invalid IPTables action '%s'", string(action))
-}
-
-// Internal denotes the type of this error
-func (action InvalidIPTablesCfgError) Internal() {}
-
 // IPv4AddrAddError is returned when IPv4 address could not be added to the bridge.
 type IPv4AddrAddError struct {
 	IP  *net.IPNet
