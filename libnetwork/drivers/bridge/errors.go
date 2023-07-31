@@ -209,16 +209,6 @@ func (fcv6 *FixedCIDRv6Error) Error() string {
 // InternalError denotes the type of this error
 func (fcv6 *FixedCIDRv6Error) InternalError() {}
 
-// IPTableCfgError is returned when an unexpected ip tables configuration is entered
-type IPTableCfgError string
-
-func (name IPTableCfgError) Error() string {
-	return fmt.Sprintf("unexpected request to set IP tables for interface: %s", string(name))
-}
-
-// BadRequest denotes the type of this error
-func (name IPTableCfgError) BadRequest() {}
-
 // InvalidIPTablesCfgError is returned when an invalid ip tables configuration is entered
 type InvalidIPTablesCfgError string
 

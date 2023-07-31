@@ -2,7 +2,11 @@
 
 package bridge
 
-import "github.com/docker/docker/libnetwork/iptables"
+import (
+	"errors"
+
+	"github.com/docker/docker/libnetwork/iptables"
+)
 
 func (n *bridgeNetwork) setupFirewalld(config *networkConfiguration, i *bridgeInterface) error {
 	d := n.driver
@@ -12,7 +16,7 @@ func (n *bridgeNetwork) setupFirewalld(config *networkConfiguration, i *bridgeIn
 
 	// Sanity check.
 	if !driverConfig.EnableIPTables {
-		return IPTableCfgError(config.BridgeName)
+		return errors.New("no need to register firewalld hooks, iptables is disabled")
 	}
 
 	iptables.OnReloaded(func() { n.setupIP4Tables(config, i) })
@@ -28,7 +32,7 @@ func (n *bridgeNetwork) setupFirewalld6(config *networkConfiguration, i *bridgeI
 
 	// Sanity check.
 	if !driverConfig.EnableIP6Tables {
-		return IPTableCfgError(config.BridgeName)
+		return errors.New("no need to register firewalld hooks, ip6tables is disabled")
 	}
 
 	iptables.OnReloaded(func() { n.setupIP6Tables(config, i) })
