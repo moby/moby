@@ -28,9 +28,6 @@ type EncryptionKey struct {
 	LamportTime uint64
 }
 
-// UUID represents a globally unique ID of various resources like network and endpoint
-type UUID string
-
 // QosPolicy represents a quality of service policy on an endpoint
 type QosPolicy struct {
 	MaxEgressBandwidth uint64
@@ -89,7 +86,7 @@ func (p PortBinding) HostAddr() (net.Addr, error) {
 	case SCTP:
 		return &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: p.HostIP}}, Port: int(p.HostPort)}, nil
 	default:
-		return nil, ErrInvalidProtocolBinding(p.Proto.String())
+		return nil, fmt.Errorf("invalid transport protocol: %s", p.Proto.String())
 	}
 }
 
@@ -103,7 +100,7 @@ func (p PortBinding) ContainerAddr() (net.Addr, error) {
 	case SCTP:
 		return &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: p.IP}}, Port: int(p.Port)}, nil
 	default:
-		return nil, ErrInvalidProtocolBinding(p.Proto.String())
+		return nil, fmt.Errorf("invalid transport protocol: %s", p.Proto.String())
 	}
 }
 
@@ -131,51 +128,6 @@ func (p *PortBinding) String() string {
 	}
 	ret = fmt.Sprintf("%s:%d", ret, p.HostPort)
 	return ret
-}
-
-// Equal checks if this instance of PortBinding is equal to the passed one
-func (p *PortBinding) Equal(o *PortBinding) bool {
-	if p == o {
-		return true
-	}
-
-	if o == nil {
-		return false
-	}
-
-	if p.Proto != o.Proto || p.Port != o.Port ||
-		p.HostPort != o.HostPort || p.HostPortEnd != o.HostPortEnd {
-		return false
-	}
-
-	if p.IP != nil {
-		if !p.IP.Equal(o.IP) {
-			return false
-		}
-	} else {
-		if o.IP != nil {
-			return false
-		}
-	}
-
-	if p.HostIP != nil {
-		if !p.HostIP.Equal(o.HostIP) {
-			return false
-		}
-	} else {
-		if o.HostIP != nil {
-			return false
-		}
-	}
-
-	return true
-}
-
-// ErrInvalidProtocolBinding is returned when the port binding protocol is not valid.
-type ErrInvalidProtocolBinding string
-
-func (ipb ErrInvalidProtocolBinding) Error() string {
-	return fmt.Sprintf("invalid transport protocol: %s", string(ipb))
 }
 
 const (
@@ -272,16 +224,6 @@ func CompareIPNet(a, b *net.IPNet) bool {
 		return false
 	}
 	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
-}
-
-// GetMinimalIP returns the address in its shortest form
-// If ip contains an IPv4-mapped IPv6 address, the 4-octet form of the IPv4 address will be returned.
-// Otherwise ip is returned unchanged.
-func GetMinimalIP(ip net.IP) net.IP {
-	if ip != nil && ip.To4() != nil {
-		return ip.To4()
-	}
-	return ip
 }
 
 // IsIPNetValid returns true if the ipnet is a valid network/mask
@@ -413,12 +355,6 @@ type MaskableError interface {
 	Maskable()
 }
 
-// RetryError is an interface for errors which might get resolved through retry
-type RetryError interface {
-	// Retry makes implementer into RetryError type
-	Retry()
-}
-
 // BadRequestError is an interface for errors originated by a bad request
 type BadRequestError interface {
 	// BadRequest makes implementer into BadRequestError type
@@ -441,12 +377,6 @@ type ForbiddenError interface {
 type NoServiceError interface {
 	// NoService makes implementer into NoServiceError type
 	NoService()
-}
-
-// TimeoutError is an interface for errors raised because of timeout
-type TimeoutError interface {
-	// Timeout makes implementer into TimeoutError type
-	Timeout()
 }
 
 // NotImplementedError is an interface for errors raised because of requested functionality is not yet implemented
@@ -490,11 +420,6 @@ func NotImplementedErrorf(format string, params ...interface{}) error {
 	return notImpl(fmt.Sprintf(format, params...))
 }
 
-// TimeoutErrorf creates an instance of TimeoutError
-func TimeoutErrorf(format string, params ...interface{}) error {
-	return timeout(fmt.Sprintf(format, params...))
-}
-
 // InternalErrorf creates an instance of InternalError
 func InternalErrorf(format string, params ...interface{}) error {
 	return internal(fmt.Sprintf(format, params...))
@@ -503,11 +428,6 @@ func InternalErrorf(format string, params ...interface{}) error {
 // InternalMaskableErrorf creates an instance of InternalError and MaskableError
 func InternalMaskableErrorf(format string, params ...interface{}) error {
 	return maskInternal(fmt.Sprintf(format, params...))
-}
-
-// RetryErrorf creates an instance of RetryError
-func RetryErrorf(format string, params ...interface{}) error {
-	return retry(fmt.Sprintf(format, params...))
 }
 
 /***********************
@@ -541,13 +461,6 @@ func (ns noService) Error() string {
 }
 func (ns noService) NoService() {}
 
-type timeout string
-
-func (to timeout) Error() string {
-	return string(to)
-}
-func (to timeout) Timeout() {}
-
 type notImpl string
 
 func (ni notImpl) Error() string {
@@ -569,10 +482,3 @@ func (mnt maskInternal) Error() string {
 }
 func (mnt maskInternal) Internal() {}
 func (mnt maskInternal) Maskable() {}
-
-type retry string
-
-func (r retry) Error() string {
-	return string(r)
-}
-func (r retry) Retry() {}

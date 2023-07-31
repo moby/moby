@@ -7,7 +7,7 @@ import (
 )
 
 func TestErrorInterfaces(t *testing.T) {
-	badRequestErrorList := []error{ErrInvalidID(""), ErrInvalidName(""), ErrInvalidJoin{}, ErrInvalidNetworkDriver(""), InvalidContainerIDError("")}
+	badRequestErrorList := []error{ErrInvalidID(""), ErrInvalidName("")}
 	for _, err := range badRequestErrorList {
 		switch u := err.(type) {
 		case types.BadRequestError:
@@ -16,7 +16,7 @@ func TestErrorInterfaces(t *testing.T) {
 		}
 	}
 
-	maskableErrorList := []error{ErrNoContainer{}}
+	maskableErrorList := []error{ManagerRedirectError("")}
 	for _, err := range maskableErrorList {
 		switch u := err.(type) {
 		case types.MaskableError:
@@ -25,7 +25,7 @@ func TestErrorInterfaces(t *testing.T) {
 		}
 	}
 
-	notFoundErrorList := []error{NetworkTypeError(""), &UnknownNetworkError{}, &UnknownEndpointError{}, ErrNoSuchNetwork(""), ErrNoSuchEndpoint("")}
+	notFoundErrorList := []error{&UnknownNetworkError{}, ErrNoSuchNetwork(""), ErrNoSuchEndpoint("")}
 	for _, err := range notFoundErrorList {
 		switch u := err.(type) {
 		case types.NotFoundError:
