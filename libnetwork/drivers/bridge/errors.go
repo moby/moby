@@ -24,9 +24,6 @@ func (eidc *ErrInvalidDriverConfig) Error() string {
 	return "Invalid configuration passed to Bridge Driver"
 }
 
-// BadRequest denotes the type of this error
-func (eidc *ErrInvalidDriverConfig) BadRequest() {}
-
 // ErrInvalidNetworkConfig error is returned when a network is created on a driver without valid config.
 type ErrInvalidNetworkConfig struct{}
 
@@ -36,16 +33,6 @@ func (einc *ErrInvalidNetworkConfig) Error() string {
 
 // Forbidden denotes the type of this error
 func (einc *ErrInvalidNetworkConfig) Forbidden() {}
-
-// ErrInvalidContainerConfig error is returned when an endpoint create is attempted with an invalid configuration.
-type ErrInvalidContainerConfig struct{}
-
-func (eicc *ErrInvalidContainerConfig) Error() string {
-	return "Error in joining a container due to invalid configuration"
-}
-
-// BadRequest denotes the type of this error
-func (eicc *ErrInvalidContainerConfig) BadRequest() {}
 
 // ErrInvalidEndpointConfig error is returned when an endpoint create is attempted with an invalid endpoint configuration.
 type ErrInvalidEndpointConfig struct{}
@@ -117,16 +104,6 @@ func (eim ErrInvalidMtu) Error() string {
 // BadRequest denotes the type of this error
 func (eim ErrInvalidMtu) BadRequest() {}
 
-// ErrInvalidPort is returned when the container or host port specified in the port binding is not valid.
-type ErrInvalidPort string
-
-func (ip ErrInvalidPort) Error() string {
-	return fmt.Sprintf("invalid transport port: %s", string(ip))
-}
-
-// BadRequest denotes the type of this error
-func (ip ErrInvalidPort) BadRequest() {}
-
 // ErrUnsupportedAddressType is returned when the specified address type is not supported.
 type ErrUnsupportedAddressType string
 
@@ -136,16 +113,6 @@ func (uat ErrUnsupportedAddressType) Error() string {
 
 // BadRequest denotes the type of this error
 func (uat ErrUnsupportedAddressType) BadRequest() {}
-
-// ErrInvalidAddressBinding is returned when the host address specified in the port binding is not valid.
-type ErrInvalidAddressBinding string
-
-func (iab ErrInvalidAddressBinding) Error() string {
-	return fmt.Sprintf("invalid host address in port binding: %s", string(iab))
-}
-
-// BadRequest denotes the type of this error
-func (iab ErrInvalidAddressBinding) BadRequest() {}
 
 // ActiveEndpointsError is returned when there are
 // still active endpoints in the network being deleted.
@@ -179,17 +146,6 @@ func (ieie InvalidEndpointIDError) Error() string {
 
 // BadRequest denotes the type of this error
 func (ieie InvalidEndpointIDError) BadRequest() {}
-
-// InvalidSandboxIDError is returned when the passed
-// sandbox id is not valid.
-type InvalidSandboxIDError string
-
-func (isie InvalidSandboxIDError) Error() string {
-	return fmt.Sprintf("invalid sandbox id: %s", string(isie))
-}
-
-// BadRequest denotes the type of this error
-func (isie InvalidSandboxIDError) BadRequest() {}
 
 // EndpointNotFoundError is returned when the no endpoint
 // with the passed endpoint id is found.
@@ -253,36 +209,6 @@ func (fcv6 *FixedCIDRv6Error) Error() string {
 // InternalError denotes the type of this error
 func (fcv6 *FixedCIDRv6Error) InternalError() {}
 
-// IPTableCfgError is returned when an unexpected ip tables configuration is entered
-type IPTableCfgError string
-
-func (name IPTableCfgError) Error() string {
-	return fmt.Sprintf("unexpected request to set IP tables for interface: %s", string(name))
-}
-
-// BadRequest denotes the type of this error
-func (name IPTableCfgError) BadRequest() {}
-
-// InvalidIPTablesCfgError is returned when an invalid ip tables configuration is entered
-type InvalidIPTablesCfgError string
-
-func (action InvalidIPTablesCfgError) Error() string {
-	return fmt.Sprintf("Invalid IPTables action '%s'", string(action))
-}
-
-// BadRequest denotes the type of this error
-func (action InvalidIPTablesCfgError) BadRequest() {}
-
-// IPv4AddrRangeError is returned when a valid IP address range couldn't be found.
-type IPv4AddrRangeError string
-
-func (name IPv4AddrRangeError) Error() string {
-	return fmt.Sprintf("can't find an address range for interface %q", string(name))
-}
-
-// BadRequest denotes the type of this error
-func (name IPv4AddrRangeError) BadRequest() {}
-
 // IPv4AddrAddError is returned when IPv4 address could not be added to the bridge.
 type IPv4AddrAddError struct {
 	IP  *net.IPNet
@@ -319,25 +245,9 @@ func (ipv4 *IPv4AddrNoMatchError) Error() string {
 	return fmt.Sprintf("bridge IPv4 (%s) does not match requested configuration %s", ipv4.IP, ipv4.CfgIP)
 }
 
-// BadRequest denotes the type of this error
-func (ipv4 *IPv4AddrNoMatchError) BadRequest() {}
-
 // IPv6AddrNoMatchError is returned when the bridge's IPv6 address does not match configured.
 type IPv6AddrNoMatchError net.IPNet
 
 func (ipv6 *IPv6AddrNoMatchError) Error() string {
 	return fmt.Sprintf("bridge IPv6 addresses do not match the expected bridge configuration %s", (*net.IPNet)(ipv6).String())
 }
-
-// BadRequest denotes the type of this error
-func (ipv6 *IPv6AddrNoMatchError) BadRequest() {}
-
-// InvalidLinkIPAddrError is returned when a link is configured to a container with an invalid ip address
-type InvalidLinkIPAddrError string
-
-func (address InvalidLinkIPAddrError) Error() string {
-	return fmt.Sprintf("Cannot link to a container with Invalid IP Address '%s'", string(address))
-}
-
-// BadRequest denotes the type of this error
-func (address InvalidLinkIPAddrError) BadRequest() {}

@@ -63,16 +63,16 @@ func linkContainers(action, parentIP, childIP string, ports []types.TransportPor
 	case "-D":
 		nfAction = iptables.Delete
 	default:
-		return InvalidIPTablesCfgError(action)
+		return fmt.Errorf("invalid iptables action: %s", action)
 	}
 
 	ip1 := net.ParseIP(parentIP)
 	if ip1 == nil {
-		return InvalidLinkIPAddrError(parentIP)
+		return fmt.Errorf("cannot link to a container with an invalid parent IP address %q", parentIP)
 	}
 	ip2 := net.ParseIP(childIP)
 	if ip2 == nil {
-		return InvalidLinkIPAddrError(childIP)
+		return fmt.Errorf("cannot link to a container with an invalid child IP address %q", childIP)
 	}
 
 	chain := iptables.ChainInfo{Name: DockerChain}
