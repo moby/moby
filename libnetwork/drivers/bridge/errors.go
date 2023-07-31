@@ -24,9 +24,6 @@ func (eidc *ErrInvalidDriverConfig) Error() string {
 	return "Invalid configuration passed to Bridge Driver"
 }
 
-// BadRequest denotes the type of this error
-func (eidc *ErrInvalidDriverConfig) BadRequest() {}
-
 // ErrInvalidNetworkConfig error is returned when a network is created on a driver without valid config.
 type ErrInvalidNetworkConfig struct{}
 
@@ -229,8 +226,8 @@ func (action InvalidIPTablesCfgError) Error() string {
 	return fmt.Sprintf("Invalid IPTables action '%s'", string(action))
 }
 
-// BadRequest denotes the type of this error
-func (action InvalidIPTablesCfgError) BadRequest() {}
+// Internal denotes the type of this error
+func (action InvalidIPTablesCfgError) Internal() {}
 
 // IPv4AddrAddError is returned when IPv4 address could not be added to the bridge.
 type IPv4AddrAddError struct {
