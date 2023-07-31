@@ -325,7 +325,16 @@ func (t *task) Delete(ctx context.Context, opts ...ProcessDeleteOpts) (*ExitStat
 		return nil, fmt.Errorf("task must be stopped before deletion: %s: %w", status.Status, errdefs.ErrFailedPrecondition)
 	}
 	if t.io != nil {
-		t.io.Close()
+		// io.Wait locks for restored tasks on Windows unless we call
+		// io.Close first (https://github.com/containerd/containerd/issues/5621)
+		// in other cases, preserve the contract and let IO finish before closing
+		if t.client.runtime == fmt.Sprintf("%s.%s", plugin.RuntimePlugin, "windows") {
+			t.io.Close()
+		}
+		// io.Cancel is used to cancel the io goroutine while it is in
+		// fifo-opening state. It does not stop the pipes since these
+		// should be closed on the shim's side, otherwise we might lose
+		// data from the container!
 		t.io.Cancel()
 		t.io.Wait()
 	}
