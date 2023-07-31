@@ -14,7 +14,7 @@ variable "DOCKER_BUILDTAGS" {
   default = ""
 }
 variable "DOCKER_GITCOMMIT" {
-  default = "HEAD"
+  default = null
 }
 
 # Docker version such as 23.0.0-dev. Automatically generated through Git ref.
@@ -81,7 +81,7 @@ target "_common" {
     DOCKER_STATIC = DOCKER_STATIC
     DOCKER_LDFLAGS = DOCKER_LDFLAGS
     DOCKER_BUILDTAGS = DOCKER_BUILDTAGS
-    DOCKER_GITCOMMIT = DOCKER_GITCOMMIT != "" ? DOCKER_GITCOMMIT : GITHUB_SHA
+    DOCKER_GITCOMMIT = DOCKER_GITCOMMIT != null ? DOCKER_GITCOMMIT : GITHUB_SHA
     VERSION = VERSION != "" ? VERSION : GITHUB_REF
     PLATFORM = PLATFORM
     PRODUCT = PRODUCT
