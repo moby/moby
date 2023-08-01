@@ -251,9 +251,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// - Support needs to be added to the cdi package for injecting Windows devices: https://github.com/container-orchestrated-devices/container-device-interface/issues/28
 	// - The DeviceRequests API must be extended to non-linux platforms.
 	if runtime.GOOS == "linux" && cli.Config.Experimental {
-		daemon.RegisterCDIDriver(
-			cdi.WithSpecDirs(cli.Config.CDISpecDirs...),
-		)
+		daemon.RegisterCDIDriver(cli.Config.CDISpecDirs...)
 	}
 
 	cli.d = d
