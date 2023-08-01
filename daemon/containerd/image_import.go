@@ -26,7 +26,6 @@ import (
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ImportImage imports an image, getting the archived layer data from layerReader.
@@ -67,7 +66,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 		logger.WithError(err).Debug("failed to write layer blob")
 		return "", err
 	}
-	logger = logger.WithFields(logrus.Fields{
+	logger = logger.WithFields(log.Fields{
 		"compressedDigest":   compressedDigest,
 		"uncompressedDigest": uncompressedDigest,
 	})

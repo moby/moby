@@ -33,7 +33,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	archvariant "github.com/tonistiigi/go-archvariant"
 )
 
@@ -375,11 +374,10 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 		return false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", reference.FamiliarString(ref))
 	}
 
-	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(
-		logrus.Fields{
-			"digest": dgst,
-			"remote": ref,
-		}))
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+		"digest": dgst,
+		"remote": ref,
+	}))
 
 	desc := ocispec.Descriptor{
 		MediaType: mt,

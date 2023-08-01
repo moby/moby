@@ -30,7 +30,6 @@ import (
 	"github.com/moby/patternmatcher"
 	"github.com/moby/sys/sequential"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ImpliedDirectoryMode represents the mode (Unix permissions) applied to directories that are implied by files in a
@@ -790,7 +789,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 	}
 
 	if len(xattrErrs) > 0 {
-		log.G(context.TODO()).WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(log.Fields{
 			"errors": xattrErrs,
 		}).Warn("ignored xattrs in archive: underlying filesystem doesn't support them")
 	}

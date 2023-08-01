@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const imageKeyPrefix = "moby-image-"
@@ -83,7 +82,7 @@ func (s *imageStoreForPull) updateLease(ctx context.Context, dgst digest.Digest)
 		Type: "content",
 	}
 	for _, dgst := range digested {
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"digest": dgst,
 			"lease":  lease.ID,
 		}).Debug("Adding content digest to lease")

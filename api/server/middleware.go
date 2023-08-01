@@ -1,9 +1,9 @@
 package server // import "github.com/docker/docker/api/server"
 
 import (
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
-	"github.com/sirupsen/logrus"
 )
 
 // handlerWithGlobalMiddlewares wraps the handler function for a request with
@@ -16,7 +16,7 @@ func (s *Server) handlerWithGlobalMiddlewares(handler httputils.APIFunc) httputi
 		next = m.WrapHandler(next)
 	}
 
-	if logrus.GetLevel() == logrus.DebugLevel {
+	if log.GetLevel() == log.DebugLevel {
 		next = middleware.DebugRequestMiddleware(next)
 	}
 

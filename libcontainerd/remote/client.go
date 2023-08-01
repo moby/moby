@@ -167,7 +167,7 @@ func (c *container) Start(ctx context.Context, checkpointDir string, withStdin b
 			if checkpoint != nil {
 				err := c.client.client.ContentStore().Delete(ctx, checkpoint.Digest)
 				if err != nil {
-					c.client.logger.WithError(err).WithFields(logrus.Fields{
+					c.client.logger.WithError(err).WithFields(log.Fields{
 						"ref":    checkpointDir,
 						"digest": checkpoint.Digest,
 					}).Warnf("failed to delete temporary checkpoint entry")
@@ -392,7 +392,7 @@ func (c *container) Delete(ctx context.Context) error {
 	}
 	if os.Getenv("LIBCONTAINERD_NOCLEAN") != "1" {
 		if err := os.RemoveAll(bundle); err != nil {
-			c.client.logger.WithContext(ctx).WithError(err).WithFields(logrus.Fields{
+			c.client.logger.WithContext(ctx).WithError(err).WithFields(log.Fields{
 				"container": c.c8dCtr.ID(),
 				"bundle":    bundle,
 			}).Error("failed to remove state dir")
@@ -573,7 +573,7 @@ func (c *client) processEvent(ctx context.Context, et libcontainerdtypes.EventTy
 	c.eventQ.Append(ei.ContainerID, func() {
 		err := c.backend.ProcessEvent(ei.ContainerID, et, ei)
 		if err != nil {
-			c.logger.WithContext(ctx).WithError(err).WithFields(logrus.Fields{
+			c.logger.WithContext(ctx).WithError(err).WithFields(log.Fields{
 				"container":  ei.ContainerID,
 				"event":      et,
 				"event-info": ei,
@@ -718,7 +718,7 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 					ContainerID: t.ContainerID,
 				}
 			case *apievents.TaskDelete:
-				c.logger.WithFields(logrus.Fields{
+				c.logger.WithFields(log.Fields{
 					"topic":     ev.Topic,
 					"type":      reflect.TypeOf(t),
 					"container": t.ContainerID,
@@ -726,7 +726,7 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 				).Info("ignoring event")
 				continue
 			default:
-				c.logger.WithFields(logrus.Fields{
+				c.logger.WithFields(log.Fields{
 					"topic": ev.Topic,
 					"type":  reflect.TypeOf(t),
 				},

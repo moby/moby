@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func (sr *swarmRouter) initCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -195,7 +194,7 @@ func (sr *swarmRouter) getService(ctx context.Context, w http.ResponseWriter, r 
 
 	service, err := sr.backend.GetService(vars["id"], insertDefaults)
 	if err != nil {
-		log.G(ctx).WithContext(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":      err,
 			"service-id": vars["id"],
 		}).Debug("Error getting service")
@@ -231,7 +230,7 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 
 	resp, err := sr.backend.CreateService(service, encodedAuth, queryRegistry)
 	if err != nil {
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"error":        err,
 			"service-name": service.Name,
 		}).Debug("Error creating service")
@@ -270,7 +269,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 
 	resp, err := sr.backend.UpdateService(vars["id"], version, service, flags, queryRegistry)
 	if err != nil {
-		log.G(ctx).WithContext(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":      err,
 			"service-id": vars["id"],
 		}).Debug("Error updating service")
@@ -281,7 +280,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 
 func (sr *swarmRouter) removeService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := sr.backend.RemoveService(vars["id"]); err != nil {
-		log.G(ctx).WithContext(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":      err,
 			"service-id": vars["id"],
 		}).Debug("Error removing service")
@@ -335,7 +334,7 @@ func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *h
 func (sr *swarmRouter) getNode(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	node, err := sr.backend.GetNode(vars["id"])
 	if err != nil {
-		log.G(ctx).WithContext(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":   err,
 			"node-id": vars["id"],
 		}).Debug("Error getting node")
@@ -359,7 +358,7 @@ func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r 
 	}
 
 	if err := sr.backend.UpdateNode(vars["id"], version, node); err != nil {
-		log.G(ctx).WithContext(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":   err,
 			"node-id": vars["id"],
 		}).Debug("Error updating node")
@@ -376,7 +375,7 @@ func (sr *swarmRouter) removeNode(ctx context.Context, w http.ResponseWriter, r 
 	force := httputils.BoolValue(r, "force")
 
 	if err := sr.backend.RemoveNode(vars["id"], force); err != nil {
-		log.G(ctx).WithContext(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":   err,
 			"node-id": vars["id"],
 		}).Debug("Error removing node")
@@ -406,7 +405,7 @@ func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *h
 func (sr *swarmRouter) getTask(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	task, err := sr.backend.GetTask(vars["id"])
 	if err != nil {
-		log.G(ctx).WithContext(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":   err,
 			"task-id": vars["id"],
 		}).Debug("Error getting task")

@@ -24,7 +24,7 @@ type follow struct {
 
 // Do follows the log file as it is written, starting from f at read.
 func (fl *follow) Do(f *os.File, read logPos) {
-	fl.log = log.G(context.TODO()).WithFields(logrus.Fields{
+	fl.log = log.G(context.TODO()).WithFields(log.Fields{
 		"module": "logger",
 		"file":   f.Name(),
 	})

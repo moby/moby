@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/hashicorp/go-multierror"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
@@ -217,17 +216,17 @@ func (d *driver) DeleteNetwork(nid string) error {
 	if n.secure {
 		for _, s := range n.subnets {
 			if err := programMangle(s.vni, false); err != nil {
-				log.G(context.TODO()).WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"network_id":    n.id,
-					"subnet":        s.subnetIP,
+				log.G(context.TODO()).WithFields(log.Fields{
+					"error":      err,
+					"network_id": n.id,
+					"subnet":     s.subnetIP,
 				}).Warn("Failed to clean up iptables rules during overlay network deletion")
 			}
 			if err := programInput(s.vni, false); err != nil {
-				log.G(context.TODO()).WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"network_id":    n.id,
-					"subnet":        s.subnetIP,
+				log.G(context.TODO()).WithFields(log.Fields{
+					"error":      err,
+					"network_id": n.id,
+					"subnet":     s.subnetIP,
 				}).Warn("Failed to clean up iptables rules during overlay network deletion")
 			}
 		}

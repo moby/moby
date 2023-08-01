@@ -23,7 +23,6 @@ import (
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -200,7 +199,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			return errors.Wrap(err, "error creating secret mount path")
 		}
 
-		log.G(context.TODO()).WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(log.Fields{
 			"name": s.File.Name,
 			"path": fPath,
 		}).Debug("injecting secret")
@@ -251,7 +250,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			return errors.Wrap(err, "error creating config mount path")
 		}
 
-		log.G(context.TODO()).WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(log.Fields{
 			"name": configRef.File.Name,
 			"path": fPath,
 		}).Debug("injecting config")

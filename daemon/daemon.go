@@ -192,7 +192,7 @@ func (daemon *Daemon) UsesSnapshotter() bool {
 // RegistryHosts returns the registry hosts configuration for the host component
 // of a distribution image reference.
 func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) {
-	var m = map[string]resolverconfig.RegistryConfig{}
+	m := map[string]resolverconfig.RegistryConfig{}
 
 	mirrors := daemon.registryService.ServiceConfig().Mirrors
 	m["docker.io"] = resolverconfig.RegistryConfig{Mirrors: mirrors}
@@ -268,27 +268,27 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			log := log.G(context.TODO()).WithField("container", id)
+			logger := log.G(context.TODO()).WithField("container", id)
 
 			c, err := daemon.load(id)
 			if err != nil {
-				log.WithError(err).Error("failed to load container")
+				logger.WithError(err).Error("failed to load container")
 				return
 			}
 			if c.Driver != daemon.imageService.StorageDriver() {
 				// Ignore the container if it wasn't created with the current storage-driver
-				log.Debugf("not restoring container because it was created with another storage driver (%s)", c.Driver)
+				logger.Debugf("not restoring container because it was created with another storage driver (%s)", c.Driver)
 				return
 			}
 			if accessor, ok := daemon.imageService.(layerAccessor); ok {
 				rwlayer, err := accessor.GetLayerByID(c.ID)
 				if err != nil {
-					log.WithError(err).Error("failed to load container mount")
+					logger.WithError(err).Error("failed to load container mount")
 					return
 				}
 				c.RWLayer = rwlayer
 			}
-			log.WithFields(logrus.Fields{
+			logger.WithFields(log.Fields{
 				"running": c.IsRunning(),
 				"paused":  c.IsPaused(),
 			}).Debug("loaded container")
@@ -311,17 +311,17 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			log := log.G(context.TODO()).WithField("container", c.ID)
+			logger := log.G(context.TODO()).WithField("container", c.ID)
 
 			if err := daemon.registerName(c); err != nil {
-				log.WithError(err).Errorf("failed to register container name: %s", c.Name)
+				logger.WithError(err).Errorf("failed to register container name: %s", c.Name)
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
 				return
 			}
 			if err := daemon.Register(c); err != nil {
-				log.WithError(err).Error("failed to register container")
+				logger.WithError(err).Error("failed to register container")
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
@@ -338,16 +338,16 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			log := log.G(context.TODO()).WithField("container", c.ID)
+			baseLogger := log.G(context.TODO()).WithField("container", c.ID)
 
 			if err := daemon.checkpointAndSave(c); err != nil {
-				log.WithError(err).Error("error saving backported mountspec to disk")
+				baseLogger.WithError(err).Error("error saving backported mountspec to disk")
 			}
 
 			daemon.setStateCounter(c)
 
 			logger := func(c *container.Container) *logrus.Entry {
-				return log.WithFields(logrus.Fields{
+				return baseLogger.WithFields(log.Fields{
 					"running":    c.IsRunning(),
 					"paused":     c.IsPaused(),
 					"restarting": c.IsRestarting(),
@@ -382,7 +382,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 					} else if !cfg.LiveRestoreEnabled {
 						logger(c).Debug("shutting down container considered alive by containerd")
 						if err := daemon.shutdownContainer(c); err != nil && !errdefs.IsNotFound(err) {
-							log.WithError(err).Error("error shutting down container")
+							baseLogger.WithError(err).Error("error shutting down container")
 							return
 						}
 						status = containerd.Stopped
@@ -406,7 +406,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 					case containerd.Paused, containerd.Pausing:
 						// nothing to do
 					case containerd.Unknown, containerd.Stopped, "":
-						log.WithField("status", status).Error("unexpected status for paused container during restore")
+						baseLogger.WithField("status", status).Error("unexpected status for paused container during restore")
 					default:
 						// running
 						c.Lock()
@@ -414,7 +414,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 						daemon.setStateCounter(c)
 						daemon.updateHealthMonitor(c)
 						if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-							log.WithError(err).Error("failed to update paused container state")
+							baseLogger.WithError(err).Error("failed to update paused container state")
 						}
 						c.Unlock()
 					}
@@ -438,7 +438,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 					c.SetStopped(&ces)
 					daemon.Cleanup(c)
 					if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-						log.WithError(err).Error("failed to update stopped container state")
+						baseLogger.WithError(err).Error("failed to update stopped container state")
 					}
 					c.Unlock()
 					logger(c).Debug("set stopped state")
@@ -502,9 +502,9 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 				c.RemovalInProgress = false
 				c.Dead = true
 				if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-					log.WithError(err).Error("failed to update RemovalInProgress container state")
+					baseLogger.WithError(err).Error("failed to update RemovalInProgress container state")
 				} else {
-					log.Debugf("reset RemovalInProgress state for container")
+					baseLogger.Debugf("reset RemovalInProgress state for container")
 				}
 			}
 			c.Unlock()
@@ -1170,7 +1170,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	engineCpus.Set(float64(info.NCPU))
 	engineMemory.Set(float64(info.MemTotal))
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"version":     dockerversion.Version,
 		"commit":      dockerversion.GitCommit,
 		"graphdriver": d.ImageService().StorageDriver(),
@@ -1256,16 +1256,16 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 			if !c.IsRunning() {
 				return
 			}
-			log := log.G(ctx).WithField("container", c.ID)
-			log.Debug("shutting down container")
+			logger := log.G(ctx).WithField("container", c.ID)
+			logger.Debug("shutting down container")
 			if err := daemon.shutdownContainer(c); err != nil {
-				log.WithError(err).Error("failed to shut down container")
+				logger.WithError(err).Error("failed to shut down container")
 				return
 			}
 			if mountid, err := daemon.imageService.GetLayerMountID(c.ID); err == nil {
 				daemon.cleanupMountsByID(mountid)
 			}
-			log.Debugf("shut down container")
+			logger.Debugf("shut down container")
 		})
 	}
 

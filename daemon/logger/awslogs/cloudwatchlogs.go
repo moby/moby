@@ -27,7 +27,6 @@ import (
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -378,7 +377,7 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 		return nil, errors.Wrap(err, "could not initialize AWS SDK config")
 	}
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"region": *region,
 	}).Debug("Created awslogs client")
 
@@ -477,7 +476,7 @@ func (l *logStream) createLogGroup() error {
 	}); err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) {
-			fields := logrus.Fields{
+			fields := log.Fields{
 				"errorCode":      apiErr.ErrorCode(),
 				"message":        apiErr.ErrorMessage(),
 				"logGroupName":   l.logGroupName,
@@ -499,7 +498,7 @@ func (l *logStream) createLogGroup() error {
 func (l *logStream) createLogStream() error {
 	// Directly return if we do not want to create log stream.
 	if !l.logCreateStream {
-		log.G(context.TODO()).WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(log.Fields{
 			"logGroupName":    l.logGroupName,
 			"logStreamName":   l.logStreamName,
 			"logCreateStream": l.logCreateStream,
@@ -516,7 +515,7 @@ func (l *logStream) createLogStream() error {
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) {
-			fields := logrus.Fields{
+			fields := log.Fields{
 				"errorCode":     apiErr.ErrorCode(),
 				"message":       apiErr.ErrorMessage(),
 				"logGroupName":  l.logGroupName,
@@ -695,7 +694,7 @@ func (l *logStream) publishBatch(batch *eventBatch) {
 		if apiErr := (*types.DataAlreadyAcceptedException)(nil); errors.As(err, &apiErr) {
 			// already submitted, just grab the correct sequence token
 			nextSequenceToken = apiErr.ExpectedSequenceToken
-			log.G(context.TODO()).WithFields(logrus.Fields{
+			log.G(context.TODO()).WithFields(log.Fields{
 				"errorCode":     apiErr.ErrorCode(),
 				"message":       apiErr.ErrorMessage(),
 				"logGroupName":  l.logGroupName,
@@ -725,7 +724,7 @@ func (l *logStream) putLogEvents(events []types.InputLogEvent, sequenceToken *st
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) {
-			log.G(context.TODO()).WithFields(logrus.Fields{
+			log.G(context.TODO()).WithFields(log.Fields{
 				"errorCode":     apiErr.ErrorCode(),
 				"message":       apiErr.ErrorMessage(),
 				"logGroupName":  l.logGroupName,

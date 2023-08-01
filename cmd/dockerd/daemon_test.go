@@ -211,14 +211,15 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 func TestConfigureDaemonLogs(t *testing.T) {
 	conf := &config.Config{}
 	configureDaemonLogs(conf)
-	assert.Check(t, is.Equal(logrus.InfoLevel, logrus.GetLevel()))
-
-	conf.LogLevel = "warn"
-	configureDaemonLogs(conf)
-	assert.Check(t, is.Equal(logrus.WarnLevel, logrus.GetLevel()))
+	assert.Check(t, is.Equal(log.InfoLevel, log.GetLevel()))
 
 	// log level should not be changed when passing an invalid value
 	conf.LogLevel = "foobar"
 	configureDaemonLogs(conf)
-	assert.Check(t, is.Equal(logrus.WarnLevel, logrus.GetLevel()))
+	assert.Check(t, is.Equal(log.InfoLevel, log.GetLevel()))
+
+	conf.LogLevel = "warn"
+	configureDaemonLogs(conf)
+	// TODO (thaJeztah): add more aliases in log package
+	assert.Check(t, is.Equal(logrus.WarnLevel, log.GetLevel()))
 }

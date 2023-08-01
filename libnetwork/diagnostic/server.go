@@ -14,7 +14,6 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/internal/caller"
 	"github.com/docker/docker/pkg/stack"
-	"github.com/sirupsen/logrus"
 )
 
 // HTTPHandlerFunc TODO
@@ -130,24 +129,32 @@ func (s *Server) IsDiagnosticEnabled() bool {
 }
 
 func notImplemented(ctx interface{}, w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() //nolint:errcheck
-	_, json := ParseHTTPFormOptions(r)
+	_ = r.ParseForm()
+	_, jsonOutput := ParseHTTPFormOptions(r)
 	rsp := WrongCommand("not implemented", fmt.Sprintf("URL path: %s no method implemented check /help\n", r.URL.Path))
 
 	// audit logs
-	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
-	log.Info("command not implemented done")
+	log.G(context.TODO()).WithFields(log.Fields{
+		"component": "diagnostic",
+		"remoteIP":  r.RemoteAddr,
+		"method":    caller.Name(0),
+		"url":       r.URL.String(),
+	}).Info("command not implemented done")
 
-	HTTPReply(w, rsp, json) //nolint:errcheck
+	_, _ = HTTPReply(w, rsp, jsonOutput)
 }
 
 func help(ctx interface{}, w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() //nolint:errcheck
-	_, json := ParseHTTPFormOptions(r)
+	_ = r.ParseForm()
+	_, jsonOutput := ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
-	log.Info("help done")
+	log.G(context.TODO()).WithFields(log.Fields{
+		"component": "diagnostic",
+		"remoteIP":  r.RemoteAddr,
+		"method":    caller.Name(0),
+		"url":       r.URL.String(),
+	}).Info("help done")
 
 	n, ok := ctx.(*Server)
 	var result string
@@ -155,35 +162,39 @@ func help(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		for path := range n.registeredHanders {
 			result += fmt.Sprintf("%s\n", path)
 		}
-		HTTPReply(w, CommandSucceed(&StringCmd{Info: result}), json) //nolint:errcheck
+		_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: result}), jsonOutput)
 	}
 }
 
 func ready(ctx interface{}, w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() //nolint:errcheck
-	_, json := ParseHTTPFormOptions(r)
+	_ = r.ParseForm()
+	_, jsonOutput := ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
-	log.Info("ready done")
-	HTTPReply(w, CommandSucceed(&StringCmd{Info: "OK"}), json) //nolint:errcheck
+	log.G(context.TODO()).WithFields(log.Fields{
+		"component": "diagnostic",
+		"remoteIP":  r.RemoteAddr,
+		"method":    caller.Name(0),
+		"url":       r.URL.String(),
+	}).Info("ready done")
+	_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: "OK"}), jsonOutput)
 }
 
 func stackTrace(ctx interface{}, w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() //nolint:errcheck
-	_, json := ParseHTTPFormOptions(r)
+	_ = r.ParseForm()
+	_, jsonOutput := ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
-	log.Info("stack trace")
+	logger := log.G(context.TODO()).WithFields(log.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	logger.Info("stack trace")
 
 	path, err := stack.DumpToFile("/tmp/")
 	if err != nil {
-		log.WithError(err).Error("failed to write goroutines dump")
-		HTTPReply(w, FailCommand(err), json) //nolint:errcheck
+		logger.WithError(err).Error("failed to write goroutines dump")
+		_, _ = HTTPReply(w, FailCommand(err), jsonOutput)
 	} else {
-		log.Info("stack trace done")
-		HTTPReply(w, CommandSucceed(&StringCmd{Info: fmt.Sprintf("goroutine stacks written to %s", path)}), json) //nolint:errcheck
+		logger.Info("stack trace done")
+		_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: "goroutine stacks written to " + path}), jsonOutput)
 	}
 }
 
@@ -203,12 +214,12 @@ type JSONOutput struct {
 // ParseHTTPFormOptions easily parse the JSON printing options
 func ParseHTTPFormOptions(r *http.Request) (bool, *JSONOutput) {
 	_, unsafe := r.Form["unsafe"]
-	v, json := r.Form["json"]
+	v, enableJSON := r.Form["json"]
 	var pretty bool
 	if len(v) > 0 {
 		pretty = v[0] == "pretty"
 	}
-	return unsafe, &JSONOutput{enable: json, prettyPrint: pretty}
+	return unsafe, &JSONOutput{enable: enableJSON, prettyPrint: pretty}
 }
 
 // HTTPReply helper function that takes care of sending the message out

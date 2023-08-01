@@ -13,7 +13,6 @@ import (
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/restartmanager"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func (daemon *Daemon) setStateCounter(c *container.Container) {
@@ -43,9 +42,9 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		es, err := tsk.Delete(ctx)
 		cancel()
 		if err != nil {
-			log.G(ctx).WithFields(logrus.Fields{
-				logrus.ErrorKey: err,
-				"container":     c.ID,
+			log.G(ctx).WithFields(log.Fields{
+				"error":     err,
+				"container": c.ID,
 			}).Warn("failed to delete container from containerd")
 		} else {
 			exitStatus = container.ExitStatus{
@@ -73,8 +72,8 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	execDuration := time.Since(c.StartedAt)
 	restart, wait, err := c.RestartManager().ShouldRestart(uint32(exitStatus.ExitCode), daemonShutdown || c.HasBeenManuallyStopped, execDuration)
 	if err != nil {
-		log.G(ctx).WithFields(logrus.Fields{
-			logrus.ErrorKey:          err,
+		log.G(ctx).WithFields(log.Fields{
+			"error":                  err,
 			"container":              c.ID,
 			"restartCount":           c.RestartCount,
 			"exitStatus":             exitStatus,
@@ -93,7 +92,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 
 	if restart {
 		c.RestartCount++
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"container":     c.ID,
 			"restartCount":  c.RestartCount,
 			"exitStatus":    exitStatus,
@@ -207,10 +206,10 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			if execConfig.Process != nil {
 				go func() {
 					if _, err := execConfig.Process.Delete(context.Background()); err != nil {
-						log.G(ctx).WithFields(logrus.Fields{
-							logrus.ErrorKey: err,
-							"container":     ei.ContainerID,
-							"process":       ei.ProcessID,
+						log.G(ctx).WithFields(log.Fields{
+							"error":     err,
+							"container": ei.ContainerID,
+							"process":   ei.ProcessID,
 						}).Warn("failed to delete process")
 					}
 				}()
@@ -232,9 +231,9 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 				if errdefs.IsNotFound(err) {
 					// The container was started by not-docker and so could have been deleted by
 					// not-docker before we got around to loading it from containerd.
-					log.G(context.TODO()).WithFields(logrus.Fields{
-						logrus.ErrorKey: err,
-						"container":     c.ID,
+					log.G(context.TODO()).WithFields(log.Fields{
+						"error":     err,
+						"container": c.ID,
 					}).Debug("could not load containerd container for start event")
 					return nil
 				}
@@ -243,9 +242,9 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			tsk, err := ctr.Task(context.Background())
 			if err != nil {
 				if errdefs.IsNotFound(err) {
-					log.G(context.TODO()).WithFields(logrus.Fields{
-						logrus.ErrorKey: err,
-						"container":     c.ID,
+					log.G(context.TODO()).WithFields(log.Fields{
+						"error":     err,
+						"container": c.ID,
 					}).Debug("failed to load task for externally-started container")
 					return nil
 				}
@@ -311,5 +310,5 @@ func (daemon *Daemon) autoRemove(cfg *config.Config, c *container.Container) {
 		return
 	}
 
-	log.G(context.TODO()).WithFields(logrus.Fields{logrus.ErrorKey: err, "container": c.ID}).Error("error removing container")
+	log.G(context.TODO()).WithFields(log.Fields{"error": err, "container": c.ID}).Error("error removing container")
 }

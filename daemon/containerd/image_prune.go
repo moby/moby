@@ -15,7 +15,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var imagesAcceptedFilters = map[string]bool{
@@ -80,7 +79,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 
 		if !danglingOnly || isDanglingImage(img) {
 			canBePruned := filterFunc(img)
-			log.G(ctx).WithFields(logrus.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"image":       img.Name,
 				"canBePruned": canBePruned,
 			}).Debug("considering image for pruning")
@@ -116,7 +115,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 		}
 
 		ref, err := reference.ParseNormalizedNamed(ctr.Config.Image)
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"ctr":          ctr.ID,
 			"image":        ref,
 			"nameParseErr": err,

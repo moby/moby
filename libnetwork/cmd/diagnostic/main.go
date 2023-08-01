@@ -12,8 +12,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/diagnostic"
@@ -53,7 +51,7 @@ func main() {
 	flag.Parse()
 
 	if *verbosePtr {
-		logrus.SetLevel(logrus.DebugLevel)
+		_ = log.SetLevel("debug")
 	}
 
 	if _, ok := os.LookupEnv("DIND_CLIENT"); !ok && *joinPtr {
