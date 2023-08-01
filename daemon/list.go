@@ -40,14 +40,10 @@ var acceptedPsFilterTags = map[string]bool{
 // iterationAction represents possible outcomes happening during the container iteration.
 type iterationAction int
 
-// containerReducer represents a reducer for a container.
-// Returns the object to serialize by the api.
-type containerReducer func(context.Context, *container.Snapshot) (*types.Container, error)
-
 const (
-	// includeContainer is the action to include a container in the reducer.
+	// includeContainer is the action to include a container in the formatter.
 	includeContainer iterationAction = iota
-	// excludeContainer is the action to exclude a container in the reducer.
+	// excludeContainer is the action to exclude a container in the formatter.
 	excludeContainer
 	// stopIteration is the action to stop iterating over the list of containers.
 	stopIteration
@@ -107,7 +103,43 @@ func (r byCreatedDescending) Less(i, j int) bool {
 
 // Containers returns the list of containers to show given the user's filtering.
 func (daemon *Daemon) Containers(ctx context.Context, config *types.ContainerListOptions) ([]*types.Container, error) {
-	return daemon.reduceContainers(ctx, config, daemon.refreshImage)
+	if err := config.Filters.Validate(acceptedPsFilterTags); err != nil {
+		return nil, err
+	}
+
+	var (
+		view       = daemon.containersReplica.Snapshot()
+		containers = []*types.Container{}
+	)
+
+	filter, err := daemon.foldFilter(ctx, view, config)
+	if err != nil {
+		return nil, err
+	}
+
+	// fastpath to only look at a subset of containers if specific name
+	// or ID matches were provided by the user--otherwise we potentially
+	// end up querying many more containers than intended
+	containerList, err := daemon.filterByNameIDMatches(view, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range containerList {
+		t, err := daemon.formatContainerForPs(ctx, &containerList[i], filter)
+		if err != nil {
+			if err != errStopIteration {
+				return nil, err
+			}
+			break
+		}
+		if t != nil {
+			containers = append(containers, t)
+			filter.idx++
+		}
+	}
+
+	return containers, nil
 }
 
 func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listContext) ([]container.Snapshot, error) {
@@ -179,49 +211,8 @@ func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listCo
 	return cntrs, nil
 }
 
-// reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
-func (daemon *Daemon) reduceContainers(ctx context.Context, config *types.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
-	if err := config.Filters.Validate(acceptedPsFilterTags); err != nil {
-		return nil, err
-	}
-
-	var (
-		view       = daemon.containersReplica.Snapshot()
-		containers = []*types.Container{}
-	)
-
-	filter, err := daemon.foldFilter(ctx, view, config)
-	if err != nil {
-		return nil, err
-	}
-
-	// fastpath to only look at a subset of containers if specific name
-	// or ID matches were provided by the user--otherwise we potentially
-	// end up querying many more containers than intended
-	containerList, err := daemon.filterByNameIDMatches(view, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range containerList {
-		t, err := daemon.reducePsContainer(ctx, &containerList[i], filter, reducer)
-		if err != nil {
-			if err != errStopIteration {
-				return nil, err
-			}
-			break
-		}
-		if t != nil {
-			containers = append(containers, t)
-			filter.idx++
-		}
-	}
-
-	return containers, nil
-}
-
-// reducePsContainer is the basic representation for a container as expected by the ps command.
-func (daemon *Daemon) reducePsContainer(ctx context.Context, container *container.Snapshot, filter *listContext, reducer containerReducer) (*types.Container, error) {
+// formatContainerForPs formats a container for the ps output.
+func (daemon *Daemon) formatContainerForPs(ctx context.Context, container *container.Snapshot, filter *listContext) (*types.Container, error) {
 	// filter containers to return
 	switch includeContainerInList(container, filter) {
 	case excludeContainer:
@@ -231,7 +222,7 @@ func (daemon *Daemon) reducePsContainer(ctx context.Context, container *containe
 	}
 
 	// transform internal container struct into api structs
-	newC, err := reducer(ctx, container)
+	newC, err := daemon.refreshImage(ctx, container)
 	if err != nil {
 		return nil, err
 	}
