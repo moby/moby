@@ -891,7 +891,7 @@ func (n *Network) resolveDriver(name string, load bool) (driverapi.Driver, drive
 	c := n.getController()
 
 	// Check if a driver for the specified network type is available
-	d, cap := c.drvRegistry.Driver(name)
+	d, capabilities := c.drvRegistry.Driver(name)
 	if d == nil {
 		if load {
 			err := c.loadDriver(name)
@@ -899,7 +899,7 @@ func (n *Network) resolveDriver(name string, load bool) (driverapi.Driver, drive
 				return nil, driverapi.Capability{}, err
 			}
 
-			d, cap = c.drvRegistry.Driver(name)
+			d, capabilities = c.drvRegistry.Driver(name)
 			if d == nil {
 				return nil, driverapi.Capability{}, fmt.Errorf("could not resolve driver %s in registry", name)
 			}
@@ -909,19 +909,19 @@ func (n *Network) resolveDriver(name string, load bool) (driverapi.Driver, drive
 		}
 	}
 
-	return d, cap, nil
+	return d, capabilities, nil
 }
 
 func (n *Network) driverIsMultihost() bool {
-	_, cap, err := n.resolveDriver(n.networkType, true)
+	_, capabilities, err := n.resolveDriver(n.networkType, true)
 	if err != nil {
 		return false
 	}
-	return cap.ConnectivityScope == scope.Global
+	return capabilities.ConnectivityScope == scope.Global
 }
 
 func (n *Network) driver(load bool) (driverapi.Driver, error) {
-	d, cap, err := n.resolveDriver(n.networkType, load)
+	d, capabilities, err := n.resolveDriver(n.networkType, load)
 	if err != nil {
 		return nil, err
 	}
@@ -929,7 +929,7 @@ func (n *Network) driver(load bool) (driverapi.Driver, error) {
 	n.mu.Lock()
 	// If load is not required, driver, cap and err may all be nil
 	if n.scope == "" {
-		n.scope = cap.DataScope
+		n.scope = capabilities.DataScope
 	}
 	if n.dynamic {
 		// If the network is dynamic, then it is swarm
@@ -1769,12 +1769,12 @@ func (n *Network) Peers() []networkdb.PeerInfo {
 		return []networkdb.PeerInfo{}
 	}
 
-	agent := n.getController().getAgent()
-	if agent == nil {
+	a := n.getController().getAgent()
+	if a == nil {
 		return []networkdb.PeerInfo{}
 	}
 
-	return agent.networkDB.Peers(n.ID())
+	return a.networkDB.Peers(n.ID())
 }
 
 func (n *Network) DriverOptions() map[string]string {
