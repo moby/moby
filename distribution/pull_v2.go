@@ -436,13 +436,9 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 
 	switch v := manifest.(type) {
 	case *schema1.SignedManifest:
-		// give registries time to upgrade to schema2 and only warn if we know a registry has been upgraded long time ago
-		// TODO: condition to be removed
-		if reference.Domain(ref) == "docker.io" {
-			msg := fmt.Sprintf("[DEPRECATION NOTICE] Docker Image Format v1, and Docker Image manifest version 2, schema 1 support will be removed in an upcoming release. Suggest the author of %s to upgrade the image to the OCI Format, or Docker Image manifest v2, schema 2. More information at https://docs.docker.com/go/deprecated-image-specs/", ref)
-			log.G(ctx).Warn(msg)
-			progress.Message(p.config.ProgressOutput, "", msg)
-		}
+		msg := fmt.Sprintf("[DEPRECATION NOTICE] Docker Image Format v1, and Docker Image manifest version 2, schema 1 support will be removed in an upcoming release. Suggest the author of %s to upgrade the image to the OCI Format, or Docker Image manifest v2, schema 2. More information at https://docs.docker.com/go/deprecated-image-specs/", ref)
+		log.G(ctx).Warn(msg)
+		progress.Message(p.config.ProgressOutput, "", msg)
 
 		id, manifestDigest, err = p.pullSchema1(ctx, ref, v, platform)
 		if err != nil {
