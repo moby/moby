@@ -43,11 +43,13 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -357,6 +359,16 @@ func (cli *Client) Dialer() func(context.Context) (net.Conn, error) {
 				return transport.DialContext(ctx, cli.proto, cli.addr)
 			}
 		}
-		return fallbackDial(cli.proto, cli.addr, resolveTLSConfig(cli.client.Transport))
+		switch cli.proto {
+		case "unix":
+			return net.Dial(cli.proto, cli.addr)
+		case "npipe":
+			return sockets.DialPipe(cli.addr, 32*time.Second)
+		default:
+			if tlsConfig := resolveTLSConfig(cli.client.Transport); tlsConfig != nil {
+				return tls.Dial(cli.proto, cli.addr, tlsConfig)
+			}
+			return net.Dial(cli.proto, cli.addr)
+		}
 	}
 }
