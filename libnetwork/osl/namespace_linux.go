@@ -319,7 +319,7 @@ func createNamespaceFile(path string) (err error) {
 // can be added dynamically.
 type networkNamespace struct {
 	path         string
-	iFaces       []*nwIface
+	iFaces       []*Interface
 	gw           net.IP
 	gwv6         net.IP
 	staticRoutes []*types.StaticRoute
@@ -335,11 +335,9 @@ type networkNamespace struct {
 // method. Note that this doesn't include network interfaces added in any
 // other way (such as the default loopback interface which is automatically
 // created on creation of a sandbox).
-func (n *networkNamespace) Interfaces() []Interface {
-	ifaces := make([]Interface, len(n.iFaces))
-	for i, iface := range n.iFaces {
-		ifaces[i] = iface
-	}
+func (n *networkNamespace) Interfaces() []*Interface {
+	ifaces := make([]*Interface, len(n.iFaces))
+	copy(ifaces, n.iFaces)
 	return ifaces
 }
 
@@ -483,7 +481,7 @@ func (n *networkNamespace) Destroy() error {
 func (n *networkNamespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
 	// restore interfaces
 	for name, opts := range ifsopt {
-		i := &nwIface{
+		i := &Interface{
 			srcName: name.SrcName,
 			dstName: name.DstPrefix,
 			ns:      n,

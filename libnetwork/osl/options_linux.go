@@ -24,7 +24,7 @@ func WithFamily(family int) NeighOption {
 	}
 }
 
-func (i *nwIface) processInterfaceOptions(options ...IfaceOption) error {
+func (i *Interface) processInterfaceOptions(options ...IfaceOption) error {
 	for _, opt := range options {
 		if opt != nil {
 			// TODO(thaJeztah): use multi-error instead of returning early.
@@ -38,7 +38,7 @@ func (i *nwIface) processInterfaceOptions(options ...IfaceOption) error {
 
 // WithIsBridge sets whether the interface is a bridge.
 func WithIsBridge(isBridge bool) IfaceOption {
-	return func(i *nwIface) error {
+	return func(i *Interface) error {
 		i.bridge = isBridge
 		return nil
 	}
@@ -48,7 +48,7 @@ func WithIsBridge(isBridge bool) IfaceOption {
 // master interface name should refer to the srcName of a previously added
 // interface of type bridge.
 func WithMaster(name string) IfaceOption {
-	return func(i *nwIface) error {
+	return func(i *Interface) error {
 		i.master = name
 		return nil
 	}
@@ -56,7 +56,7 @@ func WithMaster(name string) IfaceOption {
 
 // WithMACAddress sets the interface MAC-address.
 func WithMACAddress(mac net.HardwareAddr) IfaceOption {
-	return func(i *nwIface) error {
+	return func(i *Interface) error {
 		i.mac = mac
 		return nil
 	}
@@ -64,7 +64,7 @@ func WithMACAddress(mac net.HardwareAddr) IfaceOption {
 
 // WithIPv4Address sets the IPv4 address of the interface.
 func WithIPv4Address(addr *net.IPNet) IfaceOption {
-	return func(i *nwIface) error {
+	return func(i *Interface) error {
 		i.address = addr
 		return nil
 	}
@@ -72,7 +72,7 @@ func WithIPv4Address(addr *net.IPNet) IfaceOption {
 
 // WithIPv6Address sets the IPv6 address of the interface.
 func WithIPv6Address(addr *net.IPNet) IfaceOption {
-	return func(i *nwIface) error {
+	return func(i *Interface) error {
 		i.addressIPv6 = addr
 		return nil
 	}
@@ -80,7 +80,7 @@ func WithIPv6Address(addr *net.IPNet) IfaceOption {
 
 // WithLinkLocalAddresses set the link-local IP addresses of the interface.
 func WithLinkLocalAddresses(list []*net.IPNet) IfaceOption {
-	return func(i *nwIface) error {
+	return func(i *Interface) error {
 		i.llAddrs = list
 		return nil
 	}
@@ -88,7 +88,7 @@ func WithLinkLocalAddresses(list []*net.IPNet) IfaceOption {
 
 // WithRoutes sets the interface routes.
 func WithRoutes(routes []*net.IPNet) IfaceOption {
-	return func(i *nwIface) error {
+	return func(i *Interface) error {
 		i.routes = routes
 		return nil
 	}

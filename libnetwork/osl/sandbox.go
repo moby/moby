@@ -22,7 +22,7 @@ type Iface struct {
 }
 
 // IfaceOption is a function option type to set interface options.
-type IfaceOption func(i *nwIface) error
+type IfaceOption func(i *Interface) error
 
 // NeighOption is a function option type to set neighbor options.
 type NeighOption func(nh *neigh)
@@ -100,7 +100,7 @@ type Info interface {
 	// method. Note that this doesn't include network interfaces added in any
 	// other way (such as the default loopback interface which is automatically
 	// created on creation of a sandbox).
-	Interfaces() []Interface
+	Interfaces() []*Interface
 
 	// Gateway returns the IPv4 gateway for the sandbox.
 	Gateway() net.IP
@@ -112,46 +112,4 @@ type Info interface {
 	// directly connected routes are stored on the particular interface they
 	// refer to.
 	StaticRoutes() []*types.StaticRoute
-}
-
-// Interface represents the settings and identity of a network device. It is
-// used as a return type for Network.Link, and it is common practice for the
-// caller to use this information when moving interface SrcName from host
-// namespace to DstName in a different net namespace with the appropriate
-// network settings.
-type Interface interface {
-	// SrcName returns the name of the interface in the origin network namespace.
-	SrcName() string
-
-	// DstName returns the name that will be assigned to the interface once
-	// moved inside a network namespace. When the caller passes in a DstName,
-	// it is only expected to pass a prefix. The name will be modified with an
-	// auto-generated suffix.
-	DstName() string
-
-	// Address returns the IPv4 address for the interface.
-	Address() *net.IPNet
-
-	// AddressIPv6 returns the IPv6 address for the interface.
-	AddressIPv6() *net.IPNet
-
-	// LinkLocalAddresses returns the link-local IP addresses assigned to the
-	// interface.
-	LinkLocalAddresses() []*net.IPNet
-
-	// Routes returns IP routes for the interface.
-	Routes() []*net.IPNet
-
-	// Bridge returns true if the interface is a bridge.
-	Bridge() bool
-
-	// Master returns the srcname of the master interface for this interface.
-	Master() string
-
-	// Remove an interface from the sandbox by renaming to original name
-	// and moving it out of the sandbox.
-	Remove() error
-
-	// Statistics returns the statistics for this interface
-	Statistics() (*types.InterfaceStatistics, error)
 }

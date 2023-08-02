@@ -2,4 +2,4 @@
 
 package osl
 
-type nwIface struct{}
+type Interface struct{}
