@@ -55,11 +55,6 @@ func (i *Interface) Bridge() bool {
 	return i.bridge
 }
 
-// Master returns the srcname of the master interface for this interface.
-func (i *Interface) Master() string {
-	return i.master
-}
-
 func (i *Interface) MacAddress() net.HardwareAddr {
 	return types.GetMacCopy(i.mac)
 }
