@@ -559,101 +559,92 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 }
 
 // GetNetworks returns a list of all networks
-func (daemon *Daemon) GetNetworks(filter filters.Args, config types.NetworkListConfig) ([]types.NetworkResource, error) {
-	networks := daemon.getAllNetworks()
-
-	list := make([]types.NetworkResource, 0, len(networks))
+func (daemon *Daemon) GetNetworks(filter filters.Args, config types.NetworkListConfig) (networks []types.NetworkResource, err error) {
 	var idx map[string]*libnetwork.Network
 	if config.Detailed {
 		idx = make(map[string]*libnetwork.Network)
 	}
 
-	for _, n := range networks {
+	allNetworks := daemon.getAllNetworks()
+	networks = make([]types.NetworkResource, 0, len(allNetworks))
+	for _, n := range allNetworks {
 		nr := buildNetworkResource(n)
-		list = append(list, nr)
+		networks = append(networks, nr)
 		if config.Detailed {
 			idx[nr.ID] = n
 		}
 	}
 
-	var err error
-	list, err = internalnetwork.FilterNetworks(list, filter)
+	networks, err = internalnetwork.FilterNetworks(networks, filter)
 	if err != nil {
 		return nil, err
 	}
 
 	if config.Detailed {
-		for i := range list {
-			np := &list[i]
-			buildDetailedNetworkResources(np, idx[np.ID], config.Verbose)
-			list[i] = *np
+		for i, nw := range networks {
+			networks[i].Containers = buildContainerAttachments(idx[nw.ID])
+			if config.Verbose {
+				networks[i].Services = buildServiceAttachments(idx[nw.ID])
+			}
 		}
 	}
 
-	return list, nil
+	return networks, nil
 }
 
+// buildNetworkResource builds a [types.NetworkResource] from the given
+// [libnetwork.Network], to be returned by the API.
 func buildNetworkResource(nw *libnetwork.Network) types.NetworkResource {
-	r := types.NetworkResource{}
 	if nw == nil {
-		return r
+		return types.NetworkResource{}
 	}
 
 	info := nw.Info()
-	r.Name = nw.Name()
-	r.ID = nw.ID()
-	r.Created = info.Created()
-	r.Scope = info.Scope()
-	r.Driver = nw.Type()
-	r.EnableIPv6 = info.IPv6Enabled()
-	r.Internal = info.Internal()
-	r.Attachable = info.Attachable()
-	r.Ingress = info.Ingress()
-	r.Options = info.DriverOptions()
-	r.Containers = make(map[string]types.EndpointResource)
-	buildIpamResources(&r, info)
-	r.Labels = info.Labels()
-	r.ConfigOnly = info.ConfigOnly()
-
-	if cn := info.ConfigFrom(); cn != "" {
-		r.ConfigFrom = network.ConfigReference{Network: cn}
+	return types.NetworkResource{
+		Name:       nw.Name(),
+		ID:         nw.ID(),
+		Created:    info.Created(),
+		Scope:      info.Scope(),
+		Driver:     nw.Type(),
+		EnableIPv6: info.IPv6Enabled(),
+		IPAM:       buildIPAMResources(info),
+		Internal:   info.Internal(),
+		Attachable: info.Attachable(),
+		Ingress:    info.Ingress(),
+		ConfigFrom: network.ConfigReference{Network: info.ConfigFrom()},
+		ConfigOnly: info.ConfigOnly(),
+		Containers: map[string]types.EndpointResource{},
+		Options:    info.DriverOptions(),
+		Labels:     info.Labels(),
+		Peers:      buildPeerInfoResources(info.Peers()),
 	}
-
-	peers := info.Peers()
-	if len(peers) != 0 {
-		r.Peers = buildPeerInfoResources(peers)
-	}
-
-	return r
 }
 
-func buildDetailedNetworkResources(r *types.NetworkResource, nw *libnetwork.Network, verbose bool) {
-	if nw == nil {
-		return
-	}
-
-	epl := nw.Endpoints()
-	for _, e := range epl {
+// buildContainerAttachments creates a [types.EndpointResource] map of all
+// containers attached to the network. It is used when listing networks in
+// detailed mode.
+func buildContainerAttachments(nw *libnetwork.Network) map[string]types.EndpointResource {
+	containers := make(map[string]types.EndpointResource)
+	for _, e := range nw.Endpoints() {
 		ei := e.Info()
 		if ei == nil {
 			continue
 		}
-		sb := ei.Sandbox()
-		tmpID := e.ID()
-		key := "ep-" + tmpID
-		if sb != nil {
-			key = sb.ContainerID()
+		if sb := ei.Sandbox(); sb != nil {
+			containers[sb.ContainerID()] = buildEndpointResource(e, ei)
+		} else {
+			containers["ep-"+e.ID()] = buildEndpointResource(e, ei)
 		}
+	}
+	return containers
+}
 
-		r.Containers[key] = buildEndpointResource(tmpID, e.Name(), ei)
-	}
-	if !verbose {
-		return
-	}
-	services := nw.Info().Services()
-	r.Services = make(map[string]network.ServiceInfo)
-	for name, service := range services {
-		tasks := []network.Task{}
+// buildServiceAttachments creates a [network.ServiceInfo] map of all services
+// attached to the network. It is used when listing networks in "verbose" mode.
+func buildServiceAttachments(nw *libnetwork.Network) map[string]network.ServiceInfo {
+	services := make(map[string]network.ServiceInfo)
+	for name, service := range nw.Info().Services() {
+		tasks := make([]network.Task, 0, len(service.Tasks))
 		for _, t := range service.Tasks {
 			tasks = append(tasks, network.Task{
 				Name:       t.Name,
@@ -662,106 +653,116 @@ func buildDetailedNetworkResources(r *types.NetworkResource, nw *libnetwork.Netw
 				Info:       t.Info,
 			})
 		}
-		r.Services[name] = network.ServiceInfo{
+		services[name] = network.ServiceInfo{
 			VIP:          service.VIP,
 			Ports:        service.Ports,
 			Tasks:        tasks,
 			LocalLBIndex: service.LocalLBIndex,
 		}
 	}
+	return services
 }
 
+// buildPeerInfoResources converts a list of [networkdb.PeerInfo] to a
+// [network.PeerInfo] for inclusion in API responses. It returns nil if
+// the list of peers is empty.
 func buildPeerInfoResources(peers []networkdb.PeerInfo) []network.PeerInfo {
+	if len(peers) == 0 {
+		return nil
+	}
 	peerInfo := make([]network.PeerInfo, 0, len(peers))
 	for _, peer := range peers {
-		peerInfo = append(peerInfo, network.PeerInfo{
-			Name: peer.Name,
-			IP:   peer.IP,
-		})
+		peerInfo = append(peerInfo, network.PeerInfo(peer))
 	}
 	return peerInfo
 }
 
-func buildIpamResources(r *types.NetworkResource, nwInfo libnetwork.NetworkInfo) {
-	id, opts, ipv4conf, ipv6conf := nwInfo.IpamConfig()
+// buildIPAMResources constructs a [network.IPAM] from the network's
+// IPAM information for inclusion in API responses.
+func buildIPAMResources(nw libnetwork.NetworkInfo) network.IPAM {
+	var ipamConfig []network.IPAMConfig
 
-	ipv4Info, ipv6Info := nwInfo.IpamInfo()
+	ipamDriver, ipamOptions, ipv4Conf, ipv6Conf := nw.IpamConfig()
 
-	r.IPAM.Driver = id
-
-	r.IPAM.Options = opts
-
-	r.IPAM.Config = []network.IPAMConfig{}
-	for _, ip4 := range ipv4conf {
-		if ip4.PreferredPool == "" {
+	hasIPv4Config := false
+	for _, cfg := range ipv4Conf {
+		if cfg.PreferredPool == "" {
 			continue
 		}
-		iData := network.IPAMConfig{}
-		iData.Subnet = ip4.PreferredPool
-		iData.IPRange = ip4.SubPool
-		iData.Gateway = ip4.Gateway
-		iData.AuxAddress = ip4.AuxAddresses
-		r.IPAM.Config = append(r.IPAM.Config, iData)
+		hasIPv4Config = true
+		ipamConfig = append(ipamConfig, network.IPAMConfig{
+			Subnet:     cfg.PreferredPool,
+			IPRange:    cfg.SubPool,
+			Gateway:    cfg.Gateway,
+			AuxAddress: cfg.AuxAddresses,
+		})
 	}
 
-	if len(r.IPAM.Config) == 0 {
-		for _, ip4Info := range ipv4Info {
-			iData := network.IPAMConfig{}
-			iData.Subnet = ip4Info.IPAMData.Pool.String()
-			if ip4Info.IPAMData.Gateway != nil {
-				iData.Gateway = ip4Info.IPAMData.Gateway.IP.String()
-			}
-			r.IPAM.Config = append(r.IPAM.Config, iData)
-		}
-	}
-
-	hasIpv6Conf := false
-	for _, ip6 := range ipv6conf {
-		if ip6.PreferredPool == "" {
+	hasIPv6Config := false
+	for _, cfg := range ipv6Conf {
+		if cfg.PreferredPool == "" {
 			continue
 		}
-		hasIpv6Conf = true
-		iData := network.IPAMConfig{}
-		iData.Subnet = ip6.PreferredPool
-		iData.IPRange = ip6.SubPool
-		iData.Gateway = ip6.Gateway
-		iData.AuxAddress = ip6.AuxAddresses
-		r.IPAM.Config = append(r.IPAM.Config, iData)
+		hasIPv6Config = true
+		ipamConfig = append(ipamConfig, network.IPAMConfig{
+			Subnet:     cfg.PreferredPool,
+			IPRange:    cfg.SubPool,
+			Gateway:    cfg.Gateway,
+			AuxAddress: cfg.AuxAddresses,
+		})
 	}
 
-	if !hasIpv6Conf {
-		for _, ip6Info := range ipv6Info {
-			if ip6Info.IPAMData.Pool == nil {
-				continue
+	if !hasIPv4Config || !hasIPv6Config {
+		ipv4Info, ipv6Info := nw.IpamInfo()
+		if !hasIPv4Config {
+			for _, info := range ipv4Info {
+				var gw string
+				if info.IPAMData.Gateway != nil {
+					gw = info.IPAMData.Gateway.IP.String()
+				}
+				ipamConfig = append(ipamConfig, network.IPAMConfig{
+					Subnet:  info.IPAMData.Pool.String(),
+					Gateway: gw,
+				})
 			}
-			iData := network.IPAMConfig{}
-			iData.Subnet = ip6Info.IPAMData.Pool.String()
-			iData.Gateway = ip6Info.IPAMData.Gateway.String()
-			r.IPAM.Config = append(r.IPAM.Config, iData)
 		}
+
+		if !hasIPv6Config {
+			for _, info := range ipv6Info {
+				if info.IPAMData.Pool == nil {
+					continue
+				}
+				ipamConfig = append(ipamConfig, network.IPAMConfig{
+					Subnet:  info.IPAMData.Pool.String(),
+					Gateway: info.IPAMData.Gateway.String(),
+				})
+			}
+		}
+	}
+
+	return network.IPAM{
+		Driver:  ipamDriver,
+		Options: ipamOptions,
+		Config:  ipamConfig,
 	}
 }
 
-func buildEndpointResource(id string, name string, info libnetwork.EndpointInfo) types.EndpointResource {
-	er := types.EndpointResource{}
-
-	er.EndpointID = id
-	er.Name = name
-	ei := info
-	if ei == nil {
-		return er
+// buildEndpointResource combines information from the endpoint and additional
+// endpoint-info into a [types.EndpointResource].
+func buildEndpointResource(ep *libnetwork.Endpoint, info libnetwork.EndpointInfo) types.EndpointResource {
+	er := types.EndpointResource{
+		EndpointID: ep.ID(),
+		Name:       ep.Name(),
 	}
-
-	if iface := ei.Iface(); iface != nil {
+	if iface := info.Iface(); iface != nil {
 		if mac := iface.MacAddress(); mac != nil {
 			er.MacAddress = mac.String()
 		}
 		if ip := iface.Address(); ip != nil && len(ip.IP) > 0 {
 			er.IPv4Address = ip.String()
 		}
-
-		if ipv6 := iface.AddressIPv6(); ipv6 != nil && len(ipv6.IP) > 0 {
-			er.IPv6Address = ipv6.String()
+		if ip := iface.AddressIPv6(); ip != nil && len(ip.IP) > 0 {
+			er.IPv6Address = ip.String()
 		}
 	}
 	return er
