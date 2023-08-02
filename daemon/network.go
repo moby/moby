@@ -61,17 +61,17 @@ func (daemon *Daemon) NetworkController() *libnetwork.Controller {
 // 3. Partial ID
 // as long as there is no ambiguity
 func (daemon *Daemon) FindNetwork(term string) (*libnetwork.Network, error) {
-	listByFullName := []*libnetwork.Network{}
-	listByPartialID := []*libnetwork.Network{}
+	var listByFullName, listByPartialID []*libnetwork.Network
 	for _, nw := range daemon.getAllNetworks() {
-		if nw.ID() == term {
+		nwID := nw.ID()
+		if nwID == term {
 			return nw, nil
-		}
-		if nw.Name() == term {
-			listByFullName = append(listByFullName, nw)
 		}
 		if strings.HasPrefix(nw.ID(), term) {
 			listByPartialID = append(listByPartialID, nw)
+		}
+		if nw.Name() == term {
+			listByFullName = append(listByFullName, nw)
 		}
 	}
 	switch {
@@ -798,46 +798,36 @@ func (daemon *Daemon) clearAttachableNetworks() {
 
 // buildCreateEndpointOptions builds endpoint options from a given network.
 func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, epConfig *network.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
-	var (
-		bindings      = make(nat.PortMap)
-		pbList        []networktypes.PortBinding
-		exposeList    []networktypes.TransportPort
-		createOptions []libnetwork.EndpointOption
-	)
+	var createOptions []libnetwork.EndpointOption
 
+	nwName := n.Name()
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
-
-	if (!serviceDiscoveryOnDefaultNetwork() && n.Name() == defaultNetName) ||
-		c.NetworkSettings.IsAnonymousEndpoint {
+	if c.NetworkSettings.IsAnonymousEndpoint || (nwName == defaultNetName && !serviceDiscoveryOnDefaultNetwork()) {
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
 	}
 
 	if epConfig != nil {
-		ipam := epConfig.IPAMConfig
-
-		if ipam != nil {
-			var (
-				ipList          []net.IP
-				ip, ip6, linkip net.IP
-			)
-
+		if ipam := epConfig.IPAMConfig; ipam != nil {
+			var ipList []net.IP
 			for _, ips := range ipam.LinkLocalIPs {
-				if linkip = net.ParseIP(ips); linkip == nil && ips != "" {
+				linkIP := net.ParseIP(ips)
+				if linkIP == nil && ips != "" {
 					return nil, errors.Errorf("Invalid link-local IP address: %s", ipam.LinkLocalIPs)
 				}
-				ipList = append(ipList, linkip)
+				ipList = append(ipList, linkIP)
 			}
 
-			if ip = net.ParseIP(ipam.IPv4Address); ip == nil && ipam.IPv4Address != "" {
+			ip := net.ParseIP(ipam.IPv4Address)
+			if ip == nil && ipam.IPv4Address != "" {
 				return nil, errors.Errorf("Invalid IPv4 address: %s)", ipam.IPv4Address)
 			}
 
-			if ip6 = net.ParseIP(ipam.IPv6Address); ip6 == nil && ipam.IPv6Address != "" {
+			ip6 := net.ParseIP(ipam.IPv6Address)
+			if ip6 == nil && ipam.IPv6Address != "" {
 				return nil, errors.Errorf("Invalid IPv6 address: %s)", ipam.IPv6Address)
 			}
 
-			createOptions = append(createOptions,
-				libnetwork.CreateOptionIpam(ip, ip6, ipList, nil))
+			createOptions = append(createOptions, libnetwork.CreateOptionIpam(ip, ip6, ipList, nil))
 		}
 
 		for _, alias := range epConfig.Aliases {
@@ -848,12 +838,12 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		}
 	}
 
-	if c.NetworkSettings.Service != nil {
-		svcCfg := c.NetworkSettings.Service
+	if svcCfg := c.NetworkSettings.Service; svcCfg != nil {
+		nwID := n.ID()
 
-		var vip string
-		if svcCfg.VirtualAddresses[n.ID()] != nil {
-			vip = svcCfg.VirtualAddresses[n.ID()].IPv4
+		var vip net.IP
+		if virtualAddress := svcCfg.VirtualAddresses[nwID]; virtualAddress != nil {
+			vip = net.ParseIP(virtualAddress.IPv4)
 		}
 
 		var portConfigs []*libnetwork.PortConfig
@@ -866,10 +856,10 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			})
 		}
 
-		createOptions = append(createOptions, libnetwork.CreateOptionService(svcCfg.Name, svcCfg.ID, net.ParseIP(vip), portConfigs, svcCfg.Aliases[n.ID()]))
+		createOptions = append(createOptions, libnetwork.CreateOptionService(svcCfg.Name, svcCfg.ID, vip, portConfigs, svcCfg.Aliases[nwID]))
 	}
 
-	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
+	if !containertypes.NetworkMode(nwName).IsUserDefined() {
 		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
 	}
 
@@ -877,28 +867,26 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	// to which container was connected to on docker run.
 	// Ideally all these network-specific endpoint configurations must be moved under
 	// container.NetworkSettings.Networks[n.Name()]
-	if n.Name() == c.HostConfig.NetworkMode.NetworkName() ||
-		(n.Name() == defaultNetName && c.HostConfig.NetworkMode.IsDefault()) {
+	if nwName == c.HostConfig.NetworkMode.NetworkName() || (nwName == defaultNetName && c.HostConfig.NetworkMode.IsDefault()) {
 		if c.Config.MacAddress != "" {
 			mac, err := net.ParseMAC(c.Config.MacAddress)
 			if err != nil {
 				return nil, err
 			}
-
-			genericOption := options.Generic{
+			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(options.Generic{
 				netlabel.MacAddress: mac,
-			}
-
-			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
+			}))
 		}
 	}
 
-	// Port-mapping rules belong to the container & applicable only to non-internal networks
-	portmaps := getPortMapInfo(sb)
-	if n.Info().Internal() || len(portmaps) > 0 {
+	// Port-mapping rules belong to the container & applicable only to non-internal networks.
+	//
+	// TODO(thaJeztah): Look if we can provide a more minimal function for getPortMapInfo, as it does a lot, and we only need the "length".
+	if n.Info().Internal() || len(getPortMapInfo(sb)) > 0 {
 		return createOptions, nil
 	}
 
+	bindings := make(nat.PortMap)
 	if c.HostConfig.PortBindings != nil {
 		for p, b := range c.HostConfig.PortBindings {
 			bindings[p] = []nat.PortBinding{}
@@ -911,59 +899,58 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		}
 	}
 
-	portSpecs := c.Config.ExposedPorts
-	ports := make([]nat.Port, len(portSpecs))
-	var i int
-	for p := range portSpecs {
-		ports[i] = p
-		i++
+	// TODO(thaJeztah): Move this code to a method on nat.PortSet.
+	ports := make([]nat.Port, 0, len(c.Config.ExposedPorts))
+	for p := range c.Config.ExposedPorts {
+		ports = append(ports, p)
 	}
 	nat.SortPortMap(ports, bindings)
-	for _, port := range ports {
-		expose := networktypes.TransportPort{}
-		expose.Proto = networktypes.ParseProtocol(port.Proto())
-		expose.Port = uint16(port.Int())
-		exposeList = append(exposeList, expose)
 
-		pb := networktypes.PortBinding{Port: expose.Port, Proto: expose.Proto}
-		binding := bindings[port]
-		for i := 0; i < len(binding); i++ {
-			pbCopy := pb.GetCopy()
-			newP, err := nat.NewPort(nat.SplitProtoPort(binding[i].HostPort))
+	var (
+		exposedPorts   []networktypes.TransportPort
+		publishedPorts []networktypes.PortBinding
+	)
+	for _, port := range ports {
+		portProto := networktypes.ParseProtocol(port.Proto())
+		portNum := uint16(port.Int())
+		exposedPorts = append(exposedPorts, networktypes.TransportPort{
+			Proto: portProto,
+			Port:  portNum,
+		})
+
+		for _, binding := range bindings[port] {
+			newP, err := nat.NewPort(nat.SplitProtoPort(binding.HostPort))
 			var portStart, portEnd int
 			if err == nil {
 				portStart, portEnd, err = newP.Range()
 			}
 			if err != nil {
-				return nil, errors.Wrapf(err, "Error parsing HostPort value (%s)", binding[i].HostPort)
+				return nil, errors.Wrapf(err, "Error parsing HostPort value (%s)", binding.HostPort)
 			}
-			pbCopy.HostPort = uint16(portStart)
-			pbCopy.HostPortEnd = uint16(portEnd)
-			pbCopy.HostIP = net.ParseIP(binding[i].HostIP)
-			pbList = append(pbList, pbCopy)
+			publishedPorts = append(publishedPorts, networktypes.PortBinding{
+				Proto:       portProto,
+				Port:        portNum,
+				HostIP:      net.ParseIP(binding.HostIP),
+				HostPort:    uint16(portStart),
+				HostPortEnd: uint16(portEnd),
+			})
 		}
 
-		if c.HostConfig.PublishAllPorts && len(binding) == 0 {
-			pbList = append(pbList, pb)
+		if c.HostConfig.PublishAllPorts && len(bindings[port]) == 0 {
+			publishedPorts = append(publishedPorts, networktypes.PortBinding{
+				Proto: portProto,
+				Port:  portNum,
+			})
 		}
 	}
-
-	var dns []string
 
 	if len(c.HostConfig.DNS) > 0 {
-		dns = c.HostConfig.DNS
+		createOptions = append(createOptions, libnetwork.CreateOptionDNS(c.HostConfig.DNS))
 	} else if len(daemonDNS) > 0 {
-		dns = daemonDNS
+		createOptions = append(createOptions, libnetwork.CreateOptionDNS(daemonDNS))
 	}
 
-	if len(dns) > 0 {
-		createOptions = append(createOptions,
-			libnetwork.CreateOptionDNS(dns))
-	}
-
-	createOptions = append(createOptions,
-		libnetwork.CreateOptionPortMapping(pbList),
-		libnetwork.CreateOptionExposedPorts(exposeList))
+	createOptions = append(createOptions, libnetwork.CreateOptionPortMapping(publishedPorts), libnetwork.CreateOptionExposedPorts(exposedPorts))
 
 	return createOptions, nil
 }
