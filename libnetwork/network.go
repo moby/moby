@@ -1908,17 +1908,16 @@ func (n *Network) Labels() map[string]string {
 }
 
 func (n *Network) TableEventRegister(tableName string, objType driverapi.ObjectType) error {
-	if !driverapi.IsValidType(objType) {
+	if objType != driverapi.EndpointObject {
 		return fmt.Errorf("invalid object type %v in registering table, %s", objType, tableName)
 	}
 
-	t := networkDBTable{
-		name:    tableName,
-		objType: objType,
-	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	n.driverTables = append(n.driverTables, t)
+	n.driverTables = append(n.driverTables, networkDBTable{
+		name:    tableName,
+		objType: objType,
+	})
 	return nil
 }
 

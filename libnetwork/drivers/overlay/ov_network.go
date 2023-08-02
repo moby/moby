@@ -86,19 +86,6 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		return types.BadRequestErrorf("ipv4 pool is empty")
 	}
 
-	// Since we perform lazy configuration make sure we try
-	// configuring the driver when we enter CreateNetwork
-	if err := d.configure(); err != nil {
-		return err
-	}
-
-	n := &network{
-		id:        id,
-		driver:    d,
-		endpoints: endpointTable{},
-		subnets:   []*subnet{},
-	}
-
 	vnis := make([]uint32, 0, len(ipV4Data))
 	gval, ok := option[netlabel.GenericData]
 	if !ok {
@@ -115,6 +102,19 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	vnis, err = overlayutils.AppendVNIList(vnis, vnisOpt)
 	if err != nil {
 		return err
+	}
+
+	// Since we perform lazy configuration make sure we try
+	// configuring the driver when we enter CreateNetwork
+	if err := d.configure(); err != nil {
+		return err
+	}
+
+	n := &network{
+		id:        id,
+		driver:    d,
+		endpoints: endpointTable{},
+		subnets:   []*subnet{},
 	}
 
 	if _, ok := optMap[secureOption]; ok {
@@ -137,13 +137,11 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	}
 
 	for i, ipd := range ipV4Data {
-		s := &subnet{
+		n.subnets = append(n.subnets, &subnet{
 			subnetIP: ipd.Pool,
 			gwIP:     ipd.Gateway,
 			vni:      vnis[i],
-		}
-
-		n.subnets = append(n.subnets, s)
+		})
 	}
 
 	d.Lock()
@@ -162,7 +160,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 
 	if nInfo != nil {
 		if err := nInfo.TableEventRegister(ovPeerTable, driverapi.EndpointObject); err != nil {
-			// XXX Undo writeToStore?  No method to so.  Why?
+			// FIXME: Undo writeToStore? No method to so. Why? (see https://github.com/moby/libnetwork/commit/bd613df20d10c901b5aaa6992127035dec6ba279)
 			return err
 		}
 	}

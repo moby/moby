@@ -25,6 +25,20 @@ type Driver interface {
 	// notification when a CRUD operation is performed on any
 	// entry in that table. This will be ignored for local scope
 	// drivers.
+	//
+	// FIXME(thaJeztah): this CreateNetwork function takes 5 arguments, and ALL of them (including the driver ... )
+	// are directly derived from *Network. [NetworkInfo] is an interface, but we always pass `n` (*Network).
+	// So this whole function could just be..
+	//
+	//	func (d *Driver).CreateNetwork(n *Network)
+	//
+	// or (passing ID  as argument)
+	//
+	//	func (d *Driver).CreateNetwork(id string, n *Network)
+	//
+	// Here's how it's called in Controller.addNetwork(n *Network):
+	//
+	//	if err := d.CreateNetwork(n.id, n.generic, n, n.getIPData(4), n.getIPData(6)); err != nil {
 	CreateNetwork(nid string, options map[string]interface{}, nInfo NetworkInfo, ipV4Data, ipV6Data []IPAMData) error
 
 	// DeleteNetwork invokes the driver method to delete network passing
@@ -175,34 +189,24 @@ type EventType uint8
 
 const (
 	// Create event is generated when a table entry is created,
-	Create EventType = 1 + iota
+	Create EventType = 1
 	// Update event is generated when a table entry is updated.
-	Update
+	//
+	// FIXME(thaJeztah): Update is not used anywhere?
+	Update EventType = 2
 	// Delete event is generated when a table entry is deleted.
-	Delete
+	Delete EventType = 3
 )
 
 // ObjectType represents the type of object driver wants to store in libnetwork's networkDB
 type ObjectType int
 
-const (
-	// EndpointObject should be set for libnetwork endpoint object related data
-	EndpointObject ObjectType = 1 + iota
-	// NetworkObject should be set for libnetwork network object related data
-	NetworkObject
-	// OpaqueObject is for driver specific data with no corresponding libnetwork object
-	OpaqueObject
-)
+// EndpointObject should be set for libnetwork endpoint object related data
+const EndpointObject ObjectType = 1
 
 // IsValidType validates the passed in type against the valid object types
+//
+// FIXME(thaJeztah): IsValidType is no longer used (we only use 1 ObjectType, and it's always EndpointObject)
 func IsValidType(objType ObjectType) bool {
-	switch objType {
-	case EndpointObject:
-		fallthrough
-	case NetworkObject:
-		fallthrough
-	case OpaqueObject:
-		return true
-	}
-	return false
+	return objType == EndpointObject
 }
