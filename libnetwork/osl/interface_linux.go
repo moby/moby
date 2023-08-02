@@ -27,75 +27,75 @@ type nwIface struct {
 	routes      []*net.IPNet
 	bridge      bool
 	ns          *networkNamespace
-	sync.Mutex
+	mu          sync.Mutex
 }
 
 func (i *nwIface) SrcName() string {
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 
 	return i.srcName
 }
 
 func (i *nwIface) DstName() string {
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 
 	return i.dstName
 }
 
 func (i *nwIface) DstMaster() string {
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 
 	return i.dstMaster
 }
 
 func (i *nwIface) Bridge() bool {
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 
 	return i.bridge
 }
 
 func (i *nwIface) Master() string {
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 
 	return i.master
 }
 
 func (i *nwIface) MacAddress() net.HardwareAddr {
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 
 	return types.GetMacCopy(i.mac)
 }
 
 func (i *nwIface) Address() *net.IPNet {
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 
 	return types.GetIPNetCopy(i.address)
 }
 
 func (i *nwIface) AddressIPv6() *net.IPNet {
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 
 	return types.GetIPNetCopy(i.addressIPv6)
 }
 
 func (i *nwIface) LinkLocalAddresses() []*net.IPNet {
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 
 	return i.llAddrs
 }
 
 func (i *nwIface) Routes() []*net.IPNet {
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 
 	routes := make([]*net.IPNet, len(i.routes))
 	for index, route := range i.routes {
@@ -120,9 +120,9 @@ func (n *networkNamespace) Interfaces() []Interface {
 }
 
 func (i *nwIface) Remove() error {
-	i.Lock()
+	i.mu.Lock()
 	n := i.ns
-	i.Unlock()
+	i.mu.Unlock()
 
 	n.Lock()
 	isDefault := n.isDefault
@@ -175,9 +175,9 @@ func (i *nwIface) Remove() error {
 
 // Returns the sandbox's side veth interface statistics
 func (i *nwIface) Statistics() (*types.InterfaceStatistics, error) {
-	i.Lock()
+	i.mu.Lock()
 	n := i.ns
-	i.Unlock()
+	i.mu.Unlock()
 
 	l, err := n.nlHandle.LinkByName(i.DstName())
 	if err != nil {
