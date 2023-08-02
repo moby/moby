@@ -23,7 +23,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * Deprecated: The `is_automated` field in the `GET /images/search` response has
   been deprecated and will always be set to false in the future because Docker
   Hub is deprecating the `is_automated` field in its search API. The deprecation
-  is_ not versioned, and applies to all API versions.
+  is not versioned, and applies to all API versions.
 * Deprecated: The `is-automated` filter for the `GET /images/search` endpoint.
   The `is_automated` field has been deprecated by Docker Hub's search API.
   Consequently, searching for `is-automated=true` will yield no results. The
