@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"sync"
 	"syscall"
 	"time"
 
@@ -27,107 +26,66 @@ type nwIface struct {
 	routes      []*net.IPNet
 	bridge      bool
 	ns          *networkNamespace
-	mu          sync.Mutex
 }
 
 func (i *nwIface) SrcName() string {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
 	return i.srcName
 }
 
 func (i *nwIface) DstName() string {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
 	return i.dstName
 }
 
 func (i *nwIface) DstMaster() string {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
 	return i.dstMaster
 }
 
 func (i *nwIface) Bridge() bool {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
 	return i.bridge
 }
 
 func (i *nwIface) Master() string {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
 	return i.master
 }
 
 func (i *nwIface) MacAddress() net.HardwareAddr {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
 	return types.GetMacCopy(i.mac)
 }
 
 func (i *nwIface) Address() *net.IPNet {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
 	return types.GetIPNetCopy(i.address)
 }
 
 func (i *nwIface) AddressIPv6() *net.IPNet {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
 	return types.GetIPNetCopy(i.addressIPv6)
 }
 
 func (i *nwIface) LinkLocalAddresses() []*net.IPNet {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
 	return i.llAddrs
 }
 
 func (i *nwIface) Routes() []*net.IPNet {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
 	routes := make([]*net.IPNet, len(i.routes))
 	for index, route := range i.routes {
-		r := types.GetIPNetCopy(route)
-		routes[index] = r
+		routes[index] = types.GetIPNetCopy(route)
 	}
 
 	return routes
 }
 
 func (n *networkNamespace) Interfaces() []Interface {
-	n.Lock()
-	defer n.Unlock()
-
 	ifaces := make([]Interface, len(n.iFaces))
-
 	for i, iface := range n.iFaces {
 		ifaces[i] = iface
 	}
-
 	return ifaces
 }
 
 func (i *nwIface) Remove() error {
-	i.mu.Lock()
-	n := i.ns
-	i.mu.Unlock()
-
-	n.Lock()
-	isDefault := n.isDefault
-	nlh := n.nlHandle
-	n.Unlock()
+	i.ns.Lock()
+	isDefault := i.ns.isDefault
+	nlh := i.ns.nlHandle
+	i.ns.Unlock()
 
 	// Find the network interface identified by the DstName attribute.
 	iface, err := nlh.LinkByName(i.DstName())
@@ -159,29 +117,25 @@ func (i *nwIface) Remove() error {
 		}
 	}
 
-	n.Lock()
-	for index, intf := range n.iFaces {
+	i.ns.Lock()
+	for index, intf := range i.ns.iFaces {
 		if intf == i {
-			n.iFaces = append(n.iFaces[:index], n.iFaces[index+1:]...)
+			i.ns.iFaces = append(i.ns.iFaces[:index], i.ns.iFaces[index+1:]...)
 			break
 		}
 	}
-	n.Unlock()
+	i.ns.Unlock()
 
-	n.checkLoV6()
+	i.ns.checkLoV6()
 
 	return nil
 }
 
 // Returns the sandbox's side veth interface statistics
 func (i *nwIface) Statistics() (*types.InterfaceStatistics, error) {
-	i.mu.Lock()
-	n := i.ns
-	i.mu.Unlock()
-
-	l, err := n.nlHandle.LinkByName(i.DstName())
+	l, err := i.ns.nlHandle.LinkByName(i.DstName())
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve the statistics for %s in netns %s: %v", i.DstName(), n.path, err)
+		return nil, fmt.Errorf("failed to retrieve the statistics for %s in netns %s: %v", i.DstName(), i.ns.path, err)
 	}
 
 	stats := l.Attrs().Statistics
