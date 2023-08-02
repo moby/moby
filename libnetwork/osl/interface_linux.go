@@ -169,7 +169,11 @@ func (n *networkNamespace) findDst(srcName string, isBridge bool) string {
 }
 
 func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...IfaceOption) error {
-	i := &nwIface{srcName: srcName, dstName: dstPrefix, ns: n}
+	i := &nwIface{
+		srcName: srcName,
+		dstName: dstPrefix,
+		ns:      n,
+	}
 	i.processInterfaceOptions(options...)
 
 	if i.master != "" {
@@ -197,12 +201,11 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	// If it is a bridge interface we have to create the bridge inside
 	// the namespace so don't try to lookup the interface using srcName
 	if i.bridge {
-		link := &netlink.Bridge{
+		if err := nlh.LinkAdd(&netlink.Bridge{
 			LinkAttrs: netlink.LinkAttrs{
 				Name: i.srcName,
 			},
-		}
-		if err := nlh.LinkAdd(link); err != nil {
+		}); err != nil {
 			return fmt.Errorf("failed to create bridge %q: %v", i.srcName, err)
 		}
 	} else {

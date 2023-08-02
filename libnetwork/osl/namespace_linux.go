@@ -474,7 +474,11 @@ func (n *networkNamespace) Destroy() error {
 func (n *networkNamespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
 	// restore interfaces
 	for name, opts := range ifsopt {
-		i := &nwIface{srcName: name.SrcName, dstName: name.DstPrefix, ns: n}
+		i := &nwIface{
+			srcName: name.SrcName,
+			dstName: name.DstPrefix,
+			ns:      n,
+		}
 		i.processInterfaceOptions(opts...)
 		if i.master != "" {
 			i.dstMaster = n.findDst(i.master, true)
