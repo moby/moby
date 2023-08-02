@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
 )
 
 // ExecResult represents a result returned from Exec()
@@ -58,27 +57,11 @@ func Exec(ctx context.Context, cli client.APIClient, id string, cmd []string, op
 	if err != nil {
 		return ExecResult{}, err
 	}
-	defer aresp.Close()
 
 	// read the output
-	var outBuf, errBuf bytes.Buffer
-	outputDone := make(chan error, 1)
-
-	go func() {
-		// StdCopy demultiplexes the stream into two buffers
-		_, err = stdcopy.StdCopy(&outBuf, &errBuf, aresp.Reader)
-		outputDone <- err
-	}()
-
-	select {
-	case err := <-outputDone:
-		if err != nil {
-			return ExecResult{}, err
-		}
-		break
-
-	case <-ctx.Done():
-		return ExecResult{}, ctx.Err()
+	s, err := demultiplexStreams(ctx, aresp)
+	if err != nil {
+		return ExecResult{}, err
 	}
 
 	// get the exit code
@@ -87,5 +70,5 @@ func Exec(ctx context.Context, cli client.APIClient, id string, cmd []string, op
 		return ExecResult{}, err
 	}
 
-	return ExecResult{ExitCode: iresp.ExitCode, outBuffer: &outBuf, errBuffer: &errBuf}, nil
+	return ExecResult{ExitCode: iresp.ExitCode, outBuffer: &s.stdout, errBuffer: &s.stderr}, nil
 }
