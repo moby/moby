@@ -37,6 +37,7 @@ func generateRandomName(prefix string, size int) (string, error) {
 }
 
 func newKey(t *testing.T) (string, error) {
+	t.Helper()
 	name, err := generateRandomName("netns", 12)
 	if err != nil {
 		return "", err
@@ -55,7 +56,8 @@ func newKey(t *testing.T) (string, error) {
 	return name, nil
 }
 
-func newInfo(hnd *netlink.Handle, t *testing.T) (Sandbox, error) {
+func newInfo(t *testing.T, hnd *netlink.Handle) (Sandbox, error) {
+	t.Helper()
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: vethName1, TxQLen: 0},
 		PeerName:  vethName2,
@@ -400,7 +402,7 @@ func TestSandboxCreate(t *testing.T) {
 		t.Fatalf("s.Key() returned %s. Expected %s", s.Key(), key)
 	}
 
-	tbox, err := newInfo(ns.NlHandle(), t)
+	tbox, err := newInfo(t, ns.NlHandle())
 	if err != nil {
 		t.Fatalf("Failed to generate new sandbox info: %v", err)
 	}
@@ -499,7 +501,7 @@ func TestAddRemoveInterface(t *testing.T) {
 		t.Fatalf("s.Key() returned %s. Expected %s", s.Key(), key)
 	}
 
-	tbox, err := newInfo(ns.NlHandle(), t)
+	tbox, err := newInfo(t, ns.NlHandle())
 	if err != nil {
 		t.Fatalf("Failed to generate new sandbox info: %v", err)
 	}
