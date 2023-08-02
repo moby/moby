@@ -326,7 +326,7 @@ func verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
 
 	for k, v := range nwConfig.EndpointsConfig {
 		if v == nil {
-			return errdefs.InvalidParameter(errors.Errorf("no EndpointSettings for %s", k))
+			return errors.Errorf("no EndpointSettings for %s", k)
 		}
 		if v.IPAMConfig != nil {
 			if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
