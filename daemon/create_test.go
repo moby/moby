@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // Test case for 35752
@@ -17,5 +17,5 @@ func TestVerifyNetworkingConfig(t *testing.T) {
 		EndpointsConfig: endpoints,
 	}
 	err := verifyNetworkingConfig(nwConfig)
-	assert.Check(t, errdefs.IsInvalidParameter(err))
+	assert.Check(t, is.Error(err, "no EndpointSettings for mynet"), "should produce an error because no EndpointSettings were passed")
 }
