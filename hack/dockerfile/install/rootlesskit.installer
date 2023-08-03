@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# When updating, also update rootlesskit commit in vendor.mod accordingly
+# When updating, also update rootlesskit commit in go.mod accordingly
 # v1.1.1
 : "${ROOTLESSKIT_VERSION:=a2c596ff9b3fddc0c2becb38f2ef4004f15765b5}"
 

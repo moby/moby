@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # This file is just a wrapper around the 'go mod vendor' tool.
-# For updating dependencies you should change `vendor.mod` file in root of the
+# For updating dependencies you should change `go.mod` file in root of the
 # project.
 
 set -e
@@ -10,12 +10,12 @@ SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 tidy() (
 		set -x
-		"${SCRIPTDIR}"/with-go-mod.sh go mod tidy -modfile vendor.mod -compat 1.18
+		"${SCRIPTDIR}"/with-go-mod.sh go mod tidy -compat 1.18
 )
 
 vendor() (
 		set -x
-		"${SCRIPTDIR}"/with-go-mod.sh go mod vendor -modfile vendor.mod
+		"${SCRIPTDIR}"/with-go-mod.sh go mod vendor
 )
 
 help() {

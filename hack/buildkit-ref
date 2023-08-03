@@ -7,9 +7,9 @@
 
 buildkit_pkg=github.com/moby/buildkit
 
-# get buildkit version from vendor.mod
-buildkit_ref=$(./hack/with-go-mod.sh go list -mod=mod -modfile=vendor.mod -u -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "$buildkit_pkg")
-buildkit_repo=$(./hack/with-go-mod.sh go list -mod=mod -modfile=vendor.mod -u -m -f '{{if .Replace}}{{.Replace.Path}}{{else}}{{.Path}}{{end}}' "$buildkit_pkg")
+# get buildkit version from go.mod
+buildkit_ref=$(./hack/with-go-mod.sh go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "$buildkit_pkg")
+buildkit_repo=$(./hack/with-go-mod.sh go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Path}}{{else}}{{.Path}}{{end}}' "$buildkit_pkg")
 buildkit_repo=${buildkit_repo#github.com/}
 
 if [[ "${buildkit_ref}" == *-*-* ]]; then

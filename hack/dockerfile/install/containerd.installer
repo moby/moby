@@ -11,7 +11,7 @@ set -e
 #
 # Generally, the commit specified here should match a tagged release.
 #
-# The containerd golang package is also pinned in vendor.mod. When updating
+# The containerd golang package is also pinned in go.mod. When updating
 # the binary version you may also need to update the vendor version to pick up
 # bug fixes or new APIs, however, usually the Go packages are built from a
 # commit from the master branch.

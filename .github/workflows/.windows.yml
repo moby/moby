@@ -65,7 +65,7 @@ jobs:
             ~\go\pkg\mod
             ${{ github.workspace }}\go-build
             ${{ env.GOPATH }}\pkg\mod
-          key: ${{ inputs.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
+          key: ${{ inputs.os }}-${{ github.job }}-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ inputs.os }}-${{ github.job }}-
       -
@@ -142,7 +142,7 @@ jobs:
             ~\go\pkg\mod
             ${{ github.workspace }}\go-build
             ${{ env.GOPATH }}\pkg\mod
-          key: ${{ inputs.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
+          key: ${{ inputs.os }}-${{ github.job }}-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ inputs.os }}-${{ github.job }}-
       -

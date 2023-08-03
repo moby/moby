@@ -5,7 +5,7 @@ set -e
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
-tidy_files=('vendor.mod' 'vendor.sum')
+tidy_files=('go.mod' 'go.sum')
 vendor_files=("${tidy_files[@]}" 'vendor/')
 
 validate_vendor_tidy() {

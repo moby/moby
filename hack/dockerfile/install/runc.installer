@@ -8,7 +8,7 @@ set -e
 # version that is used. If you need to update runc, open a pull request in
 # the containerd project first, and update both after that is merged.
 #
-# When updating RUNC_VERSION, consider updating runc in vendor.mod accordingly
+# When updating RUNC_VERSION, consider updating runc in go.mod accordingly
 : "${RUNC_VERSION:=v1.1.8}"
 
 install_runc() {

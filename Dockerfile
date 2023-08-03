@@ -172,7 +172,7 @@ FROM base AS tomll
 # in CI in the hack/validate/toml script.
 #
 # When updating this version, consider updating the github.com/pelletier/go-toml
-# dependency in vendor.mod accordingly.
+# dependency in go.mod accordingly.
 ARG GOTOML_VERSION=v1.8.1
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
@@ -194,7 +194,7 @@ RUN git init . && git remote add origin "https://github.com/containerd/container
 # CONTAINERD_VERSION is used to build containerd binaries, and used for the
 # integration tests. The distributed docker .deb and .rpm packages depend on a
 # separate (containerd.io) package, which may be a different version as is
-# specified here. The containerd golang package is also pinned in vendor.mod.
+# specified here. The containerd golang package is also pinned in go.mod.
 # When updating the binary version you may also need to update the vendor
 # version to pick up bug fixes or new APIs, however, usually the Go packages
 # are built from a commit from the master branch.
@@ -280,7 +280,7 @@ RUN git init . && git remote add origin "https://github.com/opencontainers/runc.
 # RUNC_VERSION should match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged. When updating RUNC_VERSION,
-# consider updating runc in vendor.mod accordingly.
+# consider updating runc in go.mod accordingly.
 ARG RUNC_VERSION=v1.1.8
 RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
@@ -345,7 +345,7 @@ FROM tini-${TARGETOS} AS tini
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
 RUN git init . && git remote add origin "https://github.com/rootless-containers/rootlesskit.git"
-# When updating, also update rootlesskit commit in vendor.mod accordingly.
+# When updating, also update rootlesskit commit in go.mod accordingly.
 ARG ROOTLESSKIT_VERSION=v1.1.0
 RUN git fetch -q --depth 1 origin "${ROOTLESSKIT_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
