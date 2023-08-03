@@ -3,7 +3,6 @@ package client // import "github.com/docker/docker/client"
 import (
 	"bufio"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/go-connections/sockets"
 	"github.com/pkg/errors"
 )
 
@@ -45,18 +43,6 @@ func (cli *Client) DialHijack(ctx context.Context, url, proto string, meta map[s
 
 	conn, _, err := cli.setupHijackConn(ctx, req, proto)
 	return conn, err
-}
-
-// fallbackDial is used when WithDialer() was not called.
-// See cli.Dialer().
-func fallbackDial(proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
-	if tlsConfig != nil && proto != "unix" && proto != "npipe" {
-		return tls.Dial(proto, addr, tlsConfig)
-	}
-	if proto == "npipe" {
-		return sockets.DialPipe(addr, 32*time.Second)
-	}
-	return net.Dial(proto, addr)
 }
 
 func (cli *Client) setupHijackConn(ctx context.Context, req *http.Request, proto string) (net.Conn, string, error) {
