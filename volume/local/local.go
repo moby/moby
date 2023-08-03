@@ -79,13 +79,17 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			quotaCtl:   r.quotaCtl,
 		}
 
-		// unmount anything that may still be mounted (for example, from an
-		// unclean shutdown). This is a no-op on windows
-		unmount(v.path)
-
 		if err := v.loadOpts(); err != nil {
 			return nil, err
 		}
+
+		// Unmount data directory if might been mounted by the daemon and
+		// possibly wasn't unmounted (for example due to an unclean shutdown).
+		// This is a no-op on Windows.
+		if v.needsMount() {
+			unmount(v.path)
+		}
+
 		r.volumes[name] = v
 	}
 
