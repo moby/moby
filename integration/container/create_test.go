@@ -588,16 +588,16 @@ func TestCreateInvalidHostConfig(t *testing.T) {
 }
 
 func TestCreateWithMultipleEndpointSettings(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 
 	testcases := []struct {
 		apiVersion  string
 		expectedErr string
 	}{
 		{apiVersion: "1.44"},
-		{apiVersion: "1.43", expectedErr: "Container cannot be connected to network endpoints"},
+		{apiVersion: "1.43", expectedErr: "Container cannot be created with multiple network endpoints"},
 	}
+
 	for _, tc := range testcases {
 		t.Run("with API v"+tc.apiVersion, func(t *testing.T) {
 			apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(tc.apiVersion))

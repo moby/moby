@@ -615,7 +615,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			for k := range networkingConfig.EndpointsConfig {
 				l = append(l, k)
 			}
-			return errdefs.InvalidParameter(errors.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", ")))
+			return errdefs.InvalidParameter(errors.Errorf("Container cannot be created with multiple network endpoints: %s", strings.Join(l, ", ")))
 		}
 	}
 
