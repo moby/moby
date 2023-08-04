@@ -1,8 +1,10 @@
 package daemon // import "github.com/docker/docker/testutil/daemon"
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,11 +20,13 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
 )
 
 // LogT is the subset of the testing.TB interface used by the daemon.
@@ -272,6 +276,7 @@ func (d *Daemon) NewClientT(t testing.TB, extraOpts ...client.Opt) *client.Clien
 
 	c, err := d.NewClient(extraOpts...)
 	assert.NilError(t, err, "[%s] could not create daemon client", d.id)
+	t.Cleanup(func() { c.Close() })
 	return c
 }
 
@@ -295,10 +300,105 @@ func (d *Daemon) Cleanup(t testing.TB) {
 	cleanupNetworkNamespace(t, d)
 }
 
+// TailLogsT attempts to tail N lines from the daemon logs.
+// If there is an error the error is only logged, it does not cause an error with the test.
+func (d *Daemon) TailLogsT(t LogT, n int) {
+	lines, err := d.TailLogs(n)
+	if err != nil {
+		t.Logf("[%s] %v", d.id, err)
+		return
+	}
+	for _, l := range lines {
+		t.Logf("[%s] %s", d.id, string(l))
+	}
+}
+
+// PollCheckLogs is a poll.Check that checks the daemon logs using the passed in match function.
+func (d *Daemon) PollCheckLogs(ctx context.Context, match func(s string) bool) poll.Check {
+	return func(t poll.LogT) poll.Result {
+		ok, _, err := d.ScanLogs(ctx, match)
+		if err != nil {
+			return poll.Error(err)
+		}
+		if !ok {
+			return poll.Continue("waiting for daemon logs match")
+		}
+		return poll.Success()
+	}
+}
+
+// ScanLogsMatchString returns a function that can be used to scan the daemon logs for the passed in string (`contains`).
+func ScanLogsMatchString(contains string) func(string) bool {
+	return func(line string) bool {
+		return strings.Contains(line, contains)
+	}
+}
+
+// ScanLogsMatchAll returns a function that can be used to scan the daemon logs until *all* the passed in strings are matched
+func ScanLogsMatchAll(contains ...string) func(string) bool {
+	matched := make(map[string]bool)
+	return func(line string) bool {
+		for _, c := range contains {
+			if strings.Contains(line, c) {
+				matched[c] = true
+			}
+		}
+		return len(matched) == len(contains)
+	}
+}
+
+// ScanLogsT uses `ScanLogs` to match the daemon logs using the passed in match function.
+// If there is an error or the match fails, the test will fail.
+func (d *Daemon) ScanLogsT(ctx context.Context, t testing.TB, match func(s string) bool) (bool, string) {
+	t.Helper()
+	ok, line, err := d.ScanLogs(ctx, match)
+	assert.NilError(t, err)
+	return ok, line
+}
+
+// ScanLogs scans the daemon logs and passes each line to the match function.
+func (d *Daemon) ScanLogs(ctx context.Context, match func(s string) bool) (bool, string, error) {
+	stat, err := d.logFile.Stat()
+	if err != nil {
+		return false, "", err
+	}
+	rdr := io.NewSectionReader(d.logFile, 0, stat.Size())
+
+	scanner := bufio.NewScanner(rdr)
+	for scanner.Scan() {
+		if match(scanner.Text()) {
+			return true, scanner.Text(), nil
+		}
+		select {
+		case <-ctx.Done():
+			return false, "", ctx.Err()
+		default:
+		}
+	}
+	return false, "", scanner.Err()
+}
+
+// TailLogs tails N lines from the daemon logs
+func (d *Daemon) TailLogs(n int) ([][]byte, error) {
+	logF, err := os.Open(d.logFile.Name())
+	if err != nil {
+		return nil, errors.Wrap(err, "error opening daemon log file after failed start")
+	}
+
+	defer logF.Close()
+	lines, err := tailfile.TailFile(logF, n)
+	if err != nil {
+		return nil, errors.Wrap(err, "error tailing log daemon logs")
+	}
+
+	return lines, nil
+}
+
 // Start starts the daemon and return once it is ready to receive requests.
 func (d *Daemon) Start(t testing.TB, args ...string) {
 	t.Helper()
 	if err := d.StartWithError(args...); err != nil {
+		d.TailLogsT(t, 20)
 		d.DumpStackAndQuit() // in case the daemon is stuck
 		t.Fatalf("[%s] failed to start daemon with arguments %v : %v", d.id, d.args, err)
 	}
