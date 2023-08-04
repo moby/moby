@@ -209,18 +209,8 @@ func TestRunWithAlternativeContainerdShim(t *testing.T) {
 	realShimPath, err = filepath.Abs(realShimPath)
 	assert.Assert(t, err)
 
-	// t.TempDir() can't be used here as the temporary directory returned by
-	// that function cannot be accessed by the fake-root user for rootless
-	// Docker. It creates a nested hierarchy of directories where the
-	// outermost has permission 0700.
-	shimDir, err := os.MkdirTemp("", t.Name())
+	shimDir := testutil.TempDir(t)
 	assert.Assert(t, err)
-	t.Cleanup(func() {
-		if err := os.RemoveAll(shimDir); err != nil {
-			t.Errorf("shimDir RemoveAll cleanup: %v", err)
-		}
-	})
-	assert.Assert(t, os.Chmod(shimDir, 0o777))
 	shimDir, err = filepath.Abs(shimDir)
 	assert.Assert(t, err)
 	assert.Assert(t, os.Symlink(realShimPath, filepath.Join(shimDir, "containerd-shim-realfake-v42")))
