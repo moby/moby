@@ -29,7 +29,9 @@ func TestPluginAddHandler(t *testing.T) {
 	// make a plugin which is pre-activated
 	p := &Plugin{activateWait: sync.NewCond(&sync.Mutex{})}
 	p.Manifest = &Manifest{Implements: []string{"bananas"}}
+	storage.Lock()
 	storage.plugins["qwerty"] = p
+	storage.Unlock()
 
 	testActive(t, p)
 	Handle("bananas", func(_ string, _ *Client) {})
@@ -37,7 +39,6 @@ func TestPluginAddHandler(t *testing.T) {
 }
 
 func TestPluginWaitBadPlugin(t *testing.T) {
-	t.Parallel()
 	p := &Plugin{activateWait: sync.NewCond(&sync.Mutex{})}
 	p.activateErr = errors.New("some junk happened")
 	testActive(t, p)
@@ -59,10 +60,14 @@ func testActive(t *testing.T, p *Plugin) {
 }
 
 func TestGet(t *testing.T) {
-	t.Parallel()
+	// TODO: t.Parallel()
+	// TestPluginWithNoManifest also registers fruitPlugin
+
 	p := &Plugin{name: fruitPlugin, activateWait: sync.NewCond(&sync.Mutex{})}
 	p.Manifest = &Manifest{Implements: []string{fruitImplements}}
+	storage.Lock()
 	storage.plugins[fruitPlugin] = p
+	storage.Unlock()
 
 	t.Run("success", func(t *testing.T) {
 		plugin, err := Get(fruitPlugin, fruitImplements)
@@ -94,7 +99,8 @@ func TestGet(t *testing.T) {
 }
 
 func TestPluginWithNoManifest(t *testing.T) {
-	t.Parallel()
+	// TODO: t.Parallel()
+	// TestGet also registers fruitPlugin
 	mux, addr := setupRemotePluginServer(t)
 
 	m := Manifest{[]string{fruitImplements}}
@@ -120,7 +126,9 @@ func TestPluginWithNoManifest(t *testing.T) {
 		Addr:         addr,
 		TLSConfig:    &tlsconfig.Options{InsecureSkipVerify: true},
 	}
+	storage.Lock()
 	storage.plugins[fruitPlugin] = p
+	storage.Unlock()
 
 	plugin, err := Get(fruitPlugin, fruitImplements)
 	if err != nil {
@@ -133,6 +141,7 @@ func TestPluginWithNoManifest(t *testing.T) {
 
 func TestGetAll(t *testing.T) {
 	t.Parallel()
+
 	tmpdir := t.TempDir()
 	r := LocalRegistry{
 		socketsPath: tmpdir,
@@ -154,7 +163,9 @@ func TestGetAll(t *testing.T) {
 		t.Fatal(err)
 	}
 	plugin.Manifest = &Manifest{Implements: []string{"apple"}}
+	storage.Lock()
 	storage.plugins["example"] = plugin
+	storage.Unlock()
 
 	fetchedPlugins, err := r.GetAll("apple")
 	if err != nil {
