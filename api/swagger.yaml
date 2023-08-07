@@ -5301,7 +5301,25 @@ definitions:
           - "WARNING: No memory limit support"
           - "WARNING: bridge-nf-call-iptables is disabled"
           - "WARNING: bridge-nf-call-ip6tables is disabled"
+      CDISpecDirs:
+        description: |
+          List of directories where (Container Device Interface) CDI
+          specifications are located.
 
+          These specifications define vendor-specific modifications to an OCI
+          runtime specification for a container being created.
+
+          An empty list indicates that CDI device injection is disabled.
+
+          Note that since using CDI device injection requires the daemon to have
+          experimental enabled. For non-experimental daemons an empty list will
+          always be returned.
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "/etc/cdi"
+          - "/var/run/cdi"
 
   # PluginsInfo is a temp struct holding Plugins name
   # registered with docker daemon. It is used by Info struct

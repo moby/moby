@@ -18,21 +18,29 @@ type cdiHandler struct {
 
 // RegisterCDIDriver registers the CDI device driver.
 // The driver injects CDI devices into an incoming OCI spec and is called for DeviceRequests associated with CDI devices.
-func RegisterCDIDriver(opts ...cdi.Option) {
-	cache, err := cdi.NewCache(opts...)
+// If the list of CDI spec directories is empty, the driver is not registered.
+func RegisterCDIDriver(cdiSpecDirs ...string) {
+	driver := newCDIDeviceDriver(cdiSpecDirs...)
+
+	registerDeviceDriver("cdi", driver)
+}
+
+// newCDIDeviceDriver creates a new CDI device driver.
+// If the creation of the CDI cache fails, a driver is returned that will return an error on an injection request.
+func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
+	cache, err := createCDICache(cdiSpecDirs...)
 	if err != nil {
-		log.G(context.TODO()).WithError(err).Error("CDI registry initialization failed")
+		log.G(context.TODO()).WithError(err)
 		// We create a spec updater that always returns an error.
 		// This error will be returned only when a CDI device is requested.
-		// This ensures that daemon startup is not blocked by a CDI registry initialization failure.
+		// This ensures that daemon startup is not blocked by a CDI registry initialization failure or being disabled
+		// by configuratrion.
 		errorOnUpdateSpec := func(s *specs.Spec, dev *deviceInstance) error {
-			return fmt.Errorf("CDI device injection failed due to registry initialization failure: %w", err)
+			return fmt.Errorf("CDI device injection failed: %w", err)
 		}
-		driver := &deviceDriver{
+		return &deviceDriver{
 			updateSpec: errorOnUpdateSpec,
 		}
-		registerDeviceDriver("cdi", driver)
-		return
 	}
 
 	// We construct a spec updates that injects CDI devices into the OCI spec using the initialized registry.
@@ -40,11 +48,24 @@ func RegisterCDIDriver(opts ...cdi.Option) {
 		registry: cache,
 	}
 
-	driver := &deviceDriver{
+	return &deviceDriver{
 		updateSpec: c.injectCDIDevices,
 	}
+}
 
-	registerDeviceDriver("cdi", driver)
+// createCDICache creates a CDI cache for the specified CDI specification directories.
+// If the list of CDI specification directories is empty or the creation of the CDI cache fails, an error is returned.
+func createCDICache(cdiSpecDirs ...string) (*cdi.Cache, error) {
+	if len(cdiSpecDirs) == 0 {
+		return nil, fmt.Errorf("No CDI specification directories specified")
+	}
+
+	cache, err := cdi.NewCache(cdi.WithSpecDirs(cdiSpecDirs...))
+	if err != nil {
+		return nil, fmt.Errorf("CDI registry initialization failure: %w", err)
+	}
+
+	return cache, nil
 }
 
 // injectCDIDevices injects a set of CDI devices into the specified OCI specification.

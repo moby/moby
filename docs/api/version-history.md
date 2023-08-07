@@ -34,6 +34,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   `BindOptions.ReadOnlyNonRecursive` and `BindOptions.ReadOnlyForceRecursive` to customize the behavior.
 * `POST /containers/create` now accepts a `HealthConfig.StartInterval` to set the
   interval for health checks during the start period.
+* `GET /info` now includes a `CDISpecDirs` field indicating the configured CDI
+  specifications directories. The use of the applied setting requires the daemon
+  to have expermental enabled, and for non-experimental daemons an empty list is
+  always returned.
 
 ## v1.43 API changes
 
@@ -103,7 +107,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   a default.
 
   This change is not versioned, and affects all API versions if the daemon has
-  this patch. 
+  this patch.
 * `GET /_ping` and `HEAD /_ping` now return a `Swarm` header, which allows a
   client to detect if Swarm is enabled on the daemon, without having to call
   additional endpoints.
@@ -126,7 +130,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   versioned, and affects all API versions if the daemon has this patch.
 * `GET /containers/{id}/attach`, `GET /exec/{id}/start`, `GET /containers/{id}/logs`
   `GET /services/{id}/logs` and `GET /tasks/{id}/logs` now set Content-Type header
-  to `application/vnd.docker.multiplexed-stream` when a multiplexed stdout/stderr 
+  to `application/vnd.docker.multiplexed-stream` when a multiplexed stdout/stderr
   stream is sent to client, `application/vnd.docker.raw-stream` otherwise.
 * `POST /volumes/create` now accepts a new `ClusterVolumeSpec` to create a cluster
   volume (CNI). This option can only be used if the daemon is a Swarm manager.
@@ -139,7 +143,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * Volume information returned by `GET /volumes/{name}`, `GET /volumes` and
   `GET /system/df` can now contain a `ClusterVolume` if the volume is a cluster
   volume (requires the daemon to be a Swarm manager).
-* The `Volume` type, as returned by `Added new `ClusterVolume` fields 
+* The `Volume` type, as returned by `Added new `ClusterVolume` fields
 * Added a new `PUT /volumes{name}` endpoint to update cluster volumes (CNI).
   Cluster volumes are only supported if the daemon is a Swarm manager.
 * `GET /containers/{name}/attach/ws` endpoint now accepts `stdin`, `stdout` and
@@ -355,7 +359,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.36](https://docs.docker.com/engine/api/v1.36/) documentation
 
-* `Get /events` now return `exec_die` event when an exec process terminates.  
+* `Get /events` now return `exec_die` event when an exec process terminates.
 
 
 ## v1.35 API changes
@@ -563,7 +567,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /services/create` and `POST /services/(id or name)/update` now accept the `TTY` parameter, which allocate a pseudo-TTY in container.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept the `DNSConfig` parameter, which specifies DNS related configurations in resolver configuration file (resolv.conf) through `Nameservers`, `Search`, and `Options`.
 * `POST /services/create` and `POST /services/(id or name)/update` now support
-  `node.platform.arch` and `node.platform.os` constraints in the services 
+  `node.platform.arch` and `node.platform.os` constraints in the services
   `TaskSpec.Placement.Constraints` field.
 * `GET /networks/(id or name)` now includes IP and name of all peers nodes for swarm mode overlay networks.
 * `GET /plugins` list plugins.
