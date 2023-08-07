@@ -83,10 +83,6 @@ func (e ambigousResultsError) Error() string {
 
 func (ambigousResultsError) InvalidParameter() {}
 
-func nameConflict(name string) error {
-	return errdefs.Conflict(libnetwork.NetworkNameError(name))
-}
-
 func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -213,21 +209,11 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 	}
 
 	if nws, err := n.cluster.GetNetworksByName(create.Name); err == nil && len(nws) > 0 {
-		return nameConflict(create.Name)
+		return libnetwork.NetworkNameError(create.Name)
 	}
 
 	nw, err := n.backend.CreateNetwork(create)
 	if err != nil {
-		var warning string
-		if _, ok := err.(libnetwork.NetworkNameError); ok {
-			// check if user defined CheckDuplicate, if set true, return err
-			// otherwise prepare a warning message
-			if create.CheckDuplicate {
-				return nameConflict(create.Name)
-			}
-			warning = libnetwork.NetworkNameError(create.Name).Error()
-		}
-
 		if _, ok := err.(libnetwork.ManagerRedirectError); !ok {
 			return err
 		}
@@ -236,8 +222,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 			return err
 		}
 		nw = &types.NetworkCreateResponse{
-			ID:      id,
-			Warning: warning,
+			ID: id,
 		}
 	}
 
