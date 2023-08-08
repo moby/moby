@@ -1479,7 +1479,7 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 		if pb, ok := opt.([]types.PortBinding); ok {
 			cc.PortBindings = pb
 		} else {
-			return nil, types.InvalidParameterErrorf("Invalid port mapping data in connectivity configuration: %v", opt)
+			return nil, types.InvalidParameterErrorf("invalid port mapping data in connectivity configuration: %v", opt)
 		}
 	}
 
@@ -1487,7 +1487,7 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 		if ports, ok := opt.([]types.TransportPort); ok {
 			cc.ExposedPorts = ports
 		} else {
-			return nil, types.InvalidParameterErrorf("Invalid exposed ports data in connectivity configuration: %v", opt)
+			return nil, types.InvalidParameterErrorf("invalid exposed ports data in connectivity configuration: %v", opt)
 		}
 	}
 

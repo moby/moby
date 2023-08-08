@@ -1112,7 +1112,7 @@ func (ep *Endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 		}
 	}
 	if progAdd != nil {
-		return types.InvalidParameterErrorf("Invalid address %s: It does not belong to any of this network's subnets", prefAdd)
+		return types.InvalidParameterErrorf("invalid address %s: It does not belong to any of this network's subnets", prefAdd)
 	}
 	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
 }

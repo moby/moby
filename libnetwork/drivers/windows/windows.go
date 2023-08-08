@@ -199,7 +199,7 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 			config.MacPools = make([]hcsshim.MacPool, 0)
 			s := strings.Split(value, ",")
 			if len(s)%2 != 0 {
-				return nil, types.InvalidParameterErrorf("Invalid mac pool. You must specify both a start range and an end range")
+				return nil, types.InvalidParameterErrorf("invalid mac pool. You must specify both a start range and an end range")
 			}
 			for i := 0; i < len(s)-1; i += 2 {
 				config.MacPools = append(config.MacPools, hcsshim.MacPool{
