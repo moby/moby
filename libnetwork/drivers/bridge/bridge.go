@@ -310,13 +310,12 @@ func (n *bridgeNetwork) getNetworkBridgeName() string {
 }
 
 func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
-	n.Lock()
-	defer n.Unlock()
-
 	if eid == "" {
 		return nil, InvalidEndpointIDError(eid)
 	}
 
+	n.Lock()
+	defer n.Unlock()
 	if ep, ok := n.endpoints[eid]; ok {
 		return ep, nil
 	}
@@ -1349,43 +1348,45 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable bool) error {
-	var err error
-
+func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable bool) (retErr error) {
 	cc := endpoint.containerConfig
-	if cc == nil {
-		return nil
-	}
 	ec := endpoint.extConnConfig
-	if ec == nil {
+	if cc == nil || ec == nil || (len(cc.ParentEndpoints) == 0 && len(cc.ChildEndpoints) == 0) {
+		// nothing to do
 		return nil
 	}
+
+	// Try to keep things atomic. addedLinks keeps track of links that were
+	// successfully added. If any error occurred, then roll back all.
+	var addedLinks []*link
+	defer func() {
+		if retErr == nil {
+			return
+		}
+		for _, l := range addedLinks {
+			l.Disable()
+		}
+	}()
 
 	if ec.ExposedPorts != nil {
 		for _, p := range cc.ParentEndpoints {
-			var parentEndpoint *bridgeEndpoint
-			parentEndpoint, err = network.getEndpoint(p)
+			parentEndpoint, err := network.getEndpoint(p)
 			if err != nil {
 				return err
 			}
 			if parentEndpoint == nil {
-				err = InvalidEndpointIDError(p)
-				return err
+				return InvalidEndpointIDError(p)
 			}
 
-			l := newLink(parentEndpoint.addr.IP.String(),
-				endpoint.addr.IP.String(),
-				ec.ExposedPorts, network.config.BridgeName)
+			l, err := newLink(parentEndpoint.addr.IP, endpoint.addr.IP, ec.ExposedPorts, network.config.BridgeName)
+			if err != nil {
+				return err
+			}
 			if enable {
-				err = l.Enable()
-				if err != nil {
+				if err := l.Enable(); err != nil {
 					return err
 				}
-				defer func() {
-					if err != nil {
-						l.Disable()
-					}
-				}()
+				addedLinks = append(addedLinks, l)
 			} else {
 				l.Disable()
 			}
@@ -1393,32 +1394,26 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 	}
 
 	for _, c := range cc.ChildEndpoints {
-		var childEndpoint *bridgeEndpoint
-		childEndpoint, err = network.getEndpoint(c)
+		childEndpoint, err := network.getEndpoint(c)
 		if err != nil {
 			return err
 		}
 		if childEndpoint == nil {
-			err = InvalidEndpointIDError(c)
-			return err
+			return InvalidEndpointIDError(c)
 		}
 		if childEndpoint.extConnConfig == nil || childEndpoint.extConnConfig.ExposedPorts == nil {
 			continue
 		}
 
-		l := newLink(endpoint.addr.IP.String(),
-			childEndpoint.addr.IP.String(),
-			childEndpoint.extConnConfig.ExposedPorts, network.config.BridgeName)
+		l, err := newLink(endpoint.addr.IP, childEndpoint.addr.IP, childEndpoint.extConnConfig.ExposedPorts, network.config.BridgeName)
+		if err != nil {
+			return err
+		}
 		if enable {
-			err = l.Enable()
-			if err != nil {
+			if err := l.Enable(); err != nil {
 				return err
 			}
-			defer func() {
-				if err != nil {
-					l.Disable()
-				}
-			}()
+			addedLinks = append(addedLinks, l)
 		} else {
 			l.Disable()
 		}
