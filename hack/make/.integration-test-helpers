@@ -31,8 +31,6 @@ setup_integration_test_filter() {
 		if [ -z "${TEST_INTEGRATION_DIR}" ]; then
 			echo "Skipping integration tests since the supplied filter \"${TEST_FILTER}\" omits all integration tests"
 			TEST_SKIP_INTEGRATION=1
-		else
-			TESTFLAGS+=" -test.run ${TEST_FILTER}"
 		fi
 	fi
 
@@ -40,8 +38,6 @@ setup_integration_test_filter() {
 		if ! echo "$dirs" | grep -q '^./integration-cli$'; then
 			TEST_SKIP_INTEGRATION_CLI=1
 			echo "Skipping integration-cli tests since the supplied filter \"${TEST_FILTER}\" omits all integration-cli tests"
-		else
-			TESTFLAGS+=" -test.run /${TEST_FILTER}"
 		fi
 	fi
 }
@@ -64,8 +60,15 @@ run_test_integration() {
 }
 
 run_test_integration_suites() {
-	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
 	local dirs="$1"
+	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS "
+	if [ -n "${TEST_FILTER}" ]; then
+		if [ "$dirs" == "integration-cli" ]; then
+			flags+=" -test.run /${TEST_FILTER}"
+		else
+			flags+=" -test.run ${TEST_FILTER}"
+		fi
+	fi
 	local failed=0
 	for dir in ${dirs}; do
 		if ! (
