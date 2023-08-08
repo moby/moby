@@ -25,7 +25,11 @@ setup_integration_test_filter() {
 	fi
 
 	local dirs
-	dirs=$(grep -rIlE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/ | xargs -I file dirname file | uniq)
+	local files
+	if files=$(grep -rIlE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/); then
+		dirs=$(echo "$files" | xargs -I file dirname file | uniq)
+	fi
+
 	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
 		: "${TEST_INTEGRATION_DIR:=$(echo "$dirs" | grep -v '^\./integration-cli$')}"
 		if [ -z "${TEST_INTEGRATION_DIR}" ]; then
