@@ -37,7 +37,7 @@ setup_integration_test_filter() {
 	fi
 
 	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
-		if echo "$dirs" | grep -vq '^./integration-cli$'; then
+		if ! echo "$dirs" | grep -q '^./integration-cli$'; then
 			TEST_SKIP_INTEGRATION_CLI=1
 			echo "Skipping integration-cli tests since the supplied filter \"${TEST_FILTER}\" omits all integration-cli tests"
 		else
