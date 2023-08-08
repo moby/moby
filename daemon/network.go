@@ -812,19 +812,19 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			for _, ips := range ipam.LinkLocalIPs {
 				linkIP := net.ParseIP(ips)
 				if linkIP == nil && ips != "" {
-					return nil, fmt.Errorf("Invalid link-local IP address: %s", ipam.LinkLocalIPs)
+					return nil, fmt.Errorf("invalid link-local IP address: %s", ipam.LinkLocalIPs)
 				}
 				ipList = append(ipList, linkIP)
 			}
 
 			ip := net.ParseIP(ipam.IPv4Address)
 			if ip == nil && ipam.IPv4Address != "" {
-				return nil, fmt.Errorf("Invalid IPv4 address: %s", ipam.IPv4Address)
+				return nil, fmt.Errorf("invalid IPv4 address: %s", ipam.IPv4Address)
 			}
 
 			ip6 := net.ParseIP(ipam.IPv6Address)
 			if ip6 == nil && ipam.IPv6Address != "" {
-				return nil, fmt.Errorf("Invalid IPv6 address: %s", ipam.IPv6Address)
+				return nil, fmt.Errorf("invalid IPv6 address: %s", ipam.IPv6Address)
 			}
 
 			createOptions = append(createOptions, libnetwork.CreateOptionIpam(ip, ip6, ipList, nil))
@@ -925,7 +925,7 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 				portStart, portEnd, err = newP.Range()
 			}
 			if err != nil {
-				return nil, fmt.Errorf("Error parsing HostPort value (%s): %w", binding.HostPort, err)
+				return nil, fmt.Errorf("error parsing HostPort value (%s): %w", binding.HostPort, err)
 			}
 			publishedPorts = append(publishedPorts, networktypes.PortBinding{
 				Proto:       portProto,
