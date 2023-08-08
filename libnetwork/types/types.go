@@ -374,10 +374,10 @@ type ForbiddenError interface {
 	Forbidden()
 }
 
-// NoServiceError is an interface for errors returned when the required service is not available
-type NoServiceError interface {
-	// NoService makes implementer into NoServiceError type
-	NoService()
+// UnavailableError is an interface for errors returned when the required service is not available
+type UnavailableError interface {
+	// Unavailable makes implementer into UnavailableError type
+	Unavailable()
 }
 
 // NotImplementedError is an interface for errors raised because of requested functionality is not yet implemented
@@ -411,9 +411,9 @@ func ForbiddenErrorf(format string, params ...interface{}) error {
 	return forbidden(fmt.Sprintf(format, params...))
 }
 
-// NoServiceErrorf creates an instance of NoServiceError
-func NoServiceErrorf(format string, params ...interface{}) error {
-	return noService(fmt.Sprintf(format, params...))
+// UnavailableErrorf creates an instance of UnavailableError
+func UnavailableErrorf(format string, params ...interface{}) error {
+	return unavailable(fmt.Sprintf(format, params...))
 }
 
 // NotImplementedErrorf creates an instance of NotImplementedError
@@ -448,12 +448,12 @@ func (frb forbidden) Error() string {
 }
 func (frb forbidden) Forbidden() {}
 
-type noService string
+type unavailable string
 
-func (ns noService) Error() string {
+func (ns unavailable) Error() string {
 	return string(ns)
 }
-func (ns noService) NoService() {}
+func (ns unavailable) Unavailable() {}
 
 type notImpl string
 
