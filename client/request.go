@@ -227,18 +227,17 @@ func (cli *Client) checkResponseErr(serverResp serverResponse) error {
 		return fmt.Errorf("request returned %s for API route and version %s, check if the server supports the requested API version", http.StatusText(serverResp.statusCode), serverResp.reqURL)
 	}
 
-	var errorMessage string
+	var daemonErr error
 	if serverResp.header.Get("Content-Type") == "application/json" && (cli.version == "" || versions.GreaterThan(cli.version, "1.23")) {
 		var errorResponse types.ErrorResponse
 		if err := json.Unmarshal(body, &errorResponse); err != nil {
 			return errors.Wrap(err, "Error reading JSON")
 		}
-		errorMessage = strings.TrimSpace(errorResponse.Message)
+		daemonErr = errors.New(strings.TrimSpace(errorResponse.Message))
 	} else {
-		errorMessage = strings.TrimSpace(string(body))
+		daemonErr = errors.New(strings.TrimSpace(string(body)))
 	}
-
-	return errors.Wrap(errors.New(errorMessage), "Error response from daemon")
+	return errors.Wrap(daemonErr, "Error response from daemon")
 }
 
 func (cli *Client) addHeaders(req *http.Request, headers http.Header) *http.Request {
