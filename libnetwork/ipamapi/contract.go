@@ -29,14 +29,9 @@ type Registerer interface {
 
 // Well-known errors returned by IPAM
 var (
-	ErrIpamInternalError   = types.InternalErrorf("IPAM Internal Error")
 	ErrInvalidAddressSpace = types.BadRequestErrorf("Invalid Address Space")
 	ErrInvalidPool         = types.BadRequestErrorf("Invalid Address Pool")
 	ErrInvalidSubPool      = types.BadRequestErrorf("Invalid Address SubPool")
-	ErrInvalidRequest      = types.BadRequestErrorf("Invalid Request")
-	ErrPoolNotFound        = types.BadRequestErrorf("Address Pool not found")
-	ErrOverlapPool         = types.ForbiddenErrorf("Address pool overlaps with existing pool on this address space")
-	ErrNoAvailablePool     = types.NoServiceErrorf("No available pool")
 	ErrNoAvailableIPs      = types.NoServiceErrorf("No available addresses on this pool")
 	ErrNoIPReturned        = types.NoServiceErrorf("No address returned")
 	ErrIPAlreadyAllocated  = types.ForbiddenErrorf("Address already in use")
