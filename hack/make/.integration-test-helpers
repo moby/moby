@@ -110,13 +110,26 @@ run_test_integration_suites() {
 
 			echo "Running $PWD (${pkgname}) flags=${pkgtestflags}"
 			[ -n "$TESTDEBUG" ] && set -x
-			# shellcheck disable=SC2086
-			test_env gotestsum \
-				--format=standard-verbose \
-				--jsonfile="${ABS_DEST}/${pkgname//./-}-go-test-report.json" \
-				--junitfile="${ABS_DEST}/${pkgname//./-}-junit-report.xml" \
-				--raw-command \
-				-- go tool test2json -p "${pkgname}" -t ./test.main ${pkgtestflags}
+
+			if [ -n "$DELVE_PORT" ]; then
+				delve_listen_port="${DELVE_PORT##*:}"
+				test_env dlv --listen="0.0.0.0:${delve_listen_port}" \
+					--headless=true \
+					--log \
+					--api-version=2 \
+					--only-same-user=false \
+					--check-go-version=false \
+					--accept-multiclient \
+					test ./ -- ${pkgtestflags}
+			else
+				# shellcheck disable=SC2086
+				test_env gotestsum \
+					--format=standard-verbose \
+					--jsonfile="${ABS_DEST}/${pkgname//./-}-go-test-report.json" \
+					--junitfile="${ABS_DEST}/${pkgname//./-}-junit-report.xml" \
+					--raw-command \
+					-- go tool test2json -p "${pkgname}" -t ./test.main ${pkgtestflags}
+			fi
 		); then
 			if [ -n "${TEST_INTEGRATION_FAIL_FAST}" ]; then
 				return 1
@@ -189,6 +202,7 @@ test_env() {
 			DOCKER_REMOTE_DAEMON="$DOCKER_REMOTE_DAEMON" \
 			DOCKER_ROOTLESS="$DOCKER_ROOTLESS" \
 			GITHUB_ACTIONS="$GITHUB_ACTIONS" \
+			GO111MODULE="$GO111MODULE" \
 			GOCACHE="$GOCACHE" \
 			GOPATH="$GOPATH" \
 			GOTRACEBACK=all \
