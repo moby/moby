@@ -442,9 +442,9 @@ type epRecord struct {
 	lbIndex int
 }
 
+// Services returns a map of services keyed by the service name with the details
+// of all the tasks that belong to the service. Applicable only in swarm mode.
 func (n *Network) Services() map[string]ServiceInfo {
-	eps := make(map[string]epRecord)
-
 	if !n.isClusterEligible() {
 		return nil
 	}
@@ -455,6 +455,7 @@ func (n *Network) Services() map[string]ServiceInfo {
 
 	// Walk through libnetworkEPTable and fetch the driver agnostic endpoint info
 	entries := agent.networkDB.GetTableByNetwork(libnetworkEPTable, n.id)
+	eps := make(map[string]epRecord)
 	for eid, value := range entries {
 		var epRec EndpointRecord
 		nid := n.ID()

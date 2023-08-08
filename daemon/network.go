@@ -313,7 +313,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 		// check if user defined CheckDuplicate, if set true, return err
 		// otherwise prepare a warning message
 		if create.CheckDuplicate {
-			if !agent || nw.Info().Dynamic() {
+			if !agent || nw.Dynamic() {
 				return nil, libnetwork.NetworkNameError(create.Name)
 			}
 		}
@@ -532,7 +532,7 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 		return errdefs.Forbidden(err)
 	}
 
-	if dynamic && !nw.Info().Dynamic() {
+	if dynamic && !nw.Dynamic() {
 		if runconfig.IsPreDefinedNetwork(nw.Name()) {
 			// Predefined networks now support swarm services. Make this
 			// a no-op when cluster requests to remove the predefined network.
@@ -548,9 +548,9 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 
 	// If this is not a configuration only network, we need to
 	// update the corresponding remote drivers' reference counts
-	if !nw.Info().ConfigOnly() {
+	if !nw.ConfigOnly() {
 		daemon.pluginRefCount(nw.Type(), driverapi.NetworkPluginEndpointType, plugingetter.Release)
-		ipamType, _, _, _ := nw.Info().IpamConfig()
+		ipamType, _, _, _ := nw.IpamConfig()
 		daemon.pluginRefCount(ipamType, ipamapi.PluginEndpointType, plugingetter.Release)
 		daemon.LogNetworkEvent(nw, "destroy")
 	}
@@ -599,24 +599,23 @@ func buildNetworkResource(nw *libnetwork.Network) types.NetworkResource {
 		return types.NetworkResource{}
 	}
 
-	info := nw.Info()
 	return types.NetworkResource{
 		Name:       nw.Name(),
 		ID:         nw.ID(),
-		Created:    info.Created(),
-		Scope:      info.Scope(),
+		Created:    nw.Created(),
+		Scope:      nw.Scope(),
 		Driver:     nw.Type(),
-		EnableIPv6: info.IPv6Enabled(),
-		IPAM:       buildIPAMResources(info),
-		Internal:   info.Internal(),
-		Attachable: info.Attachable(),
-		Ingress:    info.Ingress(),
-		ConfigFrom: network.ConfigReference{Network: info.ConfigFrom()},
-		ConfigOnly: info.ConfigOnly(),
+		EnableIPv6: nw.IPv6Enabled(),
+		IPAM:       buildIPAMResources(nw),
+		Internal:   nw.Internal(),
+		Attachable: nw.Attachable(),
+		Ingress:    nw.Ingress(),
+		ConfigFrom: network.ConfigReference{Network: nw.ConfigFrom()},
+		ConfigOnly: nw.ConfigOnly(),
 		Containers: map[string]types.EndpointResource{},
-		Options:    info.DriverOptions(),
-		Labels:     info.Labels(),
-		Peers:      buildPeerInfoResources(info.Peers()),
+		Options:    nw.DriverOptions(),
+		Labels:     nw.Labels(),
+		Peers:      buildPeerInfoResources(nw.Peers()),
 	}
 }
 
@@ -643,7 +642,7 @@ func buildContainerAttachments(nw *libnetwork.Network) map[string]types.Endpoint
 // attached to the network. It is used when listing networks in "verbose" mode.
 func buildServiceAttachments(nw *libnetwork.Network) map[string]network.ServiceInfo {
 	services := make(map[string]network.ServiceInfo)
-	for name, service := range nw.Info().Services() {
+	for name, service := range nw.Services() {
 		tasks := make([]network.Task, 0, len(service.Tasks))
 		for _, t := range service.Tasks {
 			tasks = append(tasks, network.Task{
@@ -679,7 +678,7 @@ func buildPeerInfoResources(peers []networkdb.PeerInfo) []network.PeerInfo {
 
 // buildIPAMResources constructs a [network.IPAM] from the network's
 // IPAM information for inclusion in API responses.
-func buildIPAMResources(nw libnetwork.NetworkInfo) network.IPAM {
+func buildIPAMResources(nw *libnetwork.Network) network.IPAM {
 	var ipamConfig []network.IPAMConfig
 
 	ipamDriver, ipamOptions, ipv4Conf, ipv6Conf := nw.IpamConfig()
@@ -772,7 +771,7 @@ func buildEndpointResource(ep *libnetwork.Endpoint, info libnetwork.EndpointInfo
 // after disconnecting any connected container
 func (daemon *Daemon) clearAttachableNetworks() {
 	for _, n := range daemon.getAllNetworks() {
-		if !n.Info().Attachable() {
+		if !n.Attachable() {
 			continue
 		}
 		for _, ep := range n.Endpoints() {
@@ -882,7 +881,7 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	// Port-mapping rules belong to the container & applicable only to non-internal networks.
 	//
 	// TODO(thaJeztah): Look if we can provide a more minimal function for getPortMapInfo, as it does a lot, and we only need the "length".
-	if n.Info().Internal() || len(getPortMapInfo(sb)) > 0 {
+	if n.Internal() || len(getPortMapInfo(sb)) > 0 {
 		return createOptions, nil
 	}
 

@@ -192,11 +192,9 @@ func (daemon *Daemon) UsesSnapshotter() bool {
 // RegistryHosts returns the registry hosts configuration for the host component
 // of a distribution image reference.
 func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) {
-	m := map[string]resolverconfig.RegistryConfig{}
-
-	mirrors := daemon.registryService.ServiceConfig().Mirrors
-	m["docker.io"] = resolverconfig.RegistryConfig{Mirrors: mirrors}
-
+	m := map[string]resolverconfig.RegistryConfig{
+		"docker.io": {Mirrors: daemon.registryService.ServiceConfig().Mirrors},
+	}
 	conf := daemon.registryService.ServiceConfig().IndexConfigs
 	for k, v := range conf {
 		c := resolverconfig.RegistryConfig{}
@@ -1323,10 +1321,8 @@ func (daemon *Daemon) Subnets() ([]net.IPNet, []net.IPNet) {
 	var v4Subnets []net.IPNet
 	var v6Subnets []net.IPNet
 
-	managedNetworks := daemon.netController.Networks()
-
-	for _, managedNetwork := range managedNetworks {
-		v4infos, v6infos := managedNetwork.Info().IpamInfo()
+	for _, managedNetwork := range daemon.netController.Networks() {
+		v4infos, v6infos := managedNetwork.IpamInfo()
 		for _, info := range v4infos {
 			if info.IPAMData.Pool != nil {
 				v4Subnets = append(v4Subnets, *info.IPAMData.Pool)

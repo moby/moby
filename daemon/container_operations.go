@@ -232,7 +232,7 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n *l
 			// is an attachable network, which may not
 			// be locally available previously.
 			// So always update.
-			if n.Info().Scope() == scope.Swarm {
+			if n.Scope() == scope.Swarm {
 				continue
 			}
 			// Avoid duplicate config
@@ -327,7 +327,7 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 	// If we found a network and if it is not dynamically created
 	// we should never attempt to attach to that network here.
 	if n != nil {
-		if container.Managed || !n.Info().Dynamic() {
+		if container.Managed || !n.Dynamic() {
 			return n, nil, nil
 		}
 		// Throw an error if the container is already attached to the network
@@ -591,7 +591,7 @@ func validateNetworkingConfig(n *libnetwork.Network, epConfig *networktypes.Endp
 		return nil
 	}
 
-	_, _, nwIPv4Configs, nwIPv6Configs := n.Info().IpamConfig()
+	_, _, nwIPv4Configs, nwIPv6Configs := n.IpamConfig()
 	for _, s := range []struct {
 		ipConfigured  bool
 		subnetConfigs []*libnetwork.IpamConf
@@ -879,7 +879,7 @@ func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n *l
 }
 
 func (daemon *Daemon) tryDetachContainerFromClusterNetwork(network *libnetwork.Network, container *container.Container) {
-	if !container.Managed && daemon.clusterProvider != nil && network.Info().Dynamic() {
+	if !container.Managed && daemon.clusterProvider != nil && network.Dynamic() {
 		if err := daemon.clusterProvider.DetachNetwork(network.Name(), container.ID); err != nil {
 			log.G(context.TODO()).WithError(err).Warn("error detaching from network")
 			if err := daemon.clusterProvider.DetachNetwork(network.ID(), container.ID); err != nil {

@@ -109,13 +109,13 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 			return true
 		default:
 		}
-		if nw.Info().ConfigOnly() {
+		if nw.ConfigOnly() {
 			return false
 		}
-		if !until.IsZero() && nw.Info().Created().After(until) {
+		if !until.IsZero() && nw.Created().After(until) {
 			return false
 		}
-		if !matchLabels(pruneFilters, nw.Info().Labels()) {
+		if !matchLabels(pruneFilters, nw.Labels()) {
 			return false
 		}
 		nwName := nw.Name()
