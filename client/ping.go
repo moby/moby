@@ -37,11 +37,9 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 		return ping, err
 	}
 
-	req, err = cli.buildRequest(http.MethodGet, path.Join(cli.basePath, "/_ping"), nil, nil)
-	if err != nil {
-		return ping, err
-	}
-	serverResp, err = cli.doRequest(ctx, req)
+	// HEAD failed; fallback to GET.
+	req.Method = http.MethodGet
+	serverResp, err = cli.doRequest(req)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
 		return ping, err
