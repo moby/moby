@@ -73,14 +73,6 @@ func (i *nwIface) Routes() []*net.IPNet {
 	return routes
 }
 
-func (n *networkNamespace) Interfaces() []Interface {
-	ifaces := make([]Interface, len(n.iFaces))
-	for i, iface := range n.iFaces {
-		ifaces[i] = iface
-	}
-	return ifaces
-}
-
 func (i *nwIface) Remove() error {
 	i.ns.Lock()
 	isDefault := i.ns.isDefault
