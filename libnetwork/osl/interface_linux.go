@@ -14,6 +14,11 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+// nwIface represents the settings and identity of a network device.
+// It is used as a return type for Network.Link, and it is common practice
+// for the caller to use this information when moving interface SrcName from
+// host namespace to DstName in a different net namespace with the appropriate
+// network settings.
 type nwIface struct {
 	srcName     string
 	dstName     string
@@ -28,10 +33,15 @@ type nwIface struct {
 	ns          *networkNamespace
 }
 
+// SrcName returns the name of the interface in the origin network namespace.
 func (i *nwIface) SrcName() string {
 	return i.srcName
 }
 
+// DstName returns the name that will be assigned to the interface once
+// moved inside a network namespace. When the caller passes in a DstName,
+// it is only expected to pass a prefix. The name will be modified with an
+// auto-generated suffix.
 func (i *nwIface) DstName() string {
 	return i.dstName
 }
@@ -40,10 +50,12 @@ func (i *nwIface) DstMaster() string {
 	return i.dstMaster
 }
 
+// Bridge returns true if the interface is a bridge.
 func (i *nwIface) Bridge() bool {
 	return i.bridge
 }
 
+// Master returns the srcname of the master interface for this interface.
 func (i *nwIface) Master() string {
 	return i.master
 }
@@ -52,18 +64,23 @@ func (i *nwIface) MacAddress() net.HardwareAddr {
 	return types.GetMacCopy(i.mac)
 }
 
+// Address returns the IPv4 address for the interface.
 func (i *nwIface) Address() *net.IPNet {
 	return types.GetIPNetCopy(i.address)
 }
 
+// AddressIPv6 returns the IPv6 address for the interface.
 func (i *nwIface) AddressIPv6() *net.IPNet {
 	return types.GetIPNetCopy(i.addressIPv6)
 }
 
+// LinkLocalAddresses returns the link-local IP addresses assigned to the
+// interface.
 func (i *nwIface) LinkLocalAddresses() []*net.IPNet {
 	return i.llAddrs
 }
 
+// Routes returns IP routes for the interface.
 func (i *nwIface) Routes() []*net.IPNet {
 	routes := make([]*net.IPNet, len(i.routes))
 	for index, route := range i.routes {
@@ -73,6 +90,8 @@ func (i *nwIface) Routes() []*net.IPNet {
 	return routes
 }
 
+// Remove an interface from the sandbox by renaming to original name
+// and moving it out of the sandbox.
 func (i *nwIface) Remove() error {
 	i.ns.Lock()
 	isDefault := i.ns.isDefault
@@ -123,7 +142,7 @@ func (i *nwIface) Remove() error {
 	return nil
 }
 
-// Returns the sandbox's side veth interface statistics
+// Statistics returns the sandbox's side veth interface statistics.
 func (i *nwIface) Statistics() (*types.InterfaceStatistics, error) {
 	l, err := i.ns.nlHandle.LinkByName(i.DstName())
 	if err != nil {
