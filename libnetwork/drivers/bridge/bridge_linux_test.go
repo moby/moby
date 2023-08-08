@@ -574,7 +574,7 @@ func (i *testInterface) SetMacAddress(mac net.HardwareAddr) error {
 		return types.ForbiddenErrorf("endpoint interface MAC address present (%s). Cannot be modified with %s.", i.mac, mac)
 	}
 	if mac == nil {
-		return types.BadRequestErrorf("tried to set nil MAC address to endpoint interface")
+		return types.InvalidParameterErrorf("tried to set nil MAC address to endpoint interface")
 	}
 	i.mac = types.GetMacCopy(mac)
 	return nil
@@ -582,7 +582,7 @@ func (i *testInterface) SetMacAddress(mac net.HardwareAddr) error {
 
 func (i *testInterface) SetIPAddress(address *net.IPNet) error {
 	if address.IP == nil {
-		return types.BadRequestErrorf("tried to set nil IP address to endpoint interface")
+		return types.InvalidParameterErrorf("tried to set nil IP address to endpoint interface")
 	}
 	if address.IP.To4() == nil {
 		return setAddress(&i.addrv6, address)

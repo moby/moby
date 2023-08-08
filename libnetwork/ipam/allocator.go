@@ -119,7 +119,7 @@ func (a *Allocator) ReleasePool(poolID string) error {
 	log.G(context.TODO()).Debugf("ReleasePool(%s)", poolID)
 	k, err := PoolIDFromString(poolID)
 	if err != nil {
-		return types.BadRequestErrorf("invalid pool id: %s", poolID)
+		return types.InvalidParameterErrorf("invalid pool id: %s", poolID)
 	}
 
 	aSpace, err := a.getAddrSpace(k.AddressSpace)
@@ -139,7 +139,7 @@ func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
 	case globalAddressSpace:
 		return a.global, nil
 	}
-	return nil, types.BadRequestErrorf("cannot find address space %s", as)
+	return nil, types.InvalidParameterErrorf("cannot find address space %s", as)
 }
 
 func newPoolData(pool netip.Prefix) *PoolData {
@@ -228,7 +228,7 @@ func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[s
 	log.G(context.TODO()).Debugf("RequestAddress(%s, %v, %v)", poolID, prefAddress, opts)
 	k, err := PoolIDFromString(poolID)
 	if err != nil {
-		return nil, nil, types.BadRequestErrorf("invalid pool id: %s", poolID)
+		return nil, nil, types.InvalidParameterErrorf("invalid pool id: %s", poolID)
 	}
 
 	aSpace, err := a.getAddrSpace(k.AddressSpace)
@@ -240,7 +240,7 @@ func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[s
 		var ok bool
 		pref, ok = netip.AddrFromSlice(prefAddress)
 		if !ok {
-			return nil, nil, types.BadRequestErrorf("invalid preferred address: %v", prefAddress)
+			return nil, nil, types.InvalidParameterErrorf("invalid preferred address: %v", prefAddress)
 		}
 	}
 	p, err := aSpace.requestAddress(k.Subnet, k.ChildSubnet, pref.Unmap(), opts)
@@ -288,7 +288,7 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 	log.G(context.TODO()).Debugf("ReleaseAddress(%s, %v)", poolID, address)
 	k, err := PoolIDFromString(poolID)
 	if err != nil {
-		return types.BadRequestErrorf("invalid pool id: %s", poolID)
+		return types.InvalidParameterErrorf("invalid pool id: %s", poolID)
 	}
 
 	aSpace, err := a.getAddrSpace(k.AddressSpace)
@@ -298,7 +298,7 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 
 	addr, ok := netip.AddrFromSlice(address)
 	if !ok {
-		return types.BadRequestErrorf("invalid address: %v", address)
+		return types.InvalidParameterErrorf("invalid address: %v", address)
 	}
 
 	return aSpace.releaseAddress(k.Subnet, k.ChildSubnet, addr.Unmap())
@@ -319,7 +319,7 @@ func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr
 	}
 
 	if !address.IsValid() {
-		return types.BadRequestErrorf("invalid address")
+		return types.InvalidParameterErrorf("invalid address")
 	}
 
 	if !nw.Contains(address) {

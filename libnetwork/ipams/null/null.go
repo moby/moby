@@ -25,16 +25,16 @@ func (a *allocator) GetDefaultAddressSpaces() (string, string, error) {
 
 func (a *allocator) RequestPool(addressSpace, requestedPool, requestedSubPool string, _ map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
 	if addressSpace != defaultAddressSpace {
-		return "", nil, nil, types.BadRequestErrorf("unknown address space: %s", addressSpace)
+		return "", nil, nil, types.InvalidParameterErrorf("unknown address space: %s", addressSpace)
 	}
 	if requestedPool != "" {
-		return "", nil, nil, types.BadRequestErrorf("null ipam driver does not handle specific address pool requests")
+		return "", nil, nil, types.InvalidParameterErrorf("null ipam driver does not handle specific address pool requests")
 	}
 	if requestedSubPool != "" {
-		return "", nil, nil, types.BadRequestErrorf("null ipam driver does not handle specific address subpool requests")
+		return "", nil, nil, types.InvalidParameterErrorf("null ipam driver does not handle specific address subpool requests")
 	}
 	if v6 {
-		return "", nil, nil, types.BadRequestErrorf("null ipam driver does not handle IPv6 address pool pool requests")
+		return "", nil, nil, types.InvalidParameterErrorf("null ipam driver does not handle IPv6 address pool pool requests")
 	}
 	return defaultPoolID, defaultPool, nil, nil
 }
@@ -45,14 +45,14 @@ func (a *allocator) ReleasePool(poolID string) error {
 
 func (a *allocator) RequestAddress(poolID string, ip net.IP, opts map[string]string) (*net.IPNet, map[string]string, error) {
 	if poolID != defaultPoolID {
-		return nil, nil, types.BadRequestErrorf("unknown pool id: %s", poolID)
+		return nil, nil, types.InvalidParameterErrorf("unknown pool id: %s", poolID)
 	}
 	return nil, nil, nil
 }
 
 func (a *allocator) ReleaseAddress(poolID string, ip net.IP) error {
 	if poolID != defaultPoolID {
-		return types.BadRequestErrorf("unknown pool id: %s", poolID)
+		return types.InvalidParameterErrorf("unknown pool id: %s", poolID)
 	}
 	return nil
 }

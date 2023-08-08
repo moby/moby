@@ -103,7 +103,7 @@ func (test *testEndpoint) SetMacAddress(mac net.HardwareAddr) error {
 	}
 
 	if mac == nil {
-		return types.BadRequestErrorf("tried to set nil MAC address to endpoint interface")
+		return types.InvalidParameterErrorf("tried to set nil MAC address to endpoint interface")
 	}
 	test.macAddress = mac.String()
 	return nil
@@ -111,7 +111,7 @@ func (test *testEndpoint) SetMacAddress(mac net.HardwareAddr) error {
 
 func (test *testEndpoint) SetIPAddress(address *net.IPNet) error {
 	if address.IP == nil {
-		return types.BadRequestErrorf("tried to set nil IP address to endpoint interface")
+		return types.InvalidParameterErrorf("tried to set nil IP address to endpoint interface")
 	}
 
 	test.address = address.String()

@@ -8,11 +8,11 @@ import (
 func TestErrorConstructors(t *testing.T) {
 	var err error
 
-	err = BadRequestErrorf("Io ho %d uccello", 1)
+	err = InvalidParameterErrorf("Io ho %d uccello", 1)
 	if err.Error() != "Io ho 1 uccello" {
 		t.Fatal(err)
 	}
-	if _, ok := err.(BadRequestError); !ok {
+	if _, ok := err.(InvalidParameterError); !ok {
 		t.Fatal(err)
 	}
 	if _, ok := err.(MaskableError); ok {

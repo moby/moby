@@ -845,7 +845,7 @@ func (c *Controller) NetworkByID(id string) (*Network, error) {
 // NewSandbox creates a new sandbox for containerID.
 func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*Sandbox, error) {
 	if containerID == "" {
-		return nil, types.BadRequestErrorf("invalid container ID")
+		return nil, types.InvalidParameterErrorf("invalid container ID")
 	}
 
 	var sb *Sandbox
@@ -1105,7 +1105,7 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 		// Now that we resolved the plugin, try again looking up the registry
 		id, cap = c.ipamRegistry.IPAM(name)
 		if id == nil {
-			return nil, nil, types.BadRequestErrorf("invalid ipam driver: %q", name)
+			return nil, nil, types.InvalidParameterErrorf("invalid ipam driver: %q", name)
 		}
 	}
 

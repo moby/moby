@@ -609,7 +609,7 @@ func (sb *Sandbox) SetKey(basePath string) error {
 	}()
 
 	if basePath == "" {
-		return types.BadRequestErrorf("invalid sandbox key")
+		return types.InvalidParameterErrorf("invalid sandbox key")
 	}
 
 	sb.mu.Lock()

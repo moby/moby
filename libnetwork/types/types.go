@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/ishidawataru/sctp"
 )
 
@@ -355,10 +356,10 @@ type MaskableError interface {
 	Maskable()
 }
 
-// BadRequestError is an interface for errors originated by a bad request
-type BadRequestError interface {
-	// BadRequest makes implementer into BadRequestError type
-	BadRequest()
+// InvalidParameterError is an interface for errors originated by a bad request
+type InvalidParameterError interface {
+	// InvalidParameter makes implementer into InvalidParameterError type
+	InvalidParameter()
 }
 
 // NotFoundError is an interface for errors raised because a needed resource is not available
@@ -395,9 +396,9 @@ type InternalError interface {
  * Well-known Error Formatters
  ******************************/
 
-// BadRequestErrorf creates an instance of BadRequestError
-func BadRequestErrorf(format string, params ...interface{}) error {
-	return badRequest(fmt.Sprintf(format, params...))
+// InvalidParameterErrorf creates an instance of InvalidParameterError
+func InvalidParameterErrorf(format string, params ...interface{}) error {
+	return errdefs.InvalidParameter(fmt.Errorf(format, params...))
 }
 
 // NotFoundErrorf creates an instance of NotFoundError
@@ -433,13 +434,6 @@ func InternalMaskableErrorf(format string, params ...interface{}) error {
 /***********************
  * Internal Error Types
  ***********************/
-type badRequest string
-
-func (br badRequest) Error() string {
-	return string(br)
-}
-func (br badRequest) BadRequest() {}
-
 type notFound string
 
 func (nf notFound) Error() string {

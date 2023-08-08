@@ -277,7 +277,7 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 }
 
 func parseErr(label, value, errString string) error {
-	return types.BadRequestErrorf("failed to parse %s value: %v (%s)", label, value, errString)
+	return types.InvalidParameterErrorf("failed to parse %s value: %v (%s)", label, value, errString)
 }
 
 func (n *bridgeNetwork) registerIptCleanFunc(clean iptableCleanFunc) {
@@ -289,7 +289,7 @@ func (n *bridgeNetwork) getDriverChains(version iptables.IPVersion) (*iptables.C
 	defer n.Unlock()
 
 	if n.driver == nil {
-		return nil, nil, nil, nil, types.BadRequestErrorf("no driver found")
+		return nil, nil, nil, nil, types.InvalidParameterErrorf("no driver found")
 	}
 
 	if version == iptables.IPv6 {
@@ -445,7 +445,7 @@ func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
 	defer d.Unlock()
 
 	if id == "" {
-		return nil, types.BadRequestErrorf("invalid network id: %s", id)
+		return nil, types.InvalidParameterErrorf("invalid network id: %s", id)
 	}
 
 	if nw, ok := d.networks[id]; ok {
@@ -476,7 +476,7 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 			config = opaqueConfig.(*networkConfiguration)
 		}
 	default:
-		err = types.BadRequestErrorf("do not recognize network configuration format: %T", opt)
+		err = types.InvalidParameterErrorf("do not recognize network configuration format: %T", opt)
 	}
 
 	return config, err
@@ -488,7 +488,7 @@ func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []d
 	}
 
 	if len(ipamV4Data) == 0 {
-		return types.BadRequestErrorf("bridge network %s requires ipv4 configuration", id)
+		return types.InvalidParameterErrorf("bridge network %s requires ipv4 configuration", id)
 	}
 
 	if ipamV4Data[0].Gateway != nil {
@@ -592,7 +592,7 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 // Create a new network using bridge plugin
 func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
-		return types.BadRequestErrorf("ipv4 pool is empty")
+		return types.InvalidParameterErrorf("ipv4 pool is empty")
 	}
 	// Sanity checks
 	d.Lock()
@@ -1479,7 +1479,7 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 		if pb, ok := opt.([]types.PortBinding); ok {
 			cc.PortBindings = pb
 		} else {
-			return nil, types.BadRequestErrorf("Invalid port mapping data in connectivity configuration: %v", opt)
+			return nil, types.InvalidParameterErrorf("Invalid port mapping data in connectivity configuration: %v", opt)
 		}
 	}
 
@@ -1487,7 +1487,7 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 		if ports, ok := opt.([]types.TransportPort); ok {
 			cc.ExposedPorts = ports
 		} else {
-			return nil, types.BadRequestErrorf("Invalid exposed ports data in connectivity configuration: %v", opt)
+			return nil, types.InvalidParameterErrorf("Invalid exposed ports data in connectivity configuration: %v", opt)
 		}
 	}
 
