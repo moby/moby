@@ -43,45 +43,39 @@ type addrSpace struct {
 	sync.Mutex
 }
 
-// String returns the string form of the SubnetKey object
-func (s *PoolID) String() string {
-	k := fmt.Sprintf("%s/%s", s.AddressSpace, s.Subnet)
-	if s.ChildSubnet != (netip.Prefix{}) {
-		k = fmt.Sprintf("%s/%s", k, s.ChildSubnet)
-	}
-	return k
-}
-
-// FromString populates the SubnetKey object reading it from string
-func (s *PoolID) FromString(str string) error {
-	if str == "" || !strings.Contains(str, "/") {
-		return types.BadRequestErrorf("invalid string form for subnetkey: %s", str)
+// PoolIDFromString creates a new PoolID and populates the SubnetKey object
+// reading it from the given string.
+func PoolIDFromString(str string) (pID PoolID, err error) {
+	if str == "" {
+		return pID, types.BadRequestErrorf("invalid string form for subnetkey: %s", str)
 	}
 
 	p := strings.Split(str, "/")
 	if len(p) != 3 && len(p) != 5 {
-		return types.BadRequestErrorf("invalid string form for subnetkey: %s", str)
+		return pID, types.BadRequestErrorf("invalid string form for subnetkey: %s", str)
 	}
-	sub, err := netip.ParsePrefix(p[1] + "/" + p[2])
+	pID.AddressSpace = p[0]
+	pID.Subnet, err = netip.ParsePrefix(p[1] + "/" + p[2])
 	if err != nil {
-		return types.BadRequestErrorf("%v", err)
+		return pID, types.BadRequestErrorf("%v", err)
 	}
-	var child netip.Prefix
 	if len(p) == 5 {
-		child, err = netip.ParsePrefix(p[3] + "/" + p[4])
+		pID.ChildSubnet, err = netip.ParsePrefix(p[3] + "/" + p[4])
 		if err != nil {
-			return types.BadRequestErrorf("%v", err)
+			return pID, types.BadRequestErrorf("%v", err)
 		}
 	}
 
-	*s = PoolID{
-		AddressSpace: p[0],
-		SubnetKey: SubnetKey{
-			Subnet:      sub,
-			ChildSubnet: child,
-		},
+	return pID, nil
+}
+
+// String returns the string form of the SubnetKey object
+func (s *PoolID) String() string {
+	if s.ChildSubnet == (netip.Prefix{}) {
+		return s.AddressSpace + "/" + s.Subnet.String()
+	} else {
+		return s.AddressSpace + "/" + s.Subnet.String() + "/" + s.ChildSubnet.String()
 	}
-	return nil
 }
 
 // String returns the string form of the PoolData object

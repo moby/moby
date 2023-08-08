@@ -3,33 +3,34 @@
 package null
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/types"
 )
 
-var (
-	defaultAS      = "null"
-	defaultPool, _ = types.ParseCIDR("0.0.0.0/0")
-	defaultPoolID  = fmt.Sprintf("%s/%s", defaultAS, defaultPool.String())
+const (
+	defaultAddressSpace = "null"
+	defaultPoolCIDR     = "0.0.0.0/0"
+	defaultPoolID       = defaultAddressSpace + "/" + defaultPoolCIDR
 )
+
+var defaultPool, _ = types.ParseCIDR(defaultPoolCIDR)
 
 type allocator struct{}
 
 func (a *allocator) GetDefaultAddressSpaces() (string, string, error) {
-	return defaultAS, defaultAS, nil
+	return defaultAddressSpace, defaultAddressSpace, nil
 }
 
-func (a *allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
-	if addressSpace != defaultAS {
+func (a *allocator) RequestPool(addressSpace, requestedPool, requestedSubPool string, _ map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
+	if addressSpace != defaultAddressSpace {
 		return "", nil, nil, types.BadRequestErrorf("unknown address space: %s", addressSpace)
 	}
-	if pool != "" {
+	if requestedPool != "" {
 		return "", nil, nil, types.BadRequestErrorf("null ipam driver does not handle specific address pool requests")
 	}
-	if subPool != "" {
+	if requestedSubPool != "" {
 		return "", nil, nil, types.BadRequestErrorf("null ipam driver does not handle specific address subpool requests")
 	}
 	if v6 {

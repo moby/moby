@@ -29,8 +29,7 @@ func TestKeyString(t *testing.T) {
 		t.Fatalf("Unexpected key string: %s", k.String())
 	}
 
-	k2 := &PoolID{}
-	err := k2.FromString(expected)
+	k2, err := PoolIDFromString(expected)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +43,7 @@ func TestKeyString(t *testing.T) {
 		t.Fatalf("Unexpected key string: %s", k.String())
 	}
 
-	err = k2.FromString(expected)
+	k2, err = PoolIDFromString(expected)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +132,6 @@ func TestAddReleasePoolID(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	var k0, k1 PoolID
 	_, err = a.getAddrSpace(localAddressSpace)
 	if err != nil {
 		t.Fatal(err)
@@ -143,7 +141,8 @@ func TestAddReleasePoolID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected failure in adding pool: %v", err)
 	}
-	if err := k0.FromString(pid0); err != nil {
+	k0, err := PoolIDFromString(pid0)
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -160,7 +159,8 @@ func TestAddReleasePoolID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected failure in adding sub pool: %v", err)
 	}
-	if err := k1.FromString(pid1); err != nil {
+	k1, err := PoolIDFromString(pid1)
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -1275,4 +1275,29 @@ func TestParallelPredefinedRequest4(t *testing.T) {
 
 func TestParallelPredefinedRequest5(t *testing.T) {
 	runParallelTests(t, 4)
+}
+
+func BenchmarkPoolIDToString(b *testing.B) {
+	const poolIDString = "default/172.27.0.0/16/172.27.3.0/24"
+	k, err := PoolIDFromString(poolIDString)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = k.String()
+	}
+}
+
+func BenchmarkPoolIDFromString(b *testing.B) {
+	const poolIDString = "default/172.27.0.0/16/172.27.3.0/24"
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := PoolIDFromString(poolIDString)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }
