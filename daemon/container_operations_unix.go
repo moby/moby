@@ -382,7 +382,7 @@ func serviceDiscoveryOnDefaultNetwork() bool {
 	return false
 }
 
-func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
+func setupPathsAndSandboxOptions(container *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
 	var err error
 
 	// Set the correct paths for /etc/hosts and /etc/resolv.conf, based on the

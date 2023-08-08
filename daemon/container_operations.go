@@ -28,32 +28,9 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-func (daemon *Daemon) getDNSSearchSettings(cfg *config.Config, container *container.Container) []string {
-	if len(container.HostConfig.DNSSearch) > 0 {
-		return container.HostConfig.DNSSearch
-	}
-
-	if len(cfg.DNSSearch) > 0 {
-		return cfg.DNSSearch
-	}
-
-	return nil
-}
-
 func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *container.Container) ([]libnetwork.SandboxOption, error) {
-	var (
-		sboxOptions []libnetwork.SandboxOption
-		err         error
-		dns         []string
-		dnsOptions  []string
-		bindings    = make(nat.PortMap)
-		pbList      []types.PortBinding
-		exposeList  []types.TransportPort
-	)
-
-	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
-	sboxOptions = append(sboxOptions, libnetwork.OptionHostname(container.Config.Hostname),
-		libnetwork.OptionDomainname(container.Config.Domainname))
+	var sboxOptions []libnetwork.SandboxOption
+	sboxOptions = append(sboxOptions, libnetwork.OptionHostname(container.Config.Hostname), libnetwork.OptionDomainname(container.Config.Domainname))
 
 	if container.HostConfig.NetworkMode.IsHost() {
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseDefaultSandbox())
@@ -63,34 +40,24 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseExternalKey())
 	}
 
-	if err = daemon.setupPathsAndSandboxOptions(container, cfg, &sboxOptions); err != nil {
+	if err := setupPathsAndSandboxOptions(container, cfg, &sboxOptions); err != nil {
 		return nil, err
 	}
 
 	if len(container.HostConfig.DNS) > 0 {
-		dns = container.HostConfig.DNS
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(container.HostConfig.DNS))
 	} else if len(cfg.DNS) > 0 {
-		dns = cfg.DNS
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(cfg.DNS))
 	}
-
-	for _, d := range dns {
-		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(d))
+	if len(container.HostConfig.DNSSearch) > 0 {
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(container.HostConfig.DNSSearch))
+	} else if len(cfg.DNSSearch) > 0 {
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(cfg.DNSSearch))
 	}
-
-	dnsSearch := daemon.getDNSSearchSettings(cfg, container)
-
-	for _, ds := range dnsSearch {
-		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(ds))
-	}
-
 	if len(container.HostConfig.DNSOptions) > 0 {
-		dnsOptions = container.HostConfig.DNSOptions
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNSOptions(container.HostConfig.DNSOptions))
 	} else if len(cfg.DNSOptions) > 0 {
-		dnsOptions = cfg.DNSOptions
-	}
-
-	for _, ds := range dnsOptions {
-		sboxOptions = append(sboxOptions, libnetwork.OptionDNSOptions(ds))
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNSOptions(cfg.DNSOptions))
 	}
 
 	if container.NetworkSettings.SecondaryIPAddresses != nil {
@@ -98,7 +65,6 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		if container.Config.Domainname != "" {
 			name = name + "." + container.Config.Domainname
 		}
-
 		for _, a := range container.NetworkSettings.SecondaryIPAddresses {
 			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(name, a.Addr))
 		}
@@ -123,6 +89,7 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, ip))
 	}
 
+	bindings := make(nat.PortMap)
 	if container.HostConfig.PortBindings != nil {
 		for p, b := range container.HostConfig.PortBindings {
 			bindings[p] = []nat.PortBinding{}
@@ -135,66 +102,67 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		}
 	}
 
-	portSpecs := container.Config.ExposedPorts
-	ports := make([]nat.Port, len(portSpecs))
-	var i int
-	for p := range portSpecs {
-		ports[i] = p
-		i++
+	// TODO(thaJeztah): Move this code to a method on nat.PortSet.
+	ports := make([]nat.Port, 0, len(container.Config.ExposedPorts))
+	for p := range container.Config.ExposedPorts {
+		ports = append(ports, p)
 	}
 	nat.SortPortMap(ports, bindings)
-	for _, port := range ports {
-		expose := types.TransportPort{}
-		expose.Proto = types.ParseProtocol(port.Proto())
-		expose.Port = uint16(port.Int())
-		exposeList = append(exposeList, expose)
 
-		pb := types.PortBinding{Port: expose.Port, Proto: expose.Proto}
-		binding := bindings[port]
-		for i := 0; i < len(binding); i++ {
-			pbCopy := pb.GetCopy()
-			newP, err := nat.NewPort(nat.SplitProtoPort(binding[i].HostPort))
+	var (
+		publishedPorts []types.PortBinding
+		exposedPorts   []types.TransportPort
+	)
+	for _, port := range ports {
+		portProto := types.ParseProtocol(port.Proto())
+		portNum := uint16(port.Int())
+		exposedPorts = append(exposedPorts, types.TransportPort{
+			Proto: portProto,
+			Port:  portNum,
+		})
+
+		for _, binding := range bindings[port] {
+			newP, err := nat.NewPort(nat.SplitProtoPort(binding.HostPort))
 			var portStart, portEnd int
 			if err == nil {
 				portStart, portEnd, err = newP.Range()
 			}
 			if err != nil {
-				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding[i].HostPort, err)
+				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding.HostPort, err)
 			}
-			pbCopy.HostPort = uint16(portStart)
-			pbCopy.HostPortEnd = uint16(portEnd)
-			pbCopy.HostIP = net.ParseIP(binding[i].HostIP)
-			pbList = append(pbList, pbCopy)
+			publishedPorts = append(publishedPorts, types.PortBinding{
+				Proto:       portProto,
+				Port:        portNum,
+				HostIP:      net.ParseIP(binding.HostIP),
+				HostPort:    uint16(portStart),
+				HostPortEnd: uint16(portEnd),
+			})
 		}
 
-		if container.HostConfig.PublishAllPorts && len(binding) == 0 {
-			pbList = append(pbList, pb)
+		if container.HostConfig.PublishAllPorts && len(bindings[port]) == 0 {
+			publishedPorts = append(publishedPorts, types.PortBinding{
+				Proto: portProto,
+				Port:  portNum,
+			})
 		}
 	}
 
-	sboxOptions = append(sboxOptions,
-		libnetwork.OptionPortMapping(pbList),
-		libnetwork.OptionExposedPorts(exposeList))
+	sboxOptions = append(sboxOptions, libnetwork.OptionPortMapping(publishedPorts), libnetwork.OptionExposedPorts(exposedPorts))
 
 	// Legacy Link feature is supported only for the default bridge network.
 	// return if this call to build join options is not for default bridge network
 	// Legacy Link is only supported by docker run --link
+	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
 	bridgeSettings, ok := container.NetworkSettings.Networks[defaultNetName]
-	if !ok || bridgeSettings.EndpointSettings == nil {
-		return sboxOptions, nil
-	}
-
-	if bridgeSettings.EndpointID == "" {
+	if !ok || bridgeSettings.EndpointSettings == nil || bridgeSettings.EndpointID == "" {
 		return sboxOptions, nil
 	}
 
 	var (
-		childEndpoints, parentEndpoints []string
-		cEndpointID                     string
+		childEndpoints []string
+		cEndpointID    string
 	)
-
-	children := daemon.children(container)
-	for linkAlias, child := range children {
+	for linkAlias, child := range daemon.children(container) {
 		if !isLinkable(child) {
 			return nil, fmt.Errorf("Cannot link to %s, as it does not belong to the default network", child.Name)
 		}
@@ -205,20 +173,20 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		if alias != child.Name[1:] {
 			aliasList = aliasList + " " + child.Name[1:]
 		}
-		ipv4 := child.NetworkSettings.Networks[defaultNetName].IPAddress
-		ipv6 := child.NetworkSettings.Networks[defaultNetName].GlobalIPv6Address
-		if ipv4 != "" {
-			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, ipv4))
+		defaultNW := child.NetworkSettings.Networks[defaultNetName]
+		if defaultNW.IPAddress != "" {
+			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, defaultNW.IPAddress))
 		}
-		if ipv6 != "" {
-			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, ipv6))
+		if defaultNW.GlobalIPv6Address != "" {
+			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, defaultNW.GlobalIPv6Address))
 		}
-		cEndpointID = child.NetworkSettings.Networks[defaultNetName].EndpointID
+		cEndpointID = defaultNW.EndpointID
 		if cEndpointID != "" {
 			childEndpoints = append(childEndpoints, cEndpointID)
 		}
 	}
 
+	var parentEndpoints []string
 	for alias, parent := range daemon.parents(container) {
 		if cfg.DisableBridge || !container.HostConfig.NetworkMode.IsPrivate() {
 			continue
@@ -226,24 +194,18 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 
 		_, alias = path.Split(alias)
 		log.G(context.TODO()).Debugf("Update /etc/hosts of %s for alias %s with ip %s", parent.ID, alias, bridgeSettings.IPAddress)
-		sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(
-			parent.ID,
-			alias,
-			bridgeSettings.IPAddress,
-		))
+		sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(parent.ID, alias, bridgeSettings.IPAddress))
 		if cEndpointID != "" {
 			parentEndpoints = append(parentEndpoints, cEndpointID)
 		}
 	}
 
-	linkOptions := options.Generic{
+	sboxOptions = append(sboxOptions, libnetwork.OptionGeneric(options.Generic{
 		netlabel.GenericData: options.Generic{
 			"ParentEndpoints": parentEndpoints,
 			"ChildEndpoints":  childEndpoints,
 		},
-	}
-
-	sboxOptions = append(sboxOptions, libnetwork.OptionGeneric(linkOptions))
+	}))
 	return sboxOptions, nil
 }
 
