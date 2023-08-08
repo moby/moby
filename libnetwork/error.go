@@ -53,8 +53,8 @@ func (nnr NetworkNameError) Error() string {
 	return fmt.Sprintf("network with name %s already exists", string(nnr))
 }
 
-// Forbidden denotes the type of this error
-func (nnr NetworkNameError) Forbidden() {}
+// Conflict denotes the type of this error
+func (nnr NetworkNameError) Conflict() {}
 
 // UnknownNetworkError is returned when libnetwork could not find in its database
 // a network with the same name and id.
