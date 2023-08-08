@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/volume"
@@ -104,10 +105,10 @@ func newVolumePlugin(c *testing.T, name string) *volumePlugin {
 		case error:
 			http.Error(w, t.Error(), 500)
 		case string:
-			w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+			w.Header().Set("Content-Type", plugins.VersionMimetype)
 			fmt.Fprintln(w, t)
 		default:
-			w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+			w.Header().Set("Content-Type", plugins.VersionMimetype)
 			json.NewEncoder(w).Encode(&data)
 		}
 	}

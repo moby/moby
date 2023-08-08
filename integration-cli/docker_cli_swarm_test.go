@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	remoteipam "github.com/docker/docker/libnetwork/ipams/remote/api"
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/moby/swarmkit/v2/ca/keyutils"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
@@ -617,13 +618,13 @@ const (
 
 func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDrv, ipamDrv string) {
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintf(w, `{"Implements": ["%s", "%s"]}`, driverapi.NetworkPluginEndpointType, ipamapi.PluginEndpointType)
 	})
 
 	// Network driver implementation
 	mux.HandleFunc(fmt.Sprintf("/%s.GetCapabilities", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintf(w, `{"Scope":"global"}`)
 	})
 
@@ -633,12 +634,12 @@ func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDr
 			http.Error(w, "Unable to decode JSON payload: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintf(w, "null")
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.FreeNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintf(w, "null")
 	})
 
@@ -648,22 +649,22 @@ func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDr
 			http.Error(w, "Unable to decode JSON payload: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintf(w, "null")
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.DeleteNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintf(w, "null")
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.CreateEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintf(w, `{"Interface":{"MacAddress":"a0:b1:c2:d3:e4:f5"}}`)
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.Join", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 
 		veth := &netlink.Veth{
 			LinkAttrs: netlink.LinkAttrs{Name: "randomIfName", TxQLen: 0}, PeerName: "cnt0",
@@ -676,12 +677,12 @@ func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDr
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.Leave", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintf(w, "null")
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.DeleteEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		if link, err := netlink.LinkByName("cnt0"); err == nil {
 			netlink.LinkDel(link)
 		}
@@ -702,7 +703,7 @@ func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDr
 	)
 
 	mux.HandleFunc(fmt.Sprintf("/%s.GetDefaultAddressSpaces", ipamapi.PluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintf(w, `{"LocalDefaultAddressSpace":"`+lAS+`", "GlobalDefaultAddressSpace": "`+gAS+`"}`)
 	})
 
@@ -712,7 +713,7 @@ func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDr
 			http.Error(w, "Unable to decode JSON payload: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		if poolRequest.AddressSpace != lAS && poolRequest.AddressSpace != gAS {
 			fmt.Fprintf(w, `{"Error":"Unknown address space in pool request: `+poolRequest.AddressSpace+`"}`)
 		} else if poolRequest.Pool != "" && poolRequest.Pool != pool {
@@ -728,7 +729,7 @@ func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDr
 			http.Error(w, "Unable to decode JSON payload: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		// make sure libnetwork is now querying on the expected pool id
 		if addressRequest.PoolID != poolID {
 			fmt.Fprintf(w, `{"Error":"unknown pool id"}`)
@@ -745,7 +746,7 @@ func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDr
 			http.Error(w, "Unable to decode JSON payload: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		// make sure libnetwork is now asking to release the expected address from the expected poolid
 		if addressRequest.PoolID != poolID {
 			fmt.Fprintf(w, `{"Error":"unknown pool id"}`)
@@ -762,7 +763,7 @@ func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDr
 			http.Error(w, "Unable to decode JSON payload: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		// make sure libnetwork is now asking to release the expected poolid
 		if addressRequest.PoolID != poolID {
 			fmt.Fprintf(w, `{"Error":"unknown pool id"}`)
