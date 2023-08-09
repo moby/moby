@@ -1948,7 +1948,7 @@ func (s *DockerCLIRunSuite) TestRunCidFileCleanupIfEmpty(c *testing.T) {
 	out, _, err := dockerCmdWithError("run", "--cidfile", tmpCidFile, image)
 	if err == nil {
 		c.Fatalf("Run without command must fail. out=%s", out)
-	} else if !strings.Contains(out, "No command specified") {
+	} else if !strings.Contains(out, "no command specified") {
 		c.Fatalf("Run without command failed with wrong output. out=%s\nerr=%v", out, err)
 	}
 
@@ -3988,7 +3988,7 @@ exec "$@"`,
 	// CMD will be reset as well (the same as setting a custom entrypoint)
 	cli.Docker(cli.Args("run", "--entrypoint=", "-t", name)).Assert(c, icmd.Expected{
 		ExitCode: 125,
-		Err:      "No command specified",
+		Err:      "no command specified",
 	})
 }
 

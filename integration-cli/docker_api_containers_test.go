@@ -550,8 +550,7 @@ func (s *DockerAPISuite) TestContainerAPICreateEmptyConfig(c *testing.T) {
 
 	_, err = apiClient.ContainerCreate(context.Background(), &container.Config{}, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
 
-	expected := "No command specified"
-	assert.ErrorContains(c, err, expected)
+	assert.ErrorContains(c, err, "no command specified")
 }
 
 func (s *DockerAPISuite) TestContainerAPICreateMultipleNetworksConfig(c *testing.T) {
@@ -575,7 +574,7 @@ func (s *DockerAPISuite) TestContainerAPICreateMultipleNetworksConfig(c *testing
 	_, err = apiClient.ContainerCreate(context.Background(), &config, &container.HostConfig{}, &networkingConfig, nil, "")
 	msg := err.Error()
 	// network name order in error message is not deterministic
-	assert.Assert(c, strings.Contains(msg, "Container cannot be connected to network endpoints"))
+	assert.Assert(c, strings.Contains(msg, "container cannot be connected to network endpoints"))
 	assert.Assert(c, strings.Contains(msg, "net1"))
 	assert.Assert(c, strings.Contains(msg, "net2"))
 	assert.Assert(c, strings.Contains(msg, "net3"))

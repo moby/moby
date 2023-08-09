@@ -305,7 +305,7 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 		config.Entrypoint = nil
 	}
 	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
-		return fmt.Errorf("No command specified")
+		return fmt.Errorf("no command specified")
 	}
 	return nil
 }
@@ -321,7 +321,7 @@ func verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
 		for k := range nwConfig.EndpointsConfig {
 			l = append(l, k)
 		}
-		return fmt.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
+		return fmt.Errorf("container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
 	}
 
 	for k, v := range nwConfig.EndpointsConfig {
