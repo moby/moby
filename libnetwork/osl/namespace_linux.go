@@ -46,23 +46,6 @@ var (
 	prefix           = defaultPrefix
 )
 
-// The networkNamespace type is the linux implementation of the Sandbox
-// interface. It represents a linux network namespace, and moves an interface
-// into it when called on method AddInterface or sets the gateway etc.
-type networkNamespace struct {
-	path         string
-	iFaces       []*nwIface
-	gw           net.IP
-	gwv6         net.IP
-	staticRoutes []*types.StaticRoute
-	neighbors    []*neigh
-	nextIfIndex  map[string]int
-	isDefault    bool
-	nlHandle     *netlink.Handle
-	loV6Enabled  bool
-	sync.Mutex
-}
-
 // SetBasePath sets the base url prefix for the ns path
 func SetBasePath(path string) {
 	prefix = path
@@ -242,14 +225,6 @@ func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error) {
 	return n, nil
 }
 
-func (n *networkNamespace) InterfaceOptions() IfaceOptionSetter {
-	return n
-}
-
-func (n *networkNamespace) NeighborOptions() NeighborOptionSetter {
-	return n
-}
-
 func mountNetworkNamespace(basePath string, lnPath string) error {
 	return syscall.Mount(basePath, lnPath, "bind", syscall.MS_BIND, "")
 }
@@ -336,6 +311,39 @@ func createNamespaceFile(path string) (err error) {
 	}
 
 	return err
+}
+
+// The networkNamespace type is the linux implementation of the Sandbox
+// interface. It represents a linux network namespace, and moves an interface
+// into it when called on method AddInterface or sets the gateway etc.
+type networkNamespace struct {
+	path         string
+	iFaces       []*nwIface
+	gw           net.IP
+	gwv6         net.IP
+	staticRoutes []*types.StaticRoute
+	neighbors    []*neigh
+	nextIfIndex  map[string]int
+	isDefault    bool
+	nlHandle     *netlink.Handle
+	loV6Enabled  bool
+	sync.Mutex
+}
+
+func (n *networkNamespace) Interfaces() []Interface {
+	ifaces := make([]Interface, len(n.iFaces))
+	for i, iface := range n.iFaces {
+		ifaces[i] = iface
+	}
+	return ifaces
+}
+
+func (n *networkNamespace) InterfaceOptions() IfaceOptionSetter {
+	return n
+}
+
+func (n *networkNamespace) NeighborOptions() NeighborOptionSetter {
+	return n
 }
 
 func (n *networkNamespace) loopbackUp() error {
@@ -474,7 +482,11 @@ func (n *networkNamespace) Destroy() error {
 func (n *networkNamespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
 	// restore interfaces
 	for name, opts := range ifsopt {
-		i := &nwIface{srcName: name.SrcName, dstName: name.DstPrefix, ns: n}
+		i := &nwIface{
+			srcName: name.SrcName,
+			dstName: name.DstPrefix,
+			ns:      n,
+		}
 		i.processInterfaceOptions(opts...)
 		if i.master != "" {
 			i.dstMaster = n.findDst(i.master, true)
@@ -594,6 +606,26 @@ func (n *networkNamespace) checkLoV6() {
 	n.loV6Enabled = enable
 }
 
+// ApplyOSTweaks applies linux configs on the sandbox
+func (n *networkNamespace) ApplyOSTweaks(types []SandboxType) {
+	for _, t := range types {
+		switch t {
+		case SandboxTypeLoadBalancer, SandboxTypeIngress:
+			kernel.ApplyOSTweaks(map[string]*kernel.OSValue{
+				// disables any special handling on port reuse of existing IPVS connection table entries
+				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L32
+				"net.ipv4.vs.conn_reuse_mode": {Value: "0", CheckFn: nil},
+				// expires connection from the IPVS connection table when the backend is not available
+				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L133
+				"net.ipv4.vs.expire_nodest_conn": {Value: "1", CheckFn: nil},
+				// expires persistent connections to destination servers with weights set to 0
+				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L151
+				"net.ipv4.vs.expire_quiescent_template": {Value: "1", CheckFn: nil},
+			})
+		}
+	}
+}
+
 func setIPv6(nspath, iface string, enable bool) error {
 	errCh := make(chan error, 1)
 	go func() {
@@ -658,24 +690,4 @@ func setIPv6(nspath, iface string, enable bool) error {
 		}
 	}()
 	return <-errCh
-}
-
-// ApplyOSTweaks applies linux configs on the sandbox
-func (n *networkNamespace) ApplyOSTweaks(types []SandboxType) {
-	for _, t := range types {
-		switch t {
-		case SandboxTypeLoadBalancer, SandboxTypeIngress:
-			kernel.ApplyOSTweaks(map[string]*kernel.OSValue{
-				// disables any special handling on port reuse of existing IPVS connection table entries
-				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L32
-				"net.ipv4.vs.conn_reuse_mode": {Value: "0", CheckFn: nil},
-				// expires connection from the IPVS connection table when the backend is not available
-				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L133
-				"net.ipv4.vs.expire_nodest_conn": {Value: "1", CheckFn: nil},
-				// expires persistent connections to destination servers with weights set to 0
-				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L151
-				"net.ipv4.vs.expire_quiescent_template": {Value: "1", CheckFn: nil},
-			})
-		}
-	}
 }

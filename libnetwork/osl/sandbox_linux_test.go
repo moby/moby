@@ -37,6 +37,7 @@ func generateRandomName(prefix string, size int) (string, error) {
 }
 
 func newKey(t *testing.T) (string, error) {
+	t.Helper()
 	name, err := generateRandomName("netns", 12)
 	if err != nil {
 		return "", err
@@ -55,67 +56,68 @@ func newKey(t *testing.T) (string, error) {
 	return name, nil
 }
 
-func newInfo(hnd *netlink.Handle, t *testing.T) (Sandbox, error) {
-	veth := &netlink.Veth{
+func newInfo(t *testing.T, hnd *netlink.Handle) (Sandbox, error) {
+	t.Helper()
+	err := hnd.LinkAdd(&netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: vethName1, TxQLen: 0},
 		PeerName:  vethName2,
-	}
-	if err := hnd.LinkAdd(veth); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
-
-	// Store the sandbox side pipe interface
-	// This is needed for cleanup on DeleteEndpoint()
-	intf1 := &nwIface{}
-	intf1.srcName = vethName2
-	intf1.dstName = sboxIfaceName
 
 	ip4, addr, err := net.ParseCIDR("192.168.1.100/24")
 	if err != nil {
 		return nil, err
 	}
-	intf1.address = addr
-	intf1.address.IP = ip4
+	addr.IP = ip4
 
 	ip6, addrv6, err := net.ParseCIDR("fe80::2/64")
 	if err != nil {
 		return nil, err
 	}
-	intf1.addressIPv6 = addrv6
-	intf1.addressIPv6.IP = ip6
+	addrv6.IP = ip6
 
 	_, route, err := net.ParseCIDR("192.168.2.1/32")
 	if err != nil {
 		return nil, err
 	}
 
-	intf1.routes = []*net.IPNet{route}
-
-	intf2 := &nwIface{}
-	intf2.srcName = "testbridge"
-	intf2.dstName = sboxIfaceName
-	intf2.bridge = true
-
-	veth = &netlink.Veth{
-		LinkAttrs: netlink.LinkAttrs{Name: vethName3, TxQLen: 0},
-		PeerName:  vethName4,
+	// Store the sandbox side pipe interface
+	// This is needed for cleanup on DeleteEndpoint()
+	intf1 := &nwIface{
+		srcName:     vethName2,
+		dstName:     sboxIfaceName,
+		address:     addr,
+		addressIPv6: addrv6,
+		routes:      []*net.IPNet{route},
 	}
 
-	if err := hnd.LinkAdd(veth); err != nil {
+	intf2 := &nwIface{
+		srcName: "testbridge",
+		dstName: sboxIfaceName,
+		bridge:  true,
+	}
+
+	err = hnd.LinkAdd(&netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: vethName3, TxQLen: 0},
+		PeerName:  vethName4,
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	intf3 := &nwIface{}
-	intf3.srcName = vethName4
-	intf3.dstName = sboxIfaceName
-	intf3.master = "testbridge"
+	intf3 := &nwIface{
+		srcName: vethName4,
+		dstName: sboxIfaceName,
+		master:  "testbridge",
+	}
 
-	info := &networkNamespace{iFaces: []*nwIface{intf1, intf2, intf3}}
-
-	info.gw = net.ParseIP("192.168.1.1")
-	info.gwv6 = net.ParseIP("fe80::1")
-
-	return info, nil
+	return &networkNamespace{
+		iFaces: []*nwIface{intf1, intf2, intf3},
+		gw:     net.ParseIP("192.168.1.1"),
+		gwv6:   net.ParseIP("fe80::1"),
+	}, nil
 }
 
 func verifySandbox(t *testing.T, s Sandbox, ifaceSuffixes []string) {
@@ -400,7 +402,7 @@ func TestSandboxCreate(t *testing.T) {
 		t.Fatalf("s.Key() returned %s. Expected %s", s.Key(), key)
 	}
 
-	tbox, err := newInfo(ns.NlHandle(), t)
+	tbox, err := newInfo(t, ns.NlHandle())
 	if err != nil {
 		t.Fatalf("Failed to generate new sandbox info: %v", err)
 	}
@@ -499,7 +501,7 @@ func TestAddRemoveInterface(t *testing.T) {
 		t.Fatalf("s.Key() returned %s. Expected %s", s.Key(), key)
 	}
 
-	tbox, err := newInfo(ns.NlHandle(), t)
+	tbox, err := newInfo(t, ns.NlHandle())
 	if err != nil {
 		t.Fatalf("Failed to generate new sandbox info: %v", err)
 	}

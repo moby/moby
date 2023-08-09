@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"sync"
 	"syscall"
 	"time"
 
@@ -15,6 +14,11 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+// nwIface represents the settings and identity of a network device.
+// It is used as a return type for Network.Link, and it is common practice
+// for the caller to use this information when moving interface SrcName from
+// host namespace to DstName in a different net namespace with the appropriate
+// network settings.
 type nwIface struct {
 	srcName     string
 	dstName     string
@@ -27,107 +31,72 @@ type nwIface struct {
 	routes      []*net.IPNet
 	bridge      bool
 	ns          *networkNamespace
-	sync.Mutex
 }
 
+// SrcName returns the name of the interface in the origin network namespace.
 func (i *nwIface) SrcName() string {
-	i.Lock()
-	defer i.Unlock()
-
 	return i.srcName
 }
 
+// DstName returns the name that will be assigned to the interface once
+// moved inside a network namespace. When the caller passes in a DstName,
+// it is only expected to pass a prefix. The name will be modified with an
+// auto-generated suffix.
 func (i *nwIface) DstName() string {
-	i.Lock()
-	defer i.Unlock()
-
 	return i.dstName
 }
 
 func (i *nwIface) DstMaster() string {
-	i.Lock()
-	defer i.Unlock()
-
 	return i.dstMaster
 }
 
+// Bridge returns true if the interface is a bridge.
 func (i *nwIface) Bridge() bool {
-	i.Lock()
-	defer i.Unlock()
-
 	return i.bridge
 }
 
+// Master returns the srcname of the master interface for this interface.
 func (i *nwIface) Master() string {
-	i.Lock()
-	defer i.Unlock()
-
 	return i.master
 }
 
 func (i *nwIface) MacAddress() net.HardwareAddr {
-	i.Lock()
-	defer i.Unlock()
-
 	return types.GetMacCopy(i.mac)
 }
 
+// Address returns the IPv4 address for the interface.
 func (i *nwIface) Address() *net.IPNet {
-	i.Lock()
-	defer i.Unlock()
-
 	return types.GetIPNetCopy(i.address)
 }
 
+// AddressIPv6 returns the IPv6 address for the interface.
 func (i *nwIface) AddressIPv6() *net.IPNet {
-	i.Lock()
-	defer i.Unlock()
-
 	return types.GetIPNetCopy(i.addressIPv6)
 }
 
+// LinkLocalAddresses returns the link-local IP addresses assigned to the
+// interface.
 func (i *nwIface) LinkLocalAddresses() []*net.IPNet {
-	i.Lock()
-	defer i.Unlock()
-
 	return i.llAddrs
 }
 
+// Routes returns IP routes for the interface.
 func (i *nwIface) Routes() []*net.IPNet {
-	i.Lock()
-	defer i.Unlock()
-
 	routes := make([]*net.IPNet, len(i.routes))
 	for index, route := range i.routes {
-		r := types.GetIPNetCopy(route)
-		routes[index] = r
+		routes[index] = types.GetIPNetCopy(route)
 	}
 
 	return routes
 }
 
-func (n *networkNamespace) Interfaces() []Interface {
-	n.Lock()
-	defer n.Unlock()
-
-	ifaces := make([]Interface, len(n.iFaces))
-
-	for i, iface := range n.iFaces {
-		ifaces[i] = iface
-	}
-
-	return ifaces
-}
-
+// Remove an interface from the sandbox by renaming to original name
+// and moving it out of the sandbox.
 func (i *nwIface) Remove() error {
-	i.Lock()
-	n := i.ns
-	i.Unlock()
-
-	n.Lock()
-	isDefault := n.isDefault
-	nlh := n.nlHandle
-	n.Unlock()
+	i.ns.Lock()
+	isDefault := i.ns.isDefault
+	nlh := i.ns.nlHandle
+	i.ns.Unlock()
 
 	// Find the network interface identified by the DstName attribute.
 	iface, err := nlh.LinkByName(i.DstName())
@@ -159,29 +128,25 @@ func (i *nwIface) Remove() error {
 		}
 	}
 
-	n.Lock()
-	for index, intf := range n.iFaces {
+	i.ns.Lock()
+	for index, intf := range i.ns.iFaces {
 		if intf == i {
-			n.iFaces = append(n.iFaces[:index], n.iFaces[index+1:]...)
+			i.ns.iFaces = append(i.ns.iFaces[:index], i.ns.iFaces[index+1:]...)
 			break
 		}
 	}
-	n.Unlock()
+	i.ns.Unlock()
 
-	n.checkLoV6()
+	i.ns.checkLoV6()
 
 	return nil
 }
 
-// Returns the sandbox's side veth interface statistics
+// Statistics returns the sandbox's side veth interface statistics.
 func (i *nwIface) Statistics() (*types.InterfaceStatistics, error) {
-	i.Lock()
-	n := i.ns
-	i.Unlock()
-
-	l, err := n.nlHandle.LinkByName(i.DstName())
+	l, err := i.ns.nlHandle.LinkByName(i.DstName())
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve the statistics for %s in netns %s: %v", i.DstName(), n.path, err)
+		return nil, fmt.Errorf("failed to retrieve the statistics for %s in netns %s: %v", i.DstName(), i.ns.path, err)
 	}
 
 	stats := l.Attrs().Statistics
@@ -215,7 +180,11 @@ func (n *networkNamespace) findDst(srcName string, isBridge bool) string {
 }
 
 func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...IfaceOption) error {
-	i := &nwIface{srcName: srcName, dstName: dstPrefix, ns: n}
+	i := &nwIface{
+		srcName: srcName,
+		dstName: dstPrefix,
+		ns:      n,
+	}
 	i.processInterfaceOptions(options...)
 
 	if i.master != "" {
@@ -243,12 +212,11 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	// If it is a bridge interface we have to create the bridge inside
 	// the namespace so don't try to lookup the interface using srcName
 	if i.bridge {
-		link := &netlink.Bridge{
+		if err := nlh.LinkAdd(&netlink.Bridge{
 			LinkAttrs: netlink.LinkAttrs{
 				Name: i.srcName,
 			},
-		}
-		if err := nlh.LinkAdd(link); err != nil {
+		}); err != nil {
 			return fmt.Errorf("failed to create bridge %q: %v", i.srcName, err)
 		}
 	} else {
