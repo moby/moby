@@ -23,6 +23,8 @@ const (
 	defaultPrefix = "/var/lib/docker/network/files"
 	dirPerm       = 0o755
 	filePerm      = 0o644
+
+	resolverIPSandbox = "127.0.0.11"
 )
 
 func (sb *Sandbox) startResolver(restore bool) {
