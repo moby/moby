@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/runconfig"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -326,16 +327,22 @@ func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.Networking
 		return nil
 	}
 
+	var errs []error
 	for k, v := range nwConfig.EndpointsConfig {
 		if v == nil {
-			return fmt.Errorf("no EndpointSettings for %s", k)
+			errs = append(errs, fmt.Errorf("invalid config for network %s: EndpointsConfig is nil", k))
+			continue
 		}
 
 		// The referenced network k might not exist when the container is created, so just ignore the error in that case.
 		nw, _ := daemon.FindNetwork(k)
 		if err := validateEndpointSettings(nw, k, v); err != nil {
-			return err
+			errs = append(errs, fmt.Errorf("invalid config for network %s: %w", k, err))
 		}
+	}
+
+	if len(errs) > 0 {
+		return errdefs.InvalidParameter(multierror.Join(errs...))
 	}
 
 	return nil

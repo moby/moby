@@ -49,6 +49,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   `NetworkingConfig.EndpointSettings`.
 * `POST /containers/create` and `POST /networks/{id}/connect` will now catch
   validation errors that were previously only returned during `POST /containers/{id}/start`.
+  These endpoints will also return the full set of validation errors they find,
+  instead of returning only the first one.
   Note that this change is _unversioned_ and applies to all API versions.
 
 ## v1.43 API changes

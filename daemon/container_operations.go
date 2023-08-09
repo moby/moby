@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
@@ -575,30 +576,32 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 		ipamConfig = epConfig.IPAMConfig
 	}
 
+	var errs []error
+
 	if !containertypes.NetworkMode(nwName).IsUserDefined() {
 		hasStaticAddresses := ipamConfig.IPv4Address != "" || ipamConfig.IPv6Address != ""
 		// On Linux, user specified IP address is accepted only by networks with user specified subnets.
 		if hasStaticAddresses && !enableIPOnPredefinedNetwork() {
-			return runconfig.ErrUnsupportedNetworkAndIP
+			errs = append(errs, runconfig.ErrUnsupportedNetworkAndIP)
 		}
 		if len(epConfig.Aliases) > 0 && !serviceDiscoveryOnDefaultNetwork() {
-			return runconfig.ErrUnsupportedNetworkAndAlias
+			errs = append(errs, runconfig.ErrUnsupportedNetworkAndAlias)
 		}
 	}
 
 	if ipamConfig.IPv4Address != "" {
 		if addr := net.ParseIP(ipamConfig.IPv4Address); addr == nil || addr.To4() == nil || addr.IsUnspecified() {
-			return fmt.Errorf("invalid IPv4 address: %s", ipamConfig.IPv4Address)
+			errs = append(errs, fmt.Errorf("invalid IPv4 address: %s", ipamConfig.IPv4Address))
 		}
 	}
 	if ipamConfig.IPv6Address != "" {
 		if addr := net.ParseIP(ipamConfig.IPv6Address); addr == nil || addr.To4() != nil || addr.IsUnspecified() {
-			return fmt.Errorf("invalid IPv6 address: %s", ipamConfig.IPv6Address)
+			errs = append(errs, fmt.Errorf("invalid IPv6 address: %s", ipamConfig.IPv6Address))
 		}
 	}
 
 	if nw == nil {
-		return nil
+		return multierror.Join(errs...)
 	}
 
 	_, _, nwIPv4Configs, nwIPv6Configs := nw.IpamConfig()
@@ -624,12 +627,12 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 				}
 			}
 			if !foundSubnet {
-				return runconfig.ErrUnsupportedNetworkNoSubnetAndIP
+				errs = append(errs, runconfig.ErrUnsupportedNetworkNoSubnetAndIP)
 			}
 		}
 	}
 
-	return nil
+	return multierror.Join(errs...)
 }
 
 // cleanOperationalData resets the operational data from the passed endpoint settings
