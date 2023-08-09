@@ -55,11 +55,23 @@ fi
 
 run_test_integration() {
 	set_platform_timeout
+	local failed=0
 	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
-		run_test_integration_suites "${integration_api_dirs}"
+		if ! run_test_integration_suites "${integration_api_dirs}"; then
+			if [ -n "${TEST_INTEGRATION_FAIL_FAST}" ]; then
+				return 1
+			fi
+			failed=1
+		fi
 	fi
 	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
-		TIMEOUT=360m run_test_integration_suites integration-cli
+		if ! TIMEOUT=360m run_test_integration_suites integration-cli; then
+			return 1
+		fi
+	fi
+
+	if [ $failed -eq 1 ]; then
+		return 1
 	fi
 }
 
@@ -99,13 +111,13 @@ run_test_integration_suites() {
 				-- go tool test2json -p "${pkgname}" -t ./test.main ${pkgtestflags}
 		); then
 			if [ -n "${TEST_INTEGRATION_FAIL_FAST}" ]; then
-				exit 1
+				return 1
 			fi
 			failed=1
 		fi
 	done
 	if [ $failed -eq 1 ]; then
-		exit 1
+		return 1
 	fi
 }
 
