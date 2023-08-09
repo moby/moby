@@ -562,39 +562,56 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 	return nil
 }
 
-// hasUserDefinedIPAddress returns whether the passed IPAM configuration contains IP address configuration
-func hasUserDefinedIPAddress(ipamConfig *networktypes.EndpointIPAMConfig) bool {
-	return ipamConfig != nil && (len(ipamConfig.IPv4Address) > 0 || len(ipamConfig.IPv6Address) > 0)
-}
-
-// User specified ip address is acceptable only for networks with user specified subnets.
-func validateNetworkingConfig(n *libnetwork.Network, epConfig *networktypes.EndpointSettings) error {
-	if n == nil || epConfig == nil {
+// validateEndpointSettings checks whether the given epConfig is valid. The nw parameter might be nil as a container
+// can be created with a reference to a network that don't exist yet. In that case, only partial validation will be
+// done.
+func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *networktypes.EndpointSettings) error {
+	if epConfig == nil {
 		return nil
 	}
-	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
-		if hasUserDefinedIPAddress(epConfig.IPAMConfig) && !enableIPOnPredefinedNetwork() {
+
+	ipamConfig := &networktypes.EndpointIPAMConfig{}
+	if epConfig.IPAMConfig != nil {
+		ipamConfig = epConfig.IPAMConfig
+	}
+
+	if !containertypes.NetworkMode(nwName).IsUserDefined() {
+		hasStaticAddresses := ipamConfig.IPv4Address != "" || ipamConfig.IPv6Address != ""
+		// On Linux, user specified IP address is accepted only by networks with user specified subnets.
+		if hasStaticAddresses && !enableIPOnPredefinedNetwork() {
 			return runconfig.ErrUnsupportedNetworkAndIP
 		}
 		if len(epConfig.Aliases) > 0 && !serviceDiscoveryOnDefaultNetwork() {
 			return runconfig.ErrUnsupportedNetworkAndAlias
 		}
 	}
-	if !hasUserDefinedIPAddress(epConfig.IPAMConfig) {
+
+	if ipamConfig.IPv4Address != "" {
+		if addr := net.ParseIP(ipamConfig.IPv4Address); addr == nil || addr.To4() == nil || addr.IsUnspecified() {
+			return fmt.Errorf("invalid IPv4 address: %s", ipamConfig.IPv4Address)
+		}
+	}
+	if ipamConfig.IPv6Address != "" {
+		if addr := net.ParseIP(ipamConfig.IPv6Address); addr == nil || addr.To4() != nil || addr.IsUnspecified() {
+			return fmt.Errorf("invalid IPv6 address: %s", ipamConfig.IPv6Address)
+		}
+	}
+
+	if nw == nil {
 		return nil
 	}
 
-	_, _, nwIPv4Configs, nwIPv6Configs := n.IpamConfig()
+	_, _, nwIPv4Configs, nwIPv6Configs := nw.IpamConfig()
 	for _, s := range []struct {
 		ipConfigured  bool
 		subnetConfigs []*libnetwork.IpamConf
 	}{
 		{
-			ipConfigured:  len(epConfig.IPAMConfig.IPv4Address) > 0,
+			ipConfigured:  len(ipamConfig.IPv4Address) > 0,
 			subnetConfigs: nwIPv4Configs,
 		},
 		{
-			ipConfigured:  len(epConfig.IPAMConfig.IPv6Address) > 0,
+			ipConfigured:  len(ipamConfig.IPv6Address) > 0,
 			subnetConfigs: nwIPv6Configs,
 		},
 	} {
@@ -657,7 +674,7 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *lib
 		}
 	}
 
-	if err := validateNetworkingConfig(n, endpointConfig); err != nil {
+	if err := validateEndpointSettings(n, n.Name(), endpointConfig); err != nil {
 		return err
 	}
 

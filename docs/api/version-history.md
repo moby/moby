@@ -47,6 +47,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   1.44.
 * `POST /containers/create` now accepts multiple `EndpointSettings` in
   `NetworkingConfig.EndpointSettings`.
+* `POST /containers/create` and `POST /networks/{id}/connect` will now catch
+  validation errors that were previously only returned during `POST /containers/{id}/start`.
+  Note that this change is _unversioned_ and applies to all API versions.
 
 ## v1.43 API changes
 

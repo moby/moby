@@ -10038,6 +10038,10 @@ paths:
       responses:
         200:
           description: "No error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         403:
           description: "Operation not supported for swarm scoped networks"
           schema:

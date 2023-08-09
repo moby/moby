@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"runtime"
 	"strings"
 	"time"
@@ -98,7 +97,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		}
 	}
 
-	err = verifyNetworkingConfig(opts.params.NetworkingConfig)
+	err = daemon.validateNetworkingConfig(opts.params.NetworkingConfig)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
@@ -321,8 +320,8 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 	return nil
 }
 
-// verifyNetworkingConfig validates if the nwConfig is valid.
-func verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
+// validateNetworkingConfig checks whether a container's NetworkingConfig is valid.
+func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
 	if nwConfig == nil {
 		return nil
 	}
@@ -331,20 +330,14 @@ func verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
 		if v == nil {
 			return fmt.Errorf("no EndpointSettings for %s", k)
 		}
-		if v.IPAMConfig != nil {
-			if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
-				return fmt.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address)
-			}
-			if v.IPAMConfig.IPv6Address != "" {
-				n := net.ParseIP(v.IPAMConfig.IPv6Address)
-				// if the address is an invalid network address (ParseIP == nil) or if it is
-				// an IPv4 address (To4() != nil), then it is an invalid IPv6 address
-				if n == nil || n.To4() != nil {
-					return fmt.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address)
-				}
-			}
+
+		// The referenced network k might not exist when the container is created, so just ignore the error in that case.
+		nw, _ := daemon.FindNetwork(k)
+		if err := validateEndpointSettings(nw, k, v); err != nil {
+			return err
 		}
 	}
+
 	return nil
 }
 
