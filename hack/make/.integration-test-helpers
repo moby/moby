@@ -25,23 +25,23 @@ setup_integration_test_filter() {
 	fi
 
 	local dirs
-	dirs=$(grep -rIlE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/ | xargs -I file dirname file | uniq)
+	local files
+	if files=$(grep -rIlE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/); then
+		dirs=$(echo "$files" | xargs -I file dirname file | uniq)
+	fi
+
 	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
 		: "${TEST_INTEGRATION_DIR:=$(echo "$dirs" | grep -v '^\./integration-cli$')}"
 		if [ -z "${TEST_INTEGRATION_DIR}" ]; then
 			echo "Skipping integration tests since the supplied filter \"${TEST_FILTER}\" omits all integration tests"
 			TEST_SKIP_INTEGRATION=1
-		else
-			TESTFLAGS+=" -test.run ${TEST_FILTER}"
 		fi
 	fi
 
 	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
-		if echo "$dirs" | grep -vq '^./integration-cli$'; then
+		if ! echo "$dirs" | grep -q '^./integration-cli$'; then
 			TEST_SKIP_INTEGRATION_CLI=1
 			echo "Skipping integration-cli tests since the supplied filter \"${TEST_FILTER}\" omits all integration-cli tests"
-		else
-			TESTFLAGS+=" -test.run /${TEST_FILTER}"
 		fi
 	fi
 }
@@ -64,8 +64,15 @@ run_test_integration() {
 }
 
 run_test_integration_suites() {
-	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
 	local dirs="$1"
+	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS "
+	if [ -n "${TEST_FILTER}" ]; then
+		if [ "$dirs" == "integration-cli" ]; then
+			flags+=" -test.run /${TEST_FILTER}"
+		else
+			flags+=" -test.run ${TEST_FILTER}"
+		fi
+	fi
 	local failed=0
 	for dir in ${dirs}; do
 		if ! (
