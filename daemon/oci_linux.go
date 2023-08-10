@@ -244,34 +244,43 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		userNS := false
 		// user
 		if c.HostConfig.UsernsMode.IsPrivate() {
-			uidMap := daemon.idMapping.UIDMaps
-			if uidMap != nil {
+			if uidMap := daemon.idMapping.UIDMaps; uidMap != nil {
 				userNS = true
-				ns := specs.LinuxNamespace{Type: "user"}
-				setNamespace(s, ns)
+				setNamespace(s, specs.LinuxNamespace{
+					Type: "user",
+				})
 				s.Linux.UIDMappings = specMapping(uidMap)
 				s.Linux.GIDMappings = specMapping(daemon.idMapping.GIDMaps)
 			}
 		}
 		// network
 		if !c.Config.NetworkDisabled {
-			ns := specs.LinuxNamespace{Type: "network"}
 			if c.HostConfig.NetworkMode.IsContainer() {
 				nc, err := daemon.getNetworkedContainer(c.ID, c.HostConfig.NetworkMode.ConnectedContainer())
 				if err != nil {
 					return err
 				}
-				ns.Path = fmt.Sprintf("/proc/%d/ns/net", nc.State.GetPID())
+				setNamespace(s, specs.LinuxNamespace{
+					Type: "network",
+					Path: fmt.Sprintf("/proc/%d/ns/net", nc.State.GetPID()),
+				})
 				if userNS {
-					// to share a net namespace, they must also share a user namespace
-					nsUser := specs.LinuxNamespace{Type: "user"}
-					nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", nc.State.GetPID())
-					setNamespace(s, nsUser)
+					// to share a net namespace, the containers must also share a user namespace.
+					setNamespace(s, specs.LinuxNamespace{
+						Type: "user",
+						Path: fmt.Sprintf("/proc/%d/ns/user", nc.State.GetPID()),
+					})
 				}
 			} else if c.HostConfig.NetworkMode.IsHost() {
-				ns.Path = c.NetworkSettings.SandboxKey
+				setNamespace(s, specs.LinuxNamespace{
+					Type: "network",
+					Path: c.NetworkSettings.SandboxKey,
+				})
+			} else {
+				setNamespace(s, specs.LinuxNamespace{
+					Type: "network",
+				})
 			}
-			setNamespace(s, ns)
 		}
 
 		// ipc
@@ -281,18 +290,20 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		switch {
 		case ipcMode.IsContainer():
-			ns := specs.LinuxNamespace{Type: "ipc"}
 			ic, err := daemon.getIpcContainer(ipcMode.Container())
 			if err != nil {
 				return errdefs.InvalidParameter(errors.Wrapf(err, "invalid IPC mode: %v", ipcMode))
 			}
-			ns.Path = fmt.Sprintf("/proc/%d/ns/ipc", ic.State.GetPID())
-			setNamespace(s, ns)
+			setNamespace(s, specs.LinuxNamespace{
+				Type: "ipc",
+				Path: fmt.Sprintf("/proc/%d/ns/ipc", ic.State.GetPID()),
+			})
 			if userNS {
-				// to share an IPC namespace, they must also share a user namespace
-				nsUser := specs.LinuxNamespace{Type: "user"}
-				nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", ic.State.GetPID())
-				setNamespace(s, nsUser)
+				// to share a IPC namespace, the containers must also share a user namespace.
+				setNamespace(s, specs.LinuxNamespace{
+					Type: "user",
+					Path: fmt.Sprintf("/proc/%d/ns/user", ic.State.GetPID()),
+				})
 			}
 		case ipcMode.IsHost():
 			oci.RemoveNamespace(s, "ipc")
@@ -301,8 +312,9 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			// The default behavior used to be what is now called "shareable".
 			fallthrough
 		case ipcMode.IsPrivate(), ipcMode.IsShareable(), ipcMode.IsNone():
-			ns := specs.LinuxNamespace{Type: "ipc"}
-			setNamespace(s, ns)
+			setNamespace(s, specs.LinuxNamespace{
+				Type: "ipc",
+			})
 		}
 
 		// pid
@@ -314,24 +326,23 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			if err != nil {
 				return err
 			}
-			ns := specs.LinuxNamespace{
+			setNamespace(s, specs.LinuxNamespace{
 				Type: "pid",
 				Path: fmt.Sprintf("/proc/%d/ns/pid", pc.State.GetPID()),
-			}
-			setNamespace(s, ns)
+			})
 			if userNS {
-				// to share a PID namespace, they must also share a user namespace
-				nsUser := specs.LinuxNamespace{
+				// to share a PID namespace, the containers must also share a user namespace.
+				setNamespace(s, specs.LinuxNamespace{
 					Type: "user",
 					Path: fmt.Sprintf("/proc/%d/ns/user", pc.State.GetPID()),
-				}
-				setNamespace(s, nsUser)
+				})
 			}
 		} else if c.HostConfig.PidMode.IsHost() {
 			oci.RemoveNamespace(s, "pid")
 		} else {
-			ns := specs.LinuxNamespace{Type: "pid"}
-			setNamespace(s, ns)
+			setNamespace(s, specs.LinuxNamespace{
+				Type: "pid",
+			})
 		}
 		// uts
 		if !c.HostConfig.UTSMode.Valid() {
@@ -348,8 +359,9 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		if !c.HostConfig.CgroupnsMode.IsEmpty() {
 			if c.HostConfig.CgroupnsMode.IsPrivate() {
-				nsCgroup := specs.LinuxNamespace{Type: "cgroup"}
-				setNamespace(s, nsCgroup)
+				setNamespace(s, specs.LinuxNamespace{
+					Type: "cgroup",
+				})
 			}
 		}
 
