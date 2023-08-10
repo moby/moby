@@ -610,34 +610,42 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 	}
 
 	_, _, nwIPv4Configs, nwIPv6Configs := nw.IpamConfig()
-	for _, s := range []struct {
-		ipConfigured  bool
-		subnetConfigs []*libnetwork.IpamConf
-	}{
-		{
-			ipConfigured:  len(ipamConfig.IPv4Address) > 0,
-			subnetConfigs: nwIPv4Configs,
-		},
-		{
-			ipConfigured:  len(ipamConfig.IPv6Address) > 0,
-			subnetConfigs: nwIPv6Configs,
-		},
-	} {
-		if s.ipConfigured {
-			foundSubnet := false
-			for _, cfg := range s.subnetConfigs {
-				if len(cfg.PreferredPool) > 0 {
-					foundSubnet = true
-					break
-				}
+	if err := validateEndpointIPAddress(nwIPv4Configs, ipamConfig.IPv4Address); err != nil {
+		errs = append(errs, err)
+	}
+	if err := validateEndpointIPAddress(nwIPv6Configs, ipamConfig.IPv6Address); err != nil {
+		errs = append(errs, err)
+	}
+
+	return multierror.Join(errs...)
+}
+
+func validateEndpointIPAddress(nwIPAMConfig []*libnetwork.IpamConf, epAddr string) error {
+	if epAddr == "" {
+		return nil
+	}
+
+	var customSubnet bool
+	parsedAddr := net.ParseIP(epAddr)
+	for _, conf := range nwIPAMConfig {
+		if conf.PreferredPool != "" {
+			customSubnet = true
+
+			_, allowedRange, _ := net.ParseCIDR(conf.PreferredPool)
+			if conf.SubPool != "" {
+				_, allowedRange, _ = net.ParseCIDR(conf.SubPool)
 			}
-			if !foundSubnet {
-				errs = append(errs, runconfig.ErrUnsupportedNetworkNoSubnetAndIP)
+
+			if allowedRange.Contains(parsedAddr) {
+				return nil
 			}
 		}
 	}
 
-	return multierror.Join(errs...)
+	if customSubnet {
+		return fmt.Errorf("no predefined subnet or ip-range contain the IP address: %s", epAddr)
+	}
+	return runconfig.ErrUnsupportedNetworkNoSubnetAndIP
 }
 
 // cleanOperationalData resets the operational data from the passed endpoint settings
