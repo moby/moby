@@ -379,7 +379,7 @@ func setupTest(t *testing.T) (*VolumeStore, func()) {
 	}
 
 	s, err := NewStore(dir, volumedrivers.NewStore(nil))
-	assert.Check(t, err)
+	assert.NilError(t, err)
 	return s, func() {
 		s.Shutdown()
 		cleanup()

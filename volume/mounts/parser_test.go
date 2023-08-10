@@ -82,7 +82,8 @@ func TestParseMountSpec(t *testing.T) {
 		tc := tc
 		t.Run("", func(t *testing.T) {
 			mp, err := parser.ParseMountSpec(tc.input)
-			assert.Check(t, err)
+			assert.NilError(t, err)
+
 			assert.Check(t, is.Equal(mp.Type, tc.expected.Type))
 			assert.Check(t, is.Equal(mp.Destination, tc.expected.Destination))
 			assert.Check(t, is.Equal(mp.Source, tc.expected.Source))
