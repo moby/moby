@@ -332,6 +332,13 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, insert bo
 		}
 	}
 
+	// Ensure bridge interface is added to the docker zone ONLY when icc is enabled
+	if iccEnable {
+		if err := iptables.SetupInterfaceFirewalldZone(bridgeIface, insert); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

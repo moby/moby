@@ -282,6 +282,22 @@ func DelInterfaceFirewalld(intf string) error {
 	return nil
 }
 
+func SetupInterfaceFirewalldZone(bridgeName string, enable bool) error {
+	// Either add or remove the interface from the firewalld zone
+	if firewalldRunning {
+		if enable {
+			if err := AddInterfaceFirewalld(bridgeName); err != nil {
+				return err
+			}
+		} else {
+			if err := DelInterfaceFirewalld(bridgeName); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func contains(list []string, val string) bool {
 	for _, v := range list {
 		if v == val {
