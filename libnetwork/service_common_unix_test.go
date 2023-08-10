@@ -1,18 +1,16 @@
+//go:build !windows
+
 package libnetwork
 
 import (
 	"net"
-	"runtime"
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 func TestCleanupServiceDiscovery(t *testing.T) {
-	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
-
 	defer netnsutils.SetupTestOSContext(t)()
 	c, err := New()
 	assert.NilError(t, err)
