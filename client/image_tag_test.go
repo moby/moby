@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -36,15 +37,52 @@ func TestImageTagInvalidReference(t *testing.T) {
 	}
 }
 
+// Ensure we don't allow the use of invalid repository names or tags; these tag operations should fail.
 func TestImageTagInvalidSourceImageName(t *testing.T) {
+	ctx := context.Background()
+
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "client should not have made an API call")),
 	}
 
-	err := client.ImageTag(context.Background(), "invalid_source_image_name_", "repo:tag")
-	if err == nil || err.Error() != `Error parsing reference: "invalid_source_image_name_" is not a valid repository/tag: invalid reference format` {
-		t.Fatalf("expected Parsing Reference Error, got %v", err)
+	invalidRepos := []string{"fo$z$", "Foo@3cc", "Foo$3", "Foo*3", "Fo^3", "Foo!3", "F)xcz(", "fo%asd", "FOO/bar", "aa/asdf$$^/aa"}
+	for _, repo := range invalidRepos {
+		repo := repo
+		t.Run("invalidRepo/"+repo, func(t *testing.T) {
+			t.Parallel()
+			err := client.ImageTag(ctx, "busybox", repo)
+			assert.Check(t, is.ErrorContains(err, "not a valid repository/tag"))
+		})
 	}
+
+	longTag := testutil.GenerateRandomAlphaOnlyString(121)
+	invalidTags := []string{"repo:fo$z$", "repo:Foo@3cc", "repo:Foo$3", "repo:Foo*3", "repo:Fo^3", "repo:Foo!3", "repo:%goodbye", "repo:#hashtagit", "repo:F)xcz(", "repo:-foo", "repo:..", longTag}
+	for _, repotag := range invalidTags {
+		repotag := repotag
+		t.Run("invalidTag/"+repotag, func(t *testing.T) {
+			t.Parallel()
+			err := client.ImageTag(ctx, "busybox", repotag)
+			assert.Check(t, is.ErrorContains(err, "not a valid repository/tag"))
+		})
+	}
+
+	t.Run("test repository name begin with '-'", func(t *testing.T) {
+		t.Parallel()
+		err := client.ImageTag(ctx, "busybox:latest", "-busybox:test")
+		assert.Check(t, is.ErrorContains(err, "Error parsing reference"))
+	})
+
+	t.Run("test namespace name begin with '-'", func(t *testing.T) {
+		t.Parallel()
+		err := client.ImageTag(ctx, "busybox:latest", "-test/busybox:test")
+		assert.Check(t, is.ErrorContains(err, "Error parsing reference"))
+	})
+
+	t.Run("test index name begin with '-'", func(t *testing.T) {
+		t.Parallel()
+		err := client.ImageTag(ctx, "busybox:latest", "-index:5000/busybox:test")
+		assert.Check(t, is.ErrorContains(err, "Error parsing reference"))
+	})
 }
 
 func TestImageTagHexSource(t *testing.T) {
