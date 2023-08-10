@@ -18,7 +18,6 @@ import (
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -261,7 +260,7 @@ vipLoop:
 		}
 		for _, nAttach := range specNetworks {
 			if nAttach.Target == eAttach.NetworkID {
-				log.L.WithFields(logrus.Fields{"service_id": s.ID, "vip": eAttach.Addr}).Debug("allocate vip")
+				log.L.WithFields(log.Fields{"service_id": s.ID, "vip": eAttach.Addr}).Debug("allocate vip")
 				if err = na.allocateVIP(eAttach); err != nil {
 					return err
 				}

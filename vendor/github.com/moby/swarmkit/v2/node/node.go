@@ -276,7 +276,7 @@ func configVXLANUDPPort(ctx context.Context, vxlanUDPPort uint32) {
 		log.G(ctx).WithError(err).Error("failed to configure VXLAN UDP port")
 		return
 	}
-	logrus.Infof("initialized VXLAN UDP port to %d ", vxlanUDPPort)
+	log.G(ctx).Infof("initialized VXLAN UDP port to %d ", vxlanUDPPort)
 }
 
 func (n *Node) run(ctx context.Context) (err error) {
@@ -444,7 +444,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	go func() {
 		for certUpdate := range updates {
 			if certUpdate.Err != nil {
-				logrus.Warnf("error renewing TLS certificate: %v", certUpdate.Err)
+				log.G(ctx).Warnf("error renewing TLS certificate: %v", certUpdate.Err)
 				continue
 			}
 			// Set the new role, and notify our waiting role changing logic
@@ -862,7 +862,7 @@ func (n *Node) loadSecurityConfig(ctx context.Context, paths *ca.SecurityConfigP
 		// Attempt to load certificate from disk
 		securityConfig, cancel, err = ca.LoadSecurityConfig(ctx, rootCA, krw, n.config.ForceNewCluster)
 		if err == nil {
-			log.G(ctx).WithFields(logrus.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"node.id": securityConfig.ClientTLSCreds.NodeID(),
 			}).Debugf("loaded TLS certificate")
 		} else {

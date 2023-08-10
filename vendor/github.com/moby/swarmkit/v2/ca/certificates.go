@@ -769,7 +769,7 @@ func CreateRootCA(rootCN string) (RootCA, error) {
 	// Create a simple CSR for the CA using the default CA validator and policy
 	req := cfcsr.CertificateRequest{
 		CN:         rootCN,
-		KeyRequest: &cfcsr.BasicKeyRequest{A: RootKeyAlgo, S: RootKeySize},
+		KeyRequest: &cfcsr.KeyRequest{A: RootKeyAlgo, S: RootKeySize},
 		CA:         &cfcsr.CAConfig{Expiry: RootCAExpiration},
 	}
 
@@ -919,7 +919,7 @@ func SaveRootCA(rootCA RootCA, paths CertPaths) error {
 // GenerateNewCSR returns a newly generated key and CSR signed with said key
 func GenerateNewCSR() ([]byte, []byte, error) {
 	req := &cfcsr.CertificateRequest{
-		KeyRequest: cfcsr.NewBasicKeyRequest(),
+		KeyRequest: cfcsr.NewKeyRequest(),
 	}
 
 	csr, key, err := cfcsr.ParseRequest(req)

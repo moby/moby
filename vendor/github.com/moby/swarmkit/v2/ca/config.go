@@ -22,7 +22,6 @@ import (
 	"github.com/moby/swarmkit/v2/watch"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -463,7 +462,7 @@ func LoadSecurityConfig(ctx context.Context, rootCA RootCA, krw *KeyReadWriter, 
 		PublicKey: issuer.RawSubjectPublicKeyInfo,
 	})
 	if err == nil {
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"node.id":   secConfig.ClientTLSCreds.NodeID(),
 			"node.role": secConfig.ClientTLSCreds.Role(),
 		}).Debug("loaded node credentials")
@@ -524,12 +523,12 @@ func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWrite
 			return nil, nil, err
 		}
 	case nil:
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"node.id":   cn,
 			"node.role": proposedRole,
 		}).Debug("issued new TLS certificate")
 	default:
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"node.id":   cn,
 			"node.role": proposedRole,
 		}).WithError(err).Errorf("failed to issue and save new certificate")
@@ -538,7 +537,7 @@ func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWrite
 
 	secConfig, cleanup, err := NewSecurityConfig(&rootCA, krw, tlsKeyPair, issuerInfo)
 	if err == nil {
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"node.id":   secConfig.ClientTLSCreds.NodeID(),
 			"node.role": secConfig.ClientTLSCreds.Role(),
 		}).Debugf("new node credentials generated: %s", krw.Target())
@@ -579,7 +578,7 @@ func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, connBroker *conne
 	defer s.renewalMu.Unlock()
 
 	ctx = log.WithModule(ctx, "tls")
-	log := log.G(ctx).WithFields(logrus.Fields{
+	logger := log.G(ctx).WithFields(log.Fields{
 		"node.id":   s.ClientTLSCreds.NodeID(),
 		"node.role": s.ClientTLSCreds.Role(),
 	})
@@ -602,7 +601,7 @@ func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, connBroker *conne
 		}
 	}
 	if err != nil {
-		log.WithError(err).Errorf("failed to renew the certificate")
+		logger.WithError(err).Errorf("failed to renew the certificate")
 		return err
 	}
 

@@ -10,7 +10,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -52,11 +51,11 @@ func New(key string, ad []byte) (*Standard, error) {
 		case "env":
 			key = os.Getenv(splitKey[1])
 		case "file":
-			data, err := ioutil.ReadFile(splitKey[1])
+			data, err := os.ReadFile(splitKey[1])
 			if err != nil {
 				return nil, err
 			}
-			key = string(data)
+			key = strings.TrimSpace(string(data))
 		default:
 			return nil, fmt.Errorf("unknown key prefix: %s", splitKey[0])
 		}

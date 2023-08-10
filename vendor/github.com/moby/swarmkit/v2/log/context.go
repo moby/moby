@@ -23,6 +23,9 @@ type (
 	moduleKey struct{}
 )
 
+// Fields type to pass to "WithFields".
+type Fields = map[string]any
+
 // WithLogger returns a new context with the provided logger. Use in
 // combination with logger.WithField(s) for great effect.
 func WithLogger(ctx context.Context, logger *logrus.Entry) context.Context {
@@ -30,7 +33,7 @@ func WithLogger(ctx context.Context, logger *logrus.Entry) context.Context {
 }
 
 // WithFields returns a new context with added fields to logger.
-func WithFields(ctx context.Context, fields logrus.Fields) context.Context {
+func WithFields(ctx context.Context, fields Fields) context.Context {
 	logger := ctx.Value(loggerKey{})
 
 	if logger == nil {
@@ -41,7 +44,7 @@ func WithFields(ctx context.Context, fields logrus.Fields) context.Context {
 
 // WithField is convenience wrapper around WithFields.
 func WithField(ctx context.Context, key, value string) context.Context {
-	return WithFields(ctx, logrus.Fields{key: value})
+	return WithFields(ctx, Fields{key: value})
 }
 
 // GetLogger retrieves the current logger from the context. If no logger is

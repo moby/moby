@@ -10,7 +10,6 @@ import (
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/connectionbroker"
 	"github.com/moby/swarmkit/v2/log"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -180,7 +179,7 @@ func (s *session) heartbeat(ctx context.Context) error {
 	heartbeat := time.NewTimer(1) // send out a heartbeat right away
 	defer heartbeat.Stop()
 
-	fields := logrus.Fields{
+	fields := log.Fields{
 		"sessionID": s.sessionID,
 		"method":    "(*session).heartbeat",
 	}
@@ -243,8 +242,8 @@ func (s *session) handleSessionMessage(ctx context.Context, msg *api.SessionMess
 }
 
 func (s *session) logSubscriptions(ctx context.Context) error {
-	log := log.G(ctx).WithFields(logrus.Fields{"method": "(*session).logSubscriptions"})
-	log.Debugf("")
+	logger := log.G(ctx).WithFields(log.Fields{"method": "(*session).logSubscriptions"})
+	logger.Debugf("")
 
 	client := api.NewLogBrokerClient(s.conn.ClientConn)
 	subscriptions, err := client.ListenSubscriptions(ctx, &api.ListenSubscriptionsRequest{})
@@ -257,7 +256,7 @@ func (s *session) logSubscriptions(ctx context.Context) error {
 		resp, err := subscriptions.Recv()
 		st, _ := status.FromError(err)
 		if st.Code() == codes.Unimplemented {
-			log.Warning("manager does not support log subscriptions")
+			logger.Warning("manager does not support log subscriptions")
 			// Don't return, because returning would bounce the session
 			select {
 			case <-s.closed:
@@ -281,8 +280,8 @@ func (s *session) logSubscriptions(ctx context.Context) error {
 }
 
 func (s *session) watch(ctx context.Context) error {
-	log := log.G(ctx).WithFields(logrus.Fields{"method": "(*session).watch"})
-	log.Debugf("")
+	logger := log.G(ctx).WithFields(log.Fields{"method": "(*session).watch"})
+	logger.Debugf("")
 	var (
 		resp            *api.AssignmentsMessage
 		assignmentWatch api.Dispatcher_AssignmentsClient
@@ -313,7 +312,7 @@ func (s *session) watch(ctx context.Context) error {
 				}
 				tasksFallback = true
 				assignmentWatch = nil
-				log.WithError(err).Infof("falling back to Tasks")
+				logger.WithError(err).Infof("falling back to Tasks")
 			}
 		}
 
