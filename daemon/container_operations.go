@@ -599,6 +599,11 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 			errs = append(errs, fmt.Errorf("invalid IPv6 address: %s", ipamConfig.IPv6Address))
 		}
 	}
+	for _, addr := range ipamConfig.LinkLocalIPs {
+		if parsed := net.ParseIP(addr); parsed == nil || parsed.IsUnspecified() {
+			errs = append(errs, fmt.Errorf("invalid link-local IP address %s", addr))
+		}
+	}
 
 	if nw == nil {
 		return multierror.Join(errs...)
