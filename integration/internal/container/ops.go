@@ -273,3 +273,10 @@ func WithSecurityOpt(opt string) func(*TestContainerConfig) {
 		c.HostConfig.SecurityOpt = append(c.HostConfig.SecurityOpt, opt)
 	}
 }
+
+// WithPIDMode sets the PID-mode for the container.
+func WithPIDMode(mode container.PidMode) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.PidMode = mode
+	}
+}

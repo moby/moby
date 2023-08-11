@@ -12,7 +12,7 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func TestPidHost(t *testing.T) {
+func TestPIDModeHost(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 
@@ -23,9 +23,7 @@ func TestPidHost(t *testing.T) {
 	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
-		c.HostConfig.PidMode = "host"
-	})
+	cID := container.Run(ctx, t, apiClient, container.WithPIDMode("host"))
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 	cPid := container.GetContainerNS(ctx, t, apiClient, cID, "pid")
 	assert.Assert(t, hostPid == cPid)
