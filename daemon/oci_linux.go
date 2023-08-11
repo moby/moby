@@ -292,9 +292,9 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		switch {
 		case ipcMode.IsContainer():
-			ic, err := daemon.getIpcContainer(ipcMode.Container())
+			ic, err := daemon.getIPCContainer(ipcMode.Container())
 			if err != nil {
-				return errors.Wrapf(err, "invalid IPC mode: %v", ipcMode)
+				return errors.Wrap(err, "failed to join IPC namespace")
 			}
 			setNamespace(s, specs.LinuxNamespace{
 				Type: specs.IPCNamespace,
@@ -526,7 +526,7 @@ func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container) 
 			return err
 		}
 
-		if err := daemon.setupIpcDirs(c); err != nil {
+		if err := daemon.setupIPCDirs(c); err != nil {
 			return err
 		}
 
