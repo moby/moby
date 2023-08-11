@@ -105,24 +105,20 @@ func (r *Resolver) SetupFunc(port int) func() {
 		var err error
 
 		// DNS operates primarily on UDP
-		addr := &net.UDPAddr{
+		r.conn, err = net.ListenUDP("udp", &net.UDPAddr{
 			IP:   net.ParseIP(r.listenAddress),
 			Port: port,
-		}
-
-		r.conn, err = net.ListenUDP("udp", addr)
+		})
 		if err != nil {
 			r.err = fmt.Errorf("error in opening name server socket %v", err)
 			return
 		}
 
 		// Listen on a TCP as well
-		tcpaddr := &net.TCPAddr{
+		r.tcpListen, err = net.ListenTCP("tcp", &net.TCPAddr{
 			IP:   net.ParseIP(r.listenAddress),
 			Port: port,
-		}
-
-		r.tcpListen, err = net.ListenTCP("tcp", tcpaddr)
+		})
 		if err != nil {
 			r.err = fmt.Errorf("error in opening name TCP server socket %v", err)
 			return

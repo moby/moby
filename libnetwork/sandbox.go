@@ -99,10 +99,6 @@ type containerConfig struct {
 	exposedPorts      []types.TransportPort
 }
 
-const (
-	resolverIPSandbox = "127.0.0.11"
-)
-
 // ID returns the ID of the sandbox.
 func (sb *Sandbox) ID() string {
 	return sb.id

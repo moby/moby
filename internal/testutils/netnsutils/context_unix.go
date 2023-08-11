@@ -23,6 +23,17 @@ type OSContext struct {
 	caller string // The file:line where SetupTestOSContextEx was called, for interpolating into error messages.
 }
 
+// SetupTestOSContext joins the current goroutine to a new network namespace,
+// and returns its associated teardown function.
+//
+// Example usage:
+//
+//	defer SetupTestOSContext(t)()
+func SetupTestOSContext(t *testing.T) func() {
+	c := SetupTestOSContextEx(t)
+	return func() { c.Cleanup(t) }
+}
+
 // SetupTestOSContextEx joins the current goroutine to a new network namespace.
 //
 // Compared to [SetupTestOSContext], this function allows goroutines to be
@@ -166,4 +177,24 @@ func (c *OSContext) Set() (func(testutils.Logger), error) {
 			log.Logf("Warning: netns closing failed (%v)", err)
 		}
 	}, nil
+}
+
+// Go starts running fn in a new goroutine inside the test OS context.
+func (c *OSContext) Go(t *testing.T, fn func()) {
+	t.Helper()
+	errCh := make(chan error, 1)
+	go func() {
+		teardown, err := c.Set()
+		if err != nil {
+			errCh <- err
+			return
+		}
+		defer teardown(t)
+		close(errCh)
+		fn()
+	}()
+
+	if err := <-errCh; err != nil {
+		t.Fatalf("%+v", err)
+	}
 }
