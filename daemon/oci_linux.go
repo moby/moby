@@ -326,7 +326,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		switch {
 		case pidMode.IsContainer():
-			pc, err := daemon.getPidContainer(c)
+			pc, err := daemon.getPIDContainer(pidMode.Container())
 			if err != nil {
 				return errors.Wrap(err, "failed to join PID namespace")
 			}

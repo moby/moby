@@ -86,8 +86,7 @@ func (daemon *Daemon) getIpcContainer(id string) (*container.Container, error) {
 	return ctr, nil
 }
 
-func (daemon *Daemon) getPidContainer(ctr *container.Container) (*container.Container, error) {
-	id := ctr.HostConfig.PidMode.Container()
+func (daemon *Daemon) getPIDContainer(id string) (*container.Container, error) {
 	ctr, err := daemon.GetContainer(id)
 	if err != nil {
 		return nil, errdefs.InvalidParameter(err)
