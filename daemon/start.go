@@ -30,7 +30,7 @@ func validateState(ctr *container.Container) error {
 		// already in the desired state. It's implemented as an error
 		// to make the code calling this function terminate early (as
 		// no further processing is needed).
-		return containerNotModifiedError{running: true}
+		return errdefs.NotModified(errors.New("container is already running"))
 	}
 	if ctr.RemovalInProgress || ctr.Dead {
 		return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
