@@ -294,7 +294,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		case ipcMode.IsContainer():
 			ic, err := daemon.getIpcContainer(ipcMode.Container())
 			if err != nil {
-				return errdefs.InvalidParameter(errors.Wrapf(err, "invalid IPC mode: %v", ipcMode))
+				return errors.Wrapf(err, "invalid IPC mode: %v", ipcMode)
 			}
 			setNamespace(s, specs.LinuxNamespace{
 				Type: specs.IPCNamespace,
@@ -328,7 +328,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		case pidMode.IsContainer():
 			pc, err := daemon.getPidContainer(c)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "failed to join PID namespace")
 			}
 			setNamespace(s, specs.LinuxNamespace{
 				Type: specs.PIDNamespace,

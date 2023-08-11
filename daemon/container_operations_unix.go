@@ -65,7 +65,7 @@ func (daemon *Daemon) getIpcContainer(id string) (*container.Container, error) {
 	// Check if the container exists, is running, and not restarting
 	ctr, err := daemon.GetContainer(id)
 	if err != nil {
-		return nil, errors.Wrap(err, errMsg)
+		return nil, errdefs.InvalidParameter(errors.Wrap(err, errMsg))
 	}
 	if !ctr.IsRunning() {
 		return nil, errNotRunning(id)
@@ -77,10 +77,10 @@ func (daemon *Daemon) getIpcContainer(id string) (*container.Container, error) {
 	// Check the container ipc is shareable
 	if st, err := os.Stat(ctr.ShmPath); err != nil || !st.IsDir() {
 		if err == nil || os.IsNotExist(err) {
-			return nil, errors.New(errMsg + ": non-shareable IPC (hint: use IpcMode:shareable for the donor container)")
+			return nil, errdefs.InvalidParameter(errors.New(errMsg + ": non-shareable IPC (hint: use IpcMode:shareable for the donor container)"))
 		}
 		// stat() failed?
-		return nil, errors.Wrap(err, errMsg+": unexpected error from stat "+ctr.ShmPath)
+		return nil, errdefs.System(errors.Wrap(err, errMsg+": unexpected error from stat "+ctr.ShmPath))
 	}
 
 	return ctr, nil
@@ -90,7 +90,7 @@ func (daemon *Daemon) getPidContainer(ctr *container.Container) (*container.Cont
 	id := ctr.HostConfig.PidMode.Container()
 	ctr, err := daemon.GetContainer(id)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot join PID of a non running container: %s", id)
+		return nil, errdefs.InvalidParameter(err)
 	}
 	if !ctr.IsRunning() {
 		return nil, errNotRunning(id)
