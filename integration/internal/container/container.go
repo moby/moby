@@ -62,11 +62,14 @@ func Create(ctx context.Context, t *testing.T, apiClient client.APIClient, ops .
 	return c.ID
 }
 
-// CreateExpectingErr creates a container, expecting an error with the specified message
-func CreateExpectingErr(ctx context.Context, t *testing.T, apiClient client.APIClient, errMsg string, ops ...func(*TestContainerConfig)) {
-	config := NewTestConfig(ops...)
-	_, err := apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
-	assert.ErrorContains(t, err, errMsg)
+// CreateFromConfig creates a container from the given TestContainerConfig.
+//
+// Example use:
+//
+//	ctr, err := container.CreateFromConfig(ctx, apiClient, container.NewTestConfig(container.WithAutoRemove))
+//	assert.Check(t, err)
+func CreateFromConfig(ctx context.Context, apiClient client.APIClient, config *TestContainerConfig) (container.CreateResponse, error) {
+	return apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
 }
 
 // Run creates and start a container with the specified options
