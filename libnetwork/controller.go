@@ -1045,17 +1045,6 @@ func SandboxContainerWalker(out **Sandbox, containerID string) SandboxWalker {
 	}
 }
 
-// SandboxKeyWalker returns a Sandbox Walker function which looks for an existing Sandbox with the passed key
-func SandboxKeyWalker(out **Sandbox, key string) SandboxWalker {
-	return func(sb *Sandbox) bool {
-		if sb.Key() == key {
-			*out = sb
-			return true
-		}
-		return false
-	}
-}
-
 func (c *Controller) loadDriver(networkType string) error {
 	var err error
 
