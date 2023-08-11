@@ -27,9 +27,11 @@ type TestContainerConfig struct {
 	Platform         *ocispec.Platform
 }
 
-// create creates a container with the specified options
-func create(ctx context.Context, t *testing.T, apiClient client.APIClient, ops ...func(*TestContainerConfig)) (container.CreateResponse, error) {
-	t.Helper()
+// NewTestConfig creates a new TestContainerConfig with the provided options.
+//
+// If no options are passed, it creates a default config, which is a busybox
+// container running "top" (on Linux) or "sleep" (on Windows).
+func NewTestConfig(ops ...func(*TestContainerConfig)) *TestContainerConfig {
 	cmd := []string{"top"}
 	if runtime.GOOS == "windows" {
 		cmd = []string{"sleep", "240"}
@@ -47,13 +49,14 @@ func create(ctx context.Context, t *testing.T, apiClient client.APIClient, ops .
 		op(config)
 	}
 
-	return apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
+	return config
 }
 
-// Create creates a container with the specified options, asserting that there was no error
+// Create creates a container with the specified options, asserting that there was no error.
 func Create(ctx context.Context, t *testing.T, apiClient client.APIClient, ops ...func(*TestContainerConfig)) string {
 	t.Helper()
-	c, err := create(ctx, t, apiClient, ops...)
+	config := NewTestConfig(ops...)
+	c, err := apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
 	assert.NilError(t, err)
 
 	return c.ID
@@ -61,7 +64,8 @@ func Create(ctx context.Context, t *testing.T, apiClient client.APIClient, ops .
 
 // CreateExpectingErr creates a container, expecting an error with the specified message
 func CreateExpectingErr(ctx context.Context, t *testing.T, apiClient client.APIClient, errMsg string, ops ...func(*TestContainerConfig)) {
-	_, err := create(ctx, t, apiClient, ops...)
+	config := NewTestConfig(ops...)
+	_, err := apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
 	assert.ErrorContains(t, err, errMsg)
 }
 
