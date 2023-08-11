@@ -30,16 +30,16 @@ func TestCreateWithCDIDevices(t *testing.T) {
 	d.StartWithBusybox(t, "--cdi-spec-dir="+filepath.Join(cwd, "testdata", "cdi"))
 	defer d.Stop(t)
 
-	client := d.NewClientT(t)
+	apiClient := d.NewClientT(t)
 
 	ctx := context.Background()
-	id := container.Run(ctx, t, client,
+	id := container.Run(ctx, t, apiClient,
 		container.WithCmd("/bin/sh", "-c", "env"),
 		container.WithCDIDevices("vendor1.com/device=foo"),
 	)
-	defer client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
 
-	inspect, err := client.ContainerInspect(ctx, id)
+	inspect, err := apiClient.ContainerInspect(ctx, id)
 	assert.NilError(t, err)
 
 	expectedRequests := []containertypes.DeviceRequest{
@@ -50,7 +50,7 @@ func TestCreateWithCDIDevices(t *testing.T) {
 	}
 	assert.Check(t, is.DeepEqual(inspect.HostConfig.DeviceRequests, expectedRequests))
 
-	reader, err := client.ContainerLogs(ctx, id, types.ContainerLogsOptions{
+	reader, err := apiClient.ContainerLogs(ctx, id, types.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)

@@ -25,27 +25,27 @@ func TestPause(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client)
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	cID := container.Run(ctx, t, apiClient)
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
-	since := request.DaemonUnixTime(ctx, t, client, testEnv)
+	since := request.DaemonUnixTime(ctx, t, apiClient, testEnv)
 
-	err := client.ContainerPause(ctx, cID)
+	err := apiClient.ContainerPause(ctx, cID)
 	assert.NilError(t, err)
 
-	inspect, err := client.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, inspect.State.Paused))
 
-	err = client.ContainerUnpause(ctx, cID)
+	err = apiClient.ContainerUnpause(ctx, cID)
 	assert.NilError(t, err)
 
-	until := request.DaemonUnixTime(ctx, t, client, testEnv)
+	until := request.DaemonUnixTime(ctx, t, apiClient, testEnv)
 
-	messages, errs := client.Events(ctx, types.EventsOptions{
+	messages, errs := apiClient.Events(ctx, types.EventsOptions{
 		Since:   since,
 		Until:   until,
 		Filters: filters.NewArgs(filters.Arg("container", cID)),
@@ -57,13 +57,13 @@ func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "windows" || testEnv.DaemonInfo.Isolation != "process")
 
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client)
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	cID := container.Run(ctx, t, apiClient)
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
-	err := client.ContainerPause(ctx, cID)
+	err := apiClient.ContainerPause(ctx, cID)
 	assert.Check(t, is.ErrorContains(err, cerrdefs.ErrNotImplemented.Error()))
 }
 
@@ -72,19 +72,19 @@ func TestPauseStopPausedContainer(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.31"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client)
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	cID := container.Run(ctx, t, apiClient)
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
-	err := client.ContainerPause(ctx, cID)
+	err := apiClient.ContainerPause(ctx, cID)
 	assert.NilError(t, err)
 
-	err = client.ContainerStop(ctx, cID, containertypes.StopOptions{})
+	err = apiClient.ContainerStop(ctx, cID, containertypes.StopOptions{})
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
 }
 
 func getEventActions(t *testing.T, messages <-chan events.Message, errs <-chan error) []string {

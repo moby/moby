@@ -20,18 +20,18 @@ func TestPidHost(t *testing.T) {
 	assert.NilError(t, err)
 
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
+	cID := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.HostConfig.PidMode = "host"
 	})
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
-	cPid := container.GetContainerNS(ctx, t, client, cID, "pid")
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	cPid := container.GetContainerNS(ctx, t, apiClient, cID, "pid")
 	assert.Assert(t, hostPid == cPid)
 
-	cID = container.Run(ctx, t, client)
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
-	cPid = container.GetContainerNS(ctx, t, client, cID, "pid")
+	cID = container.Run(ctx, t, apiClient)
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	cPid = container.GetContainerNS(ctx, t, apiClient, cID, "pid")
 	assert.Assert(t, hostPid != cPid)
 }

@@ -34,7 +34,7 @@ func (res *ExecResult) Combined() string {
 // containing stdout, stderr, and exit code. Note:
 //   - this is a synchronous operation;
 //   - cmd stdin is closed.
-func Exec(ctx context.Context, cli client.APIClient, id string, cmd []string, ops ...func(*types.ExecConfig)) (ExecResult, error) {
+func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []string, ops ...func(*types.ExecConfig)) (ExecResult, error) {
 	// prepare exec
 	execConfig := types.ExecConfig{
 		AttachStdout: true,
@@ -46,14 +46,14 @@ func Exec(ctx context.Context, cli client.APIClient, id string, cmd []string, op
 		op(&execConfig)
 	}
 
-	cresp, err := cli.ContainerExecCreate(ctx, id, execConfig)
+	cresp, err := apiClient.ContainerExecCreate(ctx, id, execConfig)
 	if err != nil {
 		return ExecResult{}, err
 	}
 	execID := cresp.ID
 
 	// run it, with stdout/stderr attached
-	aresp, err := cli.ContainerExecAttach(ctx, execID, types.ExecStartCheck{})
+	aresp, err := apiClient.ContainerExecAttach(ctx, execID, types.ExecStartCheck{})
 	if err != nil {
 		return ExecResult{}, err
 	}
@@ -65,7 +65,7 @@ func Exec(ctx context.Context, cli client.APIClient, id string, cmd []string, op
 	}
 
 	// get the exit code
-	iresp, err := cli.ContainerExecInspect(ctx, execID)
+	iresp, err := apiClient.ContainerExecInspect(ctx, execID)
 	if err != nil {
 		return ExecResult{}, err
 	}

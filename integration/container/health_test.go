@@ -21,9 +21,9 @@ func TestHealthCheckWorkdir(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, client, container.WithTty(true), container.WithWorkingDir("/foo"), func(c *container.TestContainerConfig) {
+	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithWorkingDir("/foo"), func(c *container.TestContainerConfig) {
 		c.Config.Healthcheck = &containertypes.HealthConfig{
 			Test:     []string{"CMD-SHELL", "if [ \"$PWD\" = \"/foo\" ]; then exit 0; else exit 1; fi;"},
 			Interval: 50 * time.Millisecond,
@@ -31,7 +31,7 @@ func TestHealthCheckWorkdir(t *testing.T) {
 		}
 	})
 
-	poll.WaitOn(t, pollForHealthStatus(ctx, client, cID, types.Healthy), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, cID, types.Healthy), poll.WithDelay(100*time.Millisecond))
 }
 
 // GitHub #37263
@@ -41,9 +41,9 @@ func TestHealthKillContainer(t *testing.T) {
 	defer setupTest(t)()
 
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	id := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
+	id := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		cmd := `
 # Set the initial HEALTH value so the healthcheck passes
 HEALTH="1"
@@ -77,21 +77,21 @@ while true; do sleep 1; done
 
 	ctxPoll, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	poll.WaitOn(t, pollForHealthStatus(ctxPoll, client, id, "healthy"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, pollForHealthStatus(ctxPoll, apiClient, id, "healthy"), poll.WithDelay(100*time.Millisecond))
 
-	err := client.ContainerKill(ctx, id, "SIGUSR1")
+	err := apiClient.ContainerKill(ctx, id, "SIGUSR1")
 	assert.NilError(t, err)
 
 	ctxPoll, cancel = context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	poll.WaitOn(t, pollForHealthStatus(ctxPoll, client, id, "unhealthy"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, pollForHealthStatus(ctxPoll, apiClient, id, "unhealthy"), poll.WithDelay(100*time.Millisecond))
 
-	err = client.ContainerKill(ctx, id, "SIGUSR1")
+	err = apiClient.ContainerKill(ctx, id, "SIGUSR1")
 	assert.NilError(t, err)
 
 	ctxPoll, cancel = context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	poll.WaitOn(t, pollForHealthStatus(ctxPoll, client, id, "healthy"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, pollForHealthStatus(ctxPoll, apiClient, id, "healthy"), poll.WithDelay(100*time.Millisecond))
 }
 
 // TestHealthCheckProcessKilled verifies that health-checks exec get killed on time-out.
@@ -115,10 +115,10 @@ func TestHealthStartInterval(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "The shell commands used in the test healthcheck do not work on Windows")
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	// Note: Windows is much slower than linux so this use longer intervals/timeouts
-	id := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
+	id := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.Config.Healthcheck = &containertypes.HealthConfig{
 			Test:          []string{"CMD-SHELL", `count="$(cat /tmp/health)"; if [ -z "${count}" ]; then let count=0; fi; let count=${count}+1; echo -n ${count} | tee /tmp/health; if [ ${count} -lt 3 ]; then exit 1; fi`},
 			Interval:      30 * time.Second,
@@ -136,7 +136,7 @@ func TestHealthStartInterval(t *testing.T) {
 		if ctxPoll.Err() != nil {
 			return poll.Error(ctxPoll.Err())
 		}
-		inspect, err := client.ContainerInspect(ctxPoll, id)
+		inspect, err := apiClient.ContainerInspect(ctxPoll, id)
 		if err != nil {
 			return poll.Error(err)
 		}
@@ -155,7 +155,7 @@ func TestHealthStartInterval(t *testing.T) {
 	dl, _ = ctxPoll.Deadline()
 
 	poll.WaitOn(t, func(log poll.LogT) poll.Result {
-		inspect, err := client.ContainerInspect(ctxPoll, id)
+		inspect, err := apiClient.ContainerInspect(ctxPoll, id)
 		if err != nil {
 			return poll.Error(err)
 		}

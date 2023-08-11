@@ -26,12 +26,12 @@ func TestLogsFollowTailEmpty(t *testing.T) {
 	// FIXME(vdemeester) fails on a e2e run on linux...
 	skip.If(t, testEnv.IsRemoteDaemon)
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	id := container.Run(ctx, t, client, container.WithCmd("sleep", "100000"))
+	id := container.Run(ctx, t, apiClient, container.WithCmd("sleep", "100000"))
 
-	logs, err := client.ContainerLogs(ctx, id, types.ContainerLogsOptions{ShowStdout: true, Tail: "2"})
+	logs, err := apiClient.ContainerLogs(ctx, id, types.ContainerLogsOptions{ShowStdout: true, Tail: "2"})
 	if logs != nil {
 		defer logs.Close()
 	}
@@ -53,7 +53,7 @@ func TestLogs(t *testing.T) {
 
 func testLogs(t *testing.T, logDriver string) {
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
 	testCases := []struct {
@@ -134,18 +134,18 @@ func testLogs(t *testing.T, logDriver string) {
 		t.Run(tC.desc, func(t *testing.T) {
 			t.Parallel()
 			tty := tC.tty
-			id := container.Run(ctx, t, client,
+			id := container.Run(ctx, t, apiClient,
 				container.WithCmd("sh", "-c", "echo -n this is fine; echo -n accidents happen >&2"),
 				container.WithTty(tty),
 				container.WithLogDriver(logDriver),
 			)
-			defer client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+			defer apiClient.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
 
-			poll.WaitOn(t, container.IsStopped(ctx, client, id),
+			poll.WaitOn(t, container.IsStopped(ctx, apiClient, id),
 				poll.WithDelay(time.Millisecond*100),
 				poll.WithTimeout(pollTimeout))
 
-			logs, err := client.ContainerLogs(ctx, id, tC.logOps)
+			logs, err := apiClient.ContainerLogs(ctx, id, tC.logOps)
 			assert.NilError(t, err)
 			defer logs.Close()
 

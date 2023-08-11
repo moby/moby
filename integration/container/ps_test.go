@@ -13,12 +13,12 @@ import (
 
 func TestPsFilter(t *testing.T) {
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	prev := container.Create(ctx, t, client)
-	top := container.Create(ctx, t, client)
-	next := container.Create(ctx, t, client)
+	prev := container.Create(ctx, t, apiClient)
+	top := container.Create(ctx, t, apiClient)
+	next := container.Create(ctx, t, apiClient)
 
 	containerIDs := func(containers []types.Container) []string {
 		var entries []string
@@ -29,7 +29,7 @@ func TestPsFilter(t *testing.T) {
 	}
 
 	t.Run("since", func(t *testing.T) {
-		results, err := client.ContainerList(ctx, types.ContainerListOptions{
+		results, err := apiClient.ContainerList(ctx, types.ContainerListOptions{
 			All:     true,
 			Filters: filters.NewArgs(filters.Arg("since", top)),
 		})
@@ -38,7 +38,7 @@ func TestPsFilter(t *testing.T) {
 	})
 
 	t.Run("before", func(t *testing.T) {
-		results, err := client.ContainerList(ctx, types.ContainerListOptions{
+		results, err := apiClient.ContainerList(ctx, types.ContainerListOptions{
 			All:     true,
 			Filters: filters.NewArgs(filters.Arg("before", top)),
 		})

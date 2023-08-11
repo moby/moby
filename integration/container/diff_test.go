@@ -15,10 +15,10 @@ import (
 func TestDiff(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client, container.WithCmd("sh", "-c", `mkdir /foo; echo xyzzy > /foo/bar`))
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("sh", "-c", `mkdir /foo; echo xyzzy > /foo/bar`))
 
 	// Wait for it to exit as cannot diff a running container on Windows, and
 	// it will take a few seconds to exit. Also there's no way in Windows to
@@ -29,14 +29,14 @@ func TestDiff(t *testing.T) {
 		{Kind: containertypes.ChangeAdd, Path: "/foo/bar"},
 	}
 	if testEnv.DaemonInfo.OSType == "windows" {
-		poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(60*time.Second))
+		poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(60*time.Second))
 		expected = []containertypes.FilesystemChange{
 			{Kind: containertypes.ChangeModify, Path: "Files/foo"},
 			{Kind: containertypes.ChangeModify, Path: "Files/foo/bar"},
 		}
 	}
 
-	items, err := client.ContainerDiff(ctx, cID)
+	items, err := apiClient.ContainerDiff(ctx, cID)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, items)
 }
