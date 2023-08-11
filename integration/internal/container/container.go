@@ -28,7 +28,7 @@ type TestContainerConfig struct {
 }
 
 // create creates a container with the specified options
-func create(ctx context.Context, t *testing.T, client client.APIClient, ops ...func(*TestContainerConfig)) (container.CreateResponse, error) {
+func create(ctx context.Context, t *testing.T, apiClient client.APIClient, ops ...func(*TestContainerConfig)) (container.CreateResponse, error) {
 	t.Helper()
 	cmd := []string{"top"}
 	if runtime.GOOS == "windows" {
@@ -47,30 +47,30 @@ func create(ctx context.Context, t *testing.T, client client.APIClient, ops ...f
 		op(config)
 	}
 
-	return client.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
+	return apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
 }
 
 // Create creates a container with the specified options, asserting that there was no error
-func Create(ctx context.Context, t *testing.T, client client.APIClient, ops ...func(*TestContainerConfig)) string {
+func Create(ctx context.Context, t *testing.T, apiClient client.APIClient, ops ...func(*TestContainerConfig)) string {
 	t.Helper()
-	c, err := create(ctx, t, client, ops...)
+	c, err := create(ctx, t, apiClient, ops...)
 	assert.NilError(t, err)
 
 	return c.ID
 }
 
 // CreateExpectingErr creates a container, expecting an error with the specified message
-func CreateExpectingErr(ctx context.Context, t *testing.T, client client.APIClient, errMsg string, ops ...func(*TestContainerConfig)) {
-	_, err := create(ctx, t, client, ops...)
+func CreateExpectingErr(ctx context.Context, t *testing.T, apiClient client.APIClient, errMsg string, ops ...func(*TestContainerConfig)) {
+	_, err := create(ctx, t, apiClient, ops...)
 	assert.ErrorContains(t, err, errMsg)
 }
 
 // Run creates and start a container with the specified options
-func Run(ctx context.Context, t *testing.T, client client.APIClient, ops ...func(*TestContainerConfig)) string {
+func Run(ctx context.Context, t *testing.T, apiClient client.APIClient, ops ...func(*TestContainerConfig)) string {
 	t.Helper()
-	id := Create(ctx, t, client, ops...)
+	id := Create(ctx, t, apiClient, ops...)
 
-	err := client.ContainerStart(ctx, id, types.ContainerStartOptions{})
+	err := apiClient.ContainerStart(ctx, id, types.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	return id
@@ -83,23 +83,23 @@ type RunResult struct {
 	Stderr      *bytes.Buffer
 }
 
-func RunAttach(ctx context.Context, t *testing.T, client client.APIClient, ops ...func(config *TestContainerConfig)) RunResult {
+func RunAttach(ctx context.Context, t *testing.T, apiClient client.APIClient, ops ...func(config *TestContainerConfig)) RunResult {
 	t.Helper()
 
 	ops = append(ops, func(c *TestContainerConfig) {
 		c.Config.AttachStdout = true
 		c.Config.AttachStderr = true
 	})
-	id := Create(ctx, t, client, ops...)
+	id := Create(ctx, t, apiClient, ops...)
 
-	aresp, err := client.ContainerAttach(ctx, id, types.ContainerAttachOptions{
+	aresp, err := apiClient.ContainerAttach(ctx, id, types.ContainerAttachOptions{
 		Stream: true,
 		Stdout: true,
 		Stderr: true,
 	})
 	assert.NilError(t, err)
 
-	err = client.ContainerStart(ctx, id, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, id, types.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	s, err := demultiplexStreams(ctx, aresp)
@@ -109,7 +109,7 @@ func RunAttach(ctx context.Context, t *testing.T, client client.APIClient, ops .
 
 	// Inspect to get the exit code. A new context is used here to make sure that if the context passed as argument as
 	// reached timeout during the demultiplexStream call, we still return a RunResult.
-	resp, err := client.ContainerInspect(context.Background(), id)
+	resp, err := apiClient.ContainerInspect(context.Background(), id)
 	assert.NilError(t, err)
 
 	return RunResult{ContainerID: id, ExitCode: resp.State.ExitCode, Stdout: &s.stdout, Stderr: &s.stderr}
