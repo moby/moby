@@ -62,19 +62,19 @@ func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted bool, 
 	hostCfg := containertypes.HostConfig{
 		IpcMode: containertypes.IpcMode(mode),
 	}
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
+	resp, err := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 
-	err = client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	// get major:minor pair for /dev/shm from container's /proc/self/mountinfo
 	cmd := "awk '($5 == \"/dev/shm\") {printf $3}' /proc/self/mountinfo"
-	result, err := container.Exec(ctx, client, resp.ID, []string{"sh", "-c", cmd})
+	result, err := container.Exec(ctx, apiClient, resp.ID, []string{"sh", "-c", cmd})
 	assert.NilError(t, err)
 	mm := result.Combined()
 	if !mustBeMounted {
@@ -134,25 +134,25 @@ func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 		IpcMode: containertypes.IpcMode(donorMode),
 	}
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	// create and start the "donor" container
-	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
+	resp, err := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name1 := resp.ID
 
-	err = client.ContainerStart(ctx, name1, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, name1, types.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	// create and start the second container
 	hostCfg.IpcMode = containertypes.IpcMode("container:" + name1)
-	resp, err = client.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
+	resp, err = apiClient.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name2 := resp.ID
 
-	err = client.ContainerStart(ctx, name2, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, name2, types.ContainerStartOptions{})
 	if !mustWork {
 		// start should fail with a specific error
 		assert.Check(t, is.ErrorContains(err, "non-shareable IPC"))
@@ -165,10 +165,10 @@ func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 
 	// check that IPC is shared
 	// 1. create a file in the first container
-	_, err = container.Exec(ctx, client, name1, []string{"sh", "-c", "printf covfefe > /dev/shm/bar"})
+	_, err = container.Exec(ctx, apiClient, name1, []string{"sh", "-c", "printf covfefe > /dev/shm/bar"})
 	assert.NilError(t, err)
 	// 2. check it's the same file in the second one
-	result, err := container.Exec(ctx, client, name2, []string{"cat", "/dev/shm/bar"})
+	result, err := container.Exec(ctx, apiClient, name2, []string{"cat", "/dev/shm/bar"})
 	assert.NilError(t, err)
 	out := result.Combined()
 	assert.Check(t, is.Equal(true, regexp.MustCompile("^covfefe$").MatchString(out)))
@@ -201,25 +201,25 @@ func TestAPIIpcModeHost(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	client := testEnv.APIClient()
-	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
+	apiClient := testEnv.APIClient()
+	resp, err := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name := resp.ID
 
-	err = client.ContainerStart(ctx, name, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, name, types.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	// check that IPC is shared
 	// 1. create a file inside container
-	_, err = container.Exec(ctx, client, name, []string{"sh", "-c", "printf covfefe > /dev/shm/." + name})
+	_, err = container.Exec(ctx, apiClient, name, []string{"sh", "-c", "printf covfefe > /dev/shm/." + name})
 	assert.NilError(t, err)
 	// 2. check it's the same on the host
 	bytes, err := os.ReadFile("/dev/shm/." + name)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("covfefe", string(bytes)))
 	// 3. clean up
-	_, err = container.Exec(ctx, client, name, []string{"rm", "-f", "/dev/shm/." + name})
+	_, err = container.Exec(ctx, apiClient, name, []string{"rm", "-f", "/dev/shm/." + name})
 	assert.NilError(t, err)
 }
 
@@ -303,25 +303,25 @@ func TestDaemonIpcModeShareableFromConfig(t *testing.T) {
 // by default, even when the daemon default is private.
 func TestIpcModeOlderClient(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "requires a daemon with DefaultIpcMode: private")
-	c := testEnv.APIClient()
-	skip.If(t, versions.LessThan(c.ClientVersion(), "1.40"), "requires client API >= 1.40")
+	apiClient := testEnv.APIClient()
+	skip.If(t, versions.LessThan(apiClient.ClientVersion(), "1.40"), "requires client API >= 1.40")
 
 	t.Parallel()
 
 	ctx := context.Background()
 
 	// pre-check: default ipc mode in daemon is private
-	cID := container.Create(ctx, t, c, container.WithAutoRemove)
+	cID := container.Create(ctx, t, apiClient, container.WithAutoRemove)
 
-	inspect, err := c.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(string(inspect.HostConfig.IpcMode), "private"))
 
 	// main check: using older client creates "shareable" container
-	c = request.NewAPIClient(t, client.WithVersion("1.39"))
-	cID = container.Create(ctx, t, c, container.WithAutoRemove)
+	apiClient = request.NewAPIClient(t, client.WithVersion("1.39"))
+	cID = container.Create(ctx, t, apiClient, container.WithAutoRemove)
 
-	inspect, err = c.ContainerInspect(ctx, cID)
+	inspect, err = apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(string(inspect.HostConfig.IpcMode), "shareable"))
 }

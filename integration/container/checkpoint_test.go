@@ -42,7 +42,7 @@ func TestCheckpoint(t *testing.T) {
 	assert.NilError(t, err)
 
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	apiClient := request.NewAPIClient(t)
 
 	mnt := mounttypes.Mount{
 		Type:   mounttypes.TypeTmpfs,
@@ -50,9 +50,9 @@ func TestCheckpoint(t *testing.T) {
 	}
 
 	t.Log("Start a container")
-	cID := container.Run(ctx, t, client, container.WithMount(mnt))
+	cID := container.Run(ctx, t, apiClient, container.WithMount(mnt))
 	poll.WaitOn(t,
-		container.IsInState(ctx, client, cID, "running"),
+		container.IsInState(ctx, apiClient, cID, "running"),
 		poll.WithDelay(100*time.Millisecond),
 	)
 
@@ -80,7 +80,7 @@ func TestCheckpoint(t *testing.T) {
 		}()
 	}
 	t.Log("Do a checkpoint and leave the container running")
-	err = client.CheckpointCreate(ctx, cID, cptOpt)
+	err = apiClient.CheckpointCreate(ctx, cID, cptOpt)
 	if err != nil {
 		// An error can contain a path to a dump file
 		t.Log(err)
@@ -96,17 +96,17 @@ func TestCheckpoint(t *testing.T) {
 	}
 	assert.NilError(t, err)
 
-	inspect, err := client.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, inspect.State.Running))
 
-	checkpoints, err := client.CheckpointList(ctx, cID, types.CheckpointListOptions{})
+	checkpoints, err := apiClient.CheckpointList(ctx, cID, types.CheckpointListOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, len(checkpoints), 1)
 	assert.Equal(t, checkpoints[0].Name, "test")
 
 	// Create a test file on a tmpfs mount.
-	containerExec(t, client, cID, []string{"touch", "/tmp/test-file"})
+	containerExec(t, apiClient, cID, []string{"touch", "/tmp/test-file"})
 
 	// Do a second checkpoint
 	cptOpt = types.CheckpointCreateOptions{
@@ -114,20 +114,20 @@ func TestCheckpoint(t *testing.T) {
 		CheckpointID: "test2",
 	}
 	t.Log("Do a checkpoint and stop the container")
-	err = client.CheckpointCreate(ctx, cID, cptOpt)
+	err = apiClient.CheckpointCreate(ctx, cID, cptOpt)
 	assert.NilError(t, err)
 
 	poll.WaitOn(t,
-		container.IsInState(ctx, client, cID, "exited"),
+		container.IsInState(ctx, apiClient, cID, "exited"),
 		poll.WithDelay(100*time.Millisecond),
 	)
 
-	inspect, err = client.ContainerInspect(ctx, cID)
+	inspect, err = apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(false, inspect.State.Running))
 
 	// Check that both checkpoints are listed.
-	checkpoints, err = client.CheckpointList(ctx, cID, types.CheckpointListOptions{})
+	checkpoints, err = apiClient.CheckpointList(ctx, cID, types.CheckpointListOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, len(checkpoints), 2)
 	cptNames := make([]string, 2)
@@ -143,22 +143,22 @@ func TestCheckpoint(t *testing.T) {
 		CheckpointID: "test2",
 	}
 	t.Log("Restore the container")
-	err = client.ContainerStart(ctx, cID, startOpt)
+	err = apiClient.ContainerStart(ctx, cID, startOpt)
 	assert.NilError(t, err)
 
-	inspect, err = client.ContainerInspect(ctx, cID)
+	inspect, err = apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, inspect.State.Running))
 
 	// Check that the test file has been restored.
-	containerExec(t, client, cID, []string{"test", "-f", "/tmp/test-file"})
+	containerExec(t, apiClient, cID, []string{"test", "-f", "/tmp/test-file"})
 
 	for _, id := range []string{"test", "test2"} {
 		cptDelOpt := types.CheckpointDeleteOptions{
 			CheckpointID: id,
 		}
 
-		err = client.CheckpointDelete(ctx, cID, cptDelOpt)
+		err = apiClient.CheckpointDelete(ctx, cID, cptDelOpt)
 		assert.NilError(t, err)
 	}
 }

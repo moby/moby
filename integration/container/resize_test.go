@@ -18,14 +18,14 @@ import (
 
 func TestResize(t *testing.T) {
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client, container.WithTty(true))
+	cID := container.Run(ctx, t, apiClient, container.WithTty(true))
 
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
-	err := client.ContainerResize(ctx, cID, types.ResizeOptions{
+	err := apiClient.ContainerResize(ctx, cID, types.ResizeOptions{
 		Height: 40,
 		Width:  40,
 	})
@@ -35,12 +35,12 @@ func TestResize(t *testing.T) {
 func TestResizeWithInvalidSize(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.32"), "broken in earlier versions")
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client)
+	cID := container.Run(ctx, t, apiClient)
 
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	endpoint := "/containers/" + cID + "/resize?h=foo&w=bar"
 	res, _, err := req.Post(endpoint)
@@ -50,14 +50,14 @@ func TestResizeWithInvalidSize(t *testing.T) {
 
 func TestResizeWhenContainerNotStarted(t *testing.T) {
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client, container.WithCmd("echo"))
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("echo"))
 
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
-	err := client.ContainerResize(ctx, cID, types.ResizeOptions{
+	err := apiClient.ContainerResize(ctx, cID, types.ResizeOptions{
 		Height: 40,
 		Width:  40,
 	})

@@ -67,18 +67,18 @@ func TestNetworkLoopbackNat(t *testing.T) {
 
 	endpoint := getExternalAddress(t)
 
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client,
+	cID := container.Run(ctx, t, apiClient,
 		container.WithCmd("sh", "-c", fmt.Sprintf("stty raw && nc -w 1 %s 8080", endpoint.String())),
 		container.WithTty(true),
 		container.WithNetworkMode("container:"+serverContainerID),
 	)
 
-	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
 
-	body, err := client.ContainerLogs(ctx, cID, types.ContainerLogsOptions{
+	body, err := apiClient.ContainerLogs(ctx, cID, types.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
@@ -93,10 +93,10 @@ func TestNetworkLoopbackNat(t *testing.T) {
 
 func startServerContainer(t *testing.T, msg string, port int) string {
 	t.Helper()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client,
+	cID := container.Run(ctx, t, apiClient,
 		container.WithName("server-"+t.Name()),
 		container.WithCmd("sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port)),
 		container.WithExposedPorts(fmt.Sprintf("%d/tcp", port)),
@@ -110,7 +110,7 @@ func startServerContainer(t *testing.T, msg string, port int) string {
 			}
 		})
 
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	return cID
 }

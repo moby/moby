@@ -30,25 +30,25 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	tempDir := fs.NewDir(t, "test-rm-container-with-removed-volume", fs.WithMode(0o755))
 	defer tempDir.Remove()
 
-	cID := container.Run(ctx, t, client, container.WithCmd("true"), container.WithBind(tempDir.Path(), prefix+slash+"test"))
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithBind(tempDir.Path(), prefix+slash+"test"))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	err := os.RemoveAll(tempDir.Path())
 	assert.NilError(t, err)
 
-	err = client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
+	err = apiClient.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 	})
 	assert.NilError(t, err)
 
-	_, _, err = client.ContainerInspectWithRaw(ctx, cID, true)
+	_, _, err = apiClient.ContainerInspectWithRaw(ctx, cID, true)
 	assert.Check(t, is.ErrorContains(err, "No such container"))
 }
 
@@ -56,24 +56,24 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 func TestRemoveContainerWithVolume(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
-	cID := container.Run(ctx, t, client, container.WithCmd("true"), container.WithVolume(prefix+slash+"srv"))
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithVolume(prefix+slash+"srv"))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
-	insp, _, err := client.ContainerInspectWithRaw(ctx, cID, true)
+	insp, _, err := apiClient.ContainerInspectWithRaw(ctx, cID, true)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(1, len(insp.Mounts)))
 	volName := insp.Mounts[0].Name
 
-	err = client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
+	err = apiClient.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 	})
 	assert.NilError(t, err)
 
-	volumes, err := client.VolumeList(ctx, volume.ListOptions{
+	volumes, err := apiClient.VolumeList(ctx, volume.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", volName)),
 	})
 	assert.NilError(t, err)
@@ -83,22 +83,22 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 func TestRemoveContainerRunning(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, client)
+	cID := container.Run(ctx, t, apiClient)
 
-	err := client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{})
+	err := apiClient.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "cannot remove a running container"))
 }
 
 func TestRemoveContainerForceRemoveRunning(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, client)
+	cID := container.Run(ctx, t, apiClient)
 
-	err := client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
+	err := apiClient.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
 		Force: true,
 	})
 	assert.NilError(t, err)
@@ -107,8 +107,8 @@ func TestRemoveContainerForceRemoveRunning(t *testing.T) {
 func TestRemoveInvalidContainer(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	err := client.ContainerRemove(ctx, "unknown", types.ContainerRemoveOptions{})
+	err := apiClient.ContainerRemove(ctx, "unknown", types.ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "No such container"))
 }

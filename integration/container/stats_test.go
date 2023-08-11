@@ -21,17 +21,17 @@ func TestStats(t *testing.T) {
 	skip.If(t, !testEnv.DaemonInfo.MemoryLimit)
 
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	info, err := client.Info(ctx)
+	info, err := apiClient.Info(ctx)
 	assert.NilError(t, err)
 
-	cID := container.Run(ctx, t, client)
+	cID := container.Run(ctx, t, apiClient)
 
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
-	resp, err := client.ContainerStats(ctx, cID, false)
+	resp, err := apiClient.ContainerStats(ctx, cID, false)
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 
@@ -43,7 +43,7 @@ func TestStats(t *testing.T) {
 	err = json.NewDecoder(resp.Body).Decode(&v)
 	assert.Assert(t, is.ErrorContains(err, ""), io.EOF)
 
-	resp, err = client.ContainerStatsOneShot(ctx, cID)
+	resp, err = apiClient.ContainerStatsOneShot(ctx, cID)
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 
