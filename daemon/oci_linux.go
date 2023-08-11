@@ -255,8 +255,10 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		// network
 		if !c.Config.NetworkDisabled {
-			if c.HostConfig.NetworkMode.IsContainer() {
-				nc, err := daemon.getNetworkedContainer(c.ID, c.HostConfig.NetworkMode.ConnectedContainer())
+			networkMode := c.HostConfig.NetworkMode
+			switch {
+			case networkMode.IsContainer():
+				nc, err := daemon.getNetworkedContainer(c.ID, networkMode.ConnectedContainer())
 				if err != nil {
 					return err
 				}
@@ -271,12 +273,12 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 						Path: fmt.Sprintf("/proc/%d/ns/user", nc.State.GetPID()),
 					})
 				}
-			} else if c.HostConfig.NetworkMode.IsHost() {
+			case networkMode.IsHost():
 				setNamespace(s, specs.LinuxNamespace{
 					Type: specs.NetworkNamespace,
 					Path: c.NetworkSettings.SandboxKey,
 				})
-			} else {
+			default:
 				setNamespace(s, specs.LinuxNamespace{
 					Type: specs.NetworkNamespace,
 				})
@@ -318,10 +320,12 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 
 		// pid
-		if !c.HostConfig.PidMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid PID mode: %v", c.HostConfig.PidMode))
+		pidMode := c.HostConfig.PidMode
+		if !pidMode.Valid() {
+			return errdefs.InvalidParameter(errors.Errorf("invalid PID mode: %v", pidMode))
 		}
-		if c.HostConfig.PidMode.IsContainer() {
+		switch {
+		case pidMode.IsContainer():
 			pc, err := daemon.getPidContainer(c)
 			if err != nil {
 				return err
@@ -337,13 +341,14 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 					Path: fmt.Sprintf("/proc/%d/ns/user", pc.State.GetPID()),
 				})
 			}
-		} else if c.HostConfig.PidMode.IsHost() {
+		case pidMode.IsHost():
 			oci.RemoveNamespace(s, specs.PIDNamespace)
-		} else {
+		default:
 			setNamespace(s, specs.LinuxNamespace{
 				Type: specs.PIDNamespace,
 			})
 		}
+
 		// uts
 		if !c.HostConfig.UTSMode.Valid() {
 			return errdefs.InvalidParameter(errors.Errorf("invalid UTS mode: %v", c.HostConfig.UTSMode))
