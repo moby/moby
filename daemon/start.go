@@ -154,6 +154,16 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 
 	spec, err := daemon.createSpec(ctx, daemonCfg, container)
 	if err != nil {
+		// Any error that occurs while creating the spec, even if it's the
+		// result of an invalid container config, must be considered a System
+		// error (internal server error), as it's not an error with the request
+		// to start the container.
+		//
+		// Invalid configuration in the config itself must be validated when
+		// creating the container (creating its config), but some errors are
+		// dependent on the current state, for example when starting a container
+		// that shares a namespace with another container, and that container
+		// is not running (or missing).
 		return errdefs.System(err)
 	}
 
