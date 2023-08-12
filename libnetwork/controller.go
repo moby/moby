@@ -78,10 +78,6 @@ import (
 // When the function returns true, the walk will stop.
 type NetworkWalker func(nw *Network) bool
 
-// SandboxWalker is a client provided function which will be used to walk the Sandboxes.
-// When the function returns true, the walk will stop.
-type SandboxWalker func(sb *Sandbox) bool
-
 // Controller manages networks.
 type Controller struct {
 	id               string
@@ -988,15 +984,6 @@ func (c *Controller) Sandboxes() []*Sandbox {
 	return list
 }
 
-// WalkSandboxes uses the provided function to walk the Sandbox(s) managed by this controller.
-func (c *Controller) WalkSandboxes(walker SandboxWalker) {
-	for _, sb := range c.Sandboxes() {
-		if walker(sb) {
-			return
-		}
-	}
-}
-
 // GetSandbox returns the Sandbox which has the passed id.
 //
 // It returns an [ErrInvalidID] when passing an invalid ID, or an
@@ -1056,17 +1043,6 @@ func (c *Controller) SandboxDestroy(id string) error {
 	}
 
 	return sb.Delete()
-}
-
-// SandboxContainerWalker returns a Sandbox Walker function which looks for an existing Sandbox with the passed containerID
-func SandboxContainerWalker(out **Sandbox, containerID string) SandboxWalker {
-	return func(sb *Sandbox) bool {
-		if sb.ContainerID() == containerID {
-			*out = sb
-			return true
-		}
-		return false
-	}
 }
 
 func (c *Controller) loadDriver(networkType string) error {
