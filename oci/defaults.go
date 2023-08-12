@@ -122,11 +122,11 @@ func DefaultLinuxSpec() specs.Spec {
 				"/proc/sysrq-trigger",
 			},
 			Namespaces: []specs.LinuxNamespace{
-				{Type: "mount"},
-				{Type: "network"},
-				{Type: "uts"},
-				{Type: "pid"},
-				{Type: "ipc"},
+				{Type: specs.MountNamespace},
+				{Type: specs.NetworkNamespace},
+				{Type: specs.UTSNamespace},
+				{Type: specs.PIDNamespace},
+				{Type: specs.IPCNamespace},
 			},
 			// Devices implicitly contains the following devices:
 			// null, zero, full, random, urandom, tty, console, and ptmx.
