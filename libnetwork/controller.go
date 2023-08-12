@@ -82,14 +82,12 @@ type NetworkWalker func(nw *Network) bool
 // When the function returns true, the walk will stop.
 type SandboxWalker func(sb *Sandbox) bool
 
-type sandboxTable map[string]*Sandbox
-
 // Controller manages networks.
 type Controller struct {
 	id               string
 	drvRegistry      drvregistry.Networks
 	ipamRegistry     drvregistry.IPAMs
-	sandboxes        sandboxTable
+	sandboxes        map[string]*Sandbox
 	cfg              *config.Config
 	store            *datastore.Store
 	extKeyListener   net.Listener
@@ -115,7 +113,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 	c := &Controller{
 		id:               stringid.GenerateRandomID(),
 		cfg:              config.New(cfgOptions...),
-		sandboxes:        sandboxTable{},
+		sandboxes:        map[string]*Sandbox{},
 		svcRecords:       make(map[string]*svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
 		agentInitDone:    make(chan struct{}),
