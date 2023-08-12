@@ -887,13 +887,13 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (_
 	}
 	c.mu.Unlock()
 
-	sandboxID := stringid.GenerateRandomID()
-	if runtime.GOOS == "windows" {
-		sandboxID = containerID
-	}
-
 	// Create sandbox and process options first. Key generation depends on an option
 	if sb == nil {
+		// TODO(thaJeztah): given that a "containerID" must be unique in the list of sandboxes, is there any reason we're not using containerID as sandbox ID on non-Windows?
+		sandboxID := containerID
+		if runtime.GOOS != "windows" {
+			sandboxID = stringid.GenerateRandomID()
+		}
 		sb = &Sandbox{
 			id:                 sandboxID,
 			containerID:        containerID,
