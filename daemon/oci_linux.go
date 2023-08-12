@@ -64,21 +64,18 @@ func withRlimits(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Contain
 // withLibnetwork sets the libnetwork hook
 func withLibnetwork(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-		if s.Hooks == nil {
-			s.Hooks = &specs.Hooks{}
+		if c.Config.NetworkDisabled {
+			return nil
 		}
 		for _, ns := range s.Linux.Namespaces {
-			if ns.Type == specs.NetworkNamespace && ns.Path == "" && !c.Config.NetworkDisabled {
-				target := filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe")
+			if ns.Type == specs.NetworkNamespace && ns.Path == "" {
+				if s.Hooks == nil {
+					s.Hooks = &specs.Hooks{}
+				}
 				shortNetCtlrID := stringid.TruncateID(daemon.netController.ID())
 				s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
-					Path: target,
-					Args: []string{
-						"libnetwork-setkey",
-						"-exec-root=" + daemonCfg.GetExecRoot(),
-						c.ID,
-						shortNetCtlrID,
-					},
+					Path: filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe"),
+					Args: []string{"libnetwork-setkey", "-exec-root=" + daemonCfg.GetExecRoot(), c.ID, shortNetCtlrID},
 				})
 			}
 		}
