@@ -18,9 +18,4 @@ func GetSandboxForExternalKey(path string, key string) (Sandbox, error) {
 
 // GC triggers garbage collection of namespace path right away
 // and waits for it.
-func GC() {
-}
-
-// SetBasePath sets the base url prefix for the ns path
-func SetBasePath(path string) {
-}
+func GC() {}
