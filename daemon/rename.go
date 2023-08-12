@@ -17,42 +17,35 @@ import (
 // to find the container. An error is returned if newName is already
 // reserved.
 func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
-	var (
-		sid string
-		sb  *libnetwork.Sandbox
-	)
-
 	if oldName == "" || newName == "" {
 		return errdefs.InvalidParameter(errors.New("Neither old nor new names may be empty"))
-	}
-
-	if newName[0] != '/' {
-		newName = "/" + newName
 	}
 
 	container, err := daemon.GetContainer(oldName)
 	if err != nil {
 		return err
 	}
-
 	container.Lock()
 	defer container.Unlock()
 
-	oldName = container.Name
-
-	if oldName == newName {
+	// Canonicalize name for comparing.
+	if newName[0] != '/' {
+		newName = "/" + newName
+	}
+	if container.Name == newName {
 		return errdefs.InvalidParameter(errors.New("Renaming a container with the same name as its current name"))
 	}
 
 	links := map[string]*dockercontainer.Container{}
 	for k, v := range daemon.linkIndex.children(container) {
-		if !strings.HasPrefix(k, oldName) {
-			return errdefs.InvalidParameter(errors.Errorf("Linked container %s does not match parent %s", k, oldName))
+		if !strings.HasPrefix(k, container.Name) {
+			return errdefs.InvalidParameter(errors.Errorf("Linked container %s does not match parent %s", k, container.Name))
 		}
-		links[strings.TrimPrefix(k, oldName)] = v
+		links[strings.TrimPrefix(k, container.Name)] = v
 	}
 
-	if newName, err = daemon.reserveName(container.ID, newName); err != nil {
+	newName, err = daemon.reserveName(container.ID, newName)
+	if err != nil {
 		return errors.Wrap(err, "Error when allocating new name")
 	}
 
@@ -61,6 +54,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 		daemon.linkIndex.link(container, v, newName+k)
 	}
 
+	oldName = container.Name
 	container.Name = newName
 
 	defer func() {
@@ -83,16 +77,14 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 		daemon.linkIndex.unlink(oldName+k, v, container)
 		daemon.containersReplica.ReleaseName(oldName + k)
 	}
-	if err = container.CheckpointTo(daemon.containersReplica); err != nil {
+	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
 		return err
 	}
 
-	attributes := map[string]string{
-		"oldName": oldName,
-	}
-
 	if !container.Running {
-		daemon.LogContainerEventWithAttributes(container, events.ActionRename, attributes)
+		daemon.LogContainerEventWithAttributes(container, events.ActionRename, map[string]string{
+			"oldName": oldName,
+		})
 		return nil
 	}
 
@@ -108,14 +100,12 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 		}
 	}()
 
-	sid = container.NetworkSettings.SandboxID
-	if sid != "" && daemon.netController != nil {
-		sb, err = daemon.netController.SandboxByID(sid)
+	if sid := container.NetworkSettings.SandboxID; sid != "" && daemon.netController != nil {
+		sb, err := daemon.netController.SandboxByID(sid)
 		if err != nil {
 			return err
 		}
-
-		if err := sb.Rename(newName[1:]); err != nil {
+		if err = sb.Rename(strings.TrimPrefix(container.Name, "/")); err != nil {
 			return err
 		}
 		defer func() {
@@ -168,6 +158,8 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 		}
 	}
 
-	daemon.LogContainerEventWithAttributes(container, events.ActionRename, attributes)
+	daemon.LogContainerEventWithAttributes(container, events.ActionRename, map[string]string{
+		"oldName": oldName,
+	})
 	return nil
 }
