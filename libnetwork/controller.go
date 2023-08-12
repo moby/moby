@@ -966,24 +966,6 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*
 	return sb, nil
 }
 
-// Sandboxes returns the list of Sandbox(s) managed by this controller.
-func (c *Controller) Sandboxes() []*Sandbox {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	list := make([]*Sandbox, 0, len(c.sandboxes))
-	for _, s := range c.sandboxes {
-		// Hide stub sandboxes from libnetwork users
-		if s.isStub {
-			continue
-		}
-
-		list = append(list, s)
-	}
-
-	return list
-}
-
 // GetSandbox returns the Sandbox which has the passed id.
 //
 // It returns an [ErrInvalidID] when passing an invalid ID, or an
