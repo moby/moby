@@ -545,7 +545,7 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 			if err != nil {
 				return err
 			}
-			updateSandboxNetworkSettings(container, sb)
+			setNetworkSandbox(container, sb)
 			defer func() {
 				if retErr != nil {
 					sb.Delete()
@@ -747,7 +747,7 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 			return err
 		}
 
-		updateSandboxNetworkSettings(container, sb)
+		setNetworkSandbox(container, sb)
 	}
 
 	joinOptions, err := buildJoinOptions(container.NetworkSettings, n)
@@ -1096,9 +1096,8 @@ func getNetworkID(name string, endpointSettings *networktypes.EndpointSettings) 
 	return name
 }
 
-// updateSandboxNetworkSettings updates the sandbox ID and Key.
-func updateSandboxNetworkSettings(c *container.Container, sb *libnetwork.Sandbox) error {
+// setNetworkSandbox updates the sandbox ID and Key.
+func setNetworkSandbox(c *container.Container, sb *libnetwork.Sandbox) {
 	c.NetworkSettings.SandboxID = sb.ID()
 	c.NetworkSettings.SandboxKey = sb.Key()
-	return nil
 }
