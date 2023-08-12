@@ -2089,24 +2089,17 @@ type parallelTester struct {
 }
 
 func (pt parallelTester) Do(t *testing.T, thrNumber int) error {
-	var (
-		ep  *libnetwork.Endpoint
-		sb  *libnetwork.Sandbox
-		err error
-	)
-
 	teardown, err := pt.osctx.Set()
 	if err != nil {
 		return err
 	}
 	defer teardown(t)
 
-	epName := fmt.Sprintf("pep%d", thrNumber)
-
+	var ep *libnetwork.Endpoint
 	if thrNumber == 1 {
-		ep, err = pt.net1.EndpointByName(epName)
+		ep, err = pt.net1.EndpointByName(fmt.Sprintf("pep%d", thrNumber))
 	} else {
-		ep, err = pt.net2.EndpointByName(epName)
+		ep, err = pt.net2.EndpointByName(fmt.Sprintf("pep%d", thrNumber))
 	}
 
 	if err != nil {
@@ -2116,6 +2109,7 @@ func (pt parallelTester) Do(t *testing.T, thrNumber int) error {
 		return errors.New("got nil ep with no error")
 	}
 
+	var sb *libnetwork.Sandbox
 	cid := fmt.Sprintf("%drace", thrNumber)
 	pt.controller.WalkSandboxes(libnetwork.SandboxContainerWalker(&sb, cid))
 	if sb == nil {
