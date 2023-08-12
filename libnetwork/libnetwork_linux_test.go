@@ -477,7 +477,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	if reexec {
 		err := reexecSetKey("this-must-fail", containerID, controller.ID())
 		if err == nil {
-			t.Fatalf("SetExternalKey must fail if the corresponding namespace is not created")
+			t.Fatalf("libnetwork-setkey must fail if the corresponding namespace is not created")
 		}
 	} else {
 		// Setting an non-existing key (namespace) must fail
@@ -500,7 +500,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	if reexec {
 		err := reexecSetKey("ValidKey", containerID, controller.ID())
 		if err != nil {
-			t.Fatalf("SetExternalKey failed with %v", err)
+			t.Fatalf("libnetwork-setkey failed with %v", err)
 		}
 	} else {
 		if err := sbox.SetKey("ValidKey"); err != nil {
