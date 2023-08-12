@@ -68,7 +68,7 @@ func withLibnetwork(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Cont
 			s.Hooks = &specs.Hooks{}
 		}
 		for _, ns := range s.Linux.Namespaces {
-			if ns.Type == "network" && ns.Path == "" && !c.Config.NetworkDisabled {
+			if ns.Type == specs.NetworkNamespace && ns.Path == "" && !c.Config.NetworkDisabled {
 				target := filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe")
 				shortNetCtlrID := stringid.TruncateID(daemon.netController.ID())
 				s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
