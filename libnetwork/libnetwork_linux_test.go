@@ -2109,11 +2109,10 @@ func (pt parallelTester) Do(t *testing.T, thrNumber int) error {
 		return errors.New("got nil ep with no error")
 	}
 
-	var sb *libnetwork.Sandbox
 	cid := fmt.Sprintf("%drace", thrNumber)
-	pt.controller.WalkSandboxes(libnetwork.SandboxContainerWalker(&sb, cid))
-	if sb == nil {
-		return errors.Errorf("got nil sandbox for container: %s", cid)
+	sb, err := pt.controller.GetSandbox(cid)
+	if err != nil {
+		return err
 	}
 
 	for i := 0; i < pt.iterCnt; i++ {

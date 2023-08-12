@@ -997,6 +997,32 @@ func (c *Controller) WalkSandboxes(walker SandboxWalker) {
 	}
 }
 
+// GetSandbox returns the Sandbox which has the passed id.
+//
+// It returns an [ErrInvalidID] when passing an invalid ID, or an
+// [types.NotFoundError] if no Sandbox was found for the container.
+func (c *Controller) GetSandbox(containerID string) (*Sandbox, error) {
+	if containerID == "" {
+		return nil, ErrInvalidID("id is empty")
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if runtime.GOOS == "windows" {
+		// fast-path for Windows, which uses the container ID as sandbox ID.
+		if sb := c.sandboxes[containerID]; sb != nil && !sb.isStub {
+			return sb, nil
+		}
+	} else {
+		for _, sb := range c.sandboxes {
+			if sb.containerID == containerID && !sb.isStub {
+				return sb, nil
+			}
+		}
+	}
+
+	return nil, types.NotFoundErrorf("network sandbox for container %s not found", containerID)
+}
+
 // SandboxByID returns the Sandbox which has the passed id.
 // If not found, a [types.NotFoundError] is returned.
 func (c *Controller) SandboxByID(id string) (*Sandbox, error) {
