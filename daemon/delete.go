@@ -96,8 +96,8 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 			err := fmt.Errorf("You cannot remove a %s container %s. %s", state, container.ID, procedure)
 			return errdefs.Conflict(err)
 		}
-		if err := daemon.Kill(container); err != nil {
-			return fmt.Errorf("Could not kill running container %s, cannot remove - %v", container.ID, err)
+		if err := daemon.Kill(container); err != nil && !isNotRunning(err) {
+			return fmt.Errorf("cannot remove container %q: could not kill: %w", container.Name, err)
 		}
 	}
 
