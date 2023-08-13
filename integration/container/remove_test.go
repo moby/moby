@@ -50,6 +50,7 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, _, err = apiClient.ContainerInspectWithRaw(ctx, cID, true)
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	assert.Check(t, is.ErrorContains(err, "No such container"))
 }
 
@@ -112,5 +113,6 @@ func TestRemoveInvalidContainer(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	err := apiClient.ContainerRemove(ctx, "unknown", types.ContainerRemoveOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	assert.Check(t, is.ErrorContains(err, "No such container"))
 }
