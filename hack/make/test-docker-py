@@ -23,10 +23,12 @@ source hack/make/.integration-test-helpers
 # TODO re-enable test_attach_no_stream after https://github.com/docker/docker-py/issues/2513 is resolved
 # TODO re-enable test_create_with_device_cgroup_rules after https://github.com/docker/docker-py/issues/2939 is resolved
 # TODO re-enable test_prune_volumes after https://github.com/docker/docker-py/pull/3051 is resolved
+# TODO re-enable test_create_with_restart_policy after https://github.com/docker/docker-py/pull/3165 is included in a release
+# TODO re-enable test_api_error_parses_json after https://github.com/docker/docker-py/pull/3165 is included in a release
 # TODO re-enable test_connect_with_ipv6_address after we updated to a version of docker-py with https://github.com/docker/docker-py/pull/3169
 # TODO re-enable test_create_network_ipv6_enabled after we updated to a version of docker-py with https://github.com/docker/docker-py/pull/3169
 # TODO re-enable test_create_with_ipv6_address after we updated to a version of docker-py with https://github.com/docker/docker-py/pull/3169
-: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_device_cgroup_rules --deselect=tests/integration/api_volume_test.py::TestVolumes::test_prune_volumes --deselect=tests/integration/api_network_test.py::TestNetworks::test_connect_with_ipv6_address --deselect=tests/integration/api_network_test.py::TestNetworks::test_create_network_ipv6_enabled --deselect=tests/integration/api_network_test.py::TestNetworks::test_create_with_ipv6_address}"
+: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_device_cgroup_rules --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_restart_policy --deselect=tests/integration/api_volume_test.py::TestVolumes::test_prune_volumes --deselect=tests/integration/errors_test.py::ErrorsTest::test_api_error_parses_json --deselect=tests/integration/api_network_test.py::TestNetworks::test_connect_with_ipv6_address --deselect=tests/integration/api_network_test.py::TestNetworks::test_create_network_ipv6_enabled --deselect=tests/integration/api_network_test.py::TestNetworks::test_create_with_ipv6_address}"
 (
 	bundle .integration-daemon-start
 

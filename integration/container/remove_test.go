@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -88,7 +89,8 @@ func TestRemoveContainerRunning(t *testing.T) {
 	cID := container.Run(ctx, t, apiClient)
 
 	err := apiClient.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{})
-	assert.Check(t, is.ErrorContains(err, "cannot remove a running container"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
+	assert.Check(t, is.ErrorContains(err, "container is running"))
 }
 
 func TestRemoveContainerForceRemoveRunning(t *testing.T) {

@@ -88,13 +88,11 @@ func (daemon *Daemon) rmLink(cfg *config.Config, container *container.Container,
 func (daemon *Daemon) cleanupContainer(container *container.Container, config types.ContainerRmConfig) error {
 	if container.IsRunning() {
 		if !config.ForceRemove {
-			state := container.StateString()
-			procedure := "Stop the container before attempting removal or force remove"
-			if state == "paused" {
-				procedure = "Unpause and then " + strings.ToLower(procedure)
+			if state := container.StateString(); state == "paused" {
+				return errdefs.Conflict(fmt.Errorf("cannot remove container %q: container is %s and must be unpaused first", container.Name, state))
+			} else {
+				return errdefs.Conflict(fmt.Errorf("cannot remove container %q: container is %s: stop the container before removing or force remove", container.Name, state))
 			}
-			err := fmt.Errorf("You cannot remove a %s container %s. %s", state, container.ID, procedure)
-			return errdefs.Conflict(err)
 		}
 		if err := daemon.Kill(container); err != nil && !isNotRunning(err) {
 			return fmt.Errorf("cannot remove container %q: could not kill: %w", container.Name, err)
