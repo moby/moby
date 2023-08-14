@@ -139,11 +139,10 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	}
 
 	// 1. Send SIGKILL
-	if err := daemon.killPossiblyDeadProcess(container, syscall.SIGKILL); err != nil {
-		// kill failed, check if process is no longer running.
-		if errors.As(err, &errNoSuchProcess{}) {
-			return nil
-		}
+	err := daemon.killPossiblyDeadProcess(container, syscall.SIGKILL)
+	if err == nil {
+		// SIGKILL was sent successfully, or process was already gone. We're done.
+		return nil
 	}
 
 	waitTimeout := 10 * time.Second
@@ -182,9 +181,8 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 func (daemon *Daemon) killPossiblyDeadProcess(container *containerpkg.Container, sig syscall.Signal) error {
 	err := daemon.killWithSignal(container, sig)
 	if errdefs.IsNotFound(err) {
-		err = errNoSuchProcess{container.GetPID(), sig}
-		log.G(context.TODO()).Debug(err)
-		return err
+		log.G(context.TODO()).Debugf("cannot kill process (pid=%d) with signal %d: no such process", container.GetPID(), sig)
+		return nil
 	}
 	return err
 }
