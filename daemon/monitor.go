@@ -108,7 +108,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	defer c.Unlock() // needs to be called before autoRemove
 
 	daemon.setStateCounter(c)
-	cpErr := c.CheckpointTo(daemon.containersReplica)
+	checkpointErr := c.CheckpointTo(daemon.containersReplica)
 
 	daemon.LogContainerEventWithAttributes(c, "die", attributes)
 
@@ -143,7 +143,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		}()
 	}
 
-	return cpErr
+	return checkpointErr
 }
 
 // ProcessEvent is called by libcontainerd whenever an event occurs
