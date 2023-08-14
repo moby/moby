@@ -204,3 +204,5 @@ require (
 	k8s.io/klog/v2 v2.90.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace github.com/moby/buildkit => github.com/jedevc/buildkit v0.8.2-0.20230814150814-ad238e0553ae
