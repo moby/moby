@@ -161,9 +161,6 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	log.G(ctx).WithError(status.Err()).WithField("container", container.ID).Errorf("Container failed to exit within %v of kill - trying direct SIGKILL", waitTimeout)
 
 	if err := killProcessDirectly(container); err != nil {
-		if errors.As(err, &errNoSuchProcess{}) {
-			return nil
-		}
 		return err
 	}
 
