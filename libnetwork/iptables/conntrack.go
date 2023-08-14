@@ -50,7 +50,10 @@ func DeleteConntrackEntries(nlh *netlink.Handle, ipv4List []net.IP, ipv6List []n
 		totalIPv6FlowPurged += flowPurged
 	}
 
-	log.G(context.TODO()).Debugf("DeleteConntrackEntries purged ipv4:%d, ipv6:%d", totalIPv4FlowPurged, totalIPv6FlowPurged)
+	if totalIPv4FlowPurged > 0 || totalIPv6FlowPurged > 0 {
+		log.G(context.TODO()).Debugf("DeleteConntrackEntries purged ipv4:%d, ipv6:%d", totalIPv4FlowPurged, totalIPv6FlowPurged)
+	}
+
 	return totalIPv4FlowPurged, totalIPv6FlowPurged, nil
 }
 
@@ -86,7 +89,10 @@ func DeleteConntrackEntriesByPort(nlh *netlink.Handle, proto types.Protocol, por
 		totalIPv6FlowPurged += v6FlowPurged
 	}
 
-	log.G(context.TODO()).Debugf("DeleteConntrackEntriesByPort for %s ports purged ipv4:%d, ipv6:%d", proto.String(), totalIPv4FlowPurged, totalIPv6FlowPurged)
+	if totalIPv4FlowPurged > 0 || totalIPv6FlowPurged > 0 {
+		log.G(context.TODO()).Debugf("DeleteConntrackEntriesByPort for %s ports purged ipv4:%d, ipv6:%d", proto.String(), totalIPv4FlowPurged, totalIPv6FlowPurged)
+	}
+
 	return nil
 }
 
