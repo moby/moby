@@ -341,7 +341,7 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, insert bo
 					return err
 				}
 			} else {
-				if err := iptables.DelInterfaceFirewalld(bridgeIface); err != nil && !errdefs.IsNotFound(err) {
+				if err := iptables.DelInterfaceFirewalld(bridgeIface); err != nil {
 					return err
 				}
 			}
