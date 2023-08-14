@@ -87,7 +87,12 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 
 	if !daemon.IsShuttingDown() {
 		container.HasBeenManuallyStopped = true
-		container.CheckpointTo(daemon.containersReplica)
+		if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error":     err,
+				"container": container.ID,
+			}).Warn("error checkpointing container state")
+		}
 	}
 
 	// if the container is currently restarting we do not need to send the signal
