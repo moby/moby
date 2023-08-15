@@ -532,7 +532,7 @@ func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
 		return false
 	}
 
-	paddingBits := uint8(bytes[0])
+	paddingBits := bytes[0]
 	bytes = bytes[1:]
 	if paddingBits > 7 ||
 		len(bytes) == 0 && paddingBits != 0 ||
@@ -554,7 +554,7 @@ func (s *String) ReadASN1BitStringAsBytes(out *[]byte) bool {
 		return false
 	}
 
-	paddingBits := uint8(bytes[0])
+	paddingBits := bytes[0]
 	if paddingBits != 0 {
 		return false
 	}

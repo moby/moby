@@ -7,10 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/go-events"
-	"github.com/sirupsen/logrus"
-
 	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/go-events"
 
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/log"
@@ -154,7 +152,7 @@ func (vm *Manager) run(pctx context.Context) {
 // processVolumes encapuslates the logic for processing pending Volumes.
 func (vm *Manager) processVolume(ctx context.Context, id string, attempt uint) {
 	// set up log fields for a derrived context to pass to handleVolume.
-	logCtx := log.WithFields(ctx, logrus.Fields{
+	logCtx := log.WithFields(ctx, log.Fields{
 		"volume.id": id,
 		"attempt":   attempt,
 	})

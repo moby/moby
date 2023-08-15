@@ -7,6 +7,7 @@ import (
 	"github.com/moby/swarmkit/v2/api/equality"
 	"github.com/moby/swarmkit/v2/api/validation"
 	"github.com/moby/swarmkit/v2/identity"
+	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/drivers"
 	"github.com/moby/swarmkit/v2/manager/state/store"
 	"github.com/sirupsen/logrus"
@@ -53,7 +54,7 @@ func assignSecret(a *assignmentSet, readTx store.ReadTx, mapKey typeAndID, t *ap
 	}
 	secret, doNotReuse, err := a.secret(readTx, t, mapKey.id)
 	if err != nil {
-		a.log.WithFields(logrus.Fields{
+		a.log.WithFields(log.Fields{
 			"resource.type": "secret",
 			"secret.id":     mapKey.id,
 			"error":         err,
@@ -89,7 +90,7 @@ func assignConfig(a *assignmentSet, readTx store.ReadTx, mapKey typeAndID) {
 	a.tasksUsingDependency[mapKey] = make(map[string]struct{})
 	config := store.GetConfig(readTx, mapKey.id)
 	if config == nil {
-		a.log.WithFields(logrus.Fields{
+		a.log.WithFields(log.Fields{
 			"resource.type": "config",
 			"config.id":     mapKey.id,
 		}).Debug("config not found")

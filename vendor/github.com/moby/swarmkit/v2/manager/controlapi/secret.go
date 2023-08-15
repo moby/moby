@@ -10,7 +10,6 @@ import (
 	"github.com/moby/swarmkit/v2/identity"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/state/store"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -78,7 +77,7 @@ func (s *Server) UpdateSecret(ctx context.Context, request *api.UpdateSecretRequ
 		return nil, err
 	}
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"secret.ID":   request.SecretID,
 		"secret.Name": request.Spec.Annotations.Name,
 		"method":      "UpdateSecret",
@@ -174,7 +173,7 @@ func (s *Server) CreateSecret(ctx context.Context, request *api.CreateSecretRequ
 		return nil, status.Errorf(codes.AlreadyExists, "secret %s already exists", request.Spec.Annotations.Name)
 	case nil:
 		secret.Spec.Data = nil // clean the actual secret data so it's never returned
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"secret.Name": request.Spec.Annotations.Name,
 			"method":      "CreateSecret",
 		}).Debugf("secret created")
@@ -230,7 +229,7 @@ func (s *Server) RemoveSecret(ctx context.Context, request *api.RemoveSecretRequ
 	case store.ErrNotExist:
 		return nil, status.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
 	case nil:
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"secret.ID": request.SecretID,
 			"method":    "RemoveSecret",
 		}).Debugf("secret removed")

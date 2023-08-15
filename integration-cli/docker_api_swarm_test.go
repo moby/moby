@@ -969,7 +969,7 @@ func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *testing.T) {
 		if i%2 != 0 {
 			cert, _, key, err = initca.New(&csr.CertificateRequest{
 				CN:         "newRoot",
-				KeyRequest: csr.NewBasicKeyRequest(),
+				KeyRequest: csr.NewKeyRequest(),
 				CA:         &csr.CAConfig{Expiry: ca.RootCAExpiration},
 			})
 			assert.NilError(c, err)

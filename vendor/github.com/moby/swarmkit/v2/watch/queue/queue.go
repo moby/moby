@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/docker/go-events"
-	"github.com/sirupsen/logrus"
+	"github.com/moby/swarmkit/v2/log"
 )
 
 // ErrQueueFull is returned by a Write operation when that Write causes the
@@ -112,7 +112,7 @@ func (eq *LimitQueue) run() {
 			// Eventually, go-events should not use logrus at all,
 			// and should bubble up conditions like this through
 			// error values.
-			logrus.WithFields(logrus.Fields{
+			log.L.WithFields(log.Fields{
 				"event": event,
 				"sink":  eq.dst,
 			}).WithError(err).Debug("eventqueue: dropped event")
