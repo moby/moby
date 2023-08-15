@@ -103,3 +103,13 @@ func TestPassthrough(t *testing.T) {
 		t.Fatal("rule1 does not exist")
 	}
 }
+
+// TestFirewalldUninitialized checks that calling methods, such as isRunning()
+// on an empty, uninitialized firewalldConnection doesn't panic, and returns
+// the expected status.
+func TestFirewalldUninitialized(t *testing.T) {
+	var fwd *firewalldConnection
+	if fwd.isRunning() {
+		t.Error("did not expect an uninitialized firewalldConnection to be running")
+	}
+}

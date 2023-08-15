@@ -518,7 +518,7 @@ func filterOutput(start time.Time, output []byte, args ...string) []byte {
 
 // Raw calls 'iptables' system command, passing supplied arguments.
 func (iptable IPTable) Raw(args ...string) ([]byte, error) {
-	if firewalldRunning {
+	if firewalld.isRunning() {
 		// select correct IP version for firewalld
 		ipv := Iptables
 		if iptable.ipVersion == IPv6 {

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
 
 	"github.com/containerd/containerd/log"
 	dbus "github.com/godbus/dbus/v5"
@@ -31,6 +32,7 @@ const (
 // firewalldConnection is a connection to the firewalld dbus endpoint.
 type firewalldConnection struct {
 	conn       *dbus.Conn
+	running    atomic.Bool
 	sysObj     dbus.BusObject
 	sysConfObj dbus.BusObject
 	signal     chan *dbus.Signal
@@ -39,8 +41,7 @@ type firewalldConnection struct {
 var (
 	firewalld *firewalldConnection
 
-	firewalldRunning bool      // is Firewalld service running
-	onReloaded       []*func() // callbacks when Firewalld has been reloaded
+	onReloaded []*func() // callbacks when Firewalld has been reloaded
 )
 
 // firewalldInit initializes firewalld management code.
@@ -82,8 +83,7 @@ func newConnection() (*firewalldConnection, error) {
 		sysConfObj: conn.Object(dbusInterface, dbusConfigPath),
 	}
 
-	firewalldRunning = checkRunning(c)
-	if !firewalldRunning {
+	if !c.checkRunning() {
 		_ = c.conn.Close()
 		return nil, fmt.Errorf("firewalld is not running")
 	}
@@ -108,7 +108,7 @@ func (fwd *firewalldConnection) handleSignals() {
 			switch {
 			case strings.Contains(signal.Name, "NameOwnerChanged"):
 				// re-check if firewalld is still running.
-				checkRunning(fwd)
+				fwd.checkRunning()
 				dbusConnectionChanged(signal.Body)
 
 			case strings.Contains(signal.Name, "Reloaded"):
@@ -162,13 +162,22 @@ func OnReloaded(callback func()) {
 // checkRunning checks if firewalld is running.
 //
 // It calls some remote method to see whether the service is actually running.
-func checkRunning(conn *firewalldConnection) bool {
-	if conn == nil {
+func (fwd *firewalldConnection) checkRunning() bool {
+	var zone string
+	if err := fwd.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone); err != nil {
+		fwd.running.Store(false)
+	} else {
+		fwd.running.Store(true)
+	}
+	return fwd.running.Load()
+}
+
+// isRunning returns whether firewalld is running.
+func (fwd *firewalldConnection) isRunning() bool {
+	if fwd == nil {
 		return false
 	}
-	var zone string
-	err := conn.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-	return err == nil
+	return fwd.running.Load()
 }
 
 // Passthrough method simply passes args through to iptables/ip6tables
@@ -262,7 +271,7 @@ func (fwd *firewalldConnection) setupDockerZone() error {
 // AddInterfaceFirewalld adds the interface to the trusted zone. It is a
 // no-op if firewalld is not running.
 func AddInterfaceFirewalld(intf string) error {
-	if !firewalldRunning {
+	if !firewalld.isRunning() {
 		return nil
 	}
 
@@ -288,7 +297,7 @@ func AddInterfaceFirewalld(intf string) error {
 // DelInterfaceFirewalld removes the interface from the trusted zone It is a
 // no-op if firewalld is not running.
 func DelInterfaceFirewalld(intf string) error {
-	if !firewalldRunning {
+	if !firewalld.isRunning() {
 		return nil
 	}
 
