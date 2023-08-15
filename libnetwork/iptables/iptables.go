@@ -520,7 +520,7 @@ func filterOutput(start time.Time, output []byte, args ...string) []byte {
 func (iptable IPTable) Raw(args ...string) ([]byte, error) {
 	if firewalld.isRunning() {
 		startTime := time.Now()
-		output, err := Passthrough(iptable.ipVersion, args...)
+		output, err := firewalld.passthrough(iptable.ipVersion, args...)
 		if err == nil || !strings.Contains(err.Error(), "was not provided by any .service files") {
 			return filterOutput(startTime, output, args...), err
 		}

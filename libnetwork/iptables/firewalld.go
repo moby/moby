@@ -215,8 +215,14 @@ func (fwd *firewalldConnection) isRunning() bool {
 	return fwd.running.Load()
 }
 
-// Passthrough method simply passes args through to iptables/ip6tables
-func Passthrough(ipVersion IPVersion, args ...string) ([]byte, error) {
+// passthrough passes args through to iptables or ip6tables.
+//
+// It is a no-op if firewalld is not running or not initialized.
+func (fwd *firewalldConnection) passthrough(ipVersion IPVersion, args ...string) ([]byte, error) {
+	if !fwd.isRunning() {
+		return []byte(""), nil
+	}
+
 	// select correct IP version for firewalld
 	ipv := ipTables
 	if ipVersion == IPv6 {
@@ -225,7 +231,7 @@ func Passthrough(ipVersion IPVersion, args ...string) ([]byte, error) {
 
 	var output string
 	log.G(context.TODO()).Debugf("Firewalld passthrough: %s, %s", ipv, args)
-	if err := firewalld.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
+	if err := fwd.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
 		return nil, err
 	}
 	return []byte(output), nil

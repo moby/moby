@@ -93,6 +93,13 @@ func TestReloaded(t *testing.T) {
 
 func TestPassthrough(t *testing.T) {
 	skipIfNoFirewalld(t)
+
+	fwd, err := newConnection()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fwd.conn.Close()
+
 	rule1 := []string{
 		"-i", "lo",
 		"-p", "udp",
@@ -100,12 +107,12 @@ func TestPassthrough(t *testing.T) {
 		"-j", "ACCEPT",
 	}
 
-	_, err := Passthrough(IPv4, append([]string{"-A"}, rule1...)...)
+	_, err = fwd.passthrough(IPv4, append([]string{"-A"}, rule1...)...)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	if !GetIptable(IPv4).Exists(Filter, "INPUT", rule1...) {
-		t.Fatal("rule1 does not exist")
+		t.Error("rule1 does not exist")
 	}
 }
 
@@ -126,4 +133,8 @@ func TestFirewalldUninitialized(t *testing.T) {
 		t.Errorf("unexpected error when calling delInterface on an uninitialized firewalldConnection: %v", err)
 	}
 	fwd.registerReloadCallback(func() {})
+	_, err = fwd.passthrough(IPv4)
+	if err != nil {
+		t.Errorf("unexpected error when calling passthrough on an uninitialized firewalldConnection: %v", err)
+	}
 }
