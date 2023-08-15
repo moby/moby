@@ -37,27 +37,6 @@ type Conn struct {
 	signal     chan *dbus.Signal
 }
 
-// ZoneSettings holds the firewalld zone settings, documented in
-// https://firewalld.org/documentation/man-pages/firewalld.dbus.html
-type ZoneSettings struct {
-	version            string
-	name               string
-	description        string
-	unused             bool
-	target             string
-	services           []string
-	ports              [][]interface{}
-	icmpBlocks         []string
-	masquerade         bool
-	forwardPorts       [][]interface{}
-	interfaces         []string
-	sourceAddresses    []string
-	richRules          []string
-	protocols          []string
-	sourcePorts        [][]interface{}
-	icmpBlockInversion bool
-}
-
 var (
 	connection *Conn
 
@@ -186,31 +165,49 @@ func Passthrough(ipv IPV, args ...string) ([]byte, error) {
 	return []byte(output), nil
 }
 
-// getDockerZoneSettings converts the ZoneSettings struct into a interface slice
-func getDockerZoneSettings() []interface{} {
-	settings := ZoneSettings{
-		version:     "1.0",
-		name:        dockerZone,
-		description: "zone for docker bridge network interfaces",
-		target:      "ACCEPT",
-	}
+// firewalldZone holds the firewalld zone settings.
+//
+// Documented in https://firewalld.org/documentation/man-pages/firewalld.dbus.html#FirewallD1.zone
+type firewalldZone struct {
+	version            string
+	name               string
+	description        string
+	unused             bool
+	target             string
+	services           []string
+	ports              [][]interface{}
+	icmpBlocks         []string
+	masquerade         bool
+	forwardPorts       [][]interface{}
+	interfaces         []string
+	sourceAddresses    []string
+	richRules          []string
+	protocols          []string
+	sourcePorts        [][]interface{}
+	icmpBlockInversion bool
+}
+
+// settings returns the firewalldZone struct as an interface slice,
+// which can be passed to "org.fedoraproject.FirewallD1.config.addZone".
+func (z firewalldZone) settings() []interface{} {
+	// TODO(thaJeztah): does D-Bus require optional fields to be passed as well?
 	return []interface{}{
-		settings.version,
-		settings.name,
-		settings.description,
-		settings.unused,
-		settings.target,
-		settings.services,
-		settings.ports,
-		settings.icmpBlocks,
-		settings.masquerade,
-		settings.forwardPorts,
-		settings.interfaces,
-		settings.sourceAddresses,
-		settings.richRules,
-		settings.protocols,
-		settings.sourcePorts,
-		settings.icmpBlockInversion,
+		z.version,
+		z.name,
+		z.description,
+		z.unused,
+		z.target,
+		z.services,
+		z.ports,
+		z.icmpBlocks,
+		z.masquerade,
+		z.forwardPorts,
+		z.interfaces,
+		z.sourceAddresses,
+		z.richRules,
+		z.protocols,
+		z.sourcePorts,
+		z.icmpBlockInversion,
 	}
 }
 
@@ -228,9 +225,14 @@ func setupDockerZone() error {
 	}
 	log.G(context.TODO()).Debugf("Firewalld: creating %s zone", dockerZone)
 
-	settings := getDockerZoneSettings()
 	// Permanent
-	if err := connection.sysConfObj.Call(dbusInterface+".config.addZone", 0, dockerZone, settings).Err; err != nil {
+	dz := firewalldZone{
+		version:     "1.0",
+		name:        dockerZone,
+		description: "zone for docker bridge network interfaces",
+		target:      "ACCEPT",
+	}
+	if err := connection.sysConfObj.Call(dbusInterface+".config.addZone", 0, dockerZone, dz.settings()).Err; err != nil {
 		return err
 	}
 	// Reload for change to take effect
