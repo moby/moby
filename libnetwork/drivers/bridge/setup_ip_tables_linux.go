@@ -1,5 +1,3 @@
-//go:build linux
-
 package bridge
 
 import (
@@ -401,16 +399,28 @@ func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert 
 
 	if addr.IP.To4() != nil {
 		version = iptables.IPv4
-		inDropRule = iptRule{table: iptables.Filter, chain: IsolationChain1, args: []string{
-			"-i", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"}}
-		outDropRule = iptRule{table: iptables.Filter, chain: IsolationChain1, args: []string{
-			"-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"}}
+		inDropRule = iptRule{
+			table: iptables.Filter,
+			chain: IsolationChain1,
+			args:  []string{"-i", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"},
+		}
+		outDropRule = iptRule{
+			table: iptables.Filter,
+			chain: IsolationChain1,
+			args:  []string{"-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"},
+		}
 	} else {
 		version = iptables.IPv6
-		inDropRule = iptRule{table: iptables.Filter, chain: IsolationChain1, args: []string{
-			"-i", bridgeIface, "!", "-o", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"}}
-		outDropRule = iptRule{table: iptables.Filter, chain: IsolationChain1, args: []string{
-			"!", "-i", bridgeIface, "-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"}}
+		inDropRule = iptRule{
+			table: iptables.Filter,
+			chain: IsolationChain1,
+			args:  []string{"-i", bridgeIface, "!", "-o", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"},
+		}
+		outDropRule = iptRule{
+			table: iptables.Filter,
+			chain: IsolationChain1,
+			args:  []string{"!", "-i", bridgeIface, "-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"},
+		}
 	}
 
 	if err := programChainRule(version, inDropRule, "DROP INCOMING", insert); err != nil {
