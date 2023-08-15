@@ -519,14 +519,8 @@ func filterOutput(start time.Time, output []byte, args ...string) []byte {
 // Raw calls 'iptables' system command, passing supplied arguments.
 func (iptable IPTable) Raw(args ...string) ([]byte, error) {
 	if firewalld.isRunning() {
-		// select correct IP version for firewalld
-		ipv := Iptables
-		if iptable.ipVersion == IPv6 {
-			ipv = IP6Tables
-		}
-
 		startTime := time.Now()
-		output, err := Passthrough(ipv, args...)
+		output, err := Passthrough(iptable.ipVersion, args...)
 		if err == nil || !strings.Contains(err.Error(), "was not provided by any .service files") {
 			return filterOutput(startTime, output, args...), err
 		}

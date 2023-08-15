@@ -12,14 +12,11 @@ import (
 	dbus "github.com/godbus/dbus/v5"
 )
 
-// IPV defines the table string
-type IPV string
-
 const (
-	// Iptables point ipv4 table
-	Iptables IPV = "ipv4"
-	// IP6Tables point to ipv6 table
-	IP6Tables IPV = "ipv6"
+	// ipTables point ipv4 table
+	ipTables = "ipv4"
+	// ip6Tables point to ipv6 table
+	ip6Tables = "ipv6"
 )
 
 const (
@@ -219,7 +216,13 @@ func (fwd *firewalldConnection) isRunning() bool {
 }
 
 // Passthrough method simply passes args through to iptables/ip6tables
-func Passthrough(ipv IPV, args ...string) ([]byte, error) {
+func Passthrough(ipVersion IPVersion, args ...string) ([]byte, error) {
+	// select correct IP version for firewalld
+	ipv := ipTables
+	if ipVersion == IPv6 {
+		ipv = ip6Tables
+	}
+
 	var output string
 	log.G(context.TODO()).Debugf("Firewalld passthrough: %s, %s", ipv, args)
 	if err := firewalld.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
