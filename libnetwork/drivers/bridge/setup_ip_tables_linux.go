@@ -30,7 +30,7 @@ const (
 	IsolationChain2 = "DOCKER-ISOLATION-STAGE-2"
 )
 
-func setupIPChains(config configuration, version iptables.IPVersion) (*iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, error) {
+func setupIPChains(config configuration, version iptables.IPVersion) (natChain *iptables.ChainInfo, filterChain *iptables.ChainInfo, isolationChain1 *iptables.ChainInfo, isolationChain2 *iptables.ChainInfo, retErr error) {
 	// Sanity check.
 	if !config.EnableIPTables {
 		return nil, nil, nil, nil, errors.New("cannot create new chains, EnableIPTable is disabled")
@@ -45,14 +45,14 @@ func setupIPChains(config configuration, version iptables.IPVersion) (*iptables.
 		return nil, nil, nil, nil, fmt.Errorf("failed to create NAT chain %s: %v", DockerChain, err)
 	}
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if err := iptable.RemoveExistingChain(DockerChain, iptables.Nat); err != nil {
 				log.G(context.TODO()).Warnf("failed on removing iptables NAT chain %s on cleanup: %v", DockerChain, err)
 			}
 		}
 	}()
 
-	filterChain, err := iptable.NewChain(DockerChain, iptables.Filter, false)
+	filterChain, err = iptable.NewChain(DockerChain, iptables.Filter, false)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER chain %s: %v", DockerChain, err)
 	}
@@ -64,24 +64,24 @@ func setupIPChains(config configuration, version iptables.IPVersion) (*iptables.
 		}
 	}()
 
-	isolationChain1, err := iptable.NewChain(IsolationChain1, iptables.Filter, false)
+	isolationChain1, err = iptable.NewChain(IsolationChain1, iptables.Filter, false)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER isolation chain: %v", err)
 	}
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if err := iptable.RemoveExistingChain(IsolationChain1, iptables.Filter); err != nil {
 				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", IsolationChain1, err)
 			}
 		}
 	}()
 
-	isolationChain2, err := iptable.NewChain(IsolationChain2, iptables.Filter, false)
+	isolationChain2, err = iptable.NewChain(IsolationChain2, iptables.Filter, false)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER isolation chain: %v", err)
 	}
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if err := iptable.RemoveExistingChain(IsolationChain2, iptables.Filter); err != nil {
 				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", IsolationChain2, err)
 			}
