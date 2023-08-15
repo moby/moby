@@ -44,22 +44,22 @@ var (
 )
 
 // firewalldInit initializes firewalld management code.
-func firewalldInit() error {
-	var err error
-	firewalld, err = newConnection()
+func firewalldInit() (*firewalldConnection, error) {
+	fwd, err := newConnection()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// start handling D-Bus signals that were registered.
-	firewalld.handleSignals()
+	fwd.handleSignals()
 
-	err = firewalld.setupDockerZone()
+	err = fwd.setupDockerZone()
 	if err != nil {
-		return err
+		_ = fwd.conn.Close()
+		return nil, err
 	}
 
-	return nil
+	return fwd, nil
 }
 
 // newConnection establishes a connection to the system D-Bus and registers

@@ -27,9 +27,11 @@ func skipIfNoFirewalld(t *testing.T) {
 
 func TestFirewalldInit(t *testing.T) {
 	skipIfNoFirewalld(t)
-	if err := firewalldInit(); err != nil {
+	fwd, err := firewalldInit()
+	if err != nil {
 		t.Fatal(err)
 	}
+	_ = fwd.conn.Close()
 }
 
 func TestReloaded(t *testing.T) {

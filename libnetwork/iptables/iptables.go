@@ -138,7 +138,9 @@ func initFirewalld() {
 		log.G(context.TODO()).Info("skipping firewalld management for rootless mode")
 		return
 	}
-	if err := firewalldInit(); err != nil {
+	var err error
+	firewalld, err = firewalldInit()
+	if err != nil {
 		log.G(context.TODO()).WithError(err).Debugf("unable to initialize firewalld; using raw iptables instead")
 	}
 }
