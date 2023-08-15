@@ -28,16 +28,16 @@ const (
 	dockerZone     = "docker"
 )
 
-// Conn is a connection to firewalld dbus endpoint.
-type Conn struct {
-	sysconn    *dbus.Conn
+// firewalldConnection is a connection to the firewalld dbus endpoint.
+type firewalldConnection struct {
+	conn       *dbus.Conn
 	sysObj     dbus.BusObject
 	sysConfObj dbus.BusObject
 	signal     chan *dbus.Signal
 }
 
 var (
-	connection *Conn
+	firewalld *firewalldConnection
 
 	firewalldRunning bool      // is Firewalld service running
 	onReloaded       []*func() // callbacks when Firewalld has been reloaded
@@ -47,15 +47,15 @@ var (
 func firewalldInit() error {
 	var err error
 
-	if connection, err = newConnection(); err != nil {
+	if firewalld, err = newConnection(); err != nil {
 		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
 	}
 	firewalldRunning = checkRunning()
 	if !firewalldRunning {
-		connection.sysconn.Close()
-		connection = nil
+		firewalld.conn.Close()
+		firewalld = nil
 	}
-	if connection != nil {
+	if firewalld != nil {
 		go signalHandler()
 		if err := setupDockerZone(); err != nil {
 			return err
@@ -66,32 +66,32 @@ func firewalldInit() error {
 }
 
 // newConnection establishes a connection to the system bus.
-func newConnection() (*Conn, error) {
-	c := &Conn{}
+func newConnection() (*firewalldConnection, error) {
+	c := &firewalldConnection{}
 
 	var err error
-	c.sysconn, err = dbus.SystemBus()
+	c.conn, err = dbus.SystemBus()
 	if err != nil {
 		return nil, err
 	}
 
 	// This never fails, even if the service is not running atm.
-	c.sysObj = c.sysconn.Object(dbusInterface, dbusPath)
-	c.sysConfObj = c.sysconn.Object(dbusInterface, dbusConfigPath)
+	c.sysObj = c.conn.Object(dbusInterface, dbusPath)
+	c.sysConfObj = c.conn.Object(dbusInterface, dbusConfigPath)
 
 	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'", dbusPath, dbusInterface, dbusInterface)
-	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
+	c.conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
 
 	rule = fmt.Sprintf("type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',path='/org/freedesktop/DBus',sender='org.freedesktop.DBus',arg0='%s'", dbusInterface)
-	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
+	c.conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
 
 	c.signal = make(chan *dbus.Signal, 10)
-	c.sysconn.Signal(c.signal)
+	c.conn.Signal(c.signal)
 	return c, nil
 }
 
 func signalHandler() {
-	for signal := range connection.signal {
+	for signal := range firewalld.signal {
 		switch {
 		case strings.Contains(signal.Name, "NameOwnerChanged"):
 			firewalldRunning = checkRunning()
@@ -146,11 +146,11 @@ func OnReloaded(callback func()) {
 
 // Call some remote method to see whether the service is actually running.
 func checkRunning() bool {
-	if connection == nil {
+	if firewalld == nil {
 		return false
 	}
 	var zone string
-	err := connection.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
+	err := firewalld.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
 	return err == nil
 }
 
@@ -158,7 +158,7 @@ func checkRunning() bool {
 func Passthrough(ipv IPV, args ...string) ([]byte, error) {
 	var output string
 	log.G(context.TODO()).Debugf("Firewalld passthrough: %s, %s", ipv, args)
-	if err := connection.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
+	if err := firewalld.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
 		return nil, err
 	}
 	return []byte(output), nil
@@ -215,7 +215,7 @@ func (z firewalldZone) settings() []interface{} {
 func setupDockerZone() error {
 	var zones []string
 	// Check if zone exists
-	if err := connection.sysObj.Call(dbusInterface+".zone.getZones", 0).Store(&zones); err != nil {
+	if err := firewalld.sysObj.Call(dbusInterface+".zone.getZones", 0).Store(&zones); err != nil {
 		return err
 	}
 	if contains(zones, dockerZone) {
@@ -231,11 +231,11 @@ func setupDockerZone() error {
 		description: "zone for docker bridge network interfaces",
 		target:      "ACCEPT",
 	}
-	if err := connection.sysConfObj.Call(dbusInterface+".config.addZone", 0, dockerZone, dz.settings()).Err; err != nil {
+	if err := firewalld.sysConfObj.Call(dbusInterface+".config.addZone", 0, dockerZone, dz.settings()).Err; err != nil {
 		return err
 	}
 	// Reload for change to take effect
-	if err := connection.sysObj.Call(dbusInterface+".reload", 0).Err; err != nil {
+	if err := firewalld.sysObj.Call(dbusInterface+".reload", 0).Err; err != nil {
 		return err
 	}
 
@@ -251,7 +251,7 @@ func AddInterfaceFirewalld(intf string) error {
 
 	var intfs []string
 	// Check if interface is already added to the zone
-	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
+	if err := firewalld.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
 		return err
 	}
 	// Return if interface is already part of the zone
@@ -262,7 +262,7 @@ func AddInterfaceFirewalld(intf string) error {
 
 	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
-	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
+	if err := firewalld.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
 		return err
 	}
 	return nil
@@ -277,7 +277,7 @@ func DelInterfaceFirewalld(intf string) error {
 
 	var intfs []string
 	// Check if interface is part of the zone
-	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
+	if err := firewalld.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
 		return err
 	}
 	// Remove interface if it exists
@@ -287,7 +287,7 @@ func DelInterfaceFirewalld(intf string) error {
 
 	log.G(context.TODO()).Debugf("Firewalld: removing %s interface from %s zone", intf, dockerZone)
 	// Runtime
-	if err := connection.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err; err != nil {
+	if err := firewalld.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err; err != nil {
 		return err
 	}
 	return nil
