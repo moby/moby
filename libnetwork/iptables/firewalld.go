@@ -48,7 +48,7 @@ func firewalldInit() error {
 	var err error
 
 	if firewalld, err = newConnection(); err != nil {
-		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
+		return err
 	}
 	firewalldRunning = checkRunning()
 	if !firewalldRunning {
@@ -72,7 +72,7 @@ func newConnection() (*firewalldConnection, error) {
 	var err error
 	c.conn, err = dbus.SystemBus()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to D-Bus system bus: %v", err)
 	}
 
 	// This never fails, even if the service is not running atm.
