@@ -46,47 +46,54 @@ var (
 // firewalldInit initializes firewalld management code.
 func firewalldInit() error {
 	var err error
-
-	if firewalld, err = newConnection(); err != nil {
+	firewalld, err = newConnection()
+	if err != nil {
 		return err
 	}
-	firewalldRunning = checkRunning()
-	if !firewalldRunning {
-		firewalld.conn.Close()
-		firewalld = nil
-	}
-	if firewalld != nil {
-		go signalHandler()
-		if err := setupDockerZone(); err != nil {
-			return err
-		}
+
+	// start handling D-Bus signals that were registered.
+	go signalHandler()
+
+	if err := setupDockerZone(); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// newConnection establishes a connection to the system bus.
+// newConnection establishes a connection to the system D-Bus and registers
+// signals to listen on.
+//
+// It returns an error if it's unable to establish a D-Bus connection, or
+// if firewalld is not running.
 func newConnection() (*firewalldConnection, error) {
-	c := &firewalldConnection{}
-
-	var err error
-	c.conn, err = dbus.SystemBus()
+	conn, err := dbus.SystemBus()
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to D-Bus system bus: %v", err)
 	}
 
-	// This never fails, even if the service is not running atm.
-	c.sysObj = c.conn.Object(dbusInterface, dbusPath)
-	c.sysConfObj = c.conn.Object(dbusInterface, dbusConfigPath)
+	c := &firewalldConnection{
+		conn:   conn,
+		signal: make(chan *dbus.Signal, 10),
+
+		// This never fails, even if the service is not running atm.
+		sysObj:     conn.Object(dbusInterface, dbusPath),
+		sysConfObj: conn.Object(dbusInterface, dbusConfigPath),
+	}
 
 	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'", dbusPath, dbusInterface, dbusInterface)
 	c.conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
 
 	rule = fmt.Sprintf("type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',path='/org/freedesktop/DBus',sender='org.freedesktop.DBus',arg0='%s'", dbusInterface)
 	c.conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
-
-	c.signal = make(chan *dbus.Signal, 10)
 	c.conn.Signal(c.signal)
+
+	firewalldRunning = checkRunning(c)
+	if !firewalldRunning {
+		_ = c.conn.Close()
+		return nil, fmt.Errorf("firewalld is not running")
+	}
+
 	return c, nil
 }
 
@@ -94,7 +101,7 @@ func signalHandler() {
 	for signal := range firewalld.signal {
 		switch {
 		case strings.Contains(signal.Name, "NameOwnerChanged"):
-			firewalldRunning = checkRunning()
+			firewalldRunning = checkRunning(firewalld)
 			dbusConnectionChanged(signal.Body)
 
 		case strings.Contains(signal.Name, "Reloaded"):
@@ -144,13 +151,15 @@ func OnReloaded(callback func()) {
 	onReloaded = append(onReloaded, &callback)
 }
 
-// Call some remote method to see whether the service is actually running.
-func checkRunning() bool {
-	if firewalld == nil {
+// checkRunning checks if firewalld is running.
+//
+// It calls some remote method to see whether the service is actually running.
+func checkRunning(conn *firewalldConnection) bool {
+	if conn == nil {
 		return false
 	}
 	var zone string
-	err := firewalld.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
+	err := conn.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
 	return err == nil
 }
 
