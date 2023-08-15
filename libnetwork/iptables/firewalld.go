@@ -23,6 +23,7 @@ const (
 )
 
 const (
+	// See https://github.com/firewalld/firewalld/blob/v1.3.3/doc/xml/firewalld.dbus.xml#L49-L64
 	dbusInterface  = "org.fedoraproject.FirewallD1"
 	dbusPath       = "/org/fedoraproject/FirewallD1"
 	dbusConfigPath = "/org/fedoraproject/FirewallD1/config"
@@ -36,13 +37,11 @@ type firewalldConnection struct {
 	sysObj     dbus.BusObject
 	sysConfObj dbus.BusObject
 	signal     chan *dbus.Signal
+
+	onReloaded []*func() // callbacks to run when Firewalld is reloaded.
 }
 
-var (
-	firewalld *firewalldConnection
-
-	onReloaded []*func() // callbacks when Firewalld has been reloaded
-)
+var firewalld *firewalldConnection
 
 // firewalldInit initializes firewalld management code.
 func firewalldInit() (*firewalldConnection, error) {
@@ -109,54 +108,93 @@ func (fwd *firewalldConnection) handleSignals() {
 			case strings.Contains(signal.Name, "NameOwnerChanged"):
 				// re-check if firewalld is still running.
 				fwd.checkRunning()
-				dbusConnectionChanged(signal.Body)
+				fwd.onConnectionChange(signal.Body)
 
 			case strings.Contains(signal.Name, "Reloaded"):
-				reloaded()
+				fwd.onReload()
 			}
 		}
 	}()
 }
 
-func dbusConnectionChanged(args []interface{}) {
-	name := args[0].(string)
-	oldOwner := args[1].(string)
-	newOwner := args[2].(string)
-
-	if name != dbusInterface {
+func (fwd *firewalldConnection) onConnectionChange(args []any) {
+	if name := args[0].(string); name != dbusInterface {
 		return
 	}
-
+	oldOwner := args[1].(string)
+	newOwner := args[2].(string)
 	if len(newOwner) > 0 {
-		connectionEstablished()
+		fwd.onConnectionEstablished()
 	} else if len(oldOwner) > 0 {
-		connectionLost()
+		fwd.onConnectionLost()
 	}
 }
 
-func connectionEstablished() {
-	reloaded()
+func (fwd *firewalldConnection) onConnectionEstablished() {
+	fwd.onReload()
 }
 
-func connectionLost() {
+func (fwd *firewalldConnection) onConnectionLost() {
 	// Doesn't do anything for now. Libvirt also doesn't react to this.
 }
 
-// call all callbacks
-func reloaded() {
-	for _, pf := range onReloaded {
+// onReload executes all registered callbacks.
+func (fwd *firewalldConnection) onReload() {
+	// Note that we're not checking if firewalld is running here,
+	// as the previous code did not check for this, and (technically),
+	// the callbacks may not require firewalld. So we're assuming here
+	// that all callback can be executed if this onReload function
+	// is triggered (either from a D-Bus event, or otherwise).
+	//
+	// TODO(thaJeztah): verify if these should always be run, or only if firewalld is running.
+	if fwd == nil {
+		return
+	}
+	for _, pf := range fwd.onReloaded {
 		(*pf)()
 	}
 }
 
-// OnReloaded add callback
-func OnReloaded(callback func()) {
-	for _, pf := range onReloaded {
+// registerReloadCallback adds a callback to be executed when firewalld
+// is reloaded. Adding a callback is idempotent; it ignores the given
+// callback if it's already registered.
+//
+// It is a no-op if firewalld is not running or firewalldConnection is not
+// initialized.
+func (fwd *firewalldConnection) registerReloadCallback(callback func()) {
+	// Note that we're not checking if firewalld is running here,
+	// as the previous code did not check for this, and (technically),
+	// the callbacks may not require firewalld, or may be registered
+	// when firewalld is not running.
+	//
+	// We're assuming here that all callback can be executed if this
+	// onReload function is triggered (either from a D-Bus event, or
+	// otherwise).
+	//
+	// TODO(thaJeztah): verify if these should always be run, or only if firewalld is running at the moment the callback is registered.
+	if fwd == nil {
+		return
+	}
+	for _, pf := range fwd.onReloaded {
 		if pf == &callback {
 			return
 		}
 	}
-	onReloaded = append(onReloaded, &callback)
+	fwd.onReloaded = append(fwd.onReloaded, &callback)
+}
+
+// OnReloaded adds a callback to be executed when firewalld is reloaded.
+// Adding a callback is idempotent; it ignores the given callback if it's
+// already registered.
+//
+// Callbacks can be registered regardless if firewalld is currently running,
+// but it will initialize firewalld before executing.
+func OnReloaded(callback func()) {
+	// Make sure firewalld is initialized before we register callbacks.
+	// This function is also called from setupArrangeUserFilterRule,
+	// which is called during controller initialization.
+	_ = initCheck()
+	firewalld.registerReloadCallback(callback)
 }
 
 // checkRunning checks if firewalld is running.

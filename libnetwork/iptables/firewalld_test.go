@@ -53,12 +53,17 @@ func TestReloaded(t *testing.T) {
 	const port = 1234
 	const proto = "tcp"
 
+	// create a dummy firewalldConnection and mark it as "running", because
+	// OnReloaded (registerReloadCallback),
+	fwd := &firewalldConnection{}
+	fwd.running.Store(true)
+
 	err = fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName)
 	if err != nil {
 		t.Fatal(err)
 	} else {
 		// to be re-called again later
-		OnReloaded(func() { fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName) })
+		fwd.registerReloadCallback(func() { fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName) })
 	}
 
 	rule1 := []string{
@@ -78,7 +83,7 @@ func TestReloaded(t *testing.T) {
 	// flush all rules
 	fwdChain.Remove()
 
-	reloaded()
+	fwd.onReload()
 
 	// make sure the rules have been recreated
 	if !iptable.Exists(fwdChain.Table, fwdChain.Name, rule1...) {
@@ -120,4 +125,5 @@ func TestFirewalldUninitialized(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error when calling delInterface on an uninitialized firewalldConnection: %v", err)
 	}
+	fwd.registerReloadCallback(func() {})
 }
