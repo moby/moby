@@ -268,16 +268,16 @@ func (fwd *firewalldConnection) setupDockerZone() error {
 	return nil
 }
 
-// AddInterfaceFirewalld adds the interface to the trusted zone. It is a
-// no-op if firewalld is not running.
-func AddInterfaceFirewalld(intf string) error {
-	if !firewalld.isRunning() {
+// addInterface adds the interface to the trusted zone. It is a no-op if
+// firewalld is not running or firewalldConnection not initialized.
+func (fwd *firewalldConnection) addInterface(intf string) error {
+	if !fwd.isRunning() {
 		return nil
 	}
 
 	var intfs []string
 	// Check if interface is already added to the zone
-	if err := firewalld.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
+	if err := fwd.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
 		return err
 	}
 	// Return if interface is already part of the zone
@@ -288,16 +288,16 @@ func AddInterfaceFirewalld(intf string) error {
 
 	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
-	if err := firewalld.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
+	if err := fwd.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
 		return err
 	}
 	return nil
 }
 
-// DelInterfaceFirewalld removes the interface from the trusted zone It is a
-// no-op if firewalld is not running.
-func DelInterfaceFirewalld(intf string) error {
-	if !firewalld.isRunning() {
+// delInterface removes the interface from the trusted zone It is a no-op if
+// firewalld is not running or firewalldConnection not initialized.
+func (fwd *firewalldConnection) delInterface(intf string) error {
+	if !fwd.isRunning() {
 		return nil
 	}
 
@@ -317,6 +317,18 @@ func DelInterfaceFirewalld(intf string) error {
 		return err
 	}
 	return nil
+}
+
+// AddInterfaceFirewalld adds the interface to the trusted zone. It is a
+// no-op if firewalld is not running.
+func AddInterfaceFirewalld(intf string) error {
+	return firewalld.addInterface(intf)
+}
+
+// DelInterfaceFirewalld removes the interface from the trusted zone It is a
+// no-op if firewalld is not running.
+func DelInterfaceFirewalld(intf string) error {
+	return firewalld.delInterface(intf)
 }
 
 type interfaceNotFound struct{ error }

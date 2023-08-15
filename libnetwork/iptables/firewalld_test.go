@@ -112,4 +112,12 @@ func TestFirewalldUninitialized(t *testing.T) {
 	if fwd.isRunning() {
 		t.Error("did not expect an uninitialized firewalldConnection to be running")
 	}
+	err := fwd.addInterface("anything")
+	if err != nil {
+		t.Errorf("unexpected error when calling addInterface on an uninitialized firewalldConnection: %v", err)
+	}
+	err = fwd.delInterface("anything")
+	if err != nil {
+		t.Errorf("unexpected error when calling delInterface on an uninitialized firewalldConnection: %v", err)
+	}
 }

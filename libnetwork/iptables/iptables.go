@@ -206,11 +206,11 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 
 	// Either add or remove the interface from the firewalld zone, if firewalld is running.
 	if enable {
-		if err := AddInterfaceFirewalld(bridgeName); err != nil {
+		if err := firewalld.addInterface(bridgeName); err != nil {
 			return err
 		}
 	} else {
-		if err := DelInterfaceFirewalld(bridgeName); err != nil && !errdefs.IsNotFound(err) {
+		if err := firewalld.delInterface(bridgeName); err != nil && !errdefs.IsNotFound(err) {
 			return err
 		}
 	}
