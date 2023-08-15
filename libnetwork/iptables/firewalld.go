@@ -243,8 +243,13 @@ func setupDockerZone() error {
 	return nil
 }
 
-// AddInterfaceFirewalld adds the interface to the trusted zone
+// AddInterfaceFirewalld adds the interface to the trusted zone. It is a
+// no-op if firewalld is not running.
 func AddInterfaceFirewalld(intf string) error {
+	if !firewalldRunning {
+		return nil
+	}
+
 	var intfs []string
 	// Check if interface is already added to the zone
 	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
@@ -264,8 +269,13 @@ func AddInterfaceFirewalld(intf string) error {
 	return nil
 }
 
-// DelInterfaceFirewalld removes the interface from the trusted zone
+// DelInterfaceFirewalld removes the interface from the trusted zone It is a
+// no-op if firewalld is not running.
 func DelInterfaceFirewalld(intf string) error {
+	if !firewalldRunning {
+		return nil
+	}
+
 	var intfs []string
 	// Check if interface is part of the zone
 	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
