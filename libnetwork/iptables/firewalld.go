@@ -72,7 +72,7 @@ func firewalldInit() error {
 	if connection, err = newConnection(); err != nil {
 		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
 	}
-	firewalldRunning = checkRunning()
+	firewalldRunning = FirewalldCheckRunning()
 	if !firewalldRunning {
 		connection.sysconn.Close()
 		connection = nil
@@ -116,7 +116,7 @@ func signalHandler() {
 	for signal := range connection.signal {
 		switch {
 		case strings.Contains(signal.Name, "NameOwnerChanged"):
-			firewalldRunning = checkRunning()
+			firewalldRunning = FirewalldCheckRunning()
 			dbusConnectionChanged(signal.Body)
 
 		case strings.Contains(signal.Name, "Reloaded"):
@@ -167,7 +167,7 @@ func OnReloaded(callback func()) {
 }
 
 // Call some remote method to see whether the service is actually running.
-func checkRunning() bool {
+func FirewalldCheckRunning() bool {
 	if connection == nil {
 		return false
 	}
