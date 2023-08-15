@@ -82,13 +82,6 @@ func newConnection() (*firewalldConnection, error) {
 		sysConfObj: conn.Object(dbusInterface, dbusConfigPath),
 	}
 
-	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'", dbusPath, dbusInterface, dbusInterface)
-	c.conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
-
-	rule = fmt.Sprintf("type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',path='/org/freedesktop/DBus',sender='org.freedesktop.DBus',arg0='%s'", dbusInterface)
-	c.conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
-	c.conn.Signal(c.signal)
-
 	firewalldRunning = checkRunning(c)
 	if !firewalldRunning {
 		_ = c.conn.Close()
@@ -101,6 +94,13 @@ func newConnection() (*firewalldConnection, error) {
 // handleSignals sets up handling for D-Bus signals (NameOwnerChanged, Reloaded),
 // to reload rules when firewalld is reloaded .
 func (fwd *firewalldConnection) handleSignals() {
+	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'", dbusPath, dbusInterface, dbusInterface)
+	fwd.conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
+
+	rule = fmt.Sprintf("type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',path='/org/freedesktop/DBus',sender='org.freedesktop.DBus',arg0='%s'", dbusInterface)
+	fwd.conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
+	fwd.conn.Signal(fwd.signal)
+
 	// FIXME(thaJeztah): there's currently no way to terminate this goroutine.
 	// TODO(thaJeztah): should this be rewritten to use dbus.WithSignalHandler(), instead of a self-crafted solution?
 	go func() {
