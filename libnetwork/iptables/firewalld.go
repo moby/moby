@@ -54,7 +54,7 @@ func firewalldInit() error {
 	// start handling D-Bus signals that were registered.
 	firewalld.handleSignals()
 
-	err = setupDockerZone()
+	err = firewalld.setupDockerZone()
 	if err != nil {
 		return err
 	}
@@ -227,13 +227,13 @@ func (z firewalldZone) settings() []interface{} {
 	}
 }
 
-// setupDockerZone creates a zone called docker in firewalld which includes docker interfaces to allow
-// container networking
-func setupDockerZone() error {
+// setupDockerZone creates a zone called docker in firewalld which includes
+// docker interfaces to allow container networking.
+func (fwd *firewalldConnection) setupDockerZone() error {
 	var zones []string
 	// Check if zone exists
-	if err := firewalld.sysObj.Call(dbusInterface+".zone.getZones", 0).Store(&zones); err != nil {
-		return err
+	if err := fwd.sysObj.Call(dbusInterface+".zone.getZones", 0).Store(&zones); err != nil {
+		return fmt.Errorf("firewalld: failed to check if %s zone already exists: %v", dockerZone, err)
 	}
 	if contains(zones, dockerZone) {
 		log.G(context.TODO()).Infof("Firewalld: %s zone already exists, returning", dockerZone)
@@ -248,12 +248,12 @@ func setupDockerZone() error {
 		description: "zone for docker bridge network interfaces",
 		target:      "ACCEPT",
 	}
-	if err := firewalld.sysConfObj.Call(dbusInterface+".config.addZone", 0, dockerZone, dz.settings()).Err; err != nil {
-		return err
+	if err := fwd.sysConfObj.Call(dbusInterface+".config.addZone", 0, dockerZone, dz.settings()).Err; err != nil {
+		return fmt.Errorf("firewalld: failed to set up %s zone: %v", dockerZone, err)
 	}
 	// Reload for change to take effect
-	if err := firewalld.sysObj.Call(dbusInterface+".reload", 0).Err; err != nil {
-		return err
+	if err := fwd.sysObj.Call(dbusInterface+".reload", 0).Err; err != nil {
+		return fmt.Errorf("firewalld: failed to set up %s zone: %v", dockerZone, err)
 	}
 
 	return nil
