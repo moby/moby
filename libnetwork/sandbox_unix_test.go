@@ -1,7 +1,8 @@
+//go:build !windows
+
 package libnetwork
 
 import (
-	"runtime"
 	"strconv"
 	"testing"
 
@@ -11,12 +12,9 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
-	"gotest.tools/v3/skip"
 )
 
 func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network) {
-	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
-
 	const netType = "bridge"
 	c, err := New(
 		OptionBoltdbWithRandomDBFile(t),
