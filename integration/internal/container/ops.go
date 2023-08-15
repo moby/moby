@@ -237,3 +237,21 @@ func WithRuntime(name string) func(*TestContainerConfig) {
 		c.HostConfig.Runtime = name
 	}
 }
+
+func WithCapability(capabilities ...string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.CapAdd = append(c.HostConfig.CapAdd, capabilities...)
+	}
+}
+
+func WithDropCapability(capabilities ...string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.CapDrop = append(c.HostConfig.CapDrop, capabilities...)
+	}
+}
+
+func WithSecurityOpt(opt string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.SecurityOpt = append(c.HostConfig.SecurityOpt, opt)
+	}
+}
