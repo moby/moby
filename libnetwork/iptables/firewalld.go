@@ -52,9 +52,10 @@ func firewalldInit() error {
 	}
 
 	// start handling D-Bus signals that were registered.
-	go signalHandler()
+	firewalld.handleSignals()
 
-	if err := setupDockerZone(); err != nil {
+	err = setupDockerZone()
+	if err != nil {
 		return err
 	}
 
@@ -97,17 +98,24 @@ func newConnection() (*firewalldConnection, error) {
 	return c, nil
 }
 
-func signalHandler() {
-	for signal := range firewalld.signal {
-		switch {
-		case strings.Contains(signal.Name, "NameOwnerChanged"):
-			firewalldRunning = checkRunning(firewalld)
-			dbusConnectionChanged(signal.Body)
+// handleSignals sets up handling for D-Bus signals (NameOwnerChanged, Reloaded),
+// to reload rules when firewalld is reloaded .
+func (fwd *firewalldConnection) handleSignals() {
+	// FIXME(thaJeztah): there's currently no way to terminate this goroutine.
+	// TODO(thaJeztah): should this be rewritten to use dbus.WithSignalHandler(), instead of a self-crafted solution?
+	go func() {
+		for signal := range fwd.signal {
+			switch {
+			case strings.Contains(signal.Name, "NameOwnerChanged"):
+				// re-check if firewalld is still running.
+				checkRunning(fwd)
+				dbusConnectionChanged(signal.Body)
 
-		case strings.Contains(signal.Name, "Reloaded"):
-			reloaded()
+			case strings.Contains(signal.Name, "Reloaded"):
+				reloaded()
+			}
 		}
-	}
+	}()
 }
 
 func dbusConnectionChanged(args []interface{}) {
