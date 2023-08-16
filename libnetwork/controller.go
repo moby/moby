@@ -101,7 +101,7 @@ type Controller struct {
 	defOsSbox        osl.Sandbox
 	ingressSandbox   *Sandbox
 	sboxOnce         sync.Once
-	agent            *agent
+	agent            *nwAgent
 	networkLocker    *locker.Locker
 	agentInitDone    chan struct{}
 	agentStopDone    chan struct{}
@@ -213,7 +213,7 @@ func (c *Controller) SetKeys(keys []*types.EncryptionKey) error {
 	return c.handleKeyChange(keys)
 }
 
-func (c *Controller) getAgent() *agent {
+func (c *Controller) getAgent() *nwAgent {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.agent
