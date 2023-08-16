@@ -148,7 +148,9 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 	c.reservePools()
 
 	// Cleanup resources
-	c.sandboxCleanup(c.cfg.ActiveSandboxes)
+	if err := c.sandboxCleanup(c.cfg.ActiveSandboxes); err != nil {
+		log.G(context.TODO()).WithError(err).Error("error during sandbox cleanup")
+	}
 	c.cleanupLocalEndpoints()
 	c.networkCleanup()
 
