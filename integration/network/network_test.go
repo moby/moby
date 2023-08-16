@@ -258,3 +258,21 @@ func TestDefaultNetworkOpts(t *testing.T) {
 		})
 	}
 }
+
+func TestForbidDuplicateNetworkNames(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	network.CreateNoError(ctx, t, c, "testnet")
+
+	_, err := c.NetworkCreate(ctx, "testnet", types.NetworkCreate{})
+	assert.Error(t, err, "Error response from daemon: network with name testnet already exists", "2nd NetworkCreate call should have failed")
+}

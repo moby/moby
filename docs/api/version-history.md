@@ -41,6 +41,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /networks/create` now returns a 400 if the `IPAMConfig` has invalid
   values. Note that this change is _unversioned_ and applied to all API
   versions on daemon that support version 1.44.
+* `POST /networks/create` with a duplicated name now fails systematically. As
+  such, the `CheckDuplicate` field is now deprecated. Note that this change is
+  _unversioned_ and applied to all API versions on daemon that support version
+  1.44.
 
 ## v1.43 API changes
 

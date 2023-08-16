@@ -639,13 +639,12 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 
 	options := types.NetworkCreate{
 		// ID:     na.Network.ID,
-		Labels:         na.Network.Spec.Annotations.Labels,
-		Internal:       na.Network.Spec.Internal,
-		Attachable:     na.Network.Spec.Attachable,
-		Ingress:        convert.IsIngressNetwork(na.Network),
-		EnableIPv6:     na.Network.Spec.Ipv6Enabled,
-		CheckDuplicate: true,
-		Scope:          scope.Swarm,
+		Labels:     na.Network.Spec.Annotations.Labels,
+		Internal:   na.Network.Spec.Internal,
+		Attachable: na.Network.Spec.Attachable,
+		Ingress:    convert.IsIngressNetwork(na.Network),
+		EnableIPv6: na.Network.Spec.Ipv6Enabled,
+		Scope:      scope.Swarm,
 	}
 
 	if na.Network.Spec.GetNetwork() != "" {

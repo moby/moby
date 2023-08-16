@@ -219,9 +219,8 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 		IPAM: &network.IPAM{
 			Driver: ingressNA.Network.IPAM.Driver.Name,
 		},
-		Options:        ingressNA.Network.DriverState.Options,
-		Ingress:        true,
-		CheckDuplicate: true,
+		Options: ingressNA.Network.DriverState.Options,
+		Ingress: true,
 	}
 
 	for _, ic := range ingressNA.Network.IPAM.Configs {

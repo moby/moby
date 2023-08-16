@@ -475,6 +475,17 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, ErrInvalidName(name)
 	}
 
+	// Make sure two concurrent calls to this method won't create conflicting
+	// networks, otherwise libnetwork will end up in an invalid state.
+	if name != "" {
+		c.networkLocker.Lock(name)
+		defer c.networkLocker.Unlock(name)
+
+		if _, err := c.NetworkByName(name); err == nil {
+			return nil, NetworkNameError(name)
+		}
+	}
+
 	if id == "" {
 		id = stringid.GenerateRandomID()
 	}

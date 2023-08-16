@@ -88,7 +88,6 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 
 	overlayName := "overlay1_" + t.Name()
 	overlayID := network.CreateNoError(ctx, t, client, overlayName,
-		network.WithCheckDuplicate(),
 		network.WithDriver("overlay"),
 	)
 
@@ -191,58 +190,6 @@ func TestCreateServiceMaxReplicas(t *testing.T) {
 
 	_, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
-}
-
-func TestCreateWithDuplicateNetworkNames(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	ctx := setupTest(t)
-	d := swarm.NewSwarm(ctx, t, testEnv)
-	defer d.Stop(t)
-	client := d.NewClientT(t)
-	defer client.Close()
-
-	name := "foo_" + t.Name()
-	n1 := network.CreateNoError(ctx, t, client, name, network.WithDriver("bridge"))
-	n2 := network.CreateNoError(ctx, t, client, name, network.WithDriver("bridge"))
-
-	// Duplicates with name but with different driver
-	n3 := network.CreateNoError(ctx, t, client, name, network.WithDriver("overlay"))
-
-	// Create Service with the same name
-	var instances uint64 = 1
-
-	serviceName := "top_" + t.Name()
-	serviceID := swarm.CreateService(ctx, t, d,
-		swarm.ServiceWithReplicas(instances),
-		swarm.ServiceWithName(serviceName),
-		swarm.ServiceWithNetwork(name),
-	)
-
-	poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, serviceID, instances), swarm.ServicePoll)
-
-	resp, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(n3, resp.Spec.TaskTemplate.Networks[0].Target))
-
-	// Remove Service, and wait for its tasks to be removed
-	err = client.ServiceRemove(ctx, serviceID)
-	assert.NilError(t, err)
-	poll.WaitOn(t, swarm.NoTasksForService(ctx, client, serviceID), swarm.ServicePoll)
-
-	// Remove networks
-	err = client.NetworkRemove(ctx, n3)
-	assert.NilError(t, err)
-
-	err = client.NetworkRemove(ctx, n2)
-	assert.NilError(t, err)
-
-	err = client.NetworkRemove(ctx, n1)
-	assert.NilError(t, err)
-
-	// Make sure networks have been destroyed.
-	poll.WaitOn(t, network.IsRemoved(ctx, client, n3), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
-	poll.WaitOn(t, network.IsRemoved(ctx, client, n2), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
-	poll.WaitOn(t, network.IsRemoved(ctx, client, n1), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
 }
 
 func TestCreateServiceSecretFileMode(t *testing.T) {
