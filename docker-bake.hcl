@@ -1,5 +1,5 @@
 variable "APT_MIRROR" {
-  default = "cdn-fastly.deb.debian.org"
+  default = ""
 }
 variable "DOCKER_DEBUG" {
   default = ""
