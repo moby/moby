@@ -48,11 +48,25 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	err = i.walkImageManifests(ctx, desc, func(img *ImageManifest) error {
 		conf, err := img.Config(ctx)
 		if err != nil {
-			return err
+			if cerrdefs.IsNotFound(err) {
+				logrus.WithFields(logrus.Fields{
+					"manifestDescriptor": img.Target(),
+				}).Debug("manifest was present, but accessing its config failed, ignoring")
+				return nil
+			}
+			return errdefs.System(fmt.Errorf("failed to get config descriptor: %w", err))
 		}
+
 		var ociimage ocispec.Image
 		if err := readConfig(ctx, cs, conf, &ociimage); err != nil {
-			return err
+			if cerrdefs.IsNotFound(err) {
+				logrus.WithFields(logrus.Fields{
+					"manifestDescriptor": img.Target(),
+					"configDescriptor":   conf,
+				}).Debug("manifest present, but its config is missing, ignoring")
+				return nil
+			}
+			return errdefs.System(fmt.Errorf("failed to read config of the manifest %v: %w", img.Target().Digest, err))
 		}
 		presentImages = append(presentImages, ociimage)
 		return nil
@@ -61,7 +75,8 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		return nil, err
 	}
 	if len(presentImages) == 0 {
-		return nil, errdefs.NotFound(errors.New("failed to find image manifest"))
+		ref, _ := reference.ParseAnyReference(refOrID)
+		return nil, images.ErrImageDoesNotExist{Ref: ref}
 	}
 
 	sort.SliceStable(presentImages, func(i, j int) bool {
