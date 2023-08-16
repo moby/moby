@@ -42,12 +42,12 @@ type nwAgent struct {
 	dataPathAddr      string
 	coreCancelFuncs   []func()
 	driverCancelFuncs map[string][]func()
-	sync.Mutex
+	mu                sync.Mutex
 }
 
 func (a *nwAgent) dataPathAddress() string {
-	a.Lock()
-	defer a.Unlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	if a.dataPathAddr != "" {
 		return a.dataPathAddr
 	}
@@ -416,14 +416,14 @@ func (c *Controller) agentClose() {
 
 	var cancelList []func()
 
-	agent.Lock()
+	agent.mu.Lock()
 	for _, cancelFuncs := range agent.driverCancelFuncs {
 		cancelList = append(cancelList, cancelFuncs...)
 	}
 
 	// Add also the cancel functions for the network db
 	cancelList = append(cancelList, agent.coreCancelFuncs...)
-	agent.Unlock()
+	agent.mu.Unlock()
 
 	for _, cancel := range cancelList {
 		cancel()
@@ -773,9 +773,9 @@ func (n *Network) addDriverWatches() {
 	c := n.getController()
 	for _, table := range n.driverTables {
 		ch, cancel := agent.networkDB.Watch(table.name, n.ID())
-		agent.Lock()
+		agent.mu.Lock()
 		agent.driverCancelFuncs[n.ID()] = append(agent.driverCancelFuncs[n.ID()], cancel)
-		agent.Unlock()
+		agent.mu.Unlock()
 		go c.handleTableEvents(ch, n.handleDriverTableEvent)
 		d, err := n.driver(false)
 		if err != nil {
@@ -803,10 +803,10 @@ func (n *Network) cancelDriverWatches() {
 		return
 	}
 
-	agent.Lock()
+	agent.mu.Lock()
 	cancelFuncs := agent.driverCancelFuncs[n.ID()]
 	delete(agent.driverCancelFuncs, n.ID())
-	agent.Unlock()
+	agent.mu.Unlock()
 
 	for _, cancel := range cancelFuncs {
 		cancel()
