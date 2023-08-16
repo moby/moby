@@ -108,7 +108,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	defer c.Unlock() // needs to be called before autoRemove
 
 	daemon.setStateCounter(c)
-	cpErr := c.CheckpointTo(daemon.containersReplica)
+	checkpointErr := c.CheckpointTo(daemon.containersReplica)
 
 	daemon.LogContainerEventWithAttributes(c, "die", attributes)
 
@@ -121,7 +121,11 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				// So to avoid panic at startup process, here must wait util daemon restore done.
 				daemon.waitForStartupDone()
 				cfg := daemon.config() // Apply the most up-to-date daemon config to the restarted container.
-				if err = daemon.containerStart(context.Background(), cfg, c, "", "", false); err != nil {
+
+				// update the error if we fail to start the container, so that the cleanup code
+				// below can handle updating the container's status, and auto-remove (if set).
+				err = daemon.containerStart(context.Background(), cfg, c, "", "", false)
+				if err != nil {
 					log.G(ctx).Debugf("failed to restart container: %+v", err)
 				}
 			}
@@ -139,7 +143,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		}()
 	}
 
-	return cpErr
+	return checkpointErr
 }
 
 // ProcessEvent is called by libcontainerd whenever an event occurs
