@@ -287,12 +287,3 @@ func (c *Controller) networkCleanup() {
 		}
 	}
 }
-
-var populateSpecial NetworkWalker = func(nw *Network) bool {
-	if n := nw; n.hasSpecialDriver() && !n.ConfigOnly() {
-		if err := n.getController().addNetwork(n); err != nil {
-			log.G(context.TODO()).Warnf("Failed to populate network %q with driver %q", nw.Name(), nw.Type())
-		}
-	}
-	return false
-}
