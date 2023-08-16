@@ -369,28 +369,24 @@ func (sb *Sandbox) ResolveIP(ip string) string {
 // ResolveService returns all the backend details about the containers or hosts
 // backing a service. Its purpose is to satisfy an SRV query.
 func (sb *Sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
-	srv := []*net.SRV{}
-	ip := []net.IP{}
-
 	log.G(context.TODO()).Debugf("Service name To resolve: %v", name)
 
 	// There are DNS implementations that allow SRV queries for names not in
 	// the format defined by RFC 2782. Hence specific validations checks are
 	// not done
-	parts := strings.Split(name, ".")
-	if len(parts) < 3 {
+	if parts := strings.SplitN(name, ".", 3); len(parts) < 3 {
 		return nil, nil
 	}
 
 	for _, ep := range sb.Endpoints() {
 		n := ep.getNetwork()
 
-		srv, ip = n.ResolveService(name)
+		srv, ip := n.ResolveService(name)
 		if len(srv) > 0 {
-			break
+			return srv, ip
 		}
 	}
-	return srv, ip
+	return nil, nil
 }
 
 func getDynamicNwEndpoints(epList []*Endpoint) []*Endpoint {
