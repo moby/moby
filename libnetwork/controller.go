@@ -866,7 +866,7 @@ func (c *Controller) NetworkByID(id string) (*Network, error) {
 }
 
 // NewSandbox creates a new sandbox for containerID.
-func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*Sandbox, error) {
+func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (_ *Sandbox, retErr error) {
 	if containerID == "" {
 		return nil, types.BadRequestErrorf("invalid container ID")
 	}
@@ -930,9 +930,8 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*
 	}
 	c.mu.Unlock()
 
-	var err error
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			c.mu.Lock()
 			if sb.ingress {
 				c.ingressSandbox = nil
@@ -941,11 +940,12 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*
 		}
 	}()
 
-	if err = sb.setupResolutionFiles(); err != nil {
+	if err := sb.setupResolutionFiles(); err != nil {
 		return nil, err
 	}
 
 	if sb.config.useDefaultSandBox {
+		var err error
 		c.sboxOnce.Do(func() {
 			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false, false)
 		})
@@ -959,6 +959,7 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*
 	}
 
 	if sb.osSbox == nil && !sb.config.useExternalKey {
+		var err error
 		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox, false); err != nil {
 			return nil, fmt.Errorf("failed to create new osl sandbox: %v", err)
 		}
@@ -980,15 +981,14 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*
 	c.sandboxes[sb.id] = sb
 	c.mu.Unlock()
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			c.mu.Lock()
 			delete(c.sandboxes, sb.id)
 			c.mu.Unlock()
 		}
 	}()
 
-	err = sb.storeUpdate()
-	if err != nil {
+	if err := sb.storeUpdate(); err != nil {
 		return nil, fmt.Errorf("failed to update the store state of sandbox: %v", err)
 	}
 
