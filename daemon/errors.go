@@ -59,19 +59,6 @@ func (e nameConflictError) Error() string {
 
 func (nameConflictError) Conflict() {}
 
-type containerNotModifiedError struct {
-	running bool
-}
-
-func (e containerNotModifiedError) Error() string {
-	if e.running {
-		return "Container is already started"
-	}
-	return "Container is already stopped"
-}
-
-func (e containerNotModifiedError) NotModified() {}
-
 type invalidIdentifier string
 
 func (e invalidIdentifier) Error() string {

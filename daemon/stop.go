@@ -26,7 +26,12 @@ func (daemon *Daemon) ContainerStop(ctx context.Context, name string, options co
 		return err
 	}
 	if !ctr.IsRunning() {
-		return containerNotModifiedError{}
+		// This is not an actual error, but produces a 304 "not modified"
+		// when returned through the API to indicates the container is
+		// already in the desired state. It's implemented as an error
+		// to make the code calling this function terminate early (as
+		// no further processing is needed).
+		return errdefs.NotModified(errors.New("container is already stopped"))
 	}
 	err = daemon.containerStop(ctx, ctr, options)
 	if err != nil {

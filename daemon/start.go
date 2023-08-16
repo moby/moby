@@ -14,6 +14,30 @@ import (
 	"github.com/pkg/errors"
 )
 
+// validateState verifies if the container is in a non-conflicting state.
+func validateState(ctr *container.Container) error {
+	ctr.Lock()
+	defer ctr.Unlock()
+
+	// Intentionally checking paused first, because a container can be
+	// BOTH running AND paused. To start a paused (but running) container,
+	// it must be thawed ("un-paused").
+	if ctr.Paused {
+		return errdefs.Conflict(errors.New("cannot start a paused container, try unpause instead"))
+	} else if ctr.Running {
+		// This is not an actual error, but produces a 304 "not modified"
+		// when returned through the API to indicates the container is
+		// already in the desired state. It's implemented as an error
+		// to make the code calling this function terminate early (as
+		// no further processing is needed).
+		return errdefs.NotModified(errors.New("container is already running"))
+	}
+	if ctr.RemovalInProgress || ctr.Dead {
+		return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
+	}
+	return nil
+}
+
 // ContainerStart starts a container.
 func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfig *containertypes.HostConfig, checkpoint string, checkpointDir string) error {
 	daemonCfg := daemon.config()
@@ -25,26 +49,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 	if err != nil {
 		return err
 	}
-
-	validateState := func() error {
-		ctr.Lock()
-		defer ctr.Unlock()
-
-		if ctr.Paused {
-			return errdefs.Conflict(errors.New("cannot start a paused container, try unpause instead"))
-		}
-
-		if ctr.Running {
-			return containerNotModifiedError{running: true}
-		}
-
-		if ctr.RemovalInProgress || ctr.Dead {
-			return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
-		}
-		return nil
-	}
-
-	if err := validateState(); err != nil {
+	if err := validateState(ctr); err != nil {
 		return err
 	}
 
