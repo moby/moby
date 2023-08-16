@@ -1144,7 +1144,7 @@ func (ep *Endpoint) releaseAddress() {
 	}
 }
 
-func (c *Controller) cleanupLocalEndpoints() {
+func (c *Controller) cleanupLocalEndpoints() error {
 	// Get used endpoints
 	eps := make(map[string]interface{})
 	for _, sb := range c.sandboxes {
@@ -1154,8 +1154,7 @@ func (c *Controller) cleanupLocalEndpoints() {
 	}
 	nl, err := c.getNetworks()
 	if err != nil {
-		log.G(context.TODO()).Warnf("Could not get list of networks during endpoint cleanup: %v", err)
-		return
+		return fmt.Errorf("could not get list of networks: %v", err)
 	}
 
 	for _, n := range nl {
@@ -1192,4 +1191,6 @@ func (c *Controller) cleanupLocalEndpoints() {
 			}
 		}
 	}
+
+	return nil
 }

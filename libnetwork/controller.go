@@ -151,7 +151,9 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 	if err := c.sandboxCleanup(c.cfg.ActiveSandboxes); err != nil {
 		log.G(context.TODO()).WithError(err).Error("error during sandbox cleanup")
 	}
-	c.cleanupLocalEndpoints()
+	if err := c.cleanupLocalEndpoints(); err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("error during endpoint cleanup")
+	}
 	c.networkCleanup()
 
 	if err := c.startExternalKeyListener(); err != nil {
