@@ -2423,11 +2423,22 @@ definitions:
     required: ["message"]
     properties:
       message:
-        description: "The error message."
+        description: "The error message. It is precomposed if multiple error messages are coalesced."
         type: "string"
         x-nullable: false
+      errors:
+        description: "The list of underlying errors making up the precomposed error message, if applicable."
+        type: "array"
+        items:
+          $ref: "#/definitions/ErrorResponse"
     example:
-      message: "Something went wrong."
+      message: |
+        2 errors occurred:
+            * Something went wrong.
+            * And something else went wrong too.
+      errors:
+        - message: "Something went wrong."
+        - message: "And something else went wrong too."
 
   IdResponse:
     description: "Response to an API call that returns just an Id"

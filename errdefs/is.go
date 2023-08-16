@@ -28,6 +28,32 @@ func getImplementer(err error) error {
 	}
 }
 
+// IsHTTPOnlyError checks whether err is one of the un-exported HTTP error type provided by this package. These errors
+// only define what HTTP status code should be returned, but don't add additional context to the actual error they
+// wrap. By contrast, error types implementing the interfaces defined in this package are also adding such additional
+// context.
+func IsHTTPOnlyError(err error) bool {
+	switch err.(type) {
+	case
+		errNotFound,
+		errInvalidParameter,
+		errConflict,
+		errUnauthorized,
+		errUnavailable,
+		errForbidden,
+		errSystem,
+		errNotModified,
+		errNotImplemented,
+		errCancelled,
+		errDeadline,
+		errDataLoss,
+		errUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // IsNotFound returns if the passed in error is an ErrNotFound
 func IsNotFound(err error) bool {
 	_, ok := getImplementer(err).(ErrNotFound)

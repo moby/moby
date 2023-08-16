@@ -38,6 +38,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   specifications directories. The use of the applied setting requires the daemon
   to have expermental enabled, and for non-experimental daemons an empty list is
   always returned.
+* Endpoints can now return multiple, nested error messages. In such case, the
+  `message` field will contain precomposed text and a new `errors` field will
+  contain a list of sub-errors. These sub-errors are `ErrorResponse`
+  themselves, the same type as the root error.
 
 ## v1.43 API changes
 
