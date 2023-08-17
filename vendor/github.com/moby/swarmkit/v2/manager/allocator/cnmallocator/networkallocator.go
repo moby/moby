@@ -6,13 +6,13 @@ import (
 	"net"
 	"strings"
 
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/remote"
 	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	remoteipam "github.com/docker/docker/libnetwork/ipams/remote"
 	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/log"
@@ -150,7 +150,7 @@ func (na *cnmNetworkAllocator) Allocate(n *api.Network) error {
 	nw := &network{
 		nw:          n,
 		endpoints:   make(map[string]string),
-		isNodeLocal: d.capability.DataScope == datastore.LocalScope,
+		isNodeLocal: d.capability.DataScope == scope.Local,
 	}
 
 	// No swarm-level allocation can be provided by the network driver for
