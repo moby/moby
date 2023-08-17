@@ -490,18 +490,17 @@ func (sb *Sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 
 func (sb *Sandbox) resolveName(nameOrAlias string, networkName string, epList []*Endpoint, lookupAlias bool, ipType int) (_ []net.IP, ipv6Miss bool) {
 	for _, ep := range epList {
-		name := nameOrAlias
-		nw := ep.getNetwork()
+		if lookupAlias && len(ep.aliases) == 0 {
+			continue
+		}
 
+		nw := ep.getNetwork()
 		if networkName != "" && networkName != nw.Name() {
 			continue
 		}
 
+		name := nameOrAlias
 		if lookupAlias {
-			if ep.aliases == nil {
-				continue
-			}
-
 			var ok bool
 			ep.mu.Lock()
 			name, ok = ep.aliases[nameOrAlias]
