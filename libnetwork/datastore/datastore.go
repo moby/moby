@@ -72,22 +72,6 @@ type ScopeClientCfg struct {
 }
 
 const (
-	// LocalScope indicates to store the KV object in local datastore such as boltdb
-	//
-	// Deprecated: use [scope.Local].
-	LocalScope = scope.Local
-	// GlobalScope indicates to store the KV object in global datastore
-	//
-	// Deprecated: use [scope.Global].
-	GlobalScope = scope.Global
-	// SwarmScope is not indicating a datastore location. It is defined here
-	// along with the other two scopes just for consistency.
-	//
-	// Deprecated: use [scope.Swarm].
-	SwarmScope = scope.Swarm
-)
-
-const (
 	// NetworkKeyPrefix is the prefix for network key in the kv store
 	NetworkKeyPrefix = "network"
 	// EndpointKeyPrefix is the prefix for endpoint key in the kv store
