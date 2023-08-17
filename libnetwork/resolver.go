@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -417,26 +418,28 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 	reply(resp)
 }
 
+const defaultPort = "53"
+
 func (r *Resolver) dialExtDNS(proto string, server extDNSEntry) (net.Conn, error) {
+	port := defaultPort
+	if server.port != 0 {
+		port = strconv.FormatUint(uint64(server.port), 10)
+	}
+	addr := net.JoinHostPort(server.IPStr, port)
+
+	if server.HostLoopback {
+		return net.DialTimeout(proto, addr, extIOTimeout)
+	}
+
 	var (
 		extConn net.Conn
 		dialErr error
 	)
-	extConnect := func() {
-		if server.port == 0 {
-			server.port = 53
-		}
-		addr := fmt.Sprintf("%s:%d", server.IPStr, server.port)
+	err := r.backend.ExecFunc(func() {
 		extConn, dialErr = net.DialTimeout(proto, addr, extIOTimeout)
-	}
-
-	if server.HostLoopback {
-		extConnect()
-	} else {
-		execErr := r.backend.ExecFunc(extConnect)
-		if execErr != nil {
-			return nil, execErr
-		}
+	})
+	if err != nil {
+		return nil, err
 	}
 	if dialErr != nil {
 		return nil, dialErr
