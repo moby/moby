@@ -488,25 +488,23 @@ func (sb *Sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	return nil, false
 }
 
-func (sb *Sandbox) resolveName(req string, networkName string, epList []*Endpoint, alias bool, ipType int) ([]net.IP, bool) {
-	var ipv6Miss bool
-
+func (sb *Sandbox) resolveName(nameOrAlias string, networkName string, epList []*Endpoint, lookupAlias bool, ipType int) (_ []net.IP, ipv6Miss bool) {
 	for _, ep := range epList {
-		name := req
-		n := ep.getNetwork()
+		name := nameOrAlias
+		nw := ep.getNetwork()
 
-		if networkName != "" && networkName != n.Name() {
+		if networkName != "" && networkName != nw.Name() {
 			continue
 		}
 
-		if alias {
+		if lookupAlias {
 			if ep.aliases == nil {
 				continue
 			}
 
 			var ok bool
 			ep.mu.Lock()
-			name, ok = ep.aliases[req]
+			name, ok = ep.aliases[nameOrAlias]
 			ep.mu.Unlock()
 			if !ok {
 				continue
@@ -515,19 +513,17 @@ func (sb *Sandbox) resolveName(req string, networkName string, epList []*Endpoin
 			// If it is a regular lookup and if the requested name is an alias
 			// don't perform a svc lookup for this endpoint.
 			ep.mu.Lock()
-			if _, ok := ep.aliases[req]; ok {
+			if _, ok := ep.aliases[nameOrAlias]; ok {
 				ep.mu.Unlock()
 				continue
 			}
 			ep.mu.Unlock()
 		}
 
-		ip, miss := n.ResolveName(name, ipType)
-
+		ip, miss := nw.ResolveName(name, ipType)
 		if ip != nil {
 			return ip, false
 		}
-
 		if miss {
 			ipv6Miss = miss
 		}
