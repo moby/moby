@@ -118,6 +118,8 @@ jobs:
             ./docker-bake.hcl
             /tmp/bake-meta.json
           targets: bin-image
+          env:
+            DOCKER_GITCOMMIT: ${{ github.sha }}
           set: |
             *.platform=${{ matrix.platform }}
             *.output=type=image,name=${{ env.MOBYBIN_REPO_SLUG }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
