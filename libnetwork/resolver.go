@@ -199,10 +199,6 @@ func (r *Resolver) ResolverOptions() []string {
 	return []string{"ndots:0"}
 }
 
-func setCommonFlags(msg *dns.Msg) {
-	msg.RecursionAvailable = true
-}
-
 //nolint:gosec // The RNG is not used in a security-sensitive context.
 var (
 	shuffleRNG   = rand.New(rand.NewSource(time.Now().Unix()))
@@ -220,9 +216,9 @@ func shuffleAddr(addr []net.IP) []net.IP {
 }
 
 func createRespMsg(query *dns.Msg) *dns.Msg {
-	resp := new(dns.Msg)
+	resp := &dns.Msg{}
 	resp.SetReply(query)
-	setCommonFlags(resp)
+	resp.RecursionAvailable = true
 
 	return resp
 }
@@ -306,9 +302,7 @@ func (r *Resolver) handlePTRQuery(query *dns.Msg) (*dns.Msg, error) {
 	r.log().Debugf("[resolver] lookup for IP %s: name %s", name, host)
 	fqdn := dns.Fqdn(host)
 
-	resp := new(dns.Msg)
-	resp.SetReply(query)
-	setCommonFlags(resp)
+	resp := createRespMsg(query)
 
 	rr := new(dns.PTR)
 	rr.Hdr = dns.RR_Header{Name: ptr, Rrtype: dns.TypePTR, Class: dns.ClassINET, Ttl: respTTL}
