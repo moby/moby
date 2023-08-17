@@ -17,6 +17,47 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
+// ByNetworkType sorts a [Endpoint] slice based on the network-type
+// they're attached to. It implements [sort.Interface] and can be used
+// with [sort.Stable] or [sort.Sort]. It is used by [Sandbox.ResolveName]
+// when resolving names in swarm mode. In swarm mode, services with exposed
+// ports are connected to user overlay network, ingress network, and local
+// ("docker_gwbridge") networks. Name resolution should prioritize returning
+// the VIP/IPs on user overlay network over ingress and local networks.
+//
+// ByNetworkType re-orders the endpoints based on the network-type they
+// are attached to:
+//
+//  1. dynamic networks (user overlay networks)
+//  2. ingress network(s)
+//  3. local networks ("docker_gwbridge")
+type ByNetworkType []*Endpoint
+
+func (ep ByNetworkType) Len() int      { return len(ep) }
+func (ep ByNetworkType) Swap(i, j int) { ep[i], ep[j] = ep[j], ep[i] }
+func (ep ByNetworkType) Less(i, j int) bool {
+	return getNetworkType(ep[i].getNetwork()) < getNetworkType(ep[j].getNetwork())
+}
+
+// Define the order in which resolution should happen if an endpoint is
+// attached to multiple network-types. It is used by [ByNetworkType].
+const (
+	typeDynamic = iota
+	typeIngress
+	typeLocal
+)
+
+func getNetworkType(nw *Network) int {
+	switch {
+	case nw.ingress:
+		return typeIngress
+	case nw.dynamic:
+		return typeDynamic
+	default:
+		return typeLocal
+	}
+}
+
 // EndpointOption is an option setter function type used to pass various options to Network
 // and Endpoint interfaces methods. The various setter functions of type EndpointOption are
 // provided by libnetwork, they look like <Create|Join|Leave>Option[...](...)
