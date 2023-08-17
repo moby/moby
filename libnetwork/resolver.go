@@ -266,17 +266,17 @@ func (r *Resolver) handleIPQuery(query *dns.Msg, ipType int) (*dns.Msg, error) {
 	}
 	if ipType == types.IPv4 {
 		for _, ip := range addr {
-			rr := new(dns.A)
-			rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL}
-			rr.A = ip
-			resp.Answer = append(resp.Answer, rr)
+			resp.Answer = append(resp.Answer, &dns.A{
+				Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL},
+				A:   ip,
+			})
 		}
 	} else {
 		for _, ip := range addr {
-			rr := new(dns.AAAA)
-			rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: respTTL}
-			rr.AAAA = ip
-			resp.Answer = append(resp.Answer, rr)
+			resp.Answer = append(resp.Answer, &dns.AAAA{
+				Hdr:  dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: respTTL},
+				AAAA: ip,
+			})
 		}
 	}
 	return resp, nil
@@ -303,11 +303,10 @@ func (r *Resolver) handlePTRQuery(query *dns.Msg) (*dns.Msg, error) {
 	fqdn := dns.Fqdn(host)
 
 	resp := createRespMsg(query)
-
-	rr := new(dns.PTR)
-	rr.Hdr = dns.RR_Header{Name: ptr, Rrtype: dns.TypePTR, Class: dns.ClassINET, Ttl: respTTL}
-	rr.Ptr = fqdn
-	resp.Answer = append(resp.Answer, rr)
+	resp.Answer = append(resp.Answer, &dns.PTR{
+		Hdr: dns.RR_Header{Name: ptr, Rrtype: dns.TypePTR, Class: dns.ClassINET, Ttl: respTTL},
+		Ptr: fqdn,
+	})
 	return resp, nil
 }
 
@@ -325,16 +324,15 @@ func (r *Resolver) handleSRVQuery(query *dns.Msg) (*dns.Msg, error) {
 	resp := createRespMsg(query)
 
 	for i, r := range srv {
-		rr := new(dns.SRV)
-		rr.Hdr = dns.RR_Header{Name: svc, Rrtype: dns.TypePTR, Class: dns.ClassINET, Ttl: respTTL}
-		rr.Port = r.Port
-		rr.Target = r.Target
-		resp.Answer = append(resp.Answer, rr)
-
-		rr1 := new(dns.A)
-		rr1.Hdr = dns.RR_Header{Name: r.Target, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL}
-		rr1.A = ip[i]
-		resp.Extra = append(resp.Extra, rr1)
+		resp.Answer = append(resp.Answer, &dns.SRV{
+			Hdr:    dns.RR_Header{Name: svc, Rrtype: dns.TypePTR, Class: dns.ClassINET, Ttl: respTTL},
+			Port:   r.Port,
+			Target: r.Target,
+		})
+		resp.Extra = append(resp.Extra, &dns.A{
+			Hdr: dns.RR_Header{Name: r.Target, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL},
+			A:   ip[i],
+		})
 	}
 	return resp, nil
 }
