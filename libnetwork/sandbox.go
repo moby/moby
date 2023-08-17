@@ -501,22 +501,22 @@ func (sb *Sandbox) resolveName(nameOrAlias string, networkName string, epList []
 
 		name := nameOrAlias
 		if lookupAlias {
-			var ok bool
 			ep.mu.Lock()
-			name, ok = ep.aliases[nameOrAlias]
+			alias, ok := ep.aliases[nameOrAlias]
 			ep.mu.Unlock()
 			if !ok {
 				continue
 			}
+			name = alias
 		} else {
 			// If it is a regular lookup and if the requested name is an alias
 			// don't perform a svc lookup for this endpoint.
 			ep.mu.Lock()
-			if _, ok := ep.aliases[nameOrAlias]; ok {
-				ep.mu.Unlock()
+			_, ok := ep.aliases[nameOrAlias]
+			ep.mu.Unlock()
+			if ok {
 				continue
 			}
-			ep.mu.Unlock()
 		}
 
 		ip, miss := nw.ResolveName(name, ipType)
