@@ -94,7 +94,7 @@ func (d *driver) getNetwork(id string) (*network, error) {
 	d.Lock()
 	defer d.Unlock()
 	if id == "" {
-		return nil, types.BadRequestErrorf("invalid network id: %s", id)
+		return nil, types.InvalidParameterErrorf("invalid network id: %s", id)
 	}
 
 	if nw, ok := d.networks[id]; ok {

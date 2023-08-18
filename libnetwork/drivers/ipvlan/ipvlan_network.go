@@ -227,7 +227,7 @@ func parseNetworkGenericOptions(data interface{}) (*configuration, error) {
 		}
 		return opaqueConfig.(*configuration), nil
 	default:
-		return nil, types.BadRequestErrorf("unrecognized network configuration format: %v", opt)
+		return nil, types.InvalidParameterErrorf("unrecognized network configuration format: %v", opt)
 	}
 }
 

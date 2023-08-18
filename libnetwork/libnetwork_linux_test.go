@@ -1091,7 +1091,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 	if err = ep.Leave(nil); err == nil {
 		t.Fatalf("Expected to fail leave nil Sandbox")
 	}
-	if _, ok := err.(types.BadRequestError); !ok {
+	if _, ok := err.(types.InvalidParameterError); !ok {
 		t.Fatalf("Unexpected error type returned: %T. Desc: %s", err, err.Error())
 	}
 
@@ -1099,7 +1099,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 	if err = ep.Leave(fsbx); err == nil {
 		t.Fatalf("Expected to fail leave with invalid Sandbox")
 	}
-	if _, ok := err.(types.BadRequestError); !ok {
+	if _, ok := err.(types.InvalidParameterError); !ok {
 		t.Fatalf("Unexpected error type returned: %T. Desc: %s", err, err.Error())
 	}
 }
@@ -1516,7 +1516,7 @@ func TestEndpointJoin(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected to fail join with nil Sandbox")
 	}
-	if _, ok := err.(types.BadRequestError); !ok {
+	if _, ok := err.(types.InvalidParameterError); !ok {
 		t.Fatalf("Unexpected error type returned: %T", err)
 	}
 
@@ -1524,7 +1524,7 @@ func TestEndpointJoin(t *testing.T) {
 	if err = ep1.Join(fsbx); err == nil {
 		t.Fatalf("Expected to fail join with invalid Sandbox")
 	}
-	if _, ok := err.(types.BadRequestError); !ok {
+	if _, ok := err.(types.InvalidParameterError); !ok {
 		t.Fatalf("Unexpected error type returned: %T", err)
 	}
 

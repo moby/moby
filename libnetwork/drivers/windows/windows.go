@@ -199,7 +199,7 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 			config.MacPools = make([]hcsshim.MacPool, 0)
 			s := strings.Split(value, ",")
 			if len(s)%2 != 0 {
-				return nil, types.BadRequestErrorf("Invalid mac pool. You must specify both a start range and an end range")
+				return nil, types.InvalidParameterErrorf("invalid mac pool. You must specify both a start range and an end range")
 			}
 			for i := 0; i < len(s)-1; i += 2 {
 				config.MacPools = append(config.MacPools, hcsshim.MacPool{
@@ -242,7 +242,7 @@ func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []d
 	}
 
 	if len(ipamV4Data) == 0 {
-		return types.BadRequestErrorf("network %s requires ipv4 configuration", id)
+		return types.InvalidParameterErrorf("network %s requires ipv4 configuration", id)
 	}
 
 	return nil

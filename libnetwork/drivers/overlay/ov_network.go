@@ -83,7 +83,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		return fmt.Errorf("invalid network id")
 	}
 	if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
-		return types.BadRequestErrorf("ipv4 pool is empty")
+		return types.InvalidParameterErrorf("ipv4 pool is empty")
 	}
 
 	// Since we perform lazy configuration make sure we try

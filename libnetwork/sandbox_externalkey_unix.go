@@ -169,7 +169,7 @@ func (c *Controller) processExternalKey(conn net.Conn) error {
 	search := SandboxContainerWalker(&sandbox, s.ContainerID)
 	c.WalkSandboxes(search)
 	if sandbox == nil {
-		return types.BadRequestErrorf("no sandbox present for %s", s.ContainerID)
+		return types.InvalidParameterErrorf("no sandbox present for %s", s.ContainerID)
 	}
 
 	return sandbox.SetKey(s.Key)

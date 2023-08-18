@@ -47,22 +47,22 @@ type addrSpace struct {
 // reading it from the given string.
 func PoolIDFromString(str string) (pID PoolID, err error) {
 	if str == "" {
-		return pID, types.BadRequestErrorf("invalid string form for subnetkey: %s", str)
+		return pID, types.InvalidParameterErrorf("invalid string form for subnetkey: %s", str)
 	}
 
 	p := strings.Split(str, "/")
 	if len(p) != 3 && len(p) != 5 {
-		return pID, types.BadRequestErrorf("invalid string form for subnetkey: %s", str)
+		return pID, types.InvalidParameterErrorf("invalid string form for subnetkey: %s", str)
 	}
 	pID.AddressSpace = p[0]
 	pID.Subnet, err = netip.ParsePrefix(p[1] + "/" + p[2])
 	if err != nil {
-		return pID, types.BadRequestErrorf("%v", err)
+		return pID, types.InvalidParameterErrorf("invalid string form for subnetkey: %s", str)
 	}
 	if len(p) == 5 {
 		pID.ChildSubnet, err = netip.ParsePrefix(p[3] + "/" + p[4])
 		if err != nil {
-			return pID, types.BadRequestErrorf("%v", err)
+			return pID, types.InvalidParameterErrorf("invalid string form for subnetkey: %s", str)
 		}
 	}
 

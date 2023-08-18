@@ -205,13 +205,13 @@ func (ds *Store) PutObjectAtomic(kvObject KVObject) error {
 	defer ds.mu.Unlock()
 
 	if kvObject == nil {
-		return types.BadRequestErrorf("invalid KV Object : nil")
+		return types.InvalidParameterErrorf("invalid KV Object : nil")
 	}
 
 	kvObjValue := kvObject.Value()
 
 	if kvObjValue == nil {
-		return types.BadRequestErrorf("invalid KV Object with a nil Value for key %s", Key(kvObject.Key()...))
+		return types.InvalidParameterErrorf("invalid KV Object with a nil Value for key %s", Key(kvObject.Key()...))
 	}
 
 	if kvObject.Skip() {
@@ -359,7 +359,7 @@ func (ds *Store) DeleteObjectAtomic(kvObject KVObject) error {
 	defer ds.mu.Unlock()
 
 	if kvObject == nil {
-		return types.BadRequestErrorf("invalid KV Object : nil")
+		return types.InvalidParameterErrorf("invalid KV Object : nil")
 	}
 
 	previous := &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}

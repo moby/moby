@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/ishidawataru/sctp"
 )
 
@@ -355,10 +356,10 @@ type MaskableError interface {
 	Maskable()
 }
 
-// BadRequestError is an interface for errors originated by a bad request
-type BadRequestError interface {
-	// BadRequest makes implementer into BadRequestError type
-	BadRequest()
+// InvalidParameterError is an interface for errors originated by a bad request
+type InvalidParameterError interface {
+	// InvalidParameter makes implementer into InvalidParameterError type
+	InvalidParameter()
 }
 
 // NotFoundError is an interface for errors raised because a needed resource is not available
@@ -373,10 +374,10 @@ type ForbiddenError interface {
 	Forbidden()
 }
 
-// NoServiceError is an interface for errors returned when the required service is not available
-type NoServiceError interface {
-	// NoService makes implementer into NoServiceError type
-	NoService()
+// UnavailableError is an interface for errors returned when the required service is not available
+type UnavailableError interface {
+	// Unavailable makes implementer into UnavailableError type
+	Unavailable()
 }
 
 // NotImplementedError is an interface for errors raised because of requested functionality is not yet implemented
@@ -395,9 +396,9 @@ type InternalError interface {
  * Well-known Error Formatters
  ******************************/
 
-// BadRequestErrorf creates an instance of BadRequestError
-func BadRequestErrorf(format string, params ...interface{}) error {
-	return badRequest(fmt.Sprintf(format, params...))
+// InvalidParameterErrorf creates an instance of InvalidParameterError
+func InvalidParameterErrorf(format string, params ...interface{}) error {
+	return errdefs.InvalidParameter(fmt.Errorf(format, params...))
 }
 
 // NotFoundErrorf creates an instance of NotFoundError
@@ -410,9 +411,9 @@ func ForbiddenErrorf(format string, params ...interface{}) error {
 	return forbidden(fmt.Sprintf(format, params...))
 }
 
-// NoServiceErrorf creates an instance of NoServiceError
-func NoServiceErrorf(format string, params ...interface{}) error {
-	return noService(fmt.Sprintf(format, params...))
+// UnavailableErrorf creates an instance of UnavailableError
+func UnavailableErrorf(format string, params ...interface{}) error {
+	return unavailable(fmt.Sprintf(format, params...))
 }
 
 // NotImplementedErrorf creates an instance of NotImplementedError
@@ -433,13 +434,6 @@ func InternalMaskableErrorf(format string, params ...interface{}) error {
 /***********************
  * Internal Error Types
  ***********************/
-type badRequest string
-
-func (br badRequest) Error() string {
-	return string(br)
-}
-func (br badRequest) BadRequest() {}
-
 type notFound string
 
 func (nf notFound) Error() string {
@@ -454,12 +448,12 @@ func (frb forbidden) Error() string {
 }
 func (frb forbidden) Forbidden() {}
 
-type noService string
+type unavailable string
 
-func (ns noService) Error() string {
+func (ns unavailable) Error() string {
 	return string(ns)
 }
-func (ns noService) NoService() {}
+func (ns unavailable) Unavailable() {}
 
 type notImpl string
 

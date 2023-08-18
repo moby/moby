@@ -87,7 +87,7 @@ type IpamConf struct {
 // Validate checks whether the configuration is valid
 func (c *IpamConf) Validate() error {
 	if c.Gateway != "" && nil == net.ParseIP(c.Gateway) {
-		return types.BadRequestErrorf("invalid gateway address %s in Ipam configuration", c.Gateway)
+		return types.InvalidParameterErrorf("invalid gateway address %s in Ipam configuration", c.Gateway)
 	}
 	return nil
 }
@@ -1136,7 +1136,7 @@ func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpo
 
 	for _, llIPNet := range ep.Iface().LinkLocalAddresses() {
 		if !llIPNet.IP.IsLinkLocalUnicast() {
-			return nil, types.BadRequestErrorf("invalid link local IP address: %v", llIPNet.IP)
+			return nil, types.InvalidParameterErrorf("invalid link local IP address: %v", llIPNet.IP)
 		}
 	}
 
@@ -1602,7 +1602,7 @@ func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 
 		if gws, ok := d.Meta[netlabel.Gateway]; ok {
 			if d.Gateway, err = types.ParseCIDR(gws); err != nil {
-				return types.BadRequestErrorf("failed to parse gateway address (%v) returned by ipam driver: %v", gws, err)
+				return types.InvalidParameterErrorf("failed to parse gateway address (%v) returned by ipam driver: %v", gws, err)
 			}
 		}
 
@@ -1625,7 +1625,7 @@ func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 			d.IPAMData.AuxAddresses = make(map[string]*net.IPNet, len(cfg.AuxAddresses))
 			for k, v := range cfg.AuxAddresses {
 				if ip = net.ParseIP(v); ip == nil {
-					return types.BadRequestErrorf("non parsable secondary ip address (%s:%s) passed for network %s", k, v, n.Name())
+					return types.InvalidParameterErrorf("non parsable secondary ip address (%s:%s) passed for network %s", k, v, n.Name())
 				}
 				if !d.Pool.Contains(ip) {
 					return types.ForbiddenErrorf("auxiliary address: (%s:%s) must belong to the master pool: %s", k, v, d.Pool)
