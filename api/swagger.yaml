@@ -8268,7 +8268,7 @@ paths:
   /images/create:
     post:
       summary: "Create an image"
-      description: "Create an image by either pulling it from a registry or importing it."
+      description: "Pull or import an image."
       operationId: "ImageCreate"
       consumes:
         - "text/plain"
