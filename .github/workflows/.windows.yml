@@ -75,9 +75,12 @@ jobs:
       -
         name: Build base image
         run: |
-          docker pull ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }}
-          docker tag ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }} microsoft/windowsservercore
-          docker build --build-arg GO_VERSION -t ${{ env.TEST_IMAGE_NAME }} -f Dockerfile.windows .
+          & docker build `
+            --build-arg WINDOWS_BASE_IMAGE `
+            --build-arg WINDOWS_BASE_IMAGE_TAG `
+            --build-arg GO_VERSION `
+            -t ${{ env.TEST_IMAGE_NAME }} `
+            -f Dockerfile.windows .
       -
         name: Build binaries
         run: |
@@ -152,9 +155,12 @@ jobs:
       -
         name: Build base image
         run: |
-          docker pull ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }}
-          docker tag ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }} microsoft/windowsservercore
-          docker build --build-arg GO_VERSION -t ${{ env.TEST_IMAGE_NAME }} -f Dockerfile.windows .
+          & docker build `
+            --build-arg WINDOWS_BASE_IMAGE `
+            --build-arg WINDOWS_BASE_IMAGE_TAG `
+            --build-arg GO_VERSION `
+            -t ${{ env.TEST_IMAGE_NAME }} `
+            -f Dockerfile.windows .
       -
         name: Test
         run: |
