@@ -66,8 +66,8 @@ elif command -v git &> /dev/null && [ -e .git ] && git rev-parse &> /dev/null; t
 else
 	echo >&2 'error: .git directory missing and DOCKER_GITCOMMIT not specified'
 	echo >&2 '  Please either build with the .git directory accessible, or specify the'
-	echo >&2 '  exact (--short) commit hash you are building using DOCKER_GITCOMMIT for'
-	echo >&2 '  future accountability in diagnosing build issues.  Thanks!'
+	echo >&2 '  exact commit hash you are building using DOCKER_GITCOMMIT for future'
+	echo >&2 '  accountability in diagnosing build issues.  Thanks!'
 	exit 1
 fi
 
