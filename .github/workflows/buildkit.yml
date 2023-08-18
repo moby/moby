@@ -15,6 +15,7 @@ on:
 env:
   GO_VERSION: "1.20.7"
   DESTDIR: ./build
+  DOCKER_GITCOMMIT: ${{ github.sha }}
 
 jobs:
   validate-dco:

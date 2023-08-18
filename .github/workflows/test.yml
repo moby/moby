@@ -21,6 +21,7 @@ env:
   ITG_CLI_MATRIX_SIZE: 6
   DOCKER_EXPERIMENTAL: 1
   DOCKER_GRAPHDRIVER: overlay2
+  DOCKER_GITCOMMIT: ${{ github.sha }}
 
 jobs:
   validate-dco:
