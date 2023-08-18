@@ -18,10 +18,9 @@ env:
   MOBYBIN_REPO_SLUG: moby/moby-bin
   DOCKER_GITCOMMIT: ${{ github.sha }}
   VERSION: ${{ github.ref }}
-  PLATFORM: Moby Engine
-  PRODUCT: Moby
-  DEFAULT_PRODUCT_LICENSE: Moby
-  PACKAGER_NAME: Moby
+  PLATFORM: Moby Engine - Nightly
+  PRODUCT: Moby Engine
+  PACKAGER_NAME: The Moby Project
 
 jobs:
   validate-dco:
