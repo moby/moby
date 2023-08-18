@@ -113,6 +113,8 @@ jobs:
         name: Build
         id: bake
         uses: docker/bake-action@v3
+        env:
+          DOCKER_GITCOMMIT: ${{ github.sha }}
         with:
           files: |
             ./docker-bake.hcl
