@@ -310,7 +310,7 @@ func (v *localVolume) Mount(id string) (string, error) {
 			v.active.mounted = true
 		}
 		v.active.count++
-		logger.WithField("active mounts", v.active).Debug("Decremented active mount count")
+		logger.WithField("active mounts", v.active).Debug("Incremented active mount count")
 	}
 	if err := v.postMount(); err != nil {
 		return "", err
