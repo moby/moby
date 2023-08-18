@@ -16,6 +16,8 @@ on:
 
 env:
   MOBYBIN_REPO_SLUG: moby/moby-bin
+  DOCKER_GITCOMMIT: ${{ github.sha }}
+  VERSION: ${{ github.ref }}
   PLATFORM: Moby Engine
   PRODUCT: Moby
   DEFAULT_PRODUCT_LICENSE: Moby
@@ -113,8 +115,6 @@ jobs:
         name: Build
         id: bake
         uses: docker/bake-action@v3
-        env:
-          DOCKER_GITCOMMIT: ${{ github.sha }}
         with:
           files: |
             ./docker-bake.hcl
