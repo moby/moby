@@ -58,15 +58,10 @@ func (i *ImageService) Changes(ctx context.Context, container *container.Contain
 		}
 	}()
 
-	mounts, err := snapshotter.Mounts(ctx, container.ID)
-	if err != nil {
-		return nil, err
-	}
-
 	var changes []archive.Change
-	err = mount.WithReadonlyTempMount(ctx, mounts, func(fs string) error {
-		return mount.WithTempMount(ctx, parent, func(root string) error {
-			changes, err = archive.ChangesDirs(fs, root)
+	err = i.PerformWithBaseFS(ctx, container, func(containerRootfs string) error {
+		return mount.WithReadonlyTempMount(ctx, parent, func(parentRootfs string) error {
+			changes, err = archive.ChangesDirs(containerRootfs, parentRootfs)
 			return err
 		})
 	})
