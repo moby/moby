@@ -31,9 +31,6 @@ type joinError struct {
 }
 
 func (e *joinError) Error() string {
-	if len(e.errs) == 1 {
-		return strings.TrimSpace(e.errs[0].Error())
-	}
 	stringErrs := make([]string, 0, len(e.errs))
 	for _, subErr := range e.errs {
 		stringErrs = append(stringErrs, strings.Replace(subErr.Error(), "\n", "\n\t", -1))
