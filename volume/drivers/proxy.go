@@ -23,6 +23,8 @@ type volumeDriverProxy struct {
 	client
 }
 
+var _ volumeDriver = (*volumeDriverProxy)(nil)
+
 type volumeDriverProxyCreateRequest struct {
 	Name string
 	Opts map[string]string

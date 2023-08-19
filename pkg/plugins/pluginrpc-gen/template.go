@@ -105,6 +105,8 @@ type {{ .InterfaceType }}Proxy struct {
 	client
 }
 
+var _ {{ .InterfaceType }} = (*{{ .InterfaceType }}Proxy)(nil)
+
 {{ range .Functions }}
 {{ if .Args }}
 	type {{ $.InterfaceType }}Proxy{{ .Name }}Request struct{
