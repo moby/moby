@@ -33,14 +33,11 @@ type volumeDriverProxyCreateResponse struct {
 }
 
 func (pp *volumeDriverProxy) Create(name string, opts map[string]string) (err error) {
-	var (
-		req volumeDriverProxyCreateRequest
-		ret volumeDriverProxyCreateResponse
-	)
-
-	req.Name = name
-	req.Opts = opts
-
+	var ret volumeDriverProxyCreateResponse
+	req := volumeDriverProxyCreateRequest{
+		Name: name,
+		Opts: opts,
+	}
 	if err = pp.CallWithOptions("VolumeDriver.Create", req, &ret, plugins.WithRequestTimeout(longTimeout)); err != nil {
 		return
 	}
@@ -61,13 +58,10 @@ type volumeDriverProxyRemoveResponse struct {
 }
 
 func (pp *volumeDriverProxy) Remove(name string) (err error) {
-	var (
-		req volumeDriverProxyRemoveRequest
-		ret volumeDriverProxyRemoveResponse
-	)
-
-	req.Name = name
-
+	var ret volumeDriverProxyRemoveResponse
+	req := volumeDriverProxyRemoveRequest{
+		Name: name,
+	}
 	if err = pp.CallWithOptions("VolumeDriver.Remove", req, &ret, plugins.WithRequestTimeout(shortTimeout)); err != nil {
 		return
 	}
@@ -89,13 +83,10 @@ type volumeDriverProxyPathResponse struct {
 }
 
 func (pp *volumeDriverProxy) Path(name string) (mountpoint string, err error) {
-	var (
-		req volumeDriverProxyPathRequest
-		ret volumeDriverProxyPathResponse
-	)
-
-	req.Name = name
-
+	var ret volumeDriverProxyPathResponse
+	req := volumeDriverProxyPathRequest{
+		Name: name,
+	}
 	if err = pp.CallWithOptions("VolumeDriver.Path", req, &ret, plugins.WithRequestTimeout(shortTimeout)); err != nil {
 		return
 	}
@@ -120,14 +111,11 @@ type volumeDriverProxyMountResponse struct {
 }
 
 func (pp *volumeDriverProxy) Mount(name string, id string) (mountpoint string, err error) {
-	var (
-		req volumeDriverProxyMountRequest
-		ret volumeDriverProxyMountResponse
-	)
-
-	req.Name = name
-	req.ID = id
-
+	var ret volumeDriverProxyMountResponse
+	req := volumeDriverProxyMountRequest{
+		Name: name,
+		ID:   id,
+	}
 	if err = pp.CallWithOptions("VolumeDriver.Mount", req, &ret, plugins.WithRequestTimeout(longTimeout)); err != nil {
 		return
 	}
@@ -151,14 +139,11 @@ type volumeDriverProxyUnmountResponse struct {
 }
 
 func (pp *volumeDriverProxy) Unmount(name string, id string) (err error) {
-	var (
-		req volumeDriverProxyUnmountRequest
-		ret volumeDriverProxyUnmountResponse
-	)
-
-	req.Name = name
-	req.ID = id
-
+	var ret volumeDriverProxyUnmountResponse
+	req := volumeDriverProxyUnmountRequest{
+		Name: name,
+		ID:   id,
+	}
 	if err = pp.CallWithOptions("VolumeDriver.Unmount", req, &ret, plugins.WithRequestTimeout(shortTimeout)); err != nil {
 		return
 	}
@@ -178,11 +163,8 @@ type volumeDriverProxyListResponse struct {
 }
 
 func (pp *volumeDriverProxy) List() (volumes []*proxyVolume, err error) {
-	var (
-		req volumeDriverProxyListRequest
-		ret volumeDriverProxyListResponse
-	)
-
+	var ret volumeDriverProxyListResponse
+	req := volumeDriverProxyListRequest{}
 	if err = pp.CallWithOptions("VolumeDriver.List", req, &ret, plugins.WithRequestTimeout(shortTimeout)); err != nil {
 		return
 	}
@@ -206,13 +188,10 @@ type volumeDriverProxyGetResponse struct {
 }
 
 func (pp *volumeDriverProxy) Get(name string) (volume *proxyVolume, err error) {
-	var (
-		req volumeDriverProxyGetRequest
-		ret volumeDriverProxyGetResponse
-	)
-
-	req.Name = name
-
+	var ret volumeDriverProxyGetResponse
+	req := volumeDriverProxyGetRequest{
+		Name: name,
+	}
 	if err = pp.CallWithOptions("VolumeDriver.Get", req, &ret, plugins.WithRequestTimeout(shortTimeout)); err != nil {
 		return
 	}
@@ -234,11 +213,8 @@ type volumeDriverProxyCapabilitiesResponse struct {
 }
 
 func (pp *volumeDriverProxy) Capabilities() (capabilities volume.Capability, err error) {
-	var (
-		req volumeDriverProxyCapabilitiesRequest
-		ret volumeDriverProxyCapabilitiesResponse
-	)
-
+	var ret volumeDriverProxyCapabilitiesResponse
+	req := volumeDriverProxyCapabilitiesRequest{}
 	if err = pp.CallWithOptions("VolumeDriver.Capabilities", req, &ret, plugins.WithRequestTimeout(shortTimeout)); err != nil {
 		return
 	}

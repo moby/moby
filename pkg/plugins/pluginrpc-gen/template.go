@@ -121,14 +121,11 @@ type {{ .InterfaceType }}Proxy struct {
 	}
 
 	func (pp *{{ $.InterfaceType }}Proxy) {{ .Name }}({{ printArgs .Args }}) ({{ printArgs .Returns }}) {
-		var(
-			req {{ $.InterfaceType }}Proxy{{ .Name }}Request
-			ret {{ $.InterfaceType }}Proxy{{ .Name }}Response
-		)
-		{{ range .Args }}
-			req.{{ title .Name }} = {{ lower .Name }} {{ end }}
-
-		{{ if eq $.InterfaceType "volumeDriver" }}
+		var ret {{ $.InterfaceType }}Proxy{{ .Name }}Response
+		req := {{ $.InterfaceType }}Proxy{{ .Name }}Request{ {{ range .Args }}
+			{{ title .Name }}: {{ lower .Name }},{{ end }}
+		}
+		{{- if eq $.InterfaceType "volumeDriver" }}
 		if err = pp.CallWithOptions("{{ $.RPCName }}.{{ .Name }}", req, &ret, plugins.WithRequestTimeout({{ if eq .Name "Create" "Mount" }}longTimeout{{ else }}shortTimeout{{ end }})); err != nil {
 			return
 		}
@@ -136,7 +133,7 @@ type {{ .InterfaceType }}Proxy struct {
 		if err = pp.Call("{{ $.RPCName }}.{{ .Name }}", req, &ret); err != nil {
 			return
 		}
-		{{ end }}
+		{{ end -}}
 		{{ range $r := .Returns }}
 			{{ if isErr .ArgType }}
 				if ret.{{ title .Name }} != "" {
