@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 	"text/template"
 )
@@ -13,12 +14,18 @@ func printArgs(args []arg) string {
 	return strings.Join(argStr, ", ")
 }
 
-func buildImports(specs []importSpec) string {
+func buildImports(specs []importSpec, extraImports ...string) string {
 	if len(specs) == 0 {
 		return `import "errors"`
 	}
 	imports := "import(\n"
 	imports += "\t\"errors\"\n"
+	for _, i := range extraImports {
+		if i != "" {
+			imports += "\t" + strconv.Quote(i)
+		}
+		imports += "\n"
+	}
 	for _, i := range specs {
 		imports += "\t" + i.String() + "\n"
 	}
@@ -74,21 +81,39 @@ var generatedTempl = template.Must(template.New("rpc_cient").Funcs(templFuncs).P
 
 package {{ .Name }}
 
+
+{{ if eq .InterfaceType "volumeDriver" }}
+{{ imports .Imports "time" "" "github.com/docker/docker/pkg/plugins"}}
+
+const (
+	longTimeout  = 2 * time.Minute
+	shortTimeout = 1 * time.Minute
+)
+
+type client interface{
+	CallWithOptions(string, interface{}, interface{}, ...func(*plugins.RequestOpts)) error
+}
+{{ else }}
 {{ imports .Imports }}
 
 type client interface{
 	Call(string, interface{}, interface{}) error
 }
+{{ end }}
 
 type {{ .InterfaceType }}Proxy struct {
 	client
 }
 
 {{ range .Functions }}
+{{ if .Args }}
 	type {{ $.InterfaceType }}Proxy{{ .Name }}Request struct{
 		{{ range .Args }}
 			{{ title .Name }} {{ .ArgType }} {{ end }}
 	}
+{{ else }}
+	type {{ $.InterfaceType }}Proxy{{ .Name }}Request struct{}
+{{ end }}
 
 	type {{ $.InterfaceType }}Proxy{{ .Name }}Response struct{
 		{{ range .Returns }}
@@ -102,9 +127,16 @@ type {{ .InterfaceType }}Proxy struct {
 		)
 		{{ range .Args }}
 			req.{{ title .Name }} = {{ lower .Name }} {{ end }}
+
+		{{ if eq $.InterfaceType "volumeDriver" }}
+		if err = pp.CallWithOptions("{{ $.RPCName }}.{{ .Name }}", req, &ret, plugins.WithRequestTimeout({{ if eq .Name "Create" "Mount" }}longTimeout{{ else }}shortTimeout{{ end }})); err != nil {
+			return
+		}
+		{{ else }}
 		if err = pp.Call("{{ $.RPCName }}.{{ .Name }}", req, &ret); err != nil {
 			return
 		}
+		{{ end }}
 		{{ range $r := .Returns }}
 			{{ if isErr .ArgType }}
 				if ret.{{ title .Name }} != "" {
