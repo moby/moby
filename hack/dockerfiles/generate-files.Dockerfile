@@ -39,9 +39,7 @@ RUN --mount=from=src,source=/out,target=.,rw \
     github.com/gogo/protobuf/protoc-gen-gogo \
     github.com/gogo/protobuf/protoc-gen-gogofaster \
     github.com/gogo/protobuf/protoc-gen-gogoslick \
-    github.com/golang/protobuf/protoc-gen-go
-  ./hack/with-go-mod.sh go build -v -mod=vendor -modfile=vendor.mod \
-    -o /usr/bin/pluginrpc-gen \
+    github.com/golang/protobuf/protoc-gen-go \
     ./pkg/plugins/pluginrpc-gen
 EOT
 
