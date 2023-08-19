@@ -51,7 +51,7 @@ RUN --mount=from=src,source=/out,target=.,rw <<EOT
   set -ex
   go generate -v ./...
   mkdir /out
-  git ls-files -m --others -- ':!vendor' 'profiles/seccomp/default.json' '**/*.pb.go' | tar -cf - --files-from - | tar -C /out -xf -
+  git ls-files -m --others -- ':!vendor' 'profiles/seccomp/default.json' '**/*.pb.go' 'volume/drivers/proxy.go' | tar -cf - --files-from - | tar -C /out -xf -
 EOT
 
 FROM scratch AS update
