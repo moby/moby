@@ -134,13 +134,17 @@ type {{ .InterfaceType }}Proxy struct {
 			return
 		}
 		{{ end -}}
-		{{ range $r := .Returns }}
-			{{ if isErr .ArgType }}
+		{{- range $r := .Returns -}}
+			{{- if isErr .ArgType -}}
 				if ret.{{ title .Name }} != "" {
 					{{ lower .Name }} = errors.New(ret.{{ title .Name }})
-				} {{ end }}
-			{{ if isErr .ArgType | not }} {{ lower .Name }} = ret.{{ title .Name }} {{ end }} {{ end }}
+					return
+				}
+			{{- end -}}
+		{{- end -}}
 
+		{{ range $r := .Returns }} {{ if isErr .ArgType | not }}
+				{{ lower .Name }} = ret.{{ title .Name }} {{ end }} {{ end }}
 		return
 	}
 {{ end }}
