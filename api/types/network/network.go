@@ -9,21 +9,6 @@ type Address struct {
 	PrefixLen int
 }
 
-// IPAM represents IP Address Management
-type IPAM struct {
-	Driver  string
-	Options map[string]string // Per network IPAM driver options
-	Config  []IPAMConfig
-}
-
-// IPAMConfig represents IPAM configurations
-type IPAMConfig struct {
-	Subnet     string            `json:",omitempty"`
-	IPRange    string            `json:",omitempty"`
-	Gateway    string            `json:",omitempty"`
-	AuxAddress map[string]string `json:"AuxiliaryAddresses,omitempty"`
-}
-
 // EndpointIPAMConfig represents IPAM configurations for the endpoint
 type EndpointIPAMConfig struct {
 	IPv4Address  string   `json:",omitempty"`
