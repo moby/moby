@@ -77,9 +77,6 @@ type Sandbox interface {
 	// DeleteNeighbor deletes neighbor entry from the sandbox.
 	DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, osDelete bool) error
 
-	// NeighborOptions returns an interface with methods to set neighbor options.
-	NeighborOptions() NeighborOptionSetter
-
 	// InterfaceOptions an interface with methods to set interface options.
 	InterfaceOptions() IfaceOptionSetter
 
@@ -96,17 +93,6 @@ type Sandbox interface {
 	ApplyOSTweaks([]SandboxType)
 
 	Info
-}
-
-// NeighborOptionSetter interface defines the option setter methods for interface options
-type NeighborOptionSetter interface {
-	// LinkName returns an option setter to set the srcName of the link that should
-	// be used in the neighbor entry
-	LinkName(string) NeighOption
-
-	// Family returns an option setter to set the address family for the neighbor
-	// entry. eg. AF_BRIDGE
-	Family(int) NeighOption
 }
 
 // IfaceOptionSetter interface defines the option setter methods for interface options.

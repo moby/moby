@@ -348,11 +348,6 @@ func (n *networkNamespace) InterfaceOptions() IfaceOptionSetter {
 	return n
 }
 
-// NeighborOptions returns an interface with methods to set neighbor options.
-func (n *networkNamespace) NeighborOptions() NeighborOptionSetter {
-	return n
-}
-
 func (n *networkNamespace) loopbackUp() error {
 	iface, err := n.nlHandle.LinkByName("lo")
 	if err != nil {

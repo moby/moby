@@ -10,17 +10,15 @@ func (nh *neigh) processNeighOptions(options ...NeighOption) {
 	}
 }
 
-// LinkName returns an option setter to set the srcName of the link that should
-// be used in the neighbor entry
-func (n *networkNamespace) LinkName(name string) NeighOption {
+// WithLinkName sets the srcName of the link to use in the neighbor entry.
+func WithLinkName(name string) NeighOption {
 	return func(nh *neigh) {
 		nh.linkName = name
 	}
 }
 
-// Family returns an option setter to set the address family for the neighbor
-// entry. eg. AF_BRIDGE
-func (n *networkNamespace) Family(family int) NeighOption {
+// WithFamily sets the address-family for the neighbor entry. e.g. [syscall.AF_BRIDGE].
+func WithFamily(family int) NeighOption {
 	return func(nh *neigh) {
 		nh.family = family
 	}
