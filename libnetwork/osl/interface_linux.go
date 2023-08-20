@@ -179,6 +179,11 @@ func (n *networkNamespace) findDst(srcName string, isBridge bool) string {
 	return ""
 }
 
+// AddInterface adds an existing Interface to the sandbox. The operation will rename
+// from the Interface SrcName to DstName as it moves, and reconfigure the
+// interface according to the specified settings. The caller is expected
+// to only provide a prefix for DstName. The AddInterface api will auto-generate
+// an appropriate suffix for the DstName to disambiguate.
 func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...IfaceOption) error {
 	i := &nwIface{
 		srcName: srcName,

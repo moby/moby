@@ -313,9 +313,10 @@ func createNamespaceFile(path string) (err error) {
 	return err
 }
 
-// The networkNamespace type is the linux implementation of the Sandbox
-// interface. It represents a linux network namespace, and moves an interface
-// into it when called on method AddInterface or sets the gateway etc.
+// networkNamespace represents a network sandbox. It represents a Linux network
+// namespace, and moves an interface into it when called on method AddInterface
+// or sets the gateway etc. It holds a list of Interfaces, routes etc., and more
+// can be added dynamically.
 type networkNamespace struct {
 	path         string
 	iFaces       []*nwIface
@@ -330,6 +331,10 @@ type networkNamespace struct {
 	sync.Mutex
 }
 
+// Interfaces returns the collection of Interface previously added with the AddInterface
+// method. Note that this doesn't include network interfaces added in any
+// other way (such as the default loopback interface which is automatically
+// created on creation of a sandbox).
 func (n *networkNamespace) Interfaces() []Interface {
 	ifaces := make([]Interface, len(n.iFaces))
 	for i, iface := range n.iFaces {
@@ -338,10 +343,12 @@ func (n *networkNamespace) Interfaces() []Interface {
 	return ifaces
 }
 
+// InterfaceOptions an interface with methods to set interface options.
 func (n *networkNamespace) InterfaceOptions() IfaceOptionSetter {
 	return n
 }
 
+// NeighborOptions returns an interface with methods to set neighbor options.
 func (n *networkNamespace) NeighborOptions() NeighborOptionSetter {
 	return n
 }
@@ -354,10 +361,12 @@ func (n *networkNamespace) loopbackUp() error {
 	return n.nlHandle.LinkSetUp(iface)
 }
 
+// GetLoopbackIfaceName returns the name of the loopback interface
 func (n *networkNamespace) GetLoopbackIfaceName() string {
 	return "lo"
 }
 
+// AddAliasIP adds the passed IP address to the named interface
 func (n *networkNamespace) AddAliasIP(ifName string, ip *net.IPNet) error {
 	iface, err := n.nlHandle.LinkByName(ifName)
 	if err != nil {
@@ -366,6 +375,7 @@ func (n *networkNamespace) AddAliasIP(ifName string, ip *net.IPNet) error {
 	return n.nlHandle.AddrAdd(iface, &netlink.Addr{IPNet: ip})
 }
 
+// RemoveAliasIP removes the passed IP address from the named interface
 func (n *networkNamespace) RemoveAliasIP(ifName string, ip *net.IPNet) error {
 	iface, err := n.nlHandle.LinkByName(ifName)
 	if err != nil {
@@ -374,6 +384,8 @@ func (n *networkNamespace) RemoveAliasIP(ifName string, ip *net.IPNet) error {
 	return n.nlHandle.AddrDel(iface, &netlink.Addr{IPNet: ip})
 }
 
+// DisableARPForVIP disables ARP replies and requests for VIP addresses
+// on a particular interface.
 func (n *networkNamespace) DisableARPForVIP(srcName string) (Err error) {
 	dstName := ""
 	for _, i := range n.Interfaces() {
@@ -404,6 +416,7 @@ func (n *networkNamespace) DisableARPForVIP(srcName string) (Err error) {
 	return
 }
 
+// InvokeFunc invoke a function in the network namespace.
 func (n *networkNamespace) InvokeFunc(f func()) error {
 	path := n.nsPath()
 	newNS, err := netns.GetFromPath(path)
@@ -455,10 +468,12 @@ func (n *networkNamespace) nsPath() string {
 	return n.path
 }
 
+// Key returns the path where the network namespace is mounted.
 func (n *networkNamespace) Key() string {
 	return n.path
 }
 
+// Destroy destroys the sandbox.
 func (n *networkNamespace) Destroy() error {
 	if n.nlHandle != nil {
 		n.nlHandle.Close()
@@ -474,7 +489,7 @@ func (n *networkNamespace) Destroy() error {
 	return nil
 }
 
-// Restore restore the network namespace
+// Restore restores the network namespace.
 func (n *networkNamespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
 	// restore interfaces
 	for name, opts := range ifsopt {
@@ -602,7 +617,7 @@ func (n *networkNamespace) checkLoV6() {
 	n.loV6Enabled = enable
 }
 
-// ApplyOSTweaks applies linux configs on the sandbox
+// ApplyOSTweaks applies operating system specific knobs on the sandbox.
 func (n *networkNamespace) ApplyOSTweaks(types []SandboxType) {
 	for _, t := range types {
 		switch t {
