@@ -22,7 +22,7 @@ type Iface struct {
 }
 
 // IfaceOption is a function option type to set interface options.
-type IfaceOption func(i *nwIface)
+type IfaceOption func(i *nwIface) error
 
 // NeighOption is a function option type to set neighbor options.
 type NeighOption func(nh *neigh)
@@ -77,9 +77,6 @@ type Sandbox interface {
 	// DeleteNeighbor deletes neighbor entry from the sandbox.
 	DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, osDelete bool) error
 
-	// InterfaceOptions an interface with methods to set interface options.
-	InterfaceOptions() IfaceOptionSetter
-
 	// InvokeFunc invoke a function in the network namespace.
 	InvokeFunc(func()) error
 
@@ -93,32 +90,6 @@ type Sandbox interface {
 	ApplyOSTweaks([]SandboxType)
 
 	Info
-}
-
-// IfaceOptionSetter interface defines the option setter methods for interface options.
-type IfaceOptionSetter interface {
-	// Bridge returns an option setter to set if the interface is a bridge.
-	Bridge(bool) IfaceOption
-
-	// MacAddress returns an option setter to set the MAC address.
-	MacAddress(net.HardwareAddr) IfaceOption
-
-	// Address returns an option setter to set IPv4 address.
-	Address(*net.IPNet) IfaceOption
-
-	// AddressIPv6 returns an option setter to set IPv6 address.
-	AddressIPv6(*net.IPNet) IfaceOption
-
-	// LinkLocalAddresses returns an option setter to set the link-local IP addresses.
-	LinkLocalAddresses([]*net.IPNet) IfaceOption
-
-	// Master returns an option setter to set the master interface if any for this
-	// interface. The master interface name should refer to the srcname of a
-	// previously added interface of type bridge.
-	Master(string) IfaceOption
-
-	// Routes returns an option setter to set interface routes.
-	Routes([]*net.IPNet) IfaceOption
 }
 
 // Info represents all possible information that

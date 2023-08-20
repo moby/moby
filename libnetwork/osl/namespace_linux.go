@@ -343,11 +343,6 @@ func (n *networkNamespace) Interfaces() []Interface {
 	return ifaces
 }
 
-// InterfaceOptions an interface with methods to set interface options.
-func (n *networkNamespace) InterfaceOptions() IfaceOptionSetter {
-	return n
-}
-
 func (n *networkNamespace) loopbackUp() error {
 	iface, err := n.nlHandle.LinkByName("lo")
 	if err != nil {
@@ -493,7 +488,9 @@ func (n *networkNamespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*typ
 			dstName: name.DstPrefix,
 			ns:      n,
 		}
-		i.processInterfaceOptions(opts...)
+		if err := i.processInterfaceOptions(opts...); err != nil {
+			return err
+		}
 		if i.master != "" {
 			i.dstMaster = n.findDst(i.master, true)
 			if i.dstMaster == "" {

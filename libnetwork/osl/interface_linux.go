@@ -190,7 +190,9 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 		dstName: dstPrefix,
 		ns:      n,
 	}
-	i.processInterfaceOptions(options...)
+	if err := i.processInterfaceOptions(options...); err != nil {
+		return err
+	}
 
 	if i.master != "" {
 		i.dstMaster = n.findDst(i.master, true)

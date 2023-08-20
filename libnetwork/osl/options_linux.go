@@ -24,61 +24,72 @@ func WithFamily(family int) NeighOption {
 	}
 }
 
-func (i *nwIface) processInterfaceOptions(options ...IfaceOption) {
+func (i *nwIface) processInterfaceOptions(options ...IfaceOption) error {
 	for _, opt := range options {
 		if opt != nil {
-			opt(i)
+			// TODO(thaJeztah): use multi-error instead of returning early.
+			if err := opt(i); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
-// Bridge returns an option setter to set if the interface is a bridge.
-func (n *networkNamespace) Bridge(isBridge bool) IfaceOption {
-	return func(i *nwIface) {
+// WithIsBridge sets whether the interface is a bridge.
+func WithIsBridge(isBridge bool) IfaceOption {
+	return func(i *nwIface) error {
 		i.bridge = isBridge
+		return nil
 	}
 }
 
-// Master returns an option setter to set the master interface if any for this
-// interface. The master interface name should refer to the srcname of a
-// previously added interface of type bridge.
-func (n *networkNamespace) Master(name string) IfaceOption {
-	return func(i *nwIface) {
+// WithMaster sets the master interface (if any) for this interface. The
+// master interface name should refer to the srcName of a previously added
+// interface of type bridge.
+func WithMaster(name string) IfaceOption {
+	return func(i *nwIface) error {
 		i.master = name
+		return nil
 	}
 }
 
-// MacAddress returns an option setter to set the MAC address.
-func (n *networkNamespace) MacAddress(mac net.HardwareAddr) IfaceOption {
-	return func(i *nwIface) {
+// WithMACAddress sets the interface MAC-address.
+func WithMACAddress(mac net.HardwareAddr) IfaceOption {
+	return func(i *nwIface) error {
 		i.mac = mac
+		return nil
 	}
 }
 
-// Address returns an option setter to set IPv4 address.
-func (n *networkNamespace) Address(addr *net.IPNet) IfaceOption {
-	return func(i *nwIface) {
+// WithIPv4Address sets the IPv4 address of the interface.
+func WithIPv4Address(addr *net.IPNet) IfaceOption {
+	return func(i *nwIface) error {
 		i.address = addr
+		return nil
 	}
 }
 
-// AddressIPv6 returns an option setter to set IPv6 address.
-func (n *networkNamespace) AddressIPv6(addr *net.IPNet) IfaceOption {
-	return func(i *nwIface) {
+// WithIPv6Address sets the IPv6 address of the interface.
+func WithIPv6Address(addr *net.IPNet) IfaceOption {
+	return func(i *nwIface) error {
 		i.addressIPv6 = addr
+		return nil
 	}
 }
 
-// LinkLocalAddresses returns an option setter to set the link-local IP addresses.
-func (n *networkNamespace) LinkLocalAddresses(list []*net.IPNet) IfaceOption {
-	return func(i *nwIface) {
+// WithLinkLocalAddresses set the link-local IP addresses of the interface.
+func WithLinkLocalAddresses(list []*net.IPNet) IfaceOption {
+	return func(i *nwIface) error {
 		i.llAddrs = list
+		return nil
 	}
 }
 
-// Routes returns an option setter to set interface routes.
-func (n *networkNamespace) Routes(routes []*net.IPNet) IfaceOption {
-	return func(i *nwIface) {
+// WithRoutes sets the interface routes.
+func WithRoutes(routes []*net.IPNet) IfaceOption {
+	return func(i *nwIface) error {
 		i.routes = routes
+		return nil
 	}
 }

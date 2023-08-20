@@ -199,17 +199,17 @@ func (sb *Sandbox) restoreOslSandbox() error {
 		}
 
 		ifaceOptions := []osl.IfaceOption{
-			sb.osSbox.InterfaceOptions().Address(i.addr),
-			sb.osSbox.InterfaceOptions().Routes(i.routes),
+			osl.WithIPv4Address(i.addr),
+			osl.WithRoutes(i.routes),
 		}
 		if i.addrv6 != nil && i.addrv6.IP.To16() != nil {
-			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().AddressIPv6(i.addrv6))
+			ifaceOptions = append(ifaceOptions, osl.WithIPv6Address(i.addrv6))
 		}
 		if i.mac != nil {
-			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().MacAddress(i.mac))
+			ifaceOptions = append(ifaceOptions, osl.WithMACAddress(i.mac))
 		}
 		if len(i.llAddrs) != 0 {
-			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().LinkLocalAddresses(i.llAddrs))
+			ifaceOptions = append(ifaceOptions, osl.WithLinkLocalAddresses(i.llAddrs))
 		}
 		interfaces[osl.Iface{SrcName: i.srcName, DstPrefix: i.dstPrefix}] = ifaceOptions
 		if joinInfo != nil {
@@ -251,15 +251,15 @@ func (sb *Sandbox) populateNetworkResources(ep *Endpoint) error {
 	if i != nil && i.srcName != "" {
 		var ifaceOptions []osl.IfaceOption
 
-		ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().Address(i.addr), sb.osSbox.InterfaceOptions().Routes(i.routes))
+		ifaceOptions = append(ifaceOptions, osl.WithIPv4Address(i.addr), osl.WithRoutes(i.routes))
 		if i.addrv6 != nil && i.addrv6.IP.To16() != nil {
-			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().AddressIPv6(i.addrv6))
+			ifaceOptions = append(ifaceOptions, osl.WithIPv6Address(i.addrv6))
 		}
 		if len(i.llAddrs) != 0 {
-			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().LinkLocalAddresses(i.llAddrs))
+			ifaceOptions = append(ifaceOptions, osl.WithLinkLocalAddresses(i.llAddrs))
 		}
 		if i.mac != nil {
-			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().MacAddress(i.mac))
+			ifaceOptions = append(ifaceOptions, osl.WithMACAddress(i.mac))
 		}
 
 		if err := sb.osSbox.AddInterface(i.srcName, i.dstPrefix, ifaceOptions...); err != nil {

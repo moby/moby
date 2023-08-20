@@ -409,9 +409,9 @@ func TestSandboxCreate(t *testing.T) {
 
 	for _, i := range tbox.Interfaces() {
 		err = s.AddInterface(i.SrcName(), i.DstName(),
-			tbox.InterfaceOptions().Bridge(i.Bridge()),
-			tbox.InterfaceOptions().Address(i.Address()),
-			tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6()))
+			WithIsBridge(i.Bridge()),
+			WithIPv4Address(i.Address()),
+			WithIPv6Address(i.AddressIPv6()))
 		if err != nil {
 			t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 		}
@@ -508,9 +508,10 @@ func TestAddRemoveInterface(t *testing.T) {
 
 	for _, i := range tbox.Interfaces() {
 		err = s.AddInterface(i.SrcName(), i.DstName(),
-			tbox.InterfaceOptions().Bridge(i.Bridge()),
-			tbox.InterfaceOptions().Address(i.Address()),
-			tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6()))
+			WithIsBridge(i.Bridge()),
+			WithIPv4Address(i.Address()),
+			WithIPv6Address(i.AddressIPv6()),
+		)
 		if err != nil {
 			t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 		}
@@ -526,10 +527,12 @@ func TestAddRemoveInterface(t *testing.T) {
 	verifySandbox(t, s, []string{"1", "2"})
 
 	i := tbox.Interfaces()[0]
-	if err := s.AddInterface(i.SrcName(), i.DstName(),
-		tbox.InterfaceOptions().Bridge(i.Bridge()),
-		tbox.InterfaceOptions().Address(i.Address()),
-		tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6())); err != nil {
+	err = s.AddInterface(i.SrcName(), i.DstName(),
+		WithIsBridge(i.Bridge()),
+		WithIPv4Address(i.Address()),
+		WithIPv6Address(i.AddressIPv6()),
+	)
+	if err != nil {
 		t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 	}
 
