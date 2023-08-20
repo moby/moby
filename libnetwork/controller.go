@@ -92,9 +92,7 @@ type Controller struct {
 	svcRecords       map[string]*svcInfo
 	nmap             map[string]*netWatch
 	serviceBindings  map[serviceKey]*service
-	defOsSbox        osl.Sandbox
 	ingressSandbox   *Sandbox
-	sboxOnce         sync.Once
 	agent            *nwAgent
 	networkLocker    *locker.Locker
 	agentInitDone    chan struct{}
@@ -102,6 +100,10 @@ type Controller struct {
 	keys             []*types.EncryptionKey
 	DiagnosticServer *diagnostic.Server
 	mu               sync.Mutex
+
+	// FIXME(thaJeztah): defOsSbox is always nil on non-Linux: move these fields to Linux-only files.
+	defOsSboxOnce sync.Once
+	defOsSbox     osl.Sandbox
 }
 
 // New creates a new instance of network controller.
@@ -937,38 +939,8 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (_
 	if err := sb.setupResolutionFiles(); err != nil {
 		return nil, err
 	}
-
-	if sb.config.useDefaultSandBox {
-		var err error
-		c.sboxOnce.Do(func() {
-			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false, false)
-		})
-
-		if err != nil {
-			c.sboxOnce = sync.Once{}
-			return nil, fmt.Errorf("failed to create default sandbox: %v", err)
-		}
-
-		sb.osSbox = c.defOsSbox
-	}
-
-	if sb.osSbox == nil && !sb.config.useExternalKey {
-		var err error
-		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox, false); err != nil {
-			return nil, fmt.Errorf("failed to create new osl sandbox: %v", err)
-		}
-	}
-
-	if sb.osSbox != nil {
-		// Apply operating specific knobs on the load balancer sandbox
-		err := sb.osSbox.InvokeFunc(func() {
-			sb.osSbox.ApplyOSTweaks(sb.oslTypes)
-		})
-		if err != nil {
-			log.G(context.TODO()).Errorf("Failed to apply performance tuning sysctls to the sandbox: %v", err)
-		}
-		// Keep this just so performance is not changed
-		sb.osSbox.ApplyOSTweaks(sb.oslTypes)
+	if err := c.setupOSLSandbox(sb); err != nil {
+		return nil, err
 	}
 
 	c.mu.Lock()

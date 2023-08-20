@@ -6,3 +6,7 @@ package libnetwork
 func (c *Controller) enabledIptablesVersions() []any {
 	return nil
 }
+
+func (c *Controller) setupOSLSandbox(_ *Sandbox) error {
+	return nil
+}
