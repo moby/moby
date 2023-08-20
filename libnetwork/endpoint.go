@@ -25,7 +25,7 @@ type Endpoint struct {
 	name              string
 	id                string
 	network           *Network
-	iface             *endpointInterface
+	iface             *EndpointInterface
 	joinInfo          *endpointJoinInfo
 	sandboxID         string
 	exposedPorts      []types.TransportPort
@@ -223,7 +223,7 @@ func (ep *Endpoint) CopyTo(o datastore.KVObject) error {
 	copy(dstEp.ingressPorts, ep.ingressPorts)
 
 	if ep.iface != nil {
-		dstEp.iface = &endpointInterface{}
+		dstEp.iface = &EndpointInterface{}
 		if err := ep.iface.CopyTo(dstEp.iface); err != nil {
 			return err
 		}
