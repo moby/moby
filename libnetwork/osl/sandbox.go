@@ -86,9 +86,6 @@ type Sandbox interface {
 	// InvokeFunc invoke a function in the network namespace.
 	InvokeFunc(func()) error
 
-	// Info returns an interface with methods to get sandbox state.
-	Info() Info
-
 	// Destroy destroys the sandbox.
 	Destroy() error
 
@@ -97,6 +94,8 @@ type Sandbox interface {
 
 	// ApplyOSTweaks applies operating system specific knobs on the sandbox.
 	ApplyOSTweaks([]SandboxType)
+
+	Info
 }
 
 // NeighborOptionSetter interface defines the option setter methods for interface options

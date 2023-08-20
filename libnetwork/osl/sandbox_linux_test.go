@@ -407,7 +407,7 @@ func TestSandboxCreate(t *testing.T) {
 		t.Fatalf("Failed to generate new sandbox info: %v", err)
 	}
 
-	for _, i := range tbox.Info().Interfaces() {
+	for _, i := range tbox.Interfaces() {
 		err = s.AddInterface(i.SrcName(), i.DstName(),
 			tbox.InterfaceOptions().Bridge(i.Bridge()),
 			tbox.InterfaceOptions().Address(i.Address()),
@@ -417,12 +417,12 @@ func TestSandboxCreate(t *testing.T) {
 		}
 	}
 
-	err = s.SetGateway(tbox.Info().Gateway())
+	err = s.SetGateway(tbox.Gateway())
 	if err != nil {
 		t.Fatalf("Failed to set gateway to sandbox: %v", err)
 	}
 
-	err = s.SetGatewayIPv6(tbox.Info().GatewayIPv6())
+	err = s.SetGatewayIPv6(tbox.GatewayIPv6())
 	if err != nil {
 		t.Fatalf("Failed to set ipv6 gateway to sandbox: %v", err)
 	}
@@ -506,7 +506,7 @@ func TestAddRemoveInterface(t *testing.T) {
 		t.Fatalf("Failed to generate new sandbox info: %v", err)
 	}
 
-	for _, i := range tbox.Info().Interfaces() {
+	for _, i := range tbox.Interfaces() {
 		err = s.AddInterface(i.SrcName(), i.DstName(),
 			tbox.InterfaceOptions().Bridge(i.Bridge()),
 			tbox.InterfaceOptions().Address(i.Address()),
@@ -518,14 +518,14 @@ func TestAddRemoveInterface(t *testing.T) {
 
 	verifySandbox(t, s, []string{"0", "1", "2"})
 
-	interfaces := s.Info().Interfaces()
+	interfaces := s.Interfaces()
 	if err := interfaces[0].Remove(); err != nil {
 		t.Fatalf("Failed to remove interfaces from sandbox: %v", err)
 	}
 
 	verifySandbox(t, s, []string{"1", "2"})
 
-	i := tbox.Info().Interfaces()[0]
+	i := tbox.Interfaces()[0]
 	if err := s.AddInterface(i.SrcName(), i.DstName(),
 		tbox.InterfaceOptions().Bridge(i.Bridge()),
 		tbox.InterfaceOptions().Address(i.Address()),
