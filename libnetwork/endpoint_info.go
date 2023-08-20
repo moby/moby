@@ -169,7 +169,10 @@ type tableEntry struct {
 	value     []byte
 }
 
-// Info returns certain operational data belonging to this endpoint.
+// Info hydrates the endpoint and returns certain operational data belonging
+// to this endpoint.
+//
+// TODO(thaJeztah): make sure that Endpoint is always fully hydrated, and remove the EndpointInfo interface, and use Endpoint directly.
 func (ep *Endpoint) Info() EndpointInfo {
 	if ep.sandboxID != "" {
 		return ep
@@ -194,6 +197,9 @@ func (ep *Endpoint) Info() EndpointInfo {
 	return sb.getEndpoint(ep.ID())
 }
 
+// Iface returns information about the interface which was assigned to
+// the endpoint by the driver. This can be used after the
+// endpoint has been created.
 func (ep *Endpoint) Iface() *EndpointInterface {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
@@ -290,6 +296,8 @@ func (ep *Endpoint) InterfaceName() driverapi.InterfaceNameInfo {
 	return nil
 }
 
+// AddStaticRoute adds a route to the sandbox.
+// It may be used in addition to or instead of a default gateway (as above).
 func (ep *Endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
@@ -306,6 +314,8 @@ func (ep *Endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHo
 	return nil
 }
 
+// AddTableEntry adds a table entry to the gossip layer
+// passing the table name, key and an opaque value.
 func (ep *Endpoint) AddTableEntry(tableName, key string, value []byte) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
@@ -319,6 +329,7 @@ func (ep *Endpoint) AddTableEntry(tableName, key string, value []byte) error {
 	return nil
 }
 
+// Sandbox returns the attached sandbox if there, nil otherwise.
 func (ep *Endpoint) Sandbox() *Sandbox {
 	cnt, ok := ep.getSandbox()
 	if !ok {
@@ -327,12 +338,15 @@ func (ep *Endpoint) Sandbox() *Sandbox {
 	return cnt
 }
 
+// LoadBalancer returns whether the endpoint is the load balancer endpoint for the network.
 func (ep *Endpoint) LoadBalancer() bool {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 	return ep.loadBalancer
 }
 
+// StaticRoutes returns the list of static routes configured by the network
+// driver when the container joins a network
 func (ep *Endpoint) StaticRoutes() []*types.StaticRoute {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
@@ -344,6 +358,8 @@ func (ep *Endpoint) StaticRoutes() []*types.StaticRoute {
 	return ep.joinInfo.StaticRoutes
 }
 
+// Gateway returns the IPv4 gateway assigned by the driver.
+// This will only return a valid value if a container has joined the endpoint.
 func (ep *Endpoint) Gateway() net.IP {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
@@ -355,6 +371,8 @@ func (ep *Endpoint) Gateway() net.IP {
 	return types.GetIPCopy(ep.joinInfo.gw)
 }
 
+// GatewayIPv6 returns the IPv6 gateway assigned by the driver.
+// This will only return a valid value if a container has joined the endpoint.
 func (ep *Endpoint) GatewayIPv6() net.IP {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
@@ -366,6 +384,7 @@ func (ep *Endpoint) GatewayIPv6() net.IP {
 	return types.GetIPCopy(ep.joinInfo.gw6)
 }
 
+// SetGateway sets the default IPv4 gateway when a container joins the endpoint.
 func (ep *Endpoint) SetGateway(gw net.IP) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
@@ -374,6 +393,7 @@ func (ep *Endpoint) SetGateway(gw net.IP) error {
 	return nil
 }
 
+// SetGatewayIPv6 sets the default IPv6 gateway when a container joins the endpoint.
 func (ep *Endpoint) SetGatewayIPv6(gw6 net.IP) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
@@ -390,6 +410,7 @@ func (ep *Endpoint) retrieveFromStore() (*Endpoint, error) {
 	return n.getEndpointFromStore(ep.ID())
 }
 
+// DisableGatewayService tells libnetwork not to provide Default GW for the container
 func (ep *Endpoint) DisableGatewayService() {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
