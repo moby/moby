@@ -29,7 +29,7 @@ type neigh struct {
 	family   int
 }
 
-func (n *networkNamespace) findNeighbor(dstIP net.IP, dstMac net.HardwareAddr) *neigh {
+func (n *Namespace) findNeighbor(dstIP net.IP, dstMac net.HardwareAddr) *neigh {
 	n.Lock()
 	defer n.Unlock()
 
@@ -43,7 +43,7 @@ func (n *networkNamespace) findNeighbor(dstIP net.IP, dstMac net.HardwareAddr) *
 }
 
 // DeleteNeighbor deletes neighbor entry from the sandbox.
-func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, osDelete bool) error {
+func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, osDelete bool) error {
 	var (
 		iface netlink.Link
 		err   error
@@ -121,7 +121,7 @@ func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr,
 }
 
 // AddNeighbor adds a neighbor entry into the sandbox.
-func (n *networkNamespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, force bool, options ...NeighOption) error {
+func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, force bool, options ...NeighOption) error {
 	var (
 		iface                  netlink.Link
 		err                    error

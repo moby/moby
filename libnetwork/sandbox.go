@@ -35,7 +35,7 @@ type Sandbox struct {
 	containerID        string
 	config             containerConfig
 	extDNS             []extDNSEntry
-	osSbox             osl.Sandbox
+	osSbox             *osl.Namespace
 	controller         *Controller
 	resolver           *Resolver
 	resolverOnce       sync.Once

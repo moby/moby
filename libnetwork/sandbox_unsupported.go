@@ -4,7 +4,7 @@ package libnetwork
 
 import "github.com/docker/docker/libnetwork/osl"
 
-func releaseOSSboxResources(osl.Sandbox, *Endpoint) {}
+func releaseOSSboxResources(*osl.Namespace, *Endpoint) {}
 
 func (sb *Sandbox) updateGateway(*Endpoint) error {
 	// not implemented on Windows (Sandbox.osSbox is always nil)

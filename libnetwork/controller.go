@@ -103,7 +103,7 @@ type Controller struct {
 
 	// FIXME(thaJeztah): defOsSbox is always nil on non-Linux: move these fields to Linux-only files.
 	defOsSboxOnce sync.Once
-	defOsSbox     osl.Sandbox
+	defOsSbox     *osl.Namespace
 }
 
 // New creates a new instance of network controller.

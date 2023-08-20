@@ -40,7 +40,7 @@ func (c *Controller) enabledIptablesVersions() []iptables.IPVersion {
 
 // getDefaultOSLSandbox returns the controller's default [osl.Sandbox]. It
 // creates the sandbox if it does not yet exist.
-func (c *Controller) getDefaultOSLSandbox(key string) (osl.Sandbox, error) {
+func (c *Controller) getDefaultOSLSandbox(key string) (*osl.Namespace, error) {
 	var err error
 	c.defOsSboxOnce.Do(func() {
 		c.defOsSbox, err = osl.NewSandbox(key, false, false)
