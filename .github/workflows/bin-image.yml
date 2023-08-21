@@ -16,10 +16,11 @@ on:
 
 env:
   MOBYBIN_REPO_SLUG: moby/moby-bin
-  PLATFORM: Moby Engine
-  PRODUCT: Moby
-  DEFAULT_PRODUCT_LICENSE: Moby
-  PACKAGER_NAME: Moby
+  DOCKER_GITCOMMIT: ${{ github.sha }}
+  VERSION: ${{ github.ref }}
+  PLATFORM: Moby Engine - Nightly
+  PRODUCT: moby-bin
+  PACKAGER_NAME: The Moby Project
 
 jobs:
   validate-dco:
@@ -113,8 +114,6 @@ jobs:
         name: Build
         id: bake
         uses: docker/bake-action@v3
-        env:
-          DOCKER_GITCOMMIT: ${{ github.sha }}
         with:
           files: |
             ./docker-bake.hcl
