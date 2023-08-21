@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
@@ -149,8 +150,10 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 				ID: container.ID,
 			}
 			if err := ls.Delete(context.Background(), lease, leases.SynchronousDelete); err != nil {
-				container.SetRemovalError(err)
-				return err
+				if !cerrdefs.IsNotFound(err) {
+					container.SetRemovalError(err)
+					return err
+				}
 			}
 		}
 	}
