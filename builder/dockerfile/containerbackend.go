@@ -141,6 +141,6 @@ func (c *containerManager) RemoveAll(stdout io.Writer) {
 			return
 		}
 		delete(c.tmpContainers, containerID)
-		fmt.Fprintf(stdout, "Removing intermediate container %s\n", stringid.TruncateID(containerID))
+		_, _ = fmt.Fprintf(stdout, " ---> Removed intermediate container %s\n", stringid.TruncateID(containerID))
 	}
 }
