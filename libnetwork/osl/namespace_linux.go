@@ -493,8 +493,7 @@ func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.
 		if i.master != "" {
 			i.dstMaster = n.findDst(i.master, true)
 			if i.dstMaster == "" {
-				return fmt.Errorf("could not find an appropriate master %q for %q",
-					i.master, i.srcName)
+				return fmt.Errorf("could not find an appropriate master %q for %q", i.master, i.srcName)
 			}
 		}
 		if n.isDefault {
@@ -512,11 +511,9 @@ func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.
 					return err
 				}
 				ifaceName := link.Attrs().Name
-				if strings.HasPrefix(ifaceName, "vxlan") {
-					if i.dstName == "vxlan" {
-						i.dstName = ifaceName
-						break
-					}
+				if i.dstName == "vxlan" && strings.HasPrefix(ifaceName, "vxlan") {
+					i.dstName = ifaceName
+					break
 				}
 				// find the interface name by ip
 				if i.address != nil {
@@ -525,26 +522,22 @@ func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.
 							i.dstName = ifaceName
 							break
 						}
-						continue
 					}
 					if i.dstName == ifaceName {
 						break
 					}
 				}
 				// This is to find the interface name of the pair in overlay sandbox
-				if strings.HasPrefix(ifaceName, "veth") {
-					if i.master != "" && i.dstName == "veth" {
-						i.dstName = ifaceName
-					}
+				if i.master != "" && i.dstName == "veth" && strings.HasPrefix(ifaceName, "veth") {
+					i.dstName = ifaceName
 				}
 			}
 
 			var index int
-			indexStr := strings.TrimPrefix(i.dstName, iface.DstPrefix)
-			if indexStr != "" {
-				index, err = strconv.Atoi(indexStr)
+			if idx := strings.TrimPrefix(i.dstName, iface.DstPrefix); idx != "" {
+				index, err = strconv.Atoi(idx)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to restore interface in network namespace %q: invalid dstName for interface: %s: %v", n.path, i.dstName, err)
 				}
 			}
 			index++
