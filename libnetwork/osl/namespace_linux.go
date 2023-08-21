@@ -557,26 +557,16 @@ func (n *Namespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.Stat
 		}
 	}
 
-	// restore routes
-	for _, r := range routes {
-		n.mu.Lock()
-		n.staticRoutes = append(n.staticRoutes, r)
-		n.mu.Unlock()
-	}
-
-	// restore gateway
+	// restore routes and gateways
+	n.mu.Lock()
+	n.staticRoutes = append(n.staticRoutes, routes...)
 	if len(gw) > 0 {
-		n.mu.Lock()
 		n.gw = gw
-		n.mu.Unlock()
 	}
-
 	if len(gw6) > 0 {
-		n.mu.Lock()
 		n.gwv6 = gw6
-		n.mu.Unlock()
 	}
-
+	n.mu.Unlock()
 	return nil
 }
 

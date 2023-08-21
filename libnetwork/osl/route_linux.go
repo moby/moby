@@ -40,18 +40,6 @@ func (n *Namespace) StaticRoutes() []*types.StaticRoute {
 	return routes
 }
 
-func (n *Namespace) setGateway(gw net.IP) {
-	n.mu.Lock()
-	n.gw = gw
-	n.mu.Unlock()
-}
-
-func (n *Namespace) setGatewayIPv6(gwv6 net.IP) {
-	n.mu.Lock()
-	n.gwv6 = gwv6
-	n.mu.Unlock()
-}
-
 // SetGateway sets the default IPv4 gateway for the sandbox. It is a no-op
 // if the given gateway is empty.
 func (n *Namespace) SetGateway(gw net.IP) error {
@@ -62,7 +50,9 @@ func (n *Namespace) SetGateway(gw net.IP) error {
 	if err := n.programGateway(gw, true); err != nil {
 		return err
 	}
-	n.setGateway(gw)
+	n.mu.Lock()
+	n.gw = gw
+	n.mu.Unlock()
 	return nil
 }
 
@@ -77,7 +67,9 @@ func (n *Namespace) UnsetGateway() error {
 	if err := n.programGateway(gw, false); err != nil {
 		return err
 	}
-	n.setGateway(net.IP{})
+	n.mu.Lock()
+	n.gw = net.IP{}
+	n.mu.Unlock()
 	return nil
 }
 
@@ -155,7 +147,9 @@ func (n *Namespace) SetGatewayIPv6(gwv6 net.IP) error {
 		return err
 	}
 
-	n.setGatewayIPv6(gwv6)
+	n.mu.Lock()
+	n.gwv6 = gwv6
+	n.mu.Unlock()
 	return nil
 }
 
