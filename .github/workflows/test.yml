@@ -166,6 +166,7 @@ jobs:
 
   unit-report:
     runs-on: ubuntu-20.04
+    timeout-minutes: 10
     if: always()
     needs:
       - unit
@@ -354,6 +355,7 @@ jobs:
 
   integration-report:
     runs-on: ubuntu-20.04
+    timeout-minutes: 10
     if: always()
     needs:
       - integration
@@ -482,6 +484,7 @@ jobs:
 
   integration-cli-report:
     runs-on: ubuntu-20.04
+    timeout-minutes: 10
     if: always()
     needs:
       - integration-cli
