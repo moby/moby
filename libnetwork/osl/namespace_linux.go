@@ -328,7 +328,7 @@ type Namespace struct {
 	isDefault    bool
 	nlHandle     *netlink.Handle
 	loV6Enabled  bool
-	sync.Mutex
+	mu           sync.Mutex
 }
 
 // Interfaces returns the collection of Interface previously added with the AddInterface
@@ -450,8 +450,8 @@ func (n *Namespace) InvokeFunc(f func()) error {
 }
 
 func (n *Namespace) nsPath() string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.path
 }
@@ -547,33 +547,33 @@ func (n *Namespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.Stat
 				}
 			}
 			index++
-			n.Lock()
+			n.mu.Lock()
 			if index > n.nextIfIndex[name.DstPrefix] {
 				n.nextIfIndex[name.DstPrefix] = index
 			}
 			n.iFaces = append(n.iFaces, i)
-			n.Unlock()
+			n.mu.Unlock()
 		}
 	}
 
 	// restore routes
 	for _, r := range routes {
-		n.Lock()
+		n.mu.Lock()
 		n.staticRoutes = append(n.staticRoutes, r)
-		n.Unlock()
+		n.mu.Unlock()
 	}
 
 	// restore gateway
 	if len(gw) > 0 {
-		n.Lock()
+		n.mu.Lock()
 		n.gw = gw
-		n.Unlock()
+		n.mu.Unlock()
 	}
 
 	if len(gw6) > 0 {
-		n.Lock()
+		n.mu.Lock()
 		n.gwv6 = gw6
-		n.Unlock()
+		n.mu.Unlock()
 	}
 
 	return nil
@@ -586,7 +586,7 @@ func (n *Namespace) checkLoV6() {
 		action = "disable"
 	)
 
-	n.Lock()
+	n.mu.Lock()
 	for _, iface := range n.iFaces {
 		if iface.AddressIPv6() != nil {
 			enable = true
@@ -594,7 +594,7 @@ func (n *Namespace) checkLoV6() {
 			break
 		}
 	}
-	n.Unlock()
+	n.mu.Unlock()
 
 	if n.loV6Enabled == enable {
 		return

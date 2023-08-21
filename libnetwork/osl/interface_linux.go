@@ -115,8 +115,8 @@ func (i *Interface) Statistics() (*types.InterfaceStatistics, error) {
 }
 
 func (n *Namespace) findDst(srcName string, isBridge bool) string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	for _, i := range n.iFaces {
 		// The master should match the srcname of the interface and the
@@ -152,7 +152,7 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 		}
 	}
 
-	n.Lock()
+	n.mu.Lock()
 	if n.isDefault {
 		i.dstName = i.srcName
 	} else {
@@ -164,7 +164,7 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 	isDefault := n.isDefault
 	nlh := n.nlHandle
 	nlhHost := ns.NlHandle()
-	n.Unlock()
+	n.mu.Unlock()
 
 	// If it is a bridge interface we have to create the bridge inside
 	// the namespace so don't try to lookup the interface using srcName
@@ -240,9 +240,9 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 		return fmt.Errorf("error setting interface %q routes to %q: %v", iface.Attrs().Name, i.Routes(), err)
 	}
 
-	n.Lock()
+	n.mu.Lock()
 	n.iFaces = append(n.iFaces, i)
-	n.Unlock()
+	n.mu.Unlock()
 
 	n.checkLoV6()
 
@@ -252,10 +252,10 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 // RemoveInterface removes an interface from the namespace by renaming to
 // original name and moving it out of the sandbox.
 func (n *Namespace) RemoveInterface(i *Interface) error {
-	n.Lock()
+	n.mu.Lock()
 	isDefault := n.isDefault
 	nlh := n.nlHandle
-	n.Unlock()
+	n.mu.Unlock()
 
 	// Find the network interface identified by the DstName attribute.
 	iface, err := nlh.LinkByName(i.DstName())
@@ -287,14 +287,14 @@ func (n *Namespace) RemoveInterface(i *Interface) error {
 		}
 	}
 
-	n.Lock()
+	n.mu.Lock()
 	for index, intf := range i.ns.iFaces {
 		if intf == i {
 			i.ns.iFaces = append(i.ns.iFaces[:index], i.ns.iFaces[index+1:]...)
 			break
 		}
 	}
-	n.Unlock()
+	n.mu.Unlock()
 
 	n.checkLoV6()
 	return nil

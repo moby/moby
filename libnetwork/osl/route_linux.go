@@ -10,16 +10,16 @@ import (
 
 // Gateway returns the IPv4 gateway for the sandbox.
 func (n *Namespace) Gateway() net.IP {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.gw
 }
 
 // GatewayIPv6 returns the IPv6 gateway for the sandbox.
 func (n *Namespace) GatewayIPv6() net.IP {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.gwv6
 }
@@ -28,8 +28,8 @@ func (n *Namespace) GatewayIPv6() net.IP {
 // directly connected routes are stored on the particular interface they
 // refer to.
 func (n *Namespace) StaticRoutes() []*types.StaticRoute {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	routes := make([]*types.StaticRoute, len(n.staticRoutes))
 	for i, route := range n.staticRoutes {
@@ -41,15 +41,15 @@ func (n *Namespace) StaticRoutes() []*types.StaticRoute {
 }
 
 func (n *Namespace) setGateway(gw net.IP) {
-	n.Lock()
+	n.mu.Lock()
 	n.gw = gw
-	n.Unlock()
+	n.mu.Unlock()
 }
 
 func (n *Namespace) setGatewayIPv6(gwv6 net.IP) {
-	n.Lock()
+	n.mu.Lock()
 	n.gwv6 = gwv6
-	n.Unlock()
+	n.mu.Unlock()
 }
 
 // SetGateway sets the default IPv4 gateway for the sandbox.
@@ -173,9 +173,9 @@ func (n *Namespace) UnsetGatewayIPv6() error {
 
 	err := n.programGateway(gwv6, false)
 	if err == nil {
-		n.Lock()
+		n.mu.Lock()
 		n.gwv6 = net.IP{}
-		n.Unlock()
+		n.mu.Unlock()
 	}
 
 	return err
@@ -185,9 +185,9 @@ func (n *Namespace) UnsetGatewayIPv6() error {
 func (n *Namespace) AddStaticRoute(r *types.StaticRoute) error {
 	err := n.programRoute(n.nsPath(), r.Destination, r.NextHop)
 	if err == nil {
-		n.Lock()
+		n.mu.Lock()
 		n.staticRoutes = append(n.staticRoutes, r)
-		n.Unlock()
+		n.mu.Unlock()
 	}
 	return err
 }
@@ -196,7 +196,7 @@ func (n *Namespace) AddStaticRoute(r *types.StaticRoute) error {
 func (n *Namespace) RemoveStaticRoute(r *types.StaticRoute) error {
 	err := n.removeRoute(n.nsPath(), r.Destination, r.NextHop)
 	if err == nil {
-		n.Lock()
+		n.mu.Lock()
 		lastIndex := len(n.staticRoutes) - 1
 		for i, v := range n.staticRoutes {
 			if v == r {
@@ -207,7 +207,7 @@ func (n *Namespace) RemoveStaticRoute(r *types.StaticRoute) error {
 				break
 			}
 		}
-		n.Unlock()
+		n.mu.Unlock()
 	}
 	return err
 }
