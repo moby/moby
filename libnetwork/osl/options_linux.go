@@ -24,18 +24,6 @@ func WithFamily(family int) NeighOption {
 	}
 }
 
-func (i *Interface) processInterfaceOptions(options ...IfaceOption) error {
-	for _, opt := range options {
-		if opt != nil {
-			// TODO(thaJeztah): use multi-error instead of returning early.
-			if err := opt(i); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 // WithIsBridge sets whether the interface is a bridge.
 func WithIsBridge(isBridge bool) IfaceOption {
 	return func(i *Interface) error {

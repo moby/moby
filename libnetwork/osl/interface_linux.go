@@ -14,6 +14,31 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+// newInterface creates a new interface in the given namespace using the
+// provided options.
+func newInterface(ns *Namespace, srcName, dstPrefix string, options ...IfaceOption) (*Interface, error) {
+	i := &Interface{
+		srcName: srcName,
+		dstName: dstPrefix,
+		ns:      ns,
+	}
+	for _, opt := range options {
+		if opt != nil {
+			// TODO(thaJeztah): use multi-error instead of returning early.
+			if err := opt(i); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if i.master != "" {
+		i.dstMaster = ns.findDst(i.master, true)
+		if i.dstMaster == "" {
+			return nil, fmt.Errorf("could not find an appropriate master %q for %q", i.master, i.srcName)
+		}
+	}
+	return i, nil
+}
+
 // Interface represents the settings and identity of a network device.
 // It is used as a return type for Network.Link, and it is common practice
 // for the caller to use this information when moving interface SrcName from
@@ -135,21 +160,9 @@ func (n *Namespace) findDst(srcName string, isBridge bool) string {
 // to only provide a prefix for DstName. The AddInterface api will auto-generate
 // an appropriate suffix for the DstName to disambiguate.
 func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOption) error {
-	i := &Interface{
-		srcName: srcName,
-		dstName: dstPrefix,
-		ns:      n,
-	}
-	if err := i.processInterfaceOptions(options...); err != nil {
+	i, err := newInterface(n, srcName, dstPrefix, options...)
+	if err != nil {
 		return err
-	}
-
-	if i.master != "" {
-		i.dstMaster = n.findDst(i.master, true)
-		if i.dstMaster == "" {
-			return fmt.Errorf("could not find an appropriate master %q for %q",
-				i.master, i.srcName)
-		}
 	}
 
 	n.mu.Lock()

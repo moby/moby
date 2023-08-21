@@ -482,19 +482,9 @@ func (n *Namespace) Destroy() error {
 func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
 	// restore interfaces
 	for iface, opts := range interfaces {
-		i := &Interface{
-			srcName: iface.SrcName,
-			dstName: iface.DstPrefix,
-			ns:      n,
-		}
-		if err := i.processInterfaceOptions(opts...); err != nil {
+		i, err := newInterface(n, iface.SrcName, iface.DstPrefix, opts...)
+		if err != nil {
 			return err
-		}
-		if i.master != "" {
-			i.dstMaster = n.findDst(i.master, true)
-			if i.dstMaster == "" {
-				return fmt.Errorf("could not find an appropriate master %q for %q", i.master, i.srcName)
-			}
 		}
 		if n.isDefault {
 			i.dstName = i.srcName
