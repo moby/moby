@@ -479,12 +479,12 @@ func (n *Namespace) Destroy() error {
 }
 
 // Restore restores the network namespace.
-func (n *Namespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
+func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
 	// restore interfaces
-	for name, opts := range ifsopt {
+	for iface, opts := range interfaces {
 		i := &Interface{
-			srcName: name.SrcName,
-			dstName: name.DstPrefix,
+			srcName: iface.SrcName,
+			dstName: iface.DstPrefix,
 			ns:      n,
 		}
 		if err := i.processInterfaceOptions(opts...); err != nil {
@@ -507,7 +507,7 @@ func (n *Namespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.Stat
 			// due to the docker network connect/disconnect, so the dstName should
 			// restore from the namespace
 			for _, link := range links {
-				addrs, err := n.nlHandle.AddrList(link, netlink.FAMILY_V4)
+				addresses, err := n.nlHandle.AddrList(link, netlink.FAMILY_V4)
 				if err != nil {
 					return err
 				}
@@ -520,7 +520,7 @@ func (n *Namespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.Stat
 				}
 				// find the interface name by ip
 				if i.address != nil {
-					for _, addr := range addrs {
+					for _, addr := range addresses {
 						if addr.IPNet.String() == i.address.String() {
 							i.dstName = ifaceName
 							break
@@ -540,7 +540,7 @@ func (n *Namespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.Stat
 			}
 
 			var index int
-			indexStr := strings.TrimPrefix(i.dstName, name.DstPrefix)
+			indexStr := strings.TrimPrefix(i.dstName, iface.DstPrefix)
 			if indexStr != "" {
 				index, err = strconv.Atoi(indexStr)
 				if err != nil {
@@ -549,8 +549,8 @@ func (n *Namespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.Stat
 			}
 			index++
 			n.mu.Lock()
-			if index > n.nextIfIndex[name.DstPrefix] {
-				n.nextIfIndex[name.DstPrefix] = index
+			if index > n.nextIfIndex[iface.DstPrefix] {
+				n.nextIfIndex[iface.DstPrefix] = index
 			}
 			n.iFaces = append(n.iFaces, i)
 			n.mu.Unlock()
