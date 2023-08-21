@@ -88,53 +88,8 @@ func (i *Interface) Routes() []*net.IPNet {
 // Remove an interface from the sandbox by renaming to original name
 // and moving it out of the sandbox.
 func (i *Interface) Remove() error {
-	i.ns.Lock()
-	isDefault := i.ns.isDefault
-	nlh := i.ns.nlHandle
-	i.ns.Unlock()
-
-	// Find the network interface identified by the DstName attribute.
-	iface, err := nlh.LinkByName(i.DstName())
-	if err != nil {
-		return err
-	}
-
-	// Down the interface before configuring
-	if err := nlh.LinkSetDown(iface); err != nil {
-		return err
-	}
-
-	err = nlh.LinkSetName(iface, i.SrcName())
-	if err != nil {
-		log.G(context.TODO()).Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
-		return err
-	}
-
-	// if it is a bridge just delete it.
-	if i.Bridge() {
-		if err := nlh.LinkDel(iface); err != nil {
-			return fmt.Errorf("failed deleting bridge %q: %v", i.SrcName(), err)
-		}
-	} else if !isDefault {
-		// Move the network interface to caller namespace.
-		if err := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); err != nil {
-			log.G(context.TODO()).Debugf("LinkSetNsPid failed for interface %s: %v", i.SrcName(), err)
-			return err
-		}
-	}
-
-	i.ns.Lock()
-	for index, intf := range i.ns.iFaces {
-		if intf == i {
-			i.ns.iFaces = append(i.ns.iFaces[:index], i.ns.iFaces[index+1:]...)
-			break
-		}
-	}
-	i.ns.Unlock()
-
-	i.ns.checkLoV6()
-
-	return nil
+	nameSpace := i.ns
+	return nameSpace.RemoveInterface(i)
 }
 
 // Statistics returns the sandbox's side veth interface statistics.
@@ -291,6 +246,57 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 
 	n.checkLoV6()
 
+	return nil
+}
+
+// RemoveInterface removes an interface from the namespace by renaming to
+// original name and moving it out of the sandbox.
+func (n *Namespace) RemoveInterface(i *Interface) error {
+	n.Lock()
+	isDefault := n.isDefault
+	nlh := n.nlHandle
+	n.Unlock()
+
+	// Find the network interface identified by the DstName attribute.
+	iface, err := nlh.LinkByName(i.DstName())
+	if err != nil {
+		return err
+	}
+
+	// Down the interface before configuring
+	if err := nlh.LinkSetDown(iface); err != nil {
+		return err
+	}
+
+	err = nlh.LinkSetName(iface, i.SrcName())
+	if err != nil {
+		log.G(context.TODO()).Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
+		return err
+	}
+
+	// if it is a bridge just delete it.
+	if i.Bridge() {
+		if err := nlh.LinkDel(iface); err != nil {
+			return fmt.Errorf("failed deleting bridge %q: %v", i.SrcName(), err)
+		}
+	} else if !isDefault {
+		// Move the network interface to caller namespace.
+		if err := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); err != nil {
+			log.G(context.TODO()).Debugf("LinkSetNsFd failed for interface %s: %v", i.SrcName(), err)
+			return err
+		}
+	}
+
+	n.Lock()
+	for index, intf := range i.ns.iFaces {
+		if intf == i {
+			i.ns.iFaces = append(i.ns.iFaces[:index], i.ns.iFaces[index+1:]...)
+			break
+		}
+	}
+	n.Unlock()
+
+	n.checkLoV6()
 	return nil
 }
 
