@@ -118,7 +118,7 @@ func (n *Namespace) programGateway(gw net.IP, isAdd bool) error {
 }
 
 // Program a route in to the namespace routing table.
-func (n *Namespace) programRoute(path string, dest *net.IPNet, nh net.IP) error {
+func (n *Namespace) programRoute(dest *net.IPNet, nh net.IP) error {
 	gwRoutes, err := n.nlHandle.RouteGet(nh)
 	if err != nil {
 		return fmt.Errorf("route for the next hop %s could not be found: %v", nh, err)
@@ -133,7 +133,7 @@ func (n *Namespace) programRoute(path string, dest *net.IPNet, nh net.IP) error 
 }
 
 // Delete a route from the namespace routing table.
-func (n *Namespace) removeRoute(path string, dest *net.IPNet, nh net.IP) error {
+func (n *Namespace) removeRoute(dest *net.IPNet, nh net.IP) error {
 	gwRoutes, err := n.nlHandle.RouteGet(nh)
 	if err != nil {
 		return fmt.Errorf("route for the next hop could not be found: %v", err)
@@ -183,7 +183,7 @@ func (n *Namespace) UnsetGatewayIPv6() error {
 
 // AddStaticRoute adds a static route to the sandbox.
 func (n *Namespace) AddStaticRoute(r *types.StaticRoute) error {
-	err := n.programRoute(n.nsPath(), r.Destination, r.NextHop)
+	err := n.programRoute(r.Destination, r.NextHop)
 	if err == nil {
 		n.mu.Lock()
 		n.staticRoutes = append(n.staticRoutes, r)
@@ -194,7 +194,7 @@ func (n *Namespace) AddStaticRoute(r *types.StaticRoute) error {
 
 // RemoveStaticRoute removes a static route from the sandbox.
 func (n *Namespace) RemoveStaticRoute(r *types.StaticRoute) error {
-	err := n.removeRoute(n.nsPath(), r.Destination, r.NextHop)
+	err := n.removeRoute(r.Destination, r.NextHop)
 	if err == nil {
 		n.mu.Lock()
 		lastIndex := len(n.staticRoutes) - 1
