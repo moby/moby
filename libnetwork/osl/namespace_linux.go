@@ -285,16 +285,16 @@ func createNetworkNamespace(path string, osCreate bool) error {
 }
 
 func unmountNamespaceFile(path string) {
-	if _, err := os.Stat(path); err == nil {
-		if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
-			log.G(context.TODO()).WithError(err).Error("Error unmounting namespace file")
-		}
+	if _, err := os.Stat(path); err != nil {
+		// ignore when we cannot stat the path
+		return
+	}
+	if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
+		log.G(context.TODO()).WithError(err).Error("Error unmounting namespace file")
 	}
 }
 
-func createNamespaceFile(path string) (err error) {
-	var f *os.File
-
+func createNamespaceFile(path string) error {
 	once.Do(createBasePath)
 	// Remove it from garbage collection list if present
 	removeFromGarbagePaths(path)
@@ -306,11 +306,12 @@ func createNamespaceFile(path string) (err error) {
 	// before trying to create the file.
 	gpmWg.Wait()
 
-	if f, err = os.Create(path); err == nil {
-		f.Close()
+	f, err := os.Create(path)
+	if err != nil {
+		return err
 	}
-
-	return err
+	_ = f.Close()
+	return nil
 }
 
 // Namespace represents a network sandbox. It represents a Linux network

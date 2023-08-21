@@ -52,36 +52,33 @@ func (n *Namespace) setGatewayIPv6(gwv6 net.IP) {
 	n.mu.Unlock()
 }
 
-// SetGateway sets the default IPv4 gateway for the sandbox.
+// SetGateway sets the default IPv4 gateway for the sandbox. It is a no-op
+// if the given gateway is empty.
 func (n *Namespace) SetGateway(gw net.IP) error {
-	// Silently return if the gateway is empty
 	if len(gw) == 0 {
 		return nil
 	}
 
-	err := n.programGateway(gw, true)
-	if err == nil {
-		n.setGateway(gw)
+	if err := n.programGateway(gw, true); err != nil {
+		return err
 	}
-
-	return err
+	n.setGateway(gw)
+	return nil
 }
 
 // UnsetGateway the previously set default IPv4 gateway in the sandbox.
+// It is a no-op if no gateway was set.
 func (n *Namespace) UnsetGateway() error {
 	gw := n.Gateway()
-
-	// Silently return if the gateway is empty
 	if len(gw) == 0 {
 		return nil
 	}
 
-	err := n.programGateway(gw, false)
-	if err == nil {
-		n.setGateway(net.IP{})
+	if err := n.programGateway(gw, false); err != nil {
+		return err
 	}
-
-	return err
+	n.setGateway(net.IP{})
+	return nil
 }
 
 func (n *Namespace) programGateway(gw net.IP, isAdd bool) error {
@@ -99,7 +96,7 @@ func (n *Namespace) programGateway(gw net.IP, isAdd bool) error {
 	}
 
 	if linkIndex == 0 {
-		return fmt.Errorf("Direct route for the gateway %s could not be found", gw)
+		return fmt.Errorf("direct route for the gateway %s could not be found", gw)
 	}
 
 	if isAdd {
@@ -147,67 +144,68 @@ func (n *Namespace) removeRoute(dest *net.IPNet, nh net.IP) error {
 	})
 }
 
-// SetGatewayIPv6 sets the default IPv6 gateway for the sandbox.
+// SetGatewayIPv6 sets the default IPv6 gateway for the sandbox. It is a no-op
+// if the given gateway is empty.
 func (n *Namespace) SetGatewayIPv6(gwv6 net.IP) error {
-	// Silently return if the gateway is empty
 	if len(gwv6) == 0 {
 		return nil
 	}
 
-	err := n.programGateway(gwv6, true)
-	if err == nil {
-		n.setGatewayIPv6(gwv6)
+	if err := n.programGateway(gwv6, true); err != nil {
+		return err
 	}
 
-	return err
+	n.setGatewayIPv6(gwv6)
+	return nil
 }
 
 // UnsetGatewayIPv6 unsets the previously set default IPv6 gateway in the sandbox.
+// It is a no-op if no gateway was set.
 func (n *Namespace) UnsetGatewayIPv6() error {
 	gwv6 := n.GatewayIPv6()
-
-	// Silently return if the gateway is empty
 	if len(gwv6) == 0 {
 		return nil
 	}
 
-	err := n.programGateway(gwv6, false)
-	if err == nil {
-		n.mu.Lock()
-		n.gwv6 = net.IP{}
-		n.mu.Unlock()
+	if err := n.programGateway(gwv6, false); err != nil {
+		return err
 	}
 
-	return err
+	n.mu.Lock()
+	n.gwv6 = net.IP{}
+	n.mu.Unlock()
+	return nil
 }
 
 // AddStaticRoute adds a static route to the sandbox.
 func (n *Namespace) AddStaticRoute(r *types.StaticRoute) error {
-	err := n.programRoute(r.Destination, r.NextHop)
-	if err == nil {
-		n.mu.Lock()
-		n.staticRoutes = append(n.staticRoutes, r)
-		n.mu.Unlock()
+	if err := n.programRoute(r.Destination, r.NextHop); err != nil {
+		return err
 	}
-	return err
+
+	n.mu.Lock()
+	n.staticRoutes = append(n.staticRoutes, r)
+	n.mu.Unlock()
+	return nil
 }
 
 // RemoveStaticRoute removes a static route from the sandbox.
 func (n *Namespace) RemoveStaticRoute(r *types.StaticRoute) error {
-	err := n.removeRoute(r.Destination, r.NextHop)
-	if err == nil {
-		n.mu.Lock()
-		lastIndex := len(n.staticRoutes) - 1
-		for i, v := range n.staticRoutes {
-			if v == r {
-				// Overwrite the route we're removing with the last element
-				n.staticRoutes[i] = n.staticRoutes[lastIndex]
-				// Shorten the slice to trim the extra element
-				n.staticRoutes = n.staticRoutes[:lastIndex]
-				break
-			}
-		}
-		n.mu.Unlock()
+	if err := n.removeRoute(r.Destination, r.NextHop); err != nil {
+		return err
 	}
-	return err
+
+	n.mu.Lock()
+	lastIndex := len(n.staticRoutes) - 1
+	for i, v := range n.staticRoutes {
+		if v == r {
+			// Overwrite the route we're removing with the last element
+			n.staticRoutes[i] = n.staticRoutes[lastIndex]
+			// Shorten the slice to trim the extra element
+			n.staticRoutes = n.staticRoutes[:lastIndex]
+			break
+		}
+	}
+	n.mu.Unlock()
+	return nil
 }
