@@ -11,7 +11,6 @@ import (
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/images/archive"
 	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/mount"
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/container"
@@ -30,7 +29,13 @@ func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Conta
 	if err != nil {
 		return err
 	}
-	return mount.WithTempMount(ctx, mounts, fn)
+	path, err := i.refCountMounter.Mount(mounts, c.ID)
+	if err != nil {
+		return err
+	}
+	defer i.refCountMounter.Unmount(path)
+
+	return fn(path)
 }
 
 // ExportImage exports a list of images to the given output stream. The
