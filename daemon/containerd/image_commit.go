@@ -21,6 +21,7 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/opencontainers/image-spec/specs-go"
@@ -38,28 +39,27 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 	container := i.containers.Get(cc.ContainerID)
 	cs := i.client.ContentStore()
 
-	imageManifest, err := getContainerImageManifest(container)
-	if err != nil {
-		return "", err
-	}
+	var parentManifest ocispec.Manifest
+	var parentImage ocispec.Image
 
-	imageManifestBytes, err := content.ReadBlob(ctx, cs, imageManifest)
-	if err != nil {
-		return "", err
-	}
+	// ImageManifest can be nil when committing an image with base FROM scratch
+	if container.ImageManifest != nil {
+		imageManifestBytes, err := content.ReadBlob(ctx, cs, *container.ImageManifest)
+		if err != nil {
+			return "", err
+		}
 
-	var manifest ocispec.Manifest
-	if err := json.Unmarshal(imageManifestBytes, &manifest); err != nil {
-		return "", err
-	}
+		if err := json.Unmarshal(imageManifestBytes, &parentManifest); err != nil {
+			return "", err
+		}
 
-	imageConfigBytes, err := content.ReadBlob(ctx, cs, manifest.Config)
-	if err != nil {
-		return "", err
-	}
-	var ociimage ocispec.Image
-	if err := json.Unmarshal(imageConfigBytes, &ociimage); err != nil {
-		return "", err
+		imageConfigBytes, err := content.ReadBlob(ctx, cs, parentManifest.Config)
+		if err != nil {
+			return "", err
+		}
+		if err := json.Unmarshal(imageConfigBytes, &parentImage); err != nil {
+			return "", err
+		}
 	}
 
 	var (
@@ -78,15 +78,19 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to export layer: %w", err)
 	}
+	imageConfig := generateCommitImageConfig(parentImage, diffID, cc)
 
-	imageConfig := generateCommitImageConfig(ociimage, diffID, cc)
+	layers := parentManifest.Layers
+	if diffLayerDesc != nil {
+		rootfsID := identity.ChainID(imageConfig.RootFS.DiffIDs).String()
 
-	rootfsID := identity.ChainID(imageConfig.RootFS.DiffIDs).String()
-	if err := applyDiffLayer(ctx, rootfsID, ociimage, sn, differ, diffLayerDesc); err != nil {
-		return "", fmt.Errorf("failed to apply diff: %w", err)
+		if err := applyDiffLayer(ctx, rootfsID, parentImage, sn, differ, *diffLayerDesc); err != nil {
+			return "", fmt.Errorf("failed to apply diff: %w", err)
+		}
+
+		layers = append(layers, *diffLayerDesc)
 	}
 
-	layers := append(manifest.Layers, diffLayerDesc)
 	commitManifestDesc, err := writeContentsForImage(ctx, container.Driver, cs, imageConfig, layers)
 	if err != nil {
 		return "", err
@@ -130,6 +134,12 @@ func generateCommitImageConfig(baseConfig ocispec.Image, diffID digest.Digest, o
 		log.G(context.TODO()).Warnf("assuming os=%q", os)
 	}
 	log.G(context.TODO()).Debugf("generateCommitImageConfig(): arch=%q, os=%q", arch, os)
+
+	diffIds := baseConfig.RootFS.DiffIDs
+	if diffID != "" {
+		diffIds = append(diffIds, diffID)
+	}
+
 	return ocispec.Image{
 		Platform: ocispec.Platform{
 			Architecture: arch,
@@ -140,7 +150,7 @@ func generateCommitImageConfig(baseConfig ocispec.Image, diffID digest.Digest, o
 		Config:  containerConfigToOciImageConfig(opts.Config),
 		RootFS: ocispec.RootFS{
 			Type:    "layers",
-			DiffIDs: append(baseConfig.RootFS.DiffIDs, diffID),
+			DiffIDs: diffIds,
 		},
 		History: append(baseConfig.History, ocispec.History{
 			Created:   &createdTime,
@@ -217,28 +227,43 @@ func writeContentsForImage(ctx context.Context, snName string, cs content.Store,
 }
 
 // createDiff creates a layer diff into containerd's content store.
-func createDiff(ctx context.Context, name string, sn snapshots.Snapshotter, cs content.Store, comparer diff.Comparer) (ocispec.Descriptor, digest.Digest, error) {
+// If the diff is empty it returns nil empty digest and no error.
+func createDiff(ctx context.Context, name string, sn snapshots.Snapshotter, cs content.Store, comparer diff.Comparer) (*ocispec.Descriptor, digest.Digest, error) {
 	newDesc, err := rootfs.CreateDiff(ctx, name, sn, comparer)
 	if err != nil {
-		return ocispec.Descriptor{}, "", err
+		return nil, "", err
+	}
+
+	ra, err := cs.ReaderAt(ctx, newDesc)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read diff archive: %w", err)
+	}
+	defer ra.Close()
+
+	empty, err := archive.IsEmpty(content.NewReader(ra))
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to check if archive is empty: %w", err)
+	}
+	if empty {
+		return nil, "", nil
 	}
 
 	info, err := cs.Info(ctx, newDesc.Digest)
 	if err != nil {
-		return ocispec.Descriptor{}, "", err
+		return nil, "", fmt.Errorf("failed to get content info: %w", err)
 	}
 
 	diffIDStr, ok := info.Labels["containerd.io/uncompressed"]
 	if !ok {
-		return ocispec.Descriptor{}, "", fmt.Errorf("invalid differ response with no diffID")
+		return nil, "", fmt.Errorf("invalid differ response with no diffID")
 	}
 
 	diffID, err := digest.Parse(diffIDStr)
 	if err != nil {
-		return ocispec.Descriptor{}, "", err
+		return nil, "", err
 	}
 
-	return ocispec.Descriptor{
+	return &ocispec.Descriptor{
 		MediaType: ocispec.MediaTypeImageLayerGzip,
 		Digest:    newDesc.Digest,
 		Size:      info.Size,
@@ -254,7 +279,7 @@ func applyDiffLayer(ctx context.Context, name string, baseImg ocispec.Image, sn 
 
 	mount, err := sn.Prepare(ctx, key, parent)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to prepare snapshot: %w", err)
 	}
 
 	defer func() {
