@@ -506,10 +506,6 @@ func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.
 			// due to the docker network connect/disconnect, so the dstName should
 			// restore from the namespace
 			for _, link := range links {
-				addresses, err := n.nlHandle.AddrList(link, netlink.FAMILY_V4)
-				if err != nil {
-					return err
-				}
 				ifaceName := link.Attrs().Name
 				if i.dstName == "vxlan" && strings.HasPrefix(ifaceName, "vxlan") {
 					i.dstName = ifaceName
@@ -517,6 +513,10 @@ func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.
 				}
 				// find the interface name by ip
 				if i.address != nil {
+					addresses, err := n.nlHandle.AddrList(link, netlink.FAMILY_V4)
+					if err != nil {
+						return err
+					}
 					for _, addr := range addresses {
 						if addr.IPNet.String() == i.address.String() {
 							i.dstName = ifaceName
