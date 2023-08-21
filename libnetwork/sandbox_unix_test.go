@@ -6,12 +6,15 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network) {
@@ -49,6 +52,42 @@ func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network)
 	}
 
 	return c, nwList
+}
+
+func TestControllerGetSandbox(t *testing.T) {
+	ctrlr, _ := getTestEnv(t)
+	t.Run("invalid id", func(t *testing.T) {
+		const cID = ""
+		sb, err := ctrlr.GetSandbox(cID)
+		_, ok := err.(ErrInvalidID)
+		assert.Check(t, ok, "expected ErrInvalidID, got %[1]v (%[1]T)", err)
+		assert.Check(t, is.Nil(sb))
+	})
+	t.Run("not found", func(t *testing.T) {
+		const cID = "container-id-with-no-sandbox"
+		sb, err := ctrlr.GetSandbox(cID)
+		assert.Check(t, errdefs.IsNotFound(err), "expected  a ErrNotFound, got %[1]v (%[1]T)", err)
+		assert.Check(t, is.Nil(sb))
+	})
+	t.Run("existing sandbox", func(t *testing.T) {
+		const cID = "test-container-id"
+		expected, err := ctrlr.NewSandbox(cID)
+		assert.Check(t, err)
+
+		sb, err := ctrlr.GetSandbox(cID)
+		assert.Check(t, err)
+		assert.Check(t, is.Equal(sb.ContainerID(), cID))
+		assert.Check(t, is.Equal(sb.ID(), expected.ID()))
+		assert.Check(t, is.Equal(sb.Key(), expected.Key()))
+		assert.Check(t, is.Equal(sb.ContainerID(), expected.ContainerID()))
+
+		err = sb.Delete()
+		assert.Check(t, err)
+
+		sb, err = ctrlr.GetSandbox(cID)
+		assert.Check(t, errdefs.IsNotFound(err), "expected  a ErrNotFound, got %[1]v (%[1]T)", err)
+		assert.Check(t, is.Nil(sb))
+	})
 }
 
 func TestSandboxAddEmpty(t *testing.T) {

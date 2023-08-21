@@ -532,7 +532,11 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 	// If the container is not to be connected to any network,
 	// create its network sandbox now if not present
 	if len(networks) == 0 {
-		if nil == daemon.getNetworkSandbox(container) {
+		if _, err := daemon.netController.GetSandbox(container.ID); err != nil {
+			if !errdefs.IsNotFound(err) {
+				return err
+			}
+
 			sbOptions, err := daemon.buildSandboxOptions(cfg, container)
 			if err != nil {
 				return err
@@ -555,18 +559,6 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 	}
 	networkActions.WithValues("allocate").UpdateSince(start)
 	return nil
-}
-
-func (daemon *Daemon) getNetworkSandbox(container *container.Container) *libnetwork.Sandbox {
-	var sb *libnetwork.Sandbox
-	daemon.netController.WalkSandboxes(func(s *libnetwork.Sandbox) bool {
-		if s.ContainerID() == container.ID {
-			sb = s
-			return true
-		}
-		return false
-	})
-	return sb
 }
 
 // hasUserDefinedIPAddress returns whether the passed IPAM configuration contains IP address configuration
@@ -715,7 +707,8 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 		return err
 	}
 
-	sb := daemon.getNetworkSandbox(container)
+	// TODO(thaJeztah): should this fail early if no sandbox was found?
+	sb, _ := daemon.netController.GetSandbox(container.ID)
 	createOptions, err := buildCreateEndpointOptions(container, n, endpointConfig, sb, cfg.DNS)
 	if err != nil {
 		return err
@@ -1072,9 +1065,9 @@ func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) erro
 	if err != nil {
 		return err
 	}
-	sb := daemon.getNetworkSandbox(ctr)
-	if sb == nil {
-		return fmt.Errorf("network sandbox does not exist for container %s", containerName)
+	sb, err := daemon.netController.GetSandbox(ctr.ID)
+	if err != nil {
+		return fmt.Errorf("failed to activate service binding for container %s: %w", containerName, err)
 	}
 	return sb.EnableService()
 }
@@ -1085,10 +1078,10 @@ func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) er
 	if err != nil {
 		return err
 	}
-	sb := daemon.getNetworkSandbox(ctr)
-	if sb == nil {
+	sb, err := daemon.netController.GetSandbox(ctr.ID)
+	if err != nil {
 		// If the network sandbox is not found, then there is nothing to deactivate
-		log.G(context.TODO()).Debugf("Could not find network sandbox for container %s on service binding deactivation request", containerName)
+		log.G(context.TODO()).WithError(err).Debugf("Could not find network sandbox for container %s on service binding deactivation request", containerName)
 		return nil
 	}
 	return sb.DisableService()

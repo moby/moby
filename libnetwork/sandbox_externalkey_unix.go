@@ -164,15 +164,11 @@ func (c *Controller) processExternalKey(conn net.Conn) error {
 	if err = json.Unmarshal(buf[0:nr], &s); err != nil {
 		return err
 	}
-
-	var sandbox *Sandbox
-	search := SandboxContainerWalker(&sandbox, s.ContainerID)
-	c.WalkSandboxes(search)
-	if sandbox == nil {
-		return types.InvalidParameterErrorf("no sandbox present for %s", s.ContainerID)
+	sb, err := c.GetSandbox(s.ContainerID)
+	if err != nil {
+		return types.InvalidParameterErrorf("failed to get sandbox for %s", s.ContainerID)
 	}
-
-	return sandbox.SetKey(s.Key)
+	return sb.SetKey(s.Key)
 }
 
 func (c *Controller) stopExternalKeyListener() {

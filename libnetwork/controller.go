@@ -78,18 +78,12 @@ import (
 // When the function returns true, the walk will stop.
 type NetworkWalker func(nw *Network) bool
 
-// SandboxWalker is a client provided function which will be used to walk the Sandboxes.
-// When the function returns true, the walk will stop.
-type SandboxWalker func(sb *Sandbox) bool
-
-type sandboxTable map[string]*Sandbox
-
 // Controller manages networks.
 type Controller struct {
 	id               string
 	drvRegistry      drvregistry.Networks
 	ipamRegistry     drvregistry.IPAMs
-	sandboxes        sandboxTable
+	sandboxes        map[string]*Sandbox
 	cfg              *config.Config
 	store            *datastore.Store
 	extKeyListener   net.Listener
@@ -115,7 +109,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 	c := &Controller{
 		id:               stringid.GenerateRandomID(),
 		cfg:              config.New(cfgOptions...),
-		sandboxes:        sandboxTable{},
+		sandboxes:        map[string]*Sandbox{},
 		svcRecords:       make(map[string]*svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
 		agentInitDone:    make(chan struct{}),
@@ -972,31 +966,30 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*
 	return sb, nil
 }
 
-// Sandboxes returns the list of Sandbox(s) managed by this controller.
-func (c *Controller) Sandboxes() []*Sandbox {
+// GetSandbox returns the Sandbox which has the passed id.
+//
+// It returns an [ErrInvalidID] when passing an invalid ID, or an
+// [types.NotFoundError] if no Sandbox was found for the container.
+func (c *Controller) GetSandbox(containerID string) (*Sandbox, error) {
+	if containerID == "" {
+		return nil, ErrInvalidID("id is empty")
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
-	list := make([]*Sandbox, 0, len(c.sandboxes))
-	for _, s := range c.sandboxes {
-		// Hide stub sandboxes from libnetwork users
-		if s.isStub {
-			continue
+	if runtime.GOOS == "windows" {
+		// fast-path for Windows, which uses the container ID as sandbox ID.
+		if sb := c.sandboxes[containerID]; sb != nil && !sb.isStub {
+			return sb, nil
 		}
-
-		list = append(list, s)
-	}
-
-	return list
-}
-
-// WalkSandboxes uses the provided function to walk the Sandbox(s) managed by this controller.
-func (c *Controller) WalkSandboxes(walker SandboxWalker) {
-	for _, sb := range c.Sandboxes() {
-		if walker(sb) {
-			return
+	} else {
+		for _, sb := range c.sandboxes {
+			if sb.containerID == containerID && !sb.isStub {
+				return sb, nil
+			}
 		}
 	}
+
+	return nil, types.NotFoundErrorf("network sandbox for container %s not found", containerID)
 }
 
 // SandboxByID returns the Sandbox which has the passed id.
@@ -1032,28 +1025,6 @@ func (c *Controller) SandboxDestroy(id string) error {
 	}
 
 	return sb.Delete()
-}
-
-// SandboxContainerWalker returns a Sandbox Walker function which looks for an existing Sandbox with the passed containerID
-func SandboxContainerWalker(out **Sandbox, containerID string) SandboxWalker {
-	return func(sb *Sandbox) bool {
-		if sb.ContainerID() == containerID {
-			*out = sb
-			return true
-		}
-		return false
-	}
-}
-
-// SandboxKeyWalker returns a Sandbox Walker function which looks for an existing Sandbox with the passed key
-func SandboxKeyWalker(out **Sandbox, key string) SandboxWalker {
-	return func(sb *Sandbox) bool {
-		if sb.Key() == key {
-			*out = sb
-			return true
-		}
-		return false
-	}
 }
 
 func (c *Controller) loadDriver(networkType string) error {
