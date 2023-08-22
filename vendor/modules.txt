@@ -733,6 +733,7 @@ github.com/moby/locker
 # github.com/moby/patternmatcher v0.6.0
 ## explicit; go 1.19
 github.com/moby/patternmatcher
+github.com/moby/patternmatcher/ignorefile
 # github.com/moby/pubsub v1.0.0
 ## explicit; go 1.19
 github.com/moby/pubsub

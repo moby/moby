@@ -14,9 +14,9 @@ import (
 	"github.com/docker/docker/builder/remotecontext/urlutil"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/containerfs"
-	"github.com/moby/buildkit/frontend/dockerfile/dockerignore"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/patternmatcher"
+	"github.com/moby/patternmatcher/ignorefile"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -123,10 +123,10 @@ func removeDockerfile(c modifiableContext, filesToRemove ...string) error {
 	case err != nil:
 		return err
 	}
-	excludes, err := dockerignore.ReadAll(f)
+	excludes, err := ignorefile.ReadAll(f)
 	if err != nil {
 		f.Close()
-		return err
+		return errors.Wrap(err, "error reading .dockerignore")
 	}
 	f.Close()
 	filesToRemove = append([]string{".dockerignore"}, filesToRemove...)
