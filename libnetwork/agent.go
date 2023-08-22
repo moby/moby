@@ -35,7 +35,7 @@ func (b ByTime) Len() int           { return len(b) }
 func (b ByTime) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 func (b ByTime) Less(i, j int) bool { return b[i].LamportTime < b[j].LamportTime }
 
-type agent struct {
+type nwAgent struct {
 	networkDB         *networkdb.NetworkDB
 	bindAddr          string
 	advertiseAddr     string
@@ -45,7 +45,7 @@ type agent struct {
 	sync.Mutex
 }
 
-func (a *agent) dataPathAddress() string {
+func (a *nwAgent) dataPathAddress() string {
 	a.Lock()
 	defer a.Unlock()
 	if a.dataPathAddr != "" {
@@ -323,7 +323,7 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	cancelList = append(cancelList, cancel)
 
 	c.mu.Lock()
-	c.agent = &agent{
+	c.agent = &nwAgent{
 		networkDB:         nDB,
 		bindAddr:          bindAddr,
 		advertiseAddr:     advertiseAddr,
@@ -750,7 +750,7 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 	return nil
 }
 
-func disableServiceInNetworkDB(a *agent, n *Network, ep *Endpoint) {
+func disableServiceInNetworkDB(a *nwAgent, n *Network, ep *Endpoint) {
 	var epRec EndpointRecord
 
 	log.G(context.TODO()).Debugf("disableServiceInNetworkDB for %s %s", ep.svcName, ep.ID())

@@ -95,7 +95,7 @@ type Controller struct {
 	defOsSbox        osl.Sandbox
 	ingressSandbox   *Sandbox
 	sboxOnce         sync.Once
-	agent            *agent
+	agent            *nwAgent
 	networkLocker    *locker.Locker
 	agentInitDone    chan struct{}
 	agentStopDone    chan struct{}
@@ -207,7 +207,7 @@ func (c *Controller) SetKeys(keys []*types.EncryptionKey) error {
 	return c.handleKeyChange(keys)
 }
 
-func (c *Controller) getAgent() *agent {
+func (c *Controller) getAgent() *nwAgent {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.agent
@@ -368,7 +368,7 @@ func (c *Controller) BuiltinDrivers() []string {
 // BuiltinIPAMDrivers returns the list of builtin ipam drivers.
 func (c *Controller) BuiltinIPAMDrivers() []string {
 	drivers := []string{}
-	c.ipamRegistry.WalkIPAMs(func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) bool {
+	c.ipamRegistry.WalkIPAMs(func(name string, driver ipamapi.Ipam, _ *ipamapi.Capability) bool {
 		if driver.IsBuiltIn() {
 			drivers = append(drivers, name)
 		}
@@ -386,14 +386,14 @@ func (c *Controller) processNodeDiscovery(nodes []net.IP, add bool) {
 	})
 }
 
-func (c *Controller) pushNodeDiscovery(d discoverapi.Discover, cap driverapi.Capability, nodes []net.IP, add bool) {
+func (c *Controller) pushNodeDiscovery(d discoverapi.Discover, capability driverapi.Capability, nodes []net.IP, add bool) {
 	var self net.IP
 	// try swarm-mode config
 	if agent := c.getAgent(); agent != nil {
 		self = net.ParseIP(agent.advertiseAddr)
 	}
 
-	if d == nil || cap.ConnectivityScope != scope.Global || nodes == nil {
+	if d == nil || capability.ConnectivityScope != scope.Global || nodes == nil {
 		return
 	}
 
@@ -1066,7 +1066,7 @@ func (c *Controller) loadIPAMDriver(name string) error {
 }
 
 func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capability, error) {
-	id, cap := c.ipamRegistry.IPAM(name)
+	id, caps := c.ipamRegistry.IPAM(name)
 	if id == nil {
 		// Might be a plugin name. Try loading it
 		if err := c.loadIPAMDriver(name); err != nil {
@@ -1074,13 +1074,13 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 		}
 
 		// Now that we resolved the plugin, try again looking up the registry
-		id, cap = c.ipamRegistry.IPAM(name)
+		id, caps = c.ipamRegistry.IPAM(name)
 		if id == nil {
 			return nil, nil, types.InvalidParameterErrorf("invalid ipam driver: %q", name)
 		}
 	}
 
-	return id, cap, nil
+	return id, caps, nil
 }
 
 // Stop stops the network controller.
