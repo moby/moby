@@ -346,6 +346,9 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionConfigOnly())
 	}
 
+	if err := network.ValidateIPAM(create.IPAM, create.EnableIPv6); err != nil {
+		return nil, errdefs.InvalidParameter(err)
+	}
 	if create.IPAM != nil {
 		ipam := create.IPAM
 		v4Conf, v6Conf, err := getIpamConfig(ipam.Config)

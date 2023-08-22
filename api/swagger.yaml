@@ -9929,6 +9929,10 @@ paths:
             example:
               Id: "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30"
               Warning: ""
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         403:
           description: |
             Forbidden operation. This happens when trying to create a network named after a pre-defined network,
