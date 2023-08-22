@@ -338,8 +338,21 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 
 			baseLogger := log.G(context.TODO()).WithField("container", c.ID)
 
+			// Migrate containers that don't have the default ("no") restart-policy set.
+			// The RestartPolicy.Name field may be empty for containers that were
+			// created with versions before v25.0.0.
+			//
+			// We also need to set the MaximumRetryCount to 0, to prevent
+			// validation from failing (MaximumRetryCount is not allowed if
+			// no restart-policy ("none") is set).
+			if c.HostConfig != nil && c.HostConfig.RestartPolicy.Name == "" {
+				baseLogger.WithError(err).Debug("migrated restart-policy")
+				c.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
+				c.HostConfig.RestartPolicy.MaximumRetryCount = 0
+			}
+
 			if err := daemon.checkpointAndSave(c); err != nil {
-				baseLogger.WithError(err).Error("error saving backported mountspec to disk")
+				baseLogger.WithError(err).Error("failed to save migrated container config to disk")
 			}
 
 			daemon.setStateCounter(c)

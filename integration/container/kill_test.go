@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/request"
@@ -112,7 +113,7 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			ctx := context.Background()
 			id := container.Run(ctx, t, apiClient,
-				container.WithRestartPolicy("always"),
+				container.WithRestartPolicy(containertypes.RestartPolicyAlways),
 				func(c *container.TestContainerConfig) {
 					c.Config.StopSignal = tc.stopsignal
 				})

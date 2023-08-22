@@ -63,6 +63,16 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		return containertypes.CreateResponse{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
 	}
 
+	// Normalize some defaults. Doing this "ad-hoc" here for now, as there's
+	// only one field to migrate, but we should consider having a better
+	// location for this (and decide where in the flow would be most appropriate).
+	//
+	// TODO(thaJeztah): we should have a more visible, more canonical location for this.
+	if opts.params.HostConfig != nil && opts.params.HostConfig.RestartPolicy.Name == "" {
+		// Set the default restart-policy ("none") if no restart-policy was set.
+		opts.params.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
+	}
+
 	warnings, err := daemon.verifyContainerSettings(daemonCfg, opts.params.HostConfig, opts.params.Config, false)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)

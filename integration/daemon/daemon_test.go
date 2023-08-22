@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/config"
@@ -380,9 +381,9 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 	c := d.NewClientT(t)
 	ctx := context.Background()
 
-	runTest := func(t *testing.T, policy string) {
-		t.Run(policy, func(t *testing.T) {
-			volName := "test-live-restore-volume-references-" + policy
+	runTest := func(t *testing.T, policy containertypes.RestartPolicyMode) {
+		t.Run(string(policy), func(t *testing.T) {
+			volName := "test-live-restore-volume-references-" + string(policy)
 			_, err := c.VolumeCreate(ctx, volume.CreateOptions{Name: volName})
 			assert.NilError(t, err)
 
@@ -408,10 +409,10 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 	}
 
 	t.Run("restartPolicy", func(t *testing.T) {
-		runTest(t, "always")
-		runTest(t, "unless-stopped")
-		runTest(t, "on-failure")
-		runTest(t, "no")
+		runTest(t, containertypes.RestartPolicyAlways)
+		runTest(t, containertypes.RestartPolicyUnlessStopped)
+		runTest(t, containertypes.RestartPolicyOnFailure)
+		runTest(t, containertypes.RestartPolicyDisabled)
 	})
 
 	// Make sure that the local volume driver's mount ref count is restored

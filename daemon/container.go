@@ -298,7 +298,7 @@ func validateHostConfig(hostConfig *containertypes.HostConfig) error {
 	if err := validatePortBindings(hostConfig.PortBindings); err != nil {
 		return err
 	}
-	if err := validateRestartPolicy(hostConfig.RestartPolicy); err != nil {
+	if err := containertypes.ValidateRestartPolicy(hostConfig.RestartPolicy); err != nil {
 		return err
 	}
 	if err := validateCapabilities(hostConfig); err != nil {
@@ -358,25 +358,6 @@ func validatePortBindings(ports nat.PortMap) error {
 				return errors.Errorf("invalid port specification: %q", pb.HostPort)
 			}
 		}
-	}
-	return nil
-}
-
-func validateRestartPolicy(policy containertypes.RestartPolicy) error {
-	switch policy.Name {
-	case "always", "unless-stopped", "no":
-		if policy.MaximumRetryCount != 0 {
-			return errors.Errorf("maximum retry count cannot be used with restart policy '%s'", policy.Name)
-		}
-	case "on-failure":
-		if policy.MaximumRetryCount < 0 {
-			return errors.Errorf("maximum retry count cannot be negative")
-		}
-	case "":
-		// do nothing
-		return nil
-	default:
-		return errors.Errorf("invalid restart policy '%s'", policy.Name)
 	}
 	return nil
 }
