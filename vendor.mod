@@ -63,7 +63,7 @@ require (
 	github.com/moby/buildkit v0.11.7-0.20230723230859-616c3f613b54 // v0.11 branch
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
-	github.com/moby/patternmatcher v0.5.0
+	github.com/moby/patternmatcher v0.6.0
 	github.com/moby/pubsub v1.0.0
 	github.com/moby/swarmkit/v2 v2.0.0-20230815220644-3f2e40b3ed51
 	github.com/moby/sys/mount v0.3.3
