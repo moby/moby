@@ -459,19 +459,12 @@ const overlayDSROptionString = "dsr"
 
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
-func (c *Controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (*Network, error) {
-	var (
-		caps           driverapi.Capability
-		err            error
-		t              *Network
-		skipCfgEpCount bool
-	)
-
+func (c *Controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (_ *Network, retErr error) {
 	if id != "" {
 		c.networkLocker.Lock(id)
 		defer c.networkLocker.Unlock(id) //nolint:errcheck
 
-		if _, err = c.NetworkByID(id); err == nil {
+		if _, err := c.NetworkByID(id); err == nil {
 			return nil, NetworkNameError(id)
 		}
 	}
@@ -500,9 +493,18 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	}
 
 	nw.processOptions(options...)
-	if err = nw.validateConfiguration(); err != nil {
+	if err := nw.validateConfiguration(); err != nil {
 		return nil, err
 	}
+
+	// These variables must be defined here, as declaration would otherwise
+	// be skipped by the "goto addToStore"
+	var (
+		caps driverapi.Capability
+		err  error
+
+		skipCfgEpCount bool
+	)
 
 	// Reset network types, force local scope and skip allocation and
 	// plumbing for configuration networks. Reset of the config-only
@@ -549,36 +551,57 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	// From this point on, we need the network specific configuration,
 	// which may come from a configuration-only network
 	if nw.configFrom != "" {
-		t, err = c.getConfigNetwork(nw.configFrom)
+		configNetwork, err := c.getConfigNetwork(nw.configFrom)
 		if err != nil {
 			return nil, types.NotFoundErrorf("configuration network %q does not exist", nw.configFrom)
 		}
-		if err = t.applyConfigurationTo(nw); err != nil {
+		if err := configNetwork.applyConfigurationTo(nw); err != nil {
 			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
 		}
 		nw.generic[netlabel.Internal] = nw.internal
 		defer func() {
-			if err == nil && !skipCfgEpCount {
-				if err := t.getEpCnt().IncEndpointCnt(); err != nil {
-					log.G(context.TODO()).Warnf("Failed to update reference count for configuration network %q on creation of network %q: %v",
-						t.Name(), nw.Name(), err)
+			if retErr == nil && !skipCfgEpCount {
+				if err := configNetwork.getEpCnt().IncEndpointCnt(); err != nil {
+					log.G(context.TODO()).Warnf("Failed to update reference count for configuration network %q on creation of network %q: %v", configNetwork.Name(), nw.name, err)
 				}
 			}
 		}()
 	}
 
-	err = nw.ipamAllocate()
-	if err != nil {
+	if err := nw.ipamAllocate(); err != nil {
 		return nil, err
 	}
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			nw.ipamRelease()
 		}
 	}()
 
-	err = c.addNetwork(nw)
-	if err != nil {
+	// Note from thaJeztah to future code visitors, or "future self".
+	//
+	// This code was previously assigning the error to the global "err"
+	// variable (before it was renamed to "retErr"), but in case of a
+	// "MaskableError" did not *return* the error:
+	// https://github.com/moby/moby/blob/b325dcbff60a04cedbe40eb627465fc7379d05bf/libnetwork/controller.go#L566-L573
+	//
+	// Depending on code paths further down, that meant that this error
+	// was either overwritten by other errors (and thus not handled in
+	// defer statements) or handled (if no other code was overwriting it.
+	//
+	// I suspect this was a bug (but possible without effect), but it could
+	// have been intentional. This logic is confusing at least, and even
+	// more so combined with the handling in defer statements that check for
+	// both the "err" return AND "skipCfgEpCount":
+	// https://github.com/moby/moby/blob/b325dcbff60a04cedbe40eb627465fc7379d05bf/libnetwork/controller.go#L586-L602
+	//
+	// To save future visitors some time to dig up history:
+	//
+	// - config-only networks were added in 25082206df465d1c11dd1276a65b4a1dc701bd43
+	// - the special error-handling and "skipCfgEpcoung" was added in ddd22a819867faa0cd7d12b0c3fad1099ac3eb26
+	// - and updated in 87b082f3659f9ec245ab15d781e6bfffced0af83 to don't use string-matching
+	//
+	// To cut a long story short: if this broke anything, you know who to blame :)
+	if err := c.addNetwork(nw); err != nil {
 		if _, ok := err.(types.MaskableError); ok { //nolint:gosimple
 			// This error can be ignored and set this boolean
 			// value to skip a refcount increment for configOnly networks
@@ -588,9 +611,9 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		}
 	}
 	defer func() {
-		if err != nil {
-			if e := nw.deleteNetwork(); e != nil {
-				log.G(context.TODO()).Warnf("couldn't roll back driver network on network %s creation failure: %v", nw.name, err)
+		if retErr != nil {
+			if err := nw.deleteNetwork(); err != nil {
+				log.G(context.TODO()).Warnf("couldn't roll back driver network on network %s creation failure: %v", nw.name, retErr)
 			}
 		}
 	}()
@@ -615,25 +638,25 @@ addToStore:
 	// end up with a datastore containing a network and not an epCnt,
 	// in case of an ungraceful shutdown during this function call.
 	epCnt := &endpointCnt{n: nw}
-	if err = c.updateToStore(epCnt); err != nil {
+	if err := c.updateToStore(epCnt); err != nil {
 		return nil, err
 	}
 	defer func() {
-		if err != nil {
-			if e := c.deleteFromStore(epCnt); e != nil {
-				log.G(context.TODO()).Warnf("could not rollback from store, epCnt %v on failure (%v): %v", epCnt, err, e)
+		if retErr != nil {
+			if err := c.deleteFromStore(epCnt); err != nil {
+				log.G(context.TODO()).Warnf("could not rollback from store, epCnt %v on failure (%v): %v", epCnt, retErr, err)
 			}
 		}
 	}()
 
 	nw.epCnt = epCnt
-	if err = c.updateToStore(nw); err != nil {
+	if err := c.updateToStore(nw); err != nil {
 		return nil, err
 	}
 	defer func() {
-		if err != nil {
-			if e := c.deleteFromStore(nw); e != nil {
-				log.G(context.TODO()).Warnf("could not rollback from store, network %v on failure (%v): %v", nw, err, e)
+		if retErr != nil {
+			if err := c.deleteFromStore(nw); err != nil {
+				log.G(context.TODO()).Warnf("could not rollback from store, network %v on failure (%v): %v", nw, retErr, err)
 			}
 		}
 	}()
@@ -644,16 +667,16 @@ addToStore:
 
 	joinCluster(nw)
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			nw.cancelDriverWatches()
-			if e := nw.leaveCluster(); e != nil {
-				log.G(context.TODO()).Warnf("Failed to leave agent cluster on network %s on failure (%v): %v", nw.name, err, e)
+			if err := nw.leaveCluster(); err != nil {
+				log.G(context.TODO()).Warnf("Failed to leave agent cluster on network %s on failure (%v): %v", nw.name, retErr, err)
 			}
 		}
 	}()
 
 	if nw.hasLoadBalancerEndpoint() {
-		if err = nw.createLoadBalancerSandbox(); err != nil {
+		if err := nw.createLoadBalancerSandbox(); err != nil {
 			return nil, err
 		}
 	}
@@ -837,7 +860,7 @@ func (c *Controller) NetworkByID(id string) (*Network, error) {
 }
 
 // NewSandbox creates a new sandbox for containerID.
-func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*Sandbox, error) {
+func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (_ *Sandbox, retErr error) {
 	if containerID == "" {
 		return nil, types.InvalidParameterErrorf("invalid container ID")
 	}
@@ -901,9 +924,8 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*
 	}
 	c.mu.Unlock()
 
-	var err error
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			c.mu.Lock()
 			if sb.ingress {
 				c.ingressSandbox = nil
@@ -912,11 +934,12 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*
 		}
 	}()
 
-	if err = sb.setupResolutionFiles(); err != nil {
+	if err := sb.setupResolutionFiles(); err != nil {
 		return nil, err
 	}
 
 	if sb.config.useDefaultSandBox {
+		var err error
 		c.sboxOnce.Do(func() {
 			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false, false)
 		})
@@ -930,6 +953,7 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*
 	}
 
 	if sb.osSbox == nil && !sb.config.useExternalKey {
+		var err error
 		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox, false); err != nil {
 			return nil, fmt.Errorf("failed to create new osl sandbox: %v", err)
 		}
@@ -951,15 +975,14 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*
 	c.sandboxes[sb.id] = sb
 	c.mu.Unlock()
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			c.mu.Lock()
 			delete(c.sandboxes, sb.id)
 			c.mu.Unlock()
 		}
 	}()
 
-	err = sb.storeUpdate()
-	if err != nil {
+	if err := sb.storeUpdate(); err != nil {
 		return nil, fmt.Errorf("failed to update the store state of sandbox: %v", err)
 	}
 
