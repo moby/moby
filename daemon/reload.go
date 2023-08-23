@@ -161,10 +161,10 @@ func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(txn *reloadTxn, new
 	newCfg.MaxConcurrentDownloads = config.DefaultMaxConcurrentDownloads
 	newCfg.MaxConcurrentUploads = config.DefaultMaxConcurrentUploads
 
-	if conf.IsValueSet("max-concurrent-downloads") && conf.MaxConcurrentDownloads != 0 {
+	if conf.IsValueSet("max-concurrent-downloads") && conf.MaxConcurrentDownloads > 0 {
 		newCfg.MaxConcurrentDownloads = conf.MaxConcurrentDownloads
 	}
-	if conf.IsValueSet("max-concurrent-uploads") && conf.MaxConcurrentUploads != 0 {
+	if conf.IsValueSet("max-concurrent-uploads") && conf.MaxConcurrentUploads > 0 {
 		newCfg.MaxConcurrentUploads = conf.MaxConcurrentUploads
 	}
 	txn.OnCommit(func() error {
@@ -190,7 +190,7 @@ func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(txn *reloadTxn, new
 func (daemon *Daemon) reloadMaxDownloadAttempts(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// We always "reset" as the cost is lightweight and easy to maintain.
 	newCfg.MaxDownloadAttempts = config.DefaultDownloadAttempts
-	if conf.IsValueSet("max-download-attempts") && conf.MaxDownloadAttempts != 0 {
+	if conf.IsValueSet("max-download-attempts") && conf.MaxDownloadAttempts > 0 {
 		newCfg.MaxDownloadAttempts = conf.MaxDownloadAttempts
 	}
 

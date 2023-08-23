@@ -440,9 +440,13 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 	// Trim whitespace so that an empty config can be detected for an early return.
 	b = bytes.TrimSpace(b)
 
-	var config Config
+	var config *Config
+	if config, err = New(); err != nil {
+		return nil, err
+	}
+
 	if len(b) == 0 {
-		return &config, nil // early return on empty config
+		return config, nil // early return on empty config
 	}
 
 	if flags != nil {
@@ -494,7 +498,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		return nil, err
 	}
 
-	return &config, nil
+	return config, nil
 }
 
 // configValuesSet returns the configuration values explicitly set in the file.
@@ -622,17 +626,24 @@ func Validate(config *Config) error {
 		}
 	}
 
-	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
-	if config.MTU < 0 {
+	// Every internet module must be able to forward a datagram of 68
+	// octets without further fragmentation.  This is because an internet
+	// header may be up to 60 octets, and the minimum fragment is 8 octets.
+	// https://datatracker.ietf.org/doc/html/rfc791#page-25
+	//
+	// The number 576 is selected to allow a reasonable sized data block to
+	// be transmitted in addition to the required header information.
+	// https://datatracker.ietf.org/doc/html/rfc791#page-13
+	if config.MTU < 68 {
 		return errors.Errorf("invalid default MTU: %d", config.MTU)
 	}
-	if config.MaxConcurrentDownloads < 0 {
+	if config.MaxConcurrentDownloads < 1 {
 		return errors.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
 	}
-	if config.MaxConcurrentUploads < 0 {
+	if config.MaxConcurrentUploads < 1 {
 		return errors.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
 	}
-	if config.MaxDownloadAttempts < 0 {
+	if config.MaxDownloadAttempts < 1 {
 		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
 
