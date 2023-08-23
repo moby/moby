@@ -455,10 +455,6 @@ func (n *networkNamespace) nsPath() string {
 	return n.path
 }
 
-func (n *networkNamespace) Info() Info {
-	return n
-}
-
 func (n *networkNamespace) Key() string {
 	return n.path
 }

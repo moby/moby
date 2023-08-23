@@ -140,7 +140,7 @@ func (sb *Sandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
 	}
 
 	var err error
-	for _, i := range osb.Info().Interfaces() {
+	for _, i := range osb.Interfaces() {
 		if m[i.DstName()], err = i.Statistics(); err != nil {
 			return m, err
 		}
@@ -705,7 +705,7 @@ func (sb *Sandbox) DisableService() (err error) {
 }
 
 func releaseOSSboxResources(osSbox osl.Sandbox, ep *Endpoint) {
-	for _, i := range osSbox.Info().Interfaces() {
+	for _, i := range osSbox.Interfaces() {
 		// Only remove the interfaces owned by this endpoint from the sandbox.
 		if ep.hasInterface(i.SrcName()) {
 			if err := i.Remove(); err != nil {
