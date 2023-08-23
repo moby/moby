@@ -303,9 +303,13 @@ func (s *DockerAPISuite) TestBuildOnBuildCache(c *testing.T) {
 	client := testEnv.APIClient()
 
 	// check parentID is correct
-	image, _, err := client.ImageInspectWithRaw(context.Background(), childID)
-	assert.NilError(c, err)
-	assert.Check(c, is.Equal(parentID, image.Parent))
+	// Parent is graphdriver-only
+	if !testEnv.UsingSnapshotter() {
+		image, _, err := client.ImageInspectWithRaw(context.Background(), childID)
+		assert.NilError(c, err)
+
+		assert.Check(c, is.Equal(parentID, image.Parent))
+	}
 }
 
 func (s *DockerRegistrySuite) TestBuildCopyFromForcePull(c *testing.T) {
