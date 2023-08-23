@@ -43,16 +43,16 @@ var (
 	gpmWg            sync.WaitGroup
 	gpmCleanupPeriod = 60 * time.Second
 	gpmChan          = make(chan chan struct{})
-	prefix           = defaultPrefix
+	netnsBasePath    = filepath.Join(defaultPrefix, "netns")
 )
 
 // SetBasePath sets the base url prefix for the ns path
 func SetBasePath(path string) {
-	prefix = path
+	netnsBasePath = filepath.Join(path, "netns")
 }
 
 func basePath() string {
-	return filepath.Join(prefix, "netns")
+	return netnsBasePath
 }
 
 func createBasePath() {

@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/pkg/plugingetter"
 )
 
@@ -20,7 +19,15 @@ const (
 
 // Config encapsulates configurations of various Libnetwork components
 type Config struct {
-	DataDir                string
+	DataDir string
+	// ExecRoot is the base-path for libnetwork external key listeners
+	// (created in "<ExecRoot>/libnetwork/<Controller-Short-ID>.sock"),
+	// and is passed as "-exec-root: argument for "libnetwork-setkey".
+	//
+	// It is only used on Linux, but referenced in some "unix" files
+	// (linux and freebsd).
+	//
+	// FIXME(thaJeztah): ExecRoot is only used for Controller.startExternalKeyListener(), but "libnetwork-setkey" is only implemented on Linux.
 	ExecRoot               string
 	DefaultNetwork         string
 	DefaultDriver          string
@@ -109,12 +116,13 @@ func OptionDataDir(dataDir string) Option {
 	}
 }
 
-// OptionExecRoot function returns an option setter for exec root folder
+// OptionExecRoot function returns an option setter for exec root folder.
+//
+// On Linux, it sets both the controller's ExecRoot and osl.basePath, whereas
+// on FreeBSD, it only sets the controller's ExecRoot. It is a no-op on other
+// platforms.
 func OptionExecRoot(execRoot string) Option {
-	return func(c *Config) {
-		c.ExecRoot = execRoot
-		osl.SetBasePath(execRoot)
-	}
+	return optionExecRoot(execRoot)
 }
 
 // OptionPluginGetter returns a plugingetter for remote drivers.
