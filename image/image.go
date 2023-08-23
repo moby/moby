@@ -248,6 +248,15 @@ func NewChildImage(img *Image, child ChildConfig, os string) *Image {
 	}
 }
 
+// Clone clones an image and changes ID.
+func Clone(base *Image, id ID) *Image {
+	img := *base
+	img.RootFS = img.RootFS.Clone()
+	img.V1Image.ID = id.String()
+	img.computedID = id
+	return &img
+}
+
 // History stores build commands that were used to create an image
 type History struct {
 	// Created is the timestamp at which the image was created
