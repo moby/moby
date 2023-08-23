@@ -223,6 +223,25 @@ func ApplyUncompressedLayer(dest string, layer io.Reader, options *TarOptions) (
 	return applyLayerHandler(dest, layer, options, false)
 }
 
+// IsEmpty checks if the tar archive is empty (doesn't contain any entries).
+func IsEmpty(rd io.Reader) (bool, error) {
+	decompRd, err := DecompressStream(rd)
+	if err != nil {
+		return true, fmt.Errorf("failed to decompress archive: %v", err)
+	}
+	defer decompRd.Close()
+
+	tarReader := tar.NewReader(decompRd)
+	if _, err := tarReader.Next(); err != nil {
+		if err == io.EOF {
+			return true, nil
+		}
+		return false, fmt.Errorf("failed to read next archive header: %v", err)
+	}
+
+	return false, nil
+}
+
 // do the bulk load of ApplyLayer, but allow for not calling DecompressStream
 func applyLayerHandler(dest string, layer io.Reader, options *TarOptions, decompress bool) (int64, error) {
 	dest = filepath.Clean(dest)
