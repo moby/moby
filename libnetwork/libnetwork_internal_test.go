@@ -191,7 +191,7 @@ func TestEndpointMarshalling(t *testing.T) {
 		id:        "efghijklmno",
 		sandboxID: "ambarabaciccicocco",
 		anonymous: true,
-		iface: &endpointInterface{
+		iface: &EndpointInterface{
 			mac: []byte{11, 12, 13, 14, 15, 16},
 			addr: &net.IPNet{
 				IP:   net.IP{10, 0, 1, 23},
@@ -222,7 +222,7 @@ func TestEndpointMarshalling(t *testing.T) {
 	}
 }
 
-func compareEndpointInterface(a, b *endpointInterface) bool {
+func compareEndpointInterface(a, b *EndpointInterface) bool {
 	if a == b {
 		return true
 	}
