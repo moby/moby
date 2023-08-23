@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/rootless"
 )
 
@@ -209,7 +210,7 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 				return err
 			}
 		} else {
-			if err := DelInterfaceFirewalld(bridgeName); err != nil {
+			if err := DelInterfaceFirewalld(bridgeName); err != nil && !errdefs.IsNotFound(err) {
 				return err
 			}
 		}

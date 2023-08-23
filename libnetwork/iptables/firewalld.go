@@ -273,7 +273,7 @@ func DelInterfaceFirewalld(intf string) error {
 	}
 	// Remove interface if it exists
 	if !contains(intfs, intf) {
-		return fmt.Errorf("Firewalld: unable to find interface %s in %s zone", intf, dockerZone)
+		return &interfaceNotFound{fmt.Errorf("firewalld: interface %q not found in %s zone", intf, dockerZone)}
 	}
 
 	log.G(context.TODO()).Debugf("Firewalld: removing %s interface from %s zone", intf, dockerZone)
@@ -283,6 +283,10 @@ func DelInterfaceFirewalld(intf string) error {
 	}
 	return nil
 }
+
+type interfaceNotFound struct{ error }
+
+func (interfaceNotFound) NotFound() {}
 
 func contains(list []string, val string) bool {
 	for _, v := range list {
