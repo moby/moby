@@ -14,12 +14,12 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-// nwIface represents the settings and identity of a network device.
+// Interface represents the settings and identity of a network device.
 // It is used as a return type for Network.Link, and it is common practice
 // for the caller to use this information when moving interface SrcName from
 // host namespace to DstName in a different net namespace with the appropriate
 // network settings.
-type nwIface struct {
+type Interface struct {
 	srcName     string
 	dstName     string
 	master      string
@@ -34,7 +34,7 @@ type nwIface struct {
 }
 
 // SrcName returns the name of the interface in the origin network namespace.
-func (i *nwIface) SrcName() string {
+func (i *Interface) SrcName() string {
 	return i.srcName
 }
 
@@ -42,46 +42,41 @@ func (i *nwIface) SrcName() string {
 // moved inside a network namespace. When the caller passes in a DstName,
 // it is only expected to pass a prefix. The name will be modified with an
 // auto-generated suffix.
-func (i *nwIface) DstName() string {
+func (i *Interface) DstName() string {
 	return i.dstName
 }
 
-func (i *nwIface) DstMaster() string {
+func (i *Interface) DstMaster() string {
 	return i.dstMaster
 }
 
 // Bridge returns true if the interface is a bridge.
-func (i *nwIface) Bridge() bool {
+func (i *Interface) Bridge() bool {
 	return i.bridge
 }
 
-// Master returns the srcname of the master interface for this interface.
-func (i *nwIface) Master() string {
-	return i.master
-}
-
-func (i *nwIface) MacAddress() net.HardwareAddr {
+func (i *Interface) MacAddress() net.HardwareAddr {
 	return types.GetMacCopy(i.mac)
 }
 
 // Address returns the IPv4 address for the interface.
-func (i *nwIface) Address() *net.IPNet {
+func (i *Interface) Address() *net.IPNet {
 	return types.GetIPNetCopy(i.address)
 }
 
 // AddressIPv6 returns the IPv6 address for the interface.
-func (i *nwIface) AddressIPv6() *net.IPNet {
+func (i *Interface) AddressIPv6() *net.IPNet {
 	return types.GetIPNetCopy(i.addressIPv6)
 }
 
 // LinkLocalAddresses returns the link-local IP addresses assigned to the
 // interface.
-func (i *nwIface) LinkLocalAddresses() []*net.IPNet {
+func (i *Interface) LinkLocalAddresses() []*net.IPNet {
 	return i.llAddrs
 }
 
 // Routes returns IP routes for the interface.
-func (i *nwIface) Routes() []*net.IPNet {
+func (i *Interface) Routes() []*net.IPNet {
 	routes := make([]*net.IPNet, len(i.routes))
 	for index, route := range i.routes {
 		routes[index] = types.GetIPNetCopy(route)
@@ -92,7 +87,7 @@ func (i *nwIface) Routes() []*net.IPNet {
 
 // Remove an interface from the sandbox by renaming to original name
 // and moving it out of the sandbox.
-func (i *nwIface) Remove() error {
+func (i *Interface) Remove() error {
 	i.ns.Lock()
 	isDefault := i.ns.isDefault
 	nlh := i.ns.nlHandle
@@ -143,7 +138,7 @@ func (i *nwIface) Remove() error {
 }
 
 // Statistics returns the sandbox's side veth interface statistics.
-func (i *nwIface) Statistics() (*types.InterfaceStatistics, error) {
+func (i *Interface) Statistics() (*types.InterfaceStatistics, error) {
 	l, err := i.ns.nlHandle.LinkByName(i.DstName())
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve the statistics for %s in netns %s: %v", i.DstName(), i.ns.path, err)
@@ -179,13 +174,20 @@ func (n *networkNamespace) findDst(srcName string, isBridge bool) string {
 	return ""
 }
 
+// AddInterface adds an existing Interface to the sandbox. The operation will rename
+// from the Interface SrcName to DstName as it moves, and reconfigure the
+// interface according to the specified settings. The caller is expected
+// to only provide a prefix for DstName. The AddInterface api will auto-generate
+// an appropriate suffix for the DstName to disambiguate.
 func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...IfaceOption) error {
-	i := &nwIface{
+	i := &Interface{
 		srcName: srcName,
 		dstName: dstPrefix,
 		ns:      n,
 	}
-	i.processInterfaceOptions(options...)
+	if err := i.processInterfaceOptions(options...); err != nil {
+		return err
+	}
 
 	if i.master != "" {
 		i.dstMaster = n.findDst(i.master, true)
@@ -292,10 +294,10 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	return nil
 }
 
-func configureInterface(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func configureInterface(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
 	ifaceName := iface.Attrs().Name
 	ifaceConfigurators := []struct {
-		Fn         func(*netlink.Handle, netlink.Link, *nwIface) error
+		Fn         func(*netlink.Handle, netlink.Link, *Interface) error
 		ErrMessage string
 	}{
 		{setInterfaceName, fmt.Sprintf("error renaming interface %q to %q", ifaceName, i.DstName())},
@@ -314,7 +316,7 @@ func configureInterface(nlh *netlink.Handle, iface netlink.Link, i *nwIface) err
 	return nil
 }
 
-func setInterfaceMaster(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func setInterfaceMaster(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
 	if i.DstMaster() == "" {
 		return nil
 	}
@@ -324,14 +326,14 @@ func setInterfaceMaster(nlh *netlink.Handle, iface netlink.Link, i *nwIface) err
 	})
 }
 
-func setInterfaceMAC(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func setInterfaceMAC(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
 	if i.MacAddress() == nil {
 		return nil
 	}
 	return nlh.LinkSetHardwareAddr(iface, i.MacAddress())
 }
 
-func setInterfaceIP(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func setInterfaceIP(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
 	if i.Address() == nil {
 		return nil
 	}
@@ -342,7 +344,7 @@ func setInterfaceIP(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
 	return nlh.AddrAdd(iface, ipAddr)
 }
 
-func setInterfaceIPv6(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func setInterfaceIPv6(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
 	if i.AddressIPv6() == nil {
 		return nil
 	}
@@ -356,7 +358,7 @@ func setInterfaceIPv6(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error
 	return nlh.AddrAdd(iface, ipAddr)
 }
 
-func setInterfaceLinkLocalIPs(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func setInterfaceLinkLocalIPs(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
 	for _, llIP := range i.LinkLocalAddresses() {
 		ipAddr := &netlink.Addr{IPNet: llIP}
 		if err := nlh.AddrAdd(iface, ipAddr); err != nil {
@@ -366,11 +368,11 @@ func setInterfaceLinkLocalIPs(nlh *netlink.Handle, iface netlink.Link, i *nwIfac
 	return nil
 }
 
-func setInterfaceName(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func setInterfaceName(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
 	return nlh.LinkSetName(iface, i.DstName())
 }
 
-func setInterfaceRoutes(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func setInterfaceRoutes(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
 	for _, route := range i.Routes() {
 		err := nlh.RouteAdd(&netlink.Route{
 			Scope:     netlink.SCOPE_LINK,

@@ -85,7 +85,7 @@ func newInfo(t *testing.T, hnd *netlink.Handle) (Sandbox, error) {
 
 	// Store the sandbox side pipe interface
 	// This is needed for cleanup on DeleteEndpoint()
-	intf1 := &nwIface{
+	intf1 := &Interface{
 		srcName:     vethName2,
 		dstName:     sboxIfaceName,
 		address:     addr,
@@ -93,7 +93,7 @@ func newInfo(t *testing.T, hnd *netlink.Handle) (Sandbox, error) {
 		routes:      []*net.IPNet{route},
 	}
 
-	intf2 := &nwIface{
+	intf2 := &Interface{
 		srcName: "testbridge",
 		dstName: sboxIfaceName,
 		bridge:  true,
@@ -107,14 +107,14 @@ func newInfo(t *testing.T, hnd *netlink.Handle) (Sandbox, error) {
 		return nil, err
 	}
 
-	intf3 := &nwIface{
+	intf3 := &Interface{
 		srcName: vethName4,
 		dstName: sboxIfaceName,
 		master:  "testbridge",
 	}
 
 	return &networkNamespace{
-		iFaces: []*nwIface{intf1, intf2, intf3},
+		iFaces: []*Interface{intf1, intf2, intf3},
 		gw:     net.ParseIP("192.168.1.1"),
 		gwv6:   net.ParseIP("fe80::1"),
 	}, nil
@@ -182,7 +182,7 @@ func TestDisableIPv6DAD(t *testing.T) {
 	nlh := n.nlHandle
 
 	ipv6, _ := types.ParseCIDR("2001:db8::44/64")
-	iface := &nwIface{addressIPv6: ipv6, ns: n, dstName: "sideA"}
+	iface := &Interface{addressIPv6: ipv6, ns: n, dstName: "sideA"}
 
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: "sideA"},
@@ -242,7 +242,7 @@ func TestSetInterfaceIP(t *testing.T) {
 
 	ipv4, _ := types.ParseCIDR("172.30.0.33/24")
 	ipv6, _ := types.ParseCIDR("2001:db8::44/64")
-	iface := &nwIface{address: ipv4, addressIPv6: ipv6, ns: n, dstName: "sideA"}
+	iface := &Interface{address: ipv4, addressIPv6: ipv6, ns: n, dstName: "sideA"}
 
 	if err := nlh.LinkAdd(&netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: "sideA"},
@@ -316,7 +316,7 @@ func TestLiveRestore(t *testing.T) {
 
 	ipv4, _ := types.ParseCIDR("172.30.0.33/24")
 	ipv6, _ := types.ParseCIDR("2001:db8::44/64")
-	iface := &nwIface{address: ipv4, addressIPv6: ipv6, ns: n, dstName: "sideA"}
+	iface := &Interface{address: ipv4, addressIPv6: ipv6, ns: n, dstName: "sideA"}
 
 	if err := nlh.LinkAdd(&netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: "sideA"},
@@ -409,9 +409,9 @@ func TestSandboxCreate(t *testing.T) {
 
 	for _, i := range tbox.Interfaces() {
 		err = s.AddInterface(i.SrcName(), i.DstName(),
-			tbox.InterfaceOptions().Bridge(i.Bridge()),
-			tbox.InterfaceOptions().Address(i.Address()),
-			tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6()))
+			WithIsBridge(i.Bridge()),
+			WithIPv4Address(i.Address()),
+			WithIPv6Address(i.AddressIPv6()))
 		if err != nil {
 			t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 		}
@@ -508,9 +508,10 @@ func TestAddRemoveInterface(t *testing.T) {
 
 	for _, i := range tbox.Interfaces() {
 		err = s.AddInterface(i.SrcName(), i.DstName(),
-			tbox.InterfaceOptions().Bridge(i.Bridge()),
-			tbox.InterfaceOptions().Address(i.Address()),
-			tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6()))
+			WithIsBridge(i.Bridge()),
+			WithIPv4Address(i.Address()),
+			WithIPv6Address(i.AddressIPv6()),
+		)
 		if err != nil {
 			t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 		}
@@ -526,10 +527,12 @@ func TestAddRemoveInterface(t *testing.T) {
 	verifySandbox(t, s, []string{"1", "2"})
 
 	i := tbox.Interfaces()[0]
-	if err := s.AddInterface(i.SrcName(), i.DstName(),
-		tbox.InterfaceOptions().Bridge(i.Bridge()),
-		tbox.InterfaceOptions().Address(i.Address()),
-		tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6())); err != nil {
+	err = s.AddInterface(i.SrcName(), i.DstName(),
+		WithIsBridge(i.Bridge()),
+		WithIPv4Address(i.Address()),
+		WithIPv6Address(i.AddressIPv6()),
+	)
+	if err != nil {
 		t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 	}
 

@@ -266,7 +266,8 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 				continue
 			}
 		} else {
-			c.sboxOnce.Do(func() {
+			// FIXME(thaJeztah): osSbox (and thus defOsSbox) is always nil on non-Linux: move this code to Linux-only files.
+			c.defOsSboxOnce.Do(func() {
 				c.defOsSbox = sb.osSbox
 			})
 		}

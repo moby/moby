@@ -8,6 +8,7 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+// Gateway returns the IPv4 gateway for the sandbox.
 func (n *networkNamespace) Gateway() net.IP {
 	n.Lock()
 	defer n.Unlock()
@@ -15,6 +16,7 @@ func (n *networkNamespace) Gateway() net.IP {
 	return n.gw
 }
 
+// GatewayIPv6 returns the IPv6 gateway for the sandbox.
 func (n *networkNamespace) GatewayIPv6() net.IP {
 	n.Lock()
 	defer n.Unlock()
@@ -22,6 +24,9 @@ func (n *networkNamespace) GatewayIPv6() net.IP {
 	return n.gwv6
 }
 
+// StaticRoutes returns additional static routes for the sandbox. Note that
+// directly connected routes are stored on the particular interface they
+// refer to.
 func (n *networkNamespace) StaticRoutes() []*types.StaticRoute {
 	n.Lock()
 	defer n.Unlock()
@@ -47,6 +52,7 @@ func (n *networkNamespace) setGatewayIPv6(gwv6 net.IP) {
 	n.Unlock()
 }
 
+// SetGateway sets the default IPv4 gateway for the sandbox.
 func (n *networkNamespace) SetGateway(gw net.IP) error {
 	// Silently return if the gateway is empty
 	if len(gw) == 0 {
@@ -61,6 +67,7 @@ func (n *networkNamespace) SetGateway(gw net.IP) error {
 	return err
 }
 
+// UnsetGateway the previously set default IPv4 gateway in the sandbox.
 func (n *networkNamespace) UnsetGateway() error {
 	gw := n.Gateway()
 
@@ -140,6 +147,7 @@ func (n *networkNamespace) removeRoute(path string, dest *net.IPNet, nh net.IP) 
 	})
 }
 
+// SetGatewayIPv6 sets the default IPv6 gateway for the sandbox.
 func (n *networkNamespace) SetGatewayIPv6(gwv6 net.IP) error {
 	// Silently return if the gateway is empty
 	if len(gwv6) == 0 {
@@ -154,6 +162,7 @@ func (n *networkNamespace) SetGatewayIPv6(gwv6 net.IP) error {
 	return err
 }
 
+// UnsetGatewayIPv6 unsets the previously set default IPv6 gateway in the sandbox.
 func (n *networkNamespace) UnsetGatewayIPv6() error {
 	gwv6 := n.GatewayIPv6()
 
@@ -172,6 +181,7 @@ func (n *networkNamespace) UnsetGatewayIPv6() error {
 	return err
 }
 
+// AddStaticRoute adds a static route to the sandbox.
 func (n *networkNamespace) AddStaticRoute(r *types.StaticRoute) error {
 	err := n.programRoute(n.nsPath(), r.Destination, r.NextHop)
 	if err == nil {
@@ -182,6 +192,7 @@ func (n *networkNamespace) AddStaticRoute(r *types.StaticRoute) error {
 	return err
 }
 
+// RemoveStaticRoute removes a static route from the sandbox.
 func (n *networkNamespace) RemoveStaticRoute(r *types.StaticRoute) error {
 	err := n.removeRoute(n.nsPath(), r.Destination, r.NextHop)
 	if err == nil {

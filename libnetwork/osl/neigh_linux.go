@@ -42,6 +42,7 @@ func (n *networkNamespace) findNeighbor(dstIP net.IP, dstMac net.HardwareAddr) *
 	return nil
 }
 
+// DeleteNeighbor deletes neighbor entry from the sandbox.
 func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, osDelete bool) error {
 	var (
 		iface netlink.Link
@@ -119,6 +120,7 @@ func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr,
 	return nil
 }
 
+// AddNeighbor adds a neighbor entry into the sandbox.
 func (n *networkNamespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, force bool, options ...NeighOption) error {
 	var (
 		iface                  netlink.Link

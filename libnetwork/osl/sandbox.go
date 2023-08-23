@@ -22,7 +22,7 @@ type Iface struct {
 }
 
 // IfaceOption is a function option type to set interface options.
-type IfaceOption func(i *nwIface)
+type IfaceOption func(i *Interface) error
 
 // NeighOption is a function option type to set neighbor options.
 type NeighOption func(nh *neigh)
@@ -77,12 +77,6 @@ type Sandbox interface {
 	// DeleteNeighbor deletes neighbor entry from the sandbox.
 	DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, osDelete bool) error
 
-	// NeighborOptions returns an interface with methods to set neighbor options.
-	NeighborOptions() NeighborOptionSetter
-
-	// InterfaceOptions an interface with methods to set interface options.
-	InterfaceOptions() IfaceOptionSetter
-
 	// InvokeFunc invoke a function in the network namespace.
 	InvokeFunc(func()) error
 
@@ -98,43 +92,6 @@ type Sandbox interface {
 	Info
 }
 
-// NeighborOptionSetter interface defines the option setter methods for interface options
-type NeighborOptionSetter interface {
-	// LinkName returns an option setter to set the srcName of the link that should
-	// be used in the neighbor entry
-	LinkName(string) NeighOption
-
-	// Family returns an option setter to set the address family for the neighbor
-	// entry. eg. AF_BRIDGE
-	Family(int) NeighOption
-}
-
-// IfaceOptionSetter interface defines the option setter methods for interface options.
-type IfaceOptionSetter interface {
-	// Bridge returns an option setter to set if the interface is a bridge.
-	Bridge(bool) IfaceOption
-
-	// MacAddress returns an option setter to set the MAC address.
-	MacAddress(net.HardwareAddr) IfaceOption
-
-	// Address returns an option setter to set IPv4 address.
-	Address(*net.IPNet) IfaceOption
-
-	// AddressIPv6 returns an option setter to set IPv6 address.
-	AddressIPv6(*net.IPNet) IfaceOption
-
-	// LinkLocalAddresses returns an option setter to set the link-local IP addresses.
-	LinkLocalAddresses([]*net.IPNet) IfaceOption
-
-	// Master returns an option setter to set the master interface if any for this
-	// interface. The master interface name should refer to the srcname of a
-	// previously added interface of type bridge.
-	Master(string) IfaceOption
-
-	// Routes returns an option setter to set interface routes.
-	Routes([]*net.IPNet) IfaceOption
-}
-
 // Info represents all possible information that
 // the driver wants to place in the sandbox which includes
 // interfaces, routes and gateway
@@ -143,7 +100,7 @@ type Info interface {
 	// method. Note that this doesn't include network interfaces added in any
 	// other way (such as the default loopback interface which is automatically
 	// created on creation of a sandbox).
-	Interfaces() []Interface
+	Interfaces() []*Interface
 
 	// Gateway returns the IPv4 gateway for the sandbox.
 	Gateway() net.IP
@@ -155,46 +112,4 @@ type Info interface {
 	// directly connected routes are stored on the particular interface they
 	// refer to.
 	StaticRoutes() []*types.StaticRoute
-}
-
-// Interface represents the settings and identity of a network device. It is
-// used as a return type for Network.Link, and it is common practice for the
-// caller to use this information when moving interface SrcName from host
-// namespace to DstName in a different net namespace with the appropriate
-// network settings.
-type Interface interface {
-	// SrcName returns the name of the interface in the origin network namespace.
-	SrcName() string
-
-	// DstName returns the name that will be assigned to the interface once
-	// moved inside a network namespace. When the caller passes in a DstName,
-	// it is only expected to pass a prefix. The name will be modified with an
-	// auto-generated suffix.
-	DstName() string
-
-	// Address returns the IPv4 address for the interface.
-	Address() *net.IPNet
-
-	// AddressIPv6 returns the IPv6 address for the interface.
-	AddressIPv6() *net.IPNet
-
-	// LinkLocalAddresses returns the link-local IP addresses assigned to the
-	// interface.
-	LinkLocalAddresses() []*net.IPNet
-
-	// Routes returns IP routes for the interface.
-	Routes() []*net.IPNet
-
-	// Bridge returns true if the interface is a bridge.
-	Bridge() bool
-
-	// Master returns the srcname of the master interface for this interface.
-	Master() string
-
-	// Remove an interface from the sandbox by renaming to original name
-	// and moving it out of the sandbox.
-	Remove() error
-
-	// Statistics returns the statistics for this interface
-	Statistics() (*types.InterfaceStatistics, error)
 }
