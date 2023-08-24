@@ -59,60 +59,54 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 	return env, nil
 }
 
-func (daemon *Daemon) getIpcContainer(id string) (*container.Container, error) {
-	errMsg := "can't join IPC of container " + id
-	// Check the container exists
+func (daemon *Daemon) getIPCContainer(id string) (*container.Container, error) {
+	// Check if the container exists, is running, and not restarting
 	ctr, err := daemon.GetContainer(id)
 	if err != nil {
-		return nil, errors.Wrap(err, errMsg)
+		return nil, errdefs.InvalidParameter(err)
 	}
-	// Check the container is running and not restarting
-	if err := daemon.checkContainer(ctr, containerIsRunning, containerIsNotRestarting); err != nil {
-		return nil, errors.Wrap(err, errMsg)
+	if !ctr.IsRunning() {
+		return nil, errNotRunning(id)
 	}
+	if ctr.IsRestarting() {
+		return nil, errContainerIsRestarting(id)
+	}
+
 	// Check the container ipc is shareable
 	if st, err := os.Stat(ctr.ShmPath); err != nil || !st.IsDir() {
 		if err == nil || os.IsNotExist(err) {
-			return nil, errors.New(errMsg + ": non-shareable IPC (hint: use IpcMode:shareable for the donor container)")
+			return nil, errdefs.InvalidParameter(errors.New("container " + id + ": non-shareable IPC (hint: use IpcMode:shareable for the donor container)"))
 		}
 		// stat() failed?
-		return nil, errors.Wrap(err, errMsg+": unexpected error from stat "+ctr.ShmPath)
+		return nil, errdefs.System(errors.Wrap(err, "container "+id))
 	}
 
 	return ctr, nil
 }
 
-func (daemon *Daemon) getPidContainer(ctr *container.Container) (*container.Container, error) {
-	containerID := ctr.HostConfig.PidMode.Container()
-	ctr, err := daemon.GetContainer(containerID)
+func (daemon *Daemon) getPIDContainer(id string) (*container.Container, error) {
+	ctr, err := daemon.GetContainer(id)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot join PID of a non running container: %s", containerID)
+		return nil, errdefs.InvalidParameter(err)
 	}
-	return ctr, daemon.checkContainer(ctr, containerIsRunning, containerIsNotRestarting)
+	if !ctr.IsRunning() {
+		return nil, errNotRunning(id)
+	}
+	if ctr.IsRestarting() {
+		return nil, errContainerIsRestarting(id)
+	}
+
+	return ctr, nil
 }
 
-func containerIsRunning(c *container.Container) error {
-	if !c.IsRunning() {
-		return errdefs.Conflict(errors.Errorf("container %s is not running", c.ID))
-	}
-	return nil
-}
-
-func containerIsNotRestarting(c *container.Container) error {
-	if c.IsRestarting() {
-		return errContainerIsRestarting(c.ID)
-	}
-	return nil
-}
-
-func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
+func (daemon *Daemon) setupIPCDirs(c *container.Container) error {
 	ipcMode := c.HostConfig.IpcMode
 
 	switch {
 	case ipcMode.IsContainer():
-		ic, err := daemon.getIpcContainer(ipcMode.Container())
+		ic, err := daemon.getIPCContainer(ipcMode.Container())
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "failed to join IPC namespace")
 		}
 		c.ShmPath = ic.ShmPath
 
