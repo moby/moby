@@ -46,9 +46,8 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 		return err
 	}
 	defer func() {
-		err := release(leasedCtx)
-		if err != nil && !cerrdefs.IsNotFound(err) {
-			logrus.WithField("image", targetRef).WithError(err).Error("failed to delete lease created for push")
+		if err := release(leasedCtx); err != nil {
+			logrus.WithField("image", targetRef).WithError(err).Warn("failed to release lease created for push")
 		}
 	}()
 
