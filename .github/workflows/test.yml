@@ -104,8 +104,9 @@ jobs:
       -
         name: Create matrix
         id: scripts
+        # FIXME(thaJeztah): re-enable deprecate-integration-cli once https://github.com/moby/moby/pull/42300 is merged
         run: |
-          scripts=$(cd ./hack/validate && jq -nc '$ARGS.positional - ["all", "default", "dco"] | map(select(test("[.]")|not)) + ["generate-files"]' --args *)
+          scripts=$(cd ./hack/validate && jq -nc '$ARGS.positional - ["all", "default", "dco", "deprecate-integration-cli"] | map(select(test("[.]")|not)) + ["generate-files"]' --args *)
           echo "matrix=$scripts" >> $GITHUB_OUTPUT
       -
         name: Show matrix
