@@ -175,7 +175,7 @@ func (container *Container) toDisk() (*Container, error) {
 	}
 
 	// Save container settings
-	f, err := ioutils.NewAtomicFileWriter(pth, 0600)
+	f, err := ioutils.NewAtomicFileWriter(pth, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +250,7 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 		return nil, err
 	}
 
-	f, err := ioutils.NewAtomicFileWriter(pth, 0600)
+	f, err := ioutils.NewAtomicFileWriter(pth, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +279,7 @@ func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity)
 		return err
 	}
 
-	if err := idtools.MkdirAllAndChownNew(pth, 0755, rootIdentity); err != nil {
+	if err := idtools.MkdirAllAndChownNew(pth, 0o755, rootIdentity); err != nil {
 		pthInfo, err2 := os.Stat(pth)
 		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
 			return errors.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
@@ -402,7 +402,7 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := os.MkdirAll(logDir, 0700); err != nil {
+		if err := os.MkdirAll(logDir, 0o700); err != nil {
 			return nil, errdefs.System(errors.Wrap(err, "error creating local logs dir"))
 		}
 		info.LogPath = filepath.Join(logDir, "container.log")
