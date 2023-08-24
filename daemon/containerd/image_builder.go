@@ -42,14 +42,14 @@ import (
 // releasableLayer.Release() to prevent leaking of layers.
 func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	if refOrID == "" { // from SCRATCH
-		os := runtime.GOOS
+		imgOS := runtime.GOOS
 		if runtime.GOOS == "windows" {
-			os = "linux"
+			imgOS = "linux"
 		}
 		if opts.Platform != nil {
-			os = opts.Platform.OS
+			imgOS = opts.Platform.OS
 		}
-		if !system.IsOSSupported(os) {
+		if !system.IsOSSupported(imgOS) {
 			return nil, nil, system.ErrNotSupportedOperatingSystem
 		}
 		return nil, &rolayer{
@@ -390,12 +390,12 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		return nil, err
 	}
 
-	rootfs := ocispec.RootFS{
+	rootFS := ocispec.RootFS{
 		Type:    imgToCreate.RootFS.Type,
 		DiffIDs: []digest.Digest{},
 	}
 	for _, diffId := range imgToCreate.RootFS.DiffIDs {
-		rootfs.DiffIDs = append(rootfs.DiffIDs, digest.Digest(diffId))
+		rootFS.DiffIDs = append(rootFS.DiffIDs, digest.Digest(diffId))
 	}
 	exposedPorts := make(map[string]struct{}, len(imgToCreate.Config.ExposedPorts))
 	for k, v := range imgToCreate.Config.ExposedPorts {
@@ -424,7 +424,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 			Labels:       imgToCreate.Config.Labels,
 			StopSignal:   imgToCreate.Config.StopSignal,
 		},
-		RootFS:  rootfs,
+		RootFS:  rootFS,
 		History: imgToCreate.History,
 	}
 
