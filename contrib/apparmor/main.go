@@ -25,11 +25,11 @@ func main() {
 	}
 
 	// make sure /etc/apparmor.d exists
-	if err := os.MkdirAll(path.Dir(apparmorProfilePath), 0755); err != nil {
+	if err := os.MkdirAll(path.Dir(apparmorProfilePath), 0o755); err != nil {
 		log.Fatal(err)
 	}
 
-	f, err := os.OpenFile(apparmorProfilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(apparmorProfilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		log.Fatal(err)
 	}
