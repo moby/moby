@@ -493,9 +493,6 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		return nil, err
 	}
 
-	newImage := dimage.NewImage(dimage.ID(createdImage.Target.Digest))
-	newImage.V1Image = imgToCreate.V1Image
-	newImage.V1Image.ID = string(createdImage.Target.Digest)
-	newImage.History = imgToCreate.History
+	newImage := dimage.Clone(imgToCreate, dimage.ID(createdImage.Target.Digest))
 	return newImage, nil
 }
