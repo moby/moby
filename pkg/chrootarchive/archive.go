@@ -68,7 +68,7 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 
 		dest = filepath.Clean(dest)
 		if _, err := os.Stat(dest); os.IsNotExist(err) {
-			if err := idtools.MkdirAllAndChownNew(dest, 0755, rootIDs); err != nil {
+			if err := idtools.MkdirAllAndChownNew(dest, 0o755, rootIDs); err != nil {
 				return err
 			}
 		}
