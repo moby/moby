@@ -76,12 +76,12 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 				return nil, nil, system.ErrNotSupportedOperatingSystem
 			}
 
-			layer, err := newROLayerForImage(ctx, &imgDesc, i, opts, refOrID, opts.Platform)
+			roLayer, err := newROLayerForImage(ctx, &imgDesc, i, opts.Platform)
 			if err != nil {
 				return nil, nil, err
 			}
 
-			return img, layer, nil
+			return img, roLayer, nil
 		}
 	}
 
@@ -105,12 +105,12 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 		return nil, nil, err
 	}
 
-	layer, err := newROLayerForImage(ctx, imgDesc, i, opts, refOrID, opts.Platform)
+	roLayer, err := newROLayerForImage(ctx, imgDesc, i, opts.Platform)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return img, layer, nil
+	return img, roLayer, nil
 }
 
 func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]registry.AuthConfig, output io.Writer, platform *ocispec.Platform) (*ocispec.Descriptor, error) {
@@ -173,7 +173,7 @@ Please notify the image author to correct the configuration.`,
 	return &imgDesc, err
 }
 
-func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *ImageService, opts backend.GetImageAndLayerOptions, refOrID string, platform *ocispec.Platform) (builder.ROLayer, error) {
+func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *ImageService, platform *ocispec.Platform) (builder.ROLayer, error) {
 	if imgDesc == nil {
 		return nil, fmt.Errorf("can't make an RO layer for a nil image :'(")
 	}
