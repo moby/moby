@@ -10,8 +10,8 @@ import (
 )
 
 // regression test for https://github.com/moby/moby/issues/45904
-func TestContainerConfigToOciImageConfig(t *testing.T) {
-	ociCFG := containerConfigToOciImageConfig(&container.Config{
+func TestContainerConfigToDockerImageConfig(t *testing.T) {
+	ociCFG := containerConfigToDockerOCIImageConfig(&container.Config{
 		ExposedPorts: nat.PortSet{
 			"80/tcp": struct{}{},
 		},
