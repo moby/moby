@@ -85,6 +85,7 @@ func TestUploadReadFrom(t *testing.T) {
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusBadRequest,
+				Headers:    http.Header{"Content-Type": []string{"application/json; charset=utf-8"}},
 				Body: []byte(`
 					{ "errors":
 						[
@@ -106,6 +107,7 @@ func TestUploadReadFrom(t *testing.T) {
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusBadRequest,
+				Headers:    http.Header{"Content-Type": []string{"application/json"}},
 				Body:       []byte("something bad happened"),
 			},
 		},
