@@ -13,6 +13,6 @@ func newKey(t *testing.T) (string, error) {
 	return "", ErrNotImplemented
 }
 
-func verifySandbox(t *testing.T, s Sandbox) {
+func verifySandbox(t *testing.T, ns *Namespace) {
 	return
 }

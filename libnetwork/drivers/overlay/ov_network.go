@@ -47,7 +47,7 @@ type subnet struct {
 
 type network struct {
 	id        string
-	sbox      osl.Sandbox
+	sbox      *osl.Namespace
 	endpoints endpointTable
 	driver    *driver
 	joinCnt   int
@@ -463,9 +463,9 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 	return nil
 }
 
-func setDefaultVLAN(sbox osl.Sandbox) error {
+func setDefaultVLAN(ns *osl.Namespace) error {
 	var brName string
-	for _, i := range sbox.Interfaces() {
+	for _, i := range ns.Interfaces() {
 		if i.Bridge() {
 			brName = i.DstName()
 		}
@@ -474,7 +474,7 @@ func setDefaultVLAN(sbox osl.Sandbox) error {
 	// IFLA_BR_VLAN_DEFAULT_PVID was added in Linux v4.4 (see torvalds/linux@0f963b7), so we can't use netlink for
 	// setting this until Docker drops support for CentOS/RHEL 7 (kernel 3.10, eol date: 2024-06-30).
 	var innerErr error
-	err := sbox.InvokeFunc(func() {
+	err := ns.InvokeFunc(func() {
 		// Contrary to what the sysfs(5) man page says, the entries of /sys/class/net
 		// represent the networking devices visible in the network namespace of the
 		// process which mounted the sysfs filesystem, irrespective of the network
@@ -603,7 +603,7 @@ func (d *driver) network(nid string) *network {
 	return n
 }
 
-func (n *network) sandbox() osl.Sandbox {
+func (n *network) sandbox() *osl.Namespace {
 	n.Lock()
 	defer n.Unlock()
 	return n.sbox

@@ -30,7 +30,7 @@ type Interface struct {
 	llAddrs     []*net.IPNet
 	routes      []*net.IPNet
 	bridge      bool
-	ns          *networkNamespace
+	ns          *Namespace
 }
 
 // SrcName returns the name of the interface in the origin network namespace.
@@ -159,7 +159,7 @@ func (i *Interface) Statistics() (*types.InterfaceStatistics, error) {
 	}, nil
 }
 
-func (n *networkNamespace) findDst(srcName string, isBridge bool) string {
+func (n *Namespace) findDst(srcName string, isBridge bool) string {
 	n.Lock()
 	defer n.Unlock()
 
@@ -179,7 +179,7 @@ func (n *networkNamespace) findDst(srcName string, isBridge bool) string {
 // interface according to the specified settings. The caller is expected
 // to only provide a prefix for DstName. The AddInterface api will auto-generate
 // an appropriate suffix for the DstName to disambiguate.
-func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...IfaceOption) error {
+func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOption) error {
 	i := &Interface{
 		srcName: srcName,
 		dstName: dstPrefix,

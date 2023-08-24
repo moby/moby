@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
-func releaseOSSboxResources(osSbox osl.Sandbox, ep *Endpoint) {
-	for _, i := range osSbox.Interfaces() {
+func releaseOSSboxResources(ns *osl.Namespace, ep *Endpoint) {
+	for _, i := range ns.Interfaces() {
 		// Only remove the interfaces owned by this endpoint from the sandbox.
 		if ep.hasInterface(i.SrcName()) {
 			if err := i.Remove(); err != nil {
@@ -29,7 +29,7 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *Endpoint) {
 
 	if len(vip) > 0 && lbModeIsDSR {
 		ipNet := &net.IPNet{IP: vip, Mask: net.CIDRMask(32, 32)}
-		if err := osSbox.RemoveAliasIP(osSbox.GetLoopbackIfaceName(), ipNet); err != nil {
+		if err := ns.RemoveAliasIP(ns.GetLoopbackIfaceName(), ipNet); err != nil {
 			log.G(context.TODO()).WithError(err).Debugf("failed to remove virtual ip %v to loopback", ipNet)
 		}
 	}
@@ -40,7 +40,7 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *Endpoint) {
 
 	// Remove non-interface routes.
 	for _, r := range joinInfo.StaticRoutes {
-		if err := osSbox.RemoveStaticRoute(r); err != nil {
+		if err := ns.RemoveStaticRoute(r); err != nil {
 			log.G(context.TODO()).Debugf("Remove route failed: %v", err)
 		}
 	}
