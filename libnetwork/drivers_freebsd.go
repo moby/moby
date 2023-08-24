@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/null"
 )
 
