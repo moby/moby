@@ -755,6 +755,7 @@ github.com/moby/buildkit/util/overlay
 github.com/moby/buildkit/util/progress
 github.com/moby/buildkit/util/progress/controller
 github.com/moby/buildkit/util/progress/logs
+github.com/moby/buildkit/util/progress/progressui
 github.com/moby/buildkit/util/pull
 github.com/moby/buildkit/util/pull/pullprogress
 github.com/moby/buildkit/util/purl
@@ -1000,6 +1001,9 @@ github.com/tonistiigi/go-archvariant
 # github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea
 ## explicit
 github.com/tonistiigi/units
+# github.com/tonistiigi/vt100 v0.0.0-20210615222946-8066bb97264f
+## explicit; go 1.12
+github.com/tonistiigi/vt100
 # github.com/vbatts/tar-split v0.11.2
 ## explicit; go 1.15
 github.com/vbatts/tar-split/archive/tar
