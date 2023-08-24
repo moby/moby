@@ -940,7 +940,7 @@ func (d *Daemon) TamperWithContainerConfig(t testing.TB, containerID string, tam
 	tamper(&c)
 	configBytes, err = json.Marshal(&c)
 	assert.NilError(t, err)
-	assert.NilError(t, os.WriteFile(configPath, configBytes, 0600))
+	assert.NilError(t, os.WriteFile(configPath, configBytes, 0o600))
 }
 
 // cleanupRaftDir removes swarmkit wal files if present
