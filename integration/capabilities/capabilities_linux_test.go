@@ -100,9 +100,7 @@ func TestNoNewPrivileges(t *testing.T) {
 			}
 			if stdErr != tc.stdErr {
 				t.Fatalf("test produced invalid error: %q, expected %q. Stdout:%q", stdErr, tc.stdErr, stdOut)
-
 			}
 		})
 	}
-
 }

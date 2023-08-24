@@ -43,7 +43,6 @@ func doUnpackLayer(root string, layer io.Reader, options *archive.TarOptions) (i
 		size, err := archive.UnpackLayer("/", layer, options)
 		done <- result{layerSize: size, err: err}
 	})
-
 	if err != nil {
 		return 0, err
 	}

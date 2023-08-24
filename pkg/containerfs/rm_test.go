@@ -27,7 +27,7 @@ func TestEnsureRemoveAllWithMount(t *testing.T) {
 	defer os.RemoveAll(dir2)
 
 	bindDir := filepath.Join(dir1, "bind")
-	if err := os.MkdirAll(bindDir, 0755); err != nil {
+	if err := os.MkdirAll(bindDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 

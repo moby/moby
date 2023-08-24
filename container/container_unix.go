@@ -60,7 +60,7 @@ func (container *Container) BuildHostnameFile() error {
 		return err
 	}
 	container.HostnamePath = hostnamePath
-	return os.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+	return os.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0o644)
 }
 
 // NetworkMounts returns the list of network mounts.

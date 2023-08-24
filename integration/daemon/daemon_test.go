@@ -155,7 +155,7 @@ func TestConfigDaemonSeccompProfiles(t *testing.T) {
 			d.Stop(t)
 
 			cfg := filepath.Join(d.RootDir(), "daemon.json")
-			err := os.WriteFile(cfg, []byte(`{"seccomp-profile": "`+tc.profile+`"}`), 0644)
+			err := os.WriteFile(cfg, []byte(`{"seccomp-profile": "`+tc.profile+`"}`), 0o644)
 			assert.NilError(t, err)
 
 			d.Start(t, "--config-file", cfg)
@@ -285,7 +285,7 @@ func TestDaemonProxy(t *testing.T) {
 
 		configFile := filepath.Join(d.RootDir(), "daemon.json")
 		configJSON := fmt.Sprintf(`{"proxies":{"http-proxy":%[1]q, "https-proxy": %[1]q, "no-proxy": "example.com"}}`, proxyServer.URL)
-		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0644))
+		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0o644))
 
 		d.Start(t, "--iptables=false", "--config-file", configFile)
 		defer d.Stop(t)
@@ -327,7 +327,7 @@ func TestDaemonProxy(t *testing.T) {
 
 		configFile := filepath.Join(d.RootDir(), "daemon.json")
 		configJSON := fmt.Sprintf(`{"proxies":{"http-proxy":%[1]q, "https-proxy": %[1]q, "no-proxy": "example.com"}}`, proxyRawURL)
-		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0644))
+		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0o644))
 
 		err := d.StartWithError("--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com", "--config-file", configFile, "--validate")
 		assert.ErrorContains(t, err, "daemon exited during startup")

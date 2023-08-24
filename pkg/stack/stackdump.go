@@ -26,7 +26,7 @@ func DumpToFile(dir string) (string, error) {
 	if dir != "" {
 		path := filepath.Join(dir, fmt.Sprintf(stacksLogNameTemplate, strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "")))
 		var err error
-		f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0666)
+		f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o666)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to open file to write the goroutine stacks")
 		}
