@@ -1174,21 +1174,6 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 	assert.Equal(c, linksPostRm, "null", "call to api deleteContainer links should have removed the specified links")
 }
 
-func (s *DockerAPISuite) TestContainerAPIDeleteConflict(c *testing.T) {
-	out := runSleepingContainer(c)
-
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	err = apiClient.ContainerRemove(context.Background(), id, types.ContainerRemoveOptions{})
-	expected := "cannot remove a running container"
-	assert.ErrorContains(c, err, expected)
-}
-
 func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 
