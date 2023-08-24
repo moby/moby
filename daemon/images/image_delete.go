@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -98,7 +99,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 			return nil, err
 		}
 
-		parsedRef, err = i.removeImageRef(parsedRef)
+		parsedRef, err = i.removeImageRef(ctx, parsedRef)
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +127,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 				var remainingRefs []reference.Named
 				for _, repoRef := range repoRefs {
 					if _, repoRefIsCanonical := repoRef.(reference.Canonical); repoRefIsCanonical && parsedRef.Name() == repoRef.Name() {
-						if _, err := i.removeImageRef(repoRef); err != nil {
+						if _, err := i.removeImageRef(ctx, repoRef); err != nil {
 							return records, err
 						}
 
@@ -160,7 +161,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 			}
 
 			for _, repoRef := range repoRefs {
-				parsedRef, err := i.removeImageRef(repoRef)
+				parsedRef, err := i.removeImageRef(ctx, repoRef)
 				if err != nil {
 					return nil, err
 				}
@@ -173,7 +174,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		}
 	}
 
-	if err := i.imageDeleteHelper(imgID, &records, force, prune, removedRepositoryRef); err != nil {
+	if err := i.imageDeleteHelper(ctx, imgID, &records, force, prune, removedRepositoryRef); err != nil {
 		return nil, err
 	}
 
@@ -226,14 +227,14 @@ func isImageIDPrefix(imageID, possiblePrefix string) bool {
 // repositoryRef must not be an image ID but a repository name followed by an
 // optional tag or digest reference. If tag or digest is omitted, the default
 // tag is used. Returns the resolved image reference and an error.
-func (i *ImageService) removeImageRef(ref reference.Named) (reference.Named, error) {
+func (i *ImageService) removeImageRef(ctx context.Context, ref reference.Named) (reference.Named, error) {
 	ref = reference.TagNameOnly(ref)
 
 	// Ignore the boolean value returned, as far as we're concerned, this
 	// is an idempotent operation and it's okay if the reference didn't
 	// exist in the first place.
 	_, err := i.referenceStore.Delete(ref)
-
+	log.G(ctx).Debugf("Removed reference: %s", ref)
 	return ref, err
 }
 
@@ -242,11 +243,11 @@ func (i *ImageService) removeImageRef(ref reference.Named) (reference.Named, err
 // on the first encountered error. Removed references are logged to this
 // daemon's event service. An "Untagged" types.ImageDeleteResponseItem is added to the
 // given list of records.
-func (i *ImageService) removeAllReferencesToImageID(imgID image.ID, records *[]types.ImageDeleteResponseItem) error {
+func (i *ImageService) removeAllReferencesToImageID(ctx context.Context, imgID image.ID, records *[]types.ImageDeleteResponseItem) error {
 	imageRefs := i.referenceStore.References(imgID.Digest())
 
 	for _, imageRef := range imageRefs {
-		parsedRef, err := i.removeImageRef(imageRef)
+		parsedRef, err := i.removeImageRef(ctx, imageRef)
 		if err != nil {
 			return err
 		}
@@ -293,7 +294,7 @@ func (idc *imageDeleteConflict) Conflict() {}
 // conflict is encountered, it will be returned immediately without deleting
 // the image. If quiet is true, any encountered conflicts will be ignored and
 // the function will return nil immediately without deleting the image.
-func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageDeleteResponseItem, force, prune, quiet bool) error {
+func (i *ImageService) imageDeleteHelper(ctx context.Context, imgID image.ID, records *[]types.ImageDeleteResponseItem, force, prune, quiet bool) error {
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
 	c := conflictHard
@@ -319,7 +320,7 @@ func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageD
 	}
 
 	// Delete all repository tag/digest references to this image.
-	if err := i.removeAllReferencesToImageID(imgID, records); err != nil {
+	if err := i.removeAllReferencesToImageID(ctx, imgID, records); err != nil {
 		return err
 	}
 
@@ -330,7 +331,9 @@ func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageD
 
 	i.LogImageEvent(imgID.String(), imgID.String(), "delete")
 	*records = append(*records, types.ImageDeleteResponseItem{Deleted: imgID.String()})
+	log.G(ctx).Debugf("Deleted Image: %s", imgID.String())
 	for _, removedLayer := range removedLayers {
+		log.G(ctx).Debugf("Deleted layer: %s", removedLayer.ChainID.String())
 		*records = append(*records, types.ImageDeleteResponseItem{Deleted: removedLayer.ChainID.String()})
 	}
 
@@ -343,7 +346,8 @@ func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageD
 	// either running or stopped).
 	// Do not force prunings, but do so quietly (stopping on any encountered
 	// conflicts).
-	return i.imageDeleteHelper(parent, records, false, true, true)
+	log.G(ctx).Debugf("Pruning parent image %s", parent.String())
+	return i.imageDeleteHelper(ctx, parent, records, false, true, true)
 }
 
 // checkImageDeleteConflict determines whether there are any conflicts

@@ -28,7 +28,7 @@ import (
 	"github.com/opencontainers/go-digest"
 )
 
-func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
+func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
 	var progressOutput progress.Output
 	if !quiet {
 		progressOutput = streamformatter.NewJSONProgressOutput(outStream, false)
@@ -52,6 +52,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	manifestFile, err := os.Open(manifestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			log.G(ctx).Debugf("%s file not found in %s. Attempting legacy load...", manifestFileName, tmpDir)
 			return l.legacyLoad(tmpDir, outStream, progressOutput)
 		}
 		return err
@@ -103,6 +104,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 			r.Append(diffID)
 			newLayer, err := l.lss.Get(r.ChainID())
 			if err != nil {
+				log.G(ctx).Debugf("Loading layer: %s", diffID.String())
 				newLayer, err = l.loadLayer(layerPath, rootFS, diffID.String(), m.LayerSources[diffID], progressOutput)
 				if err != nil {
 					return err
@@ -119,6 +121,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		if err != nil {
 			return err
 		}
+		log.G(ctx).Debugf("Loaded image: %s", imgID)
 		imageIDsStr += fmt.Sprintf("Loaded image ID: %s\n", imgID)
 
 		imageRefCount = 0
@@ -132,6 +135,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 				return fmt.Errorf("invalid tag %q", repoTag)
 			}
 			l.setLoadedTag(ref, imgID.Digest(), outStream)
+			log.G(ctx).Debugf("Added tag %s to image %s", reference.FamiliarString(ref), imgID.Digest())
 			outStream.Write([]byte(fmt.Sprintf("Loaded image: %s\n", reference.FamiliarString(ref))))
 			imageRefCount++
 		}
