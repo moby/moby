@@ -1,5 +1,4 @@
 //go:build windows
-// +build windows
 
 package windows // import "github.com/docker/docker/daemon/graphdriver/windows"
 

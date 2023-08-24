@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package apparmor // import "github.com/docker/docker/profiles/apparmor"
 

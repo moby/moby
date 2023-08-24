@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package overlayutils // import "github.com/docker/docker/daemon/graphdriver/overlayutils"
 
