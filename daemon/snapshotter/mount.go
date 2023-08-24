@@ -93,7 +93,7 @@ func (m *refCountMounter) Mount(mounts []mount.Mount, containerID string) (targe
 	}()
 
 	root := m.idMap.RootPair()
-	if err := idtools.MkdirAllAndChown(target, 0700, root); err != nil {
+	if err := idtools.MkdirAllAndChown(target, 0o700, root); err != nil {
 		return "", err
 	}
 
@@ -129,7 +129,7 @@ func (m mounter) Mount(mounts []mount.Mount, containerID string) (string, error)
 	target := filepath.Join(m.home, mountsDir, m.snapshotter, containerID)
 
 	root := m.idMap.RootPair()
-	if err := idtools.MkdirAndChown(target, 0700, root); err != nil {
+	if err := idtools.MkdirAndChown(target, 0o700, root); err != nil {
 		return "", err
 	}
 
