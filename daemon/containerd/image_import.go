@@ -46,7 +46,11 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 	if err != nil {
 		return "", errdefs.System(err)
 	}
-	defer release(ctx)
+	defer func() {
+		if err := release(ctx); err != nil {
+			logger.WithError(err).Warn("failed to release lease created for import")
+		}
+	}()
 
 	if platform == nil {
 		def := platforms.DefaultSpec()

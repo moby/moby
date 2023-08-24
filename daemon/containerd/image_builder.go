@@ -460,11 +460,15 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 
 	// necessary to prevent the contents from being GC'd
 	// between writing them here and creating an image
-	ctx, done, err := i.client.WithLease(ctx, leases.WithRandomID(), leases.WithExpiration(1*time.Hour))
+	ctx, release, err := i.client.WithLease(ctx, leases.WithRandomID(), leases.WithExpiration(1*time.Hour))
 	if err != nil {
 		return nil, err
 	}
-	defer done(ctx)
+	defer func() {
+		if err := release(ctx); err != nil {
+			log.G(ctx).WithError(err).Warn("failed to release lease created for create")
+		}
+	}()
 
 	commitManifestDesc, err := writeContentsForImage(ctx, i.snapshotter, i.client.ContentStore(), ociImgToCreate, layers)
 	if err != nil {
