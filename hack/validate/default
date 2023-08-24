@@ -12,6 +12,7 @@ SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${SCRIPTDIR}"/swagger
 . "${SCRIPTDIR}"/swagger-gen
 . "${SCRIPTDIR}"/toml
-. "${SCRIPTDIR}"/deprecate-integration-cli
+# FIXME(thaJeztah): re-enable deprecate-integration-cli once https://github.com/moby/moby/pull/42300 is merged
+#. "${SCRIPTDIR}"/deprecate-integration-cli
 . "${SCRIPTDIR}"/golangci-lint
 . "${SCRIPTDIR}"/shfmt
