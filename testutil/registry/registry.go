@@ -107,10 +107,12 @@ http:
 	}
 
 	binary := V2binary
+	args := []string{"serve", confPath}
 	if c.schema1 {
 		binary = V2binarySchema1
+		args = []string{confPath}
 	}
-	cmd := exec.Command(binary, confPath)
+	cmd := exec.Command(binary, args...)
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 	if err := cmd.Start(); err != nil {
