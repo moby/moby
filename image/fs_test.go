@@ -66,7 +66,7 @@ func TestFSInvalidRoot(t *testing.T) {
 	for _, tc := range tcases {
 		root := filepath.Join(tmpdir, tc.root)
 		filePath := filepath.Join(tmpdir, tc.invalidFile)
-		err := os.MkdirAll(filepath.Dir(filePath), 0700)
+		err := os.MkdirAll(filepath.Dir(filePath), 0o700)
 		assert.Check(t, err)
 
 		f, err := os.Create(filePath)
@@ -128,7 +128,7 @@ func TestFSInvalidWalker(t *testing.T) {
 	fooID, err := store.Set([]byte("foo"))
 	assert.Check(t, err)
 
-	err = os.WriteFile(filepath.Join(store.(*fs).root, contentDirName, "sha256/foobar"), []byte("foobar"), 0600)
+	err = os.WriteFile(filepath.Join(store.(*fs).root, contentDirName, "sha256/foobar"), []byte("foobar"), 0o600)
 	assert.Check(t, err)
 
 	n := 0
