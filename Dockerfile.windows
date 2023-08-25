@@ -219,7 +219,7 @@ RUN `
   `
   Write-Host INFO: Downloading go...; `
   $dlGoVersion=$Env:GO_VERSION -replace '\.0$',''; `
-  Download-File "https://golang.org/dl/go${dlGoVersion}.windows-amd64.zip" C:\go.zip; `
+  Download-File "https://go.dev/dl/go${dlGoVersion}.windows-amd64.zip" C:\go.zip; `
   `
   Write-Host INFO: Downloading compiler 1 of 3...; `
   Download-File https://raw.githubusercontent.com/moby/docker-tdmgcc/master/gcc.zip C:\gcc.zip; `
