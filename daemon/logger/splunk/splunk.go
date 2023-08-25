@@ -37,7 +37,7 @@ const (
 	splunkCANameKey               = "splunk-caname"
 	splunkInsecureSkipVerifyKey   = "splunk-insecureskipverify"
 	splunkFormatKey               = "splunk-format"
-	splunkVerifyConnectionKey     = "splunk-verify-connection"
+	splunkVerifyConnectionKey     = "splunk-verify-connection" // #nosec G101 -- ignoring: Potential hardcoded credentials (gosec)
 	splunkGzipCompressionKey      = "splunk-gzip"
 	splunkGzipCompressionLevelKey = "splunk-gzip-level"
 	splunkIndexAcknowledgment     = "splunk-index-acknowledgment"
