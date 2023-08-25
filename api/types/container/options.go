@@ -1,5 +1,7 @@
 package container
 
+import "github.com/docker/docker/api/types/filters"
+
 // ResizeOptions holds parameters to resize a TTY.
 // It can be used to resize container TTYs and
 // exec process TTYs too.
@@ -39,4 +41,15 @@ type RemoveOptions struct {
 type StartOptions struct {
 	CheckpointID  string
 	CheckpointDir string
+}
+
+// ListOptions holds parameters to list containers with.
+type ListOptions struct {
+	Size    bool
+	All     bool
+	Latest  bool
+	Since   string
+	Before  string
+	Limit   int
+	Filters filters.Args
 }

@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
@@ -43,7 +43,7 @@ func TestLinksContainerNames(t *testing.T) {
 	container.Run(ctx, t, apiClient, container.WithName(containerA))
 	container.Run(ctx, t, apiClient, container.WithName(containerB), container.WithLinks(containerA+":"+containerA))
 
-	containers, err := apiClient.ContainerList(ctx, types.ContainerListOptions{
+	containers, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", containerA)),
 	})
 	assert.NilError(t, err)

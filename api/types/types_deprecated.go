@@ -114,6 +114,11 @@ type ContainerAttachOptions = container.AttachOptions
 // Deprecated: use [container.CommitOptions].
 type ContainerCommitOptions = container.CommitOptions
 
+// ContainerListOptions holds parameters to list containers with.
+//
+// Deprecated: use [container.ListOptions].
+type ContainerListOptions = container.ListOptions
+
 // ContainerRemoveOptions holds parameters to remove containers.
 //
 // Deprecated: use [container.RemoveOptions].

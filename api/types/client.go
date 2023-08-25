@@ -20,17 +20,6 @@ type ContainerExecInspect struct {
 	Pid         int
 }
 
-// ContainerListOptions holds parameters to list containers with.
-type ContainerListOptions struct {
-	Size    bool
-	All     bool
-	Latest  bool
-	Since   string
-	Before  string
-	Limit   int
-	Filters filters.Args
-}
-
 // ContainerLogsOptions holds parameters to filter logs with.
 type ContainerLogsOptions struct {
 	ShowStdout bool

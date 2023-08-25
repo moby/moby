@@ -45,7 +45,7 @@ func (s *DockerAPISuite) TestContainerAPIGetAll(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := types.ContainerListOptions{
+	options := container.ListOptions{
 		All: true,
 	}
 	ctx := testutil.GetContext(c)
@@ -65,7 +65,7 @@ func (s *DockerAPISuite) TestContainerAPIGetJSONNoFieldsOmitted(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := types.ContainerListOptions{
+	options := container.ListOptions{
 		All: true,
 	}
 	ctx := testutil.GetContext(c)

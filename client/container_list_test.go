@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -21,7 +22,7 @@ func TestContainerListError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ContainerList(context.Background(), types.ContainerListOptions{})
+	_, err := client.ContainerList(context.Background(), container.ListOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -78,7 +79,7 @@ func TestContainerList(t *testing.T) {
 		}),
 	}
 
-	containers, err := client.ContainerList(context.Background(), types.ContainerListOptions{
+	containers, err := client.ContainerList(context.Background(), container.ListOptions{
 		Size:  true,
 		All:   true,
 		Since: "container",

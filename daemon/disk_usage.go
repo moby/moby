@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/volume"
@@ -18,7 +19,7 @@ import (
 func (daemon *Daemon) containerDiskUsage(ctx context.Context) ([]*types.Container, error) {
 	res, _, err := daemon.usageContainers.Do(ctx, struct{}{}, func(ctx context.Context) ([]*types.Container, error) {
 		// Retrieve container list
-		containers, err := daemon.Containers(ctx, &types.ContainerListOptions{
+		containers, err := daemon.Containers(ctx, &container.ListOptions{
 			Size: true,
 			All:  true,
 		})
