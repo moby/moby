@@ -99,7 +99,7 @@ func RunAttach(ctx context.Context, t *testing.T, apiClient client.APIClient, op
 	})
 	id := Create(ctx, t, apiClient, ops...)
 
-	aresp, err := apiClient.ContainerAttach(ctx, id, types.ContainerAttachOptions{
+	aresp, err := apiClient.ContainerAttach(ctx, id, container.AttachOptions{
 		Stream: true,
 		Stdout: true,
 		Stderr: true,

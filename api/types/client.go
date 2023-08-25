@@ -11,16 +11,6 @@ import (
 	units "github.com/docker/go-units"
 )
 
-// ContainerAttachOptions holds parameters to attach to a container.
-type ContainerAttachOptions struct {
-	Stream     bool
-	Stdin      bool
-	Stdout     bool
-	Stderr     bool
-	DetachKeys string
-	Logs       bool
-}
-
 // ContainerCommitOptions holds parameters to commit changes into a container.
 type ContainerCommitOptions struct {
 	Reference string

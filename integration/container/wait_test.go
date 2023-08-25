@@ -145,7 +145,7 @@ func TestWaitConditions(t *testing.T) {
 			containerID := container.Create(ctx, t, cli, opts...)
 			t.Logf("ContainerID = %v", containerID)
 
-			streams, err := cli.ContainerAttach(ctx, containerID, types.ContainerAttachOptions{Stream: true, Stdin: true})
+			streams, err := cli.ContainerAttach(ctx, containerID, containertypes.AttachOptions{Stream: true, Stdin: true})
 			assert.NilError(t, err)
 			defer streams.Close()
 

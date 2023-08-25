@@ -99,6 +99,11 @@ type ServiceUpdateResponse = swarm.ServiceUpdateResponse
 // Deprecated: use [container.ResizeOptions].
 type ResizeOptions = container.ResizeOptions
 
+// ContainerAttachOptions holds parameters to attach to a container.
+//
+// Deprecated: use [container.AttachOptions].
+type ContainerAttachOptions = container.AttachOptions
+
 // DecodeSecurityOptions decodes a security options string slice to a type safe
 // [system.SecurityOpt].
 //

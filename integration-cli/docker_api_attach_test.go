@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
@@ -184,7 +185,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 	cid = strings.TrimSpace(cid)
 
 	// Make sure we don't see "hello" if Logs is false
-	attachOpts := types.ContainerAttachOptions{
+	attachOpts := container.AttachOptions{
 		Stream: true,
 		Stdin:  true,
 		Stdout: true,
