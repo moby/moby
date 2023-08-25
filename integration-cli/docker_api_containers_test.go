@@ -924,12 +924,12 @@ func (s *DockerAPISuite) TestContainerAPIStart(c *testing.T) {
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, name)
 	assert.NilError(c, err)
 
-	err = apiClient.ContainerStart(testutil.GetContext(c), name, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(testutil.GetContext(c), name, container.StartOptions{})
 	assert.NilError(c, err)
 
 	// second call to start should give 304
 	// maybe add ContainerStartWithRaw to test it
-	err = apiClient.ContainerStart(testutil.GetContext(c), name, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(testutil.GetContext(c), name, container.StartOptions{})
 	assert.NilError(c, err)
 
 	// TODO(tibor): figure out why this doesn't work on windows
@@ -1572,7 +1572,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, name)
 	assert.NilError(c, err)
 
-	err = apiClient.ContainerStart(testutil.GetContext(c), name, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(testutil.GetContext(c), name, container.StartOptions{})
 	assert.NilError(c, err)
 
 	assert.Assert(c, waitRun(name) == nil)
@@ -2112,7 +2112,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			assert.Check(c, is.Equal(x.expected.Mode, mountPoint.Mode))
 			assert.Check(c, is.Equal(x.expected.Destination, mountPoint.Destination))
 
-			err = apiclient.ContainerStart(ctx, ctr.ID, types.ContainerStartOptions{})
+			err = apiclient.ContainerStart(ctx, ctr.ID, container.StartOptions{})
 			assert.NilError(c, err)
 			poll.WaitOn(c, containerExit(ctx, apiclient, ctr.ID), poll.WithDelay(time.Second))
 

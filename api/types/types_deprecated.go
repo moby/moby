@@ -92,6 +92,11 @@ type ServiceCreateResponse = swarm.ServiceCreateResponse
 // Deprecated: use [swarm.ServiceUpdateResponse].
 type ServiceUpdateResponse = swarm.ServiceUpdateResponse
 
+// ContainerStartOptions holds parameters to start containers.
+//
+// Deprecated: use [container.StartOptions].
+type ContainerStartOptions = container.StartOptions
+
 // ResizeOptions holds parameters to resize a TTY.
 // It can be used to resize container TTYs and
 // exec process TTYs too.

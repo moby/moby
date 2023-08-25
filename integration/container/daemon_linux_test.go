@@ -49,7 +49,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	cID := container.Create(ctx, t, c)
 	defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
-	err := c.ContainerStart(ctx, cID, types.ContainerStartOptions{})
+	err := c.ContainerStart(ctx, cID, containertypes.StartOptions{})
 	assert.Check(t, err, "error starting test container")
 
 	inspect, err := c.ContainerInspect(ctx, cID)
@@ -68,7 +68,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 
 	d.Start(t, "--iptables=false")
 
-	err = c.ContainerStart(ctx, cID, types.ContainerStartOptions{})
+	err = c.ContainerStart(ctx, cID, containertypes.StartOptions{})
 	assert.Check(t, err, "failed to start test container")
 }
 

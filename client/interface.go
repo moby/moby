@@ -69,7 +69,7 @@ type ContainerAPIClient interface {
 	ContainerStatPath(ctx context.Context, container, path string) (types.ContainerPathStat, error)
 	ContainerStats(ctx context.Context, container string, stream bool) (types.ContainerStats, error)
 	ContainerStatsOneShot(ctx context.Context, container string) (types.ContainerStats, error)
-	ContainerStart(ctx context.Context, container string, options types.ContainerStartOptions) error
+	ContainerStart(ctx context.Context, container string, options container.StartOptions) error
 	ContainerStop(ctx context.Context, container string, options container.StopOptions) error
 	ContainerTop(ctx context.Context, container string, arguments []string) (container.ContainerTopOKBody, error)
 	ContainerUnpause(ctx context.Context, container string) error

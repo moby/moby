@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
@@ -50,7 +50,7 @@ func TestPIDModeContainer(t *testing.T) {
 		ctr, err := container.CreateFromConfig(ctx, apiClient, container.NewTestConfig(container.WithPIDMode("container:"+pidCtrName)))
 		assert.NilError(t, err, "should not produce an error when creating, only when starting")
 
-		err = apiClient.ContainerStart(ctx, ctr.ID, types.ContainerStartOptions{})
+		err = apiClient.ContainerStart(ctx, ctr.ID, containertypes.StartOptions{})
 		assert.Check(t, is.ErrorType(err, errdefs.IsSystem), "should produce a System error when starting an existing container from an invalid state")
 		assert.Check(t, is.ErrorContains(err, "failed to join PID namespace"))
 		assert.Check(t, is.ErrorContains(err, cPIDContainerID+" is not running"))
@@ -63,7 +63,7 @@ func TestPIDModeContainer(t *testing.T) {
 		ctr, err := container.CreateFromConfig(ctx, apiClient, container.NewTestConfig(container.WithPIDMode("container:"+pidCtrName)))
 		assert.NilError(t, err)
 
-		err = apiClient.ContainerStart(ctx, ctr.ID, types.ContainerStartOptions{})
+		err = apiClient.ContainerStart(ctx, ctr.ID, containertypes.StartOptions{})
 		assert.Check(t, err)
 	})
 }

@@ -62,7 +62,7 @@ func TestReadPluginNoRead(t *testing.T) {
 			assert.Assert(t, err)
 			defer client.ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true})
 
-			err = client.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
+			err = client.ContainerStart(ctx, c.ID, container.StartOptions{})
 			assert.Assert(t, err)
 
 			logs, err := client.ContainerLogs(ctx, c.ID, types.ContainerLogsOptions{ShowStdout: true})

@@ -135,7 +135,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	// FIXME(vdemeester) this is a really weird behavior as it fails otherwise
 	err = apiClient.ContainerStop(ctx, container1Name, containertypes.StopOptions{})
 	assert.NilError(t, err)
-	err = apiClient.ContainerStart(ctx, container1Name, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, container1Name, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	count := "-c"

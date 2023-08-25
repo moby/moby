@@ -157,7 +157,7 @@ COPY . /static`); err != nil {
 		Image: image,
 	}, &containertypes.HostConfig{}, nil, nil, container)
 	assert.NilError(t, err)
-	err = c.ContainerStart(context.Background(), b.ID, types.ContainerStartOptions{})
+	err = c.ContainerStart(context.Background(), b.ID, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	// Find out the system assigned port

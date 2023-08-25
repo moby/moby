@@ -34,3 +34,9 @@ type RemoveOptions struct {
 	RemoveLinks   bool
 	Force         bool
 }
+
+// StartOptions holds parameters to start containers.
+type StartOptions struct {
+	CheckpointID  string
+	CheckpointDir string
+}

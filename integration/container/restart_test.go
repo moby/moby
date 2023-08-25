@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	testContainer "github.com/docker/docker/integration/internal/container"
@@ -105,7 +104,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 					defer apiClient.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
 
 					if tc.xStart {
-						err = apiClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+						err = apiClient.ContainerStart(ctx, resp.ID, container.StartOptions{})
 						assert.NilError(t, err)
 					}
 

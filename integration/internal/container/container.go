@@ -77,7 +77,7 @@ func Run(ctx context.Context, t *testing.T, apiClient client.APIClient, ops ...f
 	t.Helper()
 	id := Create(ctx, t, apiClient, ops...)
 
-	err := apiClient.ContainerStart(ctx, id, types.ContainerStartOptions{})
+	err := apiClient.ContainerStart(ctx, id, container.StartOptions{})
 	assert.NilError(t, err)
 
 	return id
@@ -106,7 +106,7 @@ func RunAttach(ctx context.Context, t *testing.T, apiClient client.APIClient, op
 	})
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerStart(ctx, id, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, id, container.StartOptions{})
 	assert.NilError(t, err)
 
 	s, err := demultiplexStreams(ctx, aresp)

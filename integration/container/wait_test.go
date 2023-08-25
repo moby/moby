@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
@@ -149,7 +148,7 @@ func TestWaitConditions(t *testing.T) {
 			assert.NilError(t, err)
 			defer streams.Close()
 
-			assert.NilError(t, cli.ContainerStart(ctx, containerID, types.ContainerStartOptions{}))
+			assert.NilError(t, cli.ContainerStart(ctx, containerID, containertypes.StartOptions{}))
 			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)
 			select {
 			case err := <-errC:

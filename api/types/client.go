@@ -43,12 +43,6 @@ type ContainerLogsOptions struct {
 	Details    bool
 }
 
-// ContainerStartOptions holds parameters to start containers.
-type ContainerStartOptions struct {
-	CheckpointID  string
-	CheckpointDir string
-}
-
 // CopyToContainerOptions holds information
 // about files to copy into a container
 type CopyToContainerOptions struct {

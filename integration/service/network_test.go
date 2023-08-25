@@ -3,7 +3,7 @@ package service // import "github.com/docker/docker/integration/service"
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
@@ -43,7 +43,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	err = client.ContainerStart(ctx, cID1, types.ContainerStartOptions{})
+	err = client.ContainerStart(ctx, cID1, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	ng1, err := client.ContainerInspect(ctx, cID1)
@@ -66,7 +66,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	err = client.ContainerStart(ctx, cID2, types.ContainerStartOptions{})
+	err = client.ContainerStart(ctx, cID2, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	ng2, err := client.ContainerInspect(ctx, cID2)
@@ -101,7 +101,7 @@ func TestDockerNetworkReConnect(t *testing.T) {
 	err := client.NetworkConnect(ctx, name, c1, &network.EndpointSettings{})
 	assert.NilError(t, err)
 
-	err = client.ContainerStart(ctx, c1, types.ContainerStartOptions{})
+	err = client.ContainerStart(ctx, c1, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	n1, err := client.ContainerInspect(ctx, c1)
