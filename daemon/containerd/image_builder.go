@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
@@ -29,6 +30,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	dimage "github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -421,20 +423,30 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		parentDigest = parentDesc.Digest
 	}
 
-	// get the info for the new layers
-	info, err := i.client.ContentStore().Info(ctx, layerDigest)
-	if err != nil {
-		return nil, err
-	}
+	cs := i.client.ContentStore()
 
-	// append the new layer descriptor
-	layers = append(layers,
-		ocispec.Descriptor{
+	ra, err := cs.ReaderAt(ctx, ocispec.Descriptor{Digest: layerDigest})
+	if err != nil {
+		return nil, fmt.Errorf("failed to read diff archive: %w", err)
+	}
+	defer ra.Close()
+
+	empty, err := archive.IsEmpty(content.NewReader(ra))
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if archive is empty: %w", err)
+	}
+	if !empty {
+		info, err := cs.Info(ctx, layerDigest)
+		if err != nil {
+			return nil, err
+		}
+
+		layers = append(layers, ocispec.Descriptor{
 			MediaType: containerdimages.MediaTypeDockerSchema2LayerGzip,
 			Digest:    layerDigest,
 			Size:      info.Size,
-		},
-	)
+		})
+	}
 
 	// necessary to prevent the contents from being GC'd
 	// between writing them here and creating an image
