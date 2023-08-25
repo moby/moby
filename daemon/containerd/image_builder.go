@@ -58,7 +58,6 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 			c:           i.client,
 			snapshotter: i.snapshotter,
 			diffID:      "",
-			root:        "",
 		}, nil
 	}
 
@@ -194,35 +193,15 @@ func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *Ima
 	if err != nil {
 		return nil, err
 	}
-	parent := identity.ChainID(diffIDs).String()
 
-	s := i.client.SnapshotService(i.snapshotter)
 	key := stringid.GenerateRandomID()
-	ctx, _, err = i.client.WithLease(ctx, leases.WithRandomID(), leases.WithExpiration(1*time.Hour))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create lease for commit: %w", err)
-	}
-	mounts, err := s.View(ctx, key, parent)
-	if err != nil {
-		return nil, err
-	}
-
-	tempMountLocation := os.TempDir()
-	root, err := os.MkdirTemp(tempMountLocation, "rootfs-mount")
-	if err != nil {
-		return nil, err
-	}
-
-	if err := mount.All(mounts, root); err != nil {
-		return nil, err
-	}
+	parent := identity.ChainID(diffIDs).String()
 
 	return &rolayer{
 		key:                key,
 		c:                  i.client,
 		snapshotter:        i.snapshotter,
 		diffID:             digest.Digest(parent),
-		root:               root,
 		contentStoreDigest: "",
 	}, nil
 }
@@ -232,7 +211,6 @@ type rolayer struct {
 	c                  *containerd.Client
 	snapshotter        string
 	diffID             digest.Digest
-	root               string
 	contentStoreDigest digest.Digest
 }
 
@@ -248,24 +226,6 @@ func (rl *rolayer) DiffID() layer.DiffID {
 }
 
 func (rl *rolayer) Release() error {
-	snapshotter := rl.c.SnapshotService(rl.snapshotter)
-	err := snapshotter.Remove(context.TODO(), rl.key)
-	if err != nil && !cerrdefs.IsNotFound(err) {
-		return err
-	}
-
-	if rl.root == "" { // nothing to release
-		return nil
-	}
-	if err := mount.UnmountAll(rl.root, 0); err != nil {
-		log.G(context.TODO()).WithError(err).WithField("root", rl.root).Error("failed to unmount ROLayer")
-		return err
-	}
-	if err := os.Remove(rl.root); err != nil {
-		log.G(context.TODO()).WithError(err).WithField("dir", rl.root).Error("failed to remove mount temp dir")
-		return err
-	}
-	rl.root = ""
 	return nil
 }
 
@@ -355,7 +315,6 @@ func (rw *rwlayer) Commit() (builder.ROLayer, error) {
 		c:                  rw.c,
 		snapshotter:        rw.snapshotter,
 		diffID:             diffID,
-		root:               "",
 		contentStoreDigest: desc.Digest,
 	}, nil
 }
