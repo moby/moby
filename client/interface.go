@@ -53,7 +53,7 @@ type ContainerAPIClient interface {
 	ContainerExecAttach(ctx context.Context, execID string, config types.ExecStartCheck) (types.HijackedResponse, error)
 	ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error)
 	ContainerExecInspect(ctx context.Context, execID string) (types.ContainerExecInspect, error)
-	ContainerExecResize(ctx context.Context, execID string, options types.ResizeOptions) error
+	ContainerExecResize(ctx context.Context, execID string, options container.ResizeOptions) error
 	ContainerExecStart(ctx context.Context, execID string, config types.ExecStartCheck) error
 	ContainerExport(ctx context.Context, container string) (io.ReadCloser, error)
 	ContainerInspect(ctx context.Context, container string) (types.ContainerJSON, error)
@@ -64,7 +64,7 @@ type ContainerAPIClient interface {
 	ContainerPause(ctx context.Context, container string) error
 	ContainerRemove(ctx context.Context, container string, options types.ContainerRemoveOptions) error
 	ContainerRename(ctx context.Context, container, newContainerName string) error
-	ContainerResize(ctx context.Context, container string, options types.ResizeOptions) error
+	ContainerResize(ctx context.Context, container string, options container.ResizeOptions) error
 	ContainerRestart(ctx context.Context, container string, options container.StopOptions) error
 	ContainerStatPath(ctx context.Context, container, path string) (types.ContainerPathStat, error)
 	ContainerStats(ctx context.Context, container string, stream bool) (types.ContainerStats, error)

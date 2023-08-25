@@ -289,14 +289,6 @@ type ImageSearchOptions struct {
 	Limit         int
 }
 
-// ResizeOptions holds parameters to resize a tty.
-// It can be used to resize container ttys and
-// exec process ttys too.
-type ResizeOptions struct {
-	Height uint
-	Width  uint
-}
-
 // NodeListOptions holds parameters to list nodes with.
 type NodeListOptions struct {
 	Filters filters.Args

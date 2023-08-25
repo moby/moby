@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
@@ -20,7 +20,7 @@ func TestResize(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		cID := container.Run(ctx, t, apiClient, container.WithTty(true))
-		err := apiClient.ContainerResize(ctx, cID, types.ResizeOptions{
+		err := apiClient.ContainerResize(ctx, cID, containertypes.ResizeOptions{
 			Height: 40,
 			Width:  40,
 		})
@@ -46,7 +46,7 @@ func TestResize(t *testing.T) {
 
 	t.Run("invalid state", func(t *testing.T) {
 		cID := container.Create(ctx, t, apiClient, container.WithCmd("echo"))
-		err := apiClient.ContainerResize(ctx, cID, types.ResizeOptions{
+		err := apiClient.ContainerResize(ctx, cID, containertypes.ResizeOptions{
 			Height: 40,
 			Width:  40,
 		})

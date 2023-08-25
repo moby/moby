@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/docker/docker/api/types/checkpoint"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/system"
@@ -90,6 +91,13 @@ type ServiceCreateResponse = swarm.ServiceCreateResponse
 //
 // Deprecated: use [swarm.ServiceUpdateResponse].
 type ServiceUpdateResponse = swarm.ServiceUpdateResponse
+
+// ResizeOptions holds parameters to resize a TTY.
+// It can be used to resize container TTYs and
+// exec process TTYs too.
+//
+// Deprecated: use [container.ResizeOptions].
+type ResizeOptions = container.ResizeOptions
 
 // DecodeSecurityOptions decodes a security options string slice to a type safe
 // [system.SecurityOpt].
