@@ -5,10 +5,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"time"
 
-	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
@@ -150,7 +150,8 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 		logger.WithError(err).Debug("failed to save image")
 		return "", err
 	}
-	err = i.unpackImage(ctx, img, *platform)
+
+	err = i.unpackImage(ctx, i.StorageDriver(), img, manifestDesc)
 	if err != nil {
 		logger.WithError(err).Debug("failed to unpack image")
 	} else {
@@ -312,18 +313,20 @@ func (i *ImageService) saveImage(ctx context.Context, img images.Image) error {
 	return nil
 }
 
-// unpackImage unpacks the image into the snapshotter.
-func (i *ImageService) unpackImage(ctx context.Context, img images.Image, platform ocispec.Platform) error {
-	c8dImg := containerd.NewImageWithPlatform(i.client, img, platforms.Only(platform))
-	unpacked, err := c8dImg.IsUnpacked(ctx, i.snapshotter)
+// unpackImage unpacks the platform-specific manifest of a image into the snapshotter.
+func (i *ImageService) unpackImage(ctx context.Context, snapshotter string, img images.Image, manifestDesc ocispec.Descriptor) error {
+	c8dImg, err := i.NewImageManifest(ctx, img, manifestDesc)
 	if err != nil {
 		return err
 	}
-	if !unpacked {
-		err = c8dImg.Unpack(ctx, i.snapshotter)
+
+	if err := c8dImg.Unpack(ctx, snapshotter); err != nil {
+		if !cerrdefs.IsAlreadyExists(err) {
+			return errdefs.System(fmt.Errorf("failed to unpack image: %w", err))
+		}
 	}
 
-	return err
+	return nil
 }
 
 // detectCompression dectects the reader compression type.

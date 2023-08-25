@@ -422,7 +422,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		}
 	}
 
-	if err := i.unpackImage(ctx, createdImage, platforms.DefaultSpec()); err != nil {
+	if err := i.unpackImage(ctx, i.StorageDriver(), img, commitManifestDesc); err != nil {
 		return nil, err
 	}
 
