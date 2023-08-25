@@ -17,3 +17,13 @@ type AttachOptions struct {
 	DetachKeys string
 	Logs       bool
 }
+
+// CommitOptions holds parameters to commit changes into a container.
+type CommitOptions struct {
+	Reference string
+	Comment   string
+	Author    string
+	Changes   []string
+	Pause     bool
+	Config    *Config
+}

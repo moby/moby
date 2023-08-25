@@ -11,16 +11,6 @@ import (
 	units "github.com/docker/go-units"
 )
 
-// ContainerCommitOptions holds parameters to commit changes into a container.
-type ContainerCommitOptions struct {
-	Reference string
-	Comment   string
-	Author    string
-	Changes   []string
-	Pause     bool
-	Config    *container.Config
-}
-
 // ContainerExecInspect holds information returned by exec inspect.
 type ContainerExecInspect struct {
 	ExecID      string `json:"ID"`

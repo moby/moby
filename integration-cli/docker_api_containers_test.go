@@ -454,7 +454,7 @@ func (s *DockerAPISuite) TestContainerAPICommit(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := types.ContainerCommitOptions{
+	options := container.CommitOptions{
 		Reference: "testcontainerapicommit:testtag",
 	}
 
@@ -480,7 +480,7 @@ func (s *DockerAPISuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 		Labels: map[string]string{"key1": "value1", "key2": "value2"},
 	}
 
-	options := types.ContainerCommitOptions{
+	options := container.CommitOptions{
 		Reference: "testcontainerapicommitwithconfig",
 		Config:    &config,
 	}

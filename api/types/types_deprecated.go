@@ -104,6 +104,11 @@ type ResizeOptions = container.ResizeOptions
 // Deprecated: use [container.AttachOptions].
 type ContainerAttachOptions = container.AttachOptions
 
+// ContainerCommitOptions holds parameters to commit changes into a container.
+//
+// Deprecated: use [container.CommitOptions].
+type ContainerCommitOptions = container.CommitOptions
+
 // DecodeSecurityOptions decodes a security options string slice to a type safe
 // [system.SecurityOpt].
 //

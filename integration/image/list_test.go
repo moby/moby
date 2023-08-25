@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
@@ -70,7 +71,7 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 			// Make really really sure each image has a distinct timestamp.
 			time.Sleep(time.Millisecond)
 		}
-		id, err := client.ContainerCommit(ctx, ctr, types.ContainerCommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
+		id, err := client.ContainerCommit(ctx, ctr, containertypes.CommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
 		assert.NilError(t, err)
 		imgs[i] = id.ID
 	}

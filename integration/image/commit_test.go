@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
@@ -22,7 +22,7 @@ func TestCommitInheritsEnv(t *testing.T) {
 	cID1 := container.Create(ctx, t, client)
 	imgName := strings.ToLower(t.Name())
 
-	commitResp1, err := client.ContainerCommit(ctx, cID1, types.ContainerCommitOptions{
+	commitResp1, err := client.ContainerCommit(ctx, cID1, containertypes.CommitOptions{
 		Changes:   []string{"ENV PATH=/bin"},
 		Reference: imgName,
 	})
@@ -36,7 +36,7 @@ func TestCommitInheritsEnv(t *testing.T) {
 
 	cID2 := container.Create(ctx, t, client, container.WithImage(image1.ID))
 
-	commitResp2, err := client.ContainerCommit(ctx, cID2, types.ContainerCommitOptions{
+	commitResp2, err := client.ContainerCommit(ctx, cID2, containertypes.CommitOptions{
 		Changes:   []string{"ENV PATH=/usr/bin:$PATH"},
 		Reference: imgName,
 	})
