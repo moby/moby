@@ -79,7 +79,7 @@ if [ "$AUTO_GOPATH" ]; then
 fi
 
 if [ ! "$GOPATH" ]; then
-	echo >&2 'error: missing GOPATH; please see https://golang.org/doc/code.html#GOPATH'
+	echo >&2 'error: missing GOPATH; please see https://pkg.go.dev/cmd/go#hdr-GOPATH_environment_variable'
 	echo >&2 '  alternatively, set AUTO_GOPATH=1'
 	exit 1
 fi
