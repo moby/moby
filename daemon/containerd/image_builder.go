@@ -194,11 +194,10 @@ func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *Ima
 		return nil, err
 	}
 
-	key := stringid.GenerateRandomID()
-	parent := identity.ChainID(diffIDs).String()
+	imageSnapshotID := identity.ChainID(diffIDs).String()
 
 	return &rolayer{
-		key:                key,
+		key:                imageSnapshotID,
 		c:                  i.client,
 		snapshotter:        i.snapshotter,
 		diffID:             "", // Image RO layer doesn't have a diff.
@@ -242,7 +241,7 @@ func (rl *rolayer) NewRWLayer() (builder.RWLayer, error) {
 	}
 
 	key := stringid.GenerateRandomID()
-	mounts, err := snapshotter.Prepare(ctx, key, rl.diffID.String())
+	mounts, err := snapshotter.Prepare(ctx, key, rl.key)
 	if err != nil {
 		return nil, err
 	}
