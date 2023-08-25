@@ -555,7 +555,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             pkg-config \
             dpkg-dev \
             libapparmor-dev \
-            libdevmapper-dev \
             libseccomp-dev \
             libsecret-1-dev \
             libsystemd-dev \
@@ -583,7 +582,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
             gcc \
             libapparmor-dev \
             libc6-dev \
-            libdevmapper-dev \
             libseccomp-dev \
             libsecret-1-dev \
             libsystemd-dev \
