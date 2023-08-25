@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -45,7 +46,7 @@ func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	ctrID := container.Create(ctx, t, c, func(ctr *container.TestContainerConfig) {
 		ctr.HostConfig.Resources.Memory = mem
 	})
-	defer c.ContainerRemove(ctx, ctrID, types.ContainerRemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, ctrID, containertypes.RemoveOptions{Force: true})
 
 	err := c.ContainerStart(ctx, ctrID, types.ContainerStartOptions{})
 	assert.NilError(t, err)

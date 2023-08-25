@@ -102,7 +102,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 
 					resp, err := apiClient.ContainerCreate(ctx, tc.config, tc.hostConfig, nil, nil, "")
 					assert.NilError(t, err)
-					defer apiClient.ContainerRemove(ctx, resp.ID, types.ContainerRemoveOptions{Force: true})
+					defer apiClient.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
 
 					if tc.xStart {
 						err = apiClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
@@ -192,7 +192,7 @@ func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
 				testContainer.WithAutoRemove,
 			)
 			defer func() {
-				err := apiClient.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+				err := apiClient.ContainerRemove(ctx, cID, container.RemoveOptions{Force: true})
 				if t.Failed() && err != nil {
 					t.Logf("Cleaning up test container failed with error: %v", err)
 				}

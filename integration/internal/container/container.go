@@ -155,7 +155,7 @@ func demultiplexStreams(ctx context.Context, resp types.HijackedResponse) (strea
 	return s, err
 }
 
-func Remove(ctx context.Context, t *testing.T, apiClient client.APIClient, container string, options types.ContainerRemoveOptions) {
+func Remove(ctx context.Context, t *testing.T, apiClient client.APIClient, container string, options container.RemoveOptions) {
 	t.Helper()
 
 	err := apiClient.ContainerRemove(ctx, container, options)

@@ -47,7 +47,7 @@ func TestContinueAfterPluginCrash(t *testing.T) {
 		),
 	)
 	cancel()
-	defer client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+	defer client.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
 	// Attach to the container to make sure it's written a few times to stdout
 	attach, err := client.ContainerAttach(ctx, id, containertypes.AttachOptions{Stream: true, Stdout: true})

@@ -1089,7 +1089,7 @@ func (s *DockerAPISuite) TestContainerAPIDelete(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), id, types.ContainerRemoveOptions{})
+	err = apiClient.ContainerRemove(testutil.GetContext(c), id, container.RemoveOptions{})
 	assert.NilError(c, err)
 }
 
@@ -1098,7 +1098,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteNotExist(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), "doesnotexist", types.ContainerRemoveOptions{})
+	err = apiClient.ContainerRemove(testutil.GetContext(c), "doesnotexist", container.RemoveOptions{})
 	assert.ErrorContains(c, err, "No such container: doesnotexist")
 }
 
@@ -1107,7 +1107,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteForce(c *testing.T) {
 	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))
 
-	removeOptions := types.ContainerRemoveOptions{
+	removeOptions := container.RemoveOptions{
 		Force: true,
 	}
 
@@ -1135,7 +1135,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 	links := inspectFieldJSON(c, id2, "HostConfig.Links")
 	assert.Equal(c, links, `["/tlink1:/tlink2/tlink1"]`, "expected to have links between containers")
 
-	removeOptions := types.ContainerRemoveOptions{
+	removeOptions := container.RemoveOptions{
 		RemoveLinks: true,
 	}
 
@@ -1168,7 +1168,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	_, err = os.Stat(source)
 	assert.NilError(c, err)
 
-	removeOptions := types.ContainerRemoveOptions{
+	removeOptions := container.RemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	}
@@ -1549,7 +1549,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteWithEmptyName(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), "", types.ContainerRemoveOptions{})
+	err = apiClient.ContainerRemove(testutil.GetContext(c), "", container.RemoveOptions{})
 	assert.Check(c, errdefs.IsNotFound(err))
 }
 
@@ -2116,7 +2116,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			assert.NilError(c, err)
 			poll.WaitOn(c, containerExit(ctx, apiclient, ctr.ID), poll.WithDelay(time.Second))
 
-			err = apiclient.ContainerRemove(ctx, ctr.ID, types.ContainerRemoveOptions{
+			err = apiclient.ContainerRemove(ctx, ctr.ID, container.RemoveOptions{
 				RemoveVolumes: true,
 				Force:         true,
 			})

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/logger/local"
 	"github.com/docker/docker/integration/internal/container"
@@ -136,7 +137,7 @@ func testLogs(t *testing.T, logDriver string) {
 				container.WithTty(tty),
 				container.WithLogDriver(logDriver),
 			)
-			defer apiClient.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+			defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
 			poll.WaitOn(t, container.IsStopped(ctx, apiClient, id),
 				poll.WithDelay(time.Millisecond*100),

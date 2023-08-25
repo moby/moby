@@ -36,7 +36,7 @@ func TestRenameLinkedContainer(t *testing.T) {
 
 	container.Run(ctx, t, apiClient, container.WithName(aName))
 
-	err = apiClient.ContainerRemove(ctx, bID, types.ContainerRemoveOptions{Force: true})
+	err = apiClient.ContainerRemove(ctx, bID, containertypes.RemoveOptions{Force: true})
 	assert.NilError(t, err)
 
 	bID = container.Run(ctx, t, apiClient, container.WithName(bName), container.WithLinks(aName))

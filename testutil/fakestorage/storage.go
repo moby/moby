@@ -125,7 +125,7 @@ func (f *remoteFileServer) Close() error {
 	if f.container == "" {
 		return nil
 	}
-	return f.client.ContainerRemove(context.Background(), f.container, types.ContainerRemoveOptions{
+	return f.client.ContainerRemove(context.Background(), f.container, containertypes.RemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	})

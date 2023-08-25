@@ -109,6 +109,11 @@ type ContainerAttachOptions = container.AttachOptions
 // Deprecated: use [container.CommitOptions].
 type ContainerCommitOptions = container.CommitOptions
 
+// ContainerRemoveOptions holds parameters to remove containers.
+//
+// Deprecated: use [container.RemoveOptions].
+type ContainerRemoveOptions = container.RemoveOptions
+
 // DecodeSecurityOptions decodes a security options string slice to a type safe
 // [system.SecurityOpt].
 //

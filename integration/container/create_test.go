@@ -436,7 +436,7 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 	)
 
 	defer func() {
-		err := apiClient.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+		err := apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 		assert.NilError(t, err)
 	}()
 

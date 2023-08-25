@@ -210,7 +210,7 @@ func TestWaitRestartedContainer(t *testing.T) {
 			containerID := container.Run(ctx, t, cli,
 				container.WithCmd("sh", "-c", "trap 'exit 5' SIGTERM; while true; do sleep 0.1; done"),
 			)
-			defer cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{Force: true})
+			defer cli.ContainerRemove(ctx, containerID, containertypes.RemoveOptions{Force: true})
 
 			// Container is running now, wait for exit
 			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)

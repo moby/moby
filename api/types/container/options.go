@@ -27,3 +27,10 @@ type CommitOptions struct {
 	Pause     bool
 	Config    *Config
 }
+
+// RemoveOptions holds parameters to remove containers.
+type RemoveOptions struct {
+	RemoveVolumes bool
+	RemoveLinks   bool
+	Force         bool
+}

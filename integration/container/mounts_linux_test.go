@@ -192,7 +192,7 @@ func TestMountDaemonRoot(t *testing.T) {
 					}
 
 					defer func() {
-						if err := apiClient.ContainerRemove(ctx, c.ID, types.ContainerRemoveOptions{Force: true}); err != nil {
+						if err := apiClient.ContainerRemove(ctx, c.ID, containertypes.RemoveOptions{Force: true}); err != nil {
 							panic(err)
 						}
 					}()

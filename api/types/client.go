@@ -43,13 +43,6 @@ type ContainerLogsOptions struct {
 	Details    bool
 }
 
-// ContainerRemoveOptions holds parameters to remove containers.
-type ContainerRemoveOptions struct {
-	RemoveVolumes bool
-	RemoveLinks   bool
-	Force         bool
-}
-
 // ContainerStartOptions holds parameters to start containers.
 type ContainerStartOptions struct {
 	CheckpointID  string

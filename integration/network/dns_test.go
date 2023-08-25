@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil"
@@ -29,7 +29,7 @@ func TestDaemonDNSFallback(t *testing.T) {
 	defer c.NetworkRemove(ctx, "test")
 
 	cid := container.Run(ctx, t, c, container.WithNetworkMode("test"), container.WithCmd("nslookup", "docker.com"))
-	defer c.ContainerRemove(ctx, cid, types.ContainerRemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, cid, containertypes.RemoveOptions{Force: true})
 
 	poll.WaitOn(t, container.IsSuccessful(ctx, c, cid), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(10*time.Second))
 }
