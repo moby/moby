@@ -419,7 +419,7 @@ Try {
     if (-not $inContainer) { Verify-GoVersion }
 
     # Verify GOPATH is set
-    if ($env:GOPATH.Length -eq 0) { Throw "Missing GOPATH environment variable. See https://golang.org/doc/code.html#GOPATH" }
+    if ($env:GOPATH.Length -eq 0) { Throw "Missing GOPATH environment variable. See https://pkg.go.dev/cmd/go#hdr-GOPATH_environment_variable" }
 
     # Run autogen if building binaries or running unit tests.
     if ($Client -or $Daemon -or $TestUnit) {
