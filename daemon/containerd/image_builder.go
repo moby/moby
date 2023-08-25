@@ -201,7 +201,7 @@ func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *Ima
 		key:                key,
 		c:                  i.client,
 		snapshotter:        i.snapshotter,
-		diffID:             digest.Digest(parent),
+		diffID:             "", // Image RO layer doesn't have a diff.
 		contentStoreDigest: "",
 	}, nil
 }
