@@ -493,7 +493,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 				assert.Check(t, is.Equal(inspect.State.ExitCode, 0), "volume doesn't have the same file")
 			}
 
-			logs, err := c.ContainerLogs(ctx, cID2, types.ContainerLogsOptions{ShowStdout: true})
+			logs, err := c.ContainerLogs(ctx, cID2, containertypes.LogsOptions{ShowStdout: true})
 			assert.NilError(t, err)
 			defer logs.Close()
 

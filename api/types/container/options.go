@@ -53,3 +53,15 @@ type ListOptions struct {
 	Limit   int
 	Filters filters.Args
 }
+
+// LogsOptions holds parameters to filter logs with.
+type LogsOptions struct {
+	ShowStdout bool
+	ShowStderr bool
+	Since      string
+	Until      string
+	Timestamps bool
+	Follow     bool
+	Tail       string
+	Details    bool
+}

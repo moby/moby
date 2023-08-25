@@ -20,18 +20,6 @@ type ContainerExecInspect struct {
 	Pid         int
 }
 
-// ContainerLogsOptions holds parameters to filter logs with.
-type ContainerLogsOptions struct {
-	ShowStdout bool
-	ShowStderr bool
-	Since      string
-	Until      string
-	Timestamps bool
-	Follow     bool
-	Tail       string
-	Details    bool
-}
-
 // CopyToContainerOptions holds information
 // about files to copy into a container
 type CopyToContainerOptions struct {

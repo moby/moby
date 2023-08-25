@@ -489,7 +489,7 @@ func (c *containerAdapter) deactivateServiceBinding() error {
 }
 
 func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (<-chan *backend.LogMessage, error) {
-	apiOptions := &types.ContainerLogsOptions{
+	apiOptions := &containertypes.LogsOptions{
 		Follow: options.Follow,
 
 		// Always say yes to Timestamps and Details. we make the decision

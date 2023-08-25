@@ -231,7 +231,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, serviceID, instances), swarm.ServicePoll)
 
-	body, err := client.ServiceLogs(ctx, serviceID, types.ContainerLogsOptions{
+	body, err := client.ServiceLogs(ctx, serviceID, container.LogsOptions{
 		Tail:       "1",
 		ShowStdout: true,
 	})
@@ -288,7 +288,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, serviceID, instances))
 
-	body, err := client.ServiceLogs(ctx, serviceID, types.ContainerLogsOptions{
+	body, err := client.ServiceLogs(ctx, serviceID, container.LogsOptions{
 		Tail:       "1",
 		ShowStdout: true,
 	})

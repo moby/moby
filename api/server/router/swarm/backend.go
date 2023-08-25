@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 )
 
@@ -22,7 +23,7 @@ type Backend interface {
 	CreateService(swarm.ServiceSpec, string, bool) (*swarm.ServiceCreateResponse, error)
 	UpdateService(string, uint64, swarm.ServiceSpec, types.ServiceUpdateOptions, bool) (*swarm.ServiceUpdateResponse, error)
 	RemoveService(string) error
-	ServiceLogs(context.Context, *backend.LogSelector, *types.ContainerLogsOptions) (<-chan *backend.LogMessage, error)
+	ServiceLogs(context.Context, *backend.LogSelector, *container.LogsOptions) (<-chan *backend.LogMessage, error)
 	GetNodes(types.NodeListOptions) ([]swarm.Node, error)
 	GetNode(string) (swarm.Node, error)
 	UpdateNode(string, uint64, swarm.NodeSpec) error

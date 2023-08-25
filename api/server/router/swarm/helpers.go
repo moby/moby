@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
 )
@@ -25,9 +26,9 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 		return fmt.Errorf("Bad parameters: you must choose at least one stream")
 	}
 
-	// there is probably a neater way to manufacture the ContainerLogsOptions
+	// there is probably a neater way to manufacture the LogsOptions
 	// struct, probably in the caller, to eliminate the dependency on net/http
-	logsConfig := &basictypes.ContainerLogsOptions{
+	logsConfig := &container.LogsOptions{
 		Follow:     httputils.BoolValue(r, "follow"),
 		Timestamps: httputils.BoolValue(r, "timestamps"),
 		Since:      r.Form.Get("since"),

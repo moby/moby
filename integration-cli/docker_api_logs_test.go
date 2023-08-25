@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
@@ -62,7 +62,7 @@ func (s *DockerAPISuite) TestLogsAPINoStdoutNorStderr(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	_, err = apiClient.ContainerLogs(testutil.GetContext(c), name, types.ContainerLogsOptions{})
+	_, err = apiClient.ContainerLogs(testutil.GetContext(c), name, container.LogsOptions{})
 	assert.ErrorContains(c, err, "Bad parameters: you must choose at least one stream")
 }
 
@@ -105,8 +105,12 @@ func (s *DockerAPISuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 		c.Fatal(err)
 	}
 
-	cfg := types.ContainerLogsOptions{Until: until.Format(time.RFC3339Nano), Follow: true, ShowStdout: true, Timestamps: true}
-	reader, err := client.ContainerLogs(testutil.GetContext(c), name, cfg)
+	reader, err := client.ContainerLogs(testutil.GetContext(c), name, container.LogsOptions{
+		Until:      until.Format(time.RFC3339Nano),
+		Follow:     true,
+		ShowStdout: true,
+		Timestamps: true,
+	})
 	assert.NilError(c, err)
 
 	type logOut struct {
@@ -167,7 +171,7 @@ func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
 		c.Fatal(err)
 	}
 
-	extractBody := func(c *testing.T, cfg types.ContainerLogsOptions) []string {
+	extractBody := func(c *testing.T, cfg container.LogsOptions) []string {
 		reader, err := client.ContainerLogs(testutil.GetContext(c), name, cfg)
 		assert.NilError(c, err)
 
@@ -180,7 +184,7 @@ func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
 	}
 
 	// Get timestamp of second log line
-	allLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true})
+	allLogs := extractBody(c, container.LogsOptions{Timestamps: true, ShowStdout: true})
 	assert.Assert(c, len(allLogs) >= 3)
 
 	t, err := time.Parse(time.RFC3339Nano, strings.Split(allLogs[1], " ")[0])
@@ -188,7 +192,7 @@ func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
 	until := t.Format(time.RFC3339Nano)
 
 	// Get logs until the timestamp of second line, i.e. first two lines
-	logs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true, Until: until})
+	logs := extractBody(c, container.LogsOptions{Timestamps: true, ShowStdout: true, Until: until})
 
 	// Ensure log lines after cut-off are excluded
 	logsString := strings.Join(logs, "\n")
@@ -204,7 +208,7 @@ func (s *DockerAPISuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
 		c.Fatal(err)
 	}
 
-	extractBody := func(c *testing.T, cfg types.ContainerLogsOptions) []string {
+	extractBody := func(c *testing.T, cfg container.LogsOptions) []string {
 		reader, err := client.ContainerLogs(testutil.GetContext(c), name, cfg)
 		assert.NilError(c, err)
 
@@ -217,9 +221,9 @@ func (s *DockerAPISuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
 	}
 
 	// Get timestamp of second log line
-	allLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true})
+	allLogs := extractBody(c, container.LogsOptions{Timestamps: true, ShowStdout: true})
 
 	// Test with default value specified and parameter omitted
-	defaultLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true, Until: "0"})
+	defaultLogs := extractBody(c, container.LogsOptions{Timestamps: true, ShowStdout: true, Until: "0"})
 	assert.DeepEqual(c, defaultLogs, allLogs)
 }

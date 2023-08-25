@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
@@ -83,7 +84,7 @@ func TestNoNewPrivileges(t *testing.T) {
 			poll.WaitOn(t, container.IsInState(ctx, client, cid, "exited"), poll.WithDelay(100*time.Millisecond))
 
 			// Assert on outputs
-			logReader, err := client.ContainerLogs(ctx, cid, types.ContainerLogsOptions{
+			logReader, err := client.ContainerLogs(ctx, cid, containertypes.LogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
 			})

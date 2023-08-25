@@ -119,6 +119,11 @@ type ContainerCommitOptions = container.CommitOptions
 // Deprecated: use [container.ListOptions].
 type ContainerListOptions = container.ListOptions
 
+// ContainerLogsOptions holds parameters to filter logs with.
+//
+// Deprecated: use [container.LogsOptions].
+type ContainerLogsOptions = container.LogsOptions
+
 // ContainerRemoveOptions holds parameters to remove containers.
 //
 // Deprecated: use [container.RemoveOptions].
