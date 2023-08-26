@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/daemon/logger"
@@ -146,7 +147,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		}
 	}
 
-	daemon.LogContainerEvent(c, "attach")
+	daemon.LogContainerEvent(c, events.ActionAttach)
 
 	if !doStream {
 		return nil
@@ -179,7 +180,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 	if err != nil {
 		var ierr term.EscapeError
 		if errors.Is(err, context.Canceled) || errors.As(err, &ierr) {
-			daemon.LogContainerEvent(c, "detach")
+			daemon.LogContainerEvent(c, events.ActionDetach)
 		} else {
 			log.G(ctx).Errorf("attach failed with error: %v", err)
 		}

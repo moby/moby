@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd/log"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 )
 
@@ -46,7 +47,7 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 	container.Paused = true
 	daemon.setStateCounter(container)
 	daemon.updateHealthMonitor(container)
-	daemon.LogContainerEvent(container, "pause")
+	daemon.LogContainerEvent(container, events.ActionPause)
 
 	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
 		log.G(context.TODO()).WithError(err).Warn("could not save container to disk")

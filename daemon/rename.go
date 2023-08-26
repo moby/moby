@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/log"
+	"github.com/docker/docker/api/types/events"
 	dockercontainer "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
@@ -93,7 +94,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	}
 
 	if !container.Running {
-		daemon.LogContainerEventWithAttributes(container, "rename", attributes)
+		daemon.LogContainerEventWithAttributes(container, events.ActionRename, attributes)
 		return nil
 	}
 
@@ -120,6 +121,6 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		}
 	}
 
-	daemon.LogContainerEventWithAttributes(container, "rename", attributes)
+	daemon.LogContainerEventWithAttributes(container, events.ActionRename, attributes)
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/image"
 	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
@@ -290,7 +291,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 
 		parentID, _ := s.is.GetParent(id)
 		parentLinks = append(parentLinks, parentLink{id, parentID})
-		s.tarexporter.loggerImgEvent.LogImageEvent(id.String(), id.String(), "save")
+		s.tarexporter.loggerImgEvent.LogImageEvent(id.String(), id.String(), events.ActionSave)
 	}
 
 	for i, p := range validatedParentLinks(parentLinks) {

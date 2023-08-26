@@ -17,6 +17,7 @@ import (
 	"github.com/containerd/containerd/content/local"
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/ioutils"
@@ -56,7 +57,7 @@ func (pm *Manager) restorePlugin(p *v2.Plugin, c *controller) error {
 	return nil
 }
 
-type eventLogger func(id, name, action string)
+type eventLogger func(id, name string, action events.Action)
 
 // ManagerConfig defines configuration needed to start new manager.
 type ManagerConfig struct {

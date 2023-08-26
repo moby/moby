@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/archive"
@@ -85,7 +86,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 		return err
 	})
 
-	daemon.LogContainerEvent(container, "archive-path")
+	daemon.LogContainerEvent(container, events.ActionArchivePath)
 
 	return content, stat, nil
 }
@@ -155,7 +156,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		return err
 	}
 
-	daemon.LogContainerEvent(container, "extract-to-dir")
+	daemon.LogContainerEvent(container, events.ActionExtractToDir)
 
 	return nil
 }
@@ -205,7 +206,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 		container.Unlock()
 		return err
 	})
-	daemon.LogContainerEvent(container, "copy")
+	daemon.LogContainerEvent(container, events.ActionCopy)
 	return reader, nil
 }
 

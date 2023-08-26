@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/plugin"
@@ -117,7 +118,7 @@ func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfi
 		Root:            filepath.Join(tmpDir, "root"),
 		ExecRoot:        "/run/docker", // manager init fails if not set
 		CreateExecutor:  dummyExec,
-		LogPluginEvent:  func(id, name, action string) {}, // panics when not set
+		LogPluginEvent:  func(id, name string, action events.Action) {}, // panics when not set
 	}
 	manager, err := plugin.NewManager(managerConfig)
 	if err != nil {

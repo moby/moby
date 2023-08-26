@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/log"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
@@ -501,7 +502,7 @@ func (s *VolumeStore) Create(ctx context.Context, name, driverName string, creat
 	}
 
 	if created && s.eventLogger != nil {
-		s.eventLogger.LogVolumeEvent(v.Name(), "create", map[string]string{"driver": v.DriverName()})
+		s.eventLogger.LogVolumeEvent(v.Name(), events.ActionCreate, map[string]string{"driver": v.DriverName()})
 	}
 	s.setNamed(v, cfg.Reference)
 	return v, nil
@@ -833,7 +834,7 @@ func (s *VolumeStore) Remove(ctx context.Context, v volume.Volume, rmOpts ...opt
 		}
 	}
 	if err == nil && s.eventLogger != nil {
-		s.eventLogger.LogVolumeEvent(v.Name(), "destroy", map[string]string{"driver": v.DriverName()})
+		s.eventLogger.LogVolumeEvent(v.Name(), events.ActionDestroy, map[string]string{"driver": v.DriverName()})
 	}
 	return err
 }

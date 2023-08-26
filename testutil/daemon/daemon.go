@@ -781,7 +781,7 @@ func (d *Daemon) ReloadConfig() error {
 			if e.Type != events.DaemonEventType {
 				continue
 			}
-			if e.Action != "reload" {
+			if e.Action != events.ActionReload {
 				continue
 			}
 			close(errCh) // notify that we are done

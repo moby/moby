@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
@@ -137,7 +138,7 @@ func (daemon *Daemon) ContainerExecCreate(name string, config *types.ExecConfig)
 	}
 
 	daemon.registerExecCommand(cntr, execConfig)
-	daemon.LogContainerEventWithAttributes(cntr, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "), map[string]string{
+	daemon.LogContainerEventWithAttributes(cntr, events.Action(string(events.ActionExecCreate)+": "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " ")), map[string]string{
 		"execID": execConfig.ID,
 	})
 
@@ -173,7 +174,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	ec.Unlock()
 
 	log.G(ctx).Debugf("starting exec command %s in container %s", ec.ID, ec.Container.ID)
-	daemon.LogContainerEventWithAttributes(ec.Container, "exec_start: "+ec.Entrypoint+" "+strings.Join(ec.Args, " "), map[string]string{
+	daemon.LogContainerEventWithAttributes(ec.Container, events.Action(string(events.ActionExecStart)+": "+ec.Entrypoint+" "+strings.Join(ec.Args, " ")), map[string]string{
 		"execID": ec.ID,
 	})
 
@@ -308,7 +309,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 			if _, ok := err.(term.EscapeError); !ok {
 				return errdefs.System(errors.Wrap(err, "exec attach failed"))
 			}
-			daemon.LogContainerEventWithAttributes(ec.Container, "exec_detach", map[string]string{
+			daemon.LogContainerEventWithAttributes(ec.Container, events.ActionExecDetach, map[string]string{
 				"execID": ec.ID,
 			})
 		}

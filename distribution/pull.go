@@ -7,6 +7,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types/events"
 	refstore "github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -73,7 +74,7 @@ func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, loc
 			return translatePullError(err, ref)
 		}
 
-		config.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "pull")
+		config.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), events.ActionPull)
 		return nil
 	}
 

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/types/events"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	volumemounts "github.com/docker/docker/volume/mounts"
@@ -73,7 +74,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 				mnt.ReadOnlyForceRecursive = m.Spec.BindOptions.ReadOnlyForceRecursive
 			}
 			if m.Volume != nil {
-				daemon.LogVolumeEvent(m.Volume.Name(), "mount", map[string]string{
+				daemon.LogVolumeEvent(m.Volume.Name(), events.ActionMount, map[string]string{
 					"driver":      m.Volume.DriverName(),
 					"container":   c.ID,
 					"destination": m.Destination,

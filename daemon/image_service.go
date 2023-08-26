@@ -7,6 +7,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
@@ -34,7 +35,7 @@ type ImageService interface {
 	PerformWithBaseFS(ctx context.Context, c *container.Container, fn func(string) error) error
 	LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
 	Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error)
-	LogImageEvent(imageID, refName, action string)
+	LogImageEvent(imageID, refName string, action events.Action)
 	CountImages() int
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
 	ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error)

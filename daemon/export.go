@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/archive"
@@ -58,6 +59,6 @@ func (daemon *Daemon) containerExport(ctx context.Context, container *container.
 	if err != nil {
 		return err
 	}
-	daemon.LogContainerEvent(container, "export")
+	daemon.LogContainerEvent(container, events.ActionExport)
 	return nil
 }

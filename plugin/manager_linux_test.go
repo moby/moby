@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/stringid"
 	v2 "github.com/docker/docker/plugin/v2"
@@ -40,7 +41,7 @@ func TestManagerWithPluginMounts(t *testing.T) {
 			Root:           managerRoot,
 			ExecRoot:       filepath.Join(root, "exec"),
 			CreateExecutor: func(*Manager) (Executor, error) { return nil, nil },
-			LogPluginEvent: func(_, _, _ string) {},
+			LogPluginEvent: func(_, _ string, _ events.Action) {},
 		})
 	if err != nil {
 		t.Fatal(err)
@@ -112,7 +113,7 @@ func TestCreateFailed(t *testing.T) {
 			Root:           managerRoot,
 			ExecRoot:       filepath.Join(root, "exec"),
 			CreateExecutor: func(*Manager) (Executor, error) { return &simpleExecutor{}, nil },
-			LogPluginEvent: func(_, _, _ string) {},
+			LogPluginEvent: func(_, _ string, _ events.Action) {},
 		})
 	if err != nil {
 		t.Fatal(err)
@@ -181,13 +182,13 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 		{
 			desc: "live-restore-disabled",
 			config: ManagerConfig{
-				LogPluginEvent: func(_, _, _ string) {},
+				LogPluginEvent: func(_, _ string, _ events.Action) {},
 			},
 		},
 		{
 			desc: "live-restore-enabled",
 			config: ManagerConfig{
-				LogPluginEvent:     func(_, _, _ string) {},
+				LogPluginEvent:     func(_, _ string, _ events.Action) {},
 				LiveRestoreEnabled: true,
 			},
 		},

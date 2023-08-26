@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/image"
 	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
@@ -137,7 +138,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		}
 
 		parentLinks = append(parentLinks, parentLink{imgID, m.Parent})
-		l.loggerImgEvent.LogImageEvent(imgID.String(), imgID.String(), "load")
+		l.loggerImgEvent.LogImageEvent(imgID.String(), imgID.String(), events.ActionLoad)
 	}
 
 	for _, p := range validatedParentLinks(parentLinks) {

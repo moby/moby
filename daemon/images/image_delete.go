@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
@@ -105,7 +106,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 
 		untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
 
-		i.LogImageEvent(imgID.String(), imgID.String(), "untag")
+		i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
 		records = append(records, untaggedRecord)
 
 		repoRefs = i.referenceStore.References(imgID.Digest())
@@ -167,7 +168,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 
 				untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
 
-				i.LogImageEvent(imgID.String(), imgID.String(), "untag")
+				i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
 				records = append(records, untaggedRecord)
 			}
 		}
@@ -248,7 +249,7 @@ func (i *ImageService) removeAllReferencesToImageID(imgID image.ID, records *[]t
 		if err != nil {
 			return err
 		}
-		i.LogImageEvent(imgID.String(), imgID.String(), "untag")
+		i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
 		*records = append(*records, types.ImageDeleteResponseItem{
 			Untagged: reference.FamiliarString(parsedRef),
 		})
@@ -325,7 +326,7 @@ func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageD
 		return err
 	}
 
-	i.LogImageEvent(imgID.String(), imgID.String(), "delete")
+	i.LogImageEvent(imgID.String(), imgID.String(), events.ActionDelete)
 	*records = append(*records, types.ImageDeleteResponseItem{Deleted: imgID.String()})
 	for _, removedLayer := range removedLayers {
 		*records = append(*records, types.ImageDeleteResponseItem{Deleted: removedLayer.ChainID.String()})

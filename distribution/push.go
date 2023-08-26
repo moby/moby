@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/pkg/progress"
 )
 
@@ -77,7 +78,7 @@ func Push(ctx context.Context, ref reference.Named, config *ImagePushConfig) err
 			return err
 		}
 
-		config.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "push")
+		config.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), events.ActionPush)
 		return nil
 	}
 

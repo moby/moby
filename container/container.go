@@ -17,6 +17,7 @@ import (
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/container/stream"
@@ -488,26 +489,24 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 }
 
 // UnmountVolumes unmounts all volumes
-func (container *Container) UnmountVolumes(volumeEventLog func(name, action string, attributes map[string]string)) error {
-	var errors []string
+func (container *Container) UnmountVolumes(volumeEventLog func(name string, action events.Action, attributes map[string]string)) error {
+	var errs []string
 	for _, volumeMount := range container.MountPoints {
 		if volumeMount.Volume == nil {
 			continue
 		}
 
 		if err := volumeMount.Cleanup(); err != nil {
-			errors = append(errors, err.Error())
+			errs = append(errs, err.Error())
 			continue
 		}
-
-		attributes := map[string]string{
+		volumeEventLog(volumeMount.Volume.Name(), events.ActionUnmount, map[string]string{
 			"driver":    volumeMount.Volume.DriverName(),
 			"container": container.ID,
-		}
-		volumeEventLog(volumeMount.Volume.Name(), "unmount", attributes)
+		})
 	}
-	if len(errors) > 0 {
-		return fmt.Errorf("error while unmounting volumes for container %s: %s", container.ID, strings.Join(errors, "; "))
+	if len(errs) > 0 {
+		return fmt.Errorf("error while unmounting volumes for container %s: %s", container.ID, strings.Join(errs, "; "))
 	}
 	return nil
 }

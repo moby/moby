@@ -232,10 +232,10 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 		select {
 		case event := <-events:
 			if event.Type == eventtypes.ContainerEventType && event.Actor.ID == cID {
-				if event.Action == "create" {
+				if event.Action == eventtypes.ActionCreate {
 					created = true
 				}
-				if event.Action == "start" {
+				if event.Action == eventtypes.ActionStart {
 					started = true
 				}
 			}

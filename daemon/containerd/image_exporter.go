@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/containerd/log"
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/platforms"
@@ -216,7 +217,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 		}
 
 		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)
-		i.LogImageEvent(img.Target.Digest.String(), img.Target.Digest.String(), "load")
+		i.LogImageEvent(img.Target.Digest.String(), img.Target.Digest.String(), events.ActionLoad)
 	}
 
 	return nil

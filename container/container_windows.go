@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/pkg/system"
 )
@@ -126,7 +127,7 @@ func (container *Container) ConfigMounts() []Mount {
 // DetachAndUnmount unmounts all volumes.
 // On Windows it only delegates to `UnmountVolumes` since there is nothing to
 // force unmount.
-func (container *Container) DetachAndUnmount(volumeEventLog func(name, action string, attributes map[string]string)) error {
+func (container *Container) DetachAndUnmount(volumeEventLog func(name string, action events.Action, attributes map[string]string)) error {
 	return container.UnmountVolumes(volumeEventLog)
 }
 

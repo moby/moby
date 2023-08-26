@@ -8,7 +8,7 @@ import (
 )
 
 // LogImageEvent generates an event related to an image with only the default attributes.
-func (i *ImageService) LogImageEvent(imageID, refName, action string) {
+func (i *ImageService) LogImageEvent(imageID, refName string, action events.Action) {
 	ctx := context.TODO()
 	attributes := map[string]string{}
 

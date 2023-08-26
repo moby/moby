@@ -10,6 +10,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
@@ -180,7 +181,7 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 		}
 		imageRef = reference.FamiliarString(c.Tag)
 	}
-	daemon.LogContainerEventWithAttributes(container, "commit", map[string]string{
+	daemon.LogContainerEventWithAttributes(container, events.ActionCommit, map[string]string{
 		"comment":  c.Comment,
 		"imageID":  id.String(),
 		"imageRef": imageRef,
