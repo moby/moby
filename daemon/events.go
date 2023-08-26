@@ -133,30 +133,30 @@ func (daemon *Daemon) generateClusterEvent(msg *swarmapi.WatchMessage) {
 		case *swarmapi.Object_Service:
 			daemon.logServiceEvent(event.Action, v.Service, event.OldObject.GetService())
 		case *swarmapi.Object_Network:
-			daemon.logNetworkEvent(event.Action, v.Network, event.OldObject.GetNetwork())
+			daemon.logNetworkEvent(event.Action, v.Network)
 		case *swarmapi.Object_Secret:
-			daemon.logSecretEvent(event.Action, v.Secret, event.OldObject.GetSecret())
+			daemon.logSecretEvent(event.Action, v.Secret)
 		case *swarmapi.Object_Config:
-			daemon.logConfigEvent(event.Action, v.Config, event.OldObject.GetConfig())
+			daemon.logConfigEvent(event.Action, v.Config)
 		default:
 			log.G(context.TODO()).Warnf("unrecognized event: %v", event)
 		}
 	}
 }
 
-func (daemon *Daemon) logNetworkEvent(action swarmapi.WatchActionKind, net *swarmapi.Network, oldNet *swarmapi.Network) {
+func (daemon *Daemon) logNetworkEvent(action swarmapi.WatchActionKind, net *swarmapi.Network) {
 	daemon.logClusterEvent(action, net.ID, events.NetworkEventType, eventTimestamp(net.Meta, action), map[string]string{
 		"name": net.Spec.Annotations.Name,
 	})
 }
 
-func (daemon *Daemon) logSecretEvent(action swarmapi.WatchActionKind, secret *swarmapi.Secret, oldSecret *swarmapi.Secret) {
+func (daemon *Daemon) logSecretEvent(action swarmapi.WatchActionKind, secret *swarmapi.Secret) {
 	daemon.logClusterEvent(action, secret.ID, events.SecretEventType, eventTimestamp(secret.Meta, action), map[string]string{
 		"name": secret.Spec.Annotations.Name,
 	})
 }
 
-func (daemon *Daemon) logConfigEvent(action swarmapi.WatchActionKind, config *swarmapi.Config, oldConfig *swarmapi.Config) {
+func (daemon *Daemon) logConfigEvent(action swarmapi.WatchActionKind, config *swarmapi.Config) {
 	daemon.logClusterEvent(action, config.ID, events.ConfigEventType, eventTimestamp(config.Meta, action), map[string]string{
 		"name": config.Spec.Annotations.Name,
 	})
