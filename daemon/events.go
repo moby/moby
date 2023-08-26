@@ -16,12 +16,6 @@ import (
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
-var clusterEventAction = map[swarmapi.WatchActionKind]string{
-	swarmapi.WatchActionKindCreate: "create",
-	swarmapi.WatchActionKindUpdate: "update",
-	swarmapi.WatchActionKindRemove: "remove",
-}
-
 // LogContainerEvent generates an event related to a container with only the default attributes.
 func (daemon *Daemon) LogContainerEvent(container *container.Container, action string) {
 	daemon.LogContainerEventWithAttributes(container, action, map[string]string{})
@@ -34,12 +28,10 @@ func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Conta
 		attributes["image"] = container.Config.Image
 	}
 	attributes["name"] = strings.TrimLeft(container.Name, "/")
-
-	actor := events.Actor{
+	daemon.EventsService.Log(action, events.ContainerEventType, events.Actor{
 		ID:         container.ID,
 		Attributes: attributes,
-	}
-	daemon.EventsService.Log(action, events.ContainerEventType, actor)
+	})
 }
 
 // LogPluginEvent generates an event related to a plugin with only the default attributes.
@@ -50,20 +42,18 @@ func (daemon *Daemon) LogPluginEvent(pluginID, refName, action string) {
 // LogPluginEventWithAttributes generates an event related to a plugin with specific given attributes.
 func (daemon *Daemon) LogPluginEventWithAttributes(pluginID, refName, action string, attributes map[string]string) {
 	attributes["name"] = refName
-	actor := events.Actor{
+	daemon.EventsService.Log(action, events.PluginEventType, events.Actor{
 		ID:         pluginID,
 		Attributes: attributes,
-	}
-	daemon.EventsService.Log(action, events.PluginEventType, actor)
+	})
 }
 
 // LogVolumeEvent generates an event related to a volume.
 func (daemon *Daemon) LogVolumeEvent(volumeID, action string, attributes map[string]string) {
-	actor := events.Actor{
+	daemon.EventsService.Log(action, events.VolumeEventType, events.Actor{
 		ID:         volumeID,
 		Attributes: attributes,
-	}
-	daemon.EventsService.Log(action, events.VolumeEventType, actor)
+	})
 }
 
 // LogNetworkEvent generates an event related to a network with only the default attributes.
@@ -75,11 +65,10 @@ func (daemon *Daemon) LogNetworkEvent(nw *libnetwork.Network, action string) {
 func (daemon *Daemon) LogNetworkEventWithAttributes(nw *libnetwork.Network, action string, attributes map[string]string) {
 	attributes["name"] = nw.Name()
 	attributes["type"] = nw.Type()
-	actor := events.Actor{
+	daemon.EventsService.Log(action, events.NetworkEventType, events.Actor{
 		ID:         nw.ID(),
 		Attributes: attributes,
-	}
-	daemon.EventsService.Log(action, events.NetworkEventType, actor)
+	})
 }
 
 // LogDaemonEventWithAttributes generates an event related to the daemon itself with specific given attributes.
@@ -97,8 +86,7 @@ func (daemon *Daemon) LogDaemonEventWithAttributes(action string, attributes map
 
 // SubscribeToEvents returns the currently record of events, a channel to stream new events from, and a function to cancel the stream of events.
 func (daemon *Daemon) SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{}) {
-	ef := daemonevents.NewFilter(filter)
-	return daemon.EventsService.SubscribeTopic(since, until, ef)
+	return daemon.EventsService.SubscribeTopic(since, until, daemonevents.NewFilter(filter))
 }
 
 // UnsubscribeFromEvents stops the event subscription for a client by closing the
@@ -272,21 +260,24 @@ func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *
 	daemon.logClusterEvent(action, service.ID, "service", attributes, eventTime)
 }
 
-func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id, eventType string, attributes map[string]string, eventTime time.Time) {
-	actor := events.Actor{
-		ID:         id,
-		Attributes: attributes,
-	}
+var clusterEventAction = map[swarmapi.WatchActionKind]string{
+	swarmapi.WatchActionKindCreate: "create",
+	swarmapi.WatchActionKindUpdate: "update",
+	swarmapi.WatchActionKindRemove: "remove",
+}
 
-	jm := events.Message{
-		Action:   clusterEventAction[action],
-		Type:     eventType,
-		Actor:    actor,
+func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id, eventType string, attributes map[string]string, eventTime time.Time) {
+	daemon.EventsService.PublishMessage(events.Message{
+		Action: clusterEventAction[action],
+		Type:   eventType,
+		Actor: events.Actor{
+			ID:         id,
+			Attributes: attributes,
+		},
 		Scope:    "swarm",
 		Time:     eventTime.UTC().Unix(),
 		TimeNano: eventTime.UTC().UnixNano(),
-	}
-	daemon.EventsService.PublishMessage(jm)
+	})
 }
 
 func eventTimestamp(meta swarmapi.Meta, action swarmapi.WatchActionKind) time.Time {
