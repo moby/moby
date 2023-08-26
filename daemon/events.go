@@ -36,15 +36,9 @@ func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Conta
 
 // LogPluginEvent generates an event related to a plugin with only the default attributes.
 func (daemon *Daemon) LogPluginEvent(pluginID, refName, action string) {
-	daemon.LogPluginEventWithAttributes(pluginID, refName, action, map[string]string{})
-}
-
-// LogPluginEventWithAttributes generates an event related to a plugin with specific given attributes.
-func (daemon *Daemon) LogPluginEventWithAttributes(pluginID, refName, action string, attributes map[string]string) {
-	attributes["name"] = refName
 	daemon.EventsService.Log(action, events.PluginEventType, events.Actor{
 		ID:         pluginID,
-		Attributes: attributes,
+		Attributes: map[string]string{"name": refName},
 	})
 }
 
