@@ -145,27 +145,21 @@ func (daemon *Daemon) generateClusterEvent(msg *swarmapi.WatchMessage) {
 }
 
 func (daemon *Daemon) logNetworkEvent(action swarmapi.WatchActionKind, net *swarmapi.Network, oldNet *swarmapi.Network) {
-	attributes := map[string]string{
+	daemon.logClusterEvent(action, net.ID, events.NetworkEventType, eventTimestamp(net.Meta, action), map[string]string{
 		"name": net.Spec.Annotations.Name,
-	}
-	eventTime := eventTimestamp(net.Meta, action)
-	daemon.logClusterEvent(action, net.ID, "network", attributes, eventTime)
+	})
 }
 
 func (daemon *Daemon) logSecretEvent(action swarmapi.WatchActionKind, secret *swarmapi.Secret, oldSecret *swarmapi.Secret) {
-	attributes := map[string]string{
+	daemon.logClusterEvent(action, secret.ID, events.SecretEventType, eventTimestamp(secret.Meta, action), map[string]string{
 		"name": secret.Spec.Annotations.Name,
-	}
-	eventTime := eventTimestamp(secret.Meta, action)
-	daemon.logClusterEvent(action, secret.ID, "secret", attributes, eventTime)
+	})
 }
 
 func (daemon *Daemon) logConfigEvent(action swarmapi.WatchActionKind, config *swarmapi.Config, oldConfig *swarmapi.Config) {
-	attributes := map[string]string{
+	daemon.logClusterEvent(action, config.ID, events.ConfigEventType, eventTimestamp(config.Meta, action), map[string]string{
 		"name": config.Spec.Annotations.Name,
-	}
-	eventTime := eventTimestamp(config.Meta, action)
-	daemon.logClusterEvent(action, config.ID, "config", attributes, eventTime)
+	})
 }
 
 func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node *swarmapi.Node, oldNode *swarmapi.Node) {
@@ -210,7 +204,7 @@ func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node *swarma
 		}
 	}
 
-	daemon.logClusterEvent(action, node.ID, "node", attributes, eventTime)
+	daemon.logClusterEvent(action, node.ID, events.NodeEventType, eventTime, attributes)
 }
 
 func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *swarmapi.Service, oldService *swarmapi.Service) {
@@ -257,7 +251,7 @@ func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *
 			}
 		}
 	}
-	daemon.logClusterEvent(action, service.ID, "service", attributes, eventTime)
+	daemon.logClusterEvent(action, service.ID, events.ServiceEventType, eventTime, attributes)
 }
 
 var clusterEventAction = map[swarmapi.WatchActionKind]string{
@@ -266,7 +260,7 @@ var clusterEventAction = map[swarmapi.WatchActionKind]string{
 	swarmapi.WatchActionKindRemove: "remove",
 }
 
-func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id, eventType string, attributes map[string]string, eventTime time.Time) {
+func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id string, eventType events.Type, eventTime time.Time, attributes map[string]string) {
 	daemon.EventsService.PublishMessage(events.Message{
 		Action: clusterEventAction[action],
 		Type:   eventType,
