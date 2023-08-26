@@ -53,8 +53,8 @@ func TestHealthStates(t *testing.T) {
 		select {
 		case event := <-l:
 			ev := event.(eventtypes.Message)
-			if ev.Status != expected {
-				t.Errorf("Expecting event %#v, but got %#v\n", expected, ev.Status)
+			if ev.Action != expected {
+				t.Errorf("Expecting event %#v, but got %#v\n", expected, ev.Action)
 			}
 		case <-time.After(1 * time.Second):
 			t.Errorf("Expecting event %#v, but got nothing\n", expected)
