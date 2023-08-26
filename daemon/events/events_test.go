@@ -12,6 +12,19 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
+// validateLegacyFields validates that the legacy "Status", "ID", and "From"
+// fields are set to the same value as their "current" (non-legacy) fields.
+//
+// These fields were deprecated since v1.10 (https://github.com/moby/moby/pull/18888).
+//
+// TODO remove this once we removed the deprecated `ID`, `Status`, and `From` fields.
+func validateLegacyFields(t *testing.T, msg events.Message) {
+	t.Helper()
+	assert.Check(t, is.Equal(msg.Status, msg.Action), "Legacy Status field does not match Action")
+	assert.Check(t, is.Equal(msg.ID, msg.Actor.ID), "Legacy ID field does not match Actor.ID")
+	assert.Check(t, is.Equal(msg.From, msg.Actor.Attributes["image"]), "Legacy From field does not match Actor.Attributes.image")
+}
+
 func TestEventsLog(t *testing.T) {
 	e := New()
 	_, l1, _ := e.Subscribe()
@@ -31,9 +44,10 @@ func TestEventsLog(t *testing.T) {
 
 		jmsg, ok := msg.(events.Message)
 		assert.Assert(t, ok, "unexpected type: %T", msg)
-		assert.Check(t, is.Equal(jmsg.Status, "test"))
-		assert.Check(t, is.Equal(jmsg.ID, "cont"))
-		assert.Check(t, is.Equal(jmsg.From, "image"))
+		validateLegacyFields(t, jmsg)
+		assert.Check(t, is.Equal(jmsg.Action, "test"))
+		assert.Check(t, is.Equal(jmsg.Actor.ID, "cont"))
+		assert.Check(t, is.Equal(jmsg.Actor.Attributes["image"], "image"))
 	case <-time.After(1 * time.Second):
 		t.Fatal("Timeout waiting for broadcasted message")
 	}
@@ -43,9 +57,10 @@ func TestEventsLog(t *testing.T) {
 
 		jmsg, ok := msg.(events.Message)
 		assert.Assert(t, ok, "unexpected type: %T", msg)
-		assert.Check(t, is.Equal(jmsg.Status, "test"))
-		assert.Check(t, is.Equal(jmsg.ID, "cont"))
-		assert.Check(t, is.Equal(jmsg.From, "image"))
+		validateLegacyFields(t, jmsg)
+		assert.Check(t, is.Equal(jmsg.Action, "test"))
+		assert.Check(t, is.Equal(jmsg.Actor.ID, "cont"))
+		assert.Check(t, is.Equal(jmsg.Actor.Attributes["image"], "image"))
 	case <-time.After(1 * time.Second):
 		t.Fatal("Timeout waiting for broadcasted message")
 	}
@@ -105,9 +120,8 @@ func TestLogEvents(t *testing.T) {
 	assert.Assert(t, is.Len(current, eventsLimit))
 
 	first := current[0]
+	validateLegacyFields(t, first)
 	assert.Check(t, is.Equal(first.Action, "action_16"))
-	// TODO remove this once we removed the deprecated `ID`, `Status`, and `From` fields
-	assert.Check(t, is.Equal(first.Action, first.Status), "Action does not match Status")
 
 	last := current[len(current)-1]
 	assert.Check(t, is.Equal(last.Action, "action_271"))
