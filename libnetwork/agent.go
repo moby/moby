@@ -108,8 +108,8 @@ func resolveAddr(addrOrInterface string) (net.IP, error) {
 func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	drvEnc := discoverapi.DriverEncryptionUpdate{}
 
-	a := c.getAgent()
-	if a == nil {
+	agent := c.getAgent()
+	if agent == nil {
 		log.G(context.TODO()).Debug("Skipping key change as agent is nil")
 		return nil
 	}
@@ -168,14 +168,14 @@ func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	c.mu.Unlock()
 
 	if len(added) > 0 {
-		a.networkDB.SetKey(added)
+		agent.networkDB.SetKey(added)
 	}
 
 	key, _, err := c.getPrimaryKeyTag(subsysGossip)
 	if err != nil {
 		return err
 	}
-	a.networkDB.SetPrimaryKey(key)
+	agent.networkDB.SetPrimaryKey(key)
 
 	key, tag, err := c.getPrimaryKeyTag(subsysIPSec)
 	if err != nil {
@@ -185,7 +185,7 @@ func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	drvEnc.PrimaryTag = tag
 
 	if len(deleted) > 0 {
-		a.networkDB.RemoveKey(deleted)
+		agent.networkDB.RemoveKey(deleted)
 	}
 
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
@@ -457,11 +457,8 @@ type epRecord struct {
 // Services returns a map of services keyed by the service name with the details
 // of all the tasks that belong to the service. Applicable only in swarm mode.
 func (n *Network) Services() map[string]ServiceInfo {
-	if !n.isClusterEligible() {
-		return nil
-	}
-	agent := n.getController().getAgent()
-	if agent == nil {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
 	nwID := n.ID()
@@ -532,36 +529,29 @@ func (n *Network) Services() map[string]ServiceInfo {
 	return sinfo
 }
 
-func (n *Network) isClusterEligible() bool {
+// clusterAgent returns the cluster agent if the network is a swarm-scoped,
+// multi-host network.
+func (n *Network) clusterAgent() (agent *nwAgent, ok bool) {
 	if n.scope != scope.Swarm || !n.driverIsMultihost() {
-		return false
+		return nil, false
 	}
-	return n.getController().getAgent() != nil
+	a := n.getController().getAgent()
+	return a, a != nil
 }
 
 func (n *Network) joinCluster() error {
-	if !n.isClusterEligible() {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
-
-	agent := n.getController().getAgent()
-	if agent == nil {
-		return nil
-	}
-
 	return agent.networkDB.JoinNetwork(n.ID())
 }
 
 func (n *Network) leaveCluster() error {
-	if !n.isClusterEligible() {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
-
-	agent := n.getController().getAgent()
-	if agent == nil {
-		return nil
-	}
-
 	return agent.networkDB.LeaveNetwork(n.ID())
 }
 
@@ -570,17 +560,14 @@ func (ep *Endpoint) addDriverInfoToCluster() error {
 		return nil
 	}
 	n := ep.getNetwork()
-	if !n.isClusterEligible() {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
 
-	agent := n.getController().getAgent()
-	if agent == nil {
-		return nil
-	}
-
+	nwID := n.ID()
 	for _, te := range ep.joinInfo.driverTableEntries {
-		if err := agent.networkDB.CreateEntry(te.tableName, n.ID(), te.key, te.value); err != nil {
+		if err := agent.networkDB.CreateEntry(te.tableName, nwID, te.key, te.value); err != nil {
 			return err
 		}
 	}
@@ -592,17 +579,14 @@ func (ep *Endpoint) deleteDriverInfoFromCluster() error {
 		return nil
 	}
 	n := ep.getNetwork()
-	if !n.isClusterEligible() {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
 
-	agent := n.getController().getAgent()
-	if agent == nil {
-		return nil
-	}
-
+	nwID := n.ID()
 	for _, te := range ep.joinInfo.driverTableEntries {
-		if err := agent.networkDB.DeleteEntry(te.tableName, n.ID(), te.key); err != nil {
+		if err := agent.networkDB.DeleteEntry(te.tableName, nwID, te.key); err != nil {
 			return err
 		}
 	}
@@ -615,15 +599,8 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 	}
 
 	n := ep.getNetwork()
-	if !n.isClusterEligible() {
-		return nil
-	}
-	c := n.getController()
-	agent := c.getAgent()
-	if agent == nil {
-		// this should not happen normally, as the network is not considered
-		// "ClusterEligible" if the agent is nil (in which case we wouldn't
-		// reach this code).
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
 
@@ -659,12 +636,12 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 		if n.ingress {
 			ingressPorts = ep.ingressPorts
 		}
-		if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), name, ep.virtualIP, ingressPorts, ep.svcAliases, ep.myAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
+		if err := n.getController().addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), name, ep.virtualIP, ingressPorts, ep.svcAliases, ep.myAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
 			return err
 		}
 	} else {
 		// This is a container simply attached to an attachable network
-		if err := c.addContainerNameResolution(n.ID(), ep.ID(), name, ep.myAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
+		if err := n.getController().addContainerNameResolution(n.ID(), ep.ID(), name, ep.myAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
 			return err
 		}
 	}
@@ -700,15 +677,8 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 	}
 
 	n := ep.getNetwork()
-	if !n.isClusterEligible() {
-		return nil
-	}
-	c := n.getController()
-	agent := c.getAgent()
-	if agent == nil {
-		// this should not happen normally, as the network is not considered
-		// "ClusterEligible" if the agent is nil (in which case we wouldn't
-		// reach this code).
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
 
@@ -746,12 +716,12 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 			if n.ingress {
 				ingressPorts = ep.ingressPorts
 			}
-			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), name, ep.virtualIP, ingressPorts, ep.svcAliases, ep.myAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster", true, fullRemove); err != nil {
+			if err := n.getController().rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), name, ep.virtualIP, ingressPorts, ep.svcAliases, ep.myAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster", true, fullRemove); err != nil {
 				return err
 			}
 		} else {
 			// This is a container simply attached to an attachable network
-			if err := c.delContainerNameResolution(n.ID(), ep.ID(), name, ep.myAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster"); err != nil {
+			if err := n.getController().delContainerNameResolution(n.ID(), ep.ID(), name, ep.myAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster"); err != nil {
 				return err
 			}
 		}
@@ -795,15 +765,12 @@ func (n *Network) addDriverWatches() {
 	if len(n.driverTables) == 0 {
 		return
 	}
-	if !n.isClusterEligible() {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return
 	}
 
 	c := n.getController()
-	agent := c.getAgent()
-	if agent == nil {
-		return
-	}
 	for _, table := range n.driverTables {
 		ch, cancel := agent.networkDB.Watch(table.name, n.ID())
 		agent.Lock()
@@ -831,12 +798,8 @@ func (n *Network) addDriverWatches() {
 }
 
 func (n *Network) cancelDriverWatches() {
-	if !n.isClusterEligible() {
-		return
-	}
-
-	agent := n.getController().getAgent()
-	if agent == nil {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return
 	}
 
