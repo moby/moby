@@ -26,7 +26,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		cmake \
 		git \
 		libapparmor-dev \
-		libdevmapper-dev \
 		libseccomp-dev \
 		ca-certificates \
 		e2fsprogs \
