@@ -73,14 +73,13 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 				mnt.ReadOnlyForceRecursive = m.Spec.BindOptions.ReadOnlyForceRecursive
 			}
 			if m.Volume != nil {
-				attributes := map[string]string{
+				daemon.LogVolumeEvent(m.Volume.Name(), "mount", map[string]string{
 					"driver":      m.Volume.DriverName(),
 					"container":   c.ID,
 					"destination": m.Destination,
 					"read/write":  strconv.FormatBool(m.RW),
 					"propagation": string(m.Propagation),
-				}
-				daemon.LogVolumeEvent(m.Volume.Name(), "mount", attributes)
+				})
 			}
 			mounts = append(mounts, mnt)
 		}

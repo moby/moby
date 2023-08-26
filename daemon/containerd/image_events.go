@@ -21,12 +21,10 @@ func (i *ImageService) LogImageEvent(imageID, refName, action string) {
 	if refName != "" {
 		attributes["name"] = refName
 	}
-	actor := events.Actor{
+	i.eventsService.Log(action, events.ImageEventType, events.Actor{
 		ID:         imageID,
 		Attributes: attributes,
-	}
-
-	i.eventsService.Log(action, events.ImageEventType, actor)
+	})
 }
 
 // copyAttributes guarantees that labels are not mutated by event triggers.

@@ -87,10 +87,9 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	execConfig.Env = container.ReplaceOrAppendEnvValues(cntr.CreateDaemonEnvironment(execConfig.Tty, linkedEnv), execConfig.Env)
 
 	d.registerExecCommand(cntr, execConfig)
-	attributes := map[string]string{
+	d.LogContainerEventWithAttributes(cntr, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "), map[string]string{
 		"execID": execConfig.ID,
-	}
-	d.LogContainerEventWithAttributes(cntr, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "), attributes)
+	})
 
 	output := &limitedBuffer{}
 	probeCtx, cancelProbe := context.WithCancel(ctx)

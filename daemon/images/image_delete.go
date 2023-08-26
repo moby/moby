@@ -243,18 +243,15 @@ func (i *ImageService) removeImageRef(ref reference.Named) (reference.Named, err
 // daemon's event service. An "Untagged" types.ImageDeleteResponseItem is added to the
 // given list of records.
 func (i *ImageService) removeAllReferencesToImageID(imgID image.ID, records *[]types.ImageDeleteResponseItem) error {
-	imageRefs := i.referenceStore.References(imgID.Digest())
-
-	for _, imageRef := range imageRefs {
+	for _, imageRef := range i.referenceStore.References(imgID.Digest()) {
 		parsedRef, err := i.removeImageRef(imageRef)
 		if err != nil {
 			return err
 		}
-
-		untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
-
 		i.LogImageEvent(imgID.String(), imgID.String(), "untag")
-		*records = append(*records, untaggedRecord)
+		*records = append(*records, types.ImageDeleteResponseItem{
+			Untagged: reference.FamiliarString(parsedRef),
+		})
 	}
 
 	return nil

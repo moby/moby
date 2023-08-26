@@ -25,11 +25,10 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 	}
 
 	if err = tsk.Resize(context.Background(), uint32(width), uint32(height)); err == nil {
-		attributes := map[string]string{
+		daemon.LogContainerEventWithAttributes(container, "resize", map[string]string{
 			"height": strconv.Itoa(height),
 			"width":  strconv.Itoa(width),
-		}
-		daemon.LogContainerEventWithAttributes(container, "resize", attributes)
+		})
 	}
 	return err
 }

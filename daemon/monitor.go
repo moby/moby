@@ -219,11 +219,10 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 				}()
 			}
 		}
-		attributes := map[string]string{
+		daemon.LogContainerEventWithAttributes(c, "exec_die", map[string]string{
 			"execID":   ei.ProcessID,
 			"exitCode": strconv.Itoa(exitCode),
-		}
-		daemon.LogContainerEventWithAttributes(c, "exec_die", attributes)
+		})
 	case libcontainerdtypes.EventStart:
 		c.Lock()
 		defer c.Unlock()
