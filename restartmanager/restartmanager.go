@@ -86,7 +86,7 @@ func (rm *RestartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 		restart = true
 	case rm.policy.IsOnFailure():
 		// the default value of 0 for MaximumRetryCount means that we will not enforce a maximum count
-		if max := rm.policy.MaximumRetryCount; max == 0 || rm.restartCount < max {
+		if maxRetryCount := rm.policy.MaximumRetryCount; maxRetryCount == 0 || rm.restartCount < maxRetryCount {
 			restart = exitCode != 0
 		}
 	}
