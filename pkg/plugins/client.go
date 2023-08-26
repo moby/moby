@@ -239,13 +239,13 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool,
 }
 
 func backoff(retries int) time.Duration {
-	b, max := 1, defaultTimeOut
-	for b < max && retries > 0 {
+	b, maxTimeout := 1, defaultTimeOut
+	for b < maxTimeout && retries > 0 {
 		b *= 2
 		retries--
 	}
-	if b > max {
-		b = max
+	if b > maxTimeout {
+		b = maxTimeout
 	}
 	return time.Duration(b) * time.Second
 }
