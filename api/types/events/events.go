@@ -1,7 +1,7 @@
 package events // import "github.com/docker/docker/api/types/events"
 
 // Type is used for event-types.
-type Type = string
+type Type string
 
 // List of known event types.
 const (

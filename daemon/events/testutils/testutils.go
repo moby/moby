@@ -65,7 +65,7 @@ func Scan(text string) (*events.Message, error) {
 	return &events.Message{
 		Time:     t,
 		TimeNano: time.Unix(t, tn).UnixNano(),
-		Type:     md["eventType"],
+		Type:     events.Type(md["eventType"]),
 		Action:   md["action"],
 		Actor: events.Actor{
 			ID:         md["id"],

@@ -60,7 +60,7 @@ func TestEventsErrorFromServer(t *testing.T) {
 func TestEvents(t *testing.T) {
 	const expectedURL = "/events"
 
-	fltrs := filters.NewArgs(filters.Arg("type", events.ContainerEventType))
+	fltrs := filters.NewArgs(filters.Arg("type", string(events.ContainerEventType)))
 	expectedFiltersJSON := fmt.Sprintf(`{"type":{"%s":true}}`, events.ContainerEventType)
 
 	eventsCases := []struct {
