@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/checkpoint"
 	"github.com/docker/docker/daemon/names"
 )
 
@@ -51,7 +51,7 @@ func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir s
 }
 
 // CheckpointCreate checkpoints the process running in a container with CRIU
-func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreateOptions) error {
+func (daemon *Daemon) CheckpointCreate(name string, config checkpoint.CreateOptions) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 }
 
 // CheckpointDelete deletes the specified checkpoint
-func (daemon *Daemon) CheckpointDelete(name string, config types.CheckpointDeleteOptions) error {
+func (daemon *Daemon) CheckpointDelete(name string, config checkpoint.DeleteOptions) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -98,8 +98,8 @@ func (daemon *Daemon) CheckpointDelete(name string, config types.CheckpointDelet
 }
 
 // CheckpointList lists all checkpoints of the specified container
-func (daemon *Daemon) CheckpointList(name string, config types.CheckpointListOptions) ([]types.Checkpoint, error) {
-	var out []types.Checkpoint
+func (daemon *Daemon) CheckpointList(name string, config checkpoint.ListOptions) ([]checkpoint.Summary, error) {
+	var out []checkpoint.Summary
 
 	container, err := daemon.GetContainer(name)
 	if err != nil {
@@ -124,7 +124,7 @@ func (daemon *Daemon) CheckpointList(name string, config types.CheckpointListOpt
 		if !d.IsDir() {
 			continue
 		}
-		cpt := types.Checkpoint{Name: d.Name()}
+		cpt := checkpoint.Summary{Name: d.Name()}
 		out = append(out, cpt)
 	}
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/checkpoint"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
@@ -56,7 +57,7 @@ func TestCheckpoint(t *testing.T) {
 		poll.WithDelay(100*time.Millisecond),
 	)
 
-	cptOpt := types.CheckpointCreateOptions{
+	cptOpt := checkpoint.CreateOptions{
 		Exit:         false,
 		CheckpointID: "test",
 	}
@@ -100,7 +101,7 @@ func TestCheckpoint(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, inspect.State.Running))
 
-	checkpoints, err := apiClient.CheckpointList(ctx, cID, types.CheckpointListOptions{})
+	checkpoints, err := apiClient.CheckpointList(ctx, cID, checkpoint.ListOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, len(checkpoints), 1)
 	assert.Equal(t, checkpoints[0].Name, "test")
@@ -109,7 +110,7 @@ func TestCheckpoint(t *testing.T) {
 	containerExec(t, apiClient, cID, []string{"touch", "/tmp/test-file"})
 
 	// Do a second checkpoint
-	cptOpt = types.CheckpointCreateOptions{
+	cptOpt = checkpoint.CreateOptions{
 		Exit:         true,
 		CheckpointID: "test2",
 	}
@@ -127,7 +128,7 @@ func TestCheckpoint(t *testing.T) {
 	assert.Check(t, is.Equal(false, inspect.State.Running))
 
 	// Check that both checkpoints are listed.
-	checkpoints, err = apiClient.CheckpointList(ctx, cID, types.CheckpointListOptions{})
+	checkpoints, err = apiClient.CheckpointList(ctx, cID, checkpoint.ListOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, len(checkpoints), 2)
 	cptNames := make([]string, 2)
@@ -154,7 +155,7 @@ func TestCheckpoint(t *testing.T) {
 	containerExec(t, apiClient, cID, []string{"test", "-f", "/tmp/test-file"})
 
 	for _, id := range []string{"test", "test2"} {
-		cptDelOpt := types.CheckpointDeleteOptions{
+		cptDelOpt := checkpoint.DeleteOptions{
 			CheckpointID: id,
 		}
 
