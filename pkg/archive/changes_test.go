@@ -21,7 +21,7 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func max(x, y int) int {
+func maxInt(x, y int) int {
 	if x >= y {
 		return x
 	}
@@ -404,7 +404,7 @@ func TestChangesDirsMutated(t *testing.T) {
 		{filepath.FromSlash("/symlinknew"), ChangeAdd},
 	}...)
 
-	for i := 0; i < max(len(changes), len(expectedChanges)); i++ {
+	for i := 0; i < maxInt(len(changes), len(expectedChanges)); i++ {
 		if i >= len(expectedChanges) {
 			t.Fatalf("unexpected change %s\n", changes[i].String())
 		}
@@ -530,7 +530,7 @@ func checkChanges(expectedChanges, changes []Change, t *testing.T) {
 	skip.If(t, runtime.GOOS != "windows" && os.Getuid() != 0, "skipping test that requires root")
 	sort.Sort(changesByPath(expectedChanges))
 	sort.Sort(changesByPath(changes))
-	for i := 0; i < max(len(changes), len(expectedChanges)); i++ {
+	for i := 0; i < maxInt(len(changes), len(expectedChanges)); i++ {
 		if i >= len(expectedChanges) {
 			t.Fatalf("unexpected change %s\n", changes[i].String())
 		}
