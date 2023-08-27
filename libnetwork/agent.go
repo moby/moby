@@ -618,6 +618,14 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 	if !n.isClusterEligible() {
 		return nil
 	}
+	c := n.getController()
+	agent := c.getAgent()
+	if agent == nil {
+		// this should not happen normally, as the network is not considered
+		// "ClusterEligible" if the agent is nil (in which case we wouldn't
+		// reach this code).
+		return nil
+	}
 
 	sb.service.Lock()
 	defer sb.service.Unlock()
@@ -638,9 +646,6 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 		log.G(context.TODO()).Warnf("addServiceInfoToCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
 		return nil
 	}
-
-	c := n.getController()
-	agent := c.getAgent()
 
 	name := ep.Name()
 	if ep.isAnonymous() {
@@ -679,11 +684,9 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 		return err
 	}
 
-	if agent != nil {
-		if err := agent.networkDB.CreateEntry(libnetworkEPTable, n.ID(), ep.ID(), buf); err != nil {
-			log.G(context.TODO()).Warnf("addServiceInfoToCluster NetworkDB CreateEntry failed for %s %s err:%s", ep.id, n.id, err)
-			return err
-		}
+	if err := agent.networkDB.CreateEntry(libnetworkEPTable, n.ID(), ep.ID(), buf); err != nil {
+		log.G(context.TODO()).Warnf("addServiceInfoToCluster NetworkDB CreateEntry failed for %s %s err:%s", ep.id, n.id, err)
+		return err
 	}
 
 	log.G(context.TODO()).Debugf("addServiceInfoToCluster END for %s %s", ep.svcName, ep.ID())
@@ -700,6 +703,14 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 	if !n.isClusterEligible() {
 		return nil
 	}
+	c := n.getController()
+	agent := c.getAgent()
+	if agent == nil {
+		// this should not happen normally, as the network is not considered
+		// "ClusterEligible" if the agent is nil (in which case we wouldn't
+		// reach this code).
+		return nil
+	}
 
 	sb.service.Lock()
 	defer sb.service.Unlock()
@@ -714,23 +725,18 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 		return nil
 	}
 
-	c := n.getController()
-	agent := c.getAgent()
-
 	name := ep.Name()
 	if ep.isAnonymous() {
 		name = ep.MyAliases()[0]
 	}
 
-	if agent != nil {
-		// First update the networkDB then locally
-		if fullRemove {
-			if err := agent.networkDB.DeleteEntry(libnetworkEPTable, n.ID(), ep.ID()); err != nil {
-				log.G(context.TODO()).Warnf("deleteServiceInfoFromCluster NetworkDB DeleteEntry failed for %s %s err:%s", ep.id, n.id, err)
-			}
-		} else {
-			disableServiceInNetworkDB(agent, n, ep)
+	// First update the networkDB then locally
+	if fullRemove {
+		if err := agent.networkDB.DeleteEntry(libnetworkEPTable, n.ID(), ep.ID()); err != nil {
+			log.G(context.TODO()).Warnf("deleteServiceInfoFromCluster NetworkDB DeleteEntry failed for %s %s err:%s", ep.id, n.id, err)
 		}
+	} else {
+		disableServiceInNetworkDB(agent, n, ep)
 	}
 
 	if ep.Iface() != nil && ep.Iface().Address() != nil {
