@@ -206,12 +206,6 @@ func (ep *Endpoint) Iface() *EndpointInterface {
 	return ep.iface
 }
 
-func (ep *Endpoint) Interface() driverapi.InterfaceInfo {
-	ep.mu.Lock()
-	defer ep.mu.Unlock()
-	return ep.iface
-}
-
 // SetMacAddress allows the driver to set the mac address to the endpoint interface
 // during the call to CreateEndpoint, if the mac address is not already set.
 func (epi *EndpointInterface) SetMacAddress(mac net.HardwareAddr) error {
