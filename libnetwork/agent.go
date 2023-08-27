@@ -554,11 +554,11 @@ func (n *Network) leaveCluster() error {
 }
 
 func (ep *Endpoint) addDriverInfoToCluster() error {
-	n := ep.getNetwork()
-	if !n.isClusterEligible() {
+	if ep.joinInfo == nil || len(ep.joinInfo.driverTableEntries) == 0 {
 		return nil
 	}
-	if ep.joinInfo == nil {
+	n := ep.getNetwork()
+	if !n.isClusterEligible() {
 		return nil
 	}
 
@@ -576,11 +576,11 @@ func (ep *Endpoint) addDriverInfoToCluster() error {
 }
 
 func (ep *Endpoint) deleteDriverInfoFromCluster() error {
-	n := ep.getNetwork()
-	if !n.isClusterEligible() {
+	if ep.joinInfo == nil || len(ep.joinInfo.driverTableEntries) == 0 {
 		return nil
 	}
-	if ep.joinInfo == nil {
+	n := ep.getNetwork()
+	if !n.isClusterEligible() {
 		return nil
 	}
 
@@ -598,7 +598,7 @@ func (ep *Endpoint) deleteDriverInfoFromCluster() error {
 }
 
 func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
-	if ep.isAnonymous() && len(ep.myAliases) == 0 || ep.Iface() == nil || ep.Iface().Address() == nil {
+	if len(ep.myAliases) == 0 && ep.isAnonymous() || ep.Iface() == nil || ep.Iface().Address() == nil {
 		return nil
 	}
 
@@ -622,7 +622,7 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 	// In case the deleteServiceInfoToCluster arrives first, this one is happening after the endpoint is
 	// removed from the list, in this situation the delete will bail out not finding any data to cleanup
 	// and the add will bail out not finding the endpoint on the sandbox.
-	if e := sb.getEndpoint(ep.ID()); e == nil {
+	if err := sb.getEndpoint(ep.ID()); err == nil {
 		log.G(context.TODO()).Warnf("addServiceInfoToCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
 		return nil
 	}
@@ -680,7 +680,7 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 }
 
 func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, method string) error {
-	if ep.isAnonymous() && len(ep.myAliases) == 0 {
+	if len(ep.myAliases) == 0 && ep.isAnonymous() {
 		return nil
 	}
 
@@ -697,7 +697,7 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 	// get caught in disableServceInNetworkDB, but we check here to make the
 	// nature of the condition more clear.
 	// See comment in addServiceInfoToCluster()
-	if e := sb.getEndpoint(ep.ID()); e == nil {
+	if err := sb.getEndpoint(ep.ID()); err == nil {
 		log.G(context.TODO()).Warnf("deleteServiceInfoFromCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
 		return nil
 	}
@@ -774,6 +774,9 @@ func disableServiceInNetworkDB(a *nwAgent, n *Network, ep *Endpoint) {
 }
 
 func (n *Network) addDriverWatches() {
+	if len(n.driverTables) == 0 {
+		return
+	}
 	if !n.isClusterEligible() {
 		return
 	}
