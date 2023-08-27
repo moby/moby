@@ -232,11 +232,17 @@ func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 	listen := clusterProvider.GetListenAddress()
 	listenAddr, _, _ := net.SplitHostPort(listen)
 
-	log.G(context.TODO()).Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Data-addr=%s Remote-addr-list=%v MTU=%d",
-		listenAddr, bindAddr, advAddr, dataAddr, remoteAddrList, c.Config().NetworkControlPlaneMTU)
+	log.G(context.TODO()).WithFields(log.Fields{
+		"listen-addr":               listenAddr,
+		"local-addr":                bindAddr,
+		"advertise-addr":            advAddr,
+		"data-path-addr":            dataAddr,
+		"remote-addr-list":          remoteAddrList,
+		"network-control-plane-mtu": c.Config().NetworkControlPlaneMTU,
+	}).Info("Initializing Libnetwork Agent")
 	if advAddr != "" {
 		if err := c.agentInit(listenAddr, bindAddr, advAddr, dataAddr); err != nil {
-			log.G(context.TODO()).Errorf("error in agentInit: %v", err)
+			log.G(context.TODO()).WithError(err).Errorf("Error in agentInit")
 			return err
 		}
 		c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
@@ -251,7 +257,7 @@ func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 
 	if len(remoteAddrList) > 0 {
 		if err := c.agentJoin(remoteAddrList); err != nil {
-			log.G(context.TODO()).Errorf("Error in joining gossip cluster : %v(join will be retried in background)", err)
+			log.G(context.TODO()).WithError(err).Error("Error in joining gossip cluster: join will be retried in background")
 		}
 	}
 
