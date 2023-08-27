@@ -546,7 +546,7 @@ func TestMissingValues(t *testing.T) {
 
 type rollbackEndpoint struct{}
 
-func (r *rollbackEndpoint) Interface() driverapi.InterfaceInfo {
+func (r *rollbackEndpoint) Interface() *rollbackEndpoint {
 	return r
 }
 
