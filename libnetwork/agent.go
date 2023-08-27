@@ -37,7 +37,7 @@ func (b ByTime) Less(i, j int) bool { return b[i].LamportTime < b[j].LamportTime
 
 type nwAgent struct {
 	networkDB         *networkdb.NetworkDB
-	bindAddr          string
+	bindAddr          net.IP
 	advertiseAddr     string
 	dataPathAddr      string
 	coreCancelFuncs   []func()
@@ -56,15 +56,15 @@ func (a *nwAgent) dataPathAddress() string {
 
 const libnetworkEPTable = "endpoint_table"
 
-func getBindAddr(ifaceName string) (string, error) {
+func getBindAddr(ifaceName string) (net.IP, error) {
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
-		return "", fmt.Errorf("failed to find interface %s: %v", ifaceName, err)
+		return nil, fmt.Errorf("failed to find interface %s: %v", ifaceName, err)
 	}
 
 	addrs, err := iface.Addrs()
 	if err != nil {
-		return "", fmt.Errorf("failed to get interface addresses: %v", err)
+		return nil, fmt.Errorf("failed to get interface addresses: %v", err)
 	}
 
 	for _, a := range addrs {
@@ -78,10 +78,10 @@ func getBindAddr(ifaceName string) (string, error) {
 			continue
 		}
 
-		return addrIP.String(), nil
+		return addrIP, nil
 	}
 
-	return "", fmt.Errorf("failed to get bind address")
+	return nil, fmt.Errorf("failed to get bind address")
 }
 
 // resolveAddr resolves the given address, which can be one of, and
@@ -90,10 +90,10 @@ func getBindAddr(ifaceName string) (string, error) {
 // - a well-formed IP-address
 // - a hostname
 // - an interface-name
-func resolveAddr(addrOrInterface string) (string, error) {
+func resolveAddr(addrOrInterface string) (net.IP, error) {
 	// Try and see if this is a valid IP address
-	if net.ParseIP(addrOrInterface) != nil {
-		return addrOrInterface, nil
+	if ip := net.ParseIP(addrOrInterface); ip != nil {
+		return ip, nil
 	}
 
 	// If not a valid IP address, it could be a hostname.
@@ -102,7 +102,7 @@ func resolveAddr(addrOrInterface string) (string, error) {
 		// If hostname lookup failed, try to look for an interface with the given name.
 		return getBindAddr(addrOrInterface)
 	}
-	return addr.String(), nil
+	return addr.IP, nil
 }
 
 func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
@@ -378,7 +378,7 @@ func (c *Controller) agentDriverNotify(d discoverapi.Discover) {
 
 	if err := d.DiscoverNew(discoverapi.NodeDiscovery, discoverapi.NodeDiscoveryData{
 		Address:     agent.dataPathAddress(),
-		BindAddress: agent.bindAddr,
+		BindAddress: agent.bindAddr.String(),
 		Self:        true,
 	}); err != nil {
 		log.G(context.TODO()).Warnf("Failed the node discovery in driver: %v", err)
