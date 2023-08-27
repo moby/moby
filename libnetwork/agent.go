@@ -214,9 +214,8 @@ func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 
 func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 	agent := c.getAgent()
-
-	// If the agent is already present there is no need to try to initialize it again
 	if agent != nil {
+		// agent is already present, so there is no need initialize it again.
 		return nil
 	}
 
@@ -235,7 +234,7 @@ func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 
 	log.G(context.TODO()).Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Data-addr=%s Remote-addr-list=%v MTU=%d",
 		listenAddr, bindAddr, advAddr, dataAddr, remoteAddrList, c.Config().NetworkControlPlaneMTU)
-	if advAddr != "" && agent == nil {
+	if advAddr != "" {
 		if err := c.agentInit(listenAddr, bindAddr, advAddr, dataAddr); err != nil {
 			log.G(context.TODO()).Errorf("error in agentInit: %v", err)
 			return err
