@@ -396,16 +396,14 @@ func (c *Controller) processNodeDiscovery(nodes []net.IP, add bool) {
 }
 
 func (c *Controller) pushNodeDiscovery(d discoverapi.Discover, capability driverapi.Capability, nodes []net.IP, add bool) {
+	if d == nil || capability.ConnectivityScope != scope.Global || nodes == nil {
+		return
+	}
 	var self net.IP
 	// try swarm-mode config
 	if agent := c.getAgent(); agent != nil {
 		self = net.ParseIP(agent.advertiseAddr)
 	}
-
-	if d == nil || capability.ConnectivityScope != scope.Global || nodes == nil {
-		return
-	}
-
 	for _, node := range nodes {
 		nodeData := discoverapi.NodeDiscoveryData{Address: node.String(), Self: node.Equal(self)}
 		var err error
