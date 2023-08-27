@@ -846,9 +846,8 @@ func (n *Network) handleDriverTableEvent(ev events.Event) {
 
 func (c *Controller) handleNodeTableEvent(ev events.Event) {
 	var (
-		value    []byte
-		isAdd    bool
-		nodeAddr networkdb.NodeAddr
+		value []byte
+		isAdd bool
 	)
 	switch event := ev.(type) {
 	case networkdb.CreateEvent:
@@ -860,22 +859,20 @@ func (c *Controller) handleNodeTableEvent(ev events.Event) {
 		log.G(context.TODO()).Errorf("Unexpected update node table event = %#v", event)
 	}
 
-	err := json.Unmarshal(value, &nodeAddr)
+	var node networkdb.NodeAddr
+	err := json.Unmarshal(value, &node)
 	if err != nil {
 		log.G(context.TODO()).Errorf("Error unmarshalling node table event %v", err)
 		return
 	}
-	c.processNodeDiscovery([]net.IP{nodeAddr.Addr}, isAdd)
+	c.processNodeDiscovery([]net.IP{node.Addr}, isAdd)
 }
 
 func (c *Controller) handleEpTableEvent(ev events.Event) {
 	var (
-		nid   string
-		eid   string
-		value []byte
-		epRec EndpointRecord
+		nid, eid string
+		value    []byte
 	)
-
 	switch event := ev.(type) {
 	case networkdb.CreateEvent:
 		nid = event.NetworkID
@@ -894,6 +891,7 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 		return
 	}
 
+	var epRec EndpointRecord
 	err := proto.Unmarshal(value, &epRec)
 	if err != nil {
 		log.G(context.TODO()).Errorf("Failed to unmarshal service table value: %v", err)
