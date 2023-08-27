@@ -84,15 +84,22 @@ func getBindAddr(ifaceName string) (string, error) {
 	return "", fmt.Errorf("failed to get bind address")
 }
 
+// resolveAddr resolves the given address, which can be one of, and
+// parsed in the following order or priority:
+//
+// - a well-formed IP-address
+// - a hostname
+// - an interface-name
 func resolveAddr(addrOrInterface string) (string, error) {
 	// Try and see if this is a valid IP address
 	if net.ParseIP(addrOrInterface) != nil {
 		return addrOrInterface, nil
 	}
 
+	// If not a valid IP address, it could be a hostname.
 	addr, err := net.ResolveIPAddr("ip", addrOrInterface)
 	if err != nil {
-		// If not a valid IP address, it should be a valid interface
+		// If hostname lookup failed, try to look for an interface with the given name.
 		return getBindAddr(addrOrInterface)
 	}
 	return addr.String(), nil
