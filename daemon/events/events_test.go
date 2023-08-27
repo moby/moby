@@ -190,14 +190,14 @@ func TestLoadBufferedEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	events := &Events{
+	evts := &Events{
 		events: []events.Message{*m1, *m2, *m3},
 	}
 
 	since := time.Unix(s, sNano)
 	until := time.Time{}
 
-	out := events.loadBufferedEvents(since, until, nil)
+	out := evts.loadBufferedEvents(since, until, nil)
 	if len(out) != 1 {
 		t.Fatalf("expected 1 message, got %d: %v", len(out), out)
 	}
@@ -236,19 +236,19 @@ func TestLoadBufferedEventsOnlyFromPast(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	events := &Events{
+	evts := &Events{
 		events: []events.Message{*m1, *m2, *m3},
 	}
 
 	since := time.Unix(s, sNano)
 	until := time.Unix(u, uNano)
 
-	out := events.loadBufferedEvents(since, until, nil)
+	out := evts.loadBufferedEvents(since, until, nil)
 	if len(out) != 1 {
 		t.Fatalf("expected 1 message, got %d: %v", len(out), out)
 	}
 
-	if out[0].Type != "network" {
+	if out[0].Type != events.NetworkEventType {
 		t.Fatalf("expected network event, got %s", out[0].Type)
 	}
 }
@@ -268,14 +268,14 @@ func TestIgnoreBufferedWhenNoTimes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	events := &Events{
+	evts := &Events{
 		events: []events.Message{*m1, *m2, *m3},
 	}
 
 	since := time.Time{}
 	until := time.Time{}
 
-	out := events.loadBufferedEvents(since, until, nil)
+	out := evts.loadBufferedEvents(since, until, nil)
 	if len(out) != 0 {
 		t.Fatalf("expected 0 buffered events, got %q", out)
 	}
