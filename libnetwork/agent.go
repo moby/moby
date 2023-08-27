@@ -831,32 +831,17 @@ func (n *Network) handleDriverTableEvent(ev events.Event) {
 		return
 	}
 
-	var (
-		etype driverapi.EventType
-		tname string
-		key   string
-		value []byte
-	)
-
 	switch event := ev.(type) {
 	case networkdb.CreateEvent:
-		tname = event.Table
-		key = event.Key
-		value = event.Value
-		etype = driverapi.Create
+		d.EventNotify(driverapi.Create, n.ID(), event.Table, event.Key, event.Value)
 	case networkdb.DeleteEvent:
-		tname = event.Table
-		key = event.Key
-		value = event.Value
-		etype = driverapi.Delete
+		d.EventNotify(driverapi.Delete, n.ID(), event.Table, event.Key, event.Value)
 	case networkdb.UpdateEvent:
-		tname = event.Table
-		key = event.Key
-		value = event.Value
-		etype = driverapi.Delete
+		// TODO(thaJeztah): is it intentional for an "networkdb.UpdateEvent" event to send a "driverapi.Delete" notification?
+		d.EventNotify(driverapi.Delete, n.ID(), event.Table, event.Key, event.Value)
+	default:
+		log.G(context.TODO()).Debugf("Network.handleDriverTableEvent: unhandled table event %v (%[1]T) for driver %s", ev, n.networkType)
 	}
-
-	d.EventNotify(etype, n.ID(), tname, key, value)
 }
 
 func (c *Controller) handleNodeTableEvent(ev events.Event) {
