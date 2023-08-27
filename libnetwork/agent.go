@@ -869,7 +869,11 @@ func (c *Controller) handleNodeTableEvent(ev events.Event) {
 		log.G(context.TODO()).Errorf("Error unmarshalling node table %s event %v", evtType, err)
 		return
 	}
-	c.processNodeDiscovery([]net.IP{node.Addr}, isAdd)
+	if node.Addr == nil {
+		log.G(context.TODO()).Warnf("received an empty IP-address when handling node table %s event", evtType)
+		return
+	}
+	c.processNodeDiscovery(node.Addr, isAdd)
 }
 
 func (c *Controller) handleEpTableEvent(ev events.Event) {
