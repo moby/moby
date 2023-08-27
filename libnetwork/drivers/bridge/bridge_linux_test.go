@@ -549,12 +549,8 @@ func newTestEndpoint(nw *net.IPNet, ordinal byte) *testEndpoint {
 	return &testEndpoint{iface: &testInterface{addr: addr}}
 }
 
-func (te *testEndpoint) Interface() driverapi.InterfaceInfo {
-	if te.iface != nil {
-		return te.iface
-	}
-
-	return nil
+func (te *testEndpoint) Interface() *testInterface {
+	return te.iface
 }
 
 func (i *testInterface) MacAddress() net.HardwareAddr {
