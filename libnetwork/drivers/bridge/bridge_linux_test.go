@@ -203,7 +203,7 @@ func compareBindings(a, b []types.PortBinding) bool {
 	return true
 }
 
-func getIPv4Data(t *testing.T, iface string) []driverapi.IPAMData {
+func getIPv4Data(t *testing.T) []driverapi.IPAMData {
 	ipd := driverapi.IPAMData{AddressSpace: "full"}
 	nw, err := netutils.FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
 	if err != nil {
@@ -278,7 +278,7 @@ func TestCreateNoConfig(t *testing.T) {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = netconfig
 
-	if err := d.CreateNetwork("dummy", genericOption, nil, getIPv4Data(t, ""), nil); err != nil {
+	if err := d.CreateNetwork("dummy", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 }
@@ -317,7 +317,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	netOption[netlabel.EnableIPv6] = true
 	netOption[netlabel.GenericData] = labels
 
-	ipdList := getIPv4Data(t, "")
+	ipdList := getIPv4Data(t)
 	ipd6List := []driverapi.IPAMData{
 		{
 			Pool: nwV6,
@@ -402,11 +402,11 @@ func TestCreate(t *testing.T) {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = netconfig
 
-	if err := d.CreateNetwork("dummy", genericOption, nil, getIPv4Data(t, ""), nil); err != nil {
+	if err := d.CreateNetwork("dummy", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	err := d.CreateNetwork("dummy", genericOption, nil, getIPv4Data(t, ""), nil)
+	err := d.CreateNetwork("dummy", genericOption, nil, getIPv4Data(t), nil)
 	if err == nil {
 		t.Fatal("Expected bridge driver to refuse creation of second network with default name")
 	}
@@ -428,7 +428,7 @@ func TestCreateFail(t *testing.T) {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = netconfig
 
-	if err := d.CreateNetwork("dummy", genericOption, nil, getIPv4Data(t, ""), nil); err == nil {
+	if err := d.CreateNetwork("dummy", genericOption, nil, getIPv4Data(t), nil); err == nil {
 		t.Fatal("Bridge creation was expected to fail")
 	}
 }
@@ -451,7 +451,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	config1 := &networkConfiguration{BridgeName: "net_test_1"}
 	genericOption = make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config1
-	if err := d.CreateNetwork("1", genericOption, nil, getIPv4Data(t, ""), nil); err != nil {
+	if err := d.CreateNetwork("1", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
@@ -459,7 +459,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 
 	config2 := &networkConfiguration{BridgeName: "net_test_2"}
 	genericOption[netlabel.GenericData] = config2
-	if err := d.CreateNetwork("2", genericOption, nil, getIPv4Data(t, ""), nil); err != nil {
+	if err := d.CreateNetwork("2", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
@@ -467,7 +467,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 
 	config3 := &networkConfiguration{BridgeName: "net_test_3"}
 	genericOption[netlabel.GenericData] = config3
-	if err := d.CreateNetwork("3", genericOption, nil, getIPv4Data(t, ""), nil); err != nil {
+	if err := d.CreateNetwork("3", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
@@ -475,7 +475,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 
 	config4 := &networkConfiguration{BridgeName: "net_test_4"}
 	genericOption[netlabel.GenericData] = config4
-	if err := d.CreateNetwork("4", genericOption, nil, getIPv4Data(t, ""), nil); err != nil {
+	if err := d.CreateNetwork("4", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
@@ -664,7 +664,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	genericOption = make(map[string]interface{})
 	genericOption[netlabel.GenericData] = netconfig
 
-	ipdList := getIPv4Data(t, "")
+	ipdList := getIPv4Data(t)
 	err := d.CreateNetwork("net1", genericOption, nil, ipdList, nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -766,7 +766,7 @@ func TestLinkContainers(t *testing.T) {
 	genericOption = make(map[string]interface{})
 	genericOption[netlabel.GenericData] = netconfig
 
-	ipdList := getIPv4Data(t, "")
+	ipdList := getIPv4Data(t)
 	err := d.CreateNetwork("net1", genericOption, nil, ipdList, nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -979,7 +979,7 @@ func TestSetDefaultGw(t *testing.T) {
 
 	_, subnetv6, _ := net.ParseCIDR("2001:db8:ea9:9abc:b0c4::/80")
 
-	ipdList := getIPv4Data(t, "")
+	ipdList := getIPv4Data(t)
 	gw4 := types.GetIPCopy(ipdList[0].Pool.IP).To4()
 	gw4[3] = 254
 	gw6 := net.ParseIP("2001:db8:ea9:9abc:b0c4::254")
@@ -1131,7 +1131,7 @@ func TestCreateParallel(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	ipV4Data := getIPv4Data(t, "docker0")
+	ipV4Data := getIPv4Data(t)
 
 	ch := make(chan error, 100)
 	for i := 0; i < 100; i++ {
