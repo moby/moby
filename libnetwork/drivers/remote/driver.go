@@ -169,8 +169,7 @@ func (d *driver) CreateNetwork(id string, options map[string]interface{}, nInfo 
 }
 
 func (d *driver) DeleteNetwork(nid string) error {
-	delete := &api.DeleteNetworkRequest{NetworkID: nid}
-	return d.call("DeleteNetwork", delete, &api.DeleteNetworkResponse{})
+	return d.call("DeleteNetwork", &api.DeleteNetworkRequest{NetworkID: nid}, &api.DeleteNetworkResponse{})
 }
 
 func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
