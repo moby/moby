@@ -857,6 +857,7 @@ func (c *Controller) handleNodeTableEvent(ev events.Event) {
 		value = event.Value
 	case networkdb.UpdateEvent:
 		log.G(context.TODO()).Errorf("Unexpected update node table event = %#v", event)
+		return
 	}
 
 	var node networkdb.NodeAddr
