@@ -460,19 +460,17 @@ func (n *Network) Services() map[string]ServiceInfo {
 	}
 
 	// Walk through libnetworkEPTable and fetch the driver agnostic endpoint info
-	entries := agent.networkDB.GetTableByNetwork(libnetworkEPTable, nwID)
 	eps := make(map[string]epRecord)
 	c := n.getController()
-	for eid, value := range entries {
+	for eid, value := range agent.networkDB.GetTableByNetwork(libnetworkEPTable, nwID) {
 		var epRec EndpointRecord
 		if err := proto.Unmarshal(value.Value, &epRec); err != nil {
 			log.G(context.TODO()).Errorf("Unmarshal of libnetworkEPTable failed for endpoint %s in network %s, %v", eid, nwID, err)
 			continue
 		}
-		i := c.getLBIndex(epRec.ServiceID, nwID, epRec.IngressPorts)
 		eps[eid] = epRecord{
 			ep:      epRec,
-			lbIndex: i,
+			lbIndex: c.getLBIndex(epRec.ServiceID, nwID, epRec.IngressPorts),
 		}
 	}
 
@@ -483,8 +481,7 @@ func (n *Network) Services() map[string]ServiceInfo {
 		if table.objType != driverapi.EndpointObject {
 			continue
 		}
-		entries := agent.networkDB.GetTableByNetwork(table.name, nwID)
-		for key, value := range entries {
+		for key, value := range agent.networkDB.GetTableByNetwork(table.name, nwID) {
 			epID, info := d.DecodeTableEntry(table.name, key, value.Value)
 			if ep, ok := eps[epID]; !ok {
 				log.G(context.TODO()).Errorf("Inconsistent driver and libnetwork state for endpoint %s", epID)
@@ -498,21 +495,17 @@ func (n *Network) Services() map[string]ServiceInfo {
 	// group the endpoints into a map keyed by the service name
 	sinfo := make(map[string]ServiceInfo)
 	for ep, epr := range eps {
-		var (
-			s  ServiceInfo
-			ok bool
-		)
-		if s, ok = sinfo[epr.ep.ServiceName]; !ok {
+		s, ok := sinfo[epr.ep.ServiceName]
+		if !ok {
 			s = ServiceInfo{
 				VIP:          epr.ep.VirtualIP,
 				LocalLBIndex: epr.lbIndex,
 			}
 		}
-		ports := []string{}
 		if s.Ports == nil {
+			ports := make([]string, 0, len(epr.ep.IngressPorts))
 			for _, port := range epr.ep.IngressPorts {
-				p := fmt.Sprintf("Target: %d, Publish: %d", port.TargetPort, port.PublishedPort)
-				ports = append(ports, p)
+				ports = append(ports, fmt.Sprintf("Target: %d, Publish: %d", port.TargetPort, port.PublishedPort))
 			}
 			s.Ports = ports
 		}
