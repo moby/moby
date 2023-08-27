@@ -452,18 +452,24 @@ func (n *Network) Services() map[string]ServiceInfo {
 	if agent == nil {
 		return nil
 	}
+	nwID := n.ID()
+	d, err := n.driver(true)
+	if err != nil {
+		log.G(context.TODO()).Errorf("Could not resolve driver for network %s/%s while fetching services: %v", n.networkType, nwID, err)
+		return nil
+	}
 
 	// Walk through libnetworkEPTable and fetch the driver agnostic endpoint info
-	entries := agent.networkDB.GetTableByNetwork(libnetworkEPTable, n.id)
+	entries := agent.networkDB.GetTableByNetwork(libnetworkEPTable, nwID)
 	eps := make(map[string]epRecord)
+	c := n.getController()
 	for eid, value := range entries {
 		var epRec EndpointRecord
-		nid := n.ID()
 		if err := proto.Unmarshal(value.Value, &epRec); err != nil {
-			log.G(context.TODO()).Errorf("Unmarshal of libnetworkEPTable failed for endpoint %s in network %s, %v", eid, nid, err)
+			log.G(context.TODO()).Errorf("Unmarshal of libnetworkEPTable failed for endpoint %s in network %s, %v", eid, nwID, err)
 			continue
 		}
-		i := n.getController().getLBIndex(epRec.ServiceID, nid, epRec.IngressPorts)
+		i := c.getLBIndex(epRec.ServiceID, nwID, epRec.IngressPorts)
 		eps[eid] = epRecord{
 			ep:      epRec,
 			lbIndex: i,
@@ -473,16 +479,11 @@ func (n *Network) Services() map[string]ServiceInfo {
 	// Walk through the driver's tables, have the driver decode the entries
 	// and return the tuple {ep ID, value}. value is a string that coveys
 	// relevant info about the endpoint.
-	d, err := n.driver(true)
-	if err != nil {
-		log.G(context.TODO()).Errorf("Could not resolve driver for network %s/%s while fetching services: %v", n.networkType, n.ID(), err)
-		return nil
-	}
 	for _, table := range n.driverTables {
 		if table.objType != driverapi.EndpointObject {
 			continue
 		}
-		entries := agent.networkDB.GetTableByNetwork(table.name, n.id)
+		entries := agent.networkDB.GetTableByNetwork(table.name, nwID)
 		for key, value := range entries {
 			epID, info := d.DecodeTableEntry(table.name, key, value.Value)
 			if ep, ok := eps[epID]; !ok {
