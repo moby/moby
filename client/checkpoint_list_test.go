@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/checkpoint"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -21,7 +21,7 @@ func TestCheckpointListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.CheckpointList(context.Background(), "container_id", types.CheckpointListOptions{})
+	_, err := client.CheckpointList(context.Background(), "container_id", checkpoint.ListOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -33,7 +33,7 @@ func TestCheckpointList(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			content, err := json.Marshal([]types.Checkpoint{
+			content, err := json.Marshal([]checkpoint.Summary{
 				{
 					Name: "checkpoint",
 				},
@@ -48,7 +48,7 @@ func TestCheckpointList(t *testing.T) {
 		}),
 	}
 
-	checkpoints, err := client.CheckpointList(context.Background(), "container_id", types.CheckpointListOptions{})
+	checkpoints, err := client.CheckpointList(context.Background(), "container_id", checkpoint.ListOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,6 +62,6 @@ func TestCheckpointListContainerNotFound(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
-	_, err := client.CheckpointList(context.Background(), "unknown", types.CheckpointListOptions{})
+	_, err := client.CheckpointList(context.Background(), "unknown", checkpoint.ListOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
