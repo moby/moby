@@ -35,12 +35,12 @@ func TestValidateRestartPolicy(t *testing.T) {
 		{
 			name:        "always with MaxRestartCount",
 			input:       RestartPolicy{Name: RestartPolicyAlways, MaximumRetryCount: 123},
-			expectedErr: "invalid restart policy: maximum retry count cannot be used with restart policy 'always'",
+			expectedErr: "invalid restart policy: maximum retry count can only be used with 'on-failure'",
 		},
 		{
 			name:        "always with negative MaxRestartCount",
 			input:       RestartPolicy{Name: RestartPolicyAlways, MaximumRetryCount: -123},
-			expectedErr: "invalid restart policy: maximum retry count cannot be used with restart policy 'always'",
+			expectedErr: "invalid restart policy: maximum retry count can only be used with 'on-failure' and cannot be negative",
 		},
 		{
 			name:  "unless-stopped",
@@ -49,12 +49,12 @@ func TestValidateRestartPolicy(t *testing.T) {
 		{
 			name:        "unless-stopped with MaxRestartCount",
 			input:       RestartPolicy{Name: RestartPolicyUnlessStopped, MaximumRetryCount: 123},
-			expectedErr: "invalid restart policy: maximum retry count cannot be used with restart policy 'unless-stopped'",
+			expectedErr: "invalid restart policy: maximum retry count can only be used with 'on-failure'",
 		},
 		{
 			name:        "unless-stopped with negative MaxRestartCount",
 			input:       RestartPolicy{Name: RestartPolicyUnlessStopped, MaximumRetryCount: -123},
-			expectedErr: "invalid restart policy: maximum retry count cannot be used with restart policy 'unless-stopped'",
+			expectedErr: "invalid restart policy: maximum retry count can only be used with 'on-failure' and cannot be negative",
 		},
 		{
 			name:  "disabled",
@@ -63,12 +63,12 @@ func TestValidateRestartPolicy(t *testing.T) {
 		{
 			name:        "disabled with MaxRestartCount",
 			input:       RestartPolicy{Name: RestartPolicyDisabled, MaximumRetryCount: 123},
-			expectedErr: "invalid restart policy: maximum retry count cannot be used with restart policy 'no'",
+			expectedErr: "invalid restart policy: maximum retry count can only be used with 'on-failure'",
 		},
 		{
 			name:        "disabled with negative MaxRestartCount",
 			input:       RestartPolicy{Name: RestartPolicyDisabled, MaximumRetryCount: -123},
-			expectedErr: "invalid restart policy: maximum retry count cannot be used with restart policy 'no'",
+			expectedErr: "invalid restart policy: maximum retry count can only be used with 'on-failure' and cannot be negative",
 		},
 		{
 			name:  "on-failure",
@@ -85,8 +85,8 @@ func TestValidateRestartPolicy(t *testing.T) {
 		},
 		{
 			name:        "unknown policy",
-			input:       RestartPolicy{Name: "I do not exist"},
-			expectedErr: "invalid restart policy: 'I do not exist'",
+			input:       RestartPolicy{Name: "unknown"},
+			expectedErr: "invalid restart policy: unknown policy 'unknown'; use one of 'no', 'always', 'on-failure', or 'unless-stopped'",
 		},
 	}
 

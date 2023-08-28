@@ -320,7 +320,11 @@ func ValidateRestartPolicy(policy RestartPolicy) error {
 	switch policy.Name {
 	case RestartPolicyAlways, RestartPolicyUnlessStopped, RestartPolicyDisabled:
 		if policy.MaximumRetryCount != 0 {
-			return &errInvalidParameter{fmt.Errorf("invalid restart policy: maximum retry count cannot be used with restart policy '%s'", policy.Name)}
+			msg := "invalid restart policy: maximum retry count can only be used with 'on-failure'"
+			if policy.MaximumRetryCount < 0 {
+				msg += " and cannot be negative"
+			}
+			return &errInvalidParameter{fmt.Errorf(msg)}
 		}
 		return nil
 	case RestartPolicyOnFailure:
@@ -334,7 +338,7 @@ func ValidateRestartPolicy(policy RestartPolicy) error {
 		// backward-compatibility.
 		return nil
 	default:
-		return &errInvalidParameter{fmt.Errorf("invalid restart policy: '%s'", policy.Name)}
+		return &errInvalidParameter{fmt.Errorf("invalid restart policy: unknown policy '%s'; use one of '%s', '%s', '%s', or '%s'", policy.Name, RestartPolicyDisabled, RestartPolicyAlways, RestartPolicyOnFailure, RestartPolicyUnlessStopped)}
 	}
 }
 
