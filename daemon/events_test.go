@@ -59,11 +59,10 @@ func TestLogContainerEventWithAttributes(t *testing.T) {
 	daemon := &Daemon{
 		EventsService: e,
 	}
-	attributes := map[string]string{
+	daemon.LogContainerEventWithAttributes(ctr, "create", map[string]string{
 		"node": "2",
 		"foo":  "bar",
-	}
-	daemon.LogContainerEventWithAttributes(ctr, "create", attributes)
+	})
 
 	validateTestAttributes(t, l, map[string]string{
 		"node": "1",
