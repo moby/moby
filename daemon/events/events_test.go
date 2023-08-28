@@ -200,7 +200,7 @@ func TestLoadBufferedEventsOnlyFromPast(t *testing.T) {
 
 	messages := evts.loadBufferedEvents(since, until, nil)
 	assert.Assert(t, is.Len(messages, 1))
-	assert.Check(t, is.Equal(messages[0].Type, "network"))
+	assert.Check(t, is.Equal(messages[0].Type, events.NetworkEventType))
 }
 
 // Regression-test for https://github.com/moby/moby/issues/13753
