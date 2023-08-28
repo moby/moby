@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
@@ -11,7 +12,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // Children returns a slice of image ID which rootfs is a superset of the
@@ -20,14 +20,14 @@ import (
 func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, error) {
 	target, err := i.resolveDescriptor(ctx, id.String())
 	if err != nil {
-		return []image.ID{}, errors.Wrap(err, "failed to get parent image")
+		return []image.ID{}, fmt.Errorf("failed to get parent image: %w", err)
 	}
 
 	cs := i.client.ContentStore()
 
 	allPlatforms, err := containerdimages.Platforms(ctx, cs, target)
 	if err != nil {
-		return []image.ID{}, errdefs.System(errors.Wrap(err, "failed to list platforms supported by image"))
+		return []image.ID{}, errdefs.System(fmt.Errorf("failed to list platforms supported by image: %w", err))
 	}
 
 	parentRootFS := []ocispec.RootFS{}
@@ -49,7 +49,7 @@ func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, e
 
 	imgs, err := i.client.ImageService().List(ctx)
 	if err != nil {
-		return []image.ID{}, errdefs.System(errors.Wrap(err, "failed to list all images"))
+		return []image.ID{}, errdefs.System(fmt.Errorf("failed to list all images: %w", err))
 	}
 
 	children := []image.ID{}
@@ -86,12 +86,12 @@ func platformRootfs(ctx context.Context, store content.Store, desc ocispec.Descr
 
 	configDesc, err := containerdimages.Config(ctx, store, desc, platforms.OnlyStrict(platform))
 	if err != nil {
-		return empty, errors.Wrapf(err, "failed to get config for platform %s", platforms.Format(platform))
+		return empty, fmt.Errorf("failed to get config for platform %s: %w", platforms.Format(platform), err)
 	}
 
 	diffs, err := containerdimages.RootFS(ctx, store, configDesc)
 	if err != nil {
-		return empty, errors.Wrapf(err, "failed to obtain rootfs")
+		return empty, fmt.Errorf("failed to obtain rootfs: %w", err)
 	}
 
 	return ocispec.RootFS{
@@ -135,14 +135,14 @@ func isRootfsChildOf(child ocispec.RootFS, parent ocispec.RootFS) bool {
 func (i *ImageService) parents(ctx context.Context, id image.ID) ([]imageWithRootfs, error) {
 	target, err := i.resolveDescriptor(ctx, id.String())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get child image")
+		return nil, fmt.Errorf("failed to get child image: %w", err)
 	}
 
 	cs := i.client.ContentStore()
 
 	allPlatforms, err := containerdimages.Platforms(ctx, cs, target)
 	if err != nil {
-		return nil, errdefs.System(errors.Wrap(err, "failed to list platforms supported by image"))
+		return nil, errdefs.System(fmt.Errorf("failed to list platforms supported by image: %w", err))
 	}
 
 	var childRootFS []ocispec.RootFS
@@ -152,7 +152,7 @@ func (i *ImageService) parents(ctx context.Context, id image.ID) ([]imageWithRoo
 			if cerrdefs.IsNotFound(err) {
 				continue
 			}
-			return nil, errdefs.System(errors.Wrap(err, "failed to get platform-specific rootfs"))
+			return nil, errdefs.System(fmt.Errorf("failed to get platform-specific rootfs: %w", err))
 		}
 
 		childRootFS = append(childRootFS, rootfs)
@@ -160,7 +160,7 @@ func (i *ImageService) parents(ctx context.Context, id image.ID) ([]imageWithRoo
 
 	imgs, err := i.client.ImageService().List(ctx)
 	if err != nil {
-		return nil, errdefs.System(errors.Wrap(err, "failed to list all images"))
+		return nil, errdefs.System(fmt.Errorf("failed to list all images: %w", err))
 	}
 
 	var parents []imageWithRootfs
@@ -172,7 +172,7 @@ func (i *ImageService) parents(ctx context.Context, id image.ID) ([]imageWithRoo
 				if cerrdefs.IsNotFound(err) {
 					continue
 				}
-				return nil, errdefs.System(errors.Wrap(err, "failed to get platform-specific rootfs"))
+				return nil, errdefs.System(fmt.Errorf("failed to get platform-specific rootfs: %w", err))
 			}
 
 			for _, childRoot := range childRootFS {

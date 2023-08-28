@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -25,7 +27,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // ImportImage imports an image, getting the archived layer data from layerReader.
@@ -340,14 +341,14 @@ func detectCompression(bufRd *bufio.Reader) (archive.Compression, error) {
 func fillUncompressedLabel(ctx context.Context, cs content.Store, compressedDigest digest.Digest, uncompressedDigest digest.Digest) (int64, error) {
 	info, err := cs.Info(ctx, compressedDigest)
 	if err != nil {
-		return 0, errdefs.Unknown(errors.Wrapf(err, "couldn't open previously written blob"))
+		return 0, errdefs.Unknown(fmt.Errorf("couldn't open previously written blob: %w", err))
 	}
 	size := info.Size
 	info.Labels = map[string]string{"containerd.io/uncompressed": uncompressedDigest.String()}
 
 	_, err = cs.Update(ctx, info, "labels.*")
 	if err != nil {
-		return 0, errdefs.System(errors.Wrapf(err, "couldn't set uncompressed label"))
+		return 0, errdefs.System(fmt.Errorf("couldn't set uncompressed label: %w", err))
 	}
 	return size, nil
 }

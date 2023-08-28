@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"errors"
 	"sort"
 
 	cplatforms "github.com/containerd/containerd/platforms"
@@ -11,7 +12,6 @@ import (
 	"github.com/docker/docker/pkg/platforms"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // ImageHistory returns a slice of HistoryResponseItem structures for the

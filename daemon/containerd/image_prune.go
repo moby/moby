@@ -2,6 +2,8 @@ package containerd
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
@@ -14,7 +16,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 var imagesAcceptedFilters = map[string]bool{
@@ -136,7 +137,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 		if digestRefCount[dgst] == 0 {
 			if _, isUsed := usedDigests[dgst]; isUsed {
 				if err := i.ensureDanglingImage(ctx, img); err != nil {
-					return &report, errors.Wrapf(err, "failed to create ensure dangling image for %s", img.Name)
+					return &report, fmt.Errorf("failed to create ensure dangling image for %s: %w", img.Name, err)
 				}
 			}
 		}
@@ -214,7 +215,7 @@ func (i *ImageService) unleaseSnapshotsFromDeletedConfigs(ctx context.Context, p
 
 	all, err := is.List(ctx)
 	if err != nil {
-		return errors.Wrap(err, "failed to list images during snapshot lease removal")
+		return fmt.Errorf("failed to list images during snapshot lease removal: %w", err)
 	}
 
 	var errs error
@@ -254,7 +255,7 @@ func (i *ImageService) unleaseSnapshotsFromDeletedConfigs(ctx context.Context, p
 		delete(info.Labels, label)
 		_, err = store.Update(ctx, info, "labels."+label)
 		if err != nil {
-			errs = multierror.Append(errs, errors.Wrapf(err, "failed to remove gc.ref.snapshot label from %s", cfgDigest))
+			errs = multierror.Append(errs, fmt.Errorf("failed to remove gc.ref.snapshot label from %s: %w", cfgDigest, err))
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return errs
 			}

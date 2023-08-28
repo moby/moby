@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -20,7 +21,6 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Container, fn func(root string) error) error {
@@ -212,7 +212,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 			return nil
 		})
 		if err != nil {
-			return errors.Wrap(err, "failed to unpack loaded image")
+			return fmt.Errorf("failed to unpack loaded image: %w", err)
 		}
 
 		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)

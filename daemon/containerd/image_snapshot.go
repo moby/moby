@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // PrepareSnapshot prepares a snapshot from a parent image for a container
@@ -84,7 +83,7 @@ func calculateSnapshotParentUsage(ctx context.Context, snapshotter snapshots.Sna
 		if cerrdefs.IsNotFound(err) {
 			return snapshots.Usage{}, errdefs.NotFound(err)
 		}
-		return snapshots.Usage{}, errdefs.System(errors.Wrapf(err, "snapshotter.Stat failed for %s", snapshotID))
+		return snapshots.Usage{}, errdefs.System(fmt.Errorf("snapshotter.Stat failed for %s: %w", snapshotID, err))
 	}
 	if info.Parent == "" {
 		return snapshots.Usage{}, errdefs.NotFound(fmt.Errorf("snapshot %s has no parent", snapshotID))
@@ -103,16 +102,16 @@ func calculateSnapshotTotalUsage(ctx context.Context, snapshotter snapshots.Snap
 		usage, err := snapshotter.Usage(ctx, next)
 		if err != nil {
 			if cerrdefs.IsNotFound(err) {
-				return total, errdefs.NotFound(errors.Wrapf(err, "non-existing ancestor of %s", snapshotID))
+				return total, errdefs.NotFound(fmt.Errorf("non-existing ancestor of %s: %w", snapshotID, err))
 			}
-			return total, errdefs.System(errors.Wrapf(err, "snapshotter.Usage failed for %s", next))
+			return total, errdefs.System(fmt.Errorf("snapshotter.Usage failed for %s: %w", next, err))
 		}
 		total.Size += usage.Size
 		total.Inodes += usage.Inodes
 
 		info, err := snapshotter.Stat(ctx, next)
 		if err != nil {
-			return total, errdefs.System(errors.Wrapf(err, "snapshotter.Stat failed for %s", next))
+			return total, errdefs.System(fmt.Errorf("snapshotter.Stat failed for %s: %w", next, err))
 		}
 		next = info.Parent
 	}

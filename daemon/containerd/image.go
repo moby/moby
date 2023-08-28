@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -24,7 +25,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -271,7 +271,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 	if ok {
 		imgs, err := is.List(ctx, "target.digest=="+digested.Digest().String())
 		if err != nil {
-			return containerdimages.Image{}, errors.Wrap(err, "failed to lookup digest")
+			return containerdimages.Image{}, fmt.Errorf("failed to lookup digest: %w", err)
 		}
 		if len(imgs) == 0 {
 			return containerdimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}

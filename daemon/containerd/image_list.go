@@ -3,6 +3,8 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -22,7 +24,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // Subset of ocispec.Image that only contains Labels
@@ -178,7 +179,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, image *ImageManifest) (*types.ImageSummary, []digest.Digest, error) {
 	diffIDs, err := image.RootFS(ctx)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to get rootfs of image %s", image.Name())
+		return nil, nil, fmt.Errorf("failed to get rootfs of image %s: %w", image.Name(), err)
 	}
 
 	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
@@ -498,7 +499,7 @@ func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, s
 func readConfig(ctx context.Context, store content.Provider, desc ocispec.Descriptor, out interface{}) error {
 	data, err := content.ReadBlob(ctx, store, desc)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to read config content")
+		err = fmt.Errorf("failed to read config content: %w", err)
 		if cerrdefs.IsNotFound(err) {
 			return errdefs.NotFound(err)
 		}
@@ -507,7 +508,7 @@ func readConfig(ctx context.Context, store content.Provider, desc ocispec.Descri
 
 	err = json.Unmarshal(data, out)
 	if err != nil {
-		err = errors.Wrapf(err, "could not deserialize image config")
+		err = fmt.Errorf("could not deserialize image config: %w", err)
 		if cerrdefs.IsNotFound(err) {
 			return errdefs.NotFound(err)
 		}

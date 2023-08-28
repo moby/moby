@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -130,7 +130,7 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 		if err != nil {
 			// This shouldn't happen at this point because the reference would have to be invalid
 			// and if it was, then it would error out earlier.
-			return errdefs.Unknown(errors.Wrap(err, "failed to create an handler that appends distribution source label to pushed content"))
+			return errdefs.Unknown(fmt.Errorf("failed to create an handler that appends distribution source label to pushed content: %w", err))
 		}
 
 		if err := containerdimages.Dispatch(ctx, appendSource, nil, target); err != nil {
@@ -165,7 +165,7 @@ func findMissingMountable(ctx context.Context, store content.Store, queue *jobs,
 		_, err := store.Info(ctx, desc.Digest)
 		if err != nil {
 			if !cerrdefs.IsNotFound(err) {
-				return nil, errdefs.System(errors.Wrapf(err, "failed to get metadata of content %s", desc.Digest.String()))
+				return nil, errdefs.System(fmt.Errorf("failed to get metadata of content %s: %w", desc.Digest.String(), err))
 			}
 
 			for _, source := range sources {

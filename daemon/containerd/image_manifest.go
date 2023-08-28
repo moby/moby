@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
@@ -12,7 +13,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/attestation"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 var (

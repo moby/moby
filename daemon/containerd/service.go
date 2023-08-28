@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // ImageService implements daemon.ImageService
@@ -163,7 +163,7 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 		if cerrdefs.IsNotFound(err) {
 			return 0, 0, errdefs.NotFound(fmt.Errorf("rw layer snapshot not found for container %s", containerID))
 		}
-		return 0, 0, errdefs.System(errors.Wrapf(err, "snapshotter.Usage failed for %s", containerID))
+		return 0, 0, errdefs.System(fmt.Errorf("snapshotter.Usage failed for %s: %w", containerID, err))
 	}
 
 	unpackedUsage, err := calculateSnapshotParentUsage(ctx, snapshotter, containerID)
