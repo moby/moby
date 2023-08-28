@@ -48,7 +48,7 @@ func TestPause(t *testing.T) {
 	messages, errs := apiClient.Events(ctx, types.EventsOptions{
 		Since:   since,
 		Until:   until,
-		Filters: filters.NewArgs(filters.Arg(events.ContainerEventType, cID)),
+		Filters: filters.NewArgs(filters.Arg(string(events.ContainerEventType), cID)),
 	})
 	assert.Check(t, is.DeepEqual([]string{"pause", "unpause"}, getEventActions(t, messages, errs)))
 }
