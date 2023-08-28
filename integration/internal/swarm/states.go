@@ -95,12 +95,8 @@ func JobComplete(client client.CommonAPIClient, service swarmtypes.Service) func
 		jobIteration = service.JobStatus.JobIteration
 	}
 
-	maxRaw := service.Spec.Mode.ReplicatedJob.MaxConcurrent
-	totalRaw := service.Spec.Mode.ReplicatedJob.TotalCompletions
-
-	max := int(*maxRaw)
-	total := int(*totalRaw)
-
+	maxConcurrent := int(*service.Spec.Mode.ReplicatedJob.MaxConcurrent)
+	totalCompletions := int(*service.Spec.Mode.ReplicatedJob.TotalCompletions)
 	previousResult := ""
 
 	return func(log poll.LogT) poll.Result {
@@ -133,16 +129,16 @@ func JobComplete(client client.CommonAPIClient, service swarmtypes.Service) func
 		}
 
 		switch {
-		case running > max:
+		case running > maxConcurrent:
 			return poll.Error(fmt.Errorf(
-				"number of running tasks (%v) exceeds max (%v)", running, max,
+				"number of running tasks (%v) exceeds max (%v)", running, maxConcurrent,
 			))
-		case (completed + running) > total:
+		case (completed + running) > totalCompletions:
 			return poll.Error(fmt.Errorf(
 				"number of tasks exceeds total (%v), %v running and %v completed",
-				total, running, completed,
+				totalCompletions, running, completed,
 			))
-		case completed == total && running == 0:
+		case completed == totalCompletions && running == 0:
 			return poll.Success()
 		default:
 			newRes := fmt.Sprintf(
@@ -156,7 +152,7 @@ func JobComplete(client client.CommonAPIClient, service swarmtypes.Service) func
 
 			return poll.Continue(
 				"Job not yet finished, %v completed and %v running out of %v total",
-				completed, running, total,
+				completed, running, totalCompletions,
 			)
 		}
 	}

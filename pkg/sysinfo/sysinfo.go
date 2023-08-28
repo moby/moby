@@ -151,13 +151,13 @@ func isCpusetListAvailable(provided, available string) (bool, error) {
 	}
 	// 8192 is the normal maximum number of CPUs in Linux, so accept numbers up to this
 	// or more if we actually have more CPUs.
-	max := 8192
+	maxCPUs := 8192
 	for m := range parsedAvailable {
-		if m > max {
-			max = m
+		if m > maxCPUs {
+			maxCPUs = m
 		}
 	}
-	parsedProvided, err := parsers.ParseUintListMaximum(provided, max)
+	parsedProvided, err := parsers.ParseUintListMaximum(provided, maxCPUs)
 	if err != nil {
 		return false, err
 	}

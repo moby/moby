@@ -406,7 +406,7 @@ func (b *limitedBuffer) Write(data []byte) (int, error) {
 
 	bufLen := b.buf.Len()
 	dataLen := len(data)
-	keep := min(maxOutputLen-bufLen, dataLen)
+	keep := minInt(maxOutputLen-bufLen, dataLen)
 	if keep > 0 {
 		b.buf.Write(data[:keep])
 	}
@@ -436,7 +436,7 @@ func timeoutWithDefault(configuredValue time.Duration, defaultValue time.Duratio
 	return configuredValue
 }
 
-func min(x, y int) int {
+func minInt(x, y int) int {
 	if x < y {
 		return x
 	}
