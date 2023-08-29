@@ -20,8 +20,8 @@ type Service struct {
 	mu     sync.RWMutex
 }
 
-// NewService returns a new instance of defaultService ready to be
-// installed into an engine.
+// NewService returns a new instance of [Service] ready to be installed into
+// an engine.
 func NewService(options ServiceOptions) (*Service, error) {
 	config, err := newServiceConfig(options)
 
