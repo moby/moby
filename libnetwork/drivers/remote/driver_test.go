@@ -95,10 +95,6 @@ type testEndpoint struct {
 	disableGatewayService bool
 }
 
-func (test *testEndpoint) Interface() driverapi.InterfaceInfo {
-	return test
-}
-
 func (test *testEndpoint) Address() *net.IPNet {
 	if test.address == "" {
 		return nil
@@ -550,7 +546,7 @@ func TestMissingValues(t *testing.T) {
 
 type rollbackEndpoint struct{}
 
-func (r *rollbackEndpoint) Interface() driverapi.InterfaceInfo {
+func (r *rollbackEndpoint) Interface() *rollbackEndpoint {
 	return r
 }
 
