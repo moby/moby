@@ -87,7 +87,7 @@ func validateEndpoint(endpoint *v1Endpoint) error {
 func trimV1Address(address string) (string, error) {
 	trimmed := strings.TrimSuffix(address, "/")
 	if strings.HasSuffix(trimmed, "/v2") {
-		return "", invalidParamf("unsupported V1 version path v2")
+		return "", invalidParamf("search is not supported on v2 endpoints: %s", address)
 	}
 	return strings.TrimSuffix(trimmed, "/v1"), nil
 }

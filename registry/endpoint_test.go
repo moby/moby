@@ -42,7 +42,7 @@ func TestV1EndpointParse(t *testing.T) {
 		},
 		{
 			address:     "https://0.0.0.0:5000/v2/",
-			expectedErr: "unsupported V1 version path v2",
+			expectedErr: "search is not supported on v2 endpoints: https://0.0.0.0:5000/v2/",
 		},
 	}
 	for _, tc := range tests {
