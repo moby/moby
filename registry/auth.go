@@ -149,8 +149,8 @@ func ResolveAuthConfig(authConfigs map[string]registry.AuthConfig, index *regist
 
 	// Maybe they have a legacy config file, we will iterate the keys converting
 	// them to the new format and testing
-	for registry, ac := range authConfigs {
-		if configKey == ConvertToHostname(registry) {
+	for registryURL, ac := range authConfigs {
+		if configKey == ConvertToHostname(registryURL) {
 			return ac
 		}
 	}
