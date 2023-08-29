@@ -94,20 +94,20 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	testCases := []struct {
-		env           string
-		expectedError string
+		env             string
+		expectedWarning string
 	}{
 		{
-			env:           "",
-			expectedError: "invalid environment variable:",
+			env:             "",
+			expectedWarning: `invalid environment variable: ""`,
 		},
 		{
-			env:           "=",
-			expectedError: "invalid environment variable: =",
+			env:             "=",
+			expectedWarning: `invalid environment variable: "="`,
 		},
 		{
-			env:           "=foo",
-			expectedError: "invalid environment variable: =foo",
+			env:             "=foo",
+			expectedWarning: `invalid environment variable: "=foo"`,
 		},
 	}
 
@@ -115,7 +115,7 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 		tc := tc
 		t.Run(strconv.Itoa(index), func(t *testing.T) {
 			t.Parallel()
-			_, err := apiClient.ContainerCreate(context.Background(),
+			resp, err := apiClient.ContainerCreate(context.Background(),
 				&container.Config{
 					Image: "busybox",
 					Env:   []string{tc.env},
@@ -125,8 +125,15 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 				nil,
 				"",
 			)
-			assert.Check(t, is.ErrorContains(err, tc.expectedError))
-			assert.Check(t, errdefs.IsInvalidParameter(err))
+			assert.NilError(t, err)
+			var found bool
+			for _, w := range resp.Warnings {
+				if w == tc.expectedWarning {
+					found = true
+					break
+				}
+			}
+			assert.Check(t, found)
 		})
 	}
 }
