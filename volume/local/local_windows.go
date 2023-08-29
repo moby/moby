@@ -44,6 +44,11 @@ func (v *localVolume) postMount() error {
 	return nil
 }
 
+// restoreIfMounted is a no-op on Windows (because mounts are not supported).
+func (v *localVolume) restoreIfMounted() error {
+	return nil
+}
+
 func (v *localVolume) CreatedAt() (time.Time, error) {
 	fileInfo, err := os.Stat(v.rootPath)
 	if err != nil {
