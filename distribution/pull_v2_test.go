@@ -331,7 +331,6 @@ func testNewPuller(t *testing.T, rawurl string) *puller {
 	endpoint := registry.APIEndpoint{
 		Mirror:       false,
 		URL:          uri,
-		Version:      registry.APIVersion2,
 		Official:     false,
 		TrimHostname: false,
 		TLSConfig:    nil,
