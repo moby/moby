@@ -272,12 +272,7 @@ func (epi *EndpointInterface) SetNames(srcName string, dstPrefix string) error {
 func (ep *Endpoint) InterfaceName() driverapi.InterfaceNameInfo {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
-
-	if ep.iface != nil {
-		return ep.iface
-	}
-
-	return nil
+	return ep.iface
 }
 
 // AddStaticRoute adds a route to the sandbox.
