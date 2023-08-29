@@ -124,7 +124,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	c.drvRegistry.Notify = c.RegisterDriver
+	c.drvRegistry.Notify = c
 
 	// External plugins don't need config passed through daemon. They can
 	// bootstrap themselves.

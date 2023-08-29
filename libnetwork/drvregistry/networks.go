@@ -11,9 +11,6 @@ import (
 // DriverWalkFunc defines the network driver table walker function signature.
 type DriverWalkFunc func(name string, driver driverapi.Driver, capability driverapi.Capability) bool
 
-// DriverNotifyFunc defines the notify function signature when a new network driver gets registered.
-type DriverNotifyFunc func(name string, driver driverapi.Driver, capability driverapi.Capability) error
-
 type driverData struct {
 	driver     driverapi.Driver
 	capability driverapi.Capability
@@ -23,7 +20,7 @@ type driverData struct {
 // driver registry, ready to use.
 type Networks struct {
 	// Notify is called whenever a network driver is registered.
-	Notify DriverNotifyFunc
+	Notify driverapi.Registerer
 
 	mu      sync.Mutex
 	drivers map[string]driverData
@@ -76,7 +73,7 @@ func (nr *Networks) RegisterDriver(ntype string, driver driverapi.Driver, capabi
 	}
 
 	if nr.Notify != nil {
-		if err := nr.Notify(ntype, driver, capability); err != nil {
+		if err := nr.Notify.RegisterDriver(ntype, driver, capability); err != nil {
 			return err
 		}
 	}
