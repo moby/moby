@@ -5,44 +5,58 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestEndpointParse(t *testing.T) {
-	testData := []struct {
-		str      string
-		expected string
+func TestV1EndpointParse(t *testing.T) {
+	tests := []struct {
+		address     string
+		expected    string
+		expectedErr string
 	}{
-		{IndexServer, IndexServer},
-		{"http://0.0.0.0:5000/v1/", "http://0.0.0.0:5000/v1/"},
-		{"http://0.0.0.0:5000", "http://0.0.0.0:5000/v1/"},
-		{"0.0.0.0:5000", "https://0.0.0.0:5000/v1/"},
-		{"http://0.0.0.0:5000/nonversion/", "http://0.0.0.0:5000/nonversion/v1/"},
-		{"http://0.0.0.0:5000/v0/", "http://0.0.0.0:5000/v0/v1/"},
+		{
+			address:  IndexServer,
+			expected: IndexServer,
+		},
+		{
+			address:  "https://0.0.0.0:5000/v1/",
+			expected: "https://0.0.0.0:5000/v1/",
+		},
+		{
+			address:  "https://0.0.0.0:5000",
+			expected: "https://0.0.0.0:5000/v1/",
+		},
+		{
+			address:  "0.0.0.0:5000",
+			expected: "https://0.0.0.0:5000/v1/",
+		},
+		{
+			address:  "https://0.0.0.0:5000/nonversion/",
+			expected: "https://0.0.0.0:5000/nonversion/v1/",
+		},
+		{
+			address:  "https://0.0.0.0:5000/v0/",
+			expected: "https://0.0.0.0:5000/v0/v1/",
+		},
+		{
+			address:     "https://0.0.0.0:5000/v2/",
+			expectedErr: "unsupported V1 version path v2",
+		},
 	}
-	for _, td := range testData {
-		e, err := newV1EndpointFromStr(td.str, nil, nil)
-		if err != nil {
-			t.Errorf("%q: %s", td.str, err)
-		}
-		if e == nil {
-			t.Logf("something's fishy, endpoint for %q is nil", td.str)
-			continue
-		}
-		if e.String() != td.expected {
-			t.Errorf("expected %q, got %q", td.expected, e.String())
-		}
-	}
-}
-
-func TestEndpointParseInvalid(t *testing.T) {
-	testData := []string{
-		"http://0.0.0.0:5000/v2/",
-	}
-	for _, td := range testData {
-		e, err := newV1EndpointFromStr(td, nil, nil)
-		if err == nil {
-			t.Errorf("expected error parsing %q: parsed as %q", td, e)
-		}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.address, func(t *testing.T) {
+			ep, err := newV1EndpointFromStr(tc.address, nil, nil)
+			if tc.expectedErr != "" {
+				assert.Check(t, is.Error(err, tc.expectedErr))
+				assert.Check(t, is.Nil(ep))
+			} else {
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal(ep.String(), tc.expected))
+			}
+		})
 	}
 }
 
