@@ -82,23 +82,14 @@ func validateEndpoint(endpoint *v1Endpoint) error {
 	return nil
 }
 
-// trimV1Address trims the version off the address and returns the
-// trimmed address or an error if there is a non-V1 version.
+// trimV1Address trims the "v1" version suffix off the address and returns
+// the trimmed address. It returns an error on "v2" endpoints.
 func trimV1Address(address string) (string, error) {
-	address = strings.TrimSuffix(address, "/")
-	chunks := strings.Split(address, "/")
-	apiVersionStr := chunks[len(chunks)-1]
-	if apiVersionStr == "v1" {
-		return strings.Join(chunks[:len(chunks)-1], "/"), nil
+	trimmed := strings.TrimSuffix(address, "/")
+	if strings.HasSuffix(trimmed, "/v2") {
+		return "", invalidParamf("unsupported V1 version path v2")
 	}
-
-	for k, v := range apiVersions {
-		if k != APIVersion1 && apiVersionStr == v {
-			return "", invalidParamf("unsupported V1 version path %s", apiVersionStr)
-		}
-	}
-
-	return address, nil
+	return strings.TrimSuffix(trimmed, "/v1"), nil
 }
 
 func newV1EndpointFromStr(address string, tlsConfig *tls.Config, headers http.Header) (*v1Endpoint, error) {
