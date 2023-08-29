@@ -534,9 +534,8 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 			endpoint: registrypkg.APIEndpoint{
 				URL: &url.URL{
 					Scheme: "https",
-					Host:   "index.docker.io",
+					Host:   registrypkg.IndexHostname,
 				},
-				Version:      registrypkg.APIVersion2,
 				TrimHostname: true,
 			},
 		}
