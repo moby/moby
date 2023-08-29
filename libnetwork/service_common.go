@@ -228,8 +228,8 @@ func (c *Controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 	var addService bool
 
 	// Failure to lock the network ID on add can result in racing
-	// racing against network deletion resulting in inconsistent
-	// state in the c.serviceBindings map and it's sub-maps. Also,
+	// against network deletion resulting in inconsistent state
+	// in the c.serviceBindings map and it's sub-maps. Also,
 	// always lock network ID before services to avoid deadlock.
 	c.networkLocker.Lock(nID)
 	defer c.networkLocker.Unlock(nID) //nolint:errcheck
