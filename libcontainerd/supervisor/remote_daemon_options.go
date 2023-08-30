@@ -1,5 +1,9 @@
 package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
 
+import (
+	"github.com/containerd/containerd/log"
+)
+
 // WithLogLevel defines which log level to start containerd with.
 func WithLogLevel(lvl string) DaemonOpt {
 	return func(r *remote) error {
@@ -15,9 +19,9 @@ func WithLogLevel(lvl string) DaemonOpt {
 
 // WithLogFormat defines the containerd log format.
 // This only makes sense if WithStartDaemon() was set to true.
-func WithLogFormat(format string) DaemonOpt {
+func WithLogFormat(format log.OutputFormat) DaemonOpt {
 	return func(r *remote) error {
-		r.Debug.Format = format
+		r.Debug.Format = string(format)
 		return nil
 	}
 }

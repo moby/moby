@@ -516,7 +516,7 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	conf.Debug = opts.Debug
 	conf.Hosts = opts.Hosts
 	conf.LogLevel = opts.LogLevel
-	conf.LogFormat = opts.LogFormat
+	conf.LogFormat = log.OutputFormat(opts.LogFormat)
 
 	if flags.Changed(FlagTLS) {
 		conf.TLS = &opts.TLS
@@ -914,7 +914,7 @@ func systemContainerdRunning(honorXDG bool) (string, bool, error) {
 // configureDaemonLogs sets the logging level and formatting. It expects
 // the passed configuration to already be validated, and ignores invalid options.
 func configureDaemonLogs(conf *config.Config) {
-	switch log.OutputFormat(conf.LogFormat) {
+	switch conf.LogFormat {
 	case log.JSONFormat:
 		if err := log.SetFormat(log.JSONFormat); err != nil {
 			panic(err.Error())
