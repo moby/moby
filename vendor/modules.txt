@@ -386,6 +386,9 @@ github.com/deckarep/golang-set/v2
 # github.com/dimchansky/utfbom v1.1.1
 ## explicit
 github.com/dimchansky/utfbom
+# github.com/distribution/reference v0.5.0
+## explicit; go 1.20
+github.com/distribution/reference
 # github.com/docker/distribution v2.8.2+incompatible
 ## explicit
 github.com/docker/distribution

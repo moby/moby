@@ -12,7 +12,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/pkg/chrootarchive"

@@ -5,7 +5,7 @@ import (
 	"sort"
 
 	cplatforms "github.com/containerd/containerd/platforms"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/platforms"

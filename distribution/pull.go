@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd/log"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/events"
 	refstore "github.com/docker/docker/reference"

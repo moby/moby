@@ -11,10 +11,10 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/log"
+	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
 	apitypes "github.com/docker/docker/api/types"

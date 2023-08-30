@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"gotest.tools/v3/assert"

@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/log"
 	cplatforms "github.com/containerd/containerd/platforms"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"

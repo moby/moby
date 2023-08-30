@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	distref "github.com/docker/distribution/reference"
+	distref "github.com/distribution/reference"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/moby/buildkit/exporter"

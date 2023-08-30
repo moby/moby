@@ -3,8 +3,8 @@ package distribution
 import (
 	"context"
 
+	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/errdefs"
 )
 
