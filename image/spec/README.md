@@ -2,6 +2,17 @@
 
 This directory contains documents about Docker Image Specification v1.X.
 
+The Docker Image Specification is the image specification as used by the
+Docker Engine, and was used as foundation of the OCI image specification.
+
+The Docker Image Specification provides a superset of the OCI Image specification;
+it is OCI-compatible, but some extensions that are specific to the Docker
+Engine implementation.
+
+Refer to [spec.md](spec.md) for the current version of the Docker Image
+Specification, and the [OCI Image specification](https://github.com/opencontainers/image-spec/)
+for an in-depth specification of the OCI Image specs.
+
 The v1 file layout and manifests are no longer used in Moby and Docker, except in `docker save` and `docker load`.
 
 However, v1 Image JSON (`application/vnd.docker.container.image.v1+json`) has been still widely
