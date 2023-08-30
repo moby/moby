@@ -283,7 +283,6 @@ func (s *DockerSchema1RegistrySuite) TestPullNoLayers(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
-	testRequires(c, NotArm)
 	pushDigest, err := setupImage(c)
 	assert.NilError(c, err, "error setting up image")
 
