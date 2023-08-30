@@ -81,7 +81,7 @@ func (s *DockerCLIRunSuite) TestRunWithVolumesIsRecursive(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunDeviceDirectory(c *testing.T) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	if _, err := os.Stat("/dev/snd"); err != nil {
 		c.Skip("Host does not have /dev/snd")
 	}
@@ -891,7 +891,7 @@ func (s *DockerCLIRunSuite) TestRunSysctls(c *testing.T) {
 
 // TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp=/tmp/profile.json debian:bullseye-slim unshare' exits with operation not permitted.
 func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
-	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotArm, Apparmor)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, Apparmor)
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
 	"syscalls": [
@@ -955,7 +955,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyChmod(c *testing.T) {
 // TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:bullseye-slim unshare --map-root-user --user sh -c whoami' with a specific profile to
 // deny unshare of a userns exits with operation not permitted.
 func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T) {
-	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotArm, Apparmor)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, Apparmor)
 	// from sched.h
 	jsonData := fmt.Sprintf(`{
 	"defaultAction": "SCMP_ACT_ALLOW",
@@ -1344,7 +1344,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompWithDefaultProfile(c *testing.T) {
 
 // TestRunDeviceSymlink checks run with device that follows symlink (#13840 and #22271)
 func (s *DockerCLIRunSuite) TestRunDeviceSymlink(c *testing.T) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm, testEnv.IsLocalDaemon)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
 	if _, err := os.Stat("/dev/zero"); err != nil {
 		c.Skip("Host does not have /dev/zero")
 	}

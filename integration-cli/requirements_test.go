@@ -53,10 +53,6 @@ func IsAmd64() bool {
 	return os.Getenv("DOCKER_ENGINE_GOARCH") == "amd64"
 }
 
-func NotArm() bool {
-	return ArchitectureIsNot("arm")
-}
-
 func NotArm64() bool {
 	return ArchitectureIsNot("arm64")
 }

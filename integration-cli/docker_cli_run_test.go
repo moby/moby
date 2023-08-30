@@ -81,8 +81,8 @@ func (s *DockerCLIRunSuite) TestRunLeakyFileDescriptors(c *testing.T) {
 // it should be possible to lookup Google DNS
 // this will fail when Internet access is unavailable
 func (s *DockerCLIRunSuite) TestRunLookupGoogleDNS(c *testing.T) {
-	testRequires(c, Network, NotArm)
-	if testEnv.OSType == "windows" {
+	testRequires(c, Network)
+	if testEnv.DaemonInfo.OSType == "windows" {
 		// nslookup isn't present in Windows busybox. Is built-in. Further,
 		// nslookup isn't present in nanoserver. Hence just use PowerShell...
 		dockerCmd(c, "run", testEnv.PlatformDefaults.BaseImage, "powershell", "Resolve-DNSName", "google.com")
@@ -216,7 +216,7 @@ func (s *DockerCLIRunSuite) TestRunLinksContainerWithContainerID(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestUserDefinedNetworkLinks(c *testing.T) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "-d", "bridge", "udlinkNet")
 
 	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=first", "busybox", "top")
@@ -252,7 +252,7 @@ func (s *DockerCLIRunSuite) TestUserDefinedNetworkLinks(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestUserDefinedNetworkLinksWithRestart(c *testing.T) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "-d", "bridge", "udlinkNet")
 
 	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=first", "busybox", "top")
@@ -290,7 +290,7 @@ func (s *DockerCLIRunSuite) TestUserDefinedNetworkLinksWithRestart(c *testing.T)
 }
 
 func (s *DockerCLIRunSuite) TestRunWithNetAliasOnDefaultNetworks(c *testing.T) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	defaults := []string{"bridge", "host", "none"}
 	for _, net := range defaults {
@@ -301,7 +301,7 @@ func (s *DockerCLIRunSuite) TestRunWithNetAliasOnDefaultNetworks(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestUserDefinedNetworkAlias(c *testing.T) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "-d", "bridge", "net1")
 
 	cid1, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox:glibc", "top")
@@ -753,7 +753,7 @@ func (s *DockerCLIRunSuite) TestRunUserByID(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunUserByIDBig(c *testing.T) {
 	// TODO Windows: This test cannot run on a Windows daemon as Windows does
 	// not support the use of -u
-	testRequires(c, DaemonIsLinux, NotArm)
+	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "-u", "2147483648", "busybox", "id")
 	if err == nil {
 		c.Fatal("No error, but must be.", out)
@@ -1115,7 +1115,7 @@ func (s *DockerCLIRunSuite) TestRunUnprivilegedCannotMount(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunSysNotWritableInNonPrivilegedContainers(c *testing.T) {
 	// Not applicable for Windows as there is no concept of unprivileged
-	testRequires(c, DaemonIsLinux, NotArm)
+	testRequires(c, DaemonIsLinux)
 	if _, code, err := dockerCmdWithError("run", "busybox", "touch", "/sys/kernel/profiling"); err == nil || code == 0 {
 		c.Fatal("sys should not be writable in a non privileged container")
 	}
@@ -1123,7 +1123,7 @@ func (s *DockerCLIRunSuite) TestRunSysNotWritableInNonPrivilegedContainers(c *te
 
 func (s *DockerCLIRunSuite) TestRunSysWritableInPrivilegedContainers(c *testing.T) {
 	// Not applicable for Windows as there is no concept of unprivileged
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	if _, code, err := dockerCmdWithError("run", "--privileged", "busybox", "touch", "/sys/kernel/profiling"); err != nil || code != 0 {
 		c.Fatalf("sys should be writable in privileged container")
 	}
@@ -1410,7 +1410,7 @@ func (s *DockerCLIRunSuite) TestRunDNSOptionsBasedOnHostResolvConf(c *testing.T)
 // check if the container resolv.conf file has at least 0644 perm.
 func (s *DockerCLIRunSuite) TestRunNonRootUserResolvName(c *testing.T) {
 	// Not applicable on Windows as Windows does not support --user
-	testRequires(c, testEnv.IsLocalDaemon, Network, DaemonIsLinux, NotArm)
+	testRequires(c, testEnv.IsLocalDaemon, Network, DaemonIsLinux)
 
 	dockerCmd(c, "run", "--name=testperm", "--user=nobody", "busybox", "nslookup", "example.com")
 
@@ -3436,7 +3436,7 @@ func (s *DockerCLIRunSuite) TestTwoContainersInNetHost(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestContainersInUserDefinedNetwork(c *testing.T) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork")
 	dockerCmd(c, "run", "-d", "--net=testnetwork", "--name=first", "busybox", "top")
 	assert.Assert(c, waitRun("first") == nil)
@@ -3444,7 +3444,7 @@ func (s *DockerCLIRunSuite) TestContainersInUserDefinedNetwork(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestContainersInMultipleNetworks(c *testing.T) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	// Create 2 networks using bridge driver
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork2")
@@ -3463,7 +3463,7 @@ func (s *DockerCLIRunSuite) TestContainersInMultipleNetworks(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestContainersNetworkIsolation(c *testing.T) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	// Create 2 networks using bridge driver
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork2")
@@ -3508,7 +3508,7 @@ func (s *DockerCLIRunSuite) TestNetworkRmWithActiveContainers(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestContainerRestartInMultipleNetworks(c *testing.T) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	// Create 2 networks using bridge driver
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork2")
