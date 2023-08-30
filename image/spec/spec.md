@@ -1,4 +1,4 @@
-# Docker Image Specification v1.1.0
+# Docker Image Specification v1.2.0
 
 An *Image* is an ordered collection of root filesystem changes and the
 corresponding execution parameters for use within a container runtime. This
@@ -6,7 +6,7 @@ specification outlines the format of these filesystem changes and corresponding
 parameters and describes how to create and use them for use with a container
 runtime and execution tool.
 
-This version of the image specification was adopted starting in Docker 1.10.
+This version of the image specification was adopted starting in Docker 1.12.
 
 ## Terminology
 
@@ -339,6 +339,62 @@ whitespace. It has been added to this example for clarity.
                 and subject to implementation details.
             </dd>
             <dt>
+                Healthcheck <code>struct</code>
+            </dt>
+            <dd>
+                A test to perform to determine whether the container is healthy.
+                Here is an example:
+<pre>{
+  "Test": [
+      "CMD-SHELL",
+      "/usr/bin/check-health localhost"
+  ],
+  "Interval": 30000000000,
+  "Timeout": 10000000000,
+  "Retries": 3
+}</pre>
+                The object has the following fields.
+                <dl>
+                    <dt>
+                        Test <code>array of strings</code>
+                    </dt>
+                    <dd>
+                        The test to perform to check that the container is healthy.
+                        The options are:
+                        <ul>
+                            <li><code>[]</code> : inherit healthcheck from base image</li>
+                            <li><code>["NONE"]</code> : disable healthcheck</li>
+                            <li><code>["CMD", arg1, arg2, ...]</code> : exec arguments directly</li>
+                            <li><code>["CMD-SHELL", command]</code> : run command with system's default shell</li>
+                        </ul>
+                        The test command should exit with a status of 0 if the container is healthy,
+                        or with 1 if it is unhealthy.
+                    </dd>
+                    <dt>
+                        Interval <code>integer</code>
+                    </dt>
+                    <dd>
+                        Number of nanoseconds to wait between probe attempts.
+                    </dd>
+                    <dt>
+                        Timeout <code>integer</code>
+                    </dt>
+                    <dd>
+                        Number of nanoseconds to wait before considering the check to have hung.
+                    </dd>
+                    <dt>
+                        Retries <code>integer</code>
+                    <dt>
+                    <dd>
+                        The number of consecutive failures needed to consider a container as unhealthy.
+                    </dd>
+                </dl>
+                In each case, the field can be omitted to indicate that the
+                value should be inherited from the base layer. These values act
+                as defaults and are merged with any specified when creating a
+                container.
+            </dd>
+            <dt>
                 Volumes <code>struct</code>
             </dt>
             <dd>
@@ -370,6 +426,17 @@ whitespace. It has been added to this example for clarity.
                 build. Each trigger will be executed in the context of the
                 downstream build, as if it had been inserted immediately after
                 the *FROM* instruction in the downstream Dockerfile.
+            </dd>
+            <dt>
+                Shell <code>array of strings</code>
+            </dt>
+            <dd>
+                Override the default shell used for the *shell* form of
+                commands during "build". The default shell on Linux is
+                <code>["/bin/sh", "-c"]</code>, and <code>["cmd", "/S", "/C"]</code>
+                on Windows. This field is set by the <code>SHELL</code>
+                instruction in a Dockerfile, and *must* be written in JSON
+                form.
             </dd>
         </dl>
     </dd>
