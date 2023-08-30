@@ -118,4 +118,13 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 		service.Mode.ReplicatedJob = nil
 		service.Mode.GlobalJob = nil
 	}
+
+	if versions.LessThan(cliVersion, "1.44") {
+		// seccomp, apparmor, and no_new_privs were added in 1.44.
+		if service.TaskTemplate.ContainerSpec != nil && service.TaskTemplate.ContainerSpec.Privileges != nil {
+			service.TaskTemplate.ContainerSpec.Privileges.Seccomp = nil
+			service.TaskTemplate.ContainerSpec.Privileges.AppArmor = nil
+			service.TaskTemplate.ContainerSpec.Privileges.NoNewPrivileges = false
+		}
+	}
 }

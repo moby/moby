@@ -4324,6 +4324,29 @@ file {
       }
       json_name: "selinuxContext"
     }
+    field {
+      name: "seccomp"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Privileges.SeccompOpts"
+      json_name: "seccomp"
+    }
+    field {
+      name: "apparmor"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Privileges.AppArmorOpts"
+      json_name: "apparmor"
+    }
+    field {
+      name: "no_new_privileges"
+      number: 5
+      label: LABEL_OPTIONAL
+      type: TYPE_BOOL
+      json_name: "noNewPrivileges"
+    }
     nested_type {
       name: "CredentialSpec"
       field {
@@ -4390,6 +4413,61 @@ file {
         label: LABEL_OPTIONAL
         type: TYPE_STRING
         json_name: "level"
+      }
+    }
+    nested_type {
+      name: "SeccompOpts"
+      field {
+        name: "mode"
+        number: 1
+        label: LABEL_OPTIONAL
+        type: TYPE_ENUM
+        type_name: ".docker.swarmkit.v1.Privileges.SeccompOpts.SeccompMode"
+        json_name: "mode"
+      }
+      field {
+        name: "profile"
+        number: 2
+        label: LABEL_OPTIONAL
+        type: TYPE_BYTES
+        json_name: "profile"
+      }
+      enum_type {
+        name: "SeccompMode"
+        value {
+          name: "DEFAULT"
+          number: 0
+        }
+        value {
+          name: "UNCONFINED"
+          number: 1
+        }
+        value {
+          name: "CUSTOM"
+          number: 2
+        }
+      }
+    }
+    nested_type {
+      name: "AppArmorOpts"
+      field {
+        name: "mode"
+        number: 1
+        label: LABEL_OPTIONAL
+        type: TYPE_ENUM
+        type_name: ".docker.swarmkit.v1.Privileges.AppArmorOpts.AppArmorMode"
+        json_name: "mode"
+      }
+      enum_type {
+        name: "AppArmorMode"
+        value {
+          name: "DEFAULT"
+          number: 0
+        }
+        value {
+          name: "DISABLED"
+          number: 1
+        }
       }
     }
   }

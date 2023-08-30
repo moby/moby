@@ -52,6 +52,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   These endpoints will also return the full set of validation errors they find,
   instead of returning only the first one.
   Note that this change is _unversioned_ and applies to all API versions.
+* `POST /services/create` and `POST /services/{id}/update` now accept `Seccomp`
+  and `AppArmor` fields in the `ContainerSpec.Privileges` object. This allows
+  some configuration of Seccomp and AppArmor in Swarm services.
 
 ## v1.43 API changes
 

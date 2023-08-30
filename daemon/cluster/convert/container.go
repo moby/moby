@@ -69,6 +69,34 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 				Level:   c.Privileges.SELinuxContext.Level,
 			}
 		}
+
+		if c.Privileges.Seccomp != nil {
+			containerSpec.Privileges.Seccomp = &types.SeccompOpts{
+				Profile: c.Privileges.Seccomp.Profile,
+			}
+
+			switch c.Privileges.Seccomp.Mode {
+			case swarmapi.Privileges_SeccompOpts_DEFAULT:
+				containerSpec.Privileges.Seccomp.Mode = types.SeccompModeDefault
+			case swarmapi.Privileges_SeccompOpts_UNCONFINED:
+				containerSpec.Privileges.Seccomp.Mode = types.SeccompModeUnconfined
+			case swarmapi.Privileges_SeccompOpts_CUSTOM:
+				containerSpec.Privileges.Seccomp.Mode = types.SeccompModeCustom
+			}
+		}
+
+		if c.Privileges.Apparmor != nil {
+			containerSpec.Privileges.AppArmor = &types.AppArmorOpts{}
+
+			switch c.Privileges.Apparmor.Mode {
+			case swarmapi.Privileges_AppArmorOpts_DEFAULT:
+				containerSpec.Privileges.AppArmor.Mode = types.AppArmorModeDefault
+			case swarmapi.Privileges_AppArmorOpts_DISABLED:
+				containerSpec.Privileges.AppArmor.Mode = types.AppArmorModeDisabled
+			}
+		}
+
+		containerSpec.Privileges.NoNewPrivileges = c.Privileges.NoNewPrivileges
 	}
 
 	// Mounts
@@ -308,6 +336,34 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 				Level:   c.Privileges.SELinuxContext.Level,
 			}
 		}
+
+		if c.Privileges.Seccomp != nil {
+			containerSpec.Privileges.Seccomp = &swarmapi.Privileges_SeccompOpts{
+				Profile: c.Privileges.Seccomp.Profile,
+			}
+
+			switch c.Privileges.Seccomp.Mode {
+			case types.SeccompModeDefault:
+				containerSpec.Privileges.Seccomp.Mode = swarmapi.Privileges_SeccompOpts_DEFAULT
+			case types.SeccompModeUnconfined:
+				containerSpec.Privileges.Seccomp.Mode = swarmapi.Privileges_SeccompOpts_UNCONFINED
+			case types.SeccompModeCustom:
+				containerSpec.Privileges.Seccomp.Mode = swarmapi.Privileges_SeccompOpts_CUSTOM
+			}
+		}
+
+		if c.Privileges.AppArmor != nil {
+			containerSpec.Privileges.Apparmor = &swarmapi.Privileges_AppArmorOpts{}
+
+			switch c.Privileges.AppArmor.Mode {
+			case types.AppArmorModeDefault:
+				containerSpec.Privileges.Apparmor.Mode = swarmapi.Privileges_AppArmorOpts_DEFAULT
+			case types.AppArmorModeDisabled:
+				containerSpec.Privileges.Apparmor.Mode = swarmapi.Privileges_AppArmorOpts_DISABLED
+			}
+		}
+
+		containerSpec.Privileges.NoNewPrivileges = c.Privileges.NoNewPrivileges
 	}
 
 	if c.Configs != nil {

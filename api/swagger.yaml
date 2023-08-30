@@ -3553,6 +3553,32 @@ definitions:
                   Level:
                     type: "string"
                     description: "SELinux level label"
+              Seccomp:
+                type: "object"
+                description: "Options for configuring seccomp on the container"
+                properties:
+                  Mode:
+                    type: "string"
+                    enum:
+                      - "default"
+                      - "unconfined"
+                      - "custom"
+                  Profile:
+                    description: "The custom seccomp profile as a json object"
+                    type: "string"
+              AppArmor:
+                type: "object"
+                description: "Options for configuring AppArmor on the container"
+                properties:
+                  Mode:
+                    type: "string"
+                    enum:
+                      - "default"
+                      - "disabled"
+              NoNewPrivileges:
+                type: "boolean"
+                description: "Configuration of the no_new_privs bit in the container"
+
           TTY:
             description: "Whether a pseudo-TTY should be allocated."
             type: "boolean"
