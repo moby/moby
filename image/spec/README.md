@@ -12,7 +12,7 @@ and in [OCI Image Format Specification](https://github.com/opencontainers/image-
 
 All 1.X versions are compatible with older ones.
 
-### [v1.2](v1.2.md)
+### [v1.2](https://github.com/moby/moby/blob/daa4618da826fb1de4fc2478d88196edbba49b2f/image/spec/v1.2.md)
 
 * Implemented in Docker v1.12 (July, 2016)
 * The official spec document was written in August 2016 ([#25750](https://github.com/moby/moby/pull/25750))
@@ -21,7 +21,7 @@ Changes:
 
 * `Healthcheck` struct was added to Image JSON
 
-### [v1.1](v1.1.md)
+### [v1.1](https://github.com/moby/moby/blob/daa4618da826fb1de4fc2478d88196edbba49b2f/image/spec/v1.1.md)
 
 * Implemented in Docker v1.10 (February, 2016)
 * The official spec document was written in April 2016 ([#22264](https://github.com/moby/moby/pull/22264))
@@ -32,7 +32,7 @@ Changes:
 * Layer directory names were made into deterministic values rather than random ID values
 * `manifest.json` was added 
 
-### [v1](v1.md)
+### [v1](https://github.com/moby/moby/blob/daa4618da826fb1de4fc2478d88196edbba49b2f/image/spec/v1.md)
 
 * The initial revision
 * The official spec document was written in late 2014 ([#9560](https://github.com/moby/moby/pull/9560)), but actual implementations had existed even earlier
