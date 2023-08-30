@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // user namespaces test: run daemon with remapped root setting
@@ -26,6 +27,10 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 
 	ctx := testutil.GetContext(c)
 	s.d.StartWithBusybox(ctx, c, "--userns-remap", "default")
+
+	out, err := s.d.Cmd("run", "busybox", "stat", "-c", "%u:%g", "/bin/cat")
+	assert.Check(c, err)
+	assert.Assert(c, is.Equal(strings.TrimSpace(out), "0:0"))
 
 	tmpDir, err := os.MkdirTemp("", "userns")
 	assert.NilError(c, err)
@@ -47,7 +52,7 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 	// writable by the remapped root UID/GID pair
 	assert.NilError(c, os.Chown(tmpDir, uid, gid))
 
-	out, err := s.d.Cmd("run", "-d", "--name", "userns", "-v", tmpDir+":/goofy", "-v", tmpDirNotExists+":/donald", "busybox", "sh", "-c", "touch /goofy/testfile; exec top")
+	out, err = s.d.Cmd("run", "-d", "--name", "userns", "-v", tmpDir+":/goofy", "-v", tmpDirNotExists+":/donald", "busybox", "sh", "-c", "touch /goofy/testfile; exec top")
 	assert.NilError(c, err, "Output: %s", out)
 
 	user := s.findUser(c, "userns")

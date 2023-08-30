@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -34,6 +35,7 @@ type ImageService struct {
 	eventsService   *daemonevents.Events
 	pruneRunning    atomic.Bool
 	refCountMounter snapshotter.Mounter
+	idMapping       idtools.IdentityMapping
 }
 
 type RegistryConfigProvider interface {
@@ -49,6 +51,7 @@ type ImageServiceConfig struct {
 	Registry        RegistryConfigProvider
 	EventsService   *daemonevents.Events
 	RefCountMounter snapshotter.Mounter
+	IDMapping       idtools.IdentityMapping
 }
 
 // NewService creates a new ImageService.
@@ -61,6 +64,7 @@ func NewService(config ImageServiceConfig) *ImageService {
 		registryService: config.Registry,
 		eventsService:   config.EventsService,
 		refCountMounter: config.RefCountMounter,
+		idMapping:       config.IDMapping,
 	}
 }
 
