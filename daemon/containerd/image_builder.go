@@ -390,43 +390,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		return nil, err
 	}
 
-	rootFS := ocispec.RootFS{
-		Type:    imgToCreate.RootFS.Type,
-		DiffIDs: []digest.Digest{},
-	}
-	for _, diffId := range imgToCreate.RootFS.DiffIDs {
-		rootFS.DiffIDs = append(rootFS.DiffIDs, digest.Digest(diffId))
-	}
-	exposedPorts := make(map[string]struct{}, len(imgToCreate.Config.ExposedPorts))
-	for k, v := range imgToCreate.Config.ExposedPorts {
-		exposedPorts[string(k)] = v
-	}
-
-	// make an ocispec.Image from the docker/image.Image
-	ociImgToCreate := ocispec.Image{
-		Created: imgToCreate.Created,
-		Author:  imgToCreate.Author,
-		Platform: ocispec.Platform{
-			Architecture: imgToCreate.Architecture,
-			Variant:      imgToCreate.Variant,
-			OS:           imgToCreate.OS,
-			OSVersion:    imgToCreate.OSVersion,
-			OSFeatures:   imgToCreate.OSFeatures,
-		},
-		Config: ocispec.ImageConfig{
-			User:         imgToCreate.Config.User,
-			ExposedPorts: exposedPorts,
-			Env:          imgToCreate.Config.Env,
-			Entrypoint:   imgToCreate.Config.Entrypoint,
-			Cmd:          imgToCreate.Config.Cmd,
-			Volumes:      imgToCreate.Config.Volumes,
-			WorkingDir:   imgToCreate.Config.WorkingDir,
-			Labels:       imgToCreate.Config.Labels,
-			StopSignal:   imgToCreate.Config.StopSignal,
-		},
-		RootFS:  rootFS,
-		History: imgToCreate.History,
-	}
+	ociImgToCreate := dockerImageToDockerOCIImage(*imgToCreate)
 
 	var layers []ocispec.Descriptor
 	// if the image has a parent, we need to start with the parents layers descriptors

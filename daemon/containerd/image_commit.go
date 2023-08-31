@@ -21,6 +21,7 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/image"
+	imagespec "github.com/docker/docker/image/spec/specs-go/v1"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
@@ -40,7 +41,7 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 	cs := i.client.ContentStore()
 
 	var parentManifest ocispec.Manifest
-	var parentImage ocispec.Image
+	var parentImage imagespec.DockerOCIImage
 
 	// ImageManifest can be nil when committing an image with base FROM scratch
 	if container.ImageManifest != nil {
@@ -121,7 +122,7 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 
 // generateCommitImageConfig generates an OCI Image config based on the
 // container's image and the CommitConfig options.
-func generateCommitImageConfig(baseConfig ocispec.Image, diffID digest.Digest, opts backend.CommitConfig) ocispec.Image {
+func generateCommitImageConfig(baseConfig imagespec.DockerOCIImage, diffID digest.Digest, opts backend.CommitConfig) imagespec.DockerOCIImage {
 	if opts.Author == "" {
 		opts.Author = baseConfig.Author
 	}
@@ -144,31 +145,32 @@ func generateCommitImageConfig(baseConfig ocispec.Image, diffID digest.Digest, o
 		diffIds = append(diffIds, diffID)
 	}
 
-	return ocispec.Image{
-		Platform: ocispec.Platform{
-			Architecture: arch,
-			OS:           os,
+	return imagespec.DockerOCIImage{
+		Image: ocispec.Image{
+			Platform: ocispec.Platform{
+				Architecture: arch,
+				OS:           os,
+			},
+			Created: &createdTime,
+			Author:  opts.Author,
+			RootFS: ocispec.RootFS{
+				Type:    "layers",
+				DiffIDs: diffIds,
+			},
+			History: append(baseConfig.History, ocispec.History{
+				Created:    &createdTime,
+				CreatedBy:  strings.Join(opts.ContainerConfig.Cmd, " "),
+				Author:     opts.Author,
+				Comment:    opts.Comment,
+				EmptyLayer: diffID == "",
+			}),
 		},
-		Created: &createdTime,
-		Author:  opts.Author,
-		Config:  containerConfigToOciImageConfig(opts.Config),
-		RootFS: ocispec.RootFS{
-			Type:    "layers",
-			DiffIDs: diffIds,
-		},
-		History: append(baseConfig.History, ocispec.History{
-			Created:   &createdTime,
-			CreatedBy: strings.Join(opts.ContainerConfig.Cmd, " "),
-			Author:    opts.Author,
-			Comment:   opts.Comment,
-			// TODO(laurazard): this check might be incorrect
-			EmptyLayer: diffID == "",
-		}),
+		Config: containerConfigToDockerOCIImageConfig(opts.Config),
 	}
 }
 
 // writeContentsForImage will commit oci image config and manifest into containerd's content store.
-func writeContentsForImage(ctx context.Context, snName string, cs content.Store, newConfig ocispec.Image, layers []ocispec.Descriptor) (ocispec.Descriptor, error) {
+func writeContentsForImage(ctx context.Context, snName string, cs content.Store, newConfig imagespec.DockerOCIImage, layers []ocispec.Descriptor) (ocispec.Descriptor, error) {
 	newConfigJSON, err := json.Marshal(newConfig)
 	if err != nil {
 		return ocispec.Descriptor{}, err
@@ -275,7 +277,7 @@ func createDiff(ctx context.Context, name string, sn snapshots.Snapshotter, cs c
 }
 
 // applyDiffLayer will apply diff layer content created by createDiff into the snapshotter.
-func applyDiffLayer(ctx context.Context, name string, baseImg ocispec.Image, sn snapshots.Snapshotter, differ diff.Applier, diffDesc ocispec.Descriptor) (retErr error) {
+func applyDiffLayer(ctx context.Context, name string, baseImg imagespec.DockerOCIImage, sn snapshots.Snapshotter, differ diff.Applier, diffDesc ocispec.Descriptor) (retErr error) {
 	var (
 		key    = uniquePart() + "-" + name
 		parent = identity.ChainID(baseImg.RootFS.DiffIDs).String()
