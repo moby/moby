@@ -14,6 +14,7 @@ source "${MAKEDIR}/.go-autogen"
 
 # Set defaults
 : "${TEST_REPEAT:=1}"
+: "${TIMEOUT:=5m}"
 : "${TESTFLAGS:=}"
 : "${TESTDEBUG:=}"
 : "${TESTCOVERAGE:=}"
@@ -54,7 +55,7 @@ else
 fi
 
 run_test_integration() {
-	set_platform_timeout
+	set_repeat_timeout
 	local failed=0
 	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
 		if ! run_test_integration_suites "${integration_api_dirs}"; then
@@ -181,7 +182,6 @@ test_env() {
 			DOCKER_INTEGRATION_DAEMON_DEST="$DOCKER_INTEGRATION_DAEMON_DEST" \
 			DOCKER_TLS_VERIFY="$DOCKER_TEST_TLS_VERIFY" \
 			DOCKER_CERT_PATH="$DOCKER_TEST_CERT_PATH" \
-			DOCKER_ENGINE_GOARCH="$DOCKER_ENGINE_GOARCH" \
 			DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
 			DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
 			DOCKER_HOST="$DOCKER_HOST" \
@@ -201,16 +201,7 @@ test_env() {
 	)
 }
 
-set_platform_timeout() {
-	# Test timeout.
-	if [ "${DOCKER_ENGINE_GOARCH}" = "arm64" ] || [ "${DOCKER_ENGINE_GOARCH}" = "arm" ]; then
-		: "${TIMEOUT:=10m}"
-	elif [ "${DOCKER_ENGINE_GOARCH}" = "windows" ]; then
-		: "${TIMEOUT:=8m}"
-	else
-		: "${TIMEOUT:=5m}"
-	fi
-
+set_repeat_timeout() {
 	if [ "${TEST_REPEAT}" -gt 1 ]; then
 		# TIMEOUT needs to take TEST_REPEAT into account, or a premature time out may happen.
 		# The following ugliness will:

@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
 set -e -u -o pipefail
 
-ARCH=$(uname -m)
-if [ "$ARCH" = "x86_64" ]; then
-	ARCH="amd64"
-fi
-
-export DOCKER_ENGINE_GOARCH=${DOCKER_ENGINE_GOARCH:-${ARCH}}
-
 # Set defaults
 : ${TESTFLAGS:=}
 : ${TESTDEBUG:=}
@@ -18,13 +11,12 @@ integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(
 )"}
 
 run_test_integration() {
-	set_platform_timeout
 	run_test_integration_suites
 	run_test_integration_legacy_suites
 }
 
 run_test_integration_suites() {
-	local flags="-test.v -test.timeout=${TIMEOUT:-10m} $TESTFLAGS"
+	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
 	for dir in $integration_api_dirs; do
 		if ! (
 			cd $dir
@@ -53,7 +45,6 @@ test_env() {
 			DOCKER_INTEGRATION_DAEMON_DEST="$DOCKER_INTEGRATION_DAEMON_DEST" \
 			DOCKER_TLS_VERIFY="$DOCKER_TEST_TLS_VERIFY" \
 			DOCKER_CERT_PATH="$DOCKER_TEST_CERT_PATH" \
-			DOCKER_ENGINE_GOARCH="$DOCKER_ENGINE_GOARCH" \
 			DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
 			DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
 			DOCKER_HOST="$DOCKER_HOST" \
@@ -67,17 +58,6 @@ test_env() {
 			TEST_CLIENT_BINARY="$TEST_CLIENT_BINARY" \
 			"$@"
 	)
-}
-
-set_platform_timeout() {
-	# Test timeout.
-	if [ "${DOCKER_ENGINE_GOARCH}" = "arm64" ] || [ "${DOCKER_ENGINE_GOARCH}" = "arm" ]; then
-		: ${TIMEOUT:=10m}
-	elif [ "${DOCKER_ENGINE_GOARCH}" = "windows" ]; then
-		: ${TIMEOUT:=8m}
-	else
-		: ${TIMEOUT:=5m}
-	fi
 }
 
 sh /scripts/build-empty-images.sh
