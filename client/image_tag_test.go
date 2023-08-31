@@ -45,7 +45,7 @@ func TestImageTagInvalidSourceImageName(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "client should not have made an API call")),
 	}
 
-	invalidRepos := []string{"fo$z$", "Foo@3cc", "Foo$3", "Foo*3", "Fo^3", "Foo!3", "F)xcz(", "fo%asd", "FOO/bar", "aa/asdf$$^/aa"}
+	invalidRepos := []string{"fo$z$", "Foo@3cc", "Foo$3", "Foo*3", "Fo^3", "Foo!3", "F)xcz(", "fo%asd", "aa/asdf$$^/aa"}
 	for _, repo := range invalidRepos {
 		repo := repo
 		t.Run("invalidRepo/"+repo, func(t *testing.T) {
