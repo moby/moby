@@ -32,7 +32,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	// This test uses very platform specific way to prevent
 	// daemon for remove image layer.
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
+	skip.If(t, testEnv.NotAmd64)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support overlay2 on most distros")
 
 	// Create daemon with overlay2 graphdriver because vfs uses disk differently
