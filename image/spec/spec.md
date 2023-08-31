@@ -1,4 +1,4 @@
-# Docker Image Specification v1.2.0
+# Docker Image Specification v1.3.0
 
 An *Image* is an ordered collection of root filesystem changes and the
 corresponding execution parameters for use within a container runtime. This
@@ -351,7 +351,8 @@ whitespace. It has been added to this example for clarity.
   ],
   "Interval": 30000000000,
   "Timeout": 10000000000,
-  "Retries": 3
+  "Retries": 3,
+  "StartInterval": 3000000000
 }</pre>
                 The object has the following fields.
                 <dl>
@@ -387,6 +388,12 @@ whitespace. It has been added to this example for clarity.
                     <dt>
                     <dd>
                         The number of consecutive failures needed to consider a container as unhealthy.
+                    </dd>
+                    <dt>
+                        StartInterval <code>integer</code>
+                    <dt>
+                    <dd>
+                        Number of nanoseconds to wait between probe attempts during the start period.
                     </dd>
                 </dl>
                 In each case, the field can be omitted to indicate that the

@@ -23,6 +23,14 @@ and in [OCI Image Format Specification](https://github.com/opencontainers/image-
 
 All 1.X versions are compatible with older ones.
 
+### [v1.3](spec.md)
+
+* Implemented in Docker v25.0
+
+Changes:
+
+* `StartInterval` was added to the `Healthcheck` struct in the Image JSON
+
 ### [v1.2](https://github.com/moby/moby/blob/daa4618da826fb1de4fc2478d88196edbba49b2f/image/spec/v1.2.md)
 
 * Implemented in Docker v1.12 (July, 2016)
