@@ -331,7 +331,7 @@ jobs:
           echo ${{ steps.tests.outputs.matrix }}
 
   integration-cli:
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     timeout-minutes: 120
     needs:
@@ -339,6 +339,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os:
+          - ubuntu-20.04
+          - ubuntu-22.04
         test: ${{ fromJson(needs.integration-cli-prepare.outputs.matrix) }}
     steps:
       -
