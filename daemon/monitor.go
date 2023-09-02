@@ -27,7 +27,10 @@ func (daemon *Daemon) setStateCounter(c *container.Container) {
 }
 
 func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontainerdtypes.EventInfo) error {
-	var exitStatus container.ExitStatus
+	var (
+		exitStatus       container.ExitStatus
+		taskDeletionDone chan struct{}
+	)
 	c.Lock()
 
 	cfg := daemon.config()
@@ -38,19 +41,33 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 
 	tsk, ok := c.Task()
 	if ok {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		es, err := tsk.Delete(ctx)
-		cancel()
-		if err != nil {
-			log.G(ctx).WithFields(log.Fields{
-				"error":     err,
-				"container": c.ID,
-			}).Warn("failed to delete container from containerd")
-		} else {
-			exitStatus = container.ExitStatus{
-				ExitCode: int(es.ExitCode()),
-				ExitedAt: es.ExitTime(),
+		taskDeletionDone = make(chan struct{})
+		go func() {
+			defer close(taskDeletionDone)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			es, err := tsk.Delete(ctx)
+			cancel()
+			if err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"error":     err,
+					"container": c.ID,
+				}).Warn("failed to delete container from containerd")
+			} else {
+				exitStatus = container.ExitStatus{
+					ExitCode: int(es.ExitCode()),
+					ExitedAt: es.ExitTime(),
+				}
 			}
+		}()
+
+		deletionIOCloseTimeout := time.NewTimer(3 * time.Second)
+		select {
+		case <-taskDeletionDone:
+			deletionIOCloseTimeout.Stop()
+		case <-deletionIOCloseTimeout.C:
+			// if tsk.Delete(ctx) did not exit after 3 seconds, try to close IO
+			// streams - they may be blocking the deletion - and continue
+			// waiting after that
 		}
 	}
 
@@ -61,6 +78,10 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
 	c.Reset(ctx, false)
 	cancel()
+
+	if taskDeletionDone != nil {
+		<-taskDeletionDone
+	}
 
 	if e != nil {
 		exitStatus.ExitCode = int(e.ExitCode)
