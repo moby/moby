@@ -30,6 +30,16 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	var exitStatus container.ExitStatus
 	c.Lock()
 
+	// Handle duplicate events by discarding events that after finished or while not running
+	if c.Restarting || e.ExitedAt.Before(c.StartedAt) || (!c.FinishedAt.IsZero() && c.FinishedAt.Before(e.ExitedAt)) {
+		c.Unlock()
+		log.G(context.TODO()).WithFields(log.Fields{
+			"container":  c.ID,
+			"exitStatus": e.ExitCode,
+		}).Debug("ignoring duplicate container exit event")
+		return nil
+	}
+
 	cfg := daemon.config()
 
 	// Health checks will be automatically restarted if/when the
@@ -179,6 +189,15 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			ec := int(ei.ExitCode)
 			execConfig.Lock()
 			defer execConfig.Unlock()
+
+			if execConfig.Running == false {
+				log.G(context.TODO()).WithFields(log.Fields{
+					"container":  c.ID,
+					"process":    ei.ProcessID,
+					"exitStatus": ei.ExitCode,
+				}).Debug("ignoring exec exit event on non-running process")
+				return nil
+			}
 
 			// Remove the exec command from the container's store only and not the
 			// daemon's store so that the exec command can be inspected. Remove it
