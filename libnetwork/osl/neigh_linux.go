@@ -3,8 +3,10 @@ package osl
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
+	"os"
 
 	"github.com/containerd/containerd/log"
 	"github.com/vishvananda/netlink"
@@ -82,10 +84,10 @@ func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, osDele
 			nlnh.LinkIndex = iface.Attrs().Index
 		}
 
-		// If the kernel deletion fails for the neighbor entry still remote it
-		// from the namespace cache. Otherwise if the neighbor moves back to the
-		// same host again, kernel update can fail.
-		if err := nlh.NeighDel(nlnh); err != nil {
+		// If the kernel deletion fails for the neighbor entry still remove it
+		// from the namespace cache, otherwise kernel update can fail if the
+		// neighbor moves back to the same host again.
+		if err := nlh.NeighDel(nlnh); err != nil && !errors.Is(err, os.ErrNotExist) {
 			log.G(context.TODO()).Warnf("Deleting neighbor IP %s, mac %s failed, %v", dstIP, dstMac, err)
 		}
 
@@ -101,7 +103,7 @@ func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, osDele
 			if nh.linkDst != "" {
 				nlnh.LinkIndex = iface.Attrs().Index
 			}
-			if err := nlh.NeighDel(nlnh); err != nil {
+			if err := nlh.NeighDel(nlnh); err != nil && !errors.Is(err, os.ErrNotExist) {
 				log.G(context.TODO()).WithError(err).Warn("error while deleting neighbor entry")
 			}
 		}
