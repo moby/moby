@@ -4623,7 +4623,12 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageArg(c *testing.T) {
 	result.Assert(c, icmd.Success)
 
 	result = cli.DockerCmd(c, "images", "-q", "-f", "label=multifromtest=1")
-	parentID := strings.TrimSpace(result.Stdout())
+	result.Assert(c, icmd.Success)
+
+	imgs := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
+	assert.Assert(c, cmp.Len(imgs, 1), `only one image with "multifromtest" label is expected`)
+
+	parentID := imgs[0]
 
 	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
 	assert.Assert(c, strings.Contains(result.Stdout(), "foo=abc"))
@@ -4648,7 +4653,12 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageGlobalArg(c *testing.T) {
 	result.Assert(c, icmd.Success)
 
 	result = cli.DockerCmd(c, "images", "-q", "-f", "label=multifromtest=1")
-	parentID := strings.TrimSpace(result.Stdout())
+	result.Assert(c, icmd.Success)
+
+	imgs := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
+	assert.Assert(c, cmp.Len(imgs, 1), `only one image with "multifromtest" label is expected`)
+
+	parentID := imgs[0]
 
 	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
 	assert.Assert(c, !strings.Contains(result.Stdout(), "tag"))
