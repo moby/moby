@@ -80,7 +80,7 @@ func (s *DockerCLIEventSuite) TestEventsOOMDisableFalse(c *testing.T) {
 }
 
 func (s *DockerCLIEventSuite) TestEventsOOMDisableTrue(c *testing.T) {
-	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotArm, swapMemorySupport, NotPpc64le)
+	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, swapMemorySupport, NotPpc64le)
 	skip.If(c, GitHubActions, "FIXME: https://github.com/moby/moby/pull/36541")
 
 	errChan := make(chan error, 1)

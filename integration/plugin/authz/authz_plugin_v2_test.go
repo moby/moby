@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -40,7 +39,7 @@ func setupTestV2(t *testing.T) func() {
 }
 
 func TestAuthZPluginV2AllowNonVolumeRequest(t *testing.T) {
-	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
+	skip.If(t, testEnv.NotAmd64)
 	defer setupTestV2(t)()
 
 	c := d.NewClientT(t)
@@ -62,7 +61,7 @@ func TestAuthZPluginV2AllowNonVolumeRequest(t *testing.T) {
 }
 
 func TestAuthZPluginV2Disable(t *testing.T) {
-	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
+	skip.If(t, testEnv.NotAmd64)
 	defer setupTestV2(t)()
 
 	c := d.NewClientT(t)
@@ -88,7 +87,7 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 }
 
 func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
-	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
+	skip.If(t, testEnv.NotAmd64)
 	defer setupTestV2(t)()
 
 	c := d.NewClientT(t)
@@ -123,7 +122,7 @@ func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
 }
 
 func TestAuthZPluginV2BadManifestFailsDaemonStart(t *testing.T) {
-	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
+	skip.If(t, testEnv.NotAmd64)
 	defer setupTestV2(t)()
 
 	c := d.NewClientT(t)

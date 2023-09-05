@@ -22,6 +22,7 @@ import (
 type Execution struct {
 	client            client.APIClient
 	DaemonInfo        system.Info
+	DaemonVersion     types.Version
 	PlatformDefaults  PlatformDefaults
 	protectedElements protectedElements
 }
@@ -49,10 +50,15 @@ func FromClient(c *client.Client) (*Execution, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get info from daemon")
 	}
+	v, err := c.ServerVersion(context.Background())
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get version info from daemon")
+	}
 
 	return &Execution{
 		client:            c,
 		DaemonInfo:        info,
+		DaemonVersion:     v,
 		PlatformDefaults:  getPlatformDefaults(info),
 		protectedElements: newProtectedElements(),
 	}, nil
@@ -219,4 +225,9 @@ func EnsureFrozenImagesLinux(testEnv *Execution) error {
 // GitHubActions is true if test is executed on a GitHub Runner.
 func (e *Execution) GitHubActions() bool {
 	return os.Getenv("GITHUB_ACTIONS") != ""
+}
+
+// NotAmd64 returns true if the daemon's architecture is not amd64
+func (e *Execution) NotAmd64() bool {
+	return e.DaemonVersion.Arch != "amd64"
 }
