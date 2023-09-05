@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"
@@ -248,4 +249,4 @@ func newTestService(t *testing.T, ds *volumedrivers.Store) (*VolumesService, fun
 
 type dummyEventLogger struct{}
 
-func (dummyEventLogger) LogVolumeEvent(_, _ string, _ map[string]string) {}
+func (dummyEventLogger) LogVolumeEvent(_ string, _ events.Action, _ map[string]string) {}

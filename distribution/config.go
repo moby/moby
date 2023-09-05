@@ -9,6 +9,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
@@ -38,7 +39,7 @@ type Config struct {
 	// and endpoint lookup.
 	RegistryService RegistryResolver
 	// ImageEventLogger notifies events for a given image
-	ImageEventLogger func(id, name, action string)
+	ImageEventLogger func(id, name string, action events.Action)
 	// MetadataStore is the storage backend for distribution-specific
 	// metadata.
 	MetadataStore metadata.Store

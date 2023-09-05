@@ -46,7 +46,7 @@ func TestEventsExecDie(t *testing.T) {
 	msg, errs := client.Events(ctx, types.EventsOptions{
 		Filters: filters.NewArgs(
 			filters.Arg("container", cID),
-			filters.Arg("event", "exec_die"),
+			filters.Arg("event", string(events.ActionExecDie)),
 		),
 	})
 
@@ -62,7 +62,7 @@ func TestEventsExecDie(t *testing.T) {
 	case m := <-msg:
 		assert.Equal(t, m.Type, events.ContainerEventType)
 		assert.Equal(t, m.Actor.ID, cID)
-		assert.Equal(t, m.Action, "exec_die")
+		assert.Equal(t, m.Action, events.ActionExecDie)
 		assert.Equal(t, m.Actor.Attributes["execID"], id.ID)
 		assert.Equal(t, m.Actor.Attributes["exitCode"], "0")
 	case err = <-errs:

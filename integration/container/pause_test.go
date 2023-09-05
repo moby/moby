@@ -50,7 +50,7 @@ func TestPause(t *testing.T) {
 		Until:   until,
 		Filters: filters.NewArgs(filters.Arg(string(events.ContainerEventType), cID)),
 	})
-	assert.Check(t, is.DeepEqual([]string{"pause", "unpause"}, getEventActions(t, messages, errs)))
+	assert.Check(t, is.DeepEqual([]events.Action{events.ActionPause, events.ActionUnPause}, getEventActions(t, messages, errs)))
 }
 
 func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
@@ -87,9 +87,9 @@ func TestPauseStopPausedContainer(t *testing.T) {
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
 }
 
-func getEventActions(t *testing.T, messages <-chan events.Message, errs <-chan error) []string {
+func getEventActions(t *testing.T, messages <-chan events.Message, errs <-chan error) []events.Action {
 	t.Helper()
-	var actions []string
+	var actions []events.Action
 	for {
 		select {
 		case err := <-errs:

@@ -2,6 +2,7 @@ package tarexport // import "github.com/docker/docker/image/tarexport"
 
 import (
 	"github.com/docker/distribution"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	refstore "github.com/docker/docker/reference"
@@ -36,7 +37,7 @@ type tarexporter struct {
 // LogImageEvent defines interface for event generation related to image tar(load and save) operations
 type LogImageEvent interface {
 	// LogImageEvent generates an event related to an image operation
-	LogImageEvent(imageID, refName, action string)
+	LogImageEvent(imageID, refName string, action events.Action)
 }
 
 // NewTarExporter returns new Exporter for tar packages

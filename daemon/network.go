@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
@@ -388,7 +389,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 	if create.IPAM != nil {
 		daemon.pluginRefCount(create.IPAM.Driver, ipamapi.PluginEndpointType, plugingetter.Acquire)
 	}
-	daemon.LogNetworkEvent(n, "create")
+	daemon.LogNetworkEvent(n, events.ActionCreate)
 
 	return &types.NetworkCreateResponse{
 		ID:      n.ID(),
@@ -555,7 +556,7 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 		daemon.pluginRefCount(nw.Type(), driverapi.NetworkPluginEndpointType, plugingetter.Release)
 		ipamType, _, _, _ := nw.IpamConfig()
 		daemon.pluginRefCount(ipamType, ipamapi.PluginEndpointType, plugingetter.Release)
-		daemon.LogNetworkEvent(nw, "destroy")
+		daemon.LogNetworkEvent(nw, events.ActionDestroy)
 	}
 
 	return nil

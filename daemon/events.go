@@ -17,12 +17,12 @@ import (
 )
 
 // LogContainerEvent generates an event related to a container with only the default attributes.
-func (daemon *Daemon) LogContainerEvent(container *container.Container, action string) {
+func (daemon *Daemon) LogContainerEvent(container *container.Container, action events.Action) {
 	daemon.LogContainerEventWithAttributes(container, action, map[string]string{})
 }
 
 // LogContainerEventWithAttributes generates an event related to a container with specific given attributes.
-func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Container, action string, attributes map[string]string) {
+func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Container, action events.Action, attributes map[string]string) {
 	copyAttributes(attributes, container.Config.Labels)
 	if container.Config.Image != "" {
 		attributes["image"] = container.Config.Image
@@ -35,7 +35,7 @@ func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Conta
 }
 
 // LogPluginEvent generates an event related to a plugin with only the default attributes.
-func (daemon *Daemon) LogPluginEvent(pluginID, refName, action string) {
+func (daemon *Daemon) LogPluginEvent(pluginID, refName string, action events.Action) {
 	daemon.EventsService.Log(action, events.PluginEventType, events.Actor{
 		ID:         pluginID,
 		Attributes: map[string]string{"name": refName},
@@ -43,7 +43,7 @@ func (daemon *Daemon) LogPluginEvent(pluginID, refName, action string) {
 }
 
 // LogVolumeEvent generates an event related to a volume.
-func (daemon *Daemon) LogVolumeEvent(volumeID, action string, attributes map[string]string) {
+func (daemon *Daemon) LogVolumeEvent(volumeID string, action events.Action, attributes map[string]string) {
 	daemon.EventsService.Log(action, events.VolumeEventType, events.Actor{
 		ID:         volumeID,
 		Attributes: attributes,
@@ -51,12 +51,12 @@ func (daemon *Daemon) LogVolumeEvent(volumeID, action string, attributes map[str
 }
 
 // LogNetworkEvent generates an event related to a network with only the default attributes.
-func (daemon *Daemon) LogNetworkEvent(nw *libnetwork.Network, action string) {
+func (daemon *Daemon) LogNetworkEvent(nw *libnetwork.Network, action events.Action) {
 	daemon.LogNetworkEventWithAttributes(nw, action, map[string]string{})
 }
 
 // LogNetworkEventWithAttributes generates an event related to a network with specific given attributes.
-func (daemon *Daemon) LogNetworkEventWithAttributes(nw *libnetwork.Network, action string, attributes map[string]string) {
+func (daemon *Daemon) LogNetworkEventWithAttributes(nw *libnetwork.Network, action events.Action, attributes map[string]string) {
 	attributes["name"] = nw.Name()
 	attributes["type"] = nw.Type()
 	daemon.EventsService.Log(action, events.NetworkEventType, events.Actor{
@@ -66,7 +66,7 @@ func (daemon *Daemon) LogNetworkEventWithAttributes(nw *libnetwork.Network, acti
 }
 
 // LogDaemonEventWithAttributes generates an event related to the daemon itself with specific given attributes.
-func (daemon *Daemon) LogDaemonEventWithAttributes(action string, attributes map[string]string) {
+func (daemon *Daemon) LogDaemonEventWithAttributes(action events.Action, attributes map[string]string) {
 	if daemon.EventsService != nil {
 		if name := hostName(); name != "" {
 			attributes["name"] = name
@@ -248,10 +248,10 @@ func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *
 	daemon.logClusterEvent(action, service.ID, events.ServiceEventType, eventTime, attributes)
 }
 
-var clusterEventAction = map[swarmapi.WatchActionKind]string{
-	swarmapi.WatchActionKindCreate: "create",
-	swarmapi.WatchActionKindUpdate: "update",
-	swarmapi.WatchActionKindRemove: "remove",
+var clusterEventAction = map[swarmapi.WatchActionKind]events.Action{
+	swarmapi.WatchActionKindCreate: events.ActionCreate,
+	swarmapi.WatchActionKindUpdate: events.ActionUpdate,
+	swarmapi.WatchActionKindRemove: events.ActionRemove,
 }
 
 func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id string, eventType events.Type, eventTime time.Time, attributes map[string]string) {

@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 )
@@ -87,10 +88,9 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	execConfig.Env = container.ReplaceOrAppendEnvValues(cntr.CreateDaemonEnvironment(execConfig.Tty, linkedEnv), execConfig.Env)
 
 	d.registerExecCommand(cntr, execConfig)
-	attributes := map[string]string{
+	d.LogContainerEventWithAttributes(cntr, events.Action(string(events.ActionExecCreate)+": "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " ")), map[string]string{
 		"execID": execConfig.ID,
-	}
-	d.LogContainerEventWithAttributes(cntr, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "), attributes)
+	})
 
 	output := &limitedBuffer{}
 	probeCtx, cancelProbe := context.WithCancel(ctx)
@@ -240,7 +240,7 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 
 	current := h.Status()
 	if oldStatus != current {
-		d.LogContainerEvent(c, "health_status: "+current)
+		d.LogContainerEvent(c, events.Action(string(events.ActionHealthStatus)+": "+current))
 	}
 }
 

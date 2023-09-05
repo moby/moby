@@ -9,6 +9,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
@@ -85,6 +86,6 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 		}
 	}
 
-	i.LogImageEvent(id.String(), id.String(), "import")
+	i.LogImageEvent(id.String(), id.String(), events.ActionImport)
 	return id, nil
 }

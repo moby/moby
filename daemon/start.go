@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
@@ -222,7 +223,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 			Errorf("failed to store container")
 	}
 
-	daemon.LogContainerEvent(container, "start")
+	daemon.LogContainerEvent(container, events.ActionStart)
 	containerActions.WithValues("start").UpdateSince(start)
 
 	return nil

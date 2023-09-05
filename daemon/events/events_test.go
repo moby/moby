@@ -20,7 +20,7 @@ import (
 // TODO remove this once we removed the deprecated `ID`, `Status`, and `From` fields.
 func validateLegacyFields(t *testing.T, msg events.Message) {
 	t.Helper()
-	assert.Check(t, is.Equal(msg.Status, msg.Action), "Legacy Status field does not match Action")
+	assert.Check(t, is.Equal(msg.Status, string(msg.Action)), "Legacy Status field does not match Action")
 	assert.Check(t, is.Equal(msg.ID, msg.Actor.ID), "Legacy ID field does not match Actor.ID")
 	assert.Check(t, is.Equal(msg.From, msg.Actor.Attributes["image"]), "Legacy From field does not match Actor.Attributes.image")
 }
@@ -45,7 +45,7 @@ func TestEventsLog(t *testing.T) {
 		jmsg, ok := msg.(events.Message)
 		assert.Assert(t, ok, "unexpected type: %T", msg)
 		validateLegacyFields(t, jmsg)
-		assert.Check(t, is.Equal(jmsg.Action, "test"))
+		assert.Check(t, is.Equal(jmsg.Action, events.Action("test")))
 		assert.Check(t, is.Equal(jmsg.Actor.ID, "cont"))
 		assert.Check(t, is.Equal(jmsg.Actor.Attributes["image"], "image"))
 	case <-time.After(1 * time.Second):
@@ -58,7 +58,7 @@ func TestEventsLog(t *testing.T) {
 		jmsg, ok := msg.(events.Message)
 		assert.Assert(t, ok, "unexpected type: %T", msg)
 		validateLegacyFields(t, jmsg)
-		assert.Check(t, is.Equal(jmsg.Action, "test"))
+		assert.Check(t, is.Equal(jmsg.Action, events.Action("test")))
 		assert.Check(t, is.Equal(jmsg.Actor.ID, "cont"))
 		assert.Check(t, is.Equal(jmsg.Actor.Attributes["image"], "image"))
 	case <-time.After(1 * time.Second):
@@ -91,7 +91,7 @@ func TestLogEvents(t *testing.T) {
 
 	for i := 0; i < eventsLimit+16; i++ {
 		num := strconv.Itoa(i)
-		e.Log("action_"+num, events.ContainerEventType, events.Actor{
+		e.Log(events.Action("action_"+num), events.ContainerEventType, events.Actor{
 			ID:         "cont_" + num,
 			Attributes: map[string]string{"image": "image_" + num},
 		})
@@ -100,7 +100,7 @@ func TestLogEvents(t *testing.T) {
 	current, l, _ := e.Subscribe()
 	for i := 0; i < 10; i++ {
 		num := strconv.Itoa(i + eventsLimit + 16)
-		e.Log("action_"+num, events.ContainerEventType, events.Actor{
+		e.Log(events.Action("action_"+num), events.ContainerEventType, events.Actor{
 			ID:         "cont_" + num,
 			Attributes: map[string]string{"image": "image_" + num},
 		})
@@ -121,16 +121,16 @@ func TestLogEvents(t *testing.T) {
 
 	first := current[0]
 	validateLegacyFields(t, first)
-	assert.Check(t, is.Equal(first.Action, "action_16"))
+	assert.Check(t, is.Equal(first.Action, events.Action("action_16")))
 
 	last := current[len(current)-1]
-	assert.Check(t, is.Equal(last.Action, "action_271"))
+	assert.Check(t, is.Equal(last.Action, events.Action("action_271")))
 
 	firstC := msgs[0]
-	assert.Check(t, is.Equal(firstC.Action, "action_272"))
+	assert.Check(t, is.Equal(firstC.Action, events.Action("action_272")))
 
 	lastC := msgs[len(msgs)-1]
-	assert.Check(t, is.Equal(lastC.Action, "action_281"))
+	assert.Check(t, is.Equal(lastC.Action, events.Action("action_281")))
 }
 
 // Regression-test for https://github.com/moby/moby/issues/20999

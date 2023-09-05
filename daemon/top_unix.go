@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/pkg/errors"
@@ -198,6 +199,6 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 	if err != nil {
 		return nil, err
 	}
-	daemon.LogContainerEvent(ctr, "top")
+	daemon.LogContainerEvent(ctr, events.ActionTop)
 	return procList, nil
 }

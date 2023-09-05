@@ -12,6 +12,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
@@ -772,7 +773,7 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 
 	container.NetworkSettings.Ports = getPortMapInfo(sb)
 
-	daemon.LogNetworkEventWithAttributes(n, "connect", map[string]string{"container": container.ID})
+	daemon.LogNetworkEventWithAttributes(n, events.ActionConnect, map[string]string{"container": container.ID})
 	networkActions.WithValues("connect").UpdateSince(start)
 	return nil
 }
@@ -880,7 +881,7 @@ func (daemon *Daemon) tryDetachContainerFromClusterNetwork(network *libnetwork.N
 			}
 		}
 	}
-	daemon.LogNetworkEventWithAttributes(network, "disconnect", map[string]string{
+	daemon.LogNetworkEventWithAttributes(network, events.ActionDisconnect, map[string]string{
 		"container": container.ID,
 	})
 }
@@ -1051,7 +1052,7 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, netw
 	}
 
 	if n != nil {
-		daemon.LogNetworkEventWithAttributes(n, "disconnect", map[string]string{
+		daemon.LogNetworkEventWithAttributes(n, events.ActionDisconnect, map[string]string{
 			"container": container.ID,
 		})
 	}

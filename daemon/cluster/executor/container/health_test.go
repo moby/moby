@@ -8,6 +8,7 @@ import (
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/events"
@@ -71,7 +72,7 @@ func TestHealthStates(t *testing.T) {
 
 	// send an event and expect to get expectedErr
 	// if expectedErr is nil, shouldn't get any error
-	logAndExpect := func(msg string, expectedErr error) {
+	logAndExpect := func(msg eventtypes.Action, expectedErr error) {
 		daemon.LogContainerEvent(c, msg)
 
 		timer := time.NewTimer(1 * time.Second)
@@ -90,10 +91,10 @@ func TestHealthStates(t *testing.T) {
 	}
 
 	// events that are ignored by checkHealth
-	logAndExpect("health_status: running", nil)
-	logAndExpect("health_status: healthy", nil)
-	logAndExpect("die", nil)
+	logAndExpect(eventtypes.ActionHealthStatusRunning, nil)
+	logAndExpect(eventtypes.ActionHealthStatusHealthy, nil)
+	logAndExpect(eventtypes.ActionDie, nil)
 
 	// unhealthy event will be caught by checkHealth
-	logAndExpect("health_status: unhealthy", ErrContainerUnhealthy)
+	logAndExpect(eventtypes.ActionHealthStatusUnhealthy, ErrContainerUnhealthy)
 }

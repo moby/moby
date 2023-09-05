@@ -23,6 +23,7 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
@@ -69,7 +70,7 @@ func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) er
 		return err
 	}
 	pm.publisher.Publish(EventDisable{Plugin: p.PluginObj})
-	pm.config.LogPluginEvent(p.GetID(), refOrID, "disable")
+	pm.config.LogPluginEvent(p.GetID(), refOrID, events.ActionDisable)
 	return nil
 }
 
@@ -85,7 +86,7 @@ func (pm *Manager) Enable(refOrID string, config *types.PluginEnableConfig) erro
 		return err
 	}
 	pm.publisher.Publish(EventEnable{Plugin: p.PluginObj})
-	pm.config.LogPluginEvent(p.GetID(), refOrID, "enable")
+	pm.config.LogPluginEvent(p.GetID(), refOrID, events.ActionEnable)
 	return nil
 }
 
@@ -239,7 +240,7 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 	if err := pm.fetch(ctx, ref, authConfig, out, metaHeader, storeFetchMetadata(&md), childrenHandler(pm.blobStore), applyLayer(pm.blobStore, tmpRootFSDir, out)); err != nil {
 		return err
 	}
-	pm.config.LogPluginEvent(reference.FamiliarString(ref), name, "pull")
+	pm.config.LogPluginEvent(reference.FamiliarString(ref), name, events.ActionPull)
 
 	if err := validateFetchedMetadata(md); err != nil {
 		return err
@@ -285,7 +286,7 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 	if err := pm.fetch(ctx, ref, authConfig, out, metaHeader, storeFetchMetadata(&md), childrenHandler(pm.blobStore), applyLayer(pm.blobStore, tmpRootFSDir, out)); err != nil {
 		return err
 	}
-	pm.config.LogPluginEvent(reference.FamiliarString(ref), name, "pull")
+	pm.config.LogPluginEvent(reference.FamiliarString(ref), name, events.ActionPull)
 
 	if err := validateFetchedMetadata(md); err != nil {
 		return err
@@ -599,7 +600,7 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 	}
 
 	pm.config.Store.Remove(p)
-	pm.config.LogPluginEvent(id, name, "remove")
+	pm.config.LogPluginEvent(id, name, events.ActionRemove)
 	pm.publisher.Publish(EventRemove{Plugin: p.PluginObj})
 	return nil
 }
@@ -727,7 +728,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	p.PluginObj.PluginReference = name
 
 	pm.publisher.Publish(EventCreate{Plugin: p.PluginObj})
-	pm.config.LogPluginEvent(p.PluginObj.ID, name, "create")
+	pm.config.LogPluginEvent(p.PluginObj.ID, name, events.ActionCreate)
 
 	return nil
 }

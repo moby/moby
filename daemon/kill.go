@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/log"
+	"github.com/docker/docker/api/types/events"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/sys/signal"
@@ -137,7 +138,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 		}
 	}
 
-	daemon.LogContainerEventWithAttributes(container, "kill", map[string]string{
+	daemon.LogContainerEventWithAttributes(container, events.ActionKill, map[string]string{
 		"signal": strconv.Itoa(int(stopSignal)),
 	})
 	return nil

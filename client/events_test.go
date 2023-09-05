@@ -90,17 +90,17 @@ func TestEvents(t *testing.T) {
 				{
 					Type:   events.BuilderEventType,
 					Actor:  events.Actor{ID: "1"},
-					Action: "create",
+					Action: events.ActionCreate,
 				},
 				{
 					Type:   events.BuilderEventType,
 					Actor:  events.Actor{ID: "1"},
-					Action: "die",
+					Action: events.ActionDie,
 				},
 				{
 					Type:   events.BuilderEventType,
 					Actor:  events.Actor{ID: "1"},
-					Action: "create",
+					Action: events.ActionCreate,
 				},
 			},
 			expectedEvents: map[string]bool{

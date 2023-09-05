@@ -79,7 +79,7 @@ func (e *Events) Evict(l chan interface{}) {
 }
 
 // Log creates a local scope message and publishes it
-func (e *Events) Log(action string, eventType eventtypes.Type, actor eventtypes.Actor) {
+func (e *Events) Log(action eventtypes.Action, eventType eventtypes.Type, actor eventtypes.Actor) {
 	now := time.Now().UTC()
 	jm := eventtypes.Message{
 		Action:   action,
@@ -94,11 +94,11 @@ func (e *Events) Log(action string, eventType eventtypes.Type, actor eventtypes.
 	switch eventType {
 	case eventtypes.ContainerEventType:
 		jm.ID = actor.ID
-		jm.Status = action
+		jm.Status = string(action)
 		jm.From = actor.Attributes["image"]
 	case eventtypes.ImageEventType:
 		jm.ID = actor.ID
-		jm.Status = action
+		jm.Status = string(action)
 	}
 
 	e.PublishMessage(jm)

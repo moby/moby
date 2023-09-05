@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 )
 
@@ -64,6 +65,6 @@ func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configSto
 		return err
 	}
 
-	daemon.LogContainerEvent(container, "restart")
+	daemon.LogContainerEvent(container, events.ActionRestart)
 	return nil
 }

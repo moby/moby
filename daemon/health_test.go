@@ -49,7 +49,7 @@ func TestHealthStates(t *testing.T) {
 	_, l, _ := e.Subscribe()
 	defer e.Evict(l)
 
-	expect := func(expected string) {
+	expect := func(expected eventtypes.Action) {
 		select {
 		case event := <-l:
 			ev := event.(eventtypes.Message)
@@ -97,13 +97,13 @@ func TestHealthStates(t *testing.T) {
 	// starting -> failed -> success -> failed
 
 	handleResult(c.State.StartedAt.Add(1*time.Second), 1)
-	expect("health_status: unhealthy")
+	expect(eventtypes.ActionHealthStatusUnhealthy)
 
 	handleResult(c.State.StartedAt.Add(2*time.Second), 0)
-	expect("health_status: healthy")
+	expect(eventtypes.ActionHealthStatusHealthy)
 
 	handleResult(c.State.StartedAt.Add(3*time.Second), 1)
-	expect("health_status: unhealthy")
+	expect(eventtypes.ActionHealthStatusUnhealthy)
 
 	// Test retries
 
@@ -119,10 +119,10 @@ func TestHealthStates(t *testing.T) {
 		t.Errorf("Expecting FailingStreak=2, but got %d\n", c.State.Health.FailingStreak)
 	}
 	handleResult(c.State.StartedAt.Add(60*time.Second), 1)
-	expect("health_status: unhealthy")
+	expect(eventtypes.ActionHealthStatusUnhealthy)
 
 	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
-	expect("health_status: healthy")
+	expect(eventtypes.ActionHealthStatusHealthy)
 	if c.State.Health.FailingStreak != 0 {
 		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
 	}
@@ -148,7 +148,7 @@ func TestHealthStates(t *testing.T) {
 		t.Errorf("Expecting FailingStreak=1, but got %d\n", c.State.Health.FailingStreak)
 	}
 	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
-	expect("health_status: healthy")
+	expect(eventtypes.ActionHealthStatusHealthy)
 	if c.State.Health.FailingStreak != 0 {
 		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
 	}

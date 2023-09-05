@@ -8,7 +8,7 @@ import (
 )
 
 // LogImageEvent generates an event related to an image with only the default attributes.
-func (i *ImageService) LogImageEvent(imageID, refName, action string) {
+func (i *ImageService) LogImageEvent(imageID, refName string, action events.Action) {
 	ctx := context.TODO()
 	attributes := map[string]string{}
 
@@ -21,12 +21,10 @@ func (i *ImageService) LogImageEvent(imageID, refName, action string) {
 	if refName != "" {
 		attributes["name"] = refName
 	}
-	actor := events.Actor{
+	i.eventsService.Log(action, events.ImageEventType, events.Actor{
 		ID:         imageID,
 		Attributes: attributes,
-	}
-
-	i.eventsService.Log(action, events.ImageEventType, actor)
+	})
 }
 
 // copyAttributes guarantees that labels are not mutated by event triggers.

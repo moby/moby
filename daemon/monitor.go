@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
@@ -110,7 +111,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	daemon.setStateCounter(c)
 	checkpointErr := c.CheckpointTo(daemon.containersReplica)
 
-	daemon.LogContainerEventWithAttributes(c, "die", attributes)
+	daemon.LogContainerEventWithAttributes(c, events.ActionDie, attributes)
 
 	if restart {
 		go func() {
@@ -168,7 +169,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			return err
 		}
 
-		daemon.LogContainerEvent(c, "oom")
+		daemon.LogContainerEvent(c, events.ActionOOM)
 	case libcontainerdtypes.EventExit:
 		if ei.ProcessID == ei.ContainerID {
 			return daemon.handleContainerExit(c, &ei)
@@ -219,11 +220,10 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 				}()
 			}
 		}
-		attributes := map[string]string{
+		daemon.LogContainerEventWithAttributes(c, events.ActionExecDie, map[string]string{
 			"execID":   ei.ProcessID,
 			"exitCode": strconv.Itoa(exitCode),
-		}
-		daemon.LogContainerEventWithAttributes(c, "exec_die", attributes)
+		})
 	case libcontainerdtypes.EventStart:
 		c.Lock()
 		defer c.Unlock()
@@ -264,7 +264,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 				return err
 			}
-			daemon.LogContainerEvent(c, "start")
+			daemon.LogContainerEvent(c, events.ActionStart)
 		}
 
 	case libcontainerdtypes.EventPaused:
@@ -278,7 +278,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 				return err
 			}
-			daemon.LogContainerEvent(c, "pause")
+			daemon.LogContainerEvent(c, events.ActionPause)
 		}
 	case libcontainerdtypes.EventResumed:
 		c.Lock()
@@ -292,7 +292,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 				return err
 			}
-			daemon.LogContainerEvent(c, "unpause")
+			daemon.LogContainerEvent(c, events.ActionUnPause)
 		}
 	}
 	return nil

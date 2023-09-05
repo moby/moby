@@ -147,7 +147,7 @@ deleteImagesLoop:
 	if canceled {
 		log.G(ctx).Debugf("ImagesPrune operation cancelled: %#v", *rep)
 	}
-	i.eventsService.Log("prune", events.ImageEventType, events.Actor{
+	i.eventsService.Log(events.ActionPrune, events.ImageEventType, events.Actor{
 		Attributes: map[string]string{
 			"reclaimed": strconv.FormatUint(rep.SpaceReclaimed, 10),
 		},

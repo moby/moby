@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
@@ -235,7 +236,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 		return nil, err
 	}
 	stateCtr.set(ctr.ID, "stopped")
-	daemon.LogContainerEvent(ctr, "create")
+	daemon.LogContainerEvent(ctr, events.ActionCreate)
 	return ctr, nil
 }
 

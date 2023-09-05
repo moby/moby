@@ -7,6 +7,7 @@ import (
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/pkg/errors"
@@ -39,7 +40,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 		// Check if image we would replace already resolves to the same target.
 		// No need to do anything.
 		if replacedImg.Target.Digest == target.Digest {
-			i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), "tag")
+			i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
 			return nil
 		}
 
@@ -60,7 +61,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 	})
 	logger.Info("image created")
 
-	defer i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), "tag")
+	defer i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
 
 	// The tag succeeded, check if the source image is dangling
 	sourceDanglingImg, err := is.Get(context.Background(), danglingImageName(target.Digest))

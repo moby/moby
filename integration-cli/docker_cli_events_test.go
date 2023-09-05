@@ -736,7 +736,7 @@ func (s *DockerCLIEventSuite) TestEventsFormat(c *testing.T) {
 			break
 		}
 		assert.NilError(c, err)
-		if ev.Action == "start" {
+		if ev.Action == eventtypes.ActionStart {
 			startCount++
 		}
 	}

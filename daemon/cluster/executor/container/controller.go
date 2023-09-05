@@ -254,7 +254,7 @@ func (r *controller) Start(ctx context.Context) error {
 			}
 
 			switch event.Action {
-			case "die": // exit on terminal events
+			case events.ActionDie: // exit on terminal events
 				ctnr, err := r.adapter.inspect(ctx)
 				if err != nil {
 					return errors.Wrap(err, "die event received")
@@ -263,18 +263,18 @@ func (r *controller) Start(ctx context.Context) error {
 				}
 
 				return nil
-			case "destroy":
+			case events.ActionDestroy:
 				// If we get here, something has gone wrong but we want to exit
 				// and report anyways.
 				return ErrContainerDestroyed
-			case "health_status: unhealthy":
+			case events.ActionHealthStatusUnhealthy:
 				// in this case, we stop the container and report unhealthy status
 				if err := r.Shutdown(ctx); err != nil {
 					return errors.Wrap(err, "unhealthy container shutdown failed")
 				}
 				// set health check error, and wait for container to fully exit ("die" event)
 				healthErr = ErrContainerUnhealthy
-			case "health_status: healthy":
+			case events.ActionHealthStatusHealthy:
 				if err := r.adapter.activateServiceBinding(); err != nil {
 					log.G(ctx).WithError(err).Errorf("failed to activate service binding for container %s after healthy event", r.adapter.container.name())
 					return err
@@ -716,7 +716,7 @@ func (r *controller) checkHealth(ctx context.Context) error {
 			}
 
 			switch event.Action {
-			case "health_status: unhealthy":
+			case events.ActionHealthStatusUnhealthy:
 				return ErrContainerUnhealthy
 			}
 		}

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/api/types/checkpoint"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/names"
 )
 
@@ -79,7 +80,7 @@ func (daemon *Daemon) CheckpointCreate(name string, config checkpoint.CreateOpti
 		return fmt.Errorf("Cannot checkpoint container %s: %s", name, err)
 	}
 
-	daemon.LogContainerEvent(container, "checkpoint")
+	daemon.LogContainerEvent(container, events.ActionCheckpoint)
 
 	return nil
 }

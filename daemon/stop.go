@@ -6,6 +6,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/sys/signal"
@@ -73,7 +74,7 @@ func (daemon *Daemon) containerStop(_ context.Context, ctr *container.Container,
 	}
 	defer func() {
 		if retErr == nil {
-			daemon.LogContainerEvent(ctr, "stop")
+			daemon.LogContainerEvent(ctr, events.ActionStop)
 		}
 	}()
 

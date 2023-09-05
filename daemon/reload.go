@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/containerd/containerd/log"
+	"github.com/docker/docker/api/types/events"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/copystructure"
 
@@ -127,7 +128,7 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 	})
 	log.G(context.TODO()).Infof("Reloaded configuration: %s", jsonString)
 	daemon.configStore.Store(newCfg)
-	daemon.LogDaemonEventWithAttributes("reload", attributes)
+	daemon.LogDaemonEventWithAttributes(events.ActionReload, attributes)
 	return txn.Commit()
 }
 

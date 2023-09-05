@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
@@ -76,7 +77,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		if err != nil {
 			return nil, err
 		}
-		i.LogImageEvent(imgID.String(), imgID.String(), "untag")
+		i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
 		records := []types.ImageDeleteResponseItem{{Untagged: reference.FamiliarString(reference.TagNameOnly(parsedRef))}}
 		return records, nil
 	}
@@ -107,7 +108,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 			return nil, err
 		}
 
-		i.LogImageEvent(imgID.String(), imgID.String(), "untag")
+		i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
 		records := []types.ImageDeleteResponseItem{{Untagged: reference.FamiliarString(reference.TagNameOnly(parsedRef))}}
 		return records, nil
 	}
@@ -159,7 +160,7 @@ func (i *ImageService) deleteAll(ctx context.Context, img images.Image, force, p
 			return records, err
 		}
 	}
-	i.LogImageEvent(imgID, imgID, "delete")
+	i.LogImageEvent(imgID, imgID, events.ActionDelete)
 	records = append(records, types.ImageDeleteResponseItem{Deleted: imgID})
 
 	for _, parent := range parents {
@@ -172,7 +173,7 @@ func (i *ImageService) deleteAll(ctx context.Context, img images.Image, force, p
 			break
 		}
 		parentID := parent.img.Target.Digest.String()
-		i.LogImageEvent(parentID, parentID, "delete")
+		i.LogImageEvent(parentID, parentID, events.ActionDelete)
 		records = append(records, types.ImageDeleteResponseItem{Deleted: parentID})
 	}
 
@@ -259,7 +260,7 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img images.Image, 
 		return err
 	}
 
-	i.LogImageEvent(imgID.String(), imgID.String(), "untag")
+	i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
 	*records = append(*records, types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(untaggedRef)})
 
 	return nil

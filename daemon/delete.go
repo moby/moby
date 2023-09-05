@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
@@ -182,6 +183,6 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	container.SetRemoved()
 	stateCtr.del(container.ID)
 
-	daemon.LogContainerEvent(container, "destroy")
+	daemon.LogContainerEvent(container, events.ActionDestroy)
 	return nil
 }
