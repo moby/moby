@@ -1,7 +1,7 @@
 package events // import "github.com/docker/docker/daemon/events"
 
 import (
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 )

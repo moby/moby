@@ -3,7 +3,7 @@ package overrides
 import (
 	"errors"
 
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 )
 
 // SanitizeRepoAndTags parses the raw names to a slice of repoAndTag.

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/log"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 )
 
