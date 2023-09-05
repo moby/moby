@@ -11,6 +11,7 @@ import (
 	"github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/platforms"
 	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -88,5 +89,8 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 		// error to not mark the pull as failed.
 		logger.WithError(err).Warn("unexpected error while removing outdated dangling image reference")
 	}
+
+	i.LogImageEvent(reference.FamiliarString(ref), reference.FamiliarName(ref), events.ActionPull)
+
 	return nil
 }
