@@ -870,7 +870,8 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	// to which container was connected to on docker run.
 	// Ideally all these network-specific endpoint configurations must be moved under
 	// container.NetworkSettings.Networks[n.Name()]
-	if nwName == c.HostConfig.NetworkMode.NetworkName() || (nwName == defaultNetName && c.HostConfig.NetworkMode.IsDefault()) {
+	netMode := c.HostConfig.NetworkMode
+	if nwName == netMode.NetworkName() || n.ID() == netMode.NetworkName() || (nwName == defaultNetName && netMode.IsDefault()) {
 		if c.Config.MacAddress != "" {
 			mac, err := net.ParseMAC(c.Config.MacAddress)
 			if err != nil {

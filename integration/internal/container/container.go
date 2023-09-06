@@ -154,3 +154,19 @@ func demultiplexStreams(ctx context.Context, resp types.HijackedResponse) (strea
 	wg.Wait()
 	return s, err
 }
+
+func Remove(ctx context.Context, t *testing.T, apiClient client.APIClient, container string, options types.ContainerRemoveOptions) {
+	t.Helper()
+
+	err := apiClient.ContainerRemove(ctx, container, options)
+	assert.NilError(t, err)
+}
+
+func Inspect(ctx context.Context, t *testing.T, apiClient client.APIClient, containerRef string) types.ContainerJSON {
+	t.Helper()
+
+	c, err := apiClient.ContainerInspect(ctx, containerRef)
+	assert.NilError(t, err)
+
+	return c
+}

@@ -280,3 +280,15 @@ func WithPIDMode(mode container.PidMode) func(c *TestContainerConfig) {
 		c.HostConfig.PidMode = mode
 	}
 }
+
+func WithStopSignal(stopSignal string) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.Config.StopSignal = stopSignal
+	}
+}
+
+func WithMacAddress(address string) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.Config.MacAddress = address
+	}
+}
