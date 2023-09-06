@@ -11,15 +11,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"syscall"
 
 	"github.com/opencontainers/runc/libcontainer/user"
-)
-
-var (
-	entOnce   sync.Once
-	getentCmd string
 )
 
 func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting bool) error {
@@ -162,10 +156,10 @@ func getentGroup(name string) (user.Group, error) {
 }
 
 func callGetent(database, key string) (io.Reader, error) {
-	entOnce.Do(func() { getentCmd, _ = resolveBinary("getent") })
-	// if no `getent` command on host, can't do anything else
-	if getentCmd == "" {
-		return nil, fmt.Errorf("unable to find getent command")
+	getentCmd, err := resolveBinary("getent")
+	// if no `getent` command within the execution environment, can't do anything else
+	if err != nil {
+		return nil, fmt.Errorf("unable to find getent command: %w", err)
 	}
 	command := exec.Command(getentCmd, database, key)
 	// we run getent within container filesystem, but without /dev so /dev/null is not available for exec to mock stdin
