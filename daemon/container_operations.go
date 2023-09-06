@@ -744,6 +744,12 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		return nil
 	}
 
+	if idOrName != container.HostConfig.NetworkMode.NetworkName() {
+		if err := daemon.normalizeNetMode(container); err != nil {
+			return err
+		}
+	}
+
 	var operIPAM bool
 	if config != nil {
 		if epConfig, ok := config.EndpointsConfig[n.Name()]; ok {
@@ -944,6 +950,25 @@ func (daemon *Daemon) tryDetachContainerFromClusterNetwork(network libnetwork.Ne
 		"container": container.ID,
 	}
 	daemon.LogNetworkEventWithAttributes(network, "disconnect", attributes)
+}
+
+// normalizeNetMode checks whether the network mode references a network by a partial ID. In that case, it replaces the
+// partial ID with the full network ID.
+// TODO(aker): transform ID into name when the referenced network is one of the predefined.
+func (daemon *Daemon) normalizeNetMode(container *container.Container) error {
+	if container.HostConfig.NetworkMode.IsUserDefined() {
+		netMode := container.HostConfig.NetworkMode.NetworkName()
+		nw, err := daemon.FindNetwork(netMode)
+		if err != nil {
+			return fmt.Errorf("could not find a network matching network mode %s: %w", netMode, err)
+		}
+
+		if netMode != nw.ID() && netMode != nw.Name() {
+			container.HostConfig.NetworkMode = containertypes.NetworkMode(nw.ID())
+		}
+	}
+
+	return nil
 }
 
 func (daemon *Daemon) initializeNetworking(container *container.Container) error {

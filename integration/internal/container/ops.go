@@ -255,3 +255,15 @@ func WithSecurityOpt(opt string) func(*TestContainerConfig) {
 		c.HostConfig.SecurityOpt = append(c.HostConfig.SecurityOpt, opt)
 	}
 }
+
+func WithStopSignal(stopSignal string) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.Config.StopSignal = stopSignal
+	}
+}
+
+func WithMacAddress(address string) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.Config.MacAddress = address
+	}
+}

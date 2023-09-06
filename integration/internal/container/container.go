@@ -71,3 +71,19 @@ func Run(ctx context.Context, t *testing.T, client client.APIClient, ops ...func
 
 	return id
 }
+
+func Remove(ctx context.Context, t *testing.T, apiClient client.APIClient, container string, options types.ContainerRemoveOptions) {
+	t.Helper()
+
+	err := apiClient.ContainerRemove(ctx, container, options)
+	assert.NilError(t, err)
+}
+
+func Inspect(ctx context.Context, t *testing.T, apiClient client.APIClient, containerRef string) types.ContainerJSON {
+	t.Helper()
+
+	c, err := apiClient.ContainerInspect(ctx, containerRef)
+	assert.NilError(t, err)
+
+	return c
+}
