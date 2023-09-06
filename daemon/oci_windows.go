@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
@@ -33,8 +34,8 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 	if err != nil {
 		return nil, err
 	}
-	if !system.IsOSSupported(img.OperatingSystem()) {
-		return nil, system.ErrNotSupportedOperatingSystem
+	if err := image.CheckOS(img.OperatingSystem()); err != nil {
+		return nil, err
 	}
 
 	s := oci.DefaultSpec()

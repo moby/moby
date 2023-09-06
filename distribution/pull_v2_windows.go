@@ -18,7 +18,7 @@ import (
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -86,7 +86,7 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p ocispec.Plat
 			// Explicit user request for an OS
 			os = p.OS
 		}
-		if !system.IsOSSupported(os) {
+		if err := image.CheckOS(os); err != nil {
 			skip()
 			continue
 		}
