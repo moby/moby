@@ -113,6 +113,8 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 				"target": target,
 			}).Debug("export image without name")
 		}
+
+		i.LogImageEvent(target.Digest.String(), target.Digest.String(), events.ActionSave)
 	}
 
 	return i.client.Export(ctx, outStream, opts...)
