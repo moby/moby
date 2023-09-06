@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/containerd/containerd/log"
 	coci "github.com/containerd/containerd/oci"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -212,7 +210,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 		return nil, err
 	}
 
-	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+	if log.G(ctx).Level >= log.DebugLevel {
 		if b, err := json.Marshal(&s); err == nil {
 			log.G(ctx).Debugf("Generated spec: %s", string(b))
 		}
