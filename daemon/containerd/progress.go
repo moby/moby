@@ -104,12 +104,13 @@ func (j *jobs) Jobs() []ocispec.Descriptor {
 }
 
 type pullProgress struct {
-	Store      content.Store
-	ShowExists bool
+	store      content.Store
+	showExists bool
+	hideLayers bool
 }
 
 func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out progress.Output, start time.Time) error {
-	actives, err := p.Store.ListStatuses(ctx, "")
+	actives, err := p.store.ListStatuses(ctx, "")
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return err
@@ -125,6 +126,10 @@ func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pro
 	}
 
 	for _, j := range ongoing.Jobs() {
+		if p.hideLayers {
+			ongoing.Remove(j)
+			continue
+		}
 		key := remotes.MakeRefKey(ctx, j)
 		if info, ok := pulling[key]; ok {
 			out.WriteProgress(progress.Progress{
@@ -136,7 +141,7 @@ func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pro
 			continue
 		}
 
-		info, err := p.Store.Info(ctx, j.Digest)
+		info, err := p.store.Info(ctx, j.Digest)
 		if err != nil {
 			if !cerrdefs.IsNotFound(err) {
 				return err
@@ -149,7 +154,7 @@ func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pro
 				LastUpdate: true,
 			})
 			ongoing.Remove(j)
-		} else if p.ShowExists {
+		} else if p.showExists {
 			out.WriteProgress(progress.Progress{
 				ID:         stringid.TruncateID(j.Digest.Encoded()),
 				Action:     "Already exists",
