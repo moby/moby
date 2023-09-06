@@ -73,20 +73,33 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p ocispec.Plat
 	var matches []manifestlist.ManifestDescriptor
 	foundWindowsMatch := false
 	for _, manifestDescriptor := range manifests {
-		if (manifestDescriptor.Platform.Architecture == runtime.GOARCH) &&
-			((p.OS != "" && manifestDescriptor.Platform.OS == p.OS) || // Explicit user request for an OS we know we support
-				(p.OS == "" && system.IsOSSupported(manifestDescriptor.Platform.OS))) { // No user requested OS, but one we can support
-			if strings.EqualFold("windows", manifestDescriptor.Platform.OS) {
-				if err := checkImageCompatibility("windows", manifestDescriptor.Platform.OSVersion); err != nil {
-					continue
-				}
-				foundWindowsMatch = true
-			}
-			matches = append(matches, manifestDescriptor)
-			log.G(context.TODO()).Debugf("found match %s/%s %s with media type %s, digest %s", manifestDescriptor.Platform.OS, runtime.GOARCH, manifestDescriptor.Platform.OSVersion, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
-		} else {
+		skip := func() {
 			log.G(context.TODO()).Debugf("ignoring %s/%s %s with media type %s, digest %s", manifestDescriptor.Platform.OS, manifestDescriptor.Platform.Architecture, manifestDescriptor.Platform.OSVersion, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
 		}
+		// TODO(thaJeztah): should we also check for the user-provided architecture (if any)?
+		if manifestDescriptor.Platform.Architecture != runtime.GOARCH {
+			skip()
+			continue
+		}
+		os := manifestDescriptor.Platform.OS
+		if p.OS != "" {
+			// Explicit user request for an OS
+			os = p.OS
+		}
+		if !system.IsOSSupported(os) {
+			skip()
+			continue
+		}
+		// TODO(thaJeztah): should we also take the user-provided platform into account (if any)?
+		if strings.EqualFold("windows", manifestDescriptor.Platform.OS) {
+			if err := checkImageCompatibility("windows", manifestDescriptor.Platform.OSVersion); err != nil {
+				skip()
+				continue
+			}
+			foundWindowsMatch = true
+		}
+		matches = append(matches, manifestDescriptor)
+		log.G(context.TODO()).Debugf("found match %s/%s %s with media type %s, digest %s", manifestDescriptor.Platform.OS, runtime.GOARCH, manifestDescriptor.Platform.OSVersion, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
 	}
 	if foundWindowsMatch {
 		sort.Stable(manifestsByVersion{osVersion, matches})
