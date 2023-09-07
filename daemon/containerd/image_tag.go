@@ -73,6 +73,17 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 		return nil
 	}
 
+	builderLabel, ok := sourceDanglingImg.Labels[imageLabelClassicBuilderParent]
+	if ok {
+		newImg.Labels = map[string]string{
+			imageLabelClassicBuilderParent: builderLabel,
+		}
+
+		if _, err := is.Update(context.Background(), newImg, "labels"); err != nil {
+			logger.WithError(err).Warnf("failed to set %s label on the newly tagged image", imageLabelClassicBuilderParent)
+		}
+	}
+
 	// Delete the source dangling image, as it's no longer dangling.
 	if err := is.Delete(context.Background(), sourceDanglingImg.Name); err != nil {
 		logger.WithError(err).Warn("unexpected error when deleting dangling image")

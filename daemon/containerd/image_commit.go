@@ -106,6 +106,9 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 		Name:      danglingImageName(commitManifestDesc.Digest),
 		Target:    commitManifestDesc,
 		CreatedAt: time.Now(),
+		Labels: map[string]string{
+			imageLabelClassicBuilderParent: cc.ParentImageID,
+		},
 	}
 
 	if _, err := i.client.ImageService().Update(ctx, img); err != nil {
