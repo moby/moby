@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	req "github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -49,13 +50,11 @@ func TestResizeWhenContainerNotStarted(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, apiClient, container.WithCmd("echo"))
-
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithDelay(100*time.Millisecond))
-
+	cID := container.Create(ctx, t, apiClient, container.WithCmd("echo"))
 	err := apiClient.ContainerResize(ctx, cID, types.ResizeOptions{
 		Height: 40,
 		Width:  40,
 	})
+	assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
 	assert.Check(t, is.ErrorContains(err, "is not running"))
 }
