@@ -3,7 +3,6 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
@@ -12,7 +11,6 @@ import (
 	req "github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -21,9 +19,6 @@ func TestResize(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient, container.WithTty(true))
-
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
-
 	err := apiClient.ContainerResize(ctx, cID, types.ResizeOptions{
 		Height: 40,
 		Width:  40,
@@ -38,10 +33,9 @@ func TestResizeWithInvalidSize(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient)
 
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
-
-	endpoint := "/containers/" + cID + "/resize?h=foo&w=bar"
-	res, _, err := req.Post(ctx, endpoint)
+	// Manually creating a request here, as the APIClient would invalidate
+	// these values before they're sent.
+	res, _, err := req.Post(ctx, "/containers/"+cID+"/resize?h=foo&w=bar")
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(http.StatusBadRequest, res.StatusCode))
 }
