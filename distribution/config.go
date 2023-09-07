@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/system"
 	refstore "github.com/docker/docker/reference"
 	registrypkg "github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
@@ -152,8 +151,8 @@ func platformFromConfig(c []byte) (*ocispec.Platform, error) {
 	if os == "" {
 		os = runtime.GOOS
 	}
-	if !system.IsOSSupported(os) {
-		return nil, errors.Wrapf(system.ErrNotSupportedOperatingSystem, "image operating system %q cannot be used on this platform", os)
+	if err := image.CheckOS(os); err != nil {
+		return nil, errors.Wrapf(err, "image operating system %q cannot be used on this platform", os)
 	}
 	return &ocispec.Platform{
 		OS:           os,

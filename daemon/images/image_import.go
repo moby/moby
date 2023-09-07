@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/system"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -32,8 +31,8 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 		def := platforms.DefaultSpec()
 		platform = &def
 	}
-	if !system.IsOSSupported(platform.OS) {
-		return "", errdefs.InvalidParameter(system.ErrNotSupportedOperatingSystem)
+	if err := image.CheckOS(platform.OS); err != nil {
+		return "", err
 	}
 
 	config, err := dockerfile.BuildFromConfig(ctx, &container.Config{}, changes, platform.OS)

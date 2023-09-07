@@ -31,7 +31,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -49,8 +48,8 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 		if opts.Platform != nil {
 			imgOS = opts.Platform.OS
 		}
-		if !system.IsOSSupported(imgOS) {
-			return nil, nil, system.ErrNotSupportedOperatingSystem
+		if err := dimage.CheckOS(imgOS); err != nil {
+			return nil, nil, err
 		}
 		return nil, &rolayer{
 			key:         "",
@@ -72,8 +71,8 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 			return nil, nil, err
 		}
 		if img != nil {
-			if !system.IsOSSupported(img.OperatingSystem()) {
-				return nil, nil, system.ErrNotSupportedOperatingSystem
+			if err := dimage.CheckOS(img.OperatingSystem()); err != nil {
+				return nil, nil, err
 			}
 
 			roLayer, err := newROLayerForImage(ctx, &imgDesc, i, opts.Platform)
@@ -161,8 +160,8 @@ Please notify the image author to correct the configuration.`,
 		}
 	}
 
-	if !system.IsOSSupported(img.OperatingSystem()) {
-		return nil, system.ErrNotSupportedOperatingSystem
+	if err := dimage.CheckOS(img.OperatingSystem()); err != nil {
+		return nil, err
 	}
 
 	imgDesc, err := i.resolveDescriptor(ctx, name)

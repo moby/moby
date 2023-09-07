@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -331,8 +330,8 @@ func dispatchWorkdir(ctx context.Context, d dispatchRequest, c *instructions.Wor
 // RUN echo hi          # cmd /S /C echo hi   (Windows)
 // RUN [ "echo", "hi" ] # echo hi
 func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunCommand) error {
-	if !system.IsOSSupported(d.state.operatingSystem) {
-		return system.ErrNotSupportedOperatingSystem
+	if err := image.CheckOS(d.state.operatingSystem); err != nil {
+		return err
 	}
 
 	if len(c.FlagsUsed) > 0 {
