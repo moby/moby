@@ -9,9 +9,12 @@ import (
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/datastore"
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
+	"github.com/docker/docker/testutil"
 )
 
 func TestBoltdbBackend(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer os.Remove(datastore.DefaultScope("").Client.Address)
 	testLocalBackend(t, "", "", nil)
 	tmpPath := filepath.Join(t.TempDir(), "boltdb.db")
@@ -21,6 +24,8 @@ func TestBoltdbBackend(t *testing.T) {
 }
 
 func TestNoPersist(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	dbFile := filepath.Join(t.TempDir(), "bolt.db")
 	configOption := func(c *config.Config) {
 		c.Scope.Client.Provider = "boltdb"

@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/skip"
 )
 
@@ -310,6 +311,8 @@ func compareNwLists(a, b []*net.IPNet) bool {
 }
 
 func TestAuxAddresses(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	c, err := New()
@@ -347,6 +350,8 @@ func TestAuxAddresses(t *testing.T) {
 }
 
 func TestSRVServiceQuery(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
 	defer netnsutils.SetupTestOSContext(t)()
@@ -444,6 +449,8 @@ func TestSRVServiceQuery(t *testing.T) {
 }
 
 func TestServiceVIPReuse(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
 	defer netnsutils.SetupTestOSContext(t)()
@@ -561,6 +568,8 @@ func TestServiceVIPReuse(t *testing.T) {
 }
 
 func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
 	defer netnsutils.SetupTestOSContext(t)()

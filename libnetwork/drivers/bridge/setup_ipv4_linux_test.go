@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/testutil"
 	"github.com/vishvananda/netlink"
 )
 
@@ -21,6 +22,8 @@ func setupTestInterface(t *testing.T, nh *netlink.Handle) (*networkConfiguration
 }
 
 func TestSetupBridgeIPv4Fixed(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	ip, netw, err := net.ParseCIDR("192.168.1.1/24")
@@ -59,6 +62,8 @@ func TestSetupBridgeIPv4Fixed(t *testing.T) {
 }
 
 func TestSetupGatewayIPv4(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()

@@ -18,6 +18,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
 )
 
 // DevZero acts like /dev/zero but in an OS-independent fashion.
@@ -156,4 +157,15 @@ func SetContext(t TestingT, ctx context.Context) {
 
 func CleanupContext(t *testing.T) {
 	testContexts.Delete(t)
+}
+
+// SkipWhenUnprivileged skips test when run by an unprivileged user, such as a distro package build.
+func SkipWhenUnprivileged(t *testing.T, reason ...string) {
+	r := "requires root"
+
+	if len(reason) > 0 {
+		r = reason[0]
+	}
+
+	skip.If(t, os.Getuid() != 0, r)
 }

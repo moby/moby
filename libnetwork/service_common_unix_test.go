@@ -7,10 +7,13 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 )
 
 func TestCleanupServiceDiscovery(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	c, err := New()
 	assert.NilError(t, err)

@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -20,6 +21,8 @@ const (
 )
 
 func TestUserChain(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	iptable4 := iptables.GetIptable(iptables.IPv4)
 	iptable6 := iptables.GetIptable(iptables.IPv6)
 

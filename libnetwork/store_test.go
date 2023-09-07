@@ -10,6 +10,7 @@ import (
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/testutil"
 )
 
 func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Config) {
@@ -83,6 +84,8 @@ func OptionBoltdbWithRandomDBFile(t *testing.T) config.Option {
 }
 
 func TestMultipleControllersWithSameStore(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	cfgOptions := OptionBoltdbWithRandomDBFile(t)
 	ctrl1, err := New(cfgOptions)
 	if err != nil {

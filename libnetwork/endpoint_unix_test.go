@@ -9,9 +9,12 @@ import (
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/osl"
+	"github.com/docker/docker/testutil"
 )
 
 func TestHostsEntries(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	expectedHostsFile := `127.0.0.1	localhost

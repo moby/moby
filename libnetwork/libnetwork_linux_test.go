@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/testutil"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
@@ -88,6 +89,8 @@ func isNotFound(err error) bool {
 }
 
 func TestNull(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -138,6 +141,8 @@ func TestNull(t *testing.T) {
 }
 
 func TestUnknownDriver(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -152,6 +157,8 @@ func TestUnknownDriver(t *testing.T) {
 }
 
 func TestNilRemoteDriver(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -167,6 +174,8 @@ func TestNilRemoteDriver(t *testing.T) {
 }
 
 func TestNetworkName(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -202,6 +211,8 @@ func TestNetworkName(t *testing.T) {
 }
 
 func TestNetworkType(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -227,6 +238,8 @@ func TestNetworkType(t *testing.T) {
 }
 
 func TestNetworkID(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -252,6 +265,8 @@ func TestNetworkID(t *testing.T) {
 }
 
 func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -292,6 +307,8 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 }
 
 func TestNetworkConfig(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -393,6 +410,8 @@ func TestNetworkConfig(t *testing.T) {
 }
 
 func TestUnknownNetwork(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -424,6 +443,8 @@ func TestUnknownNetwork(t *testing.T) {
 }
 
 func TestUnknownEndpoint(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -465,6 +486,8 @@ func TestUnknownEndpoint(t *testing.T) {
 }
 
 func TestNetworkEndpointsWalkers(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -594,6 +617,8 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 }
 
 func TestDuplicateEndpoint(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -642,6 +667,8 @@ func TestDuplicateEndpoint(t *testing.T) {
 }
 
 func TestControllerQuery(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -829,6 +856,8 @@ func TestNetworkQuery(t *testing.T) {
 const containerID = "valid_c"
 
 func TestEndpointDeleteWithActiveContainer(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -903,6 +932,8 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 }
 
 func TestEndpointMultipleJoins(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -976,6 +1007,8 @@ func TestEndpointMultipleJoins(t *testing.T) {
 }
 
 func TestLeaveAll(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -1040,6 +1073,8 @@ func TestLeaveAll(t *testing.T) {
 }
 
 func TestContainerInvalidLeave(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -1105,6 +1140,8 @@ func TestContainerInvalidLeave(t *testing.T) {
 }
 
 func TestEndpointUpdateParent(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -1171,6 +1208,8 @@ func TestEndpointUpdateParent(t *testing.T) {
 }
 
 func TestInvalidRemoteDriver(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	if server == nil {
@@ -1214,6 +1253,8 @@ func TestInvalidRemoteDriver(t *testing.T) {
 }
 
 func TestValidRemoteDriver(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	if server == nil {
@@ -1278,6 +1319,8 @@ func makeTesthostNetwork(t *testing.T, c *libnetwork.Controller) *libnetwork.Net
 }
 
 func TestHost(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -1379,6 +1422,8 @@ func TestHost(t *testing.T) {
 
 // Testing IPV6 from MAC address
 func TestBridgeIpv6FromMac(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -1454,6 +1499,8 @@ func checkSandbox(t *testing.T, info libnetwork.EndpointInfo) {
 }
 
 func TestEndpointJoin(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -1625,6 +1672,8 @@ func TestEndpointJoin(t *testing.T) {
 }
 
 func TestExternalKey(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	externalKeyTest(t, false)
 }
 
@@ -1790,6 +1839,8 @@ func reexecSetKey(key string, containerID string, controllerID string) error {
 }
 
 func TestEnableIPv6(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -1867,6 +1918,8 @@ func TestEnableIPv6(t *testing.T) {
 }
 
 func TestResolvConfHost(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -1942,6 +1995,8 @@ func TestResolvConfHost(t *testing.T) {
 }
 
 func TestResolvConf(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -2135,6 +2190,8 @@ func (pt parallelTester) Do(t *testing.T, thrNumber int) error {
 }
 
 func TestParallel(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	const (
 		first      = 1
 		last       = 3
@@ -2204,6 +2261,8 @@ func TestParallel(t *testing.T) {
 }
 
 func TestBridge(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -2292,6 +2351,8 @@ func isV6Listenable() bool {
 }
 
 func TestNullIpam(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 

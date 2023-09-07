@@ -4,10 +4,13 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/testutil"
 	"github.com/vishvananda/netlink"
 )
 
 func TestInterfaceDefaultName(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
@@ -26,6 +29,8 @@ func TestInterfaceDefaultName(t *testing.T) {
 }
 
 func TestAddressesEmptyInterface(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()

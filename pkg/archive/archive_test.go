@@ -20,6 +20,7 @@ import (
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -1244,6 +1245,7 @@ func TestXGlobalNoParent(t *testing.T) {
 // header entries are created recursively with the default mode (permissions) stored in ImpliedDirectoryMode. This test
 // also verifies that the permissions of explicit directories are respected.
 func TestImpliedDirectoryPermissions(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
 	skip.If(t, runtime.GOOS == "windows", "skipping test that requires Unix permissions")
 
 	buf := &bytes.Buffer{}

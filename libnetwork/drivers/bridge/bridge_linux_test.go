@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/testutil"
 	"github.com/vishvananda/netlink"
 )
 
@@ -217,6 +218,8 @@ func getIPv4Data(t *testing.T) []driverapi.IPAMData {
 }
 
 func TestCreateFullOptions(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
@@ -271,6 +274,8 @@ func TestCreateFullOptions(t *testing.T) {
 }
 
 func TestCreateNoConfig(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
@@ -284,6 +289,8 @@ func TestCreateNoConfig(t *testing.T) {
 }
 
 func TestCreateFullOptionsLabels(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
@@ -390,6 +397,8 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	d := newDriver()
@@ -416,6 +425,8 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreateFail(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	d := newDriver()
@@ -434,6 +445,8 @@ func TestCreateFail(t *testing.T) {
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	d := newDriver()
@@ -638,6 +651,8 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 }
 
 func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 	d.portAllocator = portallocator.NewInstance()
@@ -740,6 +755,8 @@ func getPortMapping() []types.PortBinding {
 }
 
 func TestLinkContainers(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	d := newDriver()
@@ -894,6 +911,8 @@ func TestLinkContainers(t *testing.T) {
 }
 
 func TestValidateConfig(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	// Test mtu
@@ -965,6 +984,8 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func TestSetDefaultGw(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	d := newDriver()
@@ -1017,6 +1038,8 @@ func TestSetDefaultGw(t *testing.T) {
 }
 
 func TestCleanupIptableRules(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	bridgeChain := []iptables.ChainInfo{
 		{Name: DockerChain, Table: iptables.Nat},
@@ -1047,6 +1070,8 @@ func TestCleanupIptableRules(t *testing.T) {
 }
 
 func TestCreateWithExistingBridge(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
@@ -1117,6 +1142,8 @@ func TestCreateWithExistingBridge(t *testing.T) {
 }
 
 func TestCreateParallel(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	c := netnsutils.SetupTestOSContextEx(t)
 	defer c.Cleanup(t)
 

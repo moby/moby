@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/testutil"
 )
 
 func init() {
@@ -195,6 +196,8 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 }
 
 func TestMapTCPDummyListen(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	pm := New()
 	dstIP := net.ParseIP("0.0.0.0")
 	dstAddr := &net.TCPAddr{IP: dstIP, Port: 80}
@@ -232,6 +235,8 @@ func TestMapTCPDummyListen(t *testing.T) {
 }
 
 func TestMapUDPDummyListen(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	pm := New()
 	dstIP := net.ParseIP("0.0.0.0")
 	dstAddr := &net.UDPAddr{IP: dstIP, Port: 80}

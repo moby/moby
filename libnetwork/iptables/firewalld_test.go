@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/docker/docker/testutil"
 	"github.com/godbus/dbus/v5"
 )
 
@@ -33,6 +34,8 @@ func TestFirewalldInit(t *testing.T) {
 }
 
 func TestReloaded(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	iptable := GetIptable(IPv4)
 	fwdChain, err := iptable.NewChain("FWD", Filter, false)
 	if err != nil {

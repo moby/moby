@@ -12,6 +12,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
 	"gotest.tools/v3/assert"
@@ -271,6 +272,8 @@ func TestNetworkDBCRUDTableEntry(t *testing.T) {
 }
 
 func TestNetworkDBCRUDTableEntries(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")

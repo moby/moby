@@ -6,9 +6,13 @@ import (
 	"bytes"
 	"os"
 	"testing"
+
+	"github.com/docker/docker/testutil"
 )
 
 func TestSetupIPForwarding(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	// Read current setting and ensure the original value gets restored
 	procSetting := readCurrentIPForwardingSetting(t)
 	defer reconcileIPForwardingSetting(t, procSetting)

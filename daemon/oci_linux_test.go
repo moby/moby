@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/testutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
@@ -203,6 +204,8 @@ func TestSysctlOverrideHost(t *testing.T) {
 }
 
 func TestGetSourceMount(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	// must be able to find source mount for /
 	mnt, _, err := getSourceMount("/")
 	assert.NilError(t, err)

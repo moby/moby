@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -91,6 +92,8 @@ func TestControllerGetSandbox(t *testing.T) {
 }
 
 func TestSandboxAddEmpty(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	ctrlr, _ := getTestEnv(t)
 
 	sbx, err := ctrlr.NewSandbox("sandbox0")
@@ -111,6 +114,8 @@ func TestSandboxAddEmpty(t *testing.T) {
 
 // // If different priorities are specified, internal option and ipv6 addresses mustn't influence endpoint order
 func TestSandboxAddMultiPrio(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	opts := [][]NetworkOption{
@@ -195,6 +200,8 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 }
 
 func TestSandboxAddSamePrio(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	opts := [][]NetworkOption{
