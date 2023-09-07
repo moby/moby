@@ -204,6 +204,9 @@ jobs:
         name: Set up runner
         uses: ./.github/actions/setup-runner
       -
+        name: Set up tracing
+        uses: ./.github/actions/setup-tracing
+      -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       -
@@ -293,6 +296,9 @@ jobs:
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
+      -
+        name: Set up tracing
+        uses: ./.github/actions/setup-tracing
       -
         name: Prepare
         run: |
@@ -437,6 +443,9 @@ jobs:
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
+      -
+        name: Set up tracing
+        uses: ./.github/actions/setup-tracing
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
