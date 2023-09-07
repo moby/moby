@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os/exec"
 	"strings"
 	"testing"
@@ -13,8 +14,8 @@ type DockerCLILoginSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLILoginSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLILoginSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLILoginSuite) OnTimeout(c *testing.T) {

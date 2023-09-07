@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os/exec"
@@ -22,8 +23,8 @@ type DockerCLIAttachSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIAttachSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIAttachSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIAttachSuite) OnTimeout(c *testing.T) {

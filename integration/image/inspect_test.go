@@ -1,7 +1,6 @@
 package image
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 
@@ -14,10 +13,9 @@ import (
 // Regression test for: https://github.com/moby/moby/issues/45556
 func TestImageInspectEmptyTagsAndDigests(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "build-empty-images is not called on Windows")
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	danglingID := environment.GetTestDanglingImageId(testEnv)
 

@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
+	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
 )
 
@@ -34,14 +35,17 @@ func newProtectedElements() protectedElements {
 // ProtectAll protects the existing environment (containers, images, networks,
 // volumes, and, on Linux, plugins) from being cleaned up at the end of test
 // runs
-func ProtectAll(t testing.TB, testEnv *Execution) {
+func ProtectAll(ctx context.Context, t testing.TB, testEnv *Execution) {
 	t.Helper()
-	ProtectContainers(t, testEnv)
-	ProtectImages(t, testEnv)
-	ProtectNetworks(t, testEnv)
-	ProtectVolumes(t, testEnv)
+	ctx, span := otel.Tracer("").Start(ctx, "ProtectAll")
+	defer span.End()
+
+	ProtectContainers(ctx, t, testEnv)
+	ProtectImages(ctx, t, testEnv)
+	ProtectNetworks(ctx, t, testEnv)
+	ProtectVolumes(ctx, t, testEnv)
 	if testEnv.DaemonInfo.OSType == "linux" {
-		ProtectPlugins(t, testEnv)
+		ProtectPlugins(ctx, t, testEnv)
 	}
 }
 
@@ -56,16 +60,16 @@ func (e *Execution) ProtectContainer(t testing.TB, containers ...string) {
 
 // ProtectContainers protects existing containers from being cleaned up at the
 // end of test runs
-func ProtectContainers(t testing.TB, testEnv *Execution) {
+func ProtectContainers(ctx context.Context, t testing.TB, testEnv *Execution) {
 	t.Helper()
-	containers := getExistingContainers(t, testEnv)
+	containers := getExistingContainers(ctx, t, testEnv)
 	testEnv.ProtectContainer(t, containers...)
 }
 
-func getExistingContainers(t testing.TB, testEnv *Execution) []string {
+func getExistingContainers(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	client := testEnv.APIClient()
-	containerList, err := client.ContainerList(context.Background(), types.ContainerListOptions{
+	containerList, err := client.ContainerList(ctx, types.ContainerListOptions{
 		All: true,
 	})
 	assert.NilError(t, err, "failed to list containers")
@@ -87,9 +91,9 @@ func (e *Execution) ProtectImage(t testing.TB, images ...string) {
 
 // ProtectImages protects existing images and on linux frozen images from being
 // cleaned up at the end of test runs
-func ProtectImages(t testing.TB, testEnv *Execution) {
+func ProtectImages(ctx context.Context, t testing.TB, testEnv *Execution) {
 	t.Helper()
-	images := getExistingImages(t, testEnv)
+	images := getExistingImages(ctx, t, testEnv)
 
 	if testEnv.DaemonInfo.OSType == "linux" {
 		images = append(images, frozenImages...)
@@ -98,10 +102,10 @@ func ProtectImages(t testing.TB, testEnv *Execution) {
 	testEnv.ProtectImage(t, DanglingImageIdGraphDriver, DanglingImageIdSnapshotter)
 }
 
-func getExistingImages(t testing.TB, testEnv *Execution) []string {
+func getExistingImages(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	client := testEnv.APIClient()
-	imageList, err := client.ImageList(context.Background(), types.ImageListOptions{
+	imageList, err := client.ImageList(ctx, types.ImageListOptions{
 		All:     true,
 		Filters: filters.NewArgs(filters.Arg("dangling", "false")),
 	})
@@ -143,16 +147,16 @@ func (e *Execution) ProtectNetwork(t testing.TB, networks ...string) {
 
 // ProtectNetworks protects existing networks from being cleaned up at the end
 // of test runs
-func ProtectNetworks(t testing.TB, testEnv *Execution) {
+func ProtectNetworks(ctx context.Context, t testing.TB, testEnv *Execution) {
 	t.Helper()
-	networks := getExistingNetworks(t, testEnv)
+	networks := getExistingNetworks(ctx, t, testEnv)
 	testEnv.ProtectNetwork(t, networks...)
 }
 
-func getExistingNetworks(t testing.TB, testEnv *Execution) []string {
+func getExistingNetworks(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	client := testEnv.APIClient()
-	networkList, err := client.NetworkList(context.Background(), types.NetworkListOptions{})
+	networkList, err := client.NetworkList(ctx, types.NetworkListOptions{})
 	assert.NilError(t, err, "failed to list networks")
 
 	var networks []string
@@ -172,16 +176,16 @@ func (e *Execution) ProtectPlugin(t testing.TB, plugins ...string) {
 
 // ProtectPlugins protects existing plugins from being cleaned up at the end of
 // test runs
-func ProtectPlugins(t testing.TB, testEnv *Execution) {
+func ProtectPlugins(ctx context.Context, t testing.TB, testEnv *Execution) {
 	t.Helper()
-	plugins := getExistingPlugins(t, testEnv)
+	plugins := getExistingPlugins(ctx, t, testEnv)
 	testEnv.ProtectPlugin(t, plugins...)
 }
 
-func getExistingPlugins(t testing.TB, testEnv *Execution) []string {
+func getExistingPlugins(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	client := testEnv.APIClient()
-	pluginList, err := client.PluginList(context.Background(), filters.Args{})
+	pluginList, err := client.PluginList(ctx, filters.Args{})
 	// Docker EE does not allow cluster-wide plugin management.
 	if errdefs.IsNotImplemented(err) {
 		return []string{}
@@ -205,16 +209,16 @@ func (e *Execution) ProtectVolume(t testing.TB, volumes ...string) {
 
 // ProtectVolumes protects existing volumes from being cleaned up at the end of
 // test runs
-func ProtectVolumes(t testing.TB, testEnv *Execution) {
+func ProtectVolumes(ctx context.Context, t testing.TB, testEnv *Execution) {
 	t.Helper()
-	volumes := getExistingVolumes(t, testEnv)
+	volumes := getExistingVolumes(ctx, t, testEnv)
 	testEnv.ProtectVolume(t, volumes...)
 }
 
-func getExistingVolumes(t testing.TB, testEnv *Execution) []string {
+func getExistingVolumes(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	client := testEnv.APIClient()
-	volumeList, err := client.VolumeList(context.Background(), volume.ListOptions{})
+	volumeList, err := client.VolumeList(ctx, volume.ListOptions{})
 	assert.NilError(t, err, "failed to list volumes")
 
 	var volumes []string

@@ -1,12 +1,12 @@
 package network // import "github.com/docker/docker/integration/network"
 
 import (
-	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
@@ -15,14 +15,15 @@ import (
 func TestInspectNetwork(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
 	defer c.Close()
 
 	networkName := "Overlay" + t.Name()
-	overlayID := network.CreateNoError(context.Background(), t, c, networkName,
+	overlayID := network.CreateNoError(ctx, t, c, networkName,
 		network.WithDriver("overlay"),
 		network.WithCheckDuplicate(),
 	)
@@ -30,13 +31,13 @@ func TestInspectNetwork(t *testing.T) {
 	var instances uint64 = 2
 	serviceName := "TestService" + t.Name()
 
-	serviceID := swarm.CreateService(t, d,
+	serviceID := swarm.CreateService(ctx, t, d,
 		swarm.ServiceWithReplicas(instances),
 		swarm.ServiceWithName(serviceName),
 		swarm.ServiceWithNetwork(networkName),
 	)
 
-	poll.WaitOn(t, swarm.RunningTasksCount(c, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, instances), swarm.ServicePoll)
 
 	tests := []struct {
 		name    string
@@ -73,10 +74,10 @@ func TestInspectNetwork(t *testing.T) {
 			},
 		},
 	}
-	ctx := context.Background()
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
 			nw, err := c.NetworkInspect(ctx, tc.network, tc.opts)
 			assert.NilError(t, err)
 

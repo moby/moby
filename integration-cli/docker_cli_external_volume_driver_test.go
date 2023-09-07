@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,6 +19,7 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/volume"
 	"gotest.tools/v3/assert"
@@ -43,20 +45,20 @@ type DockerExternalVolumeSuite struct {
 	*volumePlugin
 }
 
-func (s *DockerExternalVolumeSuite) SetUpTest(c *testing.T) {
+func (s *DockerExternalVolumeSuite) SetUpTest(ctx context.Context, c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 	s.ec = &eventCounter{}
 }
 
-func (s *DockerExternalVolumeSuite) TearDownTest(c *testing.T) {
+func (s *DockerExternalVolumeSuite) TearDownTest(ctx context.Context, c *testing.T) {
 	if s.d != nil {
 		s.d.Stop(c)
-		s.ds.TearDownTest(c)
+		s.ds.TearDownTest(ctx, c)
 	}
 }
 
-func (s *DockerExternalVolumeSuite) SetUpSuite(c *testing.T) {
+func (s *DockerExternalVolumeSuite) SetUpSuite(ctx context.Context, c *testing.T) {
 	s.volumePlugin = newVolumePlugin(c, volumePluginName)
 }
 
@@ -267,7 +269,7 @@ func newVolumePlugin(c *testing.T, name string) *volumePlugin {
 	return s
 }
 
-func (s *DockerExternalVolumeSuite) TearDownSuite(c *testing.T) {
+func (s *DockerExternalVolumeSuite) TearDownSuite(ctx context.Context, c *testing.T) {
 	s.volumePlugin.Close()
 
 	err := os.RemoveAll("/etc/docker/plugins")
@@ -286,7 +288,8 @@ func (s *DockerExternalVolumeSuite) TestVolumeCLICreateOptionConflict(c *testing
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *testing.T) {
-	s.d.StartWithBusybox(c)
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", volumePluginName, "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	assert.NilError(c, err, out)
@@ -307,7 +310,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *testing.T) 
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnnamed(c *testing.T) {
-	s.d.StartWithBusybox(c)
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "/tmp/external-volume-test", "--volume-driver", volumePluginName, "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	assert.NilError(c, err, out)
@@ -320,7 +324,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnnamed(c *testing.T
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverVolumesFrom(c *testing.T) {
-	s.d.StartWithBusybox(c)
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	out, err := s.d.Cmd("run", "--name", "vol-test1", "-v", "/foo", "--volume-driver", volumePluginName, "busybox:latest")
 	assert.NilError(c, err, out)
@@ -339,7 +344,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverVolumesFrom(c *testi
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverDeleteContainer(c *testing.T) {
-	s.d.StartWithBusybox(c)
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	out, err := s.d.Cmd("run", "--name", "vol-test1", "-v", "/foo", "--volume-driver", volumePluginName, "busybox:latest")
 	assert.NilError(c, err, out)
@@ -396,7 +402,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverLookupNotBlocked(c *
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyExists(c *testing.T) {
-	s.d.StartWithBusybox(c)
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c)
 	driverName := "test-external-volume-driver-retry"
 
 	errchan := make(chan error, 1)
@@ -522,7 +529,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverPathCalls(c *testing
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverMountID(c *testing.T) {
-	s.d.StartWithBusybox(c)
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	out, err := s.d.Cmd("run", "--rm", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", volumePluginName, "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	assert.NilError(c, err, out)
@@ -545,11 +553,12 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverCapabilities(c *test
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *testing.T) {
+	ctx := testutil.GetContext(c)
 	driverName := stringid.GenerateRandomID()
 	p := newVolumePlugin(c, driverName)
 	defer p.Close()
 
-	s.d.StartWithBusybox(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	out, err := s.d.Cmd("volume", "create", "-d", driverName, "--name", "test")
 	assert.NilError(c, err, out)
@@ -593,7 +602,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *t
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnMountFail(c *testing.T) {
-	s.d.StartWithBusybox(c)
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c)
 	s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--opt=invalidOption=1", "--name=testumount")
 
 	out, _ := s.d.Cmd("run", "-v", "testumount:/foo", "busybox", "true")
@@ -603,7 +613,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnMountFail(c
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnCp(c *testing.T) {
-	s.d.StartWithBusybox(c)
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c)
 	s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--name=test")
 
 	out, _ := s.d.Cmd("run", "-d", "--name=test", "-v", "test:/foo", "busybox", "/bin/sh", "-c", "touch /test && top")

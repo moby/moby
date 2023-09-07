@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	dclient "github.com/docker/docker/client"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/request"
 	"github.com/moby/buildkit/session"
@@ -26,6 +27,8 @@ func TestBuildWithSession(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "experimental in older versions")
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	client := testEnv.APIClient()
 
 	dockerfile := `
@@ -39,7 +42,7 @@ func TestBuildWithSession(t *testing.T) {
 	)
 	defer fctx.Close()
 
-	out := testBuildWithSession(t, client, client.DaemonHost(), fctx.Dir, dockerfile)
+	out := testBuildWithSession(ctx, t, client, client.DaemonHost(), fctx.Dir, dockerfile)
 	assert.Check(t, is.Contains(out, "some content"))
 
 	fctx.Add("second", "contentcontent")
@@ -49,25 +52,25 @@ func TestBuildWithSession(t *testing.T) {
 	RUN cat /second
 	`
 
-	out = testBuildWithSession(t, client, client.DaemonHost(), fctx.Dir, dockerfile)
+	out = testBuildWithSession(ctx, t, client, client.DaemonHost(), fctx.Dir, dockerfile)
 	assert.Check(t, is.Equal(strings.Count(out, "Using cache"), 2))
 	assert.Check(t, is.Contains(out, "contentcontent"))
 
-	du, err := client.DiskUsage(context.TODO(), types.DiskUsageOptions{})
+	du, err := client.DiskUsage(ctx, types.DiskUsageOptions{})
 	assert.Check(t, err)
 	assert.Check(t, du.BuilderSize > 10)
 
-	out = testBuildWithSession(t, client, client.DaemonHost(), fctx.Dir, dockerfile)
+	out = testBuildWithSession(ctx, t, client, client.DaemonHost(), fctx.Dir, dockerfile)
 	assert.Check(t, is.Equal(strings.Count(out, "Using cache"), 4))
 
-	du2, err := client.DiskUsage(context.TODO(), types.DiskUsageOptions{})
+	du2, err := client.DiskUsage(ctx, types.DiskUsageOptions{})
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(du.BuilderSize, du2.BuilderSize))
 
 	// rebuild with regular tar, confirm cache still applies
 	fctx.Add("Dockerfile", dockerfile)
 	// FIXME(vdemeester) use sock here
-	res, body, err := request.Do(
+	res, body, err := request.Do(ctx,
 		"/build",
 		request.Host(client.DaemonHost()),
 		request.Method(http.MethodPost),
@@ -81,17 +84,16 @@ func TestBuildWithSession(t *testing.T) {
 	assert.Check(t, is.Contains(string(outBytes), "Successfully built"))
 	assert.Check(t, is.Equal(strings.Count(string(outBytes), "Using cache"), 4))
 
-	_, err = client.BuildCachePrune(context.TODO(), types.BuildCachePruneOptions{All: true})
+	_, err = client.BuildCachePrune(ctx, types.BuildCachePruneOptions{All: true})
 	assert.Check(t, err)
 
-	du, err = client.DiskUsage(context.TODO(), types.DiskUsageOptions{})
+	du, err = client.DiskUsage(ctx, types.DiskUsageOptions{})
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(du.BuilderSize, int64(0)))
 }
 
 //nolint:unused // false positive: linter detects this as "unused"
-func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonHost string, dir, dockerfile string) (outStr string) {
-	ctx := context.Background()
+func testBuildWithSession(ctx context.Context, t *testing.T, client dclient.APIClient, daemonHost string, dir, dockerfile string) (outStr string) {
 	sess, err := session.NewSession(ctx, "foo1", "foo")
 	assert.Check(t, err)
 
@@ -110,7 +112,7 @@ func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonHost str
 
 	g.Go(func() error {
 		// FIXME use sock here
-		res, body, err := request.Do(
+		res, body, err := request.Do(ctx,
 			"/build?remote=client-session&session="+sess.ID(),
 			request.Host(daemonHost),
 			request.Method(http.MethodPost),

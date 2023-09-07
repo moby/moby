@@ -13,6 +13,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )
@@ -90,7 +91,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadWithProgressBar(c *testing.T) {
 func (s *DockerCLISaveLoadSuite) TestLoadNoStdinFail(c *testing.T) {
 	pty, tty, err := pty.Open()
 	assert.NilError(c, err)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, dockerBinary, "load")
 	cmd.Stdin = tty

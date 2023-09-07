@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 )
@@ -268,7 +269,7 @@ func createDeletePredefinedNetwork(c *testing.T, name string) {
 }
 
 func isNetworkAvailable(c *testing.T, name string) bool {
-	resp, body, err := request.Get("/networks")
+	resp, body, err := request.Get(testutil.GetContext(c), "/networks")
 	assert.NilError(c, err)
 	defer resp.Body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
@@ -291,7 +292,7 @@ func getNetworkIDByName(c *testing.T, name string) string {
 	v := url.Values{}
 	v.Set("filters", filterJSON)
 
-	resp, body, err := request.Get("/networks?" + v.Encode())
+	resp, body, err := request.Get(testutil.GetContext(c), "/networks?"+v.Encode())
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
 	assert.NilError(c, err)
 
@@ -311,7 +312,7 @@ func getNetworkIDByName(c *testing.T, name string) string {
 }
 
 func getNetworkResource(c *testing.T, id string) *types.NetworkResource {
-	_, obj, err := request.Get("/networks/" + id)
+	_, obj, err := request.Get(testutil.GetContext(c), "/networks/"+id)
 	assert.NilError(c, err)
 
 	nr := types.NetworkResource{}
@@ -322,7 +323,7 @@ func getNetworkResource(c *testing.T, id string) *types.NetworkResource {
 }
 
 func createNetwork(c *testing.T, config types.NetworkCreateRequest, expectedStatusCode int) string {
-	resp, body, err := request.Post("/networks/create", request.JSONBody(config))
+	resp, body, err := request.Post(testutil.GetContext(c), "/networks/create", request.JSONBody(config))
 	assert.NilError(c, err)
 	defer resp.Body.Close()
 
@@ -347,7 +348,7 @@ func connectNetwork(c *testing.T, nid, cid string) {
 		Container: cid,
 	}
 
-	resp, _, err := request.Post("/networks/"+nid+"/connect", request.JSONBody(config))
+	resp, _, err := request.Post(testutil.GetContext(c), "/networks/"+nid+"/connect", request.JSONBody(config))
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
 	assert.NilError(c, err)
 }
@@ -357,13 +358,13 @@ func disconnectNetwork(c *testing.T, nid, cid string) {
 		Container: cid,
 	}
 
-	resp, _, err := request.Post("/networks/"+nid+"/disconnect", request.JSONBody(config))
+	resp, _, err := request.Post(testutil.GetContext(c), "/networks/"+nid+"/disconnect", request.JSONBody(config))
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
 	assert.NilError(c, err)
 }
 
 func deleteNetwork(c *testing.T, id string, shouldSucceed bool) {
-	resp, _, err := request.Delete("/networks/" + id)
+	resp, _, err := request.Delete(testutil.GetContext(c), "/networks/"+id)
 	assert.NilError(c, err)
 	defer resp.Body.Close()
 	if !shouldSucceed {

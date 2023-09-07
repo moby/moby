@@ -14,12 +14,13 @@ import (
 	"github.com/creack/pty"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 )
 
-func (s *DockerCLIUpdateSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIUpdateSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIUpdateSuite) OnTimeout(c *testing.T) {
@@ -180,7 +181,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateStats(c *testing.T) {
 	assert.NilError(c, waitRun(name))
 
 	getMemLimit := func(id string) uint64 {
-		resp, body, err := request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", id))
+		resp, body, err := request.Get(testutil.GetContext(c), fmt.Sprintf("/containers/%s/stats?stream=false", id))
 		assert.NilError(c, err)
 		assert.Equal(c, resp.Header.Get("Content-Type"), "application/json")
 
@@ -255,7 +256,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateWithNanoCPUs(c *testing.T) {
 
 	clt, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	inspect, err := clt.ContainerInspect(context.Background(), "top")
+	inspect, err := clt.ContainerInspect(testutil.GetContext(c), "top")
 	assert.NilError(c, err)
 	assert.Equal(c, inspect.HostConfig.NanoCPUs, int64(500000000))
 
@@ -269,7 +270,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateWithNanoCPUs(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "Conflicting options: CPU Quota cannot be updated as NanoCPUs has already been set"))
 
 	dockerCmd(c, "update", "--cpus", "0.8", "top")
-	inspect, err = clt.ContainerInspect(context.Background(), "top")
+	inspect, err = clt.ContainerInspect(testutil.GetContext(c), "top")
 	assert.NilError(c, err)
 	assert.Equal(c, inspect.HostConfig.NanoCPUs, int64(800000000))
 

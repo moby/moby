@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,7 +14,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func ensureSyscallTest(c *testing.T) {
+func ensureSyscallTest(ctx context.Context, c *testing.T) {
 	defer testEnv.ProtectImage(c, "syscall-test:latest")
 
 	// If the image already exists, there's nothing left to do.
@@ -24,7 +25,7 @@ func ensureSyscallTest(c *testing.T) {
 	// if no match, must build in docker, which is significantly slower
 	// (slower mostly because of the vfs graphdriver)
 	if testEnv.DaemonInfo.OSType != runtime.GOOS {
-		ensureSyscallTestBuild(c)
+		ensureSyscallTestBuild(ctx, c)
 		return
 	}
 
@@ -63,8 +64,8 @@ func ensureSyscallTest(c *testing.T) {
 	dockerCmd(c, buildArgs...)
 }
 
-func ensureSyscallTestBuild(c *testing.T) {
-	err := load.FrozenImagesLinux(testEnv.APIClient(), "debian:bullseye-slim")
+func ensureSyscallTestBuild(ctx context.Context, c *testing.T) {
+	err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), "debian:bullseye-slim")
 	assert.NilError(c, err)
 
 	var buildArgs []string
@@ -76,7 +77,7 @@ func ensureSyscallTestBuild(c *testing.T) {
 	dockerCmd(c, buildArgs...)
 }
 
-func ensureNNPTest(c *testing.T) {
+func ensureNNPTest(ctx context.Context, c *testing.T) {
 	defer testEnv.ProtectImage(c, "nnp-test:latest")
 
 	// If the image already exists, there's nothing left to do.
@@ -87,7 +88,7 @@ func ensureNNPTest(c *testing.T) {
 	// if no match, must build in docker, which is significantly slower
 	// (slower mostly because of the vfs graphdriver)
 	if testEnv.DaemonInfo.OSType != runtime.GOOS {
-		ensureNNPTestBuild(c)
+		ensureNNPTestBuild(ctx, c)
 		return
 	}
 
@@ -118,8 +119,8 @@ func ensureNNPTest(c *testing.T) {
 	dockerCmd(c, buildArgs...)
 }
 
-func ensureNNPTestBuild(c *testing.T) {
-	err := load.FrozenImagesLinux(testEnv.APIClient(), "debian:bullseye-slim")
+func ensureNNPTestBuild(ctx context.Context, c *testing.T) {
+	err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), "debian:bullseye-slim")
 	assert.NilError(c, err)
 
 	var buildArgs []string

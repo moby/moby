@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os/exec"
 	"strings"
 	"testing"
@@ -30,31 +31,31 @@ func newDockerHubPullSuite() *DockerHubPullSuite {
 }
 
 // SetUpSuite starts the suite daemon.
-func (s *DockerHubPullSuite) SetUpSuite(c *testing.T) {
+func (s *DockerHubPullSuite) SetUpSuite(ctx context.Context, c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 	s.d.Start(c)
 }
 
 // TearDownSuite stops the suite daemon.
-func (s *DockerHubPullSuite) TearDownSuite(c *testing.T) {
+func (s *DockerHubPullSuite) TearDownSuite(ctx context.Context, c *testing.T) {
 	if s.d != nil {
 		s.d.Stop(c)
 	}
 }
 
 // SetUpTest declares that all tests of this suite require network.
-func (s *DockerHubPullSuite) SetUpTest(c *testing.T) {
+func (s *DockerHubPullSuite) SetUpTest(ctx context.Context, c *testing.T) {
 	testRequires(c, Network)
 }
 
 // TearDownTest removes all images from the suite daemon.
-func (s *DockerHubPullSuite) TearDownTest(c *testing.T) {
+func (s *DockerHubPullSuite) TearDownTest(ctx context.Context, c *testing.T) {
 	out := s.Cmd(c, "images", "-aq")
 	images := strings.Split(out, "\n")
 	images = append([]string{"rmi", "-f"}, images...)
 	s.d.Cmd(images...)
-	s.ds.TearDownTest(c)
+	s.ds.TearDownTest(ctx, c)
 }
 
 // Cmd executes a command against the suite daemon and returns the combined

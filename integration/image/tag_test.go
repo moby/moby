@@ -1,7 +1,6 @@
 package image // import "github.com/docker/docker/integration/image"
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -11,9 +10,9 @@ import (
 
 // tagging a named image in a new unprefixed repo should work
 func TestTagUnprefixedRepoByNameOrName(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
+
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	// By name
 	err := client.ImageTag(ctx, "busybox:latest", "testfoobarbaz")
@@ -27,18 +26,17 @@ func TestTagUnprefixedRepoByNameOrName(t *testing.T) {
 }
 
 func TestTagUsingDigestAlgorithmAsName(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
 	err := client.ImageTag(ctx, "busybox:latest", "sha256:sometag")
 	assert.Check(t, is.ErrorContains(err, "refusing to create an ambiguous tag using digest algorithm as name"))
 }
 
 // ensure we allow the use of valid tags
 func TestTagValidPrefixedRepo(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
+
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	validRepos := []string{"fooo/bar", "fooaa/test", "foooo:t", "HOSTNAME.DOMAIN.COM:443/foo/bar"}
 
@@ -54,9 +52,8 @@ func TestTagValidPrefixedRepo(t *testing.T) {
 
 // tag an image with an existed tag name without -f option should work
 func TestTagExistedNameWithoutForce(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	err := client.ImageTag(ctx, "busybox:latest", "busybox:test")
 	assert.NilError(t, err)
@@ -65,9 +62,8 @@ func TestTagExistedNameWithoutForce(t *testing.T) {
 // ensure tagging using official names works
 // ensure all tags result in the same name
 func TestTagOfficialNames(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	names := []string{
 		"docker.io/busybox",
@@ -97,9 +93,8 @@ func TestTagOfficialNames(t *testing.T) {
 
 // ensure tags can not match digests
 func TestTagMatchesDigest(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	digest := "busybox@sha256:abcdef76720241213f5303bda7704ec4c2ef75613173910a56fb1b6e20251507"
 	// test setting tag fails

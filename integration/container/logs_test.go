@@ -2,7 +2,6 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"strings"
 	"testing"
@@ -25,9 +24,8 @@ import (
 func TestLogsFollowTailEmpty(t *testing.T) {
 	// FIXME(vdemeester) fails on a e2e run on linux...
 	skip.If(t, testEnv.IsRemoteDaemon)
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	id := container.Run(ctx, t, apiClient, container.WithCmd("sleep", "100000"))
 
@@ -52,9 +50,8 @@ func TestLogs(t *testing.T) {
 }
 
 func testLogs(t *testing.T, logDriver string) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	testCases := []struct {
 		desc        string

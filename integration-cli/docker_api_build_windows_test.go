@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -24,7 +25,7 @@ func (s *DockerAPISuite) TestBuildWithRecycleBin(c *testing.T) {
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile))
 	defer ctx.Close()
 
-	res, body, err := request.Post(
+	res, body, err := request.Post(testutil.GetContext(c),
 		"/build",
 		request.RawContent(ctx.AsTarReader(c)),
 		request.ContentType("application/x-tar"))

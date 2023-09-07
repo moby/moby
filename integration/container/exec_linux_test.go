@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -16,9 +15,8 @@ func TestExecConsoleSize(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, apiClient, container.WithImage("busybox"))
 

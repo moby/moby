@@ -1,7 +1,6 @@
 package image // import "github.com/docker/docker/integration/image"
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -14,8 +13,8 @@ import (
 )
 
 func TestRemoveImageOrphaning(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
+
 	client := testEnv.APIClient()
 
 	imgName := strings.ToLower(t.Name())
@@ -63,8 +62,7 @@ func TestRemoveImageOrphaning(t *testing.T) {
 func TestRemoveByDigest(t *testing.T) {
 	skip.If(t, !testEnv.UsingSnapshotter(), "RepoDigests doesn't include tags when using graphdrivers")
 
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
 
 	err := client.ImageTag(ctx, "busybox", "test-remove-by-digest:latest")

@@ -7,11 +7,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 )
 
 func (s *DockerSwarmSuite) TestServiceScale(c *testing.T) {
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 
 	service1Name := "TestService1"
 	service1Args := append([]string{"service", "create", "--detach", "--no-resolve-image", "--name", service1Name, "busybox"}, sleepCommandForDaemonPlatform()...)

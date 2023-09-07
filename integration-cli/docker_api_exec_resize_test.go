@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
@@ -22,7 +23,7 @@ func (s *DockerAPISuite) TestExecResizeAPIHeightWidthNoInt(c *testing.T) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/exec/" + cleanedContainerID + "/resize?h=foo&w=bar"
-	res, _, err := request.Post(endpoint)
+	res, _, err := request.Post(testutil.GetContext(c), endpoint)
 	assert.NilError(c, err)
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
@@ -42,7 +43,7 @@ func (s *DockerAPISuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 			"Cmd":         []string{"/bin/sh"},
 		}
 		uri := fmt.Sprintf("/containers/%s/exec", name)
-		res, body, err := request.Post(uri, request.JSONBody(data))
+		res, body, err := request.Post(testutil.GetContext(c), uri, request.JSONBody(data))
 		if err != nil {
 			return err
 		}
@@ -71,7 +72,7 @@ func (s *DockerAPISuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 		}
 		defer wc.Close()
 
-		_, rc, err := request.Post(fmt.Sprintf("/exec/%s/resize?h=24&w=80", execID), request.ContentType("text/plain"))
+		_, rc, err := request.Post(testutil.GetContext(c), fmt.Sprintf("/exec/%s/resize?h=24&w=80", execID), request.ContentType("text/plain"))
 		if err != nil {
 			// It's probably a panic of the daemon if io.ErrUnexpectedEOF is returned.
 			if err == io.ErrUnexpectedEOF {

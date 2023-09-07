@@ -3,10 +3,10 @@
 package logging
 
 import (
-	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
@@ -20,14 +20,15 @@ func TestDaemonStartWithLogOpt(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	t.Parallel()
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
 	d.Start(t, "--iptables=false")
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
-	ctx := context.Background()
 
-	createPlugin(t, c, "test", "dummy", asLogDriver)
+	createPlugin(ctx, t, c, "test", "dummy", asLogDriver)
 	err := c.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
 	assert.Check(t, err)
 	defer c.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})

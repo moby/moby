@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -19,69 +20,69 @@ import (
 
 func TestServiceUpdateLabel(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	ctx := context.Background()
 	serviceName := "TestService_" + t.Name()
-	serviceID := swarm.CreateService(t, d, swarm.ServiceWithName(serviceName))
-	service := getService(t, cli, serviceID)
+	serviceID := swarm.CreateService(ctx, t, d, swarm.ServiceWithName(serviceName))
+	service := getService(ctx, t, cli, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{}))
 
 	// add label to empty set
 	service.Spec.Labels["foo"] = "bar"
 	_, err := cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceSpecIsUpdated(cli, serviceID, service.Version.Index), swarm.ServicePoll)
-	service = getService(t, cli, serviceID)
+	poll.WaitOn(t, serviceSpecIsUpdated(ctx, cli, serviceID, service.Version.Index), swarm.ServicePoll)
+	service = getService(ctx, t, cli, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{"foo": "bar"}))
 
 	// add label to non-empty set
 	service.Spec.Labels["foo2"] = "bar"
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceSpecIsUpdated(cli, serviceID, service.Version.Index), swarm.ServicePoll)
-	service = getService(t, cli, serviceID)
+	poll.WaitOn(t, serviceSpecIsUpdated(ctx, cli, serviceID, service.Version.Index), swarm.ServicePoll)
+	service = getService(ctx, t, cli, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{"foo": "bar", "foo2": "bar"}))
 
 	delete(service.Spec.Labels, "foo2")
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceSpecIsUpdated(cli, serviceID, service.Version.Index), swarm.ServicePoll)
-	service = getService(t, cli, serviceID)
+	poll.WaitOn(t, serviceSpecIsUpdated(ctx, cli, serviceID, service.Version.Index), swarm.ServicePoll)
+	service = getService(ctx, t, cli, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{"foo": "bar"}))
 
 	delete(service.Spec.Labels, "foo")
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceSpecIsUpdated(cli, serviceID, service.Version.Index), swarm.ServicePoll)
-	service = getService(t, cli, serviceID)
+	poll.WaitOn(t, serviceSpecIsUpdated(ctx, cli, serviceID, service.Version.Index), swarm.ServicePoll)
+	service = getService(ctx, t, cli, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{}))
 
 	// now make sure we can add again
 	service.Spec.Labels["foo"] = "bar"
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceSpecIsUpdated(cli, serviceID, service.Version.Index), swarm.ServicePoll)
-	service = getService(t, cli, serviceID)
+	poll.WaitOn(t, serviceSpecIsUpdated(ctx, cli, serviceID, service.Version.Index), swarm.ServicePoll)
+	service = getService(ctx, t, cli, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{"foo": "bar"}))
 
-	err = cli.ServiceRemove(context.Background(), serviceID)
+	err = cli.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
 }
 
 func TestServiceUpdateSecrets(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	ctx := context.Background()
 	secretName := "TestSecret_" + t.Name()
 	secretTarget := "targetName"
 	resp, err := cli.SecretCreate(ctx, swarmtypes.SecretSpec{
@@ -94,8 +95,8 @@ func TestServiceUpdateSecrets(t *testing.T) {
 	assert.Check(t, resp.ID != "")
 
 	serviceName := "TestService_" + t.Name()
-	serviceID := swarm.CreateService(t, d, swarm.ServiceWithName(serviceName))
-	service := getService(t, cli, serviceID)
+	serviceID := swarm.CreateService(ctx, t, d, swarm.ServiceWithName(serviceName))
+	service := getService(ctx, t, cli, serviceID)
 
 	// add secret
 	service.Spec.TaskTemplate.ContainerSpec.Secrets = append(service.Spec.TaskTemplate.ContainerSpec.Secrets,
@@ -112,9 +113,9 @@ func TestServiceUpdateSecrets(t *testing.T) {
 	)
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, serviceIsUpdated(ctx, cli, serviceID), swarm.ServicePoll)
 
-	service = getService(t, cli, serviceID)
+	service = getService(ctx, t, cli, serviceID)
 	secrets := service.Spec.TaskTemplate.ContainerSpec.Secrets
 	assert.Assert(t, is.Equal(1, len(secrets)))
 
@@ -127,23 +128,23 @@ func TestServiceUpdateSecrets(t *testing.T) {
 	service.Spec.TaskTemplate.ContainerSpec.Secrets = []*swarmtypes.SecretReference{}
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
-	service = getService(t, cli, serviceID)
+	poll.WaitOn(t, serviceIsUpdated(ctx, cli, serviceID), swarm.ServicePoll)
+	service = getService(ctx, t, cli, serviceID)
 	assert.Check(t, is.Equal(0, len(service.Spec.TaskTemplate.ContainerSpec.Secrets)))
 
-	err = cli.ServiceRemove(context.Background(), serviceID)
+	err = cli.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
 }
 
 func TestServiceUpdateConfigs(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	ctx := context.Background()
 	configName := "TestConfig_" + t.Name()
 	configTarget := "targetName"
 	resp, err := cli.ConfigCreate(ctx, swarmtypes.ConfigSpec{
@@ -156,8 +157,8 @@ func TestServiceUpdateConfigs(t *testing.T) {
 	assert.Check(t, resp.ID != "")
 
 	serviceName := "TestService_" + t.Name()
-	serviceID := swarm.CreateService(t, d, swarm.ServiceWithName(serviceName))
-	service := getService(t, cli, serviceID)
+	serviceID := swarm.CreateService(ctx, t, d, swarm.ServiceWithName(serviceName))
+	service := getService(ctx, t, cli, serviceID)
 
 	// add config
 	service.Spec.TaskTemplate.ContainerSpec.Configs = append(service.Spec.TaskTemplate.ContainerSpec.Configs,
@@ -174,9 +175,9 @@ func TestServiceUpdateConfigs(t *testing.T) {
 	)
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, serviceIsUpdated(ctx, cli, serviceID), swarm.ServicePoll)
 
-	service = getService(t, cli, serviceID)
+	service = getService(ctx, t, cli, serviceID)
 	configs := service.Spec.TaskTemplate.ContainerSpec.Configs
 	assert.Assert(t, is.Equal(1, len(configs)))
 
@@ -189,23 +190,22 @@ func TestServiceUpdateConfigs(t *testing.T) {
 	service.Spec.TaskTemplate.ContainerSpec.Configs = []*swarmtypes.ConfigReference{}
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
-	service = getService(t, cli, serviceID)
+	poll.WaitOn(t, serviceIsUpdated(ctx, cli, serviceID), swarm.ServicePoll)
+	service = getService(ctx, t, cli, serviceID)
 	assert.Check(t, is.Equal(0, len(service.Spec.TaskTemplate.ContainerSpec.Configs)))
 
-	err = cli.ServiceRemove(context.Background(), serviceID)
+	err = cli.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
 }
 
 func TestServiceUpdateNetwork(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	cli := d.NewClientT(t)
 	defer cli.Close()
-
-	ctx := context.Background()
 
 	// Create a overlay network
 	testNet := "testNet" + t.Name()
@@ -215,13 +215,13 @@ func TestServiceUpdateNetwork(t *testing.T) {
 	var instances uint64 = 1
 	// Create service with the overlay network
 	serviceName := "TestServiceUpdateNetworkRM_" + t.Name()
-	serviceID := swarm.CreateService(t, d,
+	serviceID := swarm.CreateService(ctx, t, d,
 		swarm.ServiceWithReplicas(instances),
 		swarm.ServiceWithName(serviceName),
 		swarm.ServiceWithNetwork(testNet))
 
-	poll.WaitOn(t, swarm.RunningTasksCount(cli, serviceID, instances), swarm.ServicePoll)
-	service := getService(t, cli, serviceID)
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, cli, serviceID, instances), swarm.ServicePoll)
+	service := getService(ctx, t, cli, serviceID)
 	netInfo, err := cli.NetworkInspect(ctx, testNet, types.NetworkInspectOptions{
 		Verbose: true,
 		Scope:   "swarm",
@@ -233,7 +233,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 	service.Spec.TaskTemplate.Networks = []swarmtypes.NetworkAttachmentConfig{}
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, serviceIsUpdated(ctx, cli, serviceID), swarm.ServicePoll)
 
 	netInfo, err = cli.NetworkInspect(ctx, testNet, types.NetworkInspectOptions{
 		Verbose: true,
@@ -279,22 +279,24 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 		},
 	}
 
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	cli := d.NewClientT(t)
 	defer func() { _ = cli.Close() }()
-	ctx := context.Background()
 	var (
 		serviceID string
 		service   swarmtypes.Service
 	)
 	for i, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
 			if i == 0 {
-				serviceID = swarm.CreateService(t, d, swarm.ServiceWithPidsLimit(tc.pidsLimit))
+				serviceID = swarm.CreateService(ctx, t, d, swarm.ServiceWithPidsLimit(tc.pidsLimit))
 			} else {
-				service = getService(t, cli, serviceID)
+				service = getService(ctx, t, cli, serviceID)
 				if service.Spec.TaskTemplate.Resources == nil {
 					service.Spec.TaskTemplate.Resources = &swarmtypes.ResourceRequirements{}
 				}
@@ -304,11 +306,11 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 				service.Spec.TaskTemplate.Resources.Limits.Pids = tc.pidsLimit
 				_, err := cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 				assert.NilError(t, err)
-				poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+				poll.WaitOn(t, serviceIsUpdated(ctx, cli, serviceID), swarm.ServicePoll)
 			}
 
-			poll.WaitOn(t, swarm.RunningTasksCount(cli, serviceID, 1), swarm.ServicePoll)
-			service = getService(t, cli, serviceID)
+			poll.WaitOn(t, swarm.RunningTasksCount(ctx, cli, serviceID, 1), swarm.ServicePoll)
+			service = getService(ctx, t, cli, serviceID)
 			container := getServiceTaskContainer(ctx, t, cli, serviceID)
 			assert.Equal(t, service.Spec.TaskTemplate.Resources.Limits.Pids, tc.expected)
 			if tc.expected == 0 {
@@ -343,16 +345,16 @@ func getServiceTaskContainer(ctx context.Context, t *testing.T, cli client.APICl
 	return ctr
 }
 
-func getService(t *testing.T, cli client.ServiceAPIClient, serviceID string) swarmtypes.Service {
+func getService(ctx context.Context, t *testing.T, cli client.ServiceAPIClient, serviceID string) swarmtypes.Service {
 	t.Helper()
-	service, _, err := cli.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+	service, _, err := cli.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
 	return service
 }
 
-func serviceIsUpdated(client client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
+func serviceIsUpdated(ctx context.Context, client client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		service, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+		service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 		switch {
 		case err != nil:
 			return poll.Error(err)
@@ -367,9 +369,9 @@ func serviceIsUpdated(client client.ServiceAPIClient, serviceID string) func(log
 	}
 }
 
-func serviceSpecIsUpdated(client client.ServiceAPIClient, serviceID string, serviceOldVersion uint64) func(log poll.LogT) poll.Result {
+func serviceSpecIsUpdated(ctx context.Context, client client.ServiceAPIClient, serviceID string, serviceOldVersion uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		service, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+		service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 		switch {
 		case err != nil:
 			return poll.Error(err)

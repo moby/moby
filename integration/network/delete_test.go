@@ -44,20 +44,19 @@ func createAmbiguousNetworks(ctx context.Context, t *testing.T, client dclient.A
 // TestNetworkCreateDelete tests creation and deletion of a network.
 func TestNetworkCreateDelete(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	netName := "testnetwork_" + t.Name()
 	network.CreateNoError(ctx, t, client, netName,
 		network.WithCheckDuplicate(),
 	)
-	assert.Check(t, IsNetworkAvailable(client, netName))
+	assert.Check(t, IsNetworkAvailable(ctx, client, netName))
 
 	// delete the network and make sure it is deleted
 	err := client.NetworkRemove(ctx, netName)
 	assert.NilError(t, err)
-	assert.Check(t, IsNetworkNotAvailable(client, netName))
+	assert.Check(t, IsNetworkNotAvailable(ctx, client, netName))
 }
 
 // TestDockerNetworkDeletePreferID tests that if a network with a name
@@ -67,9 +66,10 @@ func TestDockerNetworkDeletePreferID(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.34"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows",
 		"FIXME. Windows doesn't run DinD and uses networks shared between control daemon and daemon under test")
-	defer setupTest(t)()
+
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
+
 	testNet, idPrefixNet, fullIDNet := createAmbiguousNetworks(ctx, t, client)
 
 	// Delete the network using a prefix of the first network's ID as name.

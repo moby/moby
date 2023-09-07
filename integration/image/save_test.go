@@ -53,9 +53,8 @@ func tarIndexFS(t *testing.T, rdr io.Reader) fs.FS {
 func TestSaveCheckTimes(t *testing.T) {
 	t.Parallel()
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	const repoName = "busybox:latest"
 	img, _, err := client.ImageInspectWithRaw(ctx, repoName)
@@ -83,8 +82,7 @@ func TestSaveCheckTimes(t *testing.T) {
 }
 
 func TestSaveRepoWithMultipleImages(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
 
 	makeImage := func(from string, tag string) string {
@@ -163,9 +161,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 func TestSaveDirectoryPermissions(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Test is looking at linux specific details")
 
-	defer setupTest(t)()
-
-	ctx := context.Background()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
 
 	layerEntries := []string{"opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}

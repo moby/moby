@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/server/router/debug"
 	"github.com/docker/docker/dockerversion"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // versionMatcher defines a variable matcher to be parsed by the router
@@ -30,7 +31,7 @@ func (s *Server) UseMiddleware(m middleware.Middleware) {
 }
 
 func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return otelhttp.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Define the context that we'll pass around to share info
 		// like the docker-request-id.
 		//
@@ -42,6 +43,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		// use intermediate variable to prevent "should not use basic type
 		// string as key in context.WithValue" golint errors
 		ctx := context.WithValue(r.Context(), dockerversion.UAStringKey{}, r.Header.Get("User-Agent"))
+
 		r = r.WithContext(ctx)
 		handlerFunc := s.handlerWithGlobalMiddlewares(handler)
 
@@ -57,7 +59,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 			}
 			makeErrorHandler(err)(w, r)
 		}
-	}
+	}), "").ServeHTTP
 }
 
 type pageNotFoundError struct{}

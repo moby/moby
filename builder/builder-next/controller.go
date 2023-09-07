@@ -9,6 +9,7 @@ import (
 
 	ctd "github.com/containerd/containerd"
 	"github.com/containerd/containerd/content/local"
+	"github.com/containerd/containerd/log"
 	ctdmetadata "github.com/containerd/containerd/metadata"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/api/types"
@@ -43,12 +44,14 @@ import (
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/network/netproviders"
+	"github.com/moby/buildkit/util/tracing/detect"
 	"github.com/moby/buildkit/worker"
 	"github.com/moby/buildkit/worker/containerd"
 	"github.com/moby/buildkit/worker/label"
 	"github.com/pkg/errors"
 	"go.etcd.io/bbolt"
 	bolt "go.etcd.io/bbolt"
+	"go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
@@ -59,6 +62,14 @@ func newController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control
 		return newSnapshotterController(ctx, rt, opt)
 	}
 	return newGraphDriverController(ctx, rt, opt)
+}
+
+func getTraceExporter(ctx context.Context) trace.SpanExporter {
+	exp, err := detect.Exporter()
+	if err != nil {
+		log.G(ctx).WithError(err).Error("Failed to detect trace exporter for buildkit controller")
+	}
+	return exp
 }
 
 func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
@@ -136,11 +147,12 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 			"local":    localremotecache.ResolveCacheExporterFunc(opt.SessionManager),
 			"registry": registryremotecache.ResolveCacheExporterFunc(opt.SessionManager, opt.RegistryHosts),
 		},
-		Entitlements:  getEntitlements(opt.BuilderConfig),
-		HistoryDB:     historyDB,
-		HistoryConfig: historyConf,
-		LeaseManager:  wo.LeaseManager,
-		ContentStore:  wo.ContentStore,
+		Entitlements:   getEntitlements(opt.BuilderConfig),
+		HistoryDB:      historyDB,
+		HistoryConfig:  historyConf,
+		LeaseManager:   wo.LeaseManager,
+		ContentStore:   wo.ContentStore,
+		TraceCollector: getTraceExporter(ctx),
 	})
 }
 
@@ -354,11 +366,12 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
 			"inline": inlineremotecache.ResolveCacheExporterFunc(),
 		},
-		Entitlements:  getEntitlements(opt.BuilderConfig),
-		LeaseManager:  lm,
-		ContentStore:  store,
-		HistoryDB:     historyDB,
-		HistoryConfig: historyConf,
+		Entitlements:   getEntitlements(opt.BuilderConfig),
+		LeaseManager:   lm,
+		ContentStore:   store,
+		HistoryDB:      historyDB,
+		HistoryConfig:  historyConf,
+		TraceCollector: getTraceExporter(ctx),
 	})
 }
 

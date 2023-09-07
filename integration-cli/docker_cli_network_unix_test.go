@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -25,6 +26,7 @@ import (
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -39,18 +41,18 @@ const (
 
 var remoteDriverNetworkRequest remoteapi.CreateNetworkRequest
 
-func (s *DockerNetworkSuite) SetUpTest(c *testing.T) {
+func (s *DockerNetworkSuite) SetUpTest(ctx context.Context, c *testing.T) {
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
-func (s *DockerNetworkSuite) TearDownTest(c *testing.T) {
+func (s *DockerNetworkSuite) TearDownTest(ctx context.Context, c *testing.T) {
 	if s.d != nil {
 		s.d.Stop(c)
-		s.ds.TearDownTest(c)
+		s.ds.TearDownTest(ctx, c)
 	}
 }
 
-func (s *DockerNetworkSuite) SetUpSuite(c *testing.T) {
+func (s *DockerNetworkSuite) SetUpSuite(ctx context.Context, c *testing.T) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
 	assert.Assert(c, s.server != nil, "Failed to start an HTTP Server")
@@ -210,7 +212,7 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 	assert.NilError(c, err)
 }
 
-func (s *DockerNetworkSuite) TearDownSuite(c *testing.T) {
+func (s *DockerNetworkSuite) TearDownSuite(ctx context.Context, c *testing.T) {
 	if s.server == nil {
 		return
 	}
@@ -306,7 +308,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkRmPredefined(c *testing.T) {
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *testing.T) {
-	testRequires(c, OnlyDefaultNetworks)
+	testRequires(c, func() bool { return OnlyDefaultNetworks(testutil.GetContext(c)) })
+
 	testNet := "testnet1"
 	testLabel := "foo"
 	testValue := "bar"
@@ -786,6 +789,8 @@ func (s *DockerNetworkSuite) TestDockerPluginV2NetworkDriver(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *testing.T) {
+	ctx := testutil.GetContext(c)
+
 	// On default bridge network built-in service discovery should not happen
 	hostsFile := "/etc/hosts"
 	bridgeName := "external-bridge"
@@ -793,7 +798,7 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 	createInterface(c, "bridge", bridgeName, bridgeIP)
 	defer deleteInterface(c, bridgeName)
 
-	s.d.StartWithBusybox(c, "--bridge", bridgeName)
+	s.d.StartWithBusybox(ctx, c, "--bridge", bridgeName)
 	defer s.d.Restart(c)
 
 	// run two containers and store first container's etc/hosts content
@@ -944,6 +949,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkOverlayPortMapping(c *testing.T) {
 
 func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
+
+	ctx := testutil.GetContext(c)
 	dnd := "dnd"
 	did := "did"
 
@@ -951,7 +958,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *testing
 	server := httptest.NewServer(mux)
 	setupRemoteNetworkDrivers(c, mux, server.URL, dnd, did)
 
-	s.d.StartWithBusybox(c)
+	s.d.StartWithBusybox(ctx, c)
 	_, err := s.d.Cmd("network", "create", "-d", dnd, "--subnet", "1.1.1.0/24", "net1")
 	assert.NilError(c, err)
 
@@ -1051,10 +1058,11 @@ func verifyContainerIsConnectedToNetworks(c *testing.T, d *daemon.Daemon, cName 
 
 func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksGracefulDaemonRestart(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
+	ctx := testutil.GetContext(c)
 	cName := "bb"
 	nwList := []string{"nw1", "nw2", "nw3"}
 
-	s.d.StartWithBusybox(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	connectContainerToNetworks(c, s.d, cName, nwList)
 	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
@@ -1070,10 +1078,11 @@ func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksGracefulDaemonRest
 
 func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksUngracefulDaemonRestart(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
+	ctx := testutil.GetContext(c)
 	cName := "cc"
 	nwList := []string{"nw1", "nw2", "nw3"}
 
-	s.d.StartWithBusybox(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	connectContainerToNetworks(c, s.d, cName, nwList)
 	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
@@ -1097,7 +1106,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkRunNetByID(c *testing.T) {
 
 func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
-	s.d.StartWithBusybox(c)
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	// Run a few containers on host network
 	for i := 0; i < 10; i++ {
@@ -1620,7 +1630,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkCreateDeleteSpecialCharacters(c *t
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartRestoreBridgeNetwork(t *testing.T) {
-	s.d.StartWithBusybox(t, "--live-restore")
+	ctx := testutil.GetContext(t)
+	s.d.StartWithBusybox(ctx, t, "--live-restore")
 	defer s.d.Stop(t)
 	oldCon := "old"
 

@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
@@ -22,9 +21,8 @@ func TestPIDModeHost(t *testing.T) {
 	hostPid, err := os.Readlink("/proc/1/ns/pid")
 	assert.NilError(t, err)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, apiClient, container.WithPIDMode("host"))
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
@@ -40,9 +38,8 @@ func TestPIDModeHost(t *testing.T) {
 func TestPIDModeContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	t.Run("non-existing container", func(t *testing.T) {
 		_, err := container.CreateFromConfig(ctx, apiClient, container.NewTestConfig(container.WithPIDMode("container:nosuchcontainer")))

@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
@@ -18,9 +18,8 @@ import (
 // via HostConfig.Devices through to the implementation in hcsshim.
 func TestWindowsDevices(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-	t.Cleanup(setupTest(t))
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	testData := []struct {
 		doc                         string
@@ -90,6 +89,7 @@ func TestWindowsDevices(t *testing.T) {
 		d := d
 		t.Run(d.doc, func(t *testing.T) {
 			t.Parallel()
+			ctx := testutil.StartSpan(ctx, t)
 			deviceOptions := []func(*container.TestContainerConfig){container.WithIsolation(d.isolation)}
 			for _, deviceName := range d.devices {
 				deviceOptions = append(deviceOptions, container.WithWindowsDevice(deviceName))

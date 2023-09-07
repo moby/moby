@@ -4,7 +4,6 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -24,6 +23,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/testutil"
 	"github.com/moby/sys/mount"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
@@ -993,7 +993,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T)
 // with a the default seccomp profile exits with operation not permitted.
 func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyCloneUserns(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	icmd.RunCommand(dockerBinary, "run", "syscall-test", "userns-test", "id").Assert(c, icmd.Expected{
 		ExitCode: 1,
@@ -1005,7 +1005,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyCloneUserns(c *testing.T) {
 // 'docker run --security-opt seccomp=unconfined syscall-test' allows creating a userns.
 func (s *DockerCLIRunSuite) TestRunSeccompUnconfinedCloneUserns(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace, unprivilegedUsernsClone)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	// make sure running w privileged is ok
 	icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp=unconfined",
@@ -1018,7 +1018,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompUnconfinedCloneUserns(c *testing.T) {
 // allows creating a userns.
 func (s *DockerCLIRunSuite) TestRunSeccompAllowPrivCloneUserns(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	// make sure running w privileged is ok
 	icmd.RunCommand(dockerBinary, "run", "--privileged", "syscall-test", "userns-test", "id").Assert(c, icmd.Expected{
@@ -1030,7 +1030,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompAllowPrivCloneUserns(c *testing.T) {
 // with the default seccomp profile.
 func (s *DockerCLIRunSuite) TestRunSeccompProfileAllow32Bit(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, IsAmd64)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	icmd.RunCommand(dockerBinary, "run", "syscall-test", "exit32-test").Assert(c, icmd.Success)
 }
@@ -1045,7 +1045,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompAllowSetrlimit(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunSeccompDefaultProfileAcct(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotUserNamespace)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	out, _, err := dockerCmdWithError("run", "syscall-test", "acct-test")
 	if err == nil || !strings.Contains(out, "Operation not permitted") {
@@ -1075,7 +1075,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompDefaultProfileAcct(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunSeccompDefaultProfileNS(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotUserNamespace)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	out, _, err := dockerCmdWithError("run", "syscall-test", "ns-test", "echo", "hello0")
 	if err == nil || !strings.Contains(out, "Operation not permitted") {
@@ -1112,7 +1112,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompDefaultProfileNS(c *testing.T) {
 // effective uid transitions on executing setuid binaries.
 func (s *DockerCLIRunSuite) TestRunNoNewPrivSetuid(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
-	ensureNNPTest(c)
+	ensureNNPTest(testutil.GetContext(c), c)
 
 	// test that running a setuid binary results in no effective uid transition
 	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges=true", "--user", "1000",
@@ -1125,7 +1125,7 @@ func (s *DockerCLIRunSuite) TestRunNoNewPrivSetuid(c *testing.T) {
 // effective uid transitions on executing setuid binaries.
 func (s *DockerCLIRunSuite) TestLegacyRunNoNewPrivSetuid(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
-	ensureNNPTest(c)
+	ensureNNPTest(testutil.GetContext(c), c)
 
 	// test that running a setuid binary results in no effective uid transition
 	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges", "--user", "1000",
@@ -1136,7 +1136,7 @@ func (s *DockerCLIRunSuite) TestLegacyRunNoNewPrivSetuid(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesChown(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	// test that a root user has default capability CAP_CHOWN
 	dockerCmd(c, "run", "busybox", "chown", "100", "/tmp")
@@ -1154,7 +1154,7 @@ func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesChown(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	// test that a root user has default capability CAP_DAC_OVERRIDE
 	dockerCmd(c, "run", "busybox", "sh", "-c", "echo test > /etc/passwd")
@@ -1167,7 +1167,7 @@ func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *testin
 
 func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesFowner(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	// test that a root user has default capability CAP_FOWNER
 	dockerCmd(c, "run", "busybox", "chmod", "777", "/etc/passwd")
@@ -1183,7 +1183,7 @@ func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesFowner(c *testing.T) 
 
 func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesSetuid(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	// test that a root user has default capability CAP_SETUID
 	dockerCmd(c, "run", "syscall-test", "setuid-test")
@@ -1201,7 +1201,7 @@ func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesSetuid(c *testing.T) 
 
 func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesSetgid(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	// test that a root user has default capability CAP_SETGID
 	dockerCmd(c, "run", "syscall-test", "setgid-test")
@@ -1229,7 +1229,7 @@ func sysctlExists(s string) bool {
 
 func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	// test that a root user has default capability CAP_NET_BIND_SERVICE
 	dockerCmd(c, "run", "syscall-test", "socket-test")
@@ -1258,7 +1258,7 @@ func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *tes
 
 func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	// test that a root user has default capability CAP_NET_RAW
 	dockerCmd(c, "run", "syscall-test", "raw-test")
@@ -1276,7 +1276,7 @@ func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *testing.T) 
 
 func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesChroot(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	// test that a root user has default capability CAP_SYS_CHROOT
 	dockerCmd(c, "run", "busybox", "chroot", "/", "/bin/true")
@@ -1294,7 +1294,7 @@ func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesChroot(c *testing.T) 
 
 func (s *DockerCLIRunSuite) TestUserNoEffectiveCapabilitiesMknod(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
-	ensureSyscallTest(c)
+	ensureSyscallTest(testutil.GetContext(c), c)
 
 	// test that a root user has default capability CAP_MKNOD
 	dockerCmd(c, "run", "busybox", "mknod", "/tmp/node", "b", "1", "2")
@@ -1428,8 +1428,9 @@ func (s *DockerCLIRunSuite) TestRunUserDeviceAllowed(c *testing.T) {
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *testing.T) {
 	testRequires(c, seccompEnabled)
+	ctx := testutil.GetContext(c)
 
-	s.d.StartWithBusybox(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
@@ -1453,8 +1454,9 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *testing.T) {
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *testing.T) {
 	testRequires(c, seccompEnabled)
+	ctx := testutil.GetContext(c)
 
-	s.d.StartWithBusybox(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
@@ -1479,8 +1481,9 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *testing.T) {
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *testing.T) {
 	testRequires(c, seccompEnabled)
+	ctx := testutil.GetContext(c)
 
-	s.d.StartWithBusybox(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	jsonData := `{
 	"archMap": [
@@ -1516,8 +1519,9 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *testing.T) {
 
 func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *testing.T) {
 	testRequires(c, seccompEnabled)
+	ctx := testutil.GetContext(c)
 
-	s.d.StartWithBusybox(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	// 1) verify I can run containers with the Docker default shipped profile which allows chmod
 	_, err := s.d.Cmd("run", "busybox", "chmod", "777", ".")
@@ -1560,7 +1564,7 @@ func (s *DockerCLIRunSuite) TestRunWithNanoCPUs(c *testing.T) {
 
 	clt, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	inspect, err := clt.ContainerInspect(context.Background(), "test")
+	inspect, err := clt.ContainerInspect(testutil.GetContext(c), "test")
 	assert.NilError(c, err)
 	assert.Equal(c, inspect.HostConfig.NanoCPUs, int64(500000000))
 

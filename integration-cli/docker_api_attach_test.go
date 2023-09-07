@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"io"
 	"net"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/sockets"
 	"github.com/pkg/errors"
@@ -75,7 +75,8 @@ func (s *DockerAPISuite) TestGetContainersAttachWebsocket(c *testing.T) {
 
 // regression gh14320
 func (s *DockerAPISuite) TestPostContainersAttachContainerNotFound(c *testing.T) {
-	resp, _, err := request.Post("/containers/doesnotexist/attach")
+	ctx := testutil.GetContext(c)
+	resp, _, err := request.Post(ctx, "/containers/doesnotexist/attach")
 	assert.NilError(c, err)
 	// connection will shutdown, err should be "persistent connection closed"
 	assert.Equal(c, resp.StatusCode, http.StatusNotFound)
@@ -86,7 +87,8 @@ func (s *DockerAPISuite) TestPostContainersAttachContainerNotFound(c *testing.T)
 }
 
 func (s *DockerAPISuite) TestGetContainersWsAttachContainerNotFound(c *testing.T) {
-	res, body, err := request.Get("/containers/doesnotexist/attach/ws")
+	ctx := testutil.GetContext(c)
+	res, body, err := request.Get(ctx, "/containers/doesnotexist/attach/ws")
 	assert.Equal(c, res.StatusCode, http.StatusNotFound)
 	assert.NilError(c, err)
 	b, err := request.ReadBody(body)
@@ -190,7 +192,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 		Logs:   false,
 	}
 
-	resp, err := apiClient.ContainerAttach(context.Background(), cid, attachOpts)
+	resp, err := apiClient.ContainerAttach(testutil.GetContext(c), cid, attachOpts)
 	assert.NilError(c, err)
 	mediaType, b := resp.MediaType()
 	assert.Check(c, b)
@@ -199,7 +201,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 
 	// Make sure we do see "hello" if Logs is true
 	attachOpts.Logs = true
-	resp, err = apiClient.ContainerAttach(context.Background(), cid, attachOpts)
+	resp, err = apiClient.ContainerAttach(testutil.GetContext(c), cid, attachOpts)
 	assert.NilError(c, err)
 
 	defer resp.Conn.Close()

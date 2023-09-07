@@ -9,15 +9,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 type DockerCLIPortSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIPortSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIPortSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIPortSuite) OnTimeout(c *testing.T) {
@@ -26,21 +28,19 @@ func (s *DockerCLIPortSuite) OnTimeout(c *testing.T) {
 
 func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
+	ctx := testutil.GetContext(c)
+
 	// one port
 	out, _ := dockerCmd(c, "run", "-d", "-p", "9876:80", "busybox", "top")
 	firstID := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "port", firstID, "80")
 
-	err := assertPortList(c, out, []string{"0.0.0.0:9876", "[::]:9876"})
-	// Port list is not correct
-	assert.NilError(c, err)
+	assertPortList(c, out, []string{"0.0.0.0:9876", "[::]:9876"})
 
 	out, _ = dockerCmd(c, "port", firstID)
 
-	err = assertPortList(c, out, []string{"80/tcp -> 0.0.0.0:9876", "80/tcp -> [::]:9876"})
-	// Port list is not correct
-	assert.NilError(c, err)
+	assertPortList(c, out, []string{"80/tcp -> 0.0.0.0:9876", "80/tcp -> [::]:9876"})
 
 	dockerCmd(c, "rm", "-f", firstID)
 
@@ -54,13 +54,11 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 
 	out, _ = dockerCmd(c, "port", ID, "80")
 
-	err = assertPortList(c, out, []string{"0.0.0.0:9876", "[::]:9876"})
-	// Port list is not correct
-	assert.NilError(c, err)
+	assertPortList(c, out, []string{"0.0.0.0:9876", "[::]:9876"})
 
 	out, _ = dockerCmd(c, "port", ID)
 
-	err = assertPortList(c, out, []string{
+	assertPortList(c, out, []string{
 		"80/tcp -> 0.0.0.0:9876",
 		"80/tcp -> [::]:9876",
 		"81/tcp -> 0.0.0.0:9877",
@@ -68,8 +66,6 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 		"82/tcp -> 0.0.0.0:9878",
 		"82/tcp -> [::]:9878",
 	})
-	// Port list is not correct
-	assert.NilError(c, err)
 
 	dockerCmd(c, "rm", "-f", ID)
 
@@ -84,13 +80,11 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 
 	out, _ = dockerCmd(c, "port", ID, "80")
 
-	err = assertPortList(c, out, []string{"0.0.0.0:9876", "[::]:9876", "0.0.0.0:9999", "[::]:9999"})
-	// Port list is not correct
-	assert.NilError(c, err)
+	assertPortList(c, out, []string{"0.0.0.0:9876", "[::]:9876", "0.0.0.0:9999", "[::]:9999"})
 
 	out, _ = dockerCmd(c, "port", ID)
 
-	err = assertPortList(c, out, []string{
+	assertPortList(c, out, []string{
 		"80/tcp -> 0.0.0.0:9876",
 		"80/tcp -> 0.0.0.0:9999",
 		"80/tcp -> [::]:9876",
@@ -100,8 +94,6 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 		"82/tcp -> 0.0.0.0:9878",
 		"82/tcp -> [::]:9878",
 	})
-	// Port list is not correct
-	assert.NilError(c, err)
 	dockerCmd(c, "rm", "-f", ID)
 
 	testRange := func() {
@@ -113,16 +105,14 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 
 			out, _ = dockerCmd(c, "port", IDs[i])
 
-			err = assertPortList(c, out, []string{
+			assertPortList(c, out, []string{
 				fmt.Sprintf("80/tcp -> 0.0.0.0:%d", 9090+i),
 				fmt.Sprintf("80/tcp -> [::]:%d", 9090+i),
 			})
-			// Port list is not correct
-			assert.NilError(c, err)
 		}
 
 		// test port range exhaustion
-		out, _, err = dockerCmdWithError("run", "-d", "-p", "9090-9092:80", "busybox", "top")
+		out, _, err := dockerCmdWithError("run", "-d", "-p", "9090-9092:80", "busybox", "top")
 		// Exhausted port range did not return an error
 		assert.Assert(c, err != nil, "out: %s", out)
 
@@ -136,7 +126,7 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 
 	// test invalid port ranges
 	for _, invalidRange := range []string{"9090-9089:80", "9090-:80", "-9090:80"} {
-		out, _, err = dockerCmdWithError("run", "-d", "-p", invalidRange, "busybox", "top")
+		out, _, err := dockerCmdWithError("run", "-d", "-p", invalidRange, "busybox", "top")
 		// Port range should have returned an error
 		assert.Assert(c, err != nil, "out: %s", out)
 	}
@@ -147,7 +137,7 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 
 	out, _ = dockerCmd(c, "port", ID)
 
-	err = assertPortList(c, out, []string{
+	assertPortList(c, out, []string{
 		"80/tcp -> 0.0.0.0:9800",
 		"80/tcp -> [::]:9800",
 		"81/tcp -> 0.0.0.0:9801",
@@ -157,8 +147,6 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 		"83/tcp -> 0.0.0.0:9803",
 		"83/tcp -> [::]:9803",
 	})
-	// Port list is not correct
-	assert.NilError(c, err)
 	dockerCmd(c, "rm", "-f", ID)
 
 	// test mixing protocols in same port range
@@ -168,18 +156,15 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 	out, _ = dockerCmd(c, "port", ID)
 
 	// Running this test multiple times causes the TCP port to increment.
-	err = assertPortRange(ID, []int{8000, 8080}, []int{8000, 8080})
-	// Port list is not correct
-	assert.NilError(c, err)
+	assertPortRange(ctx, ID, []int{8000, 8080}, []int{8000, 8080})
 	dockerCmd(c, "rm", "-f", ID)
 }
 
-func assertPortList(c *testing.T, out string, expected []string) error {
+func assertPortList(c *testing.T, out string, expected []string) {
 	c.Helper()
 	lines := strings.Split(strings.Trim(out, "\n "), "\n")
-	if len(lines) != len(expected) {
-		return fmt.Errorf("different size lists %s, %d, %d", out, len(lines), len(expected))
-	}
+	assert.Assert(c, is.Len(lines, len(expected)), "exepcted: %s", strings.Join(expected, ", "))
+
 	sort.Strings(lines)
 	sort.Strings(expected)
 
@@ -196,17 +181,13 @@ func assertPortList(c *testing.T, out string, expected []string) error {
 		if lines[i] == expected[i] {
 			continue
 		}
-		if lines[i] != oldFormat(expected[i]) {
-			return fmt.Errorf("|" + lines[i] + "!=" + expected[i] + "|")
-		}
+		assert.Equal(c, lines[i], oldFormat(expected[i]))
 	}
-
-	return nil
 }
 
-func assertPortRange(id string, expectedTCP, expectedUDP []int) error {
+func assertPortRange(ctx context.Context, id string, expectedTCP, expectedUDP []int) error {
 	client := testEnv.APIClient()
-	inspect, err := client.ContainerInspect(context.TODO(), id)
+	inspect, err := client.ContainerInspect(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -331,17 +312,15 @@ func (s *DockerCLIPortSuite) TestPortHostBinding(c *testing.T) {
 
 	out, _ = dockerCmd(c, "port", firstID, "80")
 
-	err := assertPortList(c, out, []string{"0.0.0.0:9876", "[::]:9876"})
-	// Port list is not correct
-	assert.NilError(c, err)
+	assertPortList(c, out, []string{"0.0.0.0:9876", "[::]:9876"})
 
 	dockerCmd(c, "run", "--net=host", "busybox", "nc", "localhost", "9876")
 
 	dockerCmd(c, "rm", "-f", firstID)
 
-	out, _, err = dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "9876")
+	out, _, err := dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "9876")
 	// Port is still bound after the Container is removed
-	assert.Assert(c, err != nil, "out: %s", out)
+	assert.Assert(c, err != nil, out)
 }
 
 func (s *DockerCLIPortSuite) TestPortExposeHostBinding(c *testing.T) {

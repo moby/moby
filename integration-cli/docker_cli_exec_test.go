@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -26,8 +27,8 @@ type DockerCLIExecSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIExecSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIExecSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIExecSuite) OnTimeout(c *testing.T) {
@@ -90,8 +91,9 @@ func (s *DockerCLIExecSuite) TestExecAfterContainerRestart(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestExecAfterDaemonRestart(c *testing.T) {
+	ctx := testutil.GetContext(c)
 	// TODO Windows CI: DockerDaemonSuite doesn't run on Windows, and requires a little work to get this ported.
-	s.d.StartWithBusybox(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	out, err := s.d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top")
 	assert.NilError(c, err, "Could not run top: %s", out)
@@ -363,7 +365,7 @@ func (s *DockerCLIExecSuite) TestExecInspectID(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	_, err = apiClient.ContainerExecInspect(context.Background(), execID)
+	_, err = apiClient.ContainerExecInspect(testutil.GetContext(c), execID)
 	assert.NilError(c, err)
 
 	// Now delete the container and then an 'inspect' on the exec should
@@ -371,7 +373,7 @@ func (s *DockerCLIExecSuite) TestExecInspectID(c *testing.T) {
 	out, ec := dockerCmd(c, "rm", "-f", id)
 	assert.Equal(c, ec, 0, "error removing container: %s", out)
 
-	_, err = apiClient.ContainerExecInspect(context.Background(), execID)
+	_, err = apiClient.ContainerExecInspect(testutil.GetContext(c), execID)
 	assert.ErrorContains(c, err, "No such exec instance")
 }
 

@@ -13,6 +13,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	realcontainer "github.com/docker/docker/container"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -37,13 +38,13 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	skip.If(t, testEnv.IsRootless)
 	t.Parallel()
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
-	d.StartWithBusybox(t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false")
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
-
-	ctx := context.Background()
 
 	cID := container.Create(ctx, t, c)
 	defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
@@ -91,12 +92,13 @@ func TestDaemonRestartIpcMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	t.Parallel()
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
-	d.StartWithBusybox(t, "--iptables=false", "--default-ipc-mode=private")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--default-ipc-mode=private")
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
-	ctx := context.Background()
 
 	// check the container is created with private ipc mode as per daemon default
 	cID := container.Run(ctx, t, c,
@@ -137,12 +139,13 @@ func TestDaemonHostGatewayIP(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 	t.Parallel()
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	// Verify the IP in /etc/hosts is same as host-gateway-ip
 	d := daemon.New(t)
 	// Verify the IP in /etc/hosts is same as the default bridge's IP
-	d.StartWithBusybox(t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false")
 	c := d.NewClientT(t)
-	ctx := context.Background()
 	cID := container.Run(ctx, t, c,
 		container.WithExtraHost("host.docker.internal:host-gateway"),
 	)
@@ -157,7 +160,7 @@ func TestDaemonHostGatewayIP(t *testing.T) {
 	d.Stop(t)
 
 	// Verify the IP in /etc/hosts is same as host-gateway-ip
-	d.StartWithBusybox(t, "--iptables=false", "--host-gateway-ip=6.7.8.9")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--host-gateway-ip=6.7.8.9")
 	cID = container.Run(ctx, t, c,
 		container.WithExtraHost("host.docker.internal:host-gateway"),
 	)
@@ -187,13 +190,14 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 
 	t.Parallel()
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
 	defer d.Cleanup(t)
 
-	d.StartWithBusybox(t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false")
 	defer d.Stop(t)
 
-	ctx := context.Background()
 	apiClient := d.NewClientT(t)
 
 	// Just create the container, no need to start it to be started.
@@ -232,13 +236,14 @@ func TestHardRestartWhenContainerIsRunning(t *testing.T) {
 
 	t.Parallel()
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
 	defer d.Cleanup(t)
 
-	d.StartWithBusybox(t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false")
 	defer d.Stop(t)
 
-	ctx := context.Background()
 	apiClient := d.NewClientT(t)
 
 	// Just create the containers, no need to start them.
@@ -259,6 +264,7 @@ func TestHardRestartWhenContainerIsRunning(t *testing.T) {
 	d.Start(t, "--iptables=false")
 
 	t.Run("RestartPolicy=none", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		inspect, err := apiClient.ContainerInspect(ctx, noPolicy)
@@ -272,6 +278,7 @@ func TestHardRestartWhenContainerIsRunning(t *testing.T) {
 	})
 
 	t.Run("RestartPolicy=on-failure", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		inspect, err := apiClient.ContainerInspect(ctx, onFailure)

@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/oci"
+	"github.com/docker/docker/testutil"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -24,8 +25,8 @@ import (
 )
 
 func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
-	t.Cleanup(setupTest(t))
-	apiClient := testEnv.APIClient()
+	ctx := setupTest(t)
+	client := testEnv.APIClient()
 
 	testCases := []struct {
 		doc           string
@@ -53,7 +54,8 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
-			_, err := apiClient.ContainerCreate(context.Background(),
+			ctx := testutil.StartSpan(ctx, t)
+			_, err := client.ContainerCreate(ctx,
 				&container.Config{Image: tc.image},
 				&container.HostConfig{},
 				&network.NetworkingConfig{},
@@ -71,10 +73,10 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 // "non exists" (404).
 func TestCreateLinkToNonExistingContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "legacy links are not supported on windows")
-	defer setupTest(t)()
-	apiClient := testEnv.APIClient()
+	ctx := setupTest(t)
+	c := testEnv.APIClient()
 
-	_, err := apiClient.ContainerCreate(context.Background(),
+	_, err := c.ContainerCreate(ctx,
 		&container.Config{
 			Image: "busybox",
 		},
@@ -90,8 +92,8 @@ func TestCreateLinkToNonExistingContainer(t *testing.T) {
 }
 
 func TestCreateWithInvalidEnv(t *testing.T) {
-	t.Cleanup(setupTest(t))
-	apiClient := testEnv.APIClient()
+	ctx := setupTest(t)
+	client := testEnv.APIClient()
 
 	testCases := []struct {
 		env           string
@@ -115,7 +117,8 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 		tc := tc
 		t.Run(strconv.Itoa(index), func(t *testing.T) {
 			t.Parallel()
-			_, err := apiClient.ContainerCreate(context.Background(),
+			ctx := testutil.StartSpan(ctx, t)
+			_, err := client.ContainerCreate(ctx,
 				&container.Config{
 					Image: "busybox",
 					Env:   []string{tc.env},
@@ -134,9 +137,9 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 // Test case for #30166 (target was not validated)
 func TestCreateTmpfsMountsTarget(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	ctx := setupTest(t)
 
-	defer setupTest(t)()
-	apiClient := testEnv.APIClient()
+	client := testEnv.APIClient()
 
 	testCases := []struct {
 		target        string
@@ -161,7 +164,7 @@ func TestCreateTmpfsMountsTarget(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		_, err := apiClient.ContainerCreate(context.Background(),
+		_, err := client.ContainerCreate(ctx,
 			&container.Config{
 				Image: "busybox",
 			},
@@ -180,9 +183,8 @@ func TestCreateTmpfsMountsTarget(t *testing.T) {
 func TestCreateWithCustomMaskedPaths(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	testCases := []struct {
 		maskedPaths []string
@@ -224,6 +226,8 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 		assert.DeepEqual(t, expected, mps)
 	}
 
+	// TODO: This should be using subtests
+
 	for i, tc := range testCases {
 		name := fmt.Sprintf("create-masked-paths-%d", i)
 		config := container.Config{
@@ -236,7 +240,7 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 		}
 
 		// Create the container.
-		c, err := apiClient.ContainerCreate(context.Background(),
+		c, err := apiClient.ContainerCreate(ctx,
 			&config,
 			&hc,
 			&network.NetworkingConfig{},
@@ -260,9 +264,8 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	testCases := []struct {
 		readonlyPaths []string
@@ -315,7 +318,7 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 		}
 
 		// Create the container.
-		c, err := apiClient.ContainerCreate(context.Background(),
+		c, err := apiClient.ContainerCreate(ctx,
 			&config,
 			&hc,
 			&network.NetworkingConfig{},
@@ -337,9 +340,8 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 }
 
 func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
-	t.Cleanup(setupTest(t))
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	testCases := []struct {
 		doc         string
@@ -391,6 +393,7 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
+			ctx := testutil.StartSpan(ctx, t)
 			cfg := container.Config{
 				Image: "busybox",
 				Healthcheck: &container.HealthConfig{
@@ -420,9 +423,8 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 // https://github.com/moby/moby/issues/40446
 func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "windows does not support tmpfs")
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	id := ctr.Create(ctx, t, apiClient,
 		ctr.WithVolume("/foo"),
@@ -466,15 +468,15 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 // Test that if the referenced image platform does not match the requested platform on container create that we get an
 // error.
 func TestCreateDifferentPlatform(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	img, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
 	assert.NilError(t, err)
 	assert.Assert(t, img.Architecture != "")
 
 	t.Run("different os", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		p := ocispec.Platform{
 			OS:           img.Os + "DifferentOS",
 			Architecture: img.Architecture,
@@ -484,6 +486,7 @@ func TestCreateDifferentPlatform(t *testing.T) {
 		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	})
 	t.Run("different cpu arch", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		p := ocispec.Platform{
 			OS:           img.Os,
 			Architecture: img.Architecture + "DifferentArch",
@@ -495,11 +498,11 @@ func TestCreateDifferentPlatform(t *testing.T) {
 }
 
 func TestCreateVolumesFromNonExistingContainer(t *testing.T) {
-	defer setupTest(t)()
-	apiClient := testEnv.APIClient()
+	ctx := setupTest(t)
+	cli := testEnv.APIClient()
 
-	_, err := apiClient.ContainerCreate(
-		context.Background(),
+	_, err := cli.ContainerCreate(
+		ctx,
 		&container.Config{Image: "busybox"},
 		&container.HostConfig{VolumesFrom: []string{"nosuchcontainer"}},
 		nil,
@@ -512,14 +515,14 @@ func TestCreateVolumesFromNonExistingContainer(t *testing.T) {
 // Test that we can create a container from an image that is for a different platform even if a platform was not specified
 // This is for the regression detailed here: https://github.com/moby/moby/issues/41552
 func TestCreatePlatformSpecificImageNoPlatform(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	skip.If(t, testEnv.DaemonInfo.Architecture == "arm", "test only makes sense to run on non-arm systems")
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "test image is only available on linux")
-	apiClient := testEnv.APIClient()
+	cli := testEnv.APIClient()
 
-	_, err := apiClient.ContainerCreate(
-		context.Background(),
+	_, err := cli.ContainerCreate(
+		ctx,
 		&container.Config{Image: "arm32v7/hello-world"},
 		&container.HostConfig{},
 		nil,
@@ -532,9 +535,8 @@ func TestCreatePlatformSpecificImageNoPlatform(t *testing.T) {
 func TestCreateInvalidHostConfig(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	t.Cleanup(setupTest(t))
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	testCases := []struct {
 		doc         string
@@ -572,6 +574,7 @@ func TestCreateInvalidHostConfig(t *testing.T) {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
+			ctx := testutil.StartSpan(ctx, t)
 			cfg := container.Config{
 				Image: "busybox",
 			}

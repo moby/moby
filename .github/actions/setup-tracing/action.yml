@@ -1,0 +1,12 @@
+name: 'Setup Tracing'
+description: 'Composite action to set up the tracing for test jobs'
+
+runs:
+  using: composite
+  steps:
+    - run: |
+        set -e
+        docker run -d --net=host --name jaeger -e COLLECTOR_OTLP_ENABLED=true jaegertracing/all-in-one:1.46
+        docker0_ip="$(ip -f inet addr show docker0 | grep -Po 'inet \K[\d.]+')"
+        echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://${docker0_ip}:4318" >> "${GITHUB_ENV}"
+      shell: bash

@@ -17,6 +17,7 @@ import (
 	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
 	containerddefaults "github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/tracing"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
 	buildbackend "github.com/docker/docker/api/server/backend/build"
@@ -56,10 +57,14 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/tracing/detect"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 // DaemonCli represents the daemon CLI.
@@ -227,6 +232,24 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// Notify that the API is active, but before daemon is set up.
 	preNotifyReady()
 
+	const otelServiceNameEnv = "OTEL_SERVICE_NAME"
+	if _, ok := os.LookupEnv(otelServiceNameEnv); !ok {
+		os.Setenv(otelServiceNameEnv, filepath.Base(os.Args[0]))
+	}
+
+	setOTLPProtoDefault()
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	detect.Recorder = detect.NewTraceRecorder()
+
+	tp, err := detect.TracerProvider()
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to initialize tracing, skipping")
+	} else {
+		otel.SetTracerProvider(tp)
+		log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
+		bklog.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
+	}
+
 	pluginStore := plugin.NewStore()
 
 	var apiServer apiserver.Server
@@ -279,6 +302,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	if err != nil {
 		return err
 	}
+
 	routerOptions.cluster = c
 
 	httpServer.Handler = apiServer.CreateMux(routerOptions.Build()...)
@@ -330,8 +354,25 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return errors.Wrap(err, "shutting down due to ServeAPI error")
 	}
 
+	detect.Shutdown(context.Background())
+
 	log.G(ctx).Info("Daemon shutdown complete")
 	return nil
+}
+
+// The buildkit "detect" package uses grpc as the default proto, which is in conformance with the old spec.
+// For a little while now http/protobuf is the default spec, so this function sets the protocol to http/protobuf when the env var is unset
+// so that the detect package will use http/protobuf as a default.
+// TODO: This can be removed after buildkit is updated to use http/protobuf as the default.
+func setOTLPProtoDefault() {
+	const (
+		tracesEnv = "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL"
+		protoEnv  = "OTEL_EXPORTER_OTLP_PROTOCOL"
+	)
+
+	if os.Getenv(tracesEnv) == "" && os.Getenv(protoEnv) == "" {
+		os.Setenv(tracesEnv, "http/protobuf")
+	}
 }
 
 type routerOptions struct {

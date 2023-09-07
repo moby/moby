@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,8 +22,8 @@ type DockerCLIImagesSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIImagesSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIImagesSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIImagesSuite) OnTimeout(c *testing.T) {

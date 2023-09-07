@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 )
@@ -19,8 +21,8 @@ type DockerAPISuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerAPISuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerAPISuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerAPISuite) OnTimeout(c *testing.T) {
@@ -28,13 +30,13 @@ func (s *DockerAPISuite) OnTimeout(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestAPIOptionsRoute(c *testing.T) {
-	resp, _, err := request.Do("/", request.Method(http.MethodOptions))
+	resp, _, err := request.Do(testutil.GetContext(c), "/", request.Method(http.MethodOptions))
 	assert.NilError(c, err)
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
 }
 
 func (s *DockerAPISuite) TestAPIGetEnabledCORS(c *testing.T) {
-	res, body, err := request.Get("/version")
+	res, body, err := request.Get(testutil.GetContext(c), "/version")
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusOK)
 	body.Close()
@@ -59,7 +61,7 @@ func (s *DockerAPISuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
 	v[1] = strconv.Itoa(vMinInt)
 	version := strings.Join(v, ".")
 
-	resp, body, err := request.Get("/v" + version + "/version")
+	resp, body, err := request.Get(testutil.GetContext(c), "/v"+version+"/version")
 	assert.NilError(c, err)
 	defer body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusBadRequest)
@@ -70,7 +72,7 @@ func (s *DockerAPISuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestAPIErrorJSON(c *testing.T) {
-	httpResp, body, err := request.Post("/containers/create", request.JSONBody(struct{}{}))
+	httpResp, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.JSONBody(struct{}{}))
 	assert.NilError(c, err)
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, httpResp.StatusCode, http.StatusInternalServerError)
@@ -87,7 +89,7 @@ func (s *DockerAPISuite) TestAPIErrorPlainText(c *testing.T) {
 	// Windows requires API 1.25 or later. This test is validating a behaviour which was present
 	// in v1.23, but changed in 1.24, hence not applicable on Windows. See apiVersionSupportsJSONErrors
 	testRequires(c, DaemonIsLinux)
-	httpResp, body, err := request.Post("/v1.23/containers/create", request.JSONBody(struct{}{}))
+	httpResp, body, err := request.Post(testutil.GetContext(c), "/v1.23/containers/create", request.JSONBody(struct{}{}))
 	assert.NilError(c, err)
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, httpResp.StatusCode, http.StatusInternalServerError)
@@ -102,7 +104,7 @@ func (s *DockerAPISuite) TestAPIErrorPlainText(c *testing.T) {
 
 func (s *DockerAPISuite) TestAPIErrorNotFoundJSON(c *testing.T) {
 	// 404 is a different code path to normal errors, so test separately
-	httpResp, body, err := request.Get("/notfound", request.JSON)
+	httpResp, body, err := request.Get(testutil.GetContext(c), "/notfound", request.JSON)
 	assert.NilError(c, err)
 	assert.Equal(c, httpResp.StatusCode, http.StatusNotFound)
 	assert.Assert(c, strings.Contains(httpResp.Header.Get("Content-Type"), "application/json"))
@@ -112,7 +114,7 @@ func (s *DockerAPISuite) TestAPIErrorNotFoundJSON(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestAPIErrorNotFoundPlainText(c *testing.T) {
-	httpResp, body, err := request.Get("/v1.23/notfound", request.JSON)
+	httpResp, body, err := request.Get(testutil.GetContext(c), "/v1.23/notfound", request.JSON)
 	assert.NilError(c, err)
 	assert.Equal(c, httpResp.StatusCode, http.StatusNotFound)
 	assert.Assert(c, strings.Contains(httpResp.Header.Get("Content-Type"), "text/plain"))

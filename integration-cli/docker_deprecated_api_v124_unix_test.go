@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 )
@@ -22,7 +23,7 @@ func (s *DockerNetworkSuite) TestDeprecatedDockerNetworkStartAPIWithHostconfig(c
 			"NetworkMode": netName,
 		},
 	}
-	_, _, err := request.Post(formatV123StartAPIURL("/containers/"+conName+"/start"), request.JSONBody(config))
+	_, _, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/"+conName+"/start"), request.JSONBody(config))
 	assert.NilError(c, err)
 	assert.NilError(c, waitRun(conName))
 	networks := inspectField(c, conName, "NetworkSettings.Networks")

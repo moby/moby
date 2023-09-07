@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -19,9 +18,8 @@ import (
 func TestInspectCpusetInConfigPre120(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows" || !testEnv.DaemonInfo.CPUSet)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := request.NewAPIClient(t, client.WithVersion("1.19"))
-	ctx := context.Background()
 
 	name := strings.ToLower(t.Name())
 	// Create container with up to-date-API
@@ -49,9 +47,8 @@ func TestInspectCpusetInConfigPre120(t *testing.T) {
 }
 
 func TestInspectAnnotations(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := request.NewAPIClient(t)
-	ctx := context.Background()
 
 	annotations := map[string]string{
 		"hello": "world",

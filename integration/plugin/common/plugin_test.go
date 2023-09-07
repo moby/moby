@@ -1,7 +1,6 @@
 package common // import "github.com/docker/docker/integration/plugin/common"
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -20,6 +19,7 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"github.com/docker/docker/testutil/registry"
@@ -33,7 +33,7 @@ import (
 // TestPluginInvalidJSON tests that POST endpoints that expect a body return
 // the correct error when sending invalid JSON requests.
 func TestPluginInvalidJSON(t *testing.T) {
-	t.Cleanup(setupTest(t))
+	ctx := setupTest(t)
 
 	// POST endpoints that accept / expect a JSON body;
 	endpoints := []string{
@@ -47,8 +47,11 @@ func TestPluginInvalidJSON(t *testing.T) {
 		t.Run(ep[1:], func(t *testing.T) {
 			t.Parallel()
 
+			ctx := testutil.StartSpan(ctx, t)
+
 			t.Run("invalid content type", func(t *testing.T) {
-				res, body, err := request.Post(ep, request.RawString("[]"), request.ContentType("text/plain"))
+				ctx := testutil.StartSpan(ctx, t)
+				res, body, err := request.Post(ctx, ep, request.RawString("[]"), request.ContentType("text/plain"))
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal(res.StatusCode, http.StatusBadRequest))
 
@@ -58,7 +61,8 @@ func TestPluginInvalidJSON(t *testing.T) {
 			})
 
 			t.Run("invalid JSON", func(t *testing.T) {
-				res, body, err := request.Post(ep, request.RawString("{invalid json"), request.JSON)
+				ctx := testutil.StartSpan(ctx, t)
+				res, body, err := request.Post(ctx, ep, request.RawString("{invalid json"), request.JSON)
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal(res.StatusCode, http.StatusBadRequest))
 
@@ -68,7 +72,8 @@ func TestPluginInvalidJSON(t *testing.T) {
 			})
 
 			t.Run("extra content after JSON", func(t *testing.T) {
-				res, body, err := request.Post(ep, request.RawString(`[] trailing content`), request.JSON)
+				ctx := testutil.StartSpan(ctx, t)
+				res, body, err := request.Post(ctx, ep, request.RawString(`[] trailing content`), request.JSON)
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal(res.StatusCode, http.StatusBadRequest))
 
@@ -78,10 +83,11 @@ func TestPluginInvalidJSON(t *testing.T) {
 			})
 
 			t.Run("empty body", func(t *testing.T) {
+				ctx := testutil.StartSpan(ctx, t)
 				// empty body should not produce an 500 internal server error, or
 				// any 5XX error (this is assuming the request does not produce
 				// an internal server error for another reason, but it shouldn't)
-				res, _, err := request.Post(ep, request.RawString(``), request.JSON)
+				res, _, err := request.Post(ctx, ep, request.RawString(``), request.JSON)
 				assert.NilError(t, err)
 				assert.Check(t, res.StatusCode < http.StatusInternalServerError)
 			})
@@ -94,11 +100,11 @@ func TestPluginInstall(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of localhost")
 
-	ctx := context.Background()
+	ctx := testutil.StartSpan(baseContext, t)
 	client := testEnv.APIClient()
 
 	t.Run("no auth", func(t *testing.T) {
-		defer setupTest(t)()
+		ctx := setupTest(t)
 
 		reg := registry.NewV2(t)
 		defer reg.Close()
@@ -119,7 +125,7 @@ func TestPluginInstall(t *testing.T) {
 	})
 
 	t.Run("with htpasswd", func(t *testing.T) {
-		defer setupTest(t)()
+		ctx := setupTest(t)
 
 		reg := registry.NewV2(t, registry.Htpasswd)
 		defer reg.Close()
@@ -148,6 +154,8 @@ func TestPluginInstall(t *testing.T) {
 	})
 	t.Run("with insecure", func(t *testing.T) {
 		skip.If(t, !testEnv.IsLocalDaemon())
+
+		ctx := testutil.StartSpan(ctx, t)
 
 		addrs, err := net.InterfaceAddrs()
 		assert.NilError(t, err)
@@ -202,6 +210,8 @@ func TestPluginsWithRuntimes(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "Test not supported on rootless due to buggy daemon setup in rootless mode due to daemon restart")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	dir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
@@ -212,7 +222,6 @@ func TestPluginsWithRuntimes(t *testing.T) {
 	d.Start(t)
 	defer d.Stop(t)
 
-	ctx := context.Background()
 	client := d.NewClientT(t)
 
 	assert.NilError(t, plugin.Create(ctx, client, "test:latest"))
@@ -248,12 +257,14 @@ func TestPluginsWithRuntimes(t *testing.T) {
 	os.WriteFile(configPath, cfg, 0o644)
 
 	t.Run("No Args", func(t *testing.T) {
+		_ = testutil.StartSpan(ctx, t)
 		d.Restart(t, "--default-runtime=myrt", "--config-file="+configPath)
 		_, err = os.Stat(filepath.Join(dir, "success"))
 		assert.NilError(t, err)
 	})
 
 	t.Run("With Args", func(t *testing.T) {
+		_ = testutil.StartSpan(ctx, t)
 		d.Restart(t, "--default-runtime=myrtArgs", "--config-file="+configPath)
 		_, err = os.Stat(filepath.Join(dir, "success_someArg"))
 		assert.NilError(t, err)
@@ -265,7 +276,7 @@ func TestPluginBackCompatMediaTypes(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRootless, "Rootless has a different view of localhost (needed for test registry access)")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	reg := registry.NewV2(t)
 	defer reg.Close()
@@ -275,7 +286,6 @@ func TestPluginBackCompatMediaTypes(t *testing.T) {
 
 	client := testEnv.APIClient()
 
-	ctx := context.Background()
 	assert.NilError(t, plugin.Create(ctx, client, repo))
 
 	rdr, err := client.PluginPush(ctx, repo, "")

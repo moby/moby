@@ -2,7 +2,6 @@ package logging
 
 import (
 	"bytes"
-	"context"
 	"runtime"
 	"strings"
 	"testing"
@@ -11,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 )
@@ -21,15 +21,16 @@ func TestReadPluginNoRead(t *testing.T) {
 		t.Skip("no unix domain sockets on Windows")
 	}
 	t.Parallel()
+
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
-	d.StartWithBusybox(t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false")
 	defer d.Stop(t)
 
 	client, err := d.NewClient()
 	assert.Assert(t, err)
-	createPlugin(t, client, "test", "discard", asLogDriver)
-
-	ctx := context.Background()
+	createPlugin(ctx, t, client, "test", "discard", asLogDriver)
 
 	err = client.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
 	assert.Check(t, err)
@@ -48,6 +49,7 @@ func TestReadPluginNoRead(t *testing.T) {
 		"explicitly enabled caching": {[]string{"--log-opt=cache-disabled=false"}, true},
 	} {
 		t.Run(desc, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
 			d.Start(t, append([]string{"--iptables=false"}, test.dOpts...)...)
 			defer d.Stop(t)
 			c, err := client.ContainerCreate(ctx,

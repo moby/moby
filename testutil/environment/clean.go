@@ -11,32 +11,36 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
+	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
 )
 
 // Clean the environment, preserving protected objects (images, containers, ...)
 // and removing everything else. It's meant to run after any tests so that they don't
 // depend on each others.
-func (e *Execution) Clean(t testing.TB) {
+func (e *Execution) Clean(ctx context.Context, t testing.TB) {
 	t.Helper()
+
+	ctx, span := otel.Tracer("").Start(ctx, "CleanupEnvironment")
+	defer span.End()
+
 	apiClient := e.APIClient()
 
 	platform := e.DaemonInfo.OSType
 	if (platform != "windows") || (platform == "windows" && e.DaemonInfo.Isolation == "hyperv") {
-		unpauseAllContainers(t, apiClient)
+		unpauseAllContainers(ctx, t, apiClient)
 	}
-	deleteAllContainers(t, apiClient, e.protectedElements.containers)
-	deleteAllImages(t, apiClient, e.protectedElements.images)
-	deleteAllVolumes(t, apiClient, e.protectedElements.volumes)
-	deleteAllNetworks(t, apiClient, platform, e.protectedElements.networks)
+	deleteAllContainers(ctx, t, apiClient, e.protectedElements.containers)
+	deleteAllImages(ctx, t, apiClient, e.protectedElements.images)
+	deleteAllVolumes(ctx, t, apiClient, e.protectedElements.volumes)
+	deleteAllNetworks(ctx, t, apiClient, platform, e.protectedElements.networks)
 	if platform == "linux" {
-		deleteAllPlugins(t, apiClient, e.protectedElements.plugins)
+		deleteAllPlugins(ctx, t, apiClient, e.protectedElements.plugins)
 	}
 }
 
-func unpauseAllContainers(t testing.TB, client client.ContainerAPIClient) {
+func unpauseAllContainers(ctx context.Context, t testing.TB, client client.ContainerAPIClient) {
 	t.Helper()
-	ctx := context.Background()
 	containers := getPausedContainers(ctx, t, client)
 	if len(containers) > 0 {
 		for _, container := range containers {
@@ -58,9 +62,8 @@ func getPausedContainers(ctx context.Context, t testing.TB, client client.Contai
 
 var alreadyExists = regexp.MustCompile(`Error response from daemon: removal of container (\w+) is already in progress`)
 
-func deleteAllContainers(t testing.TB, apiclient client.ContainerAPIClient, protectedContainers map[string]struct{}) {
+func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.ContainerAPIClient, protectedContainers map[string]struct{}) {
 	t.Helper()
-	ctx := context.Background()
 	containers := getAllContainers(ctx, t, apiclient)
 	if len(containers) == 0 {
 		return
@@ -90,12 +93,11 @@ func getAllContainers(ctx context.Context, t testing.TB, client client.Container
 	return containers
 }
 
-func deleteAllImages(t testing.TB, apiclient client.ImageAPIClient, protectedImages map[string]struct{}) {
+func deleteAllImages(ctx context.Context, t testing.TB, apiclient client.ImageAPIClient, protectedImages map[string]struct{}) {
 	t.Helper()
-	images, err := apiclient.ImageList(context.Background(), types.ImageListOptions{})
+	images, err := apiclient.ImageList(ctx, types.ImageListOptions{})
 	assert.Check(t, err, "failed to list images")
 
-	ctx := context.Background()
 	for _, image := range images {
 		tags := tagsFromImageSummary(image)
 		if _, ok := protectedImages[image.ID]; ok {
@@ -124,16 +126,16 @@ func removeImage(ctx context.Context, t testing.TB, apiclient client.ImageAPICli
 	assert.Check(t, err, "failed to remove image %s", ref)
 }
 
-func deleteAllVolumes(t testing.TB, c client.VolumeAPIClient, protectedVolumes map[string]struct{}) {
+func deleteAllVolumes(ctx context.Context, t testing.TB, c client.VolumeAPIClient, protectedVolumes map[string]struct{}) {
 	t.Helper()
-	volumes, err := c.VolumeList(context.Background(), volume.ListOptions{})
+	volumes, err := c.VolumeList(ctx, volume.ListOptions{})
 	assert.Check(t, err, "failed to list volumes")
 
 	for _, v := range volumes.Volumes {
 		if _, ok := protectedVolumes[v.Name]; ok {
 			continue
 		}
-		err := c.VolumeRemove(context.Background(), v.Name, true)
+		err := c.VolumeRemove(ctx, v.Name, true)
 		// Docker EE may list volumes that no longer exist.
 		if isErrNotFoundSwarmClassic(err) {
 			continue
@@ -142,9 +144,9 @@ func deleteAllVolumes(t testing.TB, c client.VolumeAPIClient, protectedVolumes m
 	}
 }
 
-func deleteAllNetworks(t testing.TB, c client.NetworkAPIClient, daemonPlatform string, protectedNetworks map[string]struct{}) {
+func deleteAllNetworks(ctx context.Context, t testing.TB, c client.NetworkAPIClient, daemonPlatform string, protectedNetworks map[string]struct{}) {
 	t.Helper()
-	networks, err := c.NetworkList(context.Background(), types.NetworkListOptions{})
+	networks, err := c.NetworkList(ctx, types.NetworkListOptions{})
 	assert.Check(t, err, "failed to list networks")
 
 	for _, n := range networks {
@@ -158,14 +160,14 @@ func deleteAllNetworks(t testing.TB, c client.NetworkAPIClient, daemonPlatform s
 			// nat is a pre-defined network on Windows and cannot be removed
 			continue
 		}
-		err := c.NetworkRemove(context.Background(), n.ID)
+		err := c.NetworkRemove(ctx, n.ID)
 		assert.Check(t, err, "failed to remove network %s", n.ID)
 	}
 }
 
-func deleteAllPlugins(t testing.TB, c client.PluginAPIClient, protectedPlugins map[string]struct{}) {
+func deleteAllPlugins(ctx context.Context, t testing.TB, c client.PluginAPIClient, protectedPlugins map[string]struct{}) {
 	t.Helper()
-	plugins, err := c.PluginList(context.Background(), filters.Args{})
+	plugins, err := c.PluginList(ctx, filters.Args{})
 	// Docker EE does not allow cluster-wide plugin management.
 	if errdefs.IsNotImplemented(err) {
 		return
@@ -176,7 +178,7 @@ func deleteAllPlugins(t testing.TB, c client.PluginAPIClient, protectedPlugins m
 		if _, ok := protectedPlugins[p.Name]; ok {
 			continue
 		}
-		err := c.PluginRemove(context.Background(), p.Name, types.PluginRemoveOptions{Force: true})
+		err := c.PluginRemove(ctx, p.Name, types.PluginRemoveOptions{Force: true})
 		assert.Check(t, err, "failed to remove plugin %s", p.ID)
 	}
 }

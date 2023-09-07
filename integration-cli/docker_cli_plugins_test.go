@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -34,8 +35,8 @@ type DockerCLIPluginsSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIPluginsSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIPluginsSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIPluginsSuite) OnTimeout(c *testing.T) {
@@ -162,7 +163,7 @@ func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
 	client := testEnv.APIClient()
 
 	name := "test"
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
 	defer cancel()
 
 	initialValue := "0"
@@ -207,7 +208,7 @@ func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
 
 func (ps *DockerPluginSuite) TestPluginInstallArgs(c *testing.T) {
 	pName := path.Join(ps.registryHost(), "plugin", "testplugininstallwithargs")
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
 	defer cancel()
 
 	plugin.CreateInRegistry(ctx, pName, nil, func(cfg *plugin.Config) {
@@ -345,7 +346,7 @@ func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
 	name := "test"
 	client := testEnv.APIClient()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
 	initialValue := "0"
 	err := plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
 		cfg.Env = []types.PluginEnv{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
@@ -406,7 +407,7 @@ func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {
 	name := "test:latest"
 	client := testEnv.APIClient()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
 	defer cancel()
 	err = plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
 		cfg.Description = "test plugin"

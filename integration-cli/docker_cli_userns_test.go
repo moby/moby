@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 )
 
@@ -23,7 +24,8 @@ import (
 func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 	testRequires(c, UserNamespaceInKernel)
 
-	s.d.StartWithBusybox(c, "--userns-remap", "default")
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c, "--userns-remap", "default")
 
 	tmpDir, err := os.MkdirTemp("", "userns")
 	assert.NilError(c, err)

@@ -1,7 +1,6 @@
 package container
 
 import (
-	"context"
 	"io"
 	"strings"
 	"testing"
@@ -19,9 +18,8 @@ func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon(), "local daemon is needed for kernel log access")
 	skip.If(t, testEnv.IsRootless(), "root is needed for reading kernel log")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, client, container.WithCmd("sh", "-c", `while true; do echo $RANDOM >>/file; sleep 0.1; done`))
 

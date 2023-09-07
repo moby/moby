@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -9,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -111,7 +111,7 @@ func (s *DockerAPISuite) TestInspectAPIImageResponse(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	imageJSON, _, err := apiClient.ImageInspectWithRaw(context.Background(), "busybox")
+	imageJSON, _, err := apiClient.ImageInspectWithRaw(testutil.GetContext(c), "busybox")
 	assert.NilError(c, err)
 
 	assert.Check(c, len(imageJSON.RepoTags) == 2)
