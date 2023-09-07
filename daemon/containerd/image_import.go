@@ -258,7 +258,6 @@ func compressAndWriteBlob(ctx context.Context, cs content.Store, compression arc
 	if err != nil {
 		return "", "", errdefs.InvalidParameter(err)
 	}
-	defer compressor.Close()
 
 	writeChan := make(chan digest.Digest)
 	// Start copying the blob to the content store from the pipe.
