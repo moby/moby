@@ -24,4 +24,4 @@ fi
 	set -x
 	exit ${testexit}
 
-) 2>&1 | tee -a "$DEST/test.log"
+) &> >(tee -a "$DEST/test.log")
