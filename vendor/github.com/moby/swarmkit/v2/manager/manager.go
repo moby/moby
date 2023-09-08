@@ -49,7 +49,6 @@ import (
 	"github.com/moby/swarmkit/v2/remotes"
 	"github.com/moby/swarmkit/v2/xnet"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -736,7 +735,7 @@ func (m *Manager) Stop(ctx context.Context, clearData bool) {
 func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 	securityConfig := m.config.SecurityConfig
 	nodeID := m.config.SecurityConfig.ClientTLSCreds.NodeID()
-	logger := log.G(ctx).WithFields(logrus.Fields{
+	logger := log.G(ctx).WithFields(log.Fields{
 		"node.id":   nodeID,
 		"node.role": ca.ManagerRole,
 	})
@@ -899,11 +898,10 @@ func (m *Manager) serveListener(ctx context.Context, lCh <-chan net.Listener) {
 	case <-ctx.Done():
 		return
 	}
-	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(
-		logrus.Fields{
-			"proto": l.Addr().Network(),
-			"addr":  l.Addr().String(),
-		}))
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+		"proto": l.Addr().Network(),
+		"addr":  l.Addr().String(),
+	}))
 	if _, ok := l.(*net.TCPListener); !ok {
 		log.G(ctx).Info("Listening for local connections")
 		// we need to disallow double closes because UnixListener.Close

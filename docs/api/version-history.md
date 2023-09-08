@@ -20,12 +20,27 @@ keywords: "API, Docker, rcli, REST, documentation"
 * The `VirtualSize` field in the `GET /images/{name}/json`, `GET /images/json`,
   and `GET /system/df` responses is now omitted. Use the `Size` field instead,
   which contains the same information.
+* Deprecated: The `is_automated` field in the `GET /images/search` response has
+  been deprecated and will always be set to false in the future because Docker
+  Hub is deprecating the `is_automated` field in its search API. The deprecation
+  is not versioned, and applies to all API versions.
+* Deprecated: The `is-automated` filter for the `GET /images/search` endpoint.
+  The `is_automated` field has been deprecated by Docker Hub's search API.
+  Consequently, searching for `is-automated=true` will yield no results. The
+  deprecation is not versioned, and applies to all API versions.
 * Read-only bind mounts are now made recursively read-only on kernel >= 5.12
   with runtimes which support the feature.
   `POST /containers/create`, `GET /containers/{id}/json`, and `GET /containers/json` now supports
   `BindOptions.ReadOnlyNonRecursive` and `BindOptions.ReadOnlyForceRecursive` to customize the behavior.
 * `POST /containers/create` now accepts a `HealthConfig.StartInterval` to set the
   interval for health checks during the start period.
+* `GET /info` now includes a `CDISpecDirs` field indicating the configured CDI
+  specifications directories. The use of the applied setting requires the daemon
+  to have expermental enabled, and for non-experimental daemons an empty list is
+  always returned.
+* `POST /networks/create` now returns a 400 if the `IPAMConfig` has invalid
+  values. Note that this change is _unversioned_ and applied to all API
+  versions on daemon that support version 1.44.
 
 ## v1.43 API changes
 
@@ -95,7 +110,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   a default.
 
   This change is not versioned, and affects all API versions if the daemon has
-  this patch. 
+  this patch.
 * `GET /_ping` and `HEAD /_ping` now return a `Swarm` header, which allows a
   client to detect if Swarm is enabled on the daemon, without having to call
   additional endpoints.
@@ -118,7 +133,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   versioned, and affects all API versions if the daemon has this patch.
 * `GET /containers/{id}/attach`, `GET /exec/{id}/start`, `GET /containers/{id}/logs`
   `GET /services/{id}/logs` and `GET /tasks/{id}/logs` now set Content-Type header
-  to `application/vnd.docker.multiplexed-stream` when a multiplexed stdout/stderr 
+  to `application/vnd.docker.multiplexed-stream` when a multiplexed stdout/stderr
   stream is sent to client, `application/vnd.docker.raw-stream` otherwise.
 * `POST /volumes/create` now accepts a new `ClusterVolumeSpec` to create a cluster
   volume (CNI). This option can only be used if the daemon is a Swarm manager.
@@ -131,7 +146,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * Volume information returned by `GET /volumes/{name}`, `GET /volumes` and
   `GET /system/df` can now contain a `ClusterVolume` if the volume is a cluster
   volume (requires the daemon to be a Swarm manager).
-* The `Volume` type, as returned by `Added new `ClusterVolume` fields 
+* The `Volume` type, as returned by `Added new `ClusterVolume` fields
 * Added a new `PUT /volumes{name}` endpoint to update cluster volumes (CNI).
   Cluster volumes are only supported if the daemon is a Swarm manager.
 * `GET /containers/{name}/attach/ws` endpoint now accepts `stdin`, `stdout` and
@@ -347,7 +362,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.36](https://docs.docker.com/engine/api/v1.36/) documentation
 
-* `Get /events` now return `exec_die` event when an exec process terminates.  
+* `Get /events` now return `exec_die` event when an exec process terminates.
 
 
 ## v1.35 API changes
@@ -555,7 +570,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /services/create` and `POST /services/(id or name)/update` now accept the `TTY` parameter, which allocate a pseudo-TTY in container.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept the `DNSConfig` parameter, which specifies DNS related configurations in resolver configuration file (resolv.conf) through `Nameservers`, `Search`, and `Options`.
 * `POST /services/create` and `POST /services/(id or name)/update` now support
-  `node.platform.arch` and `node.platform.os` constraints in the services 
+  `node.platform.arch` and `node.platform.os` constraints in the services
   `TaskSpec.Placement.Constraints` field.
 * `GET /networks/(id or name)` now includes IP and name of all peers nodes for swarm mode overlay networks.
 * `GET /plugins` list plugins.

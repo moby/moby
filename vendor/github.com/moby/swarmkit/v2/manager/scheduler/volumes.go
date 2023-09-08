@@ -183,24 +183,33 @@ func (vs *volumeSet) releaseVolume(volumeID, taskID string) {
 //
 // TODO(dperny): this is messy and has a lot of overhead. it should be reworked
 // to something more streamlined.
-func (vs *volumeSet) freeVolumes(tx store.Tx) error {
+func (vs *volumeSet) freeVolumes(batch *store.Batch) error {
 	for volumeID, info := range vs.volumes {
-		v := store.GetVolume(tx, volumeID)
-		if v == nil {
-			continue
-		}
+		if err := batch.Update(func(tx store.Tx) error {
+			v := store.GetVolume(tx, volumeID)
+			if v == nil {
+				return nil
+			}
 
-		changed := false
-		for _, status := range v.PublishStatus {
-			if info.nodes[status.NodeID] == 0 && status.State == api.VolumePublishStatus_PUBLISHED {
-				status.State = api.VolumePublishStatus_PENDING_NODE_UNPUBLISH
-				changed = true
+			// when we are freeing a volume, we may update more than one of the
+			// volume's PublishStatuses. this means we can't simply put the
+			// Update call inside of the if statement; we need to know if we've
+			// changed anything once we've checked *all* of the statuses.
+			changed := false
+			for _, status := range v.PublishStatus {
+				if info.nodes[status.NodeID] == 0 && status.State == api.VolumePublishStatus_PUBLISHED {
+					status.State = api.VolumePublishStatus_PENDING_NODE_UNPUBLISH
+					changed = true
+				}
 			}
-		}
-		if changed {
-			if err := store.UpdateVolume(tx, v); err != nil {
-				return err
+			if changed {
+				if err := store.UpdateVolume(tx, v); err != nil {
+					return err
+				}
 			}
+			return nil
+		}); err != nil {
+			return err
 		}
 	}
 	return nil

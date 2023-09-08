@@ -73,6 +73,7 @@ type Info struct {
 	SecurityOptions     []string
 	ProductLicense      string               `json:",omitempty"`
 	DefaultAddressPools []NetworkAddressPool `json:",omitempty"`
+	CDISpecDirs         []string
 
 	// Legacy API fields for older API versions.
 	legacyFields

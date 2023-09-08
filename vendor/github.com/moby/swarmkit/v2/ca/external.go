@@ -20,7 +20,6 @@ import (
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context/ctxhttp"
 )
 
@@ -203,7 +202,7 @@ func makeExternalSignRequest(ctx context.Context, client *http.Client, url strin
 
 	var apiResponse api.Response
 	if err := json.Unmarshal(body, &apiResponse); err != nil {
-		logrus.Debugf("unable to JSON-parse CFSSL API response body: %s", string(body))
+		log.G(ctx).Debugf("unable to JSON-parse CFSSL API response body: %s", string(body))
 		return nil, recoverableErr{err: errors.Wrap(err, "unable to parse JSON response")}
 	}
 

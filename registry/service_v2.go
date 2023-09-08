@@ -25,7 +25,7 @@ func (s *Service) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, e
 			}
 			endpoints = append(endpoints, APIEndpoint{
 				URL:          mirrorURL,
-				Version:      APIVersion2,
+				Version:      APIVersion2, //nolint:staticcheck // ignore SA1019 (Version is deprecated) to allow potential consumers to transition.
 				Mirror:       true,
 				TrimHostname: true,
 				TLSConfig:    mirrorTLSConfig,
@@ -33,7 +33,7 @@ func (s *Service) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, e
 		}
 		endpoints = append(endpoints, APIEndpoint{
 			URL:          DefaultV2Registry,
-			Version:      APIVersion2,
+			Version:      APIVersion2, //nolint:staticcheck // ignore SA1019 (Version is deprecated) to allow potential consumers to transition.
 			Official:     true,
 			TrimHostname: true,
 			TLSConfig:    tlsconfig.ServerDefault(),
@@ -55,7 +55,7 @@ func (s *Service) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, e
 				Scheme: "https",
 				Host:   hostname,
 			},
-			Version:                        APIVersion2,
+			Version:                        APIVersion2, //nolint:staticcheck // ignore SA1019 (Version is deprecated) to allow potential consumers to transition.
 			AllowNondistributableArtifacts: ana,
 			TrimHostname:                   true,
 			TLSConfig:                      tlsConfig,
@@ -68,7 +68,7 @@ func (s *Service) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, e
 				Scheme: "http",
 				Host:   hostname,
 			},
-			Version:                        APIVersion2,
+			Version:                        APIVersion2, //nolint:staticcheck // ignore SA1019 (Version is deprecated) to allow potential consumers to transition.
 			AllowNondistributableArtifacts: ana,
 			TrimHostname:                   true,
 			// used to check if supposed to be secure via InsecureSkipVerify

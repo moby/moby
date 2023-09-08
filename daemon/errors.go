@@ -10,9 +10,20 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func errNotRunning(id string) error {
-	return errdefs.Conflict(errors.Errorf("Container %s is not running", id))
+func isNotRunning(err error) bool {
+	var nre *containerNotRunningError
+	return errors.As(err, &nre)
 }
+
+func errNotRunning(id string) error {
+	return &containerNotRunningError{errors.Errorf("container %s is not running", id)}
+}
+
+type containerNotRunningError struct {
+	error
+}
+
+func (e containerNotRunningError) Conflict() {}
 
 func containerNotFound(id string) error {
 	return objNotFoundError{"container", id}
@@ -58,19 +69,6 @@ func (e nameConflictError) Error() string {
 }
 
 func (nameConflictError) Conflict() {}
-
-type containerNotModifiedError struct {
-	running bool
-}
-
-func (e containerNotModifiedError) Error() string {
-	if e.running {
-		return "Container is already started"
-	}
-	return "Container is already stopped"
-}
-
-func (e containerNotModifiedError) NotModified() {}
 
 type invalidIdentifier string
 

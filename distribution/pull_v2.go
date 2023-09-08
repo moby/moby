@@ -33,7 +33,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	archvariant "github.com/tonistiigi/go-archvariant"
 )
 
@@ -375,11 +374,10 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 		return false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", reference.FamiliarString(ref))
 	}
 
-	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(
-		logrus.Fields{
-			"digest": dgst,
-			"remote": ref,
-		}))
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+		"digest": dgst,
+		"remote": ref,
+	}))
 
 	desc := ocispec.Descriptor{
 		MediaType: mt,
@@ -438,13 +436,9 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 
 	switch v := manifest.(type) {
 	case *schema1.SignedManifest:
-		// give registries time to upgrade to schema2 and only warn if we know a registry has been upgraded long time ago
-		// TODO: condition to be removed
-		if reference.Domain(ref) == "docker.io" {
-			msg := fmt.Sprintf("Image %s uses outdated schema1 manifest format. Please upgrade to a schema2 image for better future compatibility. More information at https://docs.docker.com/registry/spec/deprecated-schema-v1/", ref)
-			log.G(ctx).Warn(msg)
-			progress.Message(p.config.ProgressOutput, "", msg)
-		}
+		msg := fmt.Sprintf("[DEPRECATION NOTICE] Docker Image Format v1, and Docker Image manifest version 2, schema 1 support will be removed in an upcoming release. Suggest the author of %s to upgrade the image to the OCI Format, or Docker Image manifest v2, schema 2. More information at https://docs.docker.com/go/deprecated-image-specs/", ref)
+		log.G(ctx).Warn(msg)
+		progress.Message(p.config.ProgressOutput, "", msg)
 
 		id, manifestDigest, err = p.pullSchema1(ctx, ref, v, platform)
 		if err != nil {
@@ -873,7 +867,7 @@ func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfst
 
 		switch v := manifest.(type) {
 		case *schema1.SignedManifest:
-			msg := fmt.Sprintf("[DEPRECATION NOTICE] v2 schema1 manifests in manifest lists are not supported and will break in a future release. Suggest author of %s to upgrade to v2 schema2. More information at https://docs.docker.com/registry/spec/deprecated-schema-v1/", ref)
+			msg := fmt.Sprintf("[DEPRECATION NOTICE] Docker Image Format v1, and Docker Image manifest version 2, schema 1 support will be removed in an upcoming release. Suggest the author of %s to upgrade the image to the OCI Format, or Docker Image manifest v2, schema 2. More information at https://docs.docker.com/go/deprecated-image-specs/", ref)
 			log.G(ctx).Warn(msg)
 			progress.Message(p.config.ProgressOutput, "", msg)
 

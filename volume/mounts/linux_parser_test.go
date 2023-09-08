@@ -188,7 +188,7 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 				return
 			}
 
-			assert.Check(t, err)
+			assert.NilError(t, err)
 			assert.Check(t, is.Equal(m.Destination, tc.expDest))
 			assert.Check(t, is.Equal(m.Source, tc.expSource))
 			assert.Check(t, is.Equal(m.Name, tc.expName))

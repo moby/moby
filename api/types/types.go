@@ -494,11 +494,6 @@ type NetworkInspectOptions struct {
 	Verbose bool
 }
 
-// Checkpoint represents the details of a checkpoint
-type Checkpoint struct {
-	Name string // Name is the name of the checkpoint
-}
-
 // DiskUsageObject represents an object type used for disk usage query filtering.
 type DiskUsageObject string
 

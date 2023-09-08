@@ -700,7 +700,7 @@ func TestBuildPlatformInvalid(t *testing.T) {
 func writeTarRecord(t *testing.T, w *tar.Writer, fn, contents string) {
 	err := w.WriteHeader(&tar.Header{
 		Name:     fn,
-		Mode:     0600,
+		Mode:     0o600,
 		Size:     int64(len(contents)),
 		Typeflag: '0',
 	})

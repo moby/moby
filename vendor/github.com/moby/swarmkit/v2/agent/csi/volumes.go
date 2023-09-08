@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/docker/docker/pkg/plugingetter"
 
 	"github.com/moby/swarmkit/v2/agent/csi/plugin"
@@ -65,7 +63,7 @@ func (r *volumes) retryVolumes() {
 	for {
 		vid, attempt := r.pendingVolumes.Wait()
 
-		dctx := log.WithFields(ctx, logrus.Fields{
+		dctx := log.WithFields(ctx, log.Fields{
 			"volume.id": vid,
 			"attempt":   fmt.Sprintf("%d", attempt),
 		})

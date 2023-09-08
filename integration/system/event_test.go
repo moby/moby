@@ -60,7 +60,7 @@ func TestEventsExecDie(t *testing.T) {
 
 	select {
 	case m := <-msg:
-		assert.Equal(t, m.Type, "container")
+		assert.Equal(t, m.Type, events.ContainerEventType)
 		assert.Equal(t, m.Actor.ID, cID)
 		assert.Equal(t, m.Action, "exec_die")
 		assert.Equal(t, m.Actor.Attributes["execID"], id.ID)

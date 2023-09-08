@@ -10,9 +10,9 @@ func TestErrorInterfaces(t *testing.T) {
 	badRequestErrorList := []error{ErrInvalidID(""), ErrInvalidName("")}
 	for _, err := range badRequestErrorList {
 		switch u := err.(type) {
-		case types.BadRequestError:
+		case types.InvalidParameterError:
 		default:
-			t.Errorf("Failed to detect err %v is of type BadRequestError. Got type: %T", err, u)
+			t.Errorf("Failed to detect err %v is of type InvalidParameterError. Got type: %T", err, u)
 		}
 	}
 

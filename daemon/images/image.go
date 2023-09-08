@@ -54,10 +54,13 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, image str
 func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.Image, platform ocispec.Platform) (bool, error) {
 	logger := log.G(ctx).WithField("image", img.ID).WithField("desiredPlatform", platforms.Format(platform))
 
-	ls, leaseErr := i.leases.ListResources(ctx, leases.Lease{ID: imageKey(img.ID().String())})
-	if leaseErr != nil {
-		logger.WithError(leaseErr).Error("Error looking up image leases")
-		return false, leaseErr
+	ls, err := i.leases.ListResources(ctx, leases.Lease{ID: imageKey(img.ID().String())})
+	if err != nil {
+		if cerrdefs.IsNotFound(err) {
+			return false, nil
+		}
+		logger.WithError(err).Error("Error looking up image leases")
+		return false, err
 	}
 
 	// Note we are comparing against manifest lists here, which we expect to always have a CPU variant set (where applicable).

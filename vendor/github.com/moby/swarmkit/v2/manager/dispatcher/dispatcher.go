@@ -21,7 +21,6 @@ import (
 	"github.com/moby/swarmkit/v2/remotes"
 	"github.com/moby/swarmkit/v2/watch"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -619,7 +618,7 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 		return nil, err
 	}
 	nodeID := nodeInfo.NodeID
-	fields := logrus.Fields{
+	fields := log.Fields{
 		"node.id":      nodeID,
 		"node.session": r.SessionID,
 		"method":       "(*Dispatcher).UpdateTaskStatus",
@@ -695,7 +694,7 @@ func (d *Dispatcher) UpdateVolumeStatus(ctx context.Context, r *api.UpdateVolume
 	}
 
 	nodeID := nodeInfo.NodeID
-	fields := logrus.Fields{
+	fields := log.Fields{
 		"node.id":      nodeID,
 		"node.session": r.SessionID,
 		"method":       "(*Dispatcher).UpdateVolumeStatus",
@@ -703,19 +702,19 @@ func (d *Dispatcher) UpdateVolumeStatus(ctx context.Context, r *api.UpdateVolume
 	if nodeInfo.ForwardedBy != nil {
 		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
 	}
-	log := log.G(ctx).WithFields(fields)
+	logger := log.G(ctx).WithFields(fields)
 
 	if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
 		return nil, err
 	}
 
 	d.unpublishedVolumesLock.Lock()
-	for _, status := range r.Updates {
-		if status.Unpublished {
+	for _, volumeStatus := range r.Updates {
+		if volumeStatus.Unpublished {
 			// it's ok if nodes is nil, because append works on a nil slice.
-			nodes := append(d.unpublishedVolumes[status.ID], nodeID)
-			d.unpublishedVolumes[status.ID] = nodes
-			log.Debugf("volume %s unpublished on node %s", status.ID, nodeID)
+			nodes := append(d.unpublishedVolumes[volumeStatus.ID], nodeID)
+			d.unpublishedVolumes[volumeStatus.ID] = nodes
+			logger.Debugf("volume %s unpublished on node %s", volumeStatus.ID, nodeID)
 		}
 	}
 	d.unpublishedVolumesLock.Unlock()
@@ -756,14 +755,14 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 		return
 	}
 
-	log := log.G(ctx).WithFields(logrus.Fields{
+	logr := log.G(ctx).WithFields(log.Fields{
 		"method": "(*Dispatcher).processUpdates",
 	})
 
 	err := d.store.Batch(func(batch *store.Batch) error {
-		for taskID, status := range taskUpdates {
+		for taskID, taskStatus := range taskUpdates {
 			err := batch.Update(func(tx store.Tx) error {
-				logger := log.WithField("task.id", taskID)
+				logger := logr.WithField("task.id", taskID)
 				task := store.GetTask(tx, taskID)
 				if task == nil {
 					// Task may have been deleted
@@ -771,14 +770,14 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 					return nil
 				}
 
-				logger = logger.WithField("state.transition", fmt.Sprintf("%v->%v", task.Status.State, status.State))
+				logger = logger.WithField("state.transition", fmt.Sprintf("%v->%v", task.Status.State, taskStatus.State))
 
-				if task.Status == *status {
+				if task.Status == *taskStatus {
 					logger.Debug("task status identical, ignoring")
 					return nil
 				}
 
-				if task.Status.State > status.State {
+				if task.Status.State > taskStatus.State {
 					logger.Debug("task status invalid transition")
 					return nil
 				}
@@ -789,12 +788,12 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 				// the network delay between the worker and the leader.
 				// This is not ideal, but its a known overestimation, rather than using the status update time
 				// from the worker node, which may cause unknown incorrect results due to possible clock skew.
-				if status.State == api.TaskStateRunning {
-					start := time.Unix(status.AppliedAt.GetSeconds(), int64(status.AppliedAt.GetNanos()))
+				if taskStatus.State == api.TaskStateRunning {
+					start := time.Unix(taskStatus.AppliedAt.GetSeconds(), int64(taskStatus.AppliedAt.GetNanos()))
 					schedulingDelayTimer.UpdateSince(start)
 				}
 
-				task.Status = *status
+				task.Status = *taskStatus
 				task.Status.AppliedBy = d.securityConfig.ClientTLSCreds.NodeID()
 				task.Status.AppliedAt = ptypes.MustTimestampProto(time.Now())
 				logger.Debugf("state for task %v updated to %v", task.GetID(), task.Status.State)
@@ -806,13 +805,13 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 				return nil
 			})
 			if err != nil {
-				log.WithError(err).Error("dispatcher task update transaction failed")
+				logr.WithError(err).Error("dispatcher task update transaction failed")
 			}
 		}
 
 		for nodeID, nodeUpdate := range nodeUpdates {
 			err := batch.Update(func(tx store.Tx) error {
-				logger := log.WithField("node.id", nodeID)
+				logger := logr.WithField("node.id", nodeID)
 				node := store.GetNode(tx, nodeID)
 				if node == nil {
 					logger.Error("node unavailable")
@@ -838,13 +837,13 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 				return nil
 			})
 			if err != nil {
-				log.WithError(err).Error("dispatcher node update transaction failed")
+				logr.WithError(err).Error("dispatcher node update transaction failed")
 			}
 		}
 
 		for volumeID, nodes := range unpublishedVolumes {
 			err := batch.Update(func(tx store.Tx) error {
-				logger := log.WithField("volume.id", volumeID)
+				logger := logr.WithField("volume.id", volumeID)
 				volume := store.GetVolume(tx, volumeID)
 				if volume == nil {
 					logger.Error("volume unavailable")
@@ -869,14 +868,14 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 			})
 
 			if err != nil {
-				log.WithError(err).Error("dispatcher volume update transaction failed")
+				logr.WithError(err).Error("dispatcher volume update transaction failed")
 			}
 		}
 
 		return nil
 	})
 	if err != nil {
-		log.WithError(err).Error("dispatcher batch failed")
+		logr.WithError(err).Error("dispatcher batch failed")
 	}
 
 	d.processUpdatesCond.Broadcast()
@@ -900,7 +899,7 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 	}
 	nodeID := nodeInfo.NodeID
 
-	fields := logrus.Fields{
+	fields := log.Fields{
 		"node.id":      nodeID,
 		"node.session": r.SessionID,
 		"method":       "(*Dispatcher).Tasks",
@@ -1026,7 +1025,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 	}
 	nodeID := nodeInfo.NodeID
 
-	fields := logrus.Fields{
+	fields := log.Fields{
 		"node.id":      nodeID,
 		"node.session": r.SessionID,
 		"method":       "(*Dispatcher).Assignments",
@@ -1394,7 +1393,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		}
 	}
 
-	fields := logrus.Fields{
+	fields := log.Fields{
 		"node.id":      nodeID,
 		"node.session": sessionID,
 		"method":       "(*Dispatcher).Session",
@@ -1402,7 +1401,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	if nodeInfo.ForwardedBy != nil {
 		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
 	}
-	log := log.G(ctx).WithFields(fields)
+	logger := log.G(ctx).WithFields(fields)
 
 	var nodeObj *api.Node
 	nodeUpdates, cancel, err := store.ViewAndWatch(d.store, func(readTx store.ReadTx) error {
@@ -1416,7 +1415,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	}
 
 	if err != nil {
-		log.WithError(err).Error("ViewAndWatch Node failed")
+		logger.WithError(err).Error("ViewAndWatch Node failed")
 	}
 
 	if _, err = d.nodes.GetWithSession(nodeID, sessionID); err != nil {
@@ -1438,9 +1437,9 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 
 	// disconnectNode is a helper forcibly shutdown connection
 	disconnectNode := func() error {
-		log.Infof("dispatcher session dropped, marking node %s down", nodeID)
+		logger.Infof("dispatcher session dropped, marking node %s down", nodeID)
 		if err := d.markNodeNotReady(nodeID, api.NodeStatus_DISCONNECTED, "node is currently trying to find new manager"); err != nil {
-			log.WithError(err).Error("failed to remove node")
+			logger.WithError(err).Error("failed to remove node")
 		}
 		// still return an abort if the transport closure was ineffective.
 		return status.Errorf(codes.Aborted, "node must disconnect")

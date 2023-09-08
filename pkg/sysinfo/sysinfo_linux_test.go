@@ -16,14 +16,14 @@ func TestReadProcBool(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	procFile := filepath.Join(tmpDir, "read-proc-bool")
-	err = os.WriteFile(procFile, []byte("1"), 0644)
+	err = os.WriteFile(procFile, []byte("1"), 0o644)
 	assert.NilError(t, err)
 
 	if !readProcBool(procFile) {
 		t.Fatal("expected proc bool to be true, got false")
 	}
 
-	if err := os.WriteFile(procFile, []byte("0"), 0644); err != nil {
+	if err := os.WriteFile(procFile, []byte("0"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if readProcBool(procFile) {
@@ -44,7 +44,7 @@ func TestCgroupEnabled(t *testing.T) {
 		t.Fatal("cgroupEnabled should be false")
 	}
 
-	err = os.WriteFile(path.Join(cgroupDir, "test"), []byte{}, 0644)
+	err = os.WriteFile(path.Join(cgroupDir, "test"), []byte{}, 0o644)
 	assert.NilError(t, err)
 
 	if !cgroupEnabled(cgroupDir, "test") {

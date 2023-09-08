@@ -162,7 +162,7 @@ func openHistoryDB(root string, cfg *config.BuilderHistoryConfig) (*bolt.DB, *bk
 }
 
 func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
-	if err := os.MkdirAll(opt.Root, 0711); err != nil {
+	if err := os.MkdirAll(opt.Root, 0o711); err != nil {
 		return nil, err
 	}
 

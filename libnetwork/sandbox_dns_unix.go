@@ -23,6 +23,8 @@ const (
 	defaultPrefix = "/var/lib/docker/network/files"
 	dirPerm       = 0o755
 	filePerm      = 0o644
+
+	resolverIPSandbox = "127.0.0.11"
 )
 
 func (sb *Sandbox) startResolver(restore bool) {
@@ -145,7 +147,10 @@ func (sb *Sandbox) updateParentHosts() error {
 	var pSb *Sandbox
 
 	for _, update := range sb.config.parentUpdates {
-		sb.controller.WalkSandboxes(SandboxContainerWalker(&pSb, update.cid))
+		// TODO(thaJeztah): was it intentional for this loop to re-use prior results of pSB? If not, we should make pSb local and always replace here.
+		if s, _ := sb.controller.GetSandbox(update.cid); s != nil {
+			pSb = s
+		}
 		if pSb == nil {
 			continue
 		}

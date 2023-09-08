@@ -7,6 +7,7 @@ It formats to a json object that consists of an error message and a 4-digit code
 Example: {"code":1002, "message": "Failed to decode certificate"}
 
 The index of codes are listed below:
+
 	1XXX: CertificateError
 	    1000: Unknown
 	    1001: ReadFailed

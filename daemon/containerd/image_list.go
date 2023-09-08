@@ -23,7 +23,6 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // Subset of ocispec.Image that only contains Labels
@@ -127,10 +126,10 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 
 			available, err := img.CheckContentAvailable(ctx)
 			if err != nil {
-				log.G(ctx).WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"manifest":      img.Target(),
-					"image":         img.Name(),
+				log.G(ctx).WithFields(log.Fields{
+					"error":    err,
+					"manifest": img.Target(),
+					"image":    img.Name(),
 				}).Warn("checking availability of platform specific manifest failed")
 				return nil
 			}
@@ -189,7 +188,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 	unpackedUsage, err := calculateSnapshotTotalUsage(ctx, snapshotter, imageSnapshotID)
 	if err != nil {
 		if !cerrdefs.IsNotFound(err) {
-			log.G(ctx).WithError(err).WithFields(logrus.Fields{
+			log.G(ctx).WithError(err).WithFields(log.Fields{
 				"image":      image.Name(),
 				"snapshotID": imageSnapshotID,
 			}).Warn("failed to calculate unpacked size of image")
@@ -210,7 +209,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 	rawImg := image.Metadata()
 	target := rawImg.Target.Digest
 
-	logger := log.G(ctx).WithFields(logrus.Fields{
+	logger := log.G(ctx).WithFields(log.Fields{
 		"name":   rawImg.Name,
 		"digest": target,
 	})
@@ -469,10 +468,10 @@ func setupLabelFilter(store content.Store, fltrs filters.Args) (func(image image
 			return true
 		}
 		if err != nil {
-			log.G(ctx).WithFields(logrus.Fields{
-				logrus.ErrorKey: err,
-				"image":         image.Name,
-				"checks":        checks,
+			log.G(ctx).WithFields(log.Fields{
+				"error":  err,
+				"image":  image.Name,
+				"checks": checks,
 			}).Error("failed to check image labels")
 		}
 

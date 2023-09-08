@@ -17,17 +17,17 @@ import (
 // Bring up a daemon with the specified default cgroup namespace mode, and then create a container with the container options
 func testRunWithCgroupNs(t *testing.T, daemonNsMode string, containerOpts ...func(*container.TestContainerConfig)) (string, string) {
 	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
-	client := d.NewClientT(t)
+	apiClient := d.NewClientT(t)
 	ctx := context.Background()
 
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
-	cID := container.Run(ctx, t, client, containerOpts...)
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	cID := container.Run(ctx, t, apiClient, containerOpts...)
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	daemonCgroup := d.CgroupNamespace(t)
-	containerCgroup := container.GetContainerNS(ctx, t, client, cID, "cgroup")
+	containerCgroup := container.GetContainerNS(ctx, t, apiClient, cID, "cgroup")
 	return containerCgroup, daemonCgroup
 }
 
@@ -35,12 +35,13 @@ func testRunWithCgroupNs(t *testing.T, daemonNsMode string, containerOpts ...fun
 // expecting an error with the specified string
 func testCreateFailureWithCgroupNs(t *testing.T, daemonNsMode string, errStr string, containerOpts ...func(*container.TestContainerConfig)) {
 	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
-	client := d.NewClientT(t)
+	apiClient := d.NewClientT(t)
 	ctx := context.Background()
 
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
-	container.CreateExpectingErr(ctx, t, client, errStr, containerOpts...)
+	_, err := container.CreateFromConfig(ctx, apiClient, container.NewTestConfig(containerOpts...))
+	assert.ErrorContains(t, err, errStr)
 }
 
 func TestCgroupNamespacesRun(t *testing.T) {
@@ -126,17 +127,17 @@ func TestCgroupNamespacesRunOlderClient(t *testing.T) {
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
 
 	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode("private"))
-	client := d.NewClientT(t, client.WithVersion("1.39"))
+	apiClient := d.NewClientT(t, client.WithVersion("1.39"))
 
 	ctx := context.Background()
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
-	cID := container.Run(ctx, t, client)
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	cID := container.Run(ctx, t, apiClient)
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	daemonCgroup := d.CgroupNamespace(t)
-	containerCgroup := container.GetContainerNS(ctx, t, client, cID, "cgroup")
+	containerCgroup := container.GetContainerNS(ctx, t, apiClient, cID, "cgroup")
 	if testEnv.DaemonInfo.CgroupVersion != "2" {
 		assert.Assert(t, daemonCgroup == containerCgroup)
 	} else {

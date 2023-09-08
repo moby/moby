@@ -68,16 +68,6 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 	return ctr, nil
 }
 
-// checkContainer make sure the specified container validates the specified conditions
-func (daemon *Daemon) checkContainer(container *container.Container, conditions ...func(*container.Container) error) error {
-	for _, condition := range conditions {
-		if err := condition(container); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // Exists returns a true if a container of the specified ID or name exists,
 // false otherwise.
 func (daemon *Daemon) Exists(id string) bool {
@@ -298,7 +288,7 @@ func validateHostConfig(hostConfig *containertypes.HostConfig) error {
 	if err := validatePortBindings(hostConfig.PortBindings); err != nil {
 		return err
 	}
-	if err := validateRestartPolicy(hostConfig.RestartPolicy); err != nil {
+	if err := containertypes.ValidateRestartPolicy(hostConfig.RestartPolicy); err != nil {
 		return err
 	}
 	if err := validateCapabilities(hostConfig); err != nil {
@@ -358,25 +348,6 @@ func validatePortBindings(ports nat.PortMap) error {
 				return errors.Errorf("invalid port specification: %q", pb.HostPort)
 			}
 		}
-	}
-	return nil
-}
-
-func validateRestartPolicy(policy containertypes.RestartPolicy) error {
-	switch policy.Name {
-	case "always", "unless-stopped", "no":
-		if policy.MaximumRetryCount != 0 {
-			return errors.Errorf("maximum retry count cannot be used with restart policy '%s'", policy.Name)
-		}
-	case "on-failure":
-		if policy.MaximumRetryCount < 0 {
-			return errors.Errorf("maximum retry count cannot be negative")
-		}
-	case "":
-		// do nothing
-		return nil
-	default:
-		return errors.Errorf("invalid restart policy '%s'", policy.Name)
 	}
 	return nil
 }

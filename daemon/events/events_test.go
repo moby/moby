@@ -1,14 +1,29 @@
-package events // import "github.com/docker/docker/daemon/events"
+package events
 
 import (
-	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types/events"
 	timetypes "github.com/docker/docker/api/types/time"
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
+
+// validateLegacyFields validates that the legacy "Status", "ID", and "From"
+// fields are set to the same value as their "current" (non-legacy) fields.
+//
+// These fields were deprecated since v1.10 (https://github.com/moby/moby/pull/18888).
+//
+// TODO remove this once we removed the deprecated `ID`, `Status`, and `From` fields.
+func validateLegacyFields(t *testing.T, msg events.Message) {
+	t.Helper()
+	assert.Check(t, is.Equal(msg.Status, msg.Action), "Legacy Status field does not match Action")
+	assert.Check(t, is.Equal(msg.ID, msg.Actor.ID), "Legacy ID field does not match Actor.ID")
+	assert.Check(t, is.Equal(msg.From, msg.Actor.Attributes["image"]), "Legacy From field does not match Actor.Attributes.image")
+}
 
 func TestEventsLog(t *testing.T) {
 	e := New()
@@ -16,54 +31,36 @@ func TestEventsLog(t *testing.T) {
 	_, l2, _ := e.Subscribe()
 	defer e.Evict(l1)
 	defer e.Evict(l2)
-	count := e.SubscribersCount()
-	if count != 2 {
-		t.Fatalf("Must be 2 subscribers, got %d", count)
-	}
-	actor := events.Actor{
+	subscriberCount := e.SubscribersCount()
+	assert.Check(t, is.Equal(subscriberCount, 2))
+
+	e.Log("test", events.ContainerEventType, events.Actor{
 		ID:         "cont",
 		Attributes: map[string]string{"image": "image"},
-	}
-	e.Log("test", events.ContainerEventType, actor)
+	})
 	select {
 	case msg := <-l1:
+		assert.Check(t, is.Len(e.events, 1))
+
 		jmsg, ok := msg.(events.Message)
-		if !ok {
-			t.Fatalf("Unexpected type %T", msg)
-		}
-		if len(e.events) != 1 {
-			t.Fatalf("Must be only one event, got %d", len(e.events))
-		}
-		if jmsg.Status != "test" {
-			t.Fatalf("Status should be test, got %s", jmsg.Status)
-		}
-		if jmsg.ID != "cont" {
-			t.Fatalf("ID should be cont, got %s", jmsg.ID)
-		}
-		if jmsg.From != "image" {
-			t.Fatalf("From should be image, got %s", jmsg.From)
-		}
+		assert.Assert(t, ok, "unexpected type: %T", msg)
+		validateLegacyFields(t, jmsg)
+		assert.Check(t, is.Equal(jmsg.Action, "test"))
+		assert.Check(t, is.Equal(jmsg.Actor.ID, "cont"))
+		assert.Check(t, is.Equal(jmsg.Actor.Attributes["image"], "image"))
 	case <-time.After(1 * time.Second):
 		t.Fatal("Timeout waiting for broadcasted message")
 	}
 	select {
 	case msg := <-l2:
+		assert.Check(t, is.Len(e.events, 1))
+
 		jmsg, ok := msg.(events.Message)
-		if !ok {
-			t.Fatalf("Unexpected type %T", msg)
-		}
-		if len(e.events) != 1 {
-			t.Fatalf("Must be only one event, got %d", len(e.events))
-		}
-		if jmsg.Status != "test" {
-			t.Fatalf("Status should be test, got %s", jmsg.Status)
-		}
-		if jmsg.ID != "cont" {
-			t.Fatalf("ID should be cont, got %s", jmsg.ID)
-		}
-		if jmsg.From != "image" {
-			t.Fatalf("From should be image, got %s", jmsg.From)
-		}
+		assert.Assert(t, ok, "unexpected type: %T", msg)
+		validateLegacyFields(t, jmsg)
+		assert.Check(t, is.Equal(jmsg.Action, "test"))
+		assert.Check(t, is.Equal(jmsg.Actor.ID, "cont"))
+		assert.Check(t, is.Equal(jmsg.Actor.Attributes["image"], "image"))
 	case <-time.After(1 * time.Second):
 		t.Fatal("Timeout waiting for broadcasted message")
 	}
@@ -76,10 +73,9 @@ func TestEventsLogTimeout(t *testing.T) {
 
 	c := make(chan struct{})
 	go func() {
-		actor := events.Actor{
+		e.Log("test", events.ImageEventType, events.Actor{
 			ID: "image",
-		}
-		e.Log("test", events.ImageEventType, actor)
+		})
 		close(c)
 	}()
 
@@ -94,33 +90,22 @@ func TestLogEvents(t *testing.T) {
 	e := New()
 
 	for i := 0; i < eventsLimit+16; i++ {
-		action := fmt.Sprintf("action_%d", i)
-		id := fmt.Sprintf("cont_%d", i)
-		from := fmt.Sprintf("image_%d", i)
-
-		actor := events.Actor{
-			ID:         id,
-			Attributes: map[string]string{"image": from},
-		}
-		e.Log(action, events.ContainerEventType, actor)
+		num := strconv.Itoa(i)
+		e.Log("action_"+num, events.ContainerEventType, events.Actor{
+			ID:         "cont_" + num,
+			Attributes: map[string]string{"image": "image_" + num},
+		})
 	}
 	time.Sleep(50 * time.Millisecond)
 	current, l, _ := e.Subscribe()
 	for i := 0; i < 10; i++ {
-		num := i + eventsLimit + 16
-		action := fmt.Sprintf("action_%d", num)
-		id := fmt.Sprintf("cont_%d", num)
-		from := fmt.Sprintf("image_%d", num)
-
-		actor := events.Actor{
-			ID:         id,
-			Attributes: map[string]string{"image": from},
-		}
-		e.Log(action, events.ContainerEventType, actor)
+		num := strconv.Itoa(i + eventsLimit + 16)
+		e.Log("action_"+num, events.ContainerEventType, events.Actor{
+			ID:         "cont_" + num,
+			Attributes: map[string]string{"image": "image_" + num},
+		})
 	}
-	if len(e.events) != eventsLimit {
-		t.Fatalf("Must be %d events, got %d", eventsLimit, len(e.events))
-	}
+	assert.Assert(t, is.Len(e.events, eventsLimit))
 
 	var msgs []events.Message
 	for len(msgs) < 10 {
@@ -131,152 +116,111 @@ func TestLogEvents(t *testing.T) {
 		}
 		msgs = append(msgs, jm)
 	}
-	if len(current) != eventsLimit {
-		t.Fatalf("Must be %d events, got %d", eventsLimit, len(current))
-	}
+
+	assert.Assert(t, is.Len(current, eventsLimit))
+
 	first := current[0]
+	validateLegacyFields(t, first)
+	assert.Check(t, is.Equal(first.Action, "action_16"))
 
-	// TODO remove this once we removed the deprecated `ID`, `Status`, and `From` fields
-	if first.Action != first.Status {
-		// Verify that the (deprecated) Status is set to the expected value
-		t.Fatalf("Action (%s) does not match Status (%s)", first.Action, first.Status)
-	}
-
-	if first.Action != "action_16" {
-		t.Fatalf("First action is %s, must be action_16", first.Action)
-	}
 	last := current[len(current)-1]
-	if last.Action != "action_271" {
-		t.Fatalf("Last action is %s, must be action_271", last.Action)
-	}
+	assert.Check(t, is.Equal(last.Action, "action_271"))
 
 	firstC := msgs[0]
-	if firstC.Action != "action_272" {
-		t.Fatalf("First action is %s, must be action_272", firstC.Action)
-	}
+	assert.Check(t, is.Equal(firstC.Action, "action_272"))
+
 	lastC := msgs[len(msgs)-1]
-	if lastC.Action != "action_281" {
-		t.Fatalf("Last action is %s, must be action_281", lastC.Action)
-	}
+	assert.Check(t, is.Equal(lastC.Action, "action_281"))
 }
 
-// https://github.com/docker/docker/issues/20999
+// Regression-test for https://github.com/moby/moby/issues/20999
+//
 // Fixtures:
 //
-// 2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)
-// 2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)
-// 2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)
+//	2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)
+//	2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)
+//	2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)
 func TestLoadBufferedEvents(t *testing.T) {
 	now := time.Now()
 	f, err := timetypes.GetTimestamp("2016-03-07T17:28:03.100000000+02:00", now)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
+
 	s, sNano, err := timetypes.ParseTimestamps(f, -1)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
-	if err != nil {
-		t.Fatal(err)
-	}
-	m2, err := eventstestutils.Scan("2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)")
-	if err != nil {
-		t.Fatal(err)
-	}
-	m3, err := eventstestutils.Scan("2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
-	events := &Events{
+	m2, err := eventstestutils.Scan("2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)")
+	assert.NilError(t, err)
+
+	m3, err := eventstestutils.Scan("2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
+	assert.NilError(t, err)
+
+	evts := &Events{
 		events: []events.Message{*m1, *m2, *m3},
 	}
 
 	since := time.Unix(s, sNano)
 	until := time.Time{}
 
-	out := events.loadBufferedEvents(since, until, nil)
-	if len(out) != 1 {
-		t.Fatalf("expected 1 message, got %d: %v", len(out), out)
-	}
+	messages := evts.loadBufferedEvents(since, until, nil)
+	assert.Assert(t, is.Len(messages, 1))
 }
 
 func TestLoadBufferedEventsOnlyFromPast(t *testing.T) {
 	now := time.Now()
 	f, err := timetypes.GetTimestamp("2016-03-07T17:28:03.090000000+02:00", now)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
+
 	s, sNano, err := timetypes.ParseTimestamps(f, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	f, err = timetypes.GetTimestamp("2016-03-07T17:28:03.100000000+02:00", now)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
+
 	u, uNano, err := timetypes.ParseTimestamps(f, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
-	if err != nil {
-		t.Fatal(err)
-	}
-	m2, err := eventstestutils.Scan("2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)")
-	if err != nil {
-		t.Fatal(err)
-	}
-	m3, err := eventstestutils.Scan("2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
-	events := &Events{
+	m2, err := eventstestutils.Scan("2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)")
+	assert.NilError(t, err)
+
+	m3, err := eventstestutils.Scan("2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
+	assert.NilError(t, err)
+
+	evts := &Events{
 		events: []events.Message{*m1, *m2, *m3},
 	}
 
 	since := time.Unix(s, sNano)
 	until := time.Unix(u, uNano)
 
-	out := events.loadBufferedEvents(since, until, nil)
-	if len(out) != 1 {
-		t.Fatalf("expected 1 message, got %d: %v", len(out), out)
-	}
-
-	if out[0].Type != "network" {
-		t.Fatalf("expected network event, got %s", out[0].Type)
-	}
+	messages := evts.loadBufferedEvents(since, until, nil)
+	assert.Assert(t, is.Len(messages, 1))
+	assert.Check(t, is.Equal(messages[0].Type, events.NetworkEventType))
 }
 
-// #13753
+// Regression-test for https://github.com/moby/moby/issues/13753
 func TestIgnoreBufferedWhenNoTimes(t *testing.T) {
 	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
-	if err != nil {
-		t.Fatal(err)
-	}
-	m2, err := eventstestutils.Scan("2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)")
-	if err != nil {
-		t.Fatal(err)
-	}
-	m3, err := eventstestutils.Scan("2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
-	events := &Events{
+	m2, err := eventstestutils.Scan("2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)")
+	assert.NilError(t, err)
+
+	m3, err := eventstestutils.Scan("2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
+	assert.NilError(t, err)
+
+	evts := &Events{
 		events: []events.Message{*m1, *m2, *m3},
 	}
 
 	since := time.Time{}
 	until := time.Time{}
 
-	out := events.loadBufferedEvents(since, until, nil)
-	if len(out) != 0 {
-		t.Fatalf("expected 0 buffered events, got %q", out)
-	}
+	messages := evts.loadBufferedEvents(since, until, nil)
+	assert.Assert(t, is.Len(messages, 0))
 }

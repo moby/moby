@@ -5073,7 +5073,7 @@ definitions:
           Go runtime (`GOOS`).
 
           Currently returned values are "linux" and "windows". A full list of
-          possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+          possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "linux"
       Architecture:
@@ -5081,7 +5081,7 @@ definitions:
           Hardware architecture of the host, as returned by the Go runtime
           (`GOARCH`).
 
-          A full list of possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+          A full list of possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "x86_64"
       NCPU:
@@ -5301,7 +5301,25 @@ definitions:
           - "WARNING: No memory limit support"
           - "WARNING: bridge-nf-call-iptables is disabled"
           - "WARNING: bridge-nf-call-ip6tables is disabled"
+      CDISpecDirs:
+        description: |
+          List of directories where (Container Device Interface) CDI
+          specifications are located.
 
+          These specifications define vendor-specific modifications to an OCI
+          runtime specification for a container being created.
+
+          An empty list indicates that CDI device injection is disabled.
+
+          Note that since using CDI device injection requires the daemon to have
+          experimental enabled. For non-experimental daemons an empty list will
+          always be returned.
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "/etc/cdi"
+          - "/var/run/cdi"
 
   # PluginsInfo is a temp struct holding Plugins name
   # registered with docker daemon. It is used by Info struct
@@ -8601,28 +8619,36 @@ paths:
                 is_official:
                   type: "boolean"
                 is_automated:
+                  description: |
+                    Whether this repository has automated builds enabled.
+
+                    <p><br /></p>
+
+                    > **Deprecated**: This field is deprecated and will always
+                    > be "false" in future.
                   type: "boolean"
+                  example: false
                 name:
                   type: "string"
                 star_count:
                   type: "integer"
           examples:
             application/json:
-              - description: ""
-                is_official: false
+              - description: "A minimal Docker image based on Alpine Linux with a complete package index and only 5 MB in size!"
+                is_official: true
                 is_automated: false
-                name: "wma55/u1210sshd"
-                star_count: 0
-              - description: ""
-                is_official: false
+                name: "alpine"
+                star_count: 10093
+              - description: "Busybox base image."
+                is_official: true
                 is_automated: false
-                name: "jdswinbank/sshd"
-                star_count: 0
-              - description: ""
-                is_official: false
+                name: "Busybox base image."
+                star_count: 3037
+              - description: "The PostgreSQL object-relational database system provides reliability and data integrity."
+                is_official: true
                 is_automated: false
-                name: "vgauthier/sshd"
-                star_count: 0
+                name: "postgres"
+                star_count: 12408
         500:
           description: "Server error"
           schema:
@@ -8642,9 +8668,13 @@ paths:
           description: |
             A JSON encoded value of the filters (a `map[string][]string`) to process on the images list. Available filters:
 
-            - `is-automated=(true|false)`
+            - `is-automated=(true|false)` (deprecated, see below)
             - `is-official=(true|false)`
             - `stars=<number>` Matches images that has at least 'number' stars.
+
+            The `is-automated` filter is deprecated. The `is_automated` field has
+            been deprecated by Docker Hub's search API. Consequently, searching
+            for `is-automated=true` will yield no results.
           type: "string"
       tags: ["Image"]
   /images/prune:
@@ -9899,6 +9929,10 @@ paths:
             example:
               Id: "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30"
               Warning: ""
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         403:
           description: |
             Forbidden operation. This happens when trying to create a network named after a pre-defined network,

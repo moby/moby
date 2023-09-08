@@ -9,7 +9,6 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/errdefs"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -21,7 +20,7 @@ type causer interface {
 // FromError retrieves status code from error message.
 func FromError(err error) int {
 	if err == nil {
-		log.G(context.TODO()).WithFields(logrus.Fields{"error": err}).Error("unexpected HTTP error handling")
+		log.G(context.TODO()).WithError(err).Error("unexpected HTTP error handling")
 		return http.StatusInternalServerError
 	}
 
@@ -67,10 +66,11 @@ func FromError(err error) int {
 			return FromError(e.Cause())
 		}
 
-		log.G(context.TODO()).WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(log.Fields{
 			"module":     "api",
+			"error":      err,
 			"error_type": fmt.Sprintf("%T", err),
-		}).Debugf("FIXME: Got an API for which error does not match any expected type!!!: %+v", err)
+		}).Debug("FIXME: Got an API for which error does not match any expected type!!!")
 	}
 
 	if statusCode == 0 {

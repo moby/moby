@@ -41,8 +41,8 @@ func (eiec *ErrInvalidEndpointConfig) Error() string {
 	return "trying to create an endpoint with an invalid endpoint configuration"
 }
 
-// BadRequest denotes the type of this error
-func (eiec *ErrInvalidEndpointConfig) BadRequest() {}
+// InvalidParameter denotes the type of this error
+func (eiec *ErrInvalidEndpointConfig) InvalidParameter() {}
 
 // ErrNetworkExists error is returned when a network already exists and another network is created.
 type ErrNetworkExists struct{}
@@ -81,8 +81,8 @@ func (eig *ErrInvalidGateway) Error() string {
 	return "default gateway ip must be part of the network"
 }
 
-// BadRequest denotes the type of this error
-func (eig *ErrInvalidGateway) BadRequest() {}
+// InvalidParameter denotes the type of this error
+func (eig *ErrInvalidGateway) InvalidParameter() {}
 
 // ErrInvalidContainerSubnet is returned when the container subnet (FixedCIDR) is not valid.
 type ErrInvalidContainerSubnet struct{}
@@ -91,8 +91,8 @@ func (eis *ErrInvalidContainerSubnet) Error() string {
 	return "container subnet must be a subset of bridge network"
 }
 
-// BadRequest denotes the type of this error
-func (eis *ErrInvalidContainerSubnet) BadRequest() {}
+// InvalidParameter denotes the type of this error
+func (eis *ErrInvalidContainerSubnet) InvalidParameter() {}
 
 // ErrInvalidMtu is returned when the user provided MTU is not valid.
 type ErrInvalidMtu int
@@ -101,8 +101,8 @@ func (eim ErrInvalidMtu) Error() string {
 	return fmt.Sprintf("invalid MTU number: %d", int(eim))
 }
 
-// BadRequest denotes the type of this error
-func (eim ErrInvalidMtu) BadRequest() {}
+// InvalidParameter denotes the type of this error
+func (eim ErrInvalidMtu) InvalidParameter() {}
 
 // ErrUnsupportedAddressType is returned when the specified address type is not supported.
 type ErrUnsupportedAddressType string
@@ -111,8 +111,8 @@ func (uat ErrUnsupportedAddressType) Error() string {
 	return fmt.Sprintf("unsupported address type: %s", string(uat))
 }
 
-// BadRequest denotes the type of this error
-func (uat ErrUnsupportedAddressType) BadRequest() {}
+// InvalidParameter denotes the type of this error
+func (uat ErrUnsupportedAddressType) InvalidParameter() {}
 
 // ActiveEndpointsError is returned when there are
 // still active endpoints in the network being deleted.
@@ -144,8 +144,8 @@ func (ieie InvalidEndpointIDError) Error() string {
 	return fmt.Sprintf("invalid endpoint id: %s", string(ieie))
 }
 
-// BadRequest denotes the type of this error
-func (ieie InvalidEndpointIDError) BadRequest() {}
+// InvalidParameter denotes the type of this error
+func (ieie InvalidEndpointIDError) InvalidParameter() {}
 
 // EndpointNotFoundError is returned when the no endpoint
 // with the passed endpoint id is found.

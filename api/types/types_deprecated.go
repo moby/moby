@@ -1,6 +1,29 @@
 package types
 
-import "github.com/docker/docker/api/types/system"
+import (
+	"github.com/docker/docker/api/types/checkpoint"
+	"github.com/docker/docker/api/types/system"
+)
+
+// CheckpointCreateOptions holds parameters to create a checkpoint from a container.
+//
+// Deprecated: use [checkpoint.CreateOptions].
+type CheckpointCreateOptions = checkpoint.CreateOptions
+
+// CheckpointListOptions holds parameters to list checkpoints for a container
+//
+// Deprecated: use [checkpoint.ListOptions].
+type CheckpointListOptions = checkpoint.ListOptions
+
+// CheckpointDeleteOptions holds parameters to delete a checkpoint from a container
+//
+// Deprecated: use [checkpoint.DeleteOptions].
+type CheckpointDeleteOptions = checkpoint.DeleteOptions
+
+// Checkpoint represents the details of a checkpoint when listing endpoints.
+//
+// Deprecated: use [checkpoint.Summary].
+type Checkpoint = checkpoint.Summary
 
 // Info contains response of Engine API:
 // GET "/info"

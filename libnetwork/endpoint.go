@@ -25,7 +25,7 @@ type Endpoint struct {
 	name              string
 	id                string
 	network           *Network
-	iface             *endpointInterface
+	iface             *EndpointInterface
 	joinInfo          *endpointJoinInfo
 	sandboxID         string
 	exposedPorts      []types.TransportPort
@@ -223,7 +223,7 @@ func (ep *Endpoint) CopyTo(o datastore.KVObject) error {
 	copy(dstEp.ingressPorts, ep.ingressPorts)
 
 	if ep.iface != nil {
-		dstEp.iface = &endpointInterface{}
+		dstEp.iface = &EndpointInterface{}
 		if err := ep.iface.CopyTo(dstEp.iface); err != nil {
 			return err
 		}
@@ -397,7 +397,7 @@ func (ep *Endpoint) getNetworkFromStore() (*Network, error) {
 // the network resources allocated for the endpoint.
 func (ep *Endpoint) Join(sb *Sandbox, options ...EndpointOption) error {
 	if sb == nil || sb.ID() == "" || sb.Key() == "" {
-		return types.BadRequestErrorf("invalid Sandbox passed to endpoint join: %v", sb)
+		return types.InvalidParameterErrorf("invalid Sandbox passed to endpoint join: %v", sb)
 	}
 
 	sb.joinLeaveStart()
@@ -658,7 +658,7 @@ func (ep *Endpoint) hasInterface(iName string) bool {
 // Leave detaches the network resources populated in the sandbox.
 func (ep *Endpoint) Leave(sb *Sandbox, options ...EndpointOption) error {
 	if sb == nil || sb.ID() == "" || sb.Key() == "" {
-		return types.BadRequestErrorf("invalid Sandbox passed to endpoint leave: %v", sb)
+		return types.InvalidParameterErrorf("invalid Sandbox passed to endpoint leave: %v", sb)
 	}
 
 	sb.joinLeaveStart()
@@ -1112,7 +1112,7 @@ func (ep *Endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 		}
 	}
 	if progAdd != nil {
-		return types.BadRequestErrorf("Invalid address %s: It does not belong to any of this network's subnets", prefAdd)
+		return types.InvalidParameterErrorf("invalid address %s: It does not belong to any of this network's subnets", prefAdd)
 	}
 	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
 }

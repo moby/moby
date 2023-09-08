@@ -12,7 +12,6 @@ import (
 	"github.com/containerd/containerd/images/archive"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/mount"
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/container"
@@ -22,7 +21,6 @@ import (
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Container, fn func(root string) error) error {
@@ -31,7 +29,13 @@ func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Conta
 	if err != nil {
 		return err
 	}
-	return mount.WithTempMount(ctx, mounts, fn)
+	path, err := i.refCountMounter.Mount(mounts, c.ID)
+	if err != nil {
+		return err
+	}
+	defer i.refCountMounter.Unmount(path)
+
+	return fn(path)
 }
 
 // ExportImage exports a list of images to the given output stream. The
@@ -97,14 +101,14 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 			ref = reference.TagNameOnly(ref)
 			opts = append(opts, archive.WithManifest(target, ref.String()))
 
-			log.G(ctx).WithFields(logrus.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"target": target,
 				"name":   ref.String(),
 			}).Debug("export image")
 		} else {
 			opts = append(opts, archive.WithManifest(target))
 
-			log.G(ctx).WithFields(logrus.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"target": target,
 			}).Debug("export image without name")
 		}
@@ -177,7 +181,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 		}
 
 		err = i.walkImageManifests(ctx, img, func(platformImg *ImageManifest) error {
-			logger := log.G(ctx).WithFields(logrus.Fields{
+			logger := log.G(ctx).WithFields(log.Fields{
 				"image":    name,
 				"manifest": platformImg.Target().Digest,
 			})
@@ -259,7 +263,7 @@ func (i *ImageService) getBestDescriptorForExport(ctx context.Context, indexDesc
 				log.G(ctx).WithField("manifest", mfst.Digest).Debug("manifest content present, will export")
 			} else {
 				hasMissingManifests = true
-				log.G(ctx).WithFields(logrus.Fields{
+				log.G(ctx).WithFields(log.Fields{
 					"manifest": mfst.Digest,
 					"missing":  missing,
 				}).Debug("manifest is missing, won't export")

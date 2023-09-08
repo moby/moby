@@ -32,7 +32,7 @@ func newContainer(t *testing.T) *Container {
 		id    = uuid.New().String()
 		cRoot = filepath.Join(root, id)
 	)
-	if err := os.MkdirAll(cRoot, 0755); err != nil {
+	if err := os.MkdirAll(cRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	c := NewBaseContainer(id, cRoot)

@@ -11,6 +11,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ns"
+	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
 )
@@ -73,8 +74,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	if err = sbox.AddInterface(overlayIfName, "veth",
-		sbox.InterfaceOptions().Master(s.brName)); err != nil {
+	if err = sbox.AddInterface(overlayIfName, "veth", osl.WithMaster(s.brName)); err != nil {
 		return fmt.Errorf("could not add veth pair inside the network sandbox: %v", err)
 	}
 

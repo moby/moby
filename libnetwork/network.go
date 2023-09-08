@@ -25,31 +25,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 )
 
-// NetworkInfo returns some configuration and operational information about the network
-type NetworkInfo interface {
-	IpamConfig() (string, map[string]string, []*IpamConf, []*IpamConf)
-	IpamInfo() ([]*IpamInfo, []*IpamInfo)
-	DriverOptions() map[string]string
-	Scope() string
-	IPv6Enabled() bool
-	Internal() bool
-	Attachable() bool
-	Ingress() bool
-	ConfigFrom() string
-	ConfigOnly() bool
-	Labels() map[string]string
-	Dynamic() bool
-	Created() time.Time
-	// Peers returns a slice of PeerInfo structures which has the information about the peer
-	// nodes participating in the same overlay network. This is currently the per-network
-	// gossip cluster. For non-dynamic overlay networks and bridge networks it returns an
-	// empty slice
-	Peers() []networkdb.PeerInfo
-	// Services returns a map of services keyed by the service name with the details
-	// of all the tasks that belong to the service. Applicable only in swarm mode.
-	Services() map[string]ServiceInfo
-}
-
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
 // When the function returns true, the walk will stop.
 type EndpointWalker func(ep *Endpoint) bool
@@ -112,7 +87,7 @@ type IpamConf struct {
 // Validate checks whether the configuration is valid
 func (c *IpamConf) Validate() error {
 	if c.Gateway != "" && nil == net.ParseIP(c.Gateway) {
-		return types.BadRequestErrorf("invalid gateway address %s in Ipam configuration", c.Gateway)
+		return types.InvalidParameterErrorf("invalid gateway address %s in Ipam configuration", c.Gateway)
 	}
 	return nil
 }
@@ -891,7 +866,7 @@ func (n *Network) resolveDriver(name string, load bool) (driverapi.Driver, drive
 	c := n.getController()
 
 	// Check if a driver for the specified network type is available
-	d, cap := c.drvRegistry.Driver(name)
+	d, capabilities := c.drvRegistry.Driver(name)
 	if d == nil {
 		if load {
 			err := c.loadDriver(name)
@@ -899,7 +874,7 @@ func (n *Network) resolveDriver(name string, load bool) (driverapi.Driver, drive
 				return nil, driverapi.Capability{}, err
 			}
 
-			d, cap = c.drvRegistry.Driver(name)
+			d, capabilities = c.drvRegistry.Driver(name)
 			if d == nil {
 				return nil, driverapi.Capability{}, fmt.Errorf("could not resolve driver %s in registry", name)
 			}
@@ -909,19 +884,19 @@ func (n *Network) resolveDriver(name string, load bool) (driverapi.Driver, drive
 		}
 	}
 
-	return d, cap, nil
+	return d, capabilities, nil
 }
 
 func (n *Network) driverIsMultihost() bool {
-	_, cap, err := n.resolveDriver(n.networkType, true)
+	_, capabilities, err := n.resolveDriver(n.networkType, true)
 	if err != nil {
 		return false
 	}
-	return cap.ConnectivityScope == scope.Global
+	return capabilities.ConnectivityScope == scope.Global
 }
 
 func (n *Network) driver(load bool) (driverapi.Driver, error) {
-	d, cap, err := n.resolveDriver(n.networkType, load)
+	d, capabilities, err := n.resolveDriver(n.networkType, load)
 	if err != nil {
 		return nil, err
 	}
@@ -929,7 +904,7 @@ func (n *Network) driver(load bool) (driverapi.Driver, error) {
 	n.mu.Lock()
 	// If load is not required, driver, cap and err may all be nil
 	if n.scope == "" {
-		n.scope = cap.DataScope
+		n.scope = capabilities.DataScope
 	}
 	if n.dynamic {
 		// If the network is dynamic, then it is swarm
@@ -1110,7 +1085,7 @@ func (n *Network) addEndpoint(ep *Endpoint) error {
 		return fmt.Errorf("failed to add endpoint: %v", err)
 	}
 
-	err = d.CreateEndpoint(n.id, ep.id, ep.Interface(), ep.generic)
+	err = d.CreateEndpoint(n.id, ep.id, ep.Iface(), ep.generic)
 	if err != nil {
 		return types.InternalErrorf("failed to create endpoint %s on network %s: %v",
 			ep.Name(), n.Name(), err)
@@ -1144,7 +1119,7 @@ func (n *Network) CreateEndpoint(name string, options ...EndpointOption) (*Endpo
 func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpoint, error) {
 	var err error
 
-	ep := &Endpoint{name: name, generic: make(map[string]interface{}), iface: &endpointInterface{}}
+	ep := &Endpoint{name: name, generic: make(map[string]interface{}), iface: &EndpointInterface{}}
 	ep.id = stringid.GenerateRandomID()
 
 	// Initialize ep.network with a possibly stale copy of n. We need this to get network from
@@ -1161,7 +1136,7 @@ func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpo
 
 	for _, llIPNet := range ep.Iface().LinkLocalAddresses() {
 		if !llIPNet.IP.IsLinkLocalUnicast() {
-			return nil, types.BadRequestErrorf("invalid link local IP address: %v", llIPNet.IP)
+			return nil, types.InvalidParameterErrorf("invalid link local IP address: %v", llIPNet.IP)
 		}
 	}
 
@@ -1524,16 +1499,43 @@ func (n *Network) ipamAllocate() error {
 	return err
 }
 
-func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
+func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, err error) {
+	var tmpPoolLeases []string
+	defer func() {
+		// Prevent repeated lock/unlock in the loop.
+		nwName := n.Name()
+		// Release all pools we held on to.
+		for _, pID := range tmpPoolLeases {
+			if err := ipam.ReleasePool(pID); err != nil {
+				log.G(context.TODO()).Warnf("Failed to release overlapping pool %s while returning from pool request helper for network %s", pool, nwName)
+			}
+		}
+	}()
+
 	for {
-		poolID, pool, meta, err := ipam.RequestPool(addressSpace, preferredPool, subPool, options, v6)
+		poolID, pool, meta, err = ipam.RequestPool(addressSpace, requestedPool, requestedSubPool, options, v6)
 		if err != nil {
 			return "", nil, nil, err
 		}
 
-		// If the network belongs to global scope or the pool was
-		// explicitly chosen or it is invalid, do not perform the overlap check.
-		if n.Scope() == scope.Global || preferredPool != "" || !types.IsIPNetValid(pool) {
+		// If the network pool was explicitly chosen, the network belongs to
+		// global scope, or it is invalid ("0.0.0.0/0"), then we don't perform
+		// check for overlaps.
+		//
+		// FIXME(thaJeztah): why are we ignoring invalid pools here?
+		//
+		// The "invalid" conditions was added in [libnetwork#1095][1], which
+		// moved code to reduce os-specific dependencies in the ipam package,
+		// but also introduced a types.IsIPNetValid() function, which considers
+		// "0.0.0.0/0" invalid, and added it to the conditions below.
+		//
+		// Unfortunately review does not mention this change, so there's no
+		// context why. Possibly this was done to prevent errors further down
+		// the line (when checking for overlaps), but returning an error here
+		// instead would likely have avoided that as well, so we can only guess.
+		//
+		// [1]: https://github.com/moby/libnetwork/commit/5ca79d6b87873264516323a7b76f0af7d0298492#diff-bdcd879439d041827d334846f9aba01de6e3683ed8fdd01e63917dae6df23846
+		if requestedPool != "" || n.Scope() == scope.Global || pool.String() == "0.0.0.0/0" {
 			return poolID, pool, meta, nil
 		}
 
@@ -1542,26 +1544,12 @@ func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPo
 			return poolID, pool, meta, nil
 		}
 
-		// Pool obtained in this iteration is
-		// overlapping. Hold onto the pool and don't release
-		// it yet, because we don't want ipam to give us back
-		// the same pool over again. But make sure we still do
-		// a deferred release when we have either obtained a
-		// non-overlapping pool or ran out of pre-defined
-		// pools.
-		defer func() {
-			if err := ipam.ReleasePool(poolID); err != nil {
-				log.G(context.TODO()).Warnf("Failed to release overlapping pool %s while returning from pool request helper for network %s", pool, n.Name())
-			}
-		}()
-
-		// If this is a preferred pool request and the network
-		// is local scope and there is an overlap, we fail the
-		// network creation right here. The pool will be
-		// released in the defer.
-		if preferredPool != "" {
-			return "", nil, nil, fmt.Errorf("requested subnet %s overlaps in the host", preferredPool)
-		}
+		// Pool obtained in this iteration is overlapping. Hold onto the pool
+		// and don't release it yet, because we don't want IPAM to give us back
+		// the same pool over again. But make sure we still do a deferred release
+		// when we have either obtained a non-overlapping pool or ran out of
+		// pre-defined pools.
+		tmpPoolLeases = append(tmpPoolLeases, poolID)
 	}
 }
 
@@ -1614,7 +1602,7 @@ func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 
 		if gws, ok := d.Meta[netlabel.Gateway]; ok {
 			if d.Gateway, err = types.ParseCIDR(gws); err != nil {
-				return types.BadRequestErrorf("failed to parse gateway address (%v) returned by ipam driver: %v", gws, err)
+				return types.InvalidParameterErrorf("failed to parse gateway address (%v) returned by ipam driver: %v", gws, err)
 			}
 		}
 
@@ -1637,7 +1625,7 @@ func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 			d.IPAMData.AuxAddresses = make(map[string]*net.IPNet, len(cfg.AuxAddresses))
 			for k, v := range cfg.AuxAddresses {
 				if ip = net.ParseIP(v); ip == nil {
-					return types.BadRequestErrorf("non parsable secondary ip address (%s:%s) passed for network %s", k, v, n.Name())
+					return types.InvalidParameterErrorf("non parsable secondary ip address (%s:%s) passed for network %s", k, v, n.Name())
 				}
 				if !d.Pool.Contains(ip) {
 					return types.ForbiddenErrorf("auxiliary address: (%s:%s) must belong to the master pool: %s", k, v, d.Pool)
@@ -1759,22 +1747,21 @@ func (n *Network) deriveAddressSpace() (string, error) {
 	return local, nil
 }
 
-// Info returns certain operational data belonging to this network.
-func (n *Network) Info() NetworkInfo {
-	return n
-}
-
+// Peers returns a slice of PeerInfo structures which has the information about the peer
+// nodes participating in the same overlay network. This is currently the per-network
+// gossip cluster. For non-dynamic overlay networks and bridge networks it returns an
+// empty slice
 func (n *Network) Peers() []networkdb.PeerInfo {
 	if !n.Dynamic() {
 		return []networkdb.PeerInfo{}
 	}
 
-	agent := n.getController().getAgent()
-	if agent == nil {
+	a := n.getController().getAgent()
+	if a == nil {
 		return []networkdb.PeerInfo{}
 	}
 
-	return agent.networkDB.Peers(n.ID())
+	return a.networkDB.Peers(n.ID())
 }
 
 func (n *Network) DriverOptions() map[string]string {
@@ -1794,56 +1781,54 @@ func (n *Network) Scope() string {
 	return n.scope
 }
 
-func (n *Network) IpamConfig() (string, map[string]string, []*IpamConf, []*IpamConf) {
+func (n *Network) IpamConfig() (ipamType string, ipamOptions map[string]string, ipamV4Config []*IpamConf, ipamV6Config []*IpamConf) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	v4L := make([]*IpamConf, len(n.ipamV4Config))
-	v6L := make([]*IpamConf, len(n.ipamV6Config))
-
+	ipamV4Config = make([]*IpamConf, len(n.ipamV4Config))
 	for i, c := range n.ipamV4Config {
 		cc := &IpamConf{}
 		if err := c.CopyTo(cc); err != nil {
 			log.G(context.TODO()).WithError(err).Error("Error copying ipam ipv4 config")
 		}
-		v4L[i] = cc
+		ipamV4Config[i] = cc
 	}
 
+	ipamV6Config = make([]*IpamConf, len(n.ipamV6Config))
 	for i, c := range n.ipamV6Config {
 		cc := &IpamConf{}
 		if err := c.CopyTo(cc); err != nil {
 			log.G(context.TODO()).WithError(err).Debug("Error copying ipam ipv6 config")
 		}
-		v6L[i] = cc
+		ipamV6Config[i] = cc
 	}
 
-	return n.ipamType, n.ipamOptions, v4L, v6L
+	return n.ipamType, n.ipamOptions, ipamV4Config, ipamV6Config
 }
 
-func (n *Network) IpamInfo() ([]*IpamInfo, []*IpamInfo) {
+func (n *Network) IpamInfo() (ipamV4Info []*IpamInfo, ipamV6Info []*IpamInfo) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	v4Info := make([]*IpamInfo, len(n.ipamV4Info))
-	v6Info := make([]*IpamInfo, len(n.ipamV6Info))
-
+	ipamV4Info = make([]*IpamInfo, len(n.ipamV4Info))
 	for i, info := range n.ipamV4Info {
 		ic := &IpamInfo{}
 		if err := info.CopyTo(ic); err != nil {
-			log.G(context.TODO()).WithError(err).Error("Error copying ipv4 ipam config")
+			log.G(context.TODO()).WithError(err).Error("Error copying IPv4 IPAM config")
 		}
-		v4Info[i] = ic
+		ipamV4Info[i] = ic
 	}
 
+	ipamV6Info = make([]*IpamInfo, len(n.ipamV6Info))
 	for i, info := range n.ipamV6Info {
 		ic := &IpamInfo{}
 		if err := info.CopyTo(ic); err != nil {
-			log.G(context.TODO()).WithError(err).Error("Error copying ipv6 ipam config")
+			log.G(context.TODO()).WithError(err).Error("Error copying IPv6 IPAM config")
 		}
-		v6Info[i] = ic
+		ipamV6Info[i] = ic
 	}
 
-	return v4Info, v6Info
+	return ipamV4Info, ipamV6Info
 }
 
 func (n *Network) Internal() bool {
@@ -2107,7 +2092,7 @@ func (n *Network) NdotsSet() bool {
 func (c *Controller) getConfigNetwork(name string) (*Network, error) {
 	var n *Network
 	c.WalkNetworks(func(current *Network) bool {
-		if current.Info().ConfigOnly() && current.Name() == name {
+		if current.ConfigOnly() && current.Name() == name {
 			n = current
 			return true
 		}

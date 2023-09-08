@@ -3,7 +3,7 @@ package api
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/cloudflare/cfssl/errors"
@@ -92,7 +92,7 @@ func (h HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func readRequestBlob(r *http.Request) (map[string]string, error) {
 	var blob map[string]string
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ type Response struct {
 	Messages []ResponseMessage `json:"messages"`
 }
 
-// NewSuccessResponse is a shortcut for creating new successul API
+// NewSuccessResponse is a shortcut for creating new successful API
 // responses.
 func NewSuccessResponse(result interface{}) Response {
 	return Response{

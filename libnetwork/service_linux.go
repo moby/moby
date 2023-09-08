@@ -69,7 +69,7 @@ func (n *Network) findLBEndpointSandbox() (*Endpoint, *Sandbox, error) {
 // aliases to the interface.
 func findIfaceDstName(sb *Sandbox, ep *Endpoint) string {
 	srcName := ep.Iface().SrcName()
-	for _, i := range sb.osSbox.Info().Interfaces() {
+	for _, i := range sb.osSbox.Interfaces() {
 		if i.SrcName() == srcName {
 			return i.DstName()
 		}

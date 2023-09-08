@@ -70,7 +70,7 @@ func getPlatformDefaults(info system.Info) PlatformDefaults {
 			ContainerStoragePath: toSlash(containersPath),
 		}
 	case "windows":
-		baseImage := "microsoft/windowsservercore"
+		baseImage := "mcr.microsoft.com/windows/servercore:ltsc2022"
 		if overrideBaseImage := os.Getenv("WINDOWS_BASE_IMAGE"); overrideBaseImage != "" {
 			baseImage = overrideBaseImage
 			if overrideBaseImageTag := os.Getenv("WINDOWS_BASE_IMAGE_TAG"); overrideBaseImageTag != "" {

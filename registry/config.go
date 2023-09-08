@@ -1,15 +1,16 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
+	"context"
 	"net"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/sirupsen/logrus"
 )
 
 // ServiceOptions holds command line options.
@@ -197,10 +198,10 @@ skip:
 			return err
 		}
 		if strings.HasPrefix(strings.ToLower(r), "http://") {
-			logrus.Warnf("insecure registry %s should not contain 'http://' and 'http://' has been removed from the insecure registry config", r)
+			log.G(context.TODO()).Warnf("insecure registry %s should not contain 'http://' and 'http://' has been removed from the insecure registry config", r)
 			r = r[7:]
 		} else if strings.HasPrefix(strings.ToLower(r), "https://") {
-			logrus.Warnf("insecure registry %s should not contain 'https://' and 'https://' has been removed from the insecure registry config", r)
+			log.G(context.TODO()).Warnf("insecure registry %s should not contain 'https://' and 'https://' has been removed from the insecure registry config", r)
 			r = r[8:]
 		} else if hasScheme(r) {
 			return invalidParamf("insecure registry %s should not contain '://'", r)
@@ -319,7 +320,8 @@ func isCIDRMatch(cidrs []*registry.NetIPNet, URLHost string) bool {
 	return false
 }
 
-// ValidateMirror validates an HTTP(S) registry mirror
+// ValidateMirror validates an HTTP(S) registry mirror. It is used by the daemon
+// to validate the daemon configuration.
 func ValidateMirror(val string) (string, error) {
 	uri, err := url.Parse(val)
 	if err != nil {
@@ -339,7 +341,8 @@ func ValidateMirror(val string) (string, error) {
 	return strings.TrimSuffix(val, "/") + "/", nil
 }
 
-// ValidateIndexName validates an index name.
+// ValidateIndexName validates an index name. It is used by the daemon to
+// validate the daemon configuration.
 func ValidateIndexName(val string) (string, error) {
 	// TODO: upstream this to check to reference package
 	if val == "index.docker.io" {
@@ -425,8 +428,10 @@ func newRepositoryInfo(config *serviceConfig, name reference.Named) (*Repository
 	}, nil
 }
 
-// ParseRepositoryInfo performs the breakdown of a repository name into a RepositoryInfo, but
-// lacks registry configuration.
+// ParseRepositoryInfo performs the breakdown of a repository name into a
+// [RepositoryInfo], but lacks registry configuration.
+//
+// It is used by the Docker cli to interact with registry-related endpoints.
 func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
 	return newRepositoryInfo(emptyServiceConfig, reposName)
 }

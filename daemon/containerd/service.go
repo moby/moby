@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ImageService implements daemon.ImageService
@@ -175,7 +174,7 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 			log.G(ctx).WithError(err).WithField("ctr", containerID).Warn("unexpected error when calculating usage of the parent snapshots")
 		}
 	}
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"rwLayerUsage": rwLayerUsage.Size,
 		"unpacked":     unpackedUsage.Size,
 	}).Debug("GetContainerLayerSize")

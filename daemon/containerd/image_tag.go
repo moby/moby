@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // TagImage creates an image named as newTag and targeting the given descriptor id.
@@ -55,7 +54,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 		}
 	}
 
-	logger := log.G(ctx).WithFields(logrus.Fields{
+	logger := log.G(ctx).WithFields(log.Fields{
 		"imageID": imageID.String(),
 		"tag":     newTag.String(),
 	})

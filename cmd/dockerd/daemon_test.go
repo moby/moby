@@ -5,6 +5,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/config"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
@@ -211,14 +212,84 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 func TestConfigureDaemonLogs(t *testing.T) {
 	conf := &config.Config{}
 	configureDaemonLogs(conf)
-	assert.Check(t, is.Equal(logrus.InfoLevel, logrus.GetLevel()))
-
-	conf.LogLevel = "warn"
-	configureDaemonLogs(conf)
-	assert.Check(t, is.Equal(logrus.WarnLevel, logrus.GetLevel()))
+	assert.Check(t, is.Equal(log.InfoLevel, log.GetLevel()))
 
 	// log level should not be changed when passing an invalid value
 	conf.LogLevel = "foobar"
 	configureDaemonLogs(conf)
-	assert.Check(t, is.Equal(logrus.WarnLevel, logrus.GetLevel()))
+	assert.Check(t, is.Equal(log.InfoLevel, log.GetLevel()))
+
+	conf.LogLevel = "warn"
+	configureDaemonLogs(conf)
+	// TODO (thaJeztah): add more aliases in log package
+	assert.Check(t, is.Equal(logrus.WarnLevel, log.GetLevel()))
+}
+
+func TestCDISpecDirs(t *testing.T) {
+	testCases := []struct {
+		description         string
+		configContent       string
+		experimental        bool
+		specDirs            []string
+		expectedCDISpecDirs []string
+	}{
+		{
+			description:         "experimental and no spec dirs specified returns default",
+			specDirs:            nil,
+			experimental:        true,
+			expectedCDISpecDirs: []string{"/etc/cdi", "/var/run/cdi"},
+		},
+		{
+			description:         "experimental and specified spec dirs are returned",
+			specDirs:            []string{"/foo/bar", "/baz/qux"},
+			experimental:        true,
+			expectedCDISpecDirs: []string{"/foo/bar", "/baz/qux"},
+		},
+		{
+			description:         "experimental and empty string as spec dir returns empty slice",
+			specDirs:            []string{""},
+			experimental:        true,
+			expectedCDISpecDirs: []string{},
+		},
+		{
+			description:         "experimental and empty config option returns empty slice",
+			configContent:       `{"cdi-spec-dirs": []}`,
+			experimental:        true,
+			expectedCDISpecDirs: []string{},
+		},
+		{
+			description:         "non-experimental and no spec dirs specified returns no cdi spec dirs",
+			specDirs:            nil,
+			experimental:        false,
+			expectedCDISpecDirs: nil,
+		},
+		{
+			description:         "non-experimental and specified spec dirs returns no cdi spec dirs",
+			specDirs:            []string{"/foo/bar", "/baz/qux"},
+			experimental:        false,
+			expectedCDISpecDirs: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			tempFile := fs.NewFile(t, "config", fs.WithContent(tc.configContent))
+			defer tempFile.Remove()
+
+			opts := defaultOptions(t, tempFile.Path())
+
+			flags := opts.flags
+			for _, specDir := range tc.specDirs {
+				assert.Check(t, flags.Set("cdi-spec-dir", specDir))
+			}
+			if tc.experimental {
+				assert.Check(t, flags.Set("experimental", "true"))
+			}
+
+			loadedConfig, err := loadDaemonCliConfig(opts)
+			assert.NilError(t, err)
+
+			assert.Check(t, is.DeepEqual(tc.expectedCDISpecDirs, loadedConfig.CDISpecDirs, cmpopts.EquateEmpty()))
+		})
+	}
 }

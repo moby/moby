@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package iptables
 
@@ -7,12 +6,27 @@ import (
 	"net"
 	"strconv"
 	"testing"
+
+	"github.com/godbus/dbus/v5"
 )
 
-func TestFirewalldInit(t *testing.T) {
-	if !checkRunning() {
-		t.Skip("firewalld is not running")
+func skipIfNoFirewalld(t *testing.T) {
+	t.Helper()
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		t.Skipf("cannot connect to D-bus system bus: %v", err)
 	}
+	defer conn.Close()
+
+	var zone string
+	err = conn.Object(dbusInterface, dbusPath).Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
+	if err != nil {
+		t.Skipf("firewalld is not running: %v", err)
+	}
+}
+
+func TestFirewalldInit(t *testing.T) {
+	skipIfNoFirewalld(t)
 	if err := firewalldInit(); err != nil {
 		t.Fatal(err)
 	}
@@ -71,9 +85,7 @@ func TestReloaded(t *testing.T) {
 }
 
 func TestPassthrough(t *testing.T) {
-	if !firewalldRunning {
-		t.Skip("firewalld is not running")
-	}
+	skipIfNoFirewalld(t)
 	rule1 := []string{
 		"-i", "lo",
 		"-p", "udp",

@@ -8,7 +8,6 @@ import (
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/watch"
-	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -135,7 +134,7 @@ func (w *worker) Assign(ctx context.Context, assignments []*api.AssignmentChange
 		return ErrClosed
 	}
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"len(assignments)": len(assignments),
 	}).Debug("(*worker).Assign")
 
@@ -174,7 +173,7 @@ func (w *worker) Update(ctx context.Context, assignments []*api.AssignmentChange
 		return ErrClosed
 	}
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"len(assignments)": len(assignments),
 	}).Debug("(*worker).Update")
 
@@ -212,7 +211,7 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 		}
 	}
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"len(updatedTasks)": len(updatedTasks),
 		"len(removedTasks)": len(removedTasks),
 	}).Debug("(*worker).reconcileTaskState")
@@ -227,10 +226,10 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 	assigned := map[string]struct{}{}
 
 	for _, task := range updatedTasks {
-		log.G(ctx).WithFields(
-			logrus.Fields{
-				"task.id":           task.ID,
-				"task.desiredstate": task.DesiredState}).Debug("assigned")
+		log.G(ctx).WithFields(log.Fields{
+			"task.id":           task.ID,
+			"task.desiredstate": task.DesiredState,
+		}).Debug("assigned")
 		if err := PutTask(tx, task); err != nil {
 			return err
 		}
@@ -359,7 +358,7 @@ func reconcileSecrets(ctx context.Context, w *worker, assignments []*api.Assignm
 
 	secrets := secretsProvider.Secrets()
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"len(updatedSecrets)": len(updatedSecrets),
 		"len(removedSecrets)": len(removedSecrets),
 	}).Debug("(*worker).reconcileSecrets")
@@ -402,7 +401,7 @@ func reconcileConfigs(ctx context.Context, w *worker, assignments []*api.Assignm
 
 	configs := configsProvider.Configs()
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"len(updatedConfigs)": len(updatedConfigs),
 		"len(removedConfigs)": len(removedConfigs),
 	}).Debug("(*worker).reconcileConfigs")
@@ -448,7 +447,7 @@ func reconcileVolumes(ctx context.Context, w *worker, assignments []*api.Assignm
 
 	volumes := volumesProvider.Volumes()
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"len(updatedVolumes)": len(updatedVolumes),
 		"len(removedVolumes)": len(removedVolumes),
 	}).Debug("(*worker).reconcileVolumes")
@@ -536,7 +535,7 @@ func (w *worker) taskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (
 }
 
 func (w *worker) newTaskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (*taskManager, error) {
-	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(logrus.Fields{
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
 		"task.id":    task.ID,
 		"service.id": task.ServiceID,
 	}))

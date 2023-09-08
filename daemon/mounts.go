@@ -9,7 +9,6 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	volumesservice "github.com/docker/docker/volume/service"
-	"github.com/sirupsen/logrus"
 )
 
 func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
@@ -23,7 +22,7 @@ func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 			continue
 		}
 		if alive {
-			log.G(context.TODO()).WithFields(logrus.Fields{
+			log.G(context.TODO()).WithFields(log.Fields{
 				"container": container.ID,
 				"volume":    config.Volume.Name(),
 			}).Debug("Live-restoring volume for alive container")

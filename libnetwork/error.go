@@ -32,8 +32,8 @@ func (ii ErrInvalidID) Error() string {
 	return fmt.Sprintf("invalid id: %s", string(ii))
 }
 
-// BadRequest denotes the type of this error
-func (ii ErrInvalidID) BadRequest() {}
+// InvalidParameter denotes the type of this error
+func (ii ErrInvalidID) InvalidParameter() {}
 
 // ErrInvalidName is returned when a query-by-name or resource create method is
 // invoked with an empty name parameter
@@ -43,8 +43,8 @@ func (in ErrInvalidName) Error() string {
 	return fmt.Sprintf("invalid name: %s", string(in))
 }
 
-// BadRequest denotes the type of this error
-func (in ErrInvalidName) BadRequest() {}
+// InvalidParameter denotes the type of this error
+func (in ErrInvalidName) InvalidParameter() {}
 
 // NetworkNameError is returned when a network with the same name already exists.
 type NetworkNameError string
@@ -53,8 +53,8 @@ func (nnr NetworkNameError) Error() string {
 	return fmt.Sprintf("network with name %s already exists", string(nnr))
 }
 
-// Forbidden denotes the type of this error
-func (nnr NetworkNameError) Forbidden() {}
+// Conflict denotes the type of this error
+func (nnr NetworkNameError) Conflict() {}
 
 // UnknownNetworkError is returned when libnetwork could not find in its database
 // a network with the same name and id.

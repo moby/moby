@@ -23,7 +23,7 @@ import (
 func makeConfigFile(t *testing.T, content string) string {
 	t.Helper()
 	name := filepath.Join(t.TempDir(), "daemon.json")
-	err := os.WriteFile(name, []byte(content), 0666)
+	err := os.WriteFile(name, []byte(content), 0o666)
 	assert.NilError(t, err)
 	return name
 }

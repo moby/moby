@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/checkpoint"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
@@ -36,51 +37,45 @@ func TestCheckpoint(t *testing.T) {
 
 	defer setupTest(t)()
 
-	cmd := exec.Command("criu", "check")
-	stdoutStderr, err := cmd.CombinedOutput()
+	stdoutStderr, err := exec.Command("criu", "check").CombinedOutput()
 	t.Logf("%s", stdoutStderr)
 	assert.NilError(t, err)
 
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
-
-	mnt := mounttypes.Mount{
-		Type:   mounttypes.TypeTmpfs,
-		Target: "/tmp",
-	}
+	apiClient := request.NewAPIClient(t)
 
 	t.Log("Start a container")
-	cID := container.Run(ctx, t, client, container.WithMount(mnt))
+	cID := container.Run(ctx, t, apiClient, container.WithMount(mounttypes.Mount{
+		Type:   mounttypes.TypeTmpfs,
+		Target: "/tmp",
+	}))
 	poll.WaitOn(t,
-		container.IsInState(ctx, client, cID, "running"),
+		container.IsInState(ctx, apiClient, cID, "running"),
 		poll.WithDelay(100*time.Millisecond),
 	)
 
-	cptOpt := types.CheckpointCreateOptions{
-		Exit:         false,
-		CheckpointID: "test",
-	}
+	// FIXME: ipv6 iptables modules are not uploaded in the test environment
+	stdoutStderr, err = exec.Command("bash", "-c", "set -x; "+
+		"mount --bind $(type -P true) $(type -P ip6tables-restore) && "+
+		"mount --bind $(type -P true) $(type -P ip6tables-save)",
+	).CombinedOutput()
+	t.Logf("%s", stdoutStderr)
+	assert.NilError(t, err)
 
-	{
-		// FIXME: ipv6 iptables modules are not uploaded in the test environment
-		cmd := exec.Command("bash", "-c", "set -x; "+
-			"mount --bind $(type -P true) $(type -P ip6tables-restore) && "+
-			"mount --bind $(type -P true) $(type -P ip6tables-save)")
-		stdoutStderr, err = cmd.CombinedOutput()
+	defer func() {
+		stdoutStderr, err = exec.Command("bash", "-c", "set -x; "+
+			"umount -c -i -l $(type -P ip6tables-restore); "+
+			"umount -c -i -l $(type -P ip6tables-save)",
+		).CombinedOutput()
 		t.Logf("%s", stdoutStderr)
 		assert.NilError(t, err)
+	}()
 
-		defer func() {
-			cmd := exec.Command("bash", "-c", "set -x; "+
-				"umount -c -i -l $(type -P ip6tables-restore); "+
-				"umount -c -i -l $(type -P ip6tables-save)")
-			stdoutStderr, err = cmd.CombinedOutput()
-			t.Logf("%s", stdoutStderr)
-			assert.NilError(t, err)
-		}()
-	}
 	t.Log("Do a checkpoint and leave the container running")
-	err = client.CheckpointCreate(ctx, cID, cptOpt)
+	err = apiClient.CheckpointCreate(ctx, cID, checkpoint.CreateOptions{
+		Exit:         false,
+		CheckpointID: "test",
+	})
 	if err != nil {
 		// An error can contain a path to a dump file
 		t.Log(err)
@@ -96,38 +91,37 @@ func TestCheckpoint(t *testing.T) {
 	}
 	assert.NilError(t, err)
 
-	inspect, err := client.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, inspect.State.Running))
 
-	checkpoints, err := client.CheckpointList(ctx, cID, types.CheckpointListOptions{})
+	checkpoints, err := apiClient.CheckpointList(ctx, cID, checkpoint.ListOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, len(checkpoints), 1)
 	assert.Equal(t, checkpoints[0].Name, "test")
 
 	// Create a test file on a tmpfs mount.
-	containerExec(t, client, cID, []string{"touch", "/tmp/test-file"})
+	containerExec(t, apiClient, cID, []string{"touch", "/tmp/test-file"})
 
 	// Do a second checkpoint
-	cptOpt = types.CheckpointCreateOptions{
+	t.Log("Do a checkpoint and stop the container")
+	err = apiClient.CheckpointCreate(ctx, cID, checkpoint.CreateOptions{
 		Exit:         true,
 		CheckpointID: "test2",
-	}
-	t.Log("Do a checkpoint and stop the container")
-	err = client.CheckpointCreate(ctx, cID, cptOpt)
+	})
 	assert.NilError(t, err)
 
 	poll.WaitOn(t,
-		container.IsInState(ctx, client, cID, "exited"),
+		container.IsInState(ctx, apiClient, cID, "exited"),
 		poll.WithDelay(100*time.Millisecond),
 	)
 
-	inspect, err = client.ContainerInspect(ctx, cID)
+	inspect, err = apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(false, inspect.State.Running))
 
 	// Check that both checkpoints are listed.
-	checkpoints, err = client.CheckpointList(ctx, cID, types.CheckpointListOptions{})
+	checkpoints, err = apiClient.CheckpointList(ctx, cID, checkpoint.ListOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, len(checkpoints), 2)
 	cptNames := make([]string, 2)
@@ -139,26 +133,23 @@ func TestCheckpoint(t *testing.T) {
 	assert.Equal(t, cptNames[1], "test2")
 
 	// Restore the container from a second checkpoint.
-	startOpt := types.ContainerStartOptions{
-		CheckpointID: "test2",
-	}
 	t.Log("Restore the container")
-	err = client.ContainerStart(ctx, cID, startOpt)
+	err = apiClient.ContainerStart(ctx, cID, types.ContainerStartOptions{
+		CheckpointID: "test2",
+	})
 	assert.NilError(t, err)
 
-	inspect, err = client.ContainerInspect(ctx, cID)
+	inspect, err = apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, inspect.State.Running))
 
 	// Check that the test file has been restored.
-	containerExec(t, client, cID, []string{"test", "-f", "/tmp/test-file"})
+	containerExec(t, apiClient, cID, []string{"test", "-f", "/tmp/test-file"})
 
 	for _, id := range []string{"test", "test2"} {
-		cptDelOpt := types.CheckpointDeleteOptions{
+		err = apiClient.CheckpointDelete(ctx, cID, checkpoint.DeleteOptions{
 			CheckpointID: id,
-		}
-
-		err = client.CheckpointDelete(ctx, cID, cptDelOpt)
+		})
 		assert.NilError(t, err)
 	}
 }

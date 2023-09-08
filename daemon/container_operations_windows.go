@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
@@ -61,7 +60,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 		if err != nil {
 			return errors.Wrap(err, "error getting config file path for container")
 		}
-		log := log.G(context.TODO()).WithFields(logrus.Fields{"name": configRef.File.Name, "path": fPath})
+		log := log.G(context.TODO()).WithFields(log.Fields{"name": configRef.File.Name, "path": fPath})
 
 		log.Debug("injecting config")
 		config, err := c.DependencyStore.Configs().Get(configRef.ConfigID)
@@ -131,7 +130,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		if err != nil {
 			return err
 		}
-		log.G(context.TODO()).WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(log.Fields{
 			"name": s.File.Name,
 			"path": fPath,
 		}).Debug("injecting secret")
@@ -164,7 +163,7 @@ func serviceDiscoveryOnDefaultNetwork() bool {
 	return true
 }
 
-func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
+func setupPathsAndSandboxOptions(container *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
 	return nil
 }
 

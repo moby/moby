@@ -47,10 +47,10 @@ func newFSStore(root string) (*fs, error) {
 	s := &fs{
 		root: root,
 	}
-	if err := os.MkdirAll(filepath.Join(root, contentDirName, string(digest.Canonical)), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, contentDirName, string(digest.Canonical)), 0o700); err != nil {
 		return nil, errors.Wrap(err, "failed to create storage backend")
 	}
-	if err := os.MkdirAll(filepath.Join(root, metadataDirName, string(digest.Canonical)), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, metadataDirName, string(digest.Canonical)), 0o700); err != nil {
 		return nil, errors.Wrap(err, "failed to create storage backend")
 	}
 	return s, nil
@@ -118,7 +118,7 @@ func (s *fs) Set(data []byte) (digest.Digest, error) {
 	}
 
 	dgst := digest.FromBytes(data)
-	if err := ioutils.AtomicWriteFile(s.contentFile(dgst), data, 0600); err != nil {
+	if err := ioutils.AtomicWriteFile(s.contentFile(dgst), data, 0o600); err != nil {
 		return "", errors.Wrap(err, "failed to write digest data")
 	}
 
@@ -145,10 +145,10 @@ func (s *fs) SetMetadata(dgst digest.Digest, key string, data []byte) error {
 	}
 
 	baseDir := filepath.Join(s.metadataDir(dgst))
-	if err := os.MkdirAll(baseDir, 0700); err != nil {
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		return err
 	}
-	return ioutils.AtomicWriteFile(filepath.Join(s.metadataDir(dgst), key), data, 0600)
+	return ioutils.AtomicWriteFile(filepath.Join(s.metadataDir(dgst), key), data, 0o600)
 }
 
 // GetMetadata returns metadata for a given digest.

@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package iptables
 
@@ -25,9 +24,9 @@ func checkConntrackProgrammable(nlh *netlink.Handle) error {
 
 // DeleteConntrackEntries deletes all the conntrack connections on the host for the specified IP
 // Returns the number of flows deleted for IPv4, IPv6 else error
-func DeleteConntrackEntries(nlh *netlink.Handle, ipv4List []net.IP, ipv6List []net.IP) (uint, uint, error) {
+func DeleteConntrackEntries(nlh *netlink.Handle, ipv4List []net.IP, ipv6List []net.IP) error {
 	if err := checkConntrackProgrammable(nlh); err != nil {
-		return 0, 0, err
+		return err
 	}
 
 	var totalIPv4FlowPurged uint
@@ -50,8 +49,11 @@ func DeleteConntrackEntries(nlh *netlink.Handle, ipv4List []net.IP, ipv6List []n
 		totalIPv6FlowPurged += flowPurged
 	}
 
-	log.G(context.TODO()).Debugf("DeleteConntrackEntries purged ipv4:%d, ipv6:%d", totalIPv4FlowPurged, totalIPv6FlowPurged)
-	return totalIPv4FlowPurged, totalIPv6FlowPurged, nil
+	if totalIPv4FlowPurged > 0 || totalIPv6FlowPurged > 0 {
+		log.G(context.TODO()).Debugf("DeleteConntrackEntries purged ipv4:%d, ipv6:%d", totalIPv4FlowPurged, totalIPv6FlowPurged)
+	}
+
+	return nil
 }
 
 func DeleteConntrackEntriesByPort(nlh *netlink.Handle, proto types.Protocol, ports []uint16) error {
@@ -86,7 +88,10 @@ func DeleteConntrackEntriesByPort(nlh *netlink.Handle, proto types.Protocol, por
 		totalIPv6FlowPurged += v6FlowPurged
 	}
 
-	log.G(context.TODO()).Debugf("DeleteConntrackEntriesByPort for %s ports purged ipv4:%d, ipv6:%d", proto.String(), totalIPv4FlowPurged, totalIPv6FlowPurged)
+	if totalIPv4FlowPurged > 0 || totalIPv6FlowPurged > 0 {
+		log.G(context.TODO()).Debugf("DeleteConntrackEntriesByPort for %s ports purged ipv4:%d, ipv6:%d", proto.String(), totalIPv4FlowPurged, totalIPv6FlowPurged)
+	}
+
 	return nil
 }
 

@@ -58,7 +58,8 @@ case "$1" in
 		touch "$DOCKER_LOGFILE"
 		chgrp docker "$DOCKER_LOGFILE"
 
-		ulimit -n 1048576
+		# Only set the hard limit (soft limit should remain as the system default of 1024):
+		ulimit -Hn 524288
 
 		# Having non-zero limits causes performance problems due to accounting overhead
 		# in the kernel. We recommend using cgroups to do container-local accounting.

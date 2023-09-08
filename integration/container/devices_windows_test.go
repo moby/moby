@@ -19,7 +19,7 @@ import (
 func TestWindowsDevices(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
 	t.Cleanup(setupTest(t))
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
 	testData := []struct {
@@ -95,14 +95,14 @@ func TestWindowsDevices(t *testing.T) {
 				deviceOptions = append(deviceOptions, container.WithWindowsDevice(deviceName))
 			}
 
-			id := container.Create(ctx, t, client, deviceOptions...)
+			id := container.Create(ctx, t, apiClient, deviceOptions...)
 
 			// Hyper-V isolation is failing even with no actual devices added.
 			// TODO: Once https://github.com/moby/moby/issues/43395 is resolved,
 			// remove this skip.If and validate the expected behaviour under Hyper-V.
 			skip.If(t, d.isolation == containertypes.IsolationHyperV && !d.expectedStartFailure, "FIXME. HyperV isolation setup is probably incorrect in the test")
 
-			err := client.ContainerStart(ctx, id, types.ContainerStartOptions{})
+			err := apiClient.ContainerStart(ctx, id, types.ContainerStartOptions{})
 			if d.expectedStartFailure {
 				assert.ErrorContains(t, err, d.expectedStartFailureMessage)
 				return
@@ -110,11 +110,11 @@ func TestWindowsDevices(t *testing.T) {
 
 			assert.NilError(t, err)
 
-			poll.WaitOn(t, container.IsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
+			poll.WaitOn(t, container.IsInState(ctx, apiClient, id, "running"), poll.WithDelay(100*time.Millisecond))
 
 			// /Windows/System32/HostDriverStore is mounted from the host when class GUID 5B45201D-F2F2-4F3B-85BB-30FF1F953599
 			// is mounted. See `C:\windows\System32\containers\devices.def` on a Windows host for (slightly more) details.
-			res, err := container.Exec(ctx, client, id, []string{
+			res, err := container.Exec(ctx, apiClient, id, []string{
 				"sh", "-c",
 				"ls -d /Windows/System32/HostDriverStore/* | grep /Windows/System32/HostDriverStore/FileRepository",
 			})

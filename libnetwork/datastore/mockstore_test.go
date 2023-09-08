@@ -62,14 +62,14 @@ func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPai
 
 	if previous == nil {
 		if mData != nil {
-			return nil, types.BadRequestErrorf("atomic put failed because key exists")
+			return nil, types.InvalidParameterErrorf("atomic put failed because key exists")
 		} // Else OK.
 	} else {
 		if mData == nil {
-			return nil, types.BadRequestErrorf("atomic put failed because key exists")
+			return nil, types.InvalidParameterErrorf("atomic put failed because key exists")
 		}
 		if mData != nil && mData.Index != previous.LastIndex {
-			return nil, types.BadRequestErrorf("atomic put failed due to mismatched Index")
+			return nil, types.InvalidParameterErrorf("atomic put failed due to mismatched Index")
 		} // Else OK.
 	}
 	if err := s.Put(key, newValue); err != nil {
@@ -83,7 +83,7 @@ func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPai
 func (s *MockStore) AtomicDelete(key string, previous *store.KVPair) error {
 	mData := s.db[key]
 	if mData != nil && mData.Index != previous.LastIndex {
-		return types.BadRequestErrorf("atomic delete failed due to mismatched Index")
+		return types.InvalidParameterErrorf("atomic delete failed due to mismatched Index")
 	}
 	delete(s.db, key)
 	return nil

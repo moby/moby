@@ -64,29 +64,29 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 
 // RequestPool returns an address pool along with its unique id.
 // addressSpace must be a valid address space name and must not be the empty string.
-// If pool is the empty string then the default predefined pool for addressSpace will be used, otherwise pool must be a valid IP address and length in CIDR notation.
-// If subPool is not empty, it must be a valid IP address and length in CIDR notation which is a sub-range of pool.
-// subPool must be empty if pool is empty.
-func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
-	log.G(context.TODO()).Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
+// If requestedPool is the empty string then the default predefined pool for addressSpace will be used, otherwise pool must be a valid IP address and length in CIDR notation.
+// If requestedSubPool is not empty, it must be a valid IP address and length in CIDR notation which is a sub-range of requestedPool.
+// requestedSubPool must be empty if requestedPool is empty.
+func (a *Allocator) RequestPool(addressSpace, requestedPool, requestedSubPool string, _ map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, err error) {
+	log.G(context.TODO()).Debugf("RequestPool(%s, %s, %s, _, %t)", addressSpace, requestedPool, requestedSubPool, v6)
 
-	parseErr := func(err error) (string, *net.IPNet, map[string]string, error) {
-		return "", nil, nil, types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, pool, subPool, err)
+	parseErr := func(err error) error {
+		return types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, requestedPool, requestedSubPool, err)
 	}
 
 	if addressSpace == "" {
-		return parseErr(ipamapi.ErrInvalidAddressSpace)
+		return "", nil, nil, parseErr(ipamapi.ErrInvalidAddressSpace)
 	}
 	aSpace, err := a.getAddrSpace(addressSpace)
 	if err != nil {
 		return "", nil, nil, err
 	}
-	k := PoolID{AddressSpace: addressSpace}
+	if requestedPool == "" && requestedSubPool != "" {
+		return "", nil, nil, parseErr(ipamapi.ErrInvalidSubPool)
+	}
 
-	if pool == "" {
-		if subPool != "" {
-			return parseErr(ipamapi.ErrInvalidSubPool)
-		}
+	k := PoolID{AddressSpace: addressSpace}
+	if requestedPool == "" {
 		k.Subnet, err = aSpace.allocatePredefinedPool(v6)
 		if err != nil {
 			return "", nil, nil, err
@@ -94,19 +94,26 @@ func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[
 		return k.String(), toIPNet(k.Subnet), nil, nil
 	}
 
-	if k.Subnet, err = netip.ParsePrefix(pool); err != nil {
-		return parseErr(ipamapi.ErrInvalidPool)
+	if k.Subnet, err = netip.ParsePrefix(requestedPool); err != nil {
+		return "", nil, nil, parseErr(ipamapi.ErrInvalidPool)
 	}
 
-	if subPool != "" {
-		var err error
-		k.ChildSubnet, err = netip.ParsePrefix(subPool)
+	if requestedSubPool != "" {
+		k.ChildSubnet, err = netip.ParsePrefix(requestedSubPool)
 		if err != nil {
-			return parseErr(ipamapi.ErrInvalidSubPool)
+			return "", nil, nil, parseErr(ipamapi.ErrInvalidSubPool)
 		}
 	}
 
 	k.Subnet, k.ChildSubnet = k.Subnet.Masked(), k.ChildSubnet.Masked()
+	// Prior to https://github.com/moby/moby/pull/44968, libnetwork would happily accept a ChildSubnet with a bigger
+	// mask than its parent subnet. In such case, it was producing IP addresses based on the parent subnet, and the
+	// child subnet was not allocated from the address pool. Following condition take care of restoring this behavior
+	// for networks created before upgrading to v24.0.
+	if k.ChildSubnet.IsValid() && k.ChildSubnet.Bits() < k.Subnet.Bits() {
+		k.ChildSubnet = k.Subnet
+	}
+
 	err = aSpace.allocateSubnet(k.Subnet, k.ChildSubnet)
 	if err != nil {
 		return "", nil, nil, err
@@ -118,9 +125,9 @@ func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[
 // ReleasePool releases the address pool identified by the passed id
 func (a *Allocator) ReleasePool(poolID string) error {
 	log.G(context.TODO()).Debugf("ReleasePool(%s)", poolID)
-	k := PoolID{}
-	if err := k.FromString(poolID); err != nil {
-		return types.BadRequestErrorf("invalid pool id: %s", poolID)
+	k, err := PoolIDFromString(poolID)
+	if err != nil {
+		return types.InvalidParameterErrorf("invalid pool id: %s", poolID)
 	}
 
 	aSpace, err := a.getAddrSpace(k.AddressSpace)
@@ -140,7 +147,7 @@ func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
 	case globalAddressSpace:
 		return a.global, nil
 	}
-	return nil, types.BadRequestErrorf("cannot find address space %s", as)
+	return nil, types.InvalidParameterErrorf("cannot find address space %s", as)
 }
 
 func newPoolData(pool netip.Prefix) *PoolData {
@@ -227,9 +234,9 @@ func (aSpace *addrSpace) allocatePredefinedPool(ipV6 bool) (netip.Prefix, error)
 // RequestAddress returns an address from the specified pool ID
 func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[string]string) (*net.IPNet, map[string]string, error) {
 	log.G(context.TODO()).Debugf("RequestAddress(%s, %v, %v)", poolID, prefAddress, opts)
-	k := PoolID{}
-	if err := k.FromString(poolID); err != nil {
-		return nil, nil, types.BadRequestErrorf("invalid pool id: %s", poolID)
+	k, err := PoolIDFromString(poolID)
+	if err != nil {
+		return nil, nil, types.InvalidParameterErrorf("invalid pool id: %s", poolID)
 	}
 
 	aSpace, err := a.getAddrSpace(k.AddressSpace)
@@ -241,7 +248,7 @@ func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[s
 		var ok bool
 		pref, ok = netip.AddrFromSlice(prefAddress)
 		if !ok {
-			return nil, nil, types.BadRequestErrorf("invalid preferred address: %v", prefAddress)
+			return nil, nil, types.InvalidParameterErrorf("invalid preferred address: %v", prefAddress)
 		}
 	}
 	p, err := aSpace.requestAddress(k.Subnet, k.ChildSubnet, pref.Unmap(), opts)
@@ -287,9 +294,9 @@ func (aSpace *addrSpace) requestAddress(nw, sub netip.Prefix, prefAddress netip.
 // ReleaseAddress releases the address from the specified pool ID
 func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 	log.G(context.TODO()).Debugf("ReleaseAddress(%s, %v)", poolID, address)
-	k := PoolID{}
-	if err := k.FromString(poolID); err != nil {
-		return types.BadRequestErrorf("invalid pool id: %s", poolID)
+	k, err := PoolIDFromString(poolID)
+	if err != nil {
+		return types.InvalidParameterErrorf("invalid pool id: %s", poolID)
 	}
 
 	aSpace, err := a.getAddrSpace(k.AddressSpace)
@@ -299,7 +306,7 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 
 	addr, ok := netip.AddrFromSlice(address)
 	if !ok {
-		return types.BadRequestErrorf("invalid address: %v", address)
+		return types.InvalidParameterErrorf("invalid address: %v", address)
 	}
 
 	return aSpace.releaseAddress(k.Subnet, k.ChildSubnet, addr.Unmap())
@@ -320,7 +327,7 @@ func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr
 	}
 
 	if !address.IsValid() {
-		return types.BadRequestErrorf("invalid address")
+		return types.InvalidParameterErrorf("invalid address")
 	}
 
 	if !nw.Contains(address) {

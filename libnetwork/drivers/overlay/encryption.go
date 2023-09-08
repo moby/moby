@@ -519,12 +519,12 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 	if (newKey != nil && newIdx == -1) ||
 		(primary != nil && priIdx == -1) ||
 		(pruneKey != nil && delIdx == -1) {
-		return types.BadRequestErrorf("cannot find proper key indices while processing key update:"+
+		return types.InvalidParameterErrorf("cannot find proper key indices while processing key update:"+
 			"(newIdx,priIdx,delIdx):(%d, %d, %d)", newIdx, priIdx, delIdx)
 	}
 
 	if priIdx != -1 && priIdx == delIdx {
-		return types.BadRequestErrorf("attempting to both make a key (index %d) primary and delete it", priIdx)
+		return types.InvalidParameterErrorf("attempting to both make a key (index %d) primary and delete it", priIdx)
 	}
 
 	d.secMapWalk(func(rIPs string, spis []*spi) ([]*spi, bool) {

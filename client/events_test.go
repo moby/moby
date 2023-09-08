@@ -60,7 +60,7 @@ func TestEventsErrorFromServer(t *testing.T) {
 func TestEvents(t *testing.T) {
 	const expectedURL = "/events"
 
-	fltrs := filters.NewArgs(filters.Arg("type", events.ContainerEventType))
+	fltrs := filters.NewArgs(filters.Arg("type", string(events.ContainerEventType)))
 	expectedFiltersJSON := fmt.Sprintf(`{"type":{"%s":true}}`, events.ContainerEventType)
 
 	eventsCases := []struct {
@@ -89,17 +89,17 @@ func TestEvents(t *testing.T) {
 			events: []events.Message{
 				{
 					Type:   events.BuilderEventType,
-					ID:     "1",
+					Actor:  events.Actor{ID: "1"},
 					Action: "create",
 				},
 				{
 					Type:   events.BuilderEventType,
-					ID:     "2",
+					Actor:  events.Actor{ID: "1"},
 					Action: "die",
 				},
 				{
 					Type:   events.BuilderEventType,
-					ID:     "3",
+					Actor:  events.Actor{ID: "1"},
 					Action: "create",
 				},
 			},
@@ -152,9 +152,9 @@ func TestEvents(t *testing.T) {
 
 				break loop
 			case e := <-messages:
-				_, ok := eventsCase.expectedEvents[e.ID]
+				_, ok := eventsCase.expectedEvents[e.Actor.ID]
 				if !ok {
-					t.Fatalf("event received not expected with action %s & id %s", e.Action, e.ID)
+					t.Fatalf("event received not expected with action %s & id %s", e.Action, e.Actor.ID)
 				}
 			}
 		}

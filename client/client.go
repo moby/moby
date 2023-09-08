@@ -43,11 +43,13 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -187,16 +189,15 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 	}
 
 	if c.scheme == "" {
-		c.scheme = "http"
-
-		tlsConfig := resolveTLSConfig(c.client.Transport)
-		if tlsConfig != nil {
-			// TODO(stevvooe): This isn't really the right way to write clients in Go.
-			// `NewClient` should probably only take an `*http.Client` and work from there.
-			// Unfortunately, the model of having a host-ish/url-thingy as the connection
-			// string has us confusing protocol and transport layers. We continue doing
-			// this to avoid breaking existing clients but this should be addressed.
+		// TODO(stevvooe): This isn't really the right way to write clients in Go.
+		// `NewClient` should probably only take an `*http.Client` and work from there.
+		// Unfortunately, the model of having a host-ish/url-thingy as the connection
+		// string has us confusing protocol and transport layers. We continue doing
+		// this to avoid breaking existing clients but this should be addressed.
+		if c.tlsConfig() != nil {
 			c.scheme = "https"
+		} else {
+			c.scheme = "http"
 		}
 	}
 
@@ -213,6 +214,16 @@ func defaultHTTPClient(hostURL *url.URL) (*http.Client, error) {
 		Transport:     transport,
 		CheckRedirect: CheckRedirect,
 	}, nil
+}
+
+// tlsConfig returns the TLS configuration from the client's transport.
+// It returns nil if the transport is not a [http.Transport], or if no
+// TLSClientConfig is set.
+func (cli *Client) tlsConfig() *tls.Config {
+	if tr, ok := cli.client.Transport.(*http.Transport); ok {
+		return tr.TLSClientConfig
+	}
+	return nil
 }
 
 // Close the transport used by the client
@@ -357,6 +368,16 @@ func (cli *Client) Dialer() func(context.Context) (net.Conn, error) {
 				return transport.DialContext(ctx, cli.proto, cli.addr)
 			}
 		}
-		return fallbackDial(cli.proto, cli.addr, resolveTLSConfig(cli.client.Transport))
+		switch cli.proto {
+		case "unix":
+			return net.Dial(cli.proto, cli.addr)
+		case "npipe":
+			return sockets.DialPipe(cli.addr, 32*time.Second)
+		default:
+			if tlsConfig := cli.tlsConfig(); tlsConfig != nil {
+				return tls.Dial(cli.proto, cli.addr, tlsConfig)
+			}
+			return net.Dial(cli.proto, cli.addr)
+		}
 	}
 }

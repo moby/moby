@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.20.6
+ARG GO_VERSION=1.20.7
 ARG BASE_DEBIAN_DISTRO="bullseye"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.2.1
@@ -18,6 +18,12 @@ ARG COMPOSE_VERSION=v2.20.1
 ARG SYSTEMD="false"
 ARG DEBIAN_FRONTEND=noninteractive
 ARG DOCKER_STATIC=1
+
+# REGISTRY_VERSION specifies the version of the registry to download from
+# https://hub.docker.com/r/distribution/distribution. This version of
+# the registry is used to test schema 2 manifests. Generally,  the version
+# specified here should match a current release.
+ARG REGISTRY_VERSION=2.8.2
 
 # cross compilation helper
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
@@ -56,11 +62,7 @@ RUN git init . && git remote add origin "https://github.com/distribution/distrib
 
 FROM base AS registry
 WORKDIR /go/src/github.com/docker/distribution
-# REGISTRY_VERSION specifies the version of the registry to build and install
-# from the https://github.com/docker/distribution repository. This version of
-# the registry is used to test both schema 1 and schema 2 manifests. Generally,
-# the version specified here should match a current release.
-ARG REGISTRY_VERSION=v2.3.0
+
 # REGISTRY_VERSION_SCHEMA1 specifies the version of the registry to build and
 # install from the https://github.com/docker/distribution repository. This is
 # an older (pre v2.3.0) version of the registry that only supports schema1
@@ -73,11 +75,10 @@ RUN --mount=from=registry-src,src=/usr/src/registry,rw \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src <<EOT
   set -ex
-  git fetch -q --depth 1 origin "${REGISTRY_VERSION}" +refs/tags/*:refs/tags/*
-  git checkout -q FETCH_HEAD
   export GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"
-  CGO_ENABLED=0 xx-go build -o /build/registry-v2 -v ./cmd/registry
-  xx-verify /build/registry-v2
+  # Make the /build directory no matter what so that it doesn't fail on arm64 or
+  # any other platform where we don't build this registry
+  mkdir /build
   case $TARGETPLATFORM in
     linux/amd64|linux/arm/v7|linux/ppc64le|linux/s390x)
       git fetch -q --depth 1 origin "${REGISTRY_VERSION_SCHEMA1}" +refs/tags/*:refs/tags/*
@@ -87,6 +88,9 @@ RUN --mount=from=registry-src,src=/usr/src/registry,rw \
       ;;
   esac
 EOT
+
+FROM distribution/distribution:$REGISTRY_VERSION AS registry-v2
+RUN mkdir /build && mv /bin/registry /build/registry-v2
 
 # go-swagger
 FROM base AS swagger-src
@@ -229,7 +233,7 @@ FROM binary-dummy AS containerd-windows
 FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
-ARG GOLANGCI_LINT_VERSION=v1.51.2
+ARG GOLANGCI_LINT_VERSION=v1.54.2
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         GOBIN=/build/ GO111MODULE=on go install "github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
@@ -281,7 +285,7 @@ RUN git init . && git remote add origin "https://github.com/opencontainers/runc.
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged. When updating RUNC_VERSION,
 # consider updating runc in vendor.mod accordingly.
-ARG RUNC_VERSION=v1.1.8
+ARG RUNC_VERSION=v1.1.9
 RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS runc-build
@@ -377,7 +381,7 @@ FROM binary-dummy AS rootlesskit-windows
 FROM rootlesskit-${TARGETOS} AS rootlesskit
 
 FROM base AS crun
-ARG CRUN_VERSION=1.4.5
+ARG CRUN_VERSION=1.8.7
 RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-crun-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -449,6 +453,7 @@ COPY --link --from=tomll         /build/ /usr/local/bin/
 COPY --link --from=gowinres      /build/ /usr/local/bin/
 COPY --link --from=tini          /build/ /usr/local/bin/
 COPY --link --from=registry      /build/ /usr/local/bin/
+COPY --link --from=registry-v2   /build/ /usr/local/bin/
 
 # Skip the CRIU stage for now, as the opensuse package repository is sometimes
 # unstable, and we're currently not using it in CI.
@@ -550,7 +555,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             pkg-config \
             dpkg-dev \
             libapparmor-dev \
-            libdevmapper-dev \
             libseccomp-dev \
             libsecret-1-dev \
             libsystemd-dev \
@@ -578,7 +582,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
             gcc \
             libapparmor-dev \
             libc6-dev \
-            libdevmapper-dev \
             libseccomp-dev \
             libsecret-1-dev \
             libsystemd-dev \

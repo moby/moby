@@ -23,16 +23,16 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client, container.WithCmd("true"))
-	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"))
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
 
 	reference := "repo/" + strings.ToLower(t.Name()) + ":v1"
-	exportResp, err := client.ContainerExport(ctx, cID)
+	exportResp, err := apiClient.ContainerExport(ctx, cID)
 	assert.NilError(t, err)
-	importResp, err := client.ImageImport(ctx, types.ImageImportSource{
+	importResp, err := apiClient.ImageImport(ctx, types.ImageImportSource{
 		Source:     exportResp,
 		SourceName: "-",
 	}, reference, types.ImageImportOptions{})
@@ -46,7 +46,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	err = dec.Decode(&jm)
 	assert.NilError(t, err)
 
-	images, err := client.ImageList(ctx, types.ImageListOptions{
+	images, err := apiClient.ImageList(ctx, types.ImageListOptions{
 		Filters: filters.NewArgs(filters.Arg("reference", reference)),
 	})
 	assert.NilError(t, err)

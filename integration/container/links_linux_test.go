@@ -21,11 +21,11 @@ func TestLinksEtcHostsContentMatch(t *testing.T) {
 	skip.If(t, os.IsNotExist(err))
 
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client, container.WithNetworkMode("host"))
-	res, err := container.Exec(ctx, client, cID, []string{"cat", "/etc/hosts"})
+	cID := container.Run(ctx, t, apiClient, container.WithNetworkMode("host"))
+	res, err := container.Exec(ctx, apiClient, cID, []string{"cat", "/etc/hosts"})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(res.Stderr(), 0))
 	assert.Equal(t, 0, res.ExitCode)
@@ -37,15 +37,15 @@ func TestLinksContainerNames(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
 	containerA := "first_" + t.Name()
 	containerB := "second_" + t.Name()
-	container.Run(ctx, t, client, container.WithName(containerA))
-	container.Run(ctx, t, client, container.WithName(containerB), container.WithLinks(containerA+":"+containerA))
+	container.Run(ctx, t, apiClient, container.WithName(containerA))
+	container.Run(ctx, t, apiClient, container.WithName(containerB), container.WithLinks(containerA+":"+containerA))
 
-	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
+	containers, err := apiClient.ContainerList(ctx, types.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", containerA)),
 	})
 	assert.NilError(t, err)

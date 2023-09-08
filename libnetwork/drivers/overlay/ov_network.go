@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/hashicorp/go-multierror"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
@@ -48,7 +47,7 @@ type subnet struct {
 
 type network struct {
 	id        string
-	sbox      osl.Sandbox
+	sbox      *osl.Namespace
 	endpoints endpointTable
 	driver    *driver
 	joinCnt   int
@@ -84,7 +83,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		return fmt.Errorf("invalid network id")
 	}
 	if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
-		return types.BadRequestErrorf("ipv4 pool is empty")
+		return types.InvalidParameterErrorf("ipv4 pool is empty")
 	}
 
 	// Since we perform lazy configuration make sure we try
@@ -217,17 +216,17 @@ func (d *driver) DeleteNetwork(nid string) error {
 	if n.secure {
 		for _, s := range n.subnets {
 			if err := programMangle(s.vni, false); err != nil {
-				log.G(context.TODO()).WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"network_id":    n.id,
-					"subnet":        s.subnetIP,
+				log.G(context.TODO()).WithFields(log.Fields{
+					"error":      err,
+					"network_id": n.id,
+					"subnet":     s.subnetIP,
 				}).Warn("Failed to clean up iptables rules during overlay network deletion")
 			}
 			if err := programInput(s.vni, false); err != nil {
-				log.G(context.TODO()).WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"network_id":    n.id,
-					"subnet":        s.subnetIP,
+				log.G(context.TODO()).WithFields(log.Fields{
+					"error":      err,
+					"network_id": n.id,
+					"subnet":     s.subnetIP,
 				}).Warn("Failed to clean up iptables rules during overlay network deletion")
 			}
 		}
@@ -314,7 +313,7 @@ func (n *network) leaveSandbox() {
 // to be called while holding network lock
 func (n *network) destroySandbox() {
 	if n.sbox != nil {
-		for _, iface := range n.sbox.Info().Interfaces() {
+		for _, iface := range n.sbox.Interfaces() {
 			if err := iface.Remove(); err != nil {
 				log.G(context.TODO()).Debugf("Remove interface %s failed: %v", iface.SrcName(), err)
 			}
@@ -427,9 +426,7 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 	// create a bridge and vxlan device for this subnet and move it to the sandbox
 	sbox := n.sbox
 
-	if err := sbox.AddInterface(brName, "br",
-		sbox.InterfaceOptions().Address(s.gwIP),
-		sbox.InterfaceOptions().Bridge(true)); err != nil {
+	if err := sbox.AddInterface(brName, "br", osl.WithIPv4Address(s.gwIP), osl.WithIsBridge(true)); err != nil {
 		return fmt.Errorf("bridge creation in sandbox failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
 
@@ -438,11 +435,10 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 		return err
 	}
 
-	if err := sbox.AddInterface(vxlanName, "vxlan",
-		sbox.InterfaceOptions().Master(brName)); err != nil {
+	if err := sbox.AddInterface(vxlanName, "vxlan", osl.WithMaster(brName)); err != nil {
 		// If adding vxlan device to the overlay namespace fails, remove the bridge interface we
 		// already added to the namespace. This allows the caller to try the setup again.
-		for _, iface := range sbox.Info().Interfaces() {
+		for _, iface := range sbox.Interfaces() {
 			if iface.SrcName() == brName {
 				if ierr := iface.Remove(); ierr != nil {
 					log.G(context.TODO()).Errorf("removing bridge failed from ov ns %v failed, %v", n.sbox.Key(), ierr)
@@ -467,9 +463,9 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 	return nil
 }
 
-func setDefaultVLAN(sbox osl.Sandbox) error {
+func setDefaultVLAN(ns *osl.Namespace) error {
 	var brName string
-	for _, i := range sbox.Info().Interfaces() {
+	for _, i := range ns.Interfaces() {
 		if i.Bridge() {
 			brName = i.DstName()
 		}
@@ -478,7 +474,7 @@ func setDefaultVLAN(sbox osl.Sandbox) error {
 	// IFLA_BR_VLAN_DEFAULT_PVID was added in Linux v4.4 (see torvalds/linux@0f963b7), so we can't use netlink for
 	// setting this until Docker drops support for CentOS/RHEL 7 (kernel 3.10, eol date: 2024-06-30).
 	var innerErr error
-	err := sbox.InvokeFunc(func() {
+	err := ns.InvokeFunc(func() {
 		// Contrary to what the sysfs(5) man page says, the entries of /sys/class/net
 		// represent the networking devices visible in the network namespace of the
 		// process which mounted the sysfs filesystem, irrespective of the network
@@ -607,7 +603,7 @@ func (d *driver) network(nid string) *network {
 	return n
 }
 
-func (n *network) sandbox() osl.Sandbox {
+func (n *network) sandbox() *osl.Namespace {
 	n.Lock()
 	defer n.Unlock()
 	return n.sbox

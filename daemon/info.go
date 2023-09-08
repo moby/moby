@@ -62,6 +62,7 @@ func (daemon *Daemon) SystemInfo() *system.Info {
 		NoProxy:            getConfigOrEnv(cfg.NoProxy, "NO_PROXY", "no_proxy"),
 		LiveRestoreEnabled: cfg.LiveRestoreEnabled,
 		Isolation:          daemon.defaultIsolation,
+		CDISpecDirs:        promoteNil(cfg.CDISpecDirs),
 	}
 
 	daemon.fillContainerStates(v)
@@ -308,4 +309,13 @@ func getConfigOrEnv(config string, env ...string) string {
 		return config
 	}
 	return getEnvAny(env...)
+}
+
+// promoteNil converts a nil slice to an empty slice of that type.
+// A non-nil slice is returned as is.
+func promoteNil[S ~[]E, E any](s S) S {
+	if s == nil {
+		return S{}
+	}
+	return s
 }

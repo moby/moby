@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package loopback // import "github.com/docker/docker/pkg/loopback"
 
@@ -27,7 +26,7 @@ func stringToLoopName(src string) [unix.LO_NAME_SIZE]uint8 {
 }
 
 func getNextFreeLoopbackIndex() (int, error) {
-	f, err := os.OpenFile("/dev/loop-control", os.O_RDONLY, 0644)
+	f, err := os.OpenFile("/dev/loop-control", os.O_RDONLY, 0o644)
 	if err != nil {
 		return 0, err
 	}
@@ -55,7 +54,7 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 		}
 
 		// OpenFile adds O_CLOEXEC
-		loopFile, err = os.OpenFile(target, os.O_RDWR, 0644)
+		loopFile, err = os.OpenFile(target, os.O_RDWR, 0o644)
 		if err != nil {
 			log.G(context.TODO()).Errorf("Error opening loopback device: %s", err)
 			return nil, ErrAttachLoopbackDevice
@@ -99,7 +98,7 @@ func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 	}
 
 	// OpenFile adds O_CLOEXEC
-	sparseFile, err := os.OpenFile(sparseName, os.O_RDWR, 0644)
+	sparseFile, err := os.OpenFile(sparseName, os.O_RDWR, 0o644)
 	if err != nil {
 		log.G(context.TODO()).Errorf("Error opening sparse file %s: %s", sparseName, err)
 		return nil, ErrAttachLoopbackDevice

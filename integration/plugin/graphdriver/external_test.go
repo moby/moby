@@ -45,6 +45,7 @@ type graphEventsCounter struct {
 }
 
 func TestExternalGraphDriver(t *testing.T) {
+	skip.If(t, testEnv.UsingSnapshotter())
 	skip.If(t, runtime.GOOS == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, !requirement.HasHubConnectivity(t))
@@ -126,7 +127,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 	}
 
 	respond := func(w http.ResponseWriter, data interface{}) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		switch t := data.(type) {
 		case error:
 			fmt.Fprintf(w, "{\"Err\": %q}\n", t.Error())
@@ -404,6 +405,7 @@ func testGraphDriverPull(c client.APIClient, d *daemon.Daemon) func(*testing.T) 
 }
 
 func TestGraphdriverPluginV2(t *testing.T) {
+	skip.If(t, testEnv.UsingSnapshotter())
 	skip.If(t, runtime.GOOS == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, !requirement.HasHubConnectivity(t))

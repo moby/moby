@@ -1,6 +1,7 @@
 package cnmallocator
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
@@ -8,7 +9,7 @@ import (
 	builtinIpam "github.com/docker/docker/libnetwork/ipams/builtin"
 	nullIpam "github.com/docker/docker/libnetwork/ipams/null"
 	"github.com/docker/docker/libnetwork/ipamutils"
-	"github.com/sirupsen/logrus"
+	"github.com/moby/swarmkit/v2/log"
 )
 
 func initIPAMDrivers(r ipamapi.Registerer, netConfig *NetworkConfig) error {
@@ -35,7 +36,7 @@ func initIPAMDrivers(r ipamapi.Registerer, netConfig *NetworkConfig) error {
 		return err
 	}
 	if addressPool != nil {
-		logrus.Infof("Swarm initialized global default address pool to: " + str.String())
+		log.G(context.TODO()).Infof("Swarm initialized global default address pool to: " + str.String())
 	}
 
 	for _, fn := range [](func(ipamapi.Registerer) error){

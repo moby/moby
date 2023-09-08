@@ -14,6 +14,30 @@ import (
 	"github.com/pkg/errors"
 )
 
+// validateState verifies if the container is in a non-conflicting state.
+func validateState(ctr *container.Container) error {
+	ctr.Lock()
+	defer ctr.Unlock()
+
+	// Intentionally checking paused first, because a container can be
+	// BOTH running AND paused. To start a paused (but running) container,
+	// it must be thawed ("un-paused").
+	if ctr.Paused {
+		return errdefs.Conflict(errors.New("cannot start a paused container, try unpause instead"))
+	} else if ctr.Running {
+		// This is not an actual error, but produces a 304 "not modified"
+		// when returned through the API to indicates the container is
+		// already in the desired state. It's implemented as an error
+		// to make the code calling this function terminate early (as
+		// no further processing is needed).
+		return errdefs.NotModified(errors.New("container is already running"))
+	}
+	if ctr.RemovalInProgress || ctr.Dead {
+		return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
+	}
+	return nil
+}
+
 // ContainerStart starts a container.
 func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfig *containertypes.HostConfig, checkpoint string, checkpointDir string) error {
 	daemonCfg := daemon.config()
@@ -25,26 +49,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 	if err != nil {
 		return err
 	}
-
-	validateState := func() error {
-		ctr.Lock()
-		defer ctr.Unlock()
-
-		if ctr.Paused {
-			return errdefs.Conflict(errors.New("cannot start a paused container, try unpause instead"))
-		}
-
-		if ctr.Running {
-			return containerNotModifiedError{running: true}
-		}
-
-		if ctr.RemovalInProgress || ctr.Dead {
-			return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
-		}
-		return nil
-	}
-
-	if err := validateState(); err != nil {
+	if err := validateState(ctr); err != nil {
 		return err
 	}
 
@@ -154,6 +159,16 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 
 	spec, err := daemon.createSpec(ctx, daemonCfg, container)
 	if err != nil {
+		// Any error that occurs while creating the spec, even if it's the
+		// result of an invalid container config, must be considered a System
+		// error (internal server error), as it's not an error with the request
+		// to start the container.
+		//
+		// Invalid configuration in the config itself must be validated when
+		// creating the container (creating its config), but some errors are
+		// dependent on the current state, for example when starting a container
+		// that shares a namespace with another container, and that container
+		// is not running (or missing).
 		return errdefs.System(err)
 	}
 

@@ -4,10 +4,7 @@ set -e
 source hack/make/.integration-test-helpers
 
 # The commit or tag to use for testing
-# TODO docker 17.06 cli client used in CI fails to build using a sha;
-# unable to prepare context: unable to 'git clone' to temporary context directory: error fetching: error: no such remote ref ead0bb9e08c13dd3d1712759491eee06bf5a5602
-#: exit status 128
-: "${DOCKER_PY_COMMIT:=5.0.3}"
+: "${DOCKER_PY_COMMIT:=6.1.3}"
 
 # The version (and variant) of the python image to use for the tests;
 # see https://github.com/docker/docker-py/blob/5.0.3/tests/Dockerfile#L1C5-L3
@@ -21,9 +18,13 @@ source hack/make/.integration-test-helpers
 # flag) until they are fixed upstream. For example:
 # --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream
 # TODO re-enable test_attach_no_stream after https://github.com/docker/docker-py/issues/2513 is resolved
-# TODO re-enable test_create_with_device_cgroup_rules after https://github.com/docker/docker-py/issues/2939 is resolved
-# TODO re-enable test_prune_volumes after https://github.com/docker/docker-py/pull/3051 is resolved
-: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_device_cgroup_rules --deselect=tests/integration/api_volume_test.py::TestVolumes::test_prune_volumes}"
+# TODO re-enable test_run_container_reading_socket_ws. It's reported in https://github.com/docker/docker-py/issues/1478, and we're getting that error in our tests.
+# TODO re-enable test_create_with_restart_policy after https://github.com/docker/docker-py/pull/3165 is included in a release
+# TODO re-enable test_api_error_parses_json after https://github.com/docker/docker-py/pull/3165 is included in a release
+# TODO re-enable test_connect_with_ipv6_address after we updated to a version of docker-py with https://github.com/docker/docker-py/pull/3169
+# TODO re-enable test_create_network_ipv6_enabled after we updated to a version of docker-py with https://github.com/docker/docker-py/pull/3169
+# TODO re-enable test_create_with_ipv6_address after we updated to a version of docker-py with https://github.com/docker/docker-py/pull/3169
+: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_run_container_reading_socket_ws --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_restart_policy --deselect=tests/integration/errors_test.py::ErrorsTest::test_api_error_parses_json --deselect=tests/integration/api_network_test.py::TestNetworks::test_connect_with_ipv6_address --deselect=tests/integration/api_network_test.py::TestNetworks::test_create_network_ipv6_enabled --deselect=tests/integration/api_network_test.py::TestNetworks::test_create_with_ipv6_address}"
 (
 	bundle .integration-daemon-start
 

@@ -16,7 +16,6 @@ import (
 	logcache "github.com/docker/docker/daemon/logger/loggerutils/cache"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ContainerLogs copies the container's log channel to the channel provided in
@@ -26,7 +25,7 @@ import (
 // if it returns nil, the config channel will be active and return log
 // messages until it runs out or the context is canceled.
 func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *types.ContainerLogsOptions) (messages <-chan *backend.LogMessage, isTTY bool, retErr error) {
-	lg := log.G(ctx).WithFields(logrus.Fields{
+	lg := log.G(ctx).WithFields(log.Fields{
 		"module":    "daemon",
 		"method":    "(*Daemon).ContainerLogs",
 		"container": containerName,

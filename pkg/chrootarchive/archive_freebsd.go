@@ -185,7 +185,6 @@ func packInChroot(options archive.TarOptions, args ...string) error {
 	relSrc := args[0]
 
 	tb, err := archive.NewTarballer(relSrc, &options)
-
 	if err != nil {
 		return err
 	}

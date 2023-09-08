@@ -65,11 +65,11 @@ func setKey() error {
 		return err
 	}
 
-	return SetExternalKey(shortCtlrID, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid), *execRoot)
+	return setExternalKey(shortCtlrID, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid), *execRoot)
 }
 
-// SetExternalKey provides a convenient way to set an External key to a sandbox
-func SetExternalKey(shortCtlrID string, containerID string, key string, execRoot string) error {
+// setExternalKey provides a convenient way to set an External key to a sandbox
+func setExternalKey(shortCtlrID string, containerID string, key string, execRoot string) error {
 	uds := filepath.Join(execRoot, execSubdir, shortCtlrID+".sock")
 	c, err := net.Dial("unix", uds)
 	if err != nil {
@@ -164,15 +164,11 @@ func (c *Controller) processExternalKey(conn net.Conn) error {
 	if err = json.Unmarshal(buf[0:nr], &s); err != nil {
 		return err
 	}
-
-	var sandbox *Sandbox
-	search := SandboxContainerWalker(&sandbox, s.ContainerID)
-	c.WalkSandboxes(search)
-	if sandbox == nil {
-		return types.BadRequestErrorf("no sandbox present for %s", s.ContainerID)
+	sb, err := c.GetSandbox(s.ContainerID)
+	if err != nil {
+		return types.InvalidParameterErrorf("failed to get sandbox for %s", s.ContainerID)
 	}
-
-	return sandbox.SetKey(s.Key)
+	return sb.SetKey(s.Key)
 }
 
 func (c *Controller) stopExternalKeyListener() {

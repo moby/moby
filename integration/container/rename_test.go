@@ -26,24 +26,24 @@ func TestRenameLinkedContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	aName := "a0" + t.Name()
 	bName := "b0" + t.Name()
-	aID := container.Run(ctx, t, client, container.WithName(aName))
-	bID := container.Run(ctx, t, client, container.WithName(bName), container.WithLinks(aName))
+	aID := container.Run(ctx, t, apiClient, container.WithName(aName))
+	bID := container.Run(ctx, t, apiClient, container.WithName(bName), container.WithLinks(aName))
 
-	err := client.ContainerRename(ctx, aID, "a1"+t.Name())
+	err := apiClient.ContainerRename(ctx, aID, "a1"+t.Name())
 	assert.NilError(t, err)
 
-	container.Run(ctx, t, client, container.WithName(aName))
+	container.Run(ctx, t, apiClient, container.WithName(aName))
 
-	err = client.ContainerRemove(ctx, bID, types.ContainerRemoveOptions{Force: true})
+	err = apiClient.ContainerRemove(ctx, bID, types.ContainerRemoveOptions{Force: true})
 	assert.NilError(t, err)
 
-	bID = container.Run(ctx, t, client, container.WithName(bName), container.WithLinks(aName))
+	bID = container.Run(ctx, t, apiClient, container.WithName(bName), container.WithLinks(aName))
 
-	inspect, err := client.ContainerInspect(ctx, bID)
+	inspect, err := apiClient.ContainerInspect(ctx, bID)
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual([]string{"/" + aName + ":/" + bName + "/" + aName}, inspect.HostConfig.Links))
 }
@@ -51,21 +51,21 @@ func TestRenameLinkedContainer(t *testing.T) {
 func TestRenameStoppedContainer(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	oldName := "first_name" + t.Name()
-	cID := container.Run(ctx, t, client, container.WithName(oldName), container.WithCmd("sh"))
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	cID := container.Run(ctx, t, apiClient, container.WithName(oldName), container.WithCmd("sh"))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
-	inspect, err := client.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("/"+oldName, inspect.Name))
 
 	newName := "new_name" + stringid.GenerateRandomID()
-	err = client.ContainerRename(ctx, oldName, newName)
+	err = apiClient.ContainerRename(ctx, oldName, newName)
 	assert.NilError(t, err)
 
-	inspect, err = client.ContainerInspect(ctx, cID)
+	inspect, err = apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("/"+newName, inspect.Name))
 }
@@ -73,27 +73,27 @@ func TestRenameStoppedContainer(t *testing.T) {
 func TestRenameRunningContainerAndReuse(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	oldName := "first_name" + t.Name()
-	cID := container.Run(ctx, t, client, container.WithName(oldName))
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	cID := container.Run(ctx, t, apiClient, container.WithName(oldName))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	newName := "new_name" + stringid.GenerateRandomID()
-	err := client.ContainerRename(ctx, oldName, newName)
+	err := apiClient.ContainerRename(ctx, oldName, newName)
 	assert.NilError(t, err)
 
-	inspect, err := client.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("/"+newName, inspect.Name))
 
-	_, err = client.ContainerInspect(ctx, oldName)
+	_, err = apiClient.ContainerInspect(ctx, oldName)
 	assert.Check(t, is.ErrorContains(err, "No such container: "+oldName))
 
-	cID = container.Run(ctx, t, client, container.WithName(oldName))
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	cID = container.Run(ctx, t, apiClient, container.WithName(oldName))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
-	inspect, err = client.ContainerInspect(ctx, cID)
+	inspect, err = apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("/"+oldName, inspect.Name))
 }
@@ -101,16 +101,16 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 func TestRenameInvalidName(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	oldName := "first_name" + t.Name()
-	cID := container.Run(ctx, t, client, container.WithName(oldName))
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	cID := container.Run(ctx, t, apiClient, container.WithName(oldName))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
-	err := client.ContainerRename(ctx, oldName, "new:invalid")
+	err := apiClient.ContainerRename(ctx, oldName, "new:invalid")
 	assert.Check(t, is.ErrorContains(err, "Invalid container name"))
 
-	inspect, err := client.ContainerInspect(ctx, oldName)
+	inspect, err := apiClient.ContainerInspect(ctx, oldName)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(cID, inspect.ID))
 }
@@ -125,13 +125,13 @@ func TestRenameInvalidName(t *testing.T) {
 func TestRenameAnonymousContainer(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	networkName := "network1" + t.Name()
-	_, err := client.NetworkCreate(ctx, networkName, types.NetworkCreate{})
+	_, err := apiClient.NetworkCreate(ctx, networkName, types.NetworkCreate{})
 
 	assert.NilError(t, err)
-	cID := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
+	cID := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{
 			networkName: {},
 		}
@@ -139,30 +139,30 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	})
 
 	container1Name := "container1" + t.Name()
-	err = client.ContainerRename(ctx, cID, container1Name)
+	err = apiClient.ContainerRename(ctx, cID, container1Name)
 	assert.NilError(t, err)
 	// Stop/Start the container to get registered
 	// FIXME(vdemeester) this is a really weird behavior as it fails otherwise
-	err = client.ContainerStop(ctx, container1Name, containertypes.StopOptions{})
+	err = apiClient.ContainerStop(ctx, container1Name, containertypes.StopOptions{})
 	assert.NilError(t, err)
-	err = client.ContainerStart(ctx, container1Name, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, container1Name, types.ContainerStartOptions{})
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	count := "-c"
 	if testEnv.DaemonInfo.OSType == "windows" {
 		count = "-n"
 	}
-	cID = container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
+	cID = container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{
 			networkName: {},
 		}
 		c.HostConfig.NetworkMode = containertypes.NetworkMode(networkName)
 	}, container.WithCmd("ping", count, "1", container1Name))
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
-	inspect, err := client.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(0, inspect.State.ExitCode), "container %s exited with the wrong exitcode: %s", cID, inspect.State.Error)
 }
@@ -171,15 +171,15 @@ func TestRenameAnonymousContainer(t *testing.T) {
 func TestRenameContainerWithSameName(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	oldName := "old" + t.Name()
-	cID := container.Run(ctx, t, client, container.WithName(oldName))
+	cID := container.Run(ctx, t, apiClient, container.WithName(oldName))
 
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
-	err := client.ContainerRename(ctx, oldName, oldName)
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	err := apiClient.ContainerRename(ctx, oldName, oldName)
 	assert.Check(t, is.ErrorContains(err, "Renaming a container with the same name"))
-	err = client.ContainerRename(ctx, cID, oldName)
+	err = apiClient.ContainerRename(ctx, cID, oldName)
 	assert.Check(t, is.ErrorContains(err, "Renaming a container with the same name"))
 }
 
@@ -194,21 +194,21 @@ func TestRenameContainerWithLinkedContainer(t *testing.T) {
 
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	db1Name := "db1" + t.Name()
-	db1ID := container.Run(ctx, t, client, container.WithName(db1Name))
-	poll.WaitOn(t, container.IsInState(ctx, client, db1ID, "running"), poll.WithDelay(100*time.Millisecond))
+	db1ID := container.Run(ctx, t, apiClient, container.WithName(db1Name))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, db1ID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	app1Name := "app1" + t.Name()
 	app2Name := "app2" + t.Name()
-	app1ID := container.Run(ctx, t, client, container.WithName(app1Name), container.WithLinks(db1Name+":/mysql"))
-	poll.WaitOn(t, container.IsInState(ctx, client, app1ID, "running"), poll.WithDelay(100*time.Millisecond))
+	app1ID := container.Run(ctx, t, apiClient, container.WithName(app1Name), container.WithLinks(db1Name+":/mysql"))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, app1ID, "running"), poll.WithDelay(100*time.Millisecond))
 
-	err := client.ContainerRename(ctx, app1Name, app2Name)
+	err := apiClient.ContainerRename(ctx, app1Name, app2Name)
 	assert.NilError(t, err)
 
-	inspect, err := client.ContainerInspect(ctx, app2Name+"/mysql")
+	inspect, err := apiClient.ContainerInspect(ctx, app2Name+"/mysql")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(db1ID, inspect.ID))
 }

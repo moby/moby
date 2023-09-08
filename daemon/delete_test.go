@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -34,23 +35,21 @@ func newContainerWithState(state *container.State) *container.Container {
 // TestContainerDelete tests that a useful error message and instructions is
 // given when attempting to remove a container (#30842)
 func TestContainerDelete(t *testing.T) {
-	tt := []struct {
+	tests := []struct {
+		doc           string
 		errMsg        string
-		fixMsg        string
 		initContainer func() *container.Container
 	}{
-		// a paused container
 		{
-			errMsg: "cannot remove a paused container",
-			fixMsg: "Unpause and then stop the container before attempting removal or force remove",
+			doc:    "paused container",
+			errMsg: "container is paused and must be unpaused first",
 			initContainer: func() *container.Container {
 				return newContainerWithState(&container.State{Paused: true, Running: true})
 			},
 		},
-		// a restarting container
 		{
-			errMsg: "cannot remove a restarting container",
-			fixMsg: "Stop the container before attempting removal or force remove",
+			doc:    "restarting container",
+			errMsg: "container is restarting: stop the container before removing or force remove",
 			initContainer: func() *container.Container {
 				c := newContainerWithState(container.NewState())
 				c.SetRunning(nil, nil, true)
@@ -58,25 +57,27 @@ func TestContainerDelete(t *testing.T) {
 				return c
 			},
 		},
-		// a running container
 		{
-			errMsg: "cannot remove a running container",
-			fixMsg: "Stop the container before attempting removal or force remove",
+			doc:    "running container",
+			errMsg: "container is running: stop the container before removing or force remove",
 			initContainer: func() *container.Container {
 				return newContainerWithState(&container.State{Running: true})
 			},
 		},
 	}
 
-	for _, te := range tt {
-		c := te.initContainer()
-		d, cleanup := newDaemonWithTmpRoot(t)
-		defer cleanup()
-		d.containers.Add(c.ID, c)
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			c := tc.initContainer()
+			d, cleanup := newDaemonWithTmpRoot(t)
+			defer cleanup()
+			d.containers.Add(c.ID, c)
 
-		err := d.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: false})
-		assert.Check(t, is.ErrorContains(err, te.errMsg))
-		assert.Check(t, is.ErrorContains(err, te.fixMsg))
+			err := d.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: false})
+			assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
+			assert.Check(t, is.ErrorContains(err, tc.errMsg))
+		})
 	}
 }
 

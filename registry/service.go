@@ -20,8 +20,8 @@ type Service struct {
 	mu     sync.RWMutex
 }
 
-// NewService returns a new instance of defaultService ready to be
-// installed into an engine.
+// NewService returns a new instance of [Service] ready to be installed into
+// an engine.
 func NewService(options ServiceOptions) (*Service, error) {
 	config, err := newServiceConfig(options)
 
@@ -115,7 +115,7 @@ func (s *Service) ResolveRepository(name reference.Named) (*RepositoryInfo, erro
 type APIEndpoint struct {
 	Mirror                         bool
 	URL                            *url.URL
-	Version                        APIVersion
+	Version                        APIVersion // Deprecated: v1 registries are deprecated, and endpoints are always v2.
 	AllowNondistributableArtifacts bool
 	Official                       bool
 	TrimHostname                   bool

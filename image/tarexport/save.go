@@ -301,7 +301,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 
 	if len(reposLegacy) > 0 {
 		reposFile := filepath.Join(tempDir, legacyRepositoriesFileName)
-		rf, err := os.OpenFile(reposFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		rf, err := os.OpenFile(reposFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 		if err != nil {
 			return err
 		}
@@ -319,7 +319,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 	}
 
 	manifestPath := filepath.Join(tempDir, manifestFileName)
-	f, err := os.OpenFile(manifestPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(manifestPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		return err
 	}
@@ -460,11 +460,11 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 
 	cfgDgst := digest.FromBytes(imageConfig)
 	configPath := filepath.Join(outDir, cfgDgst.Algorithm().String(), cfgDgst.Encoded())
-	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
 		return distribution.Descriptor{}, errors.Wrap(err, "could not create layer dir parent")
 	}
 
-	if err := os.WriteFile(configPath, imageConfig, 0644); err != nil {
+	if err := os.WriteFile(configPath, imageConfig, 0o644); err != nil {
 		return distribution.Descriptor{}, err
 	}
 
@@ -485,7 +485,7 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 
 		// We use sequential file access to avoid depleting the standby list on
 		// Windows. On Linux, this equates to a regular os.Create.
-		if err := os.MkdirAll(filepath.Dir(layerPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(layerPath), 0o755); err != nil {
 			return distribution.Descriptor{}, errors.Wrap(err, "could not create layer dir parent")
 		}
 		tarFile, err := sequential.Create(layerPath)

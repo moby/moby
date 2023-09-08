@@ -64,21 +64,18 @@ func withRlimits(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Contain
 // withLibnetwork sets the libnetwork hook
 func withLibnetwork(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-		if s.Hooks == nil {
-			s.Hooks = &specs.Hooks{}
+		if c.Config.NetworkDisabled {
+			return nil
 		}
 		for _, ns := range s.Linux.Namespaces {
-			if ns.Type == "network" && ns.Path == "" && !c.Config.NetworkDisabled {
-				target := filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe")
+			if ns.Type == specs.NetworkNamespace && ns.Path == "" {
+				if s.Hooks == nil {
+					s.Hooks = &specs.Hooks{}
+				}
 				shortNetCtlrID := stringid.TruncateID(daemon.netController.ID())
 				s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
-					Path: target,
-					Args: []string{
-						"libnetwork-setkey",
-						"-exec-root=" + daemonCfg.GetExecRoot(),
-						c.ID,
-						shortNetCtlrID,
-					},
+					Path: filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe"),
+					Args: []string{"libnetwork-setkey", "-exec-root=" + daemonCfg.GetExecRoot(), c.ID, shortNetCtlrID},
 				})
 			}
 		}
@@ -247,34 +244,47 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		userNS := false
 		// user
 		if c.HostConfig.UsernsMode.IsPrivate() {
-			uidMap := daemon.idMapping.UIDMaps
-			if uidMap != nil {
+			if uidMap := daemon.idMapping.UIDMaps; uidMap != nil {
 				userNS = true
-				ns := specs.LinuxNamespace{Type: "user"}
-				setNamespace(s, ns)
+				setNamespace(s, specs.LinuxNamespace{
+					Type: specs.UserNamespace,
+				})
 				s.Linux.UIDMappings = specMapping(uidMap)
 				s.Linux.GIDMappings = specMapping(daemon.idMapping.GIDMaps)
 			}
 		}
 		// network
 		if !c.Config.NetworkDisabled {
-			ns := specs.LinuxNamespace{Type: "network"}
-			if c.HostConfig.NetworkMode.IsContainer() {
-				nc, err := daemon.getNetworkedContainer(c.ID, c.HostConfig.NetworkMode.ConnectedContainer())
+			networkMode := c.HostConfig.NetworkMode
+			switch {
+			case networkMode.IsContainer():
+				nc, err := daemon.getNetworkedContainer(c.ID, networkMode.ConnectedContainer())
 				if err != nil {
 					return err
 				}
-				ns.Path = fmt.Sprintf("/proc/%d/ns/net", nc.State.GetPID())
+				setNamespace(s, specs.LinuxNamespace{
+					Type: specs.NetworkNamespace,
+					Path: fmt.Sprintf("/proc/%d/ns/net", nc.State.GetPID()),
+				})
 				if userNS {
-					// to share a net namespace, they must also share a user namespace
-					nsUser := specs.LinuxNamespace{Type: "user"}
-					nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", nc.State.GetPID())
-					setNamespace(s, nsUser)
+					// to share a net namespace, the containers must also share a user namespace.
+					//
+					// FIXME(thaJeztah): this will silently overwrite an earlier user namespace when joining multiple containers: https://github.com/moby/moby/issues/46210
+					setNamespace(s, specs.LinuxNamespace{
+						Type: specs.UserNamespace,
+						Path: fmt.Sprintf("/proc/%d/ns/user", nc.State.GetPID()),
+					})
 				}
-			} else if c.HostConfig.NetworkMode.IsHost() {
-				ns.Path = c.NetworkSettings.SandboxKey
+			case networkMode.IsHost():
+				setNamespace(s, specs.LinuxNamespace{
+					Type: specs.NetworkNamespace,
+					Path: c.NetworkSettings.SandboxKey,
+				})
+			default:
+				setNamespace(s, specs.LinuxNamespace{
+					Type: specs.NetworkNamespace,
+				})
 			}
-			setNamespace(s, ns)
 		}
 
 		// ipc
@@ -284,64 +294,73 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		switch {
 		case ipcMode.IsContainer():
-			ns := specs.LinuxNamespace{Type: "ipc"}
-			ic, err := daemon.getIpcContainer(ipcMode.Container())
+			ic, err := daemon.getIPCContainer(ipcMode.Container())
 			if err != nil {
-				return errdefs.InvalidParameter(errors.Wrapf(err, "invalid IPC mode: %v", ipcMode))
+				return errors.Wrap(err, "failed to join IPC namespace")
 			}
-			ns.Path = fmt.Sprintf("/proc/%d/ns/ipc", ic.State.GetPID())
-			setNamespace(s, ns)
+			setNamespace(s, specs.LinuxNamespace{
+				Type: specs.IPCNamespace,
+				Path: fmt.Sprintf("/proc/%d/ns/ipc", ic.State.GetPID()),
+			})
 			if userNS {
-				// to share an IPC namespace, they must also share a user namespace
-				nsUser := specs.LinuxNamespace{Type: "user"}
-				nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", ic.State.GetPID())
-				setNamespace(s, nsUser)
+				// to share a IPC namespace, the containers must also share a user namespace.
+				//
+				// FIXME(thaJeztah): this will silently overwrite an earlier user namespace when joining multiple containers: https://github.com/moby/moby/issues/46210
+				setNamespace(s, specs.LinuxNamespace{
+					Type: specs.UserNamespace,
+					Path: fmt.Sprintf("/proc/%d/ns/user", ic.State.GetPID()),
+				})
 			}
 		case ipcMode.IsHost():
-			oci.RemoveNamespace(s, "ipc")
+			oci.RemoveNamespace(s, specs.IPCNamespace)
 		case ipcMode.IsEmpty():
 			// A container was created by an older version of the daemon.
 			// The default behavior used to be what is now called "shareable".
 			fallthrough
 		case ipcMode.IsPrivate(), ipcMode.IsShareable(), ipcMode.IsNone():
-			ns := specs.LinuxNamespace{Type: "ipc"}
-			setNamespace(s, ns)
+			setNamespace(s, specs.LinuxNamespace{
+				Type: specs.IPCNamespace,
+			})
 		}
 
 		// pid
-		if !c.HostConfig.PidMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid PID mode: %v", c.HostConfig.PidMode))
+		pidMode := c.HostConfig.PidMode
+		if !pidMode.Valid() {
+			return errdefs.InvalidParameter(errors.Errorf("invalid PID mode: %v", pidMode))
 		}
-		if c.HostConfig.PidMode.IsContainer() {
-			pc, err := daemon.getPidContainer(c)
+		switch {
+		case pidMode.IsContainer():
+			pc, err := daemon.getPIDContainer(pidMode.Container())
 			if err != nil {
-				return err
+				return errors.Wrap(err, "failed to join PID namespace")
 			}
-			ns := specs.LinuxNamespace{
-				Type: "pid",
+			setNamespace(s, specs.LinuxNamespace{
+				Type: specs.PIDNamespace,
 				Path: fmt.Sprintf("/proc/%d/ns/pid", pc.State.GetPID()),
-			}
-			setNamespace(s, ns)
+			})
 			if userNS {
-				// to share a PID namespace, they must also share a user namespace
-				nsUser := specs.LinuxNamespace{
-					Type: "user",
+				// to share a PID namespace, the containers must also share a user namespace.
+				//
+				// FIXME(thaJeztah): this will silently overwrite an earlier user namespace when joining multiple containers: https://github.com/moby/moby/issues/46210
+				setNamespace(s, specs.LinuxNamespace{
+					Type: specs.UserNamespace,
 					Path: fmt.Sprintf("/proc/%d/ns/user", pc.State.GetPID()),
-				}
-				setNamespace(s, nsUser)
+				})
 			}
-		} else if c.HostConfig.PidMode.IsHost() {
-			oci.RemoveNamespace(s, "pid")
-		} else {
-			ns := specs.LinuxNamespace{Type: "pid"}
-			setNamespace(s, ns)
+		case pidMode.IsHost():
+			oci.RemoveNamespace(s, specs.PIDNamespace)
+		default:
+			setNamespace(s, specs.LinuxNamespace{
+				Type: specs.PIDNamespace,
+			})
 		}
+
 		// uts
 		if !c.HostConfig.UTSMode.Valid() {
 			return errdefs.InvalidParameter(errors.Errorf("invalid UTS mode: %v", c.HostConfig.UTSMode))
 		}
 		if c.HostConfig.UTSMode.IsHost() {
-			oci.RemoveNamespace(s, "uts")
+			oci.RemoveNamespace(s, specs.UTSNamespace)
 			s.Hostname = ""
 		}
 
@@ -349,11 +368,10 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		if !c.HostConfig.CgroupnsMode.Valid() {
 			return errdefs.InvalidParameter(errors.Errorf("invalid cgroup namespace mode: %v", c.HostConfig.CgroupnsMode))
 		}
-		if !c.HostConfig.CgroupnsMode.IsEmpty() {
-			if c.HostConfig.CgroupnsMode.IsPrivate() {
-				nsCgroup := specs.LinuxNamespace{Type: "cgroup"}
-				setNamespace(s, nsCgroup)
-			}
+		if c.HostConfig.CgroupnsMode.IsPrivate() {
+			setNamespace(s, specs.LinuxNamespace{
+				Type: specs.CgroupNamespace,
+			})
 		}
 
 		return nil
@@ -514,7 +532,7 @@ func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container) 
 			return err
 		}
 
-		if err := daemon.setupIpcDirs(c); err != nil {
+		if err := daemon.setupIPCDirs(c); err != nil {
 			return err
 		}
 

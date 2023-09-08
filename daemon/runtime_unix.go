@@ -95,7 +95,7 @@ func initRuntimesDir(cfg *config.Config) error {
 	if err := os.RemoveAll(runtimeDir); err != nil {
 		return err
 	}
-	return system.MkdirAll(runtimeDir, 0700)
+	return system.MkdirAll(runtimeDir, 0o700)
 }
 
 func setupRuntimes(cfg *config.Config) (runtimes, error) {
@@ -193,7 +193,7 @@ func wrapRuntime(dir, name, binary string, args []string) (string, error) {
 	// containers.
 	suffix := base32Disemvoweled.EncodeToString(sum.Sum(nil))
 	scriptPath := filepath.Join(dir, name+"."+suffix)
-	if err := ioutils.AtomicWriteFile(scriptPath, wrapper.Bytes(), 0700); err != nil {
+	if err := ioutils.AtomicWriteFile(scriptPath, wrapper.Bytes(), 0o700); err != nil {
 		return "", err
 	}
 	return scriptPath, nil

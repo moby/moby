@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 )
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
@@ -76,7 +75,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 		return err
 	}
 
-	logger := log.G(ctx).WithFields(logrus.Fields{
+	logger := log.G(ctx).WithFields(log.Fields{
 		"digest": img.Target().Digest,
 		"remote": ref.String(),
 	})

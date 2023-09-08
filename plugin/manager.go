@@ -311,7 +311,7 @@ func (logHook) Levels() []logrus.Level {
 }
 
 func (l logHook) Fire(entry *logrus.Entry) error {
-	entry.Data = logrus.Fields{"plugin": l.id}
+	entry.Data = log.Fields{"plugin": l.id}
 	return nil
 }
 

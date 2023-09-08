@@ -19,7 +19,7 @@ import (
 func TestStopContainerWithTimeout(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	t.Cleanup(setupTest(t))
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
 	testCmd := container.WithCmd("sh", "-c", "sleep 2 && exit 42")
@@ -52,15 +52,15 @@ func TestStopContainerWithTimeout(t *testing.T) {
 		d := d
 		t.Run(strconv.Itoa(d.timeout), func(t *testing.T) {
 			t.Parallel()
-			id := container.Run(ctx, t, client, testCmd)
+			id := container.Run(ctx, t, apiClient, testCmd)
 
-			err := client.ContainerStop(ctx, id, containertypes.StopOptions{Timeout: &d.timeout})
+			err := apiClient.ContainerStop(ctx, id, containertypes.StopOptions{Timeout: &d.timeout})
 			assert.NilError(t, err)
 
-			poll.WaitOn(t, container.IsStopped(ctx, client, id),
+			poll.WaitOn(t, container.IsStopped(ctx, apiClient, id),
 				poll.WithDelay(100*time.Millisecond))
 
-			inspect, err := client.ContainerInspect(ctx, id)
+			inspect, err := apiClient.ContainerInspect(ctx, id)
 			assert.NilError(t, err)
 			assert.Equal(t, inspect.State.ExitCode, d.expectedExitCode)
 		})

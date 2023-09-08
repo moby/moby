@@ -51,7 +51,7 @@ fi
 if [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"
 elif command -v git &> /dev/null && [ -e .git ] && git rev-parse &> /dev/null; then
-	GITCOMMIT=$(git rev-parse --short HEAD)
+	GITCOMMIT=$(git rev-parse HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-unsupported"
 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -66,8 +66,8 @@ elif command -v git &> /dev/null && [ -e .git ] && git rev-parse &> /dev/null; t
 else
 	echo >&2 'error: .git directory missing and DOCKER_GITCOMMIT not specified'
 	echo >&2 '  Please either build with the .git directory accessible, or specify the'
-	echo >&2 '  exact (--short) commit hash you are building using DOCKER_GITCOMMIT for'
-	echo >&2 '  future accountability in diagnosing build issues.  Thanks!'
+	echo >&2 '  exact commit hash you are building using DOCKER_GITCOMMIT for future'
+	echo >&2 '  accountability in diagnosing build issues.  Thanks!'
 	exit 1
 fi
 
@@ -79,27 +79,13 @@ if [ "$AUTO_GOPATH" ]; then
 fi
 
 if [ ! "$GOPATH" ]; then
-	echo >&2 'error: missing GOPATH; please see https://golang.org/doc/code.html#GOPATH'
+	echo >&2 'error: missing GOPATH; please see https://pkg.go.dev/cmd/go#hdr-GOPATH_environment_variable'
 	echo >&2 '  alternatively, set AUTO_GOPATH=1'
 	exit 1
 fi
 
-# Adds $1_$2 to DOCKER_BUILDTAGS unless it already
-# contains a word starting from $1_
-add_buildtag() {
-	[[ " $DOCKER_BUILDTAGS" == *" $1_"* ]] || DOCKER_BUILDTAGS+=" $1_$2"
-}
-
 if ${PKG_CONFIG} 'libsystemd' 2> /dev/null; then
 	DOCKER_BUILDTAGS+=" journald"
-fi
-
-# test whether "libdevmapper.h" is new enough to support deferred remove
-# functionality. We favour libdm_dlsym_deferred_remove over
-# libdm_no_deferred_remove in dynamic cases because the binary could be shipped
-# with a newer libdevmapper than the one it was built with.
-if command -v gcc &> /dev/null && ! (echo -e '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }' | gcc -xc - -o /dev/null $(${PKG_CONFIG} --libs devmapper 2> /dev/null) &> /dev/null); then
-	add_buildtag libdm dlsym_deferred_remove
 fi
 
 # Use these flags when compiling the tests and final binary

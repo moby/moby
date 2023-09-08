@@ -98,10 +98,6 @@ func (v *localVolume) setOpts(opts map[string]string) error {
 	return v.saveOpts()
 }
 
-func unmount(path string) {
-	_ = mount.Unmount(path)
-}
-
 func (v *localVolume) needsMount() bool {
 	if v.opts == nil {
 		return false
@@ -159,6 +155,29 @@ func (v *localVolume) unmount() error {
 		}
 		v.active.mounted = false
 	}
+	return nil
+}
+
+// restoreIfMounted restores the mounted status if the _data directory is already mounted.
+func (v *localVolume) restoreIfMounted() error {
+	if v.needsMount() {
+		// Check if the _data directory is already mounted.
+		mounted, err := mountinfo.Mounted(v.path)
+		if err != nil {
+			return fmt.Errorf("failed to determine if volume _data path is already mounted: %w", err)
+		}
+
+		if mounted {
+			// Mark volume as mounted, but don't increment active count. If
+			// any container needs this, the refcount will be incremented
+			// by the live-restore (if enabled).
+			// In other case, refcount will be zero but the volume will
+			// already be considered as mounted when Mount is called, and
+			// only the refcount will be incremented.
+			v.active.mounted = true
+		}
+	}
+
 	return nil
 }
 

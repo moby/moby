@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/checkpoint"
 )
 
 func (s *checkpointRouter) postContainerCheckpoint(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -13,7 +13,7 @@ func (s *checkpointRouter) postContainerCheckpoint(ctx context.Context, w http.R
 		return err
 	}
 
-	var options types.CheckpointCreateOptions
+	var options checkpoint.CreateOptions
 	if err := httputils.ReadJSON(r, &options); err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func (s *checkpointRouter) getContainerCheckpoints(ctx context.Context, w http.R
 		return err
 	}
 
-	checkpoints, err := s.backend.CheckpointList(vars["name"], types.CheckpointListOptions{
+	checkpoints, err := s.backend.CheckpointList(vars["name"], checkpoint.ListOptions{
 		CheckpointDir: r.Form.Get("dir"),
 	})
 	if err != nil {
@@ -47,7 +47,7 @@ func (s *checkpointRouter) deleteContainerCheckpoint(ctx context.Context, w http
 		return err
 	}
 
-	err := s.backend.CheckpointDelete(vars["name"], types.CheckpointDeleteOptions{
+	err := s.backend.CheckpointDelete(vars["name"], checkpoint.DeleteOptions{
 		CheckpointDir: r.Form.Get("dir"),
 		CheckpointID:  vars["checkpoint"],
 	})

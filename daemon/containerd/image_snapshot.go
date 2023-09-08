@@ -18,41 +18,44 @@ import (
 
 // PrepareSnapshot prepares a snapshot from a parent image for a container
 func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform) error {
-	img, err := i.resolveImage(ctx, parentImage)
-	if err != nil {
-		return err
-	}
-
-	cs := i.client.ContentStore()
-
-	matcher := platforms.Default()
-	if platform != nil {
-		matcher = platforms.Only(*platform)
-	}
-
-	platformImg := containerd.NewImageWithPlatform(i.client, img, matcher)
-	unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
-	if err != nil {
-		return err
-	}
-
-	if !unpacked {
-		if err := platformImg.Unpack(ctx, i.snapshotter); err != nil {
+	var parentSnapshot string
+	if parentImage != "" {
+		img, err := i.resolveImage(ctx, parentImage)
+		if err != nil {
 			return err
 		}
-	}
 
-	desc, err := containerdimages.Config(ctx, cs, img.Target, matcher)
-	if err != nil {
-		return err
-	}
+		cs := i.client.ContentStore()
 
-	diffIDs, err := containerdimages.RootFS(ctx, cs, desc)
-	if err != nil {
-		return err
-	}
+		matcher := platforms.Default()
+		if platform != nil {
+			matcher = platforms.Only(*platform)
+		}
 
-	parent := identity.ChainID(diffIDs).String()
+		platformImg := containerd.NewImageWithPlatform(i.client, img, matcher)
+		unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
+		if err != nil {
+			return err
+		}
+
+		if !unpacked {
+			if err := platformImg.Unpack(ctx, i.snapshotter); err != nil {
+				return err
+			}
+		}
+
+		desc, err := containerdimages.Config(ctx, cs, img.Target, matcher)
+		if err != nil {
+			return err
+		}
+
+		diffIDs, err := containerdimages.RootFS(ctx, cs, desc)
+		if err != nil {
+			return err
+		}
+
+		parentSnapshot = identity.ChainID(diffIDs).String()
+	}
 
 	// Add a lease so that containerd doesn't garbage collect our snapshot
 	ls := i.client.LeasesService()
@@ -69,7 +72,7 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 	}
 
 	s := i.client.SnapshotService(i.StorageDriver())
-	_, err = s.Prepare(ctx, id, parent)
+	_, err = s.Prepare(ctx, id, parentSnapshot)
 	return err
 }
 

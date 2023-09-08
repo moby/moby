@@ -26,6 +26,9 @@ const (
 	dummyHost = "plugin.moby.localhost"
 )
 
+// VersionMimetype is the Content-Type the engine sends to plugins.
+const VersionMimetype = transport.VersionMimetype
+
 func newTransport(addr string, tlsConfig *tlsconfig.Options) (*transport.HTTPTransport, error) {
 	tr := &http.Transport{}
 
@@ -102,6 +105,9 @@ type Client struct {
 // RequestOpts is the set of options that can be passed into a request
 type RequestOpts struct {
 	Timeout time.Duration
+
+	// testTimeOut is used during tests to limit the max timeout in [abort]
+	testTimeOut int
 }
 
 // WithRequestTimeout sets a timeout duration for plugin requests
@@ -192,7 +198,7 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool,
 			}
 
 			timeOff := backoff(retries)
-			if abort(start, timeOff) {
+			if abort(start, timeOff, opts.testTimeOut) {
 				return nil, err
 			}
 			retries++
@@ -233,19 +239,26 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool,
 }
 
 func backoff(retries int) time.Duration {
-	b, max := 1, defaultTimeOut
-	for b < max && retries > 0 {
+	b, maxTimeout := 1, defaultTimeOut
+	for b < maxTimeout && retries > 0 {
 		b *= 2
 		retries--
 	}
-	if b > max {
-		b = max
+	if b > maxTimeout {
+		b = maxTimeout
 	}
 	return time.Duration(b) * time.Second
 }
 
-func abort(start time.Time, timeOff time.Duration) bool {
-	return timeOff+time.Since(start) >= time.Duration(defaultTimeOut)*time.Second
+// testNonExistingPlugin is a special plugin-name, which overrides defaultTimeOut in tests.
+const testNonExistingPlugin = "this-plugin-does-not-exist"
+
+func abort(start time.Time, timeOff time.Duration, overrideTimeout int) bool {
+	to := defaultTimeOut
+	if overrideTimeout > 0 {
+		to = overrideTimeout
+	}
+	return timeOff+time.Since(start) >= time.Duration(to)*time.Second
 }
 
 func httpScheme(u *url.URL) string {

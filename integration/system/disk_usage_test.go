@@ -79,6 +79,7 @@ func TestDiskUsage(t *testing.T) {
 				assert.NilError(t, err)
 				assert.Equal(t, len(du.Containers), 1)
 				assert.Equal(t, len(du.Containers[0].Names), 1)
+				assert.Assert(t, len(prev.Images) > 0)
 				assert.Assert(t, du.Containers[0].Created >= prev.Images[0].Created)
 				assert.DeepEqual(t, du, types.DiskUsage{
 					LayersSize: prev.LayersSize,

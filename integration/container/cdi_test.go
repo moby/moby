@@ -3,6 +3,7 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -29,16 +30,16 @@ func TestCreateWithCDIDevices(t *testing.T) {
 	d.StartWithBusybox(t, "--cdi-spec-dir="+filepath.Join(cwd, "testdata", "cdi"))
 	defer d.Stop(t)
 
-	client := d.NewClientT(t)
+	apiClient := d.NewClientT(t)
 
 	ctx := context.Background()
-	id := container.Run(ctx, t, client,
+	id := container.Run(ctx, t, apiClient,
 		container.WithCmd("/bin/sh", "-c", "env"),
 		container.WithCDIDevices("vendor1.com/device=foo"),
 	)
-	defer client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
 
-	inspect, err := client.ContainerInspect(ctx, id)
+	inspect, err := apiClient.ContainerInspect(ctx, id)
 	assert.NilError(t, err)
 
 	expectedRequests := []containertypes.DeviceRequest{
@@ -49,7 +50,7 @@ func TestCreateWithCDIDevices(t *testing.T) {
 	}
 	assert.Check(t, is.DeepEqual(inspect.HostConfig.DeviceRequests, expectedRequests))
 
-	reader, err := client.ContainerLogs(ctx, id, types.ContainerLogsOptions{
+	reader, err := apiClient.ContainerLogs(ctx, id, types.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
@@ -61,4 +62,100 @@ func TestCreateWithCDIDevices(t *testing.T) {
 
 	outlines := strings.Split(actualStdout.String(), "\n")
 	assert.Assert(t, is.Contains(outlines, "FOO=injected"))
+}
+
+func TestCDISpecDirsAreInSystemInfo(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows") // d.Start fails on Windows with `protocol not available`
+	// TODO: This restriction can be relaxed with https://github.com/moby/moby/pull/46158
+	skip.If(t, testEnv.IsRootless, "the t.TempDir test creates a folder with incorrect permissions for rootless")
+
+	testCases := []struct {
+		description             string
+		config                  map[string]interface{}
+		experimental            bool
+		specDirs                []string
+		expectedInfoCDISpecDirs []string
+	}{
+		{
+			description:             "experimental no spec dirs specified returns default",
+			experimental:            true,
+			specDirs:                nil,
+			expectedInfoCDISpecDirs: []string{"/etc/cdi", "/var/run/cdi"},
+		},
+		{
+			description:             "experimental specified spec dirs are returned",
+			experimental:            true,
+			specDirs:                []string{"/foo/bar", "/baz/qux"},
+			expectedInfoCDISpecDirs: []string{"/foo/bar", "/baz/qux"},
+		},
+		{
+			description:             "experimental empty string as spec dir returns empty slice",
+			experimental:            true,
+			specDirs:                []string{""},
+			expectedInfoCDISpecDirs: []string{},
+		},
+		{
+			description:             "experimental empty config option returns empty slice",
+			experimental:            true,
+			config:                  map[string]interface{}{"cdi-spec-dirs": []string{}},
+			expectedInfoCDISpecDirs: []string{},
+		},
+		{
+			description:             "non-experimental no spec dirs specified returns empty slice",
+			experimental:            false,
+			specDirs:                nil,
+			expectedInfoCDISpecDirs: []string{},
+		},
+		{
+			description:             "non-experimental specified spec dirs returns empty slice",
+			experimental:            false,
+			specDirs:                []string{"/foo/bar", "/baz/qux"},
+			expectedInfoCDISpecDirs: []string{},
+		},
+		{
+			description:             "non-experimental empty string as spec dir returns empty slice",
+			experimental:            false,
+			specDirs:                []string{""},
+			expectedInfoCDISpecDirs: []string{},
+		},
+		{
+			description:             "non-experimental empty config option returns empty slice",
+			experimental:            false,
+			config:                  map[string]interface{}{"cdi-spec-dirs": []string{}},
+			expectedInfoCDISpecDirs: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			var opts []daemon.Option
+			if tc.experimental {
+				opts = append(opts, daemon.WithExperimental())
+			}
+			d := daemon.New(t, opts...)
+
+			var args []string
+			for _, specDir := range tc.specDirs {
+				args = append(args, "--cdi-spec-dir="+specDir)
+			}
+			if tc.config != nil {
+				configPath := filepath.Join(t.TempDir(), "daemon.json")
+
+				configFile, err := os.Create(configPath)
+				assert.NilError(t, err)
+				defer configFile.Close()
+
+				err = json.NewEncoder(configFile).Encode(tc.config)
+				assert.NilError(t, err)
+
+				args = append(args, "--config-file="+configPath)
+			}
+			d.Start(t, args...)
+			defer d.Stop(t)
+
+			info := d.Info(t)
+
+			assert.Check(t, is.DeepEqual(tc.expectedInfoCDISpecDirs, info.CDISpecDirs))
+		})
+	}
 }

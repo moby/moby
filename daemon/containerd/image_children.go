@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // Children returns a slice of image ID which rootfs is a superset of the
@@ -36,10 +35,10 @@ func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, e
 		rootfs, err := platformRootfs(ctx, cs, target, platform)
 		if err != nil {
 			if !cerrdefs.IsNotFound(err) {
-				log.G(ctx).WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"image":         target.Digest,
-					"platform":      platform,
+				log.G(ctx).WithFields(log.Fields{
+					"error":    err,
+					"image":    target.Digest,
+					"platform": platform,
 				}).Warning("failed to get platform-specific rootfs")
 			}
 			continue
@@ -60,10 +59,10 @@ func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, e
 			rootfs, err := platformRootfs(ctx, cs, img.Target, platform)
 			if err != nil {
 				if !cerrdefs.IsNotFound(err) {
-					log.G(ctx).WithFields(logrus.Fields{
-						logrus.ErrorKey: err,
-						"image":         img.Target.Digest,
-						"platform":      platform,
+					log.G(ctx).WithFields(log.Fields{
+						"error":    err,
+						"image":    img.Target.Digest,
+						"platform": platform,
 					}).Warning("failed to get platform-specific rootfs")
 				}
 				continue

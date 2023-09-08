@@ -899,14 +899,12 @@ func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) 
 		return
 	}
 	if n, err := controller.NetworkByName("bridge"); err == nil {
-		v4Info, v6Info := n.Info().IpamInfo()
-		var gateway net.IP
+		v4Info, v6Info := n.IpamInfo()
 		if len(v4Info) > 0 {
-			gateway = v4Info[0].Gateway.IP
+			config.HostGatewayIP = v4Info[0].Gateway.IP
 		} else if len(v6Info) > 0 {
-			gateway = v6Info[0].Gateway.IP
+			config.HostGatewayIP = v6Info[0].Gateway.IP
 		}
-		config.HostGatewayIP = gateway
 	}
 }
 

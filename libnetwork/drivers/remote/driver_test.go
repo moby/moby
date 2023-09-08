@@ -66,7 +66,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 	}
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintf(w, `{"Implements": ["%s"]}`, driverapi.NetworkPluginEndpointType)
 	})
 
@@ -93,10 +93,6 @@ type testEndpoint struct {
 	destination           string
 	routeType             int
 	disableGatewayService bool
-}
-
-func (test *testEndpoint) Interface() driverapi.InterfaceInfo {
-	return test
 }
 
 func (test *testEndpoint) Address() *net.IPNet {
@@ -128,7 +124,7 @@ func (test *testEndpoint) SetMacAddress(mac net.HardwareAddr) error {
 		return types.ForbiddenErrorf("endpoint interface MAC address present (%s). Cannot be modified with %s.", test.macAddress, mac)
 	}
 	if mac == nil {
-		return types.BadRequestErrorf("tried to set nil MAC address to endpoint interface")
+		return types.InvalidParameterErrorf("tried to set nil MAC address to endpoint interface")
 	}
 	test.macAddress = mac.String()
 	return nil
@@ -136,7 +132,7 @@ func (test *testEndpoint) SetMacAddress(mac net.HardwareAddr) error {
 
 func (test *testEndpoint) SetIPAddress(address *net.IPNet) error {
 	if address.IP == nil {
-		return types.BadRequestErrorf("tried to set nil IP address to endpoint interface")
+		return types.InvalidParameterErrorf("tried to set nil IP address to endpoint interface")
 	}
 	if address.IP.To4() == nil {
 		return setAddress(&test.addressIPv6, address)
@@ -550,7 +546,7 @@ func TestMissingValues(t *testing.T) {
 
 type rollbackEndpoint struct{}
 
-func (r *rollbackEndpoint) Interface() driverapi.InterfaceInfo {
+func (r *rollbackEndpoint) Interface() *rollbackEndpoint {
 	return r
 }
 

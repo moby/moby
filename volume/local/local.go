@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/quota"
 	"github.com/docker/docker/volume"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -83,13 +82,18 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			quotaCtl:   r.quotaCtl,
 		}
 
-		// unmount anything that may still be mounted (for example, from an
-		// unclean shutdown). This is a no-op on windows
-		unmount(v.path)
-
 		if err := v.loadOpts(); err != nil {
 			return nil, err
 		}
+
+		if err := v.restoreIfMounted(); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"volume": v.name,
+				"path":   v.path,
+				"error":  err,
+			}).Warn("restoreIfMounted failed")
+		}
+
 		r.volumes[name] = v
 	}
 
@@ -310,7 +314,7 @@ func (v *localVolume) Mount(id string) (string, error) {
 			v.active.mounted = true
 		}
 		v.active.count++
-		logger.WithField("active mounts", v.active).Debug("Decremented active mount count")
+		logger.WithField("active mounts", v.active).Debug("Incremented active mount count")
 	}
 	if err := v.postMount(); err != nil {
 		return "", err
@@ -335,6 +339,10 @@ func (v *localVolume) Unmount(id string) error {
 	}
 
 	if v.active.count > 0 {
+		return nil
+	}
+
+	if !v.active.mounted {
 		return nil
 	}
 
@@ -390,7 +398,7 @@ func (v *localVolume) LiveRestoreVolume(ctx context.Context, _ string) error {
 	}
 	v.active.count++
 	v.active.mounted = true
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"volume":        v.name,
 		"active mounts": v.active,
 	}).Debugf("Live restored volume")

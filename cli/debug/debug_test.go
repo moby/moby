@@ -4,30 +4,30 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 )
 
 func TestEnable(t *testing.T) {
-	defer func() {
-		os.Setenv("DEBUG", "")
-		logrus.SetLevel(logrus.InfoLevel)
-	}()
+	t.Cleanup(func() {
+		_ = os.Setenv("DEBUG", "")
+		_ = log.SetLevel("info")
+	})
 	Enable()
-	if os.Getenv("DEBUG") != "1" {
-		t.Fatalf("expected DEBUG=1, got %s", os.Getenv("DEBUG"))
+	if debug := os.Getenv("DEBUG"); debug != "1" {
+		t.Fatalf("expected DEBUG=1, got %s", debug)
 	}
-	if logrus.GetLevel() != logrus.DebugLevel {
-		t.Fatalf("expected log level %v, got %v", logrus.DebugLevel, logrus.GetLevel())
+	if lvl := log.GetLevel(); lvl != log.DebugLevel {
+		t.Fatalf("expected log level %v, got %v", log.DebugLevel, lvl)
 	}
 }
 
 func TestDisable(t *testing.T) {
 	Disable()
-	if os.Getenv("DEBUG") != "" {
-		t.Fatalf(`expected DEBUG="", got %s`, os.Getenv("DEBUG"))
+	if debug := os.Getenv("DEBUG"); debug != "" {
+		t.Fatalf(`expected DEBUG="", got %s`, debug)
 	}
-	if logrus.GetLevel() != logrus.InfoLevel {
-		t.Fatalf("expected log level %v, got %v", logrus.InfoLevel, logrus.GetLevel())
+	if lvl := log.GetLevel(); lvl != log.InfoLevel {
+		t.Fatalf("expected log level %v, got %v", log.InfoLevel, lvl)
 	}
 }
 

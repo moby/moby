@@ -27,9 +27,9 @@ func TestIPAMs(t *testing.T) {
 	t.Run("IPAM", func(t *testing.T) {
 		reg := getNewIPAMs(t)
 
-		i, cap := reg.IPAM("default")
+		i, caps := reg.IPAM("default")
 		assert.Check(t, i != nil)
-		assert.Check(t, cap != nil)
+		assert.Check(t, caps != nil)
 	})
 
 	t.Run("WalkIPAMs", func(t *testing.T) {

@@ -47,7 +47,6 @@ import (
 	dopts "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/rootless"
@@ -252,9 +251,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// - Support needs to be added to the cdi package for injecting Windows devices: https://github.com/container-orchestrated-devices/container-device-interface/issues/28
 	// - The DeviceRequests API must be extended to non-linux platforms.
 	if runtime.GOOS == "linux" && cli.Config.Experimental {
-		daemon.RegisterCDIDriver(
-			cdi.WithSpecDirs(cli.Config.CDISpecDirs...),
-		)
+		daemon.RegisterCDIDriver(cli.Config.CDISpecDirs...)
 	}
 
 	cli.d = d
@@ -305,9 +302,9 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 			defer apiWG.Done()
 			log.G(ctx).Infof("API listen on %s", ls.Addr())
 			if err := httpServer.Serve(ls); err != http.ErrServerClosed {
-				log.G(ctx).WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"listener":      ls.Addr(),
+				log.G(ctx).WithFields(log.Fields{
+					"error":    err,
+					"listener": ls.Addr(),
 				}).Error("ServeAPI error")
 
 				select {
@@ -543,6 +540,18 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	err = validateCPURealtimeOptions(conf)
 	if err != nil {
 		return nil, err
+	}
+
+	if conf.CDISpecDirs == nil {
+		// If the CDISpecDirs is not set at this stage, we set it to the default.
+		conf.CDISpecDirs = append([]string(nil), cdi.DefaultSpecDirs...)
+	} else if len(conf.CDISpecDirs) == 1 && conf.CDISpecDirs[0] == "" {
+		// If CDISpecDirs is set to an empty string, we clear it to ensure that CDI is disabled.
+		conf.CDISpecDirs = nil
+	}
+	if !conf.Experimental {
+		// If experimental mode is not set, we clear the CDISpecDirs to ensure that CDI is disabled.
+		conf.CDISpecDirs = nil
 	}
 
 	return conf, nil
@@ -861,37 +870,31 @@ func systemContainerdRunning(honorXDG bool) (string, bool, error) {
 	return addr, err == nil, nil
 }
 
-// configureDaemonLogs sets the logrus logging level and formatting. It expects
+// configureDaemonLogs sets the logging level and formatting. It expects
 // the passed configuration to already be validated, and ignores invalid options.
 func configureDaemonLogs(conf *config.Config) {
-	if conf.LogLevel != "" {
-		lvl, err := logrus.ParseLevel(conf.LogLevel)
-		if err == nil {
-			logrus.SetLevel(lvl)
-		}
-	} else {
-		logrus.SetLevel(logrus.InfoLevel)
-	}
-	logFormat := conf.LogFormat
-	if logFormat == "" {
-		logFormat = log.TextFormat
-	}
-	var formatter logrus.Formatter
-	switch logFormat {
+	switch conf.LogFormat {
 	case log.JSONFormat:
-		formatter = &logrus.JSONFormatter{
-			TimestampFormat: jsonmessage.RFC3339NanoFixed,
-		}
-	case log.TextFormat:
-		formatter = &logrus.TextFormatter{
-			TimestampFormat: jsonmessage.RFC3339NanoFixed,
+		logrus.SetFormatter(&logrus.JSONFormatter{
+			TimestampFormat: log.RFC3339NanoFixed,
+		})
+	case log.TextFormat, "":
+		logrus.SetFormatter(&logrus.TextFormatter{
+			TimestampFormat: log.RFC3339NanoFixed,
 			DisableColors:   conf.RawLogs,
 			FullTimestamp:   true,
-		}
+		})
 	default:
-		panic("unsupported log format " + logFormat)
+		panic("unsupported log format " + conf.LogFormat)
 	}
-	logrus.SetFormatter(formatter)
+
+	logLevel := conf.LogLevel
+	if logLevel == "" {
+		logLevel = "info"
+	}
+	if err := log.SetLevel(logLevel); err != nil {
+		log.G(context.TODO()).WithError(err).Warn("configure log level")
+	}
 }
 
 func configureProxyEnv(conf *config.Config) {
@@ -911,7 +914,7 @@ func configureProxyEnv(conf *config.Config) {
 
 func overrideProxyEnv(name, val string) {
 	if oldVal := os.Getenv(name); oldVal != "" && oldVal != val {
-		log.G(context.TODO()).WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(log.Fields{
 			"name":      name,
 			"old-value": config.MaskCredentials(oldVal),
 			"new-value": config.MaskCredentials(val),

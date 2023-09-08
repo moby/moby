@@ -541,7 +541,6 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 				bo.CreateMountpoint = false
 			}
 		}
-
 	}
 
 	if hostConfig != nil && versions.LessThan(version, "1.44") {

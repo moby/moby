@@ -19,7 +19,7 @@ func NewFilter(filter filters.Args) *Filter {
 // Include returns true when the event ev is included by the filters
 func (ef *Filter) Include(ev events.Message) bool {
 	return ef.matchEvent(ev) &&
-		ef.filter.ExactMatch("type", ev.Type) &&
+		ef.filter.ExactMatch("type", string(ev.Type)) &&
 		ef.matchScope(ev.Scope) &&
 		ef.matchDaemon(ev) &&
 		ef.matchContainer(ev) &&
@@ -103,8 +103,7 @@ func (ef *Filter) matchConfig(ev events.Message) bool {
 }
 
 func (ef *Filter) fuzzyMatchName(ev events.Message, eventType events.Type) bool {
-	return ef.filter.FuzzyMatch(eventType, ev.Actor.ID) ||
-		ef.filter.FuzzyMatch(eventType, ev.Actor.Attributes["name"])
+	return ef.filter.FuzzyMatch(string(eventType), ev.Actor.ID) || ef.filter.FuzzyMatch(string(eventType), ev.Actor.Attributes["name"])
 }
 
 // matchImage matches against both event.Actor.ID (for image events)

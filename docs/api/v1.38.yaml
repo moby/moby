@@ -3735,7 +3735,7 @@ definitions:
           Go runtime (`GOOS`).
 
           Currently returned values are "linux" and "windows". A full list of
-          possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+          possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "linux"
       Architecture:
@@ -3743,7 +3743,7 @@ definitions:
           Hardware architecture of the host, as returned by the Go runtime
           (`GOARCH`).
 
-          A full list of possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+          A full list of possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "x86_64"
       NCPU:
@@ -8006,6 +8006,10 @@ paths:
             example:
               Id: "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30"
               Warning: ""
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         403:
           description: "operation not supported for pre-defined networks"
           schema:
