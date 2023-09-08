@@ -51,8 +51,6 @@ func newV1Endpoint(index *registry.IndexInfo, headers http.Header) (*v1Endpoint,
 }
 
 func validateEndpoint(endpoint *v1Endpoint) error {
-	log.G(context.TODO()).Debugf("pinging registry endpoint %s", endpoint)
-
 	// Try HTTPS ping to registry
 	endpoint.URL.Scheme = "https"
 	if _, err := endpoint.ping(); err != nil {
@@ -125,8 +123,8 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 		return v1PingResult{}, nil
 	}
 
-	log.G(context.TODO()).Debugf("attempting v1 ping for registry endpoint %s", e)
 	pingURL := e.String() + "_ping"
+	log.G(context.TODO()).WithField("url", pingURL).Debug("attempting v1 ping for registry endpoint")
 	req, err := http.NewRequest(http.MethodGet, pingURL, nil)
 	if err != nil {
 		return v1PingResult{}, invalidParam(err)
