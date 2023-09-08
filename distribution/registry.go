@@ -75,7 +75,7 @@ func init() {
 func newRepository(
 	ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint,
 	metaHeaders http.Header, authConfig *registrytypes.AuthConfig, actions ...string,
-) (repo distribution.Repository, err error) {
+) (distribution.Repository, error) {
 	repoName := repoInfo.Name.Name()
 	// If endpoint does not support CanonicalName, use the RemoteName instead
 	if endpoint.TrimHostname {
@@ -114,23 +114,19 @@ func newRepository(
 	}
 
 	if authConfig.RegistryToken != "" {
-		passThruTokenHandler := &existingTokenHandler{token: authConfig.RegistryToken}
-		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, passThruTokenHandler))
+		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, &passThruTokenHandler{token: authConfig.RegistryToken}))
 	} else {
-		scope := auth.RepositoryScope{
-			Repository: repoName,
-			Actions:    actions,
-			Class:      repoInfo.Class,
-		}
-
 		creds := registry.NewStaticCredentialStore(authConfig)
-		tokenHandlerOptions := auth.TokenHandlerOptions{
+		tokenHandler := auth.NewTokenHandlerWithOptions(auth.TokenHandlerOptions{
 			Transport:   authTransport,
 			Credentials: creds,
-			Scopes:      []auth.Scope{scope},
-			ClientID:    registry.AuthClientID,
-		}
-		tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
+			Scopes: []auth.Scope{auth.RepositoryScope{
+				Repository: repoName,
+				Actions:    actions,
+				Class:      repoInfo.Class,
+			}},
+			ClientID: registry.AuthClientID,
+		})
 		basicHandler := auth.NewBasicHandler(creds)
 		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
 	}
@@ -144,25 +140,26 @@ func newRepository(
 		}
 	}
 
-	repo, err = client.NewRepository(repoNameRef, endpoint.URL.String(), tr)
+	repo, err := client.NewRepository(repoNameRef, endpoint.URL.String(), tr)
 	if err != nil {
-		err = fallbackError{
+		return nil, fallbackError{
 			err:         err,
 			transportOK: true,
 		}
 	}
-	return
+
+	return repo, nil
 }
 
-type existingTokenHandler struct {
+type passThruTokenHandler struct {
 	token string
 }
 
-func (th *existingTokenHandler) Scheme() string {
+func (th *passThruTokenHandler) Scheme() string {
 	return "bearer"
 }
 
-func (th *existingTokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
+func (th *passThruTokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", th.token))
 	return nil
 }
