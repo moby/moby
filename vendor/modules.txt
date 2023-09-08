@@ -212,7 +212,7 @@ github.com/cloudflare/cfssl/log
 github.com/cloudflare/cfssl/ocsp/config
 github.com/cloudflare/cfssl/signer
 github.com/cloudflare/cfssl/signer/local
-# github.com/container-orchestrated-devices/container-device-interface v0.6.0
+# github.com/container-orchestrated-devices/container-device-interface v0.6.1
 ## explicit; go 1.17
 github.com/container-orchestrated-devices/container-device-interface/internal/multierror
 github.com/container-orchestrated-devices/container-device-interface/internal/validation

@@ -49,7 +49,7 @@ type Cache struct {
 }
 
 // WithAutoRefresh returns an option to control automatic Cache refresh.
-// By default auto-refresh is enabled, the list of Spec directories are
+// By default, auto-refresh is enabled, the list of Spec directories are
 // monitored and the Cache is automatically refreshed whenever a change
 // is detected. This option can be used to disable this behavior when a
 // manually refreshed mode is preferable.
@@ -203,7 +203,7 @@ func (c *Cache) refresh() error {
 // RefreshIfRequired triggers a refresh if necessary.
 func (c *Cache) refreshIfRequired(force bool) (bool, error) {
 	// We need to refresh if
-	// - it's forced by an explicitly call to Refresh() in manual mode
+	// - it's forced by an explicit call to Refresh() in manual mode
 	// - a missing Spec dir appears (added to watch) in auto-refresh mode
 	if force || (c.autoRefresh && c.watch.update(c.dirErrors)) {
 		return true, c.refresh()
@@ -244,7 +244,7 @@ func (c *Cache) InjectDevices(ociSpec *oci.Spec, devices ...string) ([]string, e
 
 	if unresolved != nil {
 		return unresolved, fmt.Errorf("unresolvable CDI devices %s",
-			strings.Join(devices, ", "))
+			strings.Join(unresolved, ", "))
 	}
 
 	if err := edits.Apply(ociSpec); err != nil {

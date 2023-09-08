@@ -20,10 +20,41 @@
 package cdi
 
 import (
+	"errors"
 	"fmt"
 
-	runc "github.com/opencontainers/runc/libcontainer/devices"
+	"golang.org/x/sys/unix"
 )
+
+const (
+	blockDevice = "b"
+	charDevice  = "c" // or "u"
+	fifoDevice  = "p"
+)
+
+// deviceInfoFromPath takes the path to a device and returns its type,
+// major and minor device numbers.
+//
+// It was adapted from https://github.com/opencontainers/runc/blob/v1.1.9/libcontainer/devices/device_unix.go#L30-L69
+func deviceInfoFromPath(path string) (devType string, major, minor int64, _ error) {
+	var stat unix.Stat_t
+	err := unix.Lstat(path, &stat)
+	if err != nil {
+		return "", 0, 0, err
+	}
+	switch stat.Mode & unix.S_IFMT {
+	case unix.S_IFBLK:
+		devType = blockDevice
+	case unix.S_IFCHR:
+		devType = charDevice
+	case unix.S_IFIFO:
+		devType = fifoDevice
+	default:
+		return "", 0, 0, errors.New("not a device node")
+	}
+	devNumber := uint64(stat.Rdev) //nolint:unconvert // Rdev is uint32 on e.g. MIPS.
+	return devType, int64(unix.Major(devNumber)), int64(unix.Minor(devNumber)), nil
+}
 
 // fillMissingInfo fills in missing mandatory attributes from the host device.
 func (d *DeviceNode) fillMissingInfo() error {
@@ -35,22 +66,22 @@ func (d *DeviceNode) fillMissingInfo() error {
 		return nil
 	}
 
-	hostDev, err := runc.DeviceFromPath(d.HostPath, "rwm")
+	deviceType, major, minor, err := deviceInfoFromPath(d.HostPath)
 	if err != nil {
 		return fmt.Errorf("failed to stat CDI host device %q: %w", d.HostPath, err)
 	}
 
 	if d.Type == "" {
-		d.Type = string(hostDev.Type)
+		d.Type = deviceType
 	} else {
-		if d.Type != string(hostDev.Type) {
+		if d.Type != deviceType {
 			return fmt.Errorf("CDI device (%q, %q), host type mismatch (%s, %s)",
-				d.Path, d.HostPath, d.Type, string(hostDev.Type))
+				d.Path, d.HostPath, d.Type, deviceType)
 		}
 	}
 	if d.Major == 0 && d.Type != "p" {
-		d.Major = hostDev.Major
-		d.Minor = hostDev.Minor
+		d.Major = major
+		d.Minor = minor
 	}
 
 	return nil
