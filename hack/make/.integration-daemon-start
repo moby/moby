@@ -70,7 +70,7 @@ fi
 
 dockerd="dockerd"
 if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
-	if [ -z "$TEST_SKIP_INTEGRATION_CLI" ]; then
+	if [ -z "$TEST_IGNORE_CGROUP_CHECK" ] && [ -z "$TEST_SKIP_INTEGRATION_CLI" ]; then
 		echo >&2 '# cgroup v2 requires TEST_SKIP_INTEGRATION_CLI to be set'
 		exit 1
 	fi
