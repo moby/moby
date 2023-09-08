@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -150,17 +149,12 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 		return info, nil
 	}
 
-	jsonString, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return v1PingResult{}, invalidParamWrapf(err, "error while reading response from %s", pingURL)
-	}
-
 	// If the header is absent, we assume true for compatibility with earlier
 	// versions of the registry. default to true
 	info := v1PingResult{
 		Standalone: true,
 	}
-	if err := json.Unmarshal(jsonString, &info); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
 		log.G(context.TODO()).WithError(err).Debug("error unmarshaling _ping response")
 		// don't stop here. Just assume sane defaults
 	}
