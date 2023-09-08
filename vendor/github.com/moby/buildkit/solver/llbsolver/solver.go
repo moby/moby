@@ -977,27 +977,21 @@ func loadEntitlements(b solver.Builder) (entitlements.Set, error) {
 }
 
 func loadSourcePolicy(b solver.Builder) (*spb.Policy, error) {
-	set := make(map[spb.Rule]struct{}, 0)
+	var srcPol spb.Policy
 	err := b.EachValue(context.TODO(), keySourcePolicy, func(v interface{}) error {
 		x, ok := v.(spb.Policy)
 		if !ok {
 			return errors.Errorf("invalid source policy %T", v)
 		}
 		for _, f := range x.Rules {
-			set[*f] = struct{}{}
+			r := *f
+			srcPol.Rules = append(srcPol.Rules, &r)
 		}
+		srcPol.Version = x.Version
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	var srcPol *spb.Policy
-	if len(set) > 0 {
-		srcPol = &spb.Policy{}
-		for k := range set {
-			k := k
-			srcPol.Rules = append(srcPol.Rules, &k)
-		}
-	}
-	return srcPol, nil
+	return &srcPol, nil
 }
