@@ -68,4 +68,4 @@ source hack/make/.integration-test-helpers
 		exec docker run --rm ${run_opts} --mount type=bind,"src=${ABS_DEST}","dst=/src/${DEST}" "${docker_py_image}" pytest ${PY_TEST_OPTIONS} tests/integration
 	)
 	bundle .integration-daemon-stop
-) 2>&1 | tee -a "$DEST/test.log"
+) &> >(tee -a "$DEST/test.log")
