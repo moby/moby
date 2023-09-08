@@ -68,7 +68,7 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 	jobsQueue := newJobs()
 	finishProgress := jobsQueue.showProgress(ctx, out, combinedProgress([]progressUpdater{
 		&pp,
-		pullProgress{ShowExists: false, Store: store},
+		pullProgress{showExists: false, store: store},
 	}))
 	defer func() {
 		finishProgress()
