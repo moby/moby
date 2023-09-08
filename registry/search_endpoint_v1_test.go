@@ -3,7 +3,6 @@ package registry // import "github.com/docker/docker/registry"
 import (
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -168,17 +167,8 @@ func TestV1EndpointValidate(t *testing.T) {
 	testServer := httptest.NewServer(requireBasicAuthHandler)
 	defer testServer.Close()
 
-	testServerURL, err := url.Parse(testServer.URL)
+	testEndpoint, err := newV1Endpoint(&registry.IndexInfo{Name: testServer.URL}, nil)
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	testEndpoint := v1Endpoint{
-		URL:    testServerURL,
-		client: httpClient(newTransport(nil)),
-	}
-
-	if err = validateEndpoint(&testEndpoint); err != nil {
 		t.Fatal(err)
 	}
 
