@@ -140,6 +140,16 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 
 	defer resp.Body.Close()
 
+	if v := resp.Header.Get("X-Docker-Registry-Standalone"); v != "" {
+		info := v1PingResult{}
+		// Accepted values are "1", and "true" (case-insensitive).
+		if v == "1" || strings.EqualFold(v, "true") {
+			info.Standalone = true
+		}
+		log.G(context.TODO()).Debugf("v1PingResult.Standalone (from X-Docker-Registry-Standalone header): %t", info.Standalone)
+		return info, nil
+	}
+
 	jsonString, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return v1PingResult{}, invalidParamWrapf(err, "error while reading response from %s", pingURL)
@@ -155,15 +165,6 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 		// don't stop here. Just assume sane defaults
 	}
 
-	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
-
-	// Accepted values are "true" (case-insensitive) and "1".
-	if strings.EqualFold(standalone, "true") || standalone == "1" {
-		info.Standalone = true
-	} else if len(standalone) > 0 {
-		// there is a header set, and it is not "true" or "1", so assume fails
-		info.Standalone = false
-	}
 	log.G(context.TODO()).Debugf("v1PingResult.Standalone: %t", info.Standalone)
 	return info, nil
 }
