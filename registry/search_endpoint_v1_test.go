@@ -3,18 +3,15 @@ package registry // import "github.com/docker/docker/registry"
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 func TestV1EndpointPing(t *testing.T) {
-	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	testPing := func(index *registry.IndexInfo, expectedStandalone bool, assertMessage string) {
 		ep, err := newV1Endpoint(index, nil)
 		if err != nil {
@@ -34,7 +31,6 @@ func TestV1EndpointPing(t *testing.T) {
 }
 
 func TestV1Endpoint(t *testing.T) {
-	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	// Simple wrapper to fail test if err != nil
 	expandEndpoint := func(index *registry.IndexInfo) *v1Endpoint {
 		endpoint, err := newV1Endpoint(index, nil)
