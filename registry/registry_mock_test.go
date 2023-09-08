@@ -114,8 +114,6 @@ func writeHeaders(w http.ResponseWriter) {
 	h.Add("Content-Type", "application/json")
 	h.Add("Pragma", "no-cache")
 	h.Add("Cache-Control", "no-cache")
-	h.Add("X-Docker-Registry-Version", "0.0.0")
-	h.Add("X-Docker-Registry-Config", "mock")
 }
 
 func writeResponse(w http.ResponseWriter, message interface{}, code int) {
@@ -156,5 +154,5 @@ func TestPing(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, res.StatusCode, http.StatusOK, "")
-	assert.Equal(t, res.Header.Get("X-Docker-Registry-Config"), "mock", "This is not a Mocked Registry")
+	assert.Equal(t, res.Header.Get("Server"), "docker-tests/mock")
 }

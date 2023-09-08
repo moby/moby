@@ -15,12 +15,8 @@ import (
 )
 
 // v1PingResult contains the information returned when pinging a registry. It
-// indicates the registry's version and whether the registry claims to be a
-// standalone registry.
+// indicates whether the registry claims to be a standalone registry.
 type v1PingResult struct {
-	// Version is the registry version supplied by the registry in an HTTP
-	// header
-	Version string `json:"version"`
 	// Standalone is set to true if the registry indicates it is a
 	// standalone registry in the X-Docker-Registry-Standalone
 	// header
@@ -158,10 +154,6 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 		log.G(context.TODO()).WithError(err).Debug("error unmarshaling _ping response")
 		// don't stop here. Just assume sane defaults
 	}
-	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {
-		info.Version = hdr
-	}
-	log.G(context.TODO()).Debugf("v1PingResult.Version: %q", info.Version)
 
 	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
 
