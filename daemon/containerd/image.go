@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -26,7 +27,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-var truncatedID = regexp.MustCompile(`^([a-f0-9]{4,64})$`)
+var truncatedID = regexp.MustCompile(`^(sha256:)?([a-f0-9]{4,64})$`)
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
 func (i *ImageService) GetImage(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*image.Image, error) {
@@ -278,9 +279,10 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 
 	// If the identifier could be a short ID, attempt to match
 	if truncatedID.MatchString(refOrID) {
+		idWithoutAlgo := strings.TrimPrefix(refOrID, "sha256:")
 		filters := []string{
 			fmt.Sprintf("name==%q", ref), // Or it could just look like one.
-			"target.digest~=" + strconv.Quote(fmt.Sprintf(`^sha256:%s[0-9a-fA-F]{%d}$`, regexp.QuoteMeta(refOrID), 64-len(refOrID))),
+			"target.digest~=" + strconv.Quote(fmt.Sprintf(`^sha256:%s[0-9a-fA-F]{%d}$`, regexp.QuoteMeta(idWithoutAlgo), 64-len(idWithoutAlgo))),
 		}
 		imgs, err := is.List(ctx, filters...)
 		if err != nil {
