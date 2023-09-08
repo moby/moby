@@ -232,8 +232,8 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n *l
 		return runconfig.ErrConflictHostNetwork
 	}
 
-	for s, v := range container.NetworkSettings.Networks {
-		sn, err := daemon.FindNetwork(getNetworkID(s, v.EndpointSettings))
+	for s := range container.NetworkSettings.Networks {
+		sn, err := daemon.FindNetwork(s)
 		if err != nil {
 			continue
 		}
@@ -294,8 +294,8 @@ func (daemon *Daemon) updateNetwork(cfg *config.Config, container *container.Con
 
 	// Find if container is connected to the default bridge network
 	var n *libnetwork.Network
-	for name, v := range container.NetworkSettings.Networks {
-		sn, err := daemon.FindNetwork(getNetworkID(name, v.EndpointSettings))
+	for name := range container.NetworkSettings.Networks {
+		sn, err := daemon.FindNetwork(name)
 		if err != nil {
 			continue
 		}
@@ -325,9 +325,7 @@ func (daemon *Daemon) updateNetwork(cfg *config.Config, container *container.Con
 }
 
 func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrName string, epConfig *networktypes.EndpointSettings) (*libnetwork.Network, *networktypes.NetworkingConfig, error) {
-	id := getNetworkID(idOrName, epConfig)
-
-	n, err := daemon.FindNetwork(id)
+	n, err := daemon.FindNetwork(idOrName)
 	if err != nil {
 		// We should always be able to find the network for a managed container.
 		if container.Managed {
@@ -363,8 +361,8 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 	}
 
 	if n == nil && daemon.attachableNetworkLock != nil {
-		daemon.attachableNetworkLock.Lock(id)
-		defer daemon.attachableNetworkLock.Unlock(id)
+		daemon.attachableNetworkLock.Lock(n.ID())
+		defer daemon.attachableNetworkLock.Unlock(n.ID())
 	}
 
 	retryCount := 0
@@ -374,16 +372,16 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 		// trigger attachment in the swarm cluster manager.
 		if daemon.clusterProvider != nil {
 			var err error
-			nwCfg, err = daemon.clusterProvider.AttachNetwork(id, container.ID, addresses)
+			nwCfg, err = daemon.clusterProvider.AttachNetwork(n.ID(), container.ID, addresses)
 			if err != nil {
 				return nil, nil, err
 			}
 		}
 
-		n, err = daemon.FindNetwork(id)
+		n, err = daemon.FindNetwork(n.ID())
 		if err != nil {
 			if daemon.clusterProvider != nil {
-				if err := daemon.clusterProvider.DetachNetwork(id, container.ID); err != nil {
+				if err := daemon.clusterProvider.DetachNetwork(n.ID(), container.ID); err != nil {
 					log.G(context.TODO()).Warnf("Could not rollback attachment for container %s to network %s: %v", container.ID, idOrName, err)
 				}
 			}
@@ -1005,7 +1003,7 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 
 	var networks []*libnetwork.Network
 	for n, epSettings := range container.NetworkSettings.Networks {
-		if nw, err := daemon.FindNetwork(getNetworkID(n, epSettings.EndpointSettings)); err == nil {
+		if nw, err := daemon.FindNetwork(n); err == nil {
 			networks = append(networks, nw)
 		}
 
@@ -1138,15 +1136,6 @@ func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) er
 		return nil
 	}
 	return sb.DisableService()
-}
-
-func getNetworkID(name string, endpointSettings *networktypes.EndpointSettings) string {
-	// We only want to prefer NetworkID for user defined networks.
-	// For systems like bridge, none, etc. the name is preferred (otherwise restart may cause issues)
-	if containertypes.NetworkMode(name).IsUserDefined() && endpointSettings != nil && endpointSettings.NetworkID != "" {
-		return endpointSettings.NetworkID
-	}
-	return name
 }
 
 // setNetworkSandbox updates the sandbox ID and Key.
