@@ -42,6 +42,12 @@ func newV1Endpoint(index *registry.IndexInfo, headers http.Header) (*v1Endpoint,
 		return nil, err
 	}
 
+	if endpoint.String() == IndexServer {
+		// Skip the check, we know this one is valid
+		// (and we never want to fall back to http in case of error)
+		return endpoint, nil
+	}
+
 	err = validateEndpoint(endpoint)
 	if err != nil {
 		return nil, err
