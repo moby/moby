@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
 )
 
 type DockerCLIRmiSuite struct {
@@ -303,6 +304,8 @@ RUN echo 2 #layer2
 }
 
 func (*DockerCLIRmiSuite) TestRmiParentImageFail(c *testing.T) {
+	skip.If(c, testEnv.UsingSnapshotter(), "image are independent when using the containerd image store")
+
 	buildImageSuccessfully(c, "test", build.WithDockerfile(`
 	FROM busybox
 	RUN echo hello`))
