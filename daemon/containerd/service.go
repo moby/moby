@@ -142,7 +142,7 @@ func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 //
 // called from reload.go
 func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
-	panic("not implemented")
+	log.G(context.TODO()).Warn("max downloads and uploads is not yet implemented with the containerd store")
 }
 
 // GetLayerFolders returns the layer folders from an image RootFS.
