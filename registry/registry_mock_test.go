@@ -76,35 +76,30 @@ func makeHTTPSURL(req string) string {
 }
 
 func makeIndex(req string) *registry.IndexInfo {
-	index := &registry.IndexInfo{
+	return &registry.IndexInfo{
 		Name: makeURL(req),
 	}
-	return index
 }
 
 func makeHTTPSIndex(req string) *registry.IndexInfo {
-	index := &registry.IndexInfo{
+	return &registry.IndexInfo{
 		Name: makeHTTPSURL(req),
 	}
-	return index
 }
 
 func makePublicIndex() *registry.IndexInfo {
-	index := &registry.IndexInfo{
+	return &registry.IndexInfo{
 		Name:     IndexServer,
 		Secure:   true,
 		Official: true,
 	}
-	return index
 }
 
 func makeServiceConfig(mirrors []string, insecureRegistries []string) (*serviceConfig, error) {
-	options := ServiceOptions{
+	return newServiceConfig(ServiceOptions{
 		Mirrors:            mirrors,
 		InsecureRegistries: insecureRegistries,
-	}
-
-	return newServiceConfig(options)
+	})
 }
 
 func writeHeaders(w http.ResponseWriter) {
