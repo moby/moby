@@ -152,7 +152,6 @@ func TestKillDifferentUserContainer(t *testing.T) {
 	id := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.Config.User = "daemon"
 	})
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := apiClient.ContainerKill(ctx, id, "SIGKILL")
 	assert.NilError(t, err)

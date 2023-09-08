@@ -5,13 +5,11 @@ import (
 	"io"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -26,9 +24,6 @@ func TestStats(t *testing.T) {
 	assert.NilError(t, err)
 
 	cID := container.Run(ctx, t, apiClient)
-
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
-
 	resp, err := apiClient.ContainerStats(ctx, cID, false)
 	assert.NilError(t, err)
 	defer resp.Body.Close()

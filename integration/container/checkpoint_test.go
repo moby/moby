@@ -47,10 +47,6 @@ func TestCheckpoint(t *testing.T) {
 		Type:   mounttypes.TypeTmpfs,
 		Target: "/tmp",
 	}))
-	poll.WaitOn(t,
-		container.IsInState(ctx, apiClient, cID, "running"),
-		poll.WithDelay(100*time.Millisecond),
-	)
 
 	// FIXME: ipv6 iptables modules are not uploaded in the test environment
 	stdoutStderr, err = exec.Command("bash", "-c", "set -x; "+

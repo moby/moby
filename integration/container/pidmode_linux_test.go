@@ -3,14 +3,12 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"os"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -25,12 +23,10 @@ func TestPIDModeHost(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient, container.WithPIDMode("host"))
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 	cPid := container.GetContainerNS(ctx, t, apiClient, cID, "pid")
 	assert.Assert(t, hostPid == cPid)
 
 	cID = container.Run(ctx, t, apiClient)
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 	cPid = container.GetContainerNS(ctx, t, apiClient, cID, "pid")
 	assert.Assert(t, hostPid != cPid)
 }
