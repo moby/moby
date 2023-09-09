@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"path"
@@ -501,29 +502,28 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 		updateSettings = true
 	}
 
-	// always connect default network first since only default
-	// network mode support link and we need do some setting
-	// on sandbox initialize for link, but the sandbox only be initialized
-	// on first network connecting.
+	var hasDefaultNet bool
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
-	if nConf, ok := container.NetworkSettings.Networks[defaultNetName]; ok {
-		cleanOperationalData(nConf)
-		if err := daemon.connectToNetwork(cfg, container, defaultNetName, nConf.EndpointSettings, updateSettings); err != nil {
-			return err
-		}
-	}
 
 	// the intermediate map is necessary because "connectToNetwork" modifies "container.NetworkSettings.Networks"
-	networks := make(map[string]*network.EndpointSettings)
+	networks := make(map[string]*network.EndpointSettings, len(container.NetworkSettings.Networks))
 	for n, epConf := range container.NetworkSettings.Networks {
 		if n == defaultNetName {
-			continue
+			hasDefaultNet = true
 		}
 
 		networks[n] = epConf
 	}
 
-	for netName, epConf := range networks {
+	sortedNets := network.SortNetworks(container.NetworkSettings.Networks)
+	// Make sure the default network has the top priority since only default network mode support link and we need do
+	// some setting on sandbox initialize for link, but the sandbox only be initialized on first network connecting.
+	if hasDefaultNet && sortedNets[0] != defaultNetName {
+		return errors.New("default network should have the highest priority")
+	}
+
+	for _, netName := range sortedNets {
+		epConf := networks[netName]
 		cleanOperationalData(epConf)
 		if err := daemon.connectToNetwork(cfg, container, netName, epConf.EndpointSettings, updateSettings); err != nil {
 			return err
@@ -657,6 +657,21 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *lib
 		}
 	}
 
+	// Verify if the endpointConfig has a lower priority than the other endpoints the container has.
+	if len(container.NetworkSettings.Networks) > 0 {
+		lowestPriority := math.MaxInt
+		for _, nw := range container.NetworkSettings.Networks {
+			// A container is considered connected to a network when the EndpointID isn't empty.
+			if nw.EndpointID != "" && nw.Priority < lowestPriority {
+				lowestPriority = nw.Priority
+			}
+		}
+
+		if endpointConfig.Priority > lowestPriority {
+			return errdefs.InvalidParameter(fmt.Errorf("network %s has a higher connect priority than existing networks", n.Name()))
+		}
+	}
+
 	if err := validateNetworkingConfig(n, endpointConfig); err != nil {
 		return err
 	}
@@ -751,7 +766,7 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 		setNetworkSandbox(container, sb)
 	}
 
-	joinOptions, err := buildJoinOptions(container.NetworkSettings, n)
+	joinOptions, err := buildJoinOptions(container.NetworkSettings, n, endpointConfig.Priority)
 	if err != nil {
 		return err
 	}
@@ -985,12 +1000,19 @@ func errRemovalContainer(containerID string) error {
 }
 
 // ConnectToNetwork connects a container to a network
-func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
+func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, autoPriority bool) error {
 	if endpointConfig == nil {
 		endpointConfig = &networktypes.EndpointSettings{}
 	}
 	container.Lock()
 	defer container.Unlock()
+
+	var priority int
+	if len(container.NetworkSettings.Networks) > 0 {
+		sorted := network.SortNetworks(container.NetworkSettings.Networks)
+		priority = container.NetworkSettings.Networks[sorted[len(sorted)-1]].Priority - 1
+	}
+	endpointConfig.Priority = priority
 
 	if !container.Running {
 		if container.RemovalInProgress || container.Dead {
@@ -1008,7 +1030,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 			}
 		}
 	} else {
-		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, endpointConfig, true); err != nil {
+		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, endpointConfig, autoPriority); err != nil {
 			return err
 		}
 	}

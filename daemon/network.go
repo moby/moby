@@ -456,12 +456,12 @@ func (daemon *Daemon) UpdateContainerServiceConfig(containerName string, service
 // ConnectContainerToNetwork connects the given container to the given
 // network. If either cannot be found, an err is returned. If the
 // network cannot be set up, an err is returned.
-func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error {
+func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings, autoPriority bool) error {
 	ctr, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
 	}
-	return daemon.ConnectToNetwork(ctr, networkName, endpointConfig)
+	return daemon.ConnectToNetwork(ctr, networkName, endpointConfig, autoPriority)
 }
 
 // DisconnectContainerFromNetwork disconnects the given container from
@@ -1067,7 +1067,7 @@ func buildEndpointInfo(networkSettings *internalnetwork.Settings, n *libnetwork.
 }
 
 // buildJoinOptions builds endpoint Join options from a given network.
-func buildJoinOptions(networkSettings *internalnetwork.Settings, n interface{ Name() string }) ([]libnetwork.EndpointOption, error) {
+func buildJoinOptions(networkSettings *internalnetwork.Settings, n libnetwork.Network, priority int) ([]libnetwork.EndpointOption, error) {
 	var joinOptions []libnetwork.EndpointOption
 	if epConfig, ok := networkSettings.Networks[n.Name()]; ok {
 		for _, str := range epConfig.Links {
@@ -1081,6 +1081,8 @@ func buildJoinOptions(networkSettings *internalnetwork.Settings, n interface{ Na
 			joinOptions = append(joinOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
 		}
 	}
+
+	joinOptions = append(joinOptions, libnetwork.JoinOptionPriority(priority))
 
 	return joinOptions, nil
 }
