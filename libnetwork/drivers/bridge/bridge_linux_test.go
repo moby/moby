@@ -298,7 +298,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	}
 
 	bndIPs := "127.0.0.1"
-	testHostIP := "1.2.3.4"
+	testHostIPv4 := "1.2.3.4"
 	nwV6s := "2001:db8:2600:2700:2800::/80"
 	gwV6s := "2001:db8:2600:2700:2800::25/80"
 	nwV6, _ := types.ParseCIDR(nwV6s)
@@ -310,7 +310,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 		EnableICC:          "true",
 		EnableIPMasquerade: "true",
 		DefaultBindingIP:   bndIPs,
-		netlabel.HostIP:    testHostIP,
+		netlabel.HostIPv4:  testHostIPv4,
 	}
 
 	netOption := make(map[string]interface{})
@@ -358,9 +358,9 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 		t.Fatalf("Unexpected: %v", nw.config.DefaultBindingIP)
 	}
 
-	hostIP := net.ParseIP(testHostIP)
-	if !hostIP.Equal(nw.config.HostIP) {
-		t.Fatalf("Unexpected: %v", nw.config.HostIP)
+	hostIP := net.ParseIP(testHostIPv4)
+	if !hostIP.Equal(nw.config.HostIPv4) {
+		t.Fatalf("Unexpected: %v", nw.config.HostIPv4)
 	}
 
 	if !types.CompareIPNet(nw.config.AddressIPv6, nwV6) {

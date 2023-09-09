@@ -158,7 +158,7 @@ func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, d *dr
 }
 
 // Regression test for https://github.com/moby/moby/issues/46445
-func TestSetupIP6TablesWithHostIP(t *testing.T) {
+func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 	dc := &configuration{
@@ -174,7 +174,7 @@ func TestSetupIP6TablesWithHostIP(t *testing.T) {
 		EnableIPMasquerade: true,
 		EnableIPv6:         true,
 		AddressIPv6:        &net.IPNet{IP: net.ParseIP("2001:db8::1"), Mask: net.CIDRMask(64, 128)},
-		HostIP:             net.ParseIP("192.0.2.2"),
+		HostIPv4:           net.ParseIP("192.0.2.2"),
 	}
 	nh, err := netlink.NewHandle()
 	if err != nil {

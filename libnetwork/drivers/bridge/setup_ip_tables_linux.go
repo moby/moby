@@ -249,9 +249,9 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 		natArgs   []string
 		hpNatArgs []string
 	)
-	// If config.HostIP is set, the user wants IPv4 SNAT with the given address.
-	if config.HostIP != nil && ipVer == iptables.IPv4 {
-		hostAddr := config.HostIP.String()
+	// If config.HostIPv4 is set, the user wants IPv4 SNAT with the given address.
+	if config.HostIPv4 != nil && ipVer == iptables.IPv4 {
+		hostAddr := config.HostIPv4.String()
 		natArgs = []string{"-s", address, "!", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
 		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
 		// Else use MASQUERADE which picks the src-ip based on NH from the route table
