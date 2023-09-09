@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Settings stores configuration details about the daemon network config
+// Settings stores networking configuration and state for a specific container.
 // TODO Windows. Many of these fields can be factored out.,
 type Settings struct {
 	Bridge                 string

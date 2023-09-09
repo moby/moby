@@ -324,6 +324,12 @@ func (daemon *Daemon) updateNetwork(cfg *config.Config, container *container.Con
 	return nil
 }
 
+// findAndAttachNetwork resolves the network matching the idOrName parameter. If it's a swarm scope network and the
+// container isn't managed by Swarm, it also makes a call to the Swarm manager to attach this container to the target
+// network (ie. it creates a Swarm task). In such case, the 2nd return value is non nil. Otherwise, only the network
+// found is returned.
+// Also, note that if idOrName is actually a partial ID or a name, and if the container is getting restarted, the full
+// ID used during prior run is reused to make sure the container is connected to the same network.
 func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrName string, epConfig *networktypes.EndpointSettings) (*libnetwork.Network, *networktypes.NetworkingConfig, error) {
 	id := getNetworkID(idOrName, epConfig)
 

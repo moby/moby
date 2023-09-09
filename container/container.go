@@ -68,7 +68,7 @@ type Container struct {
 	RWLayer         layer.RWLayer  `json:"-"`
 	ID              string
 	Created         time.Time
-	Managed         bool
+	Managed         bool // Managed indicates whether a container has been created by Swarm
 	Path            string
 	Args            []string
 	Config          *containertypes.Config
