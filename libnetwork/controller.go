@@ -86,6 +86,7 @@ type Controller struct {
 	sandboxes        map[string]*Sandbox
 	cfg              *config.Config
 	store            *datastore.Store
+	controlSocket    string
 	extKeyListener   net.Listener
 	watchCh          chan *Endpoint
 	unWatchCh        chan *Endpoint
@@ -99,7 +100,7 @@ type Controller struct {
 	agentStopDone    chan struct{}
 	keys             []*types.EncryptionKey
 	DiagnosticServer *diagnostic.Server
-	mu               sync.Mutex
+	mu               sync.RWMutex
 
 	// FIXME(thaJeztah): defOsSbox is always nil on non-Linux: move these fields to Linux-only files.
 	defOsSboxOnce sync.Once
@@ -183,13 +184,14 @@ func (c *Controller) SetClusterProvider(provider cluster.Provider) {
 }
 
 // SetKeys configures the encryption key for gossip and overlay data path.
+//
+// If an agent is available, it starts handling key changes.libnetwork side
+// of agent depends on the keys. On the first receipt of keys setup the agent.
+// For subsequent key set handle the key change
 func (c *Controller) SetKeys(keys []*types.EncryptionKey) error {
-	// libnetwork side of agent depends on the keys. On the first receipt of
-	// keys setup the agent. For subsequent key set handle the key change
 	subsysKeys := make(map[string]int)
 	for _, key := range keys {
-		if key.Subsystem != subsysGossip &&
-			key.Subsystem != subsysIPSec {
+		if key.Subsystem != subsysGossip && key.Subsystem != subsysIPSec {
 			return fmt.Errorf("key received for unrecognized subsystem")
 		}
 		subsysKeys[key.Subsystem]++
@@ -210,8 +212,8 @@ func (c *Controller) SetKeys(keys []*types.EncryptionKey) error {
 }
 
 func (c *Controller) getAgent() *nwAgent {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return c.agent
 }
 
@@ -265,9 +267,9 @@ func (c *Controller) clusterAgentInit() {
 
 // AgentInitWait waits for agent initialization to be completed in the controller.
 func (c *Controller) AgentInitWait() {
-	c.mu.Lock()
+	c.mu.RLock()
 	agentInitDone := c.agentInitDone
-	c.mu.Unlock()
+	c.mu.RUnlock()
 
 	if agentInitDone != nil {
 		<-agentInitDone
@@ -276,9 +278,9 @@ func (c *Controller) AgentInitWait() {
 
 // AgentStopWait waits for the Agent stop to be completed in the controller.
 func (c *Controller) AgentStopWait() {
-	c.mu.Lock()
+	c.mu.RLock()
 	agentStopDone := c.agentStopDone
-	c.mu.Unlock()
+	c.mu.RUnlock()
 	if agentStopDone != nil {
 		<-agentStopDone
 	}
@@ -355,6 +357,11 @@ func (c *Controller) ID() string {
 	return c.id
 }
 
+// ControlSocket returns the path of the controller's control-socket.
+func (c *Controller) ControlSocket() string {
+	return c.controlSocket
+}
+
 // BuiltinDrivers returns the list of builtin network drivers.
 func (c *Controller) BuiltinDrivers() []string {
 	drivers := []string{}
@@ -415,8 +422,8 @@ func (c *Controller) pushNodeDiscovery(d discoverapi.Discover, capability driver
 
 // Config returns the bootup configuration for the controller.
 func (c *Controller) Config() config.Config {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if c.cfg == nil {
 		return config.Config{}
 	}
@@ -424,8 +431,8 @@ func (c *Controller) Config() config.Config {
 }
 
 func (c *Controller) isManager() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if c.cfg == nil || c.cfg.ClusterProvider == nil {
 		return false
 	}
@@ -433,8 +440,8 @@ func (c *Controller) isManager() bool {
 }
 
 func (c *Controller) isAgent() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if c.cfg == nil || c.cfg.ClusterProvider == nil {
 		return false
 	}
@@ -969,8 +976,8 @@ func (c *Controller) GetSandbox(containerID string) (*Sandbox, error) {
 	if containerID == "" {
 		return nil, ErrInvalidID("id is empty")
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if runtime.GOOS == "windows" {
 		// fast-path for Windows, which uses the container ID as sandbox ID.
 		if sb := c.sandboxes[containerID]; sb != nil && !sb.isStub {
@@ -993,9 +1000,9 @@ func (c *Controller) SandboxByID(id string) (*Sandbox, error) {
 	if id == "" {
 		return nil, ErrInvalidID(id)
 	}
-	c.mu.Lock()
+	c.mu.RLock()
 	s, ok := c.sandboxes[id]
-	c.mu.Unlock()
+	c.mu.RUnlock()
 	if !ok {
 		return nil, types.NotFoundErrorf("sandbox %s not found", id)
 	}
@@ -1005,14 +1012,14 @@ func (c *Controller) SandboxByID(id string) (*Sandbox, error) {
 // SandboxDestroy destroys a sandbox given a container ID.
 func (c *Controller) SandboxDestroy(id string) error {
 	var sb *Sandbox
-	c.mu.Lock()
+	c.mu.RLock()
 	for _, s := range c.sandboxes {
 		if s.containerID == id {
 			sb = s
 			break
 		}
 	}
-	c.mu.Unlock()
+	c.mu.RUnlock()
 
 	// It is not an error if sandbox is not available
 	if sb == nil {
@@ -1105,7 +1112,7 @@ func (c *Controller) StopDiagnostic() {
 
 // IsDiagnosticEnabled returns true if the diagnostic server is running.
 func (c *Controller) IsDiagnosticEnabled() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return c.DiagnosticServer.IsDiagnosticEnabled()
 }
