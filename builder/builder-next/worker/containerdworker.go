@@ -28,7 +28,7 @@ func NewContainerdWorker(ctx context.Context, wo base.WorkerOpt) (*ContainerdWor
 // Exporter returns exporter by name
 func (w *ContainerdWorker) Exporter(name string, sm *session.Manager) (exporter.Exporter, error) {
 	switch name {
-	case mobyexporter.Moby:
+	case mobyexporter.Moby, client.ExporterImage:
 		exp, err := w.Worker.Exporter(client.ExporterImage, sm)
 		if err != nil {
 			return nil, err

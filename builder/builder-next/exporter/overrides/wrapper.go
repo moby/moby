@@ -30,11 +30,13 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, exporterAttrs ma
 	if exporterAttrs == nil {
 		exporterAttrs = make(map[string]string)
 	}
-	reposAndTags, err := SanitizeRepoAndTags(strings.Split(exporterAttrs[keyImageName], ","))
-	if err != nil {
-		return nil, err
+	if name, ok := exporterAttrs[keyImageName]; ok && name != "*" {
+		reposAndTags, err := SanitizeRepoAndTags(strings.Split(name, ","))
+		if err != nil {
+			return nil, err
+		}
+		exporterAttrs[keyImageName] = strings.Join(reposAndTags, ",")
 	}
-	exporterAttrs[keyImageName] = strings.Join(reposAndTags, ",")
 	exporterAttrs[keyUnpack] = "true"
 	if _, has := exporterAttrs[keyDanglingPrefix]; !has {
 		exporterAttrs[keyDanglingPrefix] = "moby-dangling"
