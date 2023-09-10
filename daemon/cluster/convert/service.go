@@ -158,8 +158,8 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		name = namesgenerator.GetRandomName(0)
 	}
 
-	serviceNetworks := make([]*swarmapi.NetworkAttachmentConfig, 0, len(s.Networks))
-	for _, n := range s.Networks {
+	serviceNetworks := make([]*swarmapi.NetworkAttachmentConfig, 0, len(s.Networks)) //nolint:staticcheck // ignore SA1019: field is deprecated.
+	for _, n := range s.Networks {                                                   //nolint:staticcheck // ignore SA1019: field is deprecated.
 		netConfig := &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverAttachmentOpts: n.DriverOpts}
 		serviceNetworks = append(serviceNetworks, netConfig)
 	}
