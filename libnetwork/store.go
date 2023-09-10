@@ -34,7 +34,7 @@ func (c *Controller) getStore() *datastore.Store {
 }
 
 func (c *Controller) getNetworkFromStore(nid string) (*Network, error) {
-	for _, n := range c.getNetworksFromStore() {
+	for _, n := range c.getNetworksFromStore(context.TODO()) {
 		if n.id == nid {
 			return n, nil
 		}
@@ -77,21 +77,21 @@ func (c *Controller) getNetworks() ([]*Network, error) {
 	return nl, nil
 }
 
-func (c *Controller) getNetworksFromStore() []*Network { // FIXME: unify with c.getNetworks()
+func (c *Controller) getNetworksFromStore(ctx context.Context) []*Network { // FIXME: unify with c.getNetworks()
 	var nl []*Network
 
 	store := c.getStore()
 	kvol, err := store.List(datastore.Key(datastore.NetworkKeyPrefix), &Network{ctrlr: c})
 	if err != nil {
 		if err != datastore.ErrKeyNotFound {
-			log.G(context.TODO()).Debugf("failed to get networks from store: %v", err)
+			log.G(ctx).Debugf("failed to get networks from store: %v", err)
 		}
 		return nil
 	}
 
 	kvep, err := store.Map(datastore.Key(epCntKeyPrefix), &endpointCnt{})
 	if err != nil && err != datastore.ErrKeyNotFound {
-		log.G(context.TODO()).Warnf("failed to get endpoint_count map from store: %v", err)
+		log.G(ctx).Warnf("failed to get endpoint_count map from store: %v", err)
 	}
 
 	for _, kvo := range kvol {
@@ -185,7 +185,7 @@ retry:
 }
 
 func (c *Controller) networkCleanup() {
-	for _, n := range c.getNetworksFromStore() {
+	for _, n := range c.getNetworksFromStore(context.TODO()) {
 		if n.inDelete {
 			log.G(context.TODO()).Infof("Removing stale network %s (%s)", n.Name(), n.ID())
 			if err := n.delete(true, true); err != nil {

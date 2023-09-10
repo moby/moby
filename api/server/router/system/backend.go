@@ -27,8 +27,8 @@ type DiskUsageOptions struct {
 // Backend is the methods that need to be implemented to provide
 // system specific functionality.
 type Backend interface {
-	SystemInfo() *system.Info
-	SystemVersion() types.Version
+	SystemInfo(context.Context) (*system.Info, error)
+	SystemVersion(context.Context) (types.Version, error)
 	SystemDiskUsage(ctx context.Context, opts DiskUsageOptions) (*types.DiskUsage, error)
 	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{})
 	UnsubscribeFromEvents(chan interface{})
@@ -38,7 +38,7 @@ type Backend interface {
 // ClusterBackend is all the methods that need to be implemented
 // to provide cluster system specific functionality.
 type ClusterBackend interface {
-	Info() swarm.Info
+	Info(context.Context) swarm.Info
 }
 
 // StatusProvider provides methods to get the swarm status of the current node.

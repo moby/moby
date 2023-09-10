@@ -820,10 +820,10 @@ func (c *Controller) addNetwork(n *Network) error {
 }
 
 // Networks returns the list of Network(s) managed by this controller.
-func (c *Controller) Networks() []*Network {
+func (c *Controller) Networks(ctx context.Context) []*Network {
 	var list []*Network
 
-	for _, n := range c.getNetworksFromStore() {
+	for _, n := range c.getNetworksFromStore(ctx) {
 		if n.inDelete {
 			continue
 		}
@@ -835,7 +835,7 @@ func (c *Controller) Networks() []*Network {
 
 // WalkNetworks uses the provided function to walk the Network(s) managed by this controller.
 func (c *Controller) WalkNetworks(walker NetworkWalker) {
-	for _, n := range c.Networks() {
+	for _, n := range c.Networks(context.TODO()) {
 		if walker(n) {
 			return
 		}

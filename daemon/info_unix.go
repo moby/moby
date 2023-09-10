@@ -16,6 +16,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/pkg/errors"
@@ -23,7 +24,7 @@ import (
 )
 
 // fillPlatformInfo fills the platform related info.
-func (daemon *Daemon) fillPlatformInfo(v *system.Info, sysInfo *sysinfo.SysInfo, cfg *configStore) {
+func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysInfo *sysinfo.SysInfo, cfg *configStore) error {
 	v.CgroupDriver = cgroupDriver(&cfg.Config)
 	v.CgroupVersion = "1"
 	if sysInfo.CgroupUnified {
@@ -57,36 +58,20 @@ func (daemon *Daemon) fillPlatformInfo(v *system.Info, sysInfo *sysinfo.SysInfo,
 	v.ContainerdCommit.ID = "N/A"
 	v.InitCommit.ID = "N/A"
 
-	if _, _, commit, err := parseDefaultRuntimeVersion(&cfg.Runtimes); err != nil {
-		log.G(context.TODO()).Warnf(err.Error())
-	} else {
-		v.RuncCommit.ID = commit
+	if err := populateRuncCommit(&v.RuncCommit, cfg); err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to retrieve default runtime version")
 	}
 
-	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
-		v.ContainerdCommit.ID = rv.Revision
-	} else {
-		log.G(context.TODO()).Warnf("failed to retrieve containerd version: %v", err)
+	if err := daemon.populateContainerdCommit(ctx, &v.ContainerdCommit); err != nil {
+		return err
 	}
 
-	v.InitBinary = cfg.GetInitPath()
-	if initBinary, err := cfg.LookupInitPath(); err != nil {
-		log.G(context.TODO()).Warnf("failed to find docker-init: %s", err)
-	} else if rv, err := exec.Command(initBinary, "--version").Output(); err == nil {
-		if _, commit, err := parseInitVersion(string(rv)); err != nil {
-			log.G(context.TODO()).Warnf("failed to parse %s version: %s", initBinary, err)
-		} else {
-			v.InitCommit.ID = commit
-		}
-	} else {
-		log.G(context.TODO()).Warnf("failed to retrieve %s version: %s", initBinary, err)
+	if err := daemon.populateInitCommit(ctx, v, cfg); err != nil {
+		return err
 	}
 
 	// Set expected and actual commits to the same value to prevent the client
 	// showing that the version does not match the "expected" version/commit.
-	v.RuncCommit.Expected = v.RuncCommit.ID
-	v.ContainerdCommit.Expected = v.ContainerdCommit.ID
-	v.InitCommit.Expected = v.InitCommit.ID
 
 	if v.CgroupDriver == cgroupNoneDriver {
 		if v.CgroupVersion == "2" {
@@ -171,65 +156,79 @@ func (daemon *Daemon) fillPlatformInfo(v *system.Info, sysInfo *sysinfo.SysInfo,
 	if !v.BridgeNfIP6tables {
 		v.Warnings = append(v.Warnings, "WARNING: bridge-nf-call-ip6tables is disabled")
 	}
+	return nil
 }
 
-func (daemon *Daemon) fillPlatformVersion(v *types.Version, cfg *configStore) {
-	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
-		v.Components = append(v.Components, types.ComponentVersion{
-			Name:    "containerd",
-			Version: rv.Version,
-			Details: map[string]string{
-				"GitCommit": rv.Revision,
-			},
-		})
+func (daemon *Daemon) fillPlatformVersion(ctx context.Context, v *types.Version, cfg *configStore) error {
+	if err := daemon.populateContainerdVersion(ctx, v); err != nil {
+		return err
 	}
 
-	if _, ver, commit, err := parseDefaultRuntimeVersion(&cfg.Runtimes); err != nil {
-		log.G(context.TODO()).Warnf(err.Error())
-	} else {
-		v.Components = append(v.Components, types.ComponentVersion{
-			Name:    cfg.Runtimes.Default,
-			Version: ver,
-			Details: map[string]string{
-				"GitCommit": commit,
-			},
-		})
+	if err := populateRuncVersion(cfg, v); err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to retrieve default runtime version")
 	}
 
-	if initBinary, err := cfg.LookupInitPath(); err != nil {
-		log.G(context.TODO()).Warnf("failed to find docker-init: %s", err)
-	} else if rv, err := exec.Command(initBinary, "--version").Output(); err == nil {
-		if ver, commit, err := parseInitVersion(string(rv)); err != nil {
-			log.G(context.TODO()).Warnf("failed to parse %s version: %s", initBinary, err)
-		} else {
-			v.Components = append(v.Components, types.ComponentVersion{
-				Name:    filepath.Base(initBinary),
-				Version: ver,
-				Details: map[string]string{
-					"GitCommit": commit,
-				},
-			})
+	if err := populateInitVersion(ctx, cfg, v); err != nil {
+		return err
+	}
+
+	if err := daemon.fillRootlessVersion(ctx, v); err != nil {
+		if errdefs.IsContext(err) {
+			return err
 		}
-	} else {
-		log.G(context.TODO()).Warnf("failed to retrieve %s version: %s", initBinary, err)
+		log.G(ctx).WithError(err).Warn("Failed to fill rootless version")
 	}
-
-	daemon.fillRootlessVersion(v)
+	return nil
 }
 
-func (daemon *Daemon) fillRootlessVersion(v *types.Version) {
+func populateRuncCommit(v *system.Commit, cfg *configStore) error {
+	_, _, commit, err := parseDefaultRuntimeVersion(&cfg.Runtimes)
+	if err != nil {
+		return err
+	}
+	v.ID = commit
+	v.Expected = commit
+	return nil
+}
+
+func (daemon *Daemon) populateInitCommit(ctx context.Context, v *system.Info, cfg *configStore) error {
+	v.InitBinary = cfg.GetInitPath()
+	initBinary, err := cfg.LookupInitPath()
+	if err != nil {
+		log.G(ctx).WithError(err).Warnf("Failed to find docker-init")
+		return nil
+	}
+
+	rv, err := exec.CommandContext(ctx, initBinary, "--version").Output()
+	if err != nil {
+		if errdefs.IsContext(err) {
+			return err
+		}
+		log.G(ctx).WithError(err).Warnf("Failed to retrieve %s version", initBinary)
+		return nil
+	}
+
+	_, commit, err := parseInitVersion(string(rv))
+	if err != nil {
+		log.G(ctx).WithError(err).Warnf("failed to parse %s version", initBinary)
+		return nil
+	}
+	v.InitCommit.ID = commit
+	v.InitCommit.Expected = v.InitCommit.ID
+	return nil
+}
+
+func (daemon *Daemon) fillRootlessVersion(ctx context.Context, v *types.Version) error {
 	if !rootless.RunningWithRootlessKit() {
-		return
+		return nil
 	}
 	rlc, err := getRootlessKitClient()
 	if err != nil {
-		log.G(context.TODO()).Warnf("failed to create RootlessKit client: %v", err)
-		return
+		return errors.Wrap(err, "failed to create RootlessKit client")
 	}
-	rlInfo, err := rlc.Info(context.TODO())
+	rlInfo, err := rlc.Info(ctx)
 	if err != nil {
-		log.G(context.TODO()).Warnf("failed to retrieve RootlessKit version: %v", err)
-		return
+		return errors.Wrap(err, "failed to retrieve RootlessKit version")
 	}
 	v.Components = append(v.Components, types.ComponentVersion{
 		Name:    "rootlesskit",
@@ -244,31 +243,54 @@ func (daemon *Daemon) fillRootlessVersion(v *types.Version) {
 
 	switch rlInfo.NetworkDriver.Driver {
 	case "slirp4netns":
-		if rv, err := exec.Command("slirp4netns", "--version").Output(); err == nil {
-			if _, ver, commit, err := parseRuntimeVersion(string(rv)); err != nil {
-				log.G(context.TODO()).Warnf("failed to parse slirp4netns version: %v", err)
-			} else {
-				v.Components = append(v.Components, types.ComponentVersion{
-					Name:    "slirp4netns",
-					Version: ver,
-					Details: map[string]string{
-						"GitCommit": commit,
-					},
-				})
+		err = func() error {
+			rv, err := exec.CommandContext(ctx, "slirp4netns", "--version").Output()
+			if err != nil {
+				if errdefs.IsContext(err) {
+					return err
+				}
+				log.G(ctx).WithError(err).Warn("Failed to retrieve slirp4netns version")
+				return nil
 			}
-		} else {
-			log.G(context.TODO()).Warnf("failed to retrieve slirp4netns version: %v", err)
+
+			_, ver, commit, err := parseRuntimeVersion(string(rv))
+			if err != nil {
+				log.G(ctx).WithError(err).Warn("Failed to parse slirp4netns version")
+				return nil
+			}
+			v.Components = append(v.Components, types.ComponentVersion{
+				Name:    "slirp4netns",
+				Version: ver,
+				Details: map[string]string{
+					"GitCommit": commit,
+				},
+			})
+			return nil
+		}()
+		if err != nil {
+			return err
 		}
 	case "vpnkit":
-		if rv, err := exec.Command("vpnkit", "--version").Output(); err == nil {
+		err = func() error {
+			out, err := exec.CommandContext(ctx, "vpnkit", "--version").Output()
+			if err != nil {
+				if errdefs.IsContext(err) {
+					return err
+				}
+				log.G(ctx).WithError(err).Warn("Failed to retrieve vpnkit version")
+				return nil
+			}
 			v.Components = append(v.Components, types.ComponentVersion{
 				Name:    "vpnkit",
-				Version: strings.TrimSpace(string(rv)),
+				Version: strings.TrimSpace(strings.TrimSpace(string(out))),
 			})
-		} else {
-			log.G(context.TODO()).Warnf("failed to retrieve vpnkit version: %v", err)
+			return nil
+		}()
+		if err != nil {
+			return err
 		}
 	}
+	return nil
 }
 
 // getRootlessKitClient returns RootlessKit client
@@ -383,4 +405,84 @@ func Rootless(cfg *config.Config) bool {
 
 func noNewPrivileges(cfg *config.Config) bool {
 	return cfg.NoNewPrivileges
+}
+
+func (daemon *Daemon) populateContainerdCommit(ctx context.Context, v *system.Commit) error {
+	rv, err := daemon.containerd.Version(ctx)
+	if err != nil {
+		if errdefs.IsContext(err) {
+			return err
+		}
+		log.G(ctx).WithError(err).Warnf("Failed to retrieve containerd version")
+		return nil
+	}
+	v.ID = rv.Revision
+	v.Expected = rv.Revision
+	return nil
+}
+
+func (daemon *Daemon) populateContainerdVersion(ctx context.Context, v *types.Version) error {
+	rv, err := daemon.containerd.Version(ctx)
+	if err != nil {
+		if errdefs.IsContext(err) {
+			return err
+		}
+		log.G(ctx).WithError(err).Warn("Failed to retrieve containerd version")
+		return nil
+	}
+
+	v.Components = append(v.Components, types.ComponentVersion{
+		Name:    "containerd",
+		Version: rv.Version,
+		Details: map[string]string{
+			"GitCommit": rv.Revision,
+		},
+	})
+	return nil
+}
+
+func populateRuncVersion(cfg *configStore, v *types.Version) error {
+	_, ver, commit, err := parseDefaultRuntimeVersion(&cfg.Runtimes)
+	if err != nil {
+		return err
+	}
+	v.Components = append(v.Components, types.ComponentVersion{
+		Name:    cfg.Runtimes.Default,
+		Version: ver,
+		Details: map[string]string{
+			"GitCommit": commit,
+		},
+	})
+	return nil
+}
+
+func populateInitVersion(ctx context.Context, cfg *configStore, v *types.Version) error {
+	initBinary, err := cfg.LookupInitPath()
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to find docker-init")
+		return nil
+	}
+
+	rv, err := exec.CommandContext(ctx, initBinary, "--version").Output()
+	if err != nil {
+		if errdefs.IsContext(err) {
+			return err
+		}
+		log.G(ctx).WithError(err).Warnf("Failed to retrieve %s version", initBinary)
+		return nil
+	}
+
+	ver, commit, err := parseInitVersion(string(rv))
+	if err != nil {
+		log.G(ctx).WithError(err).Warnf("failed to parse %s version", initBinary)
+		return nil
+	}
+	v.Components = append(v.Components, types.ComponentVersion{
+		Name:    filepath.Base(initBinary),
+		Version: ver,
+		Details: map[string]string{
+			"GitCommit": commit,
+		},
+	})
+	return nil
 }

@@ -249,8 +249,8 @@ func (c *Cluster) newNodeRunner(conf nodeStartConfig) (*nodeRunner, error) {
 	return nr, nil
 }
 
-func (c *Cluster) getRequestContext() (context.Context, func()) { // TODO: not needed when requests don't block on qourum lost
-	return context.WithTimeout(context.Background(), swarmRequestTimeout)
+func (c *Cluster) getRequestContext(ctx context.Context) (context.Context, func()) { // TODO: not needed when requests don't block on qourum lost
+	return context.WithTimeout(ctx, swarmRequestTimeout)
 }
 
 // IsManager returns true if Cluster is participating as a manager.
@@ -443,7 +443,8 @@ func (c *Cluster) lockedManagerAction(fn func(ctx context.Context, state nodeSta
 		return c.errNoManager(state)
 	}
 
-	ctx, cancel := c.getRequestContext()
+	ctx := context.TODO()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	return fn(ctx, state)

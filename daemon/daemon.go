@@ -1175,7 +1175,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	close(d.startupDone)
 
-	info := d.SystemInfo()
+	info, err := d.SystemInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 	for _, w := range info.Warnings {
 		log.G(ctx).Warn(w)
 	}
@@ -1349,7 +1352,7 @@ func (daemon *Daemon) Subnets() ([]net.IPNet, []net.IPNet) {
 	var v4Subnets []net.IPNet
 	var v6Subnets []net.IPNet
 
-	for _, managedNetwork := range daemon.netController.Networks() {
+	for _, managedNetwork := range daemon.netController.Networks(context.TODO()) {
 		v4infos, v6infos := managedNetwork.IpamInfo()
 		for _, info := range v4infos {
 			if info.IPAMData.Pool != nil {

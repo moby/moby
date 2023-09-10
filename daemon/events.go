@@ -68,7 +68,7 @@ func (daemon *Daemon) LogNetworkEventWithAttributes(nw *libnetwork.Network, acti
 // LogDaemonEventWithAttributes generates an event related to the daemon itself with specific given attributes.
 func (daemon *Daemon) LogDaemonEventWithAttributes(action events.Action, attributes map[string]string) {
 	if daemon.EventsService != nil {
-		if name := hostName(); name != "" {
+		if name := hostName(context.TODO()); name != "" {
 			attributes["name"] = name
 		}
 		daemon.EventsService.Log(action, events.DaemonEventType, events.Actor{
