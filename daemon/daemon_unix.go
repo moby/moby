@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/initlayer"
@@ -857,24 +858,24 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 }
 
 func configureNetworking(controller *libnetwork.Controller, conf *config.Config) error {
-	// Initialize default network on "null"
-	if n, _ := controller.NetworkByName("none"); n == nil {
-		if _, err := controller.NewNetwork("null", "none", "", libnetwork.NetworkOptionPersist(true)); err != nil {
-			return errors.Wrap(err, `error creating default "null" network`)
+	// Create predefined network "none"
+	if n, _ := controller.NetworkByName(network.NetworkNone); n == nil {
+		if _, err := controller.NewNetwork("null", network.NetworkNone, "", libnetwork.NetworkOptionPersist(true)); err != nil {
+			return errors.Wrapf(err, `error creating default %q network`, network.NetworkNone)
 		}
 	}
 
-	// Initialize default network on "host"
-	if n, _ := controller.NetworkByName("host"); n == nil {
-		if _, err := controller.NewNetwork("host", "host", "", libnetwork.NetworkOptionPersist(true)); err != nil {
-			return errors.Wrap(err, `error creating default "host" network`)
+	// Create predefined network "host"
+	if n, _ := controller.NetworkByName(network.NetworkHost); n == nil {
+		if _, err := controller.NewNetwork("host", network.NetworkHost, "", libnetwork.NetworkOptionPersist(true)); err != nil {
+			return errors.Wrapf(err, `error creating default %q network`, network.NetworkHost)
 		}
 	}
 
 	// Clear stale bridge network
-	if n, err := controller.NetworkByName("bridge"); err == nil {
+	if n, err := controller.NetworkByName(network.NetworkBridge); err == nil {
 		if err = n.Delete(); err != nil {
-			return errors.Wrap(err, `could not delete the default "bridge"" network`)
+			return errors.Wrapf(err, `could not delete the default %q network`, network.NetworkBridge)
 		}
 		if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled {
 			removeDefaultBridgeInterface()
@@ -898,7 +899,7 @@ func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) 
 	if config.HostGatewayIP != nil {
 		return
 	}
-	if n, err := controller.NetworkByName("bridge"); err == nil {
+	if n, err := controller.NetworkByName(network.NetworkBridge); err == nil {
 		v4Info, v6Info := n.IpamInfo()
 		if len(v4Info) > 0 {
 			config.HostGatewayIP = v4Info[0].Gateway.IP
@@ -1051,13 +1052,13 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		v6Conf = append(v6Conf, ipamV6Conf)
 	}
 	// Initialize default network on "bridge" with the same name
-	_, err = controller.NewNetwork("bridge", "bridge", "",
+	_, err = controller.NewNetwork("bridge", network.NetworkBridge, "",
 		libnetwork.NetworkOptionEnableIPv6(cfg.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(netOption),
 		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
 	if err != nil {
-		return fmt.Errorf(`error creating default "bridge" network: %v`, err)
+		return fmt.Errorf(`error creating default %q network: %v`, network.NetworkBridge, err)
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types/blkiodev"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
 	units "github.com/docker/go-units"
@@ -133,12 +134,12 @@ type NetworkMode string
 
 // IsNone indicates whether container isn't using a network stack.
 func (n NetworkMode) IsNone() bool {
-	return n == "none"
+	return n == network.NetworkNone
 }
 
 // IsDefault indicates whether container uses the default network stack.
 func (n NetworkMode) IsDefault() bool {
-	return n == "default"
+	return n == network.NetworkDefault
 }
 
 // IsPrivate indicates whether container uses its private network stack.
