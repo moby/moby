@@ -32,12 +32,21 @@ type PeerInfo struct {
 
 // EndpointSettings stores the network endpoint details
 type EndpointSettings struct {
-	// Configurations
+	// Configuration
+	NetworkID  string
 	IPAMConfig *EndpointIPAMConfig
 	Links      []string
 	Aliases    []string
+	DriverOpts map[string]string
+
 	// Operational data
-	NetworkID           string
+	EndpointOperationalData
+}
+
+// EndpointOperationalData is operational data of the endpoint,
+// which can be set and reset at runtime when connecting/disconnecting
+// an endpoint.
+type EndpointOperationalData struct {
 	EndpointID          string
 	Gateway             string
 	IPAddress           string
@@ -46,7 +55,6 @@ type EndpointSettings struct {
 	GlobalIPv6Address   string
 	GlobalIPv6PrefixLen int
 	MacAddress          string
-	DriverOpts          map[string]string
 }
 
 // Task carries the information about one backend task

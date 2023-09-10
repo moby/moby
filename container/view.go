@@ -368,15 +368,17 @@ func (v *View) transform(container *Container) *Snapshot {
 				continue
 			}
 			networks[name] = &network.EndpointSettings{
-				EndpointID:          netw.EndpointID,
-				Gateway:             netw.Gateway,
-				IPAddress:           netw.IPAddress,
-				IPPrefixLen:         netw.IPPrefixLen,
-				IPv6Gateway:         netw.IPv6Gateway,
-				GlobalIPv6Address:   netw.GlobalIPv6Address,
-				GlobalIPv6PrefixLen: netw.GlobalIPv6PrefixLen,
-				MacAddress:          netw.MacAddress,
-				NetworkID:           netw.NetworkID,
+				NetworkID: netw.NetworkID,
+				EndpointOperationalData: network.EndpointOperationalData{
+					EndpointID:          netw.EndpointID,
+					Gateway:             netw.Gateway,
+					IPAddress:           netw.IPAddress,
+					IPPrefixLen:         netw.IPPrefixLen,
+					IPv6Gateway:         netw.IPv6Gateway,
+					GlobalIPv6Address:   netw.GlobalIPv6Address,
+					GlobalIPv6PrefixLen: netw.GlobalIPv6PrefixLen,
+					MacAddress:          netw.MacAddress,
+				},
 			}
 			if netw.IPAMConfig != nil {
 				networks[name].IPAMConfig = &network.EndpointIPAMConfig{
