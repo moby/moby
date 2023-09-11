@@ -303,6 +303,10 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 		return nil, errdefs.Forbidden(errors.New(`This node is not a swarm manager. Use "docker swarm init" or "docker swarm join" to connect this node to swarm and try again.`))
 	}
 
+	if network.HasIPv6Subnets(create.IPAM) {
+		create.EnableIPv6 = true
+	}
+
 	var warning string
 	nw, err := daemon.GetNetworkByName(create.Name)
 	if err != nil {
@@ -347,9 +351,10 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionConfigOnly())
 	}
 
-	if err := network.ValidateIPAM(create.IPAM, create.EnableIPv6); err != nil {
+	if err := network.ValidateIPAM(create.IPAM); err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
+
 	if create.IPAM != nil {
 		ipam := create.IPAM
 		v4Conf, v6Conf, err := getIpamConfig(ipam.Config)

@@ -31,12 +31,6 @@ func TestNetworkWithInvalidIPAM(t *testing.T) {
 			},
 		},
 		{
-			name:           "IPv6 subnet is discarded when IPv6 is disabled",
-			ipam:           IPAM{Config: []IPAMConfig{{Subnet: "2001:db8::/32"}}},
-			ipv6:           false,
-			expectedErrors: []string{"invalid subnet 2001:db8::/32: IPv6 has not been enabled for this network"},
-		},
-		{
 			name: "Invalid data - Subnet",
 			ipam: IPAM{Config: []IPAMConfig{{Subnet: "foobar"}}},
 			expectedErrors: []string{
@@ -128,7 +122,7 @@ func TestNetworkWithInvalidIPAM(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			errs := ValidateIPAM(&tc.ipam, tc.ipv6)
+			errs := ValidateIPAM(&tc.ipam)
 			if tc.expectedErrors == nil {
 				assert.NilError(t, errs)
 				return
