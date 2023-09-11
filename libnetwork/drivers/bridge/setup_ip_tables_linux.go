@@ -207,6 +207,31 @@ func (r iptRule) Exists() bool {
 	return iptables.GetIptable(r.ipv).Exists(r.table, r.chain, r.args...)
 }
 
+func (r iptRule) cmdArgs(op iptables.Action) []string {
+	return append([]string{"-t", string(r.table), string(op), r.chain}, r.args...)
+}
+
+func (r iptRule) exec(op iptables.Action) error {
+	return iptables.GetIptable(r.ipv).RawCombinedOutput(r.cmdArgs(op)...)
+}
+
+// Insert inserts the rule at the head of the chain. If the rule already exists anywhere in the
+// chain, this is a no-op.
+func (r iptRule) Insert() error {
+	if r.Exists() {
+		return nil
+	}
+	return r.exec(iptables.Insert)
+}
+
+// Delete deletes the rule from the kernel. If the rule does not exist, this is a no-op.
+func (r iptRule) Delete() error {
+	if !r.Exists() {
+		return nil
+	}
+	return r.exec(iptables.Delete)
+}
+
 func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguration, addr *net.IPNet, hairpin, enable bool) error {
 	var (
 		address   = addr.String()
@@ -258,32 +283,15 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 }
 
 func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
-	iptable := iptables.GetIptable(rule.ipv)
-
-	var (
-		operation string
-		condition bool
-		doesExist = rule.Exists()
-	)
-
-	args := []string{"-t", string(rule.table)}
+	operation := "disable"
+	fn := rule.Delete
 	if insert {
-		condition = !doesExist
-		args = append(args, "-I")
 		operation = "enable"
-	} else {
-		condition = doesExist
-		args = append(args, "-D")
-		operation = "disable"
+		fn = rule.Insert
 	}
-	args = append(append(args, rule.chain), rule.args...)
-
-	if condition {
-		if err := iptable.RawCombinedOutput(args...); err != nil {
-			return fmt.Errorf("Unable to %s %s rule: %s", operation, ruleDescr, err.Error())
-		}
+	if err := fn(); err != nil {
+		return fmt.Errorf("Unable to %s %s rule: %s", operation, ruleDescr, err.Error())
 	}
-
 	return nil
 }
 
