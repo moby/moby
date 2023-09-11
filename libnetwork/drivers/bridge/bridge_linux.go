@@ -74,6 +74,7 @@ type networkConfiguration struct {
 	DefaultBindingIP     net.IP
 	DefaultBridge        bool
 	HostIPv4             net.IP
+	HostIPv6             net.IP
 	ContainerIfacePrefix string
 	// Internal fields set after ipam data parsing
 	AddressIPv4        *net.IPNet
@@ -268,6 +269,10 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 			c.ContainerIfacePrefix = value
 		case netlabel.HostIPv4:
 			if c.HostIPv4 = net.ParseIP(value); c.HostIPv4 == nil {
+				return parseErr(label, value, "nil ip")
+			}
+		case netlabel.HostIPv6:
+			if c.HostIPv6 = net.ParseIP(value); c.HostIPv6 == nil {
 				return parseErr(label, value, "nil ip")
 			}
 		}

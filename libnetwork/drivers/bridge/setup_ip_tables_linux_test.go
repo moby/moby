@@ -212,6 +212,7 @@ func TestOutgoingNATRules(t *testing.T) {
 	maskedBrIPv4 := &net.IPNet{IP: brIPv4.IP.Mask(brIPv4.Mask), Mask: brIPv4.Mask}
 	maskedBrIPv6 := &net.IPNet{IP: brIPv6.IP.Mask(brIPv6.Mask), Mask: brIPv6.Mask}
 	hostIPv4 := net.ParseIP("192.0.2.2")
+	hostIPv6 := net.ParseIP("2001:db8:1::1")
 	for _, tc := range []struct {
 		desc               string
 		enableIPTables     bool
@@ -219,6 +220,7 @@ func TestOutgoingNATRules(t *testing.T) {
 		enableIPv6         bool
 		enableIPMasquerade bool
 		hostIPv4           net.IP
+		hostIPv6           net.IP
 		// Hairpin NAT rules are not tested here because they are orthogonal to outgoing NAT.  They
 		// exist to support the port forwarding DNAT rules: without any port forwarding there would be
 		// no need for any hairpin NAT rules, and when there is port forwarding then hairpin NAT rules
@@ -227,6 +229,7 @@ func TestOutgoingNATRules(t *testing.T) {
 		wantIPv4Masq bool
 		wantIPv4Snat bool
 		wantIPv6Masq bool
+		wantIPv6Snat bool
 	}{
 		{
 			desc: "everything disabled",
@@ -241,6 +244,7 @@ func TestOutgoingNATRules(t *testing.T) {
 			enableIPv6:         true,
 			enableIPMasquerade: true,
 			hostIPv4:           hostIPv4,
+			hostIPv6:           hostIPv6,
 		},
 		{
 			desc:            "masquerade disabled, no host IP",
@@ -254,6 +258,7 @@ func TestOutgoingNATRules(t *testing.T) {
 			enableIP6Tables: true,
 			enableIPv6:      true,
 			hostIPv4:        hostIPv4,
+			hostIPv6:        hostIPv6,
 		},
 		{
 			desc:               "IPv4 masquerade, IPv6 disabled",
@@ -278,6 +283,16 @@ func TestOutgoingNATRules(t *testing.T) {
 			wantIPv6Masq:       true,
 		},
 		{
+			desc:               "IPv4 masquerade, IPv6 SNAT",
+			enableIPTables:     true,
+			enableIP6Tables:    true,
+			enableIPv6:         true,
+			enableIPMasquerade: true,
+			hostIPv6:           hostIPv6,
+			wantIPv4Masq:       true,
+			wantIPv6Snat:       true,
+		},
+		{
 			desc:               "IPv4 SNAT, IPv6 masquerade",
 			enableIPTables:     true,
 			enableIP6Tables:    true,
@@ -286,6 +301,17 @@ func TestOutgoingNATRules(t *testing.T) {
 			hostIPv4:           hostIPv4,
 			wantIPv4Snat:       true,
 			wantIPv6Masq:       true,
+		},
+		{
+			desc:               "IPv4 SNAT, IPv6 SNAT",
+			enableIPTables:     true,
+			enableIP6Tables:    true,
+			enableIPv6:         true,
+			enableIPMasquerade: true,
+			hostIPv4:           hostIPv4,
+			hostIPv6:           hostIPv6,
+			wantIPv4Snat:       true,
+			wantIPv6Snat:       true,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -308,6 +334,7 @@ func TestOutgoingNATRules(t *testing.T) {
 				EnableIPv6:         tc.enableIPv6,
 				EnableIPMasquerade: tc.enableIPMasquerade,
 				HostIPv4:           tc.hostIPv4,
+				HostIPv6:           tc.hostIPv6,
 			}
 			ipv4Data := []driverapi.IPAMData{{Pool: maskedBrIPv4, Gateway: brIPv4}}
 			ipv6Data := []driverapi.IPAMData{{Pool: maskedBrIPv6, Gateway: brIPv6}}
@@ -343,6 +370,7 @@ func TestOutgoingNATRules(t *testing.T) {
 				{tc.wantIPv4Masq, iptRule{iptables.IPv4, iptables.Nat, "POSTROUTING", []string{"-s", maskedBrIPv4.String(), "!", "-o", br, "-j", "MASQUERADE"}}},
 				{tc.wantIPv4Snat, iptRule{iptables.IPv4, iptables.Nat, "POSTROUTING", []string{"-s", maskedBrIPv4.String(), "!", "-o", br, "-j", "SNAT", "--to-source", hostIPv4.String()}}},
 				{tc.wantIPv6Masq, iptRule{iptables.IPv6, iptables.Nat, "POSTROUTING", []string{"-s", maskedBrIPv6.String(), "!", "-o", br, "-j", "MASQUERADE"}}},
+				{tc.wantIPv6Snat, iptRule{iptables.IPv6, iptables.Nat, "POSTROUTING", []string{"-s", maskedBrIPv6.String(), "!", "-o", br, "-j", "SNAT", "--to-source", hostIPv6.String()}}},
 			} {
 				assert.Equal(t, rc.rule.Exists(), rc.want)
 			}
