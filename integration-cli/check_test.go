@@ -28,6 +28,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 const (
@@ -364,6 +365,7 @@ func TestDockerRegistrySuite(t *testing.T) {
 }
 
 func TestDockerSchema1RegistrySuite(t *testing.T) {
+	skip.If(t, testEnv.UsingSnapshotter())
 	ctx := testutil.StartSpan(baseContext, t)
 	ensureTestEnvSetup(ctx, t)
 	suite.Run(ctx, t, &DockerSchema1RegistrySuite{ds: &DockerSuite{}})
