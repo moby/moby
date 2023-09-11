@@ -1072,6 +1072,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			RegistryHosts:   d.RegistryHosts,
 			Registry:        d.registryService,
 			EventsService:   d.EventsService,
+			IDMapping:       idMapping,
 			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idMapping),
 		})
 	} else {

@@ -93,7 +93,13 @@ func (m *refCountMounter) Mount(mounts []mount.Mount, containerID string) (targe
 	}()
 
 	root := m.idMap.RootPair()
-	if err := idtools.MkdirAllAndChown(target, 0o700, root); err != nil {
+	if err := idtools.MkdirAllAndChown(filepath.Dir(target), 0o710, idtools.Identity{
+		UID: idtools.CurrentIdentity().UID,
+		GID: root.GID,
+	}); err != nil {
+		return "", err
+	}
+	if err := idtools.MkdirAllAndChown(target, 0o710, root); err != nil {
 		return "", err
 	}
 

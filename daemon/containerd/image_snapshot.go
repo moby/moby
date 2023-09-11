@@ -16,6 +16,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const remapSuffix = "-remap"
+
 // PrepareSnapshot prepares a snapshot from a parent image for a container
 func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform) error {
 	var parentSnapshot string
@@ -63,7 +65,6 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 	if err != nil {
 		return err
 	}
-
 	if err := ls.AddResource(ctx, lease, leases.Resource{
 		ID:   id,
 		Type: "snapshots/" + i.StorageDriver(),
@@ -71,8 +72,13 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 		return err
 	}
 
-	s := i.client.SnapshotService(i.StorageDriver())
-	_, err = s.Prepare(ctx, id, parentSnapshot)
+	snapshotter := i.client.SnapshotService(i.StorageDriver())
+
+	if !i.idMapping.Empty() {
+		return i.remapSnapshot(ctx, snapshotter, id, parentSnapshot, lease)
+	}
+
+	_, err = snapshotter.Prepare(ctx, id, parentSnapshot)
 	return err
 }
 
