@@ -3,7 +3,6 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
@@ -11,7 +10,6 @@ import (
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -24,7 +22,6 @@ func testRunWithCgroupNs(ctx context.Context, t *testing.T, daemonNsMode string,
 	defer d.Stop(t)
 
 	cID := container.Run(ctx, t, apiClient, containerOpts...)
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	daemonCgroup := d.CgroupNamespace(t)
 	containerCgroup := container.GetContainerNS(ctx, t, apiClient, cID, "cgroup")
@@ -148,7 +145,6 @@ func TestCgroupNamespacesRunOlderClient(t *testing.T) {
 	defer d.Stop(t)
 
 	cID := container.Run(ctx, t, apiClient)
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	daemonCgroup := d.CgroupNamespace(t)
 	containerCgroup := container.GetContainerNS(ctx, t, apiClient, cID, "cgroup")

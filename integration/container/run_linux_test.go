@@ -49,9 +49,6 @@ func TestNISDomainname(t *testing.T) {
 		c.Config.Hostname = hostname
 		c.Config.Domainname = domainname
 	})
-
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
-
 	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(hostname, inspect.Config.Hostname))
@@ -92,9 +89,6 @@ func TestHostnameDnsResolution(t *testing.T) {
 		c.Config.Hostname = hostname
 		c.HostConfig.NetworkMode = containertypes.NetworkMode(netName)
 	})
-
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
-
 	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(hostname, inspect.Config.Hostname))
@@ -117,8 +111,6 @@ func TestUnprivilegedPortsAndPing(t *testing.T) {
 	cID := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.Config.User = "1000:1000"
 	})
-
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	// Check net.ipv4.ping_group_range.
 	res, err := container.Exec(ctx, apiClient, cID, []string{"cat", "/proc/sys/net/ipv4/ping_group_range"})
@@ -164,8 +156,6 @@ func TestPrivilegedHostDevices(t *testing.T) {
 	defer os.Remove(devRootOnlyTest)
 
 	cID := container.Run(ctx, t, apiClient, container.WithPrivileged(true))
-
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	// Check test device.
 	res, err := container.Exec(ctx, apiClient, cID, []string{"ls", devTest})

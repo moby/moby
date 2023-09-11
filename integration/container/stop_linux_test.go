@@ -88,7 +88,6 @@ func TestStopContainerWithTimeoutCancel(t *testing.T) {
 	id := container.Run(ctx, t, apiClient,
 		container.WithCmd("sh", "-c", "trap 'echo received TERM' TERM; while true; do usleep 10; done"),
 	)
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, "running"))
 
 	ctxCancel, cancel := context.WithCancel(ctx)
 	t.Cleanup(cancel)

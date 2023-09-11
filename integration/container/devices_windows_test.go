@@ -3,14 +3,12 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -107,10 +105,7 @@ func TestWindowsDevices(t *testing.T) {
 				assert.ErrorContains(t, err, d.expectedStartFailureMessage)
 				return
 			}
-
 			assert.NilError(t, err)
-
-			poll.WaitOn(t, container.IsInState(ctx, apiClient, id, "running"), poll.WithDelay(100*time.Millisecond))
 
 			// /Windows/System32/HostDriverStore is mounted from the host when class GUID 5B45201D-F2F2-4F3B-85BB-30FF1F953599
 			// is mounted. See `C:\windows\System32\containers\devices.def` on a Windows host for (slightly more) details.

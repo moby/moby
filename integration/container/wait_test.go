@@ -86,8 +86,6 @@ func TestWaitBlocked(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
 			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
-			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, "running"), poll.WithTimeout(30*time.Second), poll.WithDelay(100*time.Millisecond))
-
 			waitResC, errC := cli.ContainerWait(ctx, containerID, "")
 
 			err := cli.ContainerStop(ctx, containerID, containertypes.StopOptions{})
@@ -213,8 +211,6 @@ func TestWaitRestartedContainer(t *testing.T) {
 				container.WithCmd("sh", "-c", "trap 'exit 5' SIGTERM; while true; do sleep 0.1; done"),
 			)
 			defer cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{Force: true})
-
-			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, "running"), poll.WithTimeout(30*time.Second), poll.WithDelay(100*time.Millisecond))
 
 			// Container is running now, wait for exit
 			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)

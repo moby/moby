@@ -94,7 +94,7 @@ func startServerContainer(ctx context.Context, t *testing.T, msg string, port in
 	t.Helper()
 	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, apiClient,
+	return container.Run(ctx, t, apiClient,
 		container.WithName("server-"+t.Name()),
 		container.WithCmd("sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port)),
 		container.WithExposedPorts(fmt.Sprintf("%d/tcp", port)),
@@ -106,11 +106,8 @@ func startServerContainer(ctx context.Context, t *testing.T, msg string, port in
 					},
 				},
 			}
-		})
-
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
-
-	return cID
+		},
+	)
 }
 
 // getExternalAddress() returns the external IP-address from eth0. If eth0 has
