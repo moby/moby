@@ -4642,7 +4642,7 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageGlobalArg(c *testing.T) {
 	imgName := "multifrombldargtest"
 	dockerfile := `ARG tag=nosuchtag
      FROM busybox:${tag}
-     LABEL multifromtest=1
+     LABEL multifromtest2=1
      RUN env > /out
      FROM busybox:${tag}
      ARG tag
@@ -4653,7 +4653,7 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageGlobalArg(c *testing.T) {
 		cli.WithFlags("--build-arg", "tag=latest"))
 	result.Assert(c, icmd.Success)
 
-	result = cli.DockerCmd(c, "images", "-q", "-f", "label=multifromtest=1")
+	result = cli.DockerCmd(c, "images", "-q", "-f", "label=multifromtest2=1")
 	result.Assert(c, icmd.Success)
 
 	imgs := strings.Split(strings.TrimSpace(result.Stdout()), "\n")

@@ -36,6 +36,8 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+const imageLabelClassicBuilderParent = "org.mobyproject.image.parent"
+
 // GetImageAndReleasableLayer returns an image and releaseable layer for a
 // reference or ID. Every call to GetImageAndReleasableLayer MUST call
 // releasableLayer.Release() to prevent leaking of layers.
@@ -392,6 +394,8 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 	ociImgToCreate := dockerImageToDockerOCIImage(*imgToCreate)
 
 	var layers []ocispec.Descriptor
+
+	var parentDigest digest.Digest
 	// if the image has a parent, we need to start with the parents layers descriptors
 	if parent != "" {
 		parentDesc, err := i.resolveDescriptor(ctx, parent)
@@ -404,6 +408,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		}
 
 		layers = parentImageManifest.Layers
+		parentDigest = parentDesc.Digest
 	}
 
 	// get the info for the new layers
@@ -443,6 +448,9 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		Name:      danglingImageName(commitManifestDesc.Digest),
 		Target:    commitManifestDesc,
 		CreatedAt: time.Now(),
+		Labels: map[string]string{
+			imageLabelClassicBuilderParent: parentDigest.String(),
+		},
 	}
 
 	createdImage, err := i.client.ImageService().Update(ctx, img)

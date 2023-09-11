@@ -98,8 +98,34 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	contentStore := i.client.ContentStore()
 	uniqueImages := map[digest.Digest]images.Image{}
 	tagsByDigest := map[digest.Digest][]string{}
+	intermediateImages := map[digest.Digest]struct{}{}
+
+	hideIntermediate := !opts.All
+	if hideIntermediate {
+		for _, img := range imgs {
+			parent, ok := img.Labels[imageLabelClassicBuilderParent]
+			if ok && parent != "" {
+				dgst, err := digest.Parse(parent)
+				if err != nil {
+					log.G(ctx).WithFields(log.Fields{
+						"error": err,
+						"value": parent,
+					}).Warnf("invalid %s label value", imageLabelClassicBuilderParent)
+				}
+				intermediateImages[dgst] = struct{}{}
+			}
+		}
+	}
 
 	for _, img := range imgs {
+		isDangling := isDanglingImage(img)
+
+		if hideIntermediate && isDangling {
+			if _, ok := intermediateImages[img.Target.Digest]; ok {
+				continue
+			}
+		}
+
 		if !filter(img) {
 			continue
 		}
@@ -107,7 +133,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		dgst := img.Target.Digest
 		uniqueImages[dgst] = img
 
-		if isDanglingImage(img) {
+		if isDangling {
 			continue
 		}
 
