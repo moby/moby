@@ -120,7 +120,17 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 			return "", fmt.Errorf("failed to create new image: %w", err)
 		}
 	}
-	return image.ID(img.Target.Digest), nil
+	id := image.ID(img.Target.Digest)
+
+	c8dImg, err := i.NewImageManifest(ctx, img, commitManifestDesc)
+	if err != nil {
+		return id, err
+	}
+	if err := c8dImg.Unpack(ctx, container.Driver); err != nil && !cerrdefs.IsAlreadyExists(err) {
+		return id, fmt.Errorf("failed to unpack image: %w", err)
+	}
+
+	return id, nil
 }
 
 // generateCommitImageConfig generates an OCI Image config based on the
