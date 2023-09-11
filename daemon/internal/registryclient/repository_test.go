@@ -1214,6 +1214,7 @@ func TestManifestUnauthorized(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusUnauthorized,
+			Headers:    http.Header{"Content-Type": []string{"application/json; charset=utf-8"}},
 			Body:       []byte("<html>garbage</html>"),
 		},
 	})
