@@ -196,16 +196,15 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 }
 
 type iptRule struct {
-	table   iptables.Table
-	chain   string
-	preArgs []string
-	args    []string
+	table iptables.Table
+	chain string
+	args  []string
 }
 
 func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguration, addr *net.IPNet, hairpin, enable bool) error {
 	var (
 		address   = addr.String()
-		skipDNAT  = iptRule{table: iptables.Nat, chain: DockerChain, preArgs: []string{"-t", "nat"}, args: []string{"-i", config.BridgeName, "-j", "RETURN"}}
+		skipDNAT  = iptRule{table: iptables.Nat, chain: DockerChain, args: []string{"-i", config.BridgeName, "-j", "RETURN"}}
 		outRule   = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", config.BridgeName, "!", "-o", config.BridgeName, "-j", "ACCEPT"}}
 		natArgs   []string
 		hpNatArgs []string
@@ -221,8 +220,8 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "MASQUERADE"}
 	}
 
-	natRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: natArgs}
-	hpNatRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: hpNatArgs}
+	natRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", args: natArgs}
+	hpNatRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", args: hpNatArgs}
 
 	// Set NAT.
 	if config.EnableIPMasquerade {
@@ -256,27 +255,25 @@ func programChainRule(version iptables.IPVersion, rule iptRule, ruleDescr string
 	iptable := iptables.GetIptable(version)
 
 	var (
-		prefix    []string
 		operation string
 		condition bool
 		doesExist = iptable.Exists(rule.table, rule.chain, rule.args...)
 	)
 
+	args := []string{"-t", string(rule.table)}
 	if insert {
 		condition = !doesExist
-		prefix = []string{"-I", rule.chain}
+		args = append(args, "-I")
 		operation = "enable"
 	} else {
 		condition = doesExist
-		prefix = []string{"-D", rule.chain}
+		args = append(args, "-D")
 		operation = "disable"
 	}
-	if rule.preArgs != nil {
-		prefix = append(rule.preArgs, prefix...)
-	}
+	args = append(append(args, rule.chain), rule.args...)
 
 	if condition {
-		if err := iptable.RawCombinedOutput(append(prefix, rule.args...)...); err != nil {
+		if err := iptable.RawCombinedOutput(args...); err != nil {
 			return fmt.Errorf("Unable to %s %s rule: %s", operation, ruleDescr, err.Error())
 		}
 	}
