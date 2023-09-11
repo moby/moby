@@ -107,8 +107,7 @@ func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 		t.Fatalf("Failed to program iptable rule %s: %s", descr, err.Error())
 	}
 
-	iptable := iptables.GetIptable(rule.ipv)
-	if iptable.Exists(rule.table, rule.chain, rule.args...) == false {
+	if !rule.Exists() {
 		t.Fatalf("Failed to effectively program iptable rule: %s", descr)
 	}
 
@@ -116,7 +115,7 @@ func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 	if err := programChainRule(rule, descr, false); err != nil {
 		t.Fatalf("Failed to remove iptable rule %s: %s", descr, err.Error())
 	}
-	if iptable.Exists(rule.table, rule.chain, rule.args...) == true {
+	if rule.Exists() {
 		t.Fatalf("Failed to effectively remove iptable rule: %s", descr)
 	}
 }

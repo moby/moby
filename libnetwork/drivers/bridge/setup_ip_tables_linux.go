@@ -202,6 +202,11 @@ type iptRule struct {
 	args  []string
 }
 
+// Exists returns true if the rule exists in the kernel.
+func (r iptRule) Exists() bool {
+	return iptables.GetIptable(r.ipv).Exists(r.table, r.chain, r.args...)
+}
+
 func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguration, addr *net.IPNet, hairpin, enable bool) error {
 	var (
 		address   = addr.String()
@@ -258,7 +263,7 @@ func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
 	var (
 		operation string
 		condition bool
-		doesExist = iptable.Exists(rule.table, rule.chain, rule.args...)
+		doesExist = rule.Exists()
 	)
 
 	args := []string{"-t", string(rule.table)}
