@@ -157,15 +157,11 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 			return setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, false)
 		})
 	} else {
-		hostIP := config.HostIP
-		if ipVersion != iptables.IPv4 {
-			hostIP = nil
-		}
-		if err = setupIPTablesInternal(hostIP, config.BridgeName, maskedAddr, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
+		if err = setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
 		}
 		n.registerIptCleanFunc(func() error {
-			return setupIPTablesInternal(hostIP, config.BridgeName, maskedAddr, config.EnableICC, config.EnableIPMasquerade, hairpinMode, false)
+			return setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, false)
 		})
 		natChain, filterChain, _, _, err := n.getDriverChains(ipVersion)
 		if err != nil {
@@ -206,41 +202,36 @@ type iptRule struct {
 	args    []string
 }
 
-func setupIPTablesInternal(hostIP net.IP, bridgeIface string, addr *net.IPNet, icc, ipmasq, hairpin, enable bool) error {
+func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguration, addr *net.IPNet, hairpin, enable bool) error {
 	var (
 		address   = addr.String()
-		skipDNAT  = iptRule{table: iptables.Nat, chain: DockerChain, preArgs: []string{"-t", "nat"}, args: []string{"-i", bridgeIface, "-j", "RETURN"}}
-		outRule   = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}}
+		skipDNAT  = iptRule{table: iptables.Nat, chain: DockerChain, preArgs: []string{"-t", "nat"}, args: []string{"-i", config.BridgeName, "-j", "RETURN"}}
+		outRule   = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", config.BridgeName, "!", "-o", config.BridgeName, "-j", "ACCEPT"}}
 		natArgs   []string
 		hpNatArgs []string
 	)
-	// if hostIP is set use this address as the src-ip during SNAT
-	if hostIP != nil {
-		hostAddr := hostIP.String()
-		natArgs = []string{"-s", address, "!", "-o", bridgeIface, "-j", "SNAT", "--to-source", hostAddr}
-		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "SNAT", "--to-source", hostAddr}
+	// If config.HostIP is set, the user wants IPv4 SNAT with the given address.
+	if config.HostIP != nil && ipVer == iptables.IPv4 {
+		hostAddr := config.HostIP.String()
+		natArgs = []string{"-s", address, "!", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
+		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
 		// Else use MASQUERADE which picks the src-ip based on NH from the route table
 	} else {
-		natArgs = []string{"-s", address, "!", "-o", bridgeIface, "-j", "MASQUERADE"}
-		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "MASQUERADE"}
+		natArgs = []string{"-s", address, "!", "-o", config.BridgeName, "-j", "MASQUERADE"}
+		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "MASQUERADE"}
 	}
 
 	natRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: natArgs}
 	hpNatRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: hpNatArgs}
 
-	ipVer := iptables.IPv4
-	if addr.IP.To4() == nil {
-		ipVer = iptables.IPv6
-	}
-
 	// Set NAT.
-	if ipmasq {
+	if config.EnableIPMasquerade {
 		if err := programChainRule(ipVer, natRule, "NAT", enable); err != nil {
 			return err
 		}
 	}
 
-	if ipmasq && !hairpin {
+	if config.EnableIPMasquerade && !hairpin {
 		if err := programChainRule(ipVer, skipDNAT, "SKIP DNAT", enable); err != nil {
 			return err
 		}
@@ -253,7 +244,7 @@ func setupIPTablesInternal(hostIP net.IP, bridgeIface string, addr *net.IPNet, i
 	}
 
 	// Set Inter Container Communication.
-	if err := setIcc(ipVer, bridgeIface, icc, enable); err != nil {
+	if err := setIcc(ipVer, config.BridgeName, config.EnableICC, enable); err != nil {
 		return err
 	}
 
