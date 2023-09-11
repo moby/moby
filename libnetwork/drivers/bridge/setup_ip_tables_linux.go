@@ -215,6 +215,15 @@ func (r iptRule) exec(op iptables.Action) error {
 	return iptables.GetIptable(r.ipv).RawCombinedOutput(r.cmdArgs(op)...)
 }
 
+// Append appends the rule to the end of the chain. If the rule already exists anywhere in the
+// chain, this is a no-op.
+func (r iptRule) Append() error {
+	if r.Exists() {
+		return nil
+	}
+	return r.exec(iptables.Append)
+}
+
 // Insert inserts the rule at the head of the chain. If the rule already exists anywhere in the
 // chain, this is a no-op.
 func (r iptRule) Insert() error {
@@ -296,46 +305,29 @@ func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
 }
 
 func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, insert bool) error {
-	iptable := iptables.GetIptable(version)
-	var (
-		table      = iptables.Filter
-		chain      = "FORWARD"
-		args       = []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
-		acceptArgs = append(args, "ACCEPT")
-		dropArgs   = append(args, "DROP")
-	)
-
+	args := []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
+	acceptRule := iptRule{ipv: version, table: iptables.Filter, chain: "FORWARD", args: append(args, "ACCEPT")}
+	dropRule := iptRule{ipv: version, table: iptables.Filter, chain: "FORWARD", args: append(args, "DROP")}
 	if insert {
 		if !iccEnable {
-			iptable.Raw(append([]string{"-D", chain}, acceptArgs...)...)
-
-			if !iptable.Exists(table, chain, dropArgs...) {
-				if err := iptable.RawCombinedOutput(append([]string{"-A", chain}, dropArgs...)...); err != nil {
-					return fmt.Errorf("Unable to prevent intercontainer communication: %s", err.Error())
-				}
+			acceptRule.Delete()
+			if err := dropRule.Append(); err != nil {
+				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err.Error())
 			}
 		} else {
-			iptable.Raw(append([]string{"-D", chain}, dropArgs...)...)
-
-			if !iptable.Exists(table, chain, acceptArgs...) {
-				if err := iptable.RawCombinedOutput(append([]string{"-I", chain}, acceptArgs...)...); err != nil {
-					return fmt.Errorf("Unable to allow intercontainer communication: %s", err.Error())
-				}
+			dropRule.Delete()
+			if err := acceptRule.Insert(); err != nil {
+				return fmt.Errorf("Unable to allow intercontainer communication: %s", err.Error())
 			}
 		}
 	} else {
 		// Remove any ICC rule.
 		if !iccEnable {
-			if iptable.Exists(table, chain, dropArgs...) {
-				iptable.Raw(append([]string{"-D", chain}, dropArgs...)...)
-			}
+			dropRule.Delete()
 		} else {
-			if iptable.Exists(table, chain, acceptArgs...) {
-				iptable.Raw(append([]string{"-D", chain}, acceptArgs...)...)
-			}
+			acceptRule.Delete()
 		}
 	}
-
 	return nil
 }
 
