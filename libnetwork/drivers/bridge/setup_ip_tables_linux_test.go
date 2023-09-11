@@ -31,12 +31,12 @@ func TestProgramIPTable(t *testing.T) {
 		rule  iptRule
 		descr string
 	}{
-		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-d", "127.1.2.3", "-i", "lo", "-o", "lo", "-j", "DROP"}}, "Test Loopback"},
-		{iptRule{table: iptables.Nat, chain: "POSTROUTING", args: []string{"-s", iptablesTestBridgeIP, "!", "-o", DefaultBridgeName, "-j", "MASQUERADE"}}, "NAT Test"},
-		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-o", DefaultBridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}, "Test ACCEPT INCOMING"},
-		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "!", "-o", DefaultBridgeName, "-j", "ACCEPT"}}, "Test ACCEPT NON_ICC OUTGOING"},
-		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "ACCEPT"}}, "Test enable ICC"},
-		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "DROP"}}, "Test disable ICC"},
+		{iptRule{ipv: iptables.IPv4, table: iptables.Filter, chain: "FORWARD", args: []string{"-d", "127.1.2.3", "-i", "lo", "-o", "lo", "-j", "DROP"}}, "Test Loopback"},
+		{iptRule{ipv: iptables.IPv4, table: iptables.Nat, chain: "POSTROUTING", args: []string{"-s", iptablesTestBridgeIP, "!", "-o", DefaultBridgeName, "-j", "MASQUERADE"}}, "NAT Test"},
+		{iptRule{ipv: iptables.IPv4, table: iptables.Filter, chain: "FORWARD", args: []string{"-o", DefaultBridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}, "Test ACCEPT INCOMING"},
+		{iptRule{ipv: iptables.IPv4, table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "!", "-o", DefaultBridgeName, "-j", "ACCEPT"}}, "Test ACCEPT NON_ICC OUTGOING"},
+		{iptRule{ipv: iptables.IPv4, table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "ACCEPT"}}, "Test enable ICC"},
+		{iptRule{ipv: iptables.IPv4, table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "DROP"}}, "Test disable ICC"},
 	}
 
 	// Assert the chain rules' insertion and removal.
@@ -103,17 +103,17 @@ func createTestBridge(config *networkConfiguration, br *bridgeInterface, t *test
 // Assert base function which pushes iptables chain rules on insertion and removal.
 func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 	// Add
-	if err := programChainRule(iptables.IPv4, rule, descr, true); err != nil {
+	if err := programChainRule(rule, descr, true); err != nil {
 		t.Fatalf("Failed to program iptable rule %s: %s", descr, err.Error())
 	}
 
-	iptable := iptables.GetIptable(iptables.IPv4)
+	iptable := iptables.GetIptable(rule.ipv)
 	if iptable.Exists(rule.table, rule.chain, rule.args...) == false {
 		t.Fatalf("Failed to effectively program iptable rule: %s", descr)
 	}
 
 	// Remove
-	if err := programChainRule(iptables.IPv4, rule, descr, false); err != nil {
+	if err := programChainRule(rule, descr, false); err != nil {
 		t.Fatalf("Failed to remove iptable rule %s: %s", descr, err.Error())
 	}
 	if iptable.Exists(rule.table, rule.chain, rule.args...) == true {

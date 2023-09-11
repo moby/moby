@@ -196,6 +196,7 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 }
 
 type iptRule struct {
+	ipv   iptables.IPVersion
 	table iptables.Table
 	chain string
 	args  []string
@@ -204,8 +205,8 @@ type iptRule struct {
 func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguration, addr *net.IPNet, hairpin, enable bool) error {
 	var (
 		address   = addr.String()
-		skipDNAT  = iptRule{table: iptables.Nat, chain: DockerChain, args: []string{"-i", config.BridgeName, "-j", "RETURN"}}
-		outRule   = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", config.BridgeName, "!", "-o", config.BridgeName, "-j", "ACCEPT"}}
+		skipDNAT  = iptRule{ipv: ipVer, table: iptables.Nat, chain: DockerChain, args: []string{"-i", config.BridgeName, "-j", "RETURN"}}
+		outRule   = iptRule{ipv: ipVer, table: iptables.Filter, chain: "FORWARD", args: []string{"-i", config.BridgeName, "!", "-o", config.BridgeName, "-j", "ACCEPT"}}
 		natArgs   []string
 		hpNatArgs []string
 	)
@@ -220,25 +221,25 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "MASQUERADE"}
 	}
 
-	natRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", args: natArgs}
-	hpNatRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", args: hpNatArgs}
+	natRule := iptRule{ipv: ipVer, table: iptables.Nat, chain: "POSTROUTING", args: natArgs}
+	hpNatRule := iptRule{ipv: ipVer, table: iptables.Nat, chain: "POSTROUTING", args: hpNatArgs}
 
 	// Set NAT.
 	if config.EnableIPMasquerade {
-		if err := programChainRule(ipVer, natRule, "NAT", enable); err != nil {
+		if err := programChainRule(natRule, "NAT", enable); err != nil {
 			return err
 		}
 	}
 
 	if config.EnableIPMasquerade && !hairpin {
-		if err := programChainRule(ipVer, skipDNAT, "SKIP DNAT", enable); err != nil {
+		if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
 			return err
 		}
 	}
 
 	// In hairpin mode, masquerade traffic from localhost. If hairpin is disabled or if we're tearing down
 	// that bridge, make sure the iptables rule isn't lying around.
-	if err := programChainRule(ipVer, hpNatRule, "MASQ LOCAL HOST", enable && hairpin); err != nil {
+	if err := programChainRule(hpNatRule, "MASQ LOCAL HOST", enable && hairpin); err != nil {
 		return err
 	}
 
@@ -248,11 +249,11 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 	}
 
 	// Set Accept on all non-intercontainer outgoing packets.
-	return programChainRule(ipVer, outRule, "ACCEPT NON_ICC OUTGOING", enable)
+	return programChainRule(outRule, "ACCEPT NON_ICC OUTGOING", enable)
 }
 
-func programChainRule(version iptables.IPVersion, rule iptRule, ruleDescr string, insert bool) error {
-	iptable := iptables.GetIptable(version)
+func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
+	iptable := iptables.GetIptable(rule.ipv)
 
 	var (
 		operation string
@@ -392,11 +393,13 @@ func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert 
 	if addr.IP.To4() != nil {
 		version = iptables.IPv4
 		inDropRule = iptRule{
+			ipv:   version,
 			table: iptables.Filter,
 			chain: IsolationChain1,
 			args:  []string{"-i", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"},
 		}
 		outDropRule = iptRule{
+			ipv:   version,
 			table: iptables.Filter,
 			chain: IsolationChain1,
 			args:  []string{"-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"},
@@ -404,21 +407,23 @@ func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert 
 	} else {
 		version = iptables.IPv6
 		inDropRule = iptRule{
+			ipv:   version,
 			table: iptables.Filter,
 			chain: IsolationChain1,
 			args:  []string{"-i", bridgeIface, "!", "-o", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"},
 		}
 		outDropRule = iptRule{
+			ipv:   version,
 			table: iptables.Filter,
 			chain: IsolationChain1,
 			args:  []string{"!", "-i", bridgeIface, "-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"},
 		}
 	}
 
-	if err := programChainRule(version, inDropRule, "DROP INCOMING", insert); err != nil {
+	if err := programChainRule(inDropRule, "DROP INCOMING", insert); err != nil {
 		return err
 	}
-	if err := programChainRule(version, outDropRule, "DROP OUTGOING", insert); err != nil {
+	if err := programChainRule(outDropRule, "DROP OUTGOING", insert); err != nil {
 		return err
 	}
 
