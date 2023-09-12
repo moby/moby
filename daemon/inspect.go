@@ -73,14 +73,9 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 	mountPoints := ctr.GetMountPoints()
 	networkSettings := &types.NetworkSettings{
 		NetworkSettingsBase: types.NetworkSettingsBase{
-			Bridge:                 ctr.NetworkSettings.Bridge,
-			SandboxID:              ctr.NetworkSettings.SandboxID,
-			SandboxKey:             ctr.NetworkSettings.SandboxKey,
-			HairpinMode:            ctr.NetworkSettings.HairpinMode,
-			LinkLocalIPv6Address:   ctr.NetworkSettings.LinkLocalIPv6Address,
-			LinkLocalIPv6PrefixLen: ctr.NetworkSettings.LinkLocalIPv6PrefixLen,
-			SecondaryIPAddresses:   ctr.NetworkSettings.SecondaryIPAddresses,
-			SecondaryIPv6Addresses: ctr.NetworkSettings.SecondaryIPv6Addresses,
+			Bridge:     ctr.NetworkSettings.Bridge,
+			SandboxID:  ctr.NetworkSettings.SandboxID,
+			SandboxKey: ctr.NetworkSettings.SandboxKey,
 		},
 		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(ctr.NetworkSettings.Networks),
 		Networks:               apiNetworks,
@@ -276,15 +271,10 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Settings) *v1p20.NetworkSettings {
 	result := &v1p20.NetworkSettings{
 		NetworkSettingsBase: types.NetworkSettingsBase{
-			Bridge:                 settings.Bridge,
-			SandboxID:              settings.SandboxID,
-			SandboxKey:             settings.SandboxKey,
-			HairpinMode:            settings.HairpinMode,
-			LinkLocalIPv6Address:   settings.LinkLocalIPv6Address,
-			LinkLocalIPv6PrefixLen: settings.LinkLocalIPv6PrefixLen,
-			Ports:                  settings.Ports,
-			SecondaryIPAddresses:   settings.SecondaryIPAddresses,
-			SecondaryIPv6Addresses: settings.SecondaryIPv6Addresses,
+			Bridge:     settings.Bridge,
+			SandboxID:  settings.SandboxID,
+			SandboxKey: settings.SandboxKey,
+			Ports:      settings.Ports,
 		},
 		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(settings.Networks),
 	}
