@@ -27,44 +27,6 @@ func (s *DockerAPISuite) TestAPINetworkGetDefaults(c *testing.T) {
 	}
 }
 
-func (s *DockerAPISuite) TestAPINetworkCreateCheckDuplicate(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	name := "testcheckduplicate"
-	configOnCheck := types.NetworkCreateRequest{
-		Name: name,
-		NetworkCreate: types.NetworkCreate{
-			CheckDuplicate: true,
-		},
-	}
-	configNotCheck := types.NetworkCreateRequest{
-		Name: name,
-		NetworkCreate: types.NetworkCreate{
-			CheckDuplicate: false,
-		},
-	}
-
-	// Creating a new network first
-	createNetwork(c, configOnCheck, http.StatusCreated)
-	assert.Assert(c, isNetworkAvailable(c, name))
-
-	// Creating another network with same name and CheckDuplicate must fail
-	isOlderAPI := versions.LessThan(testEnv.DaemonAPIVersion(), "1.34")
-	expectedStatus := http.StatusConflict
-	if isOlderAPI {
-		// In the early test code it uses bool value to represent
-		// whether createNetwork() is expected to fail or not.
-		// Therefore, we use negation to handle the same logic after
-		// the code was changed in https://github.com/moby/moby/pull/35030
-		// -http.StatusCreated will also be checked as NOT equal to
-		// http.StatusCreated in createNetwork() function.
-		expectedStatus = -http.StatusCreated
-	}
-	createNetwork(c, configOnCheck, expectedStatus)
-
-	// Creating another network with same name and not CheckDuplicate must succeed
-	createNetwork(c, configNotCheck, http.StatusCreated)
-}
-
 func (s *DockerAPISuite) TestAPINetworkFilter(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	nr := getNetworkResource(c, getNetworkIDByName(c, "bridge"))
@@ -248,12 +210,7 @@ func (s *DockerAPISuite) TestAPICreateDeletePredefinedNetworks(c *testing.T) {
 
 func createDeletePredefinedNetwork(c *testing.T, name string) {
 	// Create pre-defined network
-	config := types.NetworkCreateRequest{
-		Name: name,
-		NetworkCreate: types.NetworkCreate{
-			CheckDuplicate: true,
-		},
-	}
+	config := types.NetworkCreateRequest{Name: name}
 	expectedStatus := http.StatusForbidden
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.34") {
 		// In the early test code it uses bool value to represent

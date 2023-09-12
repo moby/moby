@@ -25,7 +25,6 @@ func TestInspectNetwork(t *testing.T) {
 	networkName := "Overlay" + t.Name()
 	overlayID := network.CreateNoError(ctx, t, c, networkName,
 		network.WithDriver("overlay"),
-		network.WithCheckDuplicate(),
 	)
 
 	var instances uint64 = 2

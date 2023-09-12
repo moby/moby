@@ -19,13 +19,6 @@ func WithIPv6() func(*types.NetworkCreate) {
 	}
 }
 
-// WithCheckDuplicate sets the CheckDuplicate field on create network request
-func WithCheckDuplicate() func(*types.NetworkCreate) {
-	return func(n *types.NetworkCreate) {
-		n.CheckDuplicate = true
-	}
-}
-
 // WithInternal enables Internal flag on the create network request
 func WithInternal() func(*types.NetworkCreate) {
 	return func(n *types.NetworkCreate) {

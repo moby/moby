@@ -53,10 +53,9 @@ func TestNetworkCreate(t *testing.T) {
 	}
 
 	networkResponse, err := client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{
-		CheckDuplicate: true,
-		Driver:         "mydriver",
-		EnableIPv6:     true,
-		Internal:       true,
+		Driver:     "mydriver",
+		EnableIPv6: true,
+		Internal:   true,
 		Options: map[string]string{
 			"opt-key": "opt-value",
 		},

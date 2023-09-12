@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/cloudflare/cfssl/helpers"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
@@ -1654,71 +1653,6 @@ func (s *DockerSwarmSuite) TestSwarmReadonlyRootfs(c *testing.T) {
 	out, err = d.Cmd("inspect", "--type", "container", "--format", "{{.HostConfig.ReadonlyRootfs}}", containers[0])
 	assert.NilError(c, err, out)
 	assert.Equal(c, strings.TrimSpace(out), "true")
-}
-
-func (s *DockerSwarmSuite) TestNetworkInspectWithDuplicateNames(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	d := s.AddDaemon(ctx, c, true, true)
-
-	name := "foo"
-	options := types.NetworkCreate{
-		CheckDuplicate: false,
-		Driver:         "bridge",
-	}
-
-	cli := d.NewClientT(c)
-	defer cli.Close()
-
-	n1, err := cli.NetworkCreate(testutil.GetContext(c), name, options)
-	assert.NilError(c, err)
-
-	// Full ID always works
-	out, err := d.Cmd("network", "inspect", "--format", "{{.ID}}", n1.ID)
-	assert.NilError(c, err, out)
-	assert.Equal(c, strings.TrimSpace(out), n1.ID)
-
-	// Name works if it is unique
-	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", name)
-	assert.NilError(c, err, out)
-	assert.Equal(c, strings.TrimSpace(out), n1.ID)
-
-	n2, err := cli.NetworkCreate(testutil.GetContext(c), name, options)
-	assert.NilError(c, err)
-	// Full ID always works
-	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", n1.ID)
-	assert.NilError(c, err, out)
-	assert.Equal(c, strings.TrimSpace(out), n1.ID)
-
-	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", n2.ID)
-	assert.NilError(c, err, out)
-	assert.Equal(c, strings.TrimSpace(out), n2.ID)
-
-	// Name with duplicates
-	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", name)
-	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "2 matches found based on name"), out)
-	out, err = d.Cmd("network", "rm", n2.ID)
-	assert.NilError(c, err, out)
-
-	// Duplicates with name but with different driver
-	options.Driver = "overlay"
-
-	n2, err = cli.NetworkCreate(testutil.GetContext(c), name, options)
-	assert.NilError(c, err)
-
-	// Full ID always works
-	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", n1.ID)
-	assert.NilError(c, err, out)
-	assert.Equal(c, strings.TrimSpace(out), n1.ID)
-
-	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", n2.ID)
-	assert.NilError(c, err, out)
-	assert.Equal(c, strings.TrimSpace(out), n2.ID)
-
-	// Name with duplicates
-	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", name)
-	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "2 matches found based on name"), out)
 }
 
 func (s *DockerSwarmSuite) TestSwarmStopSignal(c *testing.T) {

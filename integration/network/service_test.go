@@ -427,7 +427,6 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	name := "sthira" + t.Name()
 	overlayID := network.CreateNoError(ctx, t, cli, name,
 		network.WithDriver("overlay"),
-		network.WithCheckDuplicate(),
 	)
 
 	var instances uint64 = 1

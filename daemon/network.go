@@ -307,24 +307,6 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 		create.EnableIPv6 = true
 	}
 
-	var warning string
-	nw, err := daemon.GetNetworkByName(create.Name)
-	if err != nil {
-		if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok {
-			return nil, err
-		}
-	}
-	if nw != nil {
-		// check if user defined CheckDuplicate, if set true, return err
-		// otherwise prepare a warning message
-		if create.CheckDuplicate {
-			if !agent || nw.Dynamic() {
-				return nil, libnetwork.NetworkNameError(create.Name)
-			}
-		}
-		warning = fmt.Sprintf("Network with name %s (id : %s) already exists", nw.Name(), nw.ID())
-	}
-
 	networkOptions := make(map[string]string)
 	for k, v := range create.Options {
 		networkOptions[k] = v
@@ -397,8 +379,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 	daemon.LogNetworkEvent(n, events.ActionCreate)
 
 	return &types.NetworkCreateResponse{
-		ID:      n.ID(),
-		Warning: warning,
+		ID: n.ID(),
 	}, nil
 }
 

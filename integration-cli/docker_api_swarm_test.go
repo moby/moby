@@ -917,39 +917,6 @@ func (s *DockerSwarmSuite) TestAPISwarmErrorHandling(c *testing.T) {
 	assert.ErrorContains(c, err, "address already in use")
 }
 
-// Test case for 30242, where duplicate networks, with different drivers `bridge` and `overlay`,
-// caused both scopes to be `swarm` for `docker network inspect` and `docker network ls`.
-// This test makes sure the fixes correctly output scopes instead.
-func (s *DockerSwarmSuite) TestAPIDuplicateNetworks(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	d := s.AddDaemon(ctx, c, true, true)
-	cli := d.NewClientT(c)
-	defer cli.Close()
-
-	name := "foo"
-	networkCreate := types.NetworkCreate{
-		CheckDuplicate: false,
-	}
-
-	networkCreate.Driver = "bridge"
-
-	n1, err := cli.NetworkCreate(testutil.GetContext(c), name, networkCreate)
-	assert.NilError(c, err)
-
-	networkCreate.Driver = "overlay"
-
-	n2, err := cli.NetworkCreate(testutil.GetContext(c), name, networkCreate)
-	assert.NilError(c, err)
-
-	r1, err := cli.NetworkInspect(testutil.GetContext(c), n1.ID, types.NetworkInspectOptions{})
-	assert.NilError(c, err)
-	assert.Equal(c, r1.Scope, "local")
-
-	r2, err := cli.NetworkInspect(testutil.GetContext(c), n2.ID, types.NetworkInspectOptions{})
-	assert.NilError(c, err)
-	assert.Equal(c, r2.Scope, "swarm")
-}
-
 // Test case for 30178
 func (s *DockerSwarmSuite) TestAPISwarmHealthcheckNone(c *testing.T) {
 	// Issue #36386 can be a independent one, which is worth further investigation.

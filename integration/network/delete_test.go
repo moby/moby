@@ -48,9 +48,7 @@ func TestNetworkCreateDelete(t *testing.T) {
 	client := testEnv.APIClient()
 
 	netName := "testnetwork_" + t.Name()
-	network.CreateNoError(ctx, t, client, netName,
-		network.WithCheckDuplicate(),
-	)
+	network.CreateNoError(ctx, t, client, netName)
 	assert.Check(t, IsNetworkAvailable(ctx, client, netName))
 
 	// delete the network and make sure it is deleted
