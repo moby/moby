@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/testutil"
-	"github.com/moby/moby/api"
 	containertypes "github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
@@ -498,7 +497,7 @@ func TestContainerBindMountReadOnlyDefault(t *testing.T) {
 		{clientVersion: "1.43", expectedOut: nonRecursive, name: "older than 1.44 should be non-recursive by default"},
 
 		// TODO: Remove when MinSupportedAPIVersion >= 1.44
-		{clientVersion: api.MinSupportedAPIVersion, expectedOut: nonRecursive, name: "minimum API should be non-recursive by default"},
+		{clientVersion: versions.Min, expectedOut: nonRecursive, name: "minimum API should be non-recursive by default"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := testEnv.APIClient()
