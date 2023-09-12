@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types/versions"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -50,7 +50,7 @@ func TestOptionWithVersionFromEnv(t *testing.T) {
 	c, err := NewClientWithOpts(WithVersionFromEnv())
 	assert.NilError(t, err)
 	assert.Check(t, c.client != nil)
-	assert.Equal(t, c.version, api.DefaultVersion)
+	assert.Equal(t, c.version, versions.Default)
 	assert.Equal(t, c.manualOverride, false)
 
 	t.Setenv("DOCKER_API_VERSION", "2.9999")

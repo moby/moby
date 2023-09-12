@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"dario.cat/mergo"
-	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/opts"
 	"github.com/google/go-cmp/cmp"
@@ -542,7 +542,7 @@ func TestValidateMinAPIVersion(t *testing.T) {
 		},
 		{
 			doc:   "current version",
-			input: api.DefaultVersion,
+			input: versions.Default,
 		},
 	}
 
