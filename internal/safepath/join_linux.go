@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/moby/sys/mount"
+	"github.com/docker/docker/internal/unix_noeintr"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
@@ -33,7 +33,7 @@ func Join(path, subpath string) (*SafePath, error) {
 		return nil, err
 	}
 
-	defer unix.Close(fd)
+	defer unix_noeintr.Close(fd)
 
 	tmpMount, err := tempMountPoint(fd)
 	if err != nil {
@@ -47,7 +47,7 @@ func Join(path, subpath string) (*SafePath, error) {
 	// TODO(vvoland): Investigate.
 	mountSource := "/proc/" + pid + "/fd/" + strconv.Itoa(fd)
 
-	if err := unix.Mount(mountSource, tmpMount, "none", unix.MS_BIND, ""); err != nil {
+	if err := unix_noeintr.Mount(mountSource, tmpMount, "none", unix.MS_BIND, ""); err != nil {
 		os.Remove(tmpMount)
 		return nil, errors.Wrap(err, "failed to mount resolved path")
 	}
@@ -69,14 +69,14 @@ func Join(path, subpath string) (*SafePath, error) {
 // error was returned.
 func safeOpenFd(path, subpath string) (int, error) {
 	// Open base volume path (_data directory).
-	prevFd, err := unix.Open(path, unix.O_PATH|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	prevFd, err := unix_noeintr.Open(path, unix.O_PATH|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
 	if err != nil {
 		return -1, &ErrNotAccessible{Path: path, Cause: err}
 	}
-	defer unix.Close(prevFd)
+	defer unix_noeintr.Close(prevFd)
 
 	// Try to use the Openat2 syscall first (available on Linux 5.6+).
-	fd, err := unix.Openat2(prevFd, subpath, &unix.OpenHow{
+	fd, err := unix_noeintr.Openat2(prevFd, subpath, &unix.OpenHow{
 		Flags:   unix.O_PATH | unix.O_CLOEXEC,
 		Mode:    0,
 		Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_MAGICLINKS | unix.RESOLVE_NO_SYMLINKS,
@@ -106,7 +106,7 @@ func softOpenat2(baseFd int, subpath string) (int, error) {
 // point for the file descriptor.
 func tempMountPoint(sourceFd int) (string, error) {
 	var stat unix.Stat_t
-	err := unix.Fstat(sourceFd, &stat)
+	err := unix_noeintr.Fstat(sourceFd, &stat)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to Fstat mount source fd")
 	}
@@ -134,7 +134,7 @@ func cleanupSafePath(path string) func() error {
 	return func() error {
 		log.G(context.TODO()).WithField("path", path).Debug("removing safe temp mount")
 
-		if err := unix.Unmount(path, unix.MNT_DETACH); err != nil {
+		if err := unix_noeintr.Unmount(path, unix.MNT_DETACH); err != nil {
 			if errors.Is(err, unix.EINVAL) {
 				log.G(context.TODO()).WithField("path", path).Warn("safe temp mount no longer exists?")
 				return nil
