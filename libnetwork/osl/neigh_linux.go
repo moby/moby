@@ -3,8 +3,10 @@ package osl
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
+	"os"
 
 	"github.com/containerd/containerd/log"
 	"github.com/vishvananda/netlink"
@@ -43,79 +45,66 @@ func (n *Namespace) findNeighbor(dstIP net.IP, dstMac net.HardwareAddr) *neigh {
 }
 
 // DeleteNeighbor deletes neighbor entry from the sandbox.
-func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, osDelete bool) error {
-	var (
-		iface netlink.Link
-		err   error
-	)
-
+func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr) error {
 	nh := n.findNeighbor(dstIP, dstMac)
 	if nh == nil {
 		return NeighborSearchError{dstIP, dstMac, false}
 	}
 
-	if osDelete {
-		n.Lock()
-		nlh := n.nlHandle
-		n.Unlock()
+	n.Lock()
+	nlh := n.nlHandle
+	n.Unlock()
 
-		if nh.linkDst != "" {
-			iface, err = nlh.LinkByName(nh.linkDst)
-			if err != nil {
-				return fmt.Errorf("could not find interface with destination name %s: %v",
-					nh.linkDst, err)
-			}
+	var linkIndex int
+	if nh.linkDst != "" {
+		iface, err := nlh.LinkByName(nh.linkDst)
+		if err != nil {
+			return fmt.Errorf("could not find interface with destination name %s: %v", nh.linkDst, err)
 		}
+		linkIndex = iface.Attrs().Index
+	}
 
-		nlnh := &netlink.Neigh{
-			IP:     dstIP,
-			State:  netlink.NUD_PERMANENT,
-			Family: nh.family,
-		}
+	nlnh := &netlink.Neigh{
+		LinkIndex: linkIndex,
+		IP:        dstIP,
+		State:     netlink.NUD_PERMANENT,
+		Family:    nh.family,
+	}
 
-		if nlnh.Family > 0 {
-			nlnh.HardwareAddr = dstMac
-			nlnh.Flags = netlink.NTF_SELF
-		}
+	if nh.family > 0 {
+		nlnh.HardwareAddr = dstMac
+		nlnh.Flags = netlink.NTF_SELF
+	}
 
-		if nh.linkDst != "" {
-			nlnh.LinkIndex = iface.Attrs().Index
-		}
+	// If the kernel deletion fails for the neighbor entry still remove it
+	// from the namespace cache, otherwise kernel update can fail if the
+	// neighbor moves back to the same host again.
+	if err := nlh.NeighDel(nlnh); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.G(context.TODO()).Warnf("Deleting neighbor IP %s, mac %s failed, %v", dstIP, dstMac, err)
+	}
 
-		// If the kernel deletion fails for the neighbor entry still remote it
-		// from the namespace cache. Otherwise if the neighbor moves back to the
-		// same host again, kernel update can fail.
-		if err := nlh.NeighDel(nlnh); err != nil {
-			log.G(context.TODO()).Warnf("Deleting neighbor IP %s, mac %s failed, %v", dstIP, dstMac, err)
-		}
-
-		// Delete the dynamic entry in the bridge
-		if nlnh.Family > 0 {
-			nlnh := &netlink.Neigh{
-				IP:     dstIP,
-				Family: nh.family,
-			}
-
-			nlnh.HardwareAddr = dstMac
-			nlnh.Flags = netlink.NTF_MASTER
-			if nh.linkDst != "" {
-				nlnh.LinkIndex = iface.Attrs().Index
-			}
-			if err := nlh.NeighDel(nlnh); err != nil {
-				log.G(context.TODO()).WithError(err).Warn("error while deleting neighbor entry")
-			}
+	// Delete the dynamic entry in the bridge
+	if nh.family > 0 {
+		if err := nlh.NeighDel(&netlink.Neigh{
+			LinkIndex:    linkIndex,
+			IP:           dstIP,
+			Family:       nh.family,
+			HardwareAddr: dstMac,
+			Flags:        netlink.NTF_MASTER,
+		}); err != nil && !errors.Is(err, os.ErrNotExist) {
+			log.G(context.TODO()).WithError(err).Warn("error while deleting neighbor entry")
 		}
 	}
 
 	n.Lock()
-	for i, nh := range n.neighbors {
-		if nh.dstIP.Equal(dstIP) && bytes.Equal(nh.dstMac, dstMac) {
+	for i, neighbor := range n.neighbors {
+		if neighbor.dstIP.Equal(dstIP) && bytes.Equal(neighbor.dstMac, dstMac) {
 			n.neighbors = append(n.neighbors[:i], n.neighbors[i+1:]...)
 			break
 		}
 	}
 	n.Unlock()
-	log.G(context.TODO()).Debugf("Neighbor entry deleted for IP %v, mac %v osDelete:%t", dstIP, dstMac, osDelete)
+	log.G(context.TODO()).Debugf("Neighbor entry deleted for IP %v, mac %v", dstIP, dstMac)
 
 	return nil
 }

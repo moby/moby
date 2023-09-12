@@ -377,7 +377,7 @@ func (d *driver) peerDeleteOp(nid, eid string, peerIP net.IP, peerIPMask net.IPM
 	// Local peers do not have any local configuration to delete
 	if !localPeer {
 		// Remove fdb entry to the bridge for the peer mac
-		if err := sbox.DeleteNeighbor(vtep, peerMac, true); err != nil {
+		if err := sbox.DeleteNeighbor(vtep, peerMac); err != nil {
 			if _, ok := err.(osl.NeighborSearchError); ok && dbEntries > 0 {
 				// We fall in here if there is a transient state and if the neighbor that is being deleted
 				// was never been configured into the kernel (we allow only 1 configuration at the time per <ip,mac> mapping)
@@ -387,7 +387,7 @@ func (d *driver) peerDeleteOp(nid, eid string, peerIP net.IP, peerIPMask net.IPM
 		}
 
 		// Delete neighbor entry for the peer IP
-		if err := sbox.DeleteNeighbor(peerIP, peerMac, true); err != nil {
+		if err := sbox.DeleteNeighbor(peerIP, peerMac); err != nil {
 			return fmt.Errorf("could not delete neighbor entry for nid:%s eid:%s into the sandbox:%v", nid, eid, err)
 		}
 	}
