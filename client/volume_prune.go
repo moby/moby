@@ -13,7 +13,7 @@ import (
 func (cli *Client) VolumesPrune(ctx context.Context, pruneFilters filters.Args) (types.VolumesPruneReport, error) {
 	var report types.VolumesPruneReport
 
-	if err := cli.NewVersionError("1.25", "volume prune"); err != nil {
+	if err := cli.NewVersionError(ctx, "1.25", "volume prune"); err != nil {
 		return report, err
 	}
 

@@ -10,6 +10,13 @@ import (
 
 // NetworkCreate creates a new network in the docker host.
 func (cli *Client) NetworkCreate(ctx context.Context, name string, options types.NetworkCreate) (types.NetworkCreateResponse, error) {
+	// Make sure we negotiated (if the client is configured to do so),
+	// as code below contains API-version specific handling of options.
+	//
+	// Normally, version-negotiation (if enabled) would not happen until
+	// the API request is made.
+	cli.checkVersion(ctx)
+
 	networkCreateRequest := types.NetworkCreateRequest{
 		NetworkCreate: options,
 		Name:          name,

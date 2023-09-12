@@ -30,6 +30,12 @@ const containerWaitErrorMsgLimit = 2 * 1024 /* Max: 2KiB */
 // synchronize ContainerWait with other calls, such as specifying a
 // "next-exit" condition before issuing a ContainerStart request.
 func (cli *Client) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
+	// Make sure we negotiated (if the client is configured to do so),
+	// as code below contains API-version specific handling of options.
+	//
+	// Normally, version-negotiation (if enabled) would not happen until
+	// the API request is made.
+	cli.checkVersion(ctx)
 	if versions.LessThan(cli.ClientVersion(), "1.30") {
 		return cli.legacyContainerWait(ctx, containerID)
 	}

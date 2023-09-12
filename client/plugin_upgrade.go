@@ -14,7 +14,7 @@ import (
 
 // PluginUpgrade upgrades a plugin
 func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types.PluginInstallOptions) (rc io.ReadCloser, err error) {
-	if err := cli.NewVersionError("1.26", "plugin upgrade"); err != nil {
+	if err := cli.NewVersionError(ctx, "1.26", "plugin upgrade"); err != nil {
 		return nil, err
 	}
 	query := url.Values{}

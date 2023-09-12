@@ -254,13 +254,21 @@ func (cli *Client) Close() error {
 	return nil
 }
 
+// checkVersion manually triggers API version negotiation (if configured).
+// This allows for version-dependent code to use the same version as will
+// be negotiated when making the actual requests, and for which cases
+// we cannot do the negotiation lazily.
+func (cli *Client) checkVersion(ctx context.Context) {
+	if cli.negotiateVersion && !cli.negotiated {
+		cli.NegotiateAPIVersion(ctx)
+	}
+}
+
 // getAPIPath returns the versioned request path to call the API.
 // It appends the query parameters to the path if they are not empty.
 func (cli *Client) getAPIPath(ctx context.Context, p string, query url.Values) string {
 	var apiPath string
-	if cli.negotiateVersion && !cli.negotiated {
-		cli.NegotiateAPIVersion(ctx)
-	}
+	cli.checkVersion(ctx)
 	if cli.version != "" {
 		v := strings.TrimPrefix(cli.version, "v")
 		apiPath = path.Join(cli.basePath, "/v"+v, p)
