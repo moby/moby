@@ -32,11 +32,6 @@ const (
 )
 
 func setupIPChains(config configuration, version iptables.IPVersion) (natChain *iptables.ChainInfo, filterChain *iptables.ChainInfo, isolationChain1 *iptables.ChainInfo, isolationChain2 *iptables.ChainInfo, retErr error) {
-	// Sanity check.
-	if !config.EnableIPTables {
-		return nil, nil, nil, nil, errors.New("cannot create new chains, EnableIPTable is disabled")
-	}
-
 	hairpinMode := !config.EnableUserlandProxy
 
 	iptable := iptables.GetIptable(version)
