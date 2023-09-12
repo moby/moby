@@ -5,7 +5,7 @@
 
 // Package singleflight provides a duplicate function call suppression
 // mechanism similar to golang.org/x/sync/singleflight with support
-// for context cancelation.
+// for context cancellation.
 package singleflight
 
 import (
@@ -17,7 +17,7 @@ import (
 // which units of work can be executed with duplicate suppression.
 type Group[K comparable, V any] struct {
 	calls map[K]*call[V] // lazily initialized
-	mu    sync.Mutex       // protects calls
+	mu    sync.Mutex     // protects calls
 }
 
 // Do executes and returns the results of the given function, making sure that
@@ -25,10 +25,12 @@ type Group[K comparable, V any] struct {
 // comes in, the duplicate caller waits for the original to complete and
 // receives the same results.
 //
-// The context passed to the fn function is a new context which is canceled when
-// contexts from all callers are canceled, so that no caller is expecting the
-// result. If there are multiple callers, context passed to one caller does not
-// effect the execution and returned values of others.
+// The context passed to the fn function is a context that preserves all values
+// from the passed context but is cancelled by the singleflight only when all
+// awaiting caller's contexts are cancelled (no caller is awaiting the result).
+// If there are multiple callers, context passed to one caller does not affect
+// the execution and returned values of others except if the function result is
+// dependent on the context values.
 //
 // The return value shared indicates whether v was given to multiple callers.
 func (g *Group[K, V]) Do(ctx context.Context, key K, fn func(ctx context.Context) (V, error)) (v V, shared bool, err error) {
@@ -45,7 +47,9 @@ func (g *Group[K, V]) Do(ctx context.Context, key K, fn func(ctx context.Context
 		return g.wait(ctx, key, c)
 	}
 
-	callCtx, cancel := context.WithCancel(context.Background())
+	// Replace cancellation from the user context with a cancellation
+	// controlled by the singleflight and preserve context values.
+	callCtx, cancel := context.WithCancel(withoutCancel(ctx))
 
 	c := &call[V]{
 		done:    make(chan struct{}),
@@ -76,8 +80,6 @@ func (g *Group[K, V]) wait(ctx context.Context, key K, c *call[V]) (v V, shared 
 	c.counter--
 	if c.counter == 0 {
 		c.cancel()
-	}
-	if !c.forgotten {
 		delete(g.calls, key)
 	}
 	g.mu.Unlock()
@@ -89,9 +91,6 @@ func (g *Group[K, V]) wait(ctx context.Context, key K, c *call[V]) (v V, shared 
 // an earlier call to complete.
 func (g *Group[K, V]) Forget(key K) {
 	g.mu.Lock()
-	if c, ok := g.calls[key]; ok {
-		c.forgotten = true
-	}
 	delete(g.calls, key)
 	g.mu.Unlock()
 }
@@ -105,15 +104,12 @@ type call[V any] struct {
 	// done channel signals that the function call is done.
 	done chan struct{}
 
-	// forgotten indicates whether Forget was called with this call's key
-	// while the call was still in flight.
-	forgotten bool
-
-	// shared indicates if results val and err are passed to multiple callers.
-	shared bool
+	// Cancel function for the context passed to the executing function.
+	cancel context.CancelFunc
 
 	// Number of callers that are waiting for the result.
 	counter int
-	// Cancel function for the context passed to the executing function.
-	cancel context.CancelFunc
+
+	// shared indicates if results val and err are passed to multiple callers.
+	shared bool
 }
