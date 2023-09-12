@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/middleware"
@@ -26,7 +27,7 @@ func TestMiddlewares(t *testing.T) {
 	ctx := context.Background()
 
 	localHandler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		if httputils.VersionFromContext(ctx) == "" {
+		if versions.FromContext(ctx) == "" {
 			t.Fatal("Expected version, got empty string")
 		}
 

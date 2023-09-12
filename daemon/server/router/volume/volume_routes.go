@@ -38,7 +38,7 @@ func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
 		clusterVolumes, swarmErr := v.cluster.GetVolumes(volumebackend.ListOptions{Filters: f})
 		if swarmErr != nil {
@@ -59,7 +59,7 @@ func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWrite
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 
 	// re: volume name duplication
 	//
@@ -102,7 +102,7 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 	var (
 		vol     *volume.Volume
 		err     error
-		version = httputils.VersionFromContext(ctx)
+		version = versions.FromContext(ctx)
 	)
 
 	// if the ClusterVolumeSpec is filled in, then this is a cluster volume
@@ -175,7 +175,7 @@ func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter,
 	// volumes, so we don't know if removal succeeded (or not volume existed).
 	// In that case we always try to delete cluster volumes as well.
 	if cerrdefs.IsNotFound(err) || force {
-		version := httputils.VersionFromContext(ctx)
+		version := versions.FromContext(ctx)
 		if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
 			err = v.cluster.RemoveVolume(vars["name"], force)
 		}
@@ -200,7 +200,7 @@ func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWrit
 
 	// API version 1.42 changes behavior where prune should only prune anonymous volumes.
 	// To keep older API behavior working, we need to add this filter option to consider all (local) volumes for pruning, not just anonymous ones.
-	if versions.LessThan(httputils.VersionFromContext(ctx), "1.42") {
+	if versions.LessThan(versions.FromContext(ctx), "1.42") {
 		pruneFilters.Add("all", "true")
 	}
 

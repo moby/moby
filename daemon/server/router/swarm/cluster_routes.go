@@ -23,7 +23,7 @@ func (sr *swarmRouter) initCluster(ctx context.Context, w http.ResponseWriter, r
 	if err := httputils.ReadJSON(r, &req); err != nil {
 		return err
 	}
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 
 	// DefaultAddrPool and SubnetSize were added in API 1.39. Ignore on older API versions.
 	if versions.LessThan(version, "1.39") {
@@ -156,7 +156,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 
 	// the status query parameter is only support in API versions >= 1.41. If
 	// the client is using a lesser version, ignore the parameter.
-	cliVersion := httputils.VersionFromContext(ctx)
+	cliVersion := versions.FromContext(ctx)
 	var status bool
 	if value := r.URL.Query().Get("status"); value != "" && !versions.LessThan(cliVersion, "1.41") {
 		var err error
@@ -213,7 +213,7 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 	// Get returns "" if the header does not exist
 	encodedAuth := r.Header.Get(registry.AuthHeader)
 	queryRegistry := false
-	if v := httputils.VersionFromContext(ctx); v != "" {
+	if v := versions.FromContext(ctx); v != "" {
 		if versions.LessThan(v, "1.30") {
 			queryRegistry = true
 		}
@@ -252,7 +252,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	flags.RegistryAuthFrom = r.URL.Query().Get("registryAuthFrom")
 	flags.Rollback = r.URL.Query().Get("rollback")
 	queryRegistry := false
-	if v := httputils.VersionFromContext(ctx); v != "" {
+	if v := versions.FromContext(ctx); v != "" {
 		if versions.LessThan(v, "1.30") {
 			queryRegistry = true
 		}
@@ -429,7 +429,7 @@ func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, 
 	if err := httputils.ReadJSON(r, &secret); err != nil {
 		return err
 	}
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if secret.Templating != nil && versions.LessThan(version, "1.37") {
 		return errdefs.InvalidParameter(errors.Errorf("secret templating is not supported on the specified API version: %s", version))
 	}
@@ -501,7 +501,7 @@ func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if config.Templating != nil && versions.LessThan(version, "1.37") {
 		return errdefs.InvalidParameter(errors.Errorf("config templating is not supported on the specified API version: %s", version))
 	}

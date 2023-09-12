@@ -21,7 +21,7 @@ func (c *containerRouter) getContainersByName(ctx context.Context, w http.Respon
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if versions.LessThan(version, "1.45") {
 		shortCID := stringid.TruncateID(ctr.ID)
 		for nwName, ep := range ctr.NetworkSettings.Networks {
