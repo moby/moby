@@ -2,6 +2,7 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"runtime"
 
@@ -199,16 +200,14 @@ Please notify the image author to correct the configuration.`,
 // Every call to GetImageAndReleasableLayer MUST call releasableLayer.Release() to prevent
 // leaking of layers.
 func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
-	if refOrID == "" { // ie FROM scratch
-		os := runtime.GOOS
+	if refOrID == "" { // FROM scratch
 		if runtime.GOOS == "windows" {
-			os = "linux"
+			return nil, nil, fmt.Errorf(`"FROM scratch" is not supported on Windows`)
 		}
 		if opts.Platform != nil {
-			os = opts.Platform.OS
-		}
-		if err := image.CheckOS(os); err != nil {
-			return nil, nil, err
+			if err := image.CheckOS(opts.Platform.OS); err != nil {
+				return nil, nil, err
+			}
 		}
 		lyr, err := newROLayerForImage(nil, i.layerStore)
 		return nil, lyr, err

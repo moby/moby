@@ -45,22 +45,18 @@ const imageLabelClassicBuilderParent = "org.mobyproject.image.parent"
 // reference or ID. Every call to GetImageAndReleasableLayer MUST call
 // releasableLayer.Release() to prevent leaking of layers.
 func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
-	if refOrID == "" { // from SCRATCH
-		imgOS := runtime.GOOS
+	if refOrID == "" { // FROM scratch
 		if runtime.GOOS == "windows" {
-			imgOS = "linux"
+			return nil, nil, fmt.Errorf(`"FROM scratch" is not supported on Windows`)
 		}
 		if opts.Platform != nil {
-			imgOS = opts.Platform.OS
-		}
-		if err := dimage.CheckOS(imgOS); err != nil {
-			return nil, nil, err
+			if err := dimage.CheckOS(opts.Platform.OS); err != nil {
+				return nil, nil, err
+			}
 		}
 		return nil, &rolayer{
-			key:         "",
 			c:           i.client,
 			snapshotter: i.snapshotter,
-			diffID:      "",
 		}, nil
 	}
 
