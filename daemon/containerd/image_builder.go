@@ -229,7 +229,7 @@ type rolayer struct {
 	key                string
 	c                  *containerd.Client
 	snapshotter        string
-	diffID             digest.Digest
+	diffID             layer.DiffID
 	contentStoreDigest digest.Digest
 	lease              *leases.Lease
 }
@@ -242,7 +242,7 @@ func (rl *rolayer) DiffID() layer.DiffID {
 	if rl.diffID == "" {
 		return layer.DigestSHA256EmptyTar
 	}
-	return layer.DiffID(rl.diffID)
+	return rl.diffID
 }
 
 func (rl *rolayer) Release() error {
@@ -356,7 +356,7 @@ func (rw *rwlayer) Commit() (_ builder.ROLayer, outErr error) {
 		key:                key,
 		c:                  rw.c,
 		snapshotter:        rw.snapshotter,
-		diffID:             diffID,
+		diffID:             layer.DiffID(diffID),
 		contentStoreDigest: desc.Digest,
 		lease:              &lease,
 	}, nil
