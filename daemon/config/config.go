@@ -65,7 +65,7 @@ const (
 	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
 	// environment variable. It currently defaults to the minimum API version
 	// supported by the API server.
-	defaultMinAPIVersion = api.MinSupportedAPIVersion
+	defaultMinAPIVersion = versions.Min
 	// SeccompProfileDefault is the built-in default seccomp profile.
 	SeccompProfileDefault = "builtin"
 	// SeccompProfileUnconfined is a special profile name for seccomp to use an
