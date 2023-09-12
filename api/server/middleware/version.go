@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"runtime"
 
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/versions"
 )
 
@@ -58,7 +57,7 @@ func (v VersionMiddleware) WrapHandler(handler func(ctx context.Context, w http.
 		if versions.GreaterThan(apiVersion, v.defaultVersion) {
 			return versionUnsupportedError{version: apiVersion, maxVersion: v.defaultVersion}
 		}
-		ctx = context.WithValue(ctx, httputils.APIVersionKey{}, apiVersion)
+		ctx = versions.WithVersion(ctx, apiVersion)
 		return handler(ctx, w, r, vars)
 	}
 }
