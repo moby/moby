@@ -29,9 +29,3 @@ func (pm *PortMapper) AppendForwardingTableEntry(proto string, sourceIP net.IP, 
 func (pm *PortMapper) DeleteForwardingTableEntry(proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
 	return nil
 }
-
-// checkIP checks if IP is valid and matching to chain version
-func (pm *PortMapper) checkIP(ip net.IP) bool {
-	// no IPv6 for port mapper on windows -> only IPv4 valid
-	return ip.To4() != nil
-}
