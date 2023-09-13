@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/vishvananda/netlink"
 )
@@ -92,6 +93,11 @@ func createTestBridge(config *networkConfiguration, br *bridgeInterface, t *test
 	if err := setupBridgeIPv4(config, br); err != nil {
 		t.Fatalf("Failed to bring up the testing Bridge: %s", err.Error())
 	}
+	if config.EnableIPv6 {
+		if err := setupBridgeIPv6(config, br); err != nil {
+			t.Fatalf("Failed to bring up the testing Bridge: %s", err.Error())
+		}
+	}
 }
 
 // Assert base function which pushes iptables chain rules on insertion and removal.
@@ -123,13 +129,20 @@ func assertChainConfig(d *driver, t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if d.config.EnableIP6Tables {
+		d.natChainV6, d.filterChainV6, d.isolationChain1V6, d.isolationChain2V6, err = setupIPChains(d.config, iptables.IPv6)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 // Assert function which pushes chains based on bridge config parameters.
 func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, d *driver, t *testing.T) {
 	nw := bridgeNetwork{
-		portMapper: portmapper.New(""),
-		config:     config,
+		portMapper:   portmapper.New(""),
+		portMapperV6: portmapper.New(""),
+		config:       config,
 	}
 	nw.driver = d
 
@@ -138,4 +151,37 @@ func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, d *dr
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
+	if d.config.EnableIP6Tables {
+		if err := nw.setupIP6Tables(config, br); err != nil {
+			t.Fatalf("%v", err)
+		}
+	}
+}
+
+// Regression test for https://github.com/moby/moby/issues/46445
+func TestSetupIP6TablesWithHostIP(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+	d := newDriver()
+	dc := &configuration{
+		EnableIPTables:  true,
+		EnableIP6Tables: true,
+	}
+	if err := d.configure(map[string]interface{}{netlabel.GenericData: dc}); err != nil {
+		t.Fatal(err)
+	}
+	nc := &networkConfiguration{
+		BridgeName:         DefaultBridgeName,
+		AddressIPv4:        &net.IPNet{IP: net.ParseIP(iptablesTestBridgeIP), Mask: net.CIDRMask(16, 32)},
+		EnableIPMasquerade: true,
+		EnableIPv6:         true,
+		AddressIPv6:        &net.IPNet{IP: net.ParseIP("2001:db8::1"), Mask: net.CIDRMask(64, 128)},
+		HostIP:             net.ParseIP("192.0.2.2"),
+	}
+	nh, err := netlink.NewHandle()
+	if err != nil {
+		t.Fatal(err)
+	}
+	br := &bridgeInterface{nlh: nh}
+	createTestBridge(nc, br, t)
+	assertBridgeConfig(nc, br, d, t)
 }

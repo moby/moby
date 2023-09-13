@@ -157,11 +157,15 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 			return setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, false)
 		})
 	} else {
-		if err = setupIPTablesInternal(config.HostIP, config.BridgeName, maskedAddr, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
+		hostIP := config.HostIP
+		if ipVersion != iptables.IPv4 {
+			hostIP = nil
+		}
+		if err = setupIPTablesInternal(hostIP, config.BridgeName, maskedAddr, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
 		}
 		n.registerIptCleanFunc(func() error {
-			return setupIPTablesInternal(config.HostIP, config.BridgeName, maskedAddr, config.EnableICC, config.EnableIPMasquerade, hairpinMode, false)
+			return setupIPTablesInternal(hostIP, config.BridgeName, maskedAddr, config.EnableICC, config.EnableIPMasquerade, hairpinMode, false)
 		})
 		natChain, filterChain, _, _, err := n.getDriverChains(ipVersion)
 		if err != nil {
