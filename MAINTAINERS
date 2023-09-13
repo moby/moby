@@ -69,6 +69,7 @@
 			"alexellis",
 			"andrewhsu",
 			"bsousaa",
+			"dmcgowan",
 			"fntlnz",
 			"gianarb",
 			"olljanat",
@@ -356,6 +357,11 @@
 	Name = "Daniel Nephin"
 	Email = "dnephin@gmail.com"
 	GitHub = "dnephin"
+
+	[people.dmcgowan]
+	Name = "Derek McGowan"
+	Email = "derek@mcgstyle.net"
+	GitHub = "dmcgowan"
 
 	[people.duglin]
 	Name = "Doug Davis"
