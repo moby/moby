@@ -196,18 +196,6 @@ type netWatch struct {
 	remoteEps map[string]*Endpoint
 }
 
-func (c *Controller) getLocalEps(nw *netWatch) []*Endpoint {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	var epl []*Endpoint
-	for _, ep := range nw.localEps {
-		epl = append(epl, ep)
-	}
-
-	return epl
-}
-
 func (c *Controller) watchSvcRecord(ep *Endpoint) {
 	c.watchCh <- ep
 }
@@ -231,7 +219,7 @@ func (c *Controller) processEndpointCreate(ep *Endpoint) {
 
 	if ok {
 		// Update the svc db for the local endpoint join right away
-		n.updateSvcRecord(ep, c.getLocalEps(nw), true)
+		n.updateSvcRecord(ep, true)
 
 		c.mu.Lock()
 		nw.localEps[endpointID] = ep
@@ -252,7 +240,7 @@ func (c *Controller) processEndpointCreate(ep *Endpoint) {
 	// Update the svc db for the local endpoint join right away
 	// Do this before adding this ep to localEps so that we don't
 	// try to update this ep's container's svc records
-	n.updateSvcRecord(ep, c.getLocalEps(nw), true)
+	n.updateSvcRecord(ep, true)
 
 	c.mu.Lock()
 	nw.localEps[endpointID] = ep
@@ -277,7 +265,7 @@ func (c *Controller) processEndpointDelete(ep *Endpoint) {
 		// Update the svc db about local endpoint leave right away
 		// Do this after we remove this ep from localEps so that we
 		// don't try to remove this svc record from this ep's container.
-		n.updateSvcRecord(ep, c.getLocalEps(nw), false)
+		n.updateSvcRecord(ep, false)
 
 		c.mu.Lock()
 		if len(nw.localEps) == 0 {
