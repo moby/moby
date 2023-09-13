@@ -33,8 +33,8 @@ var (
 )
 
 // New returns a new instance of PortMapper
-func New(proxyPath string) *PortMapper {
-	return NewWithPortAllocator(portallocator.Get(), proxyPath)
+func New() *PortMapper {
+	return NewWithPortAllocator(portallocator.Get(), "")
 }
 
 // NewWithPortAllocator returns a new instance of PortMapper which will use the specified PortAllocator

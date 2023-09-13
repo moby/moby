@@ -140,8 +140,8 @@ func assertChainConfig(d *driver, t *testing.T) {
 // Assert function which pushes chains based on bridge config parameters.
 func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, d *driver, t *testing.T) {
 	nw := bridgeNetwork{
-		portMapper:   portmapper.New(""),
-		portMapperV6: portmapper.New(""),
+		portMapper:   portmapper.New(),
+		portMapperV6: portmapper.New(),
 		config:       config,
 	}
 	nw.driver = d
