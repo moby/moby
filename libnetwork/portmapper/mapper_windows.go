@@ -17,7 +17,7 @@ type PortMapper struct {
 
 	proxyPath string
 
-	Allocator *portallocator.PortAllocator
+	allocator *portallocator.PortAllocator
 }
 
 // AppendForwardingTableEntry adds a port mapping to the forwarding table
