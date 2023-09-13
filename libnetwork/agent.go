@@ -452,38 +452,36 @@ func (n *Network) Services() map[string]ServiceInfo {
 	if agent == nil {
 		return nil
 	}
+	nwID := n.ID()
+	d, err := n.driver(true)
+	if err != nil {
+		log.G(context.TODO()).Errorf("Could not resolve driver for network %s/%s while fetching services: %v", n.networkType, nwID, err)
+		return nil
+	}
 
 	// Walk through libnetworkEPTable and fetch the driver agnostic endpoint info
-	entries := agent.networkDB.GetTableByNetwork(libnetworkEPTable, n.id)
 	eps := make(map[string]epRecord)
-	for eid, value := range entries {
+	c := n.getController()
+	for eid, value := range agent.networkDB.GetTableByNetwork(libnetworkEPTable, nwID) {
 		var epRec EndpointRecord
-		nid := n.ID()
 		if err := proto.Unmarshal(value.Value, &epRec); err != nil {
-			log.G(context.TODO()).Errorf("Unmarshal of libnetworkEPTable failed for endpoint %s in network %s, %v", eid, nid, err)
+			log.G(context.TODO()).Errorf("Unmarshal of libnetworkEPTable failed for endpoint %s in network %s, %v", eid, nwID, err)
 			continue
 		}
-		i := n.getController().getLBIndex(epRec.ServiceID, nid, epRec.IngressPorts)
 		eps[eid] = epRecord{
 			ep:      epRec,
-			lbIndex: i,
+			lbIndex: c.getLBIndex(epRec.ServiceID, nwID, epRec.IngressPorts),
 		}
 	}
 
 	// Walk through the driver's tables, have the driver decode the entries
 	// and return the tuple {ep ID, value}. value is a string that coveys
 	// relevant info about the endpoint.
-	d, err := n.driver(true)
-	if err != nil {
-		log.G(context.TODO()).Errorf("Could not resolve driver for network %s/%s while fetching services: %v", n.networkType, n.ID(), err)
-		return nil
-	}
 	for _, table := range n.driverTables {
 		if table.objType != driverapi.EndpointObject {
 			continue
 		}
-		entries := agent.networkDB.GetTableByNetwork(table.name, n.id)
-		for key, value := range entries {
+		for key, value := range agent.networkDB.GetTableByNetwork(table.name, nwID) {
 			epID, info := d.DecodeTableEntry(table.name, key, value.Value)
 			if ep, ok := eps[epID]; !ok {
 				log.G(context.TODO()).Errorf("Inconsistent driver and libnetwork state for endpoint %s", epID)
@@ -497,21 +495,17 @@ func (n *Network) Services() map[string]ServiceInfo {
 	// group the endpoints into a map keyed by the service name
 	sinfo := make(map[string]ServiceInfo)
 	for ep, epr := range eps {
-		var (
-			s  ServiceInfo
-			ok bool
-		)
-		if s, ok = sinfo[epr.ep.ServiceName]; !ok {
+		s, ok := sinfo[epr.ep.ServiceName]
+		if !ok {
 			s = ServiceInfo{
 				VIP:          epr.ep.VirtualIP,
 				LocalLBIndex: epr.lbIndex,
 			}
 		}
-		ports := []string{}
 		if s.Ports == nil {
+			ports := make([]string, 0, len(epr.ep.IngressPorts))
 			for _, port := range epr.ep.IngressPorts {
-				p := fmt.Sprintf("Target: %d, Publish: %d", port.TargetPort, port.PublishedPort)
-				ports = append(ports, p)
+				ports = append(ports, fmt.Sprintf("Target: %d, Publish: %d", port.TargetPort, port.PublishedPort))
 			}
 			s.Ports = ports
 		}
@@ -560,11 +554,11 @@ func (n *Network) leaveCluster() error {
 }
 
 func (ep *Endpoint) addDriverInfoToCluster() error {
-	n := ep.getNetwork()
-	if !n.isClusterEligible() {
+	if ep.joinInfo == nil || len(ep.joinInfo.driverTableEntries) == 0 {
 		return nil
 	}
-	if ep.joinInfo == nil {
+	n := ep.getNetwork()
+	if !n.isClusterEligible() {
 		return nil
 	}
 
@@ -582,11 +576,11 @@ func (ep *Endpoint) addDriverInfoToCluster() error {
 }
 
 func (ep *Endpoint) deleteDriverInfoFromCluster() error {
-	n := ep.getNetwork()
-	if !n.isClusterEligible() {
+	if ep.joinInfo == nil || len(ep.joinInfo.driverTableEntries) == 0 {
 		return nil
 	}
-	if ep.joinInfo == nil {
+	n := ep.getNetwork()
+	if !n.isClusterEligible() {
 		return nil
 	}
 
@@ -604,7 +598,7 @@ func (ep *Endpoint) deleteDriverInfoFromCluster() error {
 }
 
 func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
-	if ep.isAnonymous() && len(ep.myAliases) == 0 || ep.Iface() == nil || ep.Iface().Address() == nil {
+	if len(ep.myAliases) == 0 && ep.isAnonymous() || ep.Iface() == nil || ep.Iface().Address() == nil {
 		return nil
 	}
 
@@ -628,7 +622,7 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 	// In case the deleteServiceInfoToCluster arrives first, this one is happening after the endpoint is
 	// removed from the list, in this situation the delete will bail out not finding any data to cleanup
 	// and the add will bail out not finding the endpoint on the sandbox.
-	if e := sb.getEndpoint(ep.ID()); e == nil {
+	if err := sb.getEndpoint(ep.ID()); err == nil {
 		log.G(context.TODO()).Warnf("addServiceInfoToCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
 		return nil
 	}
@@ -686,7 +680,7 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 }
 
 func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, method string) error {
-	if ep.isAnonymous() && len(ep.myAliases) == 0 {
+	if len(ep.myAliases) == 0 && ep.isAnonymous() {
 		return nil
 	}
 
@@ -703,7 +697,7 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 	// get caught in disableServceInNetworkDB, but we check here to make the
 	// nature of the condition more clear.
 	// See comment in addServiceInfoToCluster()
-	if e := sb.getEndpoint(ep.ID()); e == nil {
+	if err := sb.getEndpoint(ep.ID()); err == nil {
 		log.G(context.TODO()).Warnf("deleteServiceInfoFromCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
 		return nil
 	}
@@ -780,6 +774,9 @@ func disableServiceInNetworkDB(a *nwAgent, n *Network, ep *Endpoint) {
 }
 
 func (n *Network) addDriverWatches() {
+	if len(n.driverTables) == 0 {
+		return
+	}
 	if !n.isClusterEligible() {
 		return
 	}
