@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/gogo/protobuf/proto"
 )
 

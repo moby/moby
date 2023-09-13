@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 type requestReader struct {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/cmd/networkdb-test/dbclient"
 	"github.com/docker/docker/libnetwork/cmd/networkdb-test/dbserver"
 )

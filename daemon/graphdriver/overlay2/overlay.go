@@ -14,8 +14,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/continuity/fs"
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/archive"

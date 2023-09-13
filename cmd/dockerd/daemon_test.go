@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/pflag"

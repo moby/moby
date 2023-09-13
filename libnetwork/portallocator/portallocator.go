@@ -7,7 +7,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 type ipMapping map[string]protoMap

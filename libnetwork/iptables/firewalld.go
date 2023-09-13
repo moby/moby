@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	dbus "github.com/godbus/dbus/v5"
 )
 

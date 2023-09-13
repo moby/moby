@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	metrics "github.com/docker/go-metrics"
 )
 

@@ -3,7 +3,7 @@ package debug // import "github.com/docker/docker/cli/debug"
 import (
 	"os"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 // Enable sets the DEBUG env var to true

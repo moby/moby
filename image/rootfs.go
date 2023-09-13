@@ -4,7 +4,7 @@ import (
 	"context"
 	"runtime"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/layer"
 )
 

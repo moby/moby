@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/errdefs"
 	"google.golang.org/grpc/codes"

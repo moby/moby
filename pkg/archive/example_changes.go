@@ -12,7 +12,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/archive"
 )
 

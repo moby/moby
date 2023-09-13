@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork"

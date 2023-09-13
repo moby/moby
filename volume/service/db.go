@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"

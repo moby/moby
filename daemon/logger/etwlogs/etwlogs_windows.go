@@ -19,7 +19,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"golang.org/x/sys/windows"
 )
@@ -42,9 +42,12 @@ var (
 	procEventWriteString = modAdvapi32.NewProc("EventWriteString")
 	procEventUnregister  = modAdvapi32.NewProc("EventUnregister")
 )
-var providerHandle windows.Handle
-var refCount int
-var mu sync.Mutex
+
+var (
+	providerHandle windows.Handle
+	refCount       int
+	mu             sync.Mutex
+)
 
 func init() {
 	providerHandle = windows.InvalidHandle
@@ -149,7 +152,6 @@ func callEventRegister() error {
 
 func callEventWriteString(message string) error {
 	utf16message, err := windows.UTF16FromString(message)
-
 	if err != nil {
 		return err
 	}

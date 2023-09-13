@@ -3,7 +3,7 @@ package zfs // import "github.com/docker/docker/daemon/graphdriver/zfs"
 import (
 	"context"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
 )
 

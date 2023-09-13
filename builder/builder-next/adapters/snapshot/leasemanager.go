@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	bolt "go.etcd.io/bbolt"
 )
 

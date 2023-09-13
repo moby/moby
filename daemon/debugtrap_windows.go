@@ -6,7 +6,7 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/stack"
 	"golang.org/x/sys/windows"
 )

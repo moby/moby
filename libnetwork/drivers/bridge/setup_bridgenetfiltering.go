@@ -9,7 +9,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 // Enumeration type saying which versions of IP protocol to process.

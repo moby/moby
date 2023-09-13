@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/bsphere/le_go"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/pkg/errors"
 )

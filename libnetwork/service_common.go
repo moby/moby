@@ -6,7 +6,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 const maxSetStringLen = 350

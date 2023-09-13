@@ -5,7 +5,7 @@ package platform // import "github.com/docker/docker/pkg/platform"
 import (
 	"context"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 // Architecture holds the runtime architecture of the process.

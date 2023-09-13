@@ -5,8 +5,8 @@ import (
 	"sort"
 
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/log"
 	cplatforms "github.com/containerd/containerd/platforms"
+	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"

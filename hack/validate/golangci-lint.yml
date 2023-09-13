@@ -129,10 +129,6 @@ issues:
     - text: "SA1019: (assert|cmp|is)\\.ErrorType is deprecated"
       linters:
         - staticcheck
-    # FIXME temporarily suppress deprecation warnings for the logs package. See https://github.com/moby/moby/pull/46611
-    - text: "SA1019: log\\.(G|L|Fields|Entry|RFC3339NanoFixed|Level|TraceLevel|DebugLevel|InfoLevel|WarnLevel|ErrorLevel|FatalLevel|PanicLevel|SetLevel|GetLevel|OutputFormat|TextFormat|JSONFormat|SetFormat|WithLogger|GetLogger)"
-      linters:
-        - staticcheck
 
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0
