@@ -276,3 +276,29 @@ func TestRunWithAlternativeContainerdShim(t *testing.T) {
 
 	assert.Equal(t, strings.TrimSpace(b.String()), "Hello, world!")
 }
+
+func TestMacAddressIsAppliedToMainNetworkWithShortID(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+
+	n := net.CreateNoError(ctx, t, apiClient, "testnet", net.WithIPAM("192.168.101.0/24", "192.168.101.1"))
+
+	cid := container.Run(ctx, t, apiClient,
+		container.WithImage("busybox:latest"),
+		container.WithCmd("/bin/sleep", "infinity"),
+		container.WithStopSignal("SIGKILL"),
+		container.WithNetworkMode(n[:10]),
+		container.WithMacAddress("02:42:08:26:a9:55"))
+	defer container.Remove(ctx, t, apiClient, cid, types.ContainerRemoveOptions{Force: true})
+
+	c := container.Inspect(ctx, t, apiClient, cid)
+	assert.Equal(t, c.NetworkSettings.Networks["testnet"].MacAddress, "02:42:08:26:a9:55")
+}
