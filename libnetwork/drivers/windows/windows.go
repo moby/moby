@@ -261,7 +261,7 @@ func (d *driver) createNetwork(config *networkConfiguration) *hnsNetwork {
 		endpoints:  make(map[string]*hnsEndpoint),
 		config:     config,
 		driver:     d,
-		portMapper: portmapper.New(""),
+		portMapper: portmapper.New(),
 	}
 
 	d.Lock()

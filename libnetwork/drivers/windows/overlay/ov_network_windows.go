@@ -96,7 +96,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		driver:     d,
 		endpoints:  endpointTable{},
 		subnets:    []*subnet{},
-		portMapper: portmapper.New(""),
+		portMapper: portmapper.New(),
 	}
 
 	genData, ok := option[netlabel.GenericData].(map[string]string)

@@ -18,7 +18,7 @@ type PortMapper struct {
 
 	proxyPath string
 
-	Allocator *portallocator.PortAllocator
+	allocator *portallocator.PortAllocator
 	chain     *iptables.ChainInfo
 }
 
