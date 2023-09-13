@@ -216,7 +216,7 @@ func (c *Controller) unWatchSvcRecord(ep *Endpoint) {
 	c.unWatchCh <- ep
 }
 
-func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *Endpoint) {
+func (c *Controller) processEndpointCreate(ep *Endpoint) {
 	n := ep.getNetwork()
 	if !c.isDistributedControl() && n.Scope() == scope.Swarm && n.driverIsMultihost() {
 		return
@@ -226,7 +226,7 @@ func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *Endpoi
 	endpointID := ep.ID()
 
 	c.mu.Lock()
-	nw, ok := nmap[networkID]
+	nw, ok := c.nmap[networkID]
 	c.mu.Unlock()
 
 	if ok {
@@ -256,11 +256,11 @@ func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *Endpoi
 
 	c.mu.Lock()
 	nw.localEps[endpointID] = ep
-	nmap[networkID] = nw
+	c.nmap[networkID] = nw
 	c.mu.Unlock()
 }
 
-func (c *Controller) processEndpointDelete(nmap map[string]*netWatch, ep *Endpoint) {
+func (c *Controller) processEndpointDelete(ep *Endpoint) {
 	n := ep.getNetwork()
 	if !c.isDistributedControl() && n.Scope() == scope.Swarm && n.driverIsMultihost() {
 		return
@@ -270,9 +270,7 @@ func (c *Controller) processEndpointDelete(nmap map[string]*netWatch, ep *Endpoi
 	endpointID := ep.ID()
 
 	c.mu.Lock()
-	nw, ok := nmap[networkID]
-
-	if ok {
+	if nw, ok := c.nmap[networkID]; ok {
 		delete(nw.localEps, endpointID)
 		c.mu.Unlock()
 
@@ -286,8 +284,7 @@ func (c *Controller) processEndpointDelete(nmap map[string]*netWatch, ep *Endpoi
 			// This is the last container going away for the network. Destroy
 			// this network's svc db entry
 			delete(c.svcRecords, networkID)
-
-			delete(nmap, networkID)
+			delete(c.nmap, networkID)
 		}
 	}
 	c.mu.Unlock()
@@ -297,9 +294,9 @@ func (c *Controller) watchLoop() {
 	for {
 		select {
 		case ep := <-c.watchCh:
-			c.processEndpointCreate(c.nmap, ep)
+			c.processEndpointCreate(ep)
 		case ep := <-c.unWatchCh:
-			c.processEndpointDelete(c.nmap, ep)
+			c.processEndpointDelete(ep)
 		}
 	}
 }
