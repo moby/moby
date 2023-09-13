@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/iptables"
@@ -239,6 +240,14 @@ func (r iptRule) Delete() error {
 		return nil
 	}
 	return r.exec(iptables.Delete)
+}
+
+func (r iptRule) String() string {
+	cmd := append([]string{"iptables"}, r.cmdArgs("-A")...)
+	if r.ipv == iptables.IPv6 {
+		cmd[0] = "ip6tables"
+	}
+	return strings.Join(cmd, " ")
 }
 
 func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguration, addr *net.IPNet, hairpin, enable bool) error {
