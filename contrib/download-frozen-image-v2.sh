@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
+# This script was developed for use in Moby's CI, and as such the use cases and
+# usability are (intentionally) limited. You may find this script useful for
+# educational purposes, for example, to learn how pulling images works "under
+# the hood", and you may be able to use it for other purposes, but it should not
+# be considered a "general purpose" tool for pulling images.
+#
+# The project maintainers accept contributions to this script within its intended
+# scope, but may not accept contributions beyond that.
+#
+# For users who have a similar need but require more flexibility/functionality,
+# refer the the discussion on GitHub, which mentions various alternatives that
+# are more suitable for other uses: https://github.com/moby/moby/issues/40857
+
 # hello-world                      latest              ef872312fe1b        3 months ago        910 B
 # hello-world                      latest              ef872312fe1bbc5e05aae626791a47ee9b032efa8f3bda39cc0be7b56bfe59b9   3 months ago        910 B
 
