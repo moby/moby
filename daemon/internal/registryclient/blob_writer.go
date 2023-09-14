@@ -42,6 +42,8 @@ func (hbu *httpBlobUpload) ReadFrom(r io.Reader) (n int64, err error) {
 	}
 	defer req.Body.Close()
 
+	req.Header.Set("Content-Type", "application/octet-stream")
+
 	resp, err := hbu.client.Do(req)
 	if err != nil {
 		return 0, err
