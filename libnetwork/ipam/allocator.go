@@ -106,6 +106,14 @@ func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[
 	}
 
 	k.Subnet, k.ChildSubnet = k.Subnet.Masked(), k.ChildSubnet.Masked()
+	// Prior to https://github.com/moby/moby/pull/44968, libnetwork would happily accept a ChildSubnet with a bigger
+	// mask than its parent subnet. In such case, it was producing IP addresses based on the parent subnet, and the
+	// child subnet was not allocated from the address pool. Following condition take care of restoring this behavior
+	// for networks created before upgrading to v24.0.
+	if k.ChildSubnet.IsValid() && k.ChildSubnet.Bits() < k.Subnet.Bits() {
+		k.ChildSubnet = k.Subnet
+	}
+
 	err = aSpace.allocateSubnet(k.Subnet, k.ChildSubnet)
 	if err != nil {
 		return "", nil, nil, err
