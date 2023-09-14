@@ -388,7 +388,7 @@ func (c *client) extractResourcesFromSpec(spec *specs.Spec, configuration *hcssh
 	}
 }
 
-func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Task, error) {
+func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Task, retErr error) {
 	ctr.mu.Lock()
 	defer ctr.mu.Unlock()
 
@@ -445,7 +445,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	}
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if err := newProcess.Kill(); err != nil {
 				logger.WithError(err).Error("failed to kill process")
 			}
@@ -556,7 +556,7 @@ func newIOFromProcess(newProcess hcsshim.Process, terminal bool) (*cio.DirectIO,
 // The processID argument is entirely informational. As there is no mechanism
 // (exposed through the libcontainerd interfaces) to enumerate or reference an
 // exec'd process by ID, uniqueness is not currently enforced.
-func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Process, error) {
+func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Process, retErr error) {
 	hcsContainer, err := t.getHCSContainer()
 	if err != nil {
 		return nil, err
@@ -609,7 +609,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 	}
 	pid := newProcess.Pid()
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if err := newProcess.Kill(); err != nil {
 				logger.WithError(err).Error("failed to kill process")
 			}
