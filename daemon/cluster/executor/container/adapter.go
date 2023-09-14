@@ -104,7 +104,10 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	go func() {
 		// TODO LCOW Support: This will need revisiting as
 		// the stack is built up to include LCOW support for swarm.
-		err := c.imageBackend.PullImage(ctx, c.container.image(), "", nil, metaHeaders, authConfig, pw)
+
+		// Make sure the image has a tag, otherwise it will pull all tags.
+		ref := reference.TagNameOnly(named)
+		err := c.imageBackend.PullImage(ctx, ref, nil, metaHeaders, authConfig, pw)
 		pw.CloseWithError(err)
 	}()
 

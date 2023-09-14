@@ -16,35 +16,14 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// PullImage initiates a pull operation. image is the repository name to pull, and
-// tagOrDigest may be either empty, or indicate a specific tag or digest to pull.
-func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
+// PullImage initiates a pull operation. ref is the image to pull.
+func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.Format(*platform)))
-	}
-	ref, err := reference.ParseNormalizedNamed(image)
-	if err != nil {
-		return errdefs.InvalidParameter(err)
-	}
-
-	// TODO(thaJeztah) this could use a WithTagOrDigest() utility
-	if tagOrDigest != "" {
-		// The "tag" could actually be a digest.
-		var dgst digest.Digest
-		dgst, err = digest.Parse(tagOrDigest)
-		if err == nil {
-			ref, err = reference.WithDigest(reference.TrimNamed(ref), dgst)
-		} else {
-			ref, err = reference.WithTag(ref, tagOrDigest)
-		}
-		if err != nil {
-			return errdefs.InvalidParameter(err)
-		}
 	}
 
 	resolver, _ := i.newResolverFromAuthConfig(ctx, authConfig)
@@ -77,6 +56,12 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 	ah := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if images.IsManifestType(desc.MediaType) {
 			if !sentPullingFrom {
+				var tagOrDigest string
+				if tagged, ok := ref.(reference.Tagged); ok {
+					tagOrDigest = tagged.Tag()
+				} else {
+					tagOrDigest = ref.String()
+				}
 				progress.Message(out, tagOrDigest, "Pulling from "+reference.Path(ref))
 				sentPullingFrom = true
 			}
