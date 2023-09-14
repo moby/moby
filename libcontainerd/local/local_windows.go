@@ -460,19 +460,9 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 			}()
 		}
 	}()
-	t := &task{process: process{
-		id:         ctr.id,
-		ctr:        ctr,
-		hcsProcess: newProcess,
-		waitCh:     make(chan struct{}),
-	}}
-	pid := t.Pid()
-	logger.WithField("pid", pid).Debug("init process started")
 
-	// Spin up a goroutine to notify the backend and clean up resources when
-	// the task exits. Defer until after the start event is sent so that the
-	// exit event is not sent out-of-order.
-	defer func() { go t.reap() }()
+	pid := newProcess.Pid()
+	logger.WithField("pid", pid).Debug("init process started")
 
 	dio, err := newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
 	if err != nil {
@@ -485,16 +475,28 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		return nil, err
 	}
 
+	t := &task{process{
+		id:         ctr.id,
+		ctr:        ctr,
+		hcsProcess: newProcess,
+		waitCh:     make(chan struct{}),
+	}}
+
 	// All fallible operations have succeeded so it is now safe to set the
 	// container's current task.
 	ctr.task = t
+
+	// Spin up a goroutine to notify the backend and clean up resources when
+	// the task exits. Defer until after the start event is sent so that the
+	// exit event is not sent out-of-order.
+	defer func() { go t.reap() }()
 
 	// Generate the associated event
 	ctr.client.eventQ.Append(ctr.id, func() {
 		ei := libcontainerdtypes.EventInfo{
 			ContainerID: ctr.id,
 			ProcessID:   t.id,
-			Pid:         pid,
+			Pid:         uint32(pid),
 		}
 		ctr.client.logger.WithFields(log.Fields{
 			"container":  ctr.id,
@@ -606,7 +608,6 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 		logger.WithError(err).Errorf("exec's CreateProcess() failed")
 		return nil, err
 	}
-	pid := newProcess.Pid()
 	defer func() {
 		if retErr != nil {
 			if err := newProcess.Kill(); err != nil {
@@ -646,6 +647,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 	// the exit event is not sent out-of-order.
 	defer func() { go p.reap() }()
 
+	pid := newProcess.Pid()
 	t.ctr.client.eventQ.Append(t.ctr.id, func() {
 		ei := libcontainerdtypes.EventInfo{
 			ContainerID: t.ctr.id,
