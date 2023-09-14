@@ -192,8 +192,7 @@ retry:
 }
 
 type netWatch struct {
-	localEps  map[string]*Endpoint
-	remoteEps map[string]*Endpoint
+	localEps map[string]*Endpoint
 }
 
 func (c *Controller) watchSvcRecord(ep *Endpoint) {
@@ -213,38 +212,16 @@ func (c *Controller) processEndpointCreate(ep *Endpoint) {
 	networkID := n.ID()
 	endpointID := ep.ID()
 
-	c.mu.Lock()
-	nw, ok := c.nmap[networkID]
-	c.mu.Unlock()
-
-	if ok {
-		// Update the svc db for the local endpoint join right away
-		n.updateSvcRecord(ep, true)
-
-		c.mu.Lock()
-		nw.localEps[endpointID] = ep
-
-		// If we had learned that from the kv store remove it
-		// from remote ep list now that we know that this is
-		// indeed a local endpoint
-		delete(nw.remoteEps, endpointID)
-		c.mu.Unlock()
-		return
-	}
-
-	nw = &netWatch{
-		localEps:  make(map[string]*Endpoint),
-		remoteEps: make(map[string]*Endpoint),
-	}
-
 	// Update the svc db for the local endpoint join right away
 	// Do this before adding this ep to localEps so that we don't
 	// try to update this ep's container's svc records
 	n.updateSvcRecord(ep, true)
-
 	c.mu.Lock()
-	nw.localEps[endpointID] = ep
-	c.nmap[networkID] = nw
+	_, ok := c.nmap[networkID]
+	if !ok {
+		c.nmap[networkID] = &netWatch{localEps: make(map[string]*Endpoint)}
+	}
+	c.nmap[networkID].localEps[endpointID] = ep
 	c.mu.Unlock()
 }
 
