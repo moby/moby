@@ -474,9 +474,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	// exit event is not sent out-of-order.
 	defer func() { go t.reap() }()
 
-	// Don't shadow err here due to our deferred clean-up.
-	var dio *cio.DirectIO
-	dio, err = newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
+	dio, err := newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
 	if err != nil {
 		logger.WithError(err).Error("failed to get stdio pipes")
 		return nil, err
