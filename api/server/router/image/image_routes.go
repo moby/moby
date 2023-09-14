@@ -2,6 +2,7 @@ package image // import "github.com/docker/docker/api/server/router/image"
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/distribution/reference"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -90,6 +92,10 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 			if err != nil {
 				return errdefs.InvalidParameter(err)
 			}
+		}
+
+		if err := validateRepoName(ref); err != nil {
+			return errdefs.Forbidden(err)
 		}
 
 		// For a pull it is not an error if no auth was given. Ignore invalid
@@ -510,4 +516,13 @@ func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+}
+
+// validateRepoName validates the name of a repository.
+func validateRepoName(name reference.Named) error {
+	familiarName := reference.FamiliarName(name)
+	if familiarName == api.NoBaseImageSpecifier {
+		return fmt.Errorf("'%s' is a reserved name", familiarName)
+	}
+	return nil
 }
