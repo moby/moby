@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -27,7 +29,8 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-// PushImage initiates a push operation of the image pointed to by targetRef.
+// PushImage initiates a push operation of the image pointed to by sourceRef.
+// If reference is untagged, all tags from the reference repository are pushed.
 // Image manifest (or index) is pushed as is, which will probably fail if you
 // don't have all content referenced by the index.
 // Cross-repo mounts will be attempted for non-existing blobs.
@@ -36,13 +39,45 @@ import (
 // pointing to the new target repository. This will allow subsequent pushes
 // to perform cross-repo mounts of the shared content when pushing to a different
 // repository on the same registry.
-func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) (retErr error) {
-	if _, tagged := targetRef.(reference.Tagged); !tagged {
-		if _, digested := targetRef.(reference.Digested); !digested {
-			return errdefs.NotImplemented(errors.New("push all tags is not implemented"))
+func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) (retErr error) {
+	out := streamformatter.NewJSONProgressOutput(outStream, false)
+	progress.Messagef(out, "", "The push refers to repository [%s]", sourceRef.Name())
+
+	if _, tagged := sourceRef.(reference.Tagged); !tagged {
+		if _, digested := sourceRef.(reference.Digested); !digested {
+			// Image is not tagged nor digested, that means all tags push was requested.
+
+			// Find all images with the same repository.
+			nameFilter := "^" + regexp.QuoteMeta(sourceRef.Name()) + ":" + reference.TagRegexp.String() + "$"
+			imgs, err := i.client.ImageService().List(ctx, "name~="+strconv.Quote(nameFilter))
+			if err != nil {
+				return err
+			}
+
+			for _, img := range imgs {
+				named, err := reference.ParseNamed(img.Name)
+				if err != nil {
+					// This shouldn't happen, but log a warning just in case.
+					log.G(ctx).WithFields(log.Fields{
+						"image":     img.Name,
+						"sourceRef": sourceRef,
+					}).Warn("refusing to push an invalid tag")
+					continue
+				}
+
+				if err := i.pushRef(ctx, named, metaHeaders, authConfig, out); err != nil {
+					return err
+				}
+			}
+
+			return nil
 		}
 	}
 
+	return i.pushRef(ctx, sourceRef, metaHeaders, authConfig, out)
+}
+
+func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, metaHeaders map[string][]string, authConfig *registry.AuthConfig, out progress.Output) (retErr error) {
 	leasedCtx, release, err := i.client.WithLease(ctx)
 	if err != nil {
 		return err
@@ -52,8 +87,6 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 			log.G(ctx).WithField("image", targetRef).WithError(err).Warn("failed to release lease created for push")
 		}
 	}()
-
-	out := streamformatter.NewJSONProgressOutput(outStream, false)
 
 	img, err := i.client.ImageService().Get(ctx, targetRef.String())
 	if err != nil {
