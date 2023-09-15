@@ -107,8 +107,7 @@ func (o *daemonOptions) installFlags(flags *pflag.FlagSet) {
 	flags.BoolVarP(&o.Debug, "debug", "D", false, "Enable debug mode")
 	flags.BoolVar(&o.Validate, "validate", false, "Validate daemon configuration and exit")
 	flags.StringVarP(&o.LogLevel, "log-level", "l", "info", `Set the logging level ("debug"|"info"|"warn"|"error"|"fatal")`)
-	flags.StringVar(&o.LogFormat, "log-format", log.TextFormat,
-		fmt.Sprintf(`Set the logging format ("%s"|"%s")`, log.TextFormat, log.JSONFormat))
+	flags.StringVar(&o.LogFormat, "log-format", string(log.TextFormat), fmt.Sprintf(`Set the logging format ("%s"|"%s")`, log.TextFormat, log.JSONFormat))
 	flags.BoolVar(&o.TLS, FlagTLS, DefaultTLSValue, "Use TLS; implied by --tlsverify")
 	flags.BoolVar(&o.TLSVerify, FlagTLSVerify, dockerTLSVerify || DefaultTLSValue, "Use TLS and verify the remote")
 

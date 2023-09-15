@@ -236,8 +236,8 @@ github.com/containerd/cgroups/v3/cgroup2/stats
 # github.com/containerd/console v1.0.3
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd v1.6.22
-## explicit; go 1.18
+# github.com/containerd/containerd v1.6.24
+## explicit; go 1.19
 github.com/containerd/containerd
 github.com/containerd/containerd/api/events
 github.com/containerd/containerd/api/services/containers/v1
@@ -290,6 +290,7 @@ github.com/containerd/containerd/pkg/atomicfile
 github.com/containerd/containerd/pkg/cap
 github.com/containerd/containerd/pkg/dialer
 github.com/containerd/containerd/pkg/kmutex
+github.com/containerd/containerd/pkg/randutil
 github.com/containerd/containerd/pkg/runtimeoptions/v1
 github.com/containerd/containerd/pkg/seccomp
 github.com/containerd/containerd/pkg/shutdown

@@ -94,6 +94,7 @@ func ImportIndex(ctx context.Context, store content.Store, reader io.Reader, opt
 			symlinks[hdr.Name] = path.Join(path.Dir(hdr.Name), hdr.Linkname)
 		}
 
+		//nolint:staticcheck // TypeRegA is deprecated but we may still receive an external tar with TypeRegA
 		if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
 			if hdr.Typeflag != tar.TypeDir {
 				log.G(ctx).WithField("file", hdr.Name).Debug("file type ignored")
