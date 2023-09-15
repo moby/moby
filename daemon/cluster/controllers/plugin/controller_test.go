@@ -139,7 +139,7 @@ func TestWaitDisabled(t *testing.T) {
 		chErr <- c.Wait(ctx)
 	}()
 
-	if err := b.Enable("test", nil); err != nil {
+	if err := b.Enable(ctx, "test", nil); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -166,7 +166,7 @@ func TestWaitDisabled(t *testing.T) {
 	chEvent, cancel := b.SubscribeEvents(1)
 	defer cancel()
 
-	if err := b.Disable("test", nil); err != nil {
+	if err := b.Disable(ctx, "test", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -188,7 +188,7 @@ func TestWaitDisabled(t *testing.T) {
 		t.Fatal("timeout waiting for event")
 	}
 
-	if err := b.Remove("test", nil); err != nil {
+	if err := b.Remove(ctx, "test", nil); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -220,7 +220,7 @@ func TestWaitEnabled(t *testing.T) {
 		chErr <- c.Wait(ctx)
 	}()
 
-	if err := b.Disable("test", nil); err != nil {
+	if err := b.Disable(ctx, "test", nil); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -247,7 +247,7 @@ func TestWaitEnabled(t *testing.T) {
 	chEvent, cancel := b.SubscribeEvents(1)
 	defer cancel()
 
-	if err := b.Enable("test", nil); err != nil {
+	if err := b.Enable(ctx, "test", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -269,7 +269,7 @@ func TestWaitEnabled(t *testing.T) {
 		t.Fatal("timeout waiting for event")
 	}
 
-	if err := b.Remove("test", nil); err != nil {
+	if err := b.Remove(ctx, "test", nil); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -342,19 +342,19 @@ type mockBackend struct {
 	pub *pubsub.Publisher
 }
 
-func (m *mockBackend) Disable(name string, config *types.PluginDisableConfig) error {
+func (m *mockBackend) Disable(ctx context.Context, name string, config *types.PluginDisableConfig) error {
 	m.p.PluginObj.Enabled = false
 	m.pub.Publish(plugin.EventDisable{})
 	return nil
 }
 
-func (m *mockBackend) Enable(name string, config *types.PluginEnableConfig) error {
+func (m *mockBackend) Enable(ctx context.Context, name string, config *types.PluginEnableConfig) error {
 	m.p.PluginObj.Enabled = true
 	m.pub.Publish(plugin.EventEnable{})
 	return nil
 }
 
-func (m *mockBackend) Remove(name string, config *types.PluginRmConfig) error {
+func (m *mockBackend) Remove(ctx context.Context, name string, config *types.PluginRmConfig) error {
 	m.p = nil
 	m.pub.Publish(plugin.EventRemove{})
 	return nil

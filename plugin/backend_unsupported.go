@@ -17,17 +17,17 @@ import (
 var errNotSupported = errors.New("plugins are not supported on this platform")
 
 // Disable deactivates a plugin, which implies that they cannot be used by containers.
-func (pm *Manager) Disable(name string, config *types.PluginDisableConfig) error {
+func (pm *Manager) Disable(ctx context.Context, name string, config *types.PluginDisableConfig) error {
 	return errNotSupported
 }
 
 // Enable activates a plugin, which implies that they are ready to be used by containers.
-func (pm *Manager) Enable(name string, config *types.PluginEnableConfig) error {
+func (pm *Manager) Enable(ctx context.Context, name string, config *types.PluginEnableConfig) error {
 	return errNotSupported
 }
 
 // Inspect examines a plugin config
-func (pm *Manager) Inspect(refOrID string) (tp *types.Plugin, err error) {
+func (pm *Manager) Inspect(ctx context.Context, refOrID string) (tp *types.Plugin, err error) {
 	return nil, errNotSupported
 }
 
@@ -47,7 +47,7 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 }
 
 // List displays the list of plugins and associated metadata.
-func (pm *Manager) List(pluginFilters filters.Args) ([]types.Plugin, error) {
+func (pm *Manager) List(ctx context.Context, pluginFilters filters.Args) ([]types.Plugin, error) {
 	return nil, errNotSupported
 }
 
@@ -57,12 +57,12 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 }
 
 // Remove deletes plugin's root directory.
-func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
+func (pm *Manager) Remove(ctx context.Context, name string, config *types.PluginRmConfig) error {
 	return errNotSupported
 }
 
 // Set sets plugin args
-func (pm *Manager) Set(name string, args []string) error {
+func (pm *Manager) Set(ctx context.Context, name string, args []string) error {
 	return errNotSupported
 }
 

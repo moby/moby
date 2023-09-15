@@ -36,7 +36,7 @@ func (pm *Manager) newResolver(ctx context.Context, tracker docker.StatusTracker
 	return docker.NewResolver(docker.ResolverOptions{
 		Tracker: tracker,
 		Headers: headers,
-		Hosts:   pm.registryHostsFn(auth, httpFallback),
+		Hosts:   pm.registryHostsFn(ctx, auth, httpFallback),
 	}), nil
 }
 
@@ -55,7 +55,7 @@ func registryHTTPClient(config *tls.Config) *http.Client {
 	}
 }
 
-func (pm *Manager) registryHostsFn(auth *registry.AuthConfig, httpFallback bool) docker.RegistryHosts {
+func (pm *Manager) registryHostsFn(ctx context.Context, auth *registry.AuthConfig, httpFallback bool) docker.RegistryHosts {
 	return func(hostname string) ([]docker.RegistryHost, error) {
 		eps, err := pm.config.RegistryService.LookupPullEndpoints(hostname)
 		if err != nil {
@@ -69,7 +69,7 @@ func (pm *Manager) registryHostsFn(auth *registry.AuthConfig, httpFallback bool)
 			// pass to it.
 			// So it is the callers responsibility to retry with this flag set.
 			if httpFallback && ep.URL.Scheme != "http" {
-				log.G(context.TODO()).WithField("registryHost", hostname).WithField("endpoint", ep).Debugf("Skipping non-http endpoint")
+				log.G(ctx).WithField("registryHost", hostname).WithField("endpoint", ep).Debugf("Skipping non-http endpoint")
 				continue
 			}
 
@@ -101,7 +101,7 @@ func (pm *Manager) registryHostsFn(auth *registry.AuthConfig, httpFallback bool)
 				),
 			})
 		}
-		log.G(context.TODO()).WithField("registryHost", hostname).WithField("hosts", hosts).Debug("Resolved registry hosts")
+		log.G(ctx).WithField("registryHost", hostname).WithField("hosts", hosts).Debug("Resolved registry hosts")
 
 		return hosts, nil
 	}

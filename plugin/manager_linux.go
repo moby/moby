@@ -24,7 +24,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
+func (pm *Manager) enable(ctx context.Context, p *v2.Plugin, c *controller, force bool) error {
 	p.Rootfs = filepath.Join(pm.config.Root, p.PluginObj.ID, "rootfs")
 	if p.IsEnabled() && !force {
 		return errors.Wrap(enabledError(p.Name()), "plugin already enabled")
@@ -46,7 +46,7 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 		propRoot = filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
 
 		if err := os.MkdirAll(propRoot, 0o755); err != nil {
-			log.G(context.TODO()).Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
+			log.G(ctx).Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
 		}
 
 		if err := mount.MakeRShared(propRoot); err != nil {
@@ -60,18 +60,18 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	}
 
 	stdout, stderr := makeLoggerStreams(p.GetID())
-	if err := pm.executor.Create(p.GetID(), *spec, stdout, stderr); err != nil {
+	if err := pm.executor.Create(ctx, p.GetID(), *spec, stdout, stderr); err != nil {
 		if p.PluginObj.Config.PropagatedMount != "" {
 			if err := mount.Unmount(propRoot); err != nil {
-				log.G(context.TODO()).WithField("plugin", p.Name()).WithError(err).Warn("Failed to unmount vplugin propagated mount root")
+				log.G(ctx).WithField("plugin", p.Name()).WithError(err).Warn("Failed to unmount vplugin propagated mount root")
 			}
 		}
 		return errors.WithStack(err)
 	}
-	return pm.pluginPostStart(p, c)
+	return pm.pluginPostStart(ctx, p, c)
 }
 
-func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
+func (pm *Manager) pluginPostStart(ctx context.Context, p *v2.Plugin, c *controller) error {
 	sockAddr := filepath.Join(pm.config.ExecRoot, p.GetID(), p.GetSocket())
 	p.SetTimeout(time.Duration(c.timeoutInSecs) * time.Second)
 	addr := &net.UnixAddr{Net: "unix", Name: sockAddr}
@@ -81,7 +81,7 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 		client, err := plugins.NewClientWithTimeout(addr.Network()+"://"+addr.String(), nil, p.Timeout())
 		if err != nil {
 			c.restart = false
-			shutdownPlugin(p, c.exitChan, pm.executor)
+			shutdownPlugin(ctx, p, c.exitChan, pm.executor)
 			return errors.WithStack(err)
 		}
 
@@ -104,11 +104,11 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 		retries++
 
 		if retries > maxRetries {
-			log.G(context.TODO()).Debugf("error net dialing plugin: %v", err)
+			log.G(ctx).Debugf("error net dialing plugin: %v", err)
 			c.restart = false
 			// While restoring plugins, we need to explicitly set the state to disabled
 			pm.config.Store.SetState(p, false)
-			shutdownPlugin(p, c.exitChan, pm.executor)
+			shutdownPlugin(ctx, p, c.exitChan, pm.executor)
 			return err
 		}
 	}
@@ -118,16 +118,16 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 	return pm.save(p)
 }
 
-func (pm *Manager) restore(p *v2.Plugin, c *controller) error {
+func (pm *Manager) restore(ctx context.Context, p *v2.Plugin, c *controller) error {
 	stdout, stderr := makeLoggerStreams(p.GetID())
-	alive, err := pm.executor.Restore(p.GetID(), stdout, stderr)
+	alive, err := pm.executor.Restore(ctx, p.GetID(), stdout, stderr)
 	if err != nil {
 		return err
 	}
 
 	if pm.config.LiveRestoreEnabled {
 		if !alive {
-			return pm.enable(p, c, true)
+			return pm.enable(ctx, p, c, true)
 		}
 
 		c.exitChan = make(chan bool)
@@ -135,13 +135,13 @@ func (pm *Manager) restore(p *v2.Plugin, c *controller) error {
 		pm.mu.Lock()
 		pm.cMap[p] = c
 		pm.mu.Unlock()
-		return pm.pluginPostStart(p, c)
+		return pm.pluginPostStart(ctx, p, c)
 	}
 
 	if alive {
 		// TODO(@cpuguy83): Should we always just re-attach to the running plugin instead of doing this?
 		c.restart = false
-		shutdownPlugin(p, c.exitChan, pm.executor)
+		shutdownPlugin(ctx, p, c.exitChan, pm.executor)
 	}
 
 	return nil
@@ -149,11 +149,11 @@ func (pm *Manager) restore(p *v2.Plugin, c *controller) error {
 
 const shutdownTimeout = 10 * time.Second
 
-func shutdownPlugin(p *v2.Plugin, ec chan bool, executor Executor) {
+func shutdownPlugin(ctx context.Context, p *v2.Plugin, ec chan bool, executor Executor) {
 	pluginID := p.GetID()
 
-	if err := executor.Signal(pluginID, unix.SIGTERM); err != nil {
-		log.G(context.TODO()).Errorf("Sending SIGTERM to plugin failed with error: %v", err)
+	if err := executor.Signal(ctx, pluginID, unix.SIGTERM); err != nil {
+		log.G(ctx).Errorf("Sending SIGTERM to plugin failed with error: %v", err)
 		return
 	}
 
@@ -162,37 +162,37 @@ func shutdownPlugin(p *v2.Plugin, ec chan bool, executor Executor) {
 
 	select {
 	case <-ec:
-		log.G(context.TODO()).Debug("Clean shutdown of plugin")
+		log.G(ctx).Debug("Clean shutdown of plugin")
 	case <-timeout.C:
-		log.G(context.TODO()).Debug("Force shutdown plugin")
-		if err := executor.Signal(pluginID, unix.SIGKILL); err != nil {
-			log.G(context.TODO()).Errorf("Sending SIGKILL to plugin failed with error: %v", err)
+		log.G(ctx).Debug("Force shutdown plugin")
+		if err := executor.Signal(ctx, pluginID, unix.SIGKILL); err != nil {
+			log.G(ctx).Errorf("Sending SIGKILL to plugin failed with error: %v", err)
 		}
 
 		timeout.Reset(shutdownTimeout)
 
 		select {
 		case <-ec:
-			log.G(context.TODO()).Debug("SIGKILL plugin shutdown")
+			log.G(ctx).Debug("SIGKILL plugin shutdown")
 		case <-timeout.C:
-			log.G(context.TODO()).WithField("plugin", p.Name).Warn("Force shutdown plugin FAILED")
+			log.G(ctx).WithField("plugin", p.Name).Warn("Force shutdown plugin FAILED")
 		}
 	}
 }
 
-func (pm *Manager) disable(p *v2.Plugin, c *controller) error {
+func (pm *Manager) disable(ctx context.Context, p *v2.Plugin, c *controller) error {
 	if !p.IsEnabled() {
 		return errors.Wrap(errDisabled(p.Name()), "plugin is already disabled")
 	}
 
 	c.restart = false
-	shutdownPlugin(p, c.exitChan, pm.executor)
+	shutdownPlugin(ctx, p, c.exitChan, pm.executor)
 	pm.config.Store.SetState(p, false)
 	return pm.save(p)
 }
 
 // Shutdown stops all plugins and called during daemon shutdown.
-func (pm *Manager) Shutdown() {
+func (pm *Manager) Shutdown(ctx context.Context) {
 	plugins := pm.config.Store.GetAll()
 	for _, p := range plugins {
 		pm.mu.RLock()
@@ -200,21 +200,21 @@ func (pm *Manager) Shutdown() {
 		pm.mu.RUnlock()
 
 		if pm.config.LiveRestoreEnabled && p.IsEnabled() {
-			log.G(context.TODO()).Debug("Plugin active when liveRestore is set, skipping shutdown")
+			log.G(ctx).Debug("Plugin active when liveRestore is set, skipping shutdown")
 			continue
 		}
 		if pm.executor != nil && p.IsEnabled() {
 			c.restart = false
-			shutdownPlugin(p, c.exitChan, pm.executor)
+			shutdownPlugin(ctx, p, c.exitChan, pm.executor)
 		}
 	}
 	if err := mount.RecursiveUnmount(pm.config.Root); err != nil {
-		log.G(context.TODO()).WithError(err).Warn("error cleaning up plugin mounts")
+		log.G(ctx).WithError(err).Warn("error cleaning up plugin mounts")
 	}
 }
 
-func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *types.PluginPrivileges) (err error) {
-	config, err := pm.setupNewPlugin(configDigest, privileges)
+func (pm *Manager) upgradePlugin(ctx context.Context, p *v2.Plugin, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *types.PluginPrivileges) (err error) {
+	config, err := pm.setupNewPlugin(ctx, configDigest, privileges)
 	if err != nil {
 		return err
 	}
@@ -237,18 +237,18 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest dige
 	defer func() {
 		if err != nil {
 			if rmErr := os.RemoveAll(orig); rmErr != nil {
-				log.G(context.TODO()).WithError(rmErr).WithField("dir", backup).Error("error cleaning up after failed upgrade")
+				log.G(ctx).WithError(rmErr).WithField("dir", backup).Error("error cleaning up after failed upgrade")
 				return
 			}
 			if mvErr := os.Rename(backup, orig); mvErr != nil {
 				err = errors.Wrap(mvErr, "error restoring old plugin root on upgrade failure")
 			}
 			if rmErr := os.RemoveAll(tmpRootFSDir); rmErr != nil && !os.IsNotExist(rmErr) {
-				log.G(context.TODO()).WithError(rmErr).WithField("plugin", p.Name()).Errorf("error cleaning up plugin upgrade dir: %s", tmpRootFSDir)
+				log.G(ctx).WithError(rmErr).WithField("plugin", p.Name()).Errorf("error cleaning up plugin upgrade dir: %s", tmpRootFSDir)
 			}
 		} else {
 			if rmErr := os.RemoveAll(backup); rmErr != nil {
-				log.G(context.TODO()).WithError(rmErr).WithField("dir", backup).Error("error cleaning up old plugin root after successful upgrade")
+				log.G(ctx).WithError(rmErr).WithField("dir", backup).Error("error cleaning up old plugin root after successful upgrade")
 			}
 
 			p.Config = configDigest
@@ -266,8 +266,8 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest dige
 	return errors.Wrap(err, "error saving upgraded plugin config")
 }
 
-func (pm *Manager) setupNewPlugin(configDigest digest.Digest, privileges *types.PluginPrivileges) (types.PluginConfig, error) {
-	configRA, err := pm.blobStore.ReaderAt(context.TODO(), ocispec.Descriptor{Digest: configDigest})
+func (pm *Manager) setupNewPlugin(ctx context.Context, configDigest digest.Digest, privileges *types.PluginPrivileges) (types.PluginConfig, error) {
+	configRA, err := pm.blobStore.ReaderAt(ctx, ocispec.Descriptor{Digest: configDigest})
 	if err != nil {
 		return types.PluginConfig{}, err
 	}
@@ -295,12 +295,12 @@ func (pm *Manager) setupNewPlugin(configDigest digest.Digest, privileges *types.
 }
 
 // createPlugin creates a new plugin. take lock before calling.
-func (pm *Manager) createPlugin(name string, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *types.PluginPrivileges, opts ...CreateOpt) (p *v2.Plugin, err error) {
+func (pm *Manager) createPlugin(ctx context.Context, name string, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *types.PluginPrivileges, opts ...CreateOpt) (p *v2.Plugin, err error) {
 	if err := pm.config.Store.validateName(name); err != nil { // todo: this check is wrong. remove store
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	config, err := pm.setupNewPlugin(configDigest, privileges)
+	config, err := pm.setupNewPlugin(ctx, configDigest, privileges)
 	if err != nil {
 		return nil, err
 	}

@@ -151,7 +151,7 @@ func (c *client) Version(ctx context.Context) (containerd.Version, error) {
 //			"ImagePath": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c\\\\UtilityVM"
 //		},
 //	}
-func (c *client) NewContainer(_ context.Context, id string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) (libcontainerdtypes.Container, error) {
+func (c *client) NewContainer(ctx context.Context, id string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) (libcontainerdtypes.Container, error) {
 	var err error
 	if spec.Linux != nil {
 		return nil, errors.New("linux containers are not supported on this platform")
@@ -167,7 +167,7 @@ func (c *client) NewContainer(_ context.Context, id string, spec *specs.Spec, sh
 				"container": id,
 				"event":     libcontainerdtypes.EventCreate,
 			}).Info("sending event")
-			err := c.backend.ProcessEvent(id, libcontainerdtypes.EventCreate, ei)
+			err := c.backend.ProcessEvent(ctx, id, libcontainerdtypes.EventCreate, ei)
 			if err != nil {
 				c.logger.WithError(err).WithFields(log.Fields{
 					"container": id,
@@ -389,7 +389,7 @@ func (c *client) extractResourcesFromSpec(spec *specs.Spec, configuration *hcssh
 	}
 }
 
-func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Task, error) {
+func (ctr *container) Start(ctx context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Task, error) {
 	ctr.mu.Lock()
 	defer ctr.mu.Unlock()
 
@@ -503,7 +503,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 			"event":      libcontainerdtypes.EventStart,
 			"event-info": ei,
 		}).Info("sending event")
-		err := ctr.client.backend.ProcessEvent(ei.ContainerID, libcontainerdtypes.EventStart, ei)
+		err := ctr.client.backend.ProcessEvent(ctx, ei.ContainerID, libcontainerdtypes.EventStart, ei)
 		if err != nil {
 			ctr.client.logger.WithError(err).WithFields(log.Fields{
 				"container":  ei.ContainerID,
@@ -659,7 +659,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 			"event":      libcontainerdtypes.EventExecAdded,
 			"event-info": ei,
 		}).Info("sending event")
-		err := t.ctr.client.backend.ProcessEvent(t.ctr.id, libcontainerdtypes.EventExecAdded, ei)
+		err := t.ctr.client.backend.ProcessEvent(ctx, t.ctr.id, libcontainerdtypes.EventExecAdded, ei)
 		if err != nil {
 			t.ctr.client.logger.WithError(err).WithFields(log.Fields{
 				"container":  t.ctr.id,
@@ -667,7 +667,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 				"event-info": ei,
 			}).Error("failed to process event")
 		}
-		err = t.ctr.client.backend.ProcessEvent(t.ctr.id, libcontainerdtypes.EventExecStarted, ei)
+		err = t.ctr.client.backend.ProcessEvent(ctx, t.ctr.id, libcontainerdtypes.EventExecStarted, ei)
 		if err != nil {
 			t.ctr.client.logger.WithError(err).WithFields(log.Fields{
 				"container":  t.ctr.id,
@@ -770,7 +770,7 @@ func (p *process) CloseStdin(context.Context) error {
 }
 
 // Pause handles pause requests for containers
-func (t *task) Pause(_ context.Context) error {
+func (t *task) Pause(ctx context.Context) error {
 	if t.ctr.ociSpec.Windows.HyperV == nil {
 		return cerrdefs.ErrNotImplemented
 	}
@@ -791,7 +791,13 @@ func (t *task) Pause(_ context.Context) error {
 	t.ctr.isPaused = true
 
 	t.ctr.client.eventQ.Append(t.ctr.id, func() {
-		err := t.ctr.client.backend.ProcessEvent(t.ctr.id, libcontainerdtypes.EventPaused, libcontainerdtypes.EventInfo{
+		// TODO(@cpuguy83): This context really just needs to not be cancellable since this is processed asyncornously from the `Pause` call.
+		// We could just wrap the current context into a non-cancellable one, but go1.21 is right around the corner with `context.WithoutCancel`
+		// Instead we can leave this context.TODO and wait for go1.21.
+		// Using a context wrapper will make this more difficult to find/come back to later.
+		ctx := context.TODO()
+
+		err := t.ctr.client.backend.ProcessEvent(ctx, t.ctr.id, libcontainerdtypes.EventPaused, libcontainerdtypes.EventInfo{
 			ContainerID: t.ctr.id,
 			ProcessID:   t.id,
 		})
@@ -832,7 +838,7 @@ func (t *task) Resume(ctx context.Context) error {
 	t.ctr.isPaused = false
 
 	t.ctr.client.eventQ.Append(t.ctr.id, func() {
-		err := t.ctr.client.backend.ProcessEvent(t.ctr.id, libcontainerdtypes.EventResumed, libcontainerdtypes.EventInfo{
+		err := t.ctr.client.backend.ProcessEvent(ctx, t.ctr.id, libcontainerdtypes.EventResumed, libcontainerdtypes.EventInfo{
 			ContainerID: t.ctr.id,
 			ProcessID:   t.id,
 		})
@@ -1109,6 +1115,7 @@ func (ctr *container) terminateContainer() error {
 }
 
 func (p *process) reap() {
+	ctx := context.TODO()
 	logger := p.ctr.client.logger.WithFields(log.Fields{
 		"container": p.ctr.id,
 		"process":   p.id,
@@ -1171,7 +1178,7 @@ func (p *process) reap() {
 			"event":      libcontainerdtypes.EventExit,
 			"event-info": ei,
 		}).Info("sending event")
-		err := p.ctr.client.backend.ProcessEvent(p.ctr.id, libcontainerdtypes.EventExit, ei)
+		err := p.ctr.client.backend.ProcessEvent(ctx, p.ctr.id, libcontainerdtypes.EventExit, ei)
 		if err != nil {
 			p.ctr.client.logger.WithError(err).WithFields(log.Fields{
 				"container":  p.ctr.id,

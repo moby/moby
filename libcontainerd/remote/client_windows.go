@@ -61,7 +61,7 @@ func pipeName(containerID, processID, name string) string {
 	return fmt.Sprintf(`\\.\pipe\containerd-%s-%s-%s`, containerID, processID, name)
 }
 
-func newFIFOSet(bundleDir, processID string, withStdin, withTerminal bool) *cio.FIFOSet {
+func newFIFOSet(ctx context.Context, bundleDir, processID string, withStdin, withTerminal bool) *cio.FIFOSet {
 	containerID := filepath.Base(bundleDir)
 	config := cio.Config{
 		Terminal: withTerminal,
