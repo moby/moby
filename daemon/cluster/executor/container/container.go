@@ -503,7 +503,6 @@ func (c *containerConfig) resources() enginecontainer.Resources {
 	return resources
 }
 
-// Docker daemon supports just 1 network during container create.
 func (c *containerConfig) createNetworkingConfig(b executorpkg.Backend) *network.NetworkingConfig {
 	var networks []*api.NetworkAttachment
 	if c.task.Spec.GetContainer() != nil || c.task.Spec.GetAttachment() != nil {
@@ -511,28 +510,10 @@ func (c *containerConfig) createNetworkingConfig(b executorpkg.Backend) *network
 	}
 
 	epConfig := make(map[string]*network.EndpointSettings)
-	if len(networks) > 0 {
-		epConfig[networks[0].Network.Spec.Annotations.Name] = getEndpointConfig(networks[0], b)
-	}
-
-	return &network.NetworkingConfig{EndpointsConfig: epConfig}
-}
-
-// TODO: Merge this function with createNetworkingConfig after daemon supports multiple networks in container create
-func (c *containerConfig) connectNetworkingConfig(b executorpkg.Backend) *network.NetworkingConfig {
-	var networks []*api.NetworkAttachment
-	if c.task.Spec.GetContainer() != nil {
-		networks = c.task.Networks
-	}
-	// First network is used during container create. Other networks are used in "docker network connect"
-	if len(networks) < 2 {
-		return nil
-	}
-
-	epConfig := make(map[string]*network.EndpointSettings)
-	for _, na := range networks[1:] {
+	for _, na := range networks {
 		epConfig[na.Network.Spec.Annotations.Name] = getEndpointConfig(na, b)
 	}
+
 	return &network.NetworkingConfig{EndpointsConfig: epConfig}
 }
 

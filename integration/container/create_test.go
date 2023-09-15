@@ -13,6 +13,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/oci"
@@ -582,6 +583,42 @@ func TestCreateInvalidHostConfig(t *testing.T) {
 			assert.Check(t, is.Equal(len(resp.Warnings), 0))
 			assert.Check(t, errdefs.IsInvalidParameter(err), "got: %T", err)
 			assert.Error(t, err, tc.expectedErr)
+		})
+	}
+}
+
+func TestCreateWithMultipleEndpointSettings(t *testing.T) {
+	ctx := setupTest(t)
+
+	testcases := []struct {
+		apiVersion  string
+		expectedErr string
+	}{
+		{apiVersion: "1.44"},
+		{apiVersion: "1.43", expectedErr: "Container cannot be created with multiple network endpoints"},
+	}
+
+	for _, tc := range testcases {
+		t.Run("with API v"+tc.apiVersion, func(t *testing.T) {
+			apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(tc.apiVersion))
+			assert.NilError(t, err)
+
+			config := container.Config{
+				Image: "busybox",
+			}
+			networkingConfig := network.NetworkingConfig{
+				EndpointsConfig: map[string]*network.EndpointSettings{
+					"net1": {},
+					"net2": {},
+					"net3": {},
+				},
+			}
+			_, err = apiClient.ContainerCreate(ctx, &config, &container.HostConfig{}, &networkingConfig, nil, "")
+			if tc.expectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.expectedErr)
+			}
 		})
 	}
 }

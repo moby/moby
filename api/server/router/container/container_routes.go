@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
@@ -604,6 +605,17 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 					return errdefs.InvalidParameter(errors.New("BindOptions.ReadOnlyForceRecursive needs API v1.44 or newer"))
 				}
 			}
+		}
+	}
+
+	if versions.LessThan(version, "1.44") {
+		// Creating a container connected to several networks is not supported until v1.44.
+		if networkingConfig != nil && len(networkingConfig.EndpointsConfig) > 1 {
+			l := make([]string, 0, len(networkingConfig.EndpointsConfig))
+			for k := range networkingConfig.EndpointsConfig {
+				l = append(l, k)
+			}
+			return errdefs.InvalidParameter(errors.Errorf("Container cannot be created with multiple network endpoints: %s", strings.Join(l, ", ")))
 		}
 	}
 

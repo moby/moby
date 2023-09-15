@@ -321,18 +321,10 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 	return nil
 }
 
-// Checks if the client set configurations for more than one network while creating a container
-// Also checks if the IPAMConfig is valid
+// verifyNetworkingConfig validates if the nwConfig is valid.
 func verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
-	if nwConfig == nil || len(nwConfig.EndpointsConfig) == 0 {
+	if nwConfig == nil {
 		return nil
-	}
-	if len(nwConfig.EndpointsConfig) > 1 {
-		l := make([]string, 0, len(nwConfig.EndpointsConfig))
-		for k := range nwConfig.EndpointsConfig {
-			l = append(l, k)
-		}
-		return fmt.Errorf("container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
 	}
 
 	for k, v := range nwConfig.EndpointsConfig {

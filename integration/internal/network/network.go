@@ -33,3 +33,10 @@ func CreateNoError(ctx context.Context, t *testing.T, client client.APIClient, n
 	assert.NilError(t, err)
 	return name
 }
+
+func RemoveNoError(ctx context.Context, t *testing.T, apiClient client.APIClient, name string) {
+	t.Helper()
+
+	err := apiClient.NetworkRemove(ctx, name)
+	assert.NilError(t, err)
+}

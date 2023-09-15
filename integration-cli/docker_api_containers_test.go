@@ -556,33 +556,6 @@ func (s *DockerAPISuite) TestContainerAPICreateEmptyConfig(c *testing.T) {
 	assert.ErrorContains(c, err, "no command specified")
 }
 
-func (s *DockerAPISuite) TestContainerAPICreateMultipleNetworksConfig(c *testing.T) {
-	// Container creation must fail if client specified configurations for more than one network
-	config := container.Config{
-		Image: "busybox",
-	}
-
-	networkingConfig := network.NetworkingConfig{
-		EndpointsConfig: map[string]*network.EndpointSettings{
-			"net1": {},
-			"net2": {},
-			"net3": {},
-		},
-	}
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &networkingConfig, nil, "")
-	msg := err.Error()
-	// network name order in error message is not deterministic
-	assert.Assert(c, strings.Contains(msg, "container cannot be connected to network endpoints"))
-	assert.Assert(c, strings.Contains(msg, "net1"))
-	assert.Assert(c, strings.Contains(msg, "net2"))
-	assert.Assert(c, strings.Contains(msg, "net3"))
-}
-
 func (s *DockerAPISuite) TestContainerAPICreateBridgeNetworkMode(c *testing.T) {
 	// Windows does not support bridge
 	testRequires(c, DaemonIsLinux)

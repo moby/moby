@@ -146,6 +146,17 @@ func WithIPv6(networkName, ip string) func(*TestContainerConfig) {
 	}
 }
 
+func WithEndpointSettings(nw string, config *network.EndpointSettings) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.NetworkingConfig.EndpointsConfig == nil {
+			c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
+		}
+		if _, ok := c.NetworkingConfig.EndpointsConfig[nw]; !ok {
+			c.NetworkingConfig.EndpointsConfig[nw] = config
+		}
+	}
+}
+
 // WithLogDriver sets the log driver to use for the container
 func WithLogDriver(driver string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {

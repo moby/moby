@@ -300,18 +300,6 @@ func (c *containerAdapter) create(ctx context.Context) error {
 		return err
 	}
 
-	// Docker daemon currently doesn't support multiple networks in container create
-	// Connect to all other networks
-	nc := c.container.connectNetworkingConfig(c.backend)
-
-	if nc != nil {
-		for n, ep := range nc.EndpointsConfig {
-			if err := c.backend.ConnectContainerToNetwork(cr.ID, n, ep); err != nil {
-				return err
-			}
-		}
-	}
-
 	container := c.container.task.Spec.GetContainer()
 	if container == nil {
 		return errors.New("unable to get container from task spec")

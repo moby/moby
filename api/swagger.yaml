@@ -1363,16 +1363,16 @@ definitions:
       EndpointsConfig:
         description: |
           A mapping of network name to endpoint configuration for that network.
+          The endpoint configuration can be left empty to connect to that
+          network with no particular endpoint configuration.
         type: "object"
         additionalProperties:
           $ref: "#/definitions/EndpointSettings"
     example:
       # putting an example here, instead of using the example values from
-      # /definitions/EndpointSettings, because containers/create currently
-      # does not support attaching to multiple networks, so the example request
-      # would be confusing if it showed that multiple networks can be contained
-      # in the EndpointsConfig.
-      # TODO remove once we support multiple networks on container create (see https://github.com/moby/moby/blob/07e6b843594e061f82baa5fa23c2ff7d536c2a05/daemon/create.go#L323)
+      # /definitions/EndpointSettings, because EndpointSettings contains
+      # operational data returned when inspecting a container that we don't
+      # accept here.
       EndpointsConfig:
         isolated_nw:
           IPAMConfig:
@@ -1387,6 +1387,7 @@ definitions:
           Aliases:
             - "server_x"
             - "server_y"
+        database_nw: {}
 
   NetworkSettings:
     description: "NetworkSettings exposes the network settings in the API"
@@ -6439,6 +6440,7 @@ paths:
                     Aliases:
                       - "server_x"
                       - "server_y"
+                  database_nw: {}
 
           required: true
       responses:
