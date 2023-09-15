@@ -33,7 +33,6 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -44,7 +43,7 @@ const DockerContainerBundlePath = "com.docker/engine.bundle.path"
 type client struct {
 	client   *containerd.Client
 	stateDir string
-	logger   *logrus.Entry
+	logger   *log.Entry
 	ns       string
 
 	backend libcontainerdtypes.Backend

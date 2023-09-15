@@ -16,7 +16,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // Controller is the controller for the plugin backend.
@@ -31,7 +30,7 @@ import (
 type Controller struct {
 	backend Backend
 	spec    runtime.PluginSpec
-	logger  *logrus.Entry
+	logger  *log.Entry
 
 	pluginID  string
 	serviceID string

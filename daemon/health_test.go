@@ -78,7 +78,7 @@ func TestHealthStates(t *testing.T) {
 		EventsService:     e,
 		containersReplica: store,
 	}
-	muteLogs()
+	muteLogs(t)
 
 	c.Config.Healthcheck = &containertypes.HealthConfig{
 		Retries: 1,

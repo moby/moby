@@ -916,15 +916,19 @@ func systemContainerdRunning(honorXDG bool) (string, bool, error) {
 func configureDaemonLogs(conf *config.Config) {
 	switch log.OutputFormat(conf.LogFormat) {
 	case log.JSONFormat:
-		logrus.SetFormatter(&logrus.JSONFormatter{
-			TimestampFormat: log.RFC3339NanoFixed,
-		})
+		if err := log.SetFormat(log.JSONFormat); err != nil {
+			panic(err.Error())
+		}
 	case log.TextFormat, "":
-		logrus.SetFormatter(&logrus.TextFormatter{
-			TimestampFormat: log.RFC3339NanoFixed,
-			DisableColors:   conf.RawLogs,
-			FullTimestamp:   true,
-		})
+		if err := log.SetFormat(log.TextFormat); err != nil {
+			panic(err.Error())
+		}
+		if conf.RawLogs {
+			// FIXME(thaJeztah): this needs a better solution: containerd doesn't allow disabling colors, and this code is depending on internal knowledge of "log.SetFormat"
+			if l, ok := log.L.Logger.Formatter.(*logrus.TextFormatter); ok {
+				l.DisableColors = true
+			}
+		}
 	default:
 		panic("unsupported log format " + conf.LogFormat)
 	}

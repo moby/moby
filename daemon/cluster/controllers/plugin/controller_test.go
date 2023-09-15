@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
@@ -321,7 +322,7 @@ func TestRemove(t *testing.T) {
 
 func newTestController(b Backend, disabled bool) *Controller {
 	return &Controller{
-		logger:  &logrus.Entry{Logger: &logrus.Logger{Out: io.Discard}},
+		logger:  &log.Entry{Logger: &logrus.Logger{Out: io.Discard}},
 		backend: b,
 		spec: runtime.PluginSpec{
 			Name:     pluginTestName,

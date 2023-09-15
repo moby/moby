@@ -307,11 +307,19 @@ func (pm *Manager) GC() {
 
 type logHook struct{ id string }
 
-func (logHook) Levels() []logrus.Level {
-	return logrus.AllLevels
+func (logHook) Levels() []log.Level {
+	return []log.Level{
+		log.PanicLevel,
+		log.FatalLevel,
+		log.ErrorLevel,
+		log.WarnLevel,
+		log.InfoLevel,
+		log.DebugLevel,
+		log.TraceLevel,
+	}
 }
 
-func (l logHook) Fire(entry *logrus.Entry) error {
+func (l logHook) Fire(entry *log.Entry) error {
 	entry.Data = log.Fields{"plugin": l.id}
 	return nil
 }
@@ -319,7 +327,7 @@ func (l logHook) Fire(entry *logrus.Entry) error {
 func makeLoggerStreams(id string) (stdout, stderr io.WriteCloser) {
 	logger := logrus.New()
 	logger.Hooks.Add(logHook{id})
-	return logger.WriterLevel(logrus.InfoLevel), logger.WriterLevel(logrus.ErrorLevel)
+	return logger.WriterLevel(log.InfoLevel), logger.WriterLevel(log.ErrorLevel)
 }
 
 func validatePrivileges(requiredPrivileges, privileges types.PluginPrivileges) error {

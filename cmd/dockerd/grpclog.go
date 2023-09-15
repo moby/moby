@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/containerd/containerd/log"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/grpclog"
 )
 
@@ -16,5 +15,5 @@ import (
 // error => warn
 func configureGRPCLog() {
 	l := log.G(context.TODO()).WithField("library", "grpc")
-	grpclog.SetLoggerV2(grpclog.NewLoggerV2(l.WriterLevel(logrus.TraceLevel), l.WriterLevel(logrus.DebugLevel), l.WriterLevel(logrus.WarnLevel)))
+	grpclog.SetLoggerV2(grpclog.NewLoggerV2(l.WriterLevel(log.TraceLevel), l.WriterLevel(log.DebugLevel), l.WriterLevel(log.WarnLevel)))
 }

@@ -5,7 +5,7 @@ package main
 import (
 	"io"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 )
 
 func runDaemon(opts *daemonOptions) error {
@@ -14,5 +14,5 @@ func runDaemon(opts *daemonOptions) error {
 }
 
 func initLogging(_, stderr io.Writer) {
-	logrus.SetOutput(stderr)
+	log.L.Logger.SetOutput(stderr)
 }

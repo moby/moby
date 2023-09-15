@@ -14,7 +14,6 @@ import (
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/idtools"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sirupsen/logrus"
 )
 
 func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
@@ -86,7 +85,7 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 	}
 }
 
-func withLogLevel(_ logrus.Level) containerd.NewTaskOpts {
+func withLogLevel(_ log.Level) containerd.NewTaskOpts {
 	panic("Not implemented")
 }
 
