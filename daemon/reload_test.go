@@ -5,18 +5,22 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/registry"
-	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 // muteLogs suppresses logs that are generated during the test
-func muteLogs() {
-	logrus.SetLevel(logrus.ErrorLevel)
+func muteLogs(t *testing.T) {
+	t.Helper()
+	err := log.SetLevel("error")
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func newDaemonForReloadT(t *testing.T, cfg *config.Config) *Daemon {
@@ -37,7 +41,7 @@ func TestDaemonReloadLabels(t *testing.T) {
 			Labels: []string{"foo:bar"},
 		},
 	})
-	muteLogs()
+	muteLogs(t)
 
 	valuesSets := make(map[string]interface{})
 	valuesSets["labels"] = "foo:baz"
@@ -60,7 +64,7 @@ func TestDaemonReloadLabels(t *testing.T) {
 
 func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
 	daemon := newDaemonForReloadT(t, &config.Config{})
-	muteLogs()
+	muteLogs(t)
 
 	var err error
 	// Initialize daemon with some registries.
@@ -116,7 +120,7 @@ func TestDaemonReloadMirrors(t *testing.T) {
 	daemon := &Daemon{
 		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
-	muteLogs()
+	muteLogs(t)
 
 	var err error
 	daemon.registryService, err = registry.NewService(registry.ServiceOptions{
@@ -215,7 +219,7 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 	daemon := &Daemon{
 		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
-	muteLogs()
+	muteLogs(t)
 
 	var err error
 	// initialize daemon with existing insecure registries: "127.0.0.0/8", "10.10.1.11:5000", "10.10.1.22:5000"
@@ -316,7 +320,7 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 			Debug:  true,
 		},
 	})
-	muteLogs()
+	muteLogs(t)
 
 	valuesSets := make(map[string]interface{})
 	valuesSets["labels"] = "foo:baz"

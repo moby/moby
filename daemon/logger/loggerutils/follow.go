@@ -9,7 +9,6 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type follow struct {
@@ -18,7 +17,7 @@ type follow struct {
 	Decoder   Decoder
 	Forwarder *forwarder
 
-	log *logrus.Entry
+	log *log.Entry
 	c   chan logPos
 }
 

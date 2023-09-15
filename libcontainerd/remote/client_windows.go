@@ -10,10 +10,10 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/containers"
+	"github.com/containerd/containerd/log"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
@@ -47,10 +47,10 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 	}
 }
 
-func withLogLevel(level logrus.Level) containerd.NewTaskOpts {
+func withLogLevel(level log.Level) containerd.NewTaskOpts {
 	// Make sure we set the runhcs options to debug if we are at debug level.
 	return func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
-		if level == logrus.DebugLevel {
+		if level == log.DebugLevel {
 			info.Options = &options.Options{Debug: true}
 		}
 		return nil

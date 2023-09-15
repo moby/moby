@@ -69,7 +69,7 @@ func TestAdjustCPUShares(t *testing.T) {
 		root:       tmp,
 	}
 	cfg := &config.Config{}
-	muteLogs()
+	muteLogs(t)
 
 	hostConfig := &containertypes.HostConfig{
 		Resources: containertypes.Resources{CPUShares: linuxMinCPUShares - 1},

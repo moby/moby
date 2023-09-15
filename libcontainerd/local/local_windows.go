@@ -15,8 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
@@ -81,7 +79,7 @@ const defaultOwner = "docker"
 type client struct {
 	stateDir string
 	backend  libcontainerdtypes.Backend
-	logger   *logrus.Entry
+	logger   *log.Entry
 	eventQ   queue.Queue
 }
 

@@ -15,7 +15,6 @@ import (
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ExitHandler represents an object that is called when the exit event is received from containerd
@@ -54,7 +53,7 @@ type Executor struct {
 }
 
 type c8dPlugin struct {
-	log *logrus.Entry
+	log *log.Entry
 	ctr libcontainerdtypes.Container
 	tsk libcontainerdtypes.Task
 }

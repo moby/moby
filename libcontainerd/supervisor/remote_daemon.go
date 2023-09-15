@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -44,7 +43,7 @@ type remote struct {
 
 	daemonPid int
 	pidFile   string
-	logger    *logrus.Entry
+	logger    *log.Entry
 
 	daemonWaitCh  chan struct{}
 	daemonStartCh chan error

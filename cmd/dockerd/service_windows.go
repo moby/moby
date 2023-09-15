@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/containerd/containerd/log"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
@@ -63,40 +61,40 @@ type etwHook struct {
 	log *eventlog.Log
 }
 
-func (h *etwHook) Levels() []logrus.Level {
-	return []logrus.Level{
-		logrus.PanicLevel,
-		logrus.FatalLevel,
-		logrus.ErrorLevel,
-		logrus.WarnLevel,
-		logrus.InfoLevel,
-		logrus.DebugLevel,
+func (h *etwHook) Levels() []log.Level {
+	return []log.Level{
+		log.PanicLevel,
+		log.FatalLevel,
+		log.ErrorLevel,
+		log.WarnLevel,
+		log.InfoLevel,
+		log.DebugLevel,
 	}
 }
 
-func (h *etwHook) Fire(e *logrus.Entry) error {
+func (h *etwHook) Fire(e *log.Entry) error {
 	var (
 		etype uint16
 		eid   uint32
 	)
 
 	switch e.Level {
-	case logrus.PanicLevel:
+	case log.PanicLevel:
 		etype = windows.EVENTLOG_ERROR_TYPE
 		eid = eventPanic
-	case logrus.FatalLevel:
+	case log.FatalLevel:
 		etype = windows.EVENTLOG_ERROR_TYPE
 		eid = eventFatal
-	case logrus.ErrorLevel:
+	case log.ErrorLevel:
 		etype = windows.EVENTLOG_ERROR_TYPE
 		eid = eventError
-	case logrus.WarnLevel:
+	case log.WarnLevel:
 		etype = windows.EVENTLOG_WARNING_TYPE
 		eid = eventWarn
-	case logrus.InfoLevel:
+	case log.InfoLevel:
 		etype = windows.EVENTLOG_INFORMATION_TYPE
 		eid = eventInfo
-	case logrus.DebugLevel:
+	case log.DebugLevel:
 		etype = windows.EVENTLOG_INFORMATION_TYPE
 		eid = eventDebug
 	default:
@@ -246,16 +244,16 @@ func initService(daemonCli *DaemonCli) (bool, bool, error) {
 		daemonCli: daemonCli,
 	}
 
-	var log *eventlog.Log
+	var eventLog *eventlog.Log
 	if isService {
-		log, err = eventlog.Open(*flServiceName)
+		eventLog, err = eventlog.Open(*flServiceName)
 		if err != nil {
 			return false, false, err
 		}
 	}
 
-	logrus.AddHook(&etwHook{log})
-	logrus.SetOutput(io.Discard)
+	log.L.Logger.AddHook(&etwHook{eventLog})
+	log.L.Logger.SetOutput(io.Discard)
 
 	service = h
 	go func() {
@@ -373,7 +371,7 @@ func initPanicFile(path string) error {
 	os.Stderr = os.NewFile(panicFile.Fd(), "/dev/stderr")
 
 	// Force threads that panic to write to stderr (the panicFile handle now), otherwise it will go into the ether
-	logrus.SetOutput(os.Stderr)
+	log.L.Logger.SetOutput(os.Stderr)
 
 	return nil
 }
