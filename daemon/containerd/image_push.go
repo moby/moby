@@ -41,6 +41,7 @@ import (
 // repository on the same registry.
 func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) (retErr error) {
 	out := streamformatter.NewJSONProgressOutput(outStream, false)
+	progress.Messagef(out, "", "The push refers to repository [%s]", sourceRef.Name())
 
 	if _, tagged := sourceRef.(reference.Tagged); !tagged {
 		if _, digested := sourceRef.(reference.Digested); !digested {
