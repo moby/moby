@@ -70,6 +70,7 @@ Vagrant.configure("2") do |config|
             libselinux-devel \
             lsof \
             make \
+            strace \
             ${INSTALL_PACKAGES}
     SHELL
   end
@@ -93,7 +94,7 @@ EOF
   config.vm.provision "install-golang", type: "shell", run: "once" do |sh|
     sh.upload_path = "/tmp/vagrant-install-golang"
     sh.env = {
-        'GO_VERSION': ENV['GO_VERSION'] || "1.19.11",
+        'GO_VERSION': ENV['GO_VERSION'] || "1.20.8",
     }
     sh.inline = <<~SHELL
         #!/usr/bin/env bash

@@ -332,6 +332,7 @@ func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header
 			}
 		}
 
+	//nolint:staticcheck // TypeRegA is deprecated but we may still receive an external tar with TypeRegA
 	case tar.TypeReg, tar.TypeRegA:
 		file, err := openFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, hdrInfo.Mode())
 		if err != nil {

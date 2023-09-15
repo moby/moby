@@ -14,7 +14,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0
 	github.com/Microsoft/go-winio v0.6.1
-	github.com/Microsoft/hcsshim v0.9.8
+	github.com/Microsoft/hcsshim v0.9.10
 	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 	github.com/aws/aws-sdk-go-v2 v1.17.6
 	github.com/aws/aws-sdk-go-v2/config v1.18.16
@@ -26,7 +26,7 @@ require (
 	github.com/cloudflare/cfssl v1.6.4
 	github.com/container-orchestrated-devices/container-device-interface v0.6.1
 	github.com/containerd/cgroups/v3 v3.0.2
-	github.com/containerd/containerd v1.6.22
+	github.com/containerd/containerd v1.6.24
 	github.com/containerd/continuity v0.4.1
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/typeurl/v2 v2.1.1

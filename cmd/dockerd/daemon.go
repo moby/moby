@@ -914,7 +914,7 @@ func systemContainerdRunning(honorXDG bool) (string, bool, error) {
 // configureDaemonLogs sets the logging level and formatting. It expects
 // the passed configuration to already be validated, and ignores invalid options.
 func configureDaemonLogs(conf *config.Config) {
-	switch conf.LogFormat {
+	switch log.OutputFormat(conf.LogFormat) {
 	case log.JSONFormat:
 		logrus.SetFormatter(&logrus.JSONFormatter{
 			TimestampFormat: log.RFC3339NanoFixed,

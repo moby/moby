@@ -21,12 +21,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"sync"
 	"time"
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/pkg/randutil"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -113,7 +113,7 @@ func OpenWriter(ctx context.Context, cs Ingester, opts ...WriterOpt) (Writer, er
 			// error or abort. Requires asserting for an ingest manager
 
 			select {
-			case <-time.After(time.Millisecond * time.Duration(rand.Intn(retry))):
+			case <-time.After(time.Millisecond * time.Duration(randutil.Intn(retry))):
 				if retry < 2048 {
 					retry = retry << 1
 				}

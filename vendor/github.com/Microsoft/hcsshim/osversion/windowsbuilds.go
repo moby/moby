@@ -44,7 +44,15 @@ const (
 
 	// V21H2Server corresponds to Windows Server 2022 (ltsc2022).
 	V21H2Server = 20348
+	// LTSC2022 (Windows Server 2022) is an alias for [V21H2Server]
+	LTSC2022 = V21H2Server
 
 	// V21H2Win11 corresponds to Windows 11 (original release).
 	V21H2Win11 = 22000
+
+	// V22H2Win10 corresponds to Windows 10 (2022 Update).
+	V22H2Win10 = 19045
+
+	// V22H2Win11 corresponds to Windows 11 (2022 Update).
+	V22H2Win11 = 22621
 )

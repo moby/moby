@@ -176,6 +176,7 @@ func NeedsUserXAttr(d string) (bool, error) {
 	}
 
 	opts := []string{
+		"ro",
 		fmt.Sprintf("lowerdir=%s:%s,upperdir=%s,workdir=%s", filepath.Join(td, "lower2"), filepath.Join(td, "lower1"), filepath.Join(td, "upper"), filepath.Join(td, "work")),
 		"userxattr",
 	}

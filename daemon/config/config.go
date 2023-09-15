@@ -593,7 +593,7 @@ func Validate(config *Config) error {
 
 	// validate log-format
 	if logFormat := config.LogFormat; logFormat != "" {
-		switch logFormat {
+		switch log.OutputFormat(logFormat) {
 		case log.TextFormat, log.JSONFormat:
 			// These are valid
 		default:
