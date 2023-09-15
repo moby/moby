@@ -71,6 +71,8 @@ type networkDBTable struct {
 }
 
 // IpamConf contains all the ipam related configurations for a network
+//
+// TODO(aker): use proper net/* structs instead of string literals.
 type IpamConf struct {
 	// PreferredPool is the master address pool for containers and network interfaces.
 	PreferredPool string
@@ -90,6 +92,28 @@ func (c *IpamConf) Validate() error {
 		return types.InvalidParameterErrorf("invalid gateway address %s in Ipam configuration", c.Gateway)
 	}
 	return nil
+}
+
+// Contains checks whether the ipamSubnet contains [addr].
+func (c *IpamConf) Contains(addr net.IP) bool {
+	if c == nil {
+		return false
+	}
+	if c.PreferredPool == "" {
+		return false
+	}
+
+	_, allowedRange, _ := net.ParseCIDR(c.PreferredPool)
+	if c.SubPool != "" {
+		_, allowedRange, _ = net.ParseCIDR(c.SubPool)
+	}
+
+	return allowedRange.Contains(addr)
+}
+
+// IsStatic checks whether the subnet was statically allocated (ie. user-defined).
+func (c *IpamConf) IsStatic() bool {
+	return c != nil && c.PreferredPool != ""
 }
 
 // IpamInfo contains all the ipam related operational info for a network

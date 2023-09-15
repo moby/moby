@@ -563,9 +563,8 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 	return nil
 }
 
-// validateEndpointSettings checks whether the given epConfig is valid. The nw parameter might be nil as a container
-// can be created with a reference to a network that don't exist yet. In that case, only partial validation will be
-// done.
+// validateEndpointSettings checks whether the given epConfig is valid. The nw parameter can be nil, in which case it
+// won't try to check if the endpoint IP addresses are within network's subnets.
 func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *networktypes.EndpointSettings) error {
 	if epConfig == nil {
 		return nil
@@ -578,6 +577,8 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 
 	var errs []error
 
+	// TODO(aker): move this into api/types/network/endpoint.go once enableIPOnPredefinedNetwork and
+	//  serviceDiscoveryOnDefaultNetwork are removed.
 	if !containertypes.NetworkMode(nwName).IsUserDefined() {
 		hasStaticAddresses := ipamConfig.IPv4Address != "" || ipamConfig.IPv6Address != ""
 		// On Linux, user specified IP address is accepted only by networks with user specified subnets.
@@ -589,63 +590,33 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 		}
 	}
 
-	if ipamConfig.IPv4Address != "" {
-		if addr := net.ParseIP(ipamConfig.IPv4Address); addr == nil || addr.To4() == nil || addr.IsUnspecified() {
-			errs = append(errs, fmt.Errorf("invalid IPv4 address: %s", ipamConfig.IPv4Address))
+	// TODO(aker): add a proper multierror.Append
+	if err := ipamConfig.Validate(); err != nil {
+		errs = append(errs, err.(interface{ Unwrap() []error }).Unwrap()...)
+	}
+
+	if nw != nil {
+		_, _, v4Configs, v6Configs := nw.IpamConfig()
+
+		var nwIPv4Subnets, nwIPv6Subnets []networktypes.NetworkSubnet
+		for _, nwIPAMConfig := range v4Configs {
+			nwIPv4Subnets = append(nwIPv4Subnets, nwIPAMConfig)
 		}
-	}
-	if ipamConfig.IPv6Address != "" {
-		if addr := net.ParseIP(ipamConfig.IPv6Address); addr == nil || addr.To4() != nil || addr.IsUnspecified() {
-			errs = append(errs, fmt.Errorf("invalid IPv6 address: %s", ipamConfig.IPv6Address))
+		for _, nwIPAMConfig := range v6Configs {
+			nwIPv6Subnets = append(nwIPv6Subnets, nwIPAMConfig)
 		}
-	}
-	for _, addr := range ipamConfig.LinkLocalIPs {
-		if parsed := net.ParseIP(addr); parsed == nil || parsed.IsUnspecified() {
-			errs = append(errs, fmt.Errorf("invalid link-local IP address %s", addr))
-		}
-	}
 
-	if nw == nil {
-		return multierror.Join(errs...)
-	}
-
-	_, _, nwIPv4Configs, nwIPv6Configs := nw.IpamConfig()
-	if err := validateEndpointIPAddress(nwIPv4Configs, ipamConfig.IPv4Address); err != nil {
-		errs = append(errs, err)
-	}
-	if err := validateEndpointIPAddress(nwIPv6Configs, ipamConfig.IPv6Address); err != nil {
-		errs = append(errs, err)
-	}
-
-	return multierror.Join(errs...)
-}
-
-func validateEndpointIPAddress(nwIPAMConfig []*libnetwork.IpamConf, epAddr string) error {
-	if epAddr == "" {
-		return nil
-	}
-
-	var customSubnet bool
-	parsedAddr := net.ParseIP(epAddr)
-	for _, conf := range nwIPAMConfig {
-		if conf.PreferredPool != "" {
-			customSubnet = true
-
-			_, allowedRange, _ := net.ParseCIDR(conf.PreferredPool)
-			if conf.SubPool != "" {
-				_, allowedRange, _ = net.ParseCIDR(conf.SubPool)
-			}
-
-			if allowedRange.Contains(parsedAddr) {
-				return nil
-			}
+		// TODO(aker): add a proper multierror.Append
+		if err := ipamConfig.IsInRange(nwIPv4Subnets, nwIPv6Subnets); err != nil {
+			errs = append(errs, err.(interface{ Unwrap() []error }).Unwrap()...)
 		}
 	}
 
-	if customSubnet {
-		return fmt.Errorf("no predefined subnet or ip-range contain the IP address: %s", epAddr)
+	if err := multierror.Join(errs...); err != nil {
+		return fmt.Errorf("invalid endpoint settings:\n%w", err)
 	}
-	return runconfig.ErrUnsupportedNetworkNoSubnetAndIP
+
+	return nil
 }
 
 // cleanOperationalData resets the operational data from the passed endpoint settings
