@@ -298,7 +298,7 @@ func WithStopSignal(stopSignal string) func(c *TestContainerConfig) {
 	}
 }
 
-func WithMacAddress(address string) func(c *TestContainerConfig) {
+func WithContainerWideMacAddress(address string) func(c *TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		c.Config.MacAddress = address
 	}

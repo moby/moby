@@ -12,6 +12,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -286,7 +287,8 @@ func TestMacAddressIsAppliedToMainNetworkWithShortID(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	apiClient := d.NewClientT(t)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.43"))
+	assert.NilError(t, err)
 
 	n := net.CreateNoError(ctx, t, apiClient, "testnet", net.WithIPAM("192.168.101.0/24", "192.168.101.1"))
 
@@ -295,7 +297,7 @@ func TestMacAddressIsAppliedToMainNetworkWithShortID(t *testing.T) {
 		container.WithCmd("/bin/sleep", "infinity"),
 		container.WithStopSignal("SIGKILL"),
 		container.WithNetworkMode(n[:10]),
-		container.WithMacAddress("02:42:08:26:a9:55"))
+		container.WithContainerWideMacAddress("02:42:08:26:a9:55"))
 	defer container.Remove(ctx, t, apiClient, cid, containertypes.RemoveOptions{Force: true})
 
 	c := container.Inspect(ctx, t, apiClient, cid)
