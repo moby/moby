@@ -174,7 +174,7 @@ type Network struct {
 	created          time.Time
 	scope            string // network data scope
 	labels           map[string]string
-	ipamType         string
+	ipamType         string // ipamType is the name of the IPAM driver
 	ipamOptions      map[string]string
 	addrSpace        string
 	ipamV4Config     []*IpamConf
