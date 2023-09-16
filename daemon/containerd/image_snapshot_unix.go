@@ -9,15 +9,13 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/pkg/idtools"
 )
 
-func (i *ImageService) remapSnapshot(ctx context.Context, snapshotter snapshots.Snapshotter, id string, parentSnapshot string, lease leases.Lease) error {
-	ls := i.client.LeasesService()
+func (i *ImageService) remapSnapshot(ctx context.Context, snapshotter snapshots.Snapshotter, id string, parentSnapshot string) error {
 	rootPair := i.idMapping.RootPair()
 	usernsID := fmt.Sprintf("%s-%d-%d", parentSnapshot, rootPair.UID, rootPair.GID)
 	remappedID := usernsID + remapSuffix
@@ -25,19 +23,6 @@ func (i *ImageService) remapSnapshot(ctx context.Context, snapshotter snapshots.
 	// If the remapped snapshot already exist we only need to prepare the new snapshot
 	if _, err := snapshotter.Stat(ctx, usernsID); err == nil {
 		_, err = snapshotter.Prepare(ctx, id, usernsID)
-		return err
-	}
-
-	if err := ls.AddResource(ctx, lease, leases.Resource{
-		ID:   remappedID,
-		Type: "snapshots/" + i.StorageDriver(),
-	}); err != nil {
-		return err
-	}
-	if err := ls.AddResource(ctx, lease, leases.Resource{
-		ID:   usernsID,
-		Type: "snapshots/" + i.StorageDriver(),
-	}); err != nil {
 		return err
 	}
 

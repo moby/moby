@@ -46,7 +46,7 @@ type manifest struct {
 	Config ocispec.Descriptor `json:"config"`
 }
 
-func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, image string, platform *ocispec.Platform) error {
+func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error {
 	// Only makes sense when conatinerd image store is used
 	panic("not implemented")
 }

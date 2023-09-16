@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/registry"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -185,15 +184,4 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 
 	// TODO(thaJeztah): include content-store size for the image (similar to "GET /images/json")
 	return rwLayerUsage.Size, rwLayerUsage.Size + unpackedUsage.Size, nil
-}
-
-// getContainerImageManifest safely dereferences ImageManifest.
-// ImageManifest can be nil for containers created with Docker Desktop with old
-// containerd image store integration enabled which didn't set this field.
-func getContainerImageManifest(ctr *container.Container) (ocispec.Descriptor, error) {
-	if ctr.ImageManifest == nil {
-		return ocispec.Descriptor{}, errdefs.InvalidParameter(errors.New("container is missing ImageManifest (probably created on old version), please recreate it"))
-	}
-
-	return *ctr.ImageManifest, nil
 }
