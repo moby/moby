@@ -150,6 +150,11 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 }
 
 func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*ocispec.Descriptor, error) {
+	platform := platforms.AllPlatformsWithPreference(cplatforms.Default())
+	if options.Platform != nil {
+		platform = cplatforms.Only(*options.Platform)
+	}
+
 	cs := i.client.ContentStore()
 
 	desc, err := i.resolveDescriptor(ctx, refOrID)
@@ -158,15 +163,18 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 	}
 
 	if containerdimages.IsManifestType(desc.MediaType) {
+		if options.Platform != nil {
+			if desc.Platform == nil {
+				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: nil", refOrID, cplatforms.Format(*options.Platform)))
+			} else if !platform.Match(*desc.Platform) {
+				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, cplatforms.Format(*options.Platform), cplatforms.Format(*desc.Platform)))
+			}
+		}
+
 		return &desc, nil
 	}
 
 	if containerdimages.IsIndexType(desc.MediaType) {
-		platform := platforms.AllPlatformsWithPreference(cplatforms.Default())
-		if options.Platform != nil {
-			platform = cplatforms.Only(*options.Platform)
-		}
-
 		childManifests, err := containerdimages.LimitManifests(containerdimages.ChildrenHandler(cs), platform, 1)(ctx, desc)
 		if err != nil {
 			if cerrdefs.IsNotFound(err) {
