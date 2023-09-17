@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -413,6 +414,11 @@ func (ir *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter,
 	ref, err := httputils.RepoTagReference(r.Form.Get("repo"), r.Form.Get("tag"))
 	if ref == nil || err != nil {
 		return errdefs.InvalidParameter(err)
+	}
+
+	refName := reference.FamiliarName(ref)
+	if refName == string(digest.Canonical) {
+		return errdefs.InvalidParameter(errors.New("refusing to create an ambiguous tag using digest algorithm as name"))
 	}
 
 	img, err := ir.backend.GetImage(ctx, vars["name"], opts.GetImageOpts{})
