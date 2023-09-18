@@ -2539,15 +2539,15 @@ func (s *DockerDaemonSuite) TestExecWithUserAfterLiveRestore(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestRemoveContainerAfterLiveRestore(c *testing.T) {
-	testRequires(c, DaemonIsLinux, overlayFSSupported, testEnv.IsLocalDaemon)
-	s.d.StartWithBusybox(testutil.GetContext(c), c, "--live-restore", "--storage-driver", "overlay2")
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	s.d.StartWithBusybox(testutil.GetContext(c), c, "--live-restore")
 	out, err := s.d.Cmd("run", "-d", "--name=top", "busybox", "top")
 	assert.NilError(c, err, "Output: %s", out)
 
 	s.d.WaitRun("top")
 
 	// restart daemon.
-	s.d.Restart(c, "--live-restore", "--storage-driver", "overlay2")
+	s.d.Restart(c, "--live-restore")
 
 	out, err = s.d.Cmd("stop", "top")
 	assert.NilError(c, err, "Output: %s", out)

@@ -3,9 +3,7 @@
 package main
 
 import (
-	"bytes"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/docker/docker/pkg/sysinfo"
@@ -72,13 +70,4 @@ func bridgeNfIptables() bool {
 func unprivilegedUsernsClone() bool {
 	content, err := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
 	return err != nil || !strings.Contains(string(content), "0")
-}
-
-func overlayFSSupported() bool {
-	cmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "/bin/sh", "-c", "cat /proc/filesystems")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return false
-	}
-	return bytes.Contains(out, []byte("overlay\n"))
 }
