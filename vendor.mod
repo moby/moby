@@ -181,7 +181,7 @@ require (
 	github.com/tonistiigi/fsutil v0.0.0-20230629203738-36ef4d8c0dbb // indirect
 	github.com/tonistiigi/go-actions-cache v0.0.0-20220404170428-0bdeb6e1eac7 // indirect
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
-	github.com/tonistiigi/vt100 v0.0.0-20210615222946-8066bb97264f // indirect
+	github.com/tonistiigi/vt100 v0.0.0-20230623042737-f9a4f7ef6531 // indirect
 	github.com/weppos/publicsuffix-go v0.15.1-0.20210511084619-b1f36a2d6c0b // indirect
 	github.com/zmap/zcrypto v0.0.0-20210511125630-18f1e0152cfc // indirect
 	github.com/zmap/zlint/v3 v3.1.0 // indirect

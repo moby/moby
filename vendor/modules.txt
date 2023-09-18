@@ -1002,7 +1002,7 @@ github.com/tonistiigi/go-archvariant
 # github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea
 ## explicit
 github.com/tonistiigi/units
-# github.com/tonistiigi/vt100 v0.0.0-20210615222946-8066bb97264f
+# github.com/tonistiigi/vt100 v0.0.0-20230623042737-f9a4f7ef6531
 ## explicit; go 1.12
 github.com/tonistiigi/vt100
 # github.com/vbatts/tar-split v0.11.3
