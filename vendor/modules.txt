@@ -21,8 +21,8 @@ cloud.google.com/go/longrunning/autogen/longrunningpb
 # code.cloudfoundry.org/clock v1.0.0
 ## explicit
 code.cloudfoundry.org/clock
-# github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
-## explicit; go 1.18
+# github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
+## explicit; go 1.20
 github.com/AdaLogics/go-fuzz-headers
 # github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1
 ## explicit; go 1.16
