@@ -87,7 +87,7 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/tonistiigi/go-archvariant v1.0.0
-	github.com/vbatts/tar-split v0.11.2
+	github.com/vbatts/tar-split v0.11.3
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.4
 	go.etcd.io/bbolt v1.3.7

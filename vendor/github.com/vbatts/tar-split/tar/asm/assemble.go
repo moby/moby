@@ -71,6 +71,8 @@ func WriteOutputTarStream(fg storage.FileGetter, up storage.Unpacker, w io.Write
 				crcSum = make([]byte, 8)
 				multiWriter = io.MultiWriter(w, crcHash)
 				copyBuffer = byteBufferPool.Get().([]byte)
+				// TODO once we have some benchmark or memory profile then we can experiment with using *bytes.Buffer
+				//nolint:staticcheck // SA6002 not going to do a pointer here
 				defer byteBufferPool.Put(copyBuffer)
 			} else {
 				crcHash.Reset()

@@ -1005,7 +1005,7 @@ github.com/tonistiigi/units
 # github.com/tonistiigi/vt100 v0.0.0-20210615222946-8066bb97264f
 ## explicit; go 1.12
 github.com/tonistiigi/vt100
-# github.com/vbatts/tar-split v0.11.2
+# github.com/vbatts/tar-split v0.11.3
 ## explicit; go 1.15
 github.com/vbatts/tar-split/archive/tar
 github.com/vbatts/tar-split/tar/asm
