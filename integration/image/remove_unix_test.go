@@ -33,6 +33,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.NotAmd64)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support overlay2 on most distros")
+	skip.If(t, testEnv.UsingSnapshotter, "tests the graph driver layer store that's not used with the containerd image store")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
