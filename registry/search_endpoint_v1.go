@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -15,12 +14,8 @@ import (
 )
 
 // v1PingResult contains the information returned when pinging a registry. It
-// indicates the registry's version and whether the registry claims to be a
-// standalone registry.
+// indicates whether the registry claims to be a standalone registry.
 type v1PingResult struct {
-	// Version is the registry version supplied by the registry in an HTTP
-	// header
-	Version string `json:"version"`
 	// Standalone is set to true if the registry indicates it is a
 	// standalone registry in the X-Docker-Registry-Standalone
 	// header
@@ -47,39 +42,30 @@ func newV1Endpoint(index *registry.IndexInfo, headers http.Header) (*v1Endpoint,
 		return nil, err
 	}
 
-	err = validateEndpoint(endpoint)
-	if err != nil {
-		return nil, err
+	if endpoint.String() == IndexServer {
+		// Skip the check, we know this one is valid
+		// (and we never want to fall back to http in case of error)
+		return endpoint, nil
 	}
-
-	return endpoint, nil
-}
-
-func validateEndpoint(endpoint *v1Endpoint) error {
-	log.G(context.TODO()).Debugf("pinging registry endpoint %s", endpoint)
 
 	// Try HTTPS ping to registry
 	endpoint.URL.Scheme = "https"
 	if _, err := endpoint.ping(); err != nil {
 		if endpoint.IsSecure {
 			// If registry is secure and HTTPS failed, show user the error and tell them about `--insecure-registry`
-			// in case that's what they need. DO NOT accept unknown CA certificates, and DO NOT fallback to HTTP.
-			return invalidParamf("invalid registry endpoint %s: %v. If this private registry supports only HTTP or HTTPS with an unknown CA certificate, please add `--insecure-registry %s` to the daemon's arguments. In the case of HTTPS, if you have access to the registry's CA certificate, no need for the flag; simply place the CA certificate at /etc/docker/certs.d/%s/ca.crt", endpoint, err, endpoint.URL.Host, endpoint.URL.Host)
+			// in case that's what they need. DO NOT accept unknown CA certificates, and DO NOT fall back to HTTP.
+			return nil, invalidParamf("invalid registry endpoint %s: %v. If this private registry supports only HTTP or HTTPS with an unknown CA certificate, please add `--insecure-registry %s` to the daemon's arguments. In the case of HTTPS, if you have access to the registry's CA certificate, no need for the flag; simply place the CA certificate at /etc/docker/certs.d/%s/ca.crt", endpoint, err, endpoint.URL.Host, endpoint.URL.Host)
 		}
 
-		// If registry is insecure and HTTPS failed, fallback to HTTP.
+		// registry is insecure and HTTPS failed, fallback to HTTP.
 		log.G(context.TODO()).WithError(err).Debugf("error from registry %q marked as insecure - insecurely falling back to HTTP", endpoint)
 		endpoint.URL.Scheme = "http"
-
-		var err2 error
-		if _, err2 = endpoint.ping(); err2 == nil {
-			return nil
+		if _, err2 := endpoint.ping(); err2 != nil {
+			return nil, invalidParamf("invalid registry endpoint %q. HTTPS attempt: %v. HTTP attempt: %v", endpoint, err, err2)
 		}
-
-		return invalidParamf("invalid registry endpoint %q. HTTPS attempt: %v. HTTP attempt: %v", endpoint, err, err2)
 	}
 
-	return nil
+	return endpoint, nil
 }
 
 // trimV1Address trims the "v1" version suffix off the address and returns
@@ -130,8 +116,8 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 		return v1PingResult{}, nil
 	}
 
-	log.G(context.TODO()).Debugf("attempting v1 ping for registry endpoint %s", e)
 	pingURL := e.String() + "_ping"
+	log.G(context.TODO()).WithField("url", pingURL).Debug("attempting v1 ping for registry endpoint")
 	req, err := http.NewRequest(http.MethodGet, pingURL, nil)
 	if err != nil {
 		return v1PingResult{}, invalidParam(err)
@@ -144,9 +130,14 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 
 	defer resp.Body.Close()
 
-	jsonString, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return v1PingResult{}, invalidParamWrapf(err, "error while reading response from %s", pingURL)
+	if v := resp.Header.Get("X-Docker-Registry-Standalone"); v != "" {
+		info := v1PingResult{}
+		// Accepted values are "1", and "true" (case-insensitive).
+		if v == "1" || strings.EqualFold(v, "true") {
+			info.Standalone = true
+		}
+		log.G(context.TODO()).Debugf("v1PingResult.Standalone (from X-Docker-Registry-Standalone header): %t", info.Standalone)
+		return info, nil
 	}
 
 	// If the header is absent, we assume true for compatibility with earlier
@@ -154,24 +145,11 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 	info := v1PingResult{
 		Standalone: true,
 	}
-	if err := json.Unmarshal(jsonString, &info); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
 		log.G(context.TODO()).WithError(err).Debug("error unmarshaling _ping response")
 		// don't stop here. Just assume sane defaults
 	}
-	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {
-		info.Version = hdr
-	}
-	log.G(context.TODO()).Debugf("v1PingResult.Version: %q", info.Version)
 
-	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
-
-	// Accepted values are "true" (case-insensitive) and "1".
-	if strings.EqualFold(standalone, "true") || standalone == "1" {
-		info.Standalone = true
-	} else if len(standalone) > 0 {
-		// there is a header set, and it is not "true" or "1", so assume fails
-		info.Standalone = false
-	}
 	log.G(context.TODO()).Debugf("v1PingResult.Standalone: %t", info.Standalone)
 	return info, nil
 }

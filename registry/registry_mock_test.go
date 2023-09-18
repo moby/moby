@@ -76,35 +76,30 @@ func makeHTTPSURL(req string) string {
 }
 
 func makeIndex(req string) *registry.IndexInfo {
-	index := &registry.IndexInfo{
+	return &registry.IndexInfo{
 		Name: makeURL(req),
 	}
-	return index
 }
 
 func makeHTTPSIndex(req string) *registry.IndexInfo {
-	index := &registry.IndexInfo{
+	return &registry.IndexInfo{
 		Name: makeHTTPSURL(req),
 	}
-	return index
 }
 
 func makePublicIndex() *registry.IndexInfo {
-	index := &registry.IndexInfo{
+	return &registry.IndexInfo{
 		Name:     IndexServer,
 		Secure:   true,
 		Official: true,
 	}
-	return index
 }
 
 func makeServiceConfig(mirrors []string, insecureRegistries []string) (*serviceConfig, error) {
-	options := ServiceOptions{
+	return newServiceConfig(ServiceOptions{
 		Mirrors:            mirrors,
 		InsecureRegistries: insecureRegistries,
-	}
-
-	return newServiceConfig(options)
+	})
 }
 
 func writeHeaders(w http.ResponseWriter) {
@@ -114,8 +109,6 @@ func writeHeaders(w http.ResponseWriter) {
 	h.Add("Content-Type", "application/json")
 	h.Add("Pragma", "no-cache")
 	h.Add("Cache-Control", "no-cache")
-	h.Add("X-Docker-Registry-Version", "0.0.0")
-	h.Add("X-Docker-Registry-Config", "mock")
 }
 
 func writeResponse(w http.ResponseWriter, message interface{}, code int) {
@@ -156,5 +149,5 @@ func TestPing(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, res.StatusCode, http.StatusOK, "")
-	assert.Equal(t, res.Header.Get("X-Docker-Registry-Config"), "mock", "This is not a Mocked Registry")
+	assert.Equal(t, res.Header.Get("Server"), "docker-tests/mock")
 }

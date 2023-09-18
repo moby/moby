@@ -1,14 +1,12 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
-	"os"
 	"testing"
 
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 func TestParseRepositoryInfo(t *testing.T) {
@@ -381,7 +379,6 @@ func TestNewIndexInfo(t *testing.T) {
 }
 
 func TestMirrorEndpointLookup(t *testing.T) {
-	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	containsMirror := func(endpoints []APIEndpoint) bool {
 		for _, pe := range endpoints {
 			if pe.URL.Host == "my.mirror" {
