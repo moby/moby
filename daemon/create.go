@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"runtime"
 	"strings"
 	"time"
@@ -21,6 +20,7 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/runconfig"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -98,7 +98,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		}
 	}
 
-	err = verifyNetworkingConfig(opts.params.NetworkingConfig)
+	err = daemon.validateNetworkingConfig(opts.params.NetworkingConfig)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
@@ -321,30 +321,30 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 	return nil
 }
 
-// verifyNetworkingConfig validates if the nwConfig is valid.
-func verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
+// validateNetworkingConfig checks whether a container's NetworkingConfig is valid.
+func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
 	if nwConfig == nil {
 		return nil
 	}
 
+	var errs []error
 	for k, v := range nwConfig.EndpointsConfig {
 		if v == nil {
-			return fmt.Errorf("no EndpointSettings for %s", k)
+			errs = append(errs, fmt.Errorf("invalid config for network %s: EndpointsConfig is nil", k))
+			continue
 		}
-		if v.IPAMConfig != nil {
-			if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
-				return fmt.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address)
-			}
-			if v.IPAMConfig.IPv6Address != "" {
-				n := net.ParseIP(v.IPAMConfig.IPv6Address)
-				// if the address is an invalid network address (ParseIP == nil) or if it is
-				// an IPv4 address (To4() != nil), then it is an invalid IPv6 address
-				if n == nil || n.To4() != nil {
-					return fmt.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address)
-				}
-			}
+
+		// The referenced network k might not exist when the container is created, so just ignore the error in that case.
+		nw, _ := daemon.FindNetwork(k)
+		if err := validateEndpointSettings(nw, k, v); err != nil {
+			errs = append(errs, fmt.Errorf("invalid config for network %s: %w", k, err))
 		}
 	}
+
+	if len(errs) > 0 {
+		return errdefs.InvalidParameter(multierror.Join(errs...))
+	}
+
 	return nil
 }
 

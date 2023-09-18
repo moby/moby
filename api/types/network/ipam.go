@@ -51,6 +51,8 @@ func HasIPv6Subnets(ipam *IPAM) bool {
 	return false
 }
 
+// ValidateIPAM checks whether the network's IPAM passed as argument is valid. It returns a joinError of the list of
+// errors found.
 func ValidateIPAM(ipam *IPAM) error {
 	if ipam == nil {
 		return nil

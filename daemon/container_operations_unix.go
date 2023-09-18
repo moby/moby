@@ -367,11 +367,13 @@ func isLinkable(child *container.Container) bool {
 	return ok
 }
 
+// TODO(aker): remove when we make the default bridge network behave like any other network
 func enableIPOnPredefinedNetwork() bool {
 	return false
 }
 
 // serviceDiscoveryOnDefaultNetwork indicates if service discovery is supported on the default network
+// TODO(aker): remove when we make the default bridge network behave like any other network
 func serviceDiscoveryOnDefaultNetwork() bool {
 	return false
 }

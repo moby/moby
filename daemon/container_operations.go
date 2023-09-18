@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
@@ -562,54 +563,57 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 	return nil
 }
 
-// hasUserDefinedIPAddress returns whether the passed IPAM configuration contains IP address configuration
-func hasUserDefinedIPAddress(ipamConfig *networktypes.EndpointIPAMConfig) bool {
-	return ipamConfig != nil && (len(ipamConfig.IPv4Address) > 0 || len(ipamConfig.IPv6Address) > 0)
-}
-
-// User specified ip address is acceptable only for networks with user specified subnets.
-func validateNetworkingConfig(n *libnetwork.Network, epConfig *networktypes.EndpointSettings) error {
-	if n == nil || epConfig == nil {
+// validateEndpointSettings checks whether the given epConfig is valid. The nw parameter can be nil, in which case it
+// won't try to check if the endpoint IP addresses are within network's subnets.
+func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *networktypes.EndpointSettings) error {
+	if epConfig == nil {
 		return nil
 	}
-	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
-		if hasUserDefinedIPAddress(epConfig.IPAMConfig) && !enableIPOnPredefinedNetwork() {
-			return runconfig.ErrUnsupportedNetworkAndIP
+
+	ipamConfig := &networktypes.EndpointIPAMConfig{}
+	if epConfig.IPAMConfig != nil {
+		ipamConfig = epConfig.IPAMConfig
+	}
+
+	var errs []error
+
+	// TODO(aker): move this into api/types/network/endpoint.go once enableIPOnPredefinedNetwork and
+	//  serviceDiscoveryOnDefaultNetwork are removed.
+	if !containertypes.NetworkMode(nwName).IsUserDefined() {
+		hasStaticAddresses := ipamConfig.IPv4Address != "" || ipamConfig.IPv6Address != ""
+		// On Linux, user specified IP address is accepted only by networks with user specified subnets.
+		if hasStaticAddresses && !enableIPOnPredefinedNetwork() {
+			errs = append(errs, runconfig.ErrUnsupportedNetworkAndIP)
 		}
 		if len(epConfig.Aliases) > 0 && !serviceDiscoveryOnDefaultNetwork() {
-			return runconfig.ErrUnsupportedNetworkAndAlias
+			errs = append(errs, runconfig.ErrUnsupportedNetworkAndAlias)
 		}
-	}
-	if !hasUserDefinedIPAddress(epConfig.IPAMConfig) {
-		return nil
 	}
 
-	_, _, nwIPv4Configs, nwIPv6Configs := n.IpamConfig()
-	for _, s := range []struct {
-		ipConfigured  bool
-		subnetConfigs []*libnetwork.IpamConf
-	}{
-		{
-			ipConfigured:  len(epConfig.IPAMConfig.IPv4Address) > 0,
-			subnetConfigs: nwIPv4Configs,
-		},
-		{
-			ipConfigured:  len(epConfig.IPAMConfig.IPv6Address) > 0,
-			subnetConfigs: nwIPv6Configs,
-		},
-	} {
-		if s.ipConfigured {
-			foundSubnet := false
-			for _, cfg := range s.subnetConfigs {
-				if len(cfg.PreferredPool) > 0 {
-					foundSubnet = true
-					break
-				}
-			}
-			if !foundSubnet {
-				return runconfig.ErrUnsupportedNetworkNoSubnetAndIP
-			}
+	// TODO(aker): add a proper multierror.Append
+	if err := ipamConfig.Validate(); err != nil {
+		errs = append(errs, err.(interface{ Unwrap() []error }).Unwrap()...)
+	}
+
+	if nw != nil {
+		_, _, v4Configs, v6Configs := nw.IpamConfig()
+
+		var nwIPv4Subnets, nwIPv6Subnets []networktypes.NetworkSubnet
+		for _, nwIPAMConfig := range v4Configs {
+			nwIPv4Subnets = append(nwIPv4Subnets, nwIPAMConfig)
 		}
+		for _, nwIPAMConfig := range v6Configs {
+			nwIPv6Subnets = append(nwIPv6Subnets, nwIPAMConfig)
+		}
+
+		// TODO(aker): add a proper multierror.Append
+		if err := ipamConfig.IsInRange(nwIPv4Subnets, nwIPv6Subnets); err != nil {
+			errs = append(errs, err.(interface{ Unwrap() []error }).Unwrap()...)
+		}
+	}
+
+	if err := multierror.Join(errs...); err != nil {
+		return fmt.Errorf("invalid endpoint settings:\n%w", err)
 	}
 
 	return nil
@@ -657,7 +661,7 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *lib
 		}
 	}
 
-	if err := validateNetworkingConfig(n, endpointConfig); err != nil {
+	if err := validateEndpointSettings(n, n.Name(), endpointConfig); err != nil {
 		return err
 	}
 
