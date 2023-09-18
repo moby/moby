@@ -387,7 +387,7 @@ func (c *client) extractResourcesFromSpec(spec *specs.Spec, configuration *hcssh
 	}
 }
 
-func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Task, error) {
+func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Task, retErr error) {
 	ctr.mu.Lock()
 	defer ctr.mu.Unlock()
 
@@ -444,7 +444,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	}
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if err := newProcess.Kill(); err != nil {
 				logger.WithError(err).Error("failed to kill process")
 			}
@@ -458,23 +458,11 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 			}()
 		}
 	}()
-	t := &task{process: process{
-		id:         ctr.id,
-		ctr:        ctr,
-		hcsProcess: newProcess,
-		waitCh:     make(chan struct{}),
-	}}
-	pid := t.Pid()
+
+	pid := newProcess.Pid()
 	logger.WithField("pid", pid).Debug("init process started")
 
-	// Spin up a goroutine to notify the backend and clean up resources when
-	// the task exits. Defer until after the start event is sent so that the
-	// exit event is not sent out-of-order.
-	defer func() { go t.reap() }()
-
-	// Don't shadow err here due to our deferred clean-up.
-	var dio *cio.DirectIO
-	dio, err = newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
+	dio, err := newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
 	if err != nil {
 		logger.WithError(err).Error("failed to get stdio pipes")
 		return nil, err
@@ -485,16 +473,28 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		return nil, err
 	}
 
+	t := &task{process{
+		id:         ctr.id,
+		ctr:        ctr,
+		hcsProcess: newProcess,
+		waitCh:     make(chan struct{}),
+	}}
+
 	// All fallible operations have succeeded so it is now safe to set the
 	// container's current task.
 	ctr.task = t
+
+	// Spin up a goroutine to notify the backend and clean up resources when
+	// the task exits. Defer until after the start event is sent so that the
+	// exit event is not sent out-of-order.
+	defer func() { go t.reap() }()
 
 	// Generate the associated event
 	ctr.client.eventQ.Append(ctr.id, func() {
 		ei := libcontainerdtypes.EventInfo{
 			ContainerID: ctr.id,
 			ProcessID:   t.id,
-			Pid:         pid,
+			Pid:         uint32(pid),
 		}
 		ctr.client.logger.WithFields(log.Fields{
 			"container":  ctr.id,
@@ -555,7 +555,7 @@ func newIOFromProcess(newProcess hcsshim.Process, terminal bool) (*cio.DirectIO,
 // The processID argument is entirely informational. As there is no mechanism
 // (exposed through the libcontainerd interfaces) to enumerate or reference an
 // exec'd process by ID, uniqueness is not currently enforced.
-func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Process, error) {
+func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Process, retErr error) {
 	hcsContainer, err := t.getHCSContainer()
 	if err != nil {
 		return nil, err
@@ -606,9 +606,8 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 		logger.WithError(err).Errorf("exec's CreateProcess() failed")
 		return nil, err
 	}
-	pid := newProcess.Pid()
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if err := newProcess.Kill(); err != nil {
 				logger.WithError(err).Error("failed to kill process")
 			}
@@ -646,6 +645,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 	// the exit event is not sent out-of-order.
 	defer func() { go p.reap() }()
 
+	pid := newProcess.Pid()
 	t.ctr.client.eventQ.Append(t.ctr.id, func() {
 		ei := libcontainerdtypes.EventInfo{
 			ContainerID: t.ctr.id,
