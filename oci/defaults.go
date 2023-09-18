@@ -113,6 +113,7 @@ func DefaultLinuxSpec() specs.Spec {
 				"/proc/sched_debug",
 				"/proc/scsi",
 				"/sys/firmware",
+				"/sys/devices/virtual/powercap",
 			},
 			ReadonlyPaths: []string{
 				"/proc/bus",
