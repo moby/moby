@@ -73,8 +73,14 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 	finishProgress := jobs.showProgress(ctx, out, pp)
 	defer finishProgress()
 
+	var sentPullingFrom bool
 	ah := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if images.IsManifestType(desc.MediaType) {
+			if !sentPullingFrom {
+				progress.Message(out, tagOrDigest, "Pulling from "+reference.Path(ref))
+				sentPullingFrom = true
+			}
+
 			available, _, _, missing, err := images.Check(ctx, i.client.ContentStore(), desc, p)
 			if err != nil {
 				return nil, err
@@ -97,8 +103,6 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 	// this information is used to enable remote snapshotters like nydus and stargz to query a registry.
 	infoHandler := snapshotters.AppendInfoHandlerWrapper(ref.String())
 	opts = append(opts, containerd.WithImageHandlerWrapper(infoHandler))
-
-	progress.Message(out, tagOrDigest, "Pulling from "+reference.Path(ref))
 
 	img, err := i.client.Pull(ctx, ref.String(), opts...)
 	if err != nil {
