@@ -1,5 +1,9 @@
 //go:build linux && cgo
 
+// Package loopback provides utilities to work with loopback devices.
+//
+// Deprecated: this package is deprecated and will be removed in the next release.
+
 package loopback // import "github.com/docker/docker/pkg/loopback"
 
 import (
@@ -21,6 +25,8 @@ func getLoopbackBackingFile(file *os.File) (uint64, uint64, error) {
 }
 
 // SetCapacity reloads the size for the loopback device.
+//
+// Deprecated: the loopback package is deprected and will be removed in the next release.
 func SetCapacity(file *os.File) error {
 	if err := unix.IoctlSetInt(int(file.Fd()), unix.LOOP_SET_CAPACITY, 0); err != nil {
 		log.G(context.TODO()).Errorf("Error loopbackSetCapacity: %s", err)
@@ -31,6 +37,8 @@ func SetCapacity(file *os.File) error {
 
 // FindLoopDeviceFor returns a loopback device file for the specified file which
 // is backing file of a loop back device.
+//
+// Deprecated: the loopback package is deprected and will be removed in the next release.
 func FindLoopDeviceFor(file *os.File) *os.File {
 	var stat unix.Stat_t
 	err := unix.Stat(file.Name(), &stat)
