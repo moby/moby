@@ -18,19 +18,12 @@ package fs
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/sirupsen/logrus"
 )
-
-var bufferPool = &sync.Pool{
-	New: func() interface{} {
-		buffer := make([]byte, 32*1024)
-		return &buffer
-	},
-}
 
 // XAttrErrorHandler transform a non-nil xattr error.
 // Return nil to ignore an error.
@@ -199,5 +192,6 @@ func openAndCopyFile(target, source string) error {
 	}
 	defer tgt.Close()
 
-	return copyFileContent(tgt, src)
+	_, err = io.Copy(tgt, src)
+	return err
 }
