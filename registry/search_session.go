@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/pkg/errors"
 )
 
@@ -208,10 +206,8 @@ func (r *session) searchRepositories(term string, limit int) (*registry.SearchRe
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, errdefs.Unknown(&jsonmessage.JSONError{
-			Message: "Unexpected status code " + strconv.Itoa(res.StatusCode),
-			Code:    res.StatusCode,
-		})
+		// TODO(thaJeztah): return upstream response body for errors (see https://github.com/moby/moby/issues/27286).
+		return nil, errdefs.Unknown(fmt.Errorf("Unexpected status code %d", res.StatusCode))
 	}
 	result := &registry.SearchResults{}
 	err = json.NewDecoder(res.Body).Decode(result)
