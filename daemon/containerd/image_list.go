@@ -16,9 +16,11 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
+	imagetypes "github.com/docker/docker/api/types/image"
 	timetypes "github.com/docker/docker/api/types/time"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -86,9 +88,10 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	}
 
 	var (
-		summaries = make([]*types.ImageSummary, 0, len(imgs))
-		root      []*[]digest.Digest
-		layers    map[digest.Digest]int
+		allContainers []*container.Container
+		summaries     = make([]*types.ImageSummary, 0, len(imgs))
+		root          []*[]digest.Digest
+		layers        map[digest.Digest]int
 	)
 	if opts.SharedSize {
 		root = make([]*[]digest.Digest, 0, len(imgs))
@@ -144,6 +147,10 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		tagsByDigest[dgst] = append(tagsByDigest[dgst], reference.FamiliarString(ref))
 	}
 
+	if opts.ContainerCount {
+		allContainers = i.containers.List()
+	}
+
 	for _, img := range uniqueImages {
 		err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
 			if isPseudo, err := img.IsPseudoImage(ctx); isPseudo || err != nil {
@@ -164,7 +171,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 				return nil
 			}
 
-			image, chainIDs, err := i.singlePlatformImage(ctx, contentStore, tagsByDigest[img.RealTarget.Digest], img)
+			image, chainIDs, err := i.singlePlatformImage(ctx, contentStore, tagsByDigest[img.RealTarget.Digest], img, opts, allContainers)
 			if err != nil {
 				return err
 			}
@@ -201,10 +208,10 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	return summaries, nil
 }
 
-func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, image *ImageManifest) (*types.ImageSummary, []digest.Digest, error) {
-	diffIDs, err := image.RootFS(ctx)
+func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest, opts types.ImageListOptions, allContainers []*container.Container) (*types.ImageSummary, []digest.Digest, error) {
+	diffIDs, err := imageManifest.RootFS(ctx)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to get rootfs of image %s", image.Name())
+		return nil, nil, errors.Wrapf(err, "failed to get rootfs of image %s", imageManifest.Name())
 	}
 
 	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
@@ -215,14 +222,14 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 	if err != nil {
 		if !cerrdefs.IsNotFound(err) {
 			log.G(ctx).WithError(err).WithFields(log.Fields{
-				"image":      image.Name(),
+				"image":      imageManifest.Name(),
 				"snapshotID": imageSnapshotID,
 			}).Warn("failed to calculate unpacked size of image")
 		}
 		unpackedUsage = snapshots.Usage{Size: 0}
 	}
 
-	contentSize, err := image.Size(ctx)
+	contentSize, err := imageManifest.Size(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -232,7 +239,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 	totalSize := contentSize + unpackedUsage.Size
 
 	var repoDigests []string
-	rawImg := image.Metadata()
+	rawImg := imageManifest.Metadata()
 	target := rawImg.Target.Digest
 
 	logger := log.G(ctx).WithFields(log.Fields{
@@ -260,7 +267,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		}
 	}
 
-	cfgDesc, err := image.Image.Config(ctx)
+	cfgDesc, err := imageManifest.Image.Config(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -285,6 +292,17 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		Containers: -1,
 	}
 
+	if opts.ContainerCount {
+		// Get container count
+		var containers int64
+		for _, c := range allContainers {
+			if c.ImageID == image.ID(target.String()) {
+				containers++
+			}
+		}
+		summary.Containers = containers
+	}
+
 	return summary, identity.ChainIDs(diffIDs), nil
 }
 
@@ -297,13 +315,13 @@ type imageFilterFunc func(image images.Image) bool
 func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) (filterFunc imageFilterFunc, outErr error) {
 	var fltrs []imageFilterFunc
 	err := imageFilters.WalkValues("before", func(value string) error {
-		img, err := i.GetImage(ctx, value, image.GetImageOpts{})
+		img, err := i.GetImage(ctx, value, imagetypes.GetImageOpts{})
 		if err != nil {
 			return err
 		}
 		if img != nil && img.Created != nil {
 			fltrs = append(fltrs, func(candidate images.Image) bool {
-				cand, err := i.GetImage(ctx, candidate.Name, image.GetImageOpts{})
+				cand, err := i.GetImage(ctx, candidate.Name, imagetypes.GetImageOpts{})
 				if err != nil {
 					return false
 				}
@@ -317,13 +335,13 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 	}
 
 	err = imageFilters.WalkValues("since", func(value string) error {
-		img, err := i.GetImage(ctx, value, image.GetImageOpts{})
+		img, err := i.GetImage(ctx, value, imagetypes.GetImageOpts{})
 		if err != nil {
 			return err
 		}
 		if img != nil && img.Created != nil {
 			fltrs = append(fltrs, func(candidate images.Image) bool {
-				cand, err := i.GetImage(ctx, candidate.Name, image.GetImageOpts{})
+				cand, err := i.GetImage(ctx, candidate.Name, imagetypes.GetImageOpts{})
 				if err != nil {
 					return false
 				}
