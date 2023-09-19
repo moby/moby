@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	}
 	span.SetAttributes(attribute.Int("exit", ec))
 	shutdown(ctx)
-	os.Exit(m.Run())
+	os.Exit(ec)
 }
 
 func setupTest(t *testing.T) context.Context {
