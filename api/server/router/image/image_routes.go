@@ -2,6 +2,7 @@ package image // import "github.com/docker/docker/api/server/router/image"
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/distribution/reference"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -67,10 +69,39 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 			}
 		}
 
+		// Special case: "pull -a" may send an image name with a
+		// trailing :. This is ugly, but let's not break API
+		// compatibility.
+		image := strings.TrimSuffix(img, ":")
+
+		ref, err := reference.ParseNormalizedNamed(image)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+
+		// TODO(thaJeztah) this could use a WithTagOrDigest() utility
+		if tag != "" {
+			// The "tag" could actually be a digest.
+			var dgst digest.Digest
+			dgst, err = digest.Parse(tag)
+			if err == nil {
+				ref, err = reference.WithDigest(reference.TrimNamed(ref), dgst)
+			} else {
+				ref, err = reference.WithTag(ref, tag)
+			}
+			if err != nil {
+				return errdefs.InvalidParameter(err)
+			}
+		}
+
+		if err := validateRepoName(ref); err != nil {
+			return errdefs.Forbidden(err)
+		}
+
 		// For a pull it is not an error if no auth was given. Ignore invalid
 		// AuthConfig to increase compatibility with the existing API.
 		authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
-		progressErr = ir.backend.PullImage(ctx, img, tag, platform, metaHeaders, authConfig, output)
+		progressErr = ir.backend.PullImage(ctx, ref, platform, metaHeaders, authConfig, output)
 	} else { // import
 		src := r.Form.Get("fromSrc")
 
@@ -485,4 +516,13 @@ func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+}
+
+// validateRepoName validates the name of a repository.
+func validateRepoName(name reference.Named) error {
+	familiarName := reference.FamiliarName(name)
+	if familiarName == api.NoBaseImageSpecifier {
+		return fmt.Errorf("'%s' is a reserved name", familiarName)
+	}
+	return nil
 }

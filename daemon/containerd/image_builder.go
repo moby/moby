@@ -117,7 +117,6 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 	if err != nil {
 		return nil, err
 	}
-	taggedRef := reference.TagNameOnly(ref)
 
 	pullRegistryAuth := &registry.AuthConfig{}
 	if len(authConfigs) > 0 {
@@ -131,7 +130,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := i.PullImage(ctx, ref.Name(), taggedRef.(reference.NamedTagged).Tag(), platform, nil, pullRegistryAuth, output); err != nil {
+	if err := i.PullImage(ctx, reference.TagNameOnly(ref), platform, nil, pullRegistryAuth, output); err != nil {
 		return nil, err
 	}
 
