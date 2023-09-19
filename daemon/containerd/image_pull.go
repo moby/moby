@@ -13,6 +13,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -73,8 +74,12 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 	finishProgress := jobs.showProgress(ctx, out, pp)
 	defer finishProgress()
 
-	var sentPullingFrom bool
+	var sentPullingFrom, sentSchema1Deprecation bool
 	ah := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		if desc.MediaType == images.MediaTypeDockerSchema1Manifest && !sentSchema1Deprecation {
+			progress.Message(out, "", distribution.DeprecatedSchema1ImageMessage(ref))
+			sentSchema1Deprecation = true
+		}
 		if images.IsManifestType(desc.MediaType) {
 			if !sentPullingFrom {
 				progress.Message(out, tagOrDigest, "Pulling from "+reference.Path(ref))
