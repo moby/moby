@@ -50,5 +50,5 @@ func TestMain(m *testing.M) {
 	span.SetAttributes(attribute.Int("exit", code))
 	span.End()
 	shutdown(ctx)
-	os.Exit(m.Run())
+	os.Exit(code)
 }

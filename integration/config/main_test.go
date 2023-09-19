@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 	}
 	span.End()
 	shutdown(ctx)
-	os.Exit(m.Run())
+	os.Exit(code)
 }
 
 func setupTest(t *testing.T) context.Context {
