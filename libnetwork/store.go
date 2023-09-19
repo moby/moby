@@ -192,20 +192,7 @@ retry:
 }
 
 type netWatch struct {
-	localEps  map[string]*Endpoint
-	remoteEps map[string]*Endpoint
-}
-
-func (c *Controller) getLocalEps(nw *netWatch) []*Endpoint {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	var epl []*Endpoint
-	for _, ep := range nw.localEps {
-		epl = append(epl, ep)
-	}
-
-	return epl
+	localEps map[string]*Endpoint
 }
 
 func (c *Controller) watchSvcRecord(ep *Endpoint) {
@@ -216,7 +203,7 @@ func (c *Controller) unWatchSvcRecord(ep *Endpoint) {
 	c.unWatchCh <- ep
 }
 
-func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *Endpoint) {
+func (c *Controller) processEndpointCreate(ep *Endpoint) {
 	n := ep.getNetwork()
 	if !c.isDistributedControl() && n.Scope() == scope.Swarm && n.driverIsMultihost() {
 		return
@@ -224,43 +211,21 @@ func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *Endpoi
 
 	networkID := n.ID()
 	endpointID := ep.ID()
-
-	c.mu.Lock()
-	nw, ok := nmap[networkID]
-	c.mu.Unlock()
-
-	if ok {
-		// Update the svc db for the local endpoint join right away
-		n.updateSvcRecord(ep, c.getLocalEps(nw), true)
-
-		c.mu.Lock()
-		nw.localEps[endpointID] = ep
-
-		// If we had learned that from the kv store remove it
-		// from remote ep list now that we know that this is
-		// indeed a local endpoint
-		delete(nw.remoteEps, endpointID)
-		c.mu.Unlock()
-		return
-	}
-
-	nw = &netWatch{
-		localEps:  make(map[string]*Endpoint),
-		remoteEps: make(map[string]*Endpoint),
-	}
 
 	// Update the svc db for the local endpoint join right away
 	// Do this before adding this ep to localEps so that we don't
 	// try to update this ep's container's svc records
-	n.updateSvcRecord(ep, c.getLocalEps(nw), true)
-
+	n.updateSvcRecord(ep, true)
 	c.mu.Lock()
-	nw.localEps[endpointID] = ep
-	nmap[networkID] = nw
+	_, ok := c.nmap[networkID]
+	if !ok {
+		c.nmap[networkID] = &netWatch{localEps: make(map[string]*Endpoint)}
+	}
+	c.nmap[networkID].localEps[endpointID] = ep
 	c.mu.Unlock()
 }
 
-func (c *Controller) processEndpointDelete(nmap map[string]*netWatch, ep *Endpoint) {
+func (c *Controller) processEndpointDelete(ep *Endpoint) {
 	n := ep.getNetwork()
 	if !c.isDistributedControl() && n.Scope() == scope.Swarm && n.driverIsMultihost() {
 		return
@@ -270,24 +235,21 @@ func (c *Controller) processEndpointDelete(nmap map[string]*netWatch, ep *Endpoi
 	endpointID := ep.ID()
 
 	c.mu.Lock()
-	nw, ok := nmap[networkID]
-
-	if ok {
+	if nw, ok := c.nmap[networkID]; ok {
 		delete(nw.localEps, endpointID)
 		c.mu.Unlock()
 
 		// Update the svc db about local endpoint leave right away
 		// Do this after we remove this ep from localEps so that we
 		// don't try to remove this svc record from this ep's container.
-		n.updateSvcRecord(ep, c.getLocalEps(nw), false)
+		n.updateSvcRecord(ep, false)
 
 		c.mu.Lock()
 		if len(nw.localEps) == 0 {
 			// This is the last container going away for the network. Destroy
 			// this network's svc db entry
 			delete(c.svcRecords, networkID)
-
-			delete(nmap, networkID)
+			delete(c.nmap, networkID)
 		}
 	}
 	c.mu.Unlock()
@@ -297,9 +259,9 @@ func (c *Controller) watchLoop() {
 	for {
 		select {
 		case ep := <-c.watchCh:
-			c.processEndpointCreate(c.nmap, ep)
+			c.processEndpointCreate(ep)
 		case ep := <-c.unWatchCh:
-			c.processEndpointDelete(c.nmap, ep)
+			c.processEndpointDelete(ep)
 		}
 	}
 }

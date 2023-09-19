@@ -567,9 +567,8 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 
 func (ep *Endpoint) rename(name string) error {
 	var (
-		err      error
-		netWatch *netWatch
-		ok       bool
+		err error
+		ok  bool
 	)
 
 	n := ep.getNetwork()
@@ -591,12 +590,13 @@ func (ep *Endpoint) rename(name string) error {
 		}
 	} else {
 		c.mu.Lock()
-		netWatch, ok = c.nmap[n.ID()]
+		_, ok = c.nmap[n.ID()]
 		c.mu.Unlock()
 		if !ok {
+			// FIXME(thaJeztah): what is this check for, or is this to prevent a race condition (network removed)?
 			return fmt.Errorf("watch null for network %q", n.Name())
 		}
-		n.updateSvcRecord(ep, c.getLocalEps(netWatch), false)
+		n.updateSvcRecord(ep, false)
 	}
 
 	oldName := ep.name
@@ -621,13 +621,13 @@ func (ep *Endpoint) rename(name string) error {
 			}
 		}()
 	} else {
-		n.updateSvcRecord(ep, c.getLocalEps(netWatch), true)
+		n.updateSvcRecord(ep, true)
 		defer func() {
 			if err != nil {
-				n.updateSvcRecord(ep, c.getLocalEps(netWatch), false)
+				n.updateSvcRecord(ep, false)
 				ep.name = oldName
 				ep.anonymous = oldAnonymous
-				n.updateSvcRecord(ep, c.getLocalEps(netWatch), true)
+				n.updateSvcRecord(ep, true)
 			}
 		}()
 	}

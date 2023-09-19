@@ -1296,7 +1296,7 @@ func (n *Network) EndpointByID(id string) (*Endpoint, error) {
 	return ep, nil
 }
 
-func (n *Network) updateSvcRecord(ep *Endpoint, localEps []*Endpoint, isAdd bool) {
+func (n *Network) updateSvcRecord(ep *Endpoint, isAdd bool) {
 	var ipv6 net.IP
 	epName := ep.Name()
 	if iface := ep.Iface(); iface != nil && iface.Address() != nil {
