@@ -104,6 +104,10 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 	infoHandler := snapshotters.AppendInfoHandlerWrapper(ref.String())
 	opts = append(opts, containerd.WithImageHandlerWrapper(infoHandler))
 
+	// Allow pulling application/vnd.docker.distribution.manifest.v1+prettyjws images
+	// by converting them to OCI manifests.
+	opts = append(opts, containerd.WithSchema1Conversion)
+
 	img, err := i.client.Pull(ctx, ref.String(), opts...)
 	if err != nil {
 		return err
