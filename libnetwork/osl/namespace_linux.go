@@ -304,6 +304,8 @@ func createNamespaceFile(path string) error {
 
 	// wait for garbage collection to complete if it is in progress
 	// before trying to create the file.
+	//
+	// TODO(aker): This garbage-collection was for a kernel bug in kernels 3.18-4.0.1: is this still needed on current kernels (and on kernel 3.10)? see https://github.com/moby/moby/pull/46315/commits/c0a6beba8e61d4019e1806d5241ba22007072ca2#r1331327103
 	gpmWg.Wait()
 
 	f, err := os.Create(path)
