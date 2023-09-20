@@ -17,7 +17,7 @@ func (cli *Client) DistributionInspect(ctx context.Context, image, encodedRegist
 		return distributionInspect, objectNotFoundError{object: "distribution", id: image}
 	}
 
-	if err := cli.NewVersionError("1.30", "distribution inspect"); err != nil {
+	if err := cli.NewVersionError(ctx, "1.30", "distribution inspect"); err != nil {
 		return distributionInspect, err
 	}
 

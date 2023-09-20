@@ -16,6 +16,13 @@ import (
 // It should be the value as set *before* the update. You can find this value in the Meta field
 // of swarm.Service, which can be found using ServiceInspectWithRaw.
 func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options types.ServiceUpdateOptions) (types.ServiceUpdateResponse, error) {
+	// Make sure we negotiated (if the client is configured to do so),
+	// as code below contains API-version specific handling of options.
+	//
+	// Normally, version-negotiation (if enabled) would not happen until
+	// the API request is made.
+	cli.checkVersion(ctx)
+
 	var (
 		query    = url.Values{}
 		response = types.ServiceUpdateResponse{}

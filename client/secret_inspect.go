@@ -11,7 +11,7 @@ import (
 
 // SecretInspectWithRaw returns the secret information with raw data
 func (cli *Client) SecretInspectWithRaw(ctx context.Context, id string) (swarm.Secret, []byte, error) {
-	if err := cli.NewVersionError("1.25", "secret inspect"); err != nil {
+	if err := cli.NewVersionError(ctx, "1.25", "secret inspect"); err != nil {
 		return swarm.Secret{}, nil, err
 	}
 	if id == "" {

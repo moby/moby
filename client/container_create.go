@@ -23,13 +23,20 @@ type configWrapper struct {
 func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error) {
 	var response container.CreateResponse
 
-	if err := cli.NewVersionError("1.25", "stop timeout"); config != nil && config.StopTimeout != nil && err != nil {
+	// Make sure we negotiated (if the client is configured to do so),
+	// as code below contains API-version specific handling of options.
+	//
+	// Normally, version-negotiation (if enabled) would not happen until
+	// the API request is made.
+	cli.checkVersion(ctx)
+
+	if err := cli.NewVersionError(ctx, "1.25", "stop timeout"); config != nil && config.StopTimeout != nil && err != nil {
 		return response, err
 	}
-	if err := cli.NewVersionError("1.41", "specify container image platform"); platform != nil && err != nil {
+	if err := cli.NewVersionError(ctx, "1.41", "specify container image platform"); platform != nil && err != nil {
 		return response, err
 	}
-	if err := cli.NewVersionError("1.44", "specify health-check start interval"); config != nil && config.Healthcheck != nil && config.Healthcheck.StartInterval != 0 && err != nil {
+	if err := cli.NewVersionError(ctx, "1.44", "specify health-check start interval"); config != nil && config.Healthcheck != nil && config.Healthcheck.StartInterval != 0 && err != nil {
 		return response, err
 	}
 

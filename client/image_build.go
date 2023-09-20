@@ -18,7 +18,7 @@ import (
 // The Body in the response implements an io.ReadCloser and it's up to the caller to
 // close it.
 func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options types.ImageBuildOptions) (types.ImageBuildResponse, error) {
-	query, err := cli.imageBuildOptionsToQuery(options)
+	query, err := cli.imageBuildOptionsToQuery(ctx, options)
 	if err != nil {
 		return types.ImageBuildResponse{}, err
 	}
@@ -43,7 +43,7 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 	}, nil
 }
 
-func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, error) {
+func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options types.ImageBuildOptions) (url.Values, error) {
 	query := url.Values{
 		"t":           options.Tags,
 		"securityopt": options.SecurityOpt,
@@ -73,7 +73,7 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	}
 
 	if options.Squash {
-		if err := cli.NewVersionError("1.25", "squash"); err != nil {
+		if err := cli.NewVersionError(ctx, "1.25", "squash"); err != nil {
 			return query, err
 		}
 		query.Set("squash", "1")
@@ -123,7 +123,7 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 		query.Set("session", options.SessionID)
 	}
 	if options.Platform != "" {
-		if err := cli.NewVersionError("1.32", "platform"); err != nil {
+		if err := cli.NewVersionError(ctx, "1.32", "platform"); err != nil {
 			return query, err
 		}
 		query.Set("platform", strings.ToLower(options.Platform))

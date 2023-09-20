@@ -13,7 +13,7 @@ import (
 func (cli *Client) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (types.ImagesPruneReport, error) {
 	var report types.ImagesPruneReport
 
-	if err := cli.NewVersionError("1.25", "image prune"); err != nil {
+	if err := cli.NewVersionError(ctx, "1.25", "image prune"); err != nil {
 		return report, err
 	}
 
