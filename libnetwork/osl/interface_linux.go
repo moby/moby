@@ -14,6 +14,31 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+// newInterface creates a new interface in the given namespace using the
+// provided options.
+func newInterface(ns *Namespace, srcName, dstPrefix string, options ...IfaceOption) (*Interface, error) {
+	i := &Interface{
+		srcName: srcName,
+		dstName: dstPrefix,
+		ns:      ns,
+	}
+	for _, opt := range options {
+		if opt != nil {
+			// TODO(thaJeztah): use multi-error instead of returning early.
+			if err := opt(i); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if i.master != "" {
+		i.dstMaster = ns.findDst(i.master, true)
+		if i.dstMaster == "" {
+			return nil, fmt.Errorf("could not find an appropriate master %q for %q", i.master, i.srcName)
+		}
+	}
+	return i, nil
+}
+
 // Interface represents the settings and identity of a network device.
 // It is used as a return type for Network.Link, and it is common practice
 // for the caller to use this information when moving interface SrcName from
@@ -88,53 +113,8 @@ func (i *Interface) Routes() []*net.IPNet {
 // Remove an interface from the sandbox by renaming to original name
 // and moving it out of the sandbox.
 func (i *Interface) Remove() error {
-	i.ns.Lock()
-	isDefault := i.ns.isDefault
-	nlh := i.ns.nlHandle
-	i.ns.Unlock()
-
-	// Find the network interface identified by the DstName attribute.
-	iface, err := nlh.LinkByName(i.DstName())
-	if err != nil {
-		return err
-	}
-
-	// Down the interface before configuring
-	if err := nlh.LinkSetDown(iface); err != nil {
-		return err
-	}
-
-	err = nlh.LinkSetName(iface, i.SrcName())
-	if err != nil {
-		log.G(context.TODO()).Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
-		return err
-	}
-
-	// if it is a bridge just delete it.
-	if i.Bridge() {
-		if err := nlh.LinkDel(iface); err != nil {
-			return fmt.Errorf("failed deleting bridge %q: %v", i.SrcName(), err)
-		}
-	} else if !isDefault {
-		// Move the network interface to caller namespace.
-		if err := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); err != nil {
-			log.G(context.TODO()).Debugf("LinkSetNsPid failed for interface %s: %v", i.SrcName(), err)
-			return err
-		}
-	}
-
-	i.ns.Lock()
-	for index, intf := range i.ns.iFaces {
-		if intf == i {
-			i.ns.iFaces = append(i.ns.iFaces[:index], i.ns.iFaces[index+1:]...)
-			break
-		}
-	}
-	i.ns.Unlock()
-
-	i.ns.checkLoV6()
-
-	return nil
+	nameSpace := i.ns
+	return nameSpace.RemoveInterface(i)
 }
 
 // Statistics returns the sandbox's side veth interface statistics.
@@ -160,8 +140,8 @@ func (i *Interface) Statistics() (*types.InterfaceStatistics, error) {
 }
 
 func (n *Namespace) findDst(srcName string, isBridge bool) string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	for _, i := range n.iFaces {
 		// The master should match the srcname of the interface and the
@@ -180,24 +160,12 @@ func (n *Namespace) findDst(srcName string, isBridge bool) string {
 // to only provide a prefix for DstName. The AddInterface api will auto-generate
 // an appropriate suffix for the DstName to disambiguate.
 func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOption) error {
-	i := &Interface{
-		srcName: srcName,
-		dstName: dstPrefix,
-		ns:      n,
-	}
-	if err := i.processInterfaceOptions(options...); err != nil {
+	i, err := newInterface(n, srcName, dstPrefix, options...)
+	if err != nil {
 		return err
 	}
 
-	if i.master != "" {
-		i.dstMaster = n.findDst(i.master, true)
-		if i.dstMaster == "" {
-			return fmt.Errorf("could not find an appropriate master %q for %q",
-				i.master, i.srcName)
-		}
-	}
-
-	n.Lock()
+	n.mu.Lock()
 	if n.isDefault {
 		i.dstName = i.srcName
 	} else {
@@ -209,7 +177,7 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 	isDefault := n.isDefault
 	nlh := n.nlHandle
 	nlhHost := ns.NlHandle()
-	n.Unlock()
+	n.mu.Unlock()
 
 	// If it is a bridge interface we have to create the bridge inside
 	// the namespace so don't try to lookup the interface using srcName
@@ -285,12 +253,66 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 		return fmt.Errorf("error setting interface %q routes to %q: %v", iface.Attrs().Name, i.Routes(), err)
 	}
 
-	n.Lock()
+	n.mu.Lock()
 	n.iFaces = append(n.iFaces, i)
-	n.Unlock()
+	n.mu.Unlock()
 
 	n.checkLoV6()
 
+	return nil
+}
+
+// RemoveInterface removes an interface from the namespace by renaming to
+// original name and moving it out of the sandbox.
+func (n *Namespace) RemoveInterface(i *Interface) error {
+	n.mu.Lock()
+	isDefault := n.isDefault
+	nlh := n.nlHandle
+	n.mu.Unlock()
+
+	// Find the network interface identified by the DstName attribute.
+	iface, err := nlh.LinkByName(i.DstName())
+	if err != nil {
+		return err
+	}
+
+	// Down the interface before configuring
+	if err := nlh.LinkSetDown(iface); err != nil {
+		return err
+	}
+
+	// TODO(aker): Why are we doing this? This would fail if the initial interface set up failed before the "dest interface" was moved into its own namespace; see https://github.com/moby/moby/pull/46315/commits/108595c2fe852a5264b78e96f9e63cda284990a6#r1331253578
+	err = nlh.LinkSetName(iface, i.SrcName())
+	if err != nil {
+		log.G(context.TODO()).Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
+		return err
+	}
+
+	// if it is a bridge just delete it.
+	if i.Bridge() {
+		if err := nlh.LinkDel(iface); err != nil {
+			return fmt.Errorf("failed deleting bridge %q: %v", i.SrcName(), err)
+		}
+	} else if !isDefault {
+		// Move the network interface to caller namespace.
+		// TODO(aker): What's this really doing? There are no calls to LinkDel in this package: is this code really used? (Interface.Remove() has 3 callers); see https://github.com/moby/moby/pull/46315/commits/108595c2fe852a5264b78e96f9e63cda284990a6#r1331265335
+		if err := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); err != nil {
+			log.G(context.TODO()).Debugf("LinkSetNsFd failed for interface %s: %v", i.SrcName(), err)
+			return err
+		}
+	}
+
+	n.mu.Lock()
+	for index, intf := range i.ns.iFaces {
+		if intf == i {
+			i.ns.iFaces = append(i.ns.iFaces[:index], i.ns.iFaces[index+1:]...)
+			break
+		}
+	}
+	n.mu.Unlock()
+
+	// TODO(aker): This function will disable IPv6 on lo interface if the removed interface was the last one offering IPv6 connectivity. That's a weird behavior, and shouldn't be hiding this deep down in this function.
+	n.checkLoV6()
 	return nil
 }
 

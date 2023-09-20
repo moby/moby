@@ -32,8 +32,8 @@ type neigh struct {
 }
 
 func (n *Namespace) findNeighbor(dstIP net.IP, dstMac net.HardwareAddr) *neigh {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	for _, nh := range n.neighbors {
 		if nh.dstIP.Equal(dstIP) && bytes.Equal(nh.dstMac, dstMac) {
@@ -51,9 +51,9 @@ func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr) error 
 		return NeighborSearchError{dstIP, dstMac, false}
 	}
 
-	n.Lock()
+	n.mu.Lock()
 	nlh := n.nlHandle
-	n.Unlock()
+	n.mu.Unlock()
 
 	var linkIndex int
 	if nh.linkDst != "" {
@@ -96,14 +96,14 @@ func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr) error 
 		}
 	}
 
-	n.Lock()
+	n.mu.Lock()
 	for i, neighbor := range n.neighbors {
 		if neighbor.dstIP.Equal(dstIP) && bytes.Equal(neighbor.dstMac, dstMac) {
 			n.neighbors = append(n.neighbors[:i], n.neighbors[i+1:]...)
 			break
 		}
 	}
-	n.Unlock()
+	n.mu.Unlock()
 	log.G(context.TODO()).Debugf("Neighbor entry deleted for IP %v, mac %v", dstIP, dstMac)
 
 	return nil
@@ -142,9 +142,9 @@ func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, force boo
 		}
 	}
 
-	n.Lock()
+	n.mu.Lock()
 	nlh := n.nlHandle
-	n.Unlock()
+	n.mu.Unlock()
 
 	if nh.linkDst != "" {
 		iface, err = nlh.LinkByName(nh.linkDst)
@@ -176,9 +176,9 @@ func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, force boo
 		return nil
 	}
 
-	n.Lock()
+	n.mu.Lock()
 	n.neighbors = append(n.neighbors, nh)
-	n.Unlock()
+	n.mu.Unlock()
 	log.G(context.TODO()).Debugf("Neighbor entry added for IP:%v, mac:%v on ifc:%s", dstIP, dstMac, nh.linkName)
 
 	return nil

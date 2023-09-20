@@ -285,16 +285,16 @@ func createNetworkNamespace(path string, osCreate bool) error {
 }
 
 func unmountNamespaceFile(path string) {
-	if _, err := os.Stat(path); err == nil {
-		if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
-			log.G(context.TODO()).WithError(err).Error("Error unmounting namespace file")
-		}
+	if _, err := os.Stat(path); err != nil {
+		// ignore when we cannot stat the path
+		return
+	}
+	if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
+		log.G(context.TODO()).WithError(err).Error("Error unmounting namespace file")
 	}
 }
 
-func createNamespaceFile(path string) (err error) {
-	var f *os.File
-
+func createNamespaceFile(path string) error {
 	once.Do(createBasePath)
 	// Remove it from garbage collection list if present
 	removeFromGarbagePaths(path)
@@ -304,13 +304,16 @@ func createNamespaceFile(path string) (err error) {
 
 	// wait for garbage collection to complete if it is in progress
 	// before trying to create the file.
+	//
+	// TODO(aker): This garbage-collection was for a kernel bug in kernels 3.18-4.0.1: is this still needed on current kernels (and on kernel 3.10)? see https://github.com/moby/moby/pull/46315/commits/c0a6beba8e61d4019e1806d5241ba22007072ca2#r1331327103
 	gpmWg.Wait()
 
-	if f, err = os.Create(path); err == nil {
-		f.Close()
+	f, err := os.Create(path)
+	if err != nil {
+		return err
 	}
-
-	return err
+	_ = f.Close()
+	return nil
 }
 
 // Namespace represents a network sandbox. It represents a Linux network
@@ -328,7 +331,7 @@ type Namespace struct {
 	isDefault    bool
 	nlHandle     *netlink.Handle
 	loV6Enabled  bool
-	sync.Mutex
+	mu           sync.Mutex
 }
 
 // Interfaces returns the collection of Interface previously added with the AddInterface
@@ -450,8 +453,8 @@ func (n *Namespace) InvokeFunc(f func()) error {
 }
 
 func (n *Namespace) nsPath() string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.path
 }
@@ -478,23 +481,12 @@ func (n *Namespace) Destroy() error {
 }
 
 // Restore restores the network namespace.
-func (n *Namespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
+func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
 	// restore interfaces
-	for name, opts := range ifsopt {
-		i := &Interface{
-			srcName: name.SrcName,
-			dstName: name.DstPrefix,
-			ns:      n,
-		}
-		if err := i.processInterfaceOptions(opts...); err != nil {
+	for iface, opts := range interfaces {
+		i, err := newInterface(n, iface.SrcName, iface.DstPrefix, opts...)
+		if err != nil {
 			return err
-		}
-		if i.master != "" {
-			i.dstMaster = n.findDst(i.master, true)
-			if i.dstMaster == "" {
-				return fmt.Errorf("could not find an appropriate master %q for %q",
-					i.master, i.srcName)
-			}
 		}
 		if n.isDefault {
 			i.dstName = i.srcName
@@ -506,76 +498,60 @@ func (n *Namespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.Stat
 			// due to the docker network connect/disconnect, so the dstName should
 			// restore from the namespace
 			for _, link := range links {
-				addrs, err := n.nlHandle.AddrList(link, netlink.FAMILY_V4)
-				if err != nil {
-					return err
-				}
 				ifaceName := link.Attrs().Name
-				if strings.HasPrefix(ifaceName, "vxlan") {
-					if i.dstName == "vxlan" {
-						i.dstName = ifaceName
-						break
-					}
+				if i.dstName == "vxlan" && strings.HasPrefix(ifaceName, "vxlan") {
+					i.dstName = ifaceName
+					break
 				}
 				// find the interface name by ip
 				if i.address != nil {
-					for _, addr := range addrs {
+					addresses, err := n.nlHandle.AddrList(link, netlink.FAMILY_V4)
+					if err != nil {
+						return err
+					}
+					for _, addr := range addresses {
 						if addr.IPNet.String() == i.address.String() {
 							i.dstName = ifaceName
 							break
 						}
-						continue
 					}
 					if i.dstName == ifaceName {
 						break
 					}
 				}
 				// This is to find the interface name of the pair in overlay sandbox
-				if strings.HasPrefix(ifaceName, "veth") {
-					if i.master != "" && i.dstName == "veth" {
-						i.dstName = ifaceName
-					}
+				if i.master != "" && i.dstName == "veth" && strings.HasPrefix(ifaceName, "veth") {
+					i.dstName = ifaceName
 				}
 			}
 
 			var index int
-			indexStr := strings.TrimPrefix(i.dstName, name.DstPrefix)
-			if indexStr != "" {
-				index, err = strconv.Atoi(indexStr)
+			if idx := strings.TrimPrefix(i.dstName, iface.DstPrefix); idx != "" {
+				index, err = strconv.Atoi(idx)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to restore interface in network namespace %q: invalid dstName for interface: %s: %v", n.path, i.dstName, err)
 				}
 			}
 			index++
-			n.Lock()
-			if index > n.nextIfIndex[name.DstPrefix] {
-				n.nextIfIndex[name.DstPrefix] = index
+			n.mu.Lock()
+			if index > n.nextIfIndex[iface.DstPrefix] {
+				n.nextIfIndex[iface.DstPrefix] = index
 			}
 			n.iFaces = append(n.iFaces, i)
-			n.Unlock()
+			n.mu.Unlock()
 		}
 	}
 
-	// restore routes
-	for _, r := range routes {
-		n.Lock()
-		n.staticRoutes = append(n.staticRoutes, r)
-		n.Unlock()
-	}
-
-	// restore gateway
+	// restore routes and gateways
+	n.mu.Lock()
+	n.staticRoutes = append(n.staticRoutes, routes...)
 	if len(gw) > 0 {
-		n.Lock()
 		n.gw = gw
-		n.Unlock()
 	}
-
 	if len(gw6) > 0 {
-		n.Lock()
 		n.gwv6 = gw6
-		n.Unlock()
 	}
-
+	n.mu.Unlock()
 	return nil
 }
 
@@ -586,7 +562,7 @@ func (n *Namespace) checkLoV6() {
 		action = "disable"
 	)
 
-	n.Lock()
+	n.mu.Lock()
 	for _, iface := range n.iFaces {
 		if iface.AddressIPv6() != nil {
 			enable = true
@@ -594,7 +570,7 @@ func (n *Namespace) checkLoV6() {
 			break
 		}
 	}
-	n.Unlock()
+	n.mu.Unlock()
 
 	if n.loV6Enabled == enable {
 		return
