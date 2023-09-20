@@ -41,6 +41,7 @@ type ImageService struct {
 type RegistryConfigProvider interface {
 	IsInsecureRegistry(host string) bool
 	ResolveRepository(name reference.Named) (*registry.RepositoryInfo, error)
+	LookupPullEndpoints(hostname string) ([]registry.APIEndpoint, error)
 }
 
 type ImageServiceConfig struct {

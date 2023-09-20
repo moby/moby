@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/containerd/containerd"
@@ -12,16 +13,57 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/registry"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// PullImage initiates a pull operation. ref is the image to pull.
-func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
+// PullImage initiates a pull operation. baseRef is the image to pull.
+// If reference is not tagged, all tags are pulled.
+func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, outStream io.Writer) error {
+	out := streamformatter.NewJSONProgressOutput(outStream, false)
+
+	if tagged, ok := baseRef.(reference.NamedTagged); ok {
+		return i.pullTag(ctx, tagged, platform, metaHeaders, authConfig, out)
+	}
+
+	_, err := distribution.PullEndpoints(ctx, i.registryService, baseRef, func(ctx context.Context, repoInfo registry.RepositoryInfo, endpoint registry.APIEndpoint) error {
+		repo, err := distribution.NewRepository(ctx, &repoInfo, endpoint, metaHeaders, authConfig, "pull")
+		if err != nil {
+			return err
+		}
+
+		tags, err := repo.Tags(ctx).All(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, tag := range tags {
+			ref, err := reference.WithTag(baseRef, tag)
+			if err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"tag":     tag,
+					"baseRef": baseRef,
+				}).Warn("invalid tag, won't pull")
+				continue
+			}
+
+			if err := i.pullTag(ctx, ref, platform, metaHeaders, authConfig, out); err != nil {
+				return fmt.Errorf("error pulling %s: %w", ref, err)
+			}
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+func (i *ImageService) pullTag(ctx context.Context, ref reference.NamedTagged, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.Format(*platform)))
@@ -48,7 +90,6 @@ func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platf
 	})
 	opts = append(opts, containerd.WithImageHandler(h))
 
-	out := streamformatter.NewJSONProgressOutput(outStream, false)
 	pp := pullProgress{store: i.client.ContentStore(), showExists: true}
 	finishProgress := jobs.showProgress(ctx, out, pp)
 	defer finishProgress()
