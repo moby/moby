@@ -51,7 +51,26 @@ func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platf
 	out := streamformatter.NewJSONProgressOutput(outStream, false)
 	pp := pullProgress{store: i.client.ContentStore(), showExists: true}
 	finishProgress := jobs.showProgress(ctx, out, pp)
-	defer finishProgress()
+
+	var outNewImg *containerd.Image
+	defer func() {
+		finishProgress()
+
+		// Send final status message after the progress updater has finished.
+		// Otherwise the layer/manifest progress messages may arrive AFTER the
+		// status message have been sent, so they won't update the previous
+		// progress leaving stale progress like:
+		// 70f5ac315c5a: Downloading [>       ]       0B/3.19kB
+		// Digest: sha256:4f53e2564790c8e7856ec08e384732aa38dc43c52f02952483e3f003afbf23db
+		// 70f5ac315c5a: Download complete
+		// Status: Downloaded newer image for hello-world:latest
+		// docker.io/library/hello-world:latest
+		if outNewImg != nil {
+			img := *outNewImg
+			progress.Message(out, "", "Digest: "+img.Target().Digest.String())
+			writeStatus(out, reference.FamiliarString(ref), old.Digest != img.Target().Digest)
+		}
+	}()
 
 	var sentPullingFrom, sentSchema1Deprecation bool
 	ah := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
@@ -108,9 +127,6 @@ func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platf
 		"remote": ref.String(),
 	})
 	logger.Info("image pulled")
-	progress.Message(out, "", "Digest: "+img.Target().Digest.String())
-
-	writeStatus(out, reference.FamiliarString(ref), old.Digest != img.Target().Digest)
 
 	// The pull succeeded, so try to remove any dangling image we have for this target
 	err = i.client.ImageService().Delete(context.Background(), danglingImageName(img.Target().Digest))
@@ -121,7 +137,7 @@ func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platf
 	}
 
 	i.LogImageEvent(reference.FamiliarString(ref), reference.FamiliarName(ref), events.ActionPull)
-
+	outNewImg = &img
 	return nil
 }
 
