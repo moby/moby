@@ -31,7 +31,7 @@ func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig
 	}), tracker
 }
 
-func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig, regService RegistryConfigProvider) docker.RegistryHosts {
+func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig, regService registryResolver) docker.RegistryHosts {
 	var authorizer docker.Authorizer
 	if optAuthConfig != nil {
 		authorizer = authorizerFromAuthConfig(*optAuthConfig)
