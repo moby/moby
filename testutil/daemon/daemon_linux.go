@@ -11,6 +11,12 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+const (
+	defaultContainerdSocket      = "/var/run/docker/containerd/containerd.sock"
+	defaultDockerdRootlessBinary = "dockerd-rootless.sh"
+	defaultUnixSocket            = "/var/run/docker.sock"
+)
+
 func cleanupNetworkNamespace(t testing.TB, d *Daemon) {
 	t.Helper()
 	// Cleanup network namespaces in the exec root of this

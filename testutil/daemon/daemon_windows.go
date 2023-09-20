@@ -10,6 +10,12 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+const (
+	defaultContainerdSocket      = ""
+	defaultDockerdRootlessBinary = ""
+	defaultUnixSocket            = ""
+)
+
 // SignalDaemonDump sends a signal to the daemon to write a dump file
 func SignalDaemonDump(pid int) {
 	ev, _ := windows.UTF16PtrFromString("Global\\docker-daemon-" + strconv.Itoa(pid))

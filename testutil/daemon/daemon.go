@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -42,11 +43,8 @@ type nopLog struct{}
 func (nopLog) Logf(string, ...interface{}) {}
 
 const (
-	defaultDockerdBinary         = "dockerd"
-	defaultContainerdSocket      = "/var/run/docker/containerd/containerd.sock"
-	defaultDockerdRootlessBinary = "dockerd-rootless.sh"
-	defaultUnixSocket            = "/var/run/docker.sock"
-	defaultTLSHost               = "localhost:2376"
+	defaultDockerdBinary = "dockerd"
+	defaultTLSHost       = "localhost:2376"
 )
 
 var errDaemonNotStarted = errors.New("daemon not started")
@@ -430,6 +428,9 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 	d.args = []string{}
 	if d.rootlessUser != nil {
+		if runtime.GOOS != "linux" {
+			return errors.New("rootless mode is only supported on linux")
+		}
 		if d.dockerdBinary != defaultDockerdBinary {
 			return errors.Errorf("[%s] DOCKER_ROOTLESS doesn't support non-default dockerd binary path %q", d.id, d.dockerdBinary)
 		}
