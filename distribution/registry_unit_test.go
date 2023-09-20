@@ -68,7 +68,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	}
 	p := newPuller(endpoint, repoInfo, imagePullConfig, nil)
 	ctx := context.Background()
-	p.repo, err = newRepository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p.repo, err = NewRepository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		t.Fatal(err)
 	}
