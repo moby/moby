@@ -9,27 +9,33 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/events"
 	refstore "github.com/docker/docker/reference"
+	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
-// Pull initiates a pull operation. image is the repository name to pull, and
-// tag may be either empty, or indicate a specific tag to pull.
-func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, local ContentStore) error {
+type PullEndpointsResolver interface {
+	ResolveRepository(name reference.Named) (*registry.RepositoryInfo, error)
+	LookupPullEndpoints(hostname string) (endpoints []registry.APIEndpoint, err error)
+}
+
+func PullEndpoints(ctx context.Context, registryService PullEndpointsResolver, ref reference.Named,
+	f func(context.Context, registry.RepositoryInfo, registry.APIEndpoint) error,
+) (*registry.RepositoryInfo, error) {
 	// Resolve the Repository name from fqn to RepositoryInfo
-	repoInfo, err := config.RegistryService.ResolveRepository(ref)
+	repoInfo, err := registryService.ResolveRepository(ref)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// makes sure name is not `scratch`
 	if err := validateRepoName(repoInfo.Name); err != nil {
-		return err
+		return repoInfo, err
 	}
 
-	endpoints, err := config.RegistryService.LookupPullEndpoints(reference.Domain(repoInfo.Name))
+	endpoints, err := registryService.LookupPullEndpoints(reference.Domain(repoInfo.Name))
 	if err != nil {
-		return err
+		return repoInfo, err
 	}
 
 	var (
@@ -50,7 +56,14 @@ func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, loc
 
 		log.G(ctx).Debugf("Trying to pull %s from %s", reference.FamiliarName(repoInfo.Name), endpoint.URL)
 
-		if err := newPuller(endpoint, repoInfo, config, local).pull(ctx, ref); err != nil {
+		if err := f(ctx, *repoInfo, endpoint); err != nil {
+			if _, ok := err.(fallbackError); !ok && continueOnError(err, endpoint.Mirror) {
+				err = fallbackError{
+					err:         err,
+					transportOK: true,
+				}
+			}
+
 			// Was this pull cancelled? If so, don't try to fall
 			// back.
 			fallback := false
@@ -71,18 +84,33 @@ func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, loc
 				continue
 			}
 			log.G(ctx).Errorf("Not continuing with pull after error: %v", err)
-			return translatePullError(err, ref)
+			return repoInfo, translatePullError(err, ref)
 		}
 
-		config.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), events.ActionPull)
-		return nil
+		return repoInfo, nil
 	}
 
 	if lastErr == nil {
 		lastErr = fmt.Errorf("no endpoints found for %s", reference.FamiliarString(ref))
 	}
 
-	return translatePullError(lastErr, ref)
+	return repoInfo, translatePullError(lastErr, ref)
+}
+
+// Pull initiates a pull operation. image is the repository name to pull, and
+// tag may be either empty, or indicate a specific tag to pull.
+func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, local ContentStore) error {
+	repoInfo, err := PullEndpoints(ctx, config.RegistryService, ref, func(ctx context.Context, repoInfo registry.RepositoryInfo, endpoint registry.APIEndpoint) error {
+		log.G(ctx).Debugf("Trying to pull %s from %s", reference.FamiliarName(repoInfo.Name), endpoint.URL)
+		puller := newPuller(endpoint, &repoInfo, config, local)
+		return puller.pull(ctx, ref)
+	})
+
+	if err == nil {
+		config.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), events.ActionPull)
+	}
+
+	return err
 }
 
 // validateRepoName validates the name of a repository.

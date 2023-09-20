@@ -86,18 +86,7 @@ func (p *puller) pull(ctx context.Context, ref reference.Named) (err error) {
 		return err
 	}
 
-	if err = p.pullRepository(ctx, ref); err != nil {
-		if _, ok := err.(fallbackError); ok {
-			return err
-		}
-		if continueOnError(err, p.endpoint.Mirror) {
-			return fallbackError{
-				err:         err,
-				transportOK: true,
-			}
-		}
-	}
-	return err
+	return p.pullRepository(ctx, ref)
 }
 
 func (p *puller) pullRepository(ctx context.Context, ref reference.Named) (err error) {
