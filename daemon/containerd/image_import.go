@@ -89,7 +89,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 		Size:      size,
 	}
 
-	dockerCfg := containerConfigToDockerOCIImageConfig(imageConfig)
+	dockerCfg := containerConfigToDockerOCIImageConfig(imageConfig, imageConfig.Image)
 	createdAt := time.Now()
 	config := imagespec.DockerOCIImage{
 		Image: ocispec.Image{

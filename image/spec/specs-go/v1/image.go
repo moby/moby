@@ -29,6 +29,7 @@ type DockerOCIImageConfigExt struct {
 
 	OnBuild []string `json:",omitempty"` // ONBUILD metadata that were defined on the image Dockerfile
 	Shell   []string `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
+	Image   string   `json:",omitempty"`
 }
 
 // HealthcheckConfig holds configuration settings for the HEALTHCHECK feature.

@@ -15,7 +15,7 @@ func TestContainerConfigToDockerImageConfig(t *testing.T) {
 		ExposedPorts: nat.PortSet{
 			"80/tcp": struct{}{},
 		},
-	})
+	}, "")
 
 	expected := map[string]struct{}{"80/tcp": {}}
 	assert.Check(t, is.DeepEqual(ociCFG.ExposedPorts, expected))

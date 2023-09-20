@@ -398,7 +398,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		return nil, err
 	}
 
-	ociImgToCreate := dockerImageToDockerOCIImage(*imgToCreate)
+	ociImgToCreate := dockerImageToDockerOCIImage(*imgToCreate, parent)
 
 	var layers []ocispec.Descriptor
 

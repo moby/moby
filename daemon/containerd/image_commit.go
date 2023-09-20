@@ -178,8 +178,9 @@ func generateCommitImageConfig(baseConfig imagespec.DockerOCIImage, diffID diges
 				EmptyLayer: diffID == "",
 			}),
 		},
-		Config: containerConfigToDockerOCIImageConfig(opts.Config),
+		Config: containerConfigToDockerOCIImageConfig(opts.Config, opts.ParentImageID),
 	}
+
 }
 
 // writeContentsForImage will commit oci image config and manifest into containerd's content store.

@@ -43,7 +43,7 @@ func dockerOciImageToDockerImagePartial(id image.ID, img imagespec.DockerOCIImag
 	return out
 }
 
-func dockerImageToDockerOCIImage(img image.Image) imagespec.DockerOCIImage {
+func dockerImageToDockerOCIImage(img image.Image, parent string) imagespec.DockerOCIImage {
 	rootfs := ocispec.RootFS{
 		Type:    img.RootFS.Type,
 		DiffIDs: []digest.Digest{},
@@ -66,11 +66,11 @@ func dockerImageToDockerOCIImage(img image.Image) imagespec.DockerOCIImage {
 			RootFS:  rootfs,
 			History: img.History,
 		},
-		Config: containerConfigToDockerOCIImageConfig(img.Config),
+		Config: containerConfigToDockerOCIImageConfig(img.Config, parent),
 	}
 }
 
-func containerConfigToDockerOCIImageConfig(cfg *container.Config) imagespec.DockerOCIImageConfig {
+func containerConfigToDockerOCIImageConfig(cfg *container.Config, parent string) imagespec.DockerOCIImageConfig {
 	var ociCfg ocispec.ImageConfig
 	var ext imagespec.DockerOCIImageConfigExt
 
@@ -96,6 +96,7 @@ func containerConfigToDockerOCIImageConfig(cfg *container.Config) imagespec.Dock
 		ext.Healthcheck = cfg.Healthcheck
 		ext.OnBuild = cfg.OnBuild
 		ext.Shell = cfg.Shell
+		ext.Image = parent
 	}
 
 	return imagespec.DockerOCIImageConfig{
@@ -124,5 +125,6 @@ func dockerOCIImageConfigToContainerConfig(cfg imagespec.DockerOCIImageConfig) *
 		Healthcheck:  cfg.Healthcheck,
 		OnBuild:      cfg.OnBuild,
 		Shell:        cfg.Shell,
+		Image:        cfg.Image,
 	}
 }
