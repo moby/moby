@@ -229,15 +229,6 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		unpackedUsage = snapshots.Usage{Size: 0}
 	}
 
-	contentSize, err := imageManifest.Size(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// totalSize is the size of the image's packed layers and snapshots
-	// (unpacked layers) combined.
-	totalSize := contentSize + unpackedUsage.Size
-
 	var repoDigests []string
 	rawImg := imageManifest.Metadata()
 	target := rawImg.Target.Digest
@@ -282,7 +273,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		Created:     rawImg.CreatedAt.Unix(),
 		RepoDigests: repoDigests,
 		RepoTags:    repoTags,
-		Size:        totalSize,
+		Size:        unpackedUsage.Size,
 		Labels:      cfg.Config.Labels,
 		// -1 indicates that the value has not been set (avoids ambiguity
 		// between 0 (default) and "not set". We cannot use a pointer (nil)
