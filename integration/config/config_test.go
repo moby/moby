@@ -23,8 +23,6 @@ import (
 )
 
 func TestConfigInspect(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv)
@@ -46,8 +44,6 @@ func TestConfigInspect(t *testing.T) {
 }
 
 func TestConfigList(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv)
@@ -133,8 +129,6 @@ func createConfig(ctx context.Context, t *testing.T, client client.APIClient, na
 }
 
 func TestConfigsCreateAndDelete(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
@@ -170,8 +164,6 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 }
 
 func TestConfigsUpdate(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv)
@@ -222,7 +214,6 @@ func TestConfigsUpdate(t *testing.T) {
 }
 
 func TestTemplatedConfig(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv)

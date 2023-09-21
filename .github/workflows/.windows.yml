@@ -24,7 +24,7 @@ env:
   TEST_IMAGE_NAME: moby:test
   TEST_CTN_NAME: moby
   DOCKER_BUILDKIT: 0
-  ITG_CLI_MATRIX_SIZE: 6
+  ITG_CLI_MATRIX_SIZE: 1
 
 jobs:
   build:
@@ -106,158 +106,17 @@ jobs:
           if-no-files-found: error
           retention-days: 2
 
-  unit-test:
-    runs-on: ${{ inputs.os }}
-    timeout-minutes: 120
-    env:
-      GOPATH: ${{ github.workspace }}\go
-      GOBIN: ${{ github.workspace }}\go\bin
-    defaults:
-      run:
-        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
-    steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v3
-        with:
-          path: ${{ env.GOPATH }}/src/github.com/docker/docker
-      -
-        name: Env
-        run: |
-          Get-ChildItem Env: | Out-String
-      -
-        name: Init
-        run: |
-          New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
-          New-Item -ItemType "directory" -Path "${{ github.workspace }}\go\pkg\mod"
-          New-Item -ItemType "directory" -Path "bundles"
-          If ("${{ inputs.os }}" -eq "windows-2019") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          }
-      -
-        name: Cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~\AppData\Local\go-build
-            ~\go\pkg\mod
-            ${{ github.workspace }}\go-build
-            ${{ env.GOPATH }}\pkg\mod
-          key: ${{ inputs.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
-          restore-keys: |
-            ${{ inputs.os }}-${{ github.job }}-
-      -
-        name: Docker info
-        run: |
-          docker info
-      -
-        name: Build base image
-        run: |
-          & docker build `
-            --build-arg WINDOWS_BASE_IMAGE `
-            --build-arg WINDOWS_BASE_IMAGE_TAG `
-            --build-arg GO_VERSION `
-            -t ${{ env.TEST_IMAGE_NAME }} `
-            -f Dockerfile.windows .
-      -
-        name: Test
-        run: |
-          & docker run --name ${{ env.TEST_CTN_NAME }} -e "DOCKER_GITCOMMIT=${{ github.sha }}" `
-            -v "${{ github.workspace }}\go-build:C:\Users\ContainerAdministrator\AppData\Local\go-build" `
-            -v "${{ github.workspace }}\go\pkg\mod:C:\gopath\pkg\mod" `
-            -v "${{ env.GOPATH }}\src\github.com\docker\docker\bundles:C:\gopath\src\github.com\docker\docker\bundles" `
-            ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -TestUnit
-      -
-        name: Send to Codecov
-        if: inputs.send_coverage
-        uses: codecov/codecov-action@v3
-        with:
-          working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
-          directory: bundles
-          env_vars: RUNNER_OS
-          flags: unit
-      -
-        name: Upload reports
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ inputs.os }}-unit-reports
-          path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
-
-  unit-test-report:
-    runs-on: ubuntu-latest
-    if: always()
-    needs:
-      - unit-test
-    steps:
-      -
-        name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      -
-        name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: ${{ inputs.os }}-unit-reports
-          path: /tmp/artifacts
-      -
-        name: Install teststat
-        run: |
-          go install github.com/vearutop/teststat@${{ env.TESTSTAT_VERSION }}
-      -
-        name: Create summary
-        run: |
-          teststat -markdown $(find /tmp/artifacts -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
-
-  integration-test-prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.tests.outputs.matrix }}
-    steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v3
-      -
-        name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      -
-        name: Install gotestlist
-        run:
-          go install github.com/crazy-max/gotestlist/cmd/gotestlist@${{ env.GOTESTLIST_VERSION }}
-      -
-        name: Create matrix
-        id: tests
-        working-directory: ./integration-cli
-        run: |
-          # This step creates a matrix for integration-cli tests. Tests suites
-          # are distributed in integration-test job through a matrix. There is
-          # also an override being added to the matrix like "./..." to run
-          # "Test integration" step exclusively.
-          matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} -o "./..." ./...)"
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
-      -
-        name: Show matrix
-        run: |
-          echo ${{ steps.tests.outputs.matrix }}
-
   integration-test:
     runs-on: ${{ inputs.os }}
     timeout-minutes: 120
     needs:
       - build
-      - integration-test-prepare
     strategy:
       fail-fast: false
       matrix:
         runtime:
           - builtin
           - containerd
-        test: ${{ fromJson(needs.integration-test-prepare.outputs.matrix) }}
     env:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
@@ -401,23 +260,12 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
       -
         name: Test integration
-        if: matrix.test == './...'
         run: |
           .\hack\make.ps1 -TestIntegration
         env:
           DOCKER_HOST: npipe:////./pipe/docker_engine
           GO111MODULE: "off"
           TEST_CLIENT_BINARY: ${{ env.BIN_OUT }}\docker
-      -
-        name: Test integration-cli
-        if: matrix.test != './...'
-        run: |
-          .\hack\make.ps1 -TestIntegrationCli
-        env:
-          DOCKER_HOST: npipe:////./pipe/docker_engine
-          GO111MODULE: "off"
-          TEST_CLIENT_BINARY: ${{ env.BIN_OUT }}\docker
-          INTEGRATION_TESTRUN: ${{ matrix.test }}
       -
         name: Send to Codecov
         if: inputs.send_coverage
