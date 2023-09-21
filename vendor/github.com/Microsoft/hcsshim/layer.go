@@ -1,3 +1,5 @@
+//go:build windows
+
 package hcsshim
 
 import (
@@ -67,6 +69,9 @@ func ProcessUtilityVMImage(path string) error {
 }
 func UnprepareLayer(info DriverInfo, layerId string) error {
 	return wclayer.UnprepareLayer(context.Background(), layerPath(&info, layerId))
+}
+func ConvertToBaseLayer(path string) error {
+	return wclayer.ConvertToBaseLayer(context.Background(), path)
 }
 
 type DriverInfo struct {

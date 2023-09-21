@@ -1,3 +1,5 @@
+//go:build windows
+
 package winapi
 
 import (
@@ -32,7 +34,7 @@ type UnicodeString struct {
 // denotes the maximum number of wide chars a path can have.
 const NTSTRSAFE_UNICODE_STRING_MAX_CCH = 32767
 
-//String converts a UnicodeString to a golang string
+// String converts a UnicodeString to a golang string
 func (uni UnicodeString) String() string {
 	// UnicodeString is not guaranteed to be null terminated, therefore
 	// use the UnicodeString's Length field
