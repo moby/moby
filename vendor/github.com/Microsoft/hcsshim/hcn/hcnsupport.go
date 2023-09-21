@@ -1,11 +1,14 @@
+//go:build windows
+
 package hcn
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+
+	"github.com/Microsoft/hcsshim/internal/log"
 )
 
 var (
@@ -112,9 +115,9 @@ func getSupportedFeatures() (SupportedFeatures, error) {
 	features.NetworkACL = isFeatureSupported(globals.Version, NetworkACLPolicyVersion)
 	features.NestedIpSet = isFeatureSupported(globals.Version, NestedIpSetVersion)
 
-	logrus.WithFields(logrus.Fields{
-		"version":           fmt.Sprintf("%+v", globals.Version),
-		"supportedFeatures": fmt.Sprintf("%+v", features),
+	log.L.WithFields(logrus.Fields{
+		"version":           globals.Version,
+		"supportedFeatures": features,
 	}).Info("HCN feature check")
 
 	return features, nil
