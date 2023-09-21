@@ -114,7 +114,7 @@ func TestVolumesRemoveSwarmEnabled(t *testing.T) {
 	ctx := setupTest(t)
 
 	// Spin up a new daemon, so that we can run this test in parallel (it's a slow test)
-	d := daemon.New(t)
+	d := daemon.New(t, daemon.WithTestLogger(t))
 	d.StartAndSwarmInit(ctx, t)
 	defer d.Stop(t)
 

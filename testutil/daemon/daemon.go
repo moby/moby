@@ -251,10 +251,16 @@ func (d *Daemon) StorageDriver() string {
 
 // Sock returns the socket path of the daemon
 func (d *Daemon) Sock() string {
+	if runtime.GOOS == "windows" {
+		return "npipe://" + d.sockPath()
+	}
 	return "unix://" + d.sockPath()
 }
 
 func (d *Daemon) sockPath() string {
+	if runtime.GOOS == "windows" {
+		return "//./pipe/docker_engine_1"
+	}
 	return filepath.Join(SockRoot, d.id+".sock")
 }
 
@@ -379,6 +385,9 @@ func (d *Daemon) ScanLogs(ctx context.Context, match func(s string) bool) (bool,
 
 // TailLogs tails N lines from the daemon logs
 func (d *Daemon) TailLogs(n int) ([][]byte, error) {
+	if d.logFile == nil {
+		return nil, errors.New("logFile is nil")
+	}
 	logF, err := os.Open(d.logFile.Name())
 	if err != nil {
 		return nil, errors.Wrap(err, "error opening daemon log file after failed start")
@@ -450,7 +459,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
 		"--pidfile", d.pidFile,
-		"--userland-proxy="+strconv.FormatBool(d.userlandProxy),
+		// "--userland-proxy="+strconv.FormatBool(d.userlandProxy),
 		"--containerd-namespace", d.id,
 		"--containerd-plugins-namespace", d.id+"p",
 	)
@@ -600,7 +609,7 @@ func (d *Daemon) Kill() error {
 		d.cmd = nil
 	}()
 
-	if err := d.cmd.Process.Kill(); err != nil {
+	if err := d.cmd.Process.Release(); err != nil {
 		return err
 	}
 
@@ -663,6 +672,7 @@ func (d *Daemon) StopWithError() (err error) {
 	if d.cmd == nil || d.Wait == nil {
 		return errDaemonNotStarted
 	}
+
 	defer func() {
 		if err != nil {
 			d.log.Logf("[%s] error while stopping daemon: %v", d.id, err)
@@ -685,7 +695,8 @@ func (d *Daemon) StopWithError() (err error) {
 
 	d.log.Logf("[%s] stopping daemon", d.id)
 
-	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
+	// if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
+	if err := d.cmd.Process.Kill(); err != nil {
 		if strings.Contains(err.Error(), "os: process already finished") {
 			return errDaemonNotStarted
 		}
@@ -853,11 +864,18 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 		proto = "unix"
 		scheme = "http"
 		transport = &http.Transport{}
-	} else {
+	} else if runtime.GOOS == "linux" {
 		addr = d.sockPath()
 		proto = "unix"
 		scheme = "http"
 		transport = &http.Transport{}
+	} else if runtime.GOOS == "windows" {
+		addr = d.sockPath()
+		proto = "npipe"
+		scheme = "http"
+		transport = &http.Transport{}
+	} else {
+		return nil, errors.Errorf("GOOS %s is not supported", runtime.GOOS)
 	}
 
 	if err := sockets.ConfigureTransport(transport, proto, addr); err != nil {
