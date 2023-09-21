@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -18,6 +20,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/registry"
 	"github.com/opencontainers/go-digest"
@@ -233,4 +236,40 @@ func TestImagePullKeepOldAsDangling(t *testing.T) {
 
 	_, _, err = apiClient.ImageInspectWithRaw(ctx, prevID)
 	assert.NilError(t, err)
+}
+
+// Regression test for https://github.com/docker/docker/issues/28892
+func TestImagePullWindowsOnLinux(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Tests a Windows image on Linux")
+	ctx := setupTest(t)
+
+	apiClient := testEnv.APIClient()
+
+	rdr, err := apiClient.ImagePull(ctx, "mcr.microsoft.com/windows/servercore:ltsc2022", image.PullOptions{})
+	assert.NilError(t, err, "the request itself should not error")
+	defer rdr.Close()
+
+	// FIXME(thaJeztah): we must make the ImagePull function more usable:
+	//
+	// - The error returned is only for the initial request (which is "reasonable", but not intuitive)
+	// - We _COULD_ have an alternative function that is "synchronous" (handle the request from start-to-finish and return errors (if any)
+	// - To get the _actual_ error, the `jsonstream` / `jsonmessage` must be handled
+	// - The `jsonmessage` utilities are tightly integrated between _presenting_ and _handling_ the stream (i.e., error-handling is part of "presenting" the stream)
+	// - Because of this coupling, it also expects things like "do we have a terminal attached"? (and if so: its file-descriptor)
+	// - And _IF_ we get an error, it's a `JSONError`, which _DOES_ have a status-code, but can _NOT_ be handled by the `errdefs` package.
+	out := bytes.Buffer{}
+	err = jsonmessage.DisplayJSONMessagesStream(rdr, &out, 0, false, nil)
+	// pull_test.go:66: assertion failed: error is no matching manifest for linux/arm64/v8 in the manifest list entries (*jsonmessage.JSONError), not errdefs.IsNotFound
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	errorMessage := "no matching manifest for linux"
+	if testEnv.UsingSnapshotter() {
+		errorMessage = "no match for platform in manifest"
+	}
+	assert.Check(t, is.ErrorContains(err, errorMessage))
+
+	var jsonError *jsonmessage.JSONError
+	if assert.Check(t, errors.As(err, &jsonError)) {
+		// pull_test.go:75: assertion failed: 0 (jsonError.Code int) != 404 (http.StatusNotFound int)
+		assert.Check(t, is.Equal(jsonError.Code, http.StatusNotFound))
+	}
 }
