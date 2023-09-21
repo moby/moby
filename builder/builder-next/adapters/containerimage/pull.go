@@ -69,7 +69,7 @@ type SourceOpt struct {
 // Source is the source implementation for accessing container images
 type Source struct {
 	SourceOpt
-	g flightcontrol.Group[interface{}]
+	g flightcontrol.Group[*resolveRemoteResult]
 }
 
 // NewSource creates a new image source
@@ -98,32 +98,31 @@ func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
 	return img, nil
 }
 
+type resolveRemoteResult struct {
+	ref  string
+	dgst digest.Digest
+	dt   []byte
+}
+
 func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocispec.Platform, sm *session.Manager, g session.Group) (string, digest.Digest, []byte, error) {
-	type t struct {
-		ref  string
-		dgst digest.Digest
-		dt   []byte
-	}
 	p := platforms.DefaultSpec()
 	if platform != nil {
 		p = *platform
 	}
 	// key is used to synchronize resolutions that can happen in parallel when doing multi-stage.
 	key := "getconfig::" + ref + "::" + platforms.Format(p)
-	res, err := is.g.Do(ctx, key, func(ctx context.Context) (interface{}, error) {
+	res, err := is.g.Do(ctx, key, func(ctx context.Context) (*resolveRemoteResult, error) {
 		res := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g)
 		ref, dgst, dt, err := imageutil.Config(ctx, ref, res, is.ContentStore, is.LeaseManager, platform, []*policy.Policy{})
 		if err != nil {
 			return nil, err
 		}
-		return &t{ref: ref, dgst: dgst, dt: dt}, nil
+		return &resolveRemoteResult{ref: ref, dgst: dgst, dt: dt}, nil
 	})
-	var typed *t
 	if err != nil {
 		return ref, "", nil, err
 	}
-	typed = res.(*t)
-	return typed.ref, typed.dgst, typed.dt, nil
+	return res.ref, res.dgst, res.dt, nil
 }
 
 // ResolveImageConfig returns image config for an image
