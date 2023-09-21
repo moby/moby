@@ -180,12 +180,12 @@ type CommonConfig struct {
 	// to stop when daemon is being shutdown
 	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`
 
-	Debug     bool     `json:"debug,omitempty"`
-	Hosts     []string `json:"hosts,omitempty"`
-	LogLevel  string   `json:"log-level,omitempty"`
-	LogFormat string   `json:"log-format,omitempty"`
-	TLS       *bool    `json:"tls,omitempty"`
-	TLSVerify *bool    `json:"tlsverify,omitempty"`
+	Debug     bool             `json:"debug,omitempty"`
+	Hosts     []string         `json:"hosts,omitempty"`
+	LogLevel  string           `json:"log-level,omitempty"`
+	LogFormat log.OutputFormat `json:"log-format,omitempty"`
+	TLS       *bool            `json:"tls,omitempty"`
+	TLSVerify *bool            `json:"tlsverify,omitempty"`
 
 	// Embedded structs that allow config
 	// deserialization without the full struct.
@@ -597,7 +597,7 @@ func Validate(config *Config) error {
 
 	// validate log-format
 	if logFormat := config.LogFormat; logFormat != "" {
-		switch log.OutputFormat(logFormat) {
+		switch logFormat {
 		case log.TextFormat, log.JSONFormat:
 			// These are valid
 		default:
