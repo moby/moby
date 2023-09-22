@@ -36,6 +36,7 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
+	"github.com/moby/buildkit/source/containerimage"
 	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/sourcepolicy"
 	policy "github.com/moby/buildkit/sourcepolicy/pb"
@@ -77,9 +78,21 @@ func NewSource(opt SourceOpt) (*Source, error) {
 	return &Source{SourceOpt: opt}, nil
 }
 
-// ID returns image scheme identifier
-func (is *Source) ID() string {
-	return srctypes.DockerImageScheme
+// Schemes returns a list of SourceOp identifier schemes that this source
+// should match.
+//
+// FIXME(thaJeztah): do we need OCISChema here as well, as in upstream buildkit? See https://github.com/moby/buildkit/commit/6b27487fec53733078cee02eac84e868a287b0ec / https://github.com/moby/buildkit/pull/4035
+func (is *Source) Schemes() []string {
+	return []string{srctypes.DockerImageScheme}
+}
+
+// Identifier constructs an Identifier from the given scheme, ref, and attrs,
+// all of which come from a SourceOp.
+func (is *Source) Identifier(scheme, ref string, attrs map[string]string, platform *pb.Platform) (source.Identifier, error) {
+	// FIXME(thaJeztah): implement this (or can we use buildkit's implementation of things?). See https://github.com/moby/buildkit/commit/6b27487fec53733078cee02eac84e868a287b0ec / https://github.com/moby/buildkit/pull/4035
+	// return &containerimage.ImageIdentifier{}, fmt.Errorf("not implemented")
+	// or use containerimage.NewImageIdentifier() / containerimage.NewOCIIdentifier()
+	return nil, fmt.Errorf("not implemented")
 }
 
 func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
@@ -131,12 +144,12 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 	if err != nil {
 		return "", "", nil, err
 	}
-	resolveMode, err := source.ParseImageResolveMode(opt.ResolveMode)
+	resolveMode, err := resolver.ParseImageResolveMode(opt.ResolveMode)
 	if err != nil {
 		return ref, "", nil, err
 	}
 	switch resolveMode {
-	case source.ResolveModeForcePull:
+	case resolver.ResolveModeForcePull:
 		ref, dgst, dt, err := is.resolveRemote(ctx, ref, opt.Platform, sm, g)
 		// TODO: pull should fallback to local in case of failure to allow offline behavior
 		// the fallback doesn't work currently
@@ -150,10 +163,10 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 			return "", dt, err
 		*/
 
-	case source.ResolveModeDefault:
+	case resolver.ResolveModeDefault:
 		// default == prefer local, but in the future could be smarter
 		fallthrough
-	case source.ResolveModePreferLocal:
+	case resolver.ResolveModePreferLocal:
 		img, err := is.resolveLocal(ref)
 		if err == nil {
 			if opt.Platform != nil && !platformMatches(img, opt.Platform) {
@@ -174,7 +187,7 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 
 // Resolve returns access to pulling for an identifier
 func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, vtx solver.Vertex) (source.SourceInstance, error) {
-	imageIdentifier, ok := id.(*source.ImageIdentifier)
+	imageIdentifier, ok := id.(*containerimage.ImageIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid image identifier %v", id)
 	}
@@ -198,7 +211,7 @@ type puller struct {
 	is               *Source
 	resolveLocalOnce sync.Once
 	g                flightcontrol.Group[struct{}]
-	src              *source.ImageIdentifier
+	src              *containerimage.ImageIdentifier
 	desc             ocispec.Descriptor
 	ref              string
 	config           []byte
@@ -250,7 +263,7 @@ func (p *puller) resolveLocal() {
 			}
 		}
 
-		if p.src.ResolveMode == source.ResolveModeDefault || p.src.ResolveMode == source.ResolveModePreferLocal {
+		if p.src.ResolveMode == resolver.ResolveModeDefault || p.src.ResolveMode == resolver.ResolveModePreferLocal {
 			ref := p.src.Reference.String()
 			img, err := p.is.resolveLocal(ref)
 			if err == nil {

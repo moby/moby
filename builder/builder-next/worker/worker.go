@@ -103,6 +103,11 @@ func NewWorker(opt Opt) (*Worker, error) {
 	}
 
 	cm := opt.CacheManager
+	// Cannot use 'opt.ImageSource' (type *containerimage.Source) as the type SourceType does not implement 'Source' as some methods are missing:
+	//
+	// 	Schemes() []stringIdentifier(scheme string, ref string, attrs map[string]string, platform *pb.Platform) (Identifier, error)
+	//
+	// See: https://github.com/moby/buildkit/commit/6b27487fec53733078cee02eac84e868a287b0ec (https://github.com/moby/buildkit/pull/4035)
 	sm.Register(opt.ImageSource)
 
 	gs, err := git.NewSource(git.Opt{
