@@ -201,6 +201,7 @@ func (s *DockerCLISaveLoadSuite) TestLoadZeroSizeLayer(c *testing.T) {
 
 func (s *DockerCLISaveLoadSuite) TestSaveLoadParents(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
+	skip.If(c, testEnv.UsingSnapshotter(), "Parent image property is not supported with containerd")
 
 	makeImage := func(from string, addfile string) string {
 		var out string
