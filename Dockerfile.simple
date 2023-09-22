@@ -12,6 +12,7 @@ ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 FROM ${GOLANG_IMAGE}
 ENV GO111MODULE=off
+ENV GOTOOLCHAIN=local
 
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org

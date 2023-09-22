@@ -31,6 +31,7 @@ RUN test -n "$APT_MIRROR" && sed -ri "s/(httpredir|deb|security).debian.org/${AP
 ARG DEBIAN_FRONTEND
 RUN apt-get update && apt-get install --no-install-recommends -y file
 ENV GO111MODULE=off
+ENV GOTOOLCHAIN=local
 
 FROM base AS criu
 ARG DEBIAN_FRONTEND
