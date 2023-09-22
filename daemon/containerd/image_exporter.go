@@ -108,6 +108,19 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 				"name":   ref,
 			}).Debug("export image")
 		} else {
+			orgTarget := target
+			target.Annotations = make(map[string]string)
+
+			for k, v := range orgTarget.Annotations {
+				switch k {
+				case containerdimages.AnnotationImageName, ocispec.AnnotationRefName:
+					// Strip image name/tag annotations from the descriptor.
+					// Otherwise containerd will use it as name.
+				default:
+					target.Annotations[k] = v
+				}
+			}
+
 			opts = append(opts, archive.WithManifest(target))
 
 			log.G(ctx).WithFields(log.Fields{
@@ -187,6 +200,10 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 			return refErr
 		}
 
+		// If user exports a specific digest, it shouldn't have a tag.
+		if specificDigestResolved {
+			ref = nil
+		}
 		if err := exportImage(ctx, target, ref); err != nil {
 			return err
 		}
