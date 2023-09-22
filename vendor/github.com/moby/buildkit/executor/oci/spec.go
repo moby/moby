@@ -4,6 +4,7 @@ import (
 	"context"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -125,7 +126,7 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 	}
 
 	opts = append(opts,
-		oci.WithProcessArgs(meta.Args...),
+		withProcessArgs(meta.Args...),
 		oci.WithEnv(meta.Env),
 		oci.WithProcessCwd(meta.Cwd),
 		oci.WithNewPrivileges,
@@ -197,7 +198,9 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 	}
 
 	if tracingSocket != "" {
-		s.Mounts = append(s.Mounts, getTracingSocketMount(tracingSocket))
+		if mount := getTracingSocketMount(tracingSocket); mount != nil {
+			s.Mounts = append(s.Mounts, *mount)
+		}
 	}
 
 	s.Mounts = dedupMounts(s.Mounts)
@@ -247,17 +250,24 @@ func (s *submounts) subMount(m mount.Mount, subPath string) (mount.Mount, error)
 		return mount.Mount{}, err
 	}
 
-	opts := []string{"rbind"}
-	for _, opt := range m.Options {
-		if opt == "ro" {
-			opts = append(opts, opt)
-		}
+	var mntType string
+	opts := []string{}
+	if m.ReadOnly() {
+		opts = append(opts, "ro")
+	}
+
+	if runtime.GOOS != "windows" {
+		// Windows uses a mechanism similar to bind mounts, but will err out if we request
+		// a mount type it does not understand. Leaving the mount type empty on Windows will
+		// yield the same result.
+		mntType = "bind"
+		opts = append(opts, "rbind")
 	}
 
 	s.m[h] = mountRef{
 		mount: mount.Mount{
 			Source:  mp,
-			Type:    "bind",
+			Type:    mntType,
 			Options: opts,
 		},
 		unmount: lm.Unmount,

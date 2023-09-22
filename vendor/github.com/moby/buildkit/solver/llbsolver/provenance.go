@@ -20,7 +20,6 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/ops"
 	"github.com/moby/buildkit/solver/llbsolver/provenance"
 	"github.com/moby/buildkit/solver/pb"
-	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -137,12 +136,14 @@ func (b *provenanceBridge) ResolveImageConfig(ctx context.Context, ref string, o
 		return "", "", nil, err
 	}
 
+	b.mu.Lock()
 	b.images = append(b.images, provenance.ImageSource{
 		Ref:      ref,
 		Platform: opt.Platform,
 		Digest:   dgst,
 		Local:    opt.ResolverType == llb.ResolverTypeOCILayout,
 	})
+	b.mu.Unlock()
 	return ref, dgst, config, nil
 }
 
@@ -268,70 +269,9 @@ func captureProvenance(ctx context.Context, res solver.CachedResultWithProvenanc
 		switch op := pp.(type) {
 		case *ops.SourceOp:
 			id, pin := op.Pin()
-			switch s := id.(type) {
-			case *source.ImageIdentifier:
-				dgst, err := digest.Parse(pin)
-				if err != nil {
-					return errors.Wrapf(err, "failed to parse image digest %s", pin)
-				}
-				c.AddImage(provenance.ImageSource{
-					Ref:      s.Reference.String(),
-					Platform: s.Platform,
-					Digest:   dgst,
-				})
-			case *source.LocalIdentifier:
-				c.AddLocal(provenance.LocalSource{
-					Name: s.Name,
-				})
-			case *source.GitIdentifier:
-				url := s.Remote
-				if s.Ref != "" {
-					url += "#" + s.Ref
-				}
-				c.AddGit(provenance.GitSource{
-					URL:    url,
-					Commit: pin,
-				})
-				if s.AuthTokenSecret != "" {
-					c.AddSecret(provenance.Secret{
-						ID:       s.AuthTokenSecret,
-						Optional: true,
-					})
-				}
-				if s.AuthHeaderSecret != "" {
-					c.AddSecret(provenance.Secret{
-						ID:       s.AuthHeaderSecret,
-						Optional: true,
-					})
-				}
-				if s.MountSSHSock != "" {
-					c.AddSSH(provenance.SSH{
-						ID:       s.MountSSHSock,
-						Optional: true,
-					})
-				}
-			case *source.HTTPIdentifier:
-				dgst, err := digest.Parse(pin)
-				if err != nil {
-					return errors.Wrapf(err, "failed to parse HTTP digest %s", pin)
-				}
-				c.AddHTTP(provenance.HTTPSource{
-					URL:    s.URL,
-					Digest: dgst,
-				})
-			case *source.OCIIdentifier:
-				dgst, err := digest.Parse(pin)
-				if err != nil {
-					return errors.Wrapf(err, "failed to parse OCI digest %s", pin)
-				}
-				c.AddImage(provenance.ImageSource{
-					Ref:      s.Reference.String(),
-					Platform: s.Platform,
-					Digest:   dgst,
-					Local:    true,
-				})
-			default:
-				return errors.Errorf("unknown source identifier %T", id)
+			err := id.Capture(c, pin)
+			if err != nil {
+				return err
 			}
 		case *ops.ExecOp:
 			pr := op.Proto()

@@ -70,3 +70,13 @@ func UserConfigDir() string {
 	}
 	return ConfigDir
 }
+
+func TraceSocketPath(inUserNS bool) string {
+	if inUserNS {
+		if xrd := os.Getenv("XDG_RUNTIME_DIR"); xrd != "" {
+			dirs := strings.Split(xrd, ":")
+			return filepath.Join(dirs[0], "buildkit", "otel-grpc.sock")
+		}
+	}
+	return "/run/buildkit/otel-grpc.sock"
+}

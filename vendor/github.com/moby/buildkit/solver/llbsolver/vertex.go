@@ -9,7 +9,6 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/ops/opsutils"
 	"github.com/moby/buildkit/solver/pb"
-	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/util/entitlements"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -322,13 +321,6 @@ func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEval
 func llbOpName(pbOp *pb.Op, load func(digest.Digest) (solver.Vertex, error)) (string, error) {
 	switch op := pbOp.Op.(type) {
 	case *pb.Op_Source:
-		if id, err := source.FromLLB(op, nil); err == nil {
-			if id, ok := id.(*source.LocalIdentifier); ok {
-				if len(id.IncludePatterns) == 1 {
-					return op.Source.Identifier + " (" + id.IncludePatterns[0] + ")", nil
-				}
-			}
-		}
 		return op.Source.Identifier, nil
 	case *pb.Op_Exec:
 		return strings.Join(op.Exec.Meta.Args, " "), nil

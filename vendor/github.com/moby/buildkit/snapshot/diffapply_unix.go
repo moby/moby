@@ -1,5 +1,5 @@
-//go:build !windows
-// +build !windows
+//go:build !windows && !freebsd
+// +build !windows,!freebsd
 
 package snapshot
 

@@ -161,14 +161,15 @@ func rmPath(root, src string, allowNotFound bool) error {
 	}
 	p := filepath.Join(dir, base)
 
-	if err := os.RemoveAll(p); err != nil {
-		if errors.Is(err, os.ErrNotExist) && allowNotFound {
-			return nil
+	if !allowNotFound {
+		_, err := os.Stat(p)
+
+		if errors.Is(err, os.ErrNotExist) {
+			return err
 		}
-		return err
 	}
 
-	return nil
+	return os.RemoveAll(p)
 }
 
 func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *copy.User, idmap *idtools.IdentityMapping) error {
@@ -215,27 +216,22 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 		copy.WithXAttrErrorHandler(xattrErrorHandler),
 	}
 
+	var m []string
 	if !action.AllowWildcard {
-		if action.AttemptUnpackDockerCompatibility {
-			if ok, err := unpack(ctx, src, srcPath, dest, destPath, ch, timestampToTime(action.Timestamp)); err != nil {
-				return err
-			} else if ok {
+		m = []string{srcPath}
+	} else {
+		var err error
+		m, err = copy.ResolveWildcards(src, srcPath, action.FollowSymlink)
+		if err != nil {
+			return err
+		}
+
+		if len(m) == 0 {
+			if action.AllowEmptyWildcard {
 				return nil
 			}
+			return errors.Errorf("%s not found", srcPath)
 		}
-		return copy.Copy(ctx, src, srcPath, dest, destPath, opt...)
-	}
-
-	m, err := copy.ResolveWildcards(src, srcPath, action.FollowSymlink)
-	if err != nil {
-		return err
-	}
-
-	if len(m) == 0 {
-		if action.AllowEmptyWildcard {
-			return nil
-		}
-		return errors.Errorf("%s not found", srcPath)
 	}
 
 	for _, s := range m {

@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/pkg/epoch"
 	"github.com/containerd/containerd/platforms"
@@ -273,6 +274,13 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				tagDone(nil)
 
 				if e.unpack {
+					if opts.RewriteTimestamp {
+						// e.unpackImage cannot be used because src ref does not point to the rewritten image
+						///
+						// TODO: change e.unpackImage so that it takes Result[Remote] as parameter.
+						// https://github.com/moby/buildkit/pull/4057#discussion_r1324106088
+						return nil, nil, errors.New("exporter option \"rewrite-timestamp\" conflicts with \"unpack\"")
+					}
 					if err := e.unpackImage(ctx, img, src, session.NewGroup(sessionID)); err != nil {
 						return nil, nil, err
 					}
@@ -309,7 +317,18 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				}
 			}
 			if e.push {
-				err := e.pushImage(ctx, src, sessionID, targetName, desc.Digest)
+				if opts.RewriteTimestamp {
+					annotations := map[digest.Digest]map[string]string{}
+					addAnnotations(annotations, *desc)
+					// e.pushImage cannot be used because src ref does not point to the rewritten image
+					//
+					// TODO: change e.pushImage so that it takes Result[Remote] as parameter.
+					// https://github.com/moby/buildkit/pull/4057#discussion_r1324106088
+					err = push.Push(ctx, e.opt.SessionManager, sessionID, e.opt.ImageWriter.opt.ContentStore, e.opt.ImageWriter.ContentStore(),
+						desc.Digest, targetName, e.insecure, e.opt.RegistryHosts, e.pushByDigest, annotations)
+				} else {
+					err = e.pushImage(ctx, src, sessionID, targetName, desc.Digest)
+				}
 				if err != nil {
 					return nil, nil, errors.Wrapf(err, "failed to push %v", targetName)
 				}
@@ -454,7 +473,7 @@ func getLayers(ctx context.Context, descs []ocispecs.Descriptor, manifest ocispe
 	for i, desc := range descs {
 		layers[i].Diff = ocispecs.Descriptor{
 			MediaType: ocispecs.MediaTypeImageLayer,
-			Digest:    digest.Digest(desc.Annotations["containerd.io/uncompressed"]),
+			Digest:    digest.Digest(desc.Annotations[labels.LabelUncompressed]),
 		}
 		layers[i].Blob = manifest.Layers[i]
 	}

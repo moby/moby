@@ -665,7 +665,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.12.2
+# github.com/moby/buildkit v0.12.1-0.20230919110756-bbe48e778f9d
 ## explicit; go 1.20
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -711,7 +711,6 @@ github.com/moby/buildkit/frontend/attestations/sbom
 github.com/moby/buildkit/frontend/dockerfile/builder
 github.com/moby/buildkit/frontend/dockerfile/command
 github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb
-github.com/moby/buildkit/frontend/dockerfile/dockerignore
 github.com/moby/buildkit/frontend/dockerfile/instructions
 github.com/moby/buildkit/frontend/dockerfile/parser
 github.com/moby/buildkit/frontend/dockerfile/shell
@@ -769,6 +768,8 @@ github.com/moby/buildkit/util/bklog
 github.com/moby/buildkit/util/compression
 github.com/moby/buildkit/util/cond
 github.com/moby/buildkit/util/contentutil
+github.com/moby/buildkit/util/converter
+github.com/moby/buildkit/util/converter/tarconverter
 github.com/moby/buildkit/util/entitlements
 github.com/moby/buildkit/util/entitlements/security
 github.com/moby/buildkit/util/estargz
@@ -810,6 +811,7 @@ github.com/moby/buildkit/util/tracing/otlptracegrpc
 github.com/moby/buildkit/util/tracing/transform
 github.com/moby/buildkit/util/urlutil
 github.com/moby/buildkit/util/wildcard
+github.com/moby/buildkit/util/windows
 github.com/moby/buildkit/util/winlayers
 github.com/moby/buildkit/version
 github.com/moby/buildkit/worker

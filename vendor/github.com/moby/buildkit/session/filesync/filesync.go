@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
 	fstypes "github.com/tonistiigi/fsutil/types"
@@ -21,7 +22,6 @@ import (
 )
 
 const (
-	keyOverrideExcludes   = "override-excludes"
 	keyIncludePatterns    = "include-patterns"
 	keyExcludePatterns    = "exclude-patterns"
 	keyFollowPaths        = "followpaths"
@@ -36,9 +36,8 @@ type fsSyncProvider struct {
 }
 
 type SyncedDir struct {
-	Dir      string
-	Excludes []string
-	Map      func(string, *fstypes.Stat) fsutil.MapResult
+	Dir string
+	Map func(string, *fstypes.Stat) fsutil.MapResult
 }
 
 type DirSource interface {
@@ -99,9 +98,6 @@ func (sp *fsSyncProvider) handle(method string, stream grpc.ServerStream) (retEr
 	}
 
 	excludes := opts[keyExcludePatterns]
-	if len(dir.Excludes) != 0 && (len(opts[keyOverrideExcludes]) == 0 || opts[keyOverrideExcludes][0] != "true") {
-		excludes = dir.Excludes
-	}
 	includes := opts[keyIncludePatterns]
 
 	followPaths := opts[keyFollowPaths]
@@ -155,16 +151,15 @@ var supportedProtocols = []protocol{
 
 // FSSendRequestOpt defines options for FSSend request
 type FSSendRequestOpt struct {
-	Name             string
-	IncludePatterns  []string
-	ExcludePatterns  []string
-	FollowPaths      []string
-	OverrideExcludes bool // deprecated: this is used by docker/cli for automatically loading .dockerignore from the directory
-	DestDir          string
-	CacheUpdater     CacheUpdater
-	ProgressCb       func(int, bool)
-	Filter           func(string, *fstypes.Stat) bool
-	Differ           fsutil.DiffType
+	Name            string
+	IncludePatterns []string
+	ExcludePatterns []string
+	FollowPaths     []string
+	DestDir         string
+	CacheUpdater    CacheUpdater
+	ProgressCb      func(int, bool)
+	Filter          func(string, *fstypes.Stat) bool
+	Differ          fsutil.DiffType
 }
 
 // CacheUpdater is an object capable of sending notifications for the cache hash changes
@@ -188,9 +183,6 @@ func FSSync(ctx context.Context, c session.Caller, opt FSSendRequestOpt) error {
 	}
 
 	opts := make(map[string][]string)
-	if opt.OverrideExcludes {
-		opts[keyOverrideExcludes] = []string{"true"}
-	}
 
 	if opt.IncludePatterns != nil {
 		opts[keyIncludePatterns] = opt.IncludePatterns
@@ -317,9 +309,16 @@ func CopyFileWriter(ctx context.Context, md map[string]string, c session.Caller)
 
 	client := NewFileSendClient(c.Conn())
 
-	opts := make(map[string][]string, len(md))
+	opts, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		opts = make(map[string][]string, len(md))
+	}
 	for k, v := range md {
-		opts[keyExporterMetaPrefix+k] = []string{v}
+		k := keyExporterMetaPrefix + k
+		if existingVal, ok := opts[k]; ok {
+			bklog.G(ctx).Warnf("overwriting grpc metadata key %q from value %+v to %+v", k, existingVal, v)
+		}
+		opts[k] = []string{v}
 	}
 
 	ctx = metadata.NewOutgoingContext(ctx, opts)
@@ -360,13 +359,13 @@ func decodeOpts(opts map[string][]string) map[string][]string {
 	md := make(map[string][]string, len(opts))
 	for k, v := range opts {
 		out := make([]string, len(v))
-		var isDecoded bool
+		var isEncoded bool
 		if v, ok := opts[k+"-encoded"]; ok && len(v) > 0 {
 			if b, _ := strconv.ParseBool(v[0]); b {
-				isDecoded = true
+				isEncoded = true
 			}
 		}
-		if isDecoded {
+		if isEncoded {
 			for i, s := range v {
 				out[i], _ = url.QueryUnescape(s)
 			}
@@ -382,13 +381,14 @@ func decodeOpts(opts map[string][]string) map[string][]string {
 // is backwards compatible and avoids encoding ASCII characters.
 func encodeStringForHeader(inputs []string) ([]string, bool) {
 	var encode bool
+loop:
 	for _, input := range inputs {
 		for _, runeVal := range input {
 			// Only encode non-ASCII characters, and characters that have special
 			// meaning during decoding.
 			if runeVal > unicode.MaxASCII {
 				encode = true
-				break
+				break loop
 			}
 		}
 	}

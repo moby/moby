@@ -1,6 +1,3 @@
-//go:build !windows
-// +build !windows
-
 package oci
 
 import (
@@ -31,6 +28,10 @@ var (
 const (
 	tracingSocketPath = "/dev/otel-grpc.sock"
 )
+
+func withProcessArgs(args ...string) oci.SpecOpts {
+	return oci.WithProcessArgs(args...)
+}
 
 func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
 	return []oci.SpecOpts{
@@ -134,8 +135,8 @@ func withDefaultProfile() oci.SpecOpts {
 	}
 }
 
-func getTracingSocketMount(socket string) specs.Mount {
-	return specs.Mount{
+func getTracingSocketMount(socket string) *specs.Mount {
+	return &specs.Mount{
 		Destination: tracingSocketPath,
 		Type:        "bind",
 		Source:      socket,

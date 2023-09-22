@@ -61,7 +61,7 @@ require (
 	github.com/miekg/dns v1.1.43
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.12.2
+	github.com/moby/buildkit v0.12.1-0.20230919110756-bbe48e778f9d // master / v0.13.0-dev
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
 	github.com/moby/patternmatcher v0.6.0
