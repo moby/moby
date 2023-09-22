@@ -113,12 +113,16 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 		return res.ID
 	}
 
+	busyboxImg, _, err := client.ImageInspectWithRaw(ctx, "busybox:latest")
+	assert.NilError(t, err)
+
 	repoName := "foobar-save-multi-images-test"
 	tagFoo := repoName + ":foo"
 	tagBar := repoName + ":bar"
 
 	idFoo := makeImage("busybox:latest", tagFoo)
 	idBar := makeImage("busybox:latest", tagBar)
+	idBusybox := busyboxImg.ID
 
 	client.ImageRemove(ctx, repoName, types.ImageRemoveOptions{Force: true})
 
@@ -142,20 +146,26 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 		assert.Check(t, cmp.Nil(err))
 	}
 
-	// make the list of expected layers
-	img, _, err := client.ImageInspectWithRaw(ctx, "busybox:latest")
-	assert.NilError(t, err)
-
-	expected := []string{img.ID, idFoo, idBar}
-
+	expected := []string{idBusybox, idFoo, idBar}
 	// prefixes are not in tar
 	for i := range expected {
 		expected[i] = digest.Digest(expected[i]).Encoded()
 	}
 
-	sort.Strings(actual)
-	sort.Strings(expected)
-	assert.Assert(t, cmp.DeepEqual(actual, expected), "archive does not contains the right layers: got %v, expected %v", actual, expected)
+	// With snapshotters, ID of the image is the ID of the manifest/index
+	// With graphdrivers, ID of the image is the ID of the image config
+	if testEnv.UsingSnapshotter() {
+		// ID of image won't match the Config ID from manifest.json
+		// Just check if manifests exist in blobs
+		for _, blob := range expected {
+			_, err := fs.Stat(tarfs, "blobs/sha256/"+blob)
+			assert.Check(t, cmp.Nil(err))
+		}
+	} else {
+		sort.Strings(actual)
+		sort.Strings(expected)
+		assert.Assert(t, cmp.DeepEqual(actual, expected), "archive does not contains the right layers: got %v, expected %v", actual, expected)
+	}
 }
 
 func TestSaveDirectoryPermissions(t *testing.T) {
