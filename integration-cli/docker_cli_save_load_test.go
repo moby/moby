@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,8 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 )
 
@@ -149,15 +152,39 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadRepoFlags(c *testing.T) {
 	deleteImages(repoName)
 	dockerCmd(c, "commit", name, repoName)
 
-	before, _ := dockerCmd(c, "inspect", repoName)
+	beforeStr, _, err := dockerCmdWithError("inspect", repoName)
+	assert.NilError(c, err, "failed to inspect before save")
 
 	out, err := RunCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "save", repoName),
 		exec.Command(dockerBinary, "load"))
 	assert.NilError(c, err, "failed to save and load repo: %s, %v", out, err)
 
-	after, _ := dockerCmd(c, "inspect", repoName)
-	assert.Equal(c, before, after, "inspect is not the same after a save / load")
+	afterStr, _, err := dockerCmdWithError("inspect", repoName)
+	assert.NilError(c, err, "failed to inspect after load")
+
+	var before, after []types.ImageInspect
+	err = json.Unmarshal([]byte(beforeStr), &before)
+	assert.NilError(c, err, "failed to parse inspect 'before' output")
+	err = json.Unmarshal([]byte(afterStr), &after)
+	assert.NilError(c, err, "failed to parse inspect 'after' output")
+
+	assert.Assert(c, is.Len(before, 1))
+	assert.Assert(c, is.Len(after, 1))
+
+	if testEnv.UsingSnapshotter() {
+		// Ignore LastTagTime difference with c8d.
+		// It is not stored in the image archive, but in the imageStore
+		// which is a graphdrivers implementation detail.
+		//
+		// It works because we load the image into the same daemon which saved
+		// the image. It would still fail with the graphdrivers if the image
+		// was loaded into a different daemon (which should be the case in a
+		// real-world scenario).
+		before[0].Metadata.LastTagTime = after[0].Metadata.LastTagTime
+	}
+
+	assert.Check(c, is.DeepEqual(before, after), "inspect is not the same after a save / load")
 }
 
 func (s *DockerCLISaveLoadSuite) TestSaveWithNoExistImage(c *testing.T) {
