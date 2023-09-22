@@ -261,7 +261,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 			name = img.Target.Digest.String()
 			loadedMsg = "Loaded image ID"
 		} else if named, err := reference.ParseNormalizedNamed(img.Name); err == nil {
-			name = reference.FamiliarName(reference.TagNameOnly(named))
+			name = reference.FamiliarString(reference.TagNameOnly(named))
 		}
 
 		err = i.walkImageManifests(ctx, img, func(platformImg *ImageManifest) error {
