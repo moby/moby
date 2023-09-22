@@ -169,7 +169,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		}
 
 		if supportFile && supportDir {
-			return nil, errors.Errorf("both file and directory output is not support by %s exporter", ex.Type)
+			return nil, errors.Errorf("both file and directory output is not supported by %s exporter", ex.Type)
 		}
 		if !supportFile && ex.Output != nil {
 			return nil, errors.Errorf("output file writer is not supported by %s exporter", ex.Type)

@@ -45,7 +45,6 @@ func New(with ...ImageMetaResolverOpt) llb.ImageMetaResolver {
 	headers.Set("User-Agent", version.UserAgent())
 	return &imageMetaResolver{
 		resolver: docker.NewResolver(docker.ResolverOptions{
-			Client:  http.DefaultClient,
 			Headers: headers,
 		}),
 		platform: opts.platform,
@@ -71,11 +70,12 @@ type imageMetaResolver struct {
 }
 
 type resolveResult struct {
+	ref    string
 	config []byte
 	dgst   digest.Digest
 }
 
-func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (digest.Digest, []byte, error) {
+func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (string, digest.Digest, []byte, error) {
 	imr.locker.Lock(ref)
 	defer imr.locker.Unlock(ref)
 
@@ -87,16 +87,16 @@ func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string
 	k := imr.key(ref, platform)
 
 	if res, ok := imr.cache[k]; ok {
-		return res.dgst, res.config, nil
+		return res.ref, res.dgst, res.config, nil
 	}
 
-	dgst, config, err := imageutil.Config(ctx, ref, imr.resolver, imr.buffer, nil, platform)
+	ref, dgst, config, err := imageutil.Config(ctx, ref, imr.resolver, imr.buffer, nil, platform, opt.SourcePolicies)
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 
-	imr.cache[k] = resolveResult{dgst: dgst, config: config}
-	return dgst, config, nil
+	imr.cache[k] = resolveResult{dgst: dgst, config: config, ref: ref}
+	return ref, dgst, config, nil
 }
 
 func (imr *imageMetaResolver) key(ref string, platform *ocispecs.Platform) string {

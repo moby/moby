@@ -14,7 +14,9 @@ import (
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/imdario/mergo"
+	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -242,11 +244,11 @@ func TestGetRuntime(t *testing.T) {
 	assert.Assert(t, ok, "stock runtime could not be found (test needs to be updated)")
 	stockRuntime.Features = nil
 
-	configdOpts := *stockRuntime.Opts.(*v2runcoptions.Options)
+	configdOpts := proto.Clone(stockRuntime.Opts.(*v2runcoptions.Options)).(*v2runcoptions.Options)
 	configdOpts.BinaryName = configuredRuntime.Path
 	wantConfigdRuntime := &shimConfig{
 		Shim: stockRuntime.Shim,
-		Opts: &configdOpts,
+		Opts: configdOpts,
 	}
 
 	for _, tt := range []struct {
@@ -334,7 +336,10 @@ func TestGetRuntime(t *testing.T) {
 			if tt.want != nil {
 				assert.Check(t, err)
 				got := &shimConfig{Shim: shim, Opts: opts}
-				assert.Check(t, is.DeepEqual(got, tt.want))
+				assert.Check(t, is.DeepEqual(got, tt.want,
+					cmpopts.IgnoreUnexported(runtimeoptions_v1.Options{}),
+					cmpopts.IgnoreUnexported(v2runcoptions.Options{}),
+				))
 			} else {
 				assert.Check(t, is.Equal(shim, ""))
 				assert.Check(t, is.Nil(opts))

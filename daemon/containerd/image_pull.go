@@ -115,7 +115,7 @@ func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platf
 
 	// Allow pulling application/vnd.docker.distribution.manifest.v1+prettyjws images
 	// by converting them to OCI manifests.
-	opts = append(opts, containerd.WithSchema1Conversion)
+	opts = append(opts, containerd.WithSchema1Conversion) //nolint:staticcheck // Ignore SA1019: containerd.WithSchema1Conversion is deprecated: use Schema 2 or OCI images.
 
 	img, err := i.client.Pull(ctx, ref.String(), opts...)
 	if err != nil {

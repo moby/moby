@@ -410,6 +410,7 @@ func writeJSON(ctx context.Context, cs content.Store, x interface{}, oldDesc oci
 		return nil, err
 	}
 	if err := content.Copy(ctx, w, bytes.NewReader(b), int64(len(b)), dgst, content.WithLabels(labels)); err != nil {
+		w.Close()
 		return nil, err
 	}
 	if err := w.Close(); err != nil {

@@ -296,7 +296,7 @@ type FileOpSolver struct {
 	mu   sync.Mutex
 	outs map[int]int
 	ins  map[int]input
-	g    flightcontrol.Group
+	g    flightcontrol.Group[input]
 }
 
 type input struct {
@@ -405,7 +405,7 @@ func (s *FileOpSolver) validate(idx int, inputs []fileoptypes.Ref, actions []*pb
 }
 
 func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptypes.Ref, actions []*pb.FileAction, g session.Group) (input, error) {
-	inp, err := s.g.Do(ctx, fmt.Sprintf("inp-%d", idx), func(ctx context.Context) (_ interface{}, err error) {
+	return s.g.Do(ctx, fmt.Sprintf("inp-%d", idx), func(ctx context.Context) (_ input, err error) {
 		s.mu.Lock()
 		inp := s.ins[idx]
 		s.mu.Unlock()
@@ -547,17 +547,17 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 			eg.Go(loadInput(ctx))
 			eg.Go(loadSecondaryInput(ctx))
 			if err := eg.Wait(); err != nil {
-				return nil, err
+				return input{}, err
 			}
 		} else {
 			if action.Input != -1 {
 				if err := loadInput(ctx)(); err != nil {
-					return nil, err
+					return input{}, err
 				}
 			}
 			if action.SecondaryInput != -1 {
 				if err := loadSecondaryInput(ctx)(); err != nil {
-					return nil, err
+					return input{}, err
 				}
 			}
 		}
@@ -565,7 +565,7 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 		if inpMount == nil {
 			m, err := s.r.Prepare(ctx, nil, false, g)
 			if err != nil {
-				return nil, err
+				return input{}, err
 			}
 			inpMount = m
 		}
@@ -574,46 +574,46 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 		case *pb.FileAction_Mkdir:
 			user, group, err := loadOwner(ctx, a.Mkdir.Owner)
 			if err != nil {
-				return nil, err
+				return input{}, err
 			}
 			if err := s.b.Mkdir(ctx, inpMount, user, group, *a.Mkdir); err != nil {
-				return nil, err
+				return input{}, err
 			}
 		case *pb.FileAction_Mkfile:
 			user, group, err := loadOwner(ctx, a.Mkfile.Owner)
 			if err != nil {
-				return nil, err
+				return input{}, err
 			}
 			if err := s.b.Mkfile(ctx, inpMount, user, group, *a.Mkfile); err != nil {
-				return nil, err
+				return input{}, err
 			}
 		case *pb.FileAction_Rm:
 			if err := s.b.Rm(ctx, inpMount, *a.Rm); err != nil {
-				return nil, err
+				return input{}, err
 			}
 		case *pb.FileAction_Copy:
 			if inpMountSecondary == nil {
 				m, err := s.r.Prepare(ctx, nil, true, g)
 				if err != nil {
-					return nil, err
+					return input{}, err
 				}
 				inpMountSecondary = m
 			}
 			user, group, err := loadOwner(ctx, a.Copy.Owner)
 			if err != nil {
-				return nil, err
+				return input{}, err
 			}
 			if err := s.b.Copy(ctx, inpMountSecondary, inpMount, user, group, *a.Copy); err != nil {
-				return nil, err
+				return input{}, err
 			}
 		default:
-			return nil, errors.Errorf("invalid action type %T", action.Action)
+			return input{}, errors.Errorf("invalid action type %T", action.Action)
 		}
 
 		if inp.requiresCommit {
 			ref, err := s.r.Commit(ctx, inpMount)
 			if err != nil {
-				return nil, err
+				return input{}, err
 			}
 			inp.ref = ref
 		} else {
@@ -624,10 +624,6 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 		s.mu.Unlock()
 		return inp, nil
 	})
-	if err != nil {
-		return input{}, err
-	}
-	return inp.(input), err
 }
 
 func isDefaultIndexes(idxs [][]int) bool {

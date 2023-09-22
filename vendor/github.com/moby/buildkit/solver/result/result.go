@@ -1,13 +1,12 @@
 package result
 
 import (
-	"reflect"
 	"sync"
 
 	"github.com/pkg/errors"
 )
 
-type Result[T any] struct {
+type Result[T comparable] struct {
 	mu           sync.Mutex
 	Ref          T
 	Refs         map[string]T
@@ -50,7 +49,8 @@ func (r *Result[T]) SingleRef() (T, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.Refs != nil && !reflect.ValueOf(r.Ref).IsValid() {
+	var zero T
+	if r.Refs != nil && r.Ref == zero {
 		var t T
 		return t, errors.Errorf("invalid map result")
 	}
@@ -77,11 +77,12 @@ func (r *Result[T]) FindRef(key string) (T, bool) {
 }
 
 func (r *Result[T]) EachRef(fn func(T) error) (err error) {
-	if reflect.ValueOf(r.Ref).IsValid() {
+	var zero T
+	if r.Ref != zero {
 		err = fn(r.Ref)
 	}
 	for _, r := range r.Refs {
-		if reflect.ValueOf(r).IsValid() {
+		if r != zero {
 			if err1 := fn(r); err1 != nil && err == nil {
 				err = err1
 			}
@@ -89,7 +90,7 @@ func (r *Result[T]) EachRef(fn func(T) error) (err error) {
 	}
 	for _, as := range r.Attestations {
 		for _, a := range as {
-			if reflect.ValueOf(a.Ref).IsValid() {
+			if a.Ref != zero {
 				if err1 := fn(a.Ref); err1 != nil && err == nil {
 					err = err1
 				}
@@ -102,8 +103,12 @@ func (r *Result[T]) EachRef(fn func(T) error) (err error) {
 // EachRef iterates over references in both a and b.
 // a and b are assumed to be of the same size and map their references
 // to the same set of keys
-func EachRef[U any, V any](a *Result[U], b *Result[V], fn func(U, V) error) (err error) {
-	if reflect.ValueOf(a.Ref).IsValid() && reflect.ValueOf(b.Ref).IsValid() {
+func EachRef[U comparable, V comparable](a *Result[U], b *Result[V], fn func(U, V) error) (err error) {
+	var (
+		zeroU U
+		zeroV V
+	)
+	if a.Ref != zeroU && b.Ref != zeroV {
 		err = fn(a.Ref, b.Ref)
 	}
 	for k, r := range a.Refs {
@@ -111,7 +116,7 @@ func EachRef[U any, V any](a *Result[U], b *Result[V], fn func(U, V) error) (err
 		if !ok {
 			continue
 		}
-		if reflect.ValueOf(r).IsValid() && reflect.ValueOf(r2).IsValid() {
+		if r != zeroU && r2 != zeroV {
 			if err1 := fn(r, r2); err1 != nil && err == nil {
 				err = err1
 			}
@@ -127,7 +132,7 @@ func EachRef[U any, V any](a *Result[U], b *Result[V], fn func(U, V) error) (err
 				break
 			}
 			att2 := atts2[i]
-			if reflect.ValueOf(att.Ref).IsValid() && reflect.ValueOf(att2.Ref).IsValid() {
+			if att.Ref != zeroU && att2.Ref != zeroV {
 				if err1 := fn(att.Ref, att2.Ref); err1 != nil && err == nil {
 					err = err1
 				}
@@ -137,11 +142,13 @@ func EachRef[U any, V any](a *Result[U], b *Result[V], fn func(U, V) error) (err
 	return err
 }
 
-func ConvertResult[U any, V any](r *Result[U], fn func(U) (V, error)) (*Result[V], error) {
+func ConvertResult[U comparable, V comparable](r *Result[U], fn func(U) (V, error)) (*Result[V], error) {
+	var zero U
+
 	r2 := &Result[V]{}
 	var err error
 
-	if reflect.ValueOf(r.Ref).IsValid() {
+	if r.Ref != zero {
 		r2.Ref, err = fn(r.Ref)
 		if err != nil {
 			return nil, err
@@ -152,7 +159,7 @@ func ConvertResult[U any, V any](r *Result[U], fn func(U) (V, error)) (*Result[V
 		r2.Refs = map[string]V{}
 	}
 	for k, r := range r.Refs {
-		if !reflect.ValueOf(r).IsValid() {
+		if r == zero {
 			continue
 		}
 		r2.Refs[k], err = fn(r)

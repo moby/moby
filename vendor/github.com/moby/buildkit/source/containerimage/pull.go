@@ -60,9 +60,15 @@ type SourceOpt struct {
 	LeaseManager leases.Manager
 }
 
+type resolveImageResult struct {
+	ref  string
+	dgst digest.Digest
+	dt   []byte
+}
+
 type Source struct {
 	SourceOpt
-	g flightcontrol.Group
+	g flightcontrol.Group[*resolveImageResult]
 }
 
 var _ source.Source = &Source{}
@@ -82,12 +88,7 @@ func (is *Source) ID() string {
 	return srctypes.DockerImageScheme
 }
 
-func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
-	type t struct {
-		dgst digest.Digest
-		dt   []byte
-	}
-	var typed *t
+func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (string, digest.Digest, []byte, error) {
 	key := ref
 	if platform := opt.Platform; platform != nil {
 		key += platforms.Format(*platform)
@@ -102,7 +103,7 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 	case ResolverTypeRegistry:
 		rm, err = source.ParseImageResolveMode(opt.ResolveMode)
 		if err != nil {
-			return "", nil, err
+			return "", "", nil, err
 		}
 		rslvr = resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g).WithImageStore(is.ImageStore, rm)
 	case ResolverTypeOCILayout:
@@ -110,18 +111,17 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 		rslvr = getOCILayoutResolver(opt.Store, sm, g)
 	}
 	key += rm.String()
-	res, err := is.g.Do(ctx, key, func(ctx context.Context) (interface{}, error) {
-		dgst, dt, err := imageutil.Config(ctx, ref, rslvr, is.ContentStore, is.LeaseManager, opt.Platform)
+	res, err := is.g.Do(ctx, key, func(ctx context.Context) (*resolveImageResult, error) {
+		newRef, dgst, dt, err := imageutil.Config(ctx, ref, rslvr, is.ContentStore, is.LeaseManager, opt.Platform, opt.SourcePolicies)
 		if err != nil {
 			return nil, err
 		}
-		return &t{dgst: dgst, dt: dt}, nil
+		return &resolveImageResult{dgst: dgst, dt: dt, ref: newRef}, nil
 	})
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
-	typed = res.(*t)
-	return typed.dgst, typed.dt, nil
+	return res.ref, res.dgst, res.dt, nil
 }
 
 func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, vtx solver.Vertex) (source.SourceInstance, error) {
@@ -205,7 +205,7 @@ type puller struct {
 	ResolverType
 	store llb.ResolveImageConfigOptStore
 
-	g                flightcontrol.Group
+	g                flightcontrol.Group[struct{}]
 	cacheKeyErr      error
 	cacheKeyDone     bool
 	releaseTmpLeases func(context.Context) error
@@ -255,9 +255,9 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (cach
 	// be canceled before the progress output is complete
 	progressFactory := progress.FromContext(ctx)
 
-	_, err = p.g.Do(ctx, "", func(ctx context.Context) (_ interface{}, err error) {
+	_, err = p.g.Do(ctx, "", func(ctx context.Context) (_ struct{}, err error) {
 		if p.cacheKeyErr != nil || p.cacheKeyDone {
-			return nil, p.cacheKeyErr
+			return struct{}{}, p.cacheKeyErr
 		}
 		defer func() {
 			if !errdefs.IsCanceled(ctx, err) {
@@ -266,7 +266,7 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (cach
 		}()
 		ctx, done, err := leaseutil.WithLease(ctx, p.LeaseManager, leases.WithExpiration(5*time.Minute), leaseutil.MakeTemporary)
 		if err != nil {
-			return nil, err
+			return struct{}{}, err
 		}
 		p.releaseTmpLeases = done
 		defer imageutil.AddLease(done)
@@ -278,12 +278,12 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (cach
 
 		p.manifest, err = p.PullManifests(ctx, getResolver)
 		if err != nil {
-			return nil, err
+			return struct{}{}, err
 		}
 
 		if ll := p.layerLimit; ll != nil {
 			if *ll > len(p.manifest.Descriptors) {
-				return nil, errors.Errorf("layer limit %d is greater than the number of layers in the image %d", *ll, len(p.manifest.Descriptors))
+				return struct{}{}, errors.Errorf("layer limit %d is greater than the number of layers in the image %d", *ll, len(p.manifest.Descriptors))
 			}
 			p.manifest.Descriptors = p.manifest.Descriptors[:*ll]
 		}
@@ -320,21 +320,21 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (cach
 		desc := p.manifest.MainManifestDesc
 		k, err := mainManifestKey(ctx, desc, p.Platform, p.layerLimit)
 		if err != nil {
-			return nil, err
+			return struct{}{}, err
 		}
 		p.manifestKey = k.String()
 
 		dt, err := content.ReadBlob(ctx, p.ContentStore, p.manifest.ConfigDesc)
 		if err != nil {
-			return nil, err
+			return struct{}{}, err
 		}
 		ck, err := cacheKeyFromConfig(dt, p.layerLimit)
 		if err != nil {
-			return nil, err
+			return struct{}{}, err
 		}
 		p.configKey = ck.String()
 		p.cacheKeyDone = true
-		return nil, nil
+		return struct{}{}, nil
 	})
 	if err != nil {
 		return "", "", nil, false, err

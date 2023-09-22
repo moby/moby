@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 /*
    Copyright The containerd Authors.
@@ -20,11 +19,6 @@
 package sys
 
 import "os"
-
-// ForceRemoveAll on unix is just a wrapper for os.RemoveAll
-func ForceRemoveAll(path string) error {
-	return os.RemoveAll(path)
-}
 
 // MkdirAllWithACL is a wrapper for os.MkdirAll on Unix systems.
 func MkdirAllWithACL(path string, perm os.FileMode) error {

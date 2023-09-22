@@ -8,7 +8,7 @@ import (
 	"os/exec"
 )
 
-func runProcessGroup(ctx context.Context, cmd *exec.Cmd) error {
+func runWithStandardUmask(ctx context.Context, cmd *exec.Cmd) error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}

@@ -27,7 +27,6 @@ import (
 	imagespecidentity "github.com/opencontainers/image-spec/identity"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -94,7 +93,7 @@ type cacheManager struct {
 	mountPool sharableMountPool
 
 	muPrune sync.Mutex // make sure parallel prune is not allowed so there will not be inconsistent results
-	unlazyG flightcontrol.Group
+	unlazyG flightcontrol.Group[struct{}]
 }
 
 func NewManager(opt ManagerOpt) (Manager, error) {
@@ -243,7 +242,7 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 			if err := cm.LeaseManager.Delete(context.TODO(), leases.Lease{
 				ID: l.ID,
 			}); err != nil {
-				logrus.Errorf("failed to remove lease: %+v", err)
+				bklog.G(ctx).Errorf("failed to remove lease: %+v", err)
 			}
 		}
 	}()
@@ -319,7 +318,7 @@ func (cm *cacheManager) init(ctx context.Context) error {
 
 	for _, si := range items {
 		if _, err := cm.getRecord(ctx, si.ID()); err != nil {
-			logrus.Debugf("could not load snapshot %s: %+v", si.ID(), err)
+			bklog.G(ctx).Debugf("could not load snapshot %s: %+v", si.ID(), err)
 			cm.MetadataStore.Clear(si.ID())
 			cm.LeaseManager.Delete(ctx, leases.Lease{ID: si.ID()})
 		}
@@ -597,7 +596,7 @@ func (cm *cacheManager) New(ctx context.Context, s ImmutableRef, sess session.Gr
 			if err := cm.LeaseManager.Delete(context.TODO(), leases.Lease{
 				ID: l.ID,
 			}); err != nil {
-				logrus.Errorf("failed to remove lease: %+v", err)
+				bklog.G(ctx).Errorf("failed to remove lease: %+v", err)
 			}
 		}
 	}()
@@ -1426,12 +1425,13 @@ func (cm *cacheManager) DiskUsage(ctx context.Context, opt client.DiskUsageInfo)
 						d.Size = 0
 						return nil
 					}
+					defer ref.Release(context.TODO())
 					s, err := ref.size(ctx)
 					if err != nil {
 						return err
 					}
 					d.Size = s
-					return ref.Release(context.TODO())
+					return nil
 				})
 			}(d)
 		}

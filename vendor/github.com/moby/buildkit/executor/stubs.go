@@ -1,17 +1,18 @@
 package executor
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"syscall"
 
 	"github.com/containerd/continuity/fs"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/system"
-	"github.com/sirupsen/logrus"
 )
 
-func MountStubsCleaner(dir string, mounts []Mount, recursive bool) func() {
+func MountStubsCleaner(ctx context.Context, dir string, mounts []Mount, recursive bool) func() {
 	names := []string{"/etc/resolv.conf", "/etc/hosts"}
 
 	for _, m := range mounts {
@@ -72,23 +73,23 @@ func MountStubsCleaner(dir string, mounts []Mount, recursive bool) func() {
 			dir := filepath.Dir(p)
 			dirSt, err := os.Stat(dir)
 			if err != nil {
-				logrus.WithError(err).Warnf("Failed to stat %q (parent of mount stub %q)", dir, p)
+				bklog.G(ctx).WithError(err).Warnf("Failed to stat %q (parent of mount stub %q)", dir, p)
 				continue
 			}
 			mtime := dirSt.ModTime()
 			atime, err := system.Atime(dirSt)
 			if err != nil {
-				logrus.WithError(err).Warnf("Failed to stat atime of %q (parent of mount stub %q)", dir, p)
+				bklog.G(ctx).WithError(err).Warnf("Failed to stat atime of %q (parent of mount stub %q)", dir, p)
 				atime = mtime
 			}
 
 			if err := os.Remove(p); err != nil {
-				logrus.WithError(err).Warnf("Failed to remove mount stub %q", p)
+				bklog.G(ctx).WithError(err).Warnf("Failed to remove mount stub %q", p)
 			}
 
 			// Restore the timestamps of the dir
 			if err := os.Chtimes(dir, atime, mtime); err != nil {
-				logrus.WithError(err).Warnf("Failed to restore time time mount stub timestamp (os.Chtimes(%q, %v, %v))", dir, atime, mtime)
+				bklog.G(ctx).WithError(err).Warnf("Failed to restore time time mount stub timestamp (os.Chtimes(%q, %v, %v))", dir, atime, mtime)
 			}
 		}
 	}

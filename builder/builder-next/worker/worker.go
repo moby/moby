@@ -9,7 +9,6 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
@@ -32,6 +31,7 @@ import (
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
+	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/llbsolver/ops"
@@ -42,6 +42,7 @@ import (
 	"github.com/moby/buildkit/source/local"
 	"github.com/moby/buildkit/util/archutil"
 	"github.com/moby/buildkit/util/contentutil"
+	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/version"
 	"github.com/opencontainers/go-digest"
@@ -71,9 +72,9 @@ type Opt struct {
 	GCPolicy          []client.PruneInfo
 	Executor          executor.Executor
 	Snapshotter       snapshot.Snapshotter
-	ContentStore      content.Store
+	ContentStore      *containerdsnapshot.Store
 	CacheManager      cache.Manager
-	LeaseManager      leases.Manager
+	LeaseManager      *leaseutil.Manager
 	ImageSource       *containerimage.Source
 	DownloadManager   *xfer.LayerDownloadManager
 	V2MetadataService distmetadata.V2MetadataService
@@ -186,13 +187,13 @@ func (w *Worker) Close() error {
 	return nil
 }
 
-// ContentStore returns content store
-func (w *Worker) ContentStore() content.Store {
+// ContentStore returns the wrapped content store
+func (w *Worker) ContentStore() *containerdsnapshot.Store {
 	return w.Opt.ContentStore
 }
 
-// LeaseManager returns leases.Manager for the worker
-func (w *Worker) LeaseManager() leases.Manager {
+// LeaseManager returns the wrapped lease manager
+func (w *Worker) LeaseManager() *leaseutil.Manager {
 	return w.Opt.LeaseManager
 }
 
@@ -235,7 +236,7 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *se
 }
 
 // ResolveImageConfig returns image config for an image
-func (w *Worker) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
+func (w *Worker) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (string, digest.Digest, []byte, error) {
 	return w.ImageSource.ResolveImageConfig(ctx, ref, opt, sm, g)
 }
 

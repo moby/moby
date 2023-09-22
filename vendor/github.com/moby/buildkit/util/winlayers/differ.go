@@ -15,12 +15,10 @@ import (
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/mount"
+	log "github.com/moby/buildkit/util/bklog"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-
-	log "github.com/moby/buildkit/util/bklog"
 )
 
 const (
@@ -109,7 +107,7 @@ func (s *winDiffer) Compare(ctx context.Context, lower, upper []mount.Mount, opt
 				if err != nil {
 					return errors.Wrap(err, "failed to get compressed stream")
 				}
-				w, discard, done := makeWindowsLayer(io.MultiWriter(compressed, dgstr.Hash()))
+				w, discard, done := makeWindowsLayer(ctx, io.MultiWriter(compressed, dgstr.Hash()))
 				err = archive.WriteDiff(ctx, w, lowerRoot, upperRoot)
 				if err != nil {
 					discard(err)
@@ -125,7 +123,7 @@ func (s *winDiffer) Compare(ctx context.Context, lower, upper []mount.Mount, opt
 				}
 				config.Labels["containerd.io/uncompressed"] = dgstr.Digest().String()
 			} else {
-				w, discard, done := makeWindowsLayer(cw)
+				w, discard, done := makeWindowsLayer(ctx, cw)
 				if err = archive.WriteDiff(ctx, w, lowerRoot, upperRoot); err != nil {
 					discard(err)
 					return errors.Wrap(err, "failed to write diff")
@@ -203,7 +201,7 @@ func addSecurityDescriptor(h *tar.Header) {
 	}
 }
 
-func makeWindowsLayer(w io.Writer) (io.Writer, func(error), chan error) {
+func makeWindowsLayer(ctx context.Context, w io.Writer) (io.Writer, func(error), chan error) {
 	pr, pw := io.Pipe()
 	done := make(chan error)
 
@@ -259,7 +257,7 @@ func makeWindowsLayer(w io.Writer) (io.Writer, func(error), chan error) {
 			return tarWriter.Close()
 		}()
 		if err != nil {
-			logrus.Errorf("makeWindowsLayer %+v", err)
+			log.G(ctx).Errorf("makeWindowsLayer %+v", err)
 		}
 		pw.CloseWithError(err)
 		done <- err

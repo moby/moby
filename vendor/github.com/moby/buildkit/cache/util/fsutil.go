@@ -57,21 +57,25 @@ func ReadFile(ctx context.Context, mount snapshot.Mountable, req ReadRequest) ([
 			return errors.WithStack(err)
 		}
 
-		if req.Range == nil {
-			dt, err = os.ReadFile(fp)
-			if err != nil {
-				return errors.WithStack(err)
+		f, err := os.Open(fp)
+		if err != nil {
+			// The filename here is internal to the mount, so we can restore
+			// the request base path for error reporting.
+			// See os.DirFS.Open for details.
+			if pe, ok := err.(*os.PathError); ok {
+				pe.Path = req.Filename
 			}
-		} else {
-			f, err := os.Open(fp)
-			if err != nil {
-				return errors.WithStack(err)
-			}
-			dt, err = io.ReadAll(io.NewSectionReader(f, int64(req.Range.Offset), int64(req.Range.Length)))
-			f.Close()
-			if err != nil {
-				return errors.WithStack(err)
-			}
+			return errors.WithStack(err)
+		}
+		defer f.Close()
+
+		var rdr io.Reader = f
+		if req.Range != nil {
+			rdr = io.NewSectionReader(f, int64(req.Range.Offset), int64(req.Range.Length))
+		}
+		dt, err = io.ReadAll(rdr)
+		if err != nil {
+			return errors.WithStack(err)
 		}
 		return nil
 	})

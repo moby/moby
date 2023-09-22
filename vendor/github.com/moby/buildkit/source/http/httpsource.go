@@ -178,6 +178,9 @@ func (hs *httpSourceHandler) CacheKey(ctx context.Context, g session.Group, inde
 	// manual ETag value comparison.
 	if len(m) > 0 {
 		req.Method = "HEAD"
+		// we need to add accept-encoding header manually because stdlib only adds it to GET requests
+		// some servers will return different etags if Accept-Encoding header is different
+		req.Header.Add("Accept-Encoding", "gzip")
 		resp, err := client.Do(req)
 		if err == nil {
 			if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotModified {
@@ -202,6 +205,10 @@ func (hs *httpSourceHandler) CacheKey(ctx context.Context, g session.Group, inde
 			resp.Body.Close()
 		}
 		req.Method = "GET"
+		// Unset explicit Accept-Encoding for GET, otherwise the go http library will not
+		// transparently decompress the response body when it is gzipped. It will still add
+		// this header implicitly when the request is made though.
+		req.Header.Del("Accept-Encoding")
 	}
 
 	resp, err := client.Do(req)
@@ -392,6 +399,9 @@ func (hs *httpSourceHandler) Snapshot(ctx context.Context, g session.Group) (cac
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	ref, dgst, err := hs.save(ctx, resp, g)
 	if err != nil {

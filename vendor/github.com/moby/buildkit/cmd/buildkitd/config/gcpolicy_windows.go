@@ -3,6 +3,10 @@
 
 package config
 
-func DetectDefaultGCCap(root string) int64 {
-	return defaultCap
+func DetectDefaultGCCap() DiskSpace {
+	return DiskSpace{Bytes: defaultCap}
+}
+
+func (d DiskSpace) AsBytes(root string) int64 {
+	return d.Bytes
 }

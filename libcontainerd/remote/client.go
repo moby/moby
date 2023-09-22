@@ -22,6 +22,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/protobuf"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/typeurl/v2"
 	"github.com/docker/docker/errdefs"
@@ -29,11 +30,13 @@ import (
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/go-multierror"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 // DockerContainerBundlePath is the label key pointing to the container's bundle path
@@ -163,7 +166,7 @@ func (c *container) Start(ctx context.Context, checkpointDir string, withStdin b
 		// remove the checkpoint when we're done
 		defer func() {
 			if checkpoint != nil {
-				err := c.client.client.ContentStore().Delete(ctx, checkpoint.Digest)
+				err := c.client.client.ContentStore().Delete(ctx, digest.Digest(checkpoint.Digest))
 				if err != nil {
 					c.client.logger.WithError(err).WithFields(log.Fields{
 						"ref":    checkpointDir,
@@ -205,10 +208,10 @@ func (c *container) Start(ctx context.Context, checkpointDir string, withStdin b
 	if runtime.GOOS != "windows" {
 		taskOpts = append(taskOpts, func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
 			if c.v2runcoptions != nil {
-				opts := *c.v2runcoptions
+				opts := proto.Clone(c.v2runcoptions).(*v2runcoptions.Options)
 				opts.IoUid = uint32(uid)
 				opts.IoGid = uint32(gid)
-				info.Options = &opts
+				info.Options = opts
 			}
 			return nil
 		})
@@ -342,7 +345,7 @@ func (t *task) Stats(ctx context.Context) (*libcontainerdtypes.Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	return libcontainerdtypes.InterfaceToStats(m.Timestamp, v), nil
+	return libcontainerdtypes.InterfaceToStats(protobuf.FromTimestamp(m.Timestamp), v), nil
 }
 
 func (t *task) Summary(ctx context.Context) ([]libcontainerdtypes.Summary, error) {
@@ -675,7 +678,7 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 					ProcessID:   t.ID,
 					Pid:         t.Pid,
 					ExitCode:    t.ExitStatus,
-					ExitedAt:    t.ExitedAt,
+					ExitedAt:    protobuf.FromTimestamp(t.ExitedAt),
 				})
 			case *apievents.TaskOOM:
 				c.processEvent(ctx, libcontainerdtypes.EventOOM, libcontainerdtypes.EventInfo{
@@ -734,8 +737,8 @@ func (c *client) writeContent(ctx context.Context, mediaType, ref string, r io.R
 	}
 	return &types.Descriptor{
 		MediaType: mediaType,
-		Digest:    writer.Digest(),
-		Size_:     size,
+		Digest:    writer.Digest().Encoded(),
+		Size:      size,
 	}, nil
 }
 

@@ -10,7 +10,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/gc"
 	"github.com/containerd/containerd/leases"
-	gogoptypes "github.com/gogo/protobuf/types"
+	ptypes "github.com/containerd/containerd/protobuf/types"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/executor/containerdexecutor"
@@ -53,7 +53,7 @@ func newContainerd(root string, client *containerd.Client, snapshotterName, ns s
 		return base.WorkerOpt{}, err
 	}
 
-	serverInfo, err := client.IntrospectionService().Server(context.TODO(), &gogoptypes.Empty{})
+	serverInfo, err := client.IntrospectionService().Server(context.TODO(), &ptypes.Empty{})
 	if err != nil {
 		return base.WorkerOpt{}, err
 	}

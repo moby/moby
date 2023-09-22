@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
+	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
@@ -57,7 +58,7 @@ type snapshotter struct {
 }
 
 // NewSnapshotter creates a new snapshotter
-func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, leases.Manager, error) {
+func NewSnapshotter(opt Opt, prevLM leases.Manager, ns string) (snapshot.Snapshotter, *leaseutil.Manager, error) {
 	dbPath := filepath.Join(opt.Root, "snapshots.db")
 	db, err := bolt.Open(dbPath, 0o600, nil)
 	if err != nil {
@@ -76,7 +77,8 @@ func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, lease
 		reg:  reg,
 	}
 
-	lm := newLeaseManager(s, prevLM)
+	slm := newLeaseManager(s, prevLM)
+	lm := leaseutil.WithNamespace(slm, ns)
 
 	ll, err := lm.List(context.TODO())
 	if err != nil {
@@ -89,7 +91,7 @@ func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, lease
 		}
 		for _, r := range rr {
 			if r.Type == "snapshots/default" {
-				lm.addRef(l.ID, r.ID)
+				slm.addRef(l.ID, r.ID)
 			}
 		}
 	}

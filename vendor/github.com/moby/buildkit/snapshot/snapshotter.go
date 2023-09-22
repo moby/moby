@@ -167,6 +167,8 @@ func setRedirectDir(mounts []mount.Mount, redirectDirOption string) (ret []mount
 		return mounts
 	}
 	for _, m := range mounts {
+		// Replace redirect_dir options, but only for overlay.
+		// redirect_dir is not supported by fuse-overlayfs.
 		if m.Type == "overlay" {
 			var opts []string
 			for _, o := range m.Options {

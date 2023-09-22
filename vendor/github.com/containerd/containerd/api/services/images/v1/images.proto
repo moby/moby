@@ -18,7 +18,6 @@ syntax = "proto3";
 
 package containerd.services.images.v1;
 
-import weak "gogoproto/gogo.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
@@ -71,13 +70,13 @@ message Image {
 	map<string, string> labels = 2;
 
 	// Target describes the content entry point of the image.
-	containerd.types.Descriptor target = 3 [(gogoproto.nullable) = false];
+	containerd.types.Descriptor target = 3;
 
 	// CreatedAt is the time the image was first created.
-	google.protobuf.Timestamp created_at = 7 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp created_at = 7;
 
 	// UpdatedAt is the last time the image was mutated.
-	google.protobuf.Timestamp updated_at = 8 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp updated_at = 8;
 }
 
 message GetImageRequest {
@@ -89,26 +88,30 @@ message GetImageResponse {
 }
 
 message CreateImageRequest {
-	Image image = 1 [(gogoproto.nullable) = false];
+	Image image = 1;
+
+	google.protobuf.Timestamp source_date_epoch = 2;
 }
 
 message CreateImageResponse {
-	Image image = 1 [(gogoproto.nullable) = false];
+	Image image = 1;
 }
 
 message UpdateImageRequest {
 	// Image provides a full or partial image for update.
 	//
 	// The name field must be set or an error will be returned.
-	Image image = 1 [(gogoproto.nullable) = false];
+	Image image = 1;
 
 	// UpdateMask specifies which fields to perform the update on. If empty,
 	// the operation applies to all fields.
 	google.protobuf.FieldMask update_mask = 2;
+
+	google.protobuf.Timestamp source_date_epoch = 3;
 }
 
 message UpdateImageResponse {
-	Image image = 1 [(gogoproto.nullable) = false];
+	Image image = 1;
 }
 
 message ListImagesRequest {
@@ -126,7 +129,7 @@ message ListImagesRequest {
 }
 
 message ListImagesResponse {
-	repeated Image images = 1 [(gogoproto.nullable) = false];
+	repeated Image images = 1;
 }
 
 message DeleteImageRequest {

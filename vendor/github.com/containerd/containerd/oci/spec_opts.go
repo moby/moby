@@ -82,6 +82,10 @@ func setResources(s *Spec) {
 			s.Linux.Resources = &specs.LinuxResources{}
 		}
 	}
+}
+
+//nolint:nolintlint,unused // not used on all platforms
+func setResourcesWindows(s *Spec) {
 	if s.Windows != nil {
 		if s.Windows.Resources == nil {
 			s.Windows.Resources = &specs.WindowsResources{}
@@ -97,6 +101,11 @@ func setCPU(s *Spec) {
 			s.Linux.Resources.CPU = &specs.LinuxCPU{}
 		}
 	}
+}
+
+//nolint:nolintlint,unused // not used on all platforms
+func setCPUWindows(s *Spec) {
+	setResourcesWindows(s)
 	if s.Windows != nil {
 		if s.Windows.Resources.CPU == nil {
 			s.Windows.Resources.CPU = &specs.WindowsCPUResources{}
@@ -189,23 +198,23 @@ func replaceOrAppendEnvValues(defaults, overrides []string) []string {
 	cache := make(map[string]int, len(defaults))
 	results := make([]string, 0, len(defaults))
 	for i, e := range defaults {
-		parts := strings.SplitN(e, "=", 2)
+		k, _, _ := strings.Cut(e, "=")
 		results = append(results, e)
-		cache[parts[0]] = i
+		cache[k] = i
 	}
 
 	for _, value := range overrides {
 		// Values w/o = means they want this env to be removed/unset.
-		if !strings.Contains(value, "=") {
-			if i, exists := cache[value]; exists {
+		k, _, ok := strings.Cut(value, "=")
+		if !ok {
+			if i, exists := cache[k]; exists {
 				results[i] = "" // Used to indicate it should be removed
 			}
 			continue
 		}
 
 		// Just do a normal set/update
-		parts := strings.SplitN(value, "=", 2)
-		if i, exists := cache[parts[0]]; exists {
+		if i, exists := cache[k]; exists {
 			results[i] = value
 		} else {
 			results = append(results, value)
@@ -272,6 +281,14 @@ func WithTTYSize(width, height int) SpecOpts {
 func WithHostname(name string) SpecOpts {
 	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
 		s.Hostname = name
+		return nil
+	}
+}
+
+// WithDomainname sets the container's NIS domain name
+func WithDomainname(name string) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		s.Domainname = name
 		return nil
 	}
 }
@@ -378,6 +395,7 @@ func WithImageConfigArgs(image Image, args []string) SpecOpts {
 			return fmt.Errorf("unknown image config media type %s", ic.MediaType)
 		}
 
+		appendOSMounts(s, ociimage.OS)
 		setProcess(s)
 		if s.Linux != nil {
 			defaults := config.Env
@@ -589,7 +607,9 @@ func WithUser(userstr string) SpecOpts {
 		// The `Username` field on the runtime spec is marked by Platform as only for Windows, and in this case it
 		// *is* being set on a Windows host at least, but will be used as a temporary holding spot until the guest
 		// can use the string to perform these same operations to grab the uid:gid inside.
-		if s.Windows != nil && s.Linux != nil {
+		//
+		// Mounts are not supported on Darwin, so using the same workaround.
+		if (s.Windows != nil && s.Linux != nil) || runtime.GOOS == "darwin" {
 			s.Process.User.Username = userstr
 			return nil
 		}
@@ -1334,11 +1354,27 @@ func WithLinuxDevices(devices []specs.LinuxDevice) SpecOpts {
 	}
 }
 
+func WithLinuxDeviceFollowSymlinks(path, permissions string) SpecOpts {
+	return withLinuxDevice(path, permissions, true)
+}
+
 // WithLinuxDevice adds the device specified by path to the spec
 func WithLinuxDevice(path, permissions string) SpecOpts {
+	return withLinuxDevice(path, permissions, false)
+}
+
+func withLinuxDevice(path, permissions string, followSymlinks bool) SpecOpts {
 	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
 		setLinux(s)
 		setResources(s)
+
+		if followSymlinks {
+			resolvedPath, err := filepath.EvalSymlinks(path)
+			if err != nil {
+				return err
+			}
+			path = resolvedPath
+		}
 
 		dev, err := DeviceFromPath(path)
 		if err != nil {
@@ -1402,5 +1438,186 @@ func WithDevShmSize(kb int64) SpecOpts {
 			}
 		}
 		return ErrNoShmMount
+	}
+}
+
+// WithWindowsDevice adds a device exposed to a Windows (WCOW or LCOW) Container
+func WithWindowsDevice(idType, id string) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		if idType == "" {
+			return errors.New("missing idType")
+		}
+		if s.Windows == nil {
+			s.Windows = &specs.Windows{}
+		}
+		s.Windows.Devices = append(s.Windows.Devices, specs.WindowsDevice{IDType: idType, ID: id})
+		return nil
+	}
+}
+
+// WithMemorySwap sets the container's swap in bytes
+func WithMemorySwap(swap int64) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setResources(s)
+		if s.Linux.Resources.Memory == nil {
+			s.Linux.Resources.Memory = &specs.LinuxMemory{}
+		}
+		s.Linux.Resources.Memory.Swap = &swap
+		return nil
+	}
+}
+
+// WithPidsLimit sets the container's pid limit or maximum
+func WithPidsLimit(limit int64) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setResources(s)
+		if s.Linux.Resources.Pids == nil {
+			s.Linux.Resources.Pids = &specs.LinuxPids{}
+		}
+		s.Linux.Resources.Pids.Limit = limit
+		return nil
+	}
+}
+
+// WithBlockIO sets the container's blkio parameters
+func WithBlockIO(blockio *specs.LinuxBlockIO) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setResources(s)
+		s.Linux.Resources.BlockIO = blockio
+		return nil
+	}
+}
+
+// WithCPUShares sets the container's cpu shares
+func WithCPUShares(shares uint64) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setCPU(s)
+		s.Linux.Resources.CPU.Shares = &shares
+		return nil
+	}
+}
+
+// WithCPUs sets the container's cpus/cores for use by the container
+func WithCPUs(cpus string) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setCPU(s)
+		s.Linux.Resources.CPU.Cpus = cpus
+		return nil
+	}
+}
+
+// WithCPUsMems sets the container's cpu mems for use by the container
+func WithCPUsMems(mems string) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setCPU(s)
+		s.Linux.Resources.CPU.Mems = mems
+		return nil
+	}
+}
+
+// WithCPUCFS sets the container's Completely fair scheduling (CFS) quota and period
+func WithCPUCFS(quota int64, period uint64) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setCPU(s)
+		s.Linux.Resources.CPU.Quota = &quota
+		s.Linux.Resources.CPU.Period = &period
+		return nil
+	}
+}
+
+// WithCPURT sets the container's realtime scheduling (RT) runtime and period.
+func WithCPURT(runtime int64, period uint64) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setCPU(s)
+		s.Linux.Resources.CPU.RealtimeRuntime = &runtime
+		s.Linux.Resources.CPU.RealtimePeriod = &period
+		return nil
+	}
+}
+
+// WithoutRunMount removes the `/run` inside the spec
+func WithoutRunMount(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
+	return WithoutMounts("/run")(ctx, client, c, s)
+}
+
+// WithRdt sets the container's RDT parameters
+func WithRdt(closID, l3CacheSchema, memBwSchema string) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		s.Linux.IntelRdt = &specs.LinuxIntelRdt{
+			ClosID:        closID,
+			L3CacheSchema: l3CacheSchema,
+			MemBwSchema:   memBwSchema,
+		}
+		return nil
+	}
+}
+
+// WithWindowsCPUCount sets the `Windows.Resources.CPU.Count` section to the
+// `count` specified.
+func WithWindowsCPUCount(count uint64) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		setCPUWindows(s)
+		s.Windows.Resources.CPU.Count = &count
+		return nil
+	}
+}
+
+// WithWindowsCPUShares sets the `Windows.Resources.CPU.Shares` section to the
+// `shares` specified.
+func WithWindowsCPUShares(shares uint16) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		setCPUWindows(s)
+		s.Windows.Resources.CPU.Shares = &shares
+		return nil
+	}
+}
+
+// WithWindowsCPUMaximum sets the `Windows.Resources.CPU.Maximum` section to the
+// `max` specified.
+func WithWindowsCPUMaximum(max uint16) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		setCPUWindows(s)
+		s.Windows.Resources.CPU.Maximum = &max
+		return nil
+	}
+}
+
+// WithWindowsIgnoreFlushesDuringBoot sets `Windows.IgnoreFlushesDuringBoot`.
+func WithWindowsIgnoreFlushesDuringBoot() SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		if s.Windows == nil {
+			s.Windows = &specs.Windows{}
+		}
+		s.Windows.IgnoreFlushesDuringBoot = true
+		return nil
+	}
+}
+
+// WithWindowNetworksAllowUnqualifiedDNSQuery sets `Windows.Network.AllowUnqualifiedDNSQuery`.
+func WithWindowNetworksAllowUnqualifiedDNSQuery() SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		if s.Windows == nil {
+			s.Windows = &specs.Windows{}
+		}
+		if s.Windows.Network == nil {
+			s.Windows.Network = &specs.WindowsNetwork{}
+		}
+
+		s.Windows.Network.AllowUnqualifiedDNSQuery = true
+		return nil
+	}
+}
+
+// WithWindowsNetworkNamespace sets the network namespace for a Windows container.
+func WithWindowsNetworkNamespace(ns string) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		if s.Windows == nil {
+			s.Windows = &specs.Windows{}
+		}
+		if s.Windows.Network == nil {
+			s.Windows.Network = &specs.WindowsNetwork{}
+		}
+		s.Windows.Network.NetworkNamespace = ns
+		return nil
 	}
 }

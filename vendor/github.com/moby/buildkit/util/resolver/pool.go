@@ -131,7 +131,7 @@ type Resolver struct {
 // HostsFunc implements registry configuration of this Resolver
 func (r *Resolver) HostsFunc(host string) ([]docker.RegistryHost, error) {
 	return func(domain string) ([]docker.RegistryHost, error) {
-		v, err := r.handler.g.Do(context.TODO(), domain, func(ctx context.Context) (interface{}, error) {
+		v, err := r.handler.g.Do(context.TODO(), domain, func(ctx context.Context) ([]docker.RegistryHost, error) {
 			// long lock not needed because flightcontrol.Do
 			r.handler.muHosts.Lock()
 			v, ok := r.handler.hosts[domain]
@@ -151,13 +151,12 @@ func (r *Resolver) HostsFunc(host string) ([]docker.RegistryHost, error) {
 		if err != nil || v == nil {
 			return nil, err
 		}
-		vv := v.([]docker.RegistryHost)
-		if len(vv) == 0 {
+		if len(v) == 0 {
 			return nil, nil
 		}
 		// make a copy so authorizer is set on unique instance
-		res := make([]docker.RegistryHost, len(vv))
-		copy(res, vv)
+		res := make([]docker.RegistryHost, len(v))
+		copy(res, v)
 		auth := newDockerAuthorizer(res[0].Client, r.handler, r.sm, r.g)
 		for i := range res {
 			res[i].Authorizer = auth

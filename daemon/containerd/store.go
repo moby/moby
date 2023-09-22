@@ -5,6 +5,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
+	containerdlabels "github.com/containerd/containerd/labels"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -42,7 +43,7 @@ func (p fakeStoreWithSources) Info(ctx context.Context, dgst digest.Digest) (con
 			return info, err
 		}
 
-		key := labelDistributionSource + reference.Domain(source.registryRef)
+		key := containerdlabels.LabelDistributionSource + reference.Domain(source.registryRef)
 		value := reference.Path(source.registryRef)
 		return content.Info{
 			Digest: dgst,

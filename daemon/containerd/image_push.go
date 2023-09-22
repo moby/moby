@@ -13,6 +13,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	containerdimages "github.com/containerd/containerd/images"
+	containerdlabels "github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes"
@@ -246,15 +247,11 @@ func getDigestSources(ctx context.Context, store content.Manager, digest digest.
 
 	sources := extractDistributionSources(info.Labels)
 	if sources == nil {
-		return nil, errdefs.NotFound(fmt.Errorf("label %q is not attached to %s", labelDistributionSource, digest.String()))
+		return nil, errdefs.NotFound(fmt.Errorf("label %q is not attached to %s", containerdlabels.LabelDistributionSource, digest.String()))
 	}
 
 	return sources, nil
 }
-
-// TODO(vvoland): Remove and use containerd const in containerd 1.7+
-// https://github.com/containerd/containerd/pull/8224
-const labelDistributionSource = "containerd.io/distribution.source."
 
 func extractDistributionSources(labels map[string]string) []distributionSource {
 	var sources []distributionSource
@@ -262,7 +259,7 @@ func extractDistributionSources(labels map[string]string) []distributionSource {
 	// Check if this blob has a distributionSource label
 	// if yes, read it as source
 	for k, v := range labels {
-		if reg := strings.TrimPrefix(k, labelDistributionSource); reg != k {
+		if reg := strings.TrimPrefix(k, containerdlabels.LabelDistributionSource); reg != k {
 			for _, repo := range strings.Split(v, ",") {
 				ref, err := reference.ParseNamed(reg + "/" + repo)
 				if err != nil {
@@ -287,7 +284,7 @@ type distributionSource struct {
 func (source distributionSource) ToAnnotation() (string, string) {
 	domain := reference.Domain(source.registryRef)
 	v := reference.Path(source.registryRef)
-	return labelDistributionSource + domain, v
+	return containerdlabels.LabelDistributionSource + domain, v
 }
 
 func (source distributionSource) GetReference(dgst digest.Digest) (reference.Named, error) {

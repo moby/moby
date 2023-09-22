@@ -39,10 +39,10 @@ import (
 	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/frontend/gateway/forwarder"
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
+	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/bboltcachestorage"
 	"github.com/moby/buildkit/util/archutil"
 	"github.com/moby/buildkit/util/entitlements"
-	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/network/netproviders"
 	"github.com/moby/buildkit/util/tracing/detect"
 	"github.com/moby/buildkit/worker"
@@ -135,7 +135,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		SessionManager:   opt.SessionManager,
 		WorkerController: wc,
 		Frontends:        frontends,
-		CacheKeyStorage:  cacheStorage,
+		CacheManager:     solver.NewCacheManager(ctx, "local", cacheStorage, worker.NewCacheResultStorage(wc)),
 		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
 			"gha":      gha.ResolveCacheImporterFunc(),
 			"local":    localremotecache.ResolveCacheImporterFunc(opt.SessionManager),
@@ -202,7 +202,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, errors.Errorf("could not access graphdriver")
 	}
 
-	store, err := local.NewStore(filepath.Join(root, "content"))
+	innerStore, err := local.NewStore(filepath.Join(root, "content"))
 	if err != nil {
 		return nil, err
 	}
@@ -212,18 +212,16 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, errors.WithStack(err)
 	}
 
-	mdb := ctdmetadata.NewDB(db, store, map[string]snapshots.Snapshotter{})
+	mdb := ctdmetadata.NewDB(db, innerStore, map[string]snapshots.Snapshotter{})
 
-	store = containerdsnapshot.NewContentStore(mdb.ContentStore(), "buildkit")
-
-	lm := leaseutil.WithNamespace(ctdmetadata.NewLeaseManager(mdb), "buildkit")
+	store := containerdsnapshot.NewContentStore(mdb.ContentStore(), "buildkit")
 
 	snapshotter, lm, err := snapshot.NewSnapshotter(snapshot.Opt{
 		GraphDriver:     driver,
 		LayerStore:      dist.LayerStore,
 		Root:            root,
 		IdentityMapping: opt.IdentityMapping,
-	}, lm)
+	}, ctdmetadata.NewLeaseManager(mdb), "buildkit")
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +356,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		SessionManager:   opt.SessionManager,
 		WorkerController: wc,
 		Frontends:        frontends,
-		CacheKeyStorage:  cacheStorage,
+		CacheManager:     solver.NewCacheManager(ctx, "local", cacheStorage, worker.NewCacheResultStorage(wc)),
 		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
 			"registry": localinlinecache.ResolveCacheImporterFunc(opt.SessionManager, opt.RegistryHosts, store, dist.ReferenceStore, dist.ImageStore),
 			"local":    localremotecache.ResolveCacheImporterFunc(opt.SessionManager),

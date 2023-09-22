@@ -1,5 +1,4 @@
 //go:build darwin || freebsd || solaris
-// +build darwin freebsd solaris
 
 /*
    Copyright The containerd Authors.

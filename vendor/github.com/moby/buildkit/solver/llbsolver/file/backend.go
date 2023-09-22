@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/system"
 	"github.com/pkg/errors"
 	copy "github.com/tonistiigi/fsutil/copy"
 )
@@ -66,7 +68,7 @@ func mapUserToChowner(user *copy.User, idmap *idtools.IdentityMapping) (copy.Cho
 }
 
 func mkdir(ctx context.Context, d string, action pb.FileActionMkDir, user *copy.User, idmap *idtools.IdentityMapping) error {
-	p, err := fs.RootPath(d, filepath.Join("/", action.Path))
+	p, err := fs.RootPath(d, action.Path)
 	if err != nil {
 		return err
 	}
@@ -126,7 +128,10 @@ func mkfile(ctx context.Context, d string, action pb.FileActionMkFile, user *cop
 
 func rm(ctx context.Context, d string, action pb.FileActionRm) error {
 	if action.AllowWildcard {
-		src := cleanPath(action.Path)
+		src, err := cleanPath(action.Path)
+		if err != nil {
+			return errors.Wrap(err, "cleaning path")
+		}
 		m, err := copy.ResolveWildcards(d, src, false)
 		if err != nil {
 			return err
@@ -167,9 +172,14 @@ func rmPath(root, src string, allowNotFound bool) error {
 }
 
 func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *copy.User, idmap *idtools.IdentityMapping) error {
-	srcPath := cleanPath(action.Src)
-	destPath := cleanPath(action.Dest)
-
+	srcPath, err := cleanPath(action.Src)
+	if err != nil {
+		return errors.Wrap(err, "cleaning source path")
+	}
+	destPath, err := cleanPath(action.Dest)
+	if err != nil {
+		return errors.Wrap(err, "cleaning path")
+	}
 	if !action.CreateDestPath {
 		p, err := fs.RootPath(dest, filepath.Join("/", action.Dest))
 		if err != nil {
@@ -242,19 +252,6 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 	}
 
 	return nil
-}
-
-func cleanPath(s string) string {
-	s2 := filepath.Join("/", s)
-	if strings.HasSuffix(s, "/.") {
-		if s2 != "/" {
-			s2 += "/"
-		}
-		s2 += "."
-	} else if strings.HasSuffix(s, "/") && s2 != "/" {
-		s2 += "/"
-	}
-	return s2
 }
 
 type Backend struct {
@@ -348,4 +345,22 @@ func (fb *Backend) Copy(ctx context.Context, m1, m2, user, group fileoptypes.Mou
 	}
 
 	return docopy(ctx, src, dest, action, u, mnt2.m.IdentityMapping())
+}
+
+func cleanPath(s string) (string, error) {
+	s, err := system.CheckSystemDriveAndRemoveDriveLetter(s, runtime.GOOS)
+	if err != nil {
+		return "", errors.Wrap(err, "removing drive letter")
+	}
+	s = filepath.FromSlash(s)
+	s2 := filepath.Join("/", s)
+	if strings.HasSuffix(s, string(filepath.Separator)+".") {
+		if s2 != string(filepath.Separator) {
+			s2 += string(filepath.Separator)
+		}
+		s2 += "."
+	} else if strings.HasSuffix(s, string(filepath.Separator)) && s2 != string(filepath.Separator) {
+		s2 += string(filepath.Separator)
+	}
+	return s2, nil
 }

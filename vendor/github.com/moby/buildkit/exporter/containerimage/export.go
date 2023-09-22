@@ -5,19 +5,18 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/pkg/epoch"
 	"github.com/containerd/containerd/platforms"
-	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/rootfs"
-	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/moby/buildkit/cache"
 	cacheconfig "github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/exporter"
@@ -33,17 +32,10 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
-	keyPush           = "push"
-	keyPushByDigest   = "push-by-digest"
-	keyInsecure       = "registry.insecure"
-	keyUnpack         = "unpack"
-	keyDanglingPrefix = "dangling-name-prefix"
-	keyNameCanonical  = "name-canonical"
-	keyStore          = "store"
-
 	// keyUnsafeInternalStoreAllowIncomplete should only be used for tests. This option allows exporting image to the image store
 	// as well as lacking some blobs in the content store. Some integration tests for lazyref behaviour depends on this option.
 	// Ignored when store=false.
@@ -78,20 +70,19 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 			RefCfg: cacheconfig.RefConfig{
 				Compression: compression.New(compression.Default),
 			},
-			BuildInfo:               true,
 			ForceInlineAttestations: true,
 		},
 		store: true,
 	}
 
-	opt, err := i.opts.Load(opt)
+	opt, err := i.opts.Load(ctx, opt)
 	if err != nil {
 		return nil, err
 	}
 
 	for k, v := range opt {
-		switch k {
-		case keyPush:
+		switch exptypes.ImageExporterOptKey(k) {
+		case exptypes.OptKeyPush:
 			if v == "" {
 				i.push = true
 				continue
@@ -101,7 +92,7 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 				return nil, errors.Wrapf(err, "non-bool value specified for %s", k)
 			}
 			i.push = b
-		case keyPushByDigest:
+		case exptypes.OptKeyPushByDigest:
 			if v == "" {
 				i.pushByDigest = true
 				continue
@@ -111,7 +102,7 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 				return nil, errors.Wrapf(err, "non-bool value specified for %s", k)
 			}
 			i.pushByDigest = b
-		case keyInsecure:
+		case exptypes.OptKeyInsecure:
 			if v == "" {
 				i.insecure = true
 				continue
@@ -121,7 +112,7 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 				return nil, errors.Wrapf(err, "non-bool value specified for %s", k)
 			}
 			i.insecure = b
-		case keyUnpack:
+		case exptypes.OptKeyUnpack:
 			if v == "" {
 				i.unpack = true
 				continue
@@ -131,7 +122,7 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 				return nil, errors.Wrapf(err, "non-bool value specified for %s", k)
 			}
 			i.unpack = b
-		case keyStore:
+		case exptypes.OptKeyStore:
 			if v == "" {
 				i.store = true
 				continue
@@ -151,9 +142,9 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 				return nil, errors.Wrapf(err, "non-bool value specified for %s", k)
 			}
 			i.storeAllowIncomplete = b
-		case keyDanglingPrefix:
+		case exptypes.OptKeyDanglingPrefix:
 			i.danglingPrefix = v
-		case keyNameCanonical:
+		case exptypes.OptKeyNameCanonical:
 			if v == "" {
 				i.nameCanonical = true
 				continue
@@ -247,60 +238,73 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 		for _, targetName := range targetNames {
 			if e.opt.Images != nil && e.store {
 				tagDone := progress.OneOff(ctx, "naming to "+targetName)
-				img := images.Image{
-					Target:    *desc,
-					CreatedAt: time.Now(),
+
+				// imageClientCtx is used for propagating the epoch to e.opt.Images.Update() and e.opt.Images.Create().
+				//
+				// Ideally, we should be able to propagate the epoch via images.Image.CreatedAt.
+				// However, due to a bug of containerd, we are temporarily stuck with this workaround.
+				// https://github.com/containerd/containerd/issues/8322
+				imageClientCtx := ctx
+				if e.opts.Epoch != nil {
+					imageClientCtx = epoch.WithSourceDateEpoch(imageClientCtx, e.opts.Epoch)
 				}
+				img := images.Image{
+					Target: *desc,
+					// CreatedAt in images.Images is ignored due to a bug of containerd.
+					// See the comment lines for imageClientCtx.
+				}
+
 				sfx := []string{""}
 				if nameCanonical {
 					sfx = append(sfx, "@"+desc.Digest.String())
 				}
 				for _, sfx := range sfx {
 					img.Name = targetName + sfx
-					if _, err := e.opt.Images.Update(ctx, img); err != nil {
+					if _, err := e.opt.Images.Update(imageClientCtx, img); err != nil {
 						if !errors.Is(err, errdefs.ErrNotFound) {
 							return nil, nil, tagDone(err)
 						}
 
-						if _, err := e.opt.Images.Create(ctx, img); err != nil {
+						if _, err := e.opt.Images.Create(imageClientCtx, img); err != nil {
 							return nil, nil, tagDone(err)
 						}
 					}
 				}
 				tagDone(nil)
 
-				if src.Ref != nil && e.unpack {
+				if e.unpack {
 					if err := e.unpackImage(ctx, img, src, session.NewGroup(sessionID)); err != nil {
 						return nil, nil, err
 					}
 				}
 
 				if !e.storeAllowIncomplete {
+					var refs []cache.ImmutableRef
 					if src.Ref != nil {
-						remotes, err := src.Ref.GetRemotes(ctx, false, e.opts.RefCfg, false, session.NewGroup(sessionID))
-						if err != nil {
-							return nil, nil, err
-						}
-						remote := remotes[0]
-						if unlazier, ok := remote.Provider.(cache.Unlazier); ok {
-							if err := unlazier.Unlazy(ctx); err != nil {
-								return nil, nil, err
-							}
-						}
+						refs = append(refs, src.Ref)
 					}
-					if len(src.Refs) > 0 {
-						for _, r := range src.Refs {
-							remotes, err := r.GetRemotes(ctx, false, e.opts.RefCfg, false, session.NewGroup(sessionID))
+					for _, ref := range src.Refs {
+						refs = append(refs, ref)
+					}
+					eg, ctx := errgroup.WithContext(ctx)
+					for _, ref := range refs {
+						ref := ref
+						eg.Go(func() error {
+							remotes, err := ref.GetRemotes(ctx, false, e.opts.RefCfg, false, session.NewGroup(sessionID))
 							if err != nil {
-								return nil, nil, err
+								return err
 							}
 							remote := remotes[0]
 							if unlazier, ok := remote.Provider.(cache.Unlazier); ok {
 								if err := unlazier.Unlazy(ctx); err != nil {
-									return nil, nil, err
+									return err
 								}
 							}
-						}
+							return nil
+						})
+					}
+					if err := eg.Wait(); err != nil {
+						return nil, nil, err
 					}
 				}
 			}
@@ -330,10 +334,18 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 }
 
 func (e *imageExporterInstance) pushImage(ctx context.Context, src *exporter.Source, sessionID string, targetName string, dgst digest.Digest) error {
+	var refs []cache.ImmutableRef
+	if src.Ref != nil {
+		refs = append(refs, src.Ref)
+	}
+	for _, ref := range src.Refs {
+		refs = append(refs, ref)
+	}
+
 	annotations := map[digest.Digest]map[string]string{}
 	mprovider := contentutil.NewMultiProvider(e.opt.ImageWriter.ContentStore())
-	if src.Ref != nil {
-		remotes, err := src.Ref.GetRemotes(ctx, false, e.opts.RefCfg, false, session.NewGroup(sessionID))
+	for _, ref := range refs {
+		remotes, err := ref.GetRemotes(ctx, false, e.opts.RefCfg, false, session.NewGroup(sessionID))
 		if err != nil {
 			return err
 		}
@@ -343,25 +355,36 @@ func (e *imageExporterInstance) pushImage(ctx context.Context, src *exporter.Sou
 			addAnnotations(annotations, desc)
 		}
 	}
-	if len(src.Refs) > 0 {
-		for _, r := range src.Refs {
-			remotes, err := r.GetRemotes(ctx, false, e.opts.RefCfg, false, session.NewGroup(sessionID))
-			if err != nil {
-				return err
-			}
-			remote := remotes[0]
-			for _, desc := range remote.Descriptors {
-				mprovider.Add(desc.Digest, remote.Provider)
-				addAnnotations(annotations, desc)
-			}
-		}
-	}
-
-	ctx = remotes.WithMediaTypeKeyPrefix(ctx, intoto.PayloadType, "intoto")
 	return push.Push(ctx, e.opt.SessionManager, sessionID, mprovider, e.opt.ImageWriter.ContentStore(), dgst, targetName, e.insecure, e.opt.RegistryHosts, e.pushByDigest, annotations)
 }
 
 func (e *imageExporterInstance) unpackImage(ctx context.Context, img images.Image, src *exporter.Source, s session.Group) (err0 error) {
+	matcher := platforms.Only(platforms.Normalize(platforms.DefaultSpec()))
+
+	ps, err := exptypes.ParsePlatforms(src.Metadata)
+	if err != nil {
+		return err
+	}
+	matching := []exptypes.Platform{}
+	for _, p2 := range ps.Platforms {
+		if matcher.Match(p2.Platform) {
+			matching = append(matching, p2)
+		}
+	}
+	if len(matching) == 0 {
+		// current platform was not found, so skip unpacking
+		return nil
+	}
+	sort.SliceStable(matching, func(i, j int) bool {
+		return matcher.Less(matching[i].Platform, matching[j].Platform)
+	})
+
+	ref, _ := src.FindRef(matching[0].ID)
+	if ref == nil {
+		// ref has no layers, so nothing to unpack
+		return nil
+	}
+
 	unpackDone := progress.OneOff(ctx, "unpacking to "+img.Name)
 	defer func() {
 		unpackDone(err0)
@@ -379,16 +402,7 @@ func (e *imageExporterInstance) unpackImage(ctx context.Context, img images.Imag
 		return err
 	}
 
-	topLayerRef := src.Ref
-	if len(src.Refs) > 0 {
-		if r, ok := src.Refs[defaultPlatform()]; ok {
-			topLayerRef = r
-		} else {
-			return errors.Errorf("no reference for default platform %s", defaultPlatform())
-		}
-	}
-
-	remotes, err := topLayerRef.GetRemotes(ctx, true, e.opts.RefCfg, false, s)
+	remotes, err := ref.GetRemotes(ctx, true, e.opts.RefCfg, false, s)
 	if err != nil {
 		return err
 	}
@@ -459,12 +473,6 @@ func addAnnotations(m map[digest.Digest]map[string]string, desc ocispecs.Descrip
 	for k, v := range desc.Annotations {
 		a[k] = v
 	}
-}
-
-func defaultPlatform() string {
-	// Use normalized platform string to avoid the mismatch with platform options which
-	// are normalized using platforms.Normalize()
-	return platforms.Format(platforms.Normalize(platforms.DefaultSpec()))
 }
 
 func NewDescriptorReference(desc ocispecs.Descriptor, release func(context.Context) error) exporter.DescriptorReference {

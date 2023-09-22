@@ -6,6 +6,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	slsa "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common"
 	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
+	resourcetypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/util/purl"
 	"github.com/moby/buildkit/util/urlutil"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -50,17 +51,24 @@ type ProvenanceMetadata struct {
 }
 
 type BuildKitMetadata struct {
-	VCS    map[string]string                  `json:"vcs,omitempty"`
-	Source *Source                            `json:"source,omitempty"`
-	Layers map[string][][]ocispecs.Descriptor `json:"layers,omitempty"`
+	VCS      map[string]string                  `json:"vcs,omitempty"`
+	Source   *Source                            `json:"source,omitempty"`
+	Layers   map[string][][]ocispecs.Descriptor `json:"layers,omitempty"`
+	SysUsage []*resourcetypes.SysSample         `json:"sysUsage,omitempty"`
 }
 
 func slsaMaterials(srcs Sources) ([]slsa.ProvenanceMaterial, error) {
-	count := len(srcs.Images) + len(srcs.Git) + len(srcs.HTTP) + len(srcs.LocalImages)
+	count := len(srcs.Images) + len(srcs.Git) + len(srcs.HTTP)
 	out := make([]slsa.ProvenanceMaterial, 0, count)
 
 	for _, s := range srcs.Images {
-		uri, err := purl.RefToPURL(s.Ref, s.Platform)
+		var uri string
+		var err error
+		if s.Local {
+			uri, err = purl.RefToPURL(packageurl.TypeOCI, s.Ref, s.Platform)
+		} else {
+			uri, err = purl.RefToPURL(packageurl.TypeDocker, s.Ref, s.Platform)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -93,26 +101,6 @@ func slsaMaterials(srcs Sources) ([]slsa.ProvenanceMaterial, error) {
 		})
 	}
 
-	for _, s := range srcs.LocalImages {
-		q := []packageurl.Qualifier{}
-		if s.Platform != nil {
-			q = append(q, packageurl.Qualifier{
-				Key:   "platform",
-				Value: platforms.Format(*s.Platform),
-			})
-		}
-		packageurl.NewPackageURL(packageurl.TypeOCI, "", s.Ref, "", q, "")
-
-		material := slsa.ProvenanceMaterial{
-			URI: s.Ref,
-		}
-		if s.Digest != "" {
-			material.Digest = slsa.DigestSet{
-				s.Digest.Algorithm().String(): s.Digest.Hex(),
-			}
-		}
-		out = append(out, material)
-	}
 	return out, nil
 }
 

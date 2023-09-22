@@ -335,39 +335,23 @@ func (sw *shellWord) processDollar() (string, error) {
 	}
 	name := sw.processName()
 	ch := sw.scanner.Next()
+	chs := string(ch)
+	nullIsUnset := false
+
 	switch ch {
 	case '}':
 		// Normal ${xx} case
-		value, found := sw.getEnv(name)
-		if !found && sw.skipUnsetEnv {
+		value, set := sw.getEnv(name)
+		if !set && sw.skipUnsetEnv {
 			return fmt.Sprintf("${%s}", name), nil
 		}
 		return value, nil
-	case '?':
-		word, _, err := sw.processStopOn('}')
-		if err != nil {
-			if sw.scanner.Peek() == scanner.EOF {
-				return "", errors.New("syntax error: missing '}'")
-			}
-			return "", err
-		}
-		newValue, found := sw.getEnv(name)
-		if !found {
-			if sw.skipUnsetEnv {
-				return fmt.Sprintf("${%s?%s}", name, word), nil
-			}
-			message := "is not allowed to be unset"
-			if word != "" {
-				message = word
-			}
-			return "", errors.Errorf("%s: %s", name, message)
-		}
-		return newValue, nil
 	case ':':
-		// Special ${xx:...} format processing
-		// Yes it allows for recursive $'s in the ... spot
-		modifier := sw.scanner.Next()
-
+		nullIsUnset = true
+		ch = sw.scanner.Next()
+		chs += string(ch)
+		fallthrough
+	case '+', '-', '?':
 		word, _, err := sw.processStopOn('}')
 		if err != nil {
 			if sw.scanner.Peek() == scanner.EOF {
@@ -378,53 +362,44 @@ func (sw *shellWord) processDollar() (string, error) {
 
 		// Grab the current value of the variable in question so we
 		// can use it to determine what to do based on the modifier
-		newValue, found := sw.getEnv(name)
+		value, set := sw.getEnv(name)
+		if sw.skipUnsetEnv && !set {
+			return fmt.Sprintf("${%s%s%s}", name, chs, word), nil
+		}
 
-		switch modifier {
-		case '+':
-			if newValue != "" {
-				newValue = word
-			}
-			if !found && sw.skipUnsetEnv {
-				return fmt.Sprintf("${%s:%s%s}", name, string(modifier), word), nil
-			}
-			return newValue, nil
-
+		switch ch {
 		case '-':
-			if newValue == "" {
-				newValue = word
+			if !set || (nullIsUnset && value == "") {
+				return word, nil
 			}
-			if !found && sw.skipUnsetEnv {
-				return fmt.Sprintf("${%s:%s%s}", name, string(modifier), word), nil
+			return value, nil
+		case '+':
+			if !set || (nullIsUnset && value == "") {
+				return "", nil
 			}
-
-			return newValue, nil
-
+			return word, nil
 		case '?':
-			if !found {
-				if sw.skipUnsetEnv {
-					return fmt.Sprintf("${%s:%s%s}", name, string(modifier), word), nil
-				}
+			if !set {
 				message := "is not allowed to be unset"
 				if word != "" {
 					message = word
 				}
 				return "", errors.Errorf("%s: %s", name, message)
 			}
-			if newValue == "" {
+			if nullIsUnset && value == "" {
 				message := "is not allowed to be empty"
 				if word != "" {
 					message = word
 				}
 				return "", errors.Errorf("%s: %s", name, message)
 			}
-			return newValue, nil
-
+			return value, nil
 		default:
-			return "", errors.Errorf("unsupported modifier (%c) in substitution", modifier)
+			return "", errors.Errorf("unsupported modifier (%s) in substitution", chs)
 		}
+	default:
+		return "", errors.Errorf("unsupported modifier (%s) in substitution", chs)
 	}
-	return "", errors.Errorf("missing ':' in substitution")
 }
 
 func (sw *shellWord) processName() string {

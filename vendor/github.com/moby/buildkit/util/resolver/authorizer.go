@@ -33,7 +33,7 @@ type authHandlerNS struct {
 	hosts      map[string][]docker.RegistryHost
 	muHosts    sync.Mutex
 	sm         *session.Manager
-	g          flightcontrol.Group
+	g          flightcontrol.Group[[]docker.RegistryHost]
 }
 
 func newAuthHandlerNS(sm *session.Manager) *authHandlerNS {
@@ -230,7 +230,7 @@ type authResult struct {
 
 // authHandler is used to handle auth request per registry server.
 type authHandler struct {
-	g flightcontrol.Group
+	g flightcontrol.Group[*authResult]
 
 	client *http.Client
 
@@ -295,7 +295,7 @@ func (ah *authHandler) doBearerAuth(ctx context.Context, sm *session.Manager, g 
 	// Docs: https://docs.docker.com/registry/spec/auth/scope
 	scoped := strings.Join(to.Scopes, " ")
 
-	res, err := ah.g.Do(ctx, scoped, func(ctx context.Context) (interface{}, error) {
+	res, err := ah.g.Do(ctx, scoped, func(ctx context.Context) (*authResult, error) {
 		ah.scopedTokensMu.Lock()
 		r, exist := ah.scopedTokens[scoped]
 		ah.scopedTokensMu.Unlock()
@@ -313,15 +313,10 @@ func (ah *authHandler) doBearerAuth(ctx context.Context, sm *session.Manager, g 
 		ah.scopedTokensMu.Unlock()
 		return r, nil
 	})
-
 	if err != nil || res == nil {
 		return "", err
 	}
-	r := res.(*authResult)
-	if r == nil {
-		return "", nil
-	}
-	return r.token, nil
+	return res.token, nil
 }
 
 func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g session.Group, to auth.TokenOptions) (r *authResult, err error) {

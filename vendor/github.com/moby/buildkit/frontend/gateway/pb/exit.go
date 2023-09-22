@@ -3,7 +3,7 @@ package moby_buildkit_v1_frontend //nolint:revive
 import (
 	"fmt"
 
-	"github.com/containerd/typeurl"
+	"github.com/containerd/typeurl/v2"
 	"github.com/moby/buildkit/util/grpcerrors"
 )
 

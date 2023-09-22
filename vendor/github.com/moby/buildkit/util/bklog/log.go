@@ -2,6 +2,7 @@ package bklog
 
 import (
 	"context"
+	"runtime/debug"
 
 	"github.com/containerd/containerd/log"
 	"github.com/sirupsen/logrus"
@@ -60,4 +61,16 @@ func GetLogger(ctx context.Context) (l *logrus.Entry) {
 	}
 
 	return l
+}
+
+// LazyStackTrace lets you include a stack trace as a field's value in a log but only
+// call it when the log level is actually enabled.
+type LazyStackTrace struct{}
+
+func (LazyStackTrace) String() string {
+	return string(debug.Stack())
+}
+
+func (LazyStackTrace) MarshalText() ([]byte, error) {
+	return debug.Stack(), nil
 }

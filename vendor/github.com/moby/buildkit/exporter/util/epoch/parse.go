@@ -5,14 +5,12 @@ import (
 	"time"
 
 	"github.com/moby/buildkit/exporter"
-	"github.com/moby/buildkit/exporter/containerimage/exptypes"
+	commonexptypes "github.com/moby/buildkit/exporter/exptypes"
 	"github.com/pkg/errors"
 )
 
 const (
 	frontendSourceDateEpochArg = "build-arg:SOURCE_DATE_EPOCH"
-
-	KeySourceDateEpoch = "source-date-epoch"
 )
 
 func ParseBuildArgs(opt map[string]string) (string, bool) {
@@ -27,7 +25,7 @@ func ParseExporterAttrs(opt map[string]string) (*time.Time, map[string]string, e
 
 	for k, v := range opt {
 		switch k {
-		case KeySourceDateEpoch:
+		case string(commonexptypes.OptKeySourceDateEpoch):
 			var err error
 			tm, err = parseTime(k, v)
 			if err != nil {
@@ -42,7 +40,7 @@ func ParseExporterAttrs(opt map[string]string) (*time.Time, map[string]string, e
 }
 
 func ParseSource(inp *exporter.Source) (*time.Time, bool, error) {
-	if v, ok := inp.Metadata[exptypes.ExporterEpochKey]; ok {
+	if v, ok := inp.Metadata[commonexptypes.ExporterEpochKey]; ok {
 		epoch, err := parseTime("", string(v))
 		if err != nil {
 			return nil, false, errors.Wrapf(err, "invalid SOURCE_DATE_EPOCH from frontend: %q", v)

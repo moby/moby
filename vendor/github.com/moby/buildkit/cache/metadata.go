@@ -87,7 +87,7 @@ func (cm *cacheManager) Search(ctx context.Context, idx string) ([]RefMetadata, 
 
 // callers must hold cm.mu lock
 func (cm *cacheManager) search(ctx context.Context, idx string) ([]RefMetadata, error) {
-	sis, err := cm.MetadataStore.Search(idx)
+	sis, err := cm.MetadataStore.Search(ctx, idx)
 	if err != nil {
 		return nil, err
 	}

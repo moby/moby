@@ -3,17 +3,6 @@ syntax = "proto3";
 
 package runtimeoptions.v1;
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-
-option (gogoproto.goproto_stringer_all) = false;
-option (gogoproto.stringer_all) =  true;
-option (gogoproto.goproto_getters_all) = true;
-option (gogoproto.marshaler_all) = true;
-option (gogoproto.sizer_all) = true;
-option (gogoproto.unmarshaler_all) = true;
-option (gogoproto.goproto_unrecognized_all) = false;
-
-
 option go_package = "github.com/containerd/containerd/pkg/runtimeoptions/v1;runtimeoptions_v1";
 
 message Options {
@@ -22,4 +11,7 @@ message Options {
 	// ConfigPath specifies the filesystem location of the config file
 	// used by the runtime.
 	string config_path = 2;
+	// Blob specifies an in-memory TOML blob passed from containerd's configuration section
+	// for this runtime. This will be used if config_path is not specified.
+	bytes config_body = 3;
 }

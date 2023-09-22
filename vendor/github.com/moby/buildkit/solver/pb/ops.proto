@@ -228,6 +228,7 @@ message SourceInfo {
 	string filename = 1;
 	bytes data = 2;
 	Definition definition = 3;
+	string language = 4;
 }
 
 // Location defines list of areas in to source file

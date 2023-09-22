@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	gatewayapi "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
@@ -78,7 +79,7 @@ func New(client *containerd.Client, root, cgroup string, networkProviders map[pb
 	}
 }
 
-func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (err error) {
+func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (rec resourcestypes.Recorder, err error) {
 	if id == "" {
 		id = identity.NewID()
 	}
@@ -105,12 +106,12 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 
 	resolvConf, err := oci.GetResolvConf(ctx, w.root, nil, w.dnsConfig)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	hostsFile, clean, err := oci.GetHostsFile(ctx, w.root, meta.ExtraHosts, nil, meta.Hostname)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if clean != nil {
 		defer clean()
@@ -118,12 +119,12 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 
 	mountable, err := root.Src.Mount(ctx, false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	rootMounts, release, err := mountable.Mount()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if release != nil {
 		defer release()
@@ -132,14 +133,14 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 	lm := snapshot.LocalMounterWithMounts(rootMounts)
 	rootfsPath, err := lm.Mount()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer lm.Unmount()
-	defer executor.MountStubsCleaner(rootfsPath, mounts, meta.RemoveMountStubsRecursive)()
+	defer executor.MountStubsCleaner(ctx, rootfsPath, mounts, meta.RemoveMountStubsRecursive)()
 
 	uid, gid, sgids, err := oci.GetUser(rootfsPath, meta.User)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	identity := idtools.Identity{
@@ -149,21 +150,21 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 
 	newp, err := fs.RootPath(rootfsPath, meta.Cwd)
 	if err != nil {
-		return errors.Wrapf(err, "working dir %s points to invalid target", newp)
+		return nil, errors.Wrapf(err, "working dir %s points to invalid target", newp)
 	}
 	if _, err := os.Stat(newp); err != nil {
 		if err := idtools.MkdirAllAndChown(newp, 0755, identity); err != nil {
-			return errors.Wrapf(err, "failed to create working directory %s", newp)
+			return nil, errors.Wrapf(err, "failed to create working directory %s", newp)
 		}
 	}
 
 	provider, ok := w.networkProviders[meta.NetMode]
 	if !ok {
-		return errors.Errorf("unknown network mode %s", meta.NetMode)
+		return nil, errors.Errorf("unknown network mode %s", meta.NetMode)
 	}
 	namespace, err := provider.New(ctx, meta.Hostname)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer namespace.Close()
 
@@ -179,13 +180,13 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 	processMode := oci.ProcessSandbox // FIXME(AkihiroSuda)
 	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, w.cgroupParent, processMode, nil, w.apparmorProfile, w.selinux, w.traceSocket, opts...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer cleanup()
 	spec.Process.Terminal = meta.Tty
 	if w.rootless {
 		if err := rootlessspecconv.ToRootless(spec); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -193,7 +194,7 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 		containerd.WithSpec(spec),
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer func() {
@@ -214,7 +215,7 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 		Options: []string{"rbind"},
 	}}))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer func() {
@@ -225,7 +226,7 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 
 	if nn, ok := namespace.(OnCreateRuntimer); ok {
 		if err := nn.OnCreateRuntime(task.Pid()); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -238,7 +239,7 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 			}
 		})
 	})
-	return err
+	return nil, err
 }
 
 func (w *containerdExecutor) Exec(ctx context.Context, id string, process executor.ProcessInfo) (err error) {

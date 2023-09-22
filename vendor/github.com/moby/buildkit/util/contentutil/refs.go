@@ -20,7 +20,6 @@ func ProviderFromRef(ref string) (ocispecs.Descriptor, content.Provider, error) 
 	headers := http.Header{}
 	headers.Set("User-Agent", version.UserAgent())
 	remote := docker.NewResolver(docker.ResolverOptions{
-		Client:  http.DefaultClient,
 		Headers: headers,
 	})
 
@@ -40,7 +39,6 @@ func IngesterFromRef(ref string) (content.Ingester, error) {
 	headers := http.Header{}
 	headers.Set("User-Agent", version.UserAgent())
 	remote := docker.NewResolver(docker.ResolverOptions{
-		Client:  http.DefaultClient,
 		Headers: headers,
 	})
 

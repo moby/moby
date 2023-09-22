@@ -44,75 +44,82 @@
 //
 // Below is the current database schema. This should be updated each time
 // the structure is changed in addition to adding a migration and incrementing
-// the database version. Note that `╘══*...*` refers to maps with arbitrary
-// keys.
+// the database version.
+// Notes:
 //
-//	├──version : <varint>                        - Latest version, see migrations
-//	└──v1                                        - Schema version bucket
-//	   ╘══*namespace*
-//	      ├──labels
-//	      │  ╘══*key* : <string>                 - Label value
-//	      ├──image
-//	      │  ╘══*image name*
-//	      │     ├──createdat : <binary time>     - Created at
-//	      │     ├──updatedat : <binary time>     - Updated at
-//	      │     ├──target
-//	      │     │  ├──digest : <digest>          - Descriptor digest
-//	      │     │  ├──mediatype : <string>       - Descriptor media type
-//	      │     │  └──size : <varint>            - Descriptor size
-//	      │     └──labels
-//	      │        ╘══*key* : <string>           - Label value
-//	      ├──containers
-//	      │  ╘══*container id*
-//	      │     ├──createdat : <binary time>     - Created at
-//	      │     ├──updatedat : <binary time>     - Updated at
-//	      │     ├──spec : <binary>               - Proto marshaled spec
-//	      │     ├──image : <string>              - Image name
-//	      │     ├──snapshotter : <string>        - Snapshotter name
-//	      │     ├──snapshotKey : <string>        - Snapshot key
-//	      │     ├──runtime
-//	      │     │  ├──name : <string>            - Runtime name
-//	      │     │  ├──extensions
-//	      │     │  │  ╘══*name* : <binary>       - Proto marshaled extension
-//	      │     │  └──options : <binary>         - Proto marshaled options
-//	      │     └──labels
-//	      │        ╘══*key* : <string>           - Label value
-//	      ├──snapshots
-//	      │  ╘══*snapshotter*
-//	      │     ╘══*snapshot key*
-//	      │        ├──name : <string>            - Snapshot name in backend
-//	      │        ├──createdat : <binary time>  - Created at
-//	      │        ├──updatedat : <binary time>  - Updated at
-//	      │        ├──parent : <string>          - Parent snapshot name
-//	      │        ├──children
-//	      │        │  ╘══*snapshot key* : <nil>  - Child snapshot reference
-//	      │        └──labels
-//	      │           ╘══*key* : <string>        - Label value
-//	      ├──content
-//	      │  ├──blob
-//	      │  │  ╘══*blob digest*
-//	      │  │     ├──createdat : <binary time>  - Created at
-//	      │  │     ├──updatedat : <binary time>  - Updated at
-//	      │  │     ├──size : <varint>            - Blob size
-//	      │  │     └──labels
-//	      │  │        ╘══*key* : <string>        - Label value
-//	      │  └──ingests
-//	      │     ╘══*ingest reference*
-//	      │        ├──ref : <string>             - Ingest reference in backend
-//	      │        ├──expireat : <binary time>   - Time to expire ingest
-//	      │        └──expected : <digest>        - Expected commit digest
-//	      └──leases
-//	         ╘══*lease id*
-//	            ├──createdat : <binary time>     - Created at
-//	            ├──labels
-//	            │  ╘══*key* : <string>           - Label value
-//	            ├──snapshots
-//	            │  ╘══*snapshotter*
-//	            │     ╘══*snapshot key* : <nil>  - Snapshot reference
-//	            ├──content
-//	            │  ╘══*blob digest* : <nil>      - Content blob reference
-//	            └──ingests
-//	               ╘══*ingest reference* : <nil> - Content ingest reference
+//   - `╘══*...*` refers to maps with arbitrary keys
+//
+//   - `version` is a key to a numeric value identifying the minor revisions
+//     of schema version
+//
+//   - a namespace in a schema bucket cannot be named "version"
+//
+//     └──v1                                        - Schema version bucket
+//     ├──version : <varint>                     - Latest version, see migrations
+//     ╘══*namespace*
+//     ├──labels
+//     │  ╘══*key* : <string>                 - Label value
+//     ├──image
+//     │  ╘══*image name*
+//     │     ├──createdat : <binary time>     - Created at
+//     │     ├──updatedat : <binary time>     - Updated at
+//     │     ├──target
+//     │     │  ├──digest : <digest>          - Descriptor digest
+//     │     │  ├──mediatype : <string>       - Descriptor media type
+//     │     │  └──size : <varint>            - Descriptor size
+//     │     └──labels
+//     │        ╘══*key* : <string>           - Label value
+//     ├──containers
+//     │  ╘══*container id*
+//     │     ├──createdat : <binary time>     - Created at
+//     │     ├──updatedat : <binary time>     - Updated at
+//     │     ├──spec : <binary>               - Proto marshaled spec
+//     │     ├──image : <string>              - Image name
+//     │     ├──snapshotter : <string>        - Snapshotter name
+//     │     ├──snapshotKey : <string>        - Snapshot key
+//     │     ├──runtime
+//     │     │  ├──name : <string>            - Runtime name
+//     │     │  ├──extensions
+//     │     │  │  ╘══*name* : <binary>       - Proto marshaled extension
+//     │     │  └──options : <binary>         - Proto marshaled options
+//     │     └──labels
+//     │        ╘══*key* : <string>           - Label value
+//     ├──snapshots
+//     │  ╘══*snapshotter*
+//     │     ╘══*snapshot key*
+//     │        ├──name : <string>            - Snapshot name in backend
+//     │        ├──createdat : <binary time>  - Created at
+//     │        ├──updatedat : <binary time>  - Updated at
+//     │        ├──parent : <string>          - Parent snapshot name
+//     │        ├──children
+//     │        │  ╘══*snapshot key* : <nil>  - Child snapshot reference
+//     │        └──labels
+//     │           ╘══*key* : <string>        - Label value
+//     ├──content
+//     │  ├──blob
+//     │  │  ╘══*blob digest*
+//     │  │     ├──createdat : <binary time>  - Created at
+//     │  │     ├──updatedat : <binary time>  - Updated at
+//     │  │     ├──size : <varint>            - Blob size
+//     │  │     └──labels
+//     │  │        ╘══*key* : <string>        - Label value
+//     │  └──ingests
+//     │     ╘══*ingest reference*
+//     │        ├──ref : <string>             - Ingest reference in backend
+//     │        ├──expireat : <binary time>   - Time to expire ingest
+//     │        └──expected : <digest>        - Expected commit digest
+//     └──leases
+//     ╘══*lease id*
+//     ├──createdat : <binary time>     - Created at
+//     ├──labels
+//     │  ╘══*key* : <string>           - Label value
+//     ├──snapshots
+//     │  ╘══*snapshotter*
+//     │     ╘══*snapshot key* : <nil>  - Snapshot reference
+//     ├──content
+//     │  ╘══*blob digest* : <nil>      - Content blob reference
+//     └──ingests
+//     ╘══*ingest reference* : <nil> - Content ingest reference
 package metadata
 
 import (
@@ -131,6 +138,7 @@ var (
 	bucketKeyObjectBlob       = []byte("blob")       // stores content links
 	bucketKeyObjectIngests    = []byte("ingests")    // stores ingest objects
 	bucketKeyObjectLeases     = []byte("leases")     // stores leases
+	bucketKeyObjectSandboxes  = []byte("sandboxes")  // stores sandboxes
 
 	bucketKeyDigest      = []byte("digest")
 	bucketKeyMediaType   = []byte("mediatype")
@@ -150,6 +158,7 @@ var (
 	bucketKeyExpected    = []byte("expected")
 	bucketKeyRef         = []byte("ref")
 	bucketKeyExpireAt    = []byte("expireat")
+	bucketKeySandboxID   = []byte("sandboxid")
 
 	deprecatedBucketKeyObjectIngest = []byte("ingest") // stores ingest links, deprecated in v1.2
 )
@@ -270,4 +279,20 @@ func createIngestBucket(tx *bolt.Tx, namespace, ref string) (*bolt.Bucket, error
 
 func getIngestBucket(tx *bolt.Tx, namespace, ref string) *bolt.Bucket {
 	return getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectContent, bucketKeyObjectIngests, []byte(ref))
+}
+
+func createSandboxBucket(tx *bolt.Tx, namespace string) (*bolt.Bucket, error) {
+	return createBucketIfNotExists(
+		tx,
+		[]byte(namespace),
+		bucketKeyObjectSandboxes,
+	)
+}
+
+func getSandboxBucket(tx *bolt.Tx, namespace string) *bolt.Bucket {
+	return getBucket(
+		tx,
+		[]byte(namespace),
+		bucketKeyObjectSandboxes,
+	)
 }

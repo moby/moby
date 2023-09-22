@@ -57,7 +57,7 @@ func TestBuildkitHistoryTracePropagation(t *testing.T) {
 	}()
 
 	eg.Go(func() error {
-		_, err := progressui.DisplaySolveStatus(ctxGo, "test", nil, &testWriter{t}, ch)
+		_, err := progressui.DisplaySolveStatus(ctxGo, nil, &testWriter{t}, ch, progressui.WithPhase("test"))
 		return err
 	})
 

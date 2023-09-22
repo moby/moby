@@ -39,7 +39,7 @@ func (c *CacheChains) Visited(v interface{}) bool {
 	return ok
 }
 
-func (c *CacheChains) normalize() error {
+func (c *CacheChains) normalize(ctx context.Context) error {
 	st := &normalizeState{
 		added: map[*item]*item{},
 		links: map[*item]map[nlink]map[digest.Digest]struct{}{},
@@ -66,7 +66,7 @@ func (c *CacheChains) normalize() error {
 		}
 	}
 
-	st.removeLoops()
+	st.removeLoops(ctx)
 
 	items := make([]*item, 0, len(st.byKey))
 	for _, it := range st.byKey {
@@ -77,7 +77,7 @@ func (c *CacheChains) normalize() error {
 }
 
 func (c *CacheChains) Marshal(ctx context.Context) (*CacheConfig, DescriptorProvider, error) {
-	if err := c.normalize(); err != nil {
+	if err := c.normalize(ctx); err != nil {
 		return nil, nil, err
 	}
 

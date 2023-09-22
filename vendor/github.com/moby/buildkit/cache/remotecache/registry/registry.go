@@ -15,34 +15,43 @@ import (
 	"github.com/moby/buildkit/util/estargz"
 	"github.com/moby/buildkit/util/push"
 	"github.com/moby/buildkit/util/resolver"
+	resolverconfig "github.com/moby/buildkit/util/resolver/config"
 	"github.com/moby/buildkit/util/resolver/limited"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
-func canonicalizeRef(rawRef string) (string, error) {
+func canonicalizeRef(rawRef string) (reference.Named, error) {
 	if rawRef == "" {
-		return "", errors.New("missing ref")
+		return nil, errors.New("missing ref")
 	}
 	parsed, err := reference.ParseNormalizedNamed(rawRef)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return reference.TagNameOnly(parsed).String(), nil
+	parsed = reference.TagNameOnly(parsed)
+	return parsed, nil
 }
 
 const (
-	attrRef              = "ref"
-	attrOCIMediatypes    = "oci-mediatypes"
-	attrLayerCompression = "compression"
-	attrForceCompression = "force-compression"
-	attrCompressionLevel = "compression-level"
+	attrRef           = "ref"
+	attrImageManifest = "image-manifest"
+	attrOCIMediatypes = "oci-mediatypes"
+	attrInsecure      = "registry.insecure"
 )
+
+type exporter struct {
+	remotecache.Exporter
+}
+
+func (*exporter) Name() string {
+	return "exporting cache to registry"
+}
 
 func ResolveCacheExporterFunc(sm *session.Manager, hosts docker.RegistryHosts) remotecache.ResolveCacheExporterFunc {
 	return func(ctx context.Context, g session.Group, attrs map[string]string) (remotecache.Exporter, error) {
-		compressionConfig, err := attrsToCompression(attrs)
+		compressionConfig, err := compression.ParseAttributes(attrs)
 		if err != nil {
 			return nil, err
 		}
@@ -50,6 +59,7 @@ func ResolveCacheExporterFunc(sm *session.Manager, hosts docker.RegistryHosts) r
 		if err != nil {
 			return nil, err
 		}
+		refString := ref.String()
 		ociMediatypes := true
 		if v, ok := attrs[attrOCIMediatypes]; ok {
 			b, err := strconv.ParseBool(v)
@@ -58,12 +68,30 @@ func ResolveCacheExporterFunc(sm *session.Manager, hosts docker.RegistryHosts) r
 			}
 			ociMediatypes = b
 		}
-		remote := resolver.DefaultPool.GetResolver(hosts, ref, "push", sm, g)
-		pusher, err := push.Pusher(ctx, remote, ref)
+		imageManifest := false
+		if v, ok := attrs[attrImageManifest]; ok {
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to parse %s", attrImageManifest)
+			}
+			imageManifest = b
+		}
+		insecure := false
+		if v, ok := attrs[attrInsecure]; ok {
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to parse %s", attrInsecure)
+			}
+			insecure = b
+		}
+
+		scope, hosts := registryConfig(hosts, ref, "push", insecure)
+		remote := resolver.DefaultPool.GetResolver(hosts, refString, scope, sm, g)
+		pusher, err := push.Pusher(ctx, remote, refString)
 		if err != nil {
 			return nil, err
 		}
-		return remotecache.NewExporter(contentutil.FromPusher(pusher), ref, ociMediatypes, *compressionConfig), nil
+		return &exporter{remotecache.NewExporter(contentutil.FromPusher(pusher), refString, ociMediatypes, imageManifest, compressionConfig)}, nil
 	}
 }
 
@@ -73,8 +101,19 @@ func ResolveCacheImporterFunc(sm *session.Manager, cs content.Store, hosts docke
 		if err != nil {
 			return nil, ocispecs.Descriptor{}, err
 		}
-		remote := resolver.DefaultPool.GetResolver(hosts, ref, "pull", sm, g)
-		xref, desc, err := remote.Resolve(ctx, ref)
+		refString := ref.String()
+		insecure := false
+		if v, ok := attrs[attrInsecure]; ok {
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, ocispecs.Descriptor{}, errors.Wrapf(err, "failed to parse %s", attrInsecure)
+			}
+			insecure = b
+		}
+
+		scope, hosts := registryConfig(hosts, ref, "pull", insecure)
+		remote := resolver.DefaultPool.GetResolver(hosts, refString, scope, sm, g)
+		xref, desc, err := remote.Resolve(ctx, refString)
 		if err != nil {
 			return nil, ocispecs.Descriptor{}, err
 		}
@@ -83,8 +122,8 @@ func ResolveCacheImporterFunc(sm *session.Manager, cs content.Store, hosts docke
 			return nil, ocispecs.Descriptor{}, err
 		}
 		src := &withDistributionSourceLabel{
-			Provider: contentutil.FromFetcher(limited.Default.WrapFetcher(fetcher, ref)),
-			ref:      ref,
+			Provider: contentutil.FromFetcher(limited.Default.WrapFetcher(fetcher, refString)),
+			ref:      refString,
 			source:   cs,
 		}
 		return remotecache.NewImporter(src), desc, nil
@@ -130,37 +169,17 @@ func (dsl *withDistributionSourceLabel) SnapshotLabels(descs []ocispecs.Descript
 	return labels
 }
 
-func attrsToCompression(attrs map[string]string) (*compression.Config, error) {
-	var compressionType compression.Type
-	if v, ok := attrs[attrLayerCompression]; ok {
-		c, err := compression.Parse(v)
-		if err != nil {
-			return nil, err
-		}
-		compressionType = c
-	} else {
-		compressionType = compression.Default
+func registryConfig(hosts docker.RegistryHosts, ref reference.Named, scope string, insecure bool) (string, docker.RegistryHosts) {
+	if insecure {
+		insecureTrue := true
+		httpTrue := true
+		hosts = resolver.NewRegistryConfig(map[string]resolverconfig.RegistryConfig{
+			reference.Domain(ref): {
+				Insecure:  &insecureTrue,
+				PlainHTTP: &httpTrue,
+			},
+		})
+		scope += ":insecure"
 	}
-	compressionConfig := compression.New(compressionType)
-	if v, ok := attrs[attrForceCompression]; ok {
-		var force bool
-		if v == "" {
-			force = true
-		} else {
-			b, err := strconv.ParseBool(v)
-			if err != nil {
-				return nil, errors.Wrapf(err, "non-bool value %s specified for %s", v, attrForceCompression)
-			}
-			force = b
-		}
-		compressionConfig = compressionConfig.SetForce(force)
-	}
-	if v, ok := attrs[attrCompressionLevel]; ok {
-		ii, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return nil, errors.Wrapf(err, "non-integer value %s specified for %s", v, attrCompressionLevel)
-		}
-		compressionConfig = compressionConfig.SetLevel(int(ii))
-	}
-	return &compressionConfig, nil
+	return scope, hosts
 }

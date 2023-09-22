@@ -85,5 +85,5 @@ func (noopSpan) AddEvent(string, ...EventOption) {}
 // SetName does nothing.
 func (noopSpan) SetName(string) {}
 
-// TracerProvider returns a no-op TracerProvider
+// TracerProvider returns a no-op TracerProvider.
 func (noopSpan) TracerProvider() TracerProvider { return noopTracerProvider{} }

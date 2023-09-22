@@ -20,11 +20,11 @@ import (
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	spdx_json "github.com/spdx/tools-golang/json"
-	"github.com/spdx/tools-golang/spdx/common"
-	spdx "github.com/spdx/tools-golang/spdx/v2_3"
+	"github.com/spdx/tools-golang/spdx"
+	"github.com/spdx/tools-golang/spdx/v2/common"
 )
 
-var intotoPlatform ocispecs.Platform = ocispecs.Platform{
+var intotoPlatform = ocispecs.Platform{
 	Architecture: "unknown",
 	OS:           "unknown",
 }
@@ -122,7 +122,7 @@ func supplementSBOM(ctx context.Context, s session.Group, target cache.Immutable
 }
 
 func decodeSPDX(dt []byte) (s *spdx.Document, err error) {
-	doc, err := spdx_json.Load2_3(bytes.NewReader(dt))
+	doc, err := spdx_json.Read(bytes.NewReader(dt))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to decode spdx")
 	}
@@ -134,7 +134,7 @@ func decodeSPDX(dt []byte) (s *spdx.Document, err error) {
 
 func encodeSPDX(s *spdx.Document) (dt []byte, err error) {
 	w := bytes.NewBuffer(nil)
-	err = spdx_json.Save2_3(s, w)
+	err = spdx_json.Write(s, w)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to encode spdx")
 	}

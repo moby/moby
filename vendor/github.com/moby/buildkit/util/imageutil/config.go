@@ -3,6 +3,8 @@ package imageutil
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,7 +15,11 @@ import (
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/moby/buildkit/util/attestation"
+	intoto "github.com/in-toto/in-toto-golang/in_toto"
+	"github.com/moby/buildkit/solver/pb"
+	srctypes "github.com/moby/buildkit/source/types"
+	"github.com/moby/buildkit/sourcepolicy"
+	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/resolver/limited"
@@ -47,7 +53,17 @@ func AddLease(f func(context.Context) error) {
 	leasesMu.Unlock()
 }
 
-func Config(ctx context.Context, str string, resolver remotes.Resolver, cache ContentCache, leaseManager leases.Manager, p *ocispecs.Platform) (digest.Digest, []byte, error) {
+// ResolveToNonImageError is returned by the resolver when the ref is mutated by policy to a non-image ref
+type ResolveToNonImageError struct {
+	Ref     string
+	Updated string
+}
+
+func (e ResolveToNonImageError) Error() string {
+	return fmt.Sprintf("ref mutated by policy to non-image: %s://%s -> %s", srctypes.DockerImageScheme, e.Ref, e.Updated)
+}
+
+func Config(ctx context.Context, str string, resolver remotes.Resolver, cache ContentCache, leaseManager leases.Manager, p *ocispecs.Platform, spls []*spb.Policy) (string, digest.Digest, []byte, error) {
 	// TODO: fix buildkit to take interface instead of struct
 	var platform platforms.MatchComparer
 	if p != nil {
@@ -57,13 +73,44 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	}
 	ref, err := reference.Parse(str)
 	if err != nil {
-		return "", nil, errors.WithStack(err)
+		return "", "", nil, errors.WithStack(err)
+	}
+
+	op := &pb.Op{
+		Op: &pb.Op_Source{
+			Source: &pb.SourceOp{
+				Identifier: srctypes.DockerImageScheme + "://" + ref.String(),
+			},
+		},
+	}
+
+	mut, err := sourcepolicy.NewEngine(spls).Evaluate(ctx, op)
+	if err != nil {
+		return "", "", nil, errors.Wrap(err, "could not resolve image due to policy")
+	}
+
+	if mut {
+		var (
+			t  string
+			ok bool
+		)
+		t, newRef, ok := strings.Cut(op.GetSource().GetIdentifier(), "://")
+		if !ok {
+			return "", "", nil, errors.Errorf("could not parse ref: %s", op.GetSource().GetIdentifier())
+		}
+		if ok && t != srctypes.DockerImageScheme {
+			return "", "", nil, &ResolveToNonImageError{Ref: str, Updated: newRef}
+		}
+		ref, err = reference.Parse(newRef)
+		if err != nil {
+			return "", "", nil, errors.WithStack(err)
+		}
 	}
 
 	if leaseManager != nil {
 		ctx2, done, err := leaseutil.WithLease(ctx, leaseManager, leases.WithExpiration(5*time.Minute), leaseutil.MakeTemporary)
 		if err != nil {
-			return "", nil, errors.WithStack(err)
+			return "", "", nil, errors.WithStack(err)
 		}
 		ctx = ctx2
 		defer func() {
@@ -94,24 +141,25 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	if desc.MediaType == "" {
 		_, desc, err = resolver.Resolve(ctx, ref.String())
 		if err != nil {
-			return "", nil, err
+			return "", "", nil, err
 		}
 	}
 
 	fetcher, err := resolver.Fetcher(ctx, ref.String())
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 
 	if desc.MediaType == images.MediaTypeDockerSchema1Manifest {
-		return readSchema1Config(ctx, ref.String(), desc, fetcher, cache)
+		dgst, dt, err := readSchema1Config(ctx, ref.String(), desc, fetcher, cache)
+		return ref.String(), dgst, dt, err
 	}
 
 	children := childrenConfigHandler(cache, platform)
 
 	dslHandler, err := docker.AppendDistributionSourceLabel(cache, ref.String())
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 
 	handlers := []images.Handler{
@@ -120,19 +168,19 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 		children,
 	}
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, desc); err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 	config, err := images.Config(ctx, cache, desc, platform)
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 
 	dt, err := content.ReadBlob(ctx, cache, config)
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 
-	return desc.Digest, dt, nil
+	return ref.String(), desc.Digest, dt, nil
 }
 
 func childrenConfigHandler(provider content.Provider, platform platforms.MatchComparer) images.HandlerFunc {
@@ -174,7 +222,7 @@ func childrenConfigHandler(provider content.Provider, platform platforms.MatchCo
 				descs = append(descs, index.Manifests...)
 			}
 		case images.MediaTypeDockerSchema2Config, ocispecs.MediaTypeImageConfig, docker.LegacyConfigMediaType,
-			attestation.MediaTypeDockerSchema2AttestationType:
+			intoto.PayloadType:
 			// childless data types.
 			return nil, nil
 		default:

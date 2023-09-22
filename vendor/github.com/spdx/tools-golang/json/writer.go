@@ -1,41 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
 
-package spdx_json
+package json
 
 import (
 	"encoding/json"
-	"github.com/spdx/tools-golang/spdx/v2_3"
 	"io"
 
-	"github.com/spdx/tools-golang/spdx/v2_2"
+	"github.com/spdx/tools-golang/spdx/common"
 )
 
-// Save2_2 takes an SPDX Document (version 2.2) and an io.Writer, and writes the document to the writer in JSON format.
-func Save2_2(doc *v2_2.Document, w io.Writer) error {
-	buf, err := json.Marshal(doc)
-	if err != nil {
-		return err
-	}
+type WriteOption func(*json.Encoder)
 
-	_, err = w.Write(buf)
-	if err != nil {
-		return err
+func Indent(indent string) WriteOption {
+	return func(e *json.Encoder) {
+		e.SetIndent("", indent)
 	}
-
-	return nil
 }
 
-// Save2_3 takes an SPDX Document (version 2.2) and an io.Writer, and writes the document to the writer in JSON format.
-func Save2_3(doc *v2_3.Document, w io.Writer) error {
-	buf, err := json.Marshal(doc)
-	if err != nil {
-		return err
+func EscapeHTML(escape bool) WriteOption {
+	return func(e *json.Encoder) {
+		e.SetEscapeHTML(escape)
 	}
+}
 
-	_, err = w.Write(buf)
-	if err != nil {
-		return err
+// Write takes an SPDX Document and an io.Writer, and writes the document to the writer in JSON format.
+func Write(doc common.AnyDocument, w io.Writer, opts ...WriteOption) error {
+	e := json.NewEncoder(w)
+	for _, opt := range opts {
+		opt(e)
 	}
-
-	return nil
+	return e.Encode(doc)
 }

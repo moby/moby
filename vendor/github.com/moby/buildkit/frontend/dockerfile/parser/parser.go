@@ -49,8 +49,7 @@ func (node *Node) Location() []Range {
 // Dump dumps the AST defined by `node` as a list of sexps.
 // Returns a string suitable for printing.
 func (node *Node) Dump() string {
-	str := ""
-	str += strings.ToLower(node.Value)
+	str := strings.ToLower(node.Value)
 
 	if len(node.Flags) > 0 {
 		str += fmt.Sprintf(" %q", node.Flags)

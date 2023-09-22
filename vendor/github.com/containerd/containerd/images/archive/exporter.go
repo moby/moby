@@ -89,6 +89,18 @@ func WithImage(is images.Store, name string) ExportOpt {
 	}
 }
 
+// WithImages adds multiples images to the exported archive.
+func WithImages(imgs []images.Image) ExportOpt {
+	return func(ctx context.Context, o *exportOptions) error {
+		for _, img := range imgs {
+			img.Target.Annotations = addNameAnnotation(img.Name, img.Target.Annotations)
+			o.manifests = append(o.manifests, img.Target)
+		}
+
+		return nil
+	}
+}
+
 // WithManifest adds a manifest to the exported archive.
 // When names are given they will be set on the manifest in the
 // exported archive, creating an index record for each name.
