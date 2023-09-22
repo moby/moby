@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
 )
 
 type DockerCLISaveLoadSuite struct {
@@ -192,6 +193,9 @@ func (s *DockerCLISaveLoadSuite) TestSaveMultipleNames(c *testing.T) {
 // The layer.tar file is actually zero bytes, no padding or anything else.
 // See issue: 18170
 func (s *DockerCLISaveLoadSuite) TestLoadZeroSizeLayer(c *testing.T) {
+	// TODO(vvoland): Create an OCI image with 0 bytes layer.
+	skip.If(c, testEnv.UsingSnapshotter(), "input archive is not OCI compatible")
+
 	// this will definitely not work if using remote daemon
 	// very weird test
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
@@ -201,6 +205,7 @@ func (s *DockerCLISaveLoadSuite) TestLoadZeroSizeLayer(c *testing.T) {
 
 func (s *DockerCLISaveLoadSuite) TestSaveLoadParents(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
+	skip.If(c, testEnv.UsingSnapshotter(), "Parent image property is not supported with containerd")
 
 	makeImage := func(from string, addfile string) string {
 		var out string
