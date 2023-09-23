@@ -15,7 +15,7 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 }
 
 // GetLayerFolders returns the layer folders from an image RootFS
-func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
+func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer, containerID string) ([]string, error) {
 	folders := []string{}
 	rd := len(img.RootFS.DiffIDs)
 	for index := 1; index <= rd; index++ {

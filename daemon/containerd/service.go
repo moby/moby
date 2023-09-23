@@ -19,7 +19,6 @@ import (
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/registry"
@@ -154,11 +153,6 @@ func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 // called from reload.go
 func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
 	log.G(context.TODO()).Warn("max downloads and uploads is not yet implemented with the containerd store")
-}
-
-// GetLayerFolders returns the layer folders from an image RootFS.
-func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
-	return nil, errdefs.NotImplemented(errors.New("not implemented"))
 }
 
 // GetContainerLayerSize returns the real size & virtual size of the container.

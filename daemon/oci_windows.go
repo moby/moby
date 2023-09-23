@@ -138,9 +138,9 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 		}
 	}
 	s.Process.User.Username = c.Config.User
-	s.Windows.LayerFolders, err = daemon.imageService.GetLayerFolders(img, c.RWLayer)
+	s.Windows.LayerFolders, err = daemon.imageService.GetLayerFolders(img, c.RWLayer, c.ID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "container %s", c.ID)
+		return nil, errors.Wrapf(err, "GetLayerFolders failed: container %s", c.ID)
 	}
 
 	// Get endpoints for the libnetwork allocated networks to the container
