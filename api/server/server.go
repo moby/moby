@@ -30,7 +30,7 @@ func (s *Server) UseMiddleware(m middleware.Middleware) {
 	s.middlewares = append(s.middlewares, m)
 }
 
-func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
+func (s *Server) makeHTTPHandler(handler httputils.APIFunc, operation string) http.HandlerFunc {
 	return otelhttp.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Define the context that we'll pass around to share info
 		// like the docker-request-id.
@@ -59,7 +59,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 			}
 			makeErrorHandler(err)(w, r)
 		}
-	}), "").ServeHTTP
+	}), operation).ServeHTTP
 }
 
 type pageNotFoundError struct{}
@@ -77,7 +77,7 @@ func (s *Server) CreateMux(routers ...router.Router) *mux.Router {
 	log.G(context.TODO()).Debug("Registering routers")
 	for _, apiRouter := range routers {
 		for _, r := range apiRouter.Routes() {
-			f := s.makeHTTPHandler(r.Handler())
+			f := s.makeHTTPHandler(r.Handler(), r.Method()+" "+r.Path())
 
 			log.G(context.TODO()).Debugf("Registering %s, %s", r.Method(), r.Path())
 			m.Path(versionMatcher + r.Path()).Methods(r.Method()).Handler(f)
@@ -87,7 +87,7 @@ func (s *Server) CreateMux(routers ...router.Router) *mux.Router {
 
 	debugRouter := debug.NewRouter()
 	for _, r := range debugRouter.Routes() {
-		f := s.makeHTTPHandler(r.Handler())
+		f := s.makeHTTPHandler(r.Handler(), r.Method()+" "+r.Path())
 		m.Path("/debug" + r.Path()).Handler(f)
 	}
 
