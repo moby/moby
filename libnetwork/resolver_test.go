@@ -242,7 +242,9 @@ func (w tlogWriter) Write(p []byte) (n int, err error) {
 
 type noopDNSBackend struct{ DNSBackend }
 
-func (noopDNSBackend) ResolveName(name string, iplen int) ([]net.IP, bool) { return nil, false }
+func (noopDNSBackend) ResolveName(_ context.Context, name string, iplen int) ([]net.IP, bool) {
+	return nil, false
+}
 
 func (noopDNSBackend) ExecFunc(f func()) error { f(); return nil }
 
@@ -286,7 +288,7 @@ func TestReplySERVFAIL(t *testing.T) {
 
 type badSRVDNSBackend struct{ noopDNSBackend }
 
-func (badSRVDNSBackend) ResolveService(name string) ([]*net.SRV, []net.IP) {
+func (badSRVDNSBackend) ResolveService(_ context.Context, _ string) ([]*net.SRV, []net.IP) {
 	return []*net.SRV{nil, nil, nil}, nil // Mismatched slice lengths
 }
 

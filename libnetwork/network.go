@@ -23,6 +23,9 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/stringid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
@@ -1955,12 +1958,20 @@ func (n *Network) hasLoadBalancerEndpoint() bool {
 	return len(n.loadBalancerIP) != 0
 }
 
-func (n *Network) ResolveName(req string, ipType int) ([]net.IP, bool) {
+func (n *Network) ResolveName(ctx context.Context, req string, ipType int) ([]net.IP, bool) {
 	var ipv6Miss bool
 
 	c := n.getController()
 	networkID := n.ID()
+
+	_, span := otel.Tracer("").Start(ctx, "Network.ResolveName", trace.WithAttributes(
+		attribute.String("libnet.network.name", n.Name()),
+		attribute.String("libnet.network.id", networkID),
+	))
+	defer span.End()
+
 	c.mu.Lock()
+	// TODO(aker): release the lock earlier
 	defer c.mu.Unlock()
 	sr, ok := c.svcRecords[networkID]
 
@@ -2019,7 +2030,7 @@ func (n *Network) HandleQueryResp(name string, ip net.IP) {
 	}
 }
 
-func (n *Network) ResolveIP(ip string) string {
+func (n *Network) ResolveIP(_ context.Context, ip string) string {
 	networkID := n.ID()
 	c := n.getController()
 	c.mu.Lock()
@@ -2049,13 +2060,13 @@ func (n *Network) ResolveIP(ip string) string {
 	return elem.name + "." + nwName
 }
 
-func (n *Network) ResolveService(name string) ([]*net.SRV, []net.IP) {
+func (n *Network) ResolveService(ctx context.Context, name string) ([]*net.SRV, []net.IP) {
 	c := n.getController()
 
 	srv := []*net.SRV{}
 	ip := []net.IP{}
 
-	log.G(context.TODO()).Debugf("Service name To resolve: %v", name)
+	log.G(ctx).Debugf("Service name To resolve: %v", name)
 
 	// There are DNS implementations that allow SRV queries for names not in
 	// the format defined by RFC 2782. Hence specific validations checks are
