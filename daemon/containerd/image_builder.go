@@ -389,7 +389,7 @@ func (rw *rwlayer) Release() (outErr error) {
 	}
 
 	if err := mount.UnmountAll(rw.root, 0); err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.G(context.TODO()).WithError(err).WithField("root", rw.root).Error("failed to unmount ROLayer")
+		log.G(context.TODO()).WithError(err).WithField("root", rw.root).Error("failed to unmount RWLayer")
 		return err
 	}
 	if err := os.Remove(rw.root); err != nil && !errors.Is(err, os.ErrNotExist) {
