@@ -350,6 +350,22 @@ func (rw *rwlayer) Commit() (_ builder.ROLayer, outErr error) {
 		}
 	}()
 
+	// Unmount the layer, required by the containerd windows snapshotter.
+	// The windowsfilter graphdriver does this inside its own Diff method.
+	//
+	// The only place that calls this in-tree is (b *Builder) exportImage and
+	// that is called from the end of (b *Builder) performCopy which has a
+	// `defer rwLayer.Release()` pending.
+	//
+	// After the snapshotter.Commit the source snapshot is deleted anyway and
+	// it shouldn't be accessed afterwards.
+	if rw.root != "" {
+		if err := mount.UnmountAll(rw.root, 0); err != nil && !errors.Is(err, os.ErrNotExist) {
+			log.G(ctx).WithError(err).WithField("root", rw.root).Error("failed to unmount RWLayer")
+			return nil, err
+		}
+	}
+
 	err = snapshotter.Commit(ctx, key, rw.key)
 	if err != nil && !cerrdefs.IsAlreadyExists(err) {
 		return nil, err
