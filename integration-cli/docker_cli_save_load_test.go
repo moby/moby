@@ -97,11 +97,15 @@ func (s *DockerCLISaveLoadSuite) TestSaveSingleTag(c *testing.T) {
 	out, _ := dockerCmd(c, "images", "-q", "--no-trunc", repoName)
 	cleanedImageID := strings.TrimSpace(out)
 
+	filesFilter := fmt.Sprintf("(^manifest.json$|%v)", cleanedImageID)
+	if testEnv.UsingSnapshotter() {
+		filesFilter = fmt.Sprintf("(^index.json$|^manifest.json$|%v)", cleanedImageID)
+	}
 	out, err := RunCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "save", fmt.Sprintf("%v:latest", repoName)),
 		exec.Command("tar", "t"),
-		exec.Command("grep", "-E", fmt.Sprintf("(^repositories$|%v)", cleanedImageID)))
-	assert.NilError(c, err, "failed to save repo with image ID and 'repositories' file: %s, %v", out, err)
+		exec.Command("grep", "-E", filesFilter))
+	assert.NilError(c, err, "failed to save repo with image ID and index files: %s, %v", out, err)
 }
 
 func (s *DockerCLISaveLoadSuite) TestSaveImageId(c *testing.T) {
@@ -202,18 +206,20 @@ func (s *DockerCLISaveLoadSuite) TestSaveMultipleNames(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	repoName := "foobar-save-multi-name-test"
 
-	// Make one image
-	dockerCmd(c, "tag", "emptyfs:latest", fmt.Sprintf("%v-one:latest", repoName))
+	oneTag := fmt.Sprintf("%v-one:latest", repoName)
+	twoTag := fmt.Sprintf("%v-two:latest", repoName)
 
-	// Make two images
-	dockerCmd(c, "tag", "emptyfs:latest", fmt.Sprintf("%v-two:latest", repoName))
+	dockerCmd(c, "tag", "emptyfs:latest", oneTag)
+	dockerCmd(c, "tag", "emptyfs:latest", twoTag)
 
 	out, err := RunCommandPipelineWithOutput(
-		exec.Command(dockerBinary, "save", fmt.Sprintf("%v-one", repoName), fmt.Sprintf("%v-two:latest", repoName)),
-		exec.Command("tar", "xO", "repositories"),
-		exec.Command("grep", "-q", "-E", "(-one|-two)"),
+		exec.Command(dockerBinary, "save", strings.TrimSuffix(oneTag, ":latest"), twoTag),
+		exec.Command("tar", "xO", "index.json"),
 	)
 	assert.NilError(c, err, "failed to save multiple repos: %s, %v", out, err)
+
+	assert.Check(c, is.Contains(out, oneTag))
+	assert.Check(c, is.Contains(out, twoTag))
 }
 
 // Test loading a weird image where one of the layers is of zero size.
