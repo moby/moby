@@ -3,6 +3,7 @@ package networkdb
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 
 	"github.com/containerd/log"
@@ -14,18 +15,20 @@ type eventDelegate struct {
 	nDB *NetworkDB
 }
 
-func (e *eventDelegate) broadcastNodeEvent(addr net.IP, op driverapi.EventType) {
+func (e *eventDelegate) broadcastNodeEvent(addr net.IP, op driverapi.EventType) error {
 	value, err := json.Marshal(&NodeAddr{addr})
-	if err == nil {
-		e.nDB.broadcaster.Write(makeEvent(op, NodeTable, "", "", value))
-	} else {
-		log.G(context.TODO()).Errorf("Error marshalling node broadcast event %s", addr.String())
+	if err != nil {
+		return fmt.Errorf("error marshalling node broadcast event %s", addr.String())
 	}
+	return e.nDB.broadcaster.Write(makeEvent(op, NodeTable, "", "", value))
 }
 
 func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 	log.G(context.TODO()).Infof("Node %s/%s, joined gossip cluster", mn.Name, mn.Addr)
-	e.broadcastNodeEvent(mn.Addr, driverapi.Create)
+	if err := e.broadcastNodeEvent(mn.Addr, driverapi.Create); err != nil {
+		log.G(context.TODO()).WithError(err).Errorf("Node %s/%s: NotifyJoin: error while broadcasting event", mn.Name, mn.Addr)
+	}
+
 	e.nDB.Lock()
 	defer e.nDB.Unlock()
 
@@ -46,7 +49,9 @@ func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 
 func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
 	log.G(context.TODO()).Infof("Node %s/%s, left gossip cluster", mn.Name, mn.Addr)
-	e.broadcastNodeEvent(mn.Addr, driverapi.Delete)
+	if err := e.broadcastNodeEvent(mn.Addr, driverapi.Delete); err != nil {
+		log.G(context.TODO()).WithError(err).Errorf("Node %s/%s: NotifyLeave: error while broadcasting event", mn.Name, mn.Addr)
+	}
 
 	e.nDB.Lock()
 	defer e.nDB.Unlock()
