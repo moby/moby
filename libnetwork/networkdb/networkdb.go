@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
@@ -549,7 +550,7 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 
 			// Notify to the upper layer only entries not already marked for deletion
 			if !oldEntry.deleting {
-				nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, entry.value))
+				nDB.broadcaster.Write(makeEvent(driverapi.Delete, tname, nid, key, entry.value))
 			}
 			return false
 		})
@@ -570,7 +571,7 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 		nDB.deleteEntry(nid, tname, key)
 
 		if !oldEntry.deleting {
-			nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, oldEntry.value))
+			nDB.broadcaster.Write(makeEvent(driverapi.Delete, tname, nid, key, oldEntry.value))
 		}
 		return false
 	})

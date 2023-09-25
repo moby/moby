@@ -3,15 +3,8 @@ package networkdb
 import (
 	"net"
 
+	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/go-events"
-)
-
-type opType uint8
-
-const (
-	opCreate opType = 1 + iota
-	opUpdate
-	opDelete
 )
 
 type event struct {
@@ -85,7 +78,7 @@ func (nDB *NetworkDB) Watch(tname, nid string) (*events.Channel, func()) {
 	}
 }
 
-func makeEvent(op opType, tname, nid, key string, value []byte) events.Event {
+func makeEvent(op driverapi.EventType, tname, nid, key string, value []byte) events.Event {
 	ev := event{
 		Table:     tname,
 		NetworkID: nid,
@@ -94,11 +87,11 @@ func makeEvent(op opType, tname, nid, key string, value []byte) events.Event {
 	}
 
 	switch op {
-	case opCreate:
+	case driverapi.Create:
 		return CreateEvent(ev)
-	case opUpdate:
+	case driverapi.Update:
 		return UpdateEvent(ev)
-	case opDelete:
+	case driverapi.Delete:
 		return DeleteEvent(ev)
 	}
 

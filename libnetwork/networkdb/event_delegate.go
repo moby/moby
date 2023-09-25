@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/hashicorp/memberlist"
 )
 
@@ -13,7 +14,7 @@ type eventDelegate struct {
 	nDB *NetworkDB
 }
 
-func (e *eventDelegate) broadcastNodeEvent(addr net.IP, op opType) {
+func (e *eventDelegate) broadcastNodeEvent(addr net.IP, op driverapi.EventType) {
 	value, err := json.Marshal(&NodeAddr{addr})
 	if err == nil {
 		e.nDB.broadcaster.Write(makeEvent(op, NodeTable, "", "", value))
@@ -24,7 +25,7 @@ func (e *eventDelegate) broadcastNodeEvent(addr net.IP, op opType) {
 
 func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 	log.G(context.TODO()).Infof("Node %s/%s, joined gossip cluster", mn.Name, mn.Addr)
-	e.broadcastNodeEvent(mn.Addr, opCreate)
+	e.broadcastNodeEvent(mn.Addr, driverapi.Create)
 	e.nDB.Lock()
 	defer e.nDB.Unlock()
 
@@ -45,7 +46,7 @@ func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 
 func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
 	log.G(context.TODO()).Infof("Node %s/%s, left gossip cluster", mn.Name, mn.Addr)
-	e.broadcastNodeEvent(mn.Addr, opDelete)
+	e.broadcastNodeEvent(mn.Addr, driverapi.Delete)
 
 	e.nDB.Lock()
 	defer e.nDB.Unlock()
