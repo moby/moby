@@ -550,7 +550,13 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 
 			// Notify to the upper layer only entries not already marked for deletion
 			if !oldEntry.deleting {
-				nDB.broadcaster.Write(makeEvent(driverapi.Delete, tname, nid, key, entry.value))
+				_ = nDB.broadcaster.Write(Event{
+					Type:      driverapi.Delete,
+					Table:     tname,
+					NetworkID: nid,
+					Key:       key,
+					Value:     entry.value,
+				})
 			}
 			return false
 		})
@@ -571,7 +577,13 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 		nDB.deleteEntry(nid, tname, key)
 
 		if !oldEntry.deleting {
-			nDB.broadcaster.Write(makeEvent(driverapi.Delete, tname, nid, key, oldEntry.value))
+			_ = nDB.broadcaster.Write(Event{
+				Type:      driverapi.Delete,
+				Table:     tname,
+				NetworkID: nid,
+				Key:       key,
+				Value:     oldEntry.value,
+			})
 		}
 		return false
 	})

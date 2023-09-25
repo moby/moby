@@ -85,18 +85,3 @@ func (nDB *NetworkDB) Watch(tname, nid string) (*events.Channel, func()) {
 		sink.Close()
 	}
 }
-
-func makeEvent(op driverapi.EventType, tname, nid, key string, value []byte) events.Event {
-	switch op {
-	case driverapi.Create, driverapi.Update, driverapi.Delete:
-		return Event{
-			Type:      op,
-			Table:     tname,
-			NetworkID: nid,
-			Key:       key,
-			Value:     value,
-		}
-	default:
-		return nil
-	}
-}

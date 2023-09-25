@@ -230,7 +230,13 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		op = driverapi.Delete
 	}
 
-	nDB.broadcaster.Write(makeEvent(op, tEvent.TableName, tEvent.NetworkID, tEvent.Key, tEvent.Value))
+	_ = nDB.broadcaster.Write(Event{
+		Type:      op,
+		Table:     tEvent.TableName,
+		NetworkID: tEvent.NetworkID,
+		Key:       tEvent.Key,
+		Value:     tEvent.Value,
+	})
 	return network.inSync
 }
 

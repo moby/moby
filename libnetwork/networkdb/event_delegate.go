@@ -20,7 +20,11 @@ func (e *eventDelegate) broadcastNodeEvent(addr net.IP, op driverapi.EventType) 
 	if err != nil {
 		return fmt.Errorf("error marshalling node broadcast event %s", addr.String())
 	}
-	return e.nDB.broadcaster.Write(makeEvent(op, NodeTable, "", "", value))
+	return e.nDB.broadcaster.Write(Event{
+		Type:  op,
+		Table: NodeTable,
+		Value: value,
+	})
 }
 
 func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
