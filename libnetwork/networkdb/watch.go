@@ -7,7 +7,8 @@ import (
 	"github.com/docker/go-events"
 )
 
-type event struct {
+type Event struct {
+	Type      driverapi.EventType
 	Table     string
 	NetworkID string
 	Key       string
@@ -23,13 +24,19 @@ type NodeAddr struct {
 }
 
 // CreateEvent generates a table entry create event to the watchers
-type CreateEvent event
+//
+// Deprecated: use Event, and set the Event.Type to the correct type.
+type CreateEvent Event
 
 // UpdateEvent generates a table entry update event to the watchers
-type UpdateEvent event
+//
+// Deprecated: use Event, and set the Event.Type to the correct type.
+type UpdateEvent Event
 
 // DeleteEvent generates a table entry delete event to the watchers
-type DeleteEvent event
+//
+// Deprecated: use Event, and set the Event.Type to the correct type.
+type DeleteEvent Event
 
 // Watch creates a watcher with filters for a particular table or
 // network or any combination of the tuple. If any of the
@@ -41,25 +48,26 @@ func (nDB *NetworkDB) Watch(tname, nid string) (*events.Channel, func()) {
 
 	if tname != "" || nid != "" {
 		matcher = events.MatcherFunc(func(ev events.Event) bool {
-			var evt event
-			switch ev := ev.(type) {
-			case CreateEvent:
-				evt = event(ev)
-			case UpdateEvent:
-				evt = event(ev)
-			case DeleteEvent:
-				evt = event(ev)
-			}
-
-			if tname != "" && evt.Table != tname {
+			evt, ok := ev.(Event)
+			if !ok {
+				// FIXME(thaJeztah): verify this: the old code would fall-through, and return "true" ("Match")
 				return false
 			}
 
-			if nid != "" && evt.NetworkID != nid {
+			switch evt.Type {
+			case driverapi.Create, driverapi.Delete, driverapi.Update:
+				// ok
+				if tname != "" && evt.Table != tname {
+					return false
+				}
+				if nid != "" && evt.NetworkID != nid {
+					return false
+				}
+				return true
+			default:
+				// FIXME(thaJeztah): verify this: the old code would fall-through, and return "true" ("Match")
 				return false
 			}
-
-			return true
 		})
 	}
 
@@ -79,21 +87,16 @@ func (nDB *NetworkDB) Watch(tname, nid string) (*events.Channel, func()) {
 }
 
 func makeEvent(op driverapi.EventType, tname, nid, key string, value []byte) events.Event {
-	ev := event{
-		Table:     tname,
-		NetworkID: nid,
-		Key:       key,
-		Value:     value,
-	}
-
 	switch op {
-	case driverapi.Create:
-		return CreateEvent(ev)
-	case driverapi.Update:
-		return UpdateEvent(ev)
-	case driverapi.Delete:
-		return DeleteEvent(ev)
+	case driverapi.Create, driverapi.Update, driverapi.Delete:
+		return Event{
+			Type:      op,
+			Table:     tname,
+			NetworkID: nid,
+			Key:       key,
+			Value:     value,
+		}
+	default:
+		return nil
 	}
-
-	return nil
 }

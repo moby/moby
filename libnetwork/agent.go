@@ -825,18 +825,20 @@ func (c *Controller) handleTableEvents(ch *events.Channel, fn func(events.Event)
 }
 
 func (n *Network) handleDriverTableEvent(ev events.Event) {
+	event, ok := ev.(networkdb.Event)
+	if !ok {
+		log.G(context.TODO()).Debugf("Network.handleDriverTableEvent: unhandled table event %v (%[1]T)", ev)
+		return
+	}
 	d, err := n.driver(false)
 	if err != nil {
 		log.G(context.TODO()).Errorf("Could not resolve driver %s while handling driver table event: %v", n.networkType, err)
 		return
 	}
-
-	switch event := ev.(type) {
-	case networkdb.CreateEvent:
-		d.EventNotify(driverapi.Create, n.ID(), event.Table, event.Key, event.Value)
-	case networkdb.DeleteEvent:
-		d.EventNotify(driverapi.Delete, n.ID(), event.Table, event.Key, event.Value)
-	case networkdb.UpdateEvent:
+	switch event.Type {
+	case driverapi.Create, driverapi.Delete:
+		d.EventNotify(event.Type, n.ID(), event.Table, event.Key, event.Value)
+	case driverapi.Update:
 		// TODO(thaJeztah): is it intentional for an "networkdb.UpdateEvent" event to send a "driverapi.Delete" notification?
 		d.EventNotify(driverapi.Delete, n.ID(), event.Table, event.Key, event.Value)
 	default:
@@ -845,26 +847,29 @@ func (n *Network) handleDriverTableEvent(ev events.Event) {
 }
 
 func (c *Controller) handleNodeTableEvent(ev events.Event) {
+	event, ok := ev.(networkdb.Event)
+	if !ok {
+		log.G(context.TODO()).Debugf("Network.handleNodeTableEvent: unhandled table event %v (%[1]T)", ev)
+		return
+	}
+
 	var (
-		value   []byte
 		isAdd   bool
 		evtType string
 	)
-	switch event := ev.(type) {
-	case networkdb.CreateEvent:
-		value = event.Value
+	switch event.Type {
+	case driverapi.Create:
 		isAdd = true
 		evtType = "create"
-	case networkdb.DeleteEvent:
-		value = event.Value
+	case driverapi.Delete:
 		evtType = "delete"
-	case networkdb.UpdateEvent:
+	case driverapi.Update:
 		log.G(context.TODO()).Errorf("Unexpected update node table event = %#v", event)
 		return
 	}
 
 	var node networkdb.NodeAddr
-	err := json.Unmarshal(value, &node)
+	err := json.Unmarshal(event.Value, &node)
 	if err != nil {
 		log.G(context.TODO()).Errorf("Error unmarshalling node table %s event %v", evtType, err)
 		return
@@ -877,30 +882,22 @@ func (c *Controller) handleNodeTableEvent(ev events.Event) {
 }
 
 func (c *Controller) handleEpTableEvent(ev events.Event) {
-	var (
-		nid, eid string
-		value    []byte
-	)
-	switch event := ev.(type) {
-	case networkdb.CreateEvent:
-		nid = event.NetworkID
-		eid = event.Key
-		value = event.Value
-	case networkdb.DeleteEvent:
-		nid = event.NetworkID
-		eid = event.Key
-		value = event.Value
-	case networkdb.UpdateEvent:
-		nid = event.NetworkID
-		eid = event.Key
-		value = event.Value
+	event, ok := ev.(networkdb.Event)
+	if !ok {
+		log.G(context.TODO()).Debugf("Network.handleEpTableEvent: unhandled table event %v (%[1]T)", ev)
+		return
+	}
+
+	switch event.Type {
+	case driverapi.Create, driverapi.Delete, driverapi.Update:
+		// ok
 	default:
 		log.G(context.TODO()).Errorf("Unexpected update service table event = %#v", event)
 		return
 	}
 
 	var epRec EndpointRecord
-	err := proto.Unmarshal(value, &epRec)
+	err := proto.Unmarshal(event.Value, &epRec)
 	if err != nil {
 		log.G(context.TODO()).Errorf("Failed to unmarshal service table value: %v", err)
 		return
@@ -916,51 +913,51 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 	taskAliases := epRec.TaskAliases
 
 	if containerName == "" || ip == nil {
-		log.G(context.TODO()).Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
+		log.G(context.TODO()).Errorf("Invalid endpoint name/ip received while handling service table event %s", event.Value)
 		return
 	}
 
-	switch ev.(type) {
-	case networkdb.CreateEvent:
-		log.G(context.TODO()).Debugf("handleEpTableEvent ADD %s R:%v", eid, epRec)
+	switch event.Type {
+	case driverapi.Create:
+		log.G(context.TODO()).Debugf("handleEpTableEvent ADD %s R:%v", event.Key, epRec)
 		if svcID != "" {
 			// This is a remote task part of a service
-			if err := c.addServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				log.G(context.TODO()).Errorf("failed adding service binding for %s epRec:%v err:%v", eid, epRec, err)
+			if err := c.addServiceBinding(svcName, svcID, event.NetworkID, event.Key, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent"); err != nil {
+				log.G(context.TODO()).Errorf("failed adding service binding for %s epRec:%v err:%v", event.Key, epRec, err)
 				return
 			}
 		} else {
 			// This is a remote container simply attached to an attachable network
-			if err := c.addContainerNameResolution(nid, eid, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				log.G(context.TODO()).Errorf("failed adding container name resolution for %s epRec:%v err:%v", eid, epRec, err)
+			if err := c.addContainerNameResolution(event.NetworkID, event.Key, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
+				log.G(context.TODO()).Errorf("failed adding container name resolution for %s epRec:%v err:%v", event.Key, epRec, err)
 			}
 		}
 
-	case networkdb.DeleteEvent:
-		log.G(context.TODO()).Debugf("handleEpTableEvent DEL %s R:%v", eid, epRec)
+	case driverapi.Delete:
+		log.G(context.TODO()).Debugf("handleEpTableEvent DEL %s R:%v", event.Key, epRec)
 		if svcID != "" {
 			// This is a remote task part of a service
-			if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, true); err != nil {
-				log.G(context.TODO()).Errorf("failed removing service binding for %s epRec:%v err:%v", eid, epRec, err)
+			if err := c.rmServiceBinding(svcName, svcID, event.NetworkID, event.Key, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, true); err != nil {
+				log.G(context.TODO()).Errorf("failed removing service binding for %s epRec:%v err:%v", event.Key, epRec, err)
 				return
 			}
 		} else {
 			// This is a remote container simply attached to an attachable network
-			if err := c.delContainerNameResolution(nid, eid, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				log.G(context.TODO()).Errorf("failed removing container name resolution for %s epRec:%v err:%v", eid, epRec, err)
+			if err := c.delContainerNameResolution(event.NetworkID, event.Key, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
+				log.G(context.TODO()).Errorf("failed removing container name resolution for %s epRec:%v err:%v", event.Key, epRec, err)
 			}
 		}
-	case networkdb.UpdateEvent:
-		log.G(context.TODO()).Debugf("handleEpTableEvent UPD %s R:%v", eid, epRec)
+	case driverapi.Update:
+		log.G(context.TODO()).Debugf("handleEpTableEvent UPD %s R:%v", event.Key, epRec)
 		// We currently should only get these to inform us that an endpoint
 		// is disabled.  Report if otherwise.
 		if svcID == "" || !epRec.ServiceDisabled {
-			log.G(context.TODO()).Errorf("Unexpected update table event for %s epRec:%v", eid, epRec)
+			log.G(context.TODO()).Errorf("Unexpected update table event for %s epRec:%v", event.Key, epRec)
 			return
 		}
 		// This is a remote task that is part of a service that is now disabled
-		if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, false); err != nil {
-			log.G(context.TODO()).Errorf("failed disabling service binding for %s epRec:%v err:%v", eid, epRec, err)
+		if err := c.rmServiceBinding(svcName, svcID, event.NetworkID, event.Key, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, false); err != nil {
+			log.G(context.TODO()).Errorf("failed disabling service binding for %s epRec:%v err:%v", event.Key, epRec, err)
 			return
 		}
 	}
