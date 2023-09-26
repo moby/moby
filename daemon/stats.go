@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/versions"
@@ -41,6 +42,15 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 			Name: ctr.Name,
 			ID:   ctr.ID,
 		})
+	}
+
+	// Get container stats directly if OneShot is set
+	if config.OneShot {
+		stats, err := daemon.GetContainerStats(ctr)
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(config.OutStream).Encode(stats)
 	}
 
 	outStream := config.OutStream
@@ -146,17 +156,37 @@ func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch cha
 
 // GetContainerStats collects all the stats published by a container
 func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.StatsJSON, error) {
-	stats, err := daemon.stats(container)
-	if err != nil {
-		return nil, err
-	}
+	var stats *types.StatsJSON
+	var err error
+
+	stats, err = daemon.stats(container)
 
 	// We already have the network stats on Windows directly from HCS.
-	if !container.Config.NetworkDisabled && runtime.GOOS != "windows" {
-		if stats.Networks, err = daemon.getNetworkStats(container); err != nil {
-			return nil, err
-		}
+	if err == nil && !container.Config.NetworkDisabled && runtime.GOOS != "windows" {
+		stats.Networks, err = daemon.getNetworkStats(container)
 	}
 
-	return stats, nil
+	switch err.(type) {
+	case nil:
+		// Sample system CPU usage close to container usage to avoid
+		// noise in metric calculations.
+		systemUsage, onlineCPUs, err := getSystemCPUUsage()
+		if err != nil {
+			log.G(context.TODO()).WithError(err).WithField("container_id", container.ID).Errorf("collecting system cpu usage")
+			return nil, err
+		}
+		// FIXME: move to containerd on Linux (not Windows)
+		stats.CPUStats.SystemUsage = systemUsage
+		stats.CPUStats.OnlineCPUs = onlineCPUs
+		return stats, nil
+	case errdefs.ErrConflict, errdefs.ErrNotFound:
+		// return empty stats containing only name and ID if not running or not found
+		return &types.StatsJSON{
+			Name: container.Name,
+			ID:   container.ID,
+		}, nil
+	default:
+		log.G(context.TODO()).Errorf("collecting stats for container %s: %v", container.ID, err)
+		return nil, err
+	}
 }

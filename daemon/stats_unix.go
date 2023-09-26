@@ -3,7 +3,11 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"os"
+	"strconv"
 	"strings"
 
 	statsV1 "github.com/containerd/cgroups/v3/cgroup1/stats"
@@ -295,4 +299,61 @@ func (daemon *Daemon) getNetworkStats(c *container.Container) (map[string]types.
 	}
 
 	return stats, nil
+}
+
+const (
+	// The value comes from `C.sysconf(C._SC_CLK_TCK)`, and
+	// on Linux it's a constant which is safe to be hard coded,
+	// so we can avoid using cgo here. For details, see:
+	// https://github.com/containerd/cgroups/pull/12
+	clockTicksPerSecond  = 100
+	nanoSecondsPerSecond = 1e9
+)
+
+// getSystemCPUUsage returns the host system's cpu usage in
+// nanoseconds and number of online CPUs. An error is returned
+// if the format of the underlying file does not match.
+//
+// Uses /proc/stat defined by POSIX. Looks for the cpu
+// statistics line and then sums up the first seven fields
+// provided. See `man 5 proc` for details on specific field
+// information.
+func getSystemCPUUsage() (cpuUsage uint64, cpuNum uint32, err error) {
+	f, err := os.Open("/proc/stat")
+	if err != nil {
+		return 0, 0, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(line) < 4 || line[:3] != "cpu" {
+			break // Assume all cpu* records are at the front, like glibc https://github.com/bminor/glibc/blob/5d00c201b9a2da768a79ea8d5311f257871c0b43/sysdeps/unix/sysv/linux/getsysstats.c#L108-L135
+		}
+		if line[3] == ' ' {
+			parts := strings.Fields(line)
+			if len(parts) < 8 {
+				return 0, 0, fmt.Errorf("invalid number of cpu fields")
+			}
+			var totalClockTicks uint64
+			for _, i := range parts[1:8] {
+				v, err := strconv.ParseUint(i, 10, 64)
+				if err != nil {
+					return 0, 0, fmt.Errorf("Unable to convert value %s to int: %w", i, err)
+				}
+				totalClockTicks += v
+			}
+			cpuUsage = (totalClockTicks * nanoSecondsPerSecond) /
+				clockTicksPerSecond
+		}
+		if '0' <= line[3] && line[3] <= '9' {
+			cpuNum++
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return 0, 0, fmt.Errorf("error scanning '/proc/stat' file: %w", err)
+	}
+	return
 }
