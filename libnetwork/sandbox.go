@@ -369,28 +369,24 @@ func (sb *Sandbox) ResolveIP(ip string) string {
 // ResolveService returns all the backend details about the containers or hosts
 // backing a service. Its purpose is to satisfy an SRV query.
 func (sb *Sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
-	srv := []*net.SRV{}
-	ip := []net.IP{}
-
 	log.G(context.TODO()).Debugf("Service name To resolve: %v", name)
 
 	// There are DNS implementations that allow SRV queries for names not in
 	// the format defined by RFC 2782. Hence specific validations checks are
 	// not done
-	parts := strings.Split(name, ".")
-	if len(parts) < 3 {
+	if parts := strings.SplitN(name, ".", 3); len(parts) < 3 {
 		return nil, nil
 	}
 
 	for _, ep := range sb.Endpoints() {
 		n := ep.getNetwork()
 
-		srv, ip = n.ResolveService(name)
+		srv, ip := n.ResolveService(name)
 		if len(srv) > 0 {
-			break
+			return srv, ip
 		}
 	}
-	return srv, ip
+	return nil, nil
 }
 
 func getDynamicNwEndpoints(epList []*Endpoint) []*Endpoint {
@@ -492,46 +488,41 @@ func (sb *Sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	return nil, false
 }
 
-func (sb *Sandbox) resolveName(req string, networkName string, epList []*Endpoint, alias bool, ipType int) ([]net.IP, bool) {
-	var ipv6Miss bool
-
+func (sb *Sandbox) resolveName(nameOrAlias string, networkName string, epList []*Endpoint, lookupAlias bool, ipType int) (_ []net.IP, ipv6Miss bool) {
 	for _, ep := range epList {
-		name := req
-		n := ep.getNetwork()
-
-		if networkName != "" && networkName != n.Name() {
+		if lookupAlias && len(ep.aliases) == 0 {
 			continue
 		}
 
-		if alias {
-			if ep.aliases == nil {
-				continue
-			}
+		nw := ep.getNetwork()
+		if networkName != "" && networkName != nw.Name() {
+			continue
+		}
 
-			var ok bool
+		name := nameOrAlias
+		if lookupAlias {
 			ep.mu.Lock()
-			name, ok = ep.aliases[req]
+			alias, ok := ep.aliases[nameOrAlias]
 			ep.mu.Unlock()
 			if !ok {
 				continue
 			}
+			name = alias
 		} else {
 			// If it is a regular lookup and if the requested name is an alias
 			// don't perform a svc lookup for this endpoint.
 			ep.mu.Lock()
-			if _, ok := ep.aliases[req]; ok {
-				ep.mu.Unlock()
+			_, ok := ep.aliases[nameOrAlias]
+			ep.mu.Unlock()
+			if ok {
 				continue
 			}
-			ep.mu.Unlock()
 		}
 
-		ip, miss := n.ResolveName(name, ipType)
-
+		ip, miss := nw.ResolveName(name, ipType)
 		if ip != nil {
 			return ip, false
 		}
-
 		if miss {
 			ipv6Miss = miss
 		}
