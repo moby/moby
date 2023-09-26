@@ -698,6 +698,32 @@ func (c *containerConfig) applyPrivileges(hc *enginecontainer.HostConfig) {
 			hc.SecurityOpt = append(hc.SecurityOpt, "label=type:"+selinux.Type)
 		}
 	}
+
+	// variable to make the lines shorter and easier to read
+	if seccomp := privileges.Seccomp; seccomp != nil {
+		switch seccomp.Mode {
+		// case api.Privileges_SeccompOpts_DEFAULT:
+		//   if the setting is default, nothing needs to be set here. we leave
+		//   the option empty.
+		case api.Privileges_SeccompOpts_UNCONFINED:
+			hc.SecurityOpt = append(hc.SecurityOpt, "seccomp=unconfined")
+		case api.Privileges_SeccompOpts_CUSTOM:
+			// Profile is bytes, but those bytes are actually a string. This is
+			// basically verbatim what happens in the cli after a file is read.
+			hc.SecurityOpt = append(hc.SecurityOpt, fmt.Sprintf("seccomp=%s", seccomp.Profile))
+		}
+	}
+
+	// if the setting is DEFAULT, then nothing to be done. If it's DISABLED,
+	// we set that. Custom not supported yet. When custom *is* supported, make
+	// it look like the above.
+	if apparmor := privileges.Apparmor; apparmor != nil && apparmor.Mode == api.Privileges_AppArmorOpts_DISABLED {
+		hc.SecurityOpt = append(hc.SecurityOpt, "apparmor=unconfined")
+	}
+
+	if privileges.NoNewPrivileges {
+		hc.SecurityOpt = append(hc.SecurityOpt, "no-new-privileges=true")
+	}
 }
 
 func (c *containerConfig) eventFilter() filters.Args {

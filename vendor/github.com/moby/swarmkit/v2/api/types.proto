@@ -1156,6 +1156,39 @@ message Privileges {
 		string level = 5;
 	}
 	SELinuxContext selinux_context = 2 [(gogoproto.customname) = "SELinuxContext"];
+
+	// SeccompOpts contains options for configuring seccomp profiles on the
+	// container. See https://docs.docker.com/engine/security/seccomp/ for more
+	// information.
+	message SeccompOpts {
+		enum SeccompMode {
+			DEFAULT = 0;
+			UNCONFINED = 1;
+			CUSTOM =  2;
+		}
+		SeccompMode mode = 1;
+		// Profile contains the json definition of the seccomp profile to use,
+		// if Mode is set to custom.
+		bytes profile = 2;
+	}
+	SeccompOpts seccomp = 3;
+
+	// AppArmorOpts contains options for configuring AppArmor profiles on the
+	// container. Currently, custom profiles are not supported. See
+	// https://docs.docker.com/engine/security/apparmor/ for more information.
+	message AppArmorOpts {
+		enum AppArmorMode {
+			DEFAULT = 0;
+			DISABLED = 1;
+		}
+		AppArmorMode mode = 1;
+	}
+	AppArmorOpts apparmor = 4;
+
+	// NoNewPrivileges, if set to true, disables the container from gaining new
+	// privileges. See https://docs.kernel.org/userspace-api/no_new_privs.html
+	// for details.
+	bool no_new_privileges = 5;
 }
 
 // JobStatus indicates the status of a Service that is in one of the Job modes.
