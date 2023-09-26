@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/storage/cache"
 	"github.com/opencontainers/go-digest"
 )
