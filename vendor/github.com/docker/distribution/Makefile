@@ -50,7 +50,7 @@ version/version.go:
 
 check: ## run all linters (TODO: enable "unused", "varcheck", "ineffassign", "unconvert", "staticheck", "goimports", "structcheck")
 	@echo "$(WHALE) $@"
-	@GO111MODULE=off golangci-lint run
+	@GO111MODULE=off golangci-lint --build-tags "${BUILDTAGS}" run
 
 test: ## run tests, except integration test with test.short
 	@echo "$(WHALE) $@"
