@@ -324,16 +324,14 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 			continue // workaround for HNS reporting unsupported networks
 		}
 		var n *libnetwork.Network
-		s := func(current *libnetwork.Network) bool {
+		daemon.netController.WalkNetworks(func(current *libnetwork.Network) bool {
 			hnsid := current.DriverOptions()[winlibnetwork.HNSID]
 			if hnsid == v.Id {
 				n = current
 				return true
 			}
 			return false
-		}
-
-		daemon.netController.WalkNetworks(s)
+		})
 
 		drvOptions := make(map[string]string)
 		nid := ""

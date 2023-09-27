@@ -290,10 +290,9 @@ func (ds *Store) List(key string, kvObject KVObject) ([]KVObject, error) {
 	}
 
 	var kvol []KVObject
-	cb := func(key string, val KVObject) {
+	err := ds.iterateKVPairsFromStore(key, kvObject, func(key string, val KVObject) {
 		kvol = append(kvol, val)
-	}
-	err := ds.iterateKVPairsFromStore(key, kvObject, cb)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -341,16 +340,15 @@ func (ds *Store) Map(key string, kvObject KVObject) (map[string]KVObject, error)
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
-	kvol := make(map[string]KVObject)
-	cb := func(key string, val KVObject) {
+	results := map[string]KVObject{}
+	err := ds.iterateKVPairsFromStore(key, kvObject, func(key string, val KVObject) {
 		// Trim the leading & trailing "/" to make it consistent across all stores
-		kvol[strings.Trim(key, "/")] = val
-	}
-	err := ds.iterateKVPairsFromStore(key, kvObject, cb)
+		results[strings.Trim(key, "/")] = val
+	})
 	if err != nil {
 		return nil, err
 	}
-	return kvol, nil
+	return results, nil
 }
 
 // DeleteObjectAtomic performs atomic delete on a record.

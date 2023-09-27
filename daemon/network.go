@@ -246,12 +246,12 @@ func (daemon *Daemon) releaseIngress(id string) {
 
 // SetNetworkBootstrapKeys sets the bootstrap keys.
 func (daemon *Daemon) SetNetworkBootstrapKeys(keys []*networktypes.EncryptionKey) error {
-	err := daemon.netController.SetKeys(keys)
-	if err == nil {
-		// Upon successful key setting dispatch the keys available event
-		daemon.cluster.SendClusterEvent(lncluster.EventNetworkKeysAvailable)
+	if err := daemon.netController.SetKeys(keys); err != nil {
+		return err
 	}
-	return err
+	// Upon successful key setting dispatch the keys available event
+	daemon.cluster.SendClusterEvent(lncluster.EventNetworkKeysAvailable)
+	return nil
 }
 
 // UpdateAttachment notifies the attacher about the attachment config.
