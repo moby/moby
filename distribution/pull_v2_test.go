@@ -268,6 +268,27 @@ func TestPullSchema2Config(t *testing.T) {
 			name: "unauthorized",
 			handler: func(callCount int, w http.ResponseWriter) {
 				w.WriteHeader(http.StatusUnauthorized)
+				// FIXME: current distribution client does not handle plain-text error-responses, so this response is ignored.
+				_, _ = w.Write([]byte("you need to be authenticated"))
+			},
+			expectError:    "unauthorized: authentication required",
+			expectAttempts: 1,
+		},
+		{
+			name: "unauthorized JSON",
+			handler: func(callCount int, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(`					{ "errors":	[{"code": "UNAUTHORIZED", "message": "you need to be authenticated", "detail": "more detail"}]}`))
+			},
+			expectError:    "unauthorized: you need to be authenticated",
+			expectAttempts: 1,
+		},
+		{
+			name: "unauthorized JSON no body",
+			handler: func(callCount int, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
 			},
 			expectError:    "unauthorized: authentication required",
 			expectAttempts: 1,
