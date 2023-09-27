@@ -281,8 +281,11 @@ func (c *Controller) getKeys(subsys string) ([][]byte, []uint64) {
 		}
 	}
 
-	keys[0], keys[1] = keys[1], keys[0]
-	tags[0], tags[1] = tags[1], tags[0]
+	if len(keys) > 1 {
+		// TODO(thaJeztah): why are we swapping order here? This code was added in https://github.com/moby/libnetwork/commit/e83d68b7d1fd9c479120914024242238f791b4dc
+		keys[0], keys[1] = keys[1], keys[0]
+		tags[0], tags[1] = tags[1], tags[0]
+	}
 	return keys, tags
 }
 
@@ -297,6 +300,9 @@ func (c *Controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
 		if key.Subsystem == subsys {
 			keys = append(keys, key)
 		}
+	}
+	if len(keys) < 2 {
+		return nil, 0, fmt.Errorf("no primary key found for %s subsystem: %d keys found on controller, expected at least 2", subsys, len(keys))
 	}
 	return keys[1].Key, keys[1].LamportTime, nil
 }
