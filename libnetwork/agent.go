@@ -266,16 +266,16 @@ func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 
 // For a given subsystem getKeys sorts the keys by lamport time and returns
 // slice of keys and lamport time which can used as a unique tag for the keys
-func (c *Controller) getKeys(subsys string) ([][]byte, []uint64) {
+func (c *Controller) getKeys(subsystem string) (keys [][]byte, tags []uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	sort.Sort(ByTime(c.keys))
 
-	keys := [][]byte{}
-	tags := []uint64{}
+	keys = make([][]byte, 0, len(c.keys))
+	tags = make([]uint64, 0, len(c.keys))
 	for _, key := range c.keys {
-		if key.Subsystem == subsys {
+		if key.Subsystem == subsystem {
 			keys = append(keys, key.Key)
 			tags = append(tags, key.LamportTime)
 		}
@@ -291,18 +291,18 @@ func (c *Controller) getKeys(subsys string) ([][]byte, []uint64) {
 
 // getPrimaryKeyTag returns the primary key for a given subsystem from the
 // list of sorted key and the associated tag
-func (c *Controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
+func (c *Controller) getPrimaryKeyTag(subsystem string) (key []byte, lamportTime uint64, _ error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	sort.Sort(ByTime(c.keys))
-	keys := []*types.EncryptionKey{}
-	for _, key := range c.keys {
-		if key.Subsystem == subsys {
-			keys = append(keys, key)
+	keys := make([]*types.EncryptionKey, 0, len(c.keys))
+	for _, k := range c.keys {
+		if k.Subsystem == subsystem {
+			keys = append(keys, k)
 		}
 	}
 	if len(keys) < 2 {
-		return nil, 0, fmt.Errorf("no primary key found for %s subsystem: %d keys found on controller, expected at least 2", subsys, len(keys))
+		return nil, 0, fmt.Errorf("no primary key found for %s subsystem: %d keys found on controller, expected at least 2", subsystem, len(keys))
 	}
 	return keys[1].Key, keys[1].LamportTime, nil
 }
