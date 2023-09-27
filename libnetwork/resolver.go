@@ -14,7 +14,6 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/miekg/dns"
-	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -78,7 +77,7 @@ type Resolver struct {
 	listenAddress string
 	proxyDNS      bool
 	startCh       chan struct{}
-	logger        *logrus.Logger
+	logger        *log.Entry
 
 	fwdSem      *semaphore.Weighted // Limit the number of concurrent external DNS requests in-flight
 	logInverval rate.Sometimes      // Rate-limit logging about hitting the fwdSem limit
@@ -97,9 +96,9 @@ func NewResolver(address string, proxyDNS bool, backend DNSBackend) *Resolver {
 	}
 }
 
-func (r *Resolver) log(ctx context.Context) *logrus.Logger {
+func (r *Resolver) log(ctx context.Context) *log.Entry {
 	if r.logger == nil {
-		return log.G(ctx).Logger
+		return log.G(ctx)
 	}
 	return r.logger
 }

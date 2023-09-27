@@ -226,11 +226,11 @@ func TestOversizedDNSReply(t *testing.T) {
 	checkDNSRRType(t, resp.Answer[0].Header().Rrtype, dns.TypeA)
 }
 
-func testLogger(t *testing.T) *logrus.Logger {
+func testLogger(t *testing.T) *logrus.Entry {
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
 	logger.SetOutput(tlogWriter{t})
-	return logger
+	return logrus.NewEntry(logger)
 }
 
 type tlogWriter struct{ t *testing.T }
