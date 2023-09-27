@@ -16,5 +16,5 @@ func NewSandbox(key string, osCreate, isRestore bool) (*Namespace, error) {
 // GenerateKey generates a sandbox key based on the passed
 // container id.
 func GenerateKey(containerID string) string {
-	return ""
+	return containerID
 }

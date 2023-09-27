@@ -402,7 +402,7 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 		daemon:         d,
 	}
 
-	bk, err := buildkit.New(ctx, buildkit.Opt{
+	bk, err := buildkit.New(ctx, d.ContainerdClient(), buildkit.Opt{
 		SessionManager:      sm,
 		Root:                filepath.Join(config.Root, "buildkit"),
 		EngineID:            d.ID(),

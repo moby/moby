@@ -17,7 +17,7 @@ func Generate(runtimeType string, opts map[string]interface{}) (interface{}, err
 	// options in the same way.
 	var out interface{}
 	switch runtimeType {
-	case plugin.RuntimeRuncV1, plugin.RuntimeRuncV2:
+	case plugin.RuntimeRuncV2:
 		out = &runcoptions.Options{}
 	case "io.containerd.runhcs.v1":
 		out = &runhcsoptions.Options{}

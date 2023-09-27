@@ -196,7 +196,7 @@ func (d *Driver) create(id, parent string, size uint64) error {
 }
 
 func (d *Driver) dir(id string) string {
-	return filepath.Join(d.home, "dir", filepath.Base(id))
+	return filepath.Join(d.home, filepath.Base(id))
 }
 
 // Remove deletes the content from the directory for a given id.

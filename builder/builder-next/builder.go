@@ -3,6 +3,7 @@ package buildkit
 import (
 	"context"
 	"fmt"
+	"github.com/containerd/containerd"
 	"io"
 	"net"
 	"strconv"
@@ -107,10 +108,10 @@ type Builder struct {
 }
 
 // New creates a new builder
-func New(ctx context.Context, opt Opt) (*Builder, error) {
+func New(ctx context.Context, containerdClient *containerd.Client, opt Opt) (*Builder, error) {
 	reqHandler := newReqBodyHandler(tracing.DefaultTransport)
 
-	c, err := newController(ctx, reqHandler, opt)
+	c, err := newController(ctx, containerdClient, reqHandler, opt)
 	if err != nil {
 		return nil, err
 	}

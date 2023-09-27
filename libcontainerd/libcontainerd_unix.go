@@ -1,3 +1,5 @@
+//go:build !windows
+
 package libcontainerd // import "github.com/docker/docker/libcontainerd"
 
 import (
