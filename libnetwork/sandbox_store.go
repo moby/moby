@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/containerd/containerd/log"
@@ -171,21 +172,19 @@ func (sb *Sandbox) storeDelete() error {
 	})
 }
 
-func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
+func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) error {
 	store := c.getStore()
 	if store == nil {
-		log.G(context.TODO()).Error("Could not find local scope store while trying to cleanup sandboxes")
-		return
+		return fmt.Errorf("could not find local scope store")
 	}
 
 	sandboxStates, err := store.List(datastore.Key(sandboxPrefix), &sbState{c: c})
 	if err != nil {
 		if err == datastore.ErrKeyNotFound {
 			// It's normal for no sandboxes to be found. Just bail out.
-			return
+			return nil
 		}
-		log.G(context.TODO()).Errorf("failed to get sandboxes for scope %s: %v", store.Scope(), err)
-		return
+		return fmt.Errorf("failed to get sandboxes for scope %s: %v", store.Scope(), err)
 	}
 
 	for _, s := range sandboxStates {
@@ -285,4 +284,6 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 			}
 		}
 	}
+
+	return nil
 }
