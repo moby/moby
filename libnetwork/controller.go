@@ -870,13 +870,7 @@ func (c *Controller) NetworkByID(id string) (*Network, error) {
 	if id == "" {
 		return nil, ErrInvalidID(id)
 	}
-
-	n, err := c.getNetworkFromStore(id)
-	if err != nil {
-		return nil, ErrNoSuchNetwork(id)
-	}
-
-	return n, nil
+	return c.getNetworkFromStore(id)
 }
 
 // NewSandbox creates a new sandbox for containerID.
