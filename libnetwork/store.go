@@ -11,9 +11,6 @@ import (
 )
 
 func (c *Controller) initStores() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if c.cfg == nil {
 		return nil
 	}
@@ -34,9 +31,6 @@ func (c *Controller) closeStores() {
 }
 
 func (c *Controller) getStore() *datastore.Store {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return c.store
 }
 
