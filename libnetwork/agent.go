@@ -348,14 +348,13 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	go c.handleTableEvents(ch, c.handleEpTableEvent)
 	go c.handleTableEvents(nodeCh, c.handleNodeTableEvent)
 
-	drvEnc := discoverapi.DriverEncryptionConfig{}
 	keys, tags := c.getKeys(subsysIPSec)
-	drvEnc.Keys = keys
-	drvEnc.Tags = tags
-
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		if dr, ok := driver.(discoverapi.Discover); ok {
-			if err := dr.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc); err != nil {
+			if err := dr.DiscoverNew(discoverapi.EncryptionKeysConfig, discoverapi.DriverEncryptionConfig{
+				Keys: keys,
+				Tags: tags,
+			}); err != nil {
 				log.G(context.TODO()).Warnf("Failed to set datapath keys in driver %s: %v", name, err)
 			}
 		}
@@ -389,12 +388,11 @@ func (c *Controller) agentDriverNotify(d discoverapi.Discover) {
 		log.G(context.TODO()).Warnf("Failed the node discovery in driver: %v", err)
 	}
 
-	drvEnc := discoverapi.DriverEncryptionConfig{}
 	keys, tags := c.getKeys(subsysIPSec)
-	drvEnc.Keys = keys
-	drvEnc.Tags = tags
-
-	if err := d.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc); err != nil {
+	if err := d.DiscoverNew(discoverapi.EncryptionKeysConfig, discoverapi.DriverEncryptionConfig{
+		Keys: keys,
+		Tags: tags,
+	}); err != nil {
 		log.G(context.TODO()).Warnf("Failed to set datapath keys in driver: %v", err)
 	}
 }
