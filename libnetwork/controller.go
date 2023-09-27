@@ -140,7 +140,14 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	c.WalkNetworks(populateSpecial)
+	c.WalkNetworks(func(nw *Network) bool {
+		if n := nw; n.hasSpecialDriver() && !n.ConfigOnly() {
+			if err := n.getController().addNetwork(n); err != nil {
+				log.G(context.TODO()).Warnf("Failed to populate network %q with driver %q", nw.Name(), nw.Type())
+			}
+		}
+		return false
+	})
 
 	// Reserve pools first before doing cleanup. Otherwise the
 	// cleanups of endpoint/network and sandbox below will
