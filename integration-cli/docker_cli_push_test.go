@@ -235,13 +235,13 @@ func getTestTokenService(status int, body string, retries int) *httptest.Server 
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		if retries > 0 {
-			w.WriteHeader(http.StatusServiceUnavailable)
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
 			w.Write([]byte(`{"errors":[{"code":"UNAVAILABLE","message":"cannot create token at this time"}]}`))
 			retries--
 		} else {
-			w.WriteHeader(status)
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(status)
 			w.Write([]byte(body))
 		}
 		mu.Unlock()
