@@ -7,6 +7,8 @@ import (
 	"net"
 	"sync"
 
+	"github.com/docker/docker/libnetwork/osl"
+
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamapi"
@@ -26,6 +28,7 @@ type Endpoint struct {
 	id                string
 	network           *Network
 	iface             *EndpointInterface
+	osIface           *osl.Interface
 	joinInfo          *endpointJoinInfo
 	sandboxID         string
 	exposedPorts      []types.TransportPort

@@ -159,10 +159,10 @@ func (n *Namespace) findDst(srcName string, isBridge bool) string {
 // interface according to the specified settings. The caller is expected
 // to only provide a prefix for DstName. The AddInterface api will auto-generate
 // an appropriate suffix for the DstName to disambiguate.
-func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOption) error {
+func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOption) (*Interface, error) {
 	i, err := newInterface(n, srcName, dstPrefix, options...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	n.mu.Lock()
@@ -182,18 +182,19 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 	// If it is a bridge interface we have to create the bridge inside
 	// the namespace so don't try to lookup the interface using srcName
 	if i.bridge {
-		if err := nlh.LinkAdd(&netlink.Bridge{
+		link := &netlink.Bridge{
 			LinkAttrs: netlink.LinkAttrs{
 				Name: i.srcName,
 			},
-		}); err != nil {
-			return fmt.Errorf("failed to create bridge %q: %v", i.srcName, err)
+		}
+		if err := nlh.LinkAdd(link); err != nil {
+			return nil, fmt.Errorf("failed to create bridge %q: %v", i.srcName, err)
 		}
 	} else {
 		// Find the network interface identified by the SrcName attribute.
 		iface, err := nlhHost.LinkByName(i.srcName)
 		if err != nil {
-			return fmt.Errorf("failed to get link by name %q: %v", i.srcName, err)
+			return nil, fmt.Errorf("failed to get link by name %q: %v", i.srcName, err)
 		}
 
 		// Move the network interface to the destination
@@ -202,11 +203,11 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 		if !isDefault {
 			newNs, err := netns.GetFromPath(path)
 			if err != nil {
-				return fmt.Errorf("failed get network namespace %q: %v", path, err)
+				return nil, fmt.Errorf("failed get network namespace %q: %v", path, err)
 			}
 			defer newNs.Close()
 			if err := nlhHost.LinkSetNsFd(iface, int(newNs)); err != nil {
-				return fmt.Errorf("failed to set namespace on link %q: %v", i.srcName, err)
+				return nil, fmt.Errorf("failed to set namespace on link %q: %v", i.srcName, err)
 			}
 		}
 	}
@@ -214,12 +215,12 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 	// Find the network interface identified by the SrcName attribute.
 	iface, err := nlh.LinkByName(i.srcName)
 	if err != nil {
-		return fmt.Errorf("failed to get link by name %q: %v", i.srcName, err)
+		return nil, fmt.Errorf("failed to get link by name %q: %v", i.srcName, err)
 	}
 
 	// Down the interface before configuring
 	if err := nlh.LinkSetDown(iface); err != nil {
-		return fmt.Errorf("failed to set link down: %v", err)
+		return nil, fmt.Errorf("failed to set link down: %v", err)
 	}
 
 	// Configure the interface now this is moved in the proper namespace.
@@ -234,7 +235,7 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 		if nerr := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); nerr != nil {
 			log.G(context.TODO()).Errorf("moving interface %s to host ns failed, %v, after config error %v", i.SrcName(), nerr, err)
 		}
-		return err
+		return nil, err
 	}
 
 	// Up the interface.
@@ -245,12 +246,12 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 		err = nlh.LinkSetUp(iface)
 	}
 	if err != nil {
-		return fmt.Errorf("failed to set link up: %v", err)
+		return nil, fmt.Errorf("failed to set link up: %v", err)
 	}
 
 	// Set the routes on the interface. This can only be done when the interface is up.
 	if err := setInterfaceRoutes(nlh, iface, i); err != nil {
-		return fmt.Errorf("error setting interface %q routes to %q: %v", iface.Attrs().Name, i.Routes(), err)
+		return nil, fmt.Errorf("error setting interface %q routes to %q: %v", iface.Attrs().Name, i.Routes(), err)
 	}
 
 	n.mu.Lock()
@@ -259,7 +260,7 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 
 	n.checkLoV6()
 
-	return nil
+	return i, nil
 }
 
 // RemoveInterface removes an interface from the namespace by renaming to

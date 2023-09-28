@@ -262,9 +262,11 @@ func (sb *Sandbox) populateNetworkResources(ep *Endpoint) error {
 			ifaceOptions = append(ifaceOptions, osl.WithMACAddress(i.mac))
 		}
 
-		if err := sb.osSbox.AddInterface(i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
+		osIface, err := sb.osSbox.AddInterface(i.srcName, i.dstPrefix, ifaceOptions...)
+		if err != nil {
 			return fmt.Errorf("failed to add interface %s to sandbox: %v", i.srcName, err)
 		}
+		ep.osIface = osIface
 
 		if len(ep.virtualIP) > 0 && lbModeIsDSR {
 			if sb.loadBalancerNID == "" {

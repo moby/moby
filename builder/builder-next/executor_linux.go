@@ -126,9 +126,22 @@ func (iface *lnInterface) init(c *libnetwork.Controller, n *libnetwork.Network) 
 	iface.ep = ep
 }
 
-// TODO(neersighted): Unstub Sample(), and collect data from the libnetwork Endpoint.
 func (iface *lnInterface) Sample() (*network.Sample, error) {
-	return &network.Sample{}, nil
+	stats, err := iface.ep.Statistics()
+	if err != nil {
+		return nil, err
+	}
+
+	return &network.Sample{
+		RxBytes:   int64(stats.RxBytes),
+		RxPackets: int64(stats.RxPackets),
+		RxErrors:  int64(stats.RxErrors),
+		RxDropped: int64(stats.RxDropped),
+		TxBytes:   int64(stats.TxBytes),
+		TxPackets: int64(stats.TxPackets),
+		TxErrors:  int64(stats.TxErrors),
+		TxDropped: int64(stats.TxDropped),
+	}, nil
 }
 
 func (iface *lnInterface) Set(s *specs.Spec) error {
