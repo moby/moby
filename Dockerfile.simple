@@ -5,13 +5,14 @@
 
 # This represents the bare minimum required to build and test Docker.
 
-ARG GO_VERSION=1.20.8
+ARG GO_VERSION=1.21.1
 
 ARG BASE_DEBIAN_DISTRO="bullseye"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 FROM ${GOLANG_IMAGE}
 ENV GO111MODULE=off
+ENV GOTOOLCHAIN=local
 
 # allow replacing debian mirror
 ARG APT_MIRROR

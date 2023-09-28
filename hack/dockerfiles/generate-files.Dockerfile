@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.20.8
+ARG GO_VERSION=1.21.1
 ARG BASE_DEBIAN_DISTRO="bullseye"
 ARG PROTOC_VERSION=3.11.4
 
@@ -10,6 +10,7 @@ RUN apt-get update && apt-get --no-install-recommends install -y git unzip
 ARG PROTOC_VERSION
 ARG TARGETOS
 ARG TARGETARCH
+ENV GOTOOLCHAIN=local
 RUN <<EOT
   set -e
   arch=$(echo $TARGETARCH | sed -e s/amd64/x86_64/ -e s/arm64/aarch_64/)

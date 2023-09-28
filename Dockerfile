@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.20.8
+ARG GO_VERSION=1.21.1
 ARG BASE_DEBIAN_DISTRO="bullseye"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.2.1
@@ -44,6 +44,7 @@ RUN test -n "$APT_MIRROR" && sed -ri "s#(httpredir|deb|security).debian.org#${AP
 ARG DEBIAN_FRONTEND
 RUN apt-get update && apt-get install --no-install-recommends -y file
 ENV GO111MODULE=off
+ENV GOTOOLCHAIN=local
 
 FROM base AS criu
 ARG DEBIAN_FRONTEND
