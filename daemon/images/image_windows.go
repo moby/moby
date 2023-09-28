@@ -18,8 +18,8 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 // GetLayerFolders returns the layer folders from an image RootFS
 func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
 	folders := []string{}
-	max := len(img.RootFS.DiffIDs)
-	for index := 1; index <= max; index++ {
+	rd := len(img.RootFS.DiffIDs)
+	for index := 1; index <= rd; index++ {
 		// FIXME: why does this mutate the RootFS?
 		img.RootFS.DiffIDs = img.RootFS.DiffIDs[:index]
 		if !system.IsOSSupported(img.OperatingSystem()) {
