@@ -561,8 +561,12 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *testing.T) {
 	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
 	assert.Assert(c, exitStatus != 0)
 
-	expectedErrorMsg := fmt.Sprintf("manifest verification failed for digest %s", manifestDigest)
-	assert.Assert(c, is.Contains(out, expectedErrorMsg))
+	if testEnv.UsingSnapshotter() {
+		assert.Assert(c, is.Contains(out, "unexpected commit digest"))
+		assert.Assert(c, is.Contains(out, "expected "+manifestDigest))
+	} else {
+		assert.Assert(c, is.Contains(out, fmt.Sprintf("manifest verification failed for digest %s", manifestDigest)))
+	}
 }
 
 // TestPullFailsWithAlteredManifest tests that a `docker pull` fails when
