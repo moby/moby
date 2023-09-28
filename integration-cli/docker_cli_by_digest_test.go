@@ -115,7 +115,13 @@ func testPullByDigestNoFallback(c *testing.T) {
 	imageReference := fmt.Sprintf("%s@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", repoName)
 	out, _, err := dockerCmdWithError("pull", imageReference)
 	assert.Assert(c, err != nil, "expected non-zero exit status and correct error message when pulling non-existing image")
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("manifest for %s not found", imageReference)), "expected non-zero exit status and correct error message when pulling non-existing image")
+
+	expectedMsg := fmt.Sprintf("manifest for %s not found", imageReference)
+	if testEnv.UsingSnapshotter() {
+		expectedMsg = fmt.Sprintf("%s: not found", imageReference)
+	}
+
+	assert.Check(c, is.Contains(out, expectedMsg), "expected non-zero exit status and correct error message when pulling non-existing image")
 }
 
 func (s *DockerRegistrySuite) TestPullByDigestNoFallback(c *testing.T) {
