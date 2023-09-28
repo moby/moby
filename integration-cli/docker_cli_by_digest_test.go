@@ -17,6 +17,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 var (
@@ -616,6 +617,8 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *testing
 // This is the schema2 version of the test.
 func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
+	skip.If(c, testEnv.UsingSnapshotter(), "Faked layer is already in the content store, so it won't be fetched from the repository at all.")
+
 	manifestDigest, err := setupImage(c)
 	assert.Assert(c, err == nil)
 
