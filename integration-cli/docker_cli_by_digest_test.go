@@ -17,6 +17,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 var (
@@ -115,7 +116,13 @@ func testPullByDigestNoFallback(c *testing.T) {
 	imageReference := fmt.Sprintf("%s@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", repoName)
 	out, _, err := dockerCmdWithError("pull", imageReference)
 	assert.Assert(c, err != nil, "expected non-zero exit status and correct error message when pulling non-existing image")
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("manifest for %s not found", imageReference)), "expected non-zero exit status and correct error message when pulling non-existing image")
+
+	expectedMsg := fmt.Sprintf("manifest for %s not found", imageReference)
+	if testEnv.UsingSnapshotter() {
+		expectedMsg = fmt.Sprintf("%s: not found", imageReference)
+	}
+
+	assert.Check(c, is.Contains(out, expectedMsg), "expected non-zero exit status and correct error message when pulling non-existing image")
 }
 
 func (s *DockerRegistrySuite) TestPullByDigestNoFallback(c *testing.T) {
@@ -555,8 +562,12 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *testing.T) {
 	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
 	assert.Assert(c, exitStatus != 0)
 
-	expectedErrorMsg := fmt.Sprintf("manifest verification failed for digest %s", manifestDigest)
-	assert.Assert(c, is.Contains(out, expectedErrorMsg))
+	if testEnv.UsingSnapshotter() {
+		assert.Assert(c, is.Contains(out, "unexpected commit digest"))
+		assert.Assert(c, is.Contains(out, "expected "+manifestDigest))
+	} else {
+		assert.Assert(c, is.Contains(out, fmt.Sprintf("manifest verification failed for digest %s", manifestDigest)))
+	}
 }
 
 // TestPullFailsWithAlteredManifest tests that a `docker pull` fails when
@@ -606,6 +617,8 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *testing
 // This is the schema2 version of the test.
 func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
+	skip.If(c, testEnv.UsingSnapshotter(), "Faked layer is already in the content store, so it won't be fetched from the repository at all.")
+
 	manifestDigest, err := setupImage(c)
 	assert.Assert(c, err == nil)
 
