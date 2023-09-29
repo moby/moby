@@ -157,17 +157,32 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 
 	cs := i.client.ContentStore()
 
-	desc, err := i.resolveDescriptor(ctx, refOrID)
+	img, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, err
 	}
 
+	desc := img.Target
 	if containerdimages.IsManifestType(desc.MediaType) {
+		plat := desc.Platform
+		if plat == nil {
+			config, err := img.Config(ctx, cs, platform)
+			if err != nil {
+				return nil, err
+			}
+			var configPlatform ocispec.Platform
+			if err := readConfig(ctx, cs, config, &configPlatform); err != nil {
+				return nil, err
+			}
+
+			plat = &configPlatform
+		}
+
 		if options.Platform != nil {
-			if desc.Platform == nil {
+			if plat == nil {
 				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: nil", refOrID, cplatforms.Format(*options.Platform)))
-			} else if !platform.Match(*desc.Platform) {
-				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, cplatforms.Format(*options.Platform), cplatforms.Format(*desc.Platform)))
+			} else if !platform.Match(*plat) {
+				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, cplatforms.Format(*options.Platform), cplatforms.Format(*plat)))
 			}
 		}
 
