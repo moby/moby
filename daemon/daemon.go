@@ -196,7 +196,7 @@ func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) 
 	}
 	conf := daemon.registryService.ServiceConfig().IndexConfigs
 	for k, v := range conf {
-		c := resolverconfig.RegistryConfig{}
+		c := m[k]
 		if !v.Secure {
 			t := true
 			c.PlainHTTP = &t
@@ -204,8 +204,7 @@ func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) 
 		}
 		m[k] = c
 	}
-	if _, ok := m[host]; !ok && daemon.registryService.IsInsecureRegistry(host) {
-		c := resolverconfig.RegistryConfig{}
+	if c, ok := m[host]; !ok && daemon.registryService.IsInsecureRegistry(host) {
 		t := true
 		c.PlainHTTP = &t
 		c.Insecure = &t
