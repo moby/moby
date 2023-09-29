@@ -1,0 +1,39 @@
+# reusable workflow
+name: .build-dev
+
+# TODO: hide reusable workflow from the UI. Tracked in https://github.com/community/community/discussions/12025
+
+on:
+  workflow_call:
+
+jobs:
+  build-dev:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - ""
+          - systemd
+    steps:
+      -
+        name: Prepare
+        run: |
+          if [ "${{ matrix.mode }}" = "systemd" ]; then
+            echo "SYSTEMD=true" >> $GITHUB_ENV
+          fi
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build dev image
+        uses: docker/bake-action@v2
+        with:
+          targets: dev
+          set: |
+            *.cache-from=type=gha,scope=dev${{ matrix.mode }}
+            *.cache-to=type=gha,scope=dev${{ matrix.mode }},mode=max
+            *.output=type=cacheonly

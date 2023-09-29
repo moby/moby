@@ -6,16 +6,23 @@ concurrency:
 
 on:
   schedule:
-    - cron: '0 10 * * *'
+    - cron: "0 10 * * *"
   workflow_dispatch:
 
 jobs:
   validate-dco:
     uses: ./.github/workflows/.dco.yml
 
-  run:
+  build:
     needs:
       - validate-dco
+    uses: ./.github/workflows/.windows-build.yml
+    with:
+      os: windows-2019
+
+  run:
+    needs:
+      - build
     uses: ./.github/workflows/.windows.yml
     with:
       os: windows-2019

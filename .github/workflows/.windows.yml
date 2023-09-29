@@ -13,6 +13,10 @@ on:
         required: false
         type: boolean
         default: false
+      use_snapshotter: # always false for now until we update containerd
+        required: false
+        type: boolean
+        default: false
 
 env:
   GO_VERSION: "1.21.1"
@@ -27,85 +31,6 @@ env:
   ITG_CLI_MATRIX_SIZE: 6
 
 jobs:
-  build:
-    runs-on: ${{ inputs.os }}
-    env:
-      GOPATH: ${{ github.workspace }}\go
-      GOBIN: ${{ github.workspace }}\go\bin
-      BIN_OUT: ${{ github.workspace }}\out
-    defaults:
-      run:
-        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
-    steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v3
-        with:
-          path: ${{ env.GOPATH }}/src/github.com/docker/docker
-      -
-        name: Env
-        run: |
-          Get-ChildItem Env: | Out-String
-      -
-        name: Init
-        run: |
-          New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
-          New-Item -ItemType "directory" -Path "${{ github.workspace }}\go\pkg\mod"
-          If ("${{ inputs.os }}" -eq "windows-2019") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          }
-      -
-        name: Cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~\AppData\Local\go-build
-            ~\go\pkg\mod
-            ${{ github.workspace }}\go-build
-            ${{ env.GOPATH }}\pkg\mod
-          key: ${{ inputs.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
-          restore-keys: |
-            ${{ inputs.os }}-${{ github.job }}-
-      -
-        name: Docker info
-        run: |
-          docker info
-      -
-        name: Build base image
-        run: |
-          & docker build `
-            --build-arg WINDOWS_BASE_IMAGE `
-            --build-arg WINDOWS_BASE_IMAGE_TAG `
-            --build-arg GO_VERSION `
-            -t ${{ env.TEST_IMAGE_NAME }} `
-            -f Dockerfile.windows .
-      -
-        name: Build binaries
-        run: |
-          & docker run --name ${{ env.TEST_CTN_NAME }} -e "DOCKER_GITCOMMIT=${{ github.sha }}" `
-              -v "${{ github.workspace }}\go-build:C:\Users\ContainerAdministrator\AppData\Local\go-build" `
-              -v "${{ github.workspace }}\go\pkg\mod:C:\gopath\pkg\mod" `
-              ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -Daemon -Client
-      -
-        name: Copy artifacts
-        run: |
-          New-Item -ItemType "directory" -Path "${{ env.BIN_OUT }}"
-          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\docker\docker\bundles\docker.exe" ${{ env.BIN_OUT }}\
-          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\docker\docker\bundles\dockerd.exe" ${{ env.BIN_OUT }}\
-          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\bin\gotestsum.exe" ${{ env.BIN_OUT }}\
-          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd.exe" ${{ env.BIN_OUT }}\
-          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd-shim-runhcs-v1.exe" ${{ env.BIN_OUT }}\
-      -
-        name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-${{ inputs.os }}
-          path: ${{ env.BIN_OUT }}/*
-          if-no-files-found: error
-          retention-days: 2
-
   unit-test:
     runs-on: ${{ inputs.os }}
     timeout-minutes: 120
@@ -249,7 +174,6 @@ jobs:
     runs-on: ${{ inputs.os }}
     timeout-minutes: 120
     needs:
-      - build
       - integration-test-prepare
     strategy:
       fail-fast: false
@@ -291,8 +215,7 @@ jobs:
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
           Write-Output "${{ env.BIN_OUT }}" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-      -
-        # removes docker service that is currently installed on the runner. we
+      - # removes docker service that is currently installed on the runner. we
         # could use Uninstall-Package but not yet available on Windows runners.
         # more info: https://github.com/actions/virtual-environments/blob/d3a5bad25f3b4326c5666bab0011ac7f1beec95e/images/win/scripts/Installers/Install-Docker.ps1#L11
         name: Removing current daemon
@@ -338,6 +261,11 @@ jobs:
           If ("${{ matrix.runtime }}" -eq "containerd") {
             $runtimeArg="--containerd=\\.\pipe\containerd-containerd"
             echo "DOCKER_WINDOWS_CONTAINERD_RUNTIME=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+            # FIXME: This doesn't really put the daemon on containerd snapshotter mode, see https://github.com/moby/moby/pull/46402#issuecomment-1710232310
+            If ("${{ inputs.use_snapshotter }}" -eq "true") {
+              echo "TEST_INTEGRATION_USE_SNAPSHOTTER=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+              echo "DOCKER_GRAPHDRIVER=windows" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+            }
           }
           New-Item -ItemType Directory "$env:TEMP\moby-root" -ErrorAction SilentlyContinue | Out-Null
           New-Item -ItemType Directory "$env:TEMP\moby-exec" -ErrorAction SilentlyContinue | Out-Null
@@ -453,8 +381,7 @@ jobs:
           $ErrorActionPreference = "SilentlyContinue"
           Stop-Service -Force -Name docker
           $ErrorActionPreference = "Stop"
-      -
-        # as the daemon is registered as a service we have to check the event
+      - # as the daemon is registered as a service we have to check the event
         # logs against the docker provider.
         name: Daemon event logs
         if: always()

@@ -8,18 +8,37 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - 'master'
-      - '[0-9]+.[0-9]+'
+      - "master"
+      - "[0-9]+.[0-9]+"
   pull_request:
 
 jobs:
   validate-dco:
     uses: ./.github/workflows/.dco.yml
 
-  run:
+  build:
     needs:
       - validate-dco
+    uses: ./.github/workflows/.windows-build.yml
+    with:
+      os: windows-2022
+
+  run:
+    needs:
+      - build
     uses: ./.github/workflows/.windows.yml
     with:
       os: windows-2022
       send_coverage: true
+
+  # Disabled for now until we make containerd snapshotters
+  # work on windows, see https://github.com/moby/moby/pull/46402
+  # run-snapshotter:
+  #   needs:
+  #     - build
+  #   if: contains(github.event.pull_request.labels.*.name, 'containerd-integration')
+  #   uses: ./.github/workflows/.windows.yml
+  #   with:
+  #     os: windows-2022
+  #     send_coverage: true
+  #     use_snapshotter: true
