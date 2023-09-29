@@ -263,7 +263,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		if err != nil {
 			logger.WithError(err).Error("failed to create digested reference")
 		} else {
-			repoDigests = append(repoDigests, digested.String())
+			repoDigests = append(repoDigests, reference.FamiliarString(digested))
 		}
 	}
 

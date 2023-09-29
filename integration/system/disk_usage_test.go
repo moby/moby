@@ -1,6 +1,7 @@
 package system // import "github.com/docker/docker/integration/system"
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -10,6 +11,7 @@ import (
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -54,20 +56,18 @@ func TestDiskUsage(t *testing.T) {
 				assert.NilError(t, err)
 				assert.Assert(t, du.LayersSize > 0)
 				assert.Equal(t, len(du.Images), 1)
-				assert.DeepEqual(t, du, types.DiskUsage{
-					LayersSize: du.LayersSize,
-					Images: []*image.Summary{
-						{
-							Created:  du.Images[0].Created,
-							ID:       du.Images[0].ID,
-							RepoTags: []string{"busybox:latest"},
-							Size:     du.LayersSize,
-						},
-					},
-					Containers: []*types.Container{},
-					Volumes:    []*volume.Volume{},
-					BuildCache: []*types.BuildCache{},
-				})
+				assert.Equal(t, len(du.Images[0].RepoTags), 1)
+				assert.Check(t, is.Equal(du.Images[0].RepoTags[0], "busybox:latest"))
+
+				// Image size is layer size + content size, should be greater than total layer size
+				assert.Assert(t, du.Images[0].Size >= du.LayersSize)
+
+				// If size is greater, than content exists and should have a repodigest
+				if du.Images[0].Size > du.LayersSize {
+					assert.Equal(t, len(du.Images[0].RepoDigests), 1)
+					assert.Check(t, strings.HasPrefix(du.Images[0].RepoDigests[0], "busybox@"))
+				}
+
 				return du
 			},
 		},
@@ -81,37 +81,22 @@ func TestDiskUsage(t *testing.T) {
 				assert.Equal(t, len(du.Containers), 1)
 				assert.Equal(t, len(du.Containers[0].Names), 1)
 				assert.Assert(t, len(prev.Images) > 0)
-				assert.Assert(t, du.Containers[0].Created >= prev.Images[0].Created)
-				assert.DeepEqual(t, du, types.DiskUsage{
-					LayersSize: prev.LayersSize,
-					Images: []*image.Summary{
-						func() *image.Summary {
-							sum := *prev.Images[0]
-							sum.Containers++
-							return &sum
-						}(),
-					},
-					Containers: []*types.Container{
-						{
-							ID:              cID,
-							Names:           du.Containers[0].Names,
-							Image:           "busybox",
-							ImageID:         prev.Images[0].ID,
-							Command:         du.Containers[0].Command, // not relevant for the test
-							Created:         du.Containers[0].Created,
-							Ports:           du.Containers[0].Ports, // not relevant for the test
-							SizeRootFs:      prev.Images[0].Size,
-							Labels:          du.Containers[0].Labels,          // not relevant for the test
-							State:           du.Containers[0].State,           // not relevant for the test
-							Status:          du.Containers[0].Status,          // not relevant for the test
-							HostConfig:      du.Containers[0].HostConfig,      // not relevant for the test
-							NetworkSettings: du.Containers[0].NetworkSettings, // not relevant for the test
-							Mounts:          du.Containers[0].Mounts,          // not relevant for the test
-						},
-					},
-					Volumes:    []*volume.Volume{},
-					BuildCache: []*types.BuildCache{},
-				})
+				assert.Check(t, du.Containers[0].Created >= prev.Images[0].Created)
+
+				// Additional container layer could add to the size
+				assert.Check(t, du.LayersSize >= prev.LayersSize)
+
+				assert.Equal(t, len(du.Images), 1)
+				assert.Equal(t, du.Images[0].Containers, prev.Images[0].Containers+1)
+
+				assert.Check(t, is.Equal(du.Containers[0].ID, cID))
+				assert.Check(t, is.Equal(du.Containers[0].Image, "busybox"))
+				assert.Check(t, is.Equal(du.Containers[0].ImageID, prev.Images[0].ID))
+
+				// The rootfs size should be equivalent to all the layers,
+				// previously used prev.Images[0].Size, which may differ from content data
+				assert.Check(t, is.Equal(du.Containers[0].SizeRootFs, du.LayersSize))
+
 				return du
 			},
 		},
