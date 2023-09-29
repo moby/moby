@@ -13,6 +13,20 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
+// ToRootfulInRootless is used for "rootful-in-rootless" dind;
+// the daemon is running in UserNS but has no access to RootlessKit API socket, host filesystem, etc.
+//
+// This fuction does:
+// * Fix up OOMScoreAdj (needed since systemd v250: https://github.com/moby/moby/issues/46563)
+func ToRootfulInRootless(spec *specs.Spec) {
+	if spec.Process == nil || spec.Process.OOMScoreAdj == nil {
+		return
+	}
+	if currentOOMScoreAdj := getCurrentOOMScoreAdj(); *spec.Process.OOMScoreAdj < currentOOMScoreAdj {
+		*spec.Process.OOMScoreAdj = currentOOMScoreAdj
+	}
+}
+
 // ToRootless converts spec to be compatible with "rootless" runc.
 // * Remove non-supported cgroups
 // * Fix up OOMScoreAdj
