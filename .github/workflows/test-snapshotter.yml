@@ -1,0 +1,32 @@
+name: test-snapshotter
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "master"
+      - "[0-9]+.[0-9]+"
+    tags:
+      - "v*"
+  pull_request:
+
+jobs:
+  validate-dco:
+    uses: ./.github/workflows/.dco.yml
+
+  build-dev:
+    needs:
+      - validate-dco
+    uses: ./.github/workflows/.build-dev.yml
+
+  test:
+    if: contains(github.event.pull_request.labels.*.name, 'containerd-integration') || github.event_name != 'pull_request'
+    needs:
+      - build-dev
+    uses: ./.github/workflows/.test.yml
+    with:
+      use_snapshotter: true
