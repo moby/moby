@@ -187,6 +187,7 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestBuildByDigest(c *testing.T) {
+	skip.If(c, testEnv.UsingSnapshotter(), "Config.Image is not created with containerd, buildkit doesn't set it either")
 	digest, err := setupImage(c)
 	assert.NilError(c, err, "error setting up image")
 
