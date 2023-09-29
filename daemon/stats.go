@@ -156,28 +156,27 @@ func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch cha
 
 // GetContainerStats collects all the stats published by a container
 func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.StatsJSON, error) {
-	var stats *types.StatsJSON
-	var err error
+	stats, err := daemon.stats(container)
+	if err != nil {
+		goto done
+	}
 
-	stats, err = daemon.stats(container)
+	// Sample system CPU usage close to container usage to avoid
+	// noise in metric calculations.
+	// FIXME: move to containerd on Linux (not Windows)
+	stats.CPUStats.SystemUsage, stats.CPUStats.OnlineCPUs, err = getSystemCPUUsage()
+	if err != nil {
+		goto done
+	}
 
 	// We already have the network stats on Windows directly from HCS.
-	if err == nil && !container.Config.NetworkDisabled && runtime.GOOS != "windows" {
+	if !container.Config.NetworkDisabled && runtime.GOOS != "windows" {
 		stats.Networks, err = daemon.getNetworkStats(container)
 	}
 
+done:
 	switch err.(type) {
 	case nil:
-		// Sample system CPU usage close to container usage to avoid
-		// noise in metric calculations.
-		systemUsage, onlineCPUs, err := getSystemCPUUsage()
-		if err != nil {
-			log.G(context.TODO()).WithError(err).WithField("container_id", container.ID).Errorf("collecting system cpu usage")
-			return nil, err
-		}
-		// FIXME: move to containerd on Linux (not Windows)
-		stats.CPUStats.SystemUsage = systemUsage
-		stats.CPUStats.OnlineCPUs = onlineCPUs
 		return stats, nil
 	case errdefs.ErrConflict, errdefs.ErrNotFound:
 		// return empty stats containing only name and ID if not running or not found
@@ -186,7 +185,7 @@ func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.
 			ID:   container.ID,
 		}, nil
 	default:
-		log.G(context.TODO()).Errorf("collecting stats for container %s: %v", container.ID, err)
+		log.G(context.TODO()).Errorf("collecting stats for container %s: %v", container.Name, err)
 		return nil, err
 	}
 }
