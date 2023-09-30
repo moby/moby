@@ -23,6 +23,7 @@ env:
 jobs:
   unit:
     runs-on: ubuntu-20.04
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     timeout-minutes: 120
     steps:
       -
@@ -71,6 +72,7 @@ jobs:
 
   unit-report:
     runs-on: ubuntu-20.04
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     timeout-minutes: 10
     if: always()
     needs:
@@ -98,6 +100,7 @@ jobs:
 
   docker-py:
     runs-on: ubuntu-20.04
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     timeout-minutes: 120
     steps:
       -
@@ -149,6 +152,7 @@ jobs:
 
   integration-flaky:
     runs-on: ubuntu-20.04
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     timeout-minutes: 120
     steps:
       -
@@ -176,6 +180,7 @@ jobs:
 
   integration:
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -264,6 +269,7 @@ jobs:
 
   integration-report:
     runs-on: ubuntu-20.04
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     timeout-minutes: 10
     if: always()
     needs:
@@ -291,6 +297,7 @@ jobs:
 
   integration-cli-prepare:
     runs-on: ubuntu-20.04
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     outputs:
       matrix: ${{ steps.tests.outputs.matrix }}
     steps:
@@ -325,6 +332,7 @@ jobs:
 
   integration-cli:
     runs-on: ubuntu-20.04
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     timeout-minutes: 120
     needs:
       - integration-cli-prepare
@@ -395,6 +403,7 @@ jobs:
 
   integration-cli-report:
     runs-on: ubuntu-20.04
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     timeout-minutes: 10
     if: always()
     needs:

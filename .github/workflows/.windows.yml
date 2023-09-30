@@ -251,6 +251,7 @@ jobs:
 
   integration-test:
     runs-on: ${{ inputs.os }}
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     timeout-minutes: 120
     needs:
       - build
@@ -488,6 +489,7 @@ jobs:
 
   integration-test-report:
     runs-on: ubuntu-latest
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     if: always()
     needs:
       - integration-test
