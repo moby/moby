@@ -57,7 +57,6 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/moby/buildkit/session"
-	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/tracing/detect"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
@@ -247,7 +246,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	} else {
 		otel.SetTracerProvider(tp)
 		log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
-		bklog.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
 	}
 
 	pluginStore := plugin.NewStore()
