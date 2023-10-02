@@ -261,6 +261,7 @@ func (s *DockerCLIRmiSuite) TestRmiContainerImageNotFound(c *testing.T) {
 
 // #13422
 func (s *DockerCLIRmiSuite) TestRmiUntagHistoryLayer(c *testing.T) {
+	skip.If(c, testEnv.UsingSnapshotter, "intermediate layers don't have IDs with containerd")
 	image := "tmp1"
 	// Build an image for testing.
 	dockerfile := `FROM busybox
