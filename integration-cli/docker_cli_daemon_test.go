@@ -40,6 +40,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
 )
 
 const containerdSocket = "/var/run/docker/containerd/containerd.sock"
@@ -2072,6 +2073,8 @@ func (s *DockerDaemonSuite) TestDaemonLogOptions(c *testing.T) {
 
 // Test case for #20936, #22443
 func (s *DockerDaemonSuite) TestDaemonMaxConcurrency(c *testing.T) {
+	skip.If(c, testEnv.UsingSnapshotter, "max concurrency is not implemented (yet) with containerd snapshotters https://github.com/moby/moby/issues/46610")
+
 	s.d.Start(c, "--max-concurrent-uploads=6", "--max-concurrent-downloads=8")
 
 	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 6"`
@@ -2084,6 +2087,8 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrency(c *testing.T) {
 
 // Test case for #20936, #22443
 func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *testing.T) {
+	skip.If(c, testEnv.UsingSnapshotter, "max concurrency is not implemented (yet) with containerd snapshotters https://github.com/moby/moby/issues/46610")
+
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	// daemon config file
@@ -2124,6 +2129,8 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *testing.T)
 
 // Test case for #20936, #22443
 func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *testing.T) {
+	skip.If(c, testEnv.UsingSnapshotter, "max concurrency is not implemented (yet) with containerd snapshotters https://github.com/moby/moby/issues/46610")
+
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	// daemon config file
