@@ -130,9 +130,10 @@ func NewRegistryConfig(m map[string]config.RegistryConfig) docker.RegistryHosts 
 
 			var out []docker.RegistryHost
 
-			for _, mirror := range c.Mirrors {
-				h := newMirrorRegistryHost(mirror)
-				hosts, err := fillInsecureOpts(mirror, m[mirror], h)
+			for _, rawMirror := range c.Mirrors {
+				h := newMirrorRegistryHost(rawMirror)
+				mirrorHost := h.Host
+				hosts, err := fillInsecureOpts(mirrorHost, m[mirrorHost], h)
 				if err != nil {
 					return nil, err
 				}
