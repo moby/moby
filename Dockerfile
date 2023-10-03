@@ -23,7 +23,7 @@ ARG DOCKER_STATIC=1
 # https://hub.docker.com/r/distribution/distribution. This version of
 # the registry is used to test schema 2 manifests. Generally,  the version
 # specified here should match a current release.
-ARG REGISTRY_VERSION=2.8.2
+ARG REGISTRY_VERSION=2.8.3
 
 # cross compilation helper
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
