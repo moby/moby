@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/opencontainers/go-digest"
@@ -84,7 +85,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, m
 		return err
 	}
 	defer func() {
-		if err := release(leasedCtx); err != nil {
+		if err := release(compatcontext.WithoutCancel(leasedCtx)); err != nil {
 			log.G(ctx).WithField("image", targetRef).WithError(err).Warn("failed to release lease created for push")
 		}
 	}()
