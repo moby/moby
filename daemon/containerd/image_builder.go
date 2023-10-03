@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/internal/compatcontext"
 	registrypkg "github.com/docker/docker/registry"
 
 	// "github.com/docker/docker/api/types/container"
@@ -450,7 +451,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		return nil, err
 	}
 	defer func() {
-		if err := release(ctx); err != nil {
+		if err := release(compatcontext.WithoutCancel(ctx)); err != nil {
 			log.G(ctx).WithError(err).Warn("failed to release lease created for create")
 		}
 	}()
