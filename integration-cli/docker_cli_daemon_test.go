@@ -1629,16 +1629,29 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	dockerCmd(c, "run", "--rm", "-v", testDir+":/test", "busybox", "sh", "-c", "dd of=/test/testfs.img bs=1M seek=3 count=0")
 	icmd.RunCommand("mkfs.ext4", "-F", filepath.Join(testDir, "testfs.img")).Assert(c, icmd.Success)
 
-	dockerCmd(c, "run", "--privileged", "--rm", "-v", testDir+":/test:shared", "busybox", "sh", "-c", "mkdir -p /test/test-mount/vfs && mount -n -t ext4 /test/testfs.img /test/test-mount/vfs")
+	dockerCmd(c, "run", "--privileged", "--rm", "-v", testDir+":/test:shared", "busybox", "sh", "-c", "mkdir -p /test/test-mount && mount -n -t ext4 /test/testfs.img /test/test-mount")
 	defer mount.Unmount(filepath.Join(testDir, "test-mount"))
 
-	s.d.Start(c, "--storage-driver", "vfs", "--data-root", filepath.Join(testDir, "test-mount"))
+	driver := "vfs"
+	if testEnv.UsingSnapshotter() {
+		driver = "native"
+	}
+
+	s.d.Start(c,
+		"--data-root", filepath.Join(testDir, "test-mount"),
+		"--storage-driver", driver,
+
+		// Pass empty containerd socket to force daemon to create a new
+		// supervised containerd daemon. Otherwise the global containerd daemon
+		// will be used and its data won't be stored in the specified data-root.
+		"--containerd", "",
+	)
 	defer s.d.Stop(c)
 
 	// pull a repository large enough to overfill the mounted filesystem
 	pullOut, err := s.d.Cmd("pull", "debian:bullseye-slim")
-	assert.Assert(c, err != nil, pullOut)
-	assert.Assert(c, strings.Contains(pullOut, "no space left on device"))
+	assert.Check(c, err != nil)
+	assert.Check(c, is.Contains(pullOut, "no space left on device"))
 }
 
 // Test daemon restart with container links + auto restart
