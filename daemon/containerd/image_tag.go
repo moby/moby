@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/pkg/errors"
 )
 
@@ -49,7 +50,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 			return errors.Wrapf(err, "failed to delete previous image %s", replacedImg.Name)
 		}
 
-		if _, err = is.Create(context.Background(), newImg); err != nil {
+		if _, err = is.Create(compatcontext.WithoutCancel(ctx), newImg); err != nil {
 			return errdefs.System(errors.Wrapf(err, "failed to create an image %s with target %s after deleting the existing one",
 				newImg.Name, imageID.String()))
 		}
@@ -64,7 +65,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 	defer i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
 
 	// The tag succeeded, check if the source image is dangling
-	sourceDanglingImg, err := is.Get(context.Background(), danglingImageName(target.Digest))
+	sourceDanglingImg, err := is.Get(compatcontext.WithoutCancel(ctx), danglingImageName(target.Digest))
 	if err != nil {
 		if !cerrdefs.IsNotFound(err) {
 			logger.WithError(err).Warn("unexpected error when checking if source image is dangling")
@@ -79,13 +80,13 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 			imageLabelClassicBuilderParent: builderLabel,
 		}
 
-		if _, err := is.Update(context.Background(), newImg, "labels"); err != nil {
+		if _, err := is.Update(compatcontext.WithoutCancel(ctx), newImg, "labels"); err != nil {
 			logger.WithError(err).Warnf("failed to set %s label on the newly tagged image", imageLabelClassicBuilderParent)
 		}
 	}
 
 	// Delete the source dangling image, as it's no longer dangling.
-	if err := is.Delete(context.Background(), sourceDanglingImg.Name); err != nil {
+	if err := is.Delete(compatcontext.WithoutCancel(ctx), sourceDanglingImg.Name); err != nil {
 		logger.WithError(err).Warn("unexpected error when deleting dangling image")
 	}
 
