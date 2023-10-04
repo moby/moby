@@ -186,9 +186,21 @@ func (s *DockerCLIPsSuite) TestPsListContainersSize(c *testing.T) {
 	idIndex := strings.Index(lines[0], "CONTAINER ID")
 	foundID := lines[1][idIndex : idIndex+12]
 	assert.Equal(c, foundID, id[:12], fmt.Sprintf("Expected id %s, got %s", id[:12], foundID))
-	expectedSize := units.HumanSize(float64(baseBytes + 2))
-	foundSize := lines[1][sizeIndex:]
-	assert.Assert(c, strings.Contains(foundSize, expectedSize), "Expected size %q, got %q", expectedSize, foundSize)
+	foundSize, _, _ := strings.Cut(strings.TrimSpace(lines[1][sizeIndex:]), " ")
+
+	// With snapshotters the reported usage is the real space occupied on the
+	// filesystem (also includes metadata), so this new file can actually
+	// result in a bigger increase depending on the underlying filesystem (on
+	// ext4 this would be 4096 which is a minimum allocation unit).
+	if testEnv.UsingSnapshotter() {
+		newBytes, err := units.FromHumanSize(foundSize)
+		assert.NilError(c, err)
+		// Check if size increased by at least 2 bytes.
+		assert.Check(c, newBytes >= baseBytes+2)
+	} else {
+		expectedSize := units.HumanSize(float64(baseBytes + 2))
+		assert.Assert(c, strings.Contains(foundSize, expectedSize), "Expected size %q, got %q", expectedSize, foundSize)
+	}
 }
 
 func (s *DockerCLIPsSuite) TestPsListContainersFilterStatus(c *testing.T) {
