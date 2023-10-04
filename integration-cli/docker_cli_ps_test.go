@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/go-units"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -159,8 +159,8 @@ func (s *DockerCLIPsSuite) TestPsListContainersSize(c *testing.T) {
 	baseOut, _ := dockerCmd(c, "ps", "-s", "-n=1")
 	baseLines := strings.Split(strings.Trim(baseOut, "\n "), "\n")
 	baseSizeIndex := strings.Index(baseLines[0], "SIZE")
-	baseFoundsize := baseLines[1][baseSizeIndex:]
-	baseBytes, err := strconv.Atoi(strings.Split(baseFoundsize, "B")[0])
+	baseFoundsize, _, _ := strings.Cut(baseLines[1][baseSizeIndex:], " ")
+	baseBytes, err := units.FromHumanSize(baseFoundsize)
 	assert.NilError(c, err)
 
 	name := "test_size"
@@ -186,7 +186,7 @@ func (s *DockerCLIPsSuite) TestPsListContainersSize(c *testing.T) {
 	idIndex := strings.Index(lines[0], "CONTAINER ID")
 	foundID := lines[1][idIndex : idIndex+12]
 	assert.Equal(c, foundID, id[:12], fmt.Sprintf("Expected id %s, got %s", id[:12], foundID))
-	expectedSize := fmt.Sprintf("%dB", 2+baseBytes)
+	expectedSize := units.HumanSize(float64(baseBytes + 2))
 	foundSize := lines[1][sizeIndex:]
 	assert.Assert(c, strings.Contains(foundSize, expectedSize), "Expected size %q, got %q", expectedSize, foundSize)
 }
