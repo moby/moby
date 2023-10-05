@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -56,70 +55,35 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *testing.T) {
 func (s *DockerHubPullSuite) TestPullNonExistingImage(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
-	type entry struct {
-		repo  string
-		alias string
-		tag   string
-	}
+	for _, ref := range []string{
+		"asdfasdf:foobar",
+		"library/asdfasdf:foobar",
+		"asdfasdf",
+		"asdfasdf:latest",
+		"library/asdfasdf",
+		"library/asdfasdf:latest",
+	} {
+		ref := ref
+		all := strings.Contains(ref, ":")
+		c.Run(ref, func(t *testing.T) {
+			t.Parallel()
 
-	entries := []entry{
-		{"asdfasdf", "asdfasdf", "foobar"},
-		{"asdfasdf", "library/asdfasdf", "foobar"},
-		{"asdfasdf", "asdfasdf", ""},
-		{"asdfasdf", "asdfasdf", "latest"},
-		{"asdfasdf", "library/asdfasdf", ""},
-		{"asdfasdf", "library/asdfasdf", "latest"},
-	}
-
-	// The option field indicates "-a" or not.
-	type record struct {
-		e      entry
-		option string
-		out    string
-		err    error
-	}
-
-	// Execute 'docker pull' in parallel, pass results (out, err) and
-	// necessary information ("-a" or not, and the image name) to channel.
-	var group sync.WaitGroup
-	recordChan := make(chan record, len(entries)*2)
-	for _, e := range entries {
-		group.Add(1)
-		go func(e entry) {
-			defer group.Done()
-			repoName := e.alias
-			if e.tag != "" {
-				repoName += ":" + e.tag
+			var out string
+			var err error
+			if all {
+				out, err = s.CmdWithError("pull", "-a", repoName)
+			} else {
+				out, err = s.CmdWithError("pull", repoName)
 			}
-			out, err := s.CmdWithError("pull", repoName)
-			recordChan <- record{e, "", out, err}
-		}(e)
-		if e.tag == "" {
-			// pull -a on a nonexistent registry should fall back as well
-			group.Add(1)
-			go func(e entry) {
-				defer group.Done()
-				out, err := s.CmdWithError("pull", "-a", e.alias)
-				recordChan <- record{e, "-a", out, err}
-			}(e)
-		}
-	}
 
-	// Wait for completion
-	group.Wait()
-	close(recordChan)
-
-	// Process the results (out, err).
-	for record := range recordChan {
-		if len(record.option) == 0 {
-			assert.ErrorContains(c, record.err, "", "expected non-zero exit status when pulling non-existing image: %s", record.out)
-			assert.Assert(c, strings.Contains(record.out, fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", record.e.repo)), "expected image not found error messages")
-		} else {
-			// pull -a on a nonexistent registry should fall back as well
-			assert.ErrorContains(c, record.err, "", "expected non-zero exit status when pulling non-existing image: %s", record.out)
-			assert.Assert(c, strings.Contains(record.out, fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", record.e.repo)), "expected image not found error messages")
-			assert.Assert(c, !strings.Contains(record.out, "unauthorized"), `message should not contain "unauthorized"`)
-		}
+			expectedRepo := "asdfasdf"
+			assert.Check(t, is.ErrorContains(err, ""), "expected non-zero exit status when pulling non-existing image: %s", out)
+			assert.Check(t, is.Contains(out, fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", expectedRepo)))
+			if all {
+				// pull -a on a nonexistent registry should fall back as well
+				assert.Check(t, !strings.Contains(out, "unauthorized"), `message should not contain "unauthorized"`)
+			}
+		})
 	}
 }
 
