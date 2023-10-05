@@ -260,8 +260,10 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img images.Image, 
 		return err
 	}
 
-	i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
-	*records = append(*records, types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(untaggedRef)})
+	if !isDanglingImage(img) {
+		i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
+		*records = append(*records, types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(untaggedRef)})
+	}
 
 	return nil
 }
