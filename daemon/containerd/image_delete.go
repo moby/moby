@@ -64,7 +64,8 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 
 	imgID := image.ID(img.Target.Digest)
 
-	if isImageIDPrefix(imgID.String(), imageRef) {
+	explicitDanglingRef := strings.HasPrefix(imageRef, imageNameDanglingPrefix) && isDanglingImage(img)
+	if isImageIDPrefix(imgID.String(), imageRef) || explicitDanglingRef {
 		return i.deleteAll(ctx, img, force, prune)
 	}
 
