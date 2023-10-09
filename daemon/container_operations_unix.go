@@ -384,6 +384,7 @@ func serviceDiscoveryOnDefaultNetwork() bool {
 
 func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {
 	var err error
+	var originResolvConfPath string
 
 	// Set the correct paths for /etc/hosts and /etc/resolv.conf, based on the
 	// networking-mode of the container. Note that containers with "container"
@@ -397,8 +398,8 @@ func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container
 		*sboxOptions = append(
 			*sboxOptions,
 			libnetwork.OptionOriginHostsPath("/etc/hosts"),
-			libnetwork.OptionOriginResolvConfPath("/etc/resolv.conf"),
 		)
+		originResolvConfPath = "/etc/resolv.conf"
 	case container.HostConfig.NetworkMode.IsUserDefined():
 		// The container uses a user-defined network. We use the embedded DNS
 		// server for container name resolution and to act as a DNS forwarder
@@ -411,10 +412,7 @@ func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container
 		// If systemd-resolvd is used, the "upstream" DNS servers can be found in
 		// /run/systemd/resolve/resolv.conf. We do not query those DNS servers
 		// directly, as they can be dynamically reconfigured.
-		*sboxOptions = append(
-			*sboxOptions,
-			libnetwork.OptionOriginResolvConfPath("/etc/resolv.conf"),
-		)
+		originResolvConfPath = "/etc/resolv.conf"
 	default:
 		// For other situations, such as the default bridge network, container
 		// discovery / name resolution is handled through /etc/hosts, and no
@@ -427,11 +425,15 @@ func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container
 		// DNS servers on the host can be dynamically updated.
 		//
 		// Copy the host's resolv.conf for the container (/run/systemd/resolve/resolv.conf or /etc/resolv.conf)
-		*sboxOptions = append(
-			*sboxOptions,
-			libnetwork.OptionOriginResolvConfPath(daemon.configStore.GetResolvConf()),
-		)
+		originResolvConfPath = daemon.configStore.GetResolvConf()
 	}
+
+	// Allow tests to point at their own resolv.conf file.
+	if envPath := os.Getenv("DOCKER_TEST_RESOLV_CONF_PATH"); envPath != "" {
+		logrus.Infof("Using OriginResolvConfPath from env: %s", envPath)
+		originResolvConfPath = envPath
+	}
+	*sboxOptions = append(*sboxOptions, libnetwork.OptionOriginResolvConfPath(originResolvConfPath))
 
 	container.HostsPath, err = container.GetRootResourcePath("hosts")
 	if err != nil {

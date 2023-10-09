@@ -544,8 +544,12 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) (err error) {
 		return sb.setupDefaultGW()
 	}
 
-	moveExtConn := sb.getGatewayEndpoint() != extEp
+	// Enable upstream forwarding if the sandbox gained external connectivity.
+	if sb.resolver != nil {
+		sb.resolver.SetForwardingPolicy(sb.hasExternalConnectivity())
+	}
 
+	moveExtConn := sb.getGatewayEndpoint() != extEp
 	if moveExtConn {
 		if extEp != nil {
 			logrus.Debugf("Revoking external connectivity on endpoint %s (%s)", extEp.Name(), extEp.ID())
@@ -775,6 +779,11 @@ func (ep *endpoint) sbLeave(sb *sandbox, force bool, options ...EndpointOption) 
 	sb.deleteHostsEntries(n.getSvcRecords(ep))
 	if !sb.inDelete && sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
 		return sb.setupDefaultGW()
+	}
+
+	// Disable upstream forwarding if the sandbox lost external connectivity.
+	if sb.resolver != nil {
+		sb.resolver.SetForwardingPolicy(sb.hasExternalConnectivity())
 	}
 
 	// New endpoint providing external connectivity for the sandbox
