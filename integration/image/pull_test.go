@@ -3,9 +3,11 @@ package image
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/containerd/containerd"
@@ -21,6 +23,7 @@ import (
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -154,4 +157,41 @@ func TestImagePullStoredfDigestForOtherRepo(t *testing.T) {
 	}
 	assert.Assert(t, err != nil, "Expected error, got none: %v", err)
 	assert.Assert(t, errdefs.IsNotFound(err), err)
+}
+
+// TestImagePullNonExisting pulls non-existing images from the central registry, with different
+// combinations of implicit tag and library prefix.
+func TestImagePullNonExisting(t *testing.T) {
+	ctx := setupTest(t)
+
+	for _, ref := range []string{
+		"asdfasdf:foobar",
+		"library/asdfasdf:foobar",
+		"asdfasdf",
+		"asdfasdf:latest",
+		"library/asdfasdf",
+		"library/asdfasdf:latest",
+	} {
+		ref := ref
+		all := strings.Contains(ref, ":")
+		t.Run(ref, func(t *testing.T) {
+			t.Parallel()
+
+			client := testEnv.APIClient()
+			rdr, err := client.ImagePull(ctx, ref, types.ImagePullOptions{
+				All: all,
+			})
+			if err == nil {
+				rdr.Close()
+			}
+
+			expectedMsg := fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", "asdfasdf")
+			assert.Assert(t, is.ErrorContains(err, expectedMsg))
+			assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+			if all {
+				// pull -a on a nonexistent registry should fall back as well
+				assert.Check(t, !strings.Contains(err.Error(), "unauthorized"), `message should not contain "unauthorized"`)
+			}
+		})
+	}
 }

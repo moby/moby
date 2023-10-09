@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -48,43 +47,6 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *testing.T) {
 	assert.Equal(c, len(splitImg), 2)
 	match, _ := regexp.MatchString(`hello-world\s+latest.*?`, splitImg[1])
 	assert.Assert(c, match, "invalid output for `docker images` (expected image and tag name)")
-}
-
-// TestPullNonExistingImage pulls non-existing images from the central registry, with different
-// combinations of implicit tag and library prefix.
-func (s *DockerHubPullSuite) TestPullNonExistingImage(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-
-	for _, ref := range []string{
-		"asdfasdf:foobar",
-		"library/asdfasdf:foobar",
-		"asdfasdf",
-		"asdfasdf:latest",
-		"library/asdfasdf",
-		"library/asdfasdf:latest",
-	} {
-		ref := ref
-		all := strings.Contains(ref, ":")
-		c.Run(ref, func(t *testing.T) {
-			t.Parallel()
-
-			var out string
-			var err error
-			if all {
-				out, err = s.CmdWithError("pull", "-a", repoName)
-			} else {
-				out, err = s.CmdWithError("pull", repoName)
-			}
-
-			expectedRepo := "asdfasdf"
-			assert.Check(t, is.ErrorContains(err, ""), "expected non-zero exit status when pulling non-existing image: %s", out)
-			assert.Check(t, is.Contains(out, fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", expectedRepo)))
-			if all {
-				// pull -a on a nonexistent registry should fall back as well
-				assert.Check(t, !strings.Contains(out, "unauthorized"), `message should not contain "unauthorized"`)
-			}
-		})
-	}
 }
 
 // TestPullFromCentralRegistryImplicitRefParts pulls an image from the central registry and verifies
