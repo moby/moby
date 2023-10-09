@@ -28,6 +28,14 @@ func selectIPv4Address(addresses []netlink.Addr, selector *net.IPNet) (netlink.A
 }
 
 func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
+	// TODO(aker): the bridge driver panics if its bridgeIPv4 field isn't set. Once bridge subnet and bridge IP address
+	//             are decoupled, we should assign it only when it's really needed.
+	i.bridgeIPv4 = config.AddressIPv4
+
+	if config.Internal {
+		return nil
+	}
+
 	if !config.InhibitIPv4 {
 		addrv4List, _, err := i.addresses()
 		if err != nil {
@@ -49,8 +57,7 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 		}
 	}
 
-	// Store bridge network and default gateway
-	i.bridgeIPv4 = config.AddressIPv4
+	// Store the default gateway
 	i.gatewayIPv4 = config.AddressIPv4.IP
 
 	return nil
@@ -59,6 +66,9 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 func setupGatewayIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	if !i.bridgeIPv4.Contains(config.DefaultGatewayIPv4) {
 		return &ErrInvalidGateway{}
+	}
+	if config.Internal {
+		return types.InvalidParameterErrorf("no gateway can be set on an internal bridge network")
 	}
 
 	// Store requested default gateway

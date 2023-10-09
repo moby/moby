@@ -1223,14 +1223,16 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	err = jinfo.SetGateway(network.bridge.gatewayIPv4)
-	if err != nil {
-		return err
-	}
+	if !network.config.Internal {
+		err = jinfo.SetGateway(network.bridge.gatewayIPv4)
+		if err != nil {
+			return err
+		}
 
-	err = jinfo.SetGatewayIPv6(network.bridge.gatewayIPv6)
-	if err != nil {
-		return err
+		err = jinfo.SetGatewayIPv6(network.bridge.gatewayIPv6)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
