@@ -44,10 +44,7 @@ func (sb *Sandbox) finishInitDNS() error {
 func (sb *Sandbox) startResolver(restore bool) {
 	sb.resolverOnce.Do(func() {
 		var err error
-		// The embedded resolver is always started with proxyDNS set as true, even when the sandbox is only attached to
-		// an internal network. This way, it's the driver responsibility to make sure `connect` syscall fails fast when
-		// no external connectivity is available (eg. by not setting a default gateway).
-		sb.resolver = NewResolver(resolverIPSandbox, true, sb)
+		sb.resolver = NewResolver(resolverIPSandbox, sb.getGatewayEndpoint() != nil, sb)
 		defer func() {
 			if err != nil {
 				sb.resolver = nil
