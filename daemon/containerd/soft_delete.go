@@ -11,6 +11,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const imageNameDanglingPrefix = "moby-dangling@"
+
 // softImageDelete deletes the image, making sure that there are other images
 // that reference the content of the deleted image.
 // If no other image exists, a dangling one is created.
@@ -74,7 +76,7 @@ func (i *ImageService) ensureDanglingImage(ctx context.Context, from containerdi
 }
 
 func danglingImageName(digest digest.Digest) string {
-	return "moby-dangling@" + digest.String()
+	return imageNameDanglingPrefix + digest.String()
 }
 
 func isDanglingImage(image containerdimages.Image) bool {

@@ -64,7 +64,8 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 
 	imgID := image.ID(img.Target.Digest)
 
-	if isImageIDPrefix(imgID.String(), imageRef) {
+	explicitDanglingRef := strings.HasPrefix(imageRef, imageNameDanglingPrefix) && isDanglingImage(img)
+	if isImageIDPrefix(imgID.String(), imageRef) || explicitDanglingRef {
 		return i.deleteAll(ctx, img, force, prune)
 	}
 
@@ -260,8 +261,10 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img images.Image, 
 		return err
 	}
 
-	i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
-	*records = append(*records, types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(untaggedRef)})
+	if !isDanglingImage(img) {
+		i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
+		*records = append(*records, types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(untaggedRef)})
+	}
 
 	return nil
 }
