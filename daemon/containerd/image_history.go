@@ -4,6 +4,8 @@ import (
 	"context"
 	"sort"
 
+	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
@@ -17,7 +19,7 @@ import (
 // ImageHistory returns a slice of HistoryResponseItem structures for the
 // specified image name by walking the image lineage.
 func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imagetype.HistoryResponseItem, error) {
-	desc, err := i.resolveImage(ctx, name)
+	img, err := i.resolveImage(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +29,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 	platform := platforms.AllPlatformsWithPreference(cplatforms.Default())
 
 	var presentImages []ocispec.Image
-	err = i.walkImageManifests(ctx, desc, func(img *ImageManifest) error {
+	err = i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
 		conf, err := img.Config(ctx)
 		if err != nil {
 			return err
@@ -89,26 +91,43 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 		}}, history...)
 	}
 
-	if len(history) != 0 {
-		history[0].ID = desc.Target.Digest.String()
-
-		tagged, err := i.client.ImageService().List(ctx, "target.digest=="+desc.Target.Digest.String())
+	findParents := func(img images.Image) []images.Image {
+		imgs, err := i.getParentsByBuilderLabel(ctx, img)
 		if err != nil {
-			return nil, err
+			log.G(ctx).WithFields(log.Fields{
+				"error": err,
+				"image": img,
+			}).Warnf("failed to list parent images")
+			return nil
 		}
+		return imgs
+	}
 
-		var tags []string
-		for _, t := range tagged {
-			if isDanglingImage(t) {
+	currentImg := img
+	for _, h := range history {
+		h.ID = currentImg.Target.Digest.String()
+		imgs := findParents(currentImg)
+
+		foundNext := false
+		for _, img := range imgs {
+			if _, ok := img.Labels[imageLabelClassicBuilderParent]; ok {
+				currentImg = img
+				foundNext = true
+			}
+
+			if isDanglingImage(img) {
 				continue
 			}
-			name, err := reference.ParseNamed(t.Name)
+			name, err := reference.ParseNamed(img.Name)
 			if err != nil {
 				return nil, err
 			}
-			tags = append(tags, reference.FamiliarString(name))
+			h.Tags = append(h.Tags, reference.FamiliarString(name))
 		}
-		history[0].Tags = tags
+
+		if !foundNext {
+			break
+		}
 	}
 
 	return history, nil
