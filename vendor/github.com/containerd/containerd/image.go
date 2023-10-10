@@ -437,7 +437,15 @@ func (i *image) getLayers(ctx context.Context, platform platforms.MatchComparer,
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve rootfs: %w", err)
 	}
-	if len(diffIDs) != len(manifest.Layers) {
+
+	// parse out the image layers from oci artifact layers
+	imageLayers := []ocispec.Descriptor{}
+	for _, ociLayer := range manifest.Layers {
+		if images.IsLayerType(ociLayer.MediaType) {
+			imageLayers = append(imageLayers, ociLayer)
+		}
+	}
+	if len(diffIDs) != len(imageLayers) {
 		return nil, errors.New("mismatched image rootfs and manifest layers")
 	}
 	layers := make([]rootfs.Layer, len(diffIDs))
@@ -447,7 +455,7 @@ func (i *image) getLayers(ctx context.Context, platform platforms.MatchComparer,
 			MediaType: ocispec.MediaTypeImageLayer,
 			Digest:    diffIDs[i],
 		}
-		layers[i].Blob = manifest.Layers[i]
+		layers[i].Blob = imageLayers[i]
 	}
 	return layers, nil
 }
