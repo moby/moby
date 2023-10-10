@@ -157,36 +157,39 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, m
 
 	err = remotes.PushContent(ctx, pusher, target, store, limiter, platforms.All, handlerWrapper)
 	if err != nil {
-		if containerdimages.IsIndexType(target.MediaType) {
-			if cerrdefs.IsNotFound(err) {
-				err = errdefs.NotFound(fmt.Errorf(
-					"missing content: %w\n"+
-						"Note: You're trying to push a manifest list/index which "+
-						"references multiple platform specific manifests, but not all of them are available locally "+
-						"or available to the remote repository.\n"+
-						"Make sure you have all the referenced content and try again.",
-					err))
-			}
+		if containerdimages.IsIndexType(target.MediaType) && cerrdefs.IsNotFound(err) {
+			return errdefs.NotFound(fmt.Errorf(
+				"missing content: %w\n"+
+					"Note: You're trying to push a manifest list/index which "+
+					"references multiple platform specific manifests, but not all of them are available locally "+
+					"or available to the remote repository.\n"+
+					"Make sure you have all the referenced content and try again.",
+				err))
 		}
-	} else {
-		appendSource, err := docker.AppendDistributionSourceLabel(realStore, targetRef.String())
-		if err != nil {
-			// This shouldn't happen at this point because the reference would have to be invalid
-			// and if it was, then it would error out earlier.
-			return errdefs.Unknown(errors.Wrap(err, "failed to create an handler that appends distribution source label to pushed content"))
-		}
-
-		if err := containerdimages.Dispatch(ctx, appendSource, nil, target); err != nil {
-			// Shouldn't happen, but even if it would fail, then make it only a warning
-			// because it doesn't affect the pushed data.
-			log.G(ctx).WithError(err).Warn("failed to append distribution source labels to pushed content")
-		}
+		return err
 	}
 
-	if err == nil {
-		i.LogImageEvent(reference.FamiliarString(targetRef), reference.FamiliarName(targetRef), events.ActionPush)
+	appendDistributionSourceLabel(ctx, realStore, targetRef, target)
+
+	i.LogImageEvent(reference.FamiliarString(targetRef), reference.FamiliarName(targetRef), events.ActionPush)
+
+	return nil
+}
+
+func appendDistributionSourceLabel(ctx context.Context, realStore content.Store, targetRef reference.Named, target ocispec.Descriptor) {
+	appendSource, err := docker.AppendDistributionSourceLabel(realStore, targetRef.String())
+	if err != nil {
+		// This shouldn't happen at this point because the reference would have to be invalid
+		// and if it was, then it would error out earlier.
+		log.G(ctx).WithError(err).Warn("failed to create an handler that appends distribution source label to pushed content")
+		return
 	}
-	return err
+
+	if err := containerdimages.Dispatch(ctx, appendSource, nil, target); err != nil {
+		// Shouldn't happen, but even if it would fail, then make it only a warning
+		// because it doesn't affect the pushed data.
+		log.G(ctx).WithError(err).Warn("failed to append distribution source labels to pushed content")
+	}
 }
 
 // findMissingMountable will walk the target descriptor recursively and return
