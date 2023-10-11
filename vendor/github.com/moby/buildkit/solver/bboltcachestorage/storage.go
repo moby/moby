@@ -54,6 +54,10 @@ func (s *Store) Exists(id string) bool {
 	return exists
 }
 
+func (s *Store) Close() error {
+	return s.db.Close()
+}
+
 func (s *Store) Walk(fn func(id string) error) error {
 	ids := make([]string, 0)
 	if err := s.db.View(func(tx *bolt.Tx) error {

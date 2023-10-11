@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/platforms"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/moby/buildkit/cache"
@@ -27,6 +28,8 @@ import (
 	attestationTypes "github.com/moby/buildkit/util/attestation"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
+	"github.com/moby/buildkit/util/contentutil"
+	"github.com/moby/buildkit/util/converter"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/purl"
 	"github.com/moby/buildkit/util/system"
@@ -133,7 +136,14 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 
 		config := exptypes.ParseKey(inp.Metadata, exptypes.ExporterImageConfigKey, p)
 		inlineCache := exptypes.ParseKey(inp.Metadata, exptypes.ExporterInlineCache, p)
-		mfstDesc, configDesc, err := ic.commitDistributionManifest(ctx, opts, ref, config, &remotes[0], annotations, inlineCache, opts.Epoch, session.NewGroup(sessionID))
+		remote := &remotes[0]
+		if opts.RewriteTimestamp {
+			remote, err = ic.rewriteRemoteWithEpoch(ctx, opts, remote)
+			if err != nil {
+				return nil, err
+			}
+		}
+		mfstDesc, configDesc, err := ic.commitDistributionManifest(ctx, opts, ref, config, remote, annotations, inlineCache, opts.Epoch, session.NewGroup(sessionID))
 		if err != nil {
 			return nil, err
 		}
@@ -196,6 +206,13 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 		if remote == nil {
 			remote = &solver.Remote{
 				Provider: ic.opt.ContentStore,
+			}
+		}
+
+		if opts.RewriteTimestamp {
+			remote, err = ic.rewriteRemoteWithEpoch(ctx, opts, remote)
+			if err != nil {
+				return nil, err
 			}
 		}
 
@@ -323,6 +340,52 @@ func (ic *ImageWriter) exportLayers(ctx context.Context, refCfg cacheconfig.RefC
 	return out, err
 }
 
+// rewriteImageLayerWithEpoch rewrites the file timestamps in the layer blob to match the epoch, and returns a new descriptor that points to
+// the new blob.
+//
+// If no conversion is needed, this returns nil without error.
+func rewriteImageLayerWithEpoch(ctx context.Context, cs content.Store, desc ocispecs.Descriptor, comp compression.Config, epoch *time.Time) (*ocispecs.Descriptor, error) {
+	converterFn, err := converter.NewWithRewriteTimestamp(ctx, cs, desc, comp, epoch)
+	if err != nil {
+		return nil, err
+	}
+	if converterFn == nil {
+		return nil, nil
+	}
+	return converterFn(ctx, cs, desc)
+}
+
+func (ic *ImageWriter) rewriteRemoteWithEpoch(ctx context.Context, opts *ImageCommitOpts, remote *solver.Remote) (*solver.Remote, error) {
+	if opts.Epoch == nil {
+		bklog.G(ctx).Warn("rewrite-timestamp is specified, but no source-date-epoch was found")
+		return remote, nil
+	}
+	remoteDescriptors := remote.Descriptors
+	cs := contentutil.NewStoreWithProvider(ic.opt.ContentStore, remote.Provider)
+	eg, ctx := errgroup.WithContext(ctx)
+	rewriteDone := progress.OneOff(ctx,
+		fmt.Sprintf("rewriting layers with source-date-epoch %d (%s)", opts.Epoch.Unix(), opts.Epoch.String()))
+	for i, desc := range remoteDescriptors {
+		i, desc := i, desc
+		eg.Go(func() error {
+			if rewrittenDesc, err := rewriteImageLayerWithEpoch(ctx, cs, desc, opts.RefCfg.Compression, opts.Epoch); err != nil {
+				bklog.G(ctx).WithError(err).Warnf("failed to rewrite layer %d/%d to match source-date-epoch %d (%s)",
+					i+1, len(remoteDescriptors), opts.Epoch.Unix(), opts.Epoch.String())
+			} else if rewrittenDesc != nil {
+				remoteDescriptors[i] = *rewrittenDesc
+			}
+			return nil
+		})
+	}
+	if err := rewriteDone(eg.Wait()); err != nil {
+		return nil, err
+	}
+	return &solver.Remote{
+		Provider:    cs,
+		Descriptors: remoteDescriptors,
+	}, nil
+}
+
 func (ic *ImageWriter) commitDistributionManifest(ctx context.Context, opts *ImageCommitOpts, ref cache.ImmutableRef, config []byte, remote *solver.Remote, annotations *Annotations, inlineCache []byte, epoch *time.Time, sg session.Group) (*ocispecs.Descriptor, *ocispecs.Descriptor, error) {
 	if len(config) == 0 {
 		var err error
@@ -443,8 +506,8 @@ func (ic *ImageWriter) commitAttestationsManifest(ctx context.Context, opts *Ima
 			Digest:    digest,
 			Size:      int64(len(data)),
 			Annotations: map[string]string{
-				"containerd.io/uncompressed": digest.String(),
-				"in-toto.io/predicate-type":  statement.PredicateType,
+				labels.LabelUncompressed:    digest.String(),
+				"in-toto.io/predicate-type": statement.PredicateType,
 			},
 		}
 
@@ -552,7 +615,7 @@ func attestationsConfig(layers []ocispecs.Descriptor) ([]byte, error) {
 	img.Variant = intotoPlatform.Variant
 	img.RootFS.Type = "layers"
 	for _, layer := range layers {
-		img.RootFS.DiffIDs = append(img.RootFS.DiffIDs, digest.Digest(layer.Annotations["containerd.io/uncompressed"]))
+		img.RootFS.DiffIDs = append(img.RootFS.DiffIDs, digest.Digest(layer.Annotations[labels.LabelUncompressed]))
 	}
 	dt, err := json.Marshal(img)
 	return dt, errors.Wrap(err, "failed to create attestations image config")
@@ -577,7 +640,7 @@ func patchImageConfig(dt []byte, descs []ocispecs.Descriptor, history []ocispecs
 	var rootFS ocispecs.RootFS
 	rootFS.Type = "layers"
 	for _, desc := range descs {
-		rootFS.DiffIDs = append(rootFS.DiffIDs, digest.Digest(desc.Annotations["containerd.io/uncompressed"]))
+		rootFS.DiffIDs = append(rootFS.DiffIDs, digest.Digest(desc.Annotations[labels.LabelUncompressed]))
 	}
 	dt, err := json.Marshal(rootFS)
 	if err != nil {
@@ -735,7 +798,7 @@ func RemoveInternalLayerAnnotations(in map[string]string, oci bool) map[string]s
 	for k, v := range in {
 		// oci supports annotations but don't export internal annotations
 		switch k {
-		case "containerd.io/uncompressed", "buildkit/createdat":
+		case labels.LabelUncompressed, "buildkit/createdat":
 			continue
 		default:
 			if strings.HasPrefix(k, "containerd.io/distribution.source.") {

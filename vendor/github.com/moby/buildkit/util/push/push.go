@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/bklog"

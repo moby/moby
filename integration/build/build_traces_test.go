@@ -57,7 +57,12 @@ func TestBuildkitHistoryTracePropagation(t *testing.T) {
 	}()
 
 	eg.Go(func() error {
-		_, err := progressui.DisplaySolveStatus(ctxGo, nil, &testWriter{t}, ch, progressui.WithPhase("test"))
+		// FIXME(thaJeztah): verify these changes against https://github.com/moby/buildkit/commit/37131781d719f0ed5a182ebf6b2f6e91288bcd28 (https://github.com/moby/buildkit/pull/4113)
+		d, err := progressui.NewDisplay(&testWriter{t}, progressui.PlainMode, progressui.WithPhase("test"))
+		if err != nil {
+			return err
+		}
+		_, err = d.UpdateFrom(ctxGo, ch)
 		return err
 	})
 
@@ -110,5 +115,4 @@ func TestBuildkitHistoryTracePropagation(t *testing.T) {
 		}
 		return poll.Continue("trace not available yet")
 	}, poll.WithDelay(time.Second), poll.WithTimeout(30*time.Second))
-
 }

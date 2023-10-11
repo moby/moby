@@ -6,6 +6,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
@@ -273,7 +274,7 @@ func getLayers(ctx context.Context, provider content.Provider, desc ocispecs.Des
 		if desc.Annotations == nil {
 			desc.Annotations = map[string]string{}
 		}
-		desc.Annotations["containerd.io/uncompressed"] = diffIDs[i].String()
+		desc.Annotations[labels.LabelUncompressed] = diffIDs[i].String()
 		layers[i] = desc
 	}
 	return layers, nil

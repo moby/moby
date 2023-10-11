@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
@@ -221,7 +222,7 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 					if createdBy := createdMsg[i]; createdBy != "" {
 						m.Annotations["buildkit/description"] = createdBy
 					}
-					m.Annotations["containerd.io/uncompressed"] = img.Rootfs.DiffIDs[i].String()
+					m.Annotations[labels.LabelUncompressed] = img.Rootfs.DiffIDs[i].String()
 					layers[m.Digest] = v1.DescriptorProviderPair{
 						Descriptor: m,
 						Provider:   ci.provider,

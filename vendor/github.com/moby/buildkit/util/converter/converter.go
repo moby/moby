@@ -1,11 +1,13 @@
-package cache
+package converter
 
 import (
+	"archive/tar"
 	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
@@ -14,18 +16,30 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
+	"github.com/moby/buildkit/util/converter/tarconverter"
 	"github.com/moby/buildkit/util/iohelper"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
-// getConverter returns converter function according to the specified compression type.
+// New returns converter function according to the specified compression type.
 // If no conversion is needed, this returns nil without error.
-func getConverter(ctx context.Context, cs content.Store, desc ocispecs.Descriptor, comp compression.Config) (converter.ConvertFunc, error) {
-	if needs, err := comp.Type.NeedsConversion(ctx, cs, desc); err != nil {
+func New(ctx context.Context, cs content.Store, desc ocispecs.Descriptor, comp compression.Config) (converter.ConvertFunc, error) {
+	return NewWithRewriteTimestamp(ctx, cs, desc, comp, nil)
+}
+
+// NewWithRewriteTimestamp returns converter function according to the specified compression type and the epoch.
+// If no conversion is needed, this returns nil without error.
+func NewWithRewriteTimestamp(ctx context.Context, cs content.Store, desc ocispecs.Descriptor, comp compression.Config, rewriteTimestamp *time.Time) (converter.ConvertFunc, error) {
+	needs, err := comp.Type.NeedsConversion(ctx, cs, desc)
+	if err != nil {
 		return nil, errors.Wrapf(err, "failed to determine conversion needs")
-	} else if !needs {
+	}
+	if !needs && rewriteTimestamp != nil {
+		needs = desc.Annotations[labelRewrittenTimestamp] != fmt.Sprintf("%d", rewriteTimestamp.UTC().Unix())
+	}
+	if !needs {
 		// No conversion. No need to return an error here.
 		return nil, nil
 	}
@@ -38,21 +52,37 @@ func getConverter(ctx context.Context, cs content.Store, desc ocispecs.Descripto
 	c := conversion{target: comp}
 	c.compress, c.finalize = comp.Type.Compress(ctx, comp)
 	c.decompress = from.Decompress
+	c.rewriteTimestamp = rewriteTimestamp
 
 	return (&c).convert, nil
 }
 
 type conversion struct {
-	target     compression.Config
-	decompress compression.Decompressor
-	compress   compression.Compressor
-	finalize   compression.Finalizer
+	target           compression.Config
+	decompress       compression.Decompressor
+	compress         compression.Compressor
+	finalize         compression.Finalizer
+	rewriteTimestamp *time.Time
 }
 
 var bufioPool = sync.Pool{
 	New: func() interface{} {
 		return nil
 	},
+}
+
+func rewriteTimestampInTarHeader(epoch time.Time) tarconverter.HeaderConverter {
+	return func(hdr *tar.Header) {
+		if hdr.ModTime.After(epoch) {
+			hdr.ModTime = epoch
+		}
+		if hdr.AccessTime.After(epoch) {
+			hdr.AccessTime = epoch
+		}
+		if hdr.ChangeTime.After(epoch) {
+			hdr.ChangeTime = epoch
+		}
+	}
 }
 
 func (c *conversion) convert(ctx context.Context, cs content.Store, desc ocispecs.Descriptor) (*ocispecs.Descriptor, error) {
@@ -86,11 +116,17 @@ func (c *conversion) convert(ctx context.Context, cs content.Store, desc ocispec
 
 	// convert this layer
 	diffID := digest.Canonical.Digester()
-	rdr, err := c.decompress(ctx, cs, desc)
+	decR, err := c.decompress(ctx, cs, desc)
 	if err != nil {
 		return nil, err
 	}
-	defer rdr.Close()
+	defer decR.Close()
+	rdr := decR
+	if c.rewriteTimestamp != nil {
+		tcR := tarconverter.NewReader(decR, rewriteTimestampInTarHeader(*c.rewriteTimestamp))
+		defer tcR.Close()
+		rdr = tcR
+	}
 	if _, err := io.Copy(zw, io.TeeReader(rdr, diffID.Hash())); err != nil {
 		return nil, err
 	}
@@ -101,6 +137,9 @@ func (c *conversion) convert(ctx context.Context, cs content.Store, desc ocispec
 		return nil, errors.Wrap(err, "failed to flush diff during conversion")
 	}
 	labelz[labels.LabelUncompressed] = diffID.Digest().String() // update diffID label
+	if c.rewriteTimestamp != nil {
+		labelz[labelRewrittenTimestamp] = fmt.Sprintf("%d", c.rewriteTimestamp.UTC().Unix())
+	}
 	if err = w.Commit(ctx, 0, "", content.WithLabels(labelz)); err != nil && !errdefs.IsAlreadyExists(err) {
 		return nil, err
 	}
@@ -117,6 +156,9 @@ func (c *conversion) convert(ctx context.Context, cs content.Store, desc ocispec
 	newDesc.Digest = info.Digest
 	newDesc.Size = info.Size
 	newDesc.Annotations = map[string]string{labels.LabelUncompressed: diffID.Digest().String()}
+	if c.rewriteTimestamp != nil {
+		newDesc.Annotations[labelRewrittenTimestamp] = fmt.Sprintf("%d", c.rewriteTimestamp.UTC().Unix())
+	}
 	if c.finalize != nil {
 		a, err := c.finalize(ctx, cs)
 		if err != nil {
@@ -140,3 +182,5 @@ func (w *onceWriteCloser) Close() (err error) {
 	})
 	return
 }
+
+const labelRewrittenTimestamp = "buildkit/rewritten-timestamp"

@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/userns"
@@ -39,7 +40,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var additionalAnnotations = append(compression.EStargzAnnotations, containerdUncompressed)
+var additionalAnnotations = append(compression.EStargzAnnotations, labels.LabelUncompressed)
 
 // Ref is a reference to cacheable objects.
 type Ref interface {
@@ -443,7 +444,7 @@ func (cr *cacheRecord) remove(ctx context.Context, removeSnapshot bool) (rerr er
 			"id":             cr.ID(),
 			"refCount":       len(cr.refs),
 			"removeSnapshot": removeSnapshot,
-			"stack":          bklog.LazyStackTrace{},
+			"stack":          bklog.TraceLevelOnlyStack(),
 		})
 		if rerr != nil {
 			l = l.WithError(rerr)
@@ -487,7 +488,7 @@ func (sr *immutableRef) traceLogFields() logrus.Fields {
 		"refID":       fmt.Sprintf("%p", sr),
 		"newRefCount": len(sr.refs),
 		"mutable":     false,
-		"stack":       bklog.LazyStackTrace{},
+		"stack":       bklog.TraceLevelOnlyStack(),
 	}
 	if sr.equalMutable != nil {
 		m["equalMutableID"] = sr.equalMutable.ID()
@@ -627,7 +628,7 @@ func (sr *mutableRef) traceLogFields() logrus.Fields {
 		"refID":       fmt.Sprintf("%p", sr),
 		"newRefCount": len(sr.refs),
 		"mutable":     true,
-		"stack":       bklog.LazyStackTrace{},
+		"stack":       bklog.TraceLevelOnlyStack(),
 	}
 	if sr.equalMutable != nil {
 		m["equalMutableID"] = sr.equalMutable.ID()
@@ -733,7 +734,7 @@ func (sr *immutableRef) ociDesc(ctx context.Context, dhs DescHandlers, preferNon
 
 	diffID := sr.getDiffID()
 	if diffID != "" {
-		desc.Annotations["containerd.io/uncompressed"] = string(diffID)
+		desc.Annotations[labels.LabelUncompressed] = string(diffID)
 	}
 
 	createdAt := sr.GetCreatedAt()
@@ -1098,8 +1099,17 @@ func (sr *immutableRef) prepareRemoteSnapshotsStargzMode(ctx context.Context, s 
 					if err == nil { // usable as remote snapshot without unlazying.
 						defer func() {
 							// Remove tmp labels appended in this func
-							for k := range tmpLabels {
-								info.Labels[k] = ""
+							if info.Labels != nil {
+								for k := range tmpLabels {
+									info.Labels[k] = ""
+								}
+							} else {
+								// We are logging here to track to try to debug when and why labels are nil.
+								// Log can be removed when not happening anymore.
+								bklog.G(ctx).
+									WithField("snapshotID", snapshotID).
+									WithField("name", info.Name).
+									Debug("snapshots exist but labels are nil")
 							}
 							if _, err := r.cm.Snapshotter.Update(ctx, info, tmpFields...); err != nil {
 								bklog.G(ctx).Warn(errors.Wrapf(err,

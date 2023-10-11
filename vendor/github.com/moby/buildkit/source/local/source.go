@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/moby/buildkit/solver/pb"
 	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/util/bklog"
 
@@ -41,12 +43,59 @@ type localSource struct {
 	cm cache.Accessor
 }
 
-func (ls *localSource) ID() string {
-	return srctypes.LocalScheme
+func (ls *localSource) Schemes() []string {
+	return []string{srctypes.LocalScheme}
+}
+
+func (ls *localSource) Identifier(scheme, ref string, attrs map[string]string, platform *pb.Platform) (source.Identifier, error) {
+	id, err := NewLocalIdentifier(ref)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range attrs {
+		switch k {
+		case pb.AttrLocalSessionID:
+			id.SessionID = v
+			if p := strings.SplitN(v, ":", 2); len(p) == 2 {
+				id.Name = p[0] + "-" + id.Name
+				id.SessionID = p[1]
+			}
+		case pb.AttrIncludePatterns:
+			var patterns []string
+			if err := json.Unmarshal([]byte(v), &patterns); err != nil {
+				return nil, err
+			}
+			id.IncludePatterns = patterns
+		case pb.AttrExcludePatterns:
+			var patterns []string
+			if err := json.Unmarshal([]byte(v), &patterns); err != nil {
+				return nil, err
+			}
+			id.ExcludePatterns = patterns
+		case pb.AttrFollowPaths:
+			var paths []string
+			if err := json.Unmarshal([]byte(v), &paths); err != nil {
+				return nil, err
+			}
+			id.FollowPaths = paths
+		case pb.AttrSharedKeyHint:
+			id.SharedKeyHint = v
+		case pb.AttrLocalDiffer:
+			switch v {
+			case pb.AttrLocalDifferMetadata, "":
+				id.Differ = fsutil.DiffMetadata
+			case pb.AttrLocalDifferNone:
+				id.Differ = fsutil.DiffNone
+			}
+		}
+	}
+
+	return id, nil
 }
 
 func (ls *localSource) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, _ solver.Vertex) (source.SourceInstance, error) {
-	localIdentifier, ok := id.(*source.LocalIdentifier)
+	localIdentifier, ok := id.(*LocalIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid local identifier %v", id)
 	}
@@ -59,7 +108,7 @@ func (ls *localSource) Resolve(ctx context.Context, id source.Identifier, sm *se
 }
 
 type localSourceHandler struct {
-	src source.LocalIdentifier
+	src LocalIdentifier
 	sm  *session.Manager
 	*localSource
 }
@@ -186,15 +235,14 @@ func (ls *localSourceHandler) snapshot(ctx context.Context, caller session.Calle
 	}
 
 	opt := filesync.FSSendRequestOpt{
-		Name:             ls.src.Name,
-		IncludePatterns:  ls.src.IncludePatterns,
-		ExcludePatterns:  ls.src.ExcludePatterns,
-		FollowPaths:      ls.src.FollowPaths,
-		OverrideExcludes: false,
-		DestDir:          dest,
-		CacheUpdater:     &cacheUpdater{cc, mount.IdentityMapping()},
-		ProgressCb:       newProgressHandler(ctx, "transferring "+ls.src.Name+":"),
-		Differ:           ls.src.Differ,
+		Name:            ls.src.Name,
+		IncludePatterns: ls.src.IncludePatterns,
+		ExcludePatterns: ls.src.ExcludePatterns,
+		FollowPaths:     ls.src.FollowPaths,
+		DestDir:         dest,
+		CacheUpdater:    &cacheUpdater{cc, mount.IdentityMapping()},
+		ProgressCb:      newProgressHandler(ctx, "transferring "+ls.src.Name+":"),
+		Differ:          ls.src.Differ,
 	}
 
 	if idmap := mount.IdentityMapping(); idmap != nil {

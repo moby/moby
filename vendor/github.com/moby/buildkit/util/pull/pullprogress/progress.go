@@ -129,6 +129,10 @@ func trackProgress(ctx context.Context, desc ocispecs.Descriptor, manager PullMa
 
 		info, err := manager.Info(ctx, desc.Digest)
 		if err == nil {
+			// info.CreatedAt could be before started if parallel pull just completed
+			if info.CreatedAt.Before(started) {
+				started = info.CreatedAt
+			}
 			pw.Write(desc.Digest.String(), progress.Status{
 				Current:   int(info.Size),
 				Total:     int(info.Size),

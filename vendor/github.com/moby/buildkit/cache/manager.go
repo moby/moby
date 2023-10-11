@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/gc"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/leases"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/cache/metadata"
@@ -1657,7 +1658,7 @@ func sortDeleteRecords(toDelete []*deleteRecord) {
 }
 
 func diffIDFromDescriptor(desc ocispecs.Descriptor) (digest.Digest, error) {
-	diffIDStr, ok := desc.Annotations["containerd.io/uncompressed"]
+	diffIDStr, ok := desc.Annotations[labels.LabelUncompressed]
 	if !ok {
 		return "", errors.Errorf("missing uncompressed annotation for %s", desc.Digest)
 	}

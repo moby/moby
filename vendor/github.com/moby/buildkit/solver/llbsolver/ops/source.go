@@ -60,7 +60,7 @@ func (s *SourceOp) instance(ctx context.Context) (source.SourceInstance, error) 
 	if s.src != nil {
 		return s.src, nil
 	}
-	id, err := source.FromLLB(s.op, s.platform)
+	id, err := s.sm.Identifier(s.op, s.platform)
 	if err != nil {
 		return nil, err
 	}

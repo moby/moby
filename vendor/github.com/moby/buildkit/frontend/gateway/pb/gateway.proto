@@ -2,15 +2,13 @@ syntax = "proto3";
 
 package moby.buildkit.v1.frontend;
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "github.com/gogo/googleapis/google/rpc/status.proto";
-import "github.com/moby/buildkit/solver/pb/ops.proto";
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "github.com/moby/buildkit/api/types/worker.proto";
+import "github.com/moby/buildkit/solver/pb/ops.proto";
+import "github.com/moby/buildkit/sourcepolicy/pb/policy.proto";
 import "github.com/moby/buildkit/util/apicaps/pb/caps.proto";
 import "github.com/tonistiigi/fsutil/types/stat.proto";
-import "github.com/moby/buildkit/sourcepolicy/pb/policy.proto";
-
-
 
 option (gogoproto.sizer_all) = true;
 option (gogoproto.marshaler_all) = true;
@@ -70,7 +68,7 @@ message RefMap {
 }
 
 message Attestations {
-    repeated Attestation attestation = 1;
+	repeated Attestation attestation = 1;
 }
 
 message Attestation {
@@ -167,7 +165,7 @@ message SolveResponse {
 	// deprecated
 	string ref = 1; // can be used by readfile request
 	// deprecated
-/*	bytes ExporterAttr = 2;*/
+	// bytes ExporterAttr = 2;
 
 	// these fields are returned when allowMapReturn was set
 	Result result = 3;

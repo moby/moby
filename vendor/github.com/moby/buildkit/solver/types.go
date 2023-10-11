@@ -228,6 +228,17 @@ type CacheRecord struct {
 	key          *CacheKey
 }
 
+func (ck *CacheRecord) TraceFields() map[string]any {
+	return map[string]any{
+		"id":            ck.ID,
+		"size":          ck.Size,
+		"createdAt":     ck.CreatedAt,
+		"priority":      ck.Priority,
+		"cache_manager": ck.cacheManager.ID(),
+		"cache_key":     ck.key.TraceFields(),
+	}
+}
+
 // CacheManager determines if there is a result that matches the cache keys
 // generated during the build that could be reused instead of fully
 // reevaluating the vertex and its inputs. There can be multiple cache

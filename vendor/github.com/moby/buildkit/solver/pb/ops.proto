@@ -393,14 +393,14 @@ message MergeOp {
 }
 
 message LowerDiffInput {
-  int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
 }
 
 message UpperDiffInput {
-  int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
 }
 
 message DiffOp {
-  LowerDiffInput lower = 1;
-  UpperDiffInput upper = 2;
+	LowerDiffInput lower = 1;
+	UpperDiffInput upper = 2;
 }

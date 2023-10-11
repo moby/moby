@@ -7,7 +7,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/snapshots"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/compression"

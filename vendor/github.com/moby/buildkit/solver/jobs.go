@@ -484,7 +484,7 @@ func (jl *Solver) Get(id string) (*Job, error) {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, errors.Errorf("no such job %s", id)
+			return nil, errdefs.NewUnknownJobError(id)
 		default:
 		}
 		j, ok := jl.jobs[id]

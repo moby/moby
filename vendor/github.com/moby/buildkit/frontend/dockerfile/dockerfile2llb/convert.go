@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/platforms"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/client/llb/imagemetaresolver"
@@ -572,6 +572,9 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		if err != nil {
 			return nil, err
 		}
+		buildContext.Output = bctx.Output()
+	} else {
+		bctx := dockerui.DefaultMainContext(opts...)
 		buildContext.Output = bctx.Output()
 	}
 

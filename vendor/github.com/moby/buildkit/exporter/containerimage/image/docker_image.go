@@ -35,11 +35,8 @@ type ImageConfig struct {
 
 	Healthcheck *HealthConfig `json:",omitempty"` // Healthcheck describes how to check the container is healthy
 
-	//	NetworkDisabled bool                `json:",omitempty"` // Is network disabled
-	//	MacAddress      string              `json:",omitempty"` // Mac Address of the container
-	OnBuild     []string          // ONBUILD metadata that were defined on the image Dockerfile
-	StopTimeout *int              `json:",omitempty"` // Timeout (in seconds) to stop a container
-	Shell       strslice.StrSlice `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
+	OnBuild []string          // ONBUILD metadata that were defined on the image Dockerfile
+	Shell   strslice.StrSlice `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
 }
 
 // Image is the JSON structure which describes some basic information about the image.

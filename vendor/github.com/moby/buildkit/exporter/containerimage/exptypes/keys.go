@@ -72,4 +72,8 @@ var (
 	// Value: int (0-9) for gzip and estargz
 	// Value: int (0-22) for zstd
 	OptKeyCompressionLevel ImageExporterOptKey = "compression-level"
+
+	// Rewrite timestamps in layers to match SOURCE_DATE_EPOCH
+	// Value: bool <true|false>
+	OptKeyRewriteTimestamp ImageExporterOptKey = "rewrite-timestamp"
 )

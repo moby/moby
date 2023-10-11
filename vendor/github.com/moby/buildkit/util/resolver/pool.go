@@ -12,11 +12,12 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	distreference "github.com/docker/distribution/reference"
+	distreference "github.com/distribution/reference"
 	"github.com/moby/buildkit/session"
-	"github.com/moby/buildkit/source"
+	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/version"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 // DefaultPool is the default shared resolver pool instance
@@ -125,7 +126,7 @@ type Resolver struct {
 	auth    *dockerAuthorizer
 
 	is   images.Store
-	mode source.ResolveMode
+	mode ResolveMode
 }
 
 // HostsFunc implements registry configuration of this Resolver
@@ -177,7 +178,7 @@ func (r *Resolver) WithSession(s session.Group) *Resolver {
 }
 
 // WithImageStore returns new resolver that can also resolve from local images store
-func (r *Resolver) WithImageStore(is images.Store, mode source.ResolveMode) *Resolver {
+func (r *Resolver) WithImageStore(is images.Store, mode ResolveMode) *Resolver {
 	r2 := *r
 	r2.Resolver = r.Resolver
 	r2.is = is
@@ -195,7 +196,7 @@ func (r *Resolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher, er
 
 // Resolve attempts to resolve the reference into a name and descriptor.
 func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispecs.Descriptor, error) {
-	if r.mode == source.ResolveModePreferLocal && r.is != nil {
+	if r.mode == ResolveModePreferLocal && r.is != nil {
 		if img, err := r.is.Get(ctx, ref); err == nil {
 			return ref, img.Target, nil
 		}
@@ -207,11 +208,45 @@ func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispecs.De
 		return n, desc, nil
 	}
 
-	if r.mode == source.ResolveModeDefault && r.is != nil {
+	if r.mode == ResolveModeDefault && r.is != nil {
 		if img, err := r.is.Get(ctx, ref); err == nil {
 			return ref, img.Target, nil
 		}
 	}
 
 	return "", ocispecs.Descriptor{}, err
+}
+
+type ResolveMode int
+
+const (
+	ResolveModeDefault ResolveMode = iota
+	ResolveModeForcePull
+	ResolveModePreferLocal
+)
+
+func (r ResolveMode) String() string {
+	switch r {
+	case ResolveModeDefault:
+		return pb.AttrImageResolveModeDefault
+	case ResolveModeForcePull:
+		return pb.AttrImageResolveModeForcePull
+	case ResolveModePreferLocal:
+		return pb.AttrImageResolveModePreferLocal
+	default:
+		return ""
+	}
+}
+
+func ParseImageResolveMode(v string) (ResolveMode, error) {
+	switch v {
+	case pb.AttrImageResolveModeDefault, "":
+		return ResolveModeDefault, nil
+	case pb.AttrImageResolveModeForcePull:
+		return ResolveModeForcePull, nil
+	case pb.AttrImageResolveModePreferLocal:
+		return ResolveModePreferLocal, nil
+	default:
+		return 0, errors.Errorf("invalid resolvemode: %s", v)
+	}
 }
