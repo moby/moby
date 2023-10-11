@@ -171,30 +171,7 @@ func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pro
 }
 
 type pushProgress struct {
-	Tracker   docker.StatusTracker
-	mountable map[digest.Digest]struct{}
-	mutex     sync.Mutex
-}
-
-func (p *pushProgress) addMountable(dgst digest.Digest) {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	if p.mountable == nil {
-		p.mountable = map[digest.Digest]struct{}{}
-	}
-	p.mountable[dgst] = struct{}{}
-}
-
-func (p *pushProgress) isMountable(dgst digest.Digest) bool {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	if p.mountable == nil {
-		return false
-	}
-	_, has := p.mountable[dgst]
-	return has
+	Tracker docker.StatusTracker
 }
 
 func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out progress.Output, start time.Time) error {
