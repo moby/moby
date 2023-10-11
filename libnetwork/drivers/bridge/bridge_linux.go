@@ -1218,19 +1218,17 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	if network.config.ContainerIfacePrefix != "" {
 		containerVethPrefix = network.config.ContainerIfacePrefix
 	}
-	err = iNames.SetNames(endpoint.srcName, containerVethPrefix)
-	if err != nil {
+	if err := iNames.SetNames(endpoint.srcName, containerVethPrefix); err != nil {
 		return err
 	}
 
-	err = jinfo.SetGateway(network.bridge.gatewayIPv4)
-	if err != nil {
-		return err
-	}
-
-	err = jinfo.SetGatewayIPv6(network.bridge.gatewayIPv6)
-	if err != nil {
-		return err
+	if !network.config.Internal {
+		if err := jinfo.SetGateway(network.bridge.gatewayIPv4); err != nil {
+			return err
+		}
+		if err := jinfo.SetGatewayIPv6(network.bridge.gatewayIPv6); err != nil {
+			return err
+		}
 	}
 
 	return nil

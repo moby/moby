@@ -11,6 +11,8 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+// setupVerifyAndReconcile checks what IP addresses the given i interface has and ensures that they match the passed
+// network config. It also removes any extra unicast IPv6 addresses found.
 func setupVerifyAndReconcile(config *networkConfiguration, i *bridgeInterface) error {
 	// Fetch a slice of IPv4 addresses and a slice of IPv6 addresses from the bridge.
 	addrsv4, addrsv6, err := i.addresses()
@@ -21,18 +23,18 @@ func setupVerifyAndReconcile(config *networkConfiguration, i *bridgeInterface) e
 	addrv4, _ := selectIPv4Address(addrsv4, config.AddressIPv4)
 
 	// Verify that the bridge does have an IPv4 address.
-	if addrv4.IPNet == nil {
+	if !config.Internal && addrv4.IPNet == nil {
 		return &ErrNoIPAddr{}
 	}
 
 	// Verify that the bridge IPv4 address matches the requested configuration.
-	if config.AddressIPv4 != nil && !addrv4.IP.Equal(config.AddressIPv4.IP) {
+	if config.AddressIPv4 != nil && addrv4.IPNet != nil && !addrv4.IP.Equal(config.AddressIPv4.IP) {
 		return &IPv4AddrNoMatchError{IP: addrv4.IP, CfgIP: config.AddressIPv4.IP}
 	}
 
 	// Verify that one of the bridge IPv6 addresses matches the requested
 	// configuration.
-	if config.EnableIPv6 && !findIPv6Address(netlink.Addr{IPNet: bridgeIPv6}, addrsv6) {
+	if config.EnableIPv6 && !config.Internal && !findIPv6Address(netlink.Addr{IPNet: bridgeIPv6}, addrsv6) {
 		return (*IPv6AddrNoMatchError)(bridgeIPv6)
 	}
 

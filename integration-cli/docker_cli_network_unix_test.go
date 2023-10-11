@@ -31,6 +31,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 )
 
@@ -1611,7 +1612,7 @@ func (s *DockerCLINetworkSuite) TestDockerNetworkInternalMode(c *testing.T) {
 	assert.Assert(c, waitRun("second") == nil)
 	out, _, err := dockerCmdWithError("exec", "first", "ping", "-W", "4", "-c", "1", "8.8.8.8")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "100% packet loss"))
+	assert.Assert(c, is.Contains(out, "Network is unreachable"))
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
 	assert.NilError(c, err)
 }
