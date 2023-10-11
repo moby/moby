@@ -14,12 +14,11 @@ package etwlogs // import "github.com/docker/docker/daemon/logger/etwlogs"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"unsafe"
 
-	"github.com/Microsoft/go-winio/pkg/etw"
-	"github.com/Microsoft/go-winio/pkg/guid"
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"golang.org/x/sys/windows"
@@ -34,21 +33,18 @@ type etwLogs struct {
 
 const (
 	name             = "etwlogs"
-	providerGUID     = `a3693192-9ed6-46d2-a981-f8226c8363bd`
 	win32CallSuccess = 0
 )
 
 var (
 	modAdvapi32          = windows.NewLazySystemDLL("Advapi32.dll")
+	procEventRegister    = modAdvapi32.NewProc("EventRegister")
 	procEventWriteString = modAdvapi32.NewProc("EventWriteString")
+	procEventUnregister  = modAdvapi32.NewProc("EventUnregister")
 )
-
-var (
-	providerHandle windows.Handle
-	mu             sync.Mutex
-	refCount       int
-	provider       *etw.Provider
-)
+var providerHandle windows.Handle
+var refCount int
+var mu sync.Mutex
 
 func init() {
 	providerHandle = windows.InvalidHandle
@@ -74,7 +70,12 @@ func New(info logger.Info) (logger.Logger, error) {
 
 // Log logs the message to the ETW stream.
 func (etwLogger *etwLogs) Log(msg *logger.Message) error {
-	// TODO(thaJeztah): log structured events instead and use provider.WriteEvent().
+	if providerHandle == windows.InvalidHandle {
+		// This should never be hit, if it is, it indicates a programming error.
+		errorMessage := "ETWLogs cannot log the message, because the event provider has not been registered."
+		log.G(context.TODO()).Error(errorMessage)
+		return errors.New(errorMessage)
+	}
 	m := createLogMessage(etwLogger, msg)
 	logger.PutMessage(msg)
 	return callEventWriteString(m)
@@ -105,8 +106,7 @@ func registerETWProvider() error {
 	defer mu.Unlock()
 	if refCount == 0 {
 		var err error
-		provider, err = callEventRegister()
-		if err != nil {
+		if err = callEventRegister(); err != nil {
 			return err
 		}
 	}
@@ -119,43 +119,51 @@ func unregisterETWProvider() {
 	mu.Lock()
 	defer mu.Unlock()
 	if refCount == 1 {
-		if err := callEventUnregister(); err != nil {
-			// Not returning an error if EventUnregister fails, because etwLogs will continue to work
-			return
+		if callEventUnregister() {
+			refCount--
+			providerHandle = windows.InvalidHandle
 		}
-		refCount--
-		provider = nil
-		providerHandle = windows.InvalidHandle
+		// Not returning an error if EventUnregister fails, because etwLogs will continue to work
 	} else {
 		refCount--
 	}
 }
 
-func callEventRegister() (*etw.Provider, error) {
-	providerID, _ := guid.FromString(providerGUID)
-	p, err := etw.NewProviderWithOptions("", etw.WithID(providerID))
-	if err != nil {
-		log.G(context.TODO()).WithError(err).Error("Failed to register ETW provider")
-		return nil, fmt.Errorf("failed to register ETW provider: %v", err)
+func callEventRegister() error {
+	// The provider's GUID is {a3693192-9ed6-46d2-a981-f8226c8363bd}
+	guid := windows.GUID{
+		Data1: 0xa3693192,
+		Data2: 0x9ed6,
+		Data3: 0x46d2,
+		Data4: [8]byte{0xa9, 0x81, 0xf8, 0x22, 0x6c, 0x83, 0x63, 0xbd},
 	}
-	return p, nil
+
+	ret, _, _ := procEventRegister.Call(uintptr(unsafe.Pointer(&guid)), 0, 0, uintptr(unsafe.Pointer(&providerHandle)))
+	if ret != win32CallSuccess {
+		errorMessage := fmt.Sprintf("Failed to register ETW provider. Error: %d", ret)
+		log.G(context.TODO()).Error(errorMessage)
+		return errors.New(errorMessage)
+	}
+	return nil
 }
 
-// TODO(thaJeztah): port this function to github.com/Microsoft/go-winio/pkg/etw.
 func callEventWriteString(message string) error {
 	utf16message, err := windows.UTF16FromString(message)
+
 	if err != nil {
 		return err
 	}
 
 	ret, _, _ := procEventWriteString.Call(uintptr(providerHandle), 0, 0, uintptr(unsafe.Pointer(&utf16message[0])))
 	if ret != win32CallSuccess {
-		log.G(context.TODO()).WithError(err).Error("ETWLogs provider failed to log message")
-		return fmt.Errorf("ETWLogs provider failed to log message: %v", err)
+		errorMessage := fmt.Sprintf("ETWLogs provider failed to log message. Error: %d", ret)
+		log.G(context.TODO()).Error(errorMessage)
+		return errors.New(errorMessage)
 	}
 	return nil
 }
 
-func callEventUnregister() error {
-	return provider.Close()
+func callEventUnregister() bool {
+	ret, _, _ := procEventUnregister.Call(uintptr(providerHandle))
+	return ret == win32CallSuccess
 }
