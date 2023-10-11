@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
+	dockerarchive "github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/platforms"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/opencontainers/image-spec/specs-go"
@@ -148,6 +149,12 @@ func leaseContent(ctx context.Context, store content.Store, leasesManager leases
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
 func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
+	decompressed, err := dockerarchive.DecompressStream(inTar)
+	if err != nil {
+		return errors.Wrap(err, "failed to decompress input tar archive")
+	}
+	defer decompressed.Close()
+
 	opts := []containerd.ImportOpt{
 		// TODO(vvoland): Allow user to pass platform
 		containerd.WithImportPlatform(cplatforms.All),
@@ -164,7 +171,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 		}),
 	}
 
-	imgs, err := i.client.Import(ctx, inTar, opts...)
+	imgs, err := i.client.Import(ctx, decompressed, opts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Debug("failed to import image to containerd")
 		return errdefs.System(err)
