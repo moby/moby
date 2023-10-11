@@ -1,4 +1,4 @@
-//go:build !darwin && !windows
+//go:build !windows
 
 package containerfs // import "github.com/docker/docker/pkg/containerfs"
 
@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/moby/sys/mount"
+	"github.com/containerd/containerd/mount"
 	"github.com/pkg/errors"
 )
 
@@ -31,7 +31,7 @@ func EnsureRemoveAll(dir string) error {
 	maxRetry := 50
 
 	// Attempt to unmount anything beneath this dir first
-	mount.RecursiveUnmount(dir)
+	mount.UnmountRecursive(dir, 0)
 
 	for {
 		err := os.RemoveAll(dir)
@@ -65,7 +65,7 @@ func EnsureRemoveAll(dir string) error {
 			return err
 		}
 
-		if e := mount.Unmount(pe.Path); e != nil {
+		if e := mount.Unmount(pe.Path, 0); e != nil {
 			return errors.Wrapf(e, "error while removing %s", dir)
 		}
 

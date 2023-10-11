@@ -57,11 +57,11 @@ import (
 	"github.com/moby/buildkit/util/apicaps"
 )
 
-func newController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
+func newController(ctx context.Context, containerdClient *ctd.Client, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	if opt.UseSnapshotter {
-		return newSnapshotterController(ctx, rt, opt)
+		return newSnapshotterController(ctx, containerdClient, rt, opt)
 	}
-	return newGraphDriverController(ctx, rt, opt)
+	return newGraphDriverController(ctx, containerdClient, rt, opt)
 }
 
 func getTraceExporter(ctx context.Context) trace.SpanExporter {
@@ -72,7 +72,7 @@ func getTraceExporter(ctx context.Context) trace.SpanExporter {
 	return exp
 }
 
-func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
+func newSnapshotterController(ctx context.Context, containerdClient *ctd.Client, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	if err := os.MkdirAll(opt.Root, 0o711); err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo, err := containerd.NewWorkerOpt(opt.Root, opt.ContainerdAddress, opt.Snapshotter, opt.ContainerdNamespace,
 		opt.Rootless, map[string]string{
 			label.Snapshotter: opt.Snapshotter,
-		}, dns, nc, opt.ApparmorProfile, false, nil, "", ctd.WithTimeout(60*time.Second))
+		}, dns, nc, opt.ApparmorProfile, false, nil, "", nil, ctd.WithTimeout(60*time.Second))
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo.RegistryHosts = opt.RegistryHosts
 	wo.Labels = getLabels(opt, wo.Labels)
 
-	exec, err := newExecutor(opt.Root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile)
+	exec, err := newExecutor(opt.Root, containerdClient, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func openHistoryDB(root string, cfg *config.BuilderHistoryConfig) (*bolt.DB, *bk
 	return db, conf, nil
 }
 
-func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
+func newGraphDriverController(ctx context.Context, containerdClient *ctd.Client, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	if err := os.MkdirAll(opt.Root, 0o711); err != nil {
 		return nil, err
 	}
@@ -275,7 +275,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 	dns := getDNSConfig(opt.DNSConfig)
 
-	exec, err := newExecutor(root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile)
+	exec, err := newExecutor(root, containerdClient, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile)
 	if err != nil {
 		return nil, err
 	}

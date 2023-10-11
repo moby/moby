@@ -1,3 +1,5 @@
+//go:build !windows
+
 package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
 
 import (

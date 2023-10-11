@@ -1,4 +1,4 @@
-//go:build !freebsd && !linux && !windows
+//go:build !freebsd && !linux && !windows && !darwin
 
 package libnetwork
 
