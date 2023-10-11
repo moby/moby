@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -136,7 +137,7 @@ func (i *ImageService) deleteAll(ctx context.Context, img images.Image, force, p
 		return nil, err
 	}
 	defer func() {
-		if err := i.unleaseSnapshotsFromDeletedConfigs(context.Background(), possiblyDeletedConfigs); err != nil {
+		if err := i.unleaseSnapshotsFromDeletedConfigs(compatcontext.WithoutCancel(ctx), possiblyDeletedConfigs); err != nil {
 			log.G(ctx).WithError(err).Warn("failed to unlease snapshots")
 		}
 	}()
