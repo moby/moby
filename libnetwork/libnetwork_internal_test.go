@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -418,7 +419,8 @@ func TestSRVServiceQuery(t *testing.T) {
 
 	c.svcRecords[n.ID()] = sr
 
-	_, ip := ep.Info().Sandbox().ResolveService("_http._tcp.web.swarm")
+	ctx := context.Background()
+	_, ip := ep.Info().Sandbox().ResolveService(ctx, "_http._tcp.web.swarm")
 
 	if len(ip) == 0 {
 		t.Fatal(err)
@@ -427,7 +429,7 @@ func TestSRVServiceQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, ip = ep.Info().Sandbox().ResolveService("_host_http._tcp.web.swarm")
+	_, ip = ep.Info().Sandbox().ResolveService(ctx, "_host_http._tcp.web.swarm")
 
 	if len(ip) == 0 {
 		t.Fatal(err)
@@ -437,7 +439,7 @@ func TestSRVServiceQuery(t *testing.T) {
 	}
 
 	// Service name with invalid protocol name. Should fail without error
-	_, ip = ep.Info().Sandbox().ResolveService("_http._icmp.web.swarm")
+	_, ip = ep.Info().Sandbox().ResolveService(ctx, "_http._icmp.web.swarm")
 	if len(ip) != 0 {
 		t.Fatal("Valid response for invalid service name")
 	}
@@ -490,7 +492,8 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	ipToResolve := netutils.ReverseIP("192.168.0.1")
 
-	ipList, _ := n.ResolveName("service_test", types.IPv4)
+	ctx := context.Background()
+	ipList, _ := n.ResolveName(ctx, "service_test", types.IPv4)
 	if len(ipList) == 0 {
 		t.Fatal("There must be the VIP")
 	}
@@ -500,7 +503,7 @@ func TestServiceVIPReuse(t *testing.T) {
 	if ipList[0].String() != "192.168.0.1" {
 		t.Fatal("The service VIP is 192.168.0.1")
 	}
-	name := n.ResolveIP(ipToResolve)
+	name := n.ResolveIP(ctx, ipToResolve)
 	if name == "" {
 		t.Fatal("It must return a name")
 	}
@@ -510,7 +513,7 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	// Delete service record for one of the services, the IP should remain because one service is still associated with it
 	n.deleteSvcRecords("ep1", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
-	ipList, _ = n.ResolveName("service_test", types.IPv4)
+	ipList, _ = n.ResolveName(ctx, "service_test", types.IPv4)
 	if len(ipList) == 0 {
 		t.Fatal("There must be the VIP")
 	}
@@ -520,7 +523,7 @@ func TestServiceVIPReuse(t *testing.T) {
 	if ipList[0].String() != "192.168.0.1" {
 		t.Fatal("The service VIP is 192.168.0.1")
 	}
-	name = n.ResolveIP(ipToResolve)
+	name = n.ResolveIP(ctx, ipToResolve)
 	if name == "" {
 		t.Fatal("It must return a name")
 	}
@@ -530,7 +533,7 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	// Delete again the service using the previous service ID, nothing should happen
 	n.deleteSvcRecords("ep2", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
-	ipList, _ = n.ResolveName("service_test", types.IPv4)
+	ipList, _ = n.ResolveName(ctx, "service_test", types.IPv4)
 	if len(ipList) == 0 {
 		t.Fatal("There must be the VIP")
 	}
@@ -540,7 +543,7 @@ func TestServiceVIPReuse(t *testing.T) {
 	if ipList[0].String() != "192.168.0.1" {
 		t.Fatal("The service VIP is 192.168.0.1")
 	}
-	name = n.ResolveIP(ipToResolve)
+	name = n.ResolveIP(ctx, ipToResolve)
 	if name == "" {
 		t.Fatal("It must return a name")
 	}
@@ -550,11 +553,11 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	// Delete now using the second service ID, now all the entries should be gone
 	n.deleteSvcRecords("ep2", "service_test", "serviceID2", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
-	ipList, _ = n.ResolveName("service_test", types.IPv4)
+	ipList, _ = n.ResolveName(ctx, "service_test", types.IPv4)
 	if len(ipList) != 0 {
 		t.Fatal("All the VIPs should be gone now")
 	}
-	name = n.ResolveIP(ipToResolve)
+	name = n.ResolveIP(ctx, ipToResolve)
 	if name != "" {
 		t.Fatalf("It must return empty no more services associated, instead:%s", name)
 	}

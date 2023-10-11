@@ -13,6 +13,9 @@ import (
 	"github.com/docker/docker/libnetwork/etchosts"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // SandboxOption is an option setter function type used to pass various options to
@@ -351,13 +354,13 @@ func (sb *Sandbox) HandleQueryResp(name string, ip net.IP) {
 	}
 }
 
-func (sb *Sandbox) ResolveIP(ip string) string {
+func (sb *Sandbox) ResolveIP(ctx context.Context, ip string) string {
 	var svc string
-	log.G(context.TODO()).Debugf("IP To resolve %v", ip)
+	log.G(ctx).Debugf("IP To resolve %v", ip)
 
 	for _, ep := range sb.Endpoints() {
 		n := ep.getNetwork()
-		svc = n.ResolveIP(ip)
+		svc = n.ResolveIP(ctx, ip)
 		if len(svc) != 0 {
 			return svc
 		}
@@ -368,8 +371,8 @@ func (sb *Sandbox) ResolveIP(ip string) string {
 
 // ResolveService returns all the backend details about the containers or hosts
 // backing a service. Its purpose is to satisfy an SRV query.
-func (sb *Sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
-	log.G(context.TODO()).Debugf("Service name To resolve: %v", name)
+func (sb *Sandbox) ResolveService(ctx context.Context, name string) ([]*net.SRV, []net.IP) {
+	log.G(ctx).Debugf("Service name To resolve: %v", name)
 
 	// There are DNS implementations that allow SRV queries for names not in
 	// the format defined by RFC 2782. Hence specific validations checks are
@@ -381,7 +384,7 @@ func (sb *Sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
 	for _, ep := range sb.Endpoints() {
 		n := ep.getNetwork()
 
-		srv, ip := n.ResolveService(name)
+		srv, ip := n.ResolveService(ctx, name)
 		if len(srv) > 0 {
 			return srv, ip
 		}
@@ -421,7 +424,7 @@ func getLocalNwEndpoints(epList []*Endpoint) []*Endpoint {
 	return eps
 }
 
-func (sb *Sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
+func (sb *Sandbox) ResolveName(ctx context.Context, name string, ipType int) ([]net.IP, bool) {
 	// Embedded server owns the docker network domain. Resolution should work
 	// for both container_name and container_name.network_name
 	// We allow '.' in service name and network name. For a name a.b.c.d the
@@ -431,7 +434,7 @@ func (sb *Sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	// {a.b in network c.d},
 	// {a in network b.c.d},
 
-	log.G(context.TODO()).Debugf("Name To resolve: %v", name)
+	log.G(ctx).Debugf("Name To resolve: %v", name)
 	name = strings.TrimSuffix(name, ".")
 	reqName := []string{name}
 	networkName := []string{""}
@@ -468,7 +471,7 @@ func (sb *Sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 
 	for i := 0; i < len(reqName); i++ {
 		// First check for local container alias
-		ip, ipv6Miss := sb.resolveName(reqName[i], networkName[i], epList, true, ipType)
+		ip, ipv6Miss := sb.resolveName(ctx, reqName[i], networkName[i], epList, true, ipType)
 		if ip != nil {
 			return ip, false
 		}
@@ -477,7 +480,7 @@ func (sb *Sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 		}
 
 		// Resolve the actual container name
-		ip, ipv6Miss = sb.resolveName(reqName[i], networkName[i], epList, false, ipType)
+		ip, ipv6Miss = sb.resolveName(ctx, reqName[i], networkName[i], epList, false, ipType)
 		if ip != nil {
 			return ip, false
 		}
@@ -488,7 +491,14 @@ func (sb *Sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	return nil, false
 }
 
-func (sb *Sandbox) resolveName(nameOrAlias string, networkName string, epList []*Endpoint, lookupAlias bool, ipType int) (_ []net.IP, ipv6Miss bool) {
+func (sb *Sandbox) resolveName(ctx context.Context, nameOrAlias string, networkName string, epList []*Endpoint, lookupAlias bool, ipType int) (_ []net.IP, ipv6Miss bool) {
+	ctx, span := otel.Tracer("").Start(ctx, "Sandbox.resolveName", trace.WithAttributes(
+		attribute.String("libnet.resolver.name-or-alias", nameOrAlias),
+		attribute.String("libnet.network.name", networkName),
+		attribute.Bool("libnet.resolver.alias-lookup", lookupAlias),
+		attribute.Int("libnet.resolver.ip-family", ipType)))
+	defer span.End()
+
 	for _, ep := range epList {
 		if lookupAlias && len(ep.aliases) == 0 {
 			continue
@@ -519,7 +529,7 @@ func (sb *Sandbox) resolveName(nameOrAlias string, networkName string, epList []
 			}
 		}
 
-		ip, miss := nw.ResolveName(name, ipType)
+		ip, miss := nw.ResolveName(ctx, name, ipType)
 		if ip != nil {
 			return ip, false
 		}

@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -13,7 +14,10 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/miekg/dns"
-	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/semaphore"
 	"golang.org/x/time/rate"
 )
@@ -26,13 +30,13 @@ type DNSBackend interface {
 	// the networks the sandbox is connected to. For IPv6 queries, second return
 	// value will be true if the name exists in docker domain but doesn't have an
 	// IPv6 address. Such queries shouldn't be forwarded to external nameservers.
-	ResolveName(name string, iplen int) ([]net.IP, bool)
+	ResolveName(ctx context.Context, name string, iplen int) ([]net.IP, bool)
 	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
 	// notation; the format used for DNS PTR records
-	ResolveIP(name string) string
+	ResolveIP(ctx context.Context, name string) string
 	// ResolveService returns all the backend details about the containers or hosts
 	// backing a service. Its purpose is to satisfy an SRV query
-	ResolveService(name string) ([]*net.SRV, []net.IP)
+	ResolveService(ctx context.Context, name string) ([]*net.SRV, []net.IP)
 	// ExecFunc allows a function to be executed in the context of the backend
 	// on behalf of the resolver.
 	ExecFunc(f func()) error
@@ -73,7 +77,7 @@ type Resolver struct {
 	listenAddress string
 	proxyDNS      bool
 	startCh       chan struct{}
-	logger        *logrus.Logger
+	logger        *log.Entry
 
 	fwdSem      *semaphore.Weighted // Limit the number of concurrent external DNS requests in-flight
 	logInverval rate.Sometimes      // Rate-limit logging about hitting the fwdSem limit
@@ -92,9 +96,9 @@ func NewResolver(address string, proxyDNS bool, backend DNSBackend) *Resolver {
 	}
 }
 
-func (r *Resolver) log() *logrus.Logger {
+func (r *Resolver) log(ctx context.Context) *log.Entry {
 	if r.logger == nil {
-		return log.G(context.TODO()).Logger
+		return log.G(ctx)
 	}
 	return r.logger
 }
@@ -146,7 +150,7 @@ func (r *Resolver) Start() error {
 	r.server = s
 	go func() {
 		if err := s.ActivateAndServe(); err != nil {
-			r.log().WithError(err).Error("[resolver] failed to start PacketConn DNS server")
+			r.log(context.TODO()).WithError(err).Error("[resolver] failed to start PacketConn DNS server")
 		}
 	}()
 
@@ -154,7 +158,7 @@ func (r *Resolver) Start() error {
 	r.tcpServer = tcpServer
 	go func() {
 		if err := tcpServer.ActivateAndServe(); err != nil {
-			r.log().WithError(err).Error("[resolver] failed to start TCP DNS server")
+			r.log(context.TODO()).WithError(err).Error("[resolver] failed to start TCP DNS server")
 		}
 	}()
 	return nil
@@ -224,10 +228,10 @@ func createRespMsg(query *dns.Msg) *dns.Msg {
 	return resp
 }
 
-func (r *Resolver) handleMXQuery(query *dns.Msg) (*dns.Msg, error) {
+func (r *Resolver) handleMXQuery(ctx context.Context, query *dns.Msg) (*dns.Msg, error) {
 	name := query.Question[0].Name
-	addrv4, _ := r.backend.ResolveName(name, types.IPv4)
-	addrv6, _ := r.backend.ResolveName(name, types.IPv6)
+	addrv4, _ := r.backend.ResolveName(ctx, name, types.IPv4)
+	addrv6, _ := r.backend.ResolveName(ctx, name, types.IPv6)
 
 	if addrv4 == nil && addrv6 == nil {
 		return nil, nil
@@ -241,17 +245,17 @@ func (r *Resolver) handleMXQuery(query *dns.Msg) (*dns.Msg, error) {
 	return resp, nil
 }
 
-func (r *Resolver) handleIPQuery(query *dns.Msg, ipType int) (*dns.Msg, error) {
+func (r *Resolver) handleIPQuery(ctx context.Context, query *dns.Msg, ipType int) (*dns.Msg, error) {
 	var (
 		addr     []net.IP
 		ipv6Miss bool
 		name     = query.Question[0].Name
 	)
-	addr, ipv6Miss = r.backend.ResolveName(name, ipType)
+	addr, ipv6Miss = r.backend.ResolveName(ctx, name, ipType)
 
 	if addr == nil && ipv6Miss {
 		// Send a reply without any Answer sections
-		r.log().Debugf("[resolver] lookup name %s present without IPv6 address", name)
+		r.log(ctx).Debugf("[resolver] lookup name %s present without IPv6 address", name)
 		resp := createRespMsg(query)
 		return resp, nil
 	}
@@ -259,7 +263,7 @@ func (r *Resolver) handleIPQuery(query *dns.Msg, ipType int) (*dns.Msg, error) {
 		return nil, nil
 	}
 
-	r.log().Debugf("[resolver] lookup for %s: IP %v", name, addr)
+	r.log(ctx).Debugf("[resolver] lookup for %s: IP %v", name, addr)
 
 	resp := createRespMsg(query)
 	if len(addr) > 1 {
@@ -283,7 +287,7 @@ func (r *Resolver) handleIPQuery(query *dns.Msg, ipType int) (*dns.Msg, error) {
 	return resp, nil
 }
 
-func (r *Resolver) handlePTRQuery(query *dns.Msg) (*dns.Msg, error) {
+func (r *Resolver) handlePTRQuery(ctx context.Context, query *dns.Msg) (*dns.Msg, error) {
 	ptr := query.Question[0].Name
 	name, after, found := strings.Cut(ptr, ptrIPv4domain)
 	if !found || after != "" {
@@ -295,12 +299,12 @@ func (r *Resolver) handlePTRQuery(query *dns.Msg) (*dns.Msg, error) {
 		return nil, nil
 	}
 
-	host := r.backend.ResolveIP(name)
+	host := r.backend.ResolveIP(ctx, name)
 	if host == "" {
 		return nil, nil
 	}
 
-	r.log().Debugf("[resolver] lookup for IP %s: name %s", name, host)
+	r.log(ctx).Debugf("[resolver] lookup for IP %s: name %s", name, host)
 	fqdn := dns.Fqdn(host)
 
 	resp := createRespMsg(query)
@@ -311,9 +315,9 @@ func (r *Resolver) handlePTRQuery(query *dns.Msg) (*dns.Msg, error) {
 	return resp, nil
 }
 
-func (r *Resolver) handleSRVQuery(query *dns.Msg) (*dns.Msg, error) {
+func (r *Resolver) handleSRVQuery(ctx context.Context, query *dns.Msg) (*dns.Msg, error) {
 	svc := query.Question[0].Name
-	srv, ip := r.backend.ResolveService(svc)
+	srv, ip := r.backend.ResolveService(ctx, svc)
 
 	if len(srv) == 0 {
 		return nil, nil
@@ -351,29 +355,37 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 	queryName := query.Question[0].Name
 	queryType := query.Question[0].Qtype
 
+	ctx, span := otel.Tracer("").Start(context.Background(), "resolver.serveDNS", trace.WithAttributes(
+		attribute.String("libnet.resolver.query.name", queryName),
+		attribute.String("libnet.resolver.query.type", dns.TypeToString[queryType]),
+	))
+	defer span.End()
+
 	switch queryType {
 	case dns.TypeA:
-		resp, err = r.handleIPQuery(query, types.IPv4)
+		resp, err = r.handleIPQuery(ctx, query, types.IPv4)
 	case dns.TypeAAAA:
-		resp, err = r.handleIPQuery(query, types.IPv6)
+		resp, err = r.handleIPQuery(ctx, query, types.IPv6)
 	case dns.TypeMX:
-		resp, err = r.handleMXQuery(query)
+		resp, err = r.handleMXQuery(ctx, query)
 	case dns.TypePTR:
-		resp, err = r.handlePTRQuery(query)
+		resp, err = r.handlePTRQuery(ctx, query)
 	case dns.TypeSRV:
-		resp, err = r.handleSRVQuery(query)
+		resp, err = r.handleSRVQuery(ctx, query)
 	default:
-		r.log().Debugf("[resolver] query type %s is not supported by the embedded DNS and will be forwarded to external DNS", dns.TypeToString[queryType])
+		r.log(ctx).Debugf("[resolver] query type %s is not supported by the embedded DNS and will be forwarded to external DNS", dns.TypeToString[queryType])
 	}
 
 	reply := func(msg *dns.Msg) {
 		if err = w.WriteMsg(msg); err != nil {
-			r.log().WithError(err).Errorf("[resolver] failed to write response")
+			r.log(ctx).WithError(err).Errorf("[resolver] failed to write response")
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "WriteMsg failed")
 		}
 	}
 
 	if err != nil {
-		r.log().WithError(err).Errorf("[resolver] failed to handle query: %s (%s)", queryName, dns.TypeToString[queryType])
+		r.log(ctx).WithError(err).Errorf("[resolver] failed to handle query: %s (%s)", queryName, dns.TypeToString[queryType])
 		reply(new(dns.Msg).SetRcode(query, dns.RcodeServerFailure))
 		return
 	}
@@ -393,6 +405,9 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 			}
 		}
 		resp.Truncate(maxSize)
+		span.AddEvent("found local record", trace.WithAttributes(
+			attribute.String("libnet.resolver.resp", resp.String()),
+		))
 		reply(resp)
 		return
 	}
@@ -406,7 +421,7 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 			!strings.Contains(strings.TrimSuffix(queryName, "."), ".") {
 			resp = createRespMsg(query)
 		} else {
-			resp = r.forwardExtDNS(w.LocalAddr().Network(), query)
+			resp = r.forwardExtDNS(ctx, w.LocalAddr().Network(), query)
 		}
 	}
 
@@ -448,25 +463,31 @@ func (r *Resolver) dialExtDNS(proto string, server extDNSEntry) (net.Conn, error
 	return extConn, nil
 }
 
-func (r *Resolver) forwardExtDNS(proto string, query *dns.Msg) *dns.Msg {
+func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, query *dns.Msg) *dns.Msg {
+	ctx, span := otel.Tracer("").Start(ctx, "resolver.forwardExtDNS")
+	defer span.End()
+
 	for _, extDNS := range r.extDNSList {
 		if extDNS.IPStr == "" {
 			break
 		}
 
 		// limits the number of outstanding concurrent queries.
-		ctx, cancel := context.WithTimeout(context.Background(), extIOTimeout)
+		ctx, cancel := context.WithTimeout(ctx, extIOTimeout)
 		err := r.fwdSem.Acquire(ctx, 1)
 		cancel()
+
 		if err != nil {
-			r.logInverval.Do(func() {
-				r.log().Errorf("[resolver] more than %v concurrent queries", maxConcurrent)
-			})
+			if errors.Is(err, context.DeadlineExceeded) {
+				r.logInverval.Do(func() {
+					r.log(ctx).Errorf("[resolver] more than %v concurrent queries", maxConcurrent)
+				})
+			}
 			return new(dns.Msg).SetRcode(query, dns.RcodeRefused)
 		}
 		resp := func() *dns.Msg {
 			defer r.fwdSem.Release(1)
-			return r.exchange(proto, extDNS, query)
+			return r.exchange(ctx, proto, extDNS, query)
 		}()
 		if resp == nil {
 			continue
@@ -476,7 +497,7 @@ func (r *Resolver) forwardExtDNS(proto string, query *dns.Msg) *dns.Msg {
 		case dns.RcodeServerFailure, dns.RcodeRefused:
 			// Server returned FAILURE: continue with the next external DNS server
 			// Server returned REFUSED: this can be a transitional status, so continue with the next external DNS server
-			r.log().Debugf("[resolver] external DNS %s:%s returned failure:\n%s", proto, extDNS.IPStr, resp)
+			r.log(ctx).Debugf("[resolver] external DNS %s:%s returned failure:\n%s", proto, extDNS.IPStr, resp)
 			continue
 		}
 		answers := 0
@@ -486,34 +507,46 @@ func (r *Resolver) forwardExtDNS(proto string, query *dns.Msg) *dns.Msg {
 			case dns.TypeA:
 				answers++
 				ip := rr.(*dns.A).A
-				r.log().Debugf("[resolver] received A record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
+				r.log(ctx).Debugf("[resolver] received A record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
 				r.backend.HandleQueryResp(h.Name, ip)
 			case dns.TypeAAAA:
 				answers++
 				ip := rr.(*dns.AAAA).AAAA
-				r.log().Debugf("[resolver] received AAAA record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
+				r.log(ctx).Debugf("[resolver] received AAAA record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
 				r.backend.HandleQueryResp(h.Name, ip)
 			}
 		}
 		if len(resp.Answer) == 0 {
-			r.log().Debugf("[resolver] external DNS %s:%s returned response with no answers:\n%s", proto, extDNS.IPStr, resp)
+			r.log(ctx).Debugf("[resolver] external DNS %s:%s returned response with no answers:\n%s", proto, extDNS.IPStr, resp)
 		}
 		resp.Compress = true
+		span.AddEvent("response from upstream server", trace.WithAttributes(
+			attribute.String("libnet.resolver.resp", resp.String()),
+		))
 		return resp
 	}
 
+	span.AddEvent("no response from upstream servers")
 	return nil
 }
 
-func (r *Resolver) exchange(proto string, extDNS extDNSEntry, query *dns.Msg) *dns.Msg {
+func (r *Resolver) exchange(ctx context.Context, proto string, extDNS extDNSEntry, query *dns.Msg) *dns.Msg {
+	ctx, span := otel.Tracer("").Start(ctx, "resolver.exchange", trace.WithAttributes(
+		attribute.String("libnet.resolver.upstream.proto", proto),
+		attribute.String("libnet.resolver.upstream.address", extDNS.IPStr),
+		attribute.Bool("libnet.resolver.upstream.host-loopback", extDNS.HostLoopback)))
+	defer span.End()
+
 	extConn, err := r.dialExtDNS(proto, extDNS)
 	if err != nil {
-		r.log().WithError(err).Warn("[resolver] connect failed")
+		r.log(ctx).WithError(err).Warn("[resolver] connect failed")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "dialExtDNS failed")
 		return nil
 	}
 	defer extConn.Close()
 
-	logger := r.log().WithFields(log.Fields{
+	logger := r.log(ctx).WithFields(log.Fields{
 		"dns-server":  extConn.RemoteAddr().Network() + ":" + extConn.RemoteAddr().String(),
 		"client-addr": extConn.LocalAddr().Network() + ":" + extConn.LocalAddr().String(),
 		"question":    query.Question[0].String(),
@@ -534,13 +567,16 @@ func (r *Resolver) exchange(proto string, extDNS extDNSEntry, query *dns.Msg) *d
 		UDPSize: dns.MaxMsgSize,
 	}).ExchangeWithConn(query, &dns.Conn{Conn: extConn})
 	if err != nil {
-		r.log().WithError(err).Errorf("[resolver] failed to query DNS server: %s, query: %s", extConn.RemoteAddr().String(), query.Question[0].String())
+		r.log(ctx).WithError(err).Errorf("[resolver] failed to query DNS server: %s, query: %s", extConn.RemoteAddr().String(), query.Question[0].String())
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "ExchangeWithConn failed")
 		return nil
 	}
 
 	if resp == nil {
 		// Should be impossible, so make noise if it happens anyway.
 		logger.Error("[resolver] external DNS returned empty response")
+		span.SetStatus(codes.Error, "External DNS returned empty response")
 	}
 	return resp
 }
