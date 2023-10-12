@@ -11,7 +11,7 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/logging"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	mrpb "google.golang.org/genproto/googleapis/api/monitoredres"
 )
 

@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"golang.org/x/sys/unix"
 )
 

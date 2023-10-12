@@ -3,7 +3,7 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image/cache"

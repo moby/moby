@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/docker/libnetwork/types"

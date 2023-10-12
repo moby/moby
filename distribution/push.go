@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/pkg/progress"

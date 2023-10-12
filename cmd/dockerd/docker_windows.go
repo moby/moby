@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/Microsoft/go-winio/pkg/etwlogrus"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 func runDaemon(opts *daemonOptions) error {

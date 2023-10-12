@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/libnetwork"

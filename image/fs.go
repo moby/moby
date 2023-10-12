@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"

@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"

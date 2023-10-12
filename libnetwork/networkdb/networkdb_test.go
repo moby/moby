@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"

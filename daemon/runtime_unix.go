@@ -15,10 +15,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/plugin"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/containerd/runtime/v2/shim"
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/shimopts"

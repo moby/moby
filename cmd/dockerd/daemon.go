@@ -16,8 +16,8 @@ import (
 
 	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
 	containerddefaults "github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/tracing"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
 	buildbackend "github.com/docker/docker/api/server/backend/build"

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"syscall"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"

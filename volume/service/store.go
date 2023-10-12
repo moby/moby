@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"

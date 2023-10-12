@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
 	"github.com/hashicorp/go-multierror"
 	specs "github.com/opencontainers/runtime-spec/specs-go"

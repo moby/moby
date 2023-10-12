@@ -5,7 +5,7 @@ package main
 import (
 	"io"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 func runDaemon(opts *daemonOptions) error {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/events"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/copystructure"

@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd/containers"
-	"github.com/containerd/containerd/log"
 	coci "github.com/containerd/containerd/oci"
+	"github.com/containerd/log"
 	"github.com/docker/docker/container"
 	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/profiles/seccomp"

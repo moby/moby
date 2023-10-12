@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/coreos/go-systemd/v22/activation"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/go-connections/sockets"

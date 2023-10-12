@@ -3,8 +3,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/containerd/containerd/log"
 	ccaps "github.com/containerd/containerd/pkg/cap"
+	"github.com/containerd/log"
 )
 
 var initCapsOnce sync.Once

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"gotest.tools/v3/assert"
 )

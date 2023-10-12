@@ -7,7 +7,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"

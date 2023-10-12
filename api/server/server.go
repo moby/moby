@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httpstatus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"

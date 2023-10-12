@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/executor/container"
 	lncluster "github.com/docker/docker/libnetwork/cluster"

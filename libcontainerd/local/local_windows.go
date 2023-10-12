@@ -19,7 +19,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	cerrdefs "github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/queue"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"

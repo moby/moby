@@ -6,7 +6,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 // writeSystemProperty writes the value to a path under /proc/sys as determined from the key.

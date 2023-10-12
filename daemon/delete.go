@@ -10,7 +10,7 @@ import (
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"

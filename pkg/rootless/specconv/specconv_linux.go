@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 

@@ -14,7 +14,7 @@ import (
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"

@@ -34,8 +34,8 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/userns"
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"

@@ -8,7 +8,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/ishidawataru/sctp"
 )

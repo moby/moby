@@ -5,7 +5,7 @@ package kernel // import "github.com/docker/docker/pkg/parsers/kernel"
 import (
 	"context"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"golang.org/x/sys/unix"
 )
 

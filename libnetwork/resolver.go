@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/miekg/dns"
 	"go.opentelemetry.io/otel"

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"

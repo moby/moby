@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/diagnostic"
 	"github.com/docker/docker/libnetwork/internal/caller"
 )

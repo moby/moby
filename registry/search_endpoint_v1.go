@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types/registry"
 )

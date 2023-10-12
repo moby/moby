@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 func TestEnable(t *testing.T) {

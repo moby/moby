@@ -1,7 +1,7 @@
 package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
 
 import (
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 // WithLogLevel defines which log level to start containerd with.

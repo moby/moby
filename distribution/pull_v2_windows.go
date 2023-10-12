@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/Microsoft/hcsshim/osversion"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"

@@ -11,9 +11,9 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/services/server/config"
 	"github.com/containerd/containerd/sys"
+	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/process"
 	"github.com/docker/docker/pkg/system"

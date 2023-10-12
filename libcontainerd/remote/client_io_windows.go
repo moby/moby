@@ -7,7 +7,7 @@ import (
 
 	winio "github.com/Microsoft/go-winio"
 	"github.com/containerd/containerd/cio"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/pkg/errors"
 )
 

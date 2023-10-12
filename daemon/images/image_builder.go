@@ -6,8 +6,8 @@ import (
 	"io"
 	"runtime"
 
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	imagetypes "github.com/docker/docker/api/types/image"

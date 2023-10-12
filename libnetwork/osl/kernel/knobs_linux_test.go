@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

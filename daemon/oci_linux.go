@@ -11,10 +11,10 @@ import (
 
 	cdcgroups "github.com/containerd/cgroups/v3"
 	"github.com/containerd/containerd/containers"
-	"github.com/containerd/containerd/log"
 	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/pkg/apparmor"
 	"github.com/containerd/containerd/pkg/userns"
+	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	dconfig "github.com/docker/docker/daemon/config"

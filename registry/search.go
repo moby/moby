@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"

@@ -9,9 +9,9 @@ import (
 
 	ctd "github.com/containerd/containerd"
 	"github.com/containerd/containerd/content/local"
-	"github.com/containerd/containerd/log"
 	ctdmetadata "github.com/containerd/containerd/metadata"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"

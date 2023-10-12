@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/hashicorp/memberlist"
 )
 

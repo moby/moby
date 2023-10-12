@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 type policyLists struct {

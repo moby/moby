@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"

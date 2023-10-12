@@ -25,7 +25,7 @@ import (
 
 	// "github.com/docker/docker/api/types/container"
 	containerdimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"

@@ -19,10 +19,10 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	dist "github.com/docker/distribution"
 	"github.com/docker/docker/api/types"

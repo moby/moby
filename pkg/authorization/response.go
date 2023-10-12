@@ -9,7 +9,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 // ResponseModifier allows authorization plugins to read and modify the content of the http.response

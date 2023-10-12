@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/pkg/errors"

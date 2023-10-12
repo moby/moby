@@ -7,10 +7,10 @@ import (
 	"net/http"
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/version"
+	"github.com/containerd/log"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/useragent"

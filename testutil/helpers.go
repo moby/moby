@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -32,9 +32,7 @@ func (d devZero) Read(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-var (
-	tracingOnce sync.Once
-)
+var tracingOnce sync.Once
 
 // configureTracing sets up an OTLP tracing exporter for use in tests.
 func ConfigureTracing() func(context.Context) {

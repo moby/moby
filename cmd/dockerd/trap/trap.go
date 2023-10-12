@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 const (

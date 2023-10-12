@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/continuity/driver"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext/urlutil"

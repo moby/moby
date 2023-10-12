@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/hashicorp/memberlist"
 )
 

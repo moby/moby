@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	registrypkg "github.com/docker/docker/registry"

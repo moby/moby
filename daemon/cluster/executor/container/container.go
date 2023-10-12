@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
 	enginecontainer "github.com/docker/docker/api/types/container"

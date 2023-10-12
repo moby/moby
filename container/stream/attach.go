@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/moby/term"
 	"github.com/pkg/errors"

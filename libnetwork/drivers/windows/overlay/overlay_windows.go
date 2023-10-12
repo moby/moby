@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/scope"
 )
