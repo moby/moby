@@ -3,12 +3,12 @@ package containerd
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
@@ -215,14 +215,13 @@ func (i *ImageService) deleteAll(ctx context.Context, imgID image.ID, all []imag
 		}
 	}()
 
-	var parents []imageWithRootfs
+	var parents []containerdimages.Image
 	if prune {
 		// TODO(dmcgowan): Consider using GC labels to walk for deletion
 		parents, err = i.parents(ctx, imgID)
 		if err != nil {
 			log.G(ctx).WithError(err).Warn("failed to get image parents")
 		}
-		sortParentsByAffinity(parents)
 	}
 
 	for _, imageRef := range all {
@@ -234,15 +233,15 @@ func (i *ImageService) deleteAll(ctx context.Context, imgID image.ID, all []imag
 	records = append(records, imagetypes.DeleteResponse{Deleted: imgID.String()})
 
 	for _, parent := range parents {
-		if !isDanglingImage(parent.img) {
+		if !isDanglingImage(parent) {
 			break
 		}
-		err = i.imageDeleteHelper(ctx, parent.img, all, &records, conflictSoft)
+		err = i.imageDeleteHelper(ctx, parent, all, &records, conflictSoft)
 		if err != nil {
 			log.G(ctx).WithError(err).Warn("failed to remove image parent")
 			break
 		}
-		parentID := parent.img.Target.Digest.String()
+		parentID := parent.Target.Digest.String()
 		i.LogImageEvent(parentID, parentID, events.ActionDelete)
 		records = append(records, imagetypes.DeleteResponse{Deleted: parentID})
 	}
@@ -260,17 +259,6 @@ func isImageIDPrefix(imageID, possiblePrefix string) bool {
 		return strings.HasPrefix(imageID[i+1:], possiblePrefix)
 	}
 	return false
-}
-
-func sortParentsByAffinity(parents []imageWithRootfs) {
-	sort.Slice(parents, func(i, j int) bool {
-		lenRootfsI := len(parents[i].rootfs.DiffIDs)
-		lenRootfsJ := len(parents[j].rootfs.DiffIDs)
-		if lenRootfsI == lenRootfsJ {
-			return isDanglingImage(parents[i].img)
-		}
-		return lenRootfsI > lenRootfsJ
-	})
 }
 
 // getSameReferences returns the set of images which are the same as:

@@ -18,13 +18,14 @@ import (
 // - Details
 func dockerOciImageToDockerImagePartial(id image.ID, img imagespec.DockerOCIImage) *image.Image {
 	v1Image := image.V1Image{
-		DockerVersion: dockerversion.Version,
-		Config:        dockerOCIImageConfigToContainerConfig(img.Config),
-		Architecture:  img.Platform.Architecture,
-		Variant:       img.Platform.Variant,
-		OS:            img.Platform.OS,
-		Author:        img.Author,
-		Created:       img.Created,
+		DockerVersion:   dockerversion.Version,
+		Config:          dockerOCIImageConfigToContainerConfig(img.Config),
+		ContainerConfig: *dockerOCIImageConfigToContainerConfig(img.ContainerConfig),
+		Architecture:    img.Platform.Architecture,
+		Variant:         img.Platform.Variant,
+		OS:              img.Platform.OS,
+		Author:          img.Author,
+		Created:         img.Created,
 	}
 
 	rootFS := &image.RootFS{
@@ -66,7 +67,8 @@ func dockerImageToDockerOCIImage(img image.Image) imagespec.DockerOCIImage {
 			RootFS:  rootfs,
 			History: img.History,
 		},
-		Config: containerConfigToDockerOCIImageConfig(img.Config),
+		Config:          containerConfigToDockerOCIImageConfig(img.Config),
+		ContainerConfig: containerConfigToDockerOCIImageConfig(&img.ContainerConfig),
 	}
 }
 

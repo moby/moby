@@ -5,12 +5,14 @@ import (
 	"sort"
 
 	"github.com/containerd/containerd/images"
+	containerdimages "github.com/containerd/containerd/images"
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/platforms"
+	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -160,4 +162,25 @@ func getImageTags(ctx context.Context, imgs []images.Image) []string {
 	}
 
 	return tags
+}
+
+// getParentsByBuilderLabel finds images that were a base for the given image
+// by an image label set by the legacy builder.
+// NOTE: This only works for images built with legacy builder (not Buildkit).
+func (i *ImageService) getParentsByBuilderLabel(ctx context.Context, img containerdimages.Image) ([]containerdimages.Image, error) {
+	parent, ok := img.Labels[imageLabelClassicBuilderParent]
+	if !ok || parent == "" {
+		return nil, nil
+	}
+
+	dgst, err := digest.Parse(parent)
+	if err != nil {
+		log.G(ctx).WithFields(log.Fields{
+			"error": err,
+			"value": parent,
+		}).Warnf("invalid %s label value", imageLabelClassicBuilderParent)
+		return nil, nil
+	}
+
+	return i.client.ImageService().List(ctx, "target.digest=="+dgst.String())
 }

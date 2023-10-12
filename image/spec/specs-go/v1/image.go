@@ -14,6 +14,8 @@ type DockerOCIImage struct {
 
 	// Shadow ocispec.Image.Config
 	Config DockerOCIImageConfig `json:"config,omitempty"`
+
+	ContainerConfig DockerOCIImageConfig `json:"container_config,omitempty"`
 }
 
 // DockerOCIImageConfig is a ocispec.ImageConfig extended with Docker specific fields.

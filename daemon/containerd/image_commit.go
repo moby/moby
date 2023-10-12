@@ -144,7 +144,8 @@ func generateCommitImageConfig(baseConfig imagespec.DockerOCIImage, diffID diges
 				EmptyLayer: diffID == "",
 			}),
 		},
-		Config: containerConfigToDockerOCIImageConfig(opts.Config),
+		Config:          containerConfigToDockerOCIImageConfig(opts.Config),
+		ContainerConfig: containerConfigToDockerOCIImageConfig(opts.ContainerConfig),
 	}
 }
 
