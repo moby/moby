@@ -10,6 +10,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 type DockerCLIPullSuite struct {
@@ -133,6 +134,8 @@ func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *testing.T) {
 // TestPullAllTagsFromCentralRegistry pulls using `all-tags` for a given image and verifies that it
 // results in more images than a naked pull.
 func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *testing.T) {
+	// See https://github.com/moby/moby/issues/46632
+	skip.If(c, testEnv.UsingSnapshotter, "The image dockercore/engine-pull-all-test-fixture is a hand-made image that contains an error in the manifest, the size is reported as 424 but its real size is 524, containerd fails to pull it because it checks that the sizes reported are right")
 	testRequires(c, DaemonIsLinux)
 	s.Cmd(c, "pull", "dockercore/engine-pull-all-test-fixture")
 	outImageCmd := s.Cmd(c, "images", "dockercore/engine-pull-all-test-fixture")
