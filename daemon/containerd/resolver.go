@@ -11,6 +11,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/version"
 	"github.com/containerd/log"
+	"github.com/docker/distribution/registry/client/auth"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/useragent"
@@ -75,10 +76,14 @@ func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig) docker.Author
 				"host":    host,
 				"cfgHost": cfgHost,
 			}).Warn("Host doesn't match")
-			return "", "", nil
+			return "", "", auth.ErrNoBasicAuthCredentials
 		}
 		if authConfig.IdentityToken != "" {
 			return "", authConfig.IdentityToken, nil
+		}
+
+		if authConfig.Username == "" && authConfig.Password == "" {
+			return "", "", auth.ErrNoBasicAuthCredentials
 		}
 		return authConfig.Username, authConfig.Password, nil
 	}))
