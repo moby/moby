@@ -114,6 +114,15 @@ func WithRootless(daemon *Daemon) coci.SpecOpts {
 	}
 }
 
+// withRootfulInRootless is used for "rootful-in-rootless" dind;
+// the daemon is running in UserNS but has no access to RootlessKit API socket, host filesystem, etc.
+func withRootfulInRootless(daemon *Daemon, daemonCfg *dconfig.Config) coci.SpecOpts {
+	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		specconv.ToRootfulInRootless(s)
+		return nil
+	}
+}
+
 // WithOOMScore sets the oom score
 func WithOOMScore(score *int) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
@@ -1094,6 +1103,8 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	}
 	if daemon.configStore.Rootless {
 		opts = append(opts, WithRootless(daemon))
+	} else if userns.RunningInUserNS() {
+		opts = append(opts, withRootfulInRootless(daemon, daemon.configStore))
 	}
 	return &s, coci.ApplyOpts(context.Background(), nil, &containers.Container{
 		ID: c.ID,
