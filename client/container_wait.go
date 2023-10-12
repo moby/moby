@@ -66,8 +66,12 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 			//
 			// If there's a JSON parsing error, read the real error message
 			// off the body and send it to the client.
-			_, _ = io.ReadAll(io.LimitReader(stream, containerWaitErrorMsgLimit))
-			errC <- errors.New(responseText.String())
+			if errors.As(err, new(*json.SyntaxError)) {
+				_, _ = io.ReadAll(io.LimitReader(stream, containerWaitErrorMsgLimit))
+				errC <- errors.New(responseText.String())
+			} else {
+				errC <- err
+			}
 			return
 		}
 
