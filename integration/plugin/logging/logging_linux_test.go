@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -46,10 +47,10 @@ func TestContinueAfterPluginCrash(t *testing.T) {
 		),
 	)
 	cancel()
-	defer client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+	defer client.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
 	// Attach to the container to make sure it's written a few times to stdout
-	attach, err := client.ContainerAttach(ctx, id, types.ContainerAttachOptions{Stream: true, Stdout: true})
+	attach, err := client.ContainerAttach(ctx, id, containertypes.AttachOptions{Stream: true, Stdout: true})
 	assert.NilError(t, err)
 
 	chErr := make(chan error, 1)

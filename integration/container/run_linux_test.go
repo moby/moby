@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
@@ -191,7 +190,7 @@ func TestRunConsoleSize(t *testing.T) {
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
 
-	out, err := apiClient.ContainerLogs(ctx, cID, types.ContainerLogsOptions{ShowStdout: true})
+	out, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
 	defer out.Close()
 
@@ -246,7 +245,7 @@ func TestRunWithAlternativeContainerdShim(t *testing.T) {
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
 
-	out, err := apiClient.ContainerLogs(ctx, cID, types.ContainerLogsOptions{ShowStdout: true})
+	out, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
 	defer out.Close()
 
@@ -266,7 +265,7 @@ func TestRunWithAlternativeContainerdShim(t *testing.T) {
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
 
-	out, err = apiClient.ContainerLogs(ctx, cID, types.ContainerLogsOptions{ShowStdout: true})
+	out, err = apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
 	defer out.Close()
 
@@ -297,7 +296,7 @@ func TestMacAddressIsAppliedToMainNetworkWithShortID(t *testing.T) {
 		container.WithStopSignal("SIGKILL"),
 		container.WithNetworkMode(n[:10]),
 		container.WithMacAddress("02:42:08:26:a9:55"))
-	defer container.Remove(ctx, t, apiClient, cid, types.ContainerRemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, cid, containertypes.RemoveOptions{Force: true})
 
 	c := container.Inspect(ctx, t, apiClient, cid)
 	assert.Equal(t, c.NetworkSettings.Networks["testnet"].MacAddress, "02:42:08:26:a9:55")

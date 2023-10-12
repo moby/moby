@@ -461,7 +461,7 @@ func testGraphDriver(ctx context.Context, t *testing.T, c client.APIClient, driv
 		Path: "/hello",
 	}), "diffs: %v", diffs)
 
-	err = c.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
+	err = c.ContainerRemove(ctx, id, containertypes.RemoveOptions{
 		Force: true,
 	})
 	assert.NilError(t, err)

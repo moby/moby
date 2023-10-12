@@ -46,7 +46,7 @@ var acceptedImageFilterTags = map[string]bool{
 
 // byCreated is a temporary type used to sort a list of images by creation
 // time.
-type byCreated []*types.ImageSummary
+type byCreated []*imagetypes.Summary
 
 func (r byCreated) Len() int           { return len(r) }
 func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
@@ -57,7 +57,7 @@ func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 // TODO(thaJeztah): implement opts.ContainerCount (used for docker system df); see https://github.com/moby/moby/issues/43853
 // TODO(thaJeztah): verify behavior of `RepoDigests` and `RepoTags` for images without (untagged) or multiple tags; see https://github.com/moby/moby/issues/43861
 // TODO(thaJeztah): verify "Size" vs "VirtualSize" in images; see https://github.com/moby/moby/issues/43862
-func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
+func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*imagetypes.Summary, error) {
 	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 
 	var (
 		allContainers []*container.Container
-		summaries     = make([]*types.ImageSummary, 0, len(imgs))
+		summaries     = make([]*imagetypes.Summary, 0, len(imgs))
 		root          []*[]digest.Digest
 		layers        map[digest.Digest]int
 	)
@@ -208,7 +208,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	return summaries, nil
 }
 
-func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest, opts types.ImageListOptions, allContainers []*container.Container) (*types.ImageSummary, []digest.Digest, error) {
+func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest, opts types.ImageListOptions, allContainers []*container.Container) (*imagetypes.Summary, []digest.Digest, error) {
 	diffIDs, err := imageManifest.RootFS(ctx)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to get rootfs of image %s", imageManifest.Name())
@@ -276,7 +276,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		return nil, nil, err
 	}
 
-	summary := &types.ImageSummary{
+	summary := &imagetypes.Summary{
 		ParentID:    "",
 		ID:          target.String(),
 		Created:     rawImg.CreatedAt.Unix(),

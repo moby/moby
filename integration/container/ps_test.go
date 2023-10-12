@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
@@ -29,7 +30,7 @@ func TestPsFilter(t *testing.T) {
 
 	t.Run("since", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		results, err := apiClient.ContainerList(ctx, types.ContainerListOptions{
+		results, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
 			All:     true,
 			Filters: filters.NewArgs(filters.Arg("since", top)),
 		})
@@ -39,7 +40,7 @@ func TestPsFilter(t *testing.T) {
 
 	t.Run("before", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		results, err := apiClient.ContainerList(ctx, types.ContainerListOptions{
+		results, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
 			All:     true,
 			Filters: filters.NewArgs(filters.Arg("before", top)),
 		})

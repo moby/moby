@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/go-connections/nat"
 	"gotest.tools/v3/assert"
@@ -77,7 +77,7 @@ func TestNetworkLoopbackNat(t *testing.T) {
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
 
-	body, err := apiClient.ContainerLogs(ctx, cID, types.ContainerLogsOptions{
+	body, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)

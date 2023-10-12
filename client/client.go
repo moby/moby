@@ -19,7 +19,7 @@ For example, to list running containers (the equivalent of "docker ps"):
 		"context"
 		"fmt"
 
-		"github.com/docker/docker/api/types"
+		"github.com/docker/docker/api/types/container"
 		"github.com/docker/docker/client"
 	)
 
@@ -29,13 +29,13 @@ For example, to list running containers (the equivalent of "docker ps"):
 			panic(err)
 		}
 
-		containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+		containers, err := cli.ContainerList(context.Background(), container.ListOptions{})
 		if err != nil {
 			panic(err)
 		}
 
-		for _, container := range containers {
-			fmt.Printf("%s %s\n", container.ID[:10], container.Image)
+		for _, ctr := range containers {
+			fmt.Printf("%s %s\n", ctr.ID, ctr.Image)
 		}
 	}
 */

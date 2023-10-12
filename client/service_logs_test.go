@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -22,10 +22,10 @@ func TestServiceLogsError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ServiceLogs(context.Background(), "service_id", types.ContainerLogsOptions{})
+	_, err := client.ServiceLogs(context.Background(), "service_id", container.LogsOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 
-	_, err = client.ServiceLogs(context.Background(), "service_id", types.ContainerLogsOptions{
+	_, err = client.ServiceLogs(context.Background(), "service_id", container.LogsOptions{
 		Since: "2006-01-02TZ",
 	})
 	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
@@ -34,7 +34,7 @@ func TestServiceLogsError(t *testing.T) {
 func TestServiceLogs(t *testing.T) {
 	expectedURL := "/services/service_id/logs"
 	cases := []struct {
-		options             types.ContainerLogsOptions
+		options             container.LogsOptions
 		expectedQueryParams map[string]string
 		expectedError       string
 	}{
@@ -44,7 +44,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
-			options: types.ContainerLogsOptions{
+			options: container.LogsOptions{
 				Tail: "any",
 			},
 			expectedQueryParams: map[string]string{
@@ -52,7 +52,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
-			options: types.ContainerLogsOptions{
+			options: container.LogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
 				Timestamps: true,
@@ -69,7 +69,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
-			options: types.ContainerLogsOptions{
+			options: container.LogsOptions{
 				// timestamp will be passed as is
 				Since: "1136073600.000000001",
 			},
@@ -79,7 +79,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
-			options: types.ContainerLogsOptions{
+			options: container.LogsOptions{
 				// An complete invalid date will not be passed
 				Since: "invalid value",
 			},
@@ -124,7 +124,7 @@ func ExampleClient_ServiceLogs_withTimeout() {
 	defer cancel()
 
 	client, _ := NewClientWithOpts(FromEnv)
-	reader, err := client.ServiceLogs(ctx, "service_id", types.ContainerLogsOptions{})
+	reader, err := client.ServiceLogs(ctx, "service_id", container.LogsOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}

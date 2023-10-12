@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"gotest.tools/v3/assert"
 )
 
@@ -14,7 +14,7 @@ func (d *Daemon) ActiveContainers(ctx context.Context, t testing.TB) []string {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	containers, err := cli.ContainerList(context.Background(), container.ListOptions{})
 	assert.NilError(t, err)
 
 	ids := make([]string, len(containers))

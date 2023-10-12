@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/client"
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
@@ -459,7 +459,7 @@ func (s *DockerCLIEventSuite) TestEventsResize(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := types.ResizeOptions{
+	options := container.ResizeOptions{
 		Height: 80,
 		Width:  24,
 	}

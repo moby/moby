@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	winio "github.com/Microsoft/go-winio"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/testutil"
@@ -66,7 +65,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T
 		nil, nil, name)
 	assert.NilError(c, err)
 
-	err = client.ContainerStart(ctx, name, types.ContainerStartOptions{})
+	err = client.ContainerStart(ctx, name, container.StartOptions{})
 	assert.NilError(c, err)
 
 	err = <-ch

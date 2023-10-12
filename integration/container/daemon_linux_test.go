@@ -47,9 +47,9 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	c := d.NewClientT(t)
 
 	cID := container.Create(ctx, t, c)
-	defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
-	err := c.ContainerStart(ctx, cID, types.ContainerStartOptions{})
+	err := c.ContainerStart(ctx, cID, containertypes.StartOptions{})
 	assert.Check(t, err, "error starting test container")
 
 	inspect, err := c.ContainerInspect(ctx, cID)
@@ -68,7 +68,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 
 	d.Start(t, "--iptables=false")
 
-	err = c.ContainerStart(ctx, cID, types.ContainerStartOptions{})
+	err = c.ContainerStart(ctx, cID, containertypes.StartOptions{})
 	assert.Check(t, err, "failed to start test container")
 }
 
@@ -105,7 +105,7 @@ func TestDaemonRestartIpcMode(t *testing.T) {
 		container.WithCmd("top"),
 		container.WithRestartPolicy(containertypes.RestartPolicyAlways),
 	)
-	defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
 	inspect, err := c.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
@@ -121,7 +121,7 @@ func TestDaemonRestartIpcMode(t *testing.T) {
 
 	// check a new container is created with shareable ipc mode as per new daemon default
 	cID = container.Run(ctx, t, c)
-	defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
 	inspect, err = c.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
@@ -156,7 +156,7 @@ func TestDaemonHostGatewayIP(t *testing.T) {
 	inspect, err := c.NetworkInspect(ctx, "bridge", types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(res.Stdout(), inspect.IPAM.Config[0].Gateway))
-	c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+	c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 	d.Stop(t)
 
 	// Verify the IP in /etc/hosts is same as host-gateway-ip
@@ -169,7 +169,7 @@ func TestDaemonHostGatewayIP(t *testing.T) {
 	assert.Assert(t, is.Len(res.Stderr(), 0))
 	assert.Equal(t, 0, res.ExitCode)
 	assert.Check(t, is.Contains(res.Stdout(), "6.7.8.9"))
-	c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+	c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 	d.Stop(t)
 }
 

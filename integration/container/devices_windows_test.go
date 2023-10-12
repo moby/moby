@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
@@ -100,7 +99,7 @@ func TestWindowsDevices(t *testing.T) {
 			// remove this skip.If and validate the expected behaviour under Hyper-V.
 			skip.If(t, d.isolation == containertypes.IsolationHyperV && !d.expectedStartFailure, "FIXME. HyperV isolation setup is probably incorrect in the test")
 
-			err := apiClient.ContainerStart(ctx, id, types.ContainerStartOptions{})
+			err := apiClient.ContainerStart(ctx, id, containertypes.StartOptions{})
 			if d.expectedStartFailure {
 				assert.ErrorContains(t, err, d.expectedStartFailureMessage)
 				return

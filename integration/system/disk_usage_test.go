@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
@@ -36,7 +37,7 @@ func TestDiskUsage(t *testing.T) {
 				du, err := client.DiskUsage(ctx, types.DiskUsageOptions{})
 				assert.NilError(t, err)
 				assert.DeepEqual(t, du, types.DiskUsage{
-					Images:     []*types.ImageSummary{},
+					Images:     []*image.Summary{},
 					Containers: []*types.Container{},
 					Volumes:    []*volume.Volume{},
 					BuildCache: []*types.BuildCache{},
@@ -55,7 +56,7 @@ func TestDiskUsage(t *testing.T) {
 				assert.Equal(t, len(du.Images), 1)
 				assert.DeepEqual(t, du, types.DiskUsage{
 					LayersSize: du.LayersSize,
-					Images: []*types.ImageSummary{
+					Images: []*image.Summary{
 						{
 							Created:  du.Images[0].Created,
 							ID:       du.Images[0].ID,
@@ -83,8 +84,8 @@ func TestDiskUsage(t *testing.T) {
 				assert.Assert(t, du.Containers[0].Created >= prev.Images[0].Created)
 				assert.DeepEqual(t, du, types.DiskUsage{
 					LayersSize: prev.LayersSize,
-					Images: []*types.ImageSummary{
-						func() *types.ImageSummary {
+					Images: []*image.Summary{
+						func() *image.Summary {
 							sum := *prev.Images[0]
 							sum.Containers++
 							return &sum

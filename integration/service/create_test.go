@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/strslice"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
@@ -66,7 +67,7 @@ func testServiceCreateInit(ctx context.Context, daemonEnabled bool) func(t *test
 
 func inspectServiceContainer(ctx context.Context, t *testing.T, client client.APIClient, serviceID string) types.ContainerJSON {
 	t.Helper()
-	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
+	containers, err := client.ContainerList(ctx, container.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", "com.docker.swarm.service.id="+serviceID)),
 	})
 	assert.NilError(t, err)
@@ -230,7 +231,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, serviceID, instances), swarm.ServicePoll)
 
-	body, err := client.ServiceLogs(ctx, serviceID, types.ContainerLogsOptions{
+	body, err := client.ServiceLogs(ctx, serviceID, container.LogsOptions{
 		Tail:       "1",
 		ShowStdout: true,
 	})
@@ -287,7 +288,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, serviceID, instances))
 
-	body, err := client.ServiceLogs(ctx, serviceID, types.ContainerLogsOptions{
+	body, err := client.ServiceLogs(ctx, serviceID, container.LogsOptions{
 		Tail:       "1",
 		ShowStdout: true,
 	})

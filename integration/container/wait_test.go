@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
@@ -145,11 +144,11 @@ func TestWaitConditions(t *testing.T) {
 			containerID := container.Create(ctx, t, cli, opts...)
 			t.Logf("ContainerID = %v", containerID)
 
-			streams, err := cli.ContainerAttach(ctx, containerID, types.ContainerAttachOptions{Stream: true, Stdin: true})
+			streams, err := cli.ContainerAttach(ctx, containerID, containertypes.AttachOptions{Stream: true, Stdin: true})
 			assert.NilError(t, err)
 			defer streams.Close()
 
-			assert.NilError(t, cli.ContainerStart(ctx, containerID, types.ContainerStartOptions{}))
+			assert.NilError(t, cli.ContainerStart(ctx, containerID, containertypes.StartOptions{}))
 			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)
 			select {
 			case err := <-errC:
@@ -210,7 +209,7 @@ func TestWaitRestartedContainer(t *testing.T) {
 			containerID := container.Run(ctx, t, cli,
 				container.WithCmd("sh", "-c", "trap 'exit 5' SIGTERM; while true; do sleep 0.1; done"),
 			)
-			defer cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{Force: true})
+			defer cli.ContainerRemove(ctx, containerID, containertypes.RemoveOptions{Force: true})
 
 			// Container is running now, wait for exit
 			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)

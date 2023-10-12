@@ -77,7 +77,7 @@ func Run(ctx context.Context, t *testing.T, apiClient client.APIClient, ops ...f
 	t.Helper()
 	id := Create(ctx, t, apiClient, ops...)
 
-	err := apiClient.ContainerStart(ctx, id, types.ContainerStartOptions{})
+	err := apiClient.ContainerStart(ctx, id, container.StartOptions{})
 	assert.NilError(t, err)
 
 	return id
@@ -99,14 +99,14 @@ func RunAttach(ctx context.Context, t *testing.T, apiClient client.APIClient, op
 	})
 	id := Create(ctx, t, apiClient, ops...)
 
-	aresp, err := apiClient.ContainerAttach(ctx, id, types.ContainerAttachOptions{
+	aresp, err := apiClient.ContainerAttach(ctx, id, container.AttachOptions{
 		Stream: true,
 		Stdout: true,
 		Stderr: true,
 	})
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerStart(ctx, id, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, id, container.StartOptions{})
 	assert.NilError(t, err)
 
 	s, err := demultiplexStreams(ctx, aresp)
@@ -155,7 +155,7 @@ func demultiplexStreams(ctx context.Context, resp types.HijackedResponse) (strea
 	return s, err
 }
 
-func Remove(ctx context.Context, t *testing.T, apiClient client.APIClient, container string, options types.ContainerRemoveOptions) {
+func Remove(ctx context.Context, t *testing.T, apiClient client.APIClient, container string, options container.RemoveOptions) {
 	t.Helper()
 
 	err := apiClient.ContainerRemove(ctx, container, options)

@@ -353,7 +353,7 @@ func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, er
 			Data: img.Details.Metadata,
 		},
 		RootFS: rootFSToAPIType(img.RootFS),
-		Metadata: types.ImageMetadata{
+		Metadata: opts.Metadata{
 			LastTagTime: img.Details.LastUpdated,
 		},
 	}, nil

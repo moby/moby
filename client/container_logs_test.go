@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -22,7 +22,7 @@ func TestContainerLogsNotFoundError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
-	_, err := client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
+	_, err := client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
@@ -30,14 +30,14 @@ func TestContainerLogsError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
+	_, err := client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 
-	_, err = client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{
+	_, err = client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{
 		Since: "2006-01-02TZ",
 	})
 	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
-	_, err = client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{
+	_, err = client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{
 		Until: "2006-01-02TZ",
 	})
 	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
@@ -46,7 +46,7 @@ func TestContainerLogsError(t *testing.T) {
 func TestContainerLogs(t *testing.T) {
 	expectedURL := "/containers/container_id/logs"
 	cases := []struct {
-		options             types.ContainerLogsOptions
+		options             container.LogsOptions
 		expectedQueryParams map[string]string
 		expectedError       string
 	}{
@@ -56,7 +56,7 @@ func TestContainerLogs(t *testing.T) {
 			},
 		},
 		{
-			options: types.ContainerLogsOptions{
+			options: container.LogsOptions{
 				Tail: "any",
 			},
 			expectedQueryParams: map[string]string{
@@ -64,7 +64,7 @@ func TestContainerLogs(t *testing.T) {
 			},
 		},
 		{
-			options: types.ContainerLogsOptions{
+			options: container.LogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
 				Timestamps: true,
@@ -81,7 +81,7 @@ func TestContainerLogs(t *testing.T) {
 			},
 		},
 		{
-			options: types.ContainerLogsOptions{
+			options: container.LogsOptions{
 				// timestamp will be passed as is
 				Since: "1136073600.000000001",
 			},
@@ -91,7 +91,7 @@ func TestContainerLogs(t *testing.T) {
 			},
 		},
 		{
-			options: types.ContainerLogsOptions{
+			options: container.LogsOptions{
 				// timestamp will be passed as is
 				Until: "1136073600.000000001",
 			},
@@ -101,14 +101,14 @@ func TestContainerLogs(t *testing.T) {
 			},
 		},
 		{
-			options: types.ContainerLogsOptions{
+			options: container.LogsOptions{
 				// An complete invalid date will not be passed
 				Since: "invalid value",
 			},
 			expectedError: `invalid value for "since": failed to parse value as time or duration: "invalid value"`,
 		},
 		{
-			options: types.ContainerLogsOptions{
+			options: container.LogsOptions{
 				// An complete invalid date will not be passed
 				Until: "invalid value",
 			},
@@ -153,7 +153,7 @@ func ExampleClient_ContainerLogs_withTimeout() {
 	defer cancel()
 
 	client, _ := NewClientWithOpts(FromEnv)
-	reader, err := client.ContainerLogs(ctx, "container_id", types.ContainerLogsOptions{})
+	reader, err := client.ContainerLogs(ctx, "container_id", container.LogsOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}

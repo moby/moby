@@ -6,7 +6,9 @@ import (
 
 	"github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -17,7 +19,7 @@ import (
 func (daemon *Daemon) containerDiskUsage(ctx context.Context) ([]*types.Container, error) {
 	res, _, err := daemon.usageContainers.Do(ctx, struct{}{}, func(ctx context.Context) ([]*types.Container, error) {
 		// Retrieve container list
-		containers, err := daemon.Containers(ctx, &types.ContainerListOptions{
+		containers, err := daemon.Containers(ctx, &container.ListOptions{
 			Size: true,
 			All:  true,
 		})
@@ -31,8 +33,8 @@ func (daemon *Daemon) containerDiskUsage(ctx context.Context) ([]*types.Containe
 
 // imageDiskUsage obtains information about image data disk usage from image service
 // and makes sure that only one calculation is performed at the same time.
-func (daemon *Daemon) imageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error) {
-	imgs, _, err := daemon.usageImages.Do(ctx, struct{}{}, func(ctx context.Context) ([]*types.ImageSummary, error) {
+func (daemon *Daemon) imageDiskUsage(ctx context.Context) ([]*image.Summary, error) {
+	imgs, _, err := daemon.usageImages.Do(ctx, struct{}{}, func(ctx context.Context) ([]*image.Summary, error) {
 		// Get all top images with extra attributes
 		imgs, err := daemon.imageService.Images(ctx, types.ImageListOptions{
 			Filters:        filters.NewArgs(),
@@ -89,7 +91,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts system.DiskUsage
 	}
 
 	var (
-		images     []*types.ImageSummary
+		images     []*image.Summary
 		layersSize int64
 	)
 	if opts.Images {

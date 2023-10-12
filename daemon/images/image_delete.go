@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
@@ -61,9 +60,9 @@ const (
 // If prune is true, ancestor images will each attempt to be deleted quietly,
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
-func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
+func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]imagetypes.DeleteResponse, error) {
 	start := time.Now()
-	records := []types.ImageDeleteResponseItem{}
+	records := []imagetypes.DeleteResponse{}
 
 	img, err := i.GetImage(ctx, imageRef, imagetypes.GetImageOpts{})
 	if err != nil {
@@ -104,7 +103,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 			return nil, err
 		}
 
-		untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
+		untaggedRecord := imagetypes.DeleteResponse{Untagged: reference.FamiliarString(parsedRef)}
 
 		i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
 		records = append(records, untaggedRecord)
@@ -130,9 +129,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 						if _, err := i.removeImageRef(repoRef); err != nil {
 							return records, err
 						}
-
-						untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(repoRef)}
-						records = append(records, untaggedRecord)
+						records = append(records, imagetypes.DeleteResponse{Untagged: reference.FamiliarString(repoRef)})
 					} else {
 						remainingRefs = append(remainingRefs, repoRef)
 					}
@@ -165,11 +162,8 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 				if err != nil {
 					return nil, err
 				}
-
-				untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
-
 				i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
-				records = append(records, untaggedRecord)
+				records = append(records, imagetypes.DeleteResponse{Untagged: reference.FamiliarString(parsedRef)})
 			}
 		}
 	}
@@ -243,14 +237,14 @@ func (i *ImageService) removeImageRef(ref reference.Named) (reference.Named, err
 // on the first encountered error. Removed references are logged to this
 // daemon's event service. An "Untagged" types.ImageDeleteResponseItem is added to the
 // given list of records.
-func (i *ImageService) removeAllReferencesToImageID(imgID image.ID, records *[]types.ImageDeleteResponseItem) error {
+func (i *ImageService) removeAllReferencesToImageID(imgID image.ID, records *[]imagetypes.DeleteResponse) error {
 	for _, imageRef := range i.referenceStore.References(imgID.Digest()) {
 		parsedRef, err := i.removeImageRef(imageRef)
 		if err != nil {
 			return err
 		}
 		i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
-		*records = append(*records, types.ImageDeleteResponseItem{
+		*records = append(*records, imagetypes.DeleteResponse{
 			Untagged: reference.FamiliarString(parsedRef),
 		})
 	}
@@ -291,7 +285,7 @@ func (idc *imageDeleteConflict) Conflict() {}
 // conflict is encountered, it will be returned immediately without deleting
 // the image. If quiet is true, any encountered conflicts will be ignored and
 // the function will return nil immediately without deleting the image.
-func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageDeleteResponseItem, force, prune, quiet bool) error {
+func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]imagetypes.DeleteResponse, force, prune, quiet bool) error {
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
 	c := conflictHard
@@ -327,9 +321,9 @@ func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageD
 	}
 
 	i.LogImageEvent(imgID.String(), imgID.String(), events.ActionDelete)
-	*records = append(*records, types.ImageDeleteResponseItem{Deleted: imgID.String()})
+	*records = append(*records, imagetypes.DeleteResponse{Deleted: imgID.String()})
 	for _, removedLayer := range removedLayers {
-		*records = append(*records, types.ImageDeleteResponseItem{Deleted: removedLayer.ChainID.String()})
+		*records = append(*records, imagetypes.DeleteResponse{Deleted: removedLayer.ChainID.String()})
 	}
 
 	if !prune || parent == "" {

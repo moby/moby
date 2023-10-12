@@ -13,7 +13,7 @@ import (
 
 func TestAttach(t *testing.T) {
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	tests := []struct {
 		doc               string
@@ -36,7 +36,7 @@ func TestAttach(t *testing.T) {
 			t.Parallel()
 
 			ctx := testutil.StartSpan(ctx, t)
-			resp, err := client.ContainerCreate(ctx,
+			resp, err := apiClient.ContainerCreate(ctx,
 				&container.Config{
 					Image: "busybox",
 					Cmd:   []string{"echo", "hello"},
@@ -48,7 +48,7 @@ func TestAttach(t *testing.T) {
 				"",
 			)
 			assert.NilError(t, err)
-			attach, err := client.ContainerAttach(ctx, resp.ID, types.ContainerAttachOptions{
+			attach, err := apiClient.ContainerAttach(ctx, resp.ID, container.AttachOptions{
 				Stdout: true,
 				Stderr: true,
 			})

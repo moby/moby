@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
@@ -68,7 +67,7 @@ func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted bool, 
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 
-	err = apiClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, resp.ID, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	// get major:minor pair for /dev/shm from container's /proc/self/mountinfo
@@ -140,7 +139,7 @@ func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name1 := resp.ID
 
-	err = apiClient.ContainerStart(ctx, name1, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, name1, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	// create and start the second container
@@ -150,7 +149,7 @@ func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name2 := resp.ID
 
-	err = apiClient.ContainerStart(ctx, name2, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, name2, containertypes.StartOptions{})
 	if !mustWork {
 		// start should fail with a specific error
 		assert.Check(t, is.ErrorContains(err, "non-shareable IPC"))
@@ -206,7 +205,7 @@ func TestAPIIpcModeHost(t *testing.T) {
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name := resp.ID
 
-	err = apiClient.ContainerStart(ctx, name, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(ctx, name, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	// check that IPC is shared
@@ -241,7 +240,7 @@ func testDaemonIpcPrivateShareable(t *testing.T, mustBeShared bool, arg ...strin
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 
-	err = c.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+	err = c.ContainerStart(ctx, resp.ID, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	// get major:minor pair for /dev/shm from container's /proc/self/mountinfo

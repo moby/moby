@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
@@ -387,7 +388,7 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 	c := d.NewClientT(t)
 
 	cID := container.Run(ctx, t, c)
-	defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
 	_, err = f.Seek(0, io.SeekStart)
 	assert.NilError(t, err)

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
@@ -21,7 +22,7 @@ func TestRemoveImageOrphaning(t *testing.T) {
 
 	// Create a container from busybox, and commit a small change so we have a new image
 	cID1 := container.Create(ctx, t, client, container.WithCmd(""))
-	commitResp1, err := client.ContainerCommit(ctx, cID1, types.ContainerCommitOptions{
+	commitResp1, err := client.ContainerCommit(ctx, cID1, containertypes.CommitOptions{
 		Changes:   []string{`ENTRYPOINT ["true"]`},
 		Reference: imgName,
 	})
@@ -34,7 +35,7 @@ func TestRemoveImageOrphaning(t *testing.T) {
 
 	// Create a container from created image, and commit a small change with same reference name
 	cID2 := container.Create(ctx, t, client, container.WithImage(imgName), container.WithCmd(""))
-	commitResp2, err := client.ContainerCommit(ctx, cID2, types.ContainerCommitOptions{
+	commitResp2, err := client.ContainerCommit(ctx, cID2, containertypes.CommitOptions{
 		Changes:   []string{`LABEL Maintainer="Integration Tests"`},
 		Reference: imgName,
 	})

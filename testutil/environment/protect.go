@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"go.opentelemetry.io/otel"
@@ -69,7 +71,7 @@ func ProtectContainers(ctx context.Context, t testing.TB, testEnv *Execution) {
 func getExistingContainers(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	client := testEnv.APIClient()
-	containerList, err := client.ContainerList(ctx, types.ContainerListOptions{
+	containerList, err := client.ContainerList(ctx, container.ListOptions{
 		All: true,
 	})
 	assert.NilError(t, err, "failed to list containers")
@@ -112,13 +114,13 @@ func getExistingImages(ctx context.Context, t testing.TB, testEnv *Execution) []
 	assert.NilError(t, err, "failed to list images")
 
 	var images []string
-	for _, image := range imageList {
-		images = append(images, tagsFromImageSummary(image)...)
+	for _, img := range imageList {
+		images = append(images, tagsFromImageSummary(img)...)
 	}
 	return images
 }
 
-func tagsFromImageSummary(image types.ImageSummary) []string {
+func tagsFromImageSummary(image image.Summary) []string {
 	var result []string
 	for _, tag := range image.RepoTags {
 		// Starting from API 1.43 no longer outputs the hardcoded <none>

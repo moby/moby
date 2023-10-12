@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	ntypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
@@ -37,14 +38,14 @@ func TestRunContainerWithBridgeNone(t *testing.T) {
 	c := d.NewClientT(t)
 
 	id1 := container.Run(ctx, t, c)
-	defer c.ContainerRemove(ctx, id1, types.ContainerRemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, id1, containertypes.RemoveOptions{Force: true})
 
 	result, err := container.Exec(ctx, c, id1, []string{"ip", "l"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(false, strings.Contains(result.Combined(), "eth0")), "There shouldn't be eth0 in container in default(bridge) mode when bridge network is disabled")
 
 	id2 := container.Run(ctx, t, c, container.WithNetworkMode("bridge"))
-	defer c.ContainerRemove(ctx, id2, types.ContainerRemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, id2, containertypes.RemoveOptions{Force: true})
 
 	result, err = container.Exec(ctx, c, id2, []string{"ip", "l"})
 	assert.NilError(t, err)
@@ -58,7 +59,7 @@ func TestRunContainerWithBridgeNone(t *testing.T) {
 	assert.NilError(t, err, "Failed to get current process network namespace: %+v", err)
 
 	id3 := container.Run(ctx, t, c, container.WithNetworkMode("host"))
-	defer c.ContainerRemove(ctx, id3, types.ContainerRemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, id3, containertypes.RemoveOptions{Force: true})
 
 	result, err = container.Exec(ctx, c, id3, []string{"sh", "-c", nsCommand})
 	assert.NilError(t, err)
@@ -250,7 +251,7 @@ func TestDefaultNetworkOpts(t *testing.T) {
 
 			// Start a container to inspect the MTU of its network interface
 			id1 := container.Run(ctx, t, c, container.WithNetworkMode(networkName))
-			defer c.ContainerRemove(ctx, id1, types.ContainerRemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, id1, containertypes.RemoveOptions{Force: true})
 
 			result, err := container.Exec(ctx, c, id1, []string{"ip", "l", "show", "eth0"})
 			assert.NilError(t, err)

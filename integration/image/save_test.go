@@ -16,7 +16,7 @@ import (
 
 	"github.com/cpuguy83/tar2go"
 	"github.com/docker/docker/api/types"
-	containerapi "github.com/docker/docker/api/types/container"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/archive"
@@ -91,7 +91,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 			cfg.Config.Cmd = []string{"true"}
 		})
 
-		chW, chErr := client.ContainerWait(ctx, id, containerapi.WaitConditionNotRunning)
+		chW, chErr := client.ContainerWait(ctx, id, containertypes.WaitConditionNotRunning)
 
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
@@ -104,10 +104,10 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 			t.Fatal("timeout waiting for container to exit")
 		}
 
-		res, err := client.ContainerCommit(ctx, id, types.ContainerCommitOptions{Reference: tag})
+		res, err := client.ContainerCommit(ctx, id, containertypes.CommitOptions{Reference: tag})
 		assert.NilError(t, err)
 
-		err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+		err = client.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 		assert.NilError(t, err)
 
 		return res.ID

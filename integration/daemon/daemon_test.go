@@ -410,7 +410,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 				Target: "/foo",
 			}
 			cID := container.Run(ctx, t, c, container.WithMount(m), container.WithCmd("top"), container.WithRestartPolicy(policy))
-			defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
 			// Stop the daemon
 			d.Restart(t, "--live-restore", "--iptables=false")
@@ -452,7 +452,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 
 		const testContent = "hello"
 		cID := container.Run(ctx, t, c, container.WithMount(m), container.WithCmd("sh", "-c", "echo "+testContent+">>/foo/test.txt; sleep infinity"))
-		defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+		defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
 		// Wait until container creates a file in the volume.
 		poll.WaitOn(t, func(t poll.LogT) poll.Result {
@@ -484,7 +484,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 			// Check if a new container with the same volume has access to the previous content.
 			// This fails if the volume gets unmounted at startup.
 			cID2 := container.Run(ctx, t, c, container.WithMount(m), container.WithCmd("cat", "/foo/test.txt"))
-			defer c.ContainerRemove(ctx, cID2, types.ContainerRemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, cID2, containertypes.RemoveOptions{Force: true})
 
 			poll.WaitOn(t, container.IsStopped(ctx, c, cID2))
 
@@ -493,7 +493,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 				assert.Check(t, is.Equal(inspect.State.ExitCode, 0), "volume doesn't have the same file")
 			}
 
-			logs, err := c.ContainerLogs(ctx, cID2, types.ContainerLogsOptions{ShowStdout: true})
+			logs, err := c.ContainerLogs(ctx, cID2, containertypes.LogsOptions{ShowStdout: true})
 			assert.NilError(t, err)
 			defer logs.Close()
 
@@ -505,7 +505,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		})
 
 		// Remove that container which should free the references in the volume
-		err = c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+		err = c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 		assert.NilError(t, err)
 
 		// Now we should be able to remove the volume
@@ -524,11 +524,11 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 			Target: "/foo",
 		}
 		cID := container.Run(ctx, t, c, container.WithMount(m), container.WithCmd("top"))
-		defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+		defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
 		d.Restart(t, "--live-restore", "--iptables=false")
 
-		err := c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+		err := c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 		assert.NilError(t, err)
 	})
 }

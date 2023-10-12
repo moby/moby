@@ -50,10 +50,10 @@ type stateBackend interface {
 type monitorBackend interface {
 	ContainerChanges(ctx context.Context, name string) ([]archive.Change, error)
 	ContainerInspect(ctx context.Context, name string, size bool, version string) (interface{}, error)
-	ContainerLogs(ctx context.Context, name string, config *types.ContainerLogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
+	ContainerLogs(ctx context.Context, name string, config *container.LogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
 	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error)
-	Containers(ctx context.Context, config *types.ContainerListOptions) ([]*types.Container, error)
+	Containers(ctx context.Context, config *container.ListOptions) ([]*types.Container, error)
 }
 
 // attachBackend includes function to implement to provide container attaching functionality.

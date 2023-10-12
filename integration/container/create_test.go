@@ -8,9 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
@@ -253,7 +251,7 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 		checkInspect(t, ctx, name, tc.expected)
 
 		// Start the container.
-		err = apiClient.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
+		err = apiClient.ContainerStart(ctx, c.ID, container.StartOptions{})
 		assert.NilError(t, err)
 
 		poll.WaitOn(t, ctr.IsInState(ctx, apiClient, c.ID, "exited"), poll.WithDelay(100*time.Millisecond))
@@ -331,7 +329,7 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 		checkInspect(t, ctx, name, tc.expected)
 
 		// Start the container.
-		err = apiClient.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
+		err = apiClient.ContainerStart(ctx, c.ID, container.StartOptions{})
 		assert.NilError(t, err)
 
 		poll.WaitOn(t, ctr.IsInState(ctx, apiClient, c.ID, "exited"), poll.WithDelay(100*time.Millisecond))
@@ -436,7 +434,7 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 	)
 
 	defer func() {
-		err := apiClient.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+		err := apiClient.ContainerRemove(ctx, id, container.RemoveOptions{Force: true})
 		assert.NilError(t, err)
 	}()
 
@@ -447,7 +445,7 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 	assert.Assert(t, is.Len(inspect.Mounts, 0))
 
 	chWait, chErr := apiClient.ContainerWait(ctx, id, container.WaitConditionNextExit)
-	assert.NilError(t, apiClient.ContainerStart(ctx, id, types.ContainerStartOptions{}))
+	assert.NilError(t, apiClient.ContainerStart(ctx, id, container.StartOptions{}))
 
 	timeout := time.NewTimer(30 * time.Second)
 	defer timeout.Stop()
@@ -483,7 +481,7 @@ func TestCreateDifferentPlatform(t *testing.T) {
 			Architecture: img.Architecture,
 			Variant:      img.Variant,
 		}
-		_, err := apiClient.ContainerCreate(ctx, &containertypes.Config{Image: "busybox:latest"}, &containertypes.HostConfig{}, nil, &p, "")
+		_, err := apiClient.ContainerCreate(ctx, &container.Config{Image: "busybox:latest"}, &container.HostConfig{}, nil, &p, "")
 		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	})
 	t.Run("different cpu arch", func(t *testing.T) {
@@ -493,7 +491,7 @@ func TestCreateDifferentPlatform(t *testing.T) {
 			Architecture: img.Architecture + "DifferentArch",
 			Variant:      img.Variant,
 		}
-		_, err := apiClient.ContainerCreate(ctx, &containertypes.Config{Image: "busybox:latest"}, &containertypes.HostConfig{}, nil, &p, "")
+		_, err := apiClient.ContainerCreate(ctx, &container.Config{Image: "busybox:latest"}, &container.HostConfig{}, nil, &p, "")
 		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	})
 }
@@ -541,32 +539,32 @@ func TestCreateInvalidHostConfig(t *testing.T) {
 
 	testCases := []struct {
 		doc         string
-		hc          containertypes.HostConfig
+		hc          container.HostConfig
 		expectedErr string
 	}{
 		{
 			doc:         "invalid IpcMode",
-			hc:          containertypes.HostConfig{IpcMode: "invalid"},
+			hc:          container.HostConfig{IpcMode: "invalid"},
 			expectedErr: "Error response from daemon: invalid IPC mode: invalid",
 		},
 		{
 			doc:         "invalid PidMode",
-			hc:          containertypes.HostConfig{PidMode: "invalid"},
+			hc:          container.HostConfig{PidMode: "invalid"},
 			expectedErr: "Error response from daemon: invalid PID mode: invalid",
 		},
 		{
 			doc:         "invalid PidMode without container ID",
-			hc:          containertypes.HostConfig{PidMode: "container"},
+			hc:          container.HostConfig{PidMode: "container"},
 			expectedErr: "Error response from daemon: invalid PID mode: container",
 		},
 		{
 			doc:         "invalid UTSMode",
-			hc:          containertypes.HostConfig{UTSMode: "invalid"},
+			hc:          container.HostConfig{UTSMode: "invalid"},
 			expectedErr: "Error response from daemon: invalid UTS mode: invalid",
 		},
 		{
 			doc:         "invalid Annotations",
-			hc:          containertypes.HostConfig{Annotations: map[string]string{"": "a"}},
+			hc:          container.HostConfig{Annotations: map[string]string{"": "a"}},
 			expectedErr: "Error response from daemon: invalid Annotations: the empty string is not permitted as an annotation key",
 		},
 	}

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -38,7 +37,7 @@ func TestCreateWithCDIDevices(t *testing.T) {
 		container.WithCmd("/bin/sh", "-c", "env"),
 		container.WithCDIDevices("vendor1.com/device=foo"),
 	)
-	defer apiClient.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
 	inspect, err := apiClient.ContainerInspect(ctx, id)
 	assert.NilError(t, err)
@@ -51,7 +50,7 @@ func TestCreateWithCDIDevices(t *testing.T) {
 	}
 	assert.Check(t, is.DeepEqual(inspect.HostConfig.DeviceRequests, expectedRequests))
 
-	reader, err := apiClient.ContainerLogs(ctx, id, types.ContainerLogsOptions{
+	reader, err := apiClient.ContainerLogs(ctx, id, containertypes.LogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)

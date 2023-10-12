@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	clientpkg "github.com/docker/docker/client"
@@ -84,7 +84,7 @@ func TestVolumesRemove(t *testing.T) {
 	})
 
 	t.Run("volume not in use", func(t *testing.T) {
-		err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
+		err = client.ContainerRemove(ctx, id, containertypes.RemoveOptions{
 			Force: true,
 		})
 		assert.NilError(t, err)
@@ -135,7 +135,7 @@ func TestVolumesRemoveSwarmEnabled(t *testing.T) {
 	})
 
 	t.Run("volume not in use", func(t *testing.T) {
-		err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
+		err = client.ContainerRemove(ctx, id, containertypes.RemoveOptions{
 			Force: true,
 		})
 		assert.NilError(t, err)
@@ -321,7 +321,7 @@ VOLUME ` + volDest
 	img := build.Do(ctx, t, client, fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile)))
 
 	id := container.Create(ctx, t, client, container.WithImage(img))
-	defer client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{})
+	defer client.ContainerRemove(ctx, id, containertypes.RemoveOptions{})
 
 	inspect, err := client.ContainerInspect(ctx, id)
 	assert.NilError(t, err)
@@ -331,7 +331,7 @@ VOLUME ` + volDest
 	volumeName := inspect.Mounts[0].Name
 	assert.Assert(t, volumeName != "")
 
-	err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{})
+	err = client.ContainerRemove(ctx, id, containertypes.RemoveOptions{})
 	assert.NilError(t, err)
 
 	pruneReport, err := client.VolumesPrune(ctx, filters.Args{})

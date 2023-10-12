@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
@@ -42,7 +42,7 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	err := os.RemoveAll(tempDir.Path())
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
+	err = apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{
 		RemoveVolumes: true,
 	})
 	assert.NilError(t, err)
@@ -67,7 +67,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	assert.Check(t, is.Equal(1, len(insp.Mounts)))
 	volName := insp.Mounts[0].Name
 
-	err = apiClient.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
+	err = apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{
 		RemoveVolumes: true,
 	})
 	assert.NilError(t, err)
@@ -85,7 +85,7 @@ func TestRemoveContainerRunning(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient)
 
-	err := apiClient.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{})
+	err := apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
 	assert.Check(t, is.ErrorContains(err, "container is running"))
 }
@@ -96,7 +96,7 @@ func TestRemoveContainerForceRemoveRunning(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient)
 
-	err := apiClient.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
+	err := apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{
 		Force: true,
 	})
 	assert.NilError(t, err)
@@ -106,7 +106,7 @@ func TestRemoveInvalidContainer(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	err := apiClient.ContainerRemove(ctx, "unknown", types.ContainerRemoveOptions{})
+	err := apiClient.ContainerRemove(ctx, "unknown", containertypes.RemoveOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	assert.Check(t, is.ErrorContains(err, "No such container"))
 }

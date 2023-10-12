@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	apitypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
@@ -606,7 +607,7 @@ func initClusterSpec(node *swarmnode.Node, spec types.Spec) error {
 
 func (c *Cluster) listContainerForNode(ctx context.Context, nodeID string) ([]string, error) {
 	var ids []string
-	containers, err := c.config.Backend.Containers(ctx, &apitypes.ContainerListOptions{
+	containers, err := c.config.Backend.Containers(ctx, &container.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", "com.docker.swarm.node.id="+nodeID)),
 	})
 	if err != nil {

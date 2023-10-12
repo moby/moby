@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
@@ -128,7 +127,7 @@ func TestStopContainerWithTimeoutCancel(t *testing.T) {
 // logsContains verifies the container contains the given text in the log's stdout.
 func logsContains(ctx context.Context, client client.APIClient, containerID string, logString string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		logs, err := client.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
+		logs, err := client.ContainerLogs(ctx, containerID, containertypes.LogsOptions{
 			ShowStdout: true,
 		})
 		if err != nil {

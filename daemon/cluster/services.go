@@ -15,6 +15,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	timetypes "github.com/docker/docker/api/types/time"
@@ -180,8 +181,8 @@ func (c *Cluster) GetService(input string, insertDefaults bool) (swarm.Service, 
 }
 
 // CreateService creates a new service in a managed swarm cluster.
-func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRegistry bool) (*types.ServiceCreateResponse, error) {
-	var resp *types.ServiceCreateResponse
+func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRegistry bool) (*swarm.ServiceCreateResponse, error) {
+	var resp *swarm.ServiceCreateResponse
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &s)
 		if err != nil {
@@ -193,7 +194,7 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 			return errdefs.InvalidParameter(err)
 		}
 
-		resp = &types.ServiceCreateResponse{}
+		resp = &swarm.ServiceCreateResponse{}
 
 		switch serviceSpec.Task.Runtime.(type) {
 		case *swarmapi.TaskSpec_Attachment:
@@ -280,8 +281,8 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swarm.ServiceSpec, flags types.ServiceUpdateOptions, queryRegistry bool) (*types.ServiceUpdateResponse, error) {
-	var resp *types.ServiceUpdateResponse
+func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swarm.ServiceSpec, flags types.ServiceUpdateOptions, queryRegistry bool) (*swarm.ServiceUpdateResponse, error) {
+	var resp *swarm.ServiceUpdateResponse
 
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &spec)
@@ -299,7 +300,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 			return err
 		}
 
-		resp = &types.ServiceUpdateResponse{}
+		resp = &swarm.ServiceUpdateResponse{}
 
 		switch serviceSpec.Task.Runtime.(type) {
 		case *swarmapi.TaskSpec_Attachment:
@@ -422,7 +423,7 @@ func (c *Cluster) RemoveService(input string) error {
 }
 
 // ServiceLogs collects service logs and writes them back to `config.OutStream`
-func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector, config *types.ContainerLogsOptions) (<-chan *backend.LogMessage, error) {
+func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector, config *container.LogsOptions) (<-chan *backend.LogMessage, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

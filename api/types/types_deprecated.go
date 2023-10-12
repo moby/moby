@@ -2,6 +2,9 @@ package types
 
 import (
 	"github.com/docker/docker/api/types/checkpoint"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/system"
 )
 
@@ -62,6 +65,69 @@ type SecurityOpt = system.SecurityOpt
 //
 // Deprecated: use [system.KeyValue].
 type KeyValue = system.KeyValue
+
+// ImageDeleteResponseItem image delete response item.
+//
+// Deprecated: use [image.DeleteResponse].
+type ImageDeleteResponseItem = image.DeleteResponse
+
+// ImageSummary image summary.
+//
+// Deprecated: use [image.Summary].
+type ImageSummary = image.Summary
+
+// ImageMetadata contains engine-local data about the image.
+//
+// Deprecated: use [image.Metadata].
+type ImageMetadata = image.Metadata
+
+// ServiceCreateResponse contains the information returned to a client
+// on the creation of a new service.
+//
+// Deprecated: use [swarm.ServiceCreateResponse].
+type ServiceCreateResponse = swarm.ServiceCreateResponse
+
+// ServiceUpdateResponse service update response.
+//
+// Deprecated: use [swarm.ServiceUpdateResponse].
+type ServiceUpdateResponse = swarm.ServiceUpdateResponse
+
+// ContainerStartOptions holds parameters to start containers.
+//
+// Deprecated: use [container.StartOptions].
+type ContainerStartOptions = container.StartOptions
+
+// ResizeOptions holds parameters to resize a TTY.
+// It can be used to resize container TTYs and
+// exec process TTYs too.
+//
+// Deprecated: use [container.ResizeOptions].
+type ResizeOptions = container.ResizeOptions
+
+// ContainerAttachOptions holds parameters to attach to a container.
+//
+// Deprecated: use [container.AttachOptions].
+type ContainerAttachOptions = container.AttachOptions
+
+// ContainerCommitOptions holds parameters to commit changes into a container.
+//
+// Deprecated: use [container.CommitOptions].
+type ContainerCommitOptions = container.CommitOptions
+
+// ContainerListOptions holds parameters to list containers with.
+//
+// Deprecated: use [container.ListOptions].
+type ContainerListOptions = container.ListOptions
+
+// ContainerLogsOptions holds parameters to filter logs with.
+//
+// Deprecated: use [container.LogsOptions].
+type ContainerLogsOptions = container.LogsOptions
+
+// ContainerRemoveOptions holds parameters to remove containers.
+//
+// Deprecated: use [container.RemoveOptions].
+type ContainerRemoveOptions = container.RemoveOptions
 
 // DecodeSecurityOptions decodes a security options string slice to a type safe
 // [system.SecurityOpt].

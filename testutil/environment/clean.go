@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
@@ -43,16 +44,16 @@ func unpauseAllContainers(ctx context.Context, t testing.TB, client client.Conta
 	t.Helper()
 	containers := getPausedContainers(ctx, t, client)
 	if len(containers) > 0 {
-		for _, container := range containers {
-			err := client.ContainerUnpause(ctx, container.ID)
-			assert.Check(t, err, "failed to unpause container %s", container.ID)
+		for _, ctr := range containers {
+			err := client.ContainerUnpause(ctx, ctr.ID)
+			assert.Check(t, err, "failed to unpause container %s", ctr.ID)
 		}
 	}
 }
 
 func getPausedContainers(ctx context.Context, t testing.TB, client client.ContainerAPIClient) []types.Container {
 	t.Helper()
-	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
+	containers, err := client.ContainerList(ctx, container.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("status", "paused")),
 		All:     true,
 	})
@@ -69,24 +70,24 @@ func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.Con
 		return
 	}
 
-	for _, container := range containers {
-		if _, ok := protectedContainers[container.ID]; ok {
+	for _, ctr := range containers {
+		if _, ok := protectedContainers[ctr.ID]; ok {
 			continue
 		}
-		err := apiclient.ContainerRemove(ctx, container.ID, types.ContainerRemoveOptions{
+		err := apiclient.ContainerRemove(ctx, ctr.ID, container.RemoveOptions{
 			Force:         true,
 			RemoveVolumes: true,
 		})
 		if err == nil || errdefs.IsNotFound(err) || alreadyExists.MatchString(err.Error()) || isErrNotFoundSwarmClassic(err) {
 			continue
 		}
-		assert.Check(t, err, "failed to remove %s", container.ID)
+		assert.Check(t, err, "failed to remove %s", ctr.ID)
 	}
 }
 
 func getAllContainers(ctx context.Context, t testing.TB, client client.ContainerAPIClient) []types.Container {
 	t.Helper()
-	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
+	containers, err := client.ContainerList(ctx, container.ListOptions{
 		All: true,
 	})
 	assert.Check(t, err, "failed to list containers")

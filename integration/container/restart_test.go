@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	testContainer "github.com/docker/docker/integration/internal/container"
@@ -102,10 +101,10 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 
 					resp, err := apiClient.ContainerCreate(ctx, tc.config, tc.hostConfig, nil, nil, "")
 					assert.NilError(t, err)
-					defer apiClient.ContainerRemove(ctx, resp.ID, types.ContainerRemoveOptions{Force: true})
+					defer apiClient.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
 
 					if tc.xStart {
-						err = apiClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+						err = apiClient.ContainerStart(ctx, resp.ID, container.StartOptions{})
 						assert.NilError(t, err)
 					}
 
@@ -192,7 +191,7 @@ func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
 				testContainer.WithAutoRemove,
 			)
 			defer func() {
-				err := apiClient.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+				err := apiClient.ContainerRemove(ctx, cID, container.RemoveOptions{Force: true})
 				if t.Failed() && err != nil {
 					t.Logf("Cleaning up test container failed with error: %v", err)
 				}

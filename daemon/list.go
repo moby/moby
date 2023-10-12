@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
@@ -54,7 +55,7 @@ func (daemon *Daemon) List() []*container.Container {
 }
 
 // listContext is the daemon generated filtering to iterate over containers.
-// This is created based on the user specification from types.ContainerListOptions.
+// This is created based on the user specification from [containertypes.ListOptions].
 type listContext struct {
 	// idx is the container iteration index for this context
 	idx int
@@ -84,8 +85,8 @@ type listContext struct {
 	// expose is a list of exposed ports to filter with
 	expose map[nat.Port]bool
 
-	// ContainerListOptions is the filters set by the user
-	*types.ContainerListOptions
+	// ListOptions is the filters set by the user
+	*containertypes.ListOptions
 }
 
 // byCreatedDescending is a temporary type used to sort a list of containers by creation time.
@@ -98,7 +99,7 @@ func (r byCreatedDescending) Less(i, j int) bool {
 }
 
 // Containers returns the list of containers to show given the user's filtering.
-func (daemon *Daemon) Containers(ctx context.Context, config *types.ContainerListOptions) ([]*types.Container, error) {
+func (daemon *Daemon) Containers(ctx context.Context, config *containertypes.ListOptions) ([]*types.Container, error) {
 	if err := config.Filters.Validate(acceptedPsFilterTags); err != nil {
 		return nil, err
 	}
@@ -224,7 +225,7 @@ func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listCo
 }
 
 // foldFilter generates the container filter based on the user's filtering options.
-func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, config *types.ContainerListOptions) (*listContext, error) {
+func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, config *containertypes.ListOptions) (*listContext, error) {
 	psFilters := config.Filters
 
 	var filtExited []int
@@ -323,18 +324,18 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 	}
 
 	return &listContext{
-		filters:              psFilters,
-		ancestorFilter:       ancestorFilter,
-		images:               imagesFilter,
-		exitAllowed:          filtExited,
-		beforeFilter:         beforeContFilter,
-		sinceFilter:          sinceContFilter,
-		taskFilter:           taskFilter,
-		isTask:               isTask,
-		publish:              publishFilter,
-		expose:               exposeFilter,
-		ContainerListOptions: config,
-		names:                view.GetAllNames(),
+		filters:        psFilters,
+		ancestorFilter: ancestorFilter,
+		images:         imagesFilter,
+		exitAllowed:    filtExited,
+		beforeFilter:   beforeContFilter,
+		sinceFilter:    sinceContFilter,
+		taskFilter:     taskFilter,
+		isTask:         isTask,
+		publish:        publishFilter,
+		expose:         exposeFilter,
+		ListOptions:    config,
+		names:          view.GetAllNames(),
 	}, nil
 }
 

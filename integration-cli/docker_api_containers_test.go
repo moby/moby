@@ -45,7 +45,7 @@ func (s *DockerAPISuite) TestContainerAPIGetAll(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := types.ContainerListOptions{
+	options := container.ListOptions{
 		All: true,
 	}
 	ctx := testutil.GetContext(c)
@@ -65,7 +65,7 @@ func (s *DockerAPISuite) TestContainerAPIGetJSONNoFieldsOmitted(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := types.ContainerListOptions{
+	options := container.ListOptions{
 		All: true,
 	}
 	ctx := testutil.GetContext(c)
@@ -454,7 +454,7 @@ func (s *DockerAPISuite) TestContainerAPICommit(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := types.ContainerCommitOptions{
+	options := container.CommitOptions{
 		Reference: "testcontainerapicommit:testtag",
 	}
 
@@ -480,7 +480,7 @@ func (s *DockerAPISuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 		Labels: map[string]string{"key1": "value1", "key2": "value2"},
 	}
 
-	options := types.ContainerCommitOptions{
+	options := container.CommitOptions{
 		Reference: "testcontainerapicommitwithconfig",
 		Config:    &config,
 	}
@@ -924,12 +924,12 @@ func (s *DockerAPISuite) TestContainerAPIStart(c *testing.T) {
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, name)
 	assert.NilError(c, err)
 
-	err = apiClient.ContainerStart(testutil.GetContext(c), name, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(testutil.GetContext(c), name, container.StartOptions{})
 	assert.NilError(c, err)
 
 	// second call to start should give 304
 	// maybe add ContainerStartWithRaw to test it
-	err = apiClient.ContainerStart(testutil.GetContext(c), name, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(testutil.GetContext(c), name, container.StartOptions{})
 	assert.NilError(c, err)
 
 	// TODO(tibor): figure out why this doesn't work on windows
@@ -1089,7 +1089,7 @@ func (s *DockerAPISuite) TestContainerAPIDelete(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), id, types.ContainerRemoveOptions{})
+	err = apiClient.ContainerRemove(testutil.GetContext(c), id, container.RemoveOptions{})
 	assert.NilError(c, err)
 }
 
@@ -1098,7 +1098,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteNotExist(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), "doesnotexist", types.ContainerRemoveOptions{})
+	err = apiClient.ContainerRemove(testutil.GetContext(c), "doesnotexist", container.RemoveOptions{})
 	assert.ErrorContains(c, err, "No such container: doesnotexist")
 }
 
@@ -1107,7 +1107,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteForce(c *testing.T) {
 	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))
 
-	removeOptions := types.ContainerRemoveOptions{
+	removeOptions := container.RemoveOptions{
 		Force: true,
 	}
 
@@ -1135,7 +1135,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 	links := inspectFieldJSON(c, id2, "HostConfig.Links")
 	assert.Equal(c, links, `["/tlink1:/tlink2/tlink1"]`, "expected to have links between containers")
 
-	removeOptions := types.ContainerRemoveOptions{
+	removeOptions := container.RemoveOptions{
 		RemoveLinks: true,
 	}
 
@@ -1168,7 +1168,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	_, err = os.Stat(source)
 	assert.NilError(c, err)
 
-	removeOptions := types.ContainerRemoveOptions{
+	removeOptions := container.RemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	}
@@ -1549,7 +1549,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteWithEmptyName(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), "", types.ContainerRemoveOptions{})
+	err = apiClient.ContainerRemove(testutil.GetContext(c), "", container.RemoveOptions{})
 	assert.Check(c, errdefs.IsNotFound(err))
 }
 
@@ -1572,7 +1572,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, name)
 	assert.NilError(c, err)
 
-	err = apiClient.ContainerStart(testutil.GetContext(c), name, types.ContainerStartOptions{})
+	err = apiClient.ContainerStart(testutil.GetContext(c), name, container.StartOptions{})
 	assert.NilError(c, err)
 
 	assert.Assert(c, waitRun(name) == nil)
@@ -2112,11 +2112,11 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			assert.Check(c, is.Equal(x.expected.Mode, mountPoint.Mode))
 			assert.Check(c, is.Equal(x.expected.Destination, mountPoint.Destination))
 
-			err = apiclient.ContainerStart(ctx, ctr.ID, types.ContainerStartOptions{})
+			err = apiclient.ContainerStart(ctx, ctr.ID, container.StartOptions{})
 			assert.NilError(c, err)
 			poll.WaitOn(c, containerExit(ctx, apiclient, ctr.ID), poll.WithDelay(time.Second))
 
-			err = apiclient.ContainerRemove(ctx, ctr.ID, types.ContainerRemoveOptions{
+			err = apiclient.ContainerRemove(ctx, ctr.ID, container.RemoveOptions{
 				RemoveVolumes: true,
 				Force:         true,
 			})

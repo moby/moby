@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -80,7 +81,7 @@ func TestImageList(t *testing.T) {
 						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 					}
 				}
-				content, err := json.Marshal([]types.ImageSummary{
+				content, err := json.Marshal([]image.Summary{
 					{
 						ID: "image_id2",
 					},
@@ -121,7 +122,7 @@ func TestImageListApiBefore125(t *testing.T) {
 			if actualFilters != "" {
 				return nil, fmt.Errorf("filters should have not been present, were with value: %s", actualFilters)
 			}
-			content, err := json.Marshal([]types.ImageSummary{
+			content, err := json.Marshal([]image.Summary{
 				{
 					ID: "image_id2",
 				},
