@@ -120,9 +120,6 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, m
 	if err != nil {
 		return err
 	}
-	for dgst := range mountableBlobs {
-		pp.addMountable(dgst)
-	}
 
 	// Create a store which fakes the local existence of possibly mountable blobs.
 	// Otherwise they can't be pushed at all.

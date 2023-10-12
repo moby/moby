@@ -8,9 +8,11 @@ import (
 
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
@@ -169,30 +171,7 @@ func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pro
 }
 
 type pushProgress struct {
-	Tracker   docker.StatusTracker
-	mountable map[digest.Digest]struct{}
-	mutex     sync.Mutex
-}
-
-func (p *pushProgress) addMountable(dgst digest.Digest) {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	if p.mountable == nil {
-		p.mountable = map[digest.Digest]struct{}{}
-	}
-	p.mountable[dgst] = struct{}{}
-}
-
-func (p *pushProgress) isMountable(dgst digest.Digest) bool {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	if p.mountable == nil {
-		return false
-	}
-	_, has := p.mountable[dgst]
-	return has
+	Tracker docker.StatusTracker
 }
 
 func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out progress.Output, start time.Time) error {
@@ -209,8 +188,18 @@ func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 		}
 
 		if status.Committed && status.Offset >= status.Total {
-			if p.isMountable(j.Digest) {
-				progress.Update(out, id, "Mounted")
+			if status.MountedFrom != "" {
+				from := status.MountedFrom
+				if ref, err := reference.ParseNormalizedNamed(from); err == nil {
+					from = reference.Path(ref)
+				}
+				progress.Update(out, id, "Mounted from "+from)
+			} else if status.Exists {
+				if images.IsLayerType(j.MediaType) {
+					progress.Update(out, id, "Layer already exists")
+				} else {
+					progress.Update(out, id, "Already exists")
+				}
 			} else {
 				progress.Update(out, id, "Pushed")
 			}
