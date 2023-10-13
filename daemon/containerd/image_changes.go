@@ -7,6 +7,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 func (i *ImageService) Changes(ctx context.Context, container *container.Container) ([]archive.Change, error) {
@@ -16,10 +17,12 @@ func (i *ImageService) Changes(ctx context.Context, container *container.Contain
 		return nil, err
 	}
 
-	imageMounts, _ := snapshotter.View(ctx, container.ID+"-parent-view", info.Parent)
+	id := stringid.GenerateRandomID()
+	parentViewKey := container.ID + "-parent-view-" + id
+	imageMounts, _ := snapshotter.View(ctx, parentViewKey, info.Parent)
 
 	defer func() {
-		if err := snapshotter.Remove(ctx, container.ID+"-parent-view"); err != nil {
+		if err := snapshotter.Remove(ctx, parentViewKey); err != nil {
 			log.G(ctx).WithError(err).Warn("error removing the parent view snapshot")
 		}
 	}()
