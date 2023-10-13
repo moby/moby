@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
 )
 
 // save a repo and try to load it using stdout
@@ -71,6 +72,9 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadRepoStdout(c *testing.T) {
 }
 
 func (s *DockerCLISaveLoadSuite) TestSaveAndLoadWithProgressBar(c *testing.T) {
+	// TODO(vvoland): https://github.com/moby/moby/issues/43910
+	skip.If(c, testEnv.UsingSnapshotter(), "TODO: Not implemented yet")
+
 	name := "test-load"
 	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 	RUN touch aa

@@ -334,3 +334,10 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 
 	return containerdimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 }
+
+// getAllImagesWithRepository returns a slice of images which name is a reference
+// pointing to the same repository as the given reference.
+func (i *ImageService) getAllImagesWithRepository(ctx context.Context, ref reference.Named) ([]containerdimages.Image, error) {
+	nameFilter := "^" + regexp.QuoteMeta(ref.Name()) + ":" + reference.TagRegexp.String() + "$"
+	return i.client.ImageService().List(ctx, "name~="+strconv.Quote(nameFilter))
+}

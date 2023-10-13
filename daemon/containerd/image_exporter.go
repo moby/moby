@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
@@ -16,6 +17,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	dockerarchive "github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/platforms"
@@ -78,13 +80,12 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 		}
 	}()
 
-	for _, name := range names {
-		target, err := i.resolveDescriptor(ctx, name)
-		if err != nil {
-			return err
-		}
+	addLease := func(ctx context.Context, target ocispec.Descriptor) error {
+		return leaseContent(ctx, contentStore, leasesManager, lease, target)
+	}
 
-		if err = leaseContent(ctx, contentStore, leasesManager, lease, target); err != nil {
+	exportImage := func(ctx context.Context, target ocispec.Descriptor, ref reference.Named) error {
+		if err := addLease(ctx, target); err != nil {
 			return err
 		}
 
@@ -99,15 +100,27 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 			target = desc
 		}
 
-		if ref, err := reference.ParseNormalizedNamed(name); err == nil {
-			ref = reference.TagNameOnly(ref)
+		if ref != nil {
 			opts = append(opts, archive.WithManifest(target, ref.String()))
 
 			log.G(ctx).WithFields(log.Fields{
 				"target": target,
-				"name":   ref.String(),
+				"name":   ref,
 			}).Debug("export image")
 		} else {
+			orgTarget := target
+			target.Annotations = make(map[string]string)
+
+			for k, v := range orgTarget.Annotations {
+				switch k {
+				case containerdimages.AnnotationImageName, ocispec.AnnotationRefName:
+					// Strip image name/tag annotations from the descriptor.
+					// Otherwise containerd will use it as name.
+				default:
+					target.Annotations[k] = v
+				}
+			}
+
 			opts = append(opts, archive.WithManifest(target))
 
 			log.G(ctx).WithFields(log.Fields{
@@ -116,6 +129,84 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 		}
 
 		i.LogImageEvent(target.Digest.String(), target.Digest.String(), events.ActionSave)
+		return nil
+	}
+
+	exportRepository := func(ctx context.Context, ref reference.Named) error {
+		imgs, err := i.getAllImagesWithRepository(ctx, ref)
+		if err != nil {
+			return errdefs.System(fmt.Errorf("failed to list all images from repository %s: %w", ref.Name(), err))
+		}
+
+		if len(imgs) == 0 {
+			return images.ErrImageDoesNotExist{Ref: ref}
+		}
+
+		for _, img := range imgs {
+			ref, err := reference.ParseNamed(img.Name)
+
+			if err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"image": img.Name,
+					"error": err,
+				}).Warn("couldn't parse image name as a valid named reference")
+				continue
+			}
+
+			if err := exportImage(ctx, img.Target, ref); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	for _, name := range names {
+		target, resolveErr := i.resolveDescriptor(ctx, name)
+
+		// Check if the requested name is a truncated digest of the resolved descriptor.
+		// If yes, that means that the user specified a specific image ID so
+		// it's not referencing a repository.
+		specificDigestResolved := false
+		if resolveErr == nil {
+			nameWithoutDigestAlgorithm := strings.TrimPrefix(name, target.Digest.Algorithm().String()+":")
+			specificDigestResolved = strings.HasPrefix(target.Digest.Encoded(), nameWithoutDigestAlgorithm)
+		}
+
+		log.G(ctx).WithFields(log.Fields{
+			"name":                   name,
+			"resolveErr":             resolveErr,
+			"specificDigestResolved": specificDigestResolved,
+		}).Debug("export requested")
+
+		ref, refErr := reference.ParseNormalizedNamed(name)
+
+		if resolveErr != nil || !specificDigestResolved {
+			// Name didn't resolve to anything, or name wasn't explicitly referencing a digest
+			if refErr == nil && reference.IsNameOnly(ref) {
+				// Reference is valid, but doesn't include a specific tag.
+				// Export all images with the same repository.
+				if err := exportRepository(ctx, ref); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+
+		if resolveErr != nil {
+			return resolveErr
+		}
+		if refErr != nil {
+			return refErr
+		}
+
+		// If user exports a specific digest, it shouldn't have a tag.
+		if specificDigestResolved {
+			ref = nil
+		}
+		if err := exportImage(ctx, target, ref); err != nil {
+			return err
+		}
 	}
 
 	return i.client.Export(ctx, outStream, opts...)
@@ -187,7 +278,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 			name = img.Target.Digest.String()
 			loadedMsg = "Loaded image ID"
 		} else if named, err := reference.ParseNormalizedNamed(img.Name); err == nil {
-			name = reference.FamiliarName(reference.TagNameOnly(named))
+			name = reference.FamiliarString(reference.TagNameOnly(named))
 		}
 
 		err = i.walkImageManifests(ctx, img, func(platformImg *ImageManifest) error {

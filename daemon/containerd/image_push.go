@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -50,8 +48,7 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 			// Image is not tagged nor digested, that means all tags push was requested.
 
 			// Find all images with the same repository.
-			nameFilter := "^" + regexp.QuoteMeta(sourceRef.Name()) + ":" + reference.TagRegexp.String() + "$"
-			imgs, err := i.client.ImageService().List(ctx, "name~="+strconv.Quote(nameFilter))
+			imgs, err := i.getAllImagesWithRepository(ctx, sourceRef)
 			if err != nil {
 				return err
 			}
