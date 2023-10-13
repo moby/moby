@@ -17,6 +17,12 @@ jobs:
     needs:
       - validate-dco
     uses: ./.github/workflows/.windows.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        storage:
+          - graphdriver
     with:
       os: windows-2019
+      storage: ${{ matrix.storage }}
       send_coverage: false
