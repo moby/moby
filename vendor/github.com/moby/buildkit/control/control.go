@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/services/content/contentserver"
 	"github.com/docker/distribution/reference"
+	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/hashstructure/v2"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	apitypes "github.com/moby/buildkit/api/types"
@@ -29,6 +30,7 @@ import (
 	"github.com/moby/buildkit/session/grpchijack"
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/bboltcachestorage"
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/llbsolver/proc"
 	"github.com/moby/buildkit/solver/pb"
@@ -61,6 +63,7 @@ type Opt struct {
 	Entitlements              []string
 	TraceCollector            sdktrace.SpanExporter
 	HistoryDB                 *bbolt.DB
+	CacheStore                *bboltcachestorage.Store
 	LeaseManager              *leaseutil.Manager
 	ContentStore              *containerdsnapshot.Store
 	HistoryConfig             *config.HistoryConfig
@@ -123,7 +126,16 @@ func NewController(opt Opt) (*Controller, error) {
 }
 
 func (c *Controller) Close() error {
-	return c.opt.WorkerController.Close()
+	rerr := c.opt.HistoryDB.Close()
+	if err := c.opt.WorkerController.Close(); err != nil {
+		rerr = multierror.Append(rerr, err)
+	}
+
+	if err := c.opt.CacheStore.Close(); err != nil {
+		rerr = multierror.Append(rerr, err)
+	}
+
+	return rerr
 }
 
 func (c *Controller) Register(server *grpc.Server) {

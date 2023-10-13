@@ -64,6 +64,6 @@ func getTracingSocket() string {
 	return fmt.Sprintf("npipe://%s", filepath.ToSlash(tracingSocketPath))
 }
 
-func cgroupNamespaceSupported() bool {
+func cgroupV2NamespaceSupported() bool {
 	return false
 }

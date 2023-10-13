@@ -345,6 +345,10 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	notifyStopping()
 	shutdownDaemon(ctx, d)
 
+	if err := routerOptions.buildkit.Close(); err != nil {
+		log.G(ctx).WithError(err).Error("Failed to close buildkit")
+	}
+
 	// Stop notification processing and any background processes
 	cancel()
 

@@ -127,7 +127,7 @@ func (hs *httpSourceHandler) CacheKey(ctx context.Context, g session.Group, inde
 
 	uh, err := hs.urlHash()
 	if err != nil {
-		return "", "", nil, false, nil
+		return "", "", nil, false, err
 	}
 
 	// look up metadata(previously stored headers) for that URL

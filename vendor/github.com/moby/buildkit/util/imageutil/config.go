@@ -156,6 +156,7 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	}
 
 	children := childrenConfigHandler(cache, platform)
+	children = images.LimitManifests(children, platform, 1)
 
 	dslHandler, err := docker.AppendDistributionSourceLabel(cache, ref.String())
 	if err != nil {
