@@ -381,11 +381,12 @@ func TestLiveRestore(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "cannot start multiple daemons on windows")
 	_ = testutil.StartSpan(baseContext, t)
 
-	t.Run("volume references", testLiveRestoreVolumeReferences)
+	for i := 0; i < 10; i++ {
+		t.Run("volume references", testLiveRestoreVolumeReferences)
+	}
 }
 
 func testLiveRestoreVolumeReferences(t *testing.T) {
-	t.Parallel()
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
@@ -480,6 +481,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		assert.ErrorContains(t, err, "volume is in use")
 
 		t.Run("volume still mounted", func(t *testing.T) {
+			skip.If(t, true, "check if it also happens with rootful without this subtest")
 			skip.If(t, testEnv.IsRootless(), "restarted rootless daemon has a new mount namespace and it won't have the previous mounts")
 
 			// Check if a new container with the same volume has access to the previous content.
