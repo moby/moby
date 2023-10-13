@@ -54,15 +54,20 @@ jobs:
             *.cache-to=type=gha,scope=dev${{ matrix.mode }},mode=max
             *.output=type=cacheonly
 
+  test-prepare:
+    uses: ./.github/workflows/.test-prepare.yml
+    needs:
+      - validate-dco
+
   test:
     needs:
+      - test-prepare
       - build-dev
     uses: ./.github/workflows/.test.yml
     strategy:
       fail-fast: false
       matrix:
-        storage:
-          - graphdriver
+        storage: ${{ fromJson(needs.test-prepare.outputs.matrix) }}
     with:
       storage: ${{ matrix.storage }}
 

@@ -264,6 +264,9 @@ jobs:
           - builtin
           - containerd
         test: ${{ fromJson(needs.integration-test-prepare.outputs.matrix) }}
+        exclude:
+          - storage: snapshotter
+            runtime: builtin
     env:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
@@ -354,6 +357,11 @@ jobs:
               "--exec-root=$env:TEMP\moby-exec", `
               "--pidfile=$env:TEMP\docker.pid", `
               "--register-service"
+          If ("${{ inputs.storage }}" -eq "snapshotter") {
+            # Make the env-var visible to the service-managed dockerd, as there's no CLI flag for this option.
+            & reg add "HKLM\SYSTEM\CurrentControlSet\Services\docker" /v Environment /t REG_MULTI_SZ /s '@' /d TEST_INTEGRATION_USE_SNAPSHOTTER=1 
+            echo "TEST_INTEGRATION_USE_SNAPSHOTTER=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          }
           Write-Host "Starting service"
           Start-Service -Name docker
           Write-Host "Service started successfully!"
@@ -491,6 +499,9 @@ jobs:
         runtime:
           - builtin
           - containerd
+        exclude:
+          - storage: snapshotter
+            runtime: builtin
     steps:
       -
         name: Set up Go

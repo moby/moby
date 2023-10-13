@@ -17,7 +17,8 @@ env:
   TESTSTAT_VERSION: v0.1.3
   ITG_CLI_MATRIX_SIZE: 6
   DOCKER_EXPERIMENTAL: 1
-  DOCKER_GRAPHDRIVER: overlay2
+  DOCKER_GRAPHDRIVER: ${{ inputs.storage == 'snapshotter' && 'overlayfs' || 'overlay2' }}
+  TEST_INTEGRATION_USE_SNAPSHOTTER: ${{ inputs.storage == 'snapshotter' && '1' || '' }}
 
 jobs:
   unit:

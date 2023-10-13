@@ -16,15 +16,19 @@ jobs:
   validate-dco:
     uses: ./.github/workflows/.dco.yml
 
-  run:
+  test-prepare:
+    uses: ./.github/workflows/.test-prepare.yml
     needs:
       - validate-dco
+
+  run:
+    needs:
+      - test-prepare
     uses: ./.github/workflows/.windows.yml
     strategy:
       fail-fast: false
       matrix:
-        storage:
-          - graphdriver
+        storage: ${{ fromJson(needs.test-prepare.outputs.matrix) }}
     with:
       os: windows-2022
       storage: ${{ matrix.storage }}
