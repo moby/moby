@@ -13,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -507,6 +508,8 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		// Remove that container which should free the references in the volume
 		err = c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 		assert.NilError(t, err)
+
+		time.Sleep(time.Second * 5) // Debug
 
 		// Now we should be able to remove the volume
 		err = c.VolumeRemove(ctx, v.Name, false)
