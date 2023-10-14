@@ -16,7 +16,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	"go.opentelemetry.io/otel/semconv/v1.17.0/httpconv"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -65,8 +65,8 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 		}
 	}
 
-	ctx, span := tp.Tracer("").Start(ctx, req.Method+" "+req.URL.Path)
-	span.SetAttributes(semconv.HTTPClientAttributesFromHTTPRequest(req)...)
+	ctx, span := tp.Tracer("").Start(ctx, req.Method+" "+req.URL.Path, trace.WithSpanKind(trace.SpanKindClient))
+	span.SetAttributes(httpconv.ClientRequest(req)...)
 	defer func() {
 		if retErr != nil {
 			span.RecordError(retErr)
@@ -98,7 +98,7 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 	// Server hijacks the connection, error 'connection closed' expected
 	resp, err := clientconn.Do(req)
 	if resp != nil {
-		span.SetStatus(semconv.SpanStatusFromHTTPStatusCode(resp.StatusCode))
+		span.SetStatus(httpconv.ClientStatus(resp.StatusCode))
 	}
 
 	//nolint:staticcheck // ignore SA1019 for connecting to old (pre go1.8) daemons
