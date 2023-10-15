@@ -137,7 +137,7 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		return nil, nil, err
 	}
 
-	if cgroupNamespaceSupported() {
+	if cgroupV2NamespaceSupported() {
 		s.Linux.Namespaces = append(s.Linux.Namespaces, specs.LinuxNamespace{
 			Type: specs.CgroupNamespace,
 		})

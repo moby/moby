@@ -1,6 +1,7 @@
 package llb
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/moby/buildkit/solver/pb"
@@ -47,6 +48,33 @@ func (s *SourceMap) Location(r []*pb.Range) ConstraintsOpt {
 	})
 }
 
+func equalSourceMap(sm1, sm2 *SourceMap) (out bool) {
+	if sm1 == nil || sm2 == nil {
+		return false
+	}
+	if sm1.Filename != sm2.Filename {
+		return false
+	}
+	if sm1.Language != sm2.Language {
+		return false
+	}
+	if len(sm1.Data) != len(sm2.Data) {
+		return false
+	}
+	if !bytes.Equal(sm1.Data, sm2.Data) {
+		return false
+	}
+	if sm1.Definition != nil && sm2.Definition != nil {
+		if len(sm1.Definition.Def) != len(sm2.Definition.Def) && len(sm1.Definition.Def) != 0 {
+			return false
+		}
+		if !bytes.Equal(sm1.Definition.Def[len(sm1.Definition.Def)-1], sm2.Definition.Def[len(sm2.Definition.Def)-1]) {
+			return false
+		}
+	}
+	return true
+}
+
 type SourceLocation struct {
 	SourceMap *SourceMap
 	Ranges    []*pb.Range
@@ -69,8 +97,18 @@ func (smc *sourceMapCollector) Add(dgst digest.Digest, ls []*SourceLocation) {
 	for _, l := range ls {
 		idx, ok := smc.index[l.SourceMap]
 		if !ok {
-			idx = len(smc.maps)
-			smc.maps = append(smc.maps, l.SourceMap)
+			idx = -1
+			// slow equality check
+			for i, m := range smc.maps {
+				if equalSourceMap(m, l.SourceMap) {
+					idx = i
+					break
+				}
+			}
+			if idx == -1 {
+				idx = len(smc.maps)
+				smc.maps = append(smc.maps, l.SourceMap)
+			}
 		}
 		smc.index[l.SourceMap] = idx
 	}

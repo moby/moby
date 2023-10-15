@@ -124,6 +124,10 @@ func New(ctx context.Context, opt Opt) (*Builder, error) {
 	return b, nil
 }
 
+func (b *Builder) Close() error {
+	return b.controller.Close()
+}
+
 // RegisterGRPC registers controller to the grpc server.
 func (b *Builder) RegisterGRPC(s *grpc.Server) {
 	b.controller.Register(s)
