@@ -67,6 +67,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   requests is now deprecated. You should instead use the field `TaskTemplate.Networks`.
 * The `Container` and `ContainerConfig` fields in the `GET /images/{name}/json`
   response are deprecated and will no longer be included in API v1.45.
+* `GET /info` now includes `status` properties in `Runtimes`.
 
 ## v1.43 API changes
 
