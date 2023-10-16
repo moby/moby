@@ -343,12 +343,13 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	testCases := []struct {
-		doc         string
-		interval    time.Duration
-		timeout     time.Duration
-		retries     int
-		startPeriod time.Duration
-		expectedErr string
+		doc           string
+		interval      time.Duration
+		timeout       time.Duration
+		retries       int
+		startPeriod   time.Duration
+		startInterval time.Duration
+		expectedErr   string
 	}{
 		{
 			doc:         "test invalid Interval in Healthcheck: less than 0s",
@@ -386,6 +387,15 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 			startPeriod: 100 * time.Microsecond,
 			expectedErr: fmt.Sprintf("StartPeriod in Healthcheck cannot be less than %s", container.MinimumDuration),
 		},
+		{
+			doc:           "test invalid StartInterval in Healthcheck: not 0 and less than 1ms",
+			interval:      time.Second,
+			timeout:       time.Second,
+			retries:       1000,
+			startPeriod:   time.Second,
+			startInterval: 100 * time.Microsecond,
+			expectedErr:   fmt.Sprintf("StartInterval in Healthcheck cannot be less than %s", container.MinimumDuration),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -396,9 +406,10 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 			cfg := container.Config{
 				Image: "busybox",
 				Healthcheck: &container.HealthConfig{
-					Interval: tc.interval,
-					Timeout:  tc.timeout,
-					Retries:  tc.retries,
+					Interval:      tc.interval,
+					Timeout:       tc.timeout,
+					Retries:       tc.retries,
+					StartInterval: tc.startInterval,
 				},
 			}
 			if tc.startPeriod != 0 {
