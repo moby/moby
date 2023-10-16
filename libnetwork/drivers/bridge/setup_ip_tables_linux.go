@@ -157,15 +157,11 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 			return setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, false)
 		})
 	} else {
-		hostIP := config.HostIP
-		if ipVersion != iptables.IPv4 {
-			hostIP = nil
-		}
-		if err = setupIPTablesInternal(hostIP, config.BridgeName, maskedAddr, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
+		if err = setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
 		}
 		n.registerIptCleanFunc(func() error {
-			return setupIPTablesInternal(hostIP, config.BridgeName, maskedAddr, config.EnableICC, config.EnableIPMasquerade, hairpinMode, false)
+			return setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, false)
 		})
 		natChain, filterChain, _, _, err := n.getDriverChains(ipVersion)
 		if err != nil {
@@ -200,140 +196,138 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 }
 
 type iptRule struct {
-	table   iptables.Table
-	chain   string
-	preArgs []string
-	args    []string
+	ipv   iptables.IPVersion
+	table iptables.Table
+	chain string
+	args  []string
 }
 
-func setupIPTablesInternal(hostIP net.IP, bridgeIface string, addr *net.IPNet, icc, ipmasq, hairpin, enable bool) error {
+// Exists returns true if the rule exists in the kernel.
+func (r iptRule) Exists() bool {
+	return iptables.GetIptable(r.ipv).Exists(r.table, r.chain, r.args...)
+}
+
+func (r iptRule) cmdArgs(op iptables.Action) []string {
+	return append([]string{"-t", string(r.table), string(op), r.chain}, r.args...)
+}
+
+func (r iptRule) exec(op iptables.Action) error {
+	return iptables.GetIptable(r.ipv).RawCombinedOutput(r.cmdArgs(op)...)
+}
+
+// Append appends the rule to the end of the chain. If the rule already exists anywhere in the
+// chain, this is a no-op.
+func (r iptRule) Append() error {
+	if r.Exists() {
+		return nil
+	}
+	return r.exec(iptables.Append)
+}
+
+// Insert inserts the rule at the head of the chain. If the rule already exists anywhere in the
+// chain, this is a no-op.
+func (r iptRule) Insert() error {
+	if r.Exists() {
+		return nil
+	}
+	return r.exec(iptables.Insert)
+}
+
+// Delete deletes the rule from the kernel. If the rule does not exist, this is a no-op.
+func (r iptRule) Delete() error {
+	if !r.Exists() {
+		return nil
+	}
+	return r.exec(iptables.Delete)
+}
+
+func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguration, addr *net.IPNet, hairpin, enable bool) error {
 	var (
 		address   = addr.String()
-		skipDNAT  = iptRule{table: iptables.Nat, chain: DockerChain, preArgs: []string{"-t", "nat"}, args: []string{"-i", bridgeIface, "-j", "RETURN"}}
-		outRule   = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}}
+		skipDNAT  = iptRule{ipv: ipVer, table: iptables.Nat, chain: DockerChain, args: []string{"-i", config.BridgeName, "-j", "RETURN"}}
+		outRule   = iptRule{ipv: ipVer, table: iptables.Filter, chain: "FORWARD", args: []string{"-i", config.BridgeName, "!", "-o", config.BridgeName, "-j", "ACCEPT"}}
 		natArgs   []string
 		hpNatArgs []string
 	)
-	// if hostIP is set use this address as the src-ip during SNAT
-	if hostIP != nil {
-		hostAddr := hostIP.String()
-		natArgs = []string{"-s", address, "!", "-o", bridgeIface, "-j", "SNAT", "--to-source", hostAddr}
-		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "SNAT", "--to-source", hostAddr}
+	// If config.HostIPv4 is set, the user wants IPv4 SNAT with the given address.
+	if config.HostIPv4 != nil && ipVer == iptables.IPv4 {
+		hostAddr := config.HostIPv4.String()
+		natArgs = []string{"-s", address, "!", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
+		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
 		// Else use MASQUERADE which picks the src-ip based on NH from the route table
 	} else {
-		natArgs = []string{"-s", address, "!", "-o", bridgeIface, "-j", "MASQUERADE"}
-		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "MASQUERADE"}
+		natArgs = []string{"-s", address, "!", "-o", config.BridgeName, "-j", "MASQUERADE"}
+		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "MASQUERADE"}
 	}
 
-	natRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: natArgs}
-	hpNatRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: hpNatArgs}
-
-	ipVer := iptables.IPv4
-	if addr.IP.To4() == nil {
-		ipVer = iptables.IPv6
-	}
+	natRule := iptRule{ipv: ipVer, table: iptables.Nat, chain: "POSTROUTING", args: natArgs}
+	hpNatRule := iptRule{ipv: ipVer, table: iptables.Nat, chain: "POSTROUTING", args: hpNatArgs}
 
 	// Set NAT.
-	if ipmasq {
-		if err := programChainRule(ipVer, natRule, "NAT", enable); err != nil {
+	if config.EnableIPMasquerade {
+		if err := programChainRule(natRule, "NAT", enable); err != nil {
 			return err
 		}
 	}
 
-	if ipmasq && !hairpin {
-		if err := programChainRule(ipVer, skipDNAT, "SKIP DNAT", enable); err != nil {
+	if config.EnableIPMasquerade && !hairpin {
+		if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
 			return err
 		}
 	}
 
 	// In hairpin mode, masquerade traffic from localhost. If hairpin is disabled or if we're tearing down
 	// that bridge, make sure the iptables rule isn't lying around.
-	if err := programChainRule(ipVer, hpNatRule, "MASQ LOCAL HOST", enable && hairpin); err != nil {
+	if err := programChainRule(hpNatRule, "MASQ LOCAL HOST", enable && hairpin); err != nil {
 		return err
 	}
 
 	// Set Inter Container Communication.
-	if err := setIcc(ipVer, bridgeIface, icc, enable); err != nil {
+	if err := setIcc(ipVer, config.BridgeName, config.EnableICC, enable); err != nil {
 		return err
 	}
 
 	// Set Accept on all non-intercontainer outgoing packets.
-	return programChainRule(ipVer, outRule, "ACCEPT NON_ICC OUTGOING", enable)
+	return programChainRule(outRule, "ACCEPT NON_ICC OUTGOING", enable)
 }
 
-func programChainRule(version iptables.IPVersion, rule iptRule, ruleDescr string, insert bool) error {
-	iptable := iptables.GetIptable(version)
-
-	var (
-		prefix    []string
-		operation string
-		condition bool
-		doesExist = iptable.Exists(rule.table, rule.chain, rule.args...)
-	)
-
+func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
+	operation := "disable"
+	fn := rule.Delete
 	if insert {
-		condition = !doesExist
-		prefix = []string{"-I", rule.chain}
 		operation = "enable"
-	} else {
-		condition = doesExist
-		prefix = []string{"-D", rule.chain}
-		operation = "disable"
+		fn = rule.Insert
 	}
-	if rule.preArgs != nil {
-		prefix = append(rule.preArgs, prefix...)
+	if err := fn(); err != nil {
+		return fmt.Errorf("Unable to %s %s rule: %s", operation, ruleDescr, err.Error())
 	}
-
-	if condition {
-		if err := iptable.RawCombinedOutput(append(prefix, rule.args...)...); err != nil {
-			return fmt.Errorf("Unable to %s %s rule: %s", operation, ruleDescr, err.Error())
-		}
-	}
-
 	return nil
 }
 
 func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, insert bool) error {
-	iptable := iptables.GetIptable(version)
-	var (
-		table      = iptables.Filter
-		chain      = "FORWARD"
-		args       = []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
-		acceptArgs = append(args, "ACCEPT")
-		dropArgs   = append(args, "DROP")
-	)
-
+	args := []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
+	acceptRule := iptRule{ipv: version, table: iptables.Filter, chain: "FORWARD", args: append(args, "ACCEPT")}
+	dropRule := iptRule{ipv: version, table: iptables.Filter, chain: "FORWARD", args: append(args, "DROP")}
 	if insert {
 		if !iccEnable {
-			iptable.Raw(append([]string{"-D", chain}, acceptArgs...)...)
-
-			if !iptable.Exists(table, chain, dropArgs...) {
-				if err := iptable.RawCombinedOutput(append([]string{"-A", chain}, dropArgs...)...); err != nil {
-					return fmt.Errorf("Unable to prevent intercontainer communication: %s", err.Error())
-				}
+			acceptRule.Delete()
+			if err := dropRule.Append(); err != nil {
+				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err.Error())
 			}
 		} else {
-			iptable.Raw(append([]string{"-D", chain}, dropArgs...)...)
-
-			if !iptable.Exists(table, chain, acceptArgs...) {
-				if err := iptable.RawCombinedOutput(append([]string{"-I", chain}, acceptArgs...)...); err != nil {
-					return fmt.Errorf("Unable to allow intercontainer communication: %s", err.Error())
-				}
+			dropRule.Delete()
+			if err := acceptRule.Insert(); err != nil {
+				return fmt.Errorf("Unable to allow intercontainer communication: %s", err.Error())
 			}
 		}
 	} else {
 		// Remove any ICC rule.
 		if !iccEnable {
-			if iptable.Exists(table, chain, dropArgs...) {
-				iptable.Raw(append([]string{"-D", chain}, dropArgs...)...)
-			}
+			dropRule.Delete()
 		} else {
-			if iptable.Exists(table, chain, acceptArgs...) {
-				iptable.Raw(append([]string{"-D", chain}, acceptArgs...)...)
-			}
+			acceptRule.Delete()
 		}
 	}
-
 	return nil
 }
 
@@ -404,11 +398,13 @@ func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert 
 	if addr.IP.To4() != nil {
 		version = iptables.IPv4
 		inDropRule = iptRule{
+			ipv:   version,
 			table: iptables.Filter,
 			chain: IsolationChain1,
 			args:  []string{"-i", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"},
 		}
 		outDropRule = iptRule{
+			ipv:   version,
 			table: iptables.Filter,
 			chain: IsolationChain1,
 			args:  []string{"-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"},
@@ -416,21 +412,23 @@ func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert 
 	} else {
 		version = iptables.IPv6
 		inDropRule = iptRule{
+			ipv:   version,
 			table: iptables.Filter,
 			chain: IsolationChain1,
 			args:  []string{"-i", bridgeIface, "!", "-o", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"},
 		}
 		outDropRule = iptRule{
+			ipv:   version,
 			table: iptables.Filter,
 			chain: IsolationChain1,
 			args:  []string{"!", "-i", bridgeIface, "-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"},
 		}
 	}
 
-	if err := programChainRule(version, inDropRule, "DROP INCOMING", insert); err != nil {
+	if err := programChainRule(inDropRule, "DROP INCOMING", insert); err != nil {
 		return err
 	}
-	if err := programChainRule(version, outDropRule, "DROP OUTGOING", insert); err != nil {
+	if err := programChainRule(outDropRule, "DROP OUTGOING", insert); err != nil {
 		return err
 	}
 

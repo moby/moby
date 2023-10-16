@@ -31,12 +31,12 @@ func TestProgramIPTable(t *testing.T) {
 		rule  iptRule
 		descr string
 	}{
-		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-d", "127.1.2.3", "-i", "lo", "-o", "lo", "-j", "DROP"}}, "Test Loopback"},
-		{iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: []string{"-s", iptablesTestBridgeIP, "!", "-o", DefaultBridgeName, "-j", "MASQUERADE"}}, "NAT Test"},
-		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-o", DefaultBridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}, "Test ACCEPT INCOMING"},
-		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "!", "-o", DefaultBridgeName, "-j", "ACCEPT"}}, "Test ACCEPT NON_ICC OUTGOING"},
-		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "ACCEPT"}}, "Test enable ICC"},
-		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "DROP"}}, "Test disable ICC"},
+		{iptRule{ipv: iptables.IPv4, table: iptables.Filter, chain: "FORWARD", args: []string{"-d", "127.1.2.3", "-i", "lo", "-o", "lo", "-j", "DROP"}}, "Test Loopback"},
+		{iptRule{ipv: iptables.IPv4, table: iptables.Nat, chain: "POSTROUTING", args: []string{"-s", iptablesTestBridgeIP, "!", "-o", DefaultBridgeName, "-j", "MASQUERADE"}}, "NAT Test"},
+		{iptRule{ipv: iptables.IPv4, table: iptables.Filter, chain: "FORWARD", args: []string{"-o", DefaultBridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}, "Test ACCEPT INCOMING"},
+		{iptRule{ipv: iptables.IPv4, table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "!", "-o", DefaultBridgeName, "-j", "ACCEPT"}}, "Test ACCEPT NON_ICC OUTGOING"},
+		{iptRule{ipv: iptables.IPv4, table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "ACCEPT"}}, "Test enable ICC"},
+		{iptRule{ipv: iptables.IPv4, table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "DROP"}}, "Test disable ICC"},
 	}
 
 	// Assert the chain rules' insertion and removal.
@@ -103,20 +103,19 @@ func createTestBridge(config *networkConfiguration, br *bridgeInterface, t *test
 // Assert base function which pushes iptables chain rules on insertion and removal.
 func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 	// Add
-	if err := programChainRule(iptables.IPv4, rule, descr, true); err != nil {
+	if err := programChainRule(rule, descr, true); err != nil {
 		t.Fatalf("Failed to program iptable rule %s: %s", descr, err.Error())
 	}
 
-	iptable := iptables.GetIptable(iptables.IPv4)
-	if iptable.Exists(rule.table, rule.chain, rule.args...) == false {
+	if !rule.Exists() {
 		t.Fatalf("Failed to effectively program iptable rule: %s", descr)
 	}
 
 	// Remove
-	if err := programChainRule(iptables.IPv4, rule, descr, false); err != nil {
+	if err := programChainRule(rule, descr, false); err != nil {
 		t.Fatalf("Failed to remove iptable rule %s: %s", descr, err.Error())
 	}
-	if iptable.Exists(rule.table, rule.chain, rule.args...) == true {
+	if rule.Exists() {
 		t.Fatalf("Failed to effectively remove iptable rule: %s", descr)
 	}
 }
@@ -159,7 +158,7 @@ func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, d *dr
 }
 
 // Regression test for https://github.com/moby/moby/issues/46445
-func TestSetupIP6TablesWithHostIP(t *testing.T) {
+func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 	dc := &configuration{
@@ -175,7 +174,7 @@ func TestSetupIP6TablesWithHostIP(t *testing.T) {
 		EnableIPMasquerade: true,
 		EnableIPv6:         true,
 		AddressIPv6:        &net.IPNet{IP: net.ParseIP("2001:db8::1"), Mask: net.CIDRMask(64, 128)},
-		HostIP:             net.ParseIP("192.0.2.2"),
+		HostIPv4:           net.ParseIP("192.0.2.2"),
 	}
 	nh, err := netlink.NewHandle()
 	if err != nil {

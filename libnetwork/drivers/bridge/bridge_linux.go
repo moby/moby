@@ -73,7 +73,7 @@ type networkConfiguration struct {
 	Mtu                  int
 	DefaultBindingIP     net.IP
 	DefaultBridge        bool
-	HostIP               net.IP
+	HostIPv4             net.IP
 	ContainerIfacePrefix string
 	// Internal fields set after ipam data parsing
 	AddressIPv4        *net.IPNet
@@ -266,8 +266,8 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 			}
 		case netlabel.ContainerIfacePrefix:
 			c.ContainerIfacePrefix = value
-		case netlabel.HostIP:
-			if c.HostIP = net.ParseIP(value); c.HostIP == nil {
+		case netlabel.HostIPv4:
+			if c.HostIPv4 = net.ParseIP(value); c.HostIPv4 == nil {
 				return parseErr(label, value, "nil ip")
 			}
 		}
