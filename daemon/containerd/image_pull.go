@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/containerd/containerd"
@@ -9,6 +10,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
@@ -19,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 // PullImage initiates a pull operation. ref is the image to pull.
@@ -120,6 +123,9 @@ func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platf
 
 	img, err := i.client.Pull(ctx, ref.String(), opts...)
 	if err != nil {
+		if errors.Is(err, docker.ErrInvalidAuthorization) {
+			return errdefs.NotFound(fmt.Errorf("pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(ref)))
+		}
 		return err
 	}
 
