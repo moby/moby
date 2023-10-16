@@ -967,10 +967,17 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID st
 
 func (daemon *Daemon) releaseNetwork(container *container.Container) {
 	start := time.Now()
+	// If live-restore is enabled, the daemon cleans up dead containers when it starts up. In that case, the
+	// netController hasn't been initialized yet and so we can't proceed.
+	// TODO(aker): If we hit this case, the endpoint state won't be cleaned up (ie. no call to cleanOperationalData).
 	if daemon.netController == nil {
 		return
 	}
-	if container.HostConfig.NetworkMode.IsContainer() || container.Config.NetworkDisabled {
+	// If the container uses the network namespace of another container, it doesn't own it -- nothing to do here.
+	if container.HostConfig.NetworkMode.IsContainer() {
+		return
+	}
+	if container.NetworkSettings == nil {
 		return
 	}
 
