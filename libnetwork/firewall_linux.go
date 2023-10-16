@@ -10,20 +10,14 @@ import (
 
 const userChain = "DOCKER-USER"
 
-var ctrl *Controller
-
-func setupArrangeUserFilterRule(c *Controller) {
-	ctrl = c
-	iptables.OnReloaded(arrangeUserFilterRule)
+func (c *Controller) setupArrangeUserFilterRule() {
+	iptables.OnReloaded(func() { arrangeUserFilterRule(c.enabledIptablesVersions()...) })
 }
 
 // arrangeUserFilterRule sets up the DOCKER-USER chain for each iptables version
-// (IPv4, IPv6) that's enabled in the controller's configuration.
-func arrangeUserFilterRule() {
-	if ctrl == nil {
-		return
-	}
-	for _, ipVersion := range ctrl.enabledIptablesVersions() {
+// (IPv4, IPv6) specified in the arguments.
+func arrangeUserFilterRule(ipVersions ...iptables.IPVersion) {
+	for _, ipVersion := range ipVersions {
 		if err := setupUserChain(ipVersion); err != nil {
 			log.G(context.TODO()).WithError(err).Warn("arrangeUserFilterRule")
 		}

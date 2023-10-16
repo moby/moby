@@ -73,7 +73,7 @@ func TestUserChain(t *testing.T) {
 				_, err = iptable6.Raw("-A", fwdChainName, "-j", "DROP")
 				assert.Check(t, err)
 			}
-			arrangeUserFilterRule()
+			arrangeUserFilterRule(c.enabledIptablesVersions()...)
 
 			assert.Check(t, is.DeepEqual(getRules(t, iptable4, fwdChainName), tc.fwdChain))
 			assert.Check(t, is.DeepEqual(getRules(t, iptable6, fwdChainName), tc.fwdChain))
