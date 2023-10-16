@@ -129,24 +129,22 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, m
 		return err
 	}
 
-	addChildrenToJobs := containerdimages.HandlerFunc(
+	addLayerJobs := containerdimages.HandlerFunc(
 		func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-			children, err := containerdimages.Children(ctx, store, desc)
-			if err != nil {
-				return nil, err
+			switch {
+			case containerdimages.IsIndexType(desc.MediaType),
+				containerdimages.IsManifestType(desc.MediaType),
+				containerdimages.IsConfigType(desc.MediaType):
+			default:
+				jobsQueue.Add(desc)
 			}
-			for _, c := range children {
-				jobsQueue.Add(c)
-			}
-
-			jobsQueue.Add(desc)
 
 			return nil, nil
 		},
 	)
 
 	handlerWrapper := func(h images.Handler) images.Handler {
-		return containerdimages.Handlers(addChildrenToJobs, h)
+		return containerdimages.Handlers(addLayerJobs, h)
 	}
 
 	err = remotes.PushContent(ctx, pusher, target, store, limiter, platforms.All, handlerWrapper)
