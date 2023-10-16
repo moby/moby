@@ -97,32 +97,34 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 			log.G(ctx).WithFields(log.Fields{
 				"error": err,
 				"image": img,
-			}).Warnf("failed to list parent images")
+			}).Warn("failed to list parent images")
 			return nil
 		}
 		return imgs
 	}
 
+	is := i.client.ImageService()
 	currentImg := img
 	for _, h := range history {
-		h.ID = currentImg.Target.Digest.String()
-		imgs := findParents(currentImg)
+		dgst := currentImg.Target.Digest.String()
+		h.ID = dgst
+
+		imgs, err := is.List(ctx, "target.digest=="+dgst)
+		if err != nil {
+			return nil, err
+		}
+
+		tags := getImageTags(ctx, imgs)
+		h.Tags = append(h.Tags, tags...)
+
+		parents := findParents(currentImg)
 
 		foundNext := false
-		for _, img := range imgs {
+		for _, img := range parents {
 			if _, ok := img.Labels[imageLabelClassicBuilderParent]; ok {
 				currentImg = img
 				foundNext = true
 			}
-
-			if isDanglingImage(img) {
-				continue
-			}
-			name, err := reference.ParseNamed(img.Name)
-			if err != nil {
-				return nil, err
-			}
-			h.Tags = append(h.Tags, reference.FamiliarString(name))
 		}
 
 		if !foundNext {
@@ -131,4 +133,26 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 	}
 
 	return history, nil
+}
+
+func getImageTags(ctx context.Context, imgs []images.Image) []string {
+	var tags []string
+	for _, img := range imgs {
+		if isDanglingImage(img) {
+			continue
+		}
+
+		name, err := reference.ParseNamed(img.Name)
+		if err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"name":  name,
+				"error": err,
+			}).Warn("image with a name that's not a valid named reference")
+			continue
+		}
+
+		tags = append(tags, reference.FamiliarString(name))
+	}
+
+	return tags
 }
