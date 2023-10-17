@@ -59,7 +59,7 @@ require (
 	github.com/moby/buildkit v0.11.7-0.20230908085316-d3e6c1360f6e // IMPORTANT: when updating, also update the version in builder/builder-next/worker/worker.go
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
-	github.com/moby/patternmatcher v0.5.0
+	github.com/moby/patternmatcher v0.6.0
 	github.com/moby/pubsub v1.0.0
 	github.com/moby/swarmkit/v2 v2.0.0-20230531205928-01bb7a41396b
 	github.com/moby/sys/mount v0.3.3
