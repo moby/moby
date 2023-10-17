@@ -67,10 +67,9 @@ func TestImportWithCustomPlatform(t *testing.T) {
 	imageRdr := io.MultiReader(&tarBuffer, io.LimitReader(testutil.DevZero, 0))
 
 	tests := []struct {
-		name        string
-		platform    string
-		expected    image.V1Image
-		expectedErr string
+		name     string
+		platform string
+		expected image.V1Image
 	}{
 		{
 			platform: "",
@@ -78,14 +77,6 @@ func TestImportWithCustomPlatform(t *testing.T) {
 				OS:           runtime.GOOS,
 				Architecture: runtime.GOARCH, // this may fail on armhf due to normalization?
 			},
-		},
-		{
-			platform:    "       ",
-			expectedErr: "is an invalid component",
-		},
-		{
-			platform:    "/",
-			expectedErr: "is an invalid component",
 		},
 		{
 			platform: runtime.GOOS,
@@ -107,6 +98,58 @@ func TestImportWithCustomPlatform(t *testing.T) {
 				OS:           runtime.GOOS,
 				Architecture: "sparc64",
 			},
+		},
+	}
+
+	for i, tc := range tests {
+		tc := tc
+		t.Run(tc.platform, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+			reference := "import-with-platform:tc-" + strconv.Itoa(i)
+
+			_, err = client.ImageImport(ctx,
+				types.ImageImportSource{Source: imageRdr, SourceName: "-"},
+				reference,
+				types.ImageImportOptions{Platform: tc.platform})
+			assert.NilError(t, err)
+
+			inspect, _, err := client.ImageInspectWithRaw(ctx, reference)
+			assert.NilError(t, err)
+			assert.Equal(t, inspect.Os, tc.expected.OS)
+			assert.Equal(t, inspect.Architecture, tc.expected.Architecture)
+		})
+	}
+}
+
+func TestImportWithCustomPlatformReject(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "TODO enable on windows")
+	skip.If(t, testEnv.UsingSnapshotter(), "we support importing images/other platforms w/ containerd image store")
+
+	ctx := setupTest(t)
+
+	client := testEnv.APIClient()
+
+	// Construct an empty tar archive.
+	var tarBuffer bytes.Buffer
+
+	tw := tar.NewWriter(&tarBuffer)
+	err := tw.Close()
+	assert.NilError(t, err)
+	imageRdr := io.MultiReader(&tarBuffer, io.LimitReader(testutil.DevZero, 0))
+
+	tests := []struct {
+		name        string
+		platform    string
+		expected    image.V1Image
+		expectedErr string
+	}{
+		{
+			platform:    "       ",
+			expectedErr: "is an invalid component",
+		},
+		{
+			platform:    "/",
+			expectedErr: "is an invalid component",
 		},
 		{
 			platform:    "macos",
@@ -134,16 +177,8 @@ func TestImportWithCustomPlatform(t *testing.T) {
 				types.ImageImportSource{Source: imageRdr, SourceName: "-"},
 				reference,
 				types.ImageImportOptions{Platform: tc.platform})
-			if tc.expectedErr != "" {
-				assert.ErrorContains(t, err, tc.expectedErr)
-			} else {
-				assert.NilError(t, err)
 
-				inspect, _, err := client.ImageInspectWithRaw(ctx, reference)
-				assert.NilError(t, err)
-				assert.Equal(t, inspect.Os, tc.expected.OS)
-				assert.Equal(t, inspect.Architecture, tc.expected.Architecture)
-			}
+			assert.ErrorContains(t, err, tc.expectedErr)
 		})
 	}
 }
