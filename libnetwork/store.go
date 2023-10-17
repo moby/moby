@@ -20,7 +20,6 @@ func (c *Controller) initStores() error {
 		return err
 	}
 
-	c.startWatch()
 	return nil
 }
 
@@ -190,11 +189,11 @@ type netWatch struct {
 }
 
 func (c *Controller) watchSvcRecord(ep *Endpoint) {
-	c.watchCh <- ep
+	go c.processEndpointCreate(ep)
 }
 
 func (c *Controller) unWatchSvcRecord(ep *Endpoint) {
-	c.unWatchCh <- ep
+	go c.processEndpointDelete(ep)
 }
 
 func (c *Controller) processEndpointCreate(ep *Endpoint) {
@@ -247,28 +246,6 @@ func (c *Controller) processEndpointDelete(ep *Endpoint) {
 		}
 	}
 	c.mu.Unlock()
-}
-
-func (c *Controller) watchLoop() {
-	for {
-		select {
-		case ep := <-c.watchCh:
-			c.processEndpointCreate(ep)
-		case ep := <-c.unWatchCh:
-			c.processEndpointDelete(ep)
-		}
-	}
-}
-
-func (c *Controller) startWatch() {
-	if c.watchCh != nil {
-		return
-	}
-	c.watchCh = make(chan *Endpoint)
-	c.unWatchCh = make(chan *Endpoint)
-	c.nmap = make(map[string]*netWatch)
-
-	go c.watchLoop()
 }
 
 func (c *Controller) networkCleanup() {
