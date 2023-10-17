@@ -7,7 +7,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/scope"
 )
 
 func (c *Controller) initStores() error {
@@ -182,32 +181,6 @@ retry:
 	}
 
 	return nil
-}
-
-func (c *Controller) watchSvcRecord(ep *Endpoint) {
-	go c.processEndpointCreate(ep)
-}
-
-func (c *Controller) unWatchSvcRecord(ep *Endpoint) {
-	go c.processEndpointDelete(ep)
-}
-
-func (c *Controller) processEndpointCreate(ep *Endpoint) {
-	n := ep.getNetwork()
-	if c.isSwarmNode() && n.Scope() == scope.Swarm && n.driverIsMultihost() {
-		return
-	}
-
-	n.updateSvcRecord(ep, true)
-}
-
-func (c *Controller) processEndpointDelete(ep *Endpoint) {
-	n := ep.getNetwork()
-	if c.isSwarmNode() && n.Scope() == scope.Swarm && n.driverIsMultihost() {
-		return
-	}
-
-	n.updateSvcRecord(ep, false)
 }
 
 func (c *Controller) networkCleanup() {

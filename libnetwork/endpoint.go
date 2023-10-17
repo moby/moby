@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -456,9 +457,10 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 		}
 	}()
 
-	// Watch for service records
 	if !n.getController().isAgent() {
-		n.getController().watchSvcRecord(ep)
+		if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
+			n.updateSvcRecord(ep, true)
+		}
 	}
 
 	// Do not update hosts file with internal networks endpoint IP
@@ -803,8 +805,9 @@ func (ep *Endpoint) Delete(force bool) error {
 		}
 	}()
 
-	// unwatch for service records
-	n.getController().unWatchSvcRecord(ep)
+	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
+		n.updateSvcRecord(ep, false)
+	}
 
 	if err = ep.deleteEndpoint(force); err != nil && !force {
 		return err

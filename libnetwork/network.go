@@ -1225,13 +1225,14 @@ func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpo
 		return nil, err
 	}
 
-	// Watch for service records
-	n.getController().watchSvcRecord(ep)
-	defer func() {
-		if err != nil {
-			n.getController().unWatchSvcRecord(ep)
-		}
-	}()
+	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
+		n.updateSvcRecord(ep, true)
+		defer func() {
+			if err != nil {
+				n.updateSvcRecord(ep, false)
+			}
+		}()
+	}
 
 	// Increment endpoint count to indicate completion of endpoint addition
 	if err = n.getEpCnt().IncEndpointCnt(); err != nil {
