@@ -185,7 +185,7 @@ retry:
 }
 
 type netWatch struct {
-	localEps map[string]*Endpoint
+	localEps map[string]struct{}
 }
 
 func (c *Controller) watchSvcRecord(ep *Endpoint) {
@@ -212,9 +212,9 @@ func (c *Controller) processEndpointCreate(ep *Endpoint) {
 	c.mu.Lock()
 	_, ok := c.nmap[networkID]
 	if !ok {
-		c.nmap[networkID] = &netWatch{localEps: make(map[string]*Endpoint)}
+		c.nmap[networkID] = &netWatch{localEps: make(map[string]struct{})}
 	}
-	c.nmap[networkID].localEps[endpointID] = ep
+	c.nmap[networkID].localEps[endpointID] = struct{}{}
 	c.mu.Unlock()
 }
 
