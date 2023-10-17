@@ -184,10 +184,6 @@ retry:
 	return nil
 }
 
-type netWatch struct {
-	localEps map[string]struct{}
-}
-
 func (c *Controller) watchSvcRecord(ep *Endpoint) {
 	go c.processEndpointCreate(ep)
 }
@@ -202,20 +198,7 @@ func (c *Controller) processEndpointCreate(ep *Endpoint) {
 		return
 	}
 
-	networkID := n.ID()
-	endpointID := ep.ID()
-
-	// Update the svc db for the local endpoint join right away
-	// Do this before adding this ep to localEps so that we don't
-	// try to update this ep's container's svc records
 	n.updateSvcRecord(ep, true)
-	c.mu.Lock()
-	_, ok := c.nmap[networkID]
-	if !ok {
-		c.nmap[networkID] = &netWatch{localEps: make(map[string]struct{})}
-	}
-	c.nmap[networkID].localEps[endpointID] = struct{}{}
-	c.mu.Unlock()
 }
 
 func (c *Controller) processEndpointDelete(ep *Endpoint) {
@@ -224,25 +207,7 @@ func (c *Controller) processEndpointDelete(ep *Endpoint) {
 		return
 	}
 
-	networkID := n.ID()
-	endpointID := ep.ID()
-
-	c.mu.Lock()
-	if nw, ok := c.nmap[networkID]; ok {
-		delete(nw.localEps, endpointID)
-		c.mu.Unlock()
-
-		// Update the svc db about local endpoint leave right away
-		// Do this after we remove this ep from localEps so that we
-		// don't try to remove this svc record from this ep's container.
-		n.updateSvcRecord(ep, false)
-
-		c.mu.Lock()
-		if len(nw.localEps) == 0 {
-			delete(c.nmap, networkID)
-		}
-	}
-	c.mu.Unlock()
+	n.updateSvcRecord(ep, false)
 }
 
 func (c *Controller) networkCleanup() {

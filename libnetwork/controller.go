@@ -88,7 +88,6 @@ type Controller struct {
 	store            *datastore.Store
 	extKeyListener   net.Listener
 	svcRecords       map[string]*svcInfo
-	nmap             map[string]*netWatch
 	serviceBindings  map[serviceKey]*service
 	ingressSandbox   *Sandbox
 	agent            *nwAgent
@@ -112,7 +111,6 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		sandboxes:        map[string]*Sandbox{},
 		svcRecords:       make(map[string]*svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
-		nmap:             make(map[string]*netWatch),
 		agentInitDone:    make(chan struct{}),
 		networkLocker:    locker.New(),
 		DiagnosticServer: diagnostic.New(),
