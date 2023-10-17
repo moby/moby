@@ -239,9 +239,6 @@ func (c *Controller) processEndpointDelete(ep *Endpoint) {
 
 		c.mu.Lock()
 		if len(nw.localEps) == 0 {
-			// This is the last container going away for the network. Destroy
-			// this network's svc db entry
-			delete(c.svcRecords, networkID)
 			delete(c.nmap, networkID)
 		}
 	}
