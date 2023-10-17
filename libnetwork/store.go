@@ -198,7 +198,7 @@ func (c *Controller) unWatchSvcRecord(ep *Endpoint) {
 
 func (c *Controller) processEndpointCreate(ep *Endpoint) {
 	n := ep.getNetwork()
-	if !c.isDistributedControl() && n.Scope() == scope.Swarm && n.driverIsMultihost() {
+	if c.isSwarmNode() && n.Scope() == scope.Swarm && n.driverIsMultihost() {
 		return
 	}
 
@@ -220,7 +220,7 @@ func (c *Controller) processEndpointCreate(ep *Endpoint) {
 
 func (c *Controller) processEndpointDelete(ep *Endpoint) {
 	n := ep.getNetwork()
-	if !c.isDistributedControl() && n.Scope() == scope.Swarm && n.driverIsMultihost() {
+	if c.isSwarmNode() && n.Scope() == scope.Swarm && n.driverIsMultihost() {
 		return
 	}
 
