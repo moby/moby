@@ -589,13 +589,6 @@ func (ep *Endpoint) rename(name string) error {
 			return types.InternalErrorf("Could not delete service state for endpoint %s from cluster on rename: %v", ep.Name(), err)
 		}
 	} else {
-		c.mu.Lock()
-		_, ok = c.nmap[n.ID()]
-		c.mu.Unlock()
-		if !ok {
-			// FIXME(thaJeztah): what is this check for, or is this to prevent a race condition (network removed)?
-			return fmt.Errorf("watch null for network %q", n.Name())
-		}
 		n.updateSvcRecord(ep, false)
 	}
 
@@ -636,14 +629,6 @@ func (ep *Endpoint) rename(name string) error {
 	if err = c.updateToStore(ep); err != nil {
 		return err
 	}
-	// After the name change do a dummy endpoint count update to
-	// trigger the service record update in the peer nodes
-
-	// Ignore the error because updateStore fail for EpCnt is a
-	// benign error. Besides there is no meaningful recovery that
-	// we can do. When the cluster recovers subsequent EpCnt update
-	// will force the peers to get the correct EP name.
-	_ = n.getEpCnt().updateStore()
 
 	return err
 }
