@@ -2,5 +2,5 @@
 
 package libnetwork
 
-func (c *Controller) setupArrangeUserFilterRule() {}
+func (c *Controller) setupFirewallReloadHandler() {}
 func setupUserChain(ipVersion any) error          { return nil }
