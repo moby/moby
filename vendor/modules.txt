@@ -1456,7 +1456,7 @@ google.golang.org/protobuf/types/pluginpb
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
 gopkg.in/yaml.v2
-# gotest.tools/v3 v3.5.0
+# gotest.tools/v3 v3.5.1
 ## explicit; go 1.17
 gotest.tools/v3/assert
 gotest.tools/v3/assert/cmp
