@@ -241,7 +241,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 		}
 		dgst := digest.FromBytes(data)
 
-		mFile := filepath.Join(s.outDir, "blobs", dgst.Algorithm().String(), dgst.Encoded())
+		mFile := filepath.Join(s.outDir, ocispec.ImageBlobsDir, dgst.Algorithm().String(), dgst.Encoded())
 		if err := os.MkdirAll(filepath.Dir(mFile), 0o755); err != nil {
 			return errors.Wrap(err, "error creating blob directory")
 		}
@@ -279,11 +279,11 @@ func (s *saveSession) save(outStream io.Writer) error {
 		for _, l := range imageDescr.layers {
 			// IMPORTANT: We use path, not filepath here to ensure the layers
 			// in the manifest use Unix-style forward-slashes.
-			layers = append(layers, path.Join("blobs", l.Algorithm().String(), l.Encoded()))
+			layers = append(layers, path.Join(ocispec.ImageBlobsDir, l.Algorithm().String(), l.Encoded()))
 		}
 
 		manifest = append(manifest, manifestItem{
-			Config:       path.Join("blobs", id.Digest().Algorithm().String(), id.Digest().Encoded()),
+			Config:       path.Join(ocispec.ImageBlobsDir, id.Digest().Algorithm().String(), id.Digest().Encoded()),
 			RepoTags:     repoTags,
 			Layers:       layers,
 			LayerSources: foreignSrcs,
@@ -336,7 +336,8 @@ func (s *saveSession) save(outStream io.Writer) error {
 		return err
 	}
 
-	layoutPath := filepath.Join(tempDir, ociLayoutFilename)
+	const ociLayoutContent = `{"imageLayoutVersion": "` + ocispec.ImageLayoutVersion + `"}`
+	layoutPath := filepath.Join(tempDir, ocispec.ImageLayoutFile)
 	if err := os.WriteFile(layoutPath, []byte(ociLayoutContent), 0o644); err != nil {
 		return errors.Wrap(err, "error writing oci layout file")
 	}
@@ -355,7 +356,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 		return errors.Wrap(err, "error marshaling oci index")
 	}
 
-	idxFile := filepath.Join(s.outDir, ociIndexFileName)
+	idxFile := filepath.Join(s.outDir, ocispec.ImageIndexFile)
 	if err := os.WriteFile(idxFile, data, 0o644); err != nil {
 		return errors.Wrap(err, "error writing oci index file")
 	}
@@ -420,7 +421,7 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 	data := img.RawJSON()
 	dgst := digest.FromBytes(data)
 
-	blobDir := filepath.Join(s.outDir, "blobs", dgst.Algorithm().String())
+	blobDir := filepath.Join(s.outDir, ocispec.ImageBlobsDir, dgst.Algorithm().String())
 	if err := os.MkdirAll(blobDir, 0o755); err != nil {
 		return nil, err
 	}
@@ -452,7 +453,7 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 		return distribution.Descriptor{}, nil
 	}
 
-	outDir := filepath.Join(s.outDir, "blobs")
+	outDir := filepath.Join(s.outDir, ocispec.ImageBlobsDir)
 
 	imageConfig, err := json.Marshal(legacyImg)
 	if err != nil {
