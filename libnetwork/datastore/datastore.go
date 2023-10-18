@@ -143,10 +143,7 @@ func newClient(kv string, addr string, config *store.Config) (*Store, error) {
 		return nil, err
 	}
 
-	ds := &Store{scope: scope.Local, store: s}
-	ds.cache = newCache(ds)
-
-	return ds, nil
+	return &Store{scope: scope.Local, store: s, cache: newCache(s)}, nil
 }
 
 // New creates a new Store instance.

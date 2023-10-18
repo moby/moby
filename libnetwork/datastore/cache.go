@@ -13,10 +13,10 @@ type kvMap map[string]KVObject
 type cache struct {
 	sync.Mutex
 	kmm map[string]kvMap
-	ds  *Store
+	ds  store.Store
 }
 
-func newCache(ds *Store) *cache {
+func newCache(ds store.Store) *cache {
 	return &cache{kmm: make(map[string]kvMap), ds: ds}
 }
 
@@ -40,7 +40,7 @@ func (c *cache) kmap(kvObject KVObject) (kvMap, error) {
 		return nil, errors.New("error while populating kmap, object does not implement KVConstructor interface")
 	}
 
-	kvList, err := c.ds.store.List(keyPrefix)
+	kvList, err := c.ds.List(keyPrefix)
 	if err != nil {
 		if err == store.ErrKeyNotFound {
 			// If the store doesn't have anything then there is nothing to
