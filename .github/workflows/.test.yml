@@ -258,7 +258,7 @@ jobs:
         name: Test daemon logs
         if: always()
         run: |
-          cat bundles/test-integration/docker.log
+          sudo cat bundles/test-integration/TestLiveRestore/*/*/docker.log
       -
         name: Upload reports
         if: always()
