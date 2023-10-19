@@ -121,7 +121,8 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 
 		foundNext := false
 		for _, img := range parents {
-			if _, ok := img.Labels[imageLabelClassicBuilderParent]; ok {
+			_, hasLabel := img.Labels[imageLabelClassicBuilderParent]
+			if !foundNext || hasLabel {
 				currentImg = img
 				foundNext = true
 			}
