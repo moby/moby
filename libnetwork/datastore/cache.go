@@ -10,7 +10,7 @@ import (
 type kvMap map[string]KVObject
 
 type cache struct {
-	sync.Mutex
+	mu  sync.Mutex
 	kmm map[string]kvMap
 	ds  store.Store
 }
@@ -22,10 +22,10 @@ func newCache(ds store.Store) *cache {
 func (c *cache) kmap(kvObject KVObject) (kvMap, error) {
 	var err error
 
-	c.Lock()
+	c.mu.Lock()
 	keyPrefix := Key(kvObject.KeyPrefix()...)
 	kmap, ok := c.kmm[keyPrefix]
-	c.Unlock()
+	c.mu.Unlock()
 
 	if ok {
 		return kmap, nil
@@ -67,15 +67,15 @@ out:
 	// There may multiple go routines racing to fill the
 	// cache. The one which places the kmap in c.kmm first
 	// wins. The others should just use what the first populated.
-	c.Lock()
+	c.mu.Lock()
 	kmapNew, ok := c.kmm[keyPrefix]
 	if ok {
-		c.Unlock()
+		c.mu.Unlock()
 		return kmapNew, nil
 	}
 
 	c.kmm[keyPrefix] = kmap
-	c.Unlock()
+	c.mu.Unlock()
 
 	return kmap, nil
 }
@@ -86,13 +86,13 @@ func (c *cache) add(kvObject KVObject, atomic bool) error {
 		return err
 	}
 
-	c.Lock()
+	c.mu.Lock()
 	// If atomic is true, cache needs to maintain its own index
 	// for atomicity and the add needs to be atomic.
 	if atomic {
 		if prev, ok := kmap[Key(kvObject.Key()...)]; ok {
 			if prev.Index() != kvObject.Index() {
-				c.Unlock()
+				c.mu.Unlock()
 				return ErrKeyModified
 			}
 		}
@@ -104,7 +104,7 @@ func (c *cache) add(kvObject KVObject, atomic bool) error {
 	}
 
 	kmap[Key(kvObject.Key()...)] = kvObject
-	c.Unlock()
+	c.mu.Unlock()
 	return nil
 }
 
@@ -114,20 +114,20 @@ func (c *cache) del(kvObject KVObject, atomic bool) error {
 		return err
 	}
 
-	c.Lock()
+	c.mu.Lock()
 	// If atomic is true, cache needs to maintain its own index
 	// for atomicity and del needs to be atomic.
 	if atomic {
 		if prev, ok := kmap[Key(kvObject.Key()...)]; ok {
 			if prev.Index() != kvObject.Index() {
-				c.Unlock()
+				c.mu.Unlock()
 				return ErrKeyModified
 			}
 		}
 	}
 
 	delete(kmap, Key(kvObject.Key()...))
-	c.Unlock()
+	c.mu.Unlock()
 	return nil
 }
 
@@ -137,8 +137,8 @@ func (c *cache) get(kvObject KVObject) error {
 		return err
 	}
 
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	o, ok := kmap[Key(kvObject.Key()...)]
 	if !ok {
@@ -154,8 +154,8 @@ func (c *cache) list(kvObject KVObject) ([]KVObject, error) {
 		return nil, err
 	}
 
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	var kvol []KVObject
 	for _, v := range kmap {
