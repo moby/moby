@@ -1,7 +1,6 @@
 package datastore
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 
@@ -34,12 +33,6 @@ func (c *cache) kmap(kvObject KVObject) (kvMap, error) {
 
 	kmap = kvMap{}
 
-	// Bail out right away if the kvObject does not implement KVConstructor
-	ctor, ok := kvObject.(KVConstructor)
-	if !ok {
-		return nil, errors.New("error while populating kmap, object does not implement KVConstructor interface")
-	}
-
 	kvList, err := c.ds.List(keyPrefix)
 	if err != nil {
 		if err == store.ErrKeyNotFound {
@@ -57,7 +50,7 @@ func (c *cache) kmap(kvObject KVObject) (kvMap, error) {
 			continue
 		}
 
-		dstO := ctor.New()
+		dstO := kvObject.New()
 		err = dstO.SetValue(kvPair.Value)
 		if err != nil {
 			return nil, err
@@ -152,12 +145,7 @@ func (c *cache) get(kvObject KVObject) error {
 		return ErrKeyNotFound
 	}
 
-	ctor, ok := o.(KVConstructor)
-	if !ok {
-		return errors.New("kvobject does not implement KVConstructor interface. could not get object")
-	}
-
-	return ctor.CopyTo(kvObject)
+	return o.CopyTo(kvObject)
 }
 
 func (c *cache) list(kvObject KVObject) ([]KVObject, error) {

@@ -47,10 +47,6 @@ type KVObject interface {
 	DataScope() string
 	// Skip provides a way for a KV Object to avoid persisting it in the KV Store
 	Skip() bool
-}
-
-// KVConstructor interface defines methods which can construct a KVObject from another.
-type KVConstructor interface {
 	// New returns a new object which is created based on the
 	// source object
 	New() KVObject
@@ -232,13 +228,9 @@ func (ds *Store) PutObjectAtomic(kvObject KVObject) error {
 	kvObject.SetIndex(pair.LastIndex)
 
 add_cache:
-	if ds.cache != nil {
-		// If persistent store is skipped, sequencing needs to
-		// happen in cache.
-		return ds.cache.add(kvObject, kvObject.Skip())
-	}
-
-	return nil
+	// If persistent store is skipped, sequencing needs to
+	// happen in cache.
+	return ds.cache.add(kvObject, kvObject.Skip())
 }
 
 // GetObject gets data from the store and unmarshals to the specified object.
@@ -246,23 +238,7 @@ func (ds *Store) GetObject(key string, o KVObject) error {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
-	if ds.cache != nil {
-		return ds.cache.get(o)
-	}
-
-	kvPair, err := ds.store.Get(key)
-	if err != nil {
-		return err
-	}
-
-	if err := o.SetValue(kvPair.Value); err != nil {
-		return err
-	}
-
-	// Make sure the object has a correct view of the DB index in
-	// case we need to modify it and update the DB.
-	o.SetIndex(kvPair.LastIndex)
-	return nil
+	return ds.cache.get(o)
 }
 
 func (ds *Store) ensureParent(parent string) error {
@@ -282,27 +258,10 @@ func (ds *Store) List(key string, kvObject KVObject) ([]KVObject, error) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
-	if ds.cache != nil {
-		return ds.cache.list(kvObject)
-	}
-
-	var kvol []KVObject
-	err := ds.iterateKVPairsFromStore(key, kvObject, func(key string, val KVObject) {
-		kvol = append(kvol, val)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return kvol, nil
+	return ds.cache.list(kvObject)
 }
 
-func (ds *Store) iterateKVPairsFromStore(key string, kvObject KVObject, callback func(string, KVObject)) error {
-	// Bail out right away if the kvObject does not implement KVConstructor
-	ctor, ok := kvObject.(KVConstructor)
-	if !ok {
-		return fmt.Errorf("error listing objects, object does not implement KVConstructor interface")
-	}
-
+func (ds *Store) iterateKVPairsFromStore(key string, ctor KVObject, callback func(string, KVObject)) error {
 	// Make sure the parent key exists
 	if err := ds.ensureParent(key); err != nil {
 		return err
@@ -372,11 +331,7 @@ func (ds *Store) DeleteObjectAtomic(kvObject KVObject) error {
 
 deleteCache:
 	// cleanup the cache only if AtomicDelete went through successfully
-	if ds.cache != nil {
-		// If persistent store is skipped, sequencing needs to
-		// happen in cache.
-		return ds.cache.del(kvObject, kvObject.Skip())
-	}
-
-	return nil
+	// If persistent store is skipped, sequencing needs to
+	// happen in cache.
+	return ds.cache.del(kvObject, kvObject.Skip())
 }

@@ -1,7 +1,7 @@
 package datastore
 
 import (
-	"errors"
+	"strings"
 
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/types"
@@ -52,7 +52,16 @@ func (s *MockStore) Exists(key string) (bool, error) {
 
 // List gets a range of values at "directory"
 func (s *MockStore) List(prefix string) ([]*store.KVPair, error) {
-	return nil, errors.New("not implemented")
+	var res []*store.KVPair
+	for k, v := range s.db {
+		if strings.HasPrefix(k, prefix) {
+			res = append(res, &store.KVPair{Key: k, Value: v.Data, LastIndex: v.Index})
+		}
+	}
+	if len(res) == 0 {
+		return nil, store.ErrKeyNotFound
+	}
+	return res, nil
 }
 
 // AtomicPut put a value at "key" if the key has not been
