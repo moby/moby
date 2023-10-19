@@ -509,7 +509,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 
 		cinspect, err := c.ContainerInspect(ctx, cID)
 		assert.NilError(t, err)
-		t.Logf("%+v", cinspect)
+		t.Logf("%+v", cinspect.ContainerJSONBase.State)
 
 		// Remove that container which should free the references in the volume
 		err = c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
