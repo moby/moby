@@ -41,8 +41,6 @@ type KVObject interface {
 	// Exists returns true if the object exists in the datastore, false if it hasn't been stored yet.
 	// When SetIndex() is called, the object has been stored.
 	Exists() bool
-	// DataScope indicates the storage scope of the KV object
-	DataScope() string
 	// Skip provides a way for a KV Object to avoid persisting it in the KV Store
 	Skip() bool
 	// New returns a new object which is created based on the

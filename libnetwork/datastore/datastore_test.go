@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/options"
-	"github.com/docker/docker/libnetwork/scope"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -131,10 +130,6 @@ func (n *dummyObject) Exists() bool {
 
 func (n *dummyObject) Skip() bool {
 	return n.SkipSave
-}
-
-func (n *dummyObject) DataScope() string {
-	return scope.Local
 }
 
 func (n *dummyObject) MarshalJSON() ([]byte, error) {

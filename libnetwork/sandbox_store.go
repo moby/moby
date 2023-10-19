@@ -9,7 +9,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/osl"
-	"github.com/docker/docker/libnetwork/scope"
 )
 
 const (
@@ -120,10 +119,6 @@ func (sbs *sbState) CopyTo(o datastore.KVObject) error {
 	dstSbs.ExtDNS = append(dstSbs.ExtDNS, sbs.ExtDNS...)
 
 	return nil
-}
-
-func (sbs *sbState) DataScope() string {
-	return scope.Local
 }
 
 func (sb *Sandbox) storeUpdate() error {

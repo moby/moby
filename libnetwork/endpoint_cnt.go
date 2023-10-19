@@ -97,10 +97,6 @@ func (ec *endpointCnt) CopyTo(o datastore.KVObject) error {
 	return nil
 }
 
-func (ec *endpointCnt) DataScope() string {
-	return ec.n.DataScope()
-}
-
 func (ec *endpointCnt) EndpointCnt() uint64 {
 	ec.Lock()
 	defer ec.Unlock()
@@ -111,7 +107,7 @@ func (ec *endpointCnt) EndpointCnt() uint64 {
 func (ec *endpointCnt) updateStore() error {
 	store := ec.n.getController().getStore()
 	if store == nil {
-		return fmt.Errorf("store not found for scope %s on endpoint count update", ec.DataScope())
+		return fmt.Errorf("store not found on endpoint count update")
 	}
 	// make a copy of count and n to avoid being overwritten by store.GetObject
 	count := ec.EndpointCnt()
@@ -140,7 +136,7 @@ func (ec *endpointCnt) setCnt(cnt uint64) error {
 func (ec *endpointCnt) atomicIncDecEpCnt(inc bool) error {
 	store := ec.n.getController().getStore()
 	if store == nil {
-		return fmt.Errorf("store not found for scope %s", ec.DataScope())
+		return fmt.Errorf("store not found on endpoint count atomic inc/dec")
 	}
 
 	tmp := &endpointCnt{n: ec.n}
