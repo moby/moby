@@ -15,7 +15,7 @@ const dummyKey = "dummy"
 // NewTestDataStore can be used by other Tests in order to use custom datastore
 func NewTestDataStore() *Store {
 	s := NewMockStore()
-	return &Store{scope: scope.Local, store: s, cache: newCache(s)}
+	return &Store{store: s, cache: newCache(s)}
 }
 
 func TestKey(t *testing.T) {

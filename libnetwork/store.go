@@ -70,7 +70,7 @@ func (c *Controller) getNetworks() ([]*Network, error) {
 
 		n.epCnt = ec
 		if n.scope == "" {
-			n.scope = store.Scope()
+			n.scope = scope.Local
 		}
 		nl = append(nl, n)
 	}
@@ -107,7 +107,7 @@ func (c *Controller) getNetworksFromStore() []*Network { // FIXME: unify with c.
 			n.epCnt = ec
 		}
 		if n.scope == "" {
-			n.scope = store.Scope()
+			n.scope = scope.Local
 		}
 		n.mu.Unlock()
 		nl = append(nl, n)
@@ -134,8 +134,8 @@ func (n *Network) getEndpointsFromStore() ([]*Endpoint, error) {
 	kvol, err := store.List(datastore.Key(tmp.KeyPrefix()...), &Endpoint{network: n})
 	if err != nil {
 		if err != datastore.ErrKeyNotFound {
-			return nil, fmt.Errorf("failed to get endpoints for network %s scope %s: %w",
-				n.Name(), store.Scope(), err)
+			return nil, fmt.Errorf("failed to get endpoints for network %s: %w",
+				n.Name(), err)
 		}
 		return nil, nil
 	}

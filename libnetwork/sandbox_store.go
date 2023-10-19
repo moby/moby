@@ -184,7 +184,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 			// It's normal for no sandboxes to be found. Just bail out.
 			return nil
 		}
-		return fmt.Errorf("failed to get sandboxes for scope %s: %v", store.Scope(), err)
+		return fmt.Errorf("failed to get sandboxes: %v", err)
 	}
 
 	for _, s := range sandboxStates {

@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/libnetwork/discoverapi"
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
-	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -21,7 +20,6 @@ var (
 
 type Store struct {
 	mu    sync.Mutex
-	scope string
 	store store.Store
 	cache *cache
 }
@@ -139,7 +137,7 @@ func newClient(kv string, addr string, config *store.Config) (*Store, error) {
 		return nil, err
 	}
 
-	return &Store{scope: scope.Local, store: s, cache: newCache(s)}, nil
+	return &Store{store: s, cache: newCache(s)}, nil
 }
 
 // New creates a new Store instance.
@@ -180,11 +178,6 @@ func FromConfig(dsc discoverapi.DatastoreConfigData) (*Store, error) {
 // Close closes the data store.
 func (ds *Store) Close() {
 	ds.store.Close()
-}
-
-// Scope returns the scope of the store.
-func (ds *Store) Scope() string {
-	return ds.scope
 }
 
 // PutObjectAtomic provides an atomic add and update operation for a Record.
