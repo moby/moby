@@ -109,44 +109,6 @@ func (b *BoltDB) releaseDBhandle() {
 	}
 }
 
-// Get the value at "key". BoltDB doesn't provide an inbuilt last modified index with every kv pair. Its implemented by
-// by a atomic counter maintained by the libkv and appened to the value passed by the client.
-func (b *BoltDB) Get(key string) (*store.KVPair, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	db, err := b.getDBhandle()
-	if err != nil {
-		return nil, err
-	}
-	defer b.releaseDBhandle()
-
-	var val []byte
-	err = db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(b.boltBucket)
-		if bucket == nil {
-			return store.ErrKeyNotFound
-		}
-
-		v := bucket.Get([]byte(key))
-		val = make([]byte, len(v))
-		copy(val, v)
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(val) == 0 {
-		return nil, store.ErrKeyNotFound
-	}
-
-	dbIndex := binary.LittleEndian.Uint64(val[:libkvmetadatalen])
-	val = val[libkvmetadatalen:]
-
-	return &store.KVPair{Key: key, Value: val, LastIndex: dbIndex}, nil
-}
-
 // Put the key, value pair. index number metadata is prepended to the value
 func (b *BoltDB) Put(key string, value []byte) error {
 	b.mu.Lock()

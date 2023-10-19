@@ -23,16 +23,6 @@ func NewMockStore() *MockStore {
 	return &MockStore{db: make(map[string]*MockData)}
 }
 
-// Get the value at "key", returns the last modified index
-// to use in conjunction to CAS calls
-func (s *MockStore) Get(key string) (*store.KVPair, error) {
-	mData := s.db[key]
-	if mData == nil {
-		return nil, nil
-	}
-	return &store.KVPair{Value: mData.Data, LastIndex: mData.Index}, nil
-}
-
 // Put a value at "key"
 func (s *MockStore) Put(key string, value []byte) error {
 	mData := s.db[key]
