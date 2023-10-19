@@ -177,7 +177,8 @@ func appendDistributionSourceLabel(ctx context.Context, realStore content.Store,
 		return
 	}
 
-	if err := containerdimages.Dispatch(ctx, appendSource, nil, target); err != nil {
+	handler := presentChildrenHandler(realStore, appendSource)
+	if err := containerdimages.Dispatch(ctx, handler, nil, target); err != nil {
 		// Shouldn't happen, but even if it would fail, then make it only a warning
 		// because it doesn't affect the pushed data.
 		log.G(ctx).WithError(err).Warn("failed to append distribution source labels to pushed content")
