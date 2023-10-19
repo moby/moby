@@ -189,11 +189,6 @@ func (ds *Store) Scope() string {
 
 // PutObjectAtomic provides an atomic add and update operation for a Record.
 func (ds *Store) PutObjectAtomic(kvObject KVObject) error {
-	var (
-		previous *store.KVPair
-		pair     *store.KVPair
-		err      error
-	)
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
@@ -207,27 +202,23 @@ func (ds *Store) PutObjectAtomic(kvObject KVObject) error {
 		return types.InvalidParameterErrorf("invalid KV Object with a nil Value for key %s", Key(kvObject.Key()...))
 	}
 
-	if kvObject.Skip() {
-		goto add_cache
-	}
-
-	if kvObject.Exists() {
-		previous = &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
-	} else {
-		previous = nil
-	}
-
-	pair, err = ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous)
-	if err != nil {
-		if err == store.ErrKeyExists {
-			return ErrKeyModified
+	if !kvObject.Skip() {
+		var previous *store.KVPair
+		if kvObject.Exists() {
+			previous = &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
 		}
-		return err
+
+		pair, err := ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous)
+		if err != nil {
+			if err == store.ErrKeyExists {
+				return ErrKeyModified
+			}
+			return err
+		}
+
+		kvObject.SetIndex(pair.LastIndex)
 	}
 
-	kvObject.SetIndex(pair.LastIndex)
-
-add_cache:
 	// If persistent store is skipped, sequencing needs to
 	// happen in cache.
 	return ds.cache.add(kvObject, kvObject.Skip())
@@ -318,18 +309,15 @@ func (ds *Store) DeleteObjectAtomic(kvObject KVObject) error {
 
 	previous := &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
 
-	if kvObject.Skip() {
-		goto deleteCache
-	}
-
-	if err := ds.store.AtomicDelete(Key(kvObject.Key()...), previous); err != nil {
-		if err == store.ErrKeyExists {
-			return ErrKeyModified
+	if !kvObject.Skip() {
+		if err := ds.store.AtomicDelete(Key(kvObject.Key()...), previous); err != nil {
+			if err == store.ErrKeyExists {
+				return ErrKeyModified
+			}
+			return err
 		}
-		return err
 	}
 
-deleteCache:
 	// cleanup the cache only if AtomicDelete went through successfully
 	// If persistent store is skipped, sequencing needs to
 	// happen in cache.
