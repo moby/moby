@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/moby/sys/signal"
 	"github.com/pkg/errors"
 )
@@ -41,13 +42,12 @@ func (daemon *Daemon) ContainerStop(ctx context.Context, name string, options co
 	return nil
 }
 
-// containerStop sends a stop signal, waits, sends a kill signal.
-func (daemon *Daemon) containerStop(_ context.Context, ctr *container.Container, options containertypes.StopOptions) (retErr error) {
-	// Deliberately using a local context here, because cancelling the
-	// request should not cancel the stop.
-	//
-	// TODO(thaJeztah): pass context, and use context.WithoutCancel() once available: https://github.com/golang/go/issues/40221
-	ctx := context.Background()
+// containerStop sends a stop signal, waits, sends a kill signal. It uses
+// a [context.WithoutCancel], so cancelling the context does not cancel
+// the request to stop the container.
+func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Container, options containertypes.StopOptions) (retErr error) {
+	// Cancelling the request should not cancel the stop.
+	ctx = compatcontext.WithoutCancel(ctx)
 
 	if !ctr.IsRunning() {
 		return nil
