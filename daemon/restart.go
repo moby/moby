@@ -7,6 +7,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/internal/compatcontext"
 )
 
 // ContainerRestart stops and starts a container. It attempts to
@@ -32,6 +33,10 @@ func (daemon *Daemon) ContainerRestart(ctx context.Context, name string, options
 // gracefully stop, before forcefully terminating the container. If
 // given a negative duration, wait forever for a graceful stop.
 func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configStore, container *container.Container, options containertypes.StopOptions) error {
+	// Restarting is expected to be an atomic operation, and cancelling
+	// the request should not cancel the stop -> start sequence.
+	ctx = compatcontext.WithoutCancel(ctx)
+
 	// Determine isolation. If not specified in the hostconfig, use daemon default.
 	actualIsolation := container.HostConfig.Isolation
 	if containertypes.Isolation.IsDefault(actualIsolation) {
