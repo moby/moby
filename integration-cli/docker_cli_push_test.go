@@ -13,6 +13,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
@@ -31,11 +32,11 @@ func (s *DockerCLIPushSuite) OnTimeout(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestPushBusyboxImage(c *testing.T) {
-	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	const imgRepo = privateRegistryURL + "/dockercli/busybox"
 	// tag the image to upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	cli.DockerCmd(c, "tag", "busybox", imgRepo)
 	// push the image to the registry
-	dockerCmd(c, "push", repoName)
+	cli.DockerCmd(c, "push", imgRepo)
 }
 
 // pushing an image without a prefix should throw an error
@@ -45,44 +46,44 @@ func (s *DockerCLIPushSuite) TestPushUnprefixedRepo(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestPushUntagged(c *testing.T) {
-	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
-	expected := "An image does not exist locally with the tag"
+	const imgRepo = privateRegistryURL + "/dockercli/busybox"
 
-	out, _, err := dockerCmdWithError("push", repoName)
+	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", "pushing the image to the private registry should have failed: output %q", out)
+	const expected = "An image does not exist locally with the tag"
 	assert.Assert(c, strings.Contains(out, expected), "pushing the image failed")
 }
 
 func (s *DockerRegistrySuite) TestPushBadTag(c *testing.T) {
-	repoName := fmt.Sprintf("%v/dockercli/busybox:latest", privateRegistryURL)
-	expected := "does not exist"
+	const imgRepo = privateRegistryURL + "/dockercli/busybox:latest"
 
-	out, _, err := dockerCmdWithError("push", repoName)
+	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", "pushing the image to the private registry should have failed: output %q", out)
+	const expected = "does not exist"
 	assert.Assert(c, strings.Contains(out, expected), "pushing the image failed")
 }
 
 func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {
-	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
-	repoTag1 := fmt.Sprintf("%v/dockercli/busybox:t1", privateRegistryURL)
-	repoTag2 := fmt.Sprintf("%v/dockercli/busybox:t2", privateRegistryURL)
+	const imgRepo = privateRegistryURL + "/dockercli/busybox"
+	const repoTag1 = imgRepo + ":t1"
+	const repoTag2 = imgRepo + ":t2"
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoTag1)
-	dockerCmd(c, "tag", "busybox", repoTag2)
+	cli.DockerCmd(c, "tag", "busybox", repoTag1)
+	cli.DockerCmd(c, "tag", "busybox", repoTag2)
 
 	args := []string{"push"}
 	if versions.GreaterThanOrEqualTo(DockerCLIVersion(c), "20.10.0") {
 		// 20.10 CLI removed implicit push all tags and requires the "--all" flag
 		args = append(args, "--all-tags")
 	}
-	args = append(args, repoName)
+	args = append(args, imgRepo)
 
-	dockerCmd(c, args...)
+	cli.DockerCmd(c, args...)
 
 	imageAlreadyExists := ": Image already exists"
 
 	// Ensure layer list is equivalent for repoTag1 and repoTag2
-	out1, _ := dockerCmd(c, "push", repoTag1)
+	out1 := cli.DockerCmd(c, "push", repoTag1).Combined()
 	var out1Lines []string
 	for _, outputLine := range strings.Split(out1, "\n") {
 		if strings.Contains(outputLine, imageAlreadyExists) {
@@ -90,7 +91,7 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {
 		}
 	}
 
-	out2, _ := dockerCmd(c, "push", repoTag2)
+	out2 := cli.DockerCmd(c, "push", repoTag2).Combined()
 	var out2Lines []string
 	for _, outputLine := range strings.Split(out2, "\n") {
 		if strings.Contains(outputLine, imageAlreadyExists) {
@@ -101,7 +102,8 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestPushEmptyLayer(c *testing.T) {
-	repoName := fmt.Sprintf("%v/dockercli/emptylayer", privateRegistryURL)
+	const imgRepo = privateRegistryURL + "/dockercli/emptylayer"
+
 	emptyTarball, err := os.CreateTemp("", "empty_tarball")
 	assert.NilError(c, err, "Unable to create test file")
 
@@ -114,23 +116,23 @@ func (s *DockerRegistrySuite) TestPushEmptyLayer(c *testing.T) {
 	defer freader.Close()
 
 	icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "import", "-", repoName},
+		Command: []string{dockerBinary, "import", "-", imgRepo},
 		Stdin:   freader,
 	}).Assert(c, icmd.Success)
 
 	// Now verify we can push it
-	out, _, err := dockerCmdWithError("push", repoName)
+	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.NilError(c, err, "pushing the image to the private registry has failed: %s", out)
 }
 
 // TestConcurrentPush pushes multiple tags to the same repo
 // concurrently.
 func (s *DockerRegistrySuite) TestConcurrentPush(c *testing.T) {
-	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	const imgRepo = privateRegistryURL + "/dockercli/busybox"
 
 	var repos []string
 	for _, tag := range []string{"push1", "push2", "push3"} {
-		repo := fmt.Sprintf("%v:%v", repoName, tag)
+		repo := fmt.Sprintf("%v:%v", imgRepo, tag)
 		buildImageSuccessfully(c, repo, build.WithDockerfile(fmt.Sprintf(`
 	FROM busybox
 	ENTRYPOINT ["/bin/echo"]
@@ -158,21 +160,22 @@ func (s *DockerRegistrySuite) TestConcurrentPush(c *testing.T) {
 
 	// Clear local images store.
 	args := append([]string{"rmi"}, repos...)
-	dockerCmd(c, args...)
+	cli.DockerCmd(c, args...)
 
 	// Re-pull and run individual tags, to make sure pushes succeeded
 	for _, repo := range repos {
-		dockerCmd(c, "pull", repo)
-		dockerCmd(c, "inspect", repo)
-		out, _ := dockerCmd(c, "run", "--rm", repo)
+		cli.DockerCmd(c, "pull", repo)
+		cli.DockerCmd(c, "inspect", repo)
+		out := cli.DockerCmd(c, "run", "--rm", repo).Combined()
 		assert.Equal(c, strings.TrimSpace(out), "/bin/sh -c echo "+repo)
 	}
 }
 
 func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
-	sourceRepoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	const sourceRepoName = privateRegistryURL + "/dockercli/busybox"
+
 	// tag the image to upload it to the private registry
-	dockerCmd(c, "tag", "busybox", sourceRepoName)
+	cli.DockerCmd(c, "tag", "busybox", sourceRepoName)
 	// push the image to the registry
 	out1, _, err := dockerCmdWithError("push", sourceRepoName)
 	assert.NilError(c, err, "pushing the image to the private registry has failed: %s", out1)
@@ -182,9 +185,10 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
 	digest1 := reference.DigestRegexp.FindString(out1)
 	assert.Assert(c, len(digest1) > 0, "no digest found for pushed manifest")
 
-	destRepoName := fmt.Sprintf("%v/dockercli/crossrepopush", privateRegistryURL)
+	const destRepoName = privateRegistryURL + "/dockercli/crossrepopush"
+
 	// retag the image to upload the same layers to another repo in the same registry
-	dockerCmd(c, "tag", "busybox", destRepoName)
+	cli.DockerCmd(c, "tag", "busybox", destRepoName)
 	// push the image to the registry
 	out2, _, err := dockerCmdWithError("push", destRepoName)
 	assert.NilError(c, err, "pushing the image to the private registry has failed: %s", out2)
@@ -205,16 +209,16 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
 	assert.Equal(c, digest3, digest2)
 
 	// ensure that we can pull and run the cross-repo-pushed repository
-	dockerCmd(c, "rmi", destRepoName)
-	dockerCmd(c, "pull", destRepoName)
-	out4, _ := dockerCmd(c, "run", destRepoName, "echo", "-n", "hello world")
+	cli.DockerCmd(c, "rmi", destRepoName)
+	cli.DockerCmd(c, "pull", destRepoName)
+	out4 := cli.DockerCmd(c, "run", destRepoName, "echo", "-n", "hello world").Combined()
 	assert.Equal(c, out4, "hello world")
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestPushNoCredentialsNoRetry(c *testing.T) {
-	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
-	dockerCmd(c, "tag", "busybox", repoName)
-	out, _, err := dockerCmdWithError("push", repoName)
+	const imgRepo = privateRegistryURL + "/busybox"
+	cli.DockerCmd(c, "tag", "busybox", imgRepo)
+	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, !strings.Contains(out, "Retrying"))
 	assert.Assert(c, strings.Contains(out, "no basic auth credentials"))
@@ -223,9 +227,10 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPushNoCredentialsNoRetry(c *testin
 // This may be flaky but it's needed not to regress on unauthorized push, see #21054
 func (s *DockerCLIPushSuite) TestPushToCentralRegistryUnauthorized(c *testing.T) {
 	testRequires(c, Network)
-	repoName := "test/busybox"
-	dockerCmd(c, "tag", "busybox", repoName)
-	out, _, err := dockerCmdWithError("push", repoName)
+
+	const imgRepo = "test/busybox"
+	cli.DockerCmd(c, "tag", "busybox", imgRepo)
+	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, !strings.Contains(out, "Retrying"))
 }
@@ -252,9 +257,10 @@ func (s *DockerRegistryAuthTokenSuite) TestPushTokenServiceUnauthResponse(c *tes
 	ts := getTestTokenService(http.StatusUnauthorized, `{"errors": [{"Code":"UNAUTHORIZED", "message": "a message", "detail": null}]}`, 0)
 	defer ts.Close()
 	s.setupRegistryWithTokenService(c, ts.URL)
-	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
-	dockerCmd(c, "tag", "busybox", repoName)
-	out, _, err := dockerCmdWithError("push", repoName)
+
+	const imgRepo = privateRegistryURL + "/busybox"
+	cli.DockerCmd(c, "tag", "busybox", imgRepo)
+	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, !strings.Contains(out, "Retrying"))
 	assert.Assert(c, strings.Contains(out, "unauthorized: a message"))
@@ -264,9 +270,10 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	ts := getTestTokenService(http.StatusUnauthorized, `{"error": "unauthorized"}`, 0)
 	defer ts.Close()
 	s.setupRegistryWithTokenService(c, ts.URL)
-	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
-	dockerCmd(c, "tag", "busybox", repoName)
-	out, _, err := dockerCmdWithError("push", repoName)
+
+	const imgRepo = privateRegistryURL + "/busybox"
+	cli.DockerCmd(c, "tag", "busybox", imgRepo)
+	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, !strings.Contains(out, "Retrying"))
 	split := strings.Split(out, "\n")
@@ -277,9 +284,10 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	ts := getTestTokenService(http.StatusTooManyRequests, `{"errors": [{"code":"TOOMANYREQUESTS","message":"out of tokens"}]}`, 3)
 	defer ts.Close()
 	s.setupRegistryWithTokenService(c, ts.URL)
-	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
-	dockerCmd(c, "tag", "busybox", repoName)
-	out, _, err := dockerCmdWithError("push", repoName)
+
+	const imgRepo = privateRegistryURL + "/busybox"
+	cli.DockerCmd(c, "tag", "busybox", imgRepo)
+	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", out)
 	// TODO: isolate test so that it can be guaranteed that the 503 will trigger xfer retries
 	// assert.Assert(c, strings.Contains(out, "Retrying"))
@@ -292,9 +300,10 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	ts := getTestTokenService(http.StatusForbidden, `no way`, 0)
 	defer ts.Close()
 	s.setupRegistryWithTokenService(c, ts.URL)
-	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
-	dockerCmd(c, "tag", "busybox", repoName)
-	out, _, err := dockerCmdWithError("push", repoName)
+
+	const imgRepo = privateRegistryURL + "/busybox"
+	cli.DockerCmd(c, "tag", "busybox", imgRepo)
+	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, !strings.Contains(out, "Retrying"))
 	split := strings.Split(out, "\n")
@@ -305,9 +314,10 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	ts := getTestTokenService(http.StatusOK, `{"something": "wrong"}`, 0)
 	defer ts.Close()
 	s.setupRegistryWithTokenService(c, ts.URL)
-	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
-	dockerCmd(c, "tag", "busybox", repoName)
-	out, _, err := dockerCmdWithError("push", repoName)
+
+	const imgRepo = privateRegistryURL + "/busybox"
+	cli.DockerCmd(c, "tag", "busybox", imgRepo)
+	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, !strings.Contains(out, "Retrying"))
 	split := strings.Split(out, "\n")

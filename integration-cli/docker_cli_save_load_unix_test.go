@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
@@ -22,10 +23,10 @@ import (
 // save a repo and try to load it using stdout
 func (s *DockerCLISaveLoadSuite) TestSaveAndLoadRepoStdout(c *testing.T) {
 	name := "test-save-and-load-repo-stdout"
-	dockerCmd(c, "run", "--name", name, "busybox", "true")
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "true")
 
-	repoName := "foobar-save-load-test"
-	before, _ := dockerCmd(c, "commit", name, repoName)
+	imgRepoName := "foobar-save-load-test"
+	before := cli.DockerCmd(c, "commit", name, imgRepoName).Stdout()
 	before = strings.TrimRight(before, "\n")
 
 	tmpFile, err := os.CreateTemp("", "foobar-save-load-test.tar")
@@ -33,7 +34,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadRepoStdout(c *testing.T) {
 	defer os.Remove(tmpFile.Name())
 
 	icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "save", repoName},
+		Command: []string{dockerBinary, "save", imgRepoName},
 		Stdout:  tmpFile,
 	}).Assert(c, icmd.Success)
 
@@ -41,23 +42,23 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadRepoStdout(c *testing.T) {
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 
-	deleteImages(repoName)
+	deleteImages(imgRepoName)
 
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "load"},
 		Stdin:   tmpFile,
 	}).Assert(c, icmd.Success)
 
-	after := inspectField(c, repoName, "Id")
+	after := inspectField(c, imgRepoName, "Id")
 	after = strings.TrimRight(after, "\n")
 
 	assert.Equal(c, after, before, "inspect is not the same after a save / load")
 
-	deleteImages(repoName)
+	deleteImages(imgRepoName)
 
-	pty, tty, err := pty.Open()
+	p, tty, err := pty.Open()
 	assert.NilError(c, err)
-	cmd := exec.Command(dockerBinary, "save", repoName)
+	cmd := exec.Command(dockerBinary, "save", imgRepoName)
 	cmd.Stdin = tty
 	cmd.Stdout = tty
 	cmd.Stderr = tty
@@ -66,7 +67,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadRepoStdout(c *testing.T) {
 
 	buf := make([]byte, 1024)
 
-	n, err := pty.Read(buf)
+	n, err := p.Read(buf)
 	assert.NilError(c, err, "could not read tty output")
 	assert.Assert(c, strings.Contains(string(buf[:n]), "cowardly refusing"), "help output is not being yielded")
 }
@@ -81,19 +82,19 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadWithProgressBar(c *testing.T) {
 	`))
 
 	tmptar := name + ".tar"
-	dockerCmd(c, "save", "-o", tmptar, name)
+	cli.DockerCmd(c, "save", "-o", tmptar, name)
 	defer os.Remove(tmptar)
 
-	dockerCmd(c, "rmi", name)
-	dockerCmd(c, "tag", "busybox", name)
-	out, _ := dockerCmd(c, "load", "-i", tmptar)
+	cli.DockerCmd(c, "rmi", name)
+	cli.DockerCmd(c, "tag", "busybox", name)
+	out := cli.DockerCmd(c, "load", "-i", tmptar).Combined()
 	expected := fmt.Sprintf("The image %s:latest already exists, renaming the old one with ID", name)
 	assert.Assert(c, strings.Contains(out, expected))
 }
 
 // fail because load didn't receive data from stdin
 func (s *DockerCLISaveLoadSuite) TestLoadNoStdinFail(c *testing.T) {
-	pty, tty, err := pty.Open()
+	p, tty, err := pty.Open()
 	assert.NilError(c, err)
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 5*time.Second)
 	defer cancel()
@@ -105,7 +106,7 @@ func (s *DockerCLISaveLoadSuite) TestLoadNoStdinFail(c *testing.T) {
 
 	buf := make([]byte, 1024)
 
-	n, err := pty.Read(buf)
+	n, err := p.Read(buf)
 	assert.NilError(c, err) // could not read tty output
 	assert.Assert(c, strings.Contains(string(buf[:n]), "requested load from stdin, but stdin is empty"))
 }

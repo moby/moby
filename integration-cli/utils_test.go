@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/icmd"
@@ -23,19 +24,14 @@ func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
 // TODO: update code to call cmd.RunCmd directly, and remove this function
 // Deprecated: use gotest.tools/icmd
 func runCommandWithOutput(execCmd *exec.Cmd) (string, int, error) {
-	result := icmd.RunCmd(transformCmd(execCmd))
-	return result.Combined(), result.ExitCode, result.Error
-}
-
-// Temporary shim for migrating commands to the new function
-func transformCmd(execCmd *exec.Cmd) icmd.Cmd {
-	return icmd.Cmd{
+	result := icmd.RunCmd(icmd.Cmd{
 		Command: execCmd.Args,
 		Env:     execCmd.Env,
 		Dir:     execCmd.Dir,
 		Stdin:   execCmd.Stdin,
 		Stdout:  execCmd.Stdout,
-	}
+	})
+	return result.Combined(), result.ExitCode, result.Error
 }
 
 // ParseCgroupPaths parses 'procCgroupData', which is output of '/proc/<pid>/cgroup', and returns
@@ -135,7 +131,7 @@ func existingElements(c *testing.T, opts elementListOptions) []string {
 	if opts.format != "" {
 		args = append(args, "--format", opts.format)
 	}
-	out, _ := dockerCmd(c, args...)
+	out := cli.DockerCmd(c, args...).Combined()
 	var lines []string
 	for _, l := range strings.Split(out, "\n") {
 		if l != "" {

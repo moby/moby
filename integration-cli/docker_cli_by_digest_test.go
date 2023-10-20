@@ -20,9 +20,12 @@ import (
 	"gotest.tools/v3/skip"
 )
 
+const (
+	remoteRepoName = "dockercli/busybox-by-dgst"
+	repoName       = privateRegistryURL + "/" + remoteRepoName
+)
+
 var (
-	remoteRepoName  = "dockercli/busybox-by-dgst"
-	repoName        = fmt.Sprintf("%s/%s", privateRegistryURL, remoteRepoName)
 	pushDigestRegex = regexp.MustCompile(`[\S]+: digest: ([\S]+) size: [0-9]+`)
 	digestRegex     = regexp.MustCompile(`Digest: ([\S]+)`)
 )
@@ -32,7 +35,7 @@ func setupImage(c *testing.T) (digest.Digest, error) {
 }
 
 func setupImageWithTag(c *testing.T, tag string) (digest.Digest, error) {
-	containerName := "busyboxbydigest"
+	const containerName = "busyboxbydigest"
 
 	// new file is committed because this layer is used for detecting malicious
 	// changes. if this was committed as empty layer it would be skipped on pull
@@ -65,7 +68,7 @@ func testPullByTagDisplaysDigest(c *testing.T) {
 	assert.NilError(c, err, "error setting up image")
 
 	// pull from the registry using the tag
-	out, _ := dockerCmd(c, "pull", repoName)
+	out := cli.DockerCmd(c, "pull", repoName).Combined()
 
 	// the pull output includes "Digest: <digest>", so find that
 	matches := digestRegex.FindStringSubmatch(out)
@@ -91,7 +94,7 @@ func testPullByDigest(c *testing.T) {
 
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
-	out, _ := dockerCmd(c, "pull", imageReference)
+	out := cli.DockerCmd(c, "pull", imageReference).Combined()
 
 	// the pull output includes "Digest: <digest>", so find that
 	matches := digestRegex.FindStringSubmatch(out)
@@ -139,8 +142,8 @@ func (s *DockerRegistrySuite) TestCreateByDigest(c *testing.T) {
 
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
 
-	containerName := "createByDigest"
-	dockerCmd(c, "create", "--name", containerName, imageReference)
+	const containerName = "createByDigest"
+	cli.DockerCmd(c, "create", "--name", containerName, imageReference)
 
 	res := inspectField(c, containerName, "Config.Image")
 	assert.Equal(c, res, imageReference)
@@ -152,8 +155,8 @@ func (s *DockerRegistrySuite) TestRunByDigest(c *testing.T) {
 
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
 
-	containerName := "runByDigest"
-	out, _ := dockerCmd(c, "run", "--name", containerName, imageReference, "sh", "-c", "echo found=$digest")
+	const containerName = "runByDigest"
+	out := cli.DockerCmd(c, "run", "--name", containerName, imageReference, "sh", "-c", "echo found=$digest").Combined()
 
 	foundRegex := regexp.MustCompile("found=([^\n]+)")
 	matches := foundRegex.FindStringSubmatch(out)
@@ -165,13 +168,13 @@ func (s *DockerRegistrySuite) TestRunByDigest(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *testing.T) {
-	digest, err := setupImage(c)
+	imgDigest, err := setupImage(c)
 	assert.NilError(c, err, "error setting up image")
 
-	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
+	imageReference := fmt.Sprintf("%s@%s", repoName, imgDigest)
 
 	// pull from the registry using the <name>@<digest> reference
-	dockerCmd(c, "pull", imageReference)
+	cli.DockerCmd(c, "pull", imageReference)
 
 	// make sure inspect runs ok
 	inspectField(c, imageReference, "Id")
@@ -188,19 +191,19 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *testing.T) {
 
 func (s *DockerRegistrySuite) TestBuildByDigest(c *testing.T) {
 	skip.If(c, testEnv.UsingSnapshotter(), "Config.Image is not created with containerd, buildkit doesn't set it either")
-	digest, err := setupImage(c)
+	imgDigest, err := setupImage(c)
 	assert.NilError(c, err, "error setting up image")
 
-	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
+	imageReference := fmt.Sprintf("%s@%s", repoName, imgDigest)
 
 	// pull from the registry using the <name>@<digest> reference
-	dockerCmd(c, "pull", imageReference)
+	cli.DockerCmd(c, "pull", imageReference)
 
 	// get the image id
 	imageID := inspectField(c, imageReference, "Id")
 
 	// do the build
-	name := "buildbydigest"
+	const name = "buildbydigest"
 	buildImageSuccessfully(c, name, build.WithDockerfile(fmt.Sprintf(
 		`FROM %s
      CMD ["/bin/echo", "Hello World"]`, imageReference)))
@@ -213,17 +216,17 @@ func (s *DockerRegistrySuite) TestBuildByDigest(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestTagByDigest(c *testing.T) {
-	digest, err := setupImage(c)
+	imgDigest, err := setupImage(c)
 	assert.NilError(c, err, "error setting up image")
 
-	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
+	imageReference := fmt.Sprintf("%s@%s", repoName, imgDigest)
 
 	// pull from the registry using the <name>@<digest> reference
-	dockerCmd(c, "pull", imageReference)
+	cli.DockerCmd(c, "pull", imageReference)
 
 	// tag it
-	tag := "tagbydigest"
-	dockerCmd(c, "tag", imageReference, tag)
+	const tag = "tagbydigest"
+	cli.DockerCmd(c, "tag", imageReference, tag)
 
 	expectedID := inspectField(c, imageReference, "Id")
 
@@ -232,15 +235,15 @@ func (s *DockerRegistrySuite) TestTagByDigest(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestListImagesWithoutDigests(c *testing.T) {
-	digest, err := setupImage(c)
+	imgDigest, err := setupImage(c)
 	assert.NilError(c, err, "error setting up image")
 
-	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
+	imageReference := fmt.Sprintf("%s@%s", repoName, imgDigest)
 
 	// pull from the registry using the <name>@<digest> reference
-	dockerCmd(c, "pull", imageReference)
+	cli.DockerCmd(c, "pull", imageReference)
 
-	out, _ := dockerCmd(c, "images")
+	out := cli.DockerCmd(c, "images").Stdout()
 	assert.Assert(c, !strings.Contains(out, "DIGEST"), "list output should not have contained DIGEST header")
 }
 
@@ -252,10 +255,10 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {
 	c.Logf("imageReference1 = %s", imageReference1)
 
 	// pull image1 by digest
-	dockerCmd(c, "pull", imageReference1)
+	cli.DockerCmd(c, "pull", imageReference1)
 
 	// list images
-	out, _ := dockerCmd(c, "images", "--digests")
+	out := cli.DockerCmd(c, "images", "--digests").Combined()
 
 	// make sure repo shown, tag=<none>, digest = $digest1
 	re1 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest1.String() + `\s`)
@@ -267,13 +270,13 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {
 	c.Logf("imageReference2 = %s", imageReference2)
 
 	// pull image1 by digest
-	dockerCmd(c, "pull", imageReference1)
+	cli.DockerCmd(c, "pull", imageReference1)
 
 	// pull image2 by digest
-	dockerCmd(c, "pull", imageReference2)
+	cli.DockerCmd(c, "pull", imageReference2)
 
 	// list images
-	out, _ = dockerCmd(c, "images", "--digests")
+	out = cli.DockerCmd(c, "images", "--digests").Stdout()
 
 	// make sure repo shown, tag=<none>, digest = $digest1
 	assert.Assert(c, re1.MatchString(out), "expected %q: %s", re1.String(), out)
@@ -283,10 +286,10 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {
 	assert.Assert(c, re2.MatchString(out), "expected %q: %s", re2.String(), out)
 
 	// pull tag1
-	dockerCmd(c, "pull", repoName+":tag1")
+	cli.DockerCmd(c, "pull", repoName+":tag1")
 
 	// list images
-	out, _ = dockerCmd(c, "images", "--digests")
+	out = cli.DockerCmd(c, "images", "--digests").Stdout()
 
 	// make sure image 1 has repo, tag, <none> AND repo, <none>, digest
 	reWithDigest1 := regexp.MustCompile(`\s*` + repoName + `\s*tag1\s*` + digest1.String() + `\s`)
@@ -295,10 +298,10 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {
 	assert.Assert(c, re2.MatchString(out), "expected %q: %s", re2.String(), out)
 
 	// pull tag 2
-	dockerCmd(c, "pull", repoName+":tag2")
+	cli.DockerCmd(c, "pull", repoName+":tag2")
 
 	// list images
-	out, _ = dockerCmd(c, "images", "--digests")
+	out = cli.DockerCmd(c, "images", "--digests").Stdout()
 
 	// make sure image 1 has repo, tag, digest
 	assert.Assert(c, reWithDigest1.MatchString(out), "expected %q: %s", reWithDigest1.String(), out)
@@ -308,7 +311,7 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {
 	assert.Assert(c, reWithDigest2.MatchString(out), "expected %q: %s", reWithDigest2.String(), out)
 
 	// list images
-	out, _ = dockerCmd(c, "images", "--digests")
+	out = cli.DockerCmd(c, "images", "--digests").Stdout()
 
 	// make sure image 1 has repo, tag, digest
 	assert.Assert(c, reWithDigest1.MatchString(out), "expected %q: %s", reWithDigest1.String(), out)
@@ -327,10 +330,10 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
 	c.Logf("imageReference1 = %s", imageReference1)
 
 	// pull image1 by digest
-	dockerCmd(c, "pull", imageReference1)
+	cli.DockerCmd(c, "pull", imageReference1)
 
 	// list images
-	out, _ := dockerCmd(c, "images", "--digests")
+	out := cli.DockerCmd(c, "images", "--digests").Stdout()
 
 	// make sure repo shown, tag=<none>, digest = $digest1
 	re1 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest1.String() + `\s`)
@@ -343,13 +346,13 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
 	c.Logf("imageReference2 = %s", imageReference2)
 
 	// pull image1 by digest
-	dockerCmd(c, "pull", imageReference1)
+	cli.DockerCmd(c, "pull", imageReference1)
 
 	// pull image2 by digest
-	dockerCmd(c, "pull", imageReference2)
+	cli.DockerCmd(c, "pull", imageReference2)
 
 	// list images
-	out, _ = dockerCmd(c, "images", "--digests", "--filter=dangling=true")
+	out = cli.DockerCmd(c, "images", "--digests", "--filter=dangling=true").Stdout()
 
 	// make sure repo shown, tag=<none>, digest = $digest1
 	assert.Assert(c, re1.MatchString(out), "expected %q: %s", re1.String(), out)
@@ -359,10 +362,10 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
 	assert.Assert(c, re2.MatchString(out), "expected %q: %s", re2.String(), out)
 
 	// pull dangle1 tag
-	dockerCmd(c, "pull", repoName+":dangle1")
+	cli.DockerCmd(c, "pull", repoName+":dangle1")
 
 	// list images
-	out, _ = dockerCmd(c, "images", "--digests", "--filter=dangling=true")
+	out = cli.DockerCmd(c, "images", "--digests", "--filter=dangling=true").Stdout()
 
 	// make sure image 1 has repo, tag, <none> AND repo, <none>, digest
 	reWithDigest1 := regexp.MustCompile(`\s*` + repoName + `\s*dangle1\s*` + digest1.String() + `\s`)
@@ -371,10 +374,10 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
 	assert.Assert(c, re2.MatchString(out), "expected %q: %s", re2.String(), out)
 
 	// pull dangle2 tag
-	dockerCmd(c, "pull", repoName+":dangle2")
+	cli.DockerCmd(c, "pull", repoName+":dangle2")
 
 	// list images, show tagged images
-	out, _ = dockerCmd(c, "images", "--digests")
+	out = cli.DockerCmd(c, "images", "--digests").Stdout()
 
 	// make sure image 1 has repo, tag, digest
 	assert.Assert(c, reWithDigest1.MatchString(out), "expected %q: %s", reWithDigest1.String(), out)
@@ -384,7 +387,7 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
 	assert.Assert(c, reWithDigest2.MatchString(out), "expected %q: %s", reWithDigest2.String(), out)
 
 	// list images, no longer dangling, should not match
-	out, _ = dockerCmd(c, "images", "--digests", "--filter=dangling=true")
+	out = cli.DockerCmd(c, "images", "--digests", "--filter=dangling=true").Stdout()
 
 	// make sure image 1 has repo, tag, digest
 	assert.Assert(c, !reWithDigest1.MatchString(out), "unexpected %q: %s", reWithDigest1.String(), out)
@@ -393,15 +396,15 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestInspectImageWithDigests(c *testing.T) {
-	digest, err := setupImage(c)
+	imgDigest, err := setupImage(c)
 	assert.Assert(c, err == nil, "error setting up image")
 
-	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
+	imageReference := fmt.Sprintf("%s@%s", repoName, imgDigest)
 
 	// pull from the registry using the <name>@<digest> reference
-	dockerCmd(c, "pull", imageReference)
+	cli.DockerCmd(c, "pull", imageReference)
 
-	out, _ := dockerCmd(c, "inspect", imageReference)
+	out := cli.DockerCmd(c, "inspect", imageReference).Stdout()
 
 	var imageJSON []types.ImageInspect
 	err = json.Unmarshal([]byte(out), &imageJSON)
@@ -414,36 +417,36 @@ func (s *DockerRegistrySuite) TestInspectImageWithDigests(c *testing.T) {
 func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c *testing.T) {
 	existingContainers := ExistingContainerIDs(c)
 
-	digest, err := setupImage(c)
+	imgDigest, err := setupImage(c)
 	assert.NilError(c, err, "error setting up image")
 
-	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
+	imageReference := fmt.Sprintf("%s@%s", repoName, imgDigest)
 
 	// pull from the registry using the <name>@<digest> reference
-	dockerCmd(c, "pull", imageReference)
+	cli.DockerCmd(c, "pull", imageReference)
 
 	// build an image from it
-	imageName1 := "images_ps_filter_test"
+	const imageName1 = "images_ps_filter_test"
 	buildImageSuccessfully(c, imageName1, build.WithDockerfile(fmt.Sprintf(
 		`FROM %s
 		 LABEL match me 1`, imageReference)))
 
 	// run a container based on that
-	dockerCmd(c, "run", "--name=test1", imageReference, "echo", "hello")
+	cli.DockerCmd(c, "run", "--name=test1", imageReference, "echo", "hello")
 	expectedID := getIDByName(c, "test1")
 
 	// run a container based on the a descendant of that too
-	dockerCmd(c, "run", "--name=test2", imageName1, "echo", "hello")
+	cli.DockerCmd(c, "run", "--name=test2", imageName1, "echo", "hello")
 	expectedID1 := getIDByName(c, "test2")
 
 	expectedIDs := []string{expectedID, expectedID1}
 
 	// Invalid imageReference
-	out, _ := dockerCmd(c, "ps", "-a", "-q", "--no-trunc", fmt.Sprintf("--filter=ancestor=busybox@%s", digest))
+	out := cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", fmt.Sprintf("--filter=ancestor=busybox@%s", imgDigest)).Stdout()
 	assert.Equal(c, strings.TrimSpace(out), "", "Filter container for ancestor filter should be empty")
 
 	// Valid imageReference
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageReference)
+	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageReference).Stdout()
 	checkPsAncestorFilterOutput(c, RemoveOutputForExistingElements(out, existingContainers), imageReference, expectedIDs)
 }
 
@@ -453,14 +456,14 @@ func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(c *testing.T
 
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
-	dockerCmd(c, "pull", imageReference)
+	cli.DockerCmd(c, "pull", imageReference)
 	// just in case...
 
-	dockerCmd(c, "tag", imageReference, repoName+":sometag")
+	cli.DockerCmd(c, "tag", imageReference, repoName+":sometag")
 
 	imageID := inspectField(c, imageReference, "Id")
 
-	dockerCmd(c, "rmi", imageID)
+	cli.DockerCmd(c, "rmi", imageID)
 
 	_, err = inspectFieldWithError(imageID, "Id")
 	assert.ErrorContains(c, err, "", "image should have been deleted")
@@ -472,21 +475,21 @@ func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndTag(c *testing.T) {
 
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
-	dockerCmd(c, "pull", imageReference)
+	cli.DockerCmd(c, "pull", imageReference)
 
 	imageID := inspectField(c, imageReference, "Id")
 
-	repoTag := repoName + ":sometag"
-	repoTag2 := repoName + ":othertag"
-	dockerCmd(c, "tag", imageReference, repoTag)
-	dockerCmd(c, "tag", imageReference, repoTag2)
+	const repoTag = repoName + ":sometag"
+	const repoTag2 = repoName + ":othertag"
+	cli.DockerCmd(c, "tag", imageReference, repoTag)
+	cli.DockerCmd(c, "tag", imageReference, repoTag2)
 
-	dockerCmd(c, "rmi", repoTag2)
+	cli.DockerCmd(c, "rmi", repoTag2)
 
 	// rmi should have deleted only repoTag2, because there's another tag
 	inspectField(c, repoTag, "Id")
 
-	dockerCmd(c, "rmi", repoTag)
+	cli.DockerCmd(c, "rmi", repoTag)
 
 	// rmi should have deleted the tag, the digest reference, and the image itself
 	_, err = inspectFieldWithError(imageID, "Id")
@@ -501,16 +504,16 @@ func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndMultiRepoTag(c *testin
 
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
-	dockerCmd(c, "pull", imageReference)
+	cli.DockerCmd(c, "pull", imageReference)
 
 	imageID := inspectField(c, imageReference, "Id")
 
 	repoTag := repoName + ":sometag"
 	repoTag2 := repo2 + ":othertag"
-	dockerCmd(c, "tag", imageReference, repoTag)
-	dockerCmd(c, "tag", imageReference, repoTag2)
+	cli.DockerCmd(c, "tag", imageReference, repoTag)
+	cli.DockerCmd(c, "tag", imageReference, repoTag2)
 
-	dockerCmd(c, "rmi", repoTag)
+	cli.DockerCmd(c, "rmi", repoTag)
 
 	// rmi should have deleted repoTag and image reference, but left repoTag2
 	inspectField(c, repoTag2, "Id")
@@ -520,7 +523,7 @@ func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndMultiRepoTag(c *testin
 	_, err = inspectFieldWithError(repoTag, "Id")
 	assert.ErrorContains(c, err, "", "image tag reference should have been removed")
 
-	dockerCmd(c, "rmi", repoTag2)
+	cli.DockerCmd(c, "rmi", repoTag2)
 
 	// rmi should have deleted the tag, the digest reference, and the image itself
 	_, err = inspectFieldWithError(imageID, "Id")

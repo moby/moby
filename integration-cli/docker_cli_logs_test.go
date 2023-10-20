@@ -47,22 +47,20 @@ func (s *DockerCLILogsSuite) TestLogsContainerMuchBiggerThanPage(c *testing.T) {
 }
 
 func testLogsContainerPagination(c *testing.T, testLen int) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n = >> a.a; done; echo >> a.a; cat a.a", testLen))
-	id := strings.TrimSpace(out)
-	dockerCmd(c, "wait", id)
-	out, _ = dockerCmd(c, "logs", id)
+	id := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n = >> a.a; done; echo >> a.a; cat a.a", testLen)).Stdout()
+	id = strings.TrimSpace(id)
+	cli.DockerCmd(c, "wait", id)
+	out := cli.DockerCmd(c, "logs", id).Combined()
 	assert.Equal(c, len(out), testLen+1)
 }
 
 func (s *DockerCLILogsSuite) TestLogsTimestamps(c *testing.T) {
 	testLen := 100
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo = >> a.a; done; cat a.a", testLen))
+	id := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo = >> a.a; done; cat a.a", testLen)).Stdout()
+	id = strings.TrimSpace(id)
+	cli.DockerCmd(c, "wait", id)
 
-	id := strings.TrimSpace(out)
-	dockerCmd(c, "wait", id)
-
-	out, _ = dockerCmd(c, "logs", "-t", id)
-
+	out := cli.DockerCmd(c, "logs", "-t", id).Combined()
 	lines := strings.Split(out, "\n")
 
 	assert.Equal(c, len(lines), testLen+1)
@@ -138,7 +136,7 @@ func (s *DockerCLILogsSuite) TestLogsTail(c *testing.T) {
 }
 
 func (s *DockerCLILogsSuite) TestLogsFollowStopped(c *testing.T) {
-	dockerCmd(c, "run", "--name=test", "busybox", "echo", "hello")
+	cli.DockerCmd(c, "run", "--name=test", "busybox", "echo", "hello")
 	id := getIDByName(c, "test")
 
 	logsCmd := exec.Command(dockerBinary, "logs", "-f", id)
@@ -160,14 +158,14 @@ func (s *DockerCLILogsSuite) TestLogsFollowStopped(c *testing.T) {
 
 func (s *DockerCLILogsSuite) TestLogsSince(c *testing.T) {
 	name := "testlogssince"
-	dockerCmd(c, "run", "--name="+name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do sleep 2; echo log$i; done")
-	out, _ := dockerCmd(c, "logs", "-t", name)
+	cli.DockerCmd(c, "run", "--name="+name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do sleep 2; echo log$i; done")
+	out := cli.DockerCmd(c, "logs", "-t", name).Combined()
 
 	log2Line := strings.Split(strings.Split(out, "\n")[1], " ")
 	t, err := time.Parse(time.RFC3339Nano, log2Line[0]) // the timestamp log2 is written
 	assert.NilError(c, err)
 	since := t.Unix() + 1 // add 1s so log1 & log2 doesn't show up
-	out, _ = dockerCmd(c, "logs", "-t", fmt.Sprintf("--since=%v", since), name)
+	out = cli.DockerCmd(c, "logs", "-t", fmt.Sprintf("--since=%v", since), name).Combined()
 
 	// Skip 2 seconds
 	unexpected := []string{"log1", "log2"}
@@ -197,14 +195,14 @@ func (s *DockerCLILogsSuite) TestLogsSinceFutureFollow(c *testing.T) {
 	// TODO Windows TP5 - Figure out why this test is so flakey. Disabled for now.
 	testRequires(c, DaemonIsLinux)
 	name := "testlogssincefuturefollow"
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do echo log$i; sleep 1; done`)
+	cli.DockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do echo log$i; sleep 1; done`)
 
 	// Extract one timestamp from the log file to give us a starting point for
 	// our `--since` argument. Because the log producer runs in the background,
 	// we need to check repeatedly for some output to be produced.
 	var timestamp string
 	for i := 0; i != 100 && timestamp == ""; i++ {
-		if out, _ := dockerCmd(c, "logs", "-t", name); out == "" {
+		if out := cli.DockerCmd(c, "logs", "-t", name).Combined(); out == "" {
 			time.Sleep(time.Millisecond * 100) // Retry
 		} else {
 			timestamp = strings.Split(strings.Split(out, "\n")[0], " ")[0]
@@ -216,7 +214,7 @@ func (s *DockerCLILogsSuite) TestLogsSinceFutureFollow(c *testing.T) {
 	assert.NilError(c, err)
 
 	since := t.Unix() + 2
-	out, _ := dockerCmd(c, "logs", "-t", "-f", fmt.Sprintf("--since=%v", since), name)
+	out := cli.DockerCmd(c, "logs", "-t", "-f", fmt.Sprintf("--since=%v", since), name).Combined()
 	assert.Assert(c, len(out) != 0, "cannot read from empty log")
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	for _, v := range lines {
@@ -231,14 +229,13 @@ func (s *DockerCLILogsSuite) TestLogsFollowSlowStdoutConsumer(c *testing.T) {
 	// TODO Windows: Fix this test for TP5.
 	testRequires(c, DaemonIsLinux)
 	expected := 150000
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", fmt.Sprintf("usleep 600000; yes X | head -c %d", expected))
-
-	id := strings.TrimSpace(out)
+	id := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", fmt.Sprintf("usleep 600000; yes X | head -c %d", expected)).Stdout()
+	id = strings.TrimSpace(id)
 
 	stopSlowRead := make(chan bool)
 
 	go func() {
-		dockerCmd(c, "wait", id)
+		cli.DockerCmd(c, "wait", id)
 		stopSlowRead <- true
 	}()
 
@@ -389,8 +386,8 @@ func (s *DockerCLILogsSuite) TestLogsCLIContainerNotFound(c *testing.T) {
 }
 
 func (s *DockerCLILogsSuite) TestLogsWithDetails(c *testing.T) {
-	dockerCmd(c, "run", "--name=test", "--label", "foo=bar", "-e", "baz=qux", "--log-opt", "labels=foo", "--log-opt", "env=baz", "busybox", "echo", "hello")
-	out, _ := dockerCmd(c, "logs", "--details", "--timestamps", "test")
+	cli.DockerCmd(c, "run", "--name=test", "--label", "foo=bar", "-e", "baz=qux", "--log-opt", "labels=foo", "--log-opt", "env=baz", "busybox", "echo", "hello")
+	out := cli.DockerCmd(c, "logs", "--details", "--timestamps", "test").Combined()
 
 	logFields := strings.Fields(strings.TrimSpace(out))
 	assert.Equal(c, len(logFields), 3, out)

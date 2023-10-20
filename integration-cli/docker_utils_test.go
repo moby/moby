@@ -40,20 +40,13 @@ func dockerCmdWithError(args ...string) (string, int, error) {
 }
 
 // Deprecated: use cli.Docker or cli.DockerCmd
-func dockerCmd(c testing.TB, args ...string) (string, int) {
-	c.Helper()
-	result := cli.DockerCmd(c, args...)
-	return result.Combined(), result.ExitCode
-}
-
-// Deprecated: use cli.Docker or cli.DockerCmd
 func dockerCmdWithResult(args ...string) *icmd.Result {
 	return cli.Docker(cli.Args(args...))
 }
 
 func findContainerIP(c *testing.T, id string, network string) string {
 	c.Helper()
-	out, _ := dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id)
+	out := cli.DockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id).Stdout()
 	return strings.Trim(out, " \r\n'")
 }
 
@@ -216,9 +209,7 @@ func runCommandAndReadContainerFile(c *testing.T, filename string, command strin
 	result := icmd.RunCommand(command, args...)
 	result.Assert(c, icmd.Success)
 	contID := strings.TrimSpace(result.Combined())
-	if err := waitRun(contID); err != nil {
-		c.Fatalf("%v: %q", contID, err)
-	}
+	cli.WaitRun(c, contID)
 	return readContainerFile(c, contID, filename)
 }
 
@@ -307,12 +298,6 @@ func createTmpFile(c *testing.T, content string) string {
 	assert.NilError(c, err)
 
 	return filename
-}
-
-// waitRun will wait for the specified container to be running, maximum 5 seconds.
-// Deprecated: use cli.WaitFor
-func waitRun(contID string) error {
-	return daemon.WaitInspectWithArgs(dockerBinary, contID, "{{.State.Running}}", "true", 5*time.Second)
 }
 
 // waitInspect will wait for the specified container to have the specified string

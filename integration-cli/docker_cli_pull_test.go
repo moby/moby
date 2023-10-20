@@ -181,9 +181,9 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *testing.T) {
 // Ref: docker/docker#15589
 func (s *DockerHubPullSuite) TestPullClientDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	repoName := "hello-world:latest"
+	const imgRepo = "hello-world:latest"
 
-	pullCmd := s.MakeCmd("pull", repoName)
+	pullCmd := s.MakeCmd("pull", imgRepo)
 	stdout, err := pullCmd.StdoutPipe()
 	assert.NilError(c, err)
 	err = pullCmd.Start()
@@ -199,7 +199,7 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *testing.T) {
 	assert.NilError(c, err)
 
 	time.Sleep(2 * time.Second)
-	_, err = s.CmdWithError("inspect", repoName)
+	_, err = s.CmdWithError("inspect", imgRepo)
 	assert.ErrorContains(c, err, "", "image was pulled after client disconnected")
 }
 

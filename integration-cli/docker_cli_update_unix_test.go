@@ -14,6 +14,7 @@ import (
 	"github.com/creack/pty"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -31,14 +32,14 @@ func (s *DockerCLIUpdateSuite) TestUpdateRunningContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 
-	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "top")
-	dockerCmd(c, "update", "-m", "500M", name)
+	const name = "test-update-container"
+	cli.DockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "top")
+	cli.DockerCmd(c, "update", "-m", "500M", name)
 
 	assert.Equal(c, inspectField(c, name, "HostConfig.Memory"), "524288000")
 
-	file := "/sys/fs/cgroup/memory/memory.limit_in_bytes"
-	out, _ := dockerCmd(c, "exec", name, "cat", file)
+	const file = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+	out := cli.DockerCmd(c, "exec", name, "cat", file).Stdout()
 	assert.Equal(c, strings.TrimSpace(out), "524288000")
 }
 
@@ -46,15 +47,15 @@ func (s *DockerCLIUpdateSuite) TestUpdateRunningContainerWithRestart(c *testing.
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 
-	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "top")
-	dockerCmd(c, "update", "-m", "500M", name)
-	dockerCmd(c, "restart", name)
+	const name = "test-update-container"
+	cli.DockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "top")
+	cli.DockerCmd(c, "update", "-m", "500M", name)
+	cli.DockerCmd(c, "restart", name)
 
 	assert.Equal(c, inspectField(c, name, "HostConfig.Memory"), "524288000")
 
-	file := "/sys/fs/cgroup/memory/memory.limit_in_bytes"
-	out, _ := dockerCmd(c, "exec", name, "cat", file)
+	const file = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+	out := cli.DockerCmd(c, "exec", name, "cat", file).Stdout()
 	assert.Equal(c, strings.TrimSpace(out), "524288000")
 }
 
@@ -62,14 +63,14 @@ func (s *DockerCLIUpdateSuite) TestUpdateStoppedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 
-	name := "test-update-container"
-	file := "/sys/fs/cgroup/memory/memory.limit_in_bytes"
-	dockerCmd(c, "run", "--name", name, "-m", "300M", "busybox", "cat", file)
-	dockerCmd(c, "update", "-m", "500M", name)
+	const name = "test-update-container"
+	const file = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+	cli.DockerCmd(c, "run", "--name", name, "-m", "300M", "busybox", "cat", file)
+	cli.DockerCmd(c, "update", "-m", "500M", name)
 
 	assert.Equal(c, inspectField(c, name, "HostConfig.Memory"), "524288000")
 
-	out, _ := dockerCmd(c, "start", "-a", name)
+	out := cli.DockerCmd(c, "start", "-a", name).Stdout()
 	assert.Equal(c, strings.TrimSpace(out), "524288000")
 }
 
@@ -77,16 +78,16 @@ func (s *DockerCLIUpdateSuite) TestUpdatePausedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, cpuShare)
 
-	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "--cpu-shares", "1000", "busybox", "top")
-	dockerCmd(c, "pause", name)
-	dockerCmd(c, "update", "--cpu-shares", "500", name)
+	const name = "test-update-container"
+	cli.DockerCmd(c, "run", "-d", "--name", name, "--cpu-shares", "1000", "busybox", "top")
+	cli.DockerCmd(c, "pause", name)
+	cli.DockerCmd(c, "update", "--cpu-shares", "500", name)
 
 	assert.Equal(c, inspectField(c, name, "HostConfig.CPUShares"), "500")
 
-	dockerCmd(c, "unpause", name)
-	file := "/sys/fs/cgroup/cpu/cpu.shares"
-	out, _ := dockerCmd(c, "exec", name, "cat", file)
+	cli.DockerCmd(c, "unpause", name)
+	const file = "/sys/fs/cgroup/cpu/cpu.shares"
+	out := cli.DockerCmd(c, "exec", name, "cat", file).Stdout()
 	assert.Equal(c, strings.TrimSpace(out), "500")
 }
 
@@ -95,16 +96,16 @@ func (s *DockerCLIUpdateSuite) TestUpdateWithUntouchedFields(c *testing.T) {
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, cpuShare)
 
-	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "--cpu-shares", "800", "busybox", "top")
-	dockerCmd(c, "update", "-m", "500M", name)
+	const name = "test-update-container"
+	cli.DockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "--cpu-shares", "800", "busybox", "top")
+	cli.DockerCmd(c, "update", "-m", "500M", name)
 
 	// Update memory and not touch cpus, `cpuset.cpus` should still have the old value
 	out := inspectField(c, name, "HostConfig.CPUShares")
 	assert.Equal(c, out, "800")
 
-	file := "/sys/fs/cgroup/cpu/cpu.shares"
-	out, _ = dockerCmd(c, "exec", name, "cat", file)
+	const file = "/sys/fs/cgroup/cpu/cpu.shares"
+	out = cli.DockerCmd(c, "exec", name, "cat", file).Stdout()
 	assert.Equal(c, strings.TrimSpace(out), "800")
 }
 
@@ -112,8 +113,8 @@ func (s *DockerCLIUpdateSuite) TestUpdateContainerInvalidValue(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 
-	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "true")
+	const name = "test-update-container"
+	cli.DockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "true")
 	out, _, err := dockerCmdWithError("update", "-m", "2M", name)
 	assert.ErrorContains(c, err, "")
 	expected := "Minimum memory limit allowed is 6MB"
@@ -124,8 +125,8 @@ func (s *DockerCLIUpdateSuite) TestUpdateContainerWithoutFlags(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 
-	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "true")
+	const name = "test-update-container"
+	cli.DockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "true")
 	_, _, err := dockerCmdWithError("update", name)
 	assert.ErrorContains(c, err, "")
 }
@@ -135,14 +136,14 @@ func (s *DockerCLIUpdateSuite) TestUpdateSwapMemoryOnly(c *testing.T) {
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
 
-	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "--memory", "300M", "--memory-swap", "500M", "busybox", "top")
-	dockerCmd(c, "update", "--memory-swap", "600M", name)
+	const name = "test-update-container"
+	cli.DockerCmd(c, "run", "-d", "--name", name, "--memory", "300M", "--memory-swap", "500M", "busybox", "top")
+	cli.DockerCmd(c, "update", "--memory-swap", "600M", name)
 
 	assert.Equal(c, inspectField(c, name, "HostConfig.MemorySwap"), "629145600")
 
-	file := "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes"
-	out, _ := dockerCmd(c, "exec", name, "cat", file)
+	const file = "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes"
+	out := cli.DockerCmd(c, "exec", name, "cat", file).Stdout()
 	assert.Equal(c, strings.TrimSpace(out), "629145600")
 }
 
@@ -151,8 +152,8 @@ func (s *DockerCLIUpdateSuite) TestUpdateInvalidSwapMemory(c *testing.T) {
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
 
-	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "--memory", "300M", "--memory-swap", "500M", "busybox", "top")
+	const name = "test-update-container"
+	cli.DockerCmd(c, "run", "-d", "--name", name, "--memory", "300M", "--memory-swap", "500M", "busybox", "top")
 	_, _, err := dockerCmdWithError("update", "--memory-swap", "200M", name)
 	// Update invalid swap memory should fail.
 	// This will pass docker config validation, but failed at kernel validation
@@ -162,12 +163,12 @@ func (s *DockerCLIUpdateSuite) TestUpdateInvalidSwapMemory(c *testing.T) {
 	assert.Equal(c, inspectField(c, name, "HostConfig.Memory"), "314572800")
 	assert.Equal(c, inspectField(c, name, "HostConfig.MemorySwap"), "524288000")
 
-	dockerCmd(c, "update", "--memory-swap", "600M", name)
+	cli.DockerCmd(c, "update", "--memory-swap", "600M", name)
 
 	assert.Equal(c, inspectField(c, name, "HostConfig.MemorySwap"), "629145600")
 
-	file := "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes"
-	out, _ := dockerCmd(c, "exec", name, "cat", file)
+	const file = "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes"
+	out := cli.DockerCmd(c, "exec", name, "cat", file).Stdout()
 	assert.Equal(c, strings.TrimSpace(out), "629145600")
 }
 
@@ -175,10 +176,9 @@ func (s *DockerCLIUpdateSuite) TestUpdateStats(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, cpuCfsQuota)
-	name := "foo"
-	dockerCmd(c, "run", "-d", "-ti", "--name", name, "-m", "500m", "busybox")
-
-	assert.NilError(c, waitRun(name))
+	const name = "foo"
+	cli.DockerCmd(c, "run", "-d", "-ti", "--name", name, "-m", "500m", "busybox")
+	cli.WaitRun(c, name)
 
 	getMemLimit := func(id string) uint64 {
 		resp, body, err := request.Get(testutil.GetContext(c), fmt.Sprintf("/containers/%s/stats?stream=false", id))
@@ -194,7 +194,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateStats(c *testing.T) {
 	}
 	preMemLimit := getMemLimit(name)
 
-	dockerCmd(c, "update", "--cpu-quota", "2000", name)
+	cli.DockerCmd(c, "update", "--cpu-quota", "2000", name)
 
 	curMemLimit := getMemLimit(name)
 	assert.Equal(c, preMemLimit, curMemLimit)
@@ -205,21 +205,21 @@ func (s *DockerCLIUpdateSuite) TestUpdateMemoryWithSwapMemory(c *testing.T) {
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
 
-	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "--memory", "300M", "busybox", "top")
+	const name = "test-update-container"
+	cli.DockerCmd(c, "run", "-d", "--name", name, "--memory", "300M", "busybox", "top")
 	out, _, err := dockerCmdWithError("update", "--memory", "800M", name)
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, strings.Contains(out, "Memory limit should be smaller than already set memoryswap limit"))
 
-	dockerCmd(c, "update", "--memory", "800M", "--memory-swap", "1000M", name)
+	cli.DockerCmd(c, "update", "--memory", "800M", "--memory-swap", "1000M", name)
 }
 
 func (s *DockerCLIUpdateSuite) TestUpdateNotAffectMonitorRestartPolicy(c *testing.T) {
 	testRequires(c, DaemonIsLinux, cpuShare)
 
-	out, _ := dockerCmd(c, "run", "-tid", "--restart=always", "busybox", "sh")
-	id := strings.TrimSpace(out)
-	dockerCmd(c, "update", "--cpu-shares", "512", id)
+	id := cli.DockerCmd(c, "run", "-tid", "--restart=always", "busybox", "sh").Stdout()
+	id = strings.TrimSpace(id)
+	cli.DockerCmd(c, "update", "--cpu-shares", "512", id)
 
 	cpty, tty, err := pty.Open()
 	assert.NilError(c, err)
@@ -239,19 +239,19 @@ func (s *DockerCLIUpdateSuite) TestUpdateNotAffectMonitorRestartPolicy(c *testin
 	// container should restart again and keep running
 	err = waitInspect(id, "{{.RestartCount}}", "1", 30*time.Second)
 	assert.NilError(c, err)
-	assert.NilError(c, waitRun(id))
+	cli.WaitRun(c, id)
 }
 
 func (s *DockerCLIUpdateSuite) TestUpdateWithNanoCPUs(c *testing.T) {
 	testRequires(c, cpuCfsQuota, cpuCfsPeriod)
 
-	file1 := "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
-	file2 := "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
+	const file1 = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
+	const file2 = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
 
-	out, _ := dockerCmd(c, "run", "-d", "--cpus", "0.5", "--name", "top", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "--cpus", "0.5", "--name", "top", "busybox", "top").Stdout()
 	assert.Assert(c, strings.TrimSpace(out) != "")
 
-	out, _ = dockerCmd(c, "exec", "top", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2))
+	out = cli.DockerCmd(c, "exec", "top", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2)).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "50000\n100000")
 
 	clt, err := client.NewClientWithOpts(client.FromEnv)
@@ -269,7 +269,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateWithNanoCPUs(c *testing.T) {
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, strings.Contains(out, "Conflicting options: CPU Quota cannot be updated as NanoCPUs has already been set"))
 
-	dockerCmd(c, "update", "--cpus", "0.8", "top")
+	cli.DockerCmd(c, "update", "--cpus", "0.8", "top")
 	inspect, err = clt.ContainerInspect(testutil.GetContext(c), "top")
 	assert.NilError(c, err)
 	assert.Equal(c, inspect.HostConfig.NanoCPUs, int64(800000000))
@@ -279,6 +279,6 @@ func (s *DockerCLIUpdateSuite) TestUpdateWithNanoCPUs(c *testing.T) {
 	out = inspectField(c, "top", "HostConfig.CpuPeriod")
 	assert.Equal(c, out, "0", "CPU CFS period should be 0")
 
-	out, _ = dockerCmd(c, "exec", "top", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2))
+	out = cli.DockerCmd(c, "exec", "top", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2)).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "80000\n100000")
 }

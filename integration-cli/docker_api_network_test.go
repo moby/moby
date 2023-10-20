@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -40,7 +41,7 @@ func (s *DockerAPISuite) TestAPINetworkInspectBridge(c *testing.T) {
 	assert.Equal(c, nr.Name, "bridge")
 
 	// run a container and attach it to the default bridge network
-	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "--name", "test", "busybox", "top").Stdout()
 	containerID := strings.TrimSpace(out)
 	containerIP := findContainerIP(c, "test", "bridge")
 
@@ -104,7 +105,7 @@ func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	assert.Equal(c, len(nr.Containers), 0)
 
 	// run a container
-	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "--name", "test", "busybox", "top").Stdout()
 	containerID := strings.TrimSpace(out)
 
 	// connect the container to the test network

@@ -34,102 +34,98 @@ func (s *DockerCLIPsSuite) OnTimeout(c *testing.T) {
 func (s *DockerCLIPsSuite) TestPsListContainersBase(c *testing.T) {
 	existingContainers := ExistingContainerIDs(c)
 
-	out := runSleepingContainer(c, "-d")
-	firstID := strings.TrimSpace(out)
-
-	out = runSleepingContainer(c, "-d")
-	secondID := strings.TrimSpace(out)
+	firstID := runSleepingContainer(c, "-d")
+	secondID := runSleepingContainer(c, "-d")
 
 	// not long running
-	out, _ = dockerCmd(c, "run", "-d", "busybox", "true")
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
 	thirdID := strings.TrimSpace(out)
 
-	out = runSleepingContainer(c, "-d")
-	fourthID := strings.TrimSpace(out)
+	fourthID := runSleepingContainer(c, "-d")
 
 	// make sure the second is running
-	assert.Assert(c, waitRun(secondID) == nil)
+	cli.WaitRun(c, secondID)
 
 	// make sure third one is not running
-	dockerCmd(c, "wait", thirdID)
+	cli.DockerCmd(c, "wait", thirdID)
 
 	// make sure the forth is running
-	assert.Assert(c, waitRun(fourthID) == nil)
+	cli.WaitRun(c, fourthID)
 
 	// all
-	out, _ = dockerCmd(c, "ps", "-a")
+	out = cli.DockerCmd(c, "ps", "-a").Stdout()
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), []string{fourthID, thirdID, secondID, firstID}), true, fmt.Sprintf("ALL: Container list is not in the correct order: \n%s", out))
 
 	// running
-	out, _ = dockerCmd(c, "ps")
+	out = cli.DockerCmd(c, "ps").Stdout()
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), []string{fourthID, secondID, firstID}), true, fmt.Sprintf("RUNNING: Container list is not in the correct order: \n%s", out))
 
 	// limit
-	out, _ = dockerCmd(c, "ps", "-n=2", "-a")
+	out = cli.DockerCmd(c, "ps", "-n=2", "-a").Stdout()
 	expected := []string{fourthID, thirdID}
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "-n=2")
+	out = cli.DockerCmd(c, "ps", "-n=2").Stdout()
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("LIMIT: Container list is not in the correct order: \n%s", out))
 
 	// filter since
-	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-a")
+	out = cli.DockerCmd(c, "ps", "-f", "since="+firstID, "-a").Stdout()
 	expected = []string{fourthID, thirdID, secondID}
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("SINCE filter & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID)
+	out = cli.DockerCmd(c, "ps", "-f", "since="+firstID).Stdout()
 	expected = []string{fourthID, secondID}
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("SINCE filter: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "-f", "since="+thirdID)
+	out = cli.DockerCmd(c, "ps", "-f", "since="+thirdID).Stdout()
 	expected = []string{fourthID}
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("SINCE filter: Container list is not in the correct order: \n%s", out))
 
 	// filter before
-	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID, "-a")
+	out = cli.DockerCmd(c, "ps", "-f", "before="+fourthID, "-a").Stdout()
 	expected = []string{thirdID, secondID, firstID}
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("BEFORE filter & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID)
+	out = cli.DockerCmd(c, "ps", "-f", "before="+fourthID).Stdout()
 	expected = []string{secondID, firstID}
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("BEFORE filter: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "-f", "before="+thirdID)
+	out = cli.DockerCmd(c, "ps", "-f", "before="+thirdID).Stdout()
 	expected = []string{secondID, firstID}
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("SINCE filter: Container list is not in the correct order: \n%s", out))
 
 	// filter since & before
-	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-a")
+	out = cli.DockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-a").Stdout()
 	expected = []string{thirdID, secondID}
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("SINCE filter, BEFORE filter & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID)
+	out = cli.DockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID).Stdout()
 	expected = []string{secondID}
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("SINCE filter, BEFORE filter: Container list is not in the correct order: \n%s", out))
 
 	// filter since & limit
-	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-n=2", "-a")
+	out = cli.DockerCmd(c, "ps", "-f", "since="+firstID, "-n=2", "-a").Stdout()
 	expected = []string{fourthID, thirdID}
 
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("SINCE filter, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-n=2")
+	out = cli.DockerCmd(c, "ps", "-f", "since="+firstID, "-n=2").Stdout()
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("SINCE filter, LIMIT: Container list is not in the correct order: \n%s", out))
 
 	// filter before & limit
-	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID, "-n=1", "-a")
+	out = cli.DockerCmd(c, "ps", "-f", "before="+fourthID, "-n=1", "-a").Stdout()
 	expected = []string{thirdID}
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("BEFORE filter, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID, "-n=1")
+	out = cli.DockerCmd(c, "ps", "-f", "before="+fourthID, "-n=1").Stdout()
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("BEFORE filter, LIMIT: Container list is not in the correct order: \n%s", out))
 
 	// filter since & filter before & limit
-	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-n=1", "-a")
+	out = cli.DockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-n=1", "-a").Stdout()
 	expected = []string{thirdID}
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("SINCE filter, BEFORE filter, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-n=1")
+	out = cli.DockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-n=1").Stdout()
 	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, fmt.Sprintf("SINCE filter, BEFORE filter, LIMIT: Container list is not in the correct order: \n%s", out))
 }
 
@@ -154,17 +150,17 @@ func assertContainerList(out string, expected []string) bool {
 func (s *DockerCLIPsSuite) TestPsListContainersSize(c *testing.T) {
 	// Problematic on Windows as it doesn't report the size correctly @swernli
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-d", "busybox")
+	cli.DockerCmd(c, "run", "-d", "busybox")
 
-	baseOut, _ := dockerCmd(c, "ps", "-s", "-n=1")
+	baseOut := cli.DockerCmd(c, "ps", "-s", "-n=1").Stdout()
 	baseLines := strings.Split(strings.Trim(baseOut, "\n "), "\n")
 	baseSizeIndex := strings.Index(baseLines[0], "SIZE")
 	baseFoundsize, _, _ := strings.Cut(baseLines[1][baseSizeIndex:], " ")
 	baseBytes, err := units.FromHumanSize(baseFoundsize)
 	assert.NilError(c, err)
 
-	name := "test_size"
-	dockerCmd(c, "run", "--name", name, "busybox", "sh", "-c", "echo 1 > test")
+	const name = "test_size"
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "sh", "-c", "echo 1 > test")
 	id := getIDByName(c, name)
 
 	var result *icmd.Result
@@ -254,18 +250,16 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterHealth(c *testing.T) {
 	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME. Hang on Windows + containerd combination")
 	existingContainers := ExistingContainerIDs(c)
 	// Test legacy no health check
-	out := runSleepingContainer(c, "--name=none_legacy")
-	containerID := strings.TrimSpace(out)
+	containerID := runSleepingContainer(c, "--name=none_legacy")
 
 	cli.WaitRun(c, containerID)
 
-	out = cli.DockerCmd(c, "ps", "-q", "-l", "--no-trunc", "--filter=health=none").Combined()
+	out := cli.DockerCmd(c, "ps", "-q", "-l", "--no-trunc", "--filter=health=none").Combined()
 	containerOut := strings.TrimSpace(out)
 	assert.Equal(c, containerOut, containerID, fmt.Sprintf("Expected id %s, got %s for legacy none filter, output: %q", containerID, containerOut, out))
 
 	// Test no health check specified explicitly
-	out = runSleepingContainer(c, "--name=none", "--no-healthcheck")
-	containerID = strings.TrimSpace(out)
+	containerID = runSleepingContainer(c, "--name=none", "--no-healthcheck")
 
 	cli.WaitRun(c, containerID)
 
@@ -284,8 +278,7 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterHealth(c *testing.T) {
 	assert.Equal(c, containerOut, containerID, fmt.Sprintf("Expected containerID %s, got %s for unhealthy filter, output: %q", containerID, containerOut, out))
 
 	// Check passing healthcheck
-	out = runSleepingContainer(c, "--name=passing_container", "--health-cmd=exit 0", "--health-interval=1s")
-	containerID = strings.TrimSpace(out)
+	containerID = runSleepingContainer(c, "--name=passing_container", "--health-cmd=exit 0", "--health-interval=1s")
 
 	waitForHealthStatus(c, "passing_container", "starting", "healthy")
 
@@ -296,28 +289,28 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterHealth(c *testing.T) {
 
 func (s *DockerCLIPsSuite) TestPsListContainersFilterID(c *testing.T) {
 	// start container
-	out, _ := dockerCmd(c, "run", "-d", "busybox")
+	out := cli.DockerCmd(c, "run", "-d", "busybox").Stdout()
 	firstID := strings.TrimSpace(out)
 
 	// start another container
 	runSleepingContainer(c)
 
 	// filter containers by id
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--filter=id="+firstID)
+	out = cli.DockerCmd(c, "ps", "-a", "-q", "--filter=id="+firstID).Stdout()
 	containerOut := strings.TrimSpace(out)
 	assert.Equal(c, containerOut, firstID[:12], fmt.Sprintf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out))
 }
 
 func (s *DockerCLIPsSuite) TestPsListContainersFilterName(c *testing.T) {
 	// start container
-	dockerCmd(c, "run", "--name=a_name_to_match", "busybox")
+	cli.DockerCmd(c, "run", "--name=a_name_to_match", "busybox")
 	id := getIDByName(c, "a_name_to_match")
 
 	// start another container
 	runSleepingContainer(c, "--name=b_name_to_match")
 
 	// filter containers by name
-	out, _ := dockerCmd(c, "ps", "-a", "-q", "--filter=name=a_name_to_match")
+	out := cli.DockerCmd(c, "ps", "-a", "-q", "--filter=name=a_name_to_match").Stdout()
 	containerOut := strings.TrimSpace(out)
 	assert.Equal(c, containerOut, id[:12], fmt.Sprintf("Expected id %s, got %s for exited filter, output: %q", id[:12], containerOut, out))
 }
@@ -350,23 +343,23 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterAncestorImage(c *testing.T)
 	imageID2 := getIDByName(c, imageName2)
 
 	// start containers
-	dockerCmd(c, "run", "--name=first", "busybox", "echo", "hello")
+	cli.DockerCmd(c, "run", "--name=first", "busybox", "echo", "hello")
 	firstID := getIDByName(c, "first")
 
 	// start another container
-	dockerCmd(c, "run", "--name=second", "busybox", "echo", "hello")
+	cli.DockerCmd(c, "run", "--name=second", "busybox", "echo", "hello")
 	secondID := getIDByName(c, "second")
 
 	// start third container
-	dockerCmd(c, "run", "--name=third", imageName1, "echo", "hello")
+	cli.DockerCmd(c, "run", "--name=third", imageName1, "echo", "hello")
 	thirdID := getIDByName(c, "third")
 
 	// start fourth container
-	dockerCmd(c, "run", "--name=fourth", imageName1Tagged, "echo", "hello")
+	cli.DockerCmd(c, "run", "--name=fourth", imageName1Tagged, "echo", "hello")
 	fourthID := getIDByName(c, "fourth")
 
 	// start fifth container
-	dockerCmd(c, "run", "--name=fifth", imageName2, "echo", "hello")
+	cli.DockerCmd(c, "run", "--name=fifth", imageName2, "echo", "hello")
 	fifthID := getIDByName(c, "fifth")
 
 	filterTestSuite := []struct {
@@ -394,12 +387,12 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterAncestorImage(c *testing.T)
 
 	var out string
 	for _, filter := range filterTestSuite {
-		out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+filter.filterName)
+		out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+filter.filterName).Stdout()
 		checkPsAncestorFilterOutput(c, RemoveOutputForExistingElements(out, existingContainers), filter.filterName, filter.expectedIDs)
 	}
 
 	// Multiple ancestor filter
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageName2, "--filter=ancestor="+imageName1Tagged)
+	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageName2, "--filter=ancestor="+imageName1Tagged).Stdout()
 	checkPsAncestorFilterOutput(c, RemoveOutputForExistingElements(out, existingContainers), imageName2+","+imageName1Tagged, []string{fourthID, fifthID})
 }
 
@@ -427,34 +420,34 @@ func checkPsAncestorFilterOutput(c *testing.T, out string, filterName string, ex
 
 func (s *DockerCLIPsSuite) TestPsListContainersFilterLabel(c *testing.T) {
 	// start container
-	dockerCmd(c, "run", "--name=first", "-l", "match=me", "-l", "second=tag", "busybox")
+	cli.DockerCmd(c, "run", "--name=first", "-l", "match=me", "-l", "second=tag", "busybox")
 	firstID := getIDByName(c, "first")
 
 	// start another container
-	dockerCmd(c, "run", "--name=second", "-l", "match=me too", "busybox")
+	cli.DockerCmd(c, "run", "--name=second", "-l", "match=me too", "busybox")
 	secondID := getIDByName(c, "second")
 
 	// start third container
-	dockerCmd(c, "run", "--name=third", "-l", "nomatch=me", "busybox")
+	cli.DockerCmd(c, "run", "--name=third", "-l", "nomatch=me", "busybox")
 	thirdID := getIDByName(c, "third")
 
 	// filter containers by exact match
-	out, _ := dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me")
+	out := cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me").Stdout()
 	containerOut := strings.TrimSpace(out)
 	assert.Equal(c, containerOut, firstID, fmt.Sprintf("Expected id %s, got %s for exited filter, output: %q", firstID, containerOut, out))
 
 	// filter containers by two labels
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me", "--filter=label=second=tag")
+	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me", "--filter=label=second=tag").Stdout()
 	containerOut = strings.TrimSpace(out)
 	assert.Equal(c, containerOut, firstID, fmt.Sprintf("Expected id %s, got %s for exited filter, output: %q", firstID, containerOut, out))
 
 	// filter containers by two labels, but expect not found because of AND behavior
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me", "--filter=label=second=tag-no")
+	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me", "--filter=label=second=tag-no").Stdout()
 	containerOut = strings.TrimSpace(out)
 	assert.Equal(c, containerOut, "", fmt.Sprintf("Expected nothing, got %s for exited filter, output: %q", containerOut, out))
 
 	// filter containers by exact key
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match")
+	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match").Stdout()
 	containerOut = strings.TrimSpace(out)
 	assert.Assert(c, strings.Contains(containerOut, firstID))
 	assert.Assert(c, strings.Contains(containerOut, secondID))
@@ -468,8 +461,8 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterExited(c *testing.T) {
 	skip.If(c, DaemonIsWindows(), "FLAKY on Windows, see #20819")
 	runSleepingContainer(c, "--name=sleep")
 
-	firstZero, _ := dockerCmd(c, "run", "-d", "busybox", "true")
-	secondZero, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	firstZero := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
+	secondZero := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
 
 	out, _, err := dockerCmdWithError("run", "--name", "nonzero1", "busybox", "false")
 	assert.Assert(c, err != nil, "Should fail. out: %s", out)
@@ -480,12 +473,12 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterExited(c *testing.T) {
 	secondNonZero := getIDByName(c, "nonzero2")
 
 	// filter containers by exited=0
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=0")
+	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=0").Stdout()
 	assert.Assert(c, strings.Contains(out, strings.TrimSpace(firstZero)))
 	assert.Assert(c, strings.Contains(out, strings.TrimSpace(secondZero)))
 	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(firstNonZero)))
 	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(secondNonZero)))
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=1")
+	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=1").Stdout()
 	assert.Assert(c, strings.Contains(out, strings.TrimSpace(firstNonZero)))
 	assert.Assert(c, strings.Contains(out, strings.TrimSpace(secondNonZero)))
 	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(firstZero)))
@@ -499,25 +492,16 @@ func (s *DockerCLIPsSuite) TestPsRightTagName(c *testing.T) {
 	existingContainers := ExistingContainerNames(c)
 
 	tag := "asybox:shmatest"
-	dockerCmd(c, "tag", "busybox", tag)
+	cli.DockerCmd(c, "tag", "busybox", tag)
 
-	var id1 string
-	out := runSleepingContainer(c)
-	id1 = strings.TrimSpace(out)
+	id1 := runSleepingContainer(c)
+	id2 := runSleepingContainerInImage(c, tag)
 
-	var id2 string
-	out = runSleepingContainerInImage(c, tag)
-	id2 = strings.TrimSpace(out)
+	imageID := inspectField(c, "busybox", "Id")
 
-	var imageID string
-	out = inspectField(c, "busybox", "Id")
-	imageID = strings.TrimSpace(out)
+	id3 := runSleepingContainerInImage(c, imageID)
 
-	var id3 string
-	out = runSleepingContainerInImage(c, imageID)
-	id3 = strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "ps", "--no-trunc")
+	out := cli.DockerCmd(c, "ps", "--no-trunc").Stdout()
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	// skip header
@@ -540,15 +524,15 @@ func (s *DockerCLIPsSuite) TestPsRightTagName(c *testing.T) {
 
 func (s *DockerCLIPsSuite) TestPsListContainersFilterCreated(c *testing.T) {
 	// create a container
-	out, _ := dockerCmd(c, "create", "busybox")
+	out := cli.DockerCmd(c, "create", "busybox").Stdout()
 	cID := strings.TrimSpace(out)
 	shortCID := cID[:12]
 
 	// Make sure it DOESN'T show up w/o a '-a' for normal 'ps'
-	out, _ = dockerCmd(c, "ps", "-q")
+	out = cli.DockerCmd(c, "ps", "-q").Stdout()
 	assert.Assert(c, !strings.Contains(out, shortCID), "Should have not seen '%s' in ps output:\n%s", shortCID, out)
 	// Make sure it DOES show up as 'Created' for 'ps -a'
-	out, _ = dockerCmd(c, "ps", "-a")
+	out = cli.DockerCmd(c, "ps", "-a").Stdout()
 
 	hits := 0
 	for _, line := range strings.Split(out, "\n") {
@@ -562,7 +546,7 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterCreated(c *testing.T) {
 	assert.Equal(c, hits, 1, fmt.Sprintf("Should have seen '%s' in ps -a output once:%d\n%s", shortCID, hits, out))
 
 	// filter containers by 'create' - note, no -a needed
-	out, _ = dockerCmd(c, "ps", "-q", "-f", "status=created")
+	out = cli.DockerCmd(c, "ps", "-q", "-f", "status=created").Stdout()
 	containerOut := strings.TrimSpace(out)
 	assert.Assert(c, strings.Contains(containerOut, shortCID), "Should have seen '%s' in ps output:\n%s", shortCID, out)
 }
@@ -618,15 +602,15 @@ func (s *DockerCLIPsSuite) TestPsImageIDAfterUpdate(c *testing.T) {
 
 func (s *DockerCLIPsSuite) TestPsNotShowPortsOfStoppedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name=foo", "-d", "-p", "6000:5000", "busybox", "top")
-	assert.Assert(c, waitRun("foo") == nil)
-	ports, _ := dockerCmd(c, "ps", "--format", "{{ .Ports }}", "--filter", "name=foo")
+	cli.DockerCmd(c, "run", "--name=foo", "-d", "-p", "6000:5000", "busybox", "top")
+	cli.WaitRun(c, "foo")
+	ports := cli.DockerCmd(c, "ps", "--format", "{{ .Ports }}", "--filter", "name=foo").Stdout()
 	expected := ":6000->5000/tcp"
 	assert.Assert(c, is.Contains(ports, expected), "Expected: %v, got: %v", expected, ports)
 
-	dockerCmd(c, "kill", "foo")
-	dockerCmd(c, "wait", "foo")
-	ports, _ = dockerCmd(c, "ps", "--format", "{{ .Ports }}", "--filter", "name=foo")
+	cli.DockerCmd(c, "kill", "foo")
+	cli.DockerCmd(c, "wait", "foo")
+	ports = cli.DockerCmd(c, "ps", "--format", "{{ .Ports }}", "--filter", "name=foo").Stdout()
 	assert.Equal(c, ports, "", "Should not got %v", expected)
 }
 
@@ -637,12 +621,12 @@ func (s *DockerCLIPsSuite) TestPsShowMounts(c *testing.T) {
 
 	mp := prefix + slash + "test"
 
-	dockerCmd(c, "volume", "create", "ps-volume-test")
+	cli.DockerCmd(c, "volume", "create", "ps-volume-test")
 	// volume mount containers
 	runSleepingContainer(c, "--name=volume-test-1", "--volume", "ps-volume-test:"+mp)
-	assert.Assert(c, waitRun("volume-test-1") == nil)
+	cli.WaitRun(c, "volume-test-1")
 	runSleepingContainer(c, "--name=volume-test-2", "--volume", mp)
-	assert.Assert(c, waitRun("volume-test-2") == nil)
+	cli.WaitRun(c, "volume-test-2")
 	// bind mount container
 	var bindMountSource string
 	var bindMountDestination string
@@ -654,9 +638,9 @@ func (s *DockerCLIPsSuite) TestPsShowMounts(c *testing.T) {
 		bindMountDestination = "/t"
 	}
 	runSleepingContainer(c, "--name=bind-mount-test", "-v", bindMountSource+":"+bindMountDestination)
-	assert.Assert(c, waitRun("bind-mount-test") == nil)
+	cli.WaitRun(c, "bind-mount-test")
 
-	out, _ := dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}")
+	out := cli.DockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}").Stdout()
 
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
@@ -676,7 +660,7 @@ func (s *DockerCLIPsSuite) TestPsShowMounts(c *testing.T) {
 	assert.Equal(c, fields[1], "ps-volume-test")
 
 	// filter by volume name
-	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume=ps-volume-test")
+	out = cli.DockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume=ps-volume-test").Stdout()
 
 	lines = strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
@@ -686,11 +670,11 @@ func (s *DockerCLIPsSuite) TestPsShowMounts(c *testing.T) {
 	assert.Equal(c, fields[1], "ps-volume-test")
 
 	// empty results filtering by unknown volume
-	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume=this-volume-should-not-exist")
+	out = cli.DockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume=this-volume-should-not-exist").Stdout()
 	assert.Equal(c, len(strings.TrimSpace(out)), 0)
 
 	// filter by mount destination
-	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+mp)
+	out = cli.DockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+mp).Stdout()
 
 	lines = strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
@@ -702,7 +686,7 @@ func (s *DockerCLIPsSuite) TestPsShowMounts(c *testing.T) {
 	assert.Equal(c, fields[1], "ps-volume-test")
 
 	// filter by bind mount source
-	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+bindMountSource)
+	out = cli.DockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+bindMountSource).Stdout()
 
 	lines = strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
@@ -714,7 +698,7 @@ func (s *DockerCLIPsSuite) TestPsShowMounts(c *testing.T) {
 	assert.Equal(c, fields[1], bindMountSource)
 
 	// filter by bind mount destination
-	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+bindMountDestination)
+	out = cli.DockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+bindMountDestination).Stdout()
 
 	lines = strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
@@ -726,7 +710,7 @@ func (s *DockerCLIPsSuite) TestPsShowMounts(c *testing.T) {
 	assert.Equal(c, fields[1], bindMountSource)
 
 	// empty results filtering by unknown mount point
-	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+prefix+slash+"this-path-was-never-mounted")
+	out = cli.DockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+prefix+slash+"this-path-was-never-mounted").Stdout()
 	assert.Equal(c, len(strings.TrimSpace(out)), 0)
 }
 
@@ -742,7 +726,7 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	runSleepingContainer(c, "--net=none", "--name=onnonenetwork")
 
 	// Filter docker ps on non existing network
-	out, _ := dockerCmd(c, "ps", "--filter", "network=doesnotexist")
+	out := cli.DockerCmd(c, "ps", "--filter", "network=doesnotexist").Stdout()
 	containerOut := strings.TrimSpace(out)
 	lines := strings.Split(containerOut, "\n")
 
@@ -753,7 +737,7 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	assert.Equal(c, len(RemoveLinesForExistingElements(lines, existing)), 0)
 
 	// Filter docker ps on network bridge
-	out, _ = dockerCmd(c, "ps", "--filter", "network=bridge")
+	out = cli.DockerCmd(c, "ps", "--filter", "network=bridge").Stdout()
 	containerOut = strings.TrimSpace(out)
 
 	lines = strings.Split(containerOut, "\n")
@@ -767,7 +751,7 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	// Making sure onbridgenetwork is on the output
 	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), "Missing the container on network\n")
 	// Filter docker ps on networks bridge and none
-	out, _ = dockerCmd(c, "ps", "--filter", "network=bridge", "--filter", "network=none")
+	out = cli.DockerCmd(c, "ps", "--filter", "network=bridge", "--filter", "network=none").Stdout()
 	containerOut = strings.TrimSpace(out)
 
 	lines = strings.Split(containerOut, "\n")
@@ -781,18 +765,18 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	// Making sure onbridgenetwork and onnonenetwork is on the output
 	assert.Assert(c, strings.Contains(containerOut, "onnonenetwork"), "Missing the container on none network\n")
 	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), "Missing the container on bridge network\n")
-	nwID, _ := dockerCmd(c, "network", "inspect", "--format", "{{.ID}}", "bridge")
+	nwID := cli.DockerCmd(c, "network", "inspect", "--format", "{{.ID}}", "bridge").Stdout()
 
 	// Filter by network ID
-	out, _ = dockerCmd(c, "ps", "--filter", "network="+nwID)
+	out = cli.DockerCmd(c, "ps", "--filter", "network="+nwID).Stdout()
 	containerOut = strings.TrimSpace(out)
 
 	assert.Assert(c, is.Contains(containerOut, "onbridgenetwork"))
 
 	// Filter by partial network ID
-	partialnwID := nwID[0:4]
+	partialNwID := nwID[0:4]
 
-	out, _ = dockerCmd(c, "ps", "--filter", "network="+partialnwID)
+	out = cli.DockerCmd(c, "ps", "--filter", "network="+partialNwID).Stdout()
 	containerOut = strings.TrimSpace(out)
 
 	lines = strings.Split(containerOut, "\n")
@@ -808,17 +792,14 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 }
 
 func (s *DockerCLIPsSuite) TestPsByOrder(c *testing.T) {
-	out := runSleepingContainer(c, "--name", "xyz-abc")
-	container1 := strings.TrimSpace(out)
-
-	out = runSleepingContainer(c, "--name", "xyz-123")
-	container2 := strings.TrimSpace(out)
+	container1 := runSleepingContainer(c, "--name", "xyz-abc")
+	container2 := runSleepingContainer(c, "--name", "xyz-123")
 
 	runSleepingContainer(c, "--name", "789-abc")
 	runSleepingContainer(c, "--name", "789-123")
 
 	// Run multiple time should have the same result
-	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz").Combined()
+	out := cli.DockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz").Combined()
 	assert.Equal(c, strings.TrimSpace(out), fmt.Sprintf("%s\n%s", container2, container1))
 
 	// Run multiple time should have the same result
@@ -830,46 +811,46 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterPorts(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	existingContainers := ExistingContainerIDs(c)
 
-	out, _ := dockerCmd(c, "run", "-d", "--publish=80", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "--publish=80", "busybox", "top").Stdout()
 	id1 := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "run", "-d", "--expose=8080", "busybox", "top")
+	out = cli.DockerCmd(c, "run", "-d", "--expose=8080", "busybox", "top").Stdout()
 	id2 := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "run", "-d", "-p", "1090:90", "busybox", "top")
+	out = cli.DockerCmd(c, "run", "-d", "-p", "1090:90", "busybox", "top").Stdout()
 	id3 := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q")
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q").Stdout()
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id1))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id3))
 
-	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-8080/udp")
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-8080/udp").Stdout()
 	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
 	assert.Assert(c, strings.TrimSpace(out) != id3)
 
-	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8081")
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8081").Stdout()
 	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
 	assert.Assert(c, strings.TrimSpace(out) != id3)
 
-	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-81")
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-81").Stdout()
 	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
 	assert.Assert(c, strings.TrimSpace(out) != id3)
 
-	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=80/tcp")
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=80/tcp").Stdout()
 	assert.Equal(c, strings.TrimSpace(out), id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
 	assert.Assert(c, strings.TrimSpace(out) != id3)
 
-	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=1090")
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=1090").Stdout()
 	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
 	assert.Equal(c, strings.TrimSpace(out), id3)
 
-	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8080/tcp")
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8080/tcp").Stdout()
 	out = RemoveOutputForExistingElements(out, existingContainers)
 	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Equal(c, strings.TrimSpace(out), id2)
@@ -880,10 +861,10 @@ func (s *DockerCLIPsSuite) TestPsNotShowLinknamesOfDeletedContainer(c *testing.T
 	testRequires(c, DaemonIsLinux, MinimumAPIVersion("1.31"))
 	existingContainers := ExistingContainerNames(c)
 
-	dockerCmd(c, "create", "--name=aaa", "busybox", "top")
-	dockerCmd(c, "create", "--name=bbb", "--link=aaa", "busybox", "top")
+	cli.DockerCmd(c, "create", "--name=aaa", "busybox", "top")
+	cli.DockerCmd(c, "create", "--name=bbb", "--link=aaa", "busybox", "top")
 
-	out, _ := dockerCmd(c, "ps", "--no-trunc", "-a", "--format", "{{.Names}}")
+	out := cli.DockerCmd(c, "ps", "--no-trunc", "-a", "--format", "{{.Names}}").Stdout()
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	expected := []string{"bbb", "aaa,bbb/aaa"}
@@ -891,9 +872,9 @@ func (s *DockerCLIPsSuite) TestPsNotShowLinknamesOfDeletedContainer(c *testing.T
 	names = append(names, lines...)
 	assert.Assert(c, is.DeepEqual(names, expected), "Expected array with non-truncated names: %v, got: %v", expected, names)
 
-	dockerCmd(c, "rm", "bbb")
+	cli.DockerCmd(c, "rm", "bbb")
 
-	out, _ = dockerCmd(c, "ps", "--no-trunc", "-a", "--format", "{{.Names}}")
+	out = cli.DockerCmd(c, "ps", "--no-trunc", "-a", "--format", "{{.Names}}").Stdout()
 	out = RemoveOutputForExistingElements(out, existingContainers)
 	assert.Equal(c, strings.TrimSpace(out), "aaa")
 }
