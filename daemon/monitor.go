@@ -28,6 +28,9 @@ func (daemon *Daemon) setStateCounter(c *container.Container) {
 }
 
 func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontainerdtypes.EventInfo) error {
+	// Don't handle container exit until all container loading has finished.
+	daemon.waitForStartupDone()
+
 	var exitStatus container.ExitStatus
 	c.Lock()
 
@@ -117,10 +120,6 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		go func() {
 			err := <-wait
 			if err == nil {
-				// daemon.netController is initialized when daemon is restoring containers.
-				// But containerStart will use daemon.netController segment.
-				// So to avoid panic at startup process, here must wait util daemon restore done.
-				daemon.waitForStartupDone()
 				cfg := daemon.config() // Apply the most up-to-date daemon config to the restarted container.
 
 				// update the error if we fail to start the container, so that the cleanup code
