@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"syscall"
 
 	"github.com/containerd/log"
@@ -82,11 +83,22 @@ func (m *MountPoint) Cleanup() error {
 		return nil
 	}
 
+	logger := log.G(context.TODO()).WithFields(log.Fields{"active": m.active, "id": m.ID})
+
+	// TODO: Remove once the real bug is fixed: https://github.com/moby/moby/issues/46508
+	if m.active == 0 {
+		logger.Error("An attempt to decrement a zero mount count")
+		logger.Error(string(debug.Stack()))
+		return nil
+	}
+
 	if err := m.Volume.Unmount(m.ID); err != nil {
 		return errors.Wrapf(err, "error unmounting volume %s", m.Volume.Name())
 	}
 
 	m.active--
+	logger.Debug("MountPoint.Cleanup Decrement active count")
+
 	if m.active == 0 {
 		m.ID = ""
 	}
