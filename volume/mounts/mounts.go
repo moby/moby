@@ -87,6 +87,7 @@ func (m *MountPoint) Cleanup() error {
 	}
 
 	m.active--
+	log.G(context.TODO()).WithFields(log.Fields{"active": m.active, "id": m.ID}).Debug("MountPoint.Cleanup Decrement active count")
 	if m.active == 0 {
 		m.ID = ""
 	}
@@ -136,6 +137,7 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 
 		m.ID = id
 		m.active++
+		log.G(context.TODO()).WithFields(log.Fields{"active": m.active, "id": id}).Debug("MountPoint.Cleanup Increment active count")
 		return path, nil
 	}
 
