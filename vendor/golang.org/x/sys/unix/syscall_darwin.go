@@ -14,10 +14,99 @@ package unix
 
 import (
 	"fmt"
-	"runtime"
 	"syscall"
 	"unsafe"
 )
+
+//sys	closedir(dir uintptr) (err error)
+//sys	readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno)
+
+func fdopendir(fd int) (dir uintptr, err error) {
+	r0, _, e1 := syscall_syscallPtr(libc_fdopendir_trampoline_addr, uintptr(fd), 0, 0)
+	dir = uintptr(r0)
+	if e1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+var libc_fdopendir_trampoline_addr uintptr
+
+//go:cgo_import_dynamic libc_fdopendir fdopendir "/usr/lib/libSystem.B.dylib"
+
+func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+	// Simulate Getdirentries using fdopendir/readdir_r/closedir.
+	// We store the number of entries to skip in the seek
+	// offset of fd. See issue #31368.
+	// It's not the full required semantics, but should handle the case
+	// of calling Getdirentries or ReadDirent repeatedly.
+	// It won't handle assigning the results of lseek to *basep, or handle
+	// the directory being edited underfoot.
+	skip, err := Seek(fd, 0, 1 /* SEEK_CUR */)
+	if err != nil {
+		return 0, err
+	}
+
+	// We need to duplicate the incoming file descriptor
+	// because the caller expects to retain control of it, but
+	// fdopendir expects to take control of its argument.
+	// Just Dup'ing the file descriptor is not enough, as the
+	// result shares underlying state. Use Openat to make a really
+	// new file descriptor referring to the same directory.
+	fd2, err := Openat(fd, ".", O_RDONLY, 0)
+	if err != nil {
+		return 0, err
+	}
+	d, err := fdopendir(fd2)
+	if err != nil {
+		Close(fd2)
+		return 0, err
+	}
+	defer closedir(d)
+
+	var cnt int64
+	for {
+		var entry Dirent
+		var entryp *Dirent
+		e := readdir_r(d, &entry, &entryp)
+		if e != 0 {
+			return n, errnoErr(e)
+		}
+		if entryp == nil {
+			break
+		}
+		if skip > 0 {
+			skip--
+			cnt++
+			continue
+		}
+
+		reclen := int(entry.Reclen)
+		if reclen > len(buf) {
+			// Not enough room. Return for now.
+			// The counter will let us know where we should start up again.
+			// Note: this strategy for suspending in the middle and
+			// restarting is O(n^2) in the length of the directory. Oh well.
+			break
+		}
+
+		// Copy entry into return buffer.
+		s := unsafe.Slice((*byte)(unsafe.Pointer(&entry)), reclen)
+		copy(buf, s)
+
+		buf = buf[reclen:]
+		n += reclen
+		cnt++
+	}
+	// Set the seek offset of the input fd to record
+	// how many files we've already returned.
+	_, err = Seek(fd, cnt, 0 /* SEEK_SET */)
+	if err != nil {
+		return n, err
+	}
+
+	return n, nil
+}
 
 // SockaddrDatalink implements the Sockaddr interface for AF_LINK type sockets.
 type SockaddrDatalink struct {
@@ -140,6 +229,7 @@ func direntNamlen(buf []byte) (uint64, bool) {
 
 func PtraceAttach(pid int) (err error) { return ptrace(PT_ATTACH, pid, 0, 0) }
 func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
+func PtraceDenyAttach() (err error)    { return ptrace(PT_DENY_ATTACH, 0, 0, 0) }
 
 //sysnb	pipe(p *[2]int32) (err error)
 
@@ -285,11 +375,10 @@ func Flistxattr(fd int, dest []byte) (sz int, err error) {
 func Kill(pid int, signum syscall.Signal) (err error) { return kill(pid, int(signum), 1) }
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
 func IoctlCtlInfo(fd int, ctlInfo *CtlInfo) error {
-	err := ioctl(fd, CTLIOCGINFO, uintptr(unsafe.Pointer(ctlInfo)))
-	runtime.KeepAlive(ctlInfo)
-	return err
+	return ioctlPtr(fd, CTLIOCGINFO, unsafe.Pointer(ctlInfo))
 }
 
 // IfreqMTU is struct ifreq used to get or set a network device's MTU.
@@ -303,16 +392,14 @@ type IfreqMTU struct {
 func IoctlGetIfreqMTU(fd int, ifname string) (*IfreqMTU, error) {
 	var ifreq IfreqMTU
 	copy(ifreq.Name[:], ifname)
-	err := ioctl(fd, SIOCGIFMTU, uintptr(unsafe.Pointer(&ifreq)))
+	err := ioctlPtr(fd, SIOCGIFMTU, unsafe.Pointer(&ifreq))
 	return &ifreq, err
 }
 
 // IoctlSetIfreqMTU performs the SIOCSIFMTU ioctl operation on fd to set the MTU
 // of the network device specified by ifreq.Name.
 func IoctlSetIfreqMTU(fd int, ifreq *IfreqMTU) error {
-	err := ioctl(fd, SIOCSIFMTU, uintptr(unsafe.Pointer(ifreq)))
-	runtime.KeepAlive(ifreq)
-	return err
+	return ioctlPtr(fd, SIOCSIFMTU, unsafe.Pointer(ifreq))
 }
 
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS_SYSCTL
@@ -393,6 +480,13 @@ func GetsockoptXucred(fd, level, opt int) (*Xucred, error) {
 	return x, err
 }
 
+func GetsockoptTCPConnectionInfo(fd, level, opt int) (*TCPConnectionInfo, error) {
+	var value TCPConnectionInfo
+	vallen := _Socklen(SizeofTCPConnectionInfo)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+	return &value, err
+}
+
 func SysctlKinfoProc(name string, args ...int) (*KinfoProc, error) {
 	mib, err := sysctlmib(name, args...)
 	if err != nil {
@@ -416,30 +510,36 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
 		return nil, err
 	}
 
-	// Find size.
-	n := uintptr(0)
-	if err := sysctl(mib, nil, &n, nil, 0); err != nil {
-		return nil, err
-	}
-	if n == 0 {
-		return nil, nil
-	}
-	if n%SizeofKinfoProc != 0 {
-		return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
-	}
+	for {
+		// Find size.
+		n := uintptr(0)
+		if err := sysctl(mib, nil, &n, nil, 0); err != nil {
+			return nil, err
+		}
+		if n == 0 {
+			return nil, nil
+		}
+		if n%SizeofKinfoProc != 0 {
+			return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
+		}
 
-	// Read into buffer of that size.
-	buf := make([]KinfoProc, n/SizeofKinfoProc)
-	if err := sysctl(mib, (*byte)(unsafe.Pointer(&buf[0])), &n, nil, 0); err != nil {
-		return nil, err
-	}
-	if n%SizeofKinfoProc != 0 {
-		return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
-	}
+		// Read into buffer of that size.
+		buf := make([]KinfoProc, n/SizeofKinfoProc)
+		if err := sysctl(mib, (*byte)(unsafe.Pointer(&buf[0])), &n, nil, 0); err != nil {
+			if err == ENOMEM {
+				// Process table grew. Try again.
+				continue
+			}
+			return nil, err
+		}
+		if n%SizeofKinfoProc != 0 {
+			return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
+		}
 
-	// The actual call may return less than the original reported required
-	// size so ensure we deal with that.
-	return buf[:n/SizeofKinfoProc], nil
+		// The actual call may return less than the original reported required
+		// size so ensure we deal with that.
+		return buf[:n/SizeofKinfoProc], nil
+	}
 }
 
 //sys	sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error)
@@ -504,6 +604,7 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
 //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
 //sys	Mkfifo(path string, mode uint32) (err error)
 //sys	Mknod(path string, mode uint32, dev int) (err error)
+//sys	Mount(fsType string, dir string, flags int, data unsafe.Pointer) (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Openat(dirfd int, path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
@@ -518,6 +619,7 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
 //sys	Rmdir(path string) (err error)
 //sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_LSEEK
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
+//sys	Setattrlist(path string, attrlist *Attrlist, attrBuf []byte, options int) (err error)
 //sys	Setegid(egid int) (err error)
 //sysnb	Seteuid(euid int) (err error)
 //sysnb	Setgid(gid int) (err error)
@@ -527,7 +629,6 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
 //sys	Setprivexec(flag int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -543,191 +644,3 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
 //sys	write(fd int, p []byte) (n int, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys	munmap(addr uintptr, length uintptr) (err error)
-//sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
-
-/*
- * Unimplemented
- */
-// Profil
-// Sigaction
-// Sigprocmask
-// Getlogin
-// Sigpending
-// Sigaltstack
-// Ioctl
-// Reboot
-// Execve
-// Vfork
-// Sbrk
-// Sstk
-// Ovadvise
-// Mincore
-// Setitimer
-// Swapon
-// Select
-// Sigsuspend
-// Readv
-// Writev
-// Nfssvc
-// Getfh
-// Quotactl
-// Mount
-// Csops
-// Waitid
-// Add_profil
-// Kdebug_trace
-// Sigreturn
-// Atsocket
-// Kqueue_from_portset_np
-// Kqueue_portset
-// Getattrlist
-// Setattrlist
-// Getdirentriesattr
-// Searchfs
-// Delete
-// Copyfile
-// Watchevent
-// Waitevent
-// Modwatch
-// Fsctl
-// Initgroups
-// Posix_spawn
-// Nfsclnt
-// Fhopen
-// Minherit
-// Semsys
-// Msgsys
-// Shmsys
-// Semctl
-// Semget
-// Semop
-// Msgctl
-// Msgget
-// Msgsnd
-// Msgrcv
-// Shm_open
-// Shm_unlink
-// Sem_open
-// Sem_close
-// Sem_unlink
-// Sem_wait
-// Sem_trywait
-// Sem_post
-// Sem_getvalue
-// Sem_init
-// Sem_destroy
-// Open_extended
-// Umask_extended
-// Stat_extended
-// Lstat_extended
-// Fstat_extended
-// Chmod_extended
-// Fchmod_extended
-// Access_extended
-// Settid
-// Gettid
-// Setsgroups
-// Getsgroups
-// Setwgroups
-// Getwgroups
-// Mkfifo_extended
-// Mkdir_extended
-// Identitysvc
-// Shared_region_check_np
-// Shared_region_map_np
-// __pthread_mutex_destroy
-// __pthread_mutex_init
-// __pthread_mutex_lock
-// __pthread_mutex_trylock
-// __pthread_mutex_unlock
-// __pthread_cond_init
-// __pthread_cond_destroy
-// __pthread_cond_broadcast
-// __pthread_cond_signal
-// Setsid_with_pid
-// __pthread_cond_timedwait
-// Aio_fsync
-// Aio_return
-// Aio_suspend
-// Aio_cancel
-// Aio_error
-// Aio_read
-// Aio_write
-// Lio_listio
-// __pthread_cond_wait
-// Iopolicysys
-// __pthread_kill
-// __pthread_sigmask
-// __sigwait
-// __disable_threadsignal
-// __pthread_markcancel
-// __pthread_canceled
-// __semwait_signal
-// Proc_info
-// sendfile
-// Stat64_extended
-// Lstat64_extended
-// Fstat64_extended
-// __pthread_chdir
-// __pthread_fchdir
-// Audit
-// Auditon
-// Getauid
-// Setauid
-// Getaudit
-// Setaudit
-// Getaudit_addr
-// Setaudit_addr
-// Auditctl
-// Bsdthread_create
-// Bsdthread_terminate
-// Stack_snapshot
-// Bsdthread_register
-// Workq_open
-// Workq_ops
-// __mac_execve
-// __mac_syscall
-// __mac_get_file
-// __mac_set_file
-// __mac_get_link
-// __mac_set_link
-// __mac_get_proc
-// __mac_set_proc
-// __mac_get_fd
-// __mac_set_fd
-// __mac_get_pid
-// __mac_get_lcid
-// __mac_get_lctx
-// __mac_set_lctx
-// Setlcid
-// Read_nocancel
-// Write_nocancel
-// Open_nocancel
-// Close_nocancel
-// Wait4_nocancel
-// Recvmsg_nocancel
-// Sendmsg_nocancel
-// Recvfrom_nocancel
-// Accept_nocancel
-// Fcntl_nocancel
-// Select_nocancel
-// Fsync_nocancel
-// Connect_nocancel
-// Sigsuspend_nocancel
-// Readv_nocancel
-// Writev_nocancel
-// Sendto_nocancel
-// Pread_nocancel
-// Pwrite_nocancel
-// Waitid_nocancel
-// Poll_nocancel
-// Msgsnd_nocancel
-// Msgrcv_nocancel
-// Sem_wait_nocancel
-// Aio_suspend_nocancel
-// __sigwait_nocancel
-// __semwait_signal_nocancel
-// __mac_mount
-// __mac_get_mount
-// __mac_getfsstat
