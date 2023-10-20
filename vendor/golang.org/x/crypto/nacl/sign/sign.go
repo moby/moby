@@ -21,9 +21,9 @@
 package sign
 
 import (
+	"crypto/ed25519"
 	"io"
 
-	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/internal/alias"
 )
 
