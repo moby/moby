@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,8 +24,10 @@ import (
 	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/go-connections/nat"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/sirupsen/logrus"
 	archvariant "github.com/tonistiigi/go-archvariant"
 )
 
@@ -96,6 +99,20 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 				warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.Format(imgPlat), platforms.Format(p)))
 			}
 		}
+	}
+
+	// de-duplicate the ports
+	filteredPorts, warnMessage, warnFlag := deDuplicatePorts(opts.params.Config.ExposedPorts)
+	if warnFlag {
+		opts.params.Config.ExposedPorts = filteredPorts
+		warnings = append(warnings, warnMessage)
+	}
+
+	// de-duplicate the ports
+	filteredPorts, warnMessage, warnFlag := deDuplicatePorts(opts.params.Config.ExposedPorts)
+	if warnFlag {
+		opts.params.Config.ExposedPorts = filteredPorts
+		warnings = append(warnings, warnMessage)
 	}
 
 	err = daemon.validateNetworkingConfig(opts.params.NetworkingConfig)
@@ -355,4 +372,39 @@ func maximumSpec() ocispec.Platform {
 		p.Variant = archvariant.AMD64Variant()
 	}
 	return p
+}
+
+// deduplicate the ports
+func deDuplicatePorts(ExposedPorts nat.PortSet) (nat.PortSet, string, bool) {
+	filteredPorts := make(nat.PortSet)
+	portWarnFlag := false
+	var portWarnMessage string
+	for nport, val := range ExposedPorts {
+		var pstart, pend uint64
+		if strings.Contains(nport.Port(), "-") {
+			pstart, pend, _ = nat.ParsePortRange(nport.Port())
+			logrus.Debugf("pstart: %d, pend :%d", pstart, pend)
+		} else {
+			pstart = uint64(nport.Int())
+			pend = pstart
+		}
+
+		// insert only unique ports
+		for i := pstart; i <= pend; i++ {
+			fport := strconv.FormatUint(i, 10) + "/" + nport.Proto()
+			logrus.Debugf("Fport is %s", fport)
+			_, ok := filteredPorts[nat.Port(fport)]
+			if ok {
+				portWarnFlag = true
+			} else {
+				filteredPorts[nat.Port(fport)] = val
+			}
+		}
+	}
+
+	if portWarnFlag {
+		portWarnMessage = "Ignoring duplicate Port(s)"
+	}
+
+	return filteredPorts, portWarnMessage, portWarnFlag
 }
