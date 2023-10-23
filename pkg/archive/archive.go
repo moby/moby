@@ -481,6 +481,8 @@ func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, erro
 	return hdr, nil
 }
 
+const paxSchilyXattr = "SCHILY.xattr."
+
 // ReadSecurityXattrToTarHeader reads security.capability xattr from filesystem
 // to a tar header
 func ReadSecurityXattrToTarHeader(path string, hdr *tar.Header) error {
@@ -493,15 +495,16 @@ func ReadSecurityXattrToTarHeader(path string, hdr *tar.Header) error {
 	)
 	capability, _ := system.Lgetxattr(path, "security.capability")
 	if capability != nil {
-		length := len(capability)
 		if capability[versionOffset] == vfsCapRevision3 {
 			// Convert VFS_CAP_REVISION_3 to VFS_CAP_REVISION_2 as root UID makes no
 			// sense outside the user namespace the archive is built in.
 			capability[versionOffset] = vfsCapRevision2
-			length = xattrCapsSz2
+			capability = capability[:xattrCapsSz2]
 		}
-		hdr.Xattrs = make(map[string]string)
-		hdr.Xattrs["security.capability"] = string(capability[:length])
+		if hdr.PAXRecords == nil {
+			hdr.PAXRecords = make(map[string]string)
+		}
+		hdr.PAXRecords[paxSchilyXattr+"security.capability"] = string(capability)
 	}
 	return nil
 }
@@ -776,8 +779,12 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 	}
 
 	var xattrErrs []string
-	for key, value := range hdr.Xattrs {
-		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
+	for key, value := range hdr.PAXRecords {
+		xattr, ok := strings.CutPrefix(key, paxSchilyXattr)
+		if !ok {
+			continue
+		}
+		if err := system.Lsetxattr(path, xattr, []byte(value), 0); err != nil {
 			if bestEffortXattrs && errors.Is(err, syscall.ENOTSUP) || errors.Is(err, syscall.EPERM) {
 				// EPERM occurs if modifying xattrs is not allowed. This can
 				// happen when running in userns with restrictions (ChromeOS).
