@@ -7,22 +7,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
+	"github.com/docker/docker/api/types/versions"
 )
 
 func TestMiddlewares(t *testing.T) {
 	srv := &Server{}
 
-	srv.UseMiddleware(middleware.NewVersionMiddleware("0.1omega2", api.DefaultVersion, api.MinVersion))
+	srv.UseMiddleware(middleware.NewVersionMiddleware("0.1omega2", versions.DefaultVersion, versions.MinVersion))
 
 	req, _ := http.NewRequest(http.MethodGet, "/containers/json", nil)
 	resp := httptest.NewRecorder()
 	ctx := context.Background()
 
 	localHandler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		if httputils.VersionFromContext(ctx) == "" {
+		if versions.FromContext(ctx) == "" {
 			t.Fatal("Expected version, got empty string")
 		}
 

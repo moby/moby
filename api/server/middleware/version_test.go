@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/api/types/versions"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -17,7 +17,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 	minVersion := "1.2.0"
 	expectedVersion := defaultVersion
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		v := httputils.VersionFromContext(ctx)
+		v := versions.FromContext(ctx)
 		assert.Check(t, is.Equal(expectedVersion, v))
 		return nil
 	}
@@ -66,7 +66,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 
 func TestVersionMiddlewareWithErrorsReturnsHeaders(t *testing.T) {
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		v := httputils.VersionFromContext(ctx)
+		v := versions.FromContext(ctx)
 		assert.Check(t, len(v) != 0)
 		return nil
 	}

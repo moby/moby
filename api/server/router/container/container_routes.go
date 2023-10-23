@@ -39,7 +39,7 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 
 	// TODO: remove pause arg, and always pause in backend
 	pause := httputils.BoolValue(r, "pause")
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if r.FormValue("pause") == "" && versions.GreaterThanOrEqualTo(version, "1.13") {
 		pause = true
 	}
@@ -112,7 +112,7 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 		w.Header().Set("Content-Type", "application/json")
 	}
 	var oneShot bool
-	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.41") {
+	if versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.41") {
 		oneShot = httputils.BoolValueOrDefault(r, "one-shot", false)
 	}
 
@@ -120,7 +120,7 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 		Stream:    stream,
 		OneShot:   oneShot,
 		OutStream: w,
-		Version:   httputils.VersionFromContext(ctx),
+		Version:   versions.FromContext(ctx),
 	}
 
 	return s.backend.ContainerStats(ctx, vars["name"], config)
@@ -159,7 +159,7 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	}
 
 	contentType := types.MediaTypeRawStream
-	if !tty && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+	if !tty && versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.42") {
 		contentType = types.MediaTypeMultiplexedStream
 	}
 	w.Header().Set("Content-Type", contentType)
@@ -192,7 +192,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	// including r.TransferEncoding
 	// allow a nil body for backwards compatibility
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	var hostConfig *container.HostConfig
 	// A non-nil json object is at least 7 characters.
 	if r.ContentLength > 7 || r.ContentLength == -1 {
@@ -232,7 +232,7 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 
 	var (
 		options container.StopOptions
-		version = httputils.VersionFromContext(ctx)
+		version = versions.FromContext(ctx)
 	)
 	if versions.GreaterThanOrEqualTo(version, "1.42") {
 		options.Signal = r.Form.Get("signal")
@@ -268,7 +268,7 @@ func (s *containerRouter) postContainersKill(ctx context.Context, w http.Respons
 		// Return error that's not caused because the container is stopped.
 		// Return error if the container is not running and the api is >= 1.20
 		// to keep backwards compatibility.
-		version := httputils.VersionFromContext(ctx)
+		version := versions.FromContext(ctx)
 		if versions.GreaterThanOrEqualTo(version, "1.20") || !isStopped {
 			return errors.Wrapf(err, "Cannot kill container: %s", name)
 		}
@@ -285,7 +285,7 @@ func (s *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 
 	var (
 		options container.StopOptions
-		version = httputils.VersionFromContext(ctx)
+		version = versions.FromContext(ctx)
 	)
 	if versions.GreaterThanOrEqualTo(version, "1.42") {
 		options.Signal = r.Form.Get("signal")
@@ -337,7 +337,7 @@ func (s *containerRouter) postContainersUnpause(ctx context.Context, w http.Resp
 func (s *containerRouter) postContainersWait(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	// Behavior changed in version 1.30 to handle wait condition and to
 	// return headers immediately.
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	legacyBehaviorPre130 := versions.LessThan(version, "1.30")
 	legacyRemovalWaitPre134 := false
 
@@ -444,11 +444,11 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	if err := httputils.ReadJSON(r, &updateConfig); err != nil {
 		return err
 	}
-	if versions.LessThan(httputils.VersionFromContext(ctx), "1.40") {
+	if versions.LessThan(versions.FromContext(ctx), "1.40") {
 		updateConfig.PidsLimit = nil
 	}
 
-	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+	if versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.42") {
 		// Ignore KernelMemory removed in API 1.42.
 		updateConfig.KernelMemory = 0
 	}
@@ -492,7 +492,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 		return err
 	}
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	adjustCPUShares := versions.LessThan(version, "1.19")
 
 	// When using API 1.24 and under, the client is responsible for removing the container
@@ -698,7 +698,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		conn.Write([]byte{})
 
 		if upgrade {
-			if multiplexed && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+			if multiplexed && versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.42") {
 				contentType = types.MediaTypeMultiplexedStream
 			}
 			fmt.Fprintf(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: "+contentType+"\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
@@ -752,7 +752,7 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 	done := make(chan struct{})
 	started := make(chan struct{})
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 
 	setupStreams := func(multiplexed bool) (io.ReadCloser, io.Writer, io.Writer, error) {
 		wsChan := make(chan *websocket.Conn)

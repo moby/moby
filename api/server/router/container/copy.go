@@ -27,7 +27,7 @@ func (pathError) InvalidParameter() {}
 //
 // Deprecated since 1.8 (API v1.20), errors out since 1.12 (API v1.24)
 func (s *containerRouter) postContainersCopy(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, "1.24") {
 		w.WriteHeader(http.StatusNotFound)
 		return nil

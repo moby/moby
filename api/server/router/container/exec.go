@@ -47,7 +47,7 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 		return execCommandError{}
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if versions.LessThan(version, "1.42") {
 		// Not supported by API versions before 1.42
 		execConfig.ConsoleSize = nil
@@ -71,7 +71,7 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if versions.LessThan(version, "1.22") {
 		// API versions before 1.22 did not enforce application/json content-type.
 		// Allow older clients to work by patching the content-type.
@@ -118,7 +118,7 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 
 		if _, ok := r.Header["Upgrade"]; ok {
 			contentType := types.MediaTypeRawStream
-			if !execStartCheck.Tty && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+			if !execStartCheck.Tty && versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.42") {
 				contentType = types.MediaTypeMultiplexedStream
 			}
 			fmt.Fprint(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: "+contentType+"\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n")
