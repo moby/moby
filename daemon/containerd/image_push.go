@@ -17,6 +17,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -46,9 +47,8 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 		return err
 	}
 	defer func() {
-		err := release(leasedCtx)
-		if err != nil && !cerrdefs.IsNotFound(err) {
-			logrus.WithField("image", targetRef).WithError(err).Error("failed to delete lease created for push")
+		if err := release(compatcontext.WithoutCancel(leasedCtx)); err != nil {
+			logrus.WithField("image", targetRef).WithError(err).Warn("failed to release lease created for push")
 		}
 	}()
 

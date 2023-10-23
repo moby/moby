@@ -20,6 +20,7 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
@@ -68,11 +69,15 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 	)
 
 	// Don't gc me and clean the dirty data after 1 hour!
-	ctx, done, err := i.client.WithLease(ctx, leases.WithRandomID(), leases.WithExpiration(1*time.Hour))
+	ctx, release, err := i.client.WithLease(ctx, leases.WithRandomID(), leases.WithExpiration(1*time.Hour))
 	if err != nil {
 		return "", fmt.Errorf("failed to create lease for commit: %w", err)
 	}
-	defer done(ctx)
+	defer func() {
+		if err := release(compatcontext.WithoutCancel(ctx)); err != nil {
+			logrus.WithError(err).Warn("failed to release lease created for commit")
+		}
+	}()
 
 	diffLayerDesc, diffID, err := createDiff(ctx, cc.ContainerID, sn, cs, differ)
 	if err != nil {

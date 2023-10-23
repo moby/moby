@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/google/uuid"
@@ -46,7 +47,11 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 	if err != nil {
 		return "", errdefs.System(err)
 	}
-	defer release(ctx)
+	defer func() {
+		if err := release(compatcontext.WithoutCancel(ctx)); err != nil {
+			logger.WithError(err).Warn("failed to release lease created for import")
+		}
+	}()
 
 	if platform == nil {
 		def := platforms.DefaultSpec()
@@ -255,9 +260,9 @@ func compressAndWriteBlob(ctx context.Context, cs content.Store, compression arc
 	writeChan := make(chan digest.Digest)
 	// Start copying the blob to the content store from the pipe.
 	go func() {
-		digest, err := writeBlobAndReturnDigest(ctx, cs, mediaType, pr)
+		dgst, err := writeBlobAndReturnDigest(ctx, cs, mediaType, pr)
 		pr.CloseWithError(err)
-		writeChan <- digest
+		writeChan <- dgst
 	}()
 
 	// Copy archive to the pipe and tee it to a digester.
