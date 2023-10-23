@@ -2,8 +2,6 @@ package containerd
 
 import (
 	"context"
-	"crypto/tls"
-	"errors"
 	"net/http"
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
@@ -20,7 +18,7 @@ import (
 func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig) (remotes.Resolver, docker.StatusTracker) {
 	tracker := docker.NewInMemoryTracker()
 
-	hosts := hostsWrapper(i.registryHosts, authConfig, i.registryService)
+	hosts := hostsWrapper(i.registryHosts, authConfig)
 	headers := http.Header{}
 	headers.Set("User-Agent", dockerversion.DockerUserAgent(ctx, useragent.VersionInfo{Name: "containerd-client", Version: version.Version}, useragent.VersionInfo{Name: "storage-driver", Version: i.snapshotter}))
 
@@ -31,7 +29,7 @@ func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig
 	}), tracker
 }
 
-func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig, regService RegistryConfigProvider) docker.RegistryHosts {
+func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig) docker.RegistryHosts {
 	var authorizer docker.Authorizer
 	if optAuthConfig != nil {
 		authorizer = authorizerFromAuthConfig(*optAuthConfig)
@@ -46,10 +44,6 @@ func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.Aut
 		for i := range hosts {
 			if hosts[i].Authorizer == nil {
 				hosts[i].Authorizer = authorizer
-				isInsecure := regService.IsInsecureRegistry(hosts[i].Host)
-				if hosts[i].Client.Transport != nil && isInsecure {
-					hosts[i].Client.Transport = httpFallback{super: hosts[i].Client.Transport}
-				}
 			}
 		}
 		return hosts, nil
@@ -106,25 +100,4 @@ func (a *bearerAuthorizer) Authorize(ctx context.Context, req *http.Request) err
 func (a *bearerAuthorizer) AddResponses(context.Context, []*http.Response) error {
 	// Return not implemented to prevent retry of the request when bearer did not succeed
 	return cerrdefs.ErrNotImplemented
-}
-
-type httpFallback struct {
-	super http.RoundTripper
-}
-
-func (f httpFallback) RoundTrip(r *http.Request) (*http.Response, error) {
-	resp, err := f.super.RoundTrip(r)
-	var tlsErr tls.RecordHeaderError
-	if errors.As(err, &tlsErr) && string(tlsErr.RecordHeader[:]) == "HTTP/" {
-		// server gave HTTP response to HTTPS client
-		plainHttpUrl := *r.URL
-		plainHttpUrl.Scheme = "http"
-
-		plainHttpRequest := *r
-		plainHttpRequest.URL = &plainHttpUrl
-
-		return http.DefaultTransport.RoundTrip(&plainHttpRequest)
-	}
-
-	return resp, err
 }
