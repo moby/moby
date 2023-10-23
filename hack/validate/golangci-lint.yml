@@ -98,7 +98,7 @@ issues:
       linters:
         - gosec
     # FIXME temporarily suppress these. See #39924
-    - text: "SA1019: .*\\.Xattrs is deprecated: Use PAXRecords instead"
+    - text: "SA1019: .*\\.Xattrs has been deprecated since Go 1.10: Use PAXRecords instead"
       linters:
         - staticcheck
     # FIXME temporarily suppress these. See #39926
