@@ -8,6 +8,7 @@ linters:
     - importas
     - ineffassign
     - misspell
+    - nolintlint
     - revive
     - staticcheck
     - typecheck
