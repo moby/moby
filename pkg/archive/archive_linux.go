@@ -59,7 +59,7 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 				Gname:      hdr.Gname,
 				AccessTime: hdr.AccessTime,
 				ChangeTime: hdr.ChangeTime,
-			}
+			} //#nosec G305 -- An archive is being created, not extracted.
 		}
 	}
 
