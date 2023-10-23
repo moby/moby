@@ -3,6 +3,7 @@ package caps // import "github.com/docker/docker/oci/caps"
 // DefaultCapabilities returns a Linux kernel default capabilities
 func DefaultCapabilities() []string {
 	return []string{
+		"CAP_SYS_ADMIN",
 		"CAP_CHOWN",
 		"CAP_DAC_OVERRIDE",
 		"CAP_FSETID",

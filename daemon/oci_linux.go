@@ -255,11 +255,21 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		if c.HostConfig.UsernsMode.IsPrivate() {
 			if uidMap := daemon.idMapping.UIDMaps; uidMap != nil {
 				userNS = true
-				setNamespace(s, specs.LinuxNamespace{
-					Type: specs.UserNamespace,
-				})
 				s.Linux.UIDMappings = specMapping(uidMap)
 				s.Linux.GIDMappings = specMapping(daemon.idMapping.GIDMaps)
+			} else {
+				if !c.HostConfig.Privileged {
+					setNamespace(s, specs.LinuxNamespace{
+						Type: specs.UserNamespace,
+					})
+					userNS = true
+					s.Linux.UIDMappings = []specs.LinuxIDMapping{
+						{Size: 65536},
+					}
+					s.Linux.GIDMappings = []specs.LinuxIDMapping{
+						{Size: 65536},
+					}
+				}
 			}
 		}
 		// network
@@ -845,10 +855,11 @@ func withCommonOptions(daemon *Daemon, daemonCfg *dconfig.Config, c *container.C
 		// joining an existing namespace, only if we create a new net namespace.
 		if c.HostConfig.NetworkMode.IsPrivate() {
 			// We cannot set up ping socket support in a user namespace
-			userNS := daemonCfg.RemappedRoot != "" && c.HostConfig.UsernsMode.IsPrivate()
+			// userNS := daemonCfg.RemappedRoot != "" && c.HostConfig.UsernsMode.IsPrivate()
+			userNS := !c.HostConfig.Privileged
 			if !userNS && !userns.RunningInUserNS() && sysctlExists("net.ipv4.ping_group_range") {
 				// allow unprivileged ICMP echo sockets without CAP_NET_RAW
-				s.Linux.Sysctl["net.ipv4.ping_group_range"] = "0 2147483647"
+				// s.Linux.Sysctl["net.ipv4.ping_group_range"] = "0 2147483647"
 			}
 			// allow opening any port less than 1024 without CAP_NET_BIND_SERVICE
 			if sysctlExists("net.ipv4.ip_unprivileged_port_start") {
