@@ -5,7 +5,7 @@
 package zstd
 
 import (
-	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"io"
@@ -29,7 +29,7 @@ type frameDec struct {
 
 	FrameContentSize uint64
 
-	DictionaryID  *uint32
+	DictionaryID  uint32
 	HasCheckSum   bool
 	SingleSegment bool
 }
@@ -43,9 +43,9 @@ const (
 	MaxWindowSize = 1 << 29
 )
 
-var (
-	frameMagic          = []byte{0x28, 0xb5, 0x2f, 0xfd}
-	skippableFrameMagic = []byte{0x2a, 0x4d, 0x18}
+const (
+	frameMagic          = "\x28\xb5\x2f\xfd"
+	skippableFrameMagic = "\x2a\x4d\x18"
 )
 
 func newFrameDec(o decoderOptions) *frameDec {
@@ -73,25 +73,25 @@ func (d *frameDec) reset(br byteBuffer) error {
 		switch err {
 		case io.EOF, io.ErrUnexpectedEOF:
 			return io.EOF
-		default:
-			return err
 		case nil:
 			signature[0] = b[0]
+		default:
+			return err
 		}
 		// Read the rest, don't allow io.ErrUnexpectedEOF
 		b, err = br.readSmall(3)
 		switch err {
 		case io.EOF:
 			return io.EOF
-		default:
-			return err
 		case nil:
 			copy(signature[1:], b)
+		default:
+			return err
 		}
 
-		if !bytes.Equal(signature[1:4], skippableFrameMagic) || signature[0]&0xf0 != 0x50 {
+		if string(signature[1:4]) != skippableFrameMagic || signature[0]&0xf0 != 0x50 {
 			if debugDecoder {
-				println("Not skippable", hex.EncodeToString(signature[:]), hex.EncodeToString(skippableFrameMagic))
+				println("Not skippable", hex.EncodeToString(signature[:]), hex.EncodeToString([]byte(skippableFrameMagic)))
 			}
 			// Break if not skippable frame.
 			break
@@ -114,9 +114,9 @@ func (d *frameDec) reset(br byteBuffer) error {
 			return err
 		}
 	}
-	if !bytes.Equal(signature[:], frameMagic) {
+	if string(signature[:]) != frameMagic {
 		if debugDecoder {
-			println("Got magic numbers: ", signature, "want:", frameMagic)
+			println("Got magic numbers: ", signature, "want:", []byte(frameMagic))
 		}
 		return ErrMagicMismatch
 	}
@@ -155,7 +155,7 @@ func (d *frameDec) reset(br byteBuffer) error {
 
 	// Read Dictionary_ID
 	// https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#dictionary_id
-	d.DictionaryID = nil
+	d.DictionaryID = 0
 	if size := fhd & 3; size != 0 {
 		if size == 3 {
 			size = 4
@@ -167,7 +167,7 @@ func (d *frameDec) reset(br byteBuffer) error {
 			return err
 		}
 		var id uint32
-		switch size {
+		switch len(b) {
 		case 1:
 			id = uint32(b[0])
 		case 2:
@@ -178,11 +178,7 @@ func (d *frameDec) reset(br byteBuffer) error {
 		if debugDecoder {
 			println("Dict size", size, "ID:", id)
 		}
-		if id > 0 {
-			// ID 0 means "sorry, no dictionary anyway".
-			// https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#dictionary-format
-			d.DictionaryID = &id
-		}
+		d.DictionaryID = id
 	}
 
 	// Read Frame_Content_Size
@@ -204,7 +200,7 @@ func (d *frameDec) reset(br byteBuffer) error {
 			println("Reading Frame content", err)
 			return err
 		}
-		switch fcsSize {
+		switch len(b) {
 		case 1:
 			d.FrameContentSize = uint64(b[0])
 		case 2:
@@ -297,55 +293,38 @@ func (d *frameDec) next(block *blockDec) error {
 	return nil
 }
 
-// checkCRC will check the checksum if the frame has one.
+// checkCRC will check the checksum, assuming the frame has one.
 // Will return ErrCRCMismatch if crc check failed, otherwise nil.
 func (d *frameDec) checkCRC() error {
-	if !d.HasCheckSum {
-		return nil
-	}
-
 	// We can overwrite upper tmp now
-	want, err := d.rawInput.readSmall(4)
+	buf, err := d.rawInput.readSmall(4)
 	if err != nil {
 		println("CRC missing?", err)
 		return err
 	}
 
-	if d.o.ignoreChecksum {
-		return nil
-	}
+	want := binary.LittleEndian.Uint32(buf[:4])
+	got := uint32(d.crc.Sum64())
 
-	var tmp [4]byte
-	got := d.crc.Sum64()
-	// Flip to match file order.
-	tmp[0] = byte(got >> 0)
-	tmp[1] = byte(got >> 8)
-	tmp[2] = byte(got >> 16)
-	tmp[3] = byte(got >> 24)
-
-	if !bytes.Equal(tmp[:], want) {
+	if got != want {
 		if debugDecoder {
-			println("CRC Check Failed:", tmp[:], "!=", want)
+			printf("CRC check failed: got %08x, want %08x\n", got, want)
 		}
 		return ErrCRCMismatch
 	}
 	if debugDecoder {
-		println("CRC ok", tmp[:])
+		printf("CRC ok %08x\n", got)
 	}
 	return nil
 }
 
-// consumeCRC reads the checksum data if the frame has one.
+// consumeCRC skips over the checksum, assuming the frame has one.
 func (d *frameDec) consumeCRC() error {
-	if d.HasCheckSum {
-		_, err := d.rawInput.readSmall(4)
-		if err != nil {
-			println("CRC missing?", err)
-			return err
-		}
+	_, err := d.rawInput.readSmall(4)
+	if err != nil {
+		println("CRC missing?", err)
 	}
-
-	return nil
+	return err
 }
 
 // runDecoder will run the decoder for the remainder of the frame.
@@ -424,15 +403,8 @@ func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) {
 			if d.o.ignoreChecksum {
 				err = d.consumeCRC()
 			} else {
-				var n int
-				n, err = d.crc.Write(dst[crcStart:])
-				if err == nil {
-					if n != len(dst)-crcStart {
-						err = io.ErrShortWrite
-					} else {
-						err = d.checkCRC()
-					}
-				}
+				d.crc.Write(dst[crcStart:])
+				err = d.checkCRC()
 			}
 		}
 	}

@@ -227,10 +227,10 @@ func EstimateSizes(in []byte, s *Scratch) (tableSz, dataSz, reuseSz int, err err
 }
 
 func (s *Scratch) compress1X(src []byte) ([]byte, error) {
-	return s.compress1xDo(s.Out, src)
+	return s.compress1xDo(s.Out, src), nil
 }
 
-func (s *Scratch) compress1xDo(dst, src []byte) ([]byte, error) {
+func (s *Scratch) compress1xDo(dst, src []byte) []byte {
 	var bw = bitWriter{out: dst}
 
 	// N is length divisible by 4.
@@ -248,8 +248,7 @@ func (s *Scratch) compress1xDo(dst, src []byte) ([]byte, error) {
 			tmp := src[n : n+4]
 			// tmp should be len 4
 			bw.flush32()
-			bw.encTwoSymbols(cTable, tmp[3], tmp[2])
-			bw.encTwoSymbols(cTable, tmp[1], tmp[0])
+			bw.encFourSymbols(cTable[tmp[3]], cTable[tmp[2]], cTable[tmp[1]], cTable[tmp[0]])
 		}
 	} else {
 		for ; n >= 0; n -= 4 {
@@ -261,8 +260,8 @@ func (s *Scratch) compress1xDo(dst, src []byte) ([]byte, error) {
 			bw.encTwoSymbols(cTable, tmp[1], tmp[0])
 		}
 	}
-	err := bw.close()
-	return bw.out, err
+	bw.close()
+	return bw.out
 }
 
 var sixZeros [6]byte
@@ -284,12 +283,8 @@ func (s *Scratch) compress4X(src []byte) ([]byte, error) {
 		}
 		src = src[len(toDo):]
 
-		var err error
 		idx := len(s.Out)
-		s.Out, err = s.compress1xDo(s.Out, toDo)
-		if err != nil {
-			return nil, err
-		}
+		s.Out = s.compress1xDo(s.Out, toDo)
 		if len(s.Out)-idx > math.MaxUint16 {
 			// We cannot store the size in the jump table
 			return nil, ErrIncompressible
@@ -316,7 +311,6 @@ func (s *Scratch) compress4Xp(src []byte) ([]byte, error) {
 
 	segmentSize := (len(src) + 3) / 4
 	var wg sync.WaitGroup
-	var errs [4]error
 	wg.Add(4)
 	for i := 0; i < 4; i++ {
 		toDo := src
@@ -327,15 +321,12 @@ func (s *Scratch) compress4Xp(src []byte) ([]byte, error) {
 
 		// Separate goroutine for each block.
 		go func(i int) {
-			s.tmpOut[i], errs[i] = s.compress1xDo(s.tmpOut[i][:0], toDo)
+			s.tmpOut[i] = s.compress1xDo(s.tmpOut[i][:0], toDo)
 			wg.Done()
 		}(i)
 	}
 	wg.Wait()
 	for i := 0; i < 4; i++ {
-		if errs[i] != nil {
-			return nil, errs[i]
-		}
 		o := s.tmpOut[i]
 		if len(o) > math.MaxUint16 {
 			// We cannot store the size in the jump table
@@ -365,29 +356,29 @@ func (s *Scratch) countSimple(in []byte) (max int, reuse bool) {
 	m := uint32(0)
 	if len(s.prevTable) > 0 {
 		for i, v := range s.count[:] {
+			if v == 0 {
+				continue
+			}
 			if v > m {
 				m = v
 			}
-			if v > 0 {
-				s.symbolLen = uint16(i) + 1
-				if i >= len(s.prevTable) {
-					reuse = false
-				} else {
-					if s.prevTable[i].nBits == 0 {
-						reuse = false
-					}
-				}
+			s.symbolLen = uint16(i) + 1
+			if i >= len(s.prevTable) {
+				reuse = false
+			} else if s.prevTable[i].nBits == 0 {
+				reuse = false
 			}
 		}
 		return int(m), reuse
 	}
 	for i, v := range s.count[:] {
+		if v == 0 {
+			continue
+		}
 		if v > m {
 			m = v
 		}
-		if v > 0 {
-			s.symbolLen = uint16(i) + 1
-		}
+		s.symbolLen = uint16(i) + 1
 	}
 	return int(m), false
 }
@@ -484,34 +475,35 @@ func (s *Scratch) buildCTable() error {
 	// Different from reference implementation.
 	huffNode0 := s.nodes[0 : huffNodesLen+1]
 
-	for huffNode[nonNullRank].count == 0 {
+	for huffNode[nonNullRank].count() == 0 {
 		nonNullRank--
 	}
 
 	lowS := int16(nonNullRank)
 	nodeRoot := nodeNb + lowS - 1
 	lowN := nodeNb
-	huffNode[nodeNb].count = huffNode[lowS].count + huffNode[lowS-1].count
-	huffNode[lowS].parent, huffNode[lowS-1].parent = uint16(nodeNb), uint16(nodeNb)
+	huffNode[nodeNb].setCount(huffNode[lowS].count() + huffNode[lowS-1].count())
+	huffNode[lowS].setParent(nodeNb)
+	huffNode[lowS-1].setParent(nodeNb)
 	nodeNb++
 	lowS -= 2
 	for n := nodeNb; n <= nodeRoot; n++ {
-		huffNode[n].count = 1 << 30
+		huffNode[n].setCount(1 << 30)
 	}
 	// fake entry, strong barrier
-	huffNode0[0].count = 1 << 31
+	huffNode0[0].setCount(1 << 31)
 
 	// create parents
 	for nodeNb <= nodeRoot {
 		var n1, n2 int16
-		if huffNode0[lowS+1].count < huffNode0[lowN+1].count {
+		if huffNode0[lowS+1].count() < huffNode0[lowN+1].count() {
 			n1 = lowS
 			lowS--
 		} else {
 			n1 = lowN
 			lowN++
 		}
-		if huffNode0[lowS+1].count < huffNode0[lowN+1].count {
+		if huffNode0[lowS+1].count() < huffNode0[lowN+1].count() {
 			n2 = lowS
 			lowS--
 		} else {
@@ -519,18 +511,19 @@ func (s *Scratch) buildCTable() error {
 			lowN++
 		}
 
-		huffNode[nodeNb].count = huffNode0[n1+1].count + huffNode0[n2+1].count
-		huffNode0[n1+1].parent, huffNode0[n2+1].parent = uint16(nodeNb), uint16(nodeNb)
+		huffNode[nodeNb].setCount(huffNode0[n1+1].count() + huffNode0[n2+1].count())
+		huffNode0[n1+1].setParent(nodeNb)
+		huffNode0[n2+1].setParent(nodeNb)
 		nodeNb++
 	}
 
 	// distribute weights (unlimited tree height)
-	huffNode[nodeRoot].nbBits = 0
+	huffNode[nodeRoot].setNbBits(0)
 	for n := nodeRoot - 1; n >= startNode; n-- {
-		huffNode[n].nbBits = huffNode[huffNode[n].parent].nbBits + 1
+		huffNode[n].setNbBits(huffNode[huffNode[n].parent()].nbBits() + 1)
 	}
 	for n := uint16(0); n <= nonNullRank; n++ {
-		huffNode[n].nbBits = huffNode[huffNode[n].parent].nbBits + 1
+		huffNode[n].setNbBits(huffNode[huffNode[n].parent()].nbBits() + 1)
 	}
 	s.actualTableLog = s.setMaxHeight(int(nonNullRank))
 	maxNbBits := s.actualTableLog
@@ -542,7 +535,7 @@ func (s *Scratch) buildCTable() error {
 	var nbPerRank [tableLogMax + 1]uint16
 	var valPerRank [16]uint16
 	for _, v := range huffNode[:nonNullRank+1] {
-		nbPerRank[v.nbBits]++
+		nbPerRank[v.nbBits()]++
 	}
 	// determine stating value per rank
 	{
@@ -557,7 +550,7 @@ func (s *Scratch) buildCTable() error {
 
 	// push nbBits per symbol, symbol order
 	for _, v := range huffNode[:nonNullRank+1] {
-		s.cTable[v.symbol].nBits = v.nbBits
+		s.cTable[v.symbol()].nBits = v.nbBits()
 	}
 
 	// assign value within rank, symbol order
@@ -603,12 +596,12 @@ func (s *Scratch) huffSort() {
 		pos := rank[r].current
 		rank[r].current++
 		prev := nodes[(pos-1)&huffNodesMask]
-		for pos > rank[r].base && c > prev.count {
+		for pos > rank[r].base && c > prev.count() {
 			nodes[pos&huffNodesMask] = prev
 			pos--
 			prev = nodes[(pos-1)&huffNodesMask]
 		}
-		nodes[pos&huffNodesMask] = nodeElt{count: c, symbol: byte(n)}
+		nodes[pos&huffNodesMask] = makeNodeElt(c, byte(n))
 	}
 }
 
@@ -617,7 +610,7 @@ func (s *Scratch) setMaxHeight(lastNonNull int) uint8 {
 	huffNode := s.nodes[1 : huffNodesLen+1]
 	//huffNode = huffNode[: huffNodesLen]
 
-	largestBits := huffNode[lastNonNull].nbBits
+	largestBits := huffNode[lastNonNull].nbBits()
 
 	// early exit : no elt > maxNbBits
 	if largestBits <= maxNbBits {
@@ -627,14 +620,14 @@ func (s *Scratch) setMaxHeight(lastNonNull int) uint8 {
 	baseCost := int(1) << (largestBits - maxNbBits)
 	n := uint32(lastNonNull)
 
-	for huffNode[n].nbBits > maxNbBits {
-		totalCost += baseCost - (1 << (largestBits - huffNode[n].nbBits))
-		huffNode[n].nbBits = maxNbBits
+	for huffNode[n].nbBits() > maxNbBits {
+		totalCost += baseCost - (1 << (largestBits - huffNode[n].nbBits()))
+		huffNode[n].setNbBits(maxNbBits)
 		n--
 	}
 	// n stops at huffNode[n].nbBits <= maxNbBits
 
-	for huffNode[n].nbBits == maxNbBits {
+	for huffNode[n].nbBits() == maxNbBits {
 		n--
 	}
 	// n end at index of smallest symbol using < maxNbBits
@@ -655,10 +648,10 @@ func (s *Scratch) setMaxHeight(lastNonNull int) uint8 {
 		{
 			currentNbBits := maxNbBits
 			for pos := int(n); pos >= 0; pos-- {
-				if huffNode[pos].nbBits >= currentNbBits {
+				if huffNode[pos].nbBits() >= currentNbBits {
 					continue
 				}
-				currentNbBits = huffNode[pos].nbBits // < maxNbBits
+				currentNbBits = huffNode[pos].nbBits() // < maxNbBits
 				rankLast[maxNbBits-currentNbBits] = uint32(pos)
 			}
 		}
@@ -675,8 +668,8 @@ func (s *Scratch) setMaxHeight(lastNonNull int) uint8 {
 				if lowPos == noSymbol {
 					break
 				}
-				highTotal := huffNode[highPos].count
-				lowTotal := 2 * huffNode[lowPos].count
+				highTotal := huffNode[highPos].count()
+				lowTotal := 2 * huffNode[lowPos].count()
 				if highTotal <= lowTotal {
 					break
 				}
@@ -692,13 +685,14 @@ func (s *Scratch) setMaxHeight(lastNonNull int) uint8 {
 				// this rank is no longer empty
 				rankLast[nBitsToDecrease-1] = rankLast[nBitsToDecrease]
 			}
-			huffNode[rankLast[nBitsToDecrease]].nbBits++
+			huffNode[rankLast[nBitsToDecrease]].setNbBits(1 +
+				huffNode[rankLast[nBitsToDecrease]].nbBits())
 			if rankLast[nBitsToDecrease] == 0 {
 				/* special case, reached largest symbol */
 				rankLast[nBitsToDecrease] = noSymbol
 			} else {
 				rankLast[nBitsToDecrease]--
-				if huffNode[rankLast[nBitsToDecrease]].nbBits != maxNbBits-nBitsToDecrease {
+				if huffNode[rankLast[nBitsToDecrease]].nbBits() != maxNbBits-nBitsToDecrease {
 					rankLast[nBitsToDecrease] = noSymbol /* this rank is now empty */
 				}
 			}
@@ -706,15 +700,15 @@ func (s *Scratch) setMaxHeight(lastNonNull int) uint8 {
 
 		for totalCost < 0 { /* Sometimes, cost correction overshoot */
 			if rankLast[1] == noSymbol { /* special case : no rank 1 symbol (using maxNbBits-1); let's create one from largest rank 0 (using maxNbBits) */
-				for huffNode[n].nbBits == maxNbBits {
+				for huffNode[n].nbBits() == maxNbBits {
 					n--
 				}
-				huffNode[n+1].nbBits--
+				huffNode[n+1].setNbBits(huffNode[n+1].nbBits() - 1)
 				rankLast[1] = n + 1
 				totalCost++
 				continue
 			}
-			huffNode[rankLast[1]+1].nbBits--
+			huffNode[rankLast[1]+1].setNbBits(huffNode[rankLast[1]+1].nbBits() - 1)
 			rankLast[1]++
 			totalCost++
 		}
@@ -722,9 +716,26 @@ func (s *Scratch) setMaxHeight(lastNonNull int) uint8 {
 	return maxNbBits
 }
 
-type nodeElt struct {
-	count  uint32
-	parent uint16
-	symbol byte
-	nbBits uint8
+// A nodeElt is the fields
+//
+//	count  uint32
+//	parent uint16
+//	symbol byte
+//	nbBits uint8
+//
+// in some order, all squashed into an integer so that the compiler
+// always loads and stores entire nodeElts instead of separate fields.
+type nodeElt uint64
+
+func makeNodeElt(count uint32, symbol byte) nodeElt {
+	return nodeElt(count) | nodeElt(symbol)<<48
 }
+
+func (e *nodeElt) count() uint32  { return uint32(*e) }
+func (e *nodeElt) parent() uint16 { return uint16(*e >> 32) }
+func (e *nodeElt) symbol() byte   { return byte(*e >> 48) }
+func (e *nodeElt) nbBits() uint8  { return uint8(*e >> 56) }
+
+func (e *nodeElt) setCount(c uint32) { *e = (*e)&0xffffffff00000000 | nodeElt(c) }
+func (e *nodeElt) setParent(p int16) { *e = (*e)&0xffff0000ffffffff | nodeElt(uint16(p))<<32 }
+func (e *nodeElt) setNbBits(n uint8) { *e = (*e)&0x00ffffffffffffff | nodeElt(n)<<56 }
