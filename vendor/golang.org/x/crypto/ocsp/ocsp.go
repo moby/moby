@@ -345,6 +345,8 @@ func (req *Request) Marshal() ([]byte, error) {
 // Response represents an OCSP response containing a single SingleResponse. See
 // RFC 6960.
 type Response struct {
+	Raw []byte
+
 	// Status is one of {Good, Revoked, Unknown}
 	Status                                        int
 	SerialNumber                                  *big.Int
@@ -518,6 +520,7 @@ func ParseResponseForCert(bytes []byte, cert, issuer *x509.Certificate) (*Respon
 	}
 
 	ret := &Response{
+		Raw:                bytes,
 		TBSResponseData:    basicResp.TBSResponseData.Raw,
 		Signature:          basicResp.Signature.RightAlign(),
 		SignatureAlgorithm: getSignatureAlgorithmFromOID(basicResp.SignatureAlgorithm.Algorithm),
@@ -668,7 +671,7 @@ func CreateRequest(cert, issuer *x509.Certificate, opts *RequestOptions) ([]byte
 // The responder cert is used to populate the responder's name field, and the
 // certificate itself is provided alongside the OCSP response signature.
 //
-// The issuer cert is used to puplate the IssuerNameHash and IssuerKeyHash fields.
+// The issuer cert is used to populate the IssuerNameHash and IssuerKeyHash fields.
 //
 // The template is used to populate the SerialNumber, Status, RevokedAt,
 // RevocationReason, ThisUpdate, and NextUpdate fields.

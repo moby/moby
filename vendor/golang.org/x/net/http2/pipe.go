@@ -30,6 +30,17 @@ type pipeBuffer interface {
 	io.Reader
 }
 
+// setBuffer initializes the pipe buffer.
+// It has no effect if the pipe is already closed.
+func (p *pipe) setBuffer(b pipeBuffer) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.err != nil || p.breakErr != nil {
+		return
+	}
+	p.b = b
+}
+
 func (p *pipe) Len() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -77,12 +88,8 @@ func (p *pipe) Write(d []byte) (n int, err error) {
 		p.c.L = &p.mu
 	}
 	defer p.c.Signal()
-	if p.err != nil {
+	if p.err != nil || p.breakErr != nil {
 		return 0, errClosedPipeWrite
-	}
-	if p.breakErr != nil {
-		p.unread += len(d)
-		return len(d), nil // discard when there is no reader
 	}
 	return p.b.Write(d)
 }

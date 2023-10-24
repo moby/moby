@@ -1,20 +1,10 @@
 # Go Text
 
+[![Go Reference](https://pkg.go.dev/badge/golang.org/x/text.svg)](https://pkg.go.dev/golang.org/x/text)
+
 This repository holds supplementary Go libraries for text processing, many involving Unicode.
 
-## Semantic Versioning
-This repo uses Semantic versioning (http://semver.org/), so
-1. MAJOR version when you make incompatible API changes,
-1. MINOR version when you add functionality in a backwards-compatible manner,
-   and
-1. PATCH version when you make backwards-compatible bug fixes.
-
-Until version 1.0.0 of x/text is reached, the minor version is considered a
-major version. So going from 0.1.0 to 0.2.0 is considered to be a major version
-bump.
-
-A major new CLDR version is mapped to a minor version increase in x/text.
-Any other new CLDR version is mapped to a patch version increase in x/text.
+## CLDR Versioning
 
 It is important that the Unicode version used in `x/text` matches the one used
 by your Go compiler. The `x/text` repository supports multiple versions of
