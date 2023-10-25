@@ -16,14 +16,15 @@ import (
 
 // TagImage creates an image named as newTag and targeting the given descriptor id.
 func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag reference.Named) error {
-	target, err := i.resolveDescriptor(ctx, imageID.String())
+	targetImage, err := i.resolveImage(ctx, imageID.String())
 	if err != nil {
 		return errors.Wrapf(err, "failed to resolve image id %q to a descriptor", imageID.String())
 	}
 
 	newImg := containerdimages.Image{
 		Name:   newTag.String(),
-		Target: target,
+		Target: targetImage.Target,
+		Labels: targetImage.Labels,
 	}
 
 	is := i.client.ImageService()
@@ -40,7 +41,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 
 		// Check if image we would replace already resolves to the same target.
 		// No need to do anything.
-		if replacedImg.Target.Digest == target.Digest {
+		if replacedImg.Target.Digest == targetImage.Target.Digest {
 			i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
 			return nil
 		}
@@ -65,7 +66,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 	defer i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
 
 	// The tag succeeded, check if the source image is dangling
-	sourceDanglingImg, err := is.Get(compatcontext.WithoutCancel(ctx), danglingImageName(target.Digest))
+	sourceDanglingImg, err := is.Get(compatcontext.WithoutCancel(ctx), danglingImageName(targetImage.Target.Digest))
 	if err != nil {
 		if !cerrdefs.IsNotFound(err) {
 			logger.WithError(err).Warn("unexpected error when checking if source image is dangling")
