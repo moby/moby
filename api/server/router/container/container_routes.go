@@ -526,6 +526,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 				bo.NonRecursive = false
 			}
 		}
+
 		// Ignore KernelMemoryTCP because it was added in API 1.40.
 		hostConfig.KernelMemoryTCP = 0
 
@@ -534,10 +535,22 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			hostConfig.IpcMode = container.IPCModeShareable
 		}
 	}
-	if versions.LessThan(version, "1.41") && !s.cgroup2 {
+
+	if versions.LessThan(version, "1.41") {
 		// Older clients expect the default to be "host" on cgroup v1 hosts
-		if hostConfig.CgroupnsMode.IsEmpty() {
+		if !s.cgroup2 && hostConfig.CgroupnsMode.IsEmpty() {
 			hostConfig.CgroupnsMode = container.CgroupnsModeHost
+		}
+	}
+
+	var platform *ocispec.Platform
+	if versions.GreaterThanOrEqualTo(version, "1.41") {
+		if v := r.Form.Get("platform"); v != "" {
+			p, err := platforms.Parse(v)
+			if err != nil {
+				return errdefs.InvalidParameter(err)
+			}
+			platform = &p
 		}
 	}
 
@@ -561,12 +574,10 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 				bo.CreateMountpoint = false
 			}
 		}
-	}
 
-	if versions.LessThan(version, "1.44") {
-		if config.Healthcheck != nil {
-			// StartInterval was added in API 1.44
-			config.Healthcheck.StartInterval = 0
+		if runtime.GOOS == "linux" {
+			// ConsoleSize is not respected by Linux daemon before API 1.42
+			hostConfig.ConsoleSize = [2]uint{0, 0}
 		}
 	}
 
@@ -586,36 +597,17 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 	}
 
-	if runtime.GOOS == "linux" && versions.LessThan(version, "1.42") {
-		// ConsoleSize is not respected by Linux daemon before API 1.42
-		hostConfig.ConsoleSize = [2]uint{0, 0}
-	}
-
 	if versions.LessThan(version, "1.43") {
 		// Ignore Annotations because it was added in API v1.43.
 		hostConfig.Annotations = nil
 	}
 
-	var platform *ocispec.Platform
-	if versions.GreaterThanOrEqualTo(version, "1.41") {
-		if v := r.Form.Get("platform"); v != "" {
-			p, err := platforms.Parse(v)
-			if err != nil {
-				return errdefs.InvalidParameter(err)
-			}
-			platform = &p
-		}
-	}
-
-	if hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
-		// Don't set a limit if either no limit was specified, or "unlimited" was
-		// explicitly set.
-		// Both `0` and `-1` are accepted as "unlimited", and historically any
-		// negative value was accepted, so treat those as "unlimited" as well.
-		hostConfig.PidsLimit = nil
-	}
-
 	if versions.LessThan(version, "1.44") {
+		if config.Healthcheck != nil {
+			// StartInterval was added in API 1.44
+			config.Healthcheck.StartInterval = 0
+		}
+
 		for _, m := range hostConfig.Mounts {
 			if m.BindOptions != nil {
 				// Ignore ReadOnlyNonRecursive because it was added in API 1.44.
@@ -625,9 +617,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 				}
 			}
 		}
-	}
 
-	if versions.LessThan(version, "1.44") {
 		// Creating a container connected to several networks is not supported until v1.44.
 		if len(networkingConfig.EndpointsConfig) > 1 {
 			l := make([]string, 0, len(networkingConfig.EndpointsConfig))
@@ -636,6 +626,14 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			}
 			return errdefs.InvalidParameter(errors.Errorf("Container cannot be created with multiple network endpoints: %s", strings.Join(l, ", ")))
 		}
+	}
+
+	if hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
+		// Don't set a limit if either no limit was specified, or "unlimited" was
+		// explicitly set.
+		// Both `0` and `-1` are accepted as "unlimited", and historically any
+		// negative value was accepted, so treat those as "unlimited" as well.
+		hostConfig.PidsLimit = nil
 	}
 
 	ccr, err := s.backend.ContainerCreate(ctx, types.ContainerCreateConfig{
