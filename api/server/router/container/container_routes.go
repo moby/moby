@@ -544,7 +544,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 	}
 
-	if hostConfig != nil && versions.LessThan(version, "1.44") {
+	if config != nil && versions.LessThan(version, "1.44") {
 		if config.Healthcheck != nil {
 			// StartInterval was added in API 1.44
 			config.Healthcheck.StartInterval = 0
