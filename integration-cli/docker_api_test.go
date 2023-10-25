@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -82,7 +83,7 @@ func (s *DockerAPISuite) TestAPIErrorJSON(c *testing.T) {
 	assert.Assert(c, strings.Contains(httpResp.Header.Get("Content-Type"), "application/json"))
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Equal(c, getErrorMessage(c, b), "Config cannot be empty in order to create a container")
+	assert.Equal(c, getErrorMessage(c, b), runconfig.ErrEmptyConfig.Error())
 }
 
 func (s *DockerAPISuite) TestAPIErrorPlainText(c *testing.T) {
@@ -99,7 +100,7 @@ func (s *DockerAPISuite) TestAPIErrorPlainText(c *testing.T) {
 	assert.Assert(c, strings.Contains(httpResp.Header.Get("Content-Type"), "text/plain"))
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Equal(c, strings.TrimSpace(string(b)), "Config cannot be empty in order to create a container")
+	assert.Equal(c, strings.TrimSpace(string(b)), runconfig.ErrEmptyConfig.Error())
 }
 
 func (s *DockerAPISuite) TestAPIErrorNotFoundJSON(c *testing.T) {

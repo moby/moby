@@ -24,6 +24,7 @@ import (
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/runconfig"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/net/websocket"
@@ -494,6 +495,9 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		return err
 	}
 
+	if config == nil {
+		return errdefs.InvalidParameter(runconfig.ErrEmptyConfig)
+	}
 	if hostConfig == nil {
 		hostConfig = &container.HostConfig{}
 	}
