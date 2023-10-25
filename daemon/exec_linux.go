@@ -41,6 +41,7 @@ func getUserFromContainerd(ctx context.Context, containerdCli *containerd.Client
 		coci.WithUser(ec.User),
 		withResetAdditionalGIDs(),
 		coci.WithAdditionalGIDs(ec.User),
+		coci.WithAppendAdditionalGroups(ec.Container.HostConfig.GroupAdd...),
 	}
 	for _, opt := range opts {
 		if err := opt(ctx, containerdCli, &cinfo, spec); err != nil {
