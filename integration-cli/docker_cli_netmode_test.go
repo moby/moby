@@ -31,6 +31,7 @@ func (s *DockerCLINetmodeSuite) OnTimeout(c *testing.T) {
 // DockerCmdWithFail executes a docker command that is supposed to fail and returns
 // the output. If the command returns a Nil error, it will fail and stop the tests.
 func dockerCmdWithFail(c *testing.T, args ...string) string {
+	c.Helper()
 	out, _, err := dockerCmdWithError(args...)
 	assert.Assert(c, err != nil, "%v", out)
 	return out
