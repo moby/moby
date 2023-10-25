@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
@@ -492,6 +493,20 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 		return err
 	}
+
+	if hostConfig == nil {
+		hostConfig = &container.HostConfig{}
+	}
+	if hostConfig.NetworkMode == "" {
+		hostConfig.NetworkMode = "default"
+	}
+	if networkingConfig == nil {
+		networkingConfig = &network.NetworkingConfig{}
+	}
+	if networkingConfig.EndpointsConfig == nil {
+		networkingConfig.EndpointsConfig = make(map[string]*network.EndpointSettings)
+	}
+
 	version := httputils.VersionFromContext(ctx)
 	adjustCPUShares := versions.LessThan(version, "1.19")
 
