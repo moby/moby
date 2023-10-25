@@ -5,15 +5,35 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/vishvananda/netlink"
+	"gotest.tools/v3/assert"
 )
 
 const (
 	iptablesTestBridgeIP = "192.168.42.1"
 )
+
+// A testRegisterer implements the driverapi.Registerer interface.
+type testRegisterer struct {
+	t *testing.T
+	d *driver
+}
+
+func (r *testRegisterer) RegisterDriver(name string, di driverapi.Driver, _ driverapi.Capability) error {
+	if got, want := name, "bridge"; got != want {
+		r.t.Fatalf("got driver name %s, want %s", got, want)
+	}
+	d, ok := di.(*driver)
+	if !ok {
+		r.t.Fatalf("got driver type %T, want %T", di, &driver{})
+	}
+	r.d = d
+	return nil
+}
 
 func TestProgramIPTable(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
@@ -183,4 +203,149 @@ func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 	br := &bridgeInterface{nlh: nh}
 	createTestBridge(nc, br, t)
 	assertBridgeConfig(nc, br, d, t)
+}
+
+func TestOutgoingNATRules(t *testing.T) {
+	br := "br-nattest"
+	brIPv4 := &net.IPNet{IP: net.ParseIP(iptablesTestBridgeIP), Mask: net.CIDRMask(16, 32)}
+	brIPv6 := &net.IPNet{IP: net.ParseIP("2001:db8::1"), Mask: net.CIDRMask(64, 128)}
+	maskedBrIPv4 := &net.IPNet{IP: brIPv4.IP.Mask(brIPv4.Mask), Mask: brIPv4.Mask}
+	maskedBrIPv6 := &net.IPNet{IP: brIPv6.IP.Mask(brIPv6.Mask), Mask: brIPv6.Mask}
+	hostIPv4 := net.ParseIP("192.0.2.2")
+	for _, tc := range []struct {
+		desc               string
+		enableIPTables     bool
+		enableIP6Tables    bool
+		enableIPv6         bool
+		enableIPMasquerade bool
+		hostIPv4           net.IP
+		// Hairpin NAT rules are not tested here because they are orthogonal to outgoing NAT.  They
+		// exist to support the port forwarding DNAT rules: without any port forwarding there would be
+		// no need for any hairpin NAT rules, and when there is port forwarding then hairpin NAT rules
+		// are needed even if outgoing NAT is disabled.  Hairpin NAT tests belong with the port
+		// forwarding DNAT tests.
+		wantIPv4Masq bool
+		wantIPv4Snat bool
+		wantIPv6Masq bool
+	}{
+		{
+			desc: "everything disabled",
+		},
+		{
+			desc:               "iptables/ip6tables disabled",
+			enableIPv6:         true,
+			enableIPMasquerade: true,
+		},
+		{
+			desc:               "host IP with iptables/ip6tables disabled",
+			enableIPv6:         true,
+			enableIPMasquerade: true,
+			hostIPv4:           hostIPv4,
+		},
+		{
+			desc:            "masquerade disabled, no host IP",
+			enableIPTables:  true,
+			enableIP6Tables: true,
+			enableIPv6:      true,
+		},
+		{
+			desc:            "masquerade disabled, with host IP",
+			enableIPTables:  true,
+			enableIP6Tables: true,
+			enableIPv6:      true,
+			hostIPv4:        hostIPv4,
+		},
+		{
+			desc:               "IPv4 masquerade, IPv6 disabled",
+			enableIPTables:     true,
+			enableIPMasquerade: true,
+			wantIPv4Masq:       true,
+		},
+		{
+			desc:               "IPv4 SNAT, IPv6 disabled",
+			enableIPTables:     true,
+			enableIPMasquerade: true,
+			hostIPv4:           hostIPv4,
+			wantIPv4Snat:       true,
+		},
+		{
+			desc:               "IPv4 masquerade, IPv6 masquerade",
+			enableIPTables:     true,
+			enableIP6Tables:    true,
+			enableIPv6:         true,
+			enableIPMasquerade: true,
+			wantIPv4Masq:       true,
+			wantIPv6Masq:       true,
+		},
+		{
+			desc:               "IPv4 SNAT, IPv6 masquerade",
+			enableIPTables:     true,
+			enableIP6Tables:    true,
+			enableIPv6:         true,
+			enableIPMasquerade: true,
+			hostIPv4:           hostIPv4,
+			wantIPv4Snat:       true,
+			wantIPv6Masq:       true,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			defer netnsutils.SetupTestOSContext(t)()
+			dc := &configuration{
+				EnableIPTables:  tc.enableIPTables,
+				EnableIP6Tables: tc.enableIP6Tables,
+			}
+			r := &testRegisterer{t: t}
+			if err := Register(r, map[string]interface{}{netlabel.GenericData: dc}); err != nil {
+				t.Fatal(err)
+			}
+			if r.d == nil {
+				t.Fatal("testRegisterer.RegisterDriver never called")
+			}
+			nc := &networkConfiguration{
+				BridgeName:         br,
+				AddressIPv4:        brIPv4,
+				AddressIPv6:        brIPv6,
+				EnableIPv6:         tc.enableIPv6,
+				EnableIPMasquerade: tc.enableIPMasquerade,
+				HostIPv4:           tc.hostIPv4,
+			}
+			ipv4Data := []driverapi.IPAMData{{Pool: maskedBrIPv4, Gateway: brIPv4}}
+			ipv6Data := []driverapi.IPAMData{{Pool: maskedBrIPv6, Gateway: brIPv6}}
+			if !nc.EnableIPv6 {
+				nc.AddressIPv6 = nil
+				ipv6Data = nil
+			}
+			if err := r.d.CreateNetwork("nattest", map[string]interface{}{netlabel.GenericData: nc}, nil, ipv4Data, ipv6Data); err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if err := r.d.DeleteNetwork("nattest"); err != nil {
+					t.Fatal(err)
+				}
+			}()
+			// Log the contents of all chains to aid troubleshooting.
+			for _, ipv := range []iptables.IPVersion{iptables.IPv4, iptables.IPv6} {
+				ipt := iptables.GetIptable(ipv)
+				for _, table := range []iptables.Table{iptables.Nat, iptables.Filter, iptables.Mangle} {
+					out, err := ipt.Raw("-t", string(table), "-S")
+					if err != nil {
+						t.Error(err)
+					}
+					t.Logf("%s: %s %s table rules:\n%s", tc.desc, ipv, table, string(out))
+				}
+			}
+			for _, rc := range []struct {
+				want bool
+				rule iptRule
+			}{
+				// Rule order doesn't matter: At most one of the following IPv4 rules will exist, and the
+				// same goes for the IPv6 rules.
+				{tc.wantIPv4Masq, iptRule{iptables.IPv4, iptables.Nat, "POSTROUTING", []string{"-s", maskedBrIPv4.String(), "!", "-o", br, "-j", "MASQUERADE"}}},
+				{tc.wantIPv4Snat, iptRule{iptables.IPv4, iptables.Nat, "POSTROUTING", []string{"-s", maskedBrIPv4.String(), "!", "-o", br, "-j", "SNAT", "--to-source", hostIPv4.String()}}},
+				{tc.wantIPv6Masq, iptRule{iptables.IPv6, iptables.Nat, "POSTROUTING", []string{"-s", maskedBrIPv6.String(), "!", "-o", br, "-j", "MASQUERADE"}}},
+			} {
+				assert.Equal(t, rc.rule.Exists(), rc.want)
+			}
+		})
+	}
 }
