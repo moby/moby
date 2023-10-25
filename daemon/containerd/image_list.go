@@ -29,6 +29,9 @@ import (
 
 // Subset of ocispec.Image that only contains Labels
 type configLabels struct {
+	// Created is the combined date and time at which the image was created, formatted as defined by RFC 3339, section 5.6.
+	Created *time.Time `json:"created,omitempty"`
+
 	Config struct {
 		Labels map[string]string `json:"Labels,omitempty"`
 	} `json:"config,omitempty"`
@@ -277,9 +280,8 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 	}
 
 	summary := &imagetypes.Summary{
-		ParentID:    "",
+		ParentID:    rawImg.Labels[imageLabelClassicBuilderParent],
 		ID:          target.String(),
-		Created:     rawImg.CreatedAt.Unix(),
 		RepoDigests: repoDigests,
 		RepoTags:    repoTags,
 		Size:        totalSize,
@@ -290,6 +292,9 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		// consider both "0" and "nil" to be "empty".
 		SharedSize: -1,
 		Containers: -1,
+	}
+	if cfg.Created != nil {
+		summary.Created = cfg.Created.Unix()
 	}
 
 	if opts.ContainerCount {
