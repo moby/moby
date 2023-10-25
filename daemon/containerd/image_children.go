@@ -15,67 +15,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Children returns a slice of image ID which rootfs is a superset of the
-// rootfs of the given image ID, excluding images with exactly the same rootfs.
-// Called from list.go to filter containers.
+// Children returns a slice of image IDs that are children of the `id` image
 func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, error) {
-	target, err := i.resolveDescriptor(ctx, id.String())
-	if err != nil {
-		return []image.ID{}, errors.Wrap(err, "failed to get parent image")
-	}
-
-	cs := i.client.ContentStore()
-
-	allPlatforms, err := containerdimages.Platforms(ctx, cs, target)
-	if err != nil {
-		return []image.ID{}, errdefs.System(errors.Wrap(err, "failed to list platforms supported by image"))
-	}
-
-	parentRootFS := []ocispec.RootFS{}
-	for _, platform := range allPlatforms {
-		rootfs, err := platformRootfs(ctx, cs, target, platform)
-		if err != nil {
-			if !cerrdefs.IsNotFound(err) {
-				log.G(ctx).WithFields(log.Fields{
-					"error":    err,
-					"image":    target.Digest,
-					"platform": platform,
-				}).Warning("failed to get platform-specific rootfs")
-			}
-			continue
-		}
-
-		parentRootFS = append(parentRootFS, rootfs)
-	}
-
-	imgs, err := i.client.ImageService().List(ctx)
+	imgs, err := i.client.ImageService().List(ctx, "labels."+imageLabelClassicBuilderParent+"=="+string(id))
 	if err != nil {
 		return []image.ID{}, errdefs.System(errors.Wrap(err, "failed to list all images"))
 	}
 
-	children := []image.ID{}
+	var children []image.ID
 	for _, img := range imgs {
-	nextImage:
-		for _, platform := range allPlatforms {
-			rootfs, err := platformRootfs(ctx, cs, img.Target, platform)
-			if err != nil {
-				if !cerrdefs.IsNotFound(err) {
-					log.G(ctx).WithFields(log.Fields{
-						"error":    err,
-						"image":    img.Target.Digest,
-						"platform": platform,
-					}).Warning("failed to get platform-specific rootfs")
-				}
-				continue
-			}
-
-			for _, parentRoot := range parentRootFS {
-				if isRootfsChildOf(rootfs, parentRoot) {
-					children = append(children, image.ID(img.Target.Digest))
-					break nextImage
-				}
-			}
-		}
+		children = append(children, image.ID(img.Target.Digest))
 	}
 
 	return children, nil
