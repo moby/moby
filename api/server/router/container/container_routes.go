@@ -515,11 +515,11 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	adjustCPUShares := versions.LessThan(version, "1.19")
 
 	// When using API 1.24 and under, the client is responsible for removing the container
-	if hostConfig != nil && versions.LessThan(version, "1.25") {
+	if versions.LessThan(version, "1.25") {
 		hostConfig.AutoRemove = false
 	}
 
-	if hostConfig != nil && versions.LessThan(version, "1.40") {
+	if versions.LessThan(version, "1.40") {
 		// Ignore BindOptions.NonRecursive because it was added in API 1.40.
 		for _, m := range hostConfig.Mounts {
 			if bo := m.BindOptions; bo != nil {
@@ -534,14 +534,14 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			hostConfig.IpcMode = container.IPCModeShareable
 		}
 	}
-	if hostConfig != nil && versions.LessThan(version, "1.41") && !s.cgroup2 {
+	if versions.LessThan(version, "1.41") && !s.cgroup2 {
 		// Older clients expect the default to be "host" on cgroup v1 hosts
 		if hostConfig.CgroupnsMode.IsEmpty() {
 			hostConfig.CgroupnsMode = container.CgroupnsModeHost
 		}
 	}
 
-	if hostConfig != nil && versions.LessThan(version, "1.42") {
+	if versions.LessThan(version, "1.42") {
 		for _, m := range hostConfig.Mounts {
 			// Ignore BindOptions.CreateMountpoint because it was added in API 1.42.
 			if bo := m.BindOptions; bo != nil {
@@ -563,14 +563,14 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 	}
 
-	if config != nil && versions.LessThan(version, "1.44") {
+	if versions.LessThan(version, "1.44") {
 		if config.Healthcheck != nil {
 			// StartInterval was added in API 1.44
 			config.Healthcheck.StartInterval = 0
 		}
 	}
 
-	if hostConfig != nil && versions.GreaterThanOrEqualTo(version, "1.42") {
+	if versions.GreaterThanOrEqualTo(version, "1.42") {
 		// Ignore KernelMemory removed in API 1.42.
 		hostConfig.KernelMemory = 0
 		for _, m := range hostConfig.Mounts {
@@ -586,12 +586,12 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 	}
 
-	if hostConfig != nil && runtime.GOOS == "linux" && versions.LessThan(version, "1.42") {
+	if runtime.GOOS == "linux" && versions.LessThan(version, "1.42") {
 		// ConsoleSize is not respected by Linux daemon before API 1.42
 		hostConfig.ConsoleSize = [2]uint{0, 0}
 	}
 
-	if hostConfig != nil && versions.LessThan(version, "1.43") {
+	if versions.LessThan(version, "1.43") {
 		// Ignore Annotations because it was added in API v1.43.
 		hostConfig.Annotations = nil
 	}
@@ -607,7 +607,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 	}
 
-	if hostConfig != nil && hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
+	if hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
 		// Don't set a limit if either no limit was specified, or "unlimited" was
 		// explicitly set.
 		// Both `0` and `-1` are accepted as "unlimited", and historically any
@@ -615,7 +615,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.PidsLimit = nil
 	}
 
-	if hostConfig != nil && versions.LessThan(version, "1.44") {
+	if versions.LessThan(version, "1.44") {
 		for _, m := range hostConfig.Mounts {
 			if m.BindOptions != nil {
 				// Ignore ReadOnlyNonRecursive because it was added in API 1.44.
@@ -629,7 +629,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	if versions.LessThan(version, "1.44") {
 		// Creating a container connected to several networks is not supported until v1.44.
-		if networkingConfig != nil && len(networkingConfig.EndpointsConfig) > 1 {
+		if len(networkingConfig.EndpointsConfig) > 1 {
 			l := make([]string, 0, len(networkingConfig.EndpointsConfig))
 			for k := range networkingConfig.EndpointsConfig {
 				l = append(l, k)
