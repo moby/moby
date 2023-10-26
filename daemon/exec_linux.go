@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/oci"
 	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/pkg/apparmor"
 	"github.com/docker/docker/container"
@@ -29,7 +28,7 @@ func getUserFromContainerd(ctx context.Context, containerdCli *containerd.Client
 		return specs.User{}, err
 	}
 
-	opts := []oci.SpecOpts{
+	opts := []coci.SpecOpts{
 		coci.WithUser(ec.User),
 		coci.WithAdditionalGIDs(ec.User),
 		coci.WithAppendAdditionalGroups(ec.Container.HostConfig.GroupAdd...),
