@@ -234,6 +234,11 @@ bin/cni-bridge-fp: integration/failpoint/cmd/cni-bridge-fp FORCE
 	@echo "$(WHALE) $@"
 	@$(GO) build ${GO_BUILD_FLAGS} -o $@ ./integration/failpoint/cmd/cni-bridge-fp
 
+# build runc-fp as runc wrapper to support failpoint, only used by integration test
+bin/runc-fp: integration/failpoint/cmd/runc-fp FORCE
+	@echo "$(WHALE) $@"
+	@$(GO) build ${GO_BUILD_FLAGS} -o $@ ./integration/failpoint/cmd/runc-fp
+
 benchmark: ## run benchmarks tests
 	@echo "$(WHALE) $@"
 	@$(GO) test ${TESTFLAGS} -bench . -run Benchmark -test.root
