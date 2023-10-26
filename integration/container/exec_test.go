@@ -2,6 +2,7 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -135,4 +136,24 @@ func TestExecUser(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Assert(t, is.Contains(result.Stdout(), "uid=1(daemon) gid=1(daemon)"), "exec command not running as uid/gid 1")
+}
+
+// Test that additional groups set with `--group-add` are kept on exec when the container
+// also has a user set.
+// (regression test for https://github.com/moby/moby/issues/46712)
+func TestExecWithGroupAdd(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "broken in earlier versions")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME. Probably needs to wait for container to be in running state.")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithUser("root:root"), container.WithAdditionalGroups("staff", "wheel", "audio", "777"), container.WithCmd("sleep", "5"))
+
+	result, err := container.Exec(ctx, apiClient, cID, []string{"id"})
+	assert.NilError(t, err)
+
+	assert.Assert(t,
+		is.Equal(strings.TrimSpace(result.Stdout()), "uid=0(root) gid=0(root) groups=0(root),10(wheel),29(audio),50(staff),777"),
+		"exec command not keeping additional groups w/ user")
 }

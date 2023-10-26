@@ -193,6 +193,13 @@ func WithUser(user string) func(c *TestContainerConfig) {
 	}
 }
 
+// WithAdditionalGroups sets the additional groups for the container
+func WithAdditionalGroups(groups ...string) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.GroupAdd = groups
+	}
+}
+
 // WithPrivileged sets privileged mode for the container
 func WithPrivileged(privileged bool) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
