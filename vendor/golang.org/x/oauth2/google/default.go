@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -142,10 +141,8 @@ func FindDefaultCredentialsWithParams(ctx context.Context, params CredentialsPar
 
 	// Second, try a well-known file.
 	filename := wellKnownFile()
-	if creds, err := readCredentialsFile(ctx, filename, params); err == nil {
-		return creds, nil
-	} else if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("google: error getting credentials using well-known file (%v): %v", filename, err)
+	if b, err := os.ReadFile(filename); err == nil {
+		return CredentialsFromJSONWithParams(ctx, b, params)
 	}
 
 	// Third, if we're on a Google App Engine standard first generation runtime (<= Go 1.9)
@@ -231,7 +228,7 @@ func wellKnownFile() string {
 }
 
 func readCredentialsFile(ctx context.Context, filename string, params CredentialsParams) (*Credentials, error) {
-	b, err := ioutil.ReadFile(filename)
+	b, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
