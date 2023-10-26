@@ -254,6 +254,27 @@ func TestTarUntarWithXattr(t *testing.T) {
 	out, err := exec.Command("setcap", "cap_block_suspend+ep", filepath.Join(origin, "2")).CombinedOutput()
 	assert.NilError(t, err, string(out))
 
+	tarball, err := Tar(origin, Uncompressed)
+	assert.NilError(t, err)
+	defer tarball.Close()
+	rdr := tar.NewReader(tarball)
+	for {
+		h, err := rdr.Next()
+		if err == io.EOF {
+			break
+		}
+		assert.NilError(t, err)
+		capability, hasxattr := h.PAXRecords["SCHILY.xattr.security.capability"]
+		switch h.Name {
+		case "2":
+			if assert.Check(t, hasxattr, "tar entry %q should have the 'security.capability' xattr", h.Name) {
+				assert.Check(t, len(capability) > 0, "tar entry %q has a blank 'security.capability' xattr value")
+			}
+		default:
+			assert.Check(t, !hasxattr, "tar entry %q should not have the 'security.capability' xattr", h.Name)
+		}
+	}
+
 	for _, c := range []Compression{
 		Uncompressed,
 		Gzip,
