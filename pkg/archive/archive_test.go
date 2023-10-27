@@ -135,6 +135,13 @@ func TestDecompressStreamXz(t *testing.T) {
 	testDecompressStream(t, "xz", "xz -f")
 }
 
+func TestDecompressStreamZstd(t *testing.T) {
+	if _, err := exec.LookPath("zstd"); err != nil {
+		t.Skip("zstd not installed")
+	}
+	testDecompressStream(t, "zst", "zstd -f")
+}
+
 func TestCompressStreamXzUnsupported(t *testing.T) {
 	dest, err := os.Create(tmp + "dest")
 	if err != nil {
@@ -208,6 +215,13 @@ func TestExtensionXz(t *testing.T) {
 	output := compression.Extension()
 	if output != "tar.xz" {
 		t.Fatalf("The extension of a xz archive should be 'tar.xz'")
+	}
+}
+func TestExtensionZstd(t *testing.T) {
+	compression := Zstd
+	output := compression.Extension()
+	if output != "tar.zst" {
+		t.Fatalf("The extension of a zstd archive should be 'tar.zst'")
 	}
 }
 
@@ -684,6 +698,34 @@ func tarUntar(t *testing.T, origin string, options *TarOptions) ([]Change, error
 	}
 
 	return ChangesDirs(origin, tmp)
+}
+
+func TestDetectCompressionZstd(t *testing.T) {
+	// test zstd compression without skippable frames.
+	compressedData := []byte{
+		0x28, 0xb5, 0x2f, 0xfd, // magic number of Zstandard frame: 0xFD2FB528
+		0x04, 0x00, 0x31, 0x00, 0x00, // frame header
+		0x64, 0x6f, 0x63, 0x6b, 0x65, 0x72, // data block "docker"
+		0x16, 0x0e, 0x21, 0xc3, // content checksum
+	}
+	compression := DetectCompression(compressedData)
+	if compression != Zstd {
+		t.Fatal("Unexpected compression")
+	}
+	// test zstd compression with skippable frames.
+	hex := []byte{
+		0x50, 0x2a, 0x4d, 0x18, // magic number of skippable frame: 0x184D2A50 to 0x184D2A5F
+		0x04, 0x00, 0x00, 0x00, // frame size
+		0x5d, 0x00, 0x00, 0x00, // user data
+		0x28, 0xb5, 0x2f, 0xfd, // magic number of Zstandard frame: 0xFD2FB528
+		0x04, 0x00, 0x31, 0x00, 0x00, // frame header
+		0x64, 0x6f, 0x63, 0x6b, 0x65, 0x72, // data block "docker"
+		0x16, 0x0e, 0x21, 0xc3, // content checksum
+	}
+	compression = DetectCompression(hex)
+	if compression != Zstd {
+		t.Fatal("Unexpected compression")
+	}
 }
 
 func TestTarUntar(t *testing.T) {

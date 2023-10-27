@@ -7,6 +7,7 @@ import (
 	"compress/bzip2"
 	"compress/gzip"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
+	"github.com/klauspost/compress/zstd"
 	"github.com/sirupsen/logrus"
 	exec "golang.org/x/sys/execabs"
 )
@@ -83,6 +85,8 @@ const (
 	Gzip
 	// Xz is xz compression algorithm.
 	Xz
+	// Zstd is zstd compression algorithm.
+	Zstd
 )
 
 const (
@@ -121,18 +125,59 @@ func IsArchivePath(path string) bool {
 	return err == nil
 }
 
+const (
+	zstdMagicSkippableStart = 0x184D2A50
+	zstdMagicSkippableMask  = 0xFFFFFFF0
+)
+
+var (
+	bzip2Magic = []byte{0x42, 0x5A, 0x68}
+	gzipMagic  = []byte{0x1F, 0x8B, 0x08}
+	xzMagic    = []byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00}
+	zstdMagic  = []byte{0x28, 0xb5, 0x2f, 0xfd}
+)
+
+type matcher = func([]byte) bool
+
+func magicNumberMatcher(m []byte) matcher {
+	return func(source []byte) bool {
+		return bytes.HasPrefix(source, m)
+	}
+}
+
+// zstdMatcher detects zstd compression algorithm.
+// Zstandard compressed data is made of one or more frames.
+// There are two frame formats defined by Zstandard: Zstandard frames and Skippable frames.
+// See https://tools.ietf.org/id/draft-kucherawy-dispatch-zstd-00.html#rfc.section.2 for more details.
+func zstdMatcher() matcher {
+	return func(source []byte) bool {
+		if bytes.HasPrefix(source, zstdMagic) {
+			// Zstandard frame
+			return true
+		}
+		// skippable frame
+		if len(source) < 8 {
+			return false
+		}
+		// magic number from 0x184D2A50 to 0x184D2A5F.
+		if binary.LittleEndian.Uint32(source[:4])&zstdMagicSkippableMask == zstdMagicSkippableStart {
+			return true
+		}
+		return false
+	}
+}
+
 // DetectCompression detects the compression algorithm of the source.
 func DetectCompression(source []byte) Compression {
-	for compression, m := range map[Compression][]byte{
-		Bzip2: {0x42, 0x5A, 0x68},
-		Gzip:  {0x1F, 0x8B, 0x08},
-		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
-	} {
-		if len(source) < len(m) {
-			logrus.Debug("Len too short")
-			continue
-		}
-		if bytes.Equal(m, source[:len(m)]) {
+	compressionMap := map[Compression]matcher{
+		Bzip2: magicNumberMatcher(bzip2Magic),
+		Gzip:  magicNumberMatcher(gzipMagic),
+		Xz:    magicNumberMatcher(xzMagic),
+		Zstd:  zstdMatcher(),
+	}
+	for _, compression := range []Compression{Bzip2, Gzip, Xz, Zstd} {
+		fn := compressionMap[compression]
+		if fn(source) {
 			return compression
 		}
 	}
@@ -224,6 +269,13 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 		}
 		readBufWrapper := p.NewReadCloserWrapper(buf, xzReader)
 		return wrapReadCloser(readBufWrapper, cancel), nil
+	case Zstd:
+		zstdReader, err := zstd.NewReader(buf)
+		if err != nil {
+			return nil, err
+		}
+		readBufWrapper := p.NewReadCloserWrapper(buf, zstdReader)
+		return readBufWrapper, nil
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
@@ -348,6 +400,8 @@ func (compression *Compression) Extension() string {
 		return "tar.gz"
 	case Xz:
 		return "tar.xz"
+	case Zstd:
+		return "tar.zst"
 	}
 	return ""
 }
