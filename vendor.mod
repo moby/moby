@@ -112,6 +112,8 @@ require (
 	resenje.org/singleflight v0.4.0
 )
 
+replace github.com/docker/go-connections v0.4.0 => github.com/akerouanton/go-connections v0.0.0-20231030121143-3314934f143d
+
 require (
 	cloud.google.com/go v0.110.0 // indirect
 	cloud.google.com/go/compute v1.19.1 // indirect

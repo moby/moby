@@ -53,18 +53,9 @@ var acceptedCBCCiphers = []uint16{
 // known weak algorithms removed.
 var DefaultServerAcceptedCiphers = append(clientCipherSuites, acceptedCBCCiphers...)
 
-// allTLSVersions lists all the TLS versions and is used by the code that validates
-// a uint16 value as a TLS version.
-var allTLSVersions = map[uint16]struct{}{
-	tls.VersionSSL30: {},
-	tls.VersionTLS10: {},
-	tls.VersionTLS11: {},
-	tls.VersionTLS12: {},
-}
-
 // ServerDefault returns a secure-enough TLS configuration for the server TLS configuration.
 func ServerDefault(ops ...func(*tls.Config)) *tls.Config {
-	tlsconfig := &tls.Config{
+	tlsConfig := &tls.Config{
 		// Avoid fallback by default to SSL protocols < TLS1.2
 		MinVersion:               tls.VersionTLS12,
 		PreferServerCipherSuites: true,
@@ -72,25 +63,25 @@ func ServerDefault(ops ...func(*tls.Config)) *tls.Config {
 	}
 
 	for _, op := range ops {
-		op(tlsconfig)
+		op(tlsConfig)
 	}
 
-	return tlsconfig
+	return tlsConfig
 }
 
 // ClientDefault returns a secure-enough TLS configuration for the client TLS configuration.
 func ClientDefault(ops ...func(*tls.Config)) *tls.Config {
-	tlsconfig := &tls.Config{
+	tlsConfig := &tls.Config{
 		// Prefer TLS1.2 as the client minimum
 		MinVersion:   tls.VersionTLS12,
 		CipherSuites: clientCipherSuites,
 	}
 
 	for _, op := range ops {
-		op(tlsconfig)
+		op(tlsConfig)
 	}
 
-	return tlsconfig
+	return tlsConfig
 }
 
 // certPool returns an X.509 certificate pool from `caFile`, the certificate file.
@@ -108,11 +99,11 @@ func certPool(caFile string, exclusivePool bool) (*x509.CertPool, error) {
 			return nil, fmt.Errorf("failed to read system certificates: %v", err)
 		}
 	}
-	pem, err := ioutil.ReadFile(caFile)
+	pemData, err := ioutil.ReadFile(caFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not read CA certificate %q: %v", caFile, err)
 	}
-	if !certPool.AppendCertsFromPEM(pem) {
+	if !certPool.AppendCertsFromPEM(pemData) {
 		return nil, fmt.Errorf("failed to append certificates from PEM file: %q", caFile)
 	}
 	return certPool, nil
@@ -141,7 +132,7 @@ func adjustMinVersion(options Options, config *tls.Config) error {
 }
 
 // IsErrEncryptedKey returns true if the 'err' is an error of incorrect
-// password when tryin to decrypt a TLS private key
+// password when trying to decrypt a TLS private key
 func IsErrEncryptedKey(err error) bool {
 	return errors.Cause(err) == x509.IncorrectPasswordError
 }
@@ -157,8 +148,8 @@ func getPrivateKey(keyBytes []byte, passphrase string) ([]byte, error) {
 	}
 
 	var err error
-	if x509.IsEncryptedPEMBlock(pemBlock) {
-		keyBytes, err = x509.DecryptPEMBlock(pemBlock, []byte(passphrase))
+	if x509.IsEncryptedPEMBlock(pemBlock) { //nolint:staticcheck // Ignore SA1019 (IsEncryptedPEMBlock is deprecated)
+		keyBytes, err = x509.DecryptPEMBlock(pemBlock, []byte(passphrase)) //nolint:staticcheck // Ignore SA1019 (DecryptPEMBlock is deprecated)
 		if err != nil {
 			return nil, errors.Wrap(err, "private key is encrypted, but could not decrypt it")
 		}

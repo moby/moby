@@ -8,11 +8,6 @@ import (
 	"strings"
 )
 
-const (
-	// portSpecTemplate is the expected format for port specifications
-	portSpecTemplate = "ip:hostPort:containerPort"
-)
-
 // PortBinding represents a binding between a Host IP address and a Host Port
 type PortBinding struct {
 	// HostIP is the host IP Address
@@ -158,30 +153,33 @@ type PortMapping struct {
 func splitParts(rawport string) (string, string, string) {
 	parts := strings.Split(rawport, ":")
 	n := len(parts)
-	containerport := parts[n-1]
+	containerPort := parts[n-1]
 
 	switch n {
 	case 1:
-		return "", "", containerport
+		return "", "", containerPort
 	case 2:
-		return "", parts[0], containerport
+		return "", parts[0], containerPort
 	case 3:
-		return parts[0], parts[1], containerport
+		return parts[0], parts[1], containerPort
 	default:
-		return strings.Join(parts[:n-2], ":"), parts[n-2], containerport
+		return strings.Join(parts[:n-2], ":"), parts[n-2], containerPort
 	}
 }
 
 // ParsePortSpec parses a port specification string into a slice of PortMappings
 func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 	var proto string
-	rawIP, hostPort, containerPort := splitParts(rawPort)
+	ip, hostPort, containerPort := splitParts(rawPort)
 	proto, containerPort = SplitProtoPort(containerPort)
 
-	// Strip [] from IPV6 addresses
-	ip, _, err := net.SplitHostPort(rawIP + ":")
-	if err != nil {
-		return nil, fmt.Errorf("Invalid ip address %v: %s", rawIP, err)
+	if ip != "" && ip[0] == '[' {
+		// Strip [] from IPV6 addresses
+		rawIP, _, err := net.SplitHostPort(ip + ":")
+		if err != nil {
+			return nil, fmt.Errorf("Invalid ip address %v: %s", ip, err)
+		}
+		ip = rawIP
 	}
 	if ip != "" && net.ParseIP(ip) == nil {
 		return nil, fmt.Errorf("Invalid ip address: %s", ip)
