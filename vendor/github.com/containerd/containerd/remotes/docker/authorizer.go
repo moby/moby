@@ -186,15 +186,15 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 				return err
 			}
 
-			if username != "" && secret != "" {
-				common := auth.TokenOptions{
-					Username: username,
-					Secret:   secret,
-				}
-
-				a.handlers[host] = newAuthHandler(a.client, a.header, c.Scheme, common)
-				return nil
+			if username == "" || secret == "" {
+				return fmt.Errorf("%w: no basic auth credentials", ErrInvalidAuthorization)
 			}
+
+			a.handlers[host] = newAuthHandler(a.client, a.header, c.Scheme, auth.TokenOptions{
+				Username: username,
+				Secret:   secret,
+			})
+			return nil
 		}
 	}
 	return fmt.Errorf("failed to find supported auth scheme: %w", errdefs.ErrNotImplemented)

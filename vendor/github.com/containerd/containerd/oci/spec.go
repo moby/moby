@@ -18,6 +18,8 @@ package oci
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"runtime"
 
@@ -42,6 +44,22 @@ var (
 // Spec is a type alias to the OCI runtime spec to allow third part SpecOpts
 // to be created without the "issues" with go vendoring and package imports
 type Spec = specs.Spec
+
+const ConfigFilename = "config.json"
+
+// ReadSpec deserializes JSON into an OCI runtime Spec from a given path.
+func ReadSpec(path string) (*Spec, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var s Spec
+	if err := json.NewDecoder(f).Decode(&s); err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
 
 // GenerateSpec will generate a default spec from the provided image
 // for use as a containerd container

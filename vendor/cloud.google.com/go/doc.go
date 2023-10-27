@@ -94,13 +94,13 @@ cloud.google.com/go/secretmanager/apiv1 provides DefaultAuthScopes. Example:
 
 # Timeouts and Cancellation
 
-By default, non-streaming methods, like Create or Get, will have a default deadline applied to the
-context provided at call time, unless a context deadline is already set. Streaming
-methods have no default deadline and will run indefinitely. To set timeouts or
-arrange for cancellation, use contexts. Transient
-errors will be retried when correctness allows.
+By default, non-streaming methods, like Create or Get, will have a default
+deadline applied to the context provided at call time, unless a context deadline
+is already set. Streaming methods have no default deadline and will run
+indefinitely. To set timeouts or arrange for cancellation, use contexts.
+Transient errors will be retried when correctness allows.
 
-Here is an example of how to set a timeout for an RPC, use context.WithTimeout:
+Here is an example of setting a timeout for an RPC using context.WithTimeout:
 
 	ctx := context.Background()
 	// Do not set a timeout on the context passed to NewClient: dialing happens
@@ -116,6 +116,23 @@ Here is an example of how to set a timeout for an RPC, use context.WithTimeout:
 
 	req := &secretmanagerpb.DeleteSecretRequest{Name: "projects/project-id/secrets/name"}
 	if err := client.DeleteSecret(tctx, req); err != nil {
+		// TODO: handle error.
+	}
+
+Here is an example of setting a timeout for an RPC using gax.WithTimeout:
+
+	ctx := context.Background()
+	// Do not set a timeout on the context passed to NewClient: dialing happens
+	// asynchronously, and the context is used to refresh credentials in the
+	// background.
+	client, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		// TODO: handle error.
+	}
+
+	req := &secretmanagerpb.DeleteSecretRequest{Name: "projects/project-id/secrets/name"}
+	// Time out if it takes more than 10 seconds to create a dataset.
+	if err := client.DeleteSecret(tctx, req, gax.WithTimeout(10*time.Second)); err != nil {
 		// TODO: handle error.
 	}
 
@@ -137,13 +154,6 @@ Here is an example of how to arrange for an RPC to be canceled, use context.With
 	if err := client.DeleteSecret(cctx, req); err != nil {
 		// TODO: handle error.
 	}
-
-To opt out of default deadlines, set the temporary environment variable
-GOOGLE_API_GO_EXPERIMENTAL_DISABLE_DEFAULT_DEADLINE to "true" prior to client
-creation. This affects all Google Cloud Go client libraries. This opt-out
-mechanism will be removed in a future release. File an issue at
-https://github.com/googleapis/google-cloud-go if the default deadlines
-cannot work for you.
 
 Do not attempt to control the initial connection (dialing) of a service by setting a
 timeout on the context passed to NewClient. Dialing is non-blocking, so timeouts
