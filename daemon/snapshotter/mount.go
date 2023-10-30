@@ -12,8 +12,6 @@ import (
 	"github.com/moby/locker"
 )
 
-const mountsDir = "rootfs"
-
 // List of known filesystems that can't be re-mounted or have shared layers
 var refCountedFileSystems = []string{"fuse-overlayfs", "overlayfs", "stargz", "zfs"}
 
@@ -39,33 +37,31 @@ func inSlice(slice []string, s string) bool {
 
 // NewMounter creates a new mounter for the provided snapshotter
 func NewMounter(home string, snapshotter string, idMap idtools.IdentityMapping) Mounter {
-	if inSlice(refCountedFileSystems, snapshotter) {
-		return &refCountMounter{
-			home:        home,
-			snapshotter: snapshotter,
-			rc:          graphdriver.NewRefCounter(checker()),
-			locker:      locker.New(),
-			idMap:       idMap,
-		}
-	}
-
-	return mounter{
+	mnter := mounter{
 		home:        home,
 		snapshotter: snapshotter,
 		idMap:       idMap,
 	}
+
+	if inSlice(refCountedFileSystems, snapshotter) {
+		return &refCountMounter{
+			base:   mnter,
+			rc:     graphdriver.NewRefCounter(checker()),
+			locker: locker.New(),
+		}
+	}
+
+	return &mnter
 }
 
 type refCountMounter struct {
-	home        string
-	snapshotter string
-	rc          *graphdriver.RefCounter
-	locker      *locker.Locker
-	idMap       idtools.IdentityMapping
+	rc     *graphdriver.RefCounter
+	locker *locker.Locker
+	base   mounter
 }
 
 func (m *refCountMounter) Mount(mounts []mount.Mount, containerID string) (target string, retErr error) {
-	target = filepath.Join(m.home, mountsDir, m.snapshotter, containerID)
+	target = m.base.target(containerID)
 
 	_, err := os.Stat(target)
 	if err != nil && !os.IsNotExist(err) {
@@ -92,18 +88,7 @@ func (m *refCountMounter) Mount(mounts []mount.Mount, containerID string) (targe
 		}
 	}()
 
-	root := m.idMap.RootPair()
-	if err := idtools.MkdirAllAndChown(filepath.Dir(target), 0o710, idtools.Identity{
-		UID: idtools.CurrentIdentity().UID,
-		GID: root.GID,
-	}); err != nil {
-		return "", err
-	}
-	if err := idtools.MkdirAllAndChown(target, 0o710, root); err != nil {
-		return "", err
-	}
-
-	return target, mount.All(mounts, target)
+	return m.base.Mount(mounts, containerID)
 }
 
 func (m *refCountMounter) Unmount(target string) error {
@@ -132,10 +117,16 @@ type mounter struct {
 }
 
 func (m mounter) Mount(mounts []mount.Mount, containerID string) (string, error) {
-	target := filepath.Join(m.home, mountsDir, m.snapshotter, containerID)
+	target := m.target(containerID)
 
 	root := m.idMap.RootPair()
-	if err := idtools.MkdirAndChown(target, 0o700, root); err != nil {
+	if err := idtools.MkdirAllAndChown(filepath.Dir(target), 0o710, idtools.Identity{
+		UID: idtools.CurrentIdentity().UID,
+		GID: root.GID,
+	}); err != nil {
+		return "", err
+	}
+	if err := idtools.MkdirAllAndChown(target, 0o710, root); err != nil {
 		return "", err
 	}
 
@@ -144,4 +135,8 @@ func (m mounter) Mount(mounts []mount.Mount, containerID string) (string, error)
 
 func (m mounter) Unmount(target string) error {
 	return unmount(target)
+}
+
+func (m mounter) target(containerID string) string {
+	return filepath.Join(m.home, "rootfs", m.snapshotter, containerID)
 }
