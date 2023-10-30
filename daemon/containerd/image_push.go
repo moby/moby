@@ -53,6 +53,10 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 				return err
 			}
 
+			if len(imgs) == 0 {
+				return fmt.Errorf("An image does not exist locally with the tag: %s", reference.FamiliarName(sourceRef))
+			}
+
 			for _, img := range imgs {
 				named, err := reference.ParseNamed(img.Name)
 				if err != nil {
