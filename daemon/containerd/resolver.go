@@ -57,9 +57,12 @@ func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.Aut
 }
 
 func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig) docker.Authorizer {
-	cfgHost := registry.ConvertToHostname(authConfig.ServerAddress)
-	if cfgHost == "" || cfgHost == registry.IndexHostname {
-		cfgHost = registry.DefaultRegistryHost
+	var cfgHost string
+	if authConfig.ServerAddress != "" {
+		cfgHost = registry.ConvertToHostname(authConfig.ServerAddress)
+		if cfgHost == registry.IndexHostname {
+			cfgHost = registry.DefaultRegistryHost
+		}
 	}
 
 	if authConfig.RegistryToken != "" {
@@ -70,7 +73,7 @@ func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig) docker.Author
 	}
 
 	return docker.NewDockerAuthorizer(docker.WithAuthCreds(func(host string) (string, string, error) {
-		if cfgHost != host {
+		if cfgHost != "" && cfgHost != host {
 			log.G(context.TODO()).WithFields(log.Fields{
 				"host":    host,
 				"cfgHost": cfgHost,
@@ -90,7 +93,7 @@ type bearerAuthorizer struct {
 }
 
 func (a *bearerAuthorizer) Authorize(ctx context.Context, req *http.Request) error {
-	if req.Host != a.host {
+	if a.host != "" && req.Host != a.host {
 		log.G(ctx).WithFields(log.Fields{
 			"host":    req.Host,
 			"cfgHost": a.host,
