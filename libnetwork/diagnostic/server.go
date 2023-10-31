@@ -49,17 +49,12 @@ type Server struct {
 
 // New creates a new diagnostic server
 func New() *Server {
-	return &Server{
+	s := &Server{
+		mux:               http.NewServeMux(),
 		registeredHanders: make(map[string]bool),
 	}
-}
-
-// Init initialize the mux for the http handling and register the base hooks
-func (s *Server) Init() {
-	s.mux = http.NewServeMux()
-
-	// Register local handlers
 	s.RegisterHandler(s, diagPaths2Func)
+	return s
 }
 
 // RegisterHandler allows to register new handlers to the mux and to a specific path

@@ -52,7 +52,6 @@ func Server(args []string) {
 	log.G(context.TODO()).Infof("%s uses IP %s\n", localNodeName, ipAddr)
 
 	server = diagnostic.New()
-	server.Init()
 	conf := networkdb.DefaultConfig()
 	conf.Hostname = localNodeName
 	conf.AdvertiseAddr = ipAddr

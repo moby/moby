@@ -115,7 +115,6 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		networkLocker:    locker.New(),
 		DiagnosticServer: diagnostic.New(),
 	}
-	c.DiagnosticServer.Init()
 
 	if err := c.initStores(); err != nil {
 		return nil, err
