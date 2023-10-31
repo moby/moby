@@ -30,16 +30,18 @@ type ImageService struct {
 	containers      container.Store
 	snapshotter     string
 	registryHosts   docker.RegistryHosts
-	registryService RegistryConfigProvider
+	registryService registryResolver
 	eventsService   *daemonevents.Events
 	pruneRunning    atomic.Bool
 	refCountMounter snapshotter.Mounter
 	idMapping       idtools.IdentityMapping
 }
 
-type RegistryConfigProvider interface {
+type registryResolver interface {
 	IsInsecureRegistry(host string) bool
 	ResolveRepository(name reference.Named) (*registry.RepositoryInfo, error)
+	LookupPullEndpoints(hostname string) ([]registry.APIEndpoint, error)
+	LookupPushEndpoints(hostname string) ([]registry.APIEndpoint, error)
 }
 
 type ImageServiceConfig struct {
@@ -47,7 +49,7 @@ type ImageServiceConfig struct {
 	Containers      container.Store
 	Snapshotter     string
 	RegistryHosts   docker.RegistryHosts
-	Registry        RegistryConfigProvider
+	Registry        registryResolver
 	EventsService   *daemonevents.Events
 	RefCountMounter snapshotter.Mounter
 	IDMapping       idtools.IdentityMapping
