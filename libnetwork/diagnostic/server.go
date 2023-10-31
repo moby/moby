@@ -39,12 +39,12 @@ var diagPaths2Func = map[string]HTTPHandlerFunc{
 // Server when the debug is enabled exposes a
 // This data structure is protected by the Agent mutex so does not require and additional mutex here
 type Server struct {
+	mu                sync.Mutex
 	enable            int32
 	srv               *http.Server
 	port              int
 	mux               *http.ServeMux
 	registeredHanders map[string]bool
-	sync.Mutex
 }
 
 // New creates a new diagnostic server
@@ -64,8 +64,8 @@ func (s *Server) Init() {
 
 // RegisterHandler allows to register new handlers to the mux and to a specific path
 func (s *Server) RegisterHandler(ctx interface{}, hdlrs map[string]HTTPHandlerFunc) {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	for path, fun := range hdlrs {
 		if _, ok := s.registeredHanders[path]; ok {
 			continue
@@ -83,8 +83,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // EnableDiagnostic opens a TCP socket to debug the passed network DB
 func (s *Server) EnableDiagnostic(ip string, port int) {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	s.port = port
 
@@ -112,8 +112,8 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 
 // DisableDiagnostic stop the dubug and closes the tcp socket
 func (s *Server) DisableDiagnostic() {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	s.srv.Shutdown(context.Background()) //nolint:errcheck
 	s.srv = nil
@@ -123,8 +123,8 @@ func (s *Server) DisableDiagnostic() {
 
 // IsDiagnosticEnabled returns true when the debug is enabled
 func (s *Server) IsDiagnosticEnabled() bool {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.enable == 1
 }
 
