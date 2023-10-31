@@ -1195,9 +1195,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	engineMemory.Set(float64(info.MemTotal))
 
 	log.G(ctx).WithFields(log.Fields{
-		"version":     dockerversion.Version,
-		"commit":      dockerversion.GitCommit,
-		"graphdriver": d.ImageService().StorageDriver(),
+		"version":                dockerversion.Version,
+		"commit":                 dockerversion.GitCommit,
+		"storage-driver":         d.ImageService().StorageDriver(),
+		"containerd-snapshotter": d.UsesSnapshotter(),
 	}).Info("Docker daemon")
 
 	return d, nil
