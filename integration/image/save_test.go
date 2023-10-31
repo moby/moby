@@ -101,9 +101,9 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	busyboxImg, _, err := client.ImageInspectWithRaw(ctx, "busybox:latest")
 	assert.NilError(t, err)
 
-	repoName := "foobar-save-multi-images-test"
-	tagFoo := repoName + ":foo"
-	tagBar := repoName + ":bar"
+	const repoName = "foobar-save-multi-images-test"
+	const tagFoo = repoName + ":foo"
+	const tagBar = repoName + ":bar"
 
 	idFoo := makeImage("busybox:latest", tagFoo)
 	idBar := makeImage("busybox:latest", tagBar)
@@ -125,8 +125,8 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	for _, m := range mfstLs {
 		actual = append(actual, strings.TrimPrefix(m.Config, "blobs/sha256/"))
 		// make sure the blob actually exists
-		_, err := fs.Stat(tarfs, m.Config)
-		assert.Check(t, cmp.Nil(err))
+		_, err = fs.Stat(tarfs, m.Config)
+		assert.Check(t, err)
 	}
 
 	expected := []string{idBusybox, idFoo, idBar}
@@ -141,8 +141,8 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 		// ID of image won't match the Config ID from manifest.json
 		// Just check if manifests exist in blobs
 		for _, blob := range expected {
-			_, err := fs.Stat(tarfs, "blobs/sha256/"+blob)
-			assert.Check(t, cmp.Nil(err))
+			_, err = fs.Stat(tarfs, "blobs/sha256/"+blob)
+			assert.Check(t, err)
 		}
 	} else {
 		sort.Strings(actual)
