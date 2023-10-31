@@ -2,7 +2,6 @@ package image
 
 import (
 	"archive/tar"
-	"context"
 	"encoding/json"
 	"io"
 	"io/fs"
@@ -86,23 +85,10 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	client := testEnv.APIClient()
 
 	makeImage := func(from string, tag string) string {
-		id := container.Run(ctx, t, client, func(cfg *container.TestContainerConfig) {
+		id := container.Create(ctx, t, client, func(cfg *container.TestContainerConfig) {
 			cfg.Config.Image = from
 			cfg.Config.Cmd = []string{"true"}
 		})
-
-		chW, chErr := client.ContainerWait(ctx, id, containertypes.WaitConditionNotRunning)
-
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-
-		select {
-		case <-chW:
-		case err := <-chErr:
-			assert.NilError(t, err)
-		case <-ctx.Done():
-			t.Fatal("timeout waiting for container to exit")
-		}
 
 		res, err := client.ContainerCommit(ctx, id, containertypes.CommitOptions{Reference: tag})
 		assert.NilError(t, err)
