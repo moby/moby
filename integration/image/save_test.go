@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/cpuguy83/tar2go"
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
@@ -109,8 +108,6 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	idFoo := makeImage("busybox:latest", tagFoo)
 	idBar := makeImage("busybox:latest", tagBar)
 	idBusybox := busyboxImg.ID
-
-	client.ImageRemove(ctx, repoName, types.ImageRemoveOptions{Force: true})
 
 	rdr, err := client.ImageSave(ctx, []string{repoName, "busybox:latest"})
 	assert.NilError(t, err)
