@@ -119,7 +119,18 @@ func v1TarHeaderSelect(h *tar.Header) (orderedHeaders [][2]string) {
 	var xattrs [][2]string
 	for k, v := range h.PAXRecords {
 		if xattr, ok := strings.CutPrefix(k, paxSchilyXattr); ok {
+			// h.Xattrs keys take precedence over h.PAXRecords keys, like
+			// archive/tar does when writing.
+			if vv, ok := h.Xattrs[xattr]; ok { //nolint:staticcheck // field deprecated in stdlib
+				v = vv
+			}
 			xattrs = append(xattrs, [2]string{xattr, v})
+		}
+	}
+	// Get extended attributes which are not in PAXRecords.
+	for k, v := range h.Xattrs { //nolint:staticcheck // field deprecated in stdlib
+		if _, ok := h.PAXRecords[paxSchilyXattr+k]; !ok {
+			xattrs = append(xattrs, [2]string{k, v})
 		}
 	}
 	sort.Slice(xattrs, func(i, j int) bool { return xattrs[i][0] < xattrs[j][0] })
