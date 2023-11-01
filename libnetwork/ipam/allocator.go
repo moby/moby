@@ -214,7 +214,7 @@ func (aSpace *addrSpace) allocatePredefinedPool(ipV6 bool) (netip.Prefix, error)
 		}
 		// Shouldn't be necessary, but check prevents IP collisions should
 		// predefined pools overlap for any reason.
-		if !aSpace.contains(nw) {
+		if !aSpace.overlaps(nw) {
 			aSpace.updatePredefinedStartIndex(i + 1)
 			err := aSpace.allocateSubnetL(nw, netip.Prefix{})
 			if err != nil {
