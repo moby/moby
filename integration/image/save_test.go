@@ -2,7 +2,6 @@ package image
 
 import (
 	"archive/tar"
-	"context"
 	"encoding/json"
 	"io"
 	"io/fs"
@@ -15,7 +14,6 @@ import (
 	"time"
 
 	"github.com/cpuguy83/tar2go"
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
@@ -86,23 +84,10 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	client := testEnv.APIClient()
 
 	makeImage := func(from string, tag string) string {
-		id := container.Run(ctx, t, client, func(cfg *container.TestContainerConfig) {
+		id := container.Create(ctx, t, client, func(cfg *container.TestContainerConfig) {
 			cfg.Config.Image = from
 			cfg.Config.Cmd = []string{"true"}
 		})
-
-		chW, chErr := client.ContainerWait(ctx, id, containertypes.WaitConditionNotRunning)
-
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-
-		select {
-		case <-chW:
-		case err := <-chErr:
-			assert.NilError(t, err)
-		case <-ctx.Done():
-			t.Fatal("timeout waiting for container to exit")
-		}
 
 		res, err := client.ContainerCommit(ctx, id, containertypes.CommitOptions{Reference: tag})
 		assert.NilError(t, err)
@@ -116,15 +101,13 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	busyboxImg, _, err := client.ImageInspectWithRaw(ctx, "busybox:latest")
 	assert.NilError(t, err)
 
-	repoName := "foobar-save-multi-images-test"
-	tagFoo := repoName + ":foo"
-	tagBar := repoName + ":bar"
+	const repoName = "foobar-save-multi-images-test"
+	const tagFoo = repoName + ":foo"
+	const tagBar = repoName + ":bar"
 
 	idFoo := makeImage("busybox:latest", tagFoo)
 	idBar := makeImage("busybox:latest", tagBar)
 	idBusybox := busyboxImg.ID
-
-	client.ImageRemove(ctx, repoName, types.ImageRemoveOptions{Force: true})
 
 	rdr, err := client.ImageSave(ctx, []string{repoName, "busybox:latest"})
 	assert.NilError(t, err)
@@ -142,8 +125,8 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	for _, m := range mfstLs {
 		actual = append(actual, strings.TrimPrefix(m.Config, "blobs/sha256/"))
 		// make sure the blob actually exists
-		_, err := fs.Stat(tarfs, m.Config)
-		assert.Check(t, cmp.Nil(err))
+		_, err = fs.Stat(tarfs, m.Config)
+		assert.Check(t, err)
 	}
 
 	expected := []string{idBusybox, idFoo, idBar}
@@ -158,8 +141,8 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 		// ID of image won't match the Config ID from manifest.json
 		// Just check if manifests exist in blobs
 		for _, blob := range expected {
-			_, err := fs.Stat(tarfs, "blobs/sha256/"+blob)
-			assert.Check(t, cmp.Nil(err))
+			_, err = fs.Stat(tarfs, "blobs/sha256/"+blob)
+			assert.Check(t, err)
 		}
 	} else {
 		sort.Strings(actual)
