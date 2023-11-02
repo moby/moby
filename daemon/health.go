@@ -248,7 +248,7 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 // There is never more than one monitor thread running per container at a time.
 func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe) {
 	probeInterval := timeoutWithDefault(c.Config.Healthcheck.Interval, defaultProbeInterval)
-	startInterval := timeoutWithDefault(c.Config.Healthcheck.StartInterval, defaultProbeInterval)
+	startInterval := timeoutWithDefault(c.Config.Healthcheck.StartInterval, probeInterval)
 	startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
 
 	c.Lock()
