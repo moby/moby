@@ -5946,7 +5946,7 @@ func (s *DockerCLIBuildSuite) TestBuildIntermediateTarget(c *testing.T) {
 		cli.WithFlags("--target", "nosuchtarget"))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "failed to reach build target",
+		Err:      "target stage \"nosuchtarget\" could not be found",
 	})
 }
 
