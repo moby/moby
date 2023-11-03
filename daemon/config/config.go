@@ -278,7 +278,11 @@ func New() (*Config, error) {
 			MaxConcurrentDownloads: DefaultMaxConcurrentDownloads,
 			MaxConcurrentUploads:   DefaultMaxConcurrentUploads,
 			MaxDownloadAttempts:    DefaultDownloadAttempts,
-			BridgeConfig:           BridgeConfig{MTU: DefaultNetworkMtu},
+			BridgeConfig: BridgeConfig{
+				DefaultBridgeConfig: DefaultBridgeConfig{
+					MTU: DefaultNetworkMtu,
+				},
+			},
 			NetworkConfig: NetworkConfig{
 				NetworkControlPlaneMTU: DefaultNetworkMtu,
 				DefaultNetworkOpts:     make(map[string]map[string]string),

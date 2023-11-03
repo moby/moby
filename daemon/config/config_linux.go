@@ -31,27 +31,31 @@ const (
 	StockRuntimeName = "runc"
 )
 
-// BridgeConfig stores all the bridge driver specific
-// configuration.
+// BridgeConfig stores all the parameters for both the bridge driver and the default bridge network.
 type BridgeConfig struct {
-	commonBridgeConfig
+	DefaultBridgeConfig
 
-	// Fields below here are platform specific.
-	MTU                         int    `json:"mtu,omitempty"`
-	DefaultIP                   net.IP `json:"ip,omitempty"`
-	IP                          string `json:"bip,omitempty"`
-	DefaultGatewayIPv4          net.IP `json:"default-gateway,omitempty"`
-	DefaultGatewayIPv6          net.IP `json:"default-gateway-v6,omitempty"`
-	InterContainerCommunication bool   `json:"icc,omitempty"`
-
-	EnableIPv6          bool   `json:"ipv6,omitempty"`
 	EnableIPTables      bool   `json:"iptables,omitempty"`
 	EnableIP6Tables     bool   `json:"ip6tables,omitempty"`
 	EnableIPForward     bool   `json:"ip-forward,omitempty"`
 	EnableIPMasq        bool   `json:"ip-masq,omitempty"`
 	EnableUserlandProxy bool   `json:"userland-proxy,omitempty"`
 	UserlandProxyPath   string `json:"userland-proxy-path,omitempty"`
-	FixedCIDRv6         string `json:"fixed-cidr-v6,omitempty"`
+}
+
+// DefaultBridgeConfig stores all the parameters for the default bridge network.
+type DefaultBridgeConfig struct {
+	commonBridgeConfig
+
+	// Fields below here are platform specific.
+	EnableIPv6                  bool   `json:"ipv6,omitempty"`
+	FixedCIDRv6                 string `json:"fixed-cidr-v6,omitempty"`
+	MTU                         int    `json:"mtu,omitempty"`
+	DefaultIP                   net.IP `json:"ip,omitempty"`
+	IP                          string `json:"bip,omitempty"`
+	DefaultGatewayIPv4          net.IP `json:"default-gateway,omitempty"`
+	DefaultGatewayIPv6          net.IP `json:"default-gateway-v6,omitempty"`
+	InterContainerCommunication bool   `json:"icc,omitempty"`
 }
 
 // Config defines the configuration of a docker daemon.
