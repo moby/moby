@@ -18,6 +18,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
 )
 
 // testPullImageWithAliases pulls a specific image tag and verifies that any aliases (i.e., other
@@ -283,6 +284,7 @@ func (s *DockerSchema1RegistrySuite) TestPullNoLayers(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
+	skip.If(c, testEnv.UsingSnapshotter(), "containerd knows how to pull manifest lists")
 	pushDigest, err := setupImage(c)
 	assert.NilError(c, err, "error setting up image")
 
