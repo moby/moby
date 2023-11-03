@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/locker"
+	"github.com/moby/sys/mountinfo"
 )
 
 // List of known filesystems that can't be re-mounted or have shared layers
@@ -22,6 +23,8 @@ type Mounter interface {
 	Mount(mounts []mount.Mount, containerID string) (string, error)
 	// Unmount unmounts the container rootfs
 	Unmount(target string) error
+	// Mounted returns a target mountpoint if it's already mounted
+	Mounted(containerID string) (string, error)
 }
 
 // inSlice tests whether a string is contained in a slice of strings or not.
@@ -110,6 +113,23 @@ func (m *refCountMounter) Unmount(target string) error {
 	return nil
 }
 
+func (m *refCountMounter) Mounted(containerID string) (string, error) {
+	mounted, err := m.base.Mounted(containerID)
+	if err != nil || mounted == "" {
+		return mounted, err
+	}
+
+	target := m.base.target(containerID)
+
+	// Check if the refcount is non-zero.
+	m.rc.Increment(target)
+	if m.rc.Decrement(target) > 0 {
+		return mounted, nil
+	}
+
+	return "", nil
+}
+
 type mounter struct {
 	home        string
 	snapshotter string
@@ -135,6 +155,16 @@ func (m mounter) Mount(mounts []mount.Mount, containerID string) (string, error)
 
 func (m mounter) Unmount(target string) error {
 	return unmount(target)
+}
+
+func (m mounter) Mounted(containerID string) (string, error) {
+	target := m.target(containerID)
+
+	mounted, err := mountinfo.Mounted(target)
+	if err != nil || !mounted {
+		return "", err
+	}
+	return target, nil
 }
 
 func (m mounter) target(containerID string) string {
