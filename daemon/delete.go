@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	cerrdefs "github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/leases"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -133,28 +131,10 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	}
 	container.Unlock()
 
-	// When container creation fails and `RWLayer` has not been created yet, we
-	// do not call `ReleaseRWLayer`
-	if container.RWLayer != nil {
-		if err := daemon.imageService.ReleaseLayer(container.RWLayer); err != nil {
-			err = errors.Wrapf(err, "container %s", container.ID)
-			container.SetRemovalError(err)
-			return err
-		}
-		container.RWLayer = nil
-	} else {
-		if daemon.UsesSnapshotter() {
-			ls := daemon.containerdClient.LeasesService()
-			lease := leases.Lease{
-				ID: container.ID,
-			}
-			if err := ls.Delete(context.Background(), lease, leases.SynchronousDelete); err != nil {
-				if !cerrdefs.IsNotFound(err) {
-					container.SetRemovalError(err)
-					return err
-				}
-			}
-		}
+	if err := daemon.imageService.ReleaseLayer(context.TODO(), container); err != nil {
+		err = errors.Wrapf(err, "container %s", container.ID)
+		container.SetRemovalError(err)
+		return err
 	}
 
 	// Hold the container lock while deleting the container root directory

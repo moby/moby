@@ -193,17 +193,8 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	ctr.HostConfig.StorageOpt = opts.params.HostConfig.StorageOpt
 	ctr.ImageManifest = imgManifest
 
-	if daemon.UsesSnapshotter() {
-		if err := daemon.imageService.PrepareSnapshot(ctx, ctr.ID, opts.params.Config.Image, opts.params.Platform, setupInitLayer(daemon.idMapping)); err != nil {
-			return nil, err
-		}
-	} else {
-		// Set RWLayer for container after mount labels have been set
-		rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
-		if err != nil {
-			return nil, errdefs.System(err)
-		}
-		ctr.RWLayer = rwLayer
+	if err := daemon.imageService.CreateLayer(ctx, ctr, opts.params.Config.Image, opts.params.Platform, setupInitLayer(daemon.idMapping)); err != nil {
+		return nil, errdefs.System(err)
 	}
 
 	current := idtools.CurrentIdentity()

@@ -7,16 +7,16 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/container"
-	"github.com/pkg/errors"
 )
 
 // Mount sets container.BaseFS
 // (is it not set coming in? why is it unset?)
 func (i *ImageService) Mount(ctx context.Context, container *container.Container) error {
-	if container.RWLayer == nil {
-		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
+	rwLayer, err := i.layerStore.GetRWLayer(container.ID)
+	if err != nil {
+		return fmt.Errorf("RWLayer of container "+container.ID+" is unexpectedly nil: %w", err)
 	}
-	dir, err := container.RWLayer.Mount(container.GetMountLabel())
+	dir, err := rwLayer.Mount(container.GetMountLabel())
 	if err != nil {
 		return err
 	}
@@ -38,10 +38,11 @@ func (i *ImageService) Mount(ctx context.Context, container *container.Container
 
 // Unmount unsets the container base filesystem
 func (i *ImageService) Unmount(ctx context.Context, container *container.Container) error {
-	if container.RWLayer == nil {
-		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
+	rwLayer, err := i.layerStore.GetRWLayer(container.ID)
+	if err != nil {
+		return fmt.Errorf("RWLayer of container "+container.ID+" is unexpectedly nil: %w", err)
 	}
-	if err := container.RWLayer.Unmount(); err != nil {
+	if err := rwLayer.Unmount(); err != nil {
 		log.G(ctx).WithField("container", container.ID).WithError(err).Error("error unmounting container")
 		return err
 	}

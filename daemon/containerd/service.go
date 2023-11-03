@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/containerd"
 	cerrdefs "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/snapshots"
@@ -18,9 +19,9 @@ import (
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/registry"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -86,10 +87,8 @@ func (i *ImageService) CountImages(ctx context.Context) int {
 }
 
 // CreateLayer creates a filesystem layer for a container.
-// called from create.go
-// TODO: accept an opt struct instead of container?
-func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
-	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("not implemented")))
+func (i *ImageService) CreateLayer(ctx context.Context, container *container.Container, requestedImage string, platform *ocispec.Platform, setupInit func(string) error) error {
+	return i.prepareSnapshot(ctx, container.ID, requestedImage, platform, setupInit)
 }
 
 // LayerStoreStatus returns the status for each layer store
@@ -120,10 +119,18 @@ func (i *ImageService) StorageDriver() string {
 	return i.snapshotter
 }
 
-// ReleaseLayer releases a layer allowing it to be removed
+// ReleaseLayer releases the snapshot allowing it to be removed.
 // called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
-func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
-	return errdefs.NotImplemented(errors.New("not implemented"))
+func (i *ImageService) ReleaseLayer(ctx context.Context, ctr *container.Container) error {
+	ls := i.client.LeasesService()
+	lease := leases.Lease{
+		ID: ctr.ID,
+	}
+	err := ls.Delete(ctx, lease, leases.SynchronousDelete)
+	if err != nil && cerrdefs.IsNotFound(err) {
+		return nil
+	}
+	return err
 }
 
 // LayerDiskUsage returns the number of bytes used by layer stores
@@ -151,7 +158,7 @@ func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
 }
 
 // GetLayerFolders returns the layer folders from an image RootFS.
-func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
+func (i *ImageService) GetLayerFolders(img *image.Image, _ *container.Container) ([]string, error) {
 	return nil, errdefs.NotImplemented(errors.New("not implemented"))
 }
 

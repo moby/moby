@@ -6,12 +6,12 @@ import (
 	"context"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 )
 
 // GetLayerFolders returns the layer folders from an image RootFS
-func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
+func (i *ImageService) GetLayerFolders(img *image.Image, _ *container.Container) ([]string, error) {
 	// Windows specific
 	panic("not implemented")
 }

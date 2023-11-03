@@ -26,7 +26,7 @@ func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Conta
 	}
 	defer func() {
 		if err != nil {
-			err2 := i.ReleaseLayer(rwlayer)
+			err2 := i.ReleaseLayer(ctx, c)
 			if err2 != nil {
 				log.G(ctx).WithError(err2).WithField("container", c.ID).Warn("Failed to release layer")
 			}

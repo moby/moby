@@ -2,6 +2,7 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/containerd/containerd/content"
@@ -11,10 +12,12 @@ import (
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	dockerreference "github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -116,29 +119,24 @@ func (i *ImageService) Children(_ context.Context, id image.ID) ([]image.ID, err
 // CreateLayer creates a filesystem layer for a container.
 // called from create.go
 // TODO: accept an opt struct instead of container?
-func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
+func (i *ImageService) CreateLayer(ctx context.Context, container *container.Container, _ string, _ *ocispec.Platform, setupInit func(string) error) error {
 	var layerID layer.ChainID
 	if container.ImageID != "" {
 		img, err := i.imageStore.Get(container.ImageID)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		layerID = img.RootFS.ChainID()
 	}
 
 	rwLayerOpts := &layer.CreateRWLayerOpts{
 		MountLabel: container.MountLabel,
-		InitFunc:   initFunc,
+		InitFunc:   setupInit,
 		StorageOpt: container.HostConfig.StorageOpt,
 	}
 
-	return i.layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)
-}
-
-// GetLayerByID returns a layer by ID
-// called from daemon.go Daemon.restore().
-func (i *ImageService) GetLayerByID(cid string) (layer.RWLayer, error) {
-	return i.layerStore.GetRWLayer(cid)
+	_, err := i.layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)
+	return err
 }
 
 // LayerStoreStatus returns the status for each layer store
@@ -170,14 +168,25 @@ func (i *ImageService) StorageDriver() string {
 
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer().
-func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
-	metaData, err := i.layerStore.ReleaseRWLayer(rwlayer)
-	layer.LogReleaseMetadata(metaData)
-	if err != nil && !errors.Is(err, layer.ErrMountDoesNotExist) && !errors.Is(err, os.ErrNotExist) {
-		return errors.Wrapf(err, "driver %q failed to remove root filesystem",
-			i.layerStore.DriverName())
+func (i *ImageService) ReleaseLayer(_ context.Context, ctr *container.Container) error {
+	// When container creation fails and `RWLayer` has not been created yet, we
+	// do not call `ReleaseRWLayer`
+	handleError := func(err error) error {
+		if errors.Is(err, layer.ErrMountDoesNotExist) || errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return errors.Wrapf(err, "driver %q failed to remove root filesystem", i.layerStore.DriverName())
 	}
-	return nil
+
+	rwLayer, err := i.layerStore.GetRWLayer(ctr.ID)
+	if err != nil {
+		return handleError(err)
+	}
+
+	metaData, err := i.layerStore.ReleaseRWLayer(rwLayer)
+	layer.LogReleaseMetadata(metaData)
+
+	return handleError(err)
 }
 
 // LayerDiskUsage returns the number of bytes used by layer stores
@@ -231,4 +240,17 @@ func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
 	if i.uploadManager != nil && maxUploads != 0 {
 		i.uploadManager.SetConcurrency(maxUploads)
 	}
+}
+
+func (i *ImageService) GetRWLayerMetadata(container *container.Container) (map[string]string, error) {
+	if container.Dead {
+		return nil, nil
+	}
+
+	rwLayer, err := i.layerStore.GetRWLayer(container.ID)
+	if err != nil {
+		return nil, errdefs.System(fmt.Errorf("RWLayer of container "+container.ID+" is unexpectedly nil: %w", err))
+	}
+
+	return rwLayer.Metadata()
 }
