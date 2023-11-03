@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/container-orchestrated-devices/container-device-interface/pkg/parser"
+	"tags.cncf.io/container-device-interface/pkg/parser"
 )
 
 const (

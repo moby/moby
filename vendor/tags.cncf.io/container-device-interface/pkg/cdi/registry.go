@@ -19,8 +19,8 @@ package cdi
 import (
 	"sync"
 
-	cdi "github.com/container-orchestrated-devices/container-device-interface/specs-go"
 	oci "github.com/opencontainers/runtime-spec/specs-go"
+	cdi "tags.cncf.io/container-device-interface/specs-go"
 )
 
 // Registry keeps a cache of all CDI Specs installed or generated on

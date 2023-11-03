@@ -19,10 +19,10 @@ package cdi
 import (
 	"fmt"
 
-	"github.com/container-orchestrated-devices/container-device-interface/internal/validation"
-	"github.com/container-orchestrated-devices/container-device-interface/pkg/parser"
-	cdi "github.com/container-orchestrated-devices/container-device-interface/specs-go"
 	oci "github.com/opencontainers/runtime-spec/specs-go"
+	"tags.cncf.io/container-device-interface/internal/validation"
+	"tags.cncf.io/container-device-interface/pkg/parser"
+	cdi "tags.cncf.io/container-device-interface/specs-go"
 )
 
 // Device represents a CDI device of a Spec.

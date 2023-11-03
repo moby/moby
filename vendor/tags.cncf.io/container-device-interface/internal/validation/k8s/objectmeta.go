@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/container-orchestrated-devices/container-device-interface/internal/multierror"
+	"tags.cncf.io/container-device-interface/internal/multierror"
 )
 
 // TotalAnnotationSizeLimitB defines the maximum size of all annotations in characters.

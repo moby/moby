@@ -17,7 +17,7 @@
 package cdi
 
 import (
-	"github.com/container-orchestrated-devices/container-device-interface/pkg/parser"
+	"tags.cncf.io/container-device-interface/pkg/parser"
 )
 
 // QualifiedName returns the qualified name for a device.

@@ -290,8 +290,6 @@ github.com/cockroachdb/logtags v0.0.0-20190617123548-eb05cc24525f h1:o/kfcElHqOi
 github.com/cockroachdb/logtags v0.0.0-20190617123548-eb05cc24525f/go.mod h1:i/u985jwjWRlyHXQbwatDASoW0RMlZ/3i9yJHE2xLkI=
 github.com/codahale/hdrhistogram v0.0.0-20160425231609-f8ad88b59a58/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
 github.com/codahale/rfc6979 v0.0.0-20141003034818-6a90f24967eb h1:EDmT6Q9Zs+SbUoc7Ik9EfrFqcylYqgPZ9ANSbTAntnE=
-github.com/container-orchestrated-devices/container-device-interface v0.6.1 h1:mz77uJoP8im/4Zins+mPqt677ZMaflhoGaYrRAl5jvA=
-github.com/container-orchestrated-devices/container-device-interface v0.6.1/go.mod h1:40T6oW59rFrL/ksiSs7q45GzjGlbvxnA4xaK6cyq+kA=
 github.com/container-storage-interface/spec v1.5.0 h1:lvKxe3uLgqQeVQcrnL2CPQKISoKjTJxojEs9cBk+HXo=
 github.com/container-storage-interface/spec v1.5.0/go.mod h1:8K96oQNkJ7pFcC2R9Z1ynGGBB1I93kcS6PGg3SsOk8s=
 github.com/containerd/cgroups v0.0.0-20190919134610-bf292b21730f/go.mod h1:OApqhQ4XNSNC13gXIwDjhOQxjWa/NxkwZXJ1EvqT0ko=
@@ -1992,3 +1990,7 @@ sigs.k8s.io/yaml v1.3.0 h1:a2VclLzOGrwOHDiV8EfBGhvjHvP46CtW5j6POvhYGGo=
 sigs.k8s.io/yaml v1.3.0/go.mod h1:GeOyir5tyXNByN85N/dRIT9es5UQNerPYEKK56eTBm8=
 sourcegraph.com/sqs/pbtypes v0.0.0-20180604144634-d3ebe8f20ae4/go.mod h1:ketZ/q3QxT9HOBeFhu6RdvsftgpsbFHBF5Cas6cDKZ0=
 sourcegraph.com/sqs/pbtypes v1.0.0/go.mod h1:3AciMUv4qUuRHRHhOG4TZOB+72GdPVz5k+c648qsFS4=
+tags.cncf.io/container-device-interface v0.6.2 h1:dThE6dtp/93ZDGhqaED2Pu374SOeUkBfuvkLuiTdwzg=
+tags.cncf.io/container-device-interface v0.6.2/go.mod h1:Shusyhjs1A5Na/kqPVLL0KqnHQHuunol9LFeUNkuGVE=
+tags.cncf.io/container-device-interface/specs-go v0.6.0 h1:V+tJJN6dqu8Vym6p+Ru+K5mJ49WL6Aoc5SJFSY0RLsQ=
+tags.cncf.io/container-device-interface/specs-go v0.6.0/go.mod h1:hMAwAbMZyBLdmYqWgYcKH0F/yctNpV3P35f+/088A80=

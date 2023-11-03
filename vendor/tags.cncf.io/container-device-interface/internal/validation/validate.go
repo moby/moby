@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/container-orchestrated-devices/container-device-interface/internal/validation/k8s"
+	"tags.cncf.io/container-device-interface/internal/validation/k8s"
 )
 
 // ValidateSpecAnnotations checks whether spec annotations are valid.

@@ -21,8 +21,8 @@ import (
 
 	"golang.org/x/mod/semver"
 
-	"github.com/container-orchestrated-devices/container-device-interface/pkg/parser"
-	cdi "github.com/container-orchestrated-devices/container-device-interface/specs-go"
+	"tags.cncf.io/container-device-interface/pkg/parser"
+	cdi "tags.cncf.io/container-device-interface/specs-go"
 )
 
 const (
