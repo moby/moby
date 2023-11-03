@@ -639,7 +639,7 @@ func (ep *Endpoint) hasInterface(iName string) bool {
 }
 
 // Leave detaches the network resources populated in the sandbox.
-func (ep *Endpoint) Leave(sb *Sandbox, options ...EndpointOption) error {
+func (ep *Endpoint) Leave(sb *Sandbox) error {
 	if sb == nil || sb.ID() == "" || sb.Key() == "" {
 		return types.InvalidParameterErrorf("invalid Sandbox passed to endpoint leave: %v", sb)
 	}
@@ -647,10 +647,10 @@ func (ep *Endpoint) Leave(sb *Sandbox, options ...EndpointOption) error {
 	sb.joinLeaveStart()
 	defer sb.joinLeaveEnd()
 
-	return ep.sbLeave(sb, false, options...)
+	return ep.sbLeave(sb, false)
 }
 
-func (ep *Endpoint) sbLeave(sb *Sandbox, force bool, options ...EndpointOption) error {
+func (ep *Endpoint) sbLeave(sb *Sandbox, force bool) error {
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return fmt.Errorf("failed to get network from store during leave: %v", err)
@@ -671,8 +671,6 @@ func (ep *Endpoint) sbLeave(sb *Sandbox, force bool, options ...EndpointOption) 
 	if sid != sb.ID() {
 		return types.ForbiddenErrorf("unexpected sandbox ID in leave request. Expected %s. Got %s", ep.sandboxID, sb.ID())
 	}
-
-	ep.processOptions(options...)
 
 	d, err := n.driver(!force)
 	if err != nil {
