@@ -20,6 +20,7 @@ dockerd - Enable daemon mode
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
 [**--default-address-pool**[=*DEFAULT-ADDRESS-POOL*]]
+[**--default-network-opt**[=*DRIVER=OPT=VALUE*]]
 [**--default-runtime**[=*runc*]]
 [**--default-ipc-mode**=*MODE*]
 [**--default-shm-size**[=*64MiB*]]
@@ -185,6 +186,9 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
   Default address pool from which IPAM driver selects a subnet for the networks.
   Example: base=172.30.0.0/16,size=24 will set the default
   address pools for the selected scope networks to {172.30.[0-255].0/24}
+
+**--default-network-opt**=*DRIVER=OPT=VALUE*
+  Default network driver options
 
 **--default-runtime**=*"runtime"*
   Set default runtime if there're more than one specified by **--add-runtime**.
