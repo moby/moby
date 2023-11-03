@@ -214,5 +214,11 @@ func (s *DockerCLIPullSuite) TestPullLinuxImageFailsOnWindows(c *testing.T) {
 func (s *DockerCLIPullSuite) TestPullWindowsImageFailsOnLinux(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network)
 	_, _, err := dockerCmdWithError("pull", "mcr.microsoft.com/windows/servercore:ltsc2022")
-	assert.ErrorContains(c, err, "no matching manifest for linux")
+
+	errorMessage := "no matching manifest for linux"
+	if testEnv.UsingSnapshotter() {
+		errorMessage = "no match for platform in manifest"
+	}
+
+	assert.ErrorContains(c, err, errorMessage)
 }
