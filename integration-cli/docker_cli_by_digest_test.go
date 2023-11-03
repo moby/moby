@@ -317,9 +317,12 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {
 	assert.Assert(c, reWithDigest1.MatchString(out), "expected %q: %s", reWithDigest1.String(), out)
 	// make sure image 2 has repo, tag, digest
 	assert.Assert(c, reWithDigest2.MatchString(out), "expected %q: %s", reWithDigest2.String(), out)
-	// make sure busybox has tag, but not digest
-	busyboxRe := regexp.MustCompile(`\s*busybox\s*latest\s*<none>\s`)
-	assert.Assert(c, busyboxRe.MatchString(out), "expected %q: %s", busyboxRe.String(), out)
+	// We always have a digest when using containerd to store images
+	if !testEnv.UsingSnapshotter() {
+		// make sure busybox has tag, but not digest
+		busyboxRe := regexp.MustCompile(`\s*busybox\s*latest\s*<none>\s`)
+		assert.Assert(c, busyboxRe.MatchString(out), "expected %q: %s", busyboxRe.String(), out)
+	}
 }
 
 func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
