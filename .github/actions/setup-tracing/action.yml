@@ -6,6 +6,8 @@ runs:
   steps:
     - run: |
         set -e
+        # Jaeger is set up on Windows through an inline run step. If you update Jaeger here, don't forget to update
+        # the version set in .github/workflows/.windows.yml.
         docker run -d --net=host --name jaeger -e COLLECTOR_OTLP_ENABLED=true jaegertracing/all-in-one:1.46
         docker0_ip="$(ip -f inet addr show docker0 | grep -Po 'inet \K[\d.]+')"
         echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://${docker0_ip}:4318" >> "${GITHUB_ENV}"

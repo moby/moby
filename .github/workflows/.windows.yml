@@ -282,6 +282,15 @@ jobs:
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
+        run: |
+          # Jaeger is set up on Linux through the setup-tracing action. If you update Jaeger here, don't forget to
+          # update the version set in .github/actions/setup-tracing/action.yml.
+          Invoke-WebRequest -Uri "https://github.com/jaegertracing/jaeger/releases/download/v1.46.0/jaeger-1.46.0-windows-amd64.tar.gz" -OutFile ".\jaeger-1.46.0-windows-amd64.tar.gz"
+          tar -zxvf ".\jaeger-1.46.0-windows-amd64.tar.gz"
+          Start-Process '.\jaeger-1.46.0-windows-amd64\jaeger-all-in-one.exe'
+          echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+        shell: pwsh
+      -
         name: Env
         run: |
           Get-ChildItem Env: | Out-String
@@ -479,6 +488,13 @@ jobs:
               Sort-Object @{Expression="TimeCreated";Descending=$false} |
               ForEach-Object {"$($_.TimeCreated.ToUniversalTime().ToString("o")) [$($_.LevelDisplayName)] $($_.Message)"} |
               Tee-Object -file ".\bundles\daemon.log"
+      -
+        name: Download Jaeger traces
+        if: always()
+        run: |
+          Invoke-WebRequest `
+            -Uri "http://127.0.0.1:16686/api/traces?service=integration-test-client" `
+            -OutFile ".\bundles\jaeger-trace.json"
       -
         name: Upload reports
         if: always()
