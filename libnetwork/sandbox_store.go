@@ -278,9 +278,11 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 		}
 
 		for _, ep := range sb.endpoints {
-			// Watch for service records
 			if !c.isAgent() {
-				c.watchSvcRecord(ep)
+				n := ep.getNetwork()
+				if !c.isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
+					n.updateSvcRecord(ep, true)
+				}
 			}
 		}
 	}

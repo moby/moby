@@ -7,7 +7,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/scope"
 )
 
 func (c *Controller) initStores() error {
@@ -20,7 +19,6 @@ func (c *Controller) initStores() error {
 		return err
 	}
 
-	c.startWatch()
 	return nil
 }
 
@@ -183,92 +181,6 @@ retry:
 	}
 
 	return nil
-}
-
-type netWatch struct {
-	localEps map[string]*Endpoint
-}
-
-func (c *Controller) watchSvcRecord(ep *Endpoint) {
-	c.watchCh <- ep
-}
-
-func (c *Controller) unWatchSvcRecord(ep *Endpoint) {
-	c.unWatchCh <- ep
-}
-
-func (c *Controller) processEndpointCreate(ep *Endpoint) {
-	n := ep.getNetwork()
-	if !c.isDistributedControl() && n.Scope() == scope.Swarm && n.driverIsMultihost() {
-		return
-	}
-
-	networkID := n.ID()
-	endpointID := ep.ID()
-
-	// Update the svc db for the local endpoint join right away
-	// Do this before adding this ep to localEps so that we don't
-	// try to update this ep's container's svc records
-	n.updateSvcRecord(ep, true)
-	c.mu.Lock()
-	_, ok := c.nmap[networkID]
-	if !ok {
-		c.nmap[networkID] = &netWatch{localEps: make(map[string]*Endpoint)}
-	}
-	c.nmap[networkID].localEps[endpointID] = ep
-	c.mu.Unlock()
-}
-
-func (c *Controller) processEndpointDelete(ep *Endpoint) {
-	n := ep.getNetwork()
-	if !c.isDistributedControl() && n.Scope() == scope.Swarm && n.driverIsMultihost() {
-		return
-	}
-
-	networkID := n.ID()
-	endpointID := ep.ID()
-
-	c.mu.Lock()
-	if nw, ok := c.nmap[networkID]; ok {
-		delete(nw.localEps, endpointID)
-		c.mu.Unlock()
-
-		// Update the svc db about local endpoint leave right away
-		// Do this after we remove this ep from localEps so that we
-		// don't try to remove this svc record from this ep's container.
-		n.updateSvcRecord(ep, false)
-
-		c.mu.Lock()
-		if len(nw.localEps) == 0 {
-			// This is the last container going away for the network. Destroy
-			// this network's svc db entry
-			delete(c.svcRecords, networkID)
-			delete(c.nmap, networkID)
-		}
-	}
-	c.mu.Unlock()
-}
-
-func (c *Controller) watchLoop() {
-	for {
-		select {
-		case ep := <-c.watchCh:
-			c.processEndpointCreate(ep)
-		case ep := <-c.unWatchCh:
-			c.processEndpointDelete(ep)
-		}
-	}
-}
-
-func (c *Controller) startWatch() {
-	if c.watchCh != nil {
-		return
-	}
-	c.watchCh = make(chan *Endpoint)
-	c.unWatchCh = make(chan *Endpoint)
-	c.nmap = make(map[string]*netWatch)
-
-	go c.watchLoop()
 }
 
 func (c *Controller) networkCleanup() {

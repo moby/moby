@@ -87,10 +87,7 @@ type Controller struct {
 	cfg              *config.Config
 	store            *datastore.Store
 	extKeyListener   net.Listener
-	watchCh          chan *Endpoint
-	unWatchCh        chan *Endpoint
 	svcRecords       map[string]*svcInfo
-	nmap             map[string]*netWatch
 	serviceBindings  map[serviceKey]*service
 	ingressSandbox   *Sandbox
 	agent            *nwAgent
@@ -242,7 +239,7 @@ func (c *Controller) clusterAgentInit() {
 			c.mu.Unlock()
 			fallthrough
 		case cluster.EventSocketChange, cluster.EventNodeReady:
-			if keysAvailable && !c.isDistributedControl() {
+			if keysAvailable && c.isSwarmNode() {
 				c.agentOperationStart()
 				if err := c.agentSetup(clusterProvider); err != nil {
 					c.agentStopComplete()
@@ -452,8 +449,8 @@ func (c *Controller) isAgent() bool {
 	return c.cfg.ClusterProvider.IsAgent()
 }
 
-func (c *Controller) isDistributedControl() bool {
-	return !c.isManager() && !c.isAgent()
+func (c *Controller) isSwarmNode() bool {
+	return c.isManager() || c.isAgent()
 }
 
 func (c *Controller) GetPluginGetter() plugingetter.PluginGetter {
@@ -554,7 +551,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 
 	// At this point the network scope is still unknown if not set by user
 	if (caps.DataScope == scope.Global || nw.scope == scope.Swarm) &&
-		!c.isDistributedControl() && !nw.dynamic {
+		c.isSwarmNode() && !nw.dynamic {
 		if c.isManager() {
 			// For non-distributed controlled environment, globalscoped non-dynamic networks are redirected to Manager
 			return nil, ManagerRedirectError(name)
@@ -562,7 +559,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, types.ForbiddenErrorf("Cannot create a multi-host network from a worker node. Please create the network from a manager node.")
 	}
 
-	if nw.scope == scope.Swarm && c.isDistributedControl() {
+	if nw.scope == scope.Swarm && !c.isSwarmNode() {
 		return nil, types.ForbiddenErrorf("cannot create a swarm scoped network when swarm is not active")
 	}
 
@@ -705,7 +702,7 @@ addToStore:
 		}
 	}
 
-	if !c.isDistributedControl() {
+	if c.isSwarmNode() {
 		c.mu.Lock()
 		arrangeIngressFilterRule()
 		c.mu.Unlock()
