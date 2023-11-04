@@ -308,10 +308,15 @@ func (ep *Endpoint) Network() string {
 	return ep.network.name
 }
 
-func (ep *Endpoint) isAnonymous() bool {
+// getDNSNames returns a copy of the DNS names associated to this endpoint. The first entry is the one used for PTR
+// records.
+func (ep *Endpoint) getDNSNames() []string {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
-	return ep.anonymous
+
+	dnsNames := make([]string, len(ep.dnsNames))
+	copy(dnsNames, ep.dnsNames)
+	return dnsNames
 }
 
 // isServiceEnabled check if service is enabled on the endpoint
