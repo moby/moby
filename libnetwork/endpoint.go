@@ -41,7 +41,6 @@ type Endpoint struct {
 	prefAddressV6     net.IP
 	ipamOptions       map[string]string
 	aliases           map[string]string
-	myAliases         []string
 	svcID             string
 	svcName           string
 	virtualIP         net.IP
@@ -71,7 +70,6 @@ func (ep *Endpoint) MarshalJSON() ([]byte, error) {
 	epMap["anonymous"] = ep.anonymous
 	epMap["dnsNames"] = ep.dnsNames
 	epMap["disableResolution"] = ep.disableResolution
-	epMap["myAliases"] = ep.myAliases
 	epMap["svcName"] = ep.svcName
 	epMap["svcID"] = ep.svcID
 	epMap["virtualIP"] = ep.virtualIP.String()
@@ -197,7 +195,6 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	ma, _ := json.Marshal(epMap["myAliases"])
 	var myAliases []string
 	json.Unmarshal(ma, &myAliases) //nolint:errcheck
-	ep.myAliases = myAliases
 
 	_, hasDNSNames := epMap["dnsNames"]
 	dn, _ := json.Marshal(epMap["dnsNames"])
@@ -262,9 +259,6 @@ func (ep *Endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.exposedPorts = make([]types.TransportPort, len(ep.exposedPorts))
 	copy(dstEp.exposedPorts, ep.exposedPorts)
 
-	dstEp.myAliases = make([]string, len(ep.myAliases))
-	copy(dstEp.myAliases, ep.myAliases)
-
 	dstEp.dnsNames = make([]string, len(ep.dnsNames))
 	copy(dstEp.dnsNames, ep.dnsNames)
 
@@ -290,13 +284,6 @@ func (ep *Endpoint) Name() string {
 	defer ep.mu.Unlock()
 
 	return ep.name
-}
-
-func (ep *Endpoint) MyAliases() []string {
-	ep.mu.Lock()
-	defer ep.mu.Unlock()
-
-	return ep.myAliases
 }
 
 // Network returns the name of the network to which this endpoint is attached.
@@ -1004,13 +991,6 @@ func CreateOptionService(name, id string, vip net.IP, ingressPorts []*PortConfig
 		ep.virtualIP = vip
 		ep.ingressPorts = ingressPorts
 		ep.svcAliases = aliases
-	}
-}
-
-// CreateOptionMyAlias function returns an option setter for setting endpoint's self alias
-func CreateOptionMyAlias(alias string) EndpointOption {
-	return func(ep *Endpoint) {
-		ep.myAliases = append(ep.myAliases, alias)
 	}
 }
 

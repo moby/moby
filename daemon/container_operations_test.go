@@ -12,7 +12,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestDNSNamesAreEquivalentToAliases(t *testing.T) {
+func TestDNSNamesOrder(t *testing.T) {
 	d := &Daemon{}
 	ctr := &container.Container{
 		ID:   "35de8003b19e27f636fc6ecbf4d7072558b872a8544f287fd69ad8182ad59023",
@@ -35,7 +35,6 @@ func TestDNSNamesAreEquivalentToAliases(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Check(t, is.DeepEqual(epSettings.Aliases, []string{"myctr", "35de8003b19e", "baz"}))
 	assert.Check(t, is.DeepEqual(epSettings.DNSNames, []string{"foobar", "myctr", "35de8003b19e", "baz"}))
 }
 

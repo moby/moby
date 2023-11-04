@@ -652,31 +652,6 @@ func cleanOperationalData(es *network.EndpointSettings) {
 func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings, updateSettings bool) error {
 	if containertypes.NetworkMode(n.Name()).IsUserDefined() {
 		endpointConfig.DNSNames = buildEndpointDNSNames(container, endpointConfig.Aliases)
-
-		// TODO(aker): remove this code once endpoint's DNSNames is used for real.
-		addShortID := true
-		shortID := stringid.TruncateID(container.ID)
-		for _, alias := range endpointConfig.Aliases {
-			if alias == shortID {
-				addShortID = false
-				break
-			}
-		}
-		if addShortID {
-			endpointConfig.Aliases = append(endpointConfig.Aliases, shortID)
-		}
-		if container.Name != container.Config.Hostname {
-			addHostname := true
-			for _, alias := range endpointConfig.Aliases {
-				if alias == container.Config.Hostname {
-					addHostname = false
-					break
-				}
-			}
-			if addHostname {
-				endpointConfig.Aliases = append(endpointConfig.Aliases, container.Config.Hostname)
-			}
-		}
 	}
 
 	if err := validateEndpointSettings(n, n.Name(), endpointConfig); err != nil {
