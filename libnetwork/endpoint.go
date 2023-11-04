@@ -23,14 +23,17 @@ type EndpointOption func(ep *Endpoint)
 
 // Endpoint represents a logical connection between a network and a sandbox.
 type Endpoint struct {
-	name              string
-	id                string
-	network           *Network
-	iface             *EndpointInterface
-	joinInfo          *endpointJoinInfo
-	sandboxID         string
-	exposedPorts      []types.TransportPort
-	anonymous         bool
+	name         string
+	id           string
+	network      *Network
+	iface        *EndpointInterface
+	joinInfo     *endpointJoinInfo
+	sandboxID    string
+	exposedPorts []types.TransportPort
+	anonymous    bool
+	// dnsNames holds all the non-fully qualified DNS names associated to this endpoint. Order matters: first entry
+	// will be used for the PTR records associated to the endpoint's IPv4 and IPv6 addresses.
+	dnsNames          []string
 	disableResolution bool
 	generic           map[string]interface{}
 	prefAddress       net.IP
@@ -65,6 +68,7 @@ func (ep *Endpoint) MarshalJSON() ([]byte, error) {
 	}
 	epMap["sandbox"] = ep.sandboxID
 	epMap["anonymous"] = ep.anonymous
+	epMap["dnsNames"] = ep.dnsNames
 	epMap["disableResolution"] = ep.disableResolution
 	epMap["myAliases"] = ep.myAliases
 	epMap["svcName"] = ep.svcName
@@ -193,6 +197,12 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	var myAliases []string
 	json.Unmarshal(ma, &myAliases) //nolint:errcheck
 	ep.myAliases = myAliases
+
+	dn, _ := json.Marshal(epMap["dnsNames"])
+	var dnsNames []string
+	json.Unmarshal(dn, &dnsNames)
+	ep.dnsNames = dnsNames
+
 	return nil
 }
 
@@ -242,6 +252,9 @@ func (ep *Endpoint) CopyTo(o datastore.KVObject) error {
 
 	dstEp.myAliases = make([]string, len(ep.myAliases))
 	copy(dstEp.myAliases, ep.myAliases)
+
+	dstEp.dnsNames = make([]string, len(ep.dnsNames))
+	copy(dstEp.dnsNames, ep.dnsNames)
 
 	dstEp.generic = options.Generic{}
 	for k, v := range ep.generic {

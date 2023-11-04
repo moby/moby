@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"reflect"
 	"runtime"
 	"testing"
 	"time"
@@ -205,6 +206,7 @@ func TestEndpointMarshalling(t *testing.T) {
 			v6PoolID:  "poolv6",
 			llAddrs:   lla,
 		},
+		dnsNames: []string{"test", "foobar", "baz"},
 	}
 
 	b, err := json.Marshal(e)
@@ -218,7 +220,7 @@ func TestEndpointMarshalling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if e.name != ee.name || e.id != ee.id || e.sandboxID != ee.sandboxID || !compareEndpointInterface(e.iface, ee.iface) || e.anonymous != ee.anonymous {
+	if e.name != ee.name || e.id != ee.id || e.sandboxID != ee.sandboxID || !reflect.DeepEqual(e.dnsNames, ee.dnsNames) || !compareEndpointInterface(e.iface, ee.iface) || e.anonymous != ee.anonymous {
 		t.Fatalf("JSON marsh/unmarsh failed.\nOriginal:\n%#v\nDecoded:\n%#v\nOriginal iface: %#v\nDecodediface:\n%#v", e, ee, e.iface, ee.iface)
 	}
 }
