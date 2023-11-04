@@ -793,8 +793,7 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	var genericOptions = make(options.Generic)
 
 	nwName := n.Name()
-	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
-	if c.NetworkSettings.IsAnonymousEndpoint || (nwName == defaultNetName && !serviceDiscoveryOnDefaultNetwork()) {
+	if c.NetworkSettings.IsAnonymousEndpoint {
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
 	}
 
