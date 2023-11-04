@@ -39,7 +39,6 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 	defer container.Unlock()
 
 	oldName = container.Name
-	oldIsAnonymousEndpoint := container.NetworkSettings.IsAnonymousEndpoint
 
 	if oldName == newName {
 		return errdefs.InvalidParameter(errors.New("Renaming a container with the same name as its current name"))
@@ -63,12 +62,10 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 	}
 
 	container.Name = newName
-	container.NetworkSettings.IsAnonymousEndpoint = false
 
 	defer func() {
 		if retErr != nil {
 			container.Name = oldName
-			container.NetworkSettings.IsAnonymousEndpoint = oldIsAnonymousEndpoint
 			daemon.reserveName(container.ID, oldName)
 			for k, v := range links {
 				daemon.containersReplica.ReserveName(oldName+k, v.ID)
@@ -102,7 +99,6 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 	defer func() {
 		if retErr != nil {
 			container.Name = oldName
-			container.NetworkSettings.IsAnonymousEndpoint = oldIsAnonymousEndpoint
 			if err := container.CheckpointTo(daemon.containersReplica); err != nil {
 				log.G(context.TODO()).WithFields(log.Fields{
 					"containerID": container.ID,

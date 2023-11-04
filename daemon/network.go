@@ -793,9 +793,6 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	var genericOptions = make(options.Generic)
 
 	nwName := n.Name()
-	if c.NetworkSettings.IsAnonymousEndpoint {
-		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
-	}
 
 	if epConfig != nil {
 		if ipam := epConfig.IPAMConfig; ipam != nil {
