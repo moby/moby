@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
 	containerddefaults "github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/tracing"
 	"github.com/containerd/log"
@@ -64,6 +63,7 @@ import (
 	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 // DaemonCli represents the daemon CLI.
@@ -269,7 +269,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// queries the properties of device on the host as wel as performs the injection of device nodes and their access permissions into the OCI spec.
 	//
 	// In order to lift this restriction the following would have to be addressed:
-	// - Support needs to be added to the cdi package for injecting Windows devices: https://github.com/container-orchestrated-devices/container-device-interface/issues/28
+	// - Support needs to be added to the cdi package for injecting Windows devices: https://tags.cncf.io/container-device-interface/issues/28
 	// - The DeviceRequests API must be extended to non-linux platforms.
 	if runtime.GOOS == "linux" && cli.Config.Experimental {
 		daemon.RegisterCDIDriver(cli.Config.CDISpecDirs...)

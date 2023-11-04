@@ -24,9 +24,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/container-orchestrated-devices/container-device-interface/specs-go"
 	oci "github.com/opencontainers/runtime-spec/specs-go"
 	ocigen "github.com/opencontainers/runtime-tools/generate"
+	"tags.cncf.io/container-device-interface/specs-go"
 )
 
 const (

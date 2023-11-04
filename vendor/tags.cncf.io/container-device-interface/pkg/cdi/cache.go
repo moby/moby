@@ -26,10 +26,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/container-orchestrated-devices/container-device-interface/internal/multierror"
-	cdi "github.com/container-orchestrated-devices/container-device-interface/specs-go"
 	"github.com/fsnotify/fsnotify"
 	oci "github.com/opencontainers/runtime-spec/specs-go"
+	"tags.cncf.io/container-device-interface/internal/multierror"
+	cdi "tags.cncf.io/container-device-interface/specs-go"
 )
 
 // Option is an option to change some aspect of default CDI behavior.

@@ -28,8 +28,8 @@ import (
 	oci "github.com/opencontainers/runtime-spec/specs-go"
 	"sigs.k8s.io/yaml"
 
-	"github.com/container-orchestrated-devices/container-device-interface/internal/validation"
-	cdi "github.com/container-orchestrated-devices/container-device-interface/specs-go"
+	"tags.cncf.io/container-device-interface/internal/validation"
+	cdi "tags.cncf.io/container-device-interface/specs-go"
 )
 
 const (

@@ -24,7 +24,6 @@ require (
 	github.com/aws/smithy-go v1.13.5
 	github.com/bsphere/le_go v0.0.0-20200109081728-fc06dab2caa8
 	github.com/cloudflare/cfssl v1.6.4
-	github.com/container-orchestrated-devices/container-device-interface v0.6.1
 	github.com/containerd/cgroups/v3 v3.0.2
 	github.com/containerd/containerd v1.7.8
 	github.com/containerd/continuity v0.4.2
@@ -110,6 +109,7 @@ require (
 	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.1
 	resenje.org/singleflight v0.4.0
+	tags.cncf.io/container-device-interface v0.6.2
 )
 
 require (
@@ -214,4 +214,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/klog/v2 v2.90.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
+	tags.cncf.io/container-device-interface/specs-go v0.6.0 // indirect
 )
