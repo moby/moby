@@ -68,6 +68,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 * The `Container` and `ContainerConfig` fields in the `GET /images/{name}/json`
   response are deprecated and will no longer be included in API v1.45.
 * `GET /info` now includes `status` properties in `Runtimes`.
+* A new field named `DNSNames` and containing all non-fully qualified DNS names
+  a container takes on a specific network has been added to `GET /containers/{name:.*}/json`.
 
 ## v1.43 API changes
 

@@ -972,6 +972,14 @@ func CreateOptionAnonymous() EndpointOption {
 	}
 }
 
+// CreateOptionDNSNames specifies the list of (non fully qualified) DNS names associated to an endpoint. These will be
+// used to populate the embedded DNS server. Order matters: first name will be used to generate PTR records.
+func CreateOptionDNSNames(names []string) EndpointOption {
+	return func(ep *Endpoint) {
+		ep.dnsNames = names
+	}
+}
+
 // CreateOptionDisableResolution function returns an option setter to indicate
 // this endpoint doesn't want embedded DNS server functionality
 func CreateOptionDisableResolution() EndpointOption {

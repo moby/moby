@@ -821,9 +821,12 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			createOptions = append(createOptions, libnetwork.CreateOptionIpam(ip, ip6, ipList, nil))
 		}
 
+		// TODO(aker): remove this loop once endpoint's DNSNames is used for real
 		for _, alias := range epConfig.Aliases {
 			createOptions = append(createOptions, libnetwork.CreateOptionMyAlias(alias))
 		}
+		createOptions = append(createOptions, libnetwork.CreateOptionDNSNames(epConfig.DNSNames))
+
 		for k, v := range epConfig.DriverOpts {
 			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
 		}

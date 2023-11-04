@@ -2530,6 +2530,21 @@ definitions:
         example:
           com.example.some-label: "some-value"
           com.example.some-other-label: "some-other-value"
+      DNSNames:
+        description: |
+          List of all DNS names an endpoint has on a specific network. This
+          list is based on the container name, network aliases, container short
+          ID, and hostname.
+
+          These DNS names are non-fully qualified but can contain several dots.
+          You can get fully qualified DNS names by appending `.<network-name>`.
+          For instance, if container name is `my.ctr` and the network is named
+          `testnet`, `DNSNames` will contain `my.ctr` and the FQDN will be
+          `my.ctr.testnet`.
+        type: array
+        items:
+          type: string
+        example: ["foobar", "server_x", "server_y", "my.ctr"]
 
   EndpointIPAMConfig:
     description: |
