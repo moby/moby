@@ -7,6 +7,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/events"
 	dockercontainer "github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/pkg/errors"
@@ -118,9 +119,56 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 			return err
 		}
 
-		err = sb.Rename(strings.TrimPrefix(container.Name, "/"))
-		if err != nil {
+		if err := sb.Rename(newName[1:]); err != nil {
 			return err
+		}
+		defer func() {
+			if retErr != nil {
+				if err := sb.Rename(oldName); err != nil {
+					log.G(context.TODO()).WithFields(log.Fields{
+						"sandboxID": sid,
+						"oldName":   oldName,
+						"newName":   newName,
+						"error":     err,
+					}).Errorf("failed to revert sandbox rename")
+				}
+			}
+		}()
+
+		for nwName, epConfig := range container.NetworkSettings.Networks {
+			nw, err := daemon.FindNetwork(nwName)
+			if err != nil {
+				return err
+			}
+
+			ep, err := nw.EndpointByID(epConfig.EndpointID)
+			if err != nil {
+				return err
+			}
+
+			oldDNSNames := make([]string, len(epConfig.DNSNames))
+			copy(oldDNSNames, epConfig.DNSNames)
+
+			epConfig.DNSNames = buildEndpointDNSNames(container, epConfig.Aliases)
+			if err := ep.UpdateDNSNames(epConfig.DNSNames); err != nil {
+				return err
+			}
+
+			defer func(ep *libnetwork.Endpoint, epConfig *network.EndpointSettings, oldDNSNames []string) {
+				if retErr == nil {
+					return
+				}
+
+				epConfig.DNSNames = oldDNSNames
+				if err := ep.UpdateDNSNames(epConfig.DNSNames); err != nil {
+					log.G(context.TODO()).WithFields(log.Fields{
+						"sandboxID": sid,
+						"oldName":   oldName,
+						"newName":   newName,
+						"error":     err,
+					}).Errorf("failed to revert DNSNames update")
+				}
+			}(ep, epConfig, oldDNSNames)
 		}
 	}
 

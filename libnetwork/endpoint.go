@@ -598,71 +598,52 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 }
 
 func (ep *Endpoint) rename(name string) error {
-	var (
-		err error
-		ok  bool
-	)
+	ep.mu.Lock()
+	ep.name = name
+	ep.mu.Unlock()
 
-	n := ep.getNetwork()
-	if n == nil {
-		return fmt.Errorf("network not connected for ep %q", ep.name)
+	// Update the store with the updated name
+	if err := ep.getNetwork().getController().updateToStore(ep); err != nil {
+		return err
 	}
 
-	c := n.getController()
+	return nil
+}
 
+func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
+	nw := ep.getNetwork()
+	c := nw.getController()
 	sb, ok := ep.getSandbox()
 	if !ok {
-		log.G(context.TODO()).Warnf("rename for %s aborted, sandbox %s is not anymore present", ep.ID(), ep.sandboxID)
+		log.G(context.TODO()).WithFields(log.Fields{
+			"sandboxID":  ep.sandboxID,
+			"endpointID": ep.ID(),
+		}).Warn("DNSNames update aborted, sandbox is not present anymore")
 		return nil
 	}
 
 	if c.isAgent() {
-		if err = ep.deleteServiceInfoFromCluster(sb, true, "rename"); err != nil {
-			return types.InternalErrorf("Could not delete service state for endpoint %s from cluster on rename: %v", ep.Name(), err)
+		if err := ep.deleteServiceInfoFromCluster(sb, true, "UpdateDNSNames"); err != nil {
+			return types.InternalErrorf("could not delete service state for endpoint %s from cluster on UpdateDNSNames: %v", ep.Name(), err)
+		}
+
+		ep.dnsNames = dnsNames
+		if err := ep.addServiceInfoToCluster(sb); err != nil {
+			return types.InternalErrorf("could not add service state for endpoint %s to cluster on UpdateDNSNames: %v", ep.Name(), err)
 		}
 	} else {
-		n.updateSvcRecord(ep, false)
-	}
+		nw.updateSvcRecord(ep, false)
 
-	oldName := ep.name
-	oldAnonymous := ep.anonymous
-	ep.name = name
-	ep.anonymous = false
-
-	if c.isAgent() {
-		if err = ep.addServiceInfoToCluster(sb); err != nil {
-			return types.InternalErrorf("Could not add service state for endpoint %s to cluster on rename: %v", ep.Name(), err)
-		}
-		defer func() {
-			if err != nil {
-				if err2 := ep.deleteServiceInfoFromCluster(sb, true, "rename"); err2 != nil {
-					log.G(context.TODO()).WithField("main error", err).WithError(err2).Debug("Error during cleanup due deleting service info from cluster while cleaning up due to other error")
-				}
-				ep.name = oldName
-				ep.anonymous = oldAnonymous
-				if err2 := ep.addServiceInfoToCluster(sb); err2 != nil {
-					log.G(context.TODO()).WithField("main error", err).WithError(err2).Debug("Error during cleanup due adding service to from cluster while cleaning up due to other error")
-				}
-			}
-		}()
-	} else {
-		n.updateSvcRecord(ep, true)
-		defer func() {
-			if err != nil {
-				n.updateSvcRecord(ep, false)
-				ep.name = oldName
-				ep.anonymous = oldAnonymous
-				n.updateSvcRecord(ep, true)
-			}
-		}()
+		ep.dnsNames = dnsNames
+		nw.updateSvcRecord(ep, true)
 	}
 
 	// Update the store with the updated name
-	if err = c.updateToStore(ep); err != nil {
+	if err := c.updateToStore(ep); err != nil {
 		return err
 	}
 
-	return err
+	return nil
 }
 
 func (ep *Endpoint) hasInterface(iName string) bool {
