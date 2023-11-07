@@ -15,7 +15,7 @@ import (
 // ContainerRename changes the name of a container, using the oldName
 // to find the container. An error is returned if newName is already
 // reserved.
-func (daemon *Daemon) ContainerRename(oldName, newName string) error {
+func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 	var (
 		sid string
 		sb  *libnetwork.Sandbox
@@ -65,7 +65,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	container.NetworkSettings.IsAnonymousEndpoint = false
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			container.Name = oldName
 			container.NetworkSettings.IsAnonymousEndpoint = oldIsAnonymousEndpoint
 			daemon.reserveName(container.ID, oldName)
@@ -99,7 +99,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	}
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			container.Name = oldName
 			container.NetworkSettings.IsAnonymousEndpoint = oldIsAnonymousEndpoint
 			if e := container.CheckpointTo(daemon.containersReplica); e != nil {
