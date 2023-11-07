@@ -53,10 +53,6 @@ func validateNetContainerMode(c *container.Config, hc *container.HostConfig) err
 		return ErrConflictNetworkHosts
 	}
 
-	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && c.MacAddress != "" {
-		return ErrConflictContainerNetworkAndMac
-	}
-
 	if hc.NetworkMode.IsContainer() && (len(hc.PortBindings) > 0 || hc.PublishAllPorts) {
 		return ErrConflictNetworkPublishPorts
 	}

@@ -55,6 +55,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /services/create` and `POST /services/{id}/update` now accept `Seccomp`
   and `AppArmor` fields in the `ContainerSpec.Privileges` object. This allows
   some configuration of Seccomp and AppArmor in Swarm services.
+* A new endpoint-specific `MacAddress` field has been added to `NetworkSettings.EndpointSettings`
+  on `POST /containers/create`, and to `EndpointConfig` on `POST /networks/{id}/connect`.
+  The container-wide `MacAddress` field in `Config`, on `POST /containers/create`, is now deprecated.
 
 ## v1.43 API changes
 

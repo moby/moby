@@ -612,6 +612,13 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 		}
 	}
 
+	if epConfig.MacAddress != "" {
+		_, err := net.ParseMAC(epConfig.MacAddress)
+		if err != nil {
+			return fmt.Errorf("invalid MAC address %s", epConfig.MacAddress)
+		}
+	}
+
 	if err := multierror.Join(errs...); err != nil {
 		return fmt.Errorf("invalid endpoint settings:\n%w", err)
 	}
@@ -628,7 +635,6 @@ func cleanOperationalData(es *network.EndpointSettings) {
 	es.IPv6Gateway = ""
 	es.GlobalIPv6Address = ""
 	es.GlobalIPv6PrefixLen = 0
-	es.MacAddress = ""
 	if es.IPAMOperational {
 		es.IPAMConfig = nil
 	}

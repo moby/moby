@@ -27,8 +27,9 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, size bo
 		return daemon.containerInspectPre120(ctx, name)
 	case versions.Equal(version, "1.20"):
 		return daemon.containerInspect120(name)
+	default:
+		return daemon.ContainerInspectCurrent(ctx, name, size)
 	}
-	return daemon.ContainerInspectCurrent(ctx, name, size)
 }
 
 // ContainerInspectCurrent returns low-level information about a
@@ -116,7 +117,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 		Mounts:            ctr.GetMountPoints(),
 		Config: &v1p20.ContainerConfig{
 			Config:          ctr.Config,
-			MacAddress:      ctr.Config.MacAddress,
+			MacAddress:      ctr.Config.MacAddress, //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 			NetworkDisabled: ctr.Config.NetworkDisabled,
 			ExposedPorts:    ctr.Config.ExposedPorts,
 			VolumeDriver:    ctr.HostConfig.VolumeDriver,
@@ -137,6 +138,18 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 
 	// We merge the Ulimits from hostConfig with daemon default
 	daemon.mergeUlimits(&hostConfig, daemonCfg)
+
+	// Migrate the container's default network's MacAddress to the top-level
+	// Config.MacAddress field for older API versions (< 1.44). We set it here
+	// unconditionally, to keep backward compatibility with clients that use
+	// unversioned API endpoints.
+	if container.Config != nil && container.Config.MacAddress == "" { //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+		if nwm := hostConfig.NetworkMode; nwm.IsDefault() || nwm.IsBridge() || nwm.IsUserDefined() {
+			if epConf, ok := container.NetworkSettings.Networks[nwm.NetworkName()]; ok {
+				container.Config.MacAddress = epConf.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+			}
+		}
+	}
 
 	var containerHealth *types.Health
 	if container.State.Health != nil {

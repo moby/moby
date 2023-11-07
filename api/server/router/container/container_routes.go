@@ -628,6 +628,13 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 	}
 
+	var warnings []string
+	if warn, err := handleMACAddressBC(config, hostConfig, networkingConfig, version); err != nil {
+		return err
+	} else if warn != "" {
+		warnings = append(warnings, warn)
+	}
+
 	if hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
 		// Don't set a limit if either no limit was specified, or "unlimited" was
 		// explicitly set.
@@ -647,8 +654,56 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	if err != nil {
 		return err
 	}
-
+	ccr.Warnings = append(ccr.Warnings, warnings...)
 	return httputils.WriteJSON(w, http.StatusCreated, ccr)
+}
+
+// handleMACAddressBC takes care of backward-compatibility for the container-wide MAC address by mutating the
+// networkingConfig to set the endpoint-specific MACAddress field introduced in API v1.44. It returns a warning message
+// or an error if the container-wide field was specified for API >= v1.44.
+func handleMACAddressBC(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, version string) (string, error) {
+	if config.MacAddress == "" { //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+		return "", nil
+	}
+
+	deprecatedMacAddress := config.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+
+	if versions.LessThan(version, "1.44") {
+		// The container-wide MacAddress parameter is deprecated and should now be specified in EndpointsConfig.
+		if hostConfig.NetworkMode.IsDefault() || hostConfig.NetworkMode.IsBridge() || hostConfig.NetworkMode.IsUserDefined() {
+			nwName := hostConfig.NetworkMode.NetworkName()
+			if _, ok := networkingConfig.EndpointsConfig[nwName]; !ok {
+				networkingConfig.EndpointsConfig[nwName] = &network.EndpointSettings{}
+			}
+			// Overwrite the config: either the endpoint's MacAddress was set by the user on API < v1.44, which
+			// must be ignored, or migrate the top-level MacAddress to the endpoint's config.
+			networkingConfig.EndpointsConfig[nwName].MacAddress = deprecatedMacAddress
+		}
+		if !hostConfig.NetworkMode.IsDefault() && !hostConfig.NetworkMode.IsBridge() && !hostConfig.NetworkMode.IsUserDefined() {
+			return "", runconfig.ErrConflictContainerNetworkAndMac
+		}
+
+		return "", nil
+	}
+
+	var warning string
+	if hostConfig.NetworkMode.IsDefault() || hostConfig.NetworkMode.IsBridge() || hostConfig.NetworkMode.IsUserDefined() {
+		nwName := hostConfig.NetworkMode.NetworkName()
+		if _, ok := networkingConfig.EndpointsConfig[nwName]; !ok {
+			networkingConfig.EndpointsConfig[nwName] = &network.EndpointSettings{}
+		}
+
+		ep := networkingConfig.EndpointsConfig[nwName]
+		if ep.MacAddress == "" {
+			ep.MacAddress = deprecatedMacAddress
+		} else if ep.MacAddress != deprecatedMacAddress {
+			return "", errdefs.InvalidParameter(errors.New("the container-wide MAC address should match the endpoint-specific MAC address for the main network or should be left empty"))
+		}
+	}
+	warning = "The container-wide MacAddress field is now deprecated. It should be specified in EndpointsConfig instead."
+	config.MacAddress = "" //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+
+	return warning, nil
 }
 
 func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

@@ -1313,7 +1313,10 @@ definitions:
         type: "boolean"
         x-nullable: true
       MacAddress:
-        description: "MAC address of the container."
+        description: |
+          MAC address of the container.
+
+          Deprecated: this field is deprecated in API v1.44 and up. Use EndpointSettings.MacAddress instead.
         type: "string"
         x-nullable: true
       OnBuild:
@@ -1381,6 +1384,7 @@ definitions:
             LinkLocalIPs:
               - "169.254.34.68"
               - "fe80::3468"
+          MacAddress: "02:42:ac:12:05:02"
           Links:
             - "container_1"
             - "container_2"
@@ -2455,6 +2459,11 @@ definitions:
         example:
           - "container_1"
           - "container_2"
+      MacAddress:
+        description: |
+          MAC address for the endpoint on this network. The network driver might ignore this parameter.
+        type: "string"
+        example: "02:42:ac:11:00:04"
       Aliases:
         type: "array"
         items:
@@ -2505,11 +2514,6 @@ definitions:
         type: "integer"
         format: "int64"
         example: 64
-      MacAddress:
-        description: |
-          MAC address for the endpoint on this network.
-        type: "string"
-        example: "02:42:ac:11:00:04"
       DriverOpts:
         description: |
           DriverOpts is a mapping of driver options and values. These options
@@ -10130,6 +10134,7 @@ paths:
                 IPAMConfig:
                   IPv4Address: "172.24.56.89"
                   IPv6Address: "2001:db8::5689"
+                MacAddress: "02:42:ac:12:05:02"
       tags: ["Network"]
 
   /networks/{id}/disconnect:

@@ -1,10 +1,12 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	ctr "github.com/docker/docker/integration/internal/container"
+	net "github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/testutil"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -629,5 +632,44 @@ func TestCreateWithMultipleEndpointSettings(t *testing.T) {
 				assert.ErrorContains(t, err, tc.expectedErr)
 			}
 		})
+	}
+}
+
+func TestCreateWithCustomMACs(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "requires API v1.44")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	net.CreateNoError(ctx, t, apiClient, "testnet")
+
+	attachCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	res := ctr.RunAttach(attachCtx, t, apiClient,
+		ctr.WithCmd("ip", "-o", "link", "show"),
+		ctr.WithNetworkMode("bridge"),
+		ctr.WithMacAddress("bridge", "02:32:1c:23:00:04"))
+
+	assert.Equal(t, res.ExitCode, 0)
+	assert.Equal(t, res.Stderr.String(), "")
+
+	scanner := bufio.NewScanner(res.Stdout)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		// The expected output is:
+		// 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+		// 134: eth0@if135: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1400 qdisc noqueue \    link/ether 02:42:ac:11:00:04 brd ff:ff:ff:ff:ff:ff
+		if len(fields) < 11 {
+			continue
+		}
+
+		ifaceName := fields[1]
+		if ifaceName[:3] != "eth" {
+			continue
+		}
+
+		mac := fields[len(fields)-3]
+		assert.Equal(t, mac, "02:32:1c:23:00:04")
 	}
 }
