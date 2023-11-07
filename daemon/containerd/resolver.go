@@ -11,16 +11,17 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/version"
 	"github.com/containerd/log"
+	"github.com/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/useragent"
 	"github.com/docker/docker/registry"
 )
 
-func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig) (remotes.Resolver, docker.StatusTracker) {
+func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig, ref reference.Named) (remotes.Resolver, docker.StatusTracker) {
 	tracker := docker.NewInMemoryTracker()
 
-	hosts := hostsWrapper(i.registryHosts, authConfig, i.registryService)
+	hosts := hostsWrapper(i.registryHosts, authConfig, ref, i.registryService)
 	headers := http.Header{}
 	headers.Set("User-Agent", dockerversion.DockerUserAgent(ctx, useragent.VersionInfo{Name: "containerd-client", Version: version.Version}, useragent.VersionInfo{Name: "storage-driver", Version: i.snapshotter}))
 
@@ -31,10 +32,10 @@ func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig
 	}), tracker
 }
 
-func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig, regService registryResolver) docker.RegistryHosts {
+func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig, ref reference.Named, regService registryResolver) docker.RegistryHosts {
 	var authorizer docker.Authorizer
 	if optAuthConfig != nil {
-		authorizer = authorizerFromAuthConfig(*optAuthConfig)
+		authorizer = authorizerFromAuthConfig(*optAuthConfig, ref)
 	}
 
 	return func(n string) ([]docker.RegistryHost, error) {
@@ -56,9 +57,12 @@ func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.Aut
 	}
 }
 
-func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig) docker.Authorizer {
+func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig, ref reference.Named) docker.Authorizer {
 	cfgHost := registry.ConvertToHostname(authConfig.ServerAddress)
-	if cfgHost == "" || cfgHost == registry.IndexHostname {
+	if cfgHost == "" {
+		cfgHost = reference.Domain(ref)
+	}
+	if cfgHost == registry.IndexHostname || cfgHost == registry.IndexName {
 		cfgHost = registry.DefaultRegistryHost
 	}
 
