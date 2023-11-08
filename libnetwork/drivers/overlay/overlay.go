@@ -72,6 +72,18 @@ func (d *driver) IsBuiltIn() bool {
 	return true
 }
 
+// isIPv6Transport reports whether the outer Layer-3 transport for VXLAN datagrams is IPv6.
+func (d *driver) isIPv6Transport() (bool, error) {
+	// Infer whether remote peers' virtual tunnel endpoints will be IPv4 or IPv6
+	// from the address family of our own advertise address. This is a
+	// reasonable inference to make as Linux VXLAN links do not support
+	// mixed-address-family remote peers.
+	if d.advertiseAddress == nil {
+		return false, fmt.Errorf("overlay: cannot determine address family of transport: the local data-plane address is not currently known")
+	}
+	return d.advertiseAddress.To4() == nil, nil
+}
+
 func (d *driver) nodeJoin(data discoverapi.NodeDiscoveryData) error {
 	if data.Self {
 		advAddr, bindAddr := net.ParseIP(data.Address), net.ParseIP(data.BindAddress)
