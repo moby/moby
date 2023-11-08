@@ -67,3 +67,25 @@ func (i *ImageService) remapRootFS(ctx context.Context, mounts []mount.Mount) er
 		})
 	})
 }
+
+func (i *ImageService) unremapRootFS(ctx context.Context, mounts []mount.Mount) error {
+	return mount.WithTempMount(ctx, mounts, func(root string) error {
+		return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			stat := info.Sys().(*syscall.Stat_t)
+			if stat == nil {
+				return fmt.Errorf("cannot get underlying data for %s", path)
+			}
+
+			uid, gid, err := i.idMapping.ToContainer(idtools.Identity{UID: int(stat.Uid), GID: int(stat.Gid)})
+			if err != nil {
+				return err
+			}
+
+			return os.Lchown(path, uid, gid)
+		})
+	})
+}
