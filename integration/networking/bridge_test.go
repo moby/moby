@@ -33,11 +33,11 @@ func TestBridgeICC(t *testing.T) {
 	defer c.Close()
 
 	testcases := []struct {
-		name       string
-		bridgeOpts []func(*types.NetworkCreate)
-		ctr1Opts   []func(*container.TestContainerConfig)
-		linkLocal  bool
-		pingHost   string
+		name           string
+		bridgeOpts     []func(*types.NetworkCreate)
+		ctr1MacAddress string
+		linkLocal      bool
+		pingHost       string
 	}{
 		{
 			name:       "IPv4 non-internal network",
@@ -92,12 +92,10 @@ func TestBridgeICC(t *testing.T) {
 				network.WithIPv6(),
 				network.WithIPAM("fdf1:a844:380c:b247::/64", "fdf1:a844:380c:b247::1"),
 			},
-			ctr1Opts: []func(*container.TestContainerConfig){
-				// Link-local address is derived from the MAC address, so we need to
-				// specify one here to hardcode the SLAAC LL address below.
-				container.WithMacAddress("02:42:ac:11:00:02"),
-			},
-			pingHost: "fe80::42:acff:fe11:2%eth0",
+			// Link-local address is derived from the MAC address, so we need to
+			// specify one here to hardcode the SLAAC LL address below.
+			ctr1MacAddress: "02:42:ac:11:00:02",
+			pingHost:       "fe80::42:acff:fe11:2%eth0",
 		},
 		{
 			name: "IPv6 internal network with SLAAC LL address",
@@ -105,12 +103,10 @@ func TestBridgeICC(t *testing.T) {
 				network.WithIPv6(),
 				network.WithIPAM("fdf1:a844:380c:b247::/64", "fdf1:a844:380c:b247::1"),
 			},
-			ctr1Opts: []func(*container.TestContainerConfig){
-				// Link-local address is derived from the MAC address, so we need to
-				// specify one here to hardcode the SLAAC LL address below.
-				container.WithMacAddress("02:42:ac:11:00:02"),
-			},
-			pingHost: "fe80::42:acff:fe11:2%eth0",
+			// Link-local address is derived from the MAC address, so we need to
+			// specify one here to hardcode the SLAAC LL address below.
+			ctr1MacAddress: "02:42:ac:11:00:02",
+			pingHost:       "fe80::42:acff:fe11:2%eth0",
 		},
 	}
 
@@ -125,7 +121,11 @@ func TestBridgeICC(t *testing.T) {
 			defer network.RemoveNoError(ctx, t, c, bridgeName)
 
 			ctr1Name := fmt.Sprintf("ctr-icc-%d-1", tcID)
-			id1 := container.Run(ctx, t, c, append(tc.ctr1Opts,
+			var ctr1Opts []func(config *container.TestContainerConfig)
+			if tc.ctr1MacAddress != "" {
+				ctr1Opts = append(ctr1Opts, container.WithMacAddress(bridgeName, tc.ctr1MacAddress))
+			}
+			id1 := container.Run(ctx, t, c, append(ctr1Opts,
 				container.WithName(ctr1Name),
 				container.WithImage("busybox:latest"),
 				container.WithCmd("top"),
