@@ -12,29 +12,26 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
+	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
+	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/internal/compatcontext"
-	registrypkg "github.com/docker/docker/registry"
-
-	// "github.com/docker/docker/api/types/container"
-	containerdimages "github.com/containerd/containerd/images"
-	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
 	dimage "github.com/docker/docker/image"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
+	registrypkg "github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -63,7 +60,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 
 	if opts.PullOption != backend.PullOptionForcePull {
 		// TODO(laurazard): same as below
-		img, err := i.GetImage(ctx, refOrID, image.GetImageOpts{Platform: opts.Platform})
+		img, err := i.GetImage(ctx, refOrID, imagetypes.GetImageOpts{Platform: opts.Platform})
 		if err != nil && opts.PullOption == backend.PullOptionNoPull {
 			return nil, nil, err
 		}
