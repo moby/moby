@@ -10089,6 +10089,7 @@ paths:
   /networks/{id}/connect:
     post:
       summary: "Connect a container to a network"
+      description: "The network must be either a local-scoped network or a swarm-scoped network with the `attachable` option set. A network cannot be re-attached to a running container"
       operationId: "NetworkConnect"
       consumes:
         - "application/json"
@@ -10100,7 +10101,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
         403:
-          description: "Operation not supported for swarm scoped networks"
+          description: "Operation forbidden"
           schema:
             $ref: "#/definitions/ErrorResponse"
         404:
