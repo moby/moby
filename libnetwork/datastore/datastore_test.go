@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/options"
-	"github.com/docker/docker/libnetwork/scope"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -14,7 +13,8 @@ const dummyKey = "dummy"
 
 // NewTestDataStore can be used by other Tests in order to use custom datastore
 func NewTestDataStore() *Store {
-	return &Store{scope: scope.Local, store: NewMockStore()}
+	s := NewMockStore()
+	return &Store{store: s, cache: newCache(s)}
 }
 
 func TestKey(t *testing.T) {
@@ -132,10 +132,6 @@ func (n *dummyObject) Skip() bool {
 	return n.SkipSave
 }
 
-func (n *dummyObject) DataScope() string {
-	return scope.Local
-}
-
 func (n *dummyObject) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
 		"name":        n.Name,
@@ -154,6 +150,18 @@ func (n *dummyObject) UnmarshalJSON(b []byte) error {
 	n.NetworkType = netMap["networkType"].(string)
 	n.EnableIPv6 = netMap["enableIPv6"].(bool)
 	n.Generic = netMap["generic"].(map[string]interface{})
+	return nil
+}
+
+func (n *dummyObject) New() KVObject {
+	return &dummyObject{}
+}
+
+func (n *dummyObject) CopyTo(o KVObject) error {
+	if err := o.SetValue(n.Value()); err != nil {
+		return err
+	}
+	o.SetIndex(n.Index())
 	return nil
 }
 

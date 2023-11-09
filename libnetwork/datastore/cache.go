@@ -1,7 +1,6 @@
 package datastore
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 
@@ -11,22 +10,22 @@ import (
 type kvMap map[string]KVObject
 
 type cache struct {
-	sync.Mutex
+	mu  sync.Mutex
 	kmm map[string]kvMap
-	ds  *Store
+	ds  store.Store
 }
 
-func newCache(ds *Store) *cache {
+func newCache(ds store.Store) *cache {
 	return &cache{kmm: make(map[string]kvMap), ds: ds}
 }
 
 func (c *cache) kmap(kvObject KVObject) (kvMap, error) {
 	var err error
 
-	c.Lock()
+	c.mu.Lock()
 	keyPrefix := Key(kvObject.KeyPrefix()...)
 	kmap, ok := c.kmm[keyPrefix]
-	c.Unlock()
+	c.mu.Unlock()
 
 	if ok {
 		return kmap, nil
@@ -34,13 +33,7 @@ func (c *cache) kmap(kvObject KVObject) (kvMap, error) {
 
 	kmap = kvMap{}
 
-	// Bail out right away if the kvObject does not implement KVConstructor
-	ctor, ok := kvObject.(KVConstructor)
-	if !ok {
-		return nil, errors.New("error while populating kmap, object does not implement KVConstructor interface")
-	}
-
-	kvList, err := c.ds.store.List(keyPrefix)
+	kvList, err := c.ds.List(keyPrefix)
 	if err != nil {
 		if err == store.ErrKeyNotFound {
 			// If the store doesn't have anything then there is nothing to
@@ -57,7 +50,7 @@ func (c *cache) kmap(kvObject KVObject) (kvMap, error) {
 			continue
 		}
 
-		dstO := ctor.New()
+		dstO := kvObject.New()
 		err = dstO.SetValue(kvPair.Value)
 		if err != nil {
 			return nil, err
@@ -74,15 +67,15 @@ out:
 	// There may multiple go routines racing to fill the
 	// cache. The one which places the kmap in c.kmm first
 	// wins. The others should just use what the first populated.
-	c.Lock()
+	c.mu.Lock()
 	kmapNew, ok := c.kmm[keyPrefix]
 	if ok {
-		c.Unlock()
+		c.mu.Unlock()
 		return kmapNew, nil
 	}
 
 	c.kmm[keyPrefix] = kmap
-	c.Unlock()
+	c.mu.Unlock()
 
 	return kmap, nil
 }
@@ -93,13 +86,13 @@ func (c *cache) add(kvObject KVObject, atomic bool) error {
 		return err
 	}
 
-	c.Lock()
+	c.mu.Lock()
 	// If atomic is true, cache needs to maintain its own index
 	// for atomicity and the add needs to be atomic.
 	if atomic {
 		if prev, ok := kmap[Key(kvObject.Key()...)]; ok {
 			if prev.Index() != kvObject.Index() {
-				c.Unlock()
+				c.mu.Unlock()
 				return ErrKeyModified
 			}
 		}
@@ -111,7 +104,7 @@ func (c *cache) add(kvObject KVObject, atomic bool) error {
 	}
 
 	kmap[Key(kvObject.Key()...)] = kvObject
-	c.Unlock()
+	c.mu.Unlock()
 	return nil
 }
 
@@ -121,20 +114,20 @@ func (c *cache) del(kvObject KVObject, atomic bool) error {
 		return err
 	}
 
-	c.Lock()
+	c.mu.Lock()
 	// If atomic is true, cache needs to maintain its own index
 	// for atomicity and del needs to be atomic.
 	if atomic {
 		if prev, ok := kmap[Key(kvObject.Key()...)]; ok {
 			if prev.Index() != kvObject.Index() {
-				c.Unlock()
+				c.mu.Unlock()
 				return ErrKeyModified
 			}
 		}
 	}
 
 	delete(kmap, Key(kvObject.Key()...))
-	c.Unlock()
+	c.mu.Unlock()
 	return nil
 }
 
@@ -144,20 +137,15 @@ func (c *cache) get(kvObject KVObject) error {
 		return err
 	}
 
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	o, ok := kmap[Key(kvObject.Key()...)]
 	if !ok {
 		return ErrKeyNotFound
 	}
 
-	ctor, ok := o.(KVConstructor)
-	if !ok {
-		return errors.New("kvobject does not implement KVConstructor interface. could not get object")
-	}
-
-	return ctor.CopyTo(kvObject)
+	return o.CopyTo(kvObject)
 }
 
 func (c *cache) list(kvObject KVObject) ([]KVObject, error) {
@@ -166,8 +154,8 @@ func (c *cache) list(kvObject KVObject) ([]KVObject, error) {
 		return nil, err
 	}
 
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	var kvol []KVObject
 	for _, v := range kmap {

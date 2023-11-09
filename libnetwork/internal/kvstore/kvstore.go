@@ -39,9 +39,6 @@ type Store interface {
 	// Put a value at the specified key
 	Put(key string, value []byte) error
 
-	// Get a value given its key
-	Get(key string) (*KVPair, error)
-
 	// Exists verifies if a Key exists in the store.
 	Exists(key string) (bool, error)
 

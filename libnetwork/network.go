@@ -510,15 +510,6 @@ func (n *Network) CopyTo(o datastore.KVObject) error {
 	return nil
 }
 
-func (n *Network) DataScope() string {
-	s := n.Scope()
-	// All swarm scope networks have local datascope
-	if s == scope.Swarm {
-		s = scope.Local
-	}
-	return s
-}
-
 func (n *Network) getEpCnt() *endpointCnt {
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -1773,7 +1764,7 @@ func (n *Network) deriveAddressSpace() (string, error) {
 	if err != nil {
 		return "", types.NotFoundErrorf("failed to get default address space: %v", err)
 	}
-	if n.DataScope() == scope.Global {
+	if n.Scope() == scope.Global {
 		return global, nil
 	}
 	return local, nil

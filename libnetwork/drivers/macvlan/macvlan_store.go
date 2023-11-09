@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -252,10 +251,6 @@ func (config *configuration) CopyTo(o datastore.KVObject) error {
 	return nil
 }
 
-func (config *configuration) DataScope() string {
-	return scope.Local
-}
-
 func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap := make(map[string]interface{})
 	epMap["id"] = ep.id
@@ -350,8 +345,4 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp := o.(*endpoint)
 	*dstEp = *ep
 	return nil
-}
-
-func (ep *endpoint) DataScope() string {
-	return scope.Local
 }

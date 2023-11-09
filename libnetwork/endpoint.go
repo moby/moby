@@ -1019,10 +1019,6 @@ func JoinOptionPriority(prio int) EndpointOption {
 	}
 }
 
-func (ep *Endpoint) DataScope() string {
-	return ep.getNetwork().DataScope()
-}
-
 func (ep *Endpoint) assignAddress(ipam ipamapi.Ipam, assignIPv4, assignIPv6 bool) error {
 	var err error
 
