@@ -429,7 +429,7 @@ func (d *driver) peerFlushOp(nid string) error {
 func (d *driver) peerDBUpdateSelf() {
 	d.peerDbWalk(func(nid string, pkey *peerKey, pEntry *peerEntry) bool {
 		if pEntry.isLocal {
-			pEntry.vtep = net.ParseIP(d.advertiseAddress)
+			pEntry.vtep = d.advertiseAddress
 		}
 		return false
 	})

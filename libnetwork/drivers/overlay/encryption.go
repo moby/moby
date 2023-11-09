@@ -124,8 +124,8 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) erro
 		return types.ForbiddenErrorf("encryption key is not present")
 	}
 
-	lIP := net.ParseIP(d.bindAddress)
-	aIP := net.ParseIP(d.advertiseAddress)
+	lIP := d.bindAddress
+	aIP := d.advertiseAddress
 	nodes := map[string]net.IP{}
 
 	switch {
@@ -495,8 +495,8 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		newIdx = -1
 		priIdx = -1
 		delIdx = -1
-		lIP    = net.ParseIP(d.bindAddress)
-		aIP    = net.ParseIP(d.advertiseAddress)
+		lIP    = d.bindAddress
+		aIP    = d.advertiseAddress
 	)
 
 	d.Lock()

@@ -7,6 +7,7 @@ package overlay
 import (
 	"context"
 	"fmt"
+	"net"
 	"sync"
 
 	"github.com/containerd/log"
@@ -27,16 +28,16 @@ const (
 var _ discoverapi.Discover = (*driver)(nil)
 
 type driver struct {
-	bindAddress      string
-	advertiseAddress string
-	config           map[string]interface{}
-	peerDb           peerNetworkMap
-	secMap           *encrMap
-	networks         networkTable
-	initOS           sync.Once
-	localJoinOnce    sync.Once
-	keys             []*key
-	peerOpMu         sync.Mutex
+	bindAddress, advertiseAddress net.IP
+
+	config        map[string]interface{}
+	peerDb        peerNetworkMap
+	secMap        *encrMap
+	networks      networkTable
+	initOS        sync.Once
+	localJoinOnce sync.Once
+	keys          []*key
+	peerOpMu      sync.Mutex
 	sync.Mutex
 }
 
@@ -71,11 +72,15 @@ func (d *driver) IsBuiltIn() bool {
 	return true
 }
 
-func (d *driver) nodeJoin(advertiseAddress, bindAddress string, self bool) {
-	if self {
+func (d *driver) nodeJoin(data discoverapi.NodeDiscoveryData) error {
+	if data.Self {
+		advAddr, bindAddr := net.ParseIP(data.Address), net.ParseIP(data.BindAddress)
+		if advAddr == nil {
+			return fmt.Errorf("invalid discovery data")
+		}
 		d.Lock()
-		d.advertiseAddress = advertiseAddress
-		d.bindAddress = bindAddress
+		d.advertiseAddress = advAddr
+		d.bindAddress = bindAddr
 		d.Unlock()
 
 		// If containers are already running on this network update the
@@ -84,6 +89,7 @@ func (d *driver) nodeJoin(advertiseAddress, bindAddress string, self bool) {
 			d.peerDBUpdateSelf()
 		})
 	}
+	return nil
 }
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
@@ -91,10 +97,10 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 	switch dType {
 	case discoverapi.NodeDiscovery:
 		nodeData, ok := data.(discoverapi.NodeDiscoveryData)
-		if !ok || nodeData.Address == "" {
-			return fmt.Errorf("invalid discovery data")
+		if !ok {
+			return fmt.Errorf("invalid discovery data type: %T", data)
 		}
-		d.nodeJoin(nodeData.Address, nodeData.BindAddress, nodeData.Self)
+		return d.nodeJoin(nodeData)
 	case discoverapi.EncryptionKeysConfig:
 		encrData, ok := data.(discoverapi.DriverEncryptionConfig)
 		if !ok {
