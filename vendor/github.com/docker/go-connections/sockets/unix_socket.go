@@ -1,9 +1,9 @@
-// +build !windows
+//go:build !windows
 
 /*
 Package sockets is a simple unix domain socket wrapper.
 
-Usage
+# Usage
 
 For example:
 
@@ -42,7 +42,7 @@ For example:
 		if _, err := conn.Read(buf); err != nil {
 			panic(err)
 		} else if string(buf) != echoStr {
-			panic(fmt.Errorf("Msg may lost"))
+			panic(fmt.Errorf("msg may lost"))
 		}
 	}
 */
@@ -103,7 +103,7 @@ func NewUnixSocketWithOpts(path string, opts ...SockOption) (net.Listener, error
 	// We don't use "defer" here, to reset the umask to its original value as soon
 	// as possible. Ideally we'd be able to detect if WithChmod() was passed as
 	// an option, and skip changing umask if default permissions are used.
-	origUmask := syscall.Umask(0777)
+	origUmask := syscall.Umask(0o777)
 	l, err := net.Listen("unix", path)
 	syscall.Umask(origUmask)
 	if err != nil {
@@ -122,5 +122,5 @@ func NewUnixSocketWithOpts(path string, opts ...SockOption) (net.Listener, error
 
 // NewUnixSocket creates a unix socket with the specified path and group.
 func NewUnixSocket(path string, gid int) (net.Listener, error) {
-	return NewUnixSocketWithOpts(path, WithChown(0, gid), WithChmod(0660))
+	return NewUnixSocketWithOpts(path, WithChown(0, gid), WithChmod(0o660))
 }

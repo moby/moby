@@ -177,27 +177,27 @@ func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 		// Strip [] from IPV6 addresses
 		rawIP, _, err := net.SplitHostPort(ip + ":")
 		if err != nil {
-			return nil, fmt.Errorf("Invalid ip address %v: %s", ip, err)
+			return nil, fmt.Errorf("invalid IP address %v: %w", ip, err)
 		}
 		ip = rawIP
 	}
 	if ip != "" && net.ParseIP(ip) == nil {
-		return nil, fmt.Errorf("Invalid ip address: %s", ip)
+		return nil, fmt.Errorf("invalid IP address: %s", ip)
 	}
 	if containerPort == "" {
-		return nil, fmt.Errorf("No port specified: %s<empty>", rawPort)
+		return nil, fmt.Errorf("no port specified: %s<empty>", rawPort)
 	}
 
 	startPort, endPort, err := ParsePortRange(containerPort)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid containerPort: %s", containerPort)
+		return nil, fmt.Errorf("invalid containerPort: %s", containerPort)
 	}
 
 	var startHostPort, endHostPort uint64 = 0, 0
 	if len(hostPort) > 0 {
 		startHostPort, endHostPort, err = ParsePortRange(hostPort)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid hostPort: %s", hostPort)
+			return nil, fmt.Errorf("invalid hostPort: %s", hostPort)
 		}
 	}
 
@@ -206,12 +206,12 @@ func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 		// In this case, use the host port range as the dynamic
 		// host port range to allocate into.
 		if endPort != startPort {
-			return nil, fmt.Errorf("Invalid ranges specified for container and host Ports: %s and %s", containerPort, hostPort)
+			return nil, fmt.Errorf("invalid ranges specified for container and host Ports: %s and %s", containerPort, hostPort)
 		}
 	}
 
 	if !validateProto(strings.ToLower(proto)) {
-		return nil, fmt.Errorf("Invalid proto: %s", proto)
+		return nil, fmt.Errorf("invalid proto: %s", proto)
 	}
 
 	ports := []PortMapping{}
