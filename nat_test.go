@@ -94,7 +94,6 @@ func TestParsePortRangeToInt(t *testing.T) {
 
 func TestPort(t *testing.T) {
 	p, err := NewPort("tcp", "1234")
-
 	if err != nil {
 		t.Fatalf("tcp, 1234 had a parsing issue: %v", err)
 	}
