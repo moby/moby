@@ -1198,7 +1198,7 @@ func (s *DockerDaemonSuite) TestHTTPSRun(c *testing.T) {
 // TestTLSVerify verifies that --tlsverify=false turns on tls
 func (s *DockerDaemonSuite) TestTLSVerify(c *testing.T) {
 	out, err := exec.Command(dockerdBinary, "--tlsverify=false").CombinedOutput()
-	if err == nil || !strings.Contains(string(out), "Could not load X509 key pair") {
+	if err == nil || !strings.Contains(string(out), "could not load X509 key pair") {
 		c.Fatalf("Daemon should not have started due to missing certs: %v\n%s", err, string(out))
 	}
 }

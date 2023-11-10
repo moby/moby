@@ -431,8 +431,8 @@ github.com/docker/distribution/registry/client/auth/challenge
 github.com/docker/distribution/registry/client/transport
 github.com/docker/distribution/registry/storage/cache
 github.com/docker/distribution/registry/storage/cache/memory
-# github.com/docker/go-connections v0.4.1-0.20231031175723-0b8c1f4e07a0
-## explicit; go 1.13
+# github.com/docker/go-connections v0.4.1-0.20231110212414-fa09c952e3ea
+## explicit; go 1.18
 github.com/docker/go-connections/nat
 github.com/docker/go-connections/sockets
 github.com/docker/go-connections/tlsconfig

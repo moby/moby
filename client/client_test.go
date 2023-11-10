@@ -38,7 +38,7 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 			envs: map[string]string{
 				"DOCKER_CERT_PATH": "invalid/path",
 			},
-			expectedError: "Could not load X509 key pair: open invalid/path/cert.pem: no such file or directory",
+			expectedError: "could not load X509 key pair: open invalid/path/cert.pem: no such file or directory",
 		},
 		{
 			doc: "default api version with cert path",

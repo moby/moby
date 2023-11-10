@@ -412,8 +412,8 @@ github.com/docker/docker v17.12.0-ce-rc1.0.20200730172259-9f28837c1d93+incompati
 github.com/docker/docker v20.10.0-beta1.0.20201110211921-af34b94a78a1+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/docker/docker-credential-helpers v0.6.3/go.mod h1:WRaJzqw3CTB9bk10avuGsjVBZsD05qeibJ1/TYlvc0Y=
 github.com/docker/go-connections v0.4.0/go.mod h1:Gbd7IOopHjR8Iph03tsViu4nIes5XhDvyHbTtUxmeec=
-github.com/docker/go-connections v0.4.1-0.20231031175723-0b8c1f4e07a0 h1:dPD5pdqsujF9jz2NQMQCDzrBSAF3M6kIxmfU98IOp9c=
-github.com/docker/go-connections v0.4.1-0.20231031175723-0b8c1f4e07a0/go.mod h1:a6bNUGTbQBsY6VRHTr4h/rkOXjl244DyRD0tx3fgq4Q=
+github.com/docker/go-connections v0.4.1-0.20231110212414-fa09c952e3ea h1:+4n+kUVbPdu6qMI9SUnSKMC+D50gNW4L7Lhk9tI2lVo=
+github.com/docker/go-connections v0.4.1-0.20231110212414-fa09c952e3ea/go.mod h1:ov60Kzw0kKElRwhNs9UlUHAE/F9Fe6GLaXnqyDdmEXc=
 github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c h1:+pKlWGMw7gf6bQ+oDZB4KHQFypsfjYlq/C4rfL7D3g8=
 github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c/go.mod h1:Uw6UezgYA44ePAFQYUehOuCzmy5zmg/+nl2ZfMWGkpA=
 github.com/docker/go-metrics v0.0.0-20180209012529-399ea8c73916/go.mod h1:/u0gXw0Gay3ceNrsHubL3BtdOL2fHf93USgMTe0W5dI=
