@@ -247,7 +247,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 					},
 				},
 			},
-			expectedErr: "1.1.1.1o is not an ip address",
+			expectedErr: "IP address is not correctly formatted: 1.1.1.1o",
 		},
 		{
 			name: "multiple DNS, invalid IP-address",
@@ -258,7 +258,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 					},
 				},
 			},
-			expectedErr: "1.1.1.1o is not an ip address",
+			expectedErr: "IP address is not correctly formatted: 1.1.1.1o",
 		},
 		{
 			name: "single DNSSearch",
