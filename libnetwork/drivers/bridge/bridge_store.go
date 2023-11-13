@@ -147,6 +147,7 @@ func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
 	nMap["DefaultBindingIP"] = ncfg.DefaultBindingIP.String()
 	// This key is "HostIP" instead of "HostIPv4" to preserve compatibility with the on-disk format.
 	nMap["HostIP"] = ncfg.HostIPv4.String()
+	nMap["HostIPv6"] = ncfg.HostIPv6.String()
 	nMap["DefaultGatewayIPv4"] = ncfg.DefaultGatewayIPv4.String()
 	nMap["DefaultGatewayIPv6"] = ncfg.DefaultGatewayIPv6.String()
 	nMap["ContainerIfacePrefix"] = ncfg.ContainerIfacePrefix
@@ -192,6 +193,9 @@ func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 	// This key is "HostIP" instead of "HostIPv4" to preserve compatibility with the on-disk format.
 	if v, ok := nMap["HostIP"]; ok {
 		ncfg.HostIPv4 = net.ParseIP(v.(string))
+	}
+	if v, ok := nMap["HostIPv6"]; ok {
+		ncfg.HostIPv6 = net.ParseIP(v.(string))
 	}
 
 	ncfg.DefaultBridge = nMap["DefaultBridge"].(bool)
