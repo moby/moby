@@ -3,6 +3,7 @@ package distribution // import "github.com/docker/docker/api/server/router/distr
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/distribution/reference"
@@ -13,7 +14,6 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -34,9 +34,9 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	if !ok {
 		if _, ok := ref.(reference.Digested); ok {
 			// full image ID
-			return errors.Errorf("no manifest found for full image ID")
+			return fmt.Errorf("no manifest found for full image ID")
 		}
-		return errdefs.InvalidParameter(errors.Errorf("unknown image reference format: %s", image))
+		return errdefs.InvalidParameter(fmt.Errorf("unknown image reference format: %s", image))
 	}
 
 	// For a search it is not an error if no auth was given. Ignore invalid
@@ -54,7 +54,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 
 		taggedRef, ok := namedRef.(reference.NamedTagged)
 		if !ok {
-			return errdefs.InvalidParameter(errors.Errorf("image reference not tagged: %s", image))
+			return errdefs.InvalidParameter(fmt.Errorf("image reference not tagged: %s", image))
 		}
 
 		descriptor, err := distrepo.Tags(ctx).Get(ctx, taggedRef.Tag())

@@ -42,7 +42,7 @@ func (daemon *Daemon) ContainerKill(name, stopSignal string) error {
 			return errdefs.InvalidParameter(err)
 		}
 		if !signal.ValidSignalForPlatform(sig) {
-			return errdefs.InvalidParameter(errors.Errorf("the %s daemon does not support signal %d", runtime.GOOS, sig))
+			return errdefs.InvalidParameter(fmt.Errorf("the %s daemon does not support signal %d", runtime.GOOS, sig))
 		}
 	}
 	container, err := daemon.GetContainer(name)

@@ -53,7 +53,7 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	case *statsV2.Metrics:
 		return daemon.statsV2(s, t)
 	default:
-		return nil, errors.Errorf("unexpected type of metrics %+v", t)
+		return nil, fmt.Errorf("unexpected type of metrics %+v", t)
 	}
 }
 

@@ -49,7 +49,7 @@ func (s *DockerAPISuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 			return err
 		}
 		if res.StatusCode != http.StatusCreated {
-			return errors.Errorf("POST %s is expected to return %d, got %d", uri, http.StatusCreated, res.StatusCode)
+			return fmt.Errorf("POST %s is expected to return %d, got %d", uri, http.StatusCreated, res.StatusCode)
 		}
 
 		buf, err := request.ReadBody(body)

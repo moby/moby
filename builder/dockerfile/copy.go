@@ -116,7 +116,7 @@ func (o *copier) createCopyInstruction(sourcesAndDest instructions.SourcesAndDes
 		return inst, errors.Wrapf(err, "%s failed", cmdName)
 	}
 	if len(infos) > 1 && !strings.HasSuffix(inst.dest, string(os.PathSeparator)) {
-		return inst, errors.Errorf("When using %s with more than one source file, the destination must be a directory and end with a /", cmdName)
+		return inst, fmt.Errorf("When using %s with more than one source file, the destination must be a directory and end with a /", cmdName)
 	}
 	inst.infos = infos
 	return inst, nil
@@ -154,7 +154,7 @@ func (o *copier) getCopyInfoForSourcePath(orig, dest string) ([]copyInfo, error)
 	// We have to make sure dest is available
 	if path == "" {
 		if strings.HasSuffix(dest, "/") {
-			return nil, errors.Errorf("cannot determine filename for source %s", orig)
+			return nil, fmt.Errorf("cannot determine filename for source %s", orig)
 		}
 		path = unnamedFilename
 	}
@@ -206,7 +206,7 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 	}
 
 	if o.source == nil {
-		return nil, errors.Errorf("missing build context")
+		return nil, fmt.Errorf("missing build context")
 	}
 
 	// Work in daemon-specific OS filepath semantics

@@ -2,11 +2,11 @@ package container
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 	"gotest.tools/v3/poll"
 )
 
@@ -53,7 +53,7 @@ func IsSuccessful(ctx context.Context, apiClient client.APIClient, containerID s
 			if inspect.State.ExitCode == 0 {
 				return poll.Success()
 			}
-			return poll.Error(errors.Errorf("expected exit code 0, got %d", inspect.State.ExitCode))
+			return poll.Error(fmt.Errorf("expected exit code 0, got %d", inspect.State.ExitCode))
 		}
 		return poll.Continue("waiting for container to be \"exited\", currently %s", inspect.State.Status)
 	}

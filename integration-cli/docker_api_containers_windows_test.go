@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/testutil"
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -75,5 +74,5 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T
 
 func mountWrapper(device, target, mType, options string) error {
 	// This should never be called.
-	return errors.Errorf("there is no implementation of Mount on this platform")
+	return fmt.Errorf("there is no implementation of Mount on this platform")
 }

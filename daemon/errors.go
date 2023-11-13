@@ -16,7 +16,7 @@ func isNotRunning(err error) bool {
 }
 
 func errNotRunning(id string) error {
-	return &containerNotRunningError{errors.Errorf("container %s is not running", id)}
+	return &containerNotRunningError{fmt.Errorf("container %s is not running", id)}
 }
 
 type containerNotRunningError struct {
@@ -41,7 +41,7 @@ func (e objNotFoundError) Error() string {
 func (e objNotFoundError) NotFound() {}
 
 func errContainerIsRestarting(containerID string) error {
-	cause := errors.Errorf("Container %s is restarting, wait until the container is running", containerID)
+	cause := fmt.Errorf("Container %s is restarting, wait until the container is running", containerID)
 	return errdefs.Conflict(cause)
 }
 
@@ -50,12 +50,12 @@ func errExecNotFound(id string) error {
 }
 
 func errExecPaused(id string) error {
-	cause := errors.Errorf("Container %s is paused, unpause the container before exec", id)
+	cause := fmt.Errorf("Container %s is paused, unpause the container before exec", id)
 	return errdefs.Conflict(cause)
 }
 
 func errNotPaused(id string) error {
-	cause := errors.Errorf("Container %s is already paused", id)
+	cause := fmt.Errorf("Container %s is already paused", id)
 	return errdefs.Conflict(cause)
 }
 

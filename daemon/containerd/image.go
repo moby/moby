@@ -180,9 +180,9 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 
 		if options.Platform != nil {
 			if plat == nil {
-				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: nil", refOrID, cplatforms.Format(*options.Platform)))
+				return nil, errdefs.NotFound(fmt.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: nil", refOrID, cplatforms.Format(*options.Platform)))
 			} else if !platform.Match(*plat) {
-				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, cplatforms.Format(*options.Platform), cplatforms.Format(*plat)))
+				return nil, errdefs.NotFound(fmt.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, cplatforms.Format(*options.Platform), cplatforms.Format(*plat)))
 			}
 		}
 

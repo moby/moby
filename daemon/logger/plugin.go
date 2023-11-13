@@ -52,11 +52,11 @@ func makePluginClient(p getter.CompatPlugin) (logPlugin, error) {
 	}
 	pa, ok := p.(getter.PluginAddr)
 	if !ok {
-		return nil, errdefs.System(errors.Errorf("got unknown plugin type %T", p))
+		return nil, errdefs.System(fmt.Errorf("got unknown plugin type %T", p))
 	}
 
 	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {
-		return nil, errors.Errorf("plugin protocol not supported: %s", p)
+		return nil, fmt.Errorf("plugin protocol not supported: %s", p)
 	}
 
 	addr := pa.Addr()

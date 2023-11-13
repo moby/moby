@@ -2,6 +2,7 @@ package plugin // import "github.com/docker/docker/daemon/cluster/controllers/pl
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -111,7 +112,7 @@ func (p *Controller) Prepare(ctx context.Context) (err error) {
 
 	if err == nil && pl != nil {
 		if pl.SwarmServiceID != p.serviceID {
-			return errors.Errorf("plugin already exists: %s", p.spec.Name)
+			return fmt.Errorf("plugin already exists: %s", p.spec.Name)
 		}
 		if pl.IsEnabled() {
 			if err := p.backend.Disable(pl.GetID(), &types.PluginDisableConfig{ForceDisable: true}); err != nil {

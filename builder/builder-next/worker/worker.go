@@ -47,7 +47,6 @@ import (
 	"github.com/moby/buildkit/version"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -232,7 +231,7 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *se
 			return ops.NewDiffOp(v, op, w)
 		}
 	}
-	return nil, errors.Errorf("could not resolve %v", v)
+	return nil, fmt.Errorf("could not resolve %v", v)
 }
 
 // ResolveImageConfig returns image config for an image
@@ -264,7 +263,7 @@ func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, 
 			SessionManager: sm,
 		})
 	default:
-		return nil, errors.Errorf("exporter %q could not be found", name)
+		return nil, fmt.Errorf("exporter %q could not be found", name)
 	}
 }
 
@@ -388,7 +387,7 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (cache.I
 	defer release()
 
 	if len(rootFS.DiffIDs) != len(layers) {
-		return nil, errors.Errorf("invalid layer count mismatch %d vs %d", len(rootFS.DiffIDs), len(layers))
+		return nil, fmt.Errorf("invalid layer count mismatch %d vs %d", len(rootFS.DiffIDs), len(layers))
 	}
 
 	for i := range rootFS.DiffIDs {
@@ -412,7 +411,7 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (cache.I
 		defer ref.Release(context.TODO())
 	}
 
-	return nil, errors.Errorf("unreachable")
+	return nil, fmt.Errorf("unreachable")
 }
 
 // Executor returns executor.Executor for running processes
@@ -485,7 +484,7 @@ func getLayers(ctx context.Context, descs []ocispec.Descriptor) ([]rootfs.Layer,
 	for i, desc := range descs {
 		diffIDStr := desc.Annotations["containerd.io/uncompressed"]
 		if diffIDStr == "" {
-			return nil, errors.Errorf("%s missing uncompressed digest", desc.Digest)
+			return nil, fmt.Errorf("%s missing uncompressed digest", desc.Digest)
 		}
 		diffID, err := digest.Parse(diffIDStr)
 		if err != nil {
@@ -524,5 +523,5 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 type emptyProvider struct{}
 
 func (p *emptyProvider) ReaderAt(ctx context.Context, dec ocispec.Descriptor) (content.ReaderAt, error) {
-	return nil, errors.Errorf("ReaderAt not implemented for empty provider")
+	return nil, fmt.Errorf("ReaderAt not implemented for empty provider")
 }

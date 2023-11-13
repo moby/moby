@@ -112,7 +112,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 			return nil, nil, errors.Wrapf(err, "failed to parse platforms passed to exporter")
 		}
 		if len(p.Platforms) != len(inp.Refs) {
-			return nil, nil, errors.Errorf("number of platforms does not match references %d %d", len(p.Platforms), len(inp.Refs))
+			return nil, nil, fmt.Errorf("number of platforms does not match references %d %d", len(p.Platforms), len(inp.Refs))
 		}
 		config = inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, p.Platforms[0].ID)]
 	}

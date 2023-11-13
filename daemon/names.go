@@ -59,7 +59,7 @@ func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
 
 func (daemon *Daemon) reserveName(id, name string) (string, error) {
 	if !validContainerNamePattern.MatchString(strings.TrimPrefix(name, "/")) {
-		return "", errdefs.InvalidParameter(errors.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars))
+		return "", errdefs.InvalidParameter(fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars))
 	}
 	if name[0] != '/' {
 		name = "/" + name

@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -49,7 +50,7 @@ func setDefaultUmask() error {
 	desiredUmask := 0o022
 	unix.Umask(desiredUmask)
 	if umask := unix.Umask(desiredUmask); umask != desiredUmask {
-		return errors.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)
+		return fmt.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)
 	}
 
 	return nil
@@ -89,13 +90,13 @@ func allocateDaemonPort(addr string) error {
 	if parsedIP := net.ParseIP(host); parsedIP != nil {
 		hostIPs = append(hostIPs, parsedIP)
 	} else if hostIPs, err = net.LookupIP(host); err != nil {
-		return errors.Errorf("failed to lookup %s address in host specification", host)
+		return fmt.Errorf("failed to lookup %s address in host specification", host)
 	}
 
 	pa := portallocator.Get()
 	for _, hostIP := range hostIPs {
 		if _, err := pa.RequestPort(hostIP, "tcp", intPort); err != nil {
-			return errors.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
+			return fmt.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
 		}
 	}
 	return nil

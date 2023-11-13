@@ -315,7 +315,7 @@ func parseInitVersion(v string) (version string, commit string, err error) {
 		version = strings.TrimPrefix(parts[0], "tini version ")
 	}
 	if version == "" && commit == "" {
-		err = errors.Errorf("unknown output format: %s", v)
+		err = fmt.Errorf("unknown output format: %s", v)
 	}
 	return version, commit, err
 }
@@ -343,7 +343,7 @@ func parseRuntimeVersion(v string) (runtime, version, commit string, err error) 
 		}
 	}
 	if version == "" && commit == "" {
-		err = errors.Errorf("unknown output format: %s", v)
+		err = fmt.Errorf("unknown output format: %s", v)
 	}
 	return runtime, version, commit, err
 }

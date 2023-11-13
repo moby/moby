@@ -3,13 +3,13 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/pkg/errors"
 )
 
 // CommitImage creates a new image from a commit config
@@ -118,7 +118,7 @@ func (i *ImageService) CommitBuildStep(ctx context.Context, c backend.CommitConf
 	ctr := i.containers.Get(c.ContainerID)
 	if ctr == nil {
 		// TODO: use typed error
-		return "", errors.Errorf("container not found: %s", c.ContainerID)
+		return "", fmt.Errorf("container not found: %s", c.ContainerID)
 	}
 	c.ContainerMountLabel = ctr.MountLabel
 	c.ContainerOS = ctr.OS

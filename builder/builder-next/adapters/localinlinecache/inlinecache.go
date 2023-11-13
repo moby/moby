@@ -3,6 +3,7 @@ package localinlinecache
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/containerd/containerd/content"
@@ -19,7 +20,6 @@ import (
 	"github.com/moby/buildkit/worker"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // ResolveCacheImporterFunc returns a resolver function for local inline cache
@@ -157,5 +157,5 @@ func parseCreatedLayerInfo(img image) ([]string, []string, error) {
 type emptyProvider struct{}
 
 func (p *emptyProvider) ReaderAt(ctx context.Context, dec ocispec.Descriptor) (content.ReaderAt, error) {
-	return nil, errors.Errorf("ReaderAt not implemented for empty provider")
+	return nil, fmt.Errorf("ReaderAt not implemented for empty provider")
 }

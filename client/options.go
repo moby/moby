@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -53,7 +54,7 @@ func WithDialContext(dialContext func(ctx context.Context, network, addr string)
 			transport.DialContext = dialContext
 			return nil
 		}
-		return errors.Errorf("cannot apply dialer to transport: %T", c.client.Transport)
+		return fmt.Errorf("cannot apply dialer to transport: %T", c.client.Transport)
 	}
 }
 
@@ -71,7 +72,7 @@ func WithHost(host string) Opt {
 		if transport, ok := c.client.Transport.(*http.Transport); ok {
 			return sockets.ConfigureTransport(transport, c.proto, c.addr)
 		}
-		return errors.Errorf("cannot apply host to transport: %T", c.client.Transport)
+		return fmt.Errorf("cannot apply host to transport: %T", c.client.Transport)
 	}
 }
 
@@ -138,7 +139,7 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 	return func(c *Client) error {
 		transport, ok := c.client.Transport.(*http.Transport)
 		if !ok {
-			return errors.Errorf("cannot apply tls config to transport: %T", c.client.Transport)
+			return fmt.Errorf("cannot apply tls config to transport: %T", c.client.Transport)
 		}
 		config, err := tlsconfig.Client(tlsconfig.Options{
 			CAFile:             cacertPath,

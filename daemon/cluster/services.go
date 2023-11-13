@@ -620,7 +620,7 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 		if _, ok := ref.(reference.Digested); ok {
 			return image, nil
 		}
-		return "", errors.Errorf("unknown image reference format: %s", image)
+		return "", fmt.Errorf("unknown image reference format: %s", image)
 	}
 	// only query registry if not a canonical reference (i.e. with digest)
 	if _, ok := namedRef.(reference.Canonical); !ok {
@@ -628,7 +628,7 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 
 		taggedRef, ok := namedRef.(reference.NamedTagged)
 		if !ok {
-			return "", errors.Errorf("image reference not tagged: %s", image)
+			return "", fmt.Errorf("image reference not tagged: %s", image)
 		}
 
 		repo, err := c.config.ImageBackend.GetRepository(ctx, taggedRef, authConfig)

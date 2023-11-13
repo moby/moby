@@ -225,7 +225,7 @@ func (b *Builder) Prune(ctx context.Context, opts types.BuildCachePruneOptions) 
 // Build executes a build request
 func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.Result, error) {
 	if len(opt.Options.Outputs) > 1 {
-		return nil, errors.Errorf("multiple outputs not supported")
+		return nil, fmt.Errorf("multiple outputs not supported")
 	}
 
 	rc := opt.Source
@@ -336,7 +336,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		frontendAttrs["force-network-mode"] = opt.Options.NetworkMode
 	case "", "default":
 	default:
-		return nil, errors.Errorf("network mode %q not supported by buildkit", opt.Options.NetworkMode)
+		return nil, fmt.Errorf("network mode %q not supported by buildkit", opt.Options.NetworkMode)
 	}
 
 	extraHosts, err := toBuildkitExtraHosts(opt.Options.ExtraHosts, b.dnsconfig.HostGatewayIP)
@@ -416,7 +416,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		}
 		id, ok := resp.ExporterResponse["containerimage.digest"]
 		if !ok {
-			return errors.Errorf("missing image id")
+			return fmt.Errorf("missing image id")
 		}
 		out.ImageID = id
 		return aux.Emit("moby.image.id", types.BuildResult{ID: id})
@@ -591,7 +591,7 @@ func toBuildkitExtraHosts(inp []string, hostGatewayIP net.IP) (string, error) {
 	for _, h := range inp {
 		host, ip, ok := strings.Cut(h, ":")
 		if !ok || host == "" || ip == "" {
-			return "", errors.Errorf("invalid host %s", h)
+			return "", fmt.Errorf("invalid host %s", h)
 		}
 		// If the IP Address is a "host-gateway", replace this value with the
 		// IP address stored in the daemon level HostGatewayIP config variable.

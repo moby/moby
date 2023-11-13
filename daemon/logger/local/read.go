@@ -25,7 +25,7 @@ func (d *driver) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
 func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io.Reader, int, error) {
 	size := r.Size()
 	if req < 0 {
-		return nil, 0, errdefs.InvalidParameter(errors.Errorf("invalid number of lines to tail: %d", req))
+		return nil, 0, errdefs.InvalidParameter(fmt.Errorf("invalid number of lines to tail: %d", req))
 	}
 
 	if size < (encodeBinaryLen*2)+1 {

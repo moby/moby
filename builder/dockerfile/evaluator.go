@@ -21,6 +21,7 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -101,7 +102,7 @@ func dispatch(ctx context.Context, d dispatchRequest, cmd instructions.Command) 
 	case *instructions.ShellCommand:
 		return dispatchShell(ctx, d, c)
 	}
-	return errors.Errorf("unsupported command type: %v", reflect.TypeOf(cmd))
+	return fmt.Errorf("unsupported command type: %v", reflect.TypeOf(cmd))
 }
 
 // dispatchState is a data object which is modified by dispatchers
@@ -165,7 +166,7 @@ func (r *stagesBuildResults) get(nameOrIndex string) (*container.Config, error) 
 func (r *stagesBuildResults) checkStageNameAvailable(name string) error {
 	if name != "" {
 		if _, ok := r.getByName(name); ok {
-			return errors.Errorf("%s stage name already used", name)
+			return fmt.Errorf("%s stage name already used", name)
 		}
 	}
 	return nil
@@ -174,7 +175,7 @@ func (r *stagesBuildResults) checkStageNameAvailable(name string) error {
 func (r *stagesBuildResults) commitStage(name string, config *container.Config) error {
 	if name != "" {
 		if _, ok := r.getByName(name); ok {
-			return errors.Errorf("%s stage name already used", name)
+			return fmt.Errorf("%s stage name already used", name)
 		}
 		r.indexed[strings.ToLower(name)] = config
 	}

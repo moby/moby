@@ -273,7 +273,7 @@ func (d *dispatchRequest) getFromImage(ctx context.Context, shlex *shell.Lex, ba
 	// Empty string is interpreted to FROM scratch by images.GetImageAndReleasableLayer,
 	// so validate expanded result is not empty.
 	if name == "" {
-		return nil, errors.Errorf("base name (%s) should not be blank", basename)
+		return nil, fmt.Errorf("base name (%s) should not be blank", basename)
 	}
 
 	return d.getImageOrStage(ctx, name, platform)
@@ -336,7 +336,7 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 
 	if len(c.FlagsUsed) > 0 {
 		// classic builder RUN currently does not support any flags, so fail on the first one
-		return errors.Errorf("the --%s option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled", c.FlagsUsed[0])
+		return fmt.Errorf("the --%s option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled", c.FlagsUsed[0])
 	}
 
 	stateRunConfig := d.state.runConfig

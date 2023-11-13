@@ -1,6 +1,7 @@
 package git // import "github.com/docker/docker/builder/remotecontext/git"
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -113,7 +114,7 @@ func parseRemoteURL(remoteURL string) (gitRepo, error) {
 	}
 
 	if strings.HasPrefix(repo.ref, "-") {
-		return gitRepo{}, errors.Errorf("invalid refspec: %s", repo.ref)
+		return gitRepo{}, fmt.Errorf("invalid refspec: %s", repo.ref)
 	}
 
 	return repo, nil
@@ -190,7 +191,7 @@ func (repo gitRepo) checkout(root string) (string, error) {
 			return "", err
 		}
 		if !fi.IsDir() {
-			return "", errors.Errorf("error setting git context, not a directory: %s", newCtx)
+			return "", fmt.Errorf("error setting git context, not a directory: %s", newCtx)
 		}
 		root = newCtx
 	}

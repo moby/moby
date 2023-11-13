@@ -6,6 +6,7 @@ package local // import "github.com/docker/docker/volume/local"
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -189,7 +190,7 @@ func (r *Root) Remove(v volume.Volume) error {
 
 	lv, ok := v.(*localVolume)
 	if !ok {
-		return errdefs.System(errors.Errorf("unknown volume type %T", v))
+		return errdefs.System(fmt.Errorf("unknown volume type %T", v))
 	}
 
 	if lv.active.count > 0 {
@@ -212,7 +213,7 @@ func (r *Root) Remove(v volume.Volume) error {
 	}
 
 	if realPath == r.path || !strings.HasPrefix(realPath, r.path) {
-		return errdefs.System(errors.Errorf("unable to remove a directory outside of the local volume root %s: %s", r.path, realPath))
+		return errdefs.System(fmt.Errorf("unable to remove a directory outside of the local volume root %s: %s", r.path, realPath))
 	}
 
 	if err := removePath(realPath); err != nil {
@@ -254,7 +255,7 @@ func (r *Root) validateName(name string) error {
 		return errdefs.InvalidParameter(errors.New("volume name is too short, names should be at least two alphanumeric characters"))
 	}
 	if !volumeNameRegex.MatchString(name) {
-		return errdefs.InvalidParameter(errors.Errorf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, names.RestrictedNameChars))
+		return errdefs.InvalidParameter(fmt.Errorf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, names.RestrictedNameChars))
 	}
 	return nil
 }

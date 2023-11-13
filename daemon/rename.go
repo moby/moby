@@ -2,6 +2,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/containerd/log"
@@ -47,7 +48,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 	links := map[string]*dockercontainer.Container{}
 	for k, v := range daemon.linkIndex.children(container) {
 		if !strings.HasPrefix(k, oldName) {
-			return errdefs.InvalidParameter(errors.Errorf("Linked container %s does not match parent %s", k, oldName))
+			return errdefs.InvalidParameter(fmt.Errorf("Linked container %s does not match parent %s", k, oldName))
 		}
 		links[strings.TrimPrefix(k, oldName)] = v
 	}

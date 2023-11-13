@@ -24,7 +24,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	if c.DetachKeys != "" {
 		keys, err = term.ToBytes(c.DetachKeys)
 		if err != nil {
-			return errdefs.InvalidParameter(errors.Errorf("Invalid detach keys (%s) provided", c.DetachKeys))
+			return errdefs.InvalidParameter(fmt.Errorf("Invalid detach keys (%s) provided", c.DetachKeys))
 		}
 	}
 

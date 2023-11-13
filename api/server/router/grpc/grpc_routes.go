@@ -2,6 +2,7 @@ package grpc // import "github.com/docker/docker/api/server/router/grpc"
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -18,7 +19,7 @@ func (gr *grpcRouter) serveGRPC(ctx context.Context, w http.ResponseWriter, r *h
 		return errors.New("no upgrade proto in request")
 	}
 	if proto != "h2c" {
-		return errors.Errorf("protocol %s not supported", proto)
+		return fmt.Errorf("protocol %s not supported", proto)
 	}
 
 	conn, _, err := h.Hijack()

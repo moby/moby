@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/pkg/errors"
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
@@ -150,7 +149,7 @@ func init() {
 // Register registers an InitFunc for the driver.
 func Register(name string, initFunc InitFunc) error {
 	if _, exists := drivers[name]; exists {
-		return errors.Errorf("name already registered %s", name)
+		return fmt.Errorf("name already registered %s", name)
 	}
 	drivers[name] = initFunc
 
@@ -225,7 +224,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 					driversSlice = append(driversSlice, name)
 				}
 
-				err = errors.Errorf("%s contains several valid graphdrivers: %s; cleanup or explicitly choose storage driver (-s <DRIVER>)", config.Root, strings.Join(driversSlice, ", "))
+				err = fmt.Errorf("%s contains several valid graphdrivers: %s; cleanup or explicitly choose storage driver (-s <DRIVER>)", config.Root, strings.Join(driversSlice, ", "))
 				log.G(ctx).Errorf("[graphdriver] %v", err)
 				return nil, err
 			}
@@ -260,7 +259,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 		return driver, nil
 	}
 
-	return nil, errors.Errorf("no supported storage driver found")
+	return nil, fmt.Errorf("no supported storage driver found")
 }
 
 // scanPriorDrivers returns an un-ordered scan of directories of prior storage

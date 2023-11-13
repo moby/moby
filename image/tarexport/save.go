@@ -103,7 +103,7 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 				}
 				continue
 			}
-			return nil, errors.Errorf("invalid reference: %v", name)
+			return nil, fmt.Errorf("invalid reference: %v", name)
 		}
 
 		if reference.FamiliarName(namedRef) == string(digest.Canonical) {

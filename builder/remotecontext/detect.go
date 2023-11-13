@@ -66,7 +66,7 @@ func withDockerfileFromContext(c modifiableContext, dockerfilePath string) (buil
 					return withDockerfileFromContext(c, lowercase)
 				}
 			}
-			return nil, nil, errors.Errorf("Cannot locate specified Dockerfile: %s", dockerfilePath) // backwards compatible error
+			return nil, nil, fmt.Errorf("Cannot locate specified Dockerfile: %s", dockerfilePath) // backwards compatible error
 		}
 		c.Close()
 		return nil, nil, err
@@ -145,7 +145,7 @@ func readAndParseDockerfile(name string, rc io.Reader) (*parser.Result, error) {
 	br := bufio.NewReader(rc)
 	if _, err := br.Peek(1); err != nil {
 		if err == io.EOF {
-			return nil, errdefs.InvalidParameter(errors.Errorf("the Dockerfile (%s) cannot be empty", name))
+			return nil, errdefs.InvalidParameter(fmt.Errorf("the Dockerfile (%s) cannot be empty", name))
 		}
 		return nil, errors.Wrap(err, "unexpected error reading Dockerfile")
 	}

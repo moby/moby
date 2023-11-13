@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/testutil/daemon"
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )
@@ -69,7 +68,7 @@ func (d *Daemon) inspectFilter(name, filter string) (string, error) {
 	format := fmt.Sprintf("{{%s}}", filter)
 	out, err := d.Cmd("inspect", "-f", format, name)
 	if err != nil {
-		return "", errors.Errorf("failed to inspect %s: %s", name, out)
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
 	}
 	return strings.TrimSpace(out), nil
 }
@@ -108,7 +107,7 @@ func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time
 		result := icmd.RunCommand(dockerBinary, args...)
 		if result.Error != nil {
 			if !strings.Contains(strings.ToLower(result.Stderr()), "no such") {
-				return errors.Errorf("error executing docker inspect: %v\n%s",
+				return fmt.Errorf("error executing docker inspect: %v\n%s",
 					result.Stderr(), result.Stdout())
 			}
 			select {
@@ -127,7 +126,7 @@ func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time
 
 		select {
 		case <-after:
-			return errors.Errorf("condition \"%q == %q\" not true in time (%v)", out, expected, timeout)
+			return fmt.Errorf("condition \"%q == %q\" not true in time (%v)", out, expected, timeout)
 		default:
 		}
 

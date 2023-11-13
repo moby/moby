@@ -39,7 +39,7 @@ func newPluginDriver(name string, pl plugingetter.CompatPlugin, config Options) 
 		proxy = &graphDriverProxy{name, pl, Capabilities{}, pt.Client()}
 	case plugingetter.PluginAddr:
 		if pt.Protocol() != plugins.ProtocolSchemeHTTPV1 {
-			return nil, errors.Errorf("plugin protocol not supported: %s", pt.Protocol())
+			return nil, fmt.Errorf("plugin protocol not supported: %s", pt.Protocol())
 		}
 		addr := pt.Addr()
 		client, err := plugins.NewClientWithTimeout(addr.Network()+"://"+addr.String(), nil, pt.Timeout())
@@ -48,7 +48,7 @@ func newPluginDriver(name string, pl plugingetter.CompatPlugin, config Options) 
 		}
 		proxy = &graphDriverProxy{name, pl, Capabilities{}, client}
 	default:
-		return nil, errdefs.System(errors.Errorf("got unknown plugin type %T", pt))
+		return nil, errdefs.System(fmt.Errorf("got unknown plugin type %T", pt))
 	}
 
 	return proxy, proxy.Init(filepath.Join(home, name), config.DriverOptions, config.IDMap)

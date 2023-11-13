@@ -176,7 +176,7 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, vtx solver.Vertex) (source.SourceInstance, error) {
 	imageIdentifier, ok := id.(*source.ImageIdentifier)
 	if !ok {
-		return nil, errors.Errorf("invalid image identifier %v", id)
+		return nil, fmt.Errorf("invalid image identifier %v", id)
 	}
 
 	platform := platforms.DefaultSpec()
@@ -344,7 +344,7 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (stri
 	}
 
 	if len(p.config) == 0 && p.desc.MediaType != images.MediaTypeDockerSchema1Manifest {
-		return "", "", nil, false, errors.Errorf("invalid empty config file resolved for %s", p.src.Reference.String())
+		return "", "", nil, false, fmt.Errorf("invalid empty config file resolved for %s", p.src.Reference.String())
 	}
 
 	k := cacheKeyFromConfig(p.config).String()
@@ -513,7 +513,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 	}
 
 	if len(mfst.Layers) != len(img.RootFS.DiffIDs) {
-		return nil, errors.Errorf("invalid config for manifest")
+		return nil, fmt.Errorf("invalid config for manifest")
 	}
 
 	pchan := make(chan pkgprogress.Progress, 10)
@@ -883,7 +883,7 @@ func applySourcePolicies(ctx context.Context, str string, spls []*spb.Policy) (s
 		)
 		t, newRef, ok := strings.Cut(op.GetSource().GetIdentifier(), "://")
 		if !ok {
-			return "", errors.Errorf("could not parse ref: %s", op.GetSource().GetIdentifier())
+			return "", fmt.Errorf("could not parse ref: %s", op.GetSource().GetIdentifier())
 		}
 		if ok && t != srctypes.DockerImageScheme {
 			return "", &imageutil.ResolveToNonImageError{Ref: str, Updated: newRef}

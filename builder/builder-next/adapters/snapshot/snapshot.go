@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -67,7 +68,7 @@ func NewSnapshotter(opt Opt, prevLM leases.Manager, ns string) (snapshot.Snapsho
 
 	reg, ok := opt.LayerStore.(graphIDRegistrar)
 	if !ok {
-		return nil, nil, errors.Errorf("layerstore doesn't support graphID registration")
+		return nil, nil, fmt.Errorf("layerstore doesn't support graphID registration")
 	}
 
 	s := &snapshotter{
@@ -327,7 +328,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 }
 
 func (s *snapshotter) Remove(ctx context.Context, key string) error {
-	return errors.Errorf("calling snapshot.remove is forbidden")
+	return fmt.Errorf("calling snapshot.remove is forbidden")
 }
 
 func (s *snapshotter) remove(ctx context.Context, key string) error {

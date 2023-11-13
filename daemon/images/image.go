@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.
@@ -231,7 +230,7 @@ func (i *ImageService) getImage(ctx context.Context, refOrID string, options ima
 		//   This may be confusing.
 		//   The alternative to this is to return an errdefs.Conflict error with a helpful message, but clients will not be
 		//   able to automatically tell what causes the conflict.
-		retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(p), platforms.Format(imgPlat)))
+		retErr = errdefs.NotFound(fmt.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(p), platforms.Format(imgPlat)))
 	}()
 	ref, err := reference.ParseAnyReference(refOrID)
 	if err != nil {

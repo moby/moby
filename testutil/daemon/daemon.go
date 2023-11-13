@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -432,7 +433,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	d.args = []string{}
 	if d.rootlessUser != nil {
 		if d.dockerdBinary != defaultDockerdBinary {
-			return errors.Errorf("[%s] DOCKER_ROOTLESS doesn't support non-default dockerd binary path %q", d.id, d.dockerdBinary)
+			return fmt.Errorf("[%s] DOCKER_ROOTLESS doesn't support non-default dockerd binary path %q", d.id, d.dockerdBinary)
 		}
 		dockerdBinary = "sudo"
 		d.args = append(d.args,
@@ -805,7 +806,7 @@ func (d *Daemon) ReloadConfig() error {
 			return errors.Wrapf(err, "[%s] error waiting for daemon reload event", d.id)
 		}
 	case <-time.After(30 * time.Second):
-		return errors.Errorf("[%s] daemon reload event timed out after 30 seconds", d.id)
+		return fmt.Errorf("[%s] daemon reload event timed out after 30 seconds", d.id)
 	}
 	return nil
 }

@@ -311,7 +311,7 @@ func GetConflictFreeLabels(labels []string) ([]string, error) {
 		if ok {
 			// If there is a conflict we will return an error
 			if v, ok := labelMap[key]; ok && v != val {
-				return nil, errors.Errorf("conflict labels for %s=%s and %s=%s", key, val, key, v)
+				return nil, fmt.Errorf("conflict labels for %s=%s and %s=%s", key, val, key, v)
 			}
 			labelMap[key] = val
 		}
@@ -544,7 +544,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 		for key := range unknownKeys {
 			unknown = append(unknown, key)
 		}
-		return errors.Errorf("the following directives don't match any configuration option: %s", strings.Join(unknown, ", "))
+		return fmt.Errorf("the following directives don't match any configuration option: %s", strings.Join(unknown, ", "))
 	}
 
 	var conflicts []string
@@ -578,7 +578,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 	flags.Visit(duplicatedConflicts)
 
 	if len(conflicts) > 0 {
-		return errors.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", "))
+		return fmt.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", "))
 	}
 	return nil
 }
@@ -595,7 +595,7 @@ func Validate(config *Config) error {
 		case "panic", "fatal", "error", "warn", "info", "debug", "trace":
 			// These are valid. See [log.SetLevel] for a list of accepted levels.
 		default:
-			return errors.Errorf("invalid logging level: %s", config.LogLevel)
+			return fmt.Errorf("invalid logging level: %s", config.LogLevel)
 		}
 	}
 
@@ -605,7 +605,7 @@ func Validate(config *Config) error {
 		case log.TextFormat, log.JSONFormat:
 			// These are valid
 		default:
-			return errors.Errorf("invalid log format: %s", logFormat)
+			return fmt.Errorf("invalid log format: %s", logFormat)
 		}
 	}
 
@@ -632,16 +632,16 @@ func Validate(config *Config) error {
 
 	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
 	if config.MTU < 0 {
-		return errors.Errorf("invalid default MTU: %d", config.MTU)
+		return fmt.Errorf("invalid default MTU: %d", config.MTU)
 	}
 	if config.MaxConcurrentDownloads < 0 {
-		return errors.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
+		return fmt.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
 	}
 	if config.MaxConcurrentUploads < 0 {
-		return errors.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
+		return fmt.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
 	}
 	if config.MaxDownloadAttempts < 0 {
-		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
+		return fmt.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
 
 	if _, err := ParseGenericResources(config.NodeGenericResources); err != nil {

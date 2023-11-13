@@ -2,6 +2,7 @@ package network // import "github.com/docker/docker/api/server/router/network"
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -358,7 +359,7 @@ func (n *networkRouter) findUniqueNetwork(term string) (types.NetworkResource, e
 		}
 	}
 	if len(listByFullName) > 1 {
-		return types.NetworkResource{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName)))
+		return types.NetworkResource{}, errdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName)))
 	}
 
 	// Find based on partial ID, returns true only if no duplicates
@@ -368,7 +369,7 @@ func (n *networkRouter) findUniqueNetwork(term string) (types.NetworkResource, e
 		}
 	}
 	if len(listByPartialID) > 1 {
-		return types.NetworkResource{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
+		return types.NetworkResource{}, errdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
 	}
 
 	return types.NetworkResource{}, errdefs.NotFound(libnetwork.ErrNoSuchNetwork(term))

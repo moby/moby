@@ -1,6 +1,7 @@
 package opts // import "github.com/docker/docker/opts"
 
 import (
+	"fmt"
 	"net"
 	"net/url"
 	"path/filepath"
@@ -101,7 +102,7 @@ func parseDaemonHost(address string) (string, error) {
 	case "fd":
 		return address, nil
 	default:
-		return "", errors.Errorf("invalid bind address (%s): unsupported proto '%s'", address, proto)
+		return "", fmt.Errorf("invalid bind address (%s): unsupported proto '%s'", address, proto)
 	}
 }
 
@@ -111,7 +112,7 @@ func parseDaemonHost(address string) (string, error) {
 // defaultAddr if addr is a blank string.
 func parseSimpleProtoAddr(proto, addr, defaultAddr string) (string, error) {
 	if strings.Contains(addr, "://") {
-		return "", errors.Errorf("invalid %s address: %s", proto, addr)
+		return "", fmt.Errorf("invalid %s address: %s", proto, addr)
 	}
 	if addr == "" {
 		addr = defaultAddr
@@ -159,7 +160,7 @@ func parseTCPAddr(address string, strict bool) (*url.URL, error) {
 		return nil, err
 	}
 	if parsedURL.Scheme != "tcp" {
-		return nil, errors.Errorf("unsupported proto '%s'", parsedURL.Scheme)
+		return nil, fmt.Errorf("unsupported proto '%s'", parsedURL.Scheme)
 	}
 	if parsedURL.Path != "" {
 		return nil, errors.New("should not contain a path element")
@@ -169,7 +170,7 @@ func parseTCPAddr(address string, strict bool) (*url.URL, error) {
 	}
 	if parsedURL.Port() != "" || strict {
 		if p, err := strconv.Atoi(parsedURL.Port()); err != nil || p == 0 {
-			return nil, errors.Errorf("invalid port: %s", parsedURL.Port())
+			return nil, fmt.Errorf("invalid port: %s", parsedURL.Port())
 		}
 	}
 	return parsedURL, nil
@@ -181,12 +182,12 @@ func ValidateExtraHost(val string) (string, error) {
 	// allow for IPv6 addresses in extra hosts by only splitting on first ":"
 	name, ip, ok := strings.Cut(val, ":")
 	if !ok || name == "" {
-		return "", errors.Errorf("bad format for add-host: %q", val)
+		return "", fmt.Errorf("bad format for add-host: %q", val)
 	}
 	// Skip IPaddr validation for special "host-gateway" string
 	if ip != HostGatewayName {
 		if _, err := ValidateIPAddress(ip); err != nil {
-			return "", errors.Errorf("invalid IP address in add-host: %q", ip)
+			return "", fmt.Errorf("invalid IP address in add-host: %q", ip)
 		}
 	}
 	return val, nil

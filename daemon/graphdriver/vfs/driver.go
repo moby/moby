@@ -115,11 +115,11 @@ func (d *Driver) parseOptions(options []string) error {
 			}
 		case xattrsStorageOpt:
 			if val != bestEffortXattrsOptValue {
-				return errdefs.InvalidParameter(errors.Errorf("do not set the " + xattrsStorageOpt + " option unless you are willing to accept the consequences"))
+				return errdefs.InvalidParameter(fmt.Errorf("do not set the " + xattrsStorageOpt + " option unless you are willing to accept the consequences"))
 			}
 			d.bestEffortXattrs = true
 		default:
-			return errdefs.InvalidParameter(errors.Errorf("unknown option %s for vfs", key))
+			return errdefs.InvalidParameter(fmt.Errorf("unknown option %s for vfs", key))
 		}
 	}
 	return nil
@@ -143,7 +143,7 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 				}
 				quotaSize = uint64(size)
 			default:
-				return errdefs.InvalidParameter(errors.Errorf("Storage opt %s not supported", key))
+				return errdefs.InvalidParameter(fmt.Errorf("Storage opt %s not supported", key))
 			}
 		}
 	}

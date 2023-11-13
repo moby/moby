@@ -1,6 +1,8 @@
 package network // import "github.com/docker/docker/daemon/network"
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
@@ -124,7 +126,7 @@ func filterNetworkByType(nws []types.NetworkResource, netType string) ([]types.N
 			}
 		}
 	default:
-		return nil, errors.Errorf("invalid filter: 'type'='%s'", netType)
+		return nil, fmt.Errorf("invalid filter: 'type'='%s'", netType)
 	}
 	return retNws, nil
 }

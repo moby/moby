@@ -439,7 +439,7 @@ func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, 
 	}
 	version := httputils.VersionFromContext(ctx)
 	if secret.Templating != nil && versions.LessThan(version, "1.37") {
-		return errdefs.InvalidParameter(errors.Errorf("secret templating is not supported on the specified API version: %s", version))
+		return errdefs.InvalidParameter(fmt.Errorf("secret templating is not supported on the specified API version: %s", version))
 	}
 
 	id, err := sr.backend.CreateSecret(secret)
@@ -511,7 +511,7 @@ func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, 
 
 	version := httputils.VersionFromContext(ctx)
 	if config.Templating != nil && versions.LessThan(version, "1.37") {
-		return errdefs.InvalidParameter(errors.Errorf("config templating is not supported on the specified API version: %s", version))
+		return errdefs.InvalidParameter(fmt.Errorf("config templating is not supported on the specified API version: %s", version))
 	}
 
 	id, err := sr.backend.CreateConfig(config)

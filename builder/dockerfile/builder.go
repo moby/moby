@@ -199,7 +199,7 @@ func (b *Builder) build(ctx context.Context, source builder.Source, dockerfile *
 		targetIx, found := instructions.HasStage(stages, b.options.Target)
 		if !found {
 			buildsFailed.WithValues(metricsBuildTargetNotReachableError).Inc()
-			return nil, errdefs.InvalidParameter(errors.Errorf("target stage %q could not be found", b.options.Target))
+			return nil, errdefs.InvalidParameter(fmt.Errorf("target stage %q could not be found", b.options.Target))
 		}
 		stages = stages[:targetIx+1]
 	}
@@ -340,7 +340,7 @@ func BuildFromConfig(ctx context.Context, config *container.Config, changes []st
 	// ensure that the commands are valid
 	for _, n := range dockerfile.AST.Children {
 		if !validCommitCommands[strings.ToLower(n.Value)] {
-			return nil, errdefs.InvalidParameter(errors.Errorf("%s is not a valid change command", n.Value))
+			return nil, errdefs.InvalidParameter(fmt.Errorf("%s is not a valid change command", n.Value))
 		}
 	}
 

@@ -4,6 +4,7 @@ package fluentd // import "github.com/docker/docker/daemon/logger/fluentd"
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"net/url"
 	"strconv"
@@ -158,7 +159,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case subSecondPrecisionKey:
 			// Accepted
 		default:
-			return errors.Errorf("unknown log opt '%s' for fluentd log driver", key)
+			return fmt.Errorf("unknown log opt '%s' for fluentd log driver", key)
 		}
 	}
 
@@ -202,7 +203,7 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 	}
 
 	if cfg[asyncKey] != "" && cfg[asyncConnectKey] != "" {
-		return config, errors.Errorf("conflicting options: cannot specify both '%s' and '%s", asyncKey, asyncConnectKey)
+		return config, fmt.Errorf("conflicting options: cannot specify both '%s' and '%s", asyncKey, asyncConnectKey)
 	}
 
 	async := false
@@ -227,7 +228,7 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 			return config, errors.Wrapf(err, "invalid value for %s", asyncReconnectIntervalKey)
 		}
 		if interval != 0 && (interval < minReconnectInterval || interval > maxReconnectInterval) {
-			return config, errors.Errorf("invalid value for %s: value (%q) must be between %s and %s",
+			return config, fmt.Errorf("invalid value for %s: value (%q) must be between %s and %s",
 				asyncReconnectIntervalKey, interval, minReconnectInterval, maxReconnectInterval)
 		}
 		asyncReconnectInterval = int(interval.Milliseconds())
@@ -294,7 +295,7 @@ func parseAddress(address string) (*location, error) {
 	case "tcp", "tls":
 		// continue processing below
 	default:
-		return nil, errors.Errorf("unsupported scheme: '%s'", addr.Scheme)
+		return nil, fmt.Errorf("unsupported scheme: '%s'", addr.Scheme)
 	}
 
 	if addr.Path != "" {

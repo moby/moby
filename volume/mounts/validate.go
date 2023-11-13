@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/types/mount"
-	"github.com/pkg/errors"
 )
 
 type errMountConfig struct {
@@ -17,13 +16,13 @@ func (e *errMountConfig) Error() string {
 }
 
 func errBindSourceDoesNotExist(path string) error {
-	return errors.Errorf("bind source path does not exist: %s", path)
+	return fmt.Errorf("bind source path does not exist: %s", path)
 }
 
 func errExtraField(name string) error {
-	return errors.Errorf("field %s must not be specified", name)
+	return fmt.Errorf("field %s must not be specified", name)
 }
 
 func errMissingField(name string) error {
-	return errors.Errorf("field %s must not be empty", name)
+	return fmt.Errorf("field %s must not be empty", name)
 }

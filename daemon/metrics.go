@@ -2,6 +2,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/containerd/log"
@@ -149,11 +150,11 @@ func makePluginAdapter(p plugingetter.CompatPlugin) (metricsPlugin, error) {
 
 	pa, ok := p.(plugingetter.PluginAddr)
 	if !ok {
-		return nil, errdefs.System(errors.Errorf("got unknown plugin type %T", p))
+		return nil, errdefs.System(fmt.Errorf("got unknown plugin type %T", p))
 	}
 
 	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {
-		return nil, errors.Errorf("plugin protocol not supported: %s", pa.Protocol())
+		return nil, fmt.Errorf("plugin protocol not supported: %s", pa.Protocol())
 	}
 
 	addr := pa.Addr()

@@ -2,6 +2,7 @@ package local // import "github.com/docker/docker/daemon/logger/local"
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math/bits"
 	"strconv"
@@ -46,7 +47,7 @@ var LogOptKeys = map[string]bool{
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		if !LogOptKeys[key] {
-			return errors.Errorf("unknown log opt '%s' for log driver %s", key, Name)
+			return fmt.Errorf("unknown log opt '%s' for log driver %s", key, Name)
 		}
 	}
 	return nil

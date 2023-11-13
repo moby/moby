@@ -71,7 +71,7 @@ func (b *Builder) exportImage(ctx context.Context, state *dispatchState, layer b
 
 	parentImage, ok := parent.(*image.Image)
 	if !ok {
-		return errors.Errorf("unexpected image type")
+		return fmt.Errorf("unexpected image type")
 	}
 
 	platform := &ocispec.Platform{

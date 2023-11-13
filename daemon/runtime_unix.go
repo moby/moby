@@ -100,7 +100,7 @@ func initRuntimesDir(cfg *config.Config) error {
 
 func setupRuntimes(cfg *config.Config) (runtimes, error) {
 	if _, ok := cfg.Runtimes[config.StockRuntimeName]; ok {
-		return runtimes{}, errors.Errorf("runtime name '%s' is reserved", config.StockRuntimeName)
+		return runtimes{}, fmt.Errorf("runtime name '%s' is reserved", config.StockRuntimeName)
 	}
 
 	newrt := runtimes{
@@ -115,7 +115,7 @@ func setupRuntimes(cfg *config.Config) (runtimes, error) {
 		_, isStock := newrt.configured[newrt.Default]
 		_, isConfigured := cfg.Runtimes[newrt.Default]
 		if !isStock && !isConfigured && !isPermissibleC8dRuntimeName(newrt.Default) {
-			return runtimes{}, errors.Errorf("specified default runtime '%s' does not exist", newrt.Default)
+			return runtimes{}, fmt.Errorf("specified default runtime '%s' does not exist", newrt.Default)
 		}
 	} else {
 		newrt.Default = config.StockRuntimeName
@@ -125,14 +125,14 @@ func setupRuntimes(cfg *config.Config) (runtimes, error) {
 	for name, rt := range cfg.Runtimes {
 		var c *shimConfig
 		if rt.Path == "" && rt.Type == "" {
-			return runtimes{}, errors.Errorf("runtime %s: either a runtimeType or a path must be configured", name)
+			return runtimes{}, fmt.Errorf("runtime %s: either a runtimeType or a path must be configured", name)
 		}
 		if rt.Path != "" {
 			if rt.Type != "" {
-				return runtimes{}, errors.Errorf("runtime %s: cannot configure both path and runtimeType for the same runtime", name)
+				return runtimes{}, fmt.Errorf("runtime %s: cannot configure both path and runtimeType for the same runtime", name)
 			}
 			if len(rt.Options) > 0 {
-				return runtimes{}, errors.Errorf("runtime %s: options cannot be used with a path runtime", name)
+				return runtimes{}, fmt.Errorf("runtime %s: options cannot be used with a path runtime", name)
 			}
 
 			binaryName := rt.Path
@@ -155,7 +155,7 @@ func setupRuntimes(cfg *config.Config) (runtimes, error) {
 			}
 		} else {
 			if len(rt.Args) > 0 {
-				return runtimes{}, errors.Errorf("runtime %s: args cannot be used with a runtimeType runtime", name)
+				return runtimes{}, fmt.Errorf("runtime %s: args cannot be used with a runtimeType runtime", name)
 			}
 			// Unlike implicit runtimes, there is no restriction on configuring a shim by path.
 			c = &shimConfig{Shim: rt.Type}
@@ -218,7 +218,7 @@ func (r *runtimes) Get(name string) (string, interface{}, error) {
 	}
 
 	if !isPermissibleC8dRuntimeName(name) {
-		return "", nil, errdefs.InvalidParameter(errors.Errorf("unknown or invalid runtime name: %s", name))
+		return "", nil, errdefs.InvalidParameter(fmt.Errorf("unknown or invalid runtime name: %s", name))
 	}
 	return name, nil, nil
 }

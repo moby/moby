@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -199,7 +200,7 @@ func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHead
 	}
 
 	if !configSeen {
-		return types.PluginPrivileges{}, errors.Errorf("did not find plugin config for specified reference %s", ref)
+		return types.PluginPrivileges{}, fmt.Errorf("did not find plugin config for specified reference %s", ref)
 	}
 
 	return computePrivileges(config), nil
@@ -628,7 +629,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 		return errors.Wrapf(err, "failed to parse reference %v", options.RepoName)
 	}
 	if _, ok := ref.(reference.Canonical); ok {
-		return errors.Errorf("canonical references are not permitted")
+		return fmt.Errorf("canonical references are not permitted")
 	}
 	name := reference.FamiliarString(reference.TagNameOnly(ref))
 

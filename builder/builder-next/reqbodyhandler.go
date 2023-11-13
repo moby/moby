@@ -1,13 +1,13 @@
 package buildkit
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"sync"
 
 	"github.com/moby/buildkit/identity"
-	"github.com/pkg/errors"
 )
 
 const urlPrefix = "build-context-"
@@ -43,7 +43,7 @@ func (h *reqBodyHandler) RoundTrip(req *http.Request) (*http.Response, error) {
 	host := req.URL.Host
 	if strings.HasPrefix(host, urlPrefix) {
 		if req.Method != http.MethodGet {
-			return nil, errors.Errorf("invalid request")
+			return nil, fmt.Errorf("invalid request")
 		}
 		id := strings.TrimPrefix(host, urlPrefix)
 		h.mu.Lock()
@@ -52,7 +52,7 @@ func (h *reqBodyHandler) RoundTrip(req *http.Request) (*http.Response, error) {
 		h.mu.Unlock()
 
 		if !ok {
-			return nil, errors.Errorf("context not found")
+			return nil, fmt.Errorf("context not found")
 		}
 
 		resp := &http.Response{

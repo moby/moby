@@ -3,6 +3,7 @@ package listeners // import "github.com/docker/docker/daemon/listeners"
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"os"
 	"strconv"
@@ -53,7 +54,7 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 		}
 		ls = append(ls, l)
 	default:
-		return nil, errors.Errorf("invalid protocol format: %q", proto)
+		return nil, fmt.Errorf("invalid protocol format: %q", proto)
 	}
 
 	return ls, nil
@@ -87,14 +88,14 @@ func listenFD(addr string, tlsConfig *tls.Config) ([]net.Listener, error) {
 
 	fdNum, err := strconv.Atoi(addr)
 	if err != nil {
-		return nil, errors.Errorf("failed to parse systemd fd address: should be a number: %v", addr)
+		return nil, fmt.Errorf("failed to parse systemd fd address: should be a number: %v", addr)
 	}
 	fdOffset := fdNum - 3
 	if len(listeners) < fdOffset+1 {
 		return nil, errors.New("too few socket activated files passed in by systemd")
 	}
 	if listeners[fdOffset] == nil {
-		return nil, errors.Errorf("failed to listen on systemd activated file: fd %d", fdOffset+3)
+		return nil, fmt.Errorf("failed to listen on systemd activated file: fd %d", fdOffset+3)
 	}
 	for i, ls := range listeners {
 		if i == fdOffset || ls == nil {

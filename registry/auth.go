@@ -2,6 +2,7 @@ package registry // import "github.com/docker/docker/registry"
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/pkg/errors"
 )
 
 // AuthClientID is used the ClientID used for the token server
@@ -99,7 +99,7 @@ func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent st
 	}
 
 	// TODO(dmcgowan): Attempt to further interpret result, status code and error code string
-	return "", "", errors.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
+	return "", "", fmt.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
 }
 
 func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope) (*http.Client, error) {

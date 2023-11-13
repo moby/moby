@@ -3,6 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -110,7 +111,7 @@ func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values,
 			return nil, err
 		}
 		if !accept {
-			return nil, errors.Errorf("permission denied while installing plugin %s", options.RemoteRef)
+			return nil, fmt.Errorf("permission denied while installing plugin %s", options.RemoteRef)
 		}
 	}
 	return privileges, nil

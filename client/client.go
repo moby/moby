@@ -44,6 +44,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -365,7 +366,7 @@ func (cli *Client) HTTPClient() *http.Client {
 func ParseHostURL(host string) (*url.URL, error) {
 	proto, addr, ok := strings.Cut(host, "://")
 	if !ok || addr == "" {
-		return nil, errors.Errorf("unable to parse docker host `%s`", host)
+		return nil, fmt.Errorf("unable to parse docker host `%s`", host)
 	}
 
 	var basePath string

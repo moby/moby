@@ -351,7 +351,7 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 		if errors.Is(err, errSwarmLocked) {
 			return invalidUnlockKey{}
 		}
-		return errors.Errorf("swarm component could not be started: %v", err)
+		return fmt.Errorf("swarm component could not be started: %v", err)
 	}
 	return nil
 }

@@ -3,6 +3,7 @@ package httputils // import "github.com/docker/docker/api/server/httputils"
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -128,7 +129,7 @@ func matchesContentType(contentType, expectedType string) error {
 		return errdefs.InvalidParameter(errors.Wrapf(err, "malformed Content-Type header (%s)", contentType))
 	}
 	if mimetype != expectedType {
-		return errdefs.InvalidParameter(errors.Errorf("unsupported Content-Type header (%s): must be '%s'", contentType, expectedType))
+		return errdefs.InvalidParameter(fmt.Errorf("unsupported Content-Type header (%s): must be '%s'", contentType, expectedType))
 	}
 	return nil
 }

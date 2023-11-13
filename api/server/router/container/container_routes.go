@@ -359,7 +359,7 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 				waitCondition = containerpkg.WaitConditionRemoved
 				legacyRemovalWaitPre134 = versions.LessThan(version, "1.34")
 			default:
-				return errdefs.InvalidParameter(errors.Errorf("invalid condition: %q", v))
+				return errdefs.InvalidParameter(fmt.Errorf("invalid condition: %q", v))
 			}
 		}
 	}
@@ -624,7 +624,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			for k := range networkingConfig.EndpointsConfig {
 				l = append(l, k)
 			}
-			return errdefs.InvalidParameter(errors.Errorf("Container cannot be created with multiple network endpoints: %s", strings.Join(l, ", ")))
+			return errdefs.InvalidParameter(fmt.Errorf("Container cannot be created with multiple network endpoints: %s", strings.Join(l, ", ")))
 		}
 	}
 
@@ -756,7 +756,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
-		return errdefs.InvalidParameter(errors.Errorf("error attaching to container %s, hijack connection missing", containerName))
+		return errdefs.InvalidParameter(fmt.Errorf("error attaching to container %s, hijack connection missing", containerName))
 	}
 
 	contentType := types.MediaTypeRawStream

@@ -1,11 +1,11 @@
 package daemon
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 )
 
 // validateBindDaemonRoot ensures that if a given mountpoint's source is within
@@ -32,5 +32,5 @@ func (daemon *Daemon) validateBindDaemonRoot(m mount.Mount) (bool, error) {
 	default:
 	}
 
-	return false, errdefs.InvalidParameter(errors.Errorf(`invalid mount config: must use either propagation mode "rslave" or "rshared" when mount source is within the daemon root, daemon root: %q, bind mount source: %q, propagation: %q`, daemon.root, m.Source, m.BindOptions.Propagation))
+	return false, errdefs.InvalidParameter(fmt.Errorf(`invalid mount config: must use either propagation mode "rslave" or "rshared" when mount source is within the daemon root, daemon root: %q, bind mount source: %q, propagation: %q`, daemon.root, m.Source, m.BindOptions.Propagation))
 }

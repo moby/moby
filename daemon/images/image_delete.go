@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/pkg/errors"
 )
 
 type conflictType int
@@ -88,7 +87,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 				// this image would remain "dangling" and since
 				// we really want to avoid that the client must
 				// explicitly force its removal.
-				err := errors.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(ctr.ID), stringid.TruncateID(imgID.String()))
+				err := fmt.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(ctr.ID), stringid.TruncateID(imgID.String()))
 				return nil, errdefs.Conflict(err)
 			}
 		}

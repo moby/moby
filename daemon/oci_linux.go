@@ -299,7 +299,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// ipc
 		ipcMode := c.HostConfig.IpcMode
 		if !ipcMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid IPC mode: %v", ipcMode))
+			return errdefs.InvalidParameter(fmt.Errorf("invalid IPC mode: %v", ipcMode))
 		}
 		switch {
 		case ipcMode.IsContainer():
@@ -335,7 +335,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// pid
 		pidMode := c.HostConfig.PidMode
 		if !pidMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid PID mode: %v", pidMode))
+			return errdefs.InvalidParameter(fmt.Errorf("invalid PID mode: %v", pidMode))
 		}
 		switch {
 		case pidMode.IsContainer():
@@ -366,7 +366,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		// uts
 		if !c.HostConfig.UTSMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid UTS mode: %v", c.HostConfig.UTSMode))
+			return errdefs.InvalidParameter(fmt.Errorf("invalid UTS mode: %v", c.HostConfig.UTSMode))
 		}
 		if c.HostConfig.UTSMode.IsHost() {
 			oci.RemoveNamespace(s, specs.UTSNamespace)
@@ -375,7 +375,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		// cgroup
 		if !c.HostConfig.CgroupnsMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid cgroup namespace mode: %v", c.HostConfig.CgroupnsMode))
+			return errdefs.InvalidParameter(fmt.Errorf("invalid cgroup namespace mode: %v", c.HostConfig.CgroupnsMode))
 		}
 		if c.HostConfig.CgroupnsMode.IsPrivate() {
 			setNamespace(s, specs.LinuxNamespace{
@@ -453,7 +453,7 @@ func ensureShared(path string) error {
 	}
 	// Make sure source mount point is shared.
 	if !hasMountInfoOption(optionalOpts, sharedPropagationOption) {
-		return errors.Errorf("path %s is mounted on %s but it is not a shared mount", path, sourceMount)
+		return fmt.Errorf("path %s is mounted on %s but it is not a shared mount", path, sourceMount)
 	}
 	return nil
 }
@@ -466,7 +466,7 @@ func ensureSharedOrSlave(path string) error {
 	}
 
 	if !hasMountInfoOption(optionalOpts, sharedPropagationOption, slavePropagationOption) {
-		return errors.Errorf("path %s is mounted on %s but it is not a shared or slave mount", path, sourceMount)
+		return fmt.Errorf("path %s is mounted on %s but it is not a shared or slave mount", path, sourceMount)
 	}
 	return nil
 }
