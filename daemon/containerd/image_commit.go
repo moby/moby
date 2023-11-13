@@ -16,6 +16,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/rootfs"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log"
@@ -90,7 +91,7 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 	if diffLayerDesc != nil {
 		rootfsID := identity.ChainID(imageConfig.RootFS.DiffIDs).String()
 
-		if err := applyDiffLayer(ctx, rootfsID, parentImage, sn, differ, *diffLayerDesc); err != nil {
+		if err := i.applyDiffLayer(ctx, rootfsID, cc.ContainerID, sn, differ, *diffLayerDesc); err != nil {
 			return "", fmt.Errorf("failed to apply diff: %w", err)
 		}
 
@@ -291,13 +292,19 @@ func createDiff(ctx context.Context, name string, sn snapshots.Snapshotter, cs c
 }
 
 // applyDiffLayer will apply diff layer content created by createDiff into the snapshotter.
-func applyDiffLayer(ctx context.Context, name string, baseImg imagespec.DockerOCIImage, sn snapshots.Snapshotter, differ diff.Applier, diffDesc ocispec.Descriptor) (retErr error) {
+func (i *ImageService) applyDiffLayer(ctx context.Context, name string, containerID string, sn snapshots.Snapshotter, differ diff.Applier, diffDesc ocispec.Descriptor) (retErr error) {
 	var (
 		key    = uniquePart() + "-" + name
-		parent = identity.ChainID(baseImg.RootFS.DiffIDs).String()
+		mounts []mount.Mount
+		err    error
 	)
 
-	mount, err := sn.Prepare(ctx, key, parent)
+	info, err := sn.Stat(ctx, containerID)
+	if err != nil {
+		return err
+	}
+
+	mounts, err = sn.Prepare(ctx, key, info.Parent)
 	if err != nil {
 		return fmt.Errorf("failed to prepare snapshot: %w", err)
 	}
@@ -312,8 +319,37 @@ func applyDiffLayer(ctx context.Context, name string, baseImg imagespec.DockerOC
 		}
 	}()
 
-	if _, err = differ.Apply(ctx, diffDesc, mount); err != nil {
+	if _, err = differ.Apply(ctx, diffDesc, mounts); err != nil {
 		return err
+	}
+
+	if !i.idMapping.Empty() {
+		// The rootfs of the container is remapped if an id mapping exists, we
+		// need to "unremap" it before committing the snapshot
+		rootPair := i.idMapping.RootPair()
+		usernsID := fmt.Sprintf("%s-%d-%d", key, rootPair.UID, rootPair.GID)
+		remappedID := usernsID + remapSuffix
+
+		if err = sn.Commit(ctx, name+"-pre", key); err != nil {
+			if cerrdefs.IsAlreadyExists(err) {
+				return nil
+			}
+			return err
+		}
+
+		mounts, err = sn.Prepare(ctx, remappedID, name+"-pre")
+		if err != nil {
+			return err
+		}
+
+		if err := i.unremapRootFS(ctx, mounts); err != nil {
+			return err
+		}
+
+		if err := sn.Commit(ctx, name, remappedID); err != nil {
+			return err
+		}
+		key = remappedID
 	}
 
 	if err = sn.Commit(ctx, name, key); err != nil {
@@ -322,6 +358,7 @@ func applyDiffLayer(ctx context.Context, name string, baseImg imagespec.DockerOC
 		}
 		return err
 	}
+
 	return nil
 }
 

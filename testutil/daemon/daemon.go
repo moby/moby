@@ -83,6 +83,7 @@ type Daemon struct {
 	args                       []string
 	extraEnv                   []string
 	containerdSocket           string
+	usernsRemap                string
 	rootlessUser               *user.User
 	rootlessXDGRuntimeDir      string
 
@@ -455,6 +456,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	)
 	if d.containerdSocket != "" {
 		d.args = append(d.args, "--containerd", d.containerdSocket)
+	}
+
+	if d.usernsRemap != "" {
+		d.args = append(d.args, "--userns-remap", d.usernsRemap)
 	}
 
 	if d.defaultCgroupNamespaceMode != "" {
