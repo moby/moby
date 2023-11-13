@@ -3,6 +3,7 @@ package build // import "github.com/docker/docker/integration/build"
 import (
 	"bufio"
 	"bytes"
+        "fmt"
 	"io"
 	"os"
 	"strings"
@@ -71,6 +72,11 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 		})
 	assert.NilError(t, err)
 	defer resp.Body.Close()
+
+	bbb := bytes.NewBuffer(nil)
+	n, err := bbb.ReadFrom(resp.Body)
+	fmt.Printf("OUTPUT: %v\n", string(bbb.Bytes()))
+	_ = n
 
 	buf := bytes.NewBuffer(nil)
 	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, buf, 0, false, nil)

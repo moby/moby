@@ -1,0 +1,75 @@
+Hi Albin,
+
+With "DOCKER_GRAPHDRIVER=", I was still getting some integration test failures. One was for a test listed in your page of example commands, so I tried that command:
+
+    $ TIMEOUT=10m TEST_SKIP_INTEGRATION_CLI=y TEST_INTEGRATION_DIR=./integration/networking TESTFLAGS='-test.run TestBridgeICC' ./hack/make.sh dynbinary test-integration
+
+(But had to add DOCKER_GRAPHDRIVER= too, presumably that's to be expected?)
+
+Those tests still failed, with error:
+
+    bridge_test.go:152: assertion failed: error is not nil: Post "http://%2Ftmp%2Fdocker-integration%2Fddd085cccb5d8.sock/v1.44/containers/create?name=ctr-icc-7-2": context deadline exceeded
+
+I wondered if it'd pass with a bit more time, or was fundamentally broken. So, I tried doubling the 5s timeout ...
+
+    diff --git a/integration/networking/bridge_test.go b/integration/networking/bridge_test.go
+    index f9c92909fa..1b2b5e8f3b 100644
+    --- a/integration/networking/bridge_test.go
+    +++ b/integration/networking/bridge_test.go
+    @@ -147,7 +147,7 @@ func TestBridgeICC(t *testing.T) {
+     			pingCmd := []string{"ping", "-c1", "-W3", pingHost}
+     
+     			ctr2Name := fmt.Sprintf("ctr-icc-%d-2", tcID)
+    -			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+    +			attachCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+     			defer cancel()
+     			res := container.RunAttach(attachCtx, t, c,
+     				container.WithName(ctr2Name),
+
+It consistently passes with that change, and fails without. Maybe because I'm running the dev container on my MacBook instead of a proper OS?!
+
+I guess the 5s is a fairly arbirtary "plenty of time for the container to start". But, don't know whether it should be getting close to that and there's a real problem, or 5s is just a bit tight?
+
+Ditto for "TestBridgeINC" in the same test file.
+
+(I tried without "DOCKER_DEBUG" set, just in case that slows anything down, it didn't make any difference.)
+
+With those increased timeouts, I still have quite a few failures (below) - including some with Go backtraces. Haven't looked in to them yet, but presumably this isn't expected?
+
+I used the command:
+
+    # TEST_SKIP_INTEGRATION_CLI=y DOCKER_GRAPHDRIVER= ./hack/make.sh dynbinary test-integration
+
+Ta,
+Rob.
+
+=== FAIL: arm64.integration.build TestBuildUserNamespaceValidateCapabilitiesAreV2 (32.95s)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=true/container_created_should_not_be_restarted/stop-daemon (302.49s)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=false/container_with_restart=always_and_with_healthcheck/kill-daemon (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=false/container_with_restart=always/stop-daemon (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=false/container_without_restart_policy/stop-daemon (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=false/container_with_restart=always/kill-daemon (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=true/container_with_restart=always/kill-daemon (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=false/container_created_should_not_be_restarted/kill-daemon (unknown)
+=== FAIL: arm64.integration.container TestRestartDaemonWithRestartingContainer (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=true/container_with_restart=always_and_with_healthcheck/stop-daemon (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=true/container_with_restart=always/stop-daemon (unknown)
+=== FAIL: arm64.integration.container TestIpcModeOlderClient (unknown)
+=== FAIL: arm64.integration.container TestContainerKillOnDaemonStart (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=true/container_without_restart_policy/kill-daemon (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=false/container_created_should_not_be_restarted/stop-daemon (unknown)
+=== FAIL: arm64.integration.container TestHardRestartWhenContainerIsRunning (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=false/container_without_restart_policy/kill-daemon (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=true/container_created_should_not_be_restarted/kill-daemon (unknown)
+=== FAIL: arm64.integration.container TestDaemonHostGatewayIP (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartIpcMode (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=true/container_without_restart_policy/stop-daemon (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=false/container_with_restart=always_and_with_healthcheck/stop-daemon (unknown)
+=== FAIL: arm64.integration.container TestDaemonRestartKillContainers/live-restore=true/container_with_restart=always_and_with_healthcheck/kill-daemon (unknown)
+=== FAIL: arm64.integration.container TestContainerStartOnDaemonRestart (unknown)
+=== FAIL: arm64.integration.network TestDaemonDefaultNetworkPools (0.65s)
+=== FAIL: arm64.integration.service TestInspect (19.20s)
+=== FAIL: arm64.integration.service TestReplicatedJob (300.08s)
+=== FAIL: arm64.integration.volume TestVolumesRemoveSwarmEnabled (3.55s)
+

@@ -3,8 +3,10 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"encoding/json"
+        "fmt"
 	"net/url"
 	"path"
+        "time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -78,7 +80,10 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 		NetworkingConfig: networkingConfig,
 	}
 
+        startTime := time.Now()
 	serverResp, err := cli.post(ctx, "/containers/create", query, body, nil)
+        fmt.Printf("CLI Post call took %v\n", time.Since(startTime))
+
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
 		return response, err
