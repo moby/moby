@@ -7,9 +7,10 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/events"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/copystructure"
+
+	"github.com/docker/docker/api/types/events"
 
 	"github.com/docker/docker/daemon/config"
 )

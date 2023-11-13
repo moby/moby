@@ -16,6 +16,11 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/config"
@@ -28,10 +33,6 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/pkg/errors"
-	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
-	"golang.org/x/sync/errgroup"
 )
 
 const (

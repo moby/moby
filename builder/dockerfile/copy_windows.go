@@ -7,11 +7,12 @@ import (
 	"strings"
 
 	winio "github.com/Microsoft/go-winio"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/windows"
+
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/windows"
 )
 
 var pathDenyList = map[string]bool{

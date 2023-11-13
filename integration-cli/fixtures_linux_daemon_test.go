@@ -10,9 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil/fixtures/load"
-	"gotest.tools/v3/assert"
 )
 
 func ensureSyscallTest(ctx context.Context, c *testing.T) {

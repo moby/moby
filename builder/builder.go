@@ -8,13 +8,14 @@ import (
 	"context"
 	"io"
 
+	"github.com/opencontainers/go-digest"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/opencontainers/go-digest"
 )
 
 const (

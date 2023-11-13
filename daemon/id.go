@@ -4,9 +4,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 const idFilename = "engine-id"

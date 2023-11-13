@@ -15,6 +15,8 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -26,7 +28,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	units "github.com/docker/go-units"
-	"github.com/pkg/errors"
 )
 
 type invalidParam struct {

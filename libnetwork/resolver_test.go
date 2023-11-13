@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 // a simple/null address type that will be used to fake a local address for unit testing

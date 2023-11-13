@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
@@ -16,7 +18,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
-	"gotest.tools/v3/assert"
 )
 
 func (s *DockerAPISuite) TestAPINetworkGetDefaults(c *testing.T) {

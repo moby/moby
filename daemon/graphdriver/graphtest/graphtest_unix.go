@@ -9,13 +9,14 @@ import (
 	"path"
 	"testing"
 
+	"golang.org/x/sys/unix"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/quota"
 	units "github.com/docker/go-units"
-	"golang.org/x/sys/unix"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 var drv *Driver

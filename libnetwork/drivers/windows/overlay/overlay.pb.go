@@ -2,25 +2,33 @@
 // source: drivers/windows/overlay/overlay.proto
 
 /*
-	Package overlay is a generated protocol buffer package.
+Package overlay is a generated protocol buffer package.
 
-	It is generated from these files:
-		drivers/windows/overlay/overlay.proto
+It is generated from these files:
 
-	It has these top-level messages:
-		PeerRecord
+	drivers/windows/overlay/overlay.proto
+
+It has these top-level messages:
+
+	PeerRecord
 */
 package overlay
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
 
-import strings "strings"
-import reflect "reflect"
+	proto "github.com/gogo/protobuf/proto"
 
-import io "io"
+	math "math"
+
+	_ "github.com/gogo/protobuf/gogoproto"
+
+	strings "strings"
+
+	reflect "reflect"
+
+	io "io"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal

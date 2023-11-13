@@ -9,8 +9,9 @@ import (
 
 	"github.com/bsphere/le_go"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/logger"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/logger"
 )
 
 type logentries struct {

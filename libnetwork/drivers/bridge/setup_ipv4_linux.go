@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
+
+	"github.com/docker/docker/libnetwork/types"
 )
 
 func selectIPv4Address(addresses []netlink.Addr, selector *net.IPNet) (netlink.Addr, error) {

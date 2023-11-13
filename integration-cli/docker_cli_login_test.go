@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/integration-cli/cli"
 )
 
 type DockerCLILoginSuite struct {

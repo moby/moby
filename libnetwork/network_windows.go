@@ -9,6 +9,7 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/libnetwork/drivers/windows"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipams/windowsipam"

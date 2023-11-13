@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 )

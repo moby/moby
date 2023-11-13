@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -788,7 +789,7 @@ func (daemon *Daemon) clearAttachableNetworks() {
 // buildCreateEndpointOptions builds endpoint options from a given network.
 func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, epConfig *network.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
 	var createOptions []libnetwork.EndpointOption
-	var genericOptions = make(options.Generic)
+	genericOptions := make(options.Generic)
 
 	nwName := n.Name()
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()

@@ -10,7 +10,6 @@ package registry // import "github.com/docker/docker/api/types/registry"
 // AuthenticateOKBody authenticate o k body
 // swagger:model AuthenticateOKBody
 type AuthenticateOKBody struct {
-
 	// An opaque token used to authenticate a user after a successful login
 	// Required: true
 	IdentityToken string `json:"IdentityToken"`

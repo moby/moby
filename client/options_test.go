@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/api"
 )
 
 func TestOptionWithHostFromEnv(t *testing.T) {

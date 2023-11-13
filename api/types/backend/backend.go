@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
+
 	"github.com/docker/docker/api/types/container"
 )
 

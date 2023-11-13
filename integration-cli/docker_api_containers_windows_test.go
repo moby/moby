@@ -10,12 +10,13 @@ import (
 	"testing"
 
 	winio "github.com/Microsoft/go-winio"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/testutil"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/testutil"
 )
 
 func (s *DockerAPISuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T) {

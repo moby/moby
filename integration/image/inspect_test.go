@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/docker/docker/testutil/environment"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/testutil/environment"
 )
 
 // Regression test for: https://github.com/moby/moby/issues/45556

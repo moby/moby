@@ -21,6 +21,11 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/moby/sys/mount"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
@@ -35,10 +40,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	v2 "github.com/docker/docker/plugin/v2"
-	"github.com/moby/sys/mount"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 var acceptedPluginFilterTags = map[string]bool{

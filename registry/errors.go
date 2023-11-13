@@ -3,9 +3,10 @@ package registry // import "github.com/docker/docker/registry"
 import (
 	"net/url"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 )
 
 func translateV2AuthError(err error) error {

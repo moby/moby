@@ -5,8 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/testutil/fakecontext"
 	"gotest.tools/v3/icmd"
+
+	"github.com/docker/docker/testutil/fakecontext"
 )
 
 // WithStdinContext sets the build context from the standard input with the specified reader

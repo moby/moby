@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
@@ -13,7 +15,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/restartmanager"
-	"github.com/pkg/errors"
 )
 
 func (daemon *Daemon) setStateCounter(c *container.Container) {

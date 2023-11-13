@@ -10,11 +10,12 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	units "github.com/docker/go-units"
-	"github.com/pkg/errors"
 )
 
 // Name is the name of the file that the jsonlogger logs to.

@@ -11,6 +11,10 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/svc/mgr"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
@@ -28,9 +32,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/windows"
-	"golang.org/x/sys/windows/svc/mgr"
 )
 
 const (

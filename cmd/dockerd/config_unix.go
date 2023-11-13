@@ -6,12 +6,13 @@ import (
 	"net"
 	"path/filepath"
 
+	"github.com/spf13/pflag"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/registry"
-	"github.com/spf13/pflag"
 )
 
 // installConfigFlags adds flags to the pflag.FlagSet to configure the daemon

@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/ipamutils"
-	"github.com/docker/docker/opts"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/imdario/mergo"
@@ -18,6 +16,9 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/libnetwork/ipamutils"
+	"github.com/docker/docker/opts"
 )
 
 func makeConfigFile(t *testing.T, content string) string {

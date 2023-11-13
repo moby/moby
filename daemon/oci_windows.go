@@ -10,6 +10,10 @@ import (
 
 	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/log"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/windows/registry"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
@@ -19,9 +23,6 @@ import (
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/windows/registry"
 )
 
 const (

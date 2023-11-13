@@ -3,11 +3,12 @@ package config // import "github.com/docker/docker/daemon/config"
 import (
 	"testing"
 
-	"github.com/docker/docker/opts"
-	units "github.com/docker/go-units"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/opts"
+	units "github.com/docker/go-units"
 )
 
 func TestGetConflictFreeConfiguration(t *testing.T) {

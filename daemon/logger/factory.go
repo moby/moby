@@ -5,10 +5,11 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/pkg/errors"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/plugingetter"
 	units "github.com/docker/go-units"
-	"github.com/pkg/errors"
 )
 
 // Creator builds a logging driver instance with given context.

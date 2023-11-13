@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/homedir"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/pkg/homedir"
 )
 
 const (

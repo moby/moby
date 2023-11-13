@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/containerd/continuity/driver"
+
 	"github.com/docker/docker/pkg/archive"
 )
 

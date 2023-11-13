@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
+
 	"github.com/docker/docker/pkg/ioutils"
 )
 

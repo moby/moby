@@ -2,6 +2,7 @@ package registry // import "github.com/docker/docker/registry"
 
 import (
 	"github.com/distribution/reference"
+
 	"github.com/docker/docker/api/types/registry"
 )
 

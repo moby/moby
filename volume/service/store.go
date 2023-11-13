@@ -10,15 +10,16 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/locker"
+	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
+
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/docker/volume/service/opts"
-	"github.com/moby/locker"
-	"github.com/pkg/errors"
-	bolt "go.etcd.io/bbolt"
 )
 
 const (

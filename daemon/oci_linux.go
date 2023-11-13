@@ -15,6 +15,14 @@ import (
 	"github.com/containerd/containerd/pkg/apparmor"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/log"
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/mountinfo"
+	"github.com/moby/sys/user"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	dconfig "github.com/docker/docker/daemon/config"
@@ -25,13 +33,6 @@ import (
 	"github.com/docker/docker/pkg/rootless/specconv"
 	"github.com/docker/docker/pkg/stringid"
 	volumemounts "github.com/docker/docker/volume/mounts"
-	"github.com/moby/sys/mount"
-	"github.com/moby/sys/mountinfo"
-	"github.com/moby/sys/user"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 )
 
 const inContainerInitPath = "/sbin/" + dconfig.DefaultInitBinary

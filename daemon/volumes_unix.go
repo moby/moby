@@ -9,11 +9,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/events"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	volumemounts "github.com/docker/docker/volume/mounts"
-	"github.com/pkg/errors"
 )
 
 // setupMounts iterates through each of the mount points for a container and

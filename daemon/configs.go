@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/containerd/log"
+
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 )
 

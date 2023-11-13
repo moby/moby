@@ -10,11 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration-cli/cli"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/icmd"
 )
 
 type DockerCLIInspectSuite struct {

@@ -5,10 +5,11 @@ package main
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/config"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
+
+	"github.com/docker/docker/daemon/config"
 )
 
 func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {

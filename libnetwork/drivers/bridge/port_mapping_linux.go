@@ -9,8 +9,9 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/ishidawataru/sctp"
+
+	"github.com/docker/docker/libnetwork/types"
 )
 
 func (n *bridgeNetwork) allocatePorts(ep *bridgeEndpoint, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {

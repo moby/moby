@@ -11,6 +11,8 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/gogo/protobuf/proto"
+
 	"github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
@@ -18,7 +20,6 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/go-events"
-	"github.com/gogo/protobuf/proto"
 )
 
 const (

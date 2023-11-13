@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/libnetwork/internal/caller"
 	"github.com/docker/docker/pkg/stack"
 )

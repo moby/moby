@@ -20,14 +20,15 @@ import (
 	"github.com/containerd/containerd/cio"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/log"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/windows"
+
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/queue"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/windows"
 )
 
 type process struct {

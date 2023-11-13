@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd/pkg/apparmor"
+
 	aaprofile "github.com/docker/docker/profiles/apparmor"
 )
 

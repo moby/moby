@@ -3,9 +3,10 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/dockerversion"
-	"gotest.tools/v3/assert"
 )
 
 func TestFillLicense(t *testing.T) {

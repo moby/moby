@@ -1,10 +1,11 @@
 package system // import "github.com/docker/docker/api/server/router/system"
 
 import (
+	"resenje.org/singleflight"
+
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/types/system"
 	buildkit "github.com/docker/docker/builder/builder-next"
-	"resenje.org/singleflight"
 )
 
 // systemRouter provides information about the Docker system overall.

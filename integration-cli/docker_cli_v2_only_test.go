@@ -6,8 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/testutil/registry"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/testutil/registry"
 )
 
 func makefile(path string, contents string) (string, error) {

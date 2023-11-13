@@ -7,11 +7,12 @@ import (
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/compatcontext"
-	"github.com/pkg/errors"
 )
 
 // TagImage creates an image named as newTag and targeting the given descriptor id.

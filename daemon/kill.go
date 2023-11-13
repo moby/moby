@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/sys/signal"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/events"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/moby/sys/signal"
-	"github.com/pkg/errors"
 )
 
 type errNoSuchProcess struct {

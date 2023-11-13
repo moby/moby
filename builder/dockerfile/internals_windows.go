@@ -8,11 +8,12 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/platforms"
+	"golang.org/x/sys/windows"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"golang.org/x/sys/windows"
 )
 
 func parseChownFlag(ctx context.Context, builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping idtools.IdentityMapping) (idtools.Identity, error) {

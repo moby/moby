@@ -7,10 +7,11 @@ import (
 	"testing"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/errdefs"
 )
 
 var (

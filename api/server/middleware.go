@@ -2,6 +2,7 @@ package server // import "github.com/docker/docker/api/server"
 
 import (
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
 )

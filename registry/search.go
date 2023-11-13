@@ -7,11 +7,12 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 )
 
 var acceptedSearchFilterTags = map[string]bool{

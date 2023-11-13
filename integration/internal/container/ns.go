@@ -5,9 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/client"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/client"
 )
 
 // GetContainerNS gets the value of the specified namespace of a container

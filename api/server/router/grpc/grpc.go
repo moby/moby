@@ -4,12 +4,13 @@ import (
 	"context"
 	"strings"
 
-	"github.com/docker/docker/api/server/router"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
+
+	"github.com/docker/docker/api/server/router"
 )
 
 type grpcRouter struct {

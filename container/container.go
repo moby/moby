@@ -16,6 +16,12 @@ import (
 
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/log"
+	agentexec "github.com/moby/swarmkit/v2/agent/exec"
+	"github.com/moby/sys/signal"
+	"github.com/moby/sys/symlink"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	mounttypes "github.com/docker/docker/api/types/mount"
@@ -38,11 +44,6 @@ import (
 	"github.com/docker/docker/volume"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	units "github.com/docker/go-units"
-	agentexec "github.com/moby/swarmkit/v2/agent/exec"
-	"github.com/moby/sys/signal"
-	"github.com/moby/sys/symlink"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 const (

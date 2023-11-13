@@ -7,10 +7,11 @@ import (
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/errdefs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/docker/errdefs"
 )
 
 type causer interface {

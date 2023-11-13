@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/go-connections/tlsconfig"
 )
 

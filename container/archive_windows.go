@@ -4,9 +4,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/pkg/errors"
 )
 
 // ResolvePath resolves the given path in the container to a resource on the

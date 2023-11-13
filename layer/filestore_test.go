@@ -9,8 +9,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
+
+	"github.com/docker/docker/pkg/stringid"
 )
 
 func randomLayerID(seed int64) ChainID {

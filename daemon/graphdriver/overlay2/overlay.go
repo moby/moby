@@ -16,6 +16,11 @@ import (
 
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/log"
+	"github.com/moby/locker"
+	"github.com/moby/sys/mount"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"golang.org/x/sys/unix"
+
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/archive"
@@ -27,10 +32,6 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/quota"
 	units "github.com/docker/go-units"
-	"github.com/moby/locker"
-	"github.com/moby/sys/mount"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"golang.org/x/sys/unix"
 )
 
 // untar defines the untar method

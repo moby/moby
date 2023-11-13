@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/docker/distribution"
 	"github.com/opencontainers/go-digest"
+
+	"github.com/docker/distribution"
 )
 
 type roLayer struct {

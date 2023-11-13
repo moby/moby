@@ -8,9 +8,10 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func (ld *layerDescriptor) open(ctx context.Context) (distribution.ReadSeekCloser, error) {

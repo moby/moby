@@ -12,10 +12,11 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/distribution"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+
+	"github.com/docker/distribution"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 var (

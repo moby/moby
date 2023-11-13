@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"golang.org/x/sys/windows"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/system"
-	"golang.org/x/sys/windows"
 )
 
 func getDefaultDaemonConfigFile() (string, error) {

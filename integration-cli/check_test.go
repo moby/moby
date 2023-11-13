@@ -14,6 +14,12 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
@@ -24,11 +30,6 @@ import (
 	"github.com/docker/docker/testutil/fakestorage"
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"github.com/docker/docker/testutil/registry"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 const (

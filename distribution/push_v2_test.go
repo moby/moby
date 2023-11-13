@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/distribution/reference"
+	"github.com/opencontainers/go-digest"
+
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
@@ -16,7 +18,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	refstore "github.com/docker/docker/reference"
 	registrypkg "github.com/docker/docker/registry"
-	"github.com/opencontainers/go-digest"
 )
 
 func TestGetRepositoryMountCandidates(t *testing.T) {

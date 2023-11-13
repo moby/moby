@@ -15,6 +15,11 @@ import (
 
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes/docker"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/system"
@@ -24,10 +29,6 @@ import (
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"github.com/docker/docker/testutil/registry"
 	"github.com/docker/docker/testutil/request"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 // TestPluginInvalidJSON tests that POST endpoints that expect a body return

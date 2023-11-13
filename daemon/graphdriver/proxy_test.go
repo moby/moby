@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/docker/docker/pkg/idtools"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/pkg/idtools"
 )
 
 func TestGraphDriverInitRequestIsCompatible(t *testing.T) {

@@ -12,7 +12,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/containerd/log"
+	"github.com/sirupsen/logrus"
+
 	"github.com/docker/docker/pkg/archive"
 )
 

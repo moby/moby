@@ -16,6 +16,13 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/platforms"
+	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	"github.com/moby/buildkit/frontend/dockerfile/shell"
+	"github.com/moby/sys/signal"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
@@ -23,12 +30,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/go-connections/nat"
-	"github.com/moby/buildkit/frontend/dockerfile/instructions"
-	"github.com/moby/buildkit/frontend/dockerfile/parser"
-	"github.com/moby/buildkit/frontend/dockerfile/shell"
-	"github.com/moby/sys/signal"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // ENV foo bar

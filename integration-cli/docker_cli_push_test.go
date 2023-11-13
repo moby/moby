@@ -12,11 +12,12 @@ import (
 	"testing"
 
 	"github.com/distribution/reference"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
+
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/icmd"
 )
 
 type DockerCLIPushSuite struct {

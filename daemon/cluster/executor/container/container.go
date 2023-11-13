@@ -10,6 +10,12 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/moby/swarmkit/v2/agent/exec"
+	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/api/genericresource"
+	"github.com/moby/swarmkit/v2/template"
+
 	"github.com/docker/docker/api/types"
 	enginecontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -23,11 +29,6 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
-	gogotypes "github.com/gogo/protobuf/types"
-	"github.com/moby/swarmkit/v2/agent/exec"
-	"github.com/moby/swarmkit/v2/api"
-	"github.com/moby/swarmkit/v2/api/genericresource"
-	"github.com/moby/swarmkit/v2/template"
 )
 
 const (

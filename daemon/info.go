@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/opencontainers/selinux/go-selinux"
+
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/system"
@@ -24,7 +26,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/registry"
 	metrics "github.com/docker/go-metrics"
-	"github.com/opencontainers/selinux/go-selinux"
 )
 
 // SystemInfo returns information about the host server the daemon is running on.

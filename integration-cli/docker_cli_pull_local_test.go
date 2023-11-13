@@ -9,16 +9,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/opencontainers/go-digest"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/opencontainers/go-digest"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/icmd"
-	"gotest.tools/v3/skip"
 )
 
 // testPullImageWithAliases pulls a specific image tag and verifies that any aliases (i.e., other

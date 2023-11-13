@@ -9,17 +9,18 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sys/unix"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/assert/opt"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	realcontainer "github.com/docker/docker/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"golang.org/x/sys/unix"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/assert/opt"
-	"gotest.tools/v3/skip"
 )
 
 // This is a regression test for #36145

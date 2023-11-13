@@ -11,9 +11,10 @@ import (
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/log"
-	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 )
 
 func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {

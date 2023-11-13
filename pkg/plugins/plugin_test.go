@@ -12,11 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/plugins/transport"
-	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/pkg/plugins/transport"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 const (

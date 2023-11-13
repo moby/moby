@@ -25,6 +25,9 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/windows"
+
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
@@ -33,8 +36,6 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/windows"
 )
 
 const (

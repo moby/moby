@@ -6,11 +6,12 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/opencontainers/go-digest"
+
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/opencontainers/go-digest"
 )
 
 // noFallbackMinVersion is the minimum version for which v1compatibility

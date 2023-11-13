@@ -8,6 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/mountinfo"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/fs"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
@@ -16,13 +24,6 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/testutil"
-	"github.com/moby/sys/mount"
-	"github.com/moby/sys/mountinfo"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 func TestContainerNetworkMountsNoChown(t *testing.T) {

@@ -4,10 +4,11 @@ import (
 	"context"
 	"strings"
 
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/poll"
+
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 )
 
 // IsStopped verifies the container is in stopped state.

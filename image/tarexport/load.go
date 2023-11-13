@@ -13,6 +13,10 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/moby/sys/sequential"
+	"github.com/moby/sys/symlink"
+	"github.com/opencontainers/go-digest"
+
 	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/image"
@@ -23,9 +27,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/moby/sys/sequential"
-	"github.com/moby/sys/symlink"
-	"github.com/opencontainers/go-digest"
 )
 
 func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {

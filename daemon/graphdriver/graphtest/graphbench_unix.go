@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/pkg/stringid"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/pkg/stringid"
 )
 
 // DriverBenchExists benchmarks calls to exist

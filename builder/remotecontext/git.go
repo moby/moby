@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext/git"
 	"github.com/docker/docker/pkg/archive"

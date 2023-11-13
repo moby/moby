@@ -13,16 +13,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/testutil/environment"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/pkg/authorization"
+	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/docker/testutil/environment"
 )
 
 var (

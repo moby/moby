@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+
 	metrics "github.com/docker/go-metrics"
 )
 

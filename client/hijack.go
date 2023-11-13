@@ -10,14 +10,15 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/semconv/v1.17.0/httpconv"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions"
 )
 
 // postHijacked sends a POST request and hijacks the connection.

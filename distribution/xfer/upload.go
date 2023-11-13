@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/distribution"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"

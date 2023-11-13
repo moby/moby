@@ -12,6 +12,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
@@ -26,8 +29,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
 	"github.com/docker/libtrust"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 const (

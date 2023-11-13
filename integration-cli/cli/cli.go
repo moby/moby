@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/integration-cli/environment"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/icmd"
+
+	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/integration-cli/environment"
 )
 
 var testEnv *environment.Execution

@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/vishvananda/netlink"
+
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamutils"
@@ -18,7 +20,6 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/vishvananda/netlink"
 )
 
 func TestEndpointMarshalling(t *testing.T) {

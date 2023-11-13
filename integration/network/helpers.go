@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"testing"
 
+	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil"
-	"gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/icmd"
 )
 
 // CreateMasterDummy creates a dummy network interface

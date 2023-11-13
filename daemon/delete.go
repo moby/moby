@@ -11,6 +11,9 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/log"
+	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -18,8 +21,6 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/containerfs"
-	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/pkg/errors"
 )
 
 // ContainerRm removes the container id from the filesystem. An error

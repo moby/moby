@@ -5,6 +5,9 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"github.com/pkg/errors"
+
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
@@ -13,8 +16,6 @@ import (
 	internalnetwork "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/runconfig"
-	swarmapi "github.com/moby/swarmkit/v2/api"
-	"github.com/pkg/errors"
 )
 
 // GetNetworks returns all current cluster managed networks.

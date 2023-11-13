@@ -15,9 +15,10 @@ import (
 	"io"
 
 	"github.com/containerd/log"
+	"github.com/opencontainers/go-digest"
+
 	"github.com/docker/distribution"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/opencontainers/go-digest"
 )
 
 var (

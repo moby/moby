@@ -20,6 +20,14 @@ import (
 	"github.com/containerd/cgroups/v3"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/log"
+	"github.com/moby/sys/mount"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
+
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -41,13 +49,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
-	"github.com/moby/sys/mount"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
-	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
 )
 
 const (

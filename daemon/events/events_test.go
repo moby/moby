@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/docker/docker/api/types/events"
 	timetypes "github.com/docker/docker/api/types/time"
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 // validateLegacyFields validates that the legacy "Status", "ID", and "From"

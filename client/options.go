@@ -8,10 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/docker/go-connections/sockets"
-	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/docker/go-connections/sockets"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 // Opt is a configuration option to initialize a [Client].

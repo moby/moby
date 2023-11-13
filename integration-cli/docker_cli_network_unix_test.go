@@ -14,6 +14,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/integration-cli/cli"
@@ -28,11 +34,6 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/icmd"
 )
 
 const (

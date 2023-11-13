@@ -13,14 +13,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/testutil/environment"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/pkg/errors"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"gotest.tools/v3/assert"
 )
 
 // NewAPIClient returns a docker API client configured from environment variables

@@ -13,12 +13,13 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/names"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/quota"
 	"github.com/docker/docker/volume"
-	"github.com/pkg/errors"
 )
 
 const (

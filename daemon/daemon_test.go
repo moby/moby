@@ -6,6 +6,10 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
@@ -13,9 +17,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	volumesservice "github.com/docker/docker/volume/service"
 	"github.com/docker/go-connections/nat"
-	"github.com/pkg/errors"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 //

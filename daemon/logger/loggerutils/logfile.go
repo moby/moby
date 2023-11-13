@@ -14,9 +14,10 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/pools"
-	"github.com/pkg/errors"
 )
 
 // rotateFileMetadata is a metadata of the gzip header of the compressed log file

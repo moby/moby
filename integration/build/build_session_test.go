@@ -8,18 +8,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
-	dclient "github.com/docker/docker/client"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/fakecontext"
-	"github.com/docker/docker/testutil/request"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/filesync"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions"
+	dclient "github.com/docker/docker/client"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/fakecontext"
+	"github.com/docker/docker/testutil/request"
 )
 
 func TestBuildWithSession(t *testing.T) {

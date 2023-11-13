@@ -4,8 +4,9 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/graphdriver"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/daemon/graphdriver"
 )
 
 func checkRootdirFs(rootdir string) error {

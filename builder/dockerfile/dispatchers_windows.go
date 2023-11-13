@@ -9,9 +9,10 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/system"
-	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 )
 
 var pattern = regexp.MustCompile(`^[a-zA-Z]:\.$`)

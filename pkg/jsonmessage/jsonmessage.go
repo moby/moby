@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
-	units "github.com/docker/go-units"
 	"github.com/moby/term"
 	"github.com/morikuni/aec"
+
+	units "github.com/docker/go-units"
 )
 
 // RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to

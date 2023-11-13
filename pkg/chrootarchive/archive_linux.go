@@ -3,9 +3,10 @@ package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 import (
 	"io"
 
-	"github.com/docker/docker/pkg/archive"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/pkg/archive"
 )
 
 func doUnpack(decompressedArchive io.Reader, relDest, root string, options *archive.TarOptions) error {

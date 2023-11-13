@@ -8,6 +8,12 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/manager/encryption"
+	swarmnode "github.com/moby/swarmkit/v2/node"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc"
+
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -16,11 +22,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/stack"
-	swarmapi "github.com/moby/swarmkit/v2/api"
-	"github.com/moby/swarmkit/v2/manager/encryption"
-	swarmnode "github.com/moby/swarmkit/v2/node"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 )
 
 // Init initializes new cluster from user provided request.

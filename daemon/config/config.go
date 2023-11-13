@@ -15,11 +15,12 @@ import (
 	"golang.org/x/text/transform"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/opts"
-	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
+
+	"github.com/docker/docker/opts"
+	"github.com/docker/docker/registry"
 )
 
 const (
