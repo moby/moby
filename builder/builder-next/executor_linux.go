@@ -2,6 +2,7 @@ package buildkit
 
 import (
 	"context"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -166,10 +167,18 @@ func (iface *lnInterface) Close() error {
 func getDNSConfig(cfg config.DNSConfig) *oci.DNSConfig {
 	if cfg.DNS != nil || cfg.DNSSearch != nil || cfg.DNSOptions != nil {
 		return &oci.DNSConfig{
-			Nameservers:   cfg.DNS,
+			Nameservers:   ipAddresses(cfg.DNS),
 			SearchDomains: cfg.DNSSearch,
 			Options:       cfg.DNSOptions,
 		}
 	}
 	return nil
+}
+
+func ipAddresses(ips []net.IP) []string {
+	var addrs []string
+	for _, ip := range ips {
+		addrs = append(addrs, ip.String())
+	}
+	return addrs
 }

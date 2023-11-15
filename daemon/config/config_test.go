@@ -1,6 +1,7 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -239,28 +240,6 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			expectedErr: "bad attribute format: one",
 		},
 		{
-			name: "single DNS, invalid IP-address",
-			config: &Config{
-				CommonConfig: CommonConfig{
-					DNSConfig: DNSConfig{
-						DNS: []string{"1.1.1.1o"},
-					},
-				},
-			},
-			expectedErr: "IP address is not correctly formatted: 1.1.1.1o",
-		},
-		{
-			name: "multiple DNS, invalid IP-address",
-			config: &Config{
-				CommonConfig: CommonConfig{
-					DNSConfig: DNSConfig{
-						DNS: []string{"2.2.2.2", "1.1.1.1o"},
-					},
-				},
-			},
-			expectedErr: "IP address is not correctly formatted: 1.1.1.1o",
-		},
-		{
 			name: "single DNSSearch",
 			config: &Config{
 				CommonConfig: CommonConfig{
@@ -421,17 +400,6 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name:  "with dns",
-			field: "DNSConfig",
-			config: &Config{
-				CommonConfig: CommonConfig{
-					DNSConfig: DNSConfig{
-						DNS: []string{"1.1.1.1"},
-					},
-				},
-			},
-		},
-		{
 			name:  "with dns-search",
 			field: "DNSConfig",
 			config: &Config{
@@ -530,6 +498,34 @@ func TestValidateConfiguration(t *testing.T) {
 			assert.Check(t, is.DeepEqual(cfg, tc.config, field(tc.field)))
 			err = Validate(cfg)
 			assert.NilError(t, err)
+		})
+	}
+}
+
+func TestConfigInvalidDNS(t *testing.T) {
+	tests := []struct {
+		doc         string
+		input       string
+		expectedErr string
+	}{
+		{
+			doc:         "single DNS, invalid IP-address",
+			input:       `{"dns": ["1.1.1.1o"]}`,
+			expectedErr: `invalid IP address: 1.1.1.1o`,
+		},
+		{
+			doc:         "multiple DNS, invalid IP-address",
+			input:       `{"dns": ["2.2.2.2", "1.1.1.1o"]}`,
+			expectedErr: `invalid IP address: 1.1.1.1o`,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			var cfg Config
+			err := json.Unmarshal([]byte(tc.input), &cfg)
+			assert.Check(t, is.Error(err, tc.expectedErr))
 		})
 	}
 }

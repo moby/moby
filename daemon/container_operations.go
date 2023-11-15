@@ -30,6 +30,14 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
+func ipAddresses(ips []net.IP) []string {
+	var addrs []string
+	for _, ip := range ips {
+		addrs = append(addrs, ip.String())
+	}
+	return addrs
+}
+
 func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *container.Container) ([]libnetwork.SandboxOption, error) {
 	var sboxOptions []libnetwork.SandboxOption
 	sboxOptions = append(sboxOptions, libnetwork.OptionHostname(container.Config.Hostname), libnetwork.OptionDomainname(container.Config.Domainname))
@@ -49,7 +57,7 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 	if len(container.HostConfig.DNS) > 0 {
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(container.HostConfig.DNS))
 	} else if len(cfg.DNS) > 0 {
-		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(cfg.DNS))
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(ipAddresses(cfg.DNS)))
 	}
 	if len(container.HostConfig.DNSSearch) > 0 {
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(container.HostConfig.DNSSearch))
@@ -726,7 +734,7 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 
 	// TODO(thaJeztah): should this fail early if no sandbox was found?
 	sb, _ := daemon.netController.GetSandbox(container.ID)
-	createOptions, err := buildCreateEndpointOptions(container, n, endpointConfig, sb, cfg.DNS)
+	createOptions, err := buildCreateEndpointOptions(container, n, endpointConfig, sb, ipAddresses(cfg.DNS))
 	if err != nil {
 		return err
 	}

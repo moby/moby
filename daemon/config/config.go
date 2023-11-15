@@ -131,7 +131,7 @@ type TLSOptions struct {
 
 // DNSConfig defines the DNS configurations.
 type DNSConfig struct {
-	DNS           []string `json:"dns,omitempty"`
+	DNS           []net.IP `json:"dns,omitempty"`
 	DNSOptions    []string `json:"dns-opts,omitempty"`
 	DNSSearch     []string `json:"dns-search,omitempty"`
 	HostGatewayIP net.IP   `json:"host-gateway-ip,omitempty"`
@@ -606,13 +606,6 @@ func Validate(config *Config) error {
 			// These are valid
 		default:
 			return errors.Errorf("invalid log format: %s", logFormat)
-		}
-	}
-
-	// validate DNS
-	for _, dns := range config.DNS {
-		if _, err := opts.ValidateIPAddress(dns); err != nil {
-			return err
 		}
 	}
 
