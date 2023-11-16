@@ -30,8 +30,8 @@ import (
 func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, outStream io.Writer) error {
 	out := streamformatter.NewJSONProgressOutput(outStream, false)
 
-	if tagged, ok := baseRef.(reference.NamedTagged); ok {
-		return i.pullTag(ctx, tagged, platform, metaHeaders, authConfig, out)
+	if !reference.IsNameOnly(baseRef) {
+		return i.pullTag(ctx, baseRef, platform, metaHeaders, authConfig, out)
 	}
 
 	tags, err := distribution.Tags(ctx, baseRef, &distribution.Config{
@@ -61,7 +61,7 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 	return nil
 }
 
-func (i *ImageService) pullTag(ctx context.Context, ref reference.NamedTagged, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
+func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.Format(*platform)))
