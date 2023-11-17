@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
@@ -34,9 +35,11 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 			return errdefs.System(errors.Wrapf(err, "failed to create image with name %s and target %s", newImg.Name, newImg.Target.Digest.String()))
 		}
 
-		replacedImg, err := is.Get(ctx, newImg.Name)
+		replacedImg, all, err := i.resolveAllReferences(ctx, newImg.Name)
 		if err != nil {
 			return errdefs.Unknown(errors.Wrapf(err, "creating image %s failed because it already exists, but accessing it also failed", newImg.Name))
+		} else if replacedImg == nil {
+			return errdefs.Unknown(fmt.Errorf("creating image %s failed because it already exists, but failed to resolve", newImg.Name))
 		}
 
 		// Check if image we would replace already resolves to the same target.
@@ -47,7 +50,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 		}
 
 		// If there already exists an image with this tag, delete it
-		if err := i.softImageDelete(ctx, replacedImg); err != nil {
+		if err := i.softImageDelete(ctx, *replacedImg, all); err != nil {
 			return errors.Wrapf(err, "failed to delete previous image %s", replacedImg.Name)
 		}
 

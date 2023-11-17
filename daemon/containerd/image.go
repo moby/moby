@@ -43,8 +43,6 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		platform = cplatforms.OnlyStrict(*options.Platform)
 	}
 
-	cs := i.client.ContentStore()
-
 	var presentImages []imagespec.DockerOCIImage
 	err = i.walkImageManifests(ctx, desc, func(img *ImageManifest) error {
 		conf, err := img.Config(ctx)
@@ -59,7 +57,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		}
 
 		var ociimage imagespec.DockerOCIImage
-		if err := readConfig(ctx, cs, conf, &ociimage); err != nil {
+		if err := readConfig(ctx, i.content, conf, &ociimage); err != nil {
 			if cerrdefs.IsNotFound(err) {
 				log.G(ctx).WithFields(log.Fields{
 					"manifestDescriptor": img.Target(),
@@ -101,7 +99,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 			return nil, err
 		}
 
-		tagged, err := i.client.ImageService().List(ctx, "target.digest=="+desc.Target.Digest.String())
+		tagged, err := i.images.List(ctx, "target.digest=="+desc.Target.Digest.String())
 		if err != nil {
 			return nil, err
 		}
@@ -266,11 +264,9 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 		return containerdimages.Image{}, errdefs.InvalidParameter(err)
 	}
 
-	is := i.client.ImageService()
-
 	digested, ok := parsed.(reference.Digested)
 	if ok {
-		imgs, err := is.List(ctx, "target.digest=="+digested.Digest().String())
+		imgs, err := i.images.List(ctx, "target.digest=="+digested.Digest().String())
 		if err != nil {
 			return containerdimages.Image{}, errors.Wrap(err, "failed to lookup digest")
 		}
@@ -300,7 +296,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 	}
 
 	ref := reference.TagNameOnly(parsed.(reference.Named)).String()
-	img, err := is.Get(ctx, ref)
+	img, err := i.images.Get(ctx, ref)
 	if err == nil {
 		return img, nil
 	} else {
@@ -317,7 +313,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 			fmt.Sprintf("name==%q", ref), // Or it could just look like one.
 			"target.digest~=" + strconv.Quote(fmt.Sprintf(`^sha256:%s[0-9a-fA-F]{%d}$`, regexp.QuoteMeta(idWithoutAlgo), 64-len(idWithoutAlgo))),
 		}
-		imgs, err := is.List(ctx, filters...)
+		imgs, err := i.images.List(ctx, filters...)
 		if err != nil {
 			return containerdimages.Image{}, err
 		}

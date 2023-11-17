@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/plugin"
@@ -15,7 +16,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
-	daemonimages "github.com/docker/docker/daemon/images"
+	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -29,6 +30,7 @@ import (
 type ImageService struct {
 	client          *containerd.Client
 	images          images.Store
+	content         content.Store
 	containers      container.Store
 	snapshotter     string
 	registryHosts   docker.RegistryHosts
@@ -62,6 +64,7 @@ func NewService(config ImageServiceConfig) *ImageService {
 	return &ImageService{
 		client:          config.Client,
 		images:          config.Client.ImageService(),
+		content:         config.Client.ContentStore(),
 		containers:      config.Containers,
 		snapshotter:     config.Snapshotter,
 		registryHosts:   config.RegistryHosts,
@@ -73,8 +76,8 @@ func NewService(config ImageServiceConfig) *ImageService {
 }
 
 // DistributionServices return services controlling daemon image storage.
-func (i *ImageService) DistributionServices() daemonimages.DistributionServices {
-	return daemonimages.DistributionServices{}
+func (i *ImageService) DistributionServices() dimages.DistributionServices {
+	return dimages.DistributionServices{}
 }
 
 // CountImages returns the number of images stored by ImageService
