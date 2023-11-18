@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"syscall"
 
 	"github.com/containerd/log"
@@ -82,11 +83,20 @@ func (m *MountPoint) Cleanup() error {
 		return nil
 	}
 
+	logger := log.G(context.TODO()).WithFields(log.Fields{"active": m.active, "id": m.ID})
+	if m.active == 0 {
+		logger.Error("An attempt to decrement a zero mount count")
+		logger.Error(string(debug.Stack()))
+		return nil
+	}
+
 	if err := m.Volume.Unmount(m.ID); err != nil {
 		return errors.Wrapf(err, "error unmounting volume %s", m.Volume.Name())
 	}
 
 	m.active--
+	logger.Debug("MountPoint.Cleanup Decrement active count")
+
 	if m.active == 0 {
 		m.ID = ""
 	}
@@ -136,6 +146,7 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 
 		m.ID = id
 		m.active++
+		log.G(context.TODO()).WithFields(log.Fields{"active": m.active, "id": id}).Debug("MountPoint.Cleanup Increment active count")
 		return path, nil
 	}
 

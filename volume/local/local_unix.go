@@ -174,7 +174,7 @@ func (v *localVolume) restoreIfMounted() error {
 			// In other case, refcount will be zero but the volume will
 			// already be considered as mounted when Mount is called, and
 			// only the refcount will be incremented.
-			v.active.mounted = true
+			//v.active.mounted = true
 		}
 	}
 

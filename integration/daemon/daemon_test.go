@@ -13,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -380,11 +381,12 @@ func TestLiveRestore(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "cannot start multiple daemons on windows")
 	_ = testutil.StartSpan(baseContext, t)
 
-	t.Run("volume references", testLiveRestoreVolumeReferences)
+	for i := 0; i < 10; i++ {
+		t.Run("volume references", testLiveRestoreVolumeReferences)
+	}
 }
 
 func testLiveRestoreVolumeReferences(t *testing.T) {
-	t.Parallel()
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
@@ -479,6 +481,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		assert.ErrorContains(t, err, "volume is in use")
 
 		t.Run("volume still mounted", func(t *testing.T) {
+			skip.If(t, true, "check if it also happens with rootful without this subtest")
 			skip.If(t, testEnv.IsRootless(), "restarted rootless daemon has a new mount namespace and it won't have the previous mounts")
 
 			// Check if a new container with the same volume has access to the previous content.
@@ -504,9 +507,15 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 			assert.Check(t, is.Equal(strings.TrimSpace(stdoutBuf.String()), testContent))
 		})
 
+		cinspect, err := c.ContainerInspect(ctx, cID)
+		assert.NilError(t, err)
+		t.Logf("%+v", cinspect.ContainerJSONBase.State)
+
 		// Remove that container which should free the references in the volume
 		err = c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 		assert.NilError(t, err)
+
+		time.Sleep(time.Second * 5) // Debug
 
 		// Now we should be able to remove the volume
 		err = c.VolumeRemove(ctx, v.Name, false)

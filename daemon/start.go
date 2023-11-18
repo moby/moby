@@ -266,7 +266,7 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 		daemon.unregisterExecCommand(container, eConfig)
 	}
 
-	if container.BaseFS != "" {
+	if container.BaseFS != "" && container.IsRunning() {
 		if err := container.UnmountVolumes(daemon.LogVolumeEvent); err != nil {
 			log.G(context.TODO()).Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
 		}
