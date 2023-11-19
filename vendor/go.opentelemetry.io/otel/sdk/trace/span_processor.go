@@ -62,11 +62,11 @@ type SpanProcessor interface {
 
 type spanProcessorState struct {
 	sp    SpanProcessor
-	state *sync.Once
+	state sync.Once
 }
 
 func newSpanProcessorState(sp SpanProcessor) *spanProcessorState {
-	return &spanProcessorState{sp: sp, state: &sync.Once{}}
+	return &spanProcessorState{sp: sp}
 }
 
 type spanProcessorStates []*spanProcessorState

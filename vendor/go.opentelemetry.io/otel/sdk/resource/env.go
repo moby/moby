@@ -23,7 +23,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
 const (
@@ -82,23 +82,23 @@ func constructOTResources(s string) (*Resource, error) {
 		return Empty(), nil
 	}
 	pairs := strings.Split(s, ",")
-	attrs := []attribute.KeyValue{}
+	var attrs []attribute.KeyValue
 	var invalid []string
 	for _, p := range pairs {
-		field := strings.SplitN(p, "=", 2)
-		if len(field) != 2 {
+		k, v, found := strings.Cut(p, "=")
+		if !found {
 			invalid = append(invalid, p)
 			continue
 		}
-		k := strings.TrimSpace(field[0])
-		v, err := url.QueryUnescape(strings.TrimSpace(field[1]))
+		key := strings.TrimSpace(k)
+		val, err := url.QueryUnescape(strings.TrimSpace(v))
 		if err != nil {
 			// Retain original value if decoding fails, otherwise it will be
 			// an empty string.
-			v = field[1]
+			val = v
 			otel.Handle(err)
 		}
-		attrs = append(attrs, attribute.String(k, v))
+		attrs = append(attrs, attribute.String(key, val))
 	}
 	var err error
 	if len(invalid) > 0 {

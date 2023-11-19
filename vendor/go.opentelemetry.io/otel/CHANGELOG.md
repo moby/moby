@@ -8,6 +8,360 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [1.19.0/0.42.0/0.0.7] 2023-09-28
+
+This release contains the first stable release of the OpenTelemetry Go [metric SDK].
+Our project stability guarantees now apply to the `go.opentelemetry.io/otel/sdk/metric` package.
+See our [versioning policy](VERSIONING.md) for more information about these stability guarantees.
+
+### Added
+
+- Add the "Roll the dice" getting started application example in `go.opentelemetry.io/otel/example/dice`. (#4539)
+- The `WithWriter` and `WithPrettyPrint` options to `go.opentelemetry.io/otel/exporters/stdout/stdoutmetric` to set a custom `io.Writer`, and allow displaying the output in human-readable JSON. (#4507)
+
+### Changed
+
+- Allow '/' characters in metric instrument names. (#4501)
+- The exporter in `go.opentelemetry.io/otel/exporters/stdout/stdoutmetric` does not prettify its output by default anymore. (#4507)
+- Upgrade `gopkg.io/yaml` from `v2` to `v3` in `go.opentelemetry.io/otel/schema`. (#4535)
+
+### Fixed
+
+- In `go.opentelemetry.op/otel/exporters/prometheus`, don't try to create the Prometheus metric on every `Collect` if we know the scope is invalid. (#4499)
+
+### Removed
+
+- Remove `"go.opentelemetry.io/otel/bridge/opencensus".NewMetricExporter`, which is replaced by `NewMetricProducer`. (#4566)
+
+## [1.19.0-rc.1/0.42.0-rc.1] 2023-09-14
+
+This is a release candidate for the v1.19.0/v0.42.0 release.
+That release is expected to include the `v1` release of the OpenTelemetry Go metric SDK and will provide stability guarantees of that SDK.
+See our [versioning policy](VERSIONING.md) for more information about these stability guarantees.
+
+### Changed
+
+- Allow '/' characters in metric instrument names. (#4501)
+
+### Fixed
+
+- In `go.opentelemetry.op/otel/exporters/prometheus`, don't try to create the prometheus metric on every `Collect` if we know the scope is invalid. (#4499)
+
+## [1.18.0/0.41.0/0.0.6] 2023-09-12
+
+This release drops the compatibility guarantee of [Go 1.19].
+
+### Added
+
+- Add `WithProducer` option in `go.opentelemetry.op/otel/exporters/prometheus` to restore the ability to register producers on the prometheus exporter's manual reader. (#4473)
+- Add `IgnoreValue` option in `go.opentelemetry.io/otel/sdk/metric/metricdata/metricdatatest` to allow ignoring values when comparing metrics. (#4447)
+
+### Changed
+
+- Use a `TestingT` interface instead of `*testing.T` struct in `go.opentelemetry.io/otel/sdk/metric/metricdata/metricdatatest`. (#4483)
+
+### Deprecated
+
+- The `NewMetricExporter` in `go.opentelemetry.io/otel/bridge/opencensus` was deprecated in `v0.35.0` (#3541).
+  The deprecation notice format for the function has been corrected to trigger Go documentation and build tooling. (#4470)
+
+### Removed
+
+- Removed the deprecated `go.opentelemetry.io/otel/exporters/jaeger` package. (#4467)
+- Removed the deprecated `go.opentelemetry.io/otel/example/jaeger` package. (#4467)
+- Removed the deprecated `go.opentelemetry.io/otel/sdk/metric/aggregation` package. (#4468)
+- Removed the deprecated internal packages in `go.opentelemetry.io/otel/exporters/otlp` and its sub-packages. (#4469)
+- Dropped guaranteed support for versions of Go less than 1.20. (#4481)
+
+## [1.17.0/0.40.0/0.0.5] 2023-08-28
+
+### Added
+
+- Export the `ManualReader` struct in `go.opentelemetry.io/otel/sdk/metric`. (#4244)
+- Export the `PeriodicReader` struct in `go.opentelemetry.io/otel/sdk/metric`. (#4244)
+- Add support for exponential histogram aggregations.
+  A histogram can be configured as an exponential histogram using a view with `"go.opentelemetry.io/otel/sdk/metric".ExponentialHistogram` as the aggregation. (#4245)
+- Export the `Exporter` struct in `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc`. (#4272)
+- Export the `Exporter` struct in `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp`. (#4272)
+- The exporters in `go.opentelemetry.io/otel/exporters/otlp/otlpmetric` now support the `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable. (#4287)
+- Add `WithoutCounterSuffixes` option in `go.opentelemetry.io/otel/exporters/prometheus` to disable addition of `_total` suffixes. (#4306)
+- Add info and debug logging to the metric SDK in `go.opentelemetry.io/otel/sdk/metric`. (#4315)
+- The `go.opentelemetry.io/otel/semconv/v1.21.0` package.
+  The package contains semantic conventions from the `v1.21.0` version of the OpenTelemetry Semantic Conventions. (#4362)
+- Accept 201 to 299 HTTP status as success in `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp` and `go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp`. (#4365)
+- Document the `Temporality` and `Aggregation` methods of the `"go.opentelemetry.io/otel/sdk/metric".Exporter"` need to be concurrent safe. (#4381)
+- Expand the set of units supported by the Prometheus exporter, and don't add unit suffixes if they are already present in `go.opentelemetry.op/otel/exporters/prometheus` (#4374)
+- Move the `Aggregation` interface and its implementations from `go.opentelemetry.io/otel/sdk/metric/aggregation` to `go.opentelemetry.io/otel/sdk/metric`. (#4435)
+- The exporters in `go.opentelemetry.io/otel/exporters/otlp/otlpmetric` now support the `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` environment variable. (#4437)
+- Add the `NewAllowKeysFilter` and `NewDenyKeysFilter` functions to `go.opentelemetry.io/otel/attribute` to allow convenient creation of allow-keys and deny-keys filters. (#4444)
+- Support Go 1.21. (#4463)
+
+### Changed
+
+- Starting from `v1.21.0` of semantic conventions, `go.opentelemetry.io/otel/semconv/{version}/httpconv` and `go.opentelemetry.io/otel/semconv/{version}/netconv` packages will no longer be published. (#4145)
+- Log duplicate instrument conflict at a warning level instead of info in `go.opentelemetry.io/otel/sdk/metric`. (#4202)
+- Return an error on the creation of new instruments in `go.opentelemetry.io/otel/sdk/metric` if their name doesn't pass regexp validation. (#4210)
+- `NewManualReader` in `go.opentelemetry.io/otel/sdk/metric` returns `*ManualReader` instead of `Reader`. (#4244)
+- `NewPeriodicReader` in `go.opentelemetry.io/otel/sdk/metric` returns `*PeriodicReader` instead of `Reader`. (#4244)
+- Count the Collect time in the `PeriodicReader` timeout in `go.opentelemetry.io/otel/sdk/metric`. (#4221)
+- The function `New` in `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc` returns `*Exporter` instead of `"go.opentelemetry.io/otel/sdk/metric".Exporter`. (#4272)
+- The function `New` in `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp` returns `*Exporter` instead of `"go.opentelemetry.io/otel/sdk/metric".Exporter`. (#4272)
+- If an attribute set is omitted from an async callback, the previous value will no longer be exported in `go.opentelemetry.io/otel/sdk/metric`. (#4290)
+- If an attribute set is observed multiple times in an async callback in `go.opentelemetry.io/otel/sdk/metric`, the values will be summed instead of the last observation winning. (#4289)
+- Allow the explicit bucket histogram aggregation to be used for the up-down counter, observable counter, observable up-down counter, and observable gauge in the `go.opentelemetry.io/otel/sdk/metric` package. (#4332)
+- Restrict `Meter`s in `go.opentelemetry.io/otel/sdk/metric` to only register and collect instruments it created. (#4333)
+- `PeriodicReader.Shutdown` and `PeriodicReader.ForceFlush` in `go.opentelemetry.io/otel/sdk/metric` now apply the periodic reader's timeout to the operation if the user provided context does not contain a deadline. (#4356, #4377)
+- Upgrade all use of `go.opentelemetry.io/otel/semconv` to use `v1.21.0`. (#4408)
+- Increase instrument name maximum length from 63 to 255 characters in `go.opentelemetry.io/otel/sdk/metric`. (#4434)
+- Add `go.opentelemetry.op/otel/sdk/metric.WithProducer` as an `Option` for `"go.opentelemetry.io/otel/sdk/metric".NewManualReader` and `"go.opentelemetry.io/otel/sdk/metric".NewPeriodicReader`. (#4346)
+
+### Removed
+
+- Remove `Reader.RegisterProducer` in `go.opentelemetry.io/otel/metric`.
+  Use the added `WithProducer` option instead. (#4346)
+- Remove `Reader.ForceFlush` in `go.opentelemetry.io/otel/metric`.
+  Notice that `PeriodicReader.ForceFlush` is still available. (#4375)
+
+### Fixed
+
+- Correctly format log messages from the `go.opentelemetry.io/otel/exporters/zipkin` exporter. (#4143)
+- Log an error for calls to `NewView` in `go.opentelemetry.io/otel/sdk/metric` that have empty criteria. (#4307)
+- Fix `"go.opentelemetry.io/otel/sdk/resource".WithHostID()` to not set an empty `host.id`. (#4317)
+- Use the instrument identifying fields to cache aggregators and determine duplicate instrument registrations in `go.opentelemetry.io/otel/sdk/metric`. (#4337)
+- Detect duplicate instruments for case-insensitive names in `go.opentelemetry.io/otel/sdk/metric`. (#4338)
+- The `ManualReader` will not panic if `AggregationSelector` returns `nil` in `go.opentelemetry.io/otel/sdk/metric`. (#4350)
+- If a `Reader`'s `AggregationSelector` returns `nil` or `DefaultAggregation` the pipeline will use the default aggregation. (#4350)
+- Log a suggested view that fixes instrument conflicts in `go.opentelemetry.io/otel/sdk/metric`. (#4349)
+- Fix possible panic, deadlock and race condition in batch span processor in `go.opentelemetry.io/otel/sdk/trace`. (#4353)
+- Improve context cancellation handling in batch span processor's `ForceFlush` in  `go.opentelemetry.io/otel/sdk/trace`. (#4369)
+- Decouple `go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal` from `go.opentelemetry.io/otel/exporters/otlp/internal` using gotmpl. (#4397, #3846)
+- Decouple `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal` from `go.opentelemetry.io/otel/exporters/otlp/internal` and `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/internal` using gotmpl. (#4404, #3846)
+- Decouple `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal` from `go.opentelemetry.io/otel/exporters/otlp/internal` and `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/internal` using gotmpl. (#4407, #3846)
+- Decouple `go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal` from `go.opentelemetry.io/otel/exporters/otlp/internal` and `go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal` using gotmpl. (#4400, #3846)
+- Decouple `go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp/internal` from `go.opentelemetry.io/otel/exporters/otlp/internal` and `go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal` using gotmpl. (#4401, #3846)
+- Do not block the metric SDK when OTLP metric exports are blocked in `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc` and `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp`. (#3925, #4395)
+- Do not append `_total` if the counter already has that suffix for the Prometheus exproter in `go.opentelemetry.io/otel/exporter/prometheus`. (#4373)
+- Fix resource detection data race in `go.opentelemetry.io/otel/sdk/resource`. (#4409)
+- Use the first-seen instrument name during instrument name conflicts in `go.opentelemetry.io/otel/sdk/metric`. (#4428)
+
+### Deprecated
+
+- The `go.opentelemetry.io/otel/exporters/jaeger` package is deprecated.
+  OpenTelemetry dropped support for Jaeger exporter in July 2023.
+  Use `go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp`
+  or `go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc` instead. (#4423)
+- The `go.opentelemetry.io/otel/example/jaeger` package is deprecated. (#4423)
+- The `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/internal` package is deprecated. (#4420)
+- The `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/internal/oconf` package is deprecated. (#4420)
+- The `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/internal/otest` package is deprecated. (#4420)
+- The `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/internal/transform` package is deprecated. (#4420)
+- The `go.opentelemetry.io/otel/exporters/otlp/internal` package is deprecated. (#4421)
+- The `go.opentelemetry.io/otel/exporters/otlp/internal/envconfig` package is deprecated. (#4421)
+- The `go.opentelemetry.io/otel/exporters/otlp/internal/retry` package is deprecated. (#4421)
+- The `go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal` package is deprecated. (#4425)
+- The `go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/envconfig` package is deprecated. (#4425)
+- The `go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/otlpconfig` package is deprecated. (#4425)
+- The `go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/otlptracetest` package is deprecated. (#4425)
+- The `go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/retry` package is deprecated. (#4425)
+- The `go.opentelemetry.io/otel/sdk/metric/aggregation` package is deprecated.
+  Use the aggregation types added to `go.opentelemetry.io/otel/sdk/metric` instead. (#4435)
+
+## [1.16.0/0.39.0] 2023-05-18
+
+This release contains the first stable release of the OpenTelemetry Go [metric API].
+Our project stability guarantees now apply to the `go.opentelemetry.io/otel/metric` package.
+See our [versioning policy](VERSIONING.md) for more information about these stability guarantees.
+
+### Added
+
+- The `go.opentelemetry.io/otel/semconv/v1.19.0` package.
+  The package contains semantic conventions from the `v1.19.0` version of the OpenTelemetry specification. (#3848)
+- The `go.opentelemetry.io/otel/semconv/v1.20.0` package.
+  The package contains semantic conventions from the `v1.20.0` version of the OpenTelemetry specification. (#4078)
+- The Exponential Histogram data types in `go.opentelemetry.io/otel/sdk/metric/metricdata`. (#4165)
+- OTLP metrics exporter now supports the Exponential Histogram Data Type. (#4222)
+- Fix serialization of `time.Time` zero values in `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc` and `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp` packages. (#4271)
+
+### Changed
+
+- Use `strings.Cut()` instead of `string.SplitN()` for better readability and memory use. (#4049)
+- `MeterProvider` returns noop meters once it has been shutdown. (#4154)
+
+### Removed
+
+- The deprecated `go.opentelemetry.io/otel/metric/instrument` package is removed.
+  Use `go.opentelemetry.io/otel/metric` instead. (#4055)
+
+### Fixed
+
+- Fix build for BSD based systems in `go.opentelemetry.io/otel/sdk/resource`. (#4077)
+
+## [1.16.0-rc.1/0.39.0-rc.1] 2023-05-03
+
+This is a release candidate for the v1.16.0/v0.39.0 release.
+That release is expected to include the `v1` release of the OpenTelemetry Go metric API and will provide stability guarantees of that API.
+See our [versioning policy](VERSIONING.md) for more information about these stability guarantees.
+
+### Added
+
+- Support global `MeterProvider` in `go.opentelemetry.io/otel`. (#4039)
+  - Use `Meter` for a `metric.Meter` from the global `metric.MeterProvider`.
+  - Use `GetMeterProivder` for a global `metric.MeterProvider`.
+  - Use `SetMeterProivder` to set the global `metric.MeterProvider`.
+
+### Changed
+
+- Move the `go.opentelemetry.io/otel/metric` module to the `stable-v1` module set.
+  This stages the metric API to be released as a stable module. (#4038)
+
+### Removed
+
+- The `go.opentelemetry.io/otel/metric/global` package is removed.
+  Use `go.opentelemetry.io/otel` instead. (#4039)
+
+## [1.15.1/0.38.1] 2023-05-02
+
+### Fixed
+
+- Remove unused imports from `sdk/resource/host_id_bsd.go` which caused build failures. (#4040, #4041)
+
+## [1.15.0/0.38.0] 2023-04-27
+
+### Added
+
+- The `go.opentelemetry.io/otel/metric/embedded` package. (#3916)
+- The `Version` function to `go.opentelemetry.io/otel/sdk` to return the SDK version. (#3949)
+- Add a `WithNamespace` option to `go.opentelemetry.io/otel/exporters/prometheus` to allow users to prefix metrics with a namespace. (#3970)
+- The following configuration types were added to `go.opentelemetry.io/otel/metric/instrument` to be used in the configuration of measurement methods. (#3971)
+  - The `AddConfig` used to hold configuration for addition measurements
+    - `NewAddConfig` used to create a new `AddConfig`
+    - `AddOption` used to configure an `AddConfig`
+  - The `RecordConfig` used to hold configuration for recorded measurements
+    - `NewRecordConfig` used to create a new `RecordConfig`
+    - `RecordOption` used to configure a `RecordConfig`
+  - The `ObserveConfig` used to hold configuration for observed measurements
+    - `NewObserveConfig` used to create a new `ObserveConfig`
+    - `ObserveOption` used to configure an `ObserveConfig`
+- `WithAttributeSet` and `WithAttributes` are added to `go.opentelemetry.io/otel/metric/instrument`.
+  They return an option used during a measurement that defines the attribute Set associated with the measurement. (#3971)
+- The `Version` function to `go.opentelemetry.io/otel/exporters/otlp/otlpmetric` to return the OTLP metrics client version. (#3956)
+- The `Version` function to `go.opentelemetry.io/otel/exporters/otlp/otlptrace` to return the OTLP trace client version. (#3956)
+
+### Changed
+
+- The `Extrema` in `go.opentelemetry.io/otel/sdk/metric/metricdata` is redefined with a generic argument of `[N int64 | float64]`. (#3870)
+- Update all exported interfaces from `go.opentelemetry.io/otel/metric` to embed their corresponding interface from `go.opentelemetry.io/otel/metric/embedded`.
+  This adds an implementation requirement to set the interface default behavior for unimplemented methods. (#3916)
+- Move No-Op implementation from `go.opentelemetry.io/otel/metric` into its own package `go.opentelemetry.io/otel/metric/noop`. (#3941)
+  - `metric.NewNoopMeterProvider` is replaced with `noop.NewMeterProvider`
+- Add all the methods from `"go.opentelemetry.io/otel/trace".SpanContext` to `bridgeSpanContext` by embedding `otel.SpanContext` in `bridgeSpanContext`. (#3966)
+- Wrap `UploadMetrics` error in `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/` to improve error message when encountering generic grpc errors. (#3974)
+- The measurement methods for all instruments in `go.opentelemetry.io/otel/metric/instrument` accept an option instead of the variadic `"go.opentelemetry.io/otel/attribute".KeyValue`. (#3971)
+  - The `Int64Counter.Add` method now accepts `...AddOption`
+  - The `Float64Counter.Add` method now accepts `...AddOption`
+  - The `Int64UpDownCounter.Add` method now accepts `...AddOption`
+  - The `Float64UpDownCounter.Add` method now accepts `...AddOption`
+  - The `Int64Histogram.Record` method now accepts `...RecordOption`
+  - The `Float64Histogram.Record` method now accepts `...RecordOption`
+  - The `Int64Observer.Observe` method now accepts `...ObserveOption`
+  - The `Float64Observer.Observe` method now accepts `...ObserveOption`
+- The `Observer` methods in `go.opentelemetry.io/otel/metric` accept an option instead of the variadic `"go.opentelemetry.io/otel/attribute".KeyValue`. (#3971)
+  - The `Observer.ObserveInt64` method now accepts `...ObserveOption`
+  - The `Observer.ObserveFloat64` method now accepts `...ObserveOption`
+- Move global metric back to `go.opentelemetry.io/otel/metric/global` from `go.opentelemetry.io/otel`. (#3986)
+
+### Fixed
+
+- `TracerProvider` allows calling `Tracer()` while it's shutting down.
+  It used to deadlock. (#3924)
+- Use the SDK version for the Telemetry SDK resource detector in `go.opentelemetry.io/otel/sdk/resource`. (#3949)
+- Fix a data race in `SpanProcessor` returned by `NewSimpleSpanProcessor` in `go.opentelemetry.io/otel/sdk/trace`. (#3951)
+- Automatically figure out the default aggregation with `aggregation.Default`. (#3967)
+
+### Deprecated
+
+- The `go.opentelemetry.io/otel/metric/instrument` package is deprecated.
+  Use the equivalent types added to `go.opentelemetry.io/otel/metric` instead. (#4018)
+
+## [1.15.0-rc.2/0.38.0-rc.2] 2023-03-23
+
+This is a release candidate for the v1.15.0/v0.38.0 release.
+That release will include the `v1` release of the OpenTelemetry Go metric API and will provide stability guarantees of that API.
+See our [versioning policy](VERSIONING.md) for more information about these stability guarantees.
+
+### Added
+
+- The `WithHostID` option to `go.opentelemetry.io/otel/sdk/resource`. (#3812)
+- The `WithoutTimestamps` option to `go.opentelemetry.io/otel/exporters/stdout/stdoutmetric` to sets all timestamps to zero. (#3828)
+- The new `Exemplar` type is added to `go.opentelemetry.io/otel/sdk/metric/metricdata`.
+  Both the `DataPoint` and `HistogramDataPoint` types from that package have a new field of `Exemplars` containing the sampled exemplars for their timeseries. (#3849)
+- Configuration for each metric instrument in `go.opentelemetry.io/otel/sdk/metric/instrument`. (#3895)
+- The internal logging introduces a warning level verbosity equal to `V(1)`. (#3900)
+- Added a log message warning about usage of `SimpleSpanProcessor` in production environments. (#3854)
+
+### Changed
+
+- Optimize memory allocation when creation a new `Set` using `NewSet` or `NewSetWithFiltered` in `go.opentelemetry.io/otel/attribute`. (#3832)
+- Optimize memory allocation when creation new metric instruments in `go.opentelemetry.io/otel/sdk/metric`. (#3832)
+- Avoid creating new objects on all calls to `WithDeferredSetup` and `SkipContextSetup` in OpenTracing bridge. (#3833)
+- The `New` and `Detect` functions from `go.opentelemetry.io/otel/sdk/resource` return errors that wrap underlying errors instead of just containing the underlying error strings. (#3844)
+- Both the `Histogram` and `HistogramDataPoint` are redefined with a generic argument of `[N int64 | float64]` in `go.opentelemetry.io/otel/sdk/metric/metricdata`. (#3849)
+- The metric `Export` interface from `go.opentelemetry.io/otel/sdk/metric` accepts a `*ResourceMetrics` instead of `ResourceMetrics`. (#3853)
+- Rename `Asynchronous` to `Observable` in `go.opentelemetry.io/otel/metric/instrument`. (#3892)
+- Rename `Int64ObserverOption` to `Int64ObservableOption` in `go.opentelemetry.io/otel/metric/instrument`. (#3895)
+- Rename `Float64ObserverOption` to `Float64ObservableOption` in `go.opentelemetry.io/otel/metric/instrument`. (#3895)
+- The internal logging changes the verbosity level of info to `V(4)`, the verbosity level of debug to `V(8)`. (#3900)
+
+### Fixed
+
+- `TracerProvider` consistently doesn't allow to register a `SpanProcessor` after shutdown. (#3845)
+
+### Removed
+
+- The deprecated `go.opentelemetry.io/otel/metric/global` package is removed. (#3829)
+- The unneeded `Synchronous` interface in `go.opentelemetry.io/otel/metric/instrument` was removed. (#3892)
+- The `Float64ObserverConfig` and `NewFloat64ObserverConfig` in `go.opentelemetry.io/otel/sdk/metric/instrument`.
+  Use the added `float64` instrument configuration instead. (#3895)
+- The `Int64ObserverConfig` and `NewInt64ObserverConfig` in `go.opentelemetry.io/otel/sdk/metric/instrument`.
+  Use the added `int64` instrument configuration instead. (#3895)
+- The `NewNoopMeter` function in `go.opentelemetry.io/otel/metric`, use `NewMeterProvider().Meter("")` instead. (#3893)
+
+## [1.15.0-rc.1/0.38.0-rc.1] 2023-03-01
+
+This is a release candidate for the v1.15.0/v0.38.0 release.
+That release will include the `v1` release of the OpenTelemetry Go metric API and will provide stability guarantees of that API.
+See our [versioning policy](VERSIONING.md) for more information about these stability guarantees.
+
+This release drops the compatibility guarantee of [Go 1.18].
+
+### Added
+
+- Support global `MeterProvider` in `go.opentelemetry.io/otel`. (#3818)
+  - Use `Meter` for a `metric.Meter` from the global `metric.MeterProvider`.
+  - Use `GetMeterProivder` for a global `metric.MeterProvider`.
+  - Use `SetMeterProivder` to set the global `metric.MeterProvider`.
+
+### Changed
+
+- Dropped compatibility testing for [Go 1.18].
+  The project no longer guarantees support for this version of Go. (#3813)
+
+### Fixed
+
+- Handle empty environment variable as it they were not set. (#3764)
+- Clarify the `httpconv` and `netconv` packages in `go.opentelemetry.io/otel/semconv/*` provide tracing semantic conventions. (#3823)
+- Fix race conditions in `go.opentelemetry.io/otel/exporters/metric/prometheus` that could cause a panic. (#3899)
+- Fix sending nil `scopeInfo` to metrics channel in `go.opentelemetry.io/otel/exporters/metric/prometheus` that could cause a panic in `github.com/prometheus/client_golang/prometheus`. (#3899)
+
+### Deprecated
+
+- The `go.opentelemetry.io/otel/metric/global` package is deprecated.
+  Use `go.opentelemetry.io/otel` instead. (#3818)
+
+### Removed
+
+- The deprecated `go.opentelemetry.io/otel/metric/unit` package is removed. (#3814)
+
 ## [1.14.0/0.37.0/0.0.4] 2023-02-27
 
 This release is the last to support [Go 1.18].
@@ -121,7 +475,7 @@ The next release will require at least [Go 1.19].
 - The `go.opentelemetry.io/otel/semconv/v1.16.0` package.
   The package contains semantic conventions from the `v1.16.0` version of the OpenTelemetry specification. (#3579)
 - Metric instruments to `go.opentelemetry.io/otel/metric/instrument`.
-  These instruments are use as replacements of the depreacted `go.opentelemetry.io/otel/metric/instrument/{asyncfloat64,asyncint64,syncfloat64,syncint64}` packages.(#3575, #3586)
+  These instruments are use as replacements of the deprecated `go.opentelemetry.io/otel/metric/instrument/{asyncfloat64,asyncint64,syncfloat64,syncint64}` packages.(#3575, #3586)
   - `Float64ObservableCounter` replaces the `asyncfloat64.Counter`
   - `Float64ObservableUpDownCounter` replaces the `asyncfloat64.UpDownCounter`
   - `Float64ObservableGauge` replaces the `asyncfloat64.Gauge`
@@ -144,7 +498,7 @@ The next release will require at least [Go 1.19].
 ### Changed
 
 - Jaeger and Zipkin exporter use `github.com/go-logr/logr` as the logging interface, and add the `WithLogr` option. (#3497, #3500)
-- Instrument configuration in `go.opentelemetry.io/otel/metric/instrument` is split into specific options and confguration based on the instrument type. (#3507)
+- Instrument configuration in `go.opentelemetry.io/otel/metric/instrument` is split into specific options and configuration based on the instrument type. (#3507)
   - Use the added `Int64Option` type to configure instruments from `go.opentelemetry.io/otel/metric/instrument/syncint64`.
   - Use the added `Float64Option` type to configure instruments from `go.opentelemetry.io/otel/metric/instrument/syncfloat64`.
   - Use the added `Int64ObserverOption` type to configure instruments from `go.opentelemetry.io/otel/metric/instrument/asyncint64`.
@@ -157,7 +511,7 @@ The next release will require at least [Go 1.19].
 - The `Shutdown` method of the `"go.opentelemetry.io/otel/sdk/trace".TracerProvider` releases all computational resources when called the first time. (#3551)
 - The `Sampler` returned from `TraceIDRatioBased` `go.opentelemetry.io/otel/sdk/trace` now uses the rightmost bits for sampling decisions.
   This fixes random sampling when using ID generators like `xray.IDGenerator` and increasing parity with other language implementations. (#3557)
-- Errors from `go.opentelemetry.io/otel/exporters/otlp/otlptrace` exporters are wrapped in erros identifying their signal name.
+- Errors from `go.opentelemetry.io/otel/exporters/otlp/otlptrace` exporters are wrapped in errors identifying their signal name.
   Existing users of the exporters attempting to identify specific errors will need to use `errors.Unwrap()` to get the underlying error. (#3516)
 - Exporters from `go.opentelemetry.io/otel/exporters/otlp` will print the final retryable error message when attempts to retry time out. (#3514)
 - The instrument kind names in `go.opentelemetry.io/otel/sdk/metric` are updated to match the API. (#3562)
@@ -266,7 +620,7 @@ The next release will require at least [Go 1.19].
 - Asynchronous counters (`Counter` and `UpDownCounter`) from the metric SDK now produce delta sums when configured with delta temporality. (#3398)
 - Exported `Status` codes in the `go.opentelemetry.io/otel/exporters/zipkin` exporter are now exported as all upper case values. (#3340)
 - `Aggregation`s from `go.opentelemetry.io/otel/sdk/metric` with no data are not exported. (#3394, #3436)
-- Reenabled Attribute Filters in the Metric SDK. (#3396)
+- Re-enabled Attribute Filters in the Metric SDK. (#3396)
 - Asynchronous callbacks are only called if they are registered with at least one instrument that does not use drop aggragation. (#3408)
 - Do not report empty partial-success responses in the `go.opentelemetry.io/otel/exporters/otlp` exporters. (#3438, #3432)
 - Handle partial success responses in `go.opentelemetry.io/otel/exporters/otlp/otlpmetric` exporters. (#3162, #3440)
@@ -847,7 +1201,7 @@ This release includes an API and SDK for the tracing signal that will comply wit
 - Setting the global `ErrorHandler` with `"go.opentelemetry.io/otel".SetErrorHandler` multiple times is now supported. (#2160, #2140)
 - The `"go.opentelemetry.io/otel/attribute".Any` function now supports `int32` values. (#2169)
 - Multiple calls to `"go.opentelemetry.io/otel/sdk/metric/controller/basic".WithResource()` are handled correctly, and when no resources are provided `"go.opentelemetry.io/otel/sdk/resource".Default()` is used. (#2120)
-- The `WithoutTimestamps` option for the `go.opentelemetry.io/otel/exporters/stdout/stdouttrace` exporter causes the exporter to correctly ommit timestamps. (#2195)
+- The `WithoutTimestamps` option for the `go.opentelemetry.io/otel/exporters/stdout/stdouttrace` exporter causes the exporter to correctly omit timestamps. (#2195)
 - Fixed typos in resources.go. (#2201)
 
 ## [1.0.0-RC2] - 2021-07-26
@@ -1293,7 +1647,7 @@ with major version 0.
 - `NewGRPCDriver` function returns a `ProtocolDriver` that maintains a single gRPC connection to the collector. (#1369)
 - Added documentation about the project's versioning policy. (#1388)
 - Added `NewSplitDriver` for OTLP exporter that allows sending traces and metrics to different endpoints. (#1418)
-- Added codeql worfklow to GitHub Actions (#1428)
+- Added codeql workflow to GitHub Actions (#1428)
 - Added Gosec workflow to GitHub Actions (#1429)
 - Add new HTTP driver for OTLP exporter in `exporters/otlp/otlphttp`. Currently it only supports the binary protobuf payloads. (#1420)
 - Add an OpenCensus exporter bridge. (#1444)
@@ -2136,7 +2490,7 @@ There is still a possibility of breaking changes.
 
 ### Fixed
 
-- Use stateful batcher on Prometheus exporter fixing regresion introduced in #395. (#428)
+- Use stateful batcher on Prometheus exporter fixing regression introduced in #395. (#428)
 
 ## [0.2.1] - 2020-01-08
 
@@ -2302,7 +2656,17 @@ It contains api and sdk for trace and meter.
 - CircleCI build CI manifest files.
 - CODEOWNERS file to track owners of this project.
 
-[Unreleased]: https://github.com/open-telemetry/opentelemetry-go/compare/v1.14.0...HEAD
+[Unreleased]: https://github.com/open-telemetry/opentelemetry-go/compare/v1.19.0...HEAD
+[1.19.0/0.42.0/0.0.7]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.19.0
+[1.19.0-rc.1/0.42.0-rc.1]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.19.0-rc.1
+[1.18.0/0.41.0/0.0.6]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.18.0
+[1.17.0/0.40.0/0.0.5]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.17.0
+[1.16.0/0.39.0]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.16.0
+[1.16.0-rc.1/0.39.0-rc.1]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.16.0-rc.1
+[1.15.1/0.38.1]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.15.1
+[1.15.0/0.38.0]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.15.0
+[1.15.0-rc.2/0.38.0-rc.2]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.15.0-rc.2
+[1.15.0-rc.1/0.38.0-rc.1]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.15.0-rc.1
 [1.14.0/0.37.0/0.0.4]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.14.0
 [1.13.0/0.36.0]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.13.0
 [1.12.0/0.35.0]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.12.0
@@ -2367,3 +2731,7 @@ It contains api and sdk for trace and meter.
 [Go 1.20]: https://go.dev/doc/go1.20
 [Go 1.19]: https://go.dev/doc/go1.19
 [Go 1.18]: https://go.dev/doc/go1.18
+[Go 1.19]: https://go.dev/doc/go1.19
+
+[metric API]:https://pkg.go.dev/go.opentelemetry.io/otel/metric
+[metric SDK]:https://pkg.go.dev/go.opentelemetry.io/otel/sdk/metric

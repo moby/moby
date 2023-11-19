@@ -61,11 +61,6 @@ type Property struct {
 	// hasValue indicates if a zero-value value means the property does not
 	// have a value or if it was the zero-value.
 	hasValue bool
-
-	// hasData indicates whether the created property contains data or not.
-	// Properties that do not contain data are invalid with no other check
-	// required.
-	hasData bool
 }
 
 // NewKeyProperty returns a new Property for key.
@@ -76,7 +71,7 @@ func NewKeyProperty(key string) (Property, error) {
 		return newInvalidProperty(), fmt.Errorf("%w: %q", errInvalidKey, key)
 	}
 
-	p := Property{key: key, hasData: true}
+	p := Property{key: key}
 	return p, nil
 }
 
@@ -95,7 +90,6 @@ func NewKeyValueProperty(key, value string) (Property, error) {
 		key:      key,
 		value:    value,
 		hasValue: true,
-		hasData:  true,
 	}
 	return p, nil
 }
@@ -117,7 +111,7 @@ func parseProperty(property string) (Property, error) {
 		return newInvalidProperty(), fmt.Errorf("%w: %q", errInvalidProperty, property)
 	}
 
-	p := Property{hasData: true}
+	var p Property
 	if match[1] != "" {
 		p.key = match[1]
 	} else {
@@ -134,10 +128,6 @@ func parseProperty(property string) (Property, error) {
 func (p Property) validate() error {
 	errFunc := func(err error) error {
 		return fmt.Errorf("invalid property: %w", err)
-	}
-
-	if !p.hasData {
-		return errFunc(fmt.Errorf("%w: %q", errInvalidProperty, p))
 	}
 
 	if !keyRe.MatchString(p.key) {
@@ -289,45 +279,37 @@ func parseMember(member string) (Member, error) {
 		props      properties
 	)
 
-	parts := strings.SplitN(member, propertyDelimiter, 2)
-	switch len(parts) {
-	case 2:
+	keyValue, properties, found := strings.Cut(member, propertyDelimiter)
+	if found {
 		// Parse the member properties.
-		for _, pStr := range strings.Split(parts[1], propertyDelimiter) {
+		for _, pStr := range strings.Split(properties, propertyDelimiter) {
 			p, err := parseProperty(pStr)
 			if err != nil {
 				return newInvalidMember(), err
 			}
 			props = append(props, p)
 		}
-		fallthrough
-	case 1:
-		// Parse the member key/value pair.
+	}
+	// Parse the member key/value pair.
 
-		// Take into account a value can contain equal signs (=).
-		kv := strings.SplitN(parts[0], keyValueDelimiter, 2)
-		if len(kv) != 2 {
-			return newInvalidMember(), fmt.Errorf("%w: %q", errInvalidMember, member)
-		}
-		// "Leading and trailing whitespaces are allowed but MUST be trimmed
-		// when converting the header into a data structure."
-		key = strings.TrimSpace(kv[0])
-		var err error
-		value, err = url.QueryUnescape(strings.TrimSpace(kv[1]))
-		if err != nil {
-			return newInvalidMember(), fmt.Errorf("%w: %q", err, value)
-		}
-		if !keyRe.MatchString(key) {
-			return newInvalidMember(), fmt.Errorf("%w: %q", errInvalidKey, key)
-		}
-		if !valueRe.MatchString(value) {
-			return newInvalidMember(), fmt.Errorf("%w: %q", errInvalidValue, value)
-		}
-	default:
-		// This should never happen unless a developer has changed the string
-		// splitting somehow. Panic instead of failing silently and allowing
-		// the bug to slip past the CI checks.
-		panic("failed to parse baggage member")
+	// Take into account a value can contain equal signs (=).
+	k, v, found := strings.Cut(keyValue, keyValueDelimiter)
+	if !found {
+		return newInvalidMember(), fmt.Errorf("%w: %q", errInvalidMember, member)
+	}
+	// "Leading and trailing whitespaces are allowed but MUST be trimmed
+	// when converting the header into a data structure."
+	key = strings.TrimSpace(k)
+	var err error
+	value, err = url.QueryUnescape(strings.TrimSpace(v))
+	if err != nil {
+		return newInvalidMember(), fmt.Errorf("%w: %q", err, value)
+	}
+	if !keyRe.MatchString(key) {
+		return newInvalidMember(), fmt.Errorf("%w: %q", errInvalidKey, key)
+	}
+	if !valueRe.MatchString(value) {
+		return newInvalidMember(), fmt.Errorf("%w: %q", errInvalidValue, value)
 	}
 
 	return Member{key: key, value: value, properties: props, hasData: true}, nil
