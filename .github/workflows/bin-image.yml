@@ -24,6 +24,7 @@ env:
 
 jobs:
   validate-dco:
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     uses: ./.github/workflows/.dco.yml
 
   prepare:
