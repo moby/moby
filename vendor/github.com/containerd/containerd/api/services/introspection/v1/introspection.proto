@@ -21,6 +21,7 @@ package containerd.services.introspection.v1;
 import "github.com/containerd/containerd/api/types/platform.proto";
 import "google/rpc/status.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/containerd/containerd/api/services/introspection/v1;introspection";
 
@@ -102,4 +103,11 @@ message ServerResponse {
 	string uuid = 1;
 	uint64 pid = 2;
 	uint64 pidns = 3; // PID namespace, such as 4026531836
+	repeated DeprecationWarning deprecations = 4;
+}
+
+message DeprecationWarning {
+	string id = 1;
+	string message = 2;
+	google.protobuf.Timestamp last_occurrence = 3;
 }

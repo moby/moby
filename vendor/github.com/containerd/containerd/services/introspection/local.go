@@ -18,35 +18,59 @@ package introspection
 
 import (
 	context "context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
+
+	"github.com/google/uuid"
+	"google.golang.org/genproto/googleapis/rpc/code"
+	rpc "google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 
 	api "github.com/containerd/containerd/api/services/introspection/v1"
 	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/plugin"
+	"github.com/containerd/containerd/protobuf"
 	ptypes "github.com/containerd/containerd/protobuf/types"
 	"github.com/containerd/containerd/services"
-	"github.com/google/uuid"
-	"google.golang.org/genproto/googleapis/rpc/code"
-	rpc "google.golang.org/genproto/googleapis/rpc/status"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/status"
+	"github.com/containerd/containerd/services/warning"
 )
 
 func init() {
 	plugin.Register(&plugin.Registration{
 		Type:     plugin.ServicePlugin,
 		ID:       services.IntrospectionService,
-		Requires: []plugin.Type{},
+		Requires: []plugin.Type{plugin.WarningPlugin},
 		InitFn: func(ic *plugin.InitContext) (interface{}, error) {
+			sps, err := ic.GetByType(plugin.WarningPlugin)
+			if err != nil {
+				return nil, err
+			}
+			p, ok := sps[plugin.DeprecationsPlugin]
+			if !ok {
+				return nil, errors.New("warning service not found")
+			}
+
+			i, err := p.Instance()
+			if err != nil {
+				return nil, err
+			}
+
+			warningClient, ok := i.(warning.Service)
+			if !ok {
+				return nil, errors.New("could not create a local client for warning service")
+			}
+
 			// this service fetches all plugins through the plugin set of the plugin context
 			return &Local{
-				plugins: ic.Plugins(),
-				root:    ic.Root,
+				plugins:       ic.Plugins(),
+				root:          ic.Root,
+				warningClient: warningClient,
 			}, nil
 		},
 	})
@@ -54,10 +78,11 @@ func init() {
 
 // Local is a local implementation of the introspection service
 type Local struct {
-	mu          sync.Mutex
-	root        string
-	plugins     *plugin.Set
-	pluginCache []*api.Plugin
+	mu            sync.Mutex
+	root          string
+	plugins       *plugin.Set
+	pluginCache   []*api.Plugin
+	warningClient warning.Service
 }
 
 var _ = (api.IntrospectionClient)(&Local{})
@@ -115,9 +140,10 @@ func (l *Local) Server(ctx context.Context, _ *ptypes.Empty, _ ...grpc.CallOptio
 		}
 	}
 	return &api.ServerResponse{
-		UUID:  u,
-		Pid:   uint64(pid),
-		Pidns: pidns,
+		UUID:         u,
+		Pid:          uint64(pid),
+		Pidns:        pidns,
+		Deprecations: l.getWarnings(ctx),
 	}, nil
 }
 
@@ -157,6 +183,10 @@ func (l *Local) generateUUID() (string, error) {
 
 func (l *Local) uuidPath() string {
 	return filepath.Join(l.root, "uuid")
+}
+
+func (l *Local) getWarnings(ctx context.Context) []*api.DeprecationWarning {
+	return warningsPB(ctx, l.warningClient.Warnings())
 }
 
 func adaptPlugin(o interface{}) filters.Adaptor {
@@ -239,4 +269,17 @@ func pluginsToPB(plugins []*plugin.Plugin) []*api.Plugin {
 	}
 
 	return pluginsPB
+}
+
+func warningsPB(ctx context.Context, warnings []warning.Warning) []*api.DeprecationWarning {
+	var pb []*api.DeprecationWarning
+
+	for _, w := range warnings {
+		pb = append(pb, &api.DeprecationWarning{
+			ID:             string(w.ID),
+			Message:        w.Message,
+			LastOccurrence: protobuf.ToTimestamp(w.LastOccurrence),
+		})
+	}
+	return pb
 }

@@ -237,7 +237,7 @@ github.com/containerd/cgroups/v3/cgroup2/stats
 # github.com/containerd/console v1.0.3
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd v1.7.8
+# github.com/containerd/containerd v1.7.9
 ## explicit; go 1.19
 github.com/containerd/containerd
 github.com/containerd/containerd/api/events
@@ -297,6 +297,7 @@ github.com/containerd/containerd/pkg/apparmor
 github.com/containerd/containerd/pkg/atomicfile
 github.com/containerd/containerd/pkg/cap
 github.com/containerd/containerd/pkg/cleanup
+github.com/containerd/containerd/pkg/deprecation
 github.com/containerd/containerd/pkg/dialer
 github.com/containerd/containerd/pkg/epoch
 github.com/containerd/containerd/pkg/kmutex
@@ -335,6 +336,7 @@ github.com/containerd/containerd/services
 github.com/containerd/containerd/services/content/contentserver
 github.com/containerd/containerd/services/introspection
 github.com/containerd/containerd/services/server/config
+github.com/containerd/containerd/services/warning
 github.com/containerd/containerd/snapshots
 github.com/containerd/containerd/snapshots/overlay/overlayutils
 github.com/containerd/containerd/snapshots/proxy

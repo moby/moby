@@ -21,9 +21,10 @@ import (
 	"fmt"
 	"path/filepath"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events/exchange"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // InitContext is used for plugin initialization
@@ -131,6 +132,19 @@ func (ps *Set) Get(t Type) (interface{}, error) {
 		return v.Instance()
 	}
 	return nil, fmt.Errorf("no plugins registered for %s: %w", t, errdefs.ErrNotFound)
+}
+
+// GetByID returns the plugin of the given type and ID
+func (ps *Set) GetByID(t Type, id string) (*Plugin, error) {
+	typSet, ok := ps.byTypeAndID[t]
+	if !ok || len(typSet) == 0 {
+		return nil, fmt.Errorf("no plugins registered for %s: %w", t, errdefs.ErrNotFound)
+	}
+	p, ok := typSet[id]
+	if !ok {
+		return nil, fmt.Errorf("no plugins registered for %s %q: %w", t, id, errdefs.ErrNotFound)
+	}
+	return p, nil
 }
 
 // GetAll returns all initialized plugins

@@ -90,6 +90,8 @@ const (
 	SandboxStorePlugin Type = "io.containerd.sandbox.store.v1"
 	// SandboxControllerPlugin implements a sandbox controller
 	SandboxControllerPlugin Type = "io.containerd.sandbox.controller.v1"
+	// WarningPlugin implements a warning service
+	WarningPlugin Type = "io.containerd.warning.v1"
 )
 
 const (
@@ -98,7 +100,8 @@ const (
 	// RuntimeRuncV1 is the runc runtime that supports a single container
 	RuntimeRuncV1 = "io.containerd.runc.v1"
 	// RuntimeRuncV2 is the runc runtime that supports multiple containers per shim
-	RuntimeRuncV2 = "io.containerd.runc.v2"
+	RuntimeRuncV2      = "io.containerd.runc.v2"
+	DeprecationsPlugin = "deprecations"
 )
 
 // Registration contains information for registering a plugin
@@ -143,7 +146,7 @@ var register = struct {
 }{}
 
 // Load loads all plugins at the provided path into containerd
-func Load(path string) (err error) {
+func Load(path string) (count int, err error) {
 	defer func() {
 		if v := recover(); v != nil {
 			rerr, ok := v.(error)
