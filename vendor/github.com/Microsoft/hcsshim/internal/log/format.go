@@ -8,11 +8,13 @@ import (
 	"net"
 	"reflect"
 	"time"
-
-	"github.com/containerd/containerd/log"
 )
 
-const TimeFormat = log.RFC3339NanoFixed
+// TimeFormat is [time.RFC3339Nano] with nanoseconds padded using
+// zeros to ensure the formatted time is always the same number of
+// characters.
+// Based on RFC3339NanoFixed from github.com/containerd/log
+const TimeFormat = "2006-01-02T15:04:05.000000000Z07:00"
 
 func FormatTime(t time.Time) string {
 	return t.Format(TimeFormat)
