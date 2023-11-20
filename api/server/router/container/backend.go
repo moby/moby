@@ -54,6 +54,7 @@ type monitorBackend interface {
 	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error)
 	Containers(ctx context.Context, config *container.ListOptions) ([]*types.Container, error)
+	ContainerLogsClear(name string) error
 }
 
 // attachBackend includes function to implement to provide container attaching functionality.

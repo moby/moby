@@ -897,3 +897,19 @@ func (s *containerRouter) postContainersPrune(ctx context.Context, w http.Respon
 	}
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
 }
+
+func (s *containerRouter) postContainersLogsClear(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	name := vars["name"]
+
+	if err := s.backend.ContainerLogsClear(name); err != nil {
+		return err
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+
+	return nil
+}
