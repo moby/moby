@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/pkg/errors"
+	bkversion "github.com/moby/buildkit/version"
 	rkclient "github.com/rootless-containers/rootlesskit/pkg/api/client"
 )
 
@@ -213,6 +214,15 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version, cfg *configStore) {
 	} else {
 		log.G(context.TODO()).Warnf("failed to retrieve %s version: %s", initBinary, err)
 	}
+
+	bkVersion := strings.Split(bkversion.Version, "+")
+	v.Components = append(v.Components, types.ComponentVersion{
+		Name:    "BuildKit",
+		Version: bkVersion[0],
+		Details: map[string]string{
+			"GitCommit": bkVersion[1],
+		},
+	})
 
 	daemon.fillRootlessVersion(v)
 }
