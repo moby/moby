@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	internalnetwork "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/runconfig"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
@@ -68,7 +69,8 @@ func (c *Cluster) getNetworks(filters *swarmapi.ListNetworksRequest_Filters) ([]
 		return nil, c.errNoManager(state)
 	}
 
-	ctx, cancel := c.getRequestContext()
+	ctx := context.TODO()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	r, err := state.controlClient.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: filters})
@@ -203,7 +205,8 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 	}
 	c.mu.Unlock()
 
-	ctx, cancel := c.getRequestContext()
+	ctx := context.TODO()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	taskID, err := agent.ResourceAllocator().AttachNetwork(ctx, containerID, target, addresses)
@@ -222,7 +225,8 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 	log.G(ctx).Debugf("Successfully attached to network %s with task id %s", target, taskID)
 
 	release := func() {
-		ctx, cancel := c.getRequestContext()
+		ctx := compatcontext.WithoutCancel(ctx)
+		ctx, cancel := c.getRequestContext(ctx)
 		defer cancel()
 		if err := agent.ResourceAllocator().DetachNetwork(ctx, taskID); err != nil {
 			log.G(ctx).Errorf("Failed remove network attachment %s to network %s on allocation failure: %v",

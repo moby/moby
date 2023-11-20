@@ -102,7 +102,7 @@ func (i *ImageService) DistributionServices() DistributionServices {
 
 // CountImages returns the number of images stored by ImageService
 // called from info.go
-func (i *ImageService) CountImages() int {
+func (i *ImageService) CountImages(ctx context.Context) int {
 	return i.imageStore.Len()
 }
 

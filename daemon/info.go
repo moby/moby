@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/tracing"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -27,8 +28,19 @@ import (
 	"github.com/opencontainers/selinux/go-selinux"
 )
 
+func doWithTrace[T any](ctx context.Context, name string, f func() T) T {
+	_, span := tracing.StartSpan(ctx, name)
+	defer span.End()
+	return f()
+}
+
 // SystemInfo returns information about the host server the daemon is running on.
-func (daemon *Daemon) SystemInfo() *system.Info {
+//
+// The only error this should return is due to context cancellation/deadline.
+// Anything else should be logged and ignored because this is looking up
+// multiple things and is often used for debugging.
+// The only case valid early return is when the caller doesn't want the result anymore (ie context cancelled).
+func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
 
 	sysInfo := daemon.RawSysInfo()
@@ -36,22 +48,22 @@ func (daemon *Daemon) SystemInfo() *system.Info {
 
 	v := &system.Info{
 		ID:                 daemon.id,
-		Images:             daemon.imageService.CountImages(),
+		Images:             daemon.imageService.CountImages(ctx),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,
 		BridgeNfIP6tables:  !sysInfo.BridgeNFCallIP6TablesDisabled,
-		Name:               hostName(),
+		Name:               hostName(ctx),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
 		LoggingDriver:      daemon.defaultLogConfig.Type,
-		KernelVersion:      kernelVersion(),
-		OperatingSystem:    operatingSystem(),
-		OSVersion:          osVersion(),
+		KernelVersion:      kernelVersion(ctx),
+		OperatingSystem:    operatingSystem(ctx),
+		OSVersion:          osVersion(ctx),
 		IndexServerAddress: registry.IndexServer,
 		OSType:             runtime.GOOS,
 		Architecture:       platform.Architecture,
-		RegistryConfig:     daemon.registryService.ServiceConfig(),
-		NCPU:               sysinfo.NumCPU(),
-		MemTotal:           memInfo().MemTotal,
+		RegistryConfig:     doWithTrace(ctx, "registry.ServiceConfig", daemon.registryService.ServiceConfig),
+		NCPU:               doWithTrace(ctx, "sysinfo.NumCPU", sysinfo.NumCPU),
+		MemTotal:           memInfo(ctx).MemTotal,
 		GenericResources:   daemon.genericResources,
 		DockerRootDir:      cfg.Root,
 		Labels:             cfg.Labels,
@@ -66,24 +78,31 @@ func (daemon *Daemon) SystemInfo() *system.Info {
 	}
 
 	daemon.fillContainerStates(v)
-	daemon.fillDebugInfo(v)
+	daemon.fillDebugInfo(ctx, v)
 	daemon.fillAPIInfo(v, &cfg.Config)
 	// Retrieve platform specific info
-	daemon.fillPlatformInfo(v, sysInfo, cfg)
+	if err := daemon.fillPlatformInfo(ctx, v, sysInfo, cfg); err != nil {
+		return nil, err
+	}
 	daemon.fillDriverInfo(v)
-	daemon.fillPluginsInfo(v, &cfg.Config)
+	daemon.fillPluginsInfo(ctx, v, &cfg.Config)
 	daemon.fillSecurityOptions(v, sysInfo, &cfg.Config)
 	daemon.fillLicense(v)
-	daemon.fillDefaultAddressPools(v, &cfg.Config)
+	daemon.fillDefaultAddressPools(ctx, v, &cfg.Config)
 
-	return v
+	return v, nil
 }
 
 // SystemVersion returns version information about the daemon.
-func (daemon *Daemon) SystemVersion() types.Version {
+//
+// The only error this should return is due to context cancellation/deadline.
+// Anything else should be logged and ignored because this is looking up
+// multiple things and is often used for debugging.
+// The only case valid early return is when the caller doesn't want the result anymore (ie context cancelled).
+func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_version"))()
 
-	kernelVersion := kernelVersion()
+	kernelVersion := kernelVersion(ctx)
 	cfg := daemon.config()
 
 	v := types.Version{
@@ -120,8 +139,10 @@ func (daemon *Daemon) SystemVersion() types.Version {
 
 	v.Platform.Name = dockerversion.PlatformName
 
-	daemon.fillPlatformVersion(&v, cfg)
-	return v
+	if err := daemon.fillPlatformVersion(ctx, &v, cfg); err != nil {
+		return v, err
+	}
+	return v, nil
 }
 
 func (daemon *Daemon) fillDriverInfo(v *system.Info) {
@@ -140,10 +161,10 @@ WARNING: The %s storage-driver is deprecated, and will be removed in a future re
 	fillDriverWarnings(v)
 }
 
-func (daemon *Daemon) fillPluginsInfo(v *system.Info, cfg *config.Config) {
+func (daemon *Daemon) fillPluginsInfo(ctx context.Context, v *system.Info, cfg *config.Config) {
 	v.Plugins = system.PluginsInfo{
 		Volume:  daemon.volumes.GetDriverList(),
-		Network: daemon.GetNetworkDriverList(),
+		Network: daemon.GetNetworkDriverList(ctx),
 
 		// The authorization plugins are returned in the order they are
 		// used as they constitute a request/response modification chain.
@@ -198,9 +219,9 @@ func (daemon *Daemon) fillContainerStates(v *system.Info) {
 // this information optional (cli to request "with debugging information"), or
 // only collect it if the daemon has debug enabled. For the CLI code, see
 // https://github.com/docker/cli/blob/v20.10.12/cli/command/system/info.go#L239-L244
-func (daemon *Daemon) fillDebugInfo(v *system.Info) {
+func (daemon *Daemon) fillDebugInfo(ctx context.Context, v *system.Info) {
 	v.Debug = debug.IsEnabled()
-	v.NFd = fileutils.GetTotalUsedFds()
+	v.NFd = fileutils.GetTotalUsedFds(ctx)
 	v.NGoroutines = runtime.NumGoroutine()
 	v.NEventsListener = daemon.EventsService.SubscribersCount()
 }
@@ -228,7 +249,9 @@ func (daemon *Daemon) fillAPIInfo(v *system.Info, cfg *config.Config) {
 	}
 }
 
-func (daemon *Daemon) fillDefaultAddressPools(v *system.Info, cfg *config.Config) {
+func (daemon *Daemon) fillDefaultAddressPools(ctx context.Context, v *system.Info, cfg *config.Config) {
+	_, span := tracing.StartSpan(ctx, "fillDefaultAddressPools")
+	defer span.End()
 	for _, pool := range cfg.DefaultAddressPools.Value() {
 		v.DefaultAddressPools = append(v.DefaultAddressPools, system.NetworkAddressPool{
 			Base: pool.Base,
@@ -237,45 +260,56 @@ func (daemon *Daemon) fillDefaultAddressPools(v *system.Info, cfg *config.Config
 	}
 }
 
-func hostName() string {
+func hostName(ctx context.Context) string {
+	ctx, span := tracing.StartSpan(ctx, "hostName")
+	defer span.End()
 	hostname := ""
 	if hn, err := os.Hostname(); err != nil {
-		log.G(context.TODO()).Warnf("Could not get hostname: %v", err)
+		log.G(ctx).Warnf("Could not get hostname: %v", err)
 	} else {
 		hostname = hn
 	}
 	return hostname
 }
 
-func kernelVersion() string {
+func kernelVersion(ctx context.Context) string {
+	ctx, span := tracing.StartSpan(ctx, "kernelVersion")
+	defer span.End()
+
 	var kernelVersion string
 	if kv, err := kernel.GetKernelVersion(); err != nil {
-		log.G(context.TODO()).Warnf("Could not get kernel version: %v", err)
+		log.G(ctx).Warnf("Could not get kernel version: %v", err)
 	} else {
 		kernelVersion = kv.String()
 	}
 	return kernelVersion
 }
 
-func memInfo() *meminfo.Memory {
+func memInfo(ctx context.Context) *meminfo.Memory {
+	ctx, span := tracing.StartSpan(ctx, "memInfo")
+	defer span.End()
+
 	memInfo, err := meminfo.Read()
 	if err != nil {
-		log.G(context.TODO()).Errorf("Could not read system memory info: %v", err)
+		log.G(ctx).Errorf("Could not read system memory info: %v", err)
 		memInfo = &meminfo.Memory{}
 	}
 	return memInfo
 }
 
-func operatingSystem() (operatingSystem string) {
+func operatingSystem(ctx context.Context) (operatingSystem string) {
+	ctx, span := tracing.StartSpan(ctx, "operatingSystem")
+	defer span.End()
+
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("operating_system"))()
 
 	if s, err := operatingsystem.GetOperatingSystem(); err != nil {
-		log.G(context.TODO()).Warnf("Could not get operating system name: %v", err)
+		log.G(ctx).Warnf("Could not get operating system name: %v", err)
 	} else {
 		operatingSystem = s
 	}
 	if inContainer, err := operatingsystem.IsContainerized(); err != nil {
-		log.G(context.TODO()).Errorf("Could not determine if daemon is containerized: %v", err)
+		log.G(ctx).Errorf("Could not determine if daemon is containerized: %v", err)
 		operatingSystem += " (error determining if containerized)"
 	} else if inContainer {
 		operatingSystem += " (containerized)"
@@ -284,12 +318,15 @@ func operatingSystem() (operatingSystem string) {
 	return operatingSystem
 }
 
-func osVersion() (version string) {
+func osVersion(ctx context.Context) (version string) {
+	ctx, span := tracing.StartSpan(ctx, "osVersion")
+	defer span.End()
+
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("os_version"))()
 
 	version, err := operatingsystem.GetOperatingSystemVersion()
 	if err != nil {
-		log.G(context.TODO()).Warnf("Could not get operating system version: %v", err)
+		log.G(ctx).Warnf("Could not get operating system version: %v", err)
 	}
 
 	return version

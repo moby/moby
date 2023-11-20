@@ -247,8 +247,10 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 		return err
 	}
 
+	ctx := context.TODO()
+
 	// Remove networks not present in HNS
-	for _, v := range daemon.netController.Networks() {
+	for _, v := range daemon.netController.Networks(ctx) {
 		hnsid := v.DriverOptions()[winlibnetwork.HNSID]
 		found := false
 

@@ -429,7 +429,7 @@ func (c *Cluster) Leave(ctx context.Context, force bool) error {
 }
 
 // Info returns information about the current cluster state.
-func (c *Cluster) Info() types.Info {
+func (c *Cluster) Info(ctx context.Context) types.Info {
 	info := types.Info{
 		NodeAddr: c.GetAdvertiseAddress(),
 	}
@@ -442,7 +442,7 @@ func (c *Cluster) Info() types.Info {
 		info.Error = state.err.Error()
 	}
 
-	ctx, cancel := c.getRequestContext()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	if state.IsActiveManager() {

@@ -76,8 +76,8 @@ func (i *ImageService) DistributionServices() images.DistributionServices {
 
 // CountImages returns the number of images stored by ImageService
 // called from info.go
-func (i *ImageService) CountImages() int {
-	imgs, err := i.client.ListImages(context.TODO())
+func (i *ImageService) CountImages(ctx context.Context) int {
+	imgs, err := i.client.ListImages(ctx)
 	if err != nil {
 		return 0
 	}

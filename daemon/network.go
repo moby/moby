@@ -139,7 +139,8 @@ func (daemon *Daemon) getAllNetworks() []*libnetwork.Network {
 	if c == nil {
 		return nil
 	}
-	return c.Networks()
+	ctx := context.TODO()
+	return c.Networks(ctx)
 }
 
 type ingressJob struct {
@@ -465,7 +466,7 @@ func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, netwo
 
 // GetNetworkDriverList returns the list of plugins drivers
 // registered for network.
-func (daemon *Daemon) GetNetworkDriverList() []string {
+func (daemon *Daemon) GetNetworkDriverList(ctx context.Context) []string {
 	if !daemon.NetworkControllerEnabled() {
 		return nil
 	}
@@ -483,7 +484,7 @@ func (daemon *Daemon) GetNetworkDriverList() []string {
 		pluginMap[plugin] = true
 	}
 
-	networks := daemon.netController.Networks()
+	networks := daemon.netController.Networks(ctx)
 
 	for _, nw := range networks {
 		if !pluginMap[nw.Type()] {
