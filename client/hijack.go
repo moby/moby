@@ -16,7 +16,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/semconv/v1.17.0/httpconv"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -66,7 +65,8 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 	}
 
 	ctx, span := tp.Tracer("").Start(ctx, req.Method+" "+req.URL.Path, trace.WithSpanKind(trace.SpanKindClient))
-	span.SetAttributes(httpconv.ClientRequest(req)...)
+	// FIXME(thaJeztah): httpconv.ClientRequest is now an internal package; replace this with alternative for semconv v1.21
+	// span.SetAttributes(httpconv.ClientRequest(req)...)
 	defer func() {
 		if retErr != nil {
 			span.RecordError(retErr)
@@ -98,7 +98,27 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 	// Server hijacks the connection, error 'connection closed' expected
 	resp, err := clientconn.Do(req)
 	if resp != nil {
-		span.SetStatus(httpconv.ClientStatus(resp.StatusCode))
+		// This is a simplified variant of "httpconv.ClientStatus(resp.StatusCode))";
+		//
+		// The main purpose of httpconv.ClientStatus() is to detect whether the
+		// status was successful (1xx, 2xx, 3xx) or non-successful (4xx/5xx).
+		//
+		// It also provides complex logic to *validate* status-codes against
+		// a hard-coded list meant to exclude "bogus" status codes in "success"
+		// ranges (1xx, 2xx) and convert them into an error status. That code
+		// seemed over-reaching (and not accounting for potential future valid
+		// status codes). We assume we only get valid status codes, and only
+		// look at status-code ranges.
+		//
+		// For reference, see:
+		// https://github.com/open-telemetry/opentelemetry-go/blob/v1.21.0/semconv/v1.17.0/httpconv/http.go#L85-L89
+		// https://github.com/open-telemetry/opentelemetry-go/blob/v1.21.0/semconv/internal/v2/http.go#L322-L330
+		// https://github.com/open-telemetry/opentelemetry-go/blob/v1.21.0/semconv/internal/v2/http.go#L356-L404
+		code := codes.Unset
+		if resp.StatusCode >= http.StatusBadRequest {
+			code = codes.Error
+		}
+		span.SetStatus(code, "")
 	}
 
 	//nolint:staticcheck // ignore SA1019 for connecting to old (pre go1.8) daemons

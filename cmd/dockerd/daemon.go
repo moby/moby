@@ -63,6 +63,7 @@ import (
 	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
@@ -238,6 +239,10 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	setOTLPProtoDefault()
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+
+	// Override BuildKit's default Resource so that it matches the semconv
+	// version that is used in our code.
+	detect.Resource = resource.Default()
 	detect.Recorder = detect.NewTraceRecorder()
 
 	tp, err := detect.TracerProvider()

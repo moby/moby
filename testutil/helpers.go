@@ -16,7 +16,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"gotest.tools/v3/icmd"
 )
 
@@ -34,7 +34,7 @@ func (d devZero) Read(p []byte) (n int, err error) {
 
 var tracingOnce sync.Once
 
-// configureTracing sets up an OTLP tracing exporter for use in tests.
+// ConfigureTracing sets up an OTLP tracing exporter for use in tests.
 func ConfigureTracing() func(context.Context) {
 	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") == "" {
 		// No OTLP endpoint configured, so don't bother setting up tracing.
@@ -52,9 +52,7 @@ func ConfigureTracing() func(context.Context) {
 		tp = trace.NewTracerProvider(
 			trace.WithSpanProcessor(sp),
 			trace.WithSampler(trace.AlwaysSample()),
-			trace.WithResource(resource.NewSchemaless(
-				attribute.KeyValue{Key: semconv.ServiceNameKey, Value: attribute.StringValue("integration-test-client")},
-			)),
+			trace.WithResource(resource.NewSchemaless(semconv.ServiceName("integration-test-client"))),
 		)
 		otel.SetTracerProvider(tp)
 
