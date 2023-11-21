@@ -4248,7 +4248,10 @@ definitions:
               - "stop-first"
               - "start-first"
       Networks:
-        description: "Specifies which networks the service should attach to."
+        description: |
+          Specifies which networks the service should attach to.
+
+          Deprecated: This field is deprecated since v1.44. The Networks field in TaskSpec should be used instead.
         type: "array"
         items:
           $ref: "#/definitions/NetworkAttachmentConfig"

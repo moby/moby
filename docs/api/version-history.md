@@ -63,6 +63,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 * A new endpoint-specific `MacAddress` field has been added to `NetworkSettings.EndpointSettings`
   on `POST /containers/create`, and to `EndpointConfig` on `POST /networks/{id}/connect`.
   The container-wide `MacAddress` field in `Config`, on `POST /containers/create`, is now deprecated.
+* The field `Networks` in the `POST /services/create` and `POST /services/{id}/update`
+  requests is now deprecated. You should instead use the field `TaskTemplate.Networks`.
 
 ## v1.43 API changes
 

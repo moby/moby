@@ -310,7 +310,7 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 	// but fallback to service spec for backward compatibility
 	networks := s.TaskTemplate.Networks
 	if len(networks) == 0 {
-		networks = s.Networks
+		networks = s.Networks //nolint:staticcheck // ignore SA1019: field is deprecated.
 	}
 	for i, n := range networks {
 		apiNetwork, err := getNetwork(ctx, client, n.Target)
