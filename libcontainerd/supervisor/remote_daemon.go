@@ -212,9 +212,8 @@ func (r *remote) startContainerd() error {
 		r.logger.WithError(err).Warn("failed to adjust OOM score")
 	}
 
-	err = pidfile.Write(r.pidFile, r.daemonPid)
-	if err != nil {
-		process.Kill(r.daemonPid)
+	if err := pidfile.Write(r.pidFile, r.daemonPid); err != nil {
+		_ = process.Kill(r.daemonPid)
 		return errors.Wrap(err, "libcontainerd: failed to save daemon pid to disk")
 	}
 
