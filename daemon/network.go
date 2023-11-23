@@ -871,14 +871,7 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	// On Windows, DNS config is a per-adapter config option whereas on Linux, it's a sandbox-wide parameter; hence why
 	// we're dealing with DNS config both here and in buildSandboxOptions. Following DNS options are only honored by
 	// Windows netdrivers, whereas DNS options in buildSandboxOptions are only honored by Linux netdrivers.
-	//
-	// Now that being said, you might ask: why is this cond checking whether there's already an endpoint with exposed /
-	// published ports tied to the container sandbox? Isn't that logic flawed? Well, probably it is! These DNS options
-	// were added by d1e0a78 at the end of buildCreateEndpointOptions. The fact that it was added *after* an
-	// early-return checking exposed / published ports was most probably overlooked by the original author and
-	// reviewers.
-	// TODO(aker): fix this ^
-	if !n.Internal() && len(getPortMapInfo(sb)) == 0 {
+	if !n.Internal() {
 		if len(c.HostConfig.DNS) > 0 {
 			createOptions = append(createOptions, libnetwork.CreateOptionDNS(c.HostConfig.DNS))
 		} else if len(daemonDNS) > 0 {
