@@ -102,8 +102,11 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 		if retErr != nil {
 			container.Name = oldName
 			container.NetworkSettings.IsAnonymousEndpoint = oldIsAnonymousEndpoint
-			if e := container.CheckpointTo(daemon.containersReplica); e != nil {
-				log.G(context.TODO()).Errorf("%s: Failed in writing to Disk on rename failure: %v", container.ID, e)
+			if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+				log.G(context.TODO()).WithFields(log.Fields{
+					"containerID": container.ID,
+					"error":       err,
+				}).Error("failed to write container state to disk during rename")
 			}
 		}
 	}()
