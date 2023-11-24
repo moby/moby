@@ -22,6 +22,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -76,7 +77,12 @@ func TestSaveCheckTimes(t *testing.T) {
 	created, err := time.Parse(time.RFC3339, img.Created)
 	assert.NilError(t, err)
 
-	assert.Equal(t, created.Format(time.RFC3339), info.ModTime().Format(time.RFC3339), "expected: %s, actual: %s", created, info.ModTime())
+	if testEnv.UsingSnapshotter() {
+		// containerd archive export sets the mod time to zero.
+		assert.Check(t, is.Equal(info.ModTime(), time.Unix(0, 0)))
+	} else {
+		assert.Check(t, is.Equal(info.ModTime().Format(time.RFC3339), created.Format(time.RFC3339)))
+	}
 }
 
 func TestSaveRepoWithMultipleImages(t *testing.T) {
