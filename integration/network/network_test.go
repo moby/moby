@@ -240,7 +240,7 @@ func TestDefaultNetworkOpts(t *testing.T) {
 
 			// Create a new network
 			networkName := "testnet"
-			network.CreateNoError(ctx, t, c, networkName, func(create *types.NetworkCreate) {
+			networkId := network.CreateNoError(ctx, t, c, networkName, func(create *types.NetworkCreate) {
 				if tc.configFrom {
 					create.ConfigFrom = &ntypes.ConfigReference{
 						Network: "from-net",
@@ -248,6 +248,15 @@ func TestDefaultNetworkOpts(t *testing.T) {
 				}
 			})
 			defer c.NetworkRemove(ctx, networkName)
+
+			// Check the MTU of the bridge itself, before any devices are connected. (The
+			// bridge's MTU will be set to the minimum MTU of anything connected to it, but
+			// it's set explicitly on the bridge anyway - so it doesn't look like the option
+			// was ignored.)
+			cmd := exec.Command("ip", "link", "show", "br-"+networkId[:12])
+			output, err := cmd.CombinedOutput()
+			assert.NilError(t, err)
+			assert.Check(t, is.Contains(string(output), fmt.Sprintf(" mtu %d ", tc.mtu)), "Bridge MTU should have been set to %d", tc.mtu)
 
 			// Start a container to inspect the MTU of its network interface
 			id1 := container.Run(ctx, t, c, container.WithNetworkMode(networkName))

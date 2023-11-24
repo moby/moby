@@ -735,6 +735,14 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		bridgeSetup.queueStep(setupDefaultSysctl)
 	}
 
+	// Always set the bridge's MTU if specified. This is purely cosmetic; a bridge's
+	// MTU is the min MTU of device connected to it, and MTU will be set on each
+	// 'veth'. But, for a non-default MTU, the bridge's MTU will look wrong until a
+	// container is attached.
+	if config.Mtu > 0 {
+		bridgeSetup.queueStep(setupMTU)
+	}
+
 	// Even if a bridge exists try to setup IPv4.
 	bridgeSetup.queueStep(setupBridgeIPv4)
 
