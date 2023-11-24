@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
@@ -151,13 +152,13 @@ func deleteAllNetworks(ctx context.Context, t testing.TB, c client.NetworkAPICli
 	assert.Check(t, err, "failed to list networks")
 
 	for _, n := range networks {
-		if n.Name == "bridge" || n.Name == "none" || n.Name == "host" {
+		if n.Name == network.NetworkBridge || n.Name == network.NetworkNone || n.Name == network.NetworkHost {
 			continue
 		}
 		if _, ok := protectedNetworks[n.ID]; ok {
 			continue
 		}
-		if daemonPlatform == "windows" && strings.ToLower(n.Name) == "nat" {
+		if daemonPlatform == "windows" && strings.ToLower(n.Name) == network.NetworkNat {
 			// nat is a pre-defined network on Windows and cannot be removed
 			continue
 		}

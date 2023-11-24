@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 )
 
 // DecodeHostConfig creates a HostConfig based on the specified Reader.
@@ -23,7 +24,7 @@ func decodeHostConfig(src io.Reader) (*container.HostConfig, error) {
 // docker daemon.
 func SetDefaultNetModeIfBlank(hc *container.HostConfig) {
 	if hc != nil && hc.NetworkMode == "" {
-		hc.NetworkMode = "default"
+		hc.NetworkMode = network.NetworkDefault
 	}
 }
 

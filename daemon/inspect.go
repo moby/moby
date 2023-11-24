@@ -283,7 +283,7 @@ func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Se
 func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings {
 	var settings types.DefaultNetworkSettings
 
-	if defaultNetwork, ok := networks["bridge"]; ok && defaultNetwork.EndpointSettings != nil {
+	if defaultNetwork, ok := networks[networktypes.NetworkBridge]; ok && defaultNetwork.EndpointSettings != nil {
 		settings.EndpointID = defaultNetwork.EndpointID
 		settings.Gateway = defaultNetwork.Gateway
 		settings.GlobalIPv6Address = defaultNetwork.GlobalIPv6Address

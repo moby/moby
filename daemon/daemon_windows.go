@@ -12,6 +12,7 @@ import (
 	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/local"
@@ -263,7 +264,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 
 		if !found {
 			// non-default nat networks should be re-created if missing from HNS
-			if v.Type() == "nat" && v.Name() != "nat" {
+			if v.Type() == "nat" && v.Name() != networktypes.NetworkNat {
 				_, _, v4Conf, v6Conf := v.IpamConfig()
 				netOption := map[string]string{}
 				for k, v := range v.DriverOptions() {
