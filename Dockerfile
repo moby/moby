@@ -9,7 +9,6 @@ ARG VPNKIT_VERSION=0.5.0
 ARG DOCKERCLI_VERSION=v17.06.2-ce
 
 ARG SYSTEMD="false"
-ARG DEBIAN_FRONTEND=noninteractive
 ARG DOCKER_STATIC=1
 
 # cross compilation helper
@@ -28,13 +27,11 @@ COPY --from=xx / /
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 ARG APT_MIRROR
 RUN test -n "$APT_MIRROR" && sed -ri "s#(httpredir|deb|security).debian.org#${APT_MIRROR}#g" /etc/apt/sources.list.d/debian.sources || true
-ARG DEBIAN_FRONTEND
 RUN apt-get update && apt-get install --no-install-recommends -y file
 ENV GO111MODULE=off
 ENV GOTOOLCHAIN=local
 
 FROM base AS criu
-ARG DEBIAN_FRONTEND
 ADD --chmod=0644 https://download.opensuse.org/repositories/devel:/tools:/criu/Debian_11/Release.key /etc/apt/trusted.gpg.d/criu.gpg.asc
 RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-criu-aptcache,target=/var/cache/apt \
@@ -109,7 +106,6 @@ EOT
 # See also frozenImages in "testutil/environment/protect.go" (which needs to
 # be updated when adding images to this list)
 FROM debian:${BASE_DEBIAN_DISTRO} AS frozen-images
-ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-frozen-images-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-frozen-images-aptcache,target=/var/cache/apt \
        apt-get update && apt-get install -y --no-install-recommends \
@@ -197,7 +193,6 @@ RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags
 
 FROM base AS containerd-build
 WORKDIR /go/src/github.com/containerd/containerd
-ARG DEBIAN_FRONTEND
 ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-containerd-aptcache,target=/var/cache/apt \
@@ -288,7 +283,6 @@ RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && 
 
 FROM base AS runc-build
 WORKDIR /go/src/github.com/opencontainers/runc
-ARG DEBIAN_FRONTEND
 ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-runc-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-runc-aptcache,target=/var/cache/apt \
@@ -324,7 +318,6 @@ RUN git fetch -q --depth 1 origin "${TINI_VERSION}" +refs/tags/*:refs/tags/* && 
 
 FROM base AS tini-build
 WORKDIR /go/src/github.com/krallin/tini
-ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-tini-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends cmake
@@ -359,7 +352,6 @@ RUN git fetch -q --depth 1 origin "${ROOTLESSKIT_VERSION}" +refs/tags/*:refs/tag
 
 FROM base AS rootlesskit-build
 WORKDIR /go/src/github.com/rootless-containers/rootlesskit
-ARG DEBIAN_FRONTEND
 ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-rootlesskit-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-rootlesskit-aptcache,target=/var/cache/apt \
@@ -499,7 +491,6 @@ RUN mkdir -p hack \
 ENTRYPOINT ["hack/dind-systemd"]
 
 FROM dev-systemd-${SYSTEMD} AS dev-base
-ARG DEBIAN_FRONTEND
 RUN groupadd -r docker
 RUN useradd --create-home --gid docker unprivilegeduser \
  && mkdir -p /home/unprivilegeduser/.local/share/docker \
@@ -566,7 +557,6 @@ COPY --from=gowinres /build/ /usr/local/bin/
 WORKDIR /go/src/github.com/docker/docker
 ENV GO111MODULE=off
 ENV CGO_ENABLED=1
-ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-build-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install --no-install-recommends -y \
