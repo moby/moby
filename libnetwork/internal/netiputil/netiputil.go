@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/libnetwork/ipbits"
 )
 
+// ToIPNet converts p into a *net.IPNet, returning nil if p is not valid.
 func ToIPNet(p netip.Prefix) *net.IPNet {
 	if !p.IsValid() {
 		return nil
@@ -17,6 +18,8 @@ func ToIPNet(p netip.Prefix) *net.IPNet {
 	}
 }
 
+// ToPrefix converts n into a netip.Prefix. If n is not a valid IPv4 or IPV6
+// address, ToPrefix returns netip.Prefix{}, false.
 func ToPrefix(n *net.IPNet) (netip.Prefix, bool) {
 	if ll := len(n.Mask); ll != net.IPv4len && ll != net.IPv6len {
 		return netip.Prefix{}, false
@@ -35,11 +38,13 @@ func ToPrefix(n *net.IPNet) (netip.Prefix, bool) {
 	return netip.PrefixFrom(addr.Unmap(), ones), true
 }
 
+// HostID masks out the 'bits' most-significant bits of addr. The result is
+// undefined if bits > addr.BitLen().
 func HostID(addr netip.Addr, bits uint) uint64 {
 	return ipbits.Field(addr, bits, uint(addr.BitLen()))
 }
 
-// subnetRange returns the amount to add to network.Addr() in order to yield the
+// SubnetRange returns the amount to add to network.Addr() in order to yield the
 // first and last addresses in subnet, respectively.
 func SubnetRange(network, subnet netip.Prefix) (start, end uint64) {
 	start = HostID(subnet.Addr(), uint(network.Bits()))

@@ -1,8 +1,8 @@
 package bridge
 
 import (
+	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/iptables"
@@ -22,6 +23,7 @@ import (
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 )
 
@@ -177,6 +179,44 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		DataScope:         scope.Local,
 		ConnectivityScope: scope.Local,
 	})
+}
+
+// The behaviour of previous implementations of bridge subnet prefix assignment
+// is preserved here...
+//
+// The LL prefix, 'fe80::/64' can be used as an IPAM pool. Linux always assigns
+// link-local addresses with this prefix. But, pool-assigned addresses are very
+// unlikely to conflict.
+//
+// Don't allow a nonstandard LL subnet to overlap with 'fe80::/64'. For example,
+// if the config asked for subnet prefix 'fe80::/80', the bridge and its
+// containers would each end up with two LL addresses, Linux's '/64' and one from
+// the IPAM pool claiming '/80'. Although the specified prefix length must not
+// affect the host's determination of whether the address is on-link and to be
+// added to the interface's Prefix List (RFC-5942), differing prefix lengths
+// would be confusing and have been disallowed by earlier implementations of
+// bridge address assignment.
+func validateIPv6Subnet(addr *net.IPNet) error {
+	if addr != nil && bridgeIPv6.Contains(addr.IP) && !bytes.Equal(bridgeIPv6.Mask, addr.Mask) {
+		return errdefs.InvalidParameter(errors.New("clash with the Link-Local prefix 'fe80::/64'"))
+	}
+	return nil
+}
+
+// ValidateFixedCIDRV6 checks that val is an IPv6 address and prefix length that
+// does not overlap with the link local subnet prefix 'fe80::/64'.
+func ValidateFixedCIDRV6(val string) error {
+	if val == "" {
+		return nil
+	}
+	ip, ipNet, err := net.ParseCIDR(val)
+	if err != nil {
+		return errdefs.InvalidParameter(err)
+	}
+	if ip.To4() != nil {
+		return errdefs.InvalidParameter(errors.New("fixed-cidr-v6 is not an IPv6 subnet"))
+	}
+	return validateIPv6Subnet(ipNet)
 }
 
 // Validate performs a static validation on the network configuration parameters.
@@ -516,6 +556,13 @@ func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []d
 		}
 	}
 
+	// TODO(robmry) - move this to networkConfiguration.Validate()
+	//   - but that can't happen until Validate() is called after processIPAM() has set
+	//     up the IP addresses, instead of during parseNetworkOptions().
+	if err := validateIPv6Subnet(c.AddressIPv6); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -759,9 +806,9 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		// assigned an IPv6 link-local address.
 		{config.EnableIPv6, setupBridgeIPv6},
 
-		// We ensure that the bridge has the expectedIPv4 and IPv6 addresses in
-		// the case of a previously existing device.
-		{bridgeAlreadyExists && !config.InhibitIPv4, setupVerifyAndReconcile},
+		// Ensure the bridge has the expected IPv4 addresses in the case of a previously
+		// existing device.
+		{bridgeAlreadyExists && !config.InhibitIPv4, setupVerifyAndReconcileIPv4},
 
 		// Enable IPv6 Forwarding
 		{enableIPv6Forwarding, setupIPv6Forwarding},
@@ -1059,7 +1106,6 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		if config.AddressIPv6 != nil {
 			network = config.AddressIPv6
 		}
-
 		ones, _ := network.Mask.Size()
 		if ones > 80 {
 			err = types.ForbiddenErrorf("Cannot self generate an IPv6 address on network %v: At least 48 host bits are needed.", network)
