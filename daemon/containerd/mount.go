@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/containerd/log"
@@ -30,11 +31,21 @@ func (i *ImageService) Mount(ctx context.Context, container *container.Container
 
 // Unmount unmounts the container base filesystem
 func (i *ImageService) Unmount(ctx context.Context, container *container.Container) error {
-	root := container.BaseFS
+	baseFS := container.BaseFS
+	if baseFS == "" {
+		target, err := i.refCountMounter.Mounted(container.ID)
+		if err != nil {
+			log.G(ctx).WithField("containerID", container.ID).Warn("failed to determine if container is already mounted")
+		}
+		if target == "" {
+			return errors.New("BaseFS is empty")
+		}
+		baseFS = target
+	}
 
-	if err := i.refCountMounter.Unmount(root); err != nil {
+	if err := i.refCountMounter.Unmount(baseFS); err != nil {
 		log.G(ctx).WithField("container", container.ID).WithError(err).Error("error unmounting container")
-		return fmt.Errorf("failed to unmount %s: %w", root, err)
+		return fmt.Errorf("failed to unmount %s: %w", baseFS, err)
 	}
 
 	return nil
