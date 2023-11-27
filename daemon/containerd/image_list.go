@@ -394,7 +394,25 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 			return nil, err
 		}
 		fltrs = append(fltrs, func(image images.Image) bool {
-			return danglingValue == isDanglingImage(image)
+			if danglingValue == isDanglingImage(image) {
+				return true
+			}
+
+			// Show digested but untagged for dangling=true filter to be
+			// consistent with the graphdriver implementation.
+			if danglingValue {
+				ref, err := reference.ParseNamed(image.Name)
+				if err != nil {
+					return false
+				}
+
+				if _, ok := ref.(reference.Digested); ok {
+					if _, ok := ref.(reference.Tagged); !ok {
+						return true
+					}
+				}
+			}
+			return false
 		})
 	}
 
