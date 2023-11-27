@@ -172,7 +172,7 @@ func (s *DockerRegistrySuite) TestConcurrentPush(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
-	const sourceRepoName = privateRegistryURL + "/dockercli/busybox"
+	const sourceRepoName = privateRegistryURL + "/crossrepopush/busybox"
 
 	// tag the image to upload it to the private registry
 	cli.DockerCmd(c, "tag", "busybox", sourceRepoName)
@@ -185,7 +185,7 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
 	digest1 := reference.DigestRegexp.FindString(out1)
 	assert.Assert(c, len(digest1) > 0, "no digest found for pushed manifest")
 
-	const destRepoName = privateRegistryURL + "/dockercli/crossrepopush"
+	const destRepoName = privateRegistryURL + "/crossrepopush/img"
 
 	// retag the image to upload the same layers to another repo in the same registry
 	cli.DockerCmd(c, "tag", "busybox", destRepoName)
@@ -194,7 +194,7 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
 	assert.NilError(c, err, "pushing the image to the private registry has failed: %s", out2)
 
 	// ensure that layers were mounted from the first repo during push
-	assert.Assert(c, strings.Contains(out2, "Mounted from dockercli/busybox"))
+	assert.Assert(c, strings.Contains(out2, "Mounted from crossrepopush/busybox"))
 
 	digest2 := reference.DigestRegexp.FindString(out2)
 	assert.Assert(c, len(digest2) > 0, "no digest found for pushed manifest")
