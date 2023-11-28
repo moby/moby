@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -198,10 +199,21 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	json.Unmarshal(ma, &myAliases) //nolint:errcheck
 	ep.myAliases = myAliases
 
+	_, hasDNSNames := epMap["dnsNames"]
 	dn, _ := json.Marshal(epMap["dnsNames"])
 	var dnsNames []string
 	json.Unmarshal(dn, &dnsNames)
 	ep.dnsNames = dnsNames
+
+	// TODO(aker): remove this migration code in v27
+	if !hasDNSNames {
+		// The field dnsNames was introduced in v25.0. If we don't have it, the on-disk state was written by an older
+		// daemon, thus we need to populate dnsNames based off of myAliases and anonymous values.
+		if !ep.anonymous {
+			myAliases = append([]string{ep.name}, myAliases...)
+		}
+		ep.dnsNames = sliceutil.Dedup(myAliases)
+	}
 
 	return nil
 }
