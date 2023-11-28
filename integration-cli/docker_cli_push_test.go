@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 )
 
@@ -262,8 +263,16 @@ func (s *DockerRegistryAuthTokenSuite) TestPushTokenServiceUnauthResponse(c *tes
 	cli.DockerCmd(c, "tag", "busybox", imgRepo)
 	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, !strings.Contains(out, "Retrying"))
-	assert.Assert(c, strings.Contains(out, "unauthorized: a message"))
+
+	assert.Check(c, !strings.Contains(out, "Retrying"))
+
+	// Auth service errors are not part of the spec and containerd doesn't parse them.
+	if testEnv.UsingSnapshotter() {
+		assert.Check(c, is.Contains(out, "failed to authorize: failed to fetch anonymous token"))
+		assert.Check(c, is.Contains(out, "401 Unauthorized"))
+	} else {
+		assert.Check(c, is.Contains(out, "unauthorized: a message"))
+	}
 }
 
 func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponseUnauthorized(c *testing.T) {
@@ -276,8 +285,15 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, !strings.Contains(out, "Retrying"))
-	split := strings.Split(out, "\n")
-	assert.Equal(c, split[len(split)-2], "unauthorized: authentication required")
+
+	// Auth service errors are not part of the spec and containerd doesn't parse them.
+	if testEnv.UsingSnapshotter() {
+		assert.Check(c, is.Contains(out, "failed to authorize: failed to fetch anonymous token"))
+		assert.Check(c, is.Contains(out, "401 Unauthorized"))
+	} else {
+		split := strings.Split(out, "\n")
+		assert.Check(c, is.Contains(split[len(split)-2], "unauthorized: authentication required"))
+	}
 }
 
 func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponseError(c *testing.T) {
@@ -292,8 +308,15 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	// TODO: isolate test so that it can be guaranteed that the 503 will trigger xfer retries
 	// assert.Assert(c, strings.Contains(out, "Retrying"))
 	// assert.Assert(c, !strings.Contains(out, "Retrying in 15"))
-	split := strings.Split(out, "\n")
-	assert.Equal(c, split[len(split)-2], "toomanyrequests: out of tokens")
+
+	// Auth service errors are not part of the spec and containerd doesn't parse them.
+	if testEnv.UsingSnapshotter() {
+		assert.Check(c, is.Contains(out, "failed to authorize: failed to fetch anonymous token"))
+		assert.Check(c, is.Contains(out, "503 Service Unavailable"))
+	} else {
+		split := strings.Split(out, "\n")
+		assert.Check(c, is.Equal(split[len(split)-2], "toomanyrequests: out of tokens"))
+	}
 }
 
 func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponseUnparsable(c *testing.T) {
@@ -305,9 +328,16 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	cli.DockerCmd(c, "tag", "busybox", imgRepo)
 	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, !strings.Contains(out, "Retrying"))
-	split := strings.Split(out, "\n")
-	assert.Assert(c, strings.Contains(split[len(split)-2], "error parsing HTTP 403 response body: "))
+	assert.Check(c, !strings.Contains(out, "Retrying"))
+
+	// Auth service errors are not part of the spec and containerd doesn't parse them.
+	if testEnv.UsingSnapshotter() {
+		assert.Check(c, is.Contains(out, "failed to authorize: failed to fetch anonymous token"))
+		assert.Check(c, is.Contains(out, "403 Forbidden"))
+	} else {
+		split := strings.Split(out, "\n")
+		assert.Check(c, is.Contains(split[len(split)-2], "error parsing HTTP 403 response body: "))
+	}
 }
 
 func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponseNoToken(c *testing.T) {
@@ -321,5 +351,5 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, !strings.Contains(out, "Retrying"))
 	split := strings.Split(out, "\n")
-	assert.Equal(c, split[len(split)-2], "authorization server did not include a token in the response")
+	assert.Check(c, is.Contains(split[len(split)-2], "authorization server did not include a token in the response"))
 }
