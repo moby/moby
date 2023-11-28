@@ -175,7 +175,7 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 type Network struct {
 	ctrlr            *Controller
 	name             string
-	networkType      string
+	networkType      string // networkType is the name of the netdriver used by this network
 	id               string
 	created          time.Time
 	scope            string // network data scope
