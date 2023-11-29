@@ -787,8 +787,8 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 	// which may happen if it was created with the same IP range.
 	deleteInterface(c, "docker0")
 
-	bridgeName := "ext-bridge5"
-	bridgeIP := "192.169.1.1/24"
+	const bridgeName = "ext-bridge5"
+	const bridgeIP = "192.169.1.1/24"
 
 	createInterface(c, "bridge", bridgeName, bridgeIP)
 	defer deleteInterface(c, bridgeName)
@@ -796,19 +796,30 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 	d.StartWithBusybox(testutil.GetContext(c), c, "--bridge", bridgeName, "--icc=false")
 	defer d.Restart(c)
 
-	result := icmd.RunCommand("iptables", "-nvL", "FORWARD")
+	result := icmd.RunCommand("sh", "-c", "iptables -vL FORWARD | grep DROP")
 	result.Assert(c, icmd.Success)
-	regex := fmt.Sprintf("DROP.*all.*%s.*%s", bridgeName, bridgeName)
-	matched, _ := regexp.MatchString(regex, result.Combined())
-	assert.Equal(c, matched, true, fmt.Sprintf("iptables output should have contained %q, but was %q", regex, result.Combined()))
+
+	// strip whitespace and newlines to verify we only found a single DROP
+	out := strings.TrimSpace(result.Stdout())
+	assert.Assert(c, is.Equal(strings.Count(out, "\n"), 0), "only expected a single DROP rules")
+
+	// Column headers are stripped because of grep-ing, but should be:
+	//
+	//    pkts bytes target     prot opt in          out          source    destination
+	//       0     0 DROP       all  --  ext-bridge5 ext-bridge5  anywhere  anywhere
+	cols := strings.Fields(out)
+
+	expected := []string{"0", "0", "DROP", "all", "--", bridgeName, bridgeName, "anywhere", "anywhere"}
+	assert.DeepEqual(c, cols, expected)
+
 	// Pinging another container must fail with --icc=false
 	pingContainers(c, d, true)
 
-	ipStr := "192.171.1.1/24"
-	ip, _, _ := net.ParseCIDR(ipStr)
-	ifName := "icc-dummy"
+	const cidr = "192.171.1.1/24"
+	ip, _, _ := net.ParseCIDR(cidr)
+	const ifName = "icc-dummy"
 
-	createInterface(c, "dummy", ifName, ipStr)
+	createInterface(c, "dummy", ifName, cidr)
 	defer deleteInterface(c, ifName)
 
 	// But, Pinging external or a Host interface must succeed
@@ -825,8 +836,8 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *testing.T) {
 	// which may happen if it was created with the same IP range.
 	deleteInterface(c, "docker0")
 
-	bridgeName := "ext-bridge6"
-	bridgeIP := "192.169.1.1/24"
+	const bridgeName = "ext-bridge6"
+	const bridgeIP = "192.169.1.1/24"
 
 	createInterface(c, "bridge", bridgeName, bridgeIP)
 	defer deleteInterface(c, bridgeName)
@@ -834,11 +845,22 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *testing.T) {
 	d.StartWithBusybox(testutil.GetContext(c), c, "--bridge", bridgeName, "--icc=false")
 	defer d.Restart(c)
 
-	result := icmd.RunCommand("iptables", "-nvL", "FORWARD")
+	result := icmd.RunCommand("sh", "-c", "iptables -vL FORWARD | grep DROP")
 	result.Assert(c, icmd.Success)
-	regex := fmt.Sprintf("DROP.*all.*%s.*%s", bridgeName, bridgeName)
-	matched, _ := regexp.MatchString(regex, result.Combined())
-	assert.Equal(c, matched, true, fmt.Sprintf("iptables output should have contained %q, but was %q", regex, result.Combined()))
+
+	// strip whitespace and newlines to verify we only found a single DROP
+	out := strings.TrimSpace(result.Stdout())
+	assert.Assert(c, is.Equal(strings.Count(out, "\n"), 0), "only expected a single DROP rules")
+
+	// Column headers are stripped because of grep-ing, but should be:
+	//
+	//    pkts bytes target     prot opt in          out          source    destination
+	//       0     0 DROP       all  --  ext-bridge6 ext-bridge6  anywhere  anywhere
+	cols := strings.Fields(out)
+
+	expected := []string{"0", "0", "DROP", "all", "--", bridgeName, bridgeName, "anywhere", "anywhere"}
+	assert.DeepEqual(c, cols, expected)
+
 	out, err := d.Cmd("run", "-d", "--expose", "4567", "--name", "icc1", "busybox", "nc", "-l", "-p", "4567")
 	assert.NilError(c, err, out)
 
