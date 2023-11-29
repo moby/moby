@@ -13,7 +13,6 @@ import (
 	"strings"
 	"syscall"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/integration/internal/process"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -433,14 +433,21 @@ func testLiveRestoreAutoRemove(t *testing.T) {
 	t.Run("engine restart should remove containers that exited", func(t *testing.T) {
 		d, finishContainer, cID := run(t)
 
+		apiClient := d.NewClientT(t)
+
+		// Get PID of the container process.
+		inspect, err := apiClient.ContainerInspect(ctx, cID)
+		assert.NilError(t, err)
+		pid := inspect.State.Pid
+
 		d.Stop(t)
 
 		finishContainer()
-		time.Sleep(time.Millisecond * 200)
+		poll.WaitOn(t, process.NotAlive(pid))
 
 		d.Start(t, "--live-restore", "--iptables=false")
 
-		poll.WaitOn(t, container.IsRemoved(ctx, d.NewClientT(t), cID))
+		poll.WaitOn(t, container.IsRemoved(ctx, apiClient, cID))
 	})
 }
 
