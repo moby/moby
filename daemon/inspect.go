@@ -15,6 +15,8 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/sliceutil"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -27,6 +29,18 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, size bo
 		return daemon.containerInspectPre120(ctx, name)
 	case versions.Equal(version, "1.20"):
 		return daemon.containerInspect120(name)
+	case versions.LessThan(version, "1.45"):
+		ctr, err := daemon.ContainerInspectCurrent(ctx, name, size)
+		if err != nil {
+			return nil, err
+		}
+
+		shortCID := stringid.TruncateID(ctr.ID)
+		for _, ep := range ctr.NetworkSettings.Networks {
+			ep.Aliases = sliceutil.Dedup(append(ep.Aliases, shortCID, ctr.Config.Hostname))
+		}
+
+		return ctr, nil
 	default:
 		return daemon.ContainerInspectCurrent(ctx, name, size)
 	}

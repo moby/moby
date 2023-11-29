@@ -5,6 +5,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
@@ -13,13 +14,13 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func TestDockerNetworkConnectAlias(t *testing.T) {
+func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	ctx := setupTest(t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
-	client := d.NewClientT(t)
+	client := d.NewClientT(t, client.WithVersion("1.43"))
 	defer client.Close()
 
 	name := t.Name() + "test-alias"

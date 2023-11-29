@@ -2162,10 +2162,6 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 		CreateOptionIpam(n.loadBalancerIP, nil, nil, nil),
 		CreateOptionLoadBalancer(),
 	}
-	if n.hasLoadBalancerEndpoint() && !n.ingress {
-		// Mark LB endpoints as anonymous so they don't show up in DNS
-		epOptions = append(epOptions, CreateOptionAnonymous())
-	}
 	ep, err := n.createEndpoint(endpointName, epOptions...)
 	if err != nil {
 		return err

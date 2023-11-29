@@ -13,7 +13,8 @@ source hack/make/.integration-test-helpers
 # --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream
 # TODO re-enable test_attach_no_stream after https://github.com/docker/docker-py/issues/2513 is resolved
 # TODO re-enable test_run_container_reading_socket_ws. It's reported in https://github.com/docker/docker-py/issues/1478, and we're getting that error in our tests.
-: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_run_container_reading_socket_ws}"
+# TODO re-enable test_run_with_networking_config once this issue is fixed: https://github.com/moby/moby/pull/46853#issuecomment-1864679942.
+: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_run_container_reading_socket_ws --deselect=tests/integration/models_containers_test.py::ContainerCollectionTest::test_run_with_networking_config}"
 
 # build --squash is not supported with containerd integration.
 if [ -n "$TEST_INTEGRATION_USE_SNAPSHOTTER" ]; then

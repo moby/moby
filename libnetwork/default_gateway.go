@@ -47,7 +47,7 @@ func (sb *Sandbox) setupDefaultGW() error {
 		}
 	}
 
-	createOptions := []EndpointOption{CreateOptionAnonymous()}
+	createOptions := []EndpointOption{}
 
 	var gwName string
 	if len(sb.containerID) <= gwEPlen {

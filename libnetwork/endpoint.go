@@ -31,7 +31,6 @@ type Endpoint struct {
 	joinInfo     *endpointJoinInfo
 	sandboxID    string
 	exposedPorts []types.TransportPort
-	anonymous    bool
 	// dnsNames holds all the non-fully qualified DNS names associated to this endpoint. Order matters: first entry
 	// will be used for the PTR records associated to the endpoint's IPv4 and IPv6 addresses.
 	dnsNames          []string
@@ -67,7 +66,6 @@ func (ep *Endpoint) MarshalJSON() ([]byte, error) {
 		epMap["generic"] = ep.generic
 	}
 	epMap["sandbox"] = ep.sandboxID
-	epMap["anonymous"] = ep.anonymous
 	epMap["dnsNames"] = ep.dnsNames
 	epMap["disableResolution"] = ep.disableResolution
 	epMap["svcName"] = ep.svcName
@@ -159,8 +157,9 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 		}
 	}
 
+	var anonymous bool
 	if v, ok := epMap["anonymous"]; ok {
-		ep.anonymous = v.(bool)
+		anonymous = v.(bool)
 	}
 	if v, ok := epMap["disableResolution"]; ok {
 		ep.disableResolution = v.(bool)
@@ -206,7 +205,7 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	if !hasDNSNames {
 		// The field dnsNames was introduced in v25.0. If we don't have it, the on-disk state was written by an older
 		// daemon, thus we need to populate dnsNames based off of myAliases and anonymous values.
-		if !ep.anonymous {
+		if !anonymous {
 			myAliases = append([]string{ep.name}, myAliases...)
 		}
 		ep.dnsNames = sliceutil.Dedup(myAliases)
@@ -229,7 +228,6 @@ func (ep *Endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.sandboxID = ep.sandboxID
 	dstEp.dbIndex = ep.dbIndex
 	dstEp.dbExists = ep.dbExists
-	dstEp.anonymous = ep.anonymous
 	dstEp.disableResolution = ep.disableResolution
 	dstEp.svcName = ep.svcName
 	dstEp.svcID = ep.svcID
@@ -946,14 +944,6 @@ func CreateOptionPortMapping(portBindings []types.PortBinding) EndpointOption {
 func CreateOptionDNS(dns []string) EndpointOption {
 	return func(ep *Endpoint) {
 		ep.generic[netlabel.DNSServers] = dns
-	}
-}
-
-// CreateOptionAnonymous function returns an option setter for setting
-// this endpoint as anonymous
-func CreateOptionAnonymous() EndpointOption {
-	return func(ep *Endpoint) {
-		ep.anonymous = true
 	}
 }
 
