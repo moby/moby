@@ -495,9 +495,12 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 				restartContainers[c] = make(chan struct{})
 				mapLock.Unlock()
 			} else if c.HostConfig != nil && c.HostConfig.AutoRemove {
-				mapLock.Lock()
-				removeContainers[c.ID] = c
-				mapLock.Unlock()
+				// Remove the container if live-restore is disabled or if the container has already exited.
+				if !cfg.LiveRestoreEnabled || !alive {
+					mapLock.Lock()
+					removeContainers[c.ID] = c
+					mapLock.Unlock()
+				}
 			}
 
 			c.Lock()
