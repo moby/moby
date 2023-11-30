@@ -8,6 +8,7 @@ package local // import "github.com/docker/docker/volume/local"
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strings"
 	"syscall"
@@ -112,9 +113,12 @@ func (v *localVolume) mount() error {
 	if v.opts.MountDevice == "" {
 		return fmt.Errorf("missing device in volume options")
 	}
+
 	mountOpts := v.opts.MountOpts
+	mountDevice := v.opts.MountDevice
+
 	switch v.opts.MountType {
-	case "nfs", "cifs":
+	case "nfs":
 		if addrValue := getAddress(v.opts.MountOpts); addrValue != "" && net.ParseIP(addrValue).To4() == nil {
 			ipAddr, err := net.ResolveIPAddr("ip", addrValue)
 			if err != nil {
@@ -122,8 +126,25 @@ func (v *localVolume) mount() error {
 			}
 			mountOpts = strings.Replace(mountOpts, "addr="+addrValue, "addr="+ipAddr.String(), 1)
 		}
+	case "cifs":
+		deviceURL, err := url.Parse(v.opts.MountDevice)
+		if err != nil {
+			return errors.Wrapf(err, "error parsing mount device url")
+		}
+		if deviceURL.Host != "" && net.ParseIP(deviceURL.Hostname()) == nil {
+			ipAddr, err := net.ResolveIPAddr("ip", deviceURL.Hostname())
+			if err != nil {
+				return errors.Wrapf(err, "error resolving passed in network volume address")
+			}
+			if deviceURL.Port() != "" {
+				deviceURL.Host = net.JoinHostPort(ipAddr.String(), deviceURL.Port())
+			} else {
+				deviceURL.Host = ipAddr.String()
+			}
+			mountDevice = deviceURL.String()
+		}
 	}
-	if err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts); err != nil {
+	if err := mount.Mount(mountDevice, v.path, v.opts.MountType, mountOpts); err != nil {
 		if password := getPassword(v.opts.MountOpts); password != "" {
 			err = errors.New(strings.Replace(err.Error(), "password="+password, "password=********", 1))
 		}
