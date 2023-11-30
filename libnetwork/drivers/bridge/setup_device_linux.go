@@ -45,6 +45,14 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 	return nil
 }
 
+func setupMTU(config *networkConfiguration, i *bridgeInterface) error {
+	if err := i.nlh.LinkSetMTU(i.Link, config.Mtu); err != nil {
+		log.G(context.TODO()).WithError(err).Errorf("Failed to set bridge MTU %s via netlink", config.BridgeName)
+		return err
+	}
+	return nil
+}
+
 func setupDefaultSysctl(config *networkConfiguration, i *bridgeInterface) error {
 	// Disable IPv6 router advertisements originating on the bridge
 	sysPath := filepath.Join("/proc/sys/net/ipv6/conf/", config.BridgeName, "accept_ra")
