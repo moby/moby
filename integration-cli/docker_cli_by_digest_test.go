@@ -326,6 +326,9 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
+	// See https://github.com/moby/moby/pull/46856
+	skip.If(c, testEnv.UsingSnapshotter(), "dangling=true filter behaves a bit differently with c8d")
+
 	// setup image1
 	digest1, err := setupImageWithTag(c, "dangle1")
 	assert.NilError(c, err, "error setting up image")
