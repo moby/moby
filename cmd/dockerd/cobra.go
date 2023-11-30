@@ -46,7 +46,7 @@ func wrappedFlagUsages(cmd *cobra.Command) string {
 	return cmd.Flags().FlagUsagesWrapped(width - 1)
 }
 
-var usageTemplate = `Usage:	{{.UseLine}}
+const usageTemplate = `Usage:	{{.UseLine}}
 
 {{ .Short | trim }}
 
@@ -70,5 +70,5 @@ Options:
 {{- end}}
 `
 
-var helpTemplate = `
+const helpTemplate = `
 {{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`
