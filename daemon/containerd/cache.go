@@ -54,7 +54,7 @@ type localCache struct {
 	imageService *ImageService
 }
 
-func (ic *localCache) GetCache(parentID string, cfg *container.Config) (imageID string, err error) {
+func (ic *localCache) GetCache(parentID string, cfg *container.Config, platform ocispec.Platform) (imageID string, err error) {
 	ctx := context.TODO()
 
 	var children []image.ID
@@ -100,8 +100,11 @@ func (ic *localCache) GetCache(parentID string, cfg *container.Config) (imageID 
 		}
 
 		if cache.CompareConfig(&cc, cfg) {
-			childImage, err := ic.imageService.GetImage(ctx, child.String(), imagetype.GetImageOpts{})
+			childImage, err := ic.imageService.GetImage(ctx, child.String(), imagetype.GetImageOpts{Platform: &platform})
 			if err != nil {
+				if errdefs.IsNotFound(err) {
+					continue
+				}
 				return "", err
 			}
 
@@ -124,10 +127,10 @@ type imageCache struct {
 	lc           *localCache
 }
 
-func (ic *imageCache) GetCache(parentID string, cfg *container.Config) (imageID string, err error) {
+func (ic *imageCache) GetCache(parentID string, cfg *container.Config, platform ocispec.Platform) (imageID string, err error) {
 	ctx := context.TODO()
 
-	imgID, err := ic.lc.GetCache(parentID, cfg)
+	imgID, err := ic.lc.GetCache(parentID, cfg, platform)
 	if err != nil {
 		return "", err
 	}
@@ -143,7 +146,7 @@ func (ic *imageCache) GetCache(parentID string, cfg *container.Config) (imageID 
 	lenHistory := 0
 
 	if parentID != "" {
-		parent, err = ic.imageService.GetImage(ctx, parentID, imagetype.GetImageOpts{})
+		parent, err = ic.imageService.GetImage(ctx, parentID, imagetype.GetImageOpts{Platform: &platform})
 		if err != nil {
 			return "", err
 		}

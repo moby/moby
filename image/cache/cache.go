@@ -7,11 +7,13 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -28,8 +30,8 @@ type LocalImageCache struct {
 }
 
 // GetCache returns the image id found in the cache
-func (lic *LocalImageCache) GetCache(imgID string, config *containertypes.Config) (string, error) {
-	return getImageIDAndError(getLocalCachedImage(lic.store, image.ID(imgID), config))
+func (lic *LocalImageCache) GetCache(imgID string, config *containertypes.Config, platform ocispec.Platform) (string, error) {
+	return getImageIDAndError(getLocalCachedImage(lic.store, image.ID(imgID), config, platform))
 }
 
 // New returns an image cache, based on history objects
@@ -53,8 +55,8 @@ func (ic *ImageCache) Populate(image *image.Image) {
 }
 
 // GetCache returns the image id found in the cache
-func (ic *ImageCache) GetCache(parentID string, cfg *containertypes.Config) (string, error) {
-	imgID, err := ic.localImageCache.GetCache(parentID, cfg)
+func (ic *ImageCache) GetCache(parentID string, cfg *containertypes.Config, platform ocispec.Platform) (string, error) {
+	imgID, err := ic.localImageCache.GetCache(parentID, cfg, platform)
 	if err != nil {
 		return "", err
 	}
@@ -217,7 +219,7 @@ func getImageIDAndError(img *image.Image, err error) (string, error) {
 // of the image with imgID, that had the same config when it was
 // created. nil is returned if a child cannot be found. An error is
 // returned if the parent image cannot be found.
-func getLocalCachedImage(imageStore image.Store, imgID image.ID, config *containertypes.Config) (*image.Image, error) {
+func getLocalCachedImage(imageStore image.Store, imgID image.ID, config *containertypes.Config, platform ocispec.Platform) (*image.Image, error) {
 	if config == nil {
 		return nil, nil
 	}
@@ -244,6 +246,15 @@ func getLocalCachedImage(imageStore image.Store, imgID image.ID, config *contain
 			}
 
 			if !isBuiltLocally(id) {
+				continue
+			}
+
+			imgPlatform := img.Platform()
+			// Discard old linux/amd64 images with empty platform.
+			if imgPlatform.OS == "" && imgPlatform.Architecture == "" {
+				continue
+			}
+			if !platforms.OnlyStrict(platform).Match(imgPlatform) {
 				continue
 			}
 
