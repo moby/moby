@@ -135,9 +135,6 @@ func compare(a, b *container.Config) bool {
 		if a.Healthcheck.Interval != b.Healthcheck.Interval {
 			return false
 		}
-		if a.Healthcheck.StartInterval != b.Healthcheck.StartInterval {
-			return false
-		}
 		if a.Healthcheck.StartPeriod != b.Healthcheck.StartPeriod {
 			return false
 		}

@@ -8,7 +8,9 @@ import (
 	"github.com/docker/docker/api/types/container"
 	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MakeImageCache creates a stateful image cache.
@@ -29,7 +31,7 @@ type imageCache struct {
 	c      *ImageService
 }
 
-func (ic *imageCache) GetCache(parentID string, cfg *container.Config) (imageID string, err error) {
+func (ic *imageCache) GetCache(parentID string, cfg *container.Config, platform ocispec.Platform) (imageID string, err error) {
 	ctx := context.TODO()
 
 	if parentID == "" {
@@ -37,8 +39,11 @@ func (ic *imageCache) GetCache(parentID string, cfg *container.Config) (imageID 
 		return "", nil
 	}
 
-	parent, err := ic.c.GetImage(ctx, parentID, imagetype.GetImageOpts{})
+	parent, err := ic.c.GetImage(ctx, parentID, imagetype.GetImageOpts{Platform: &platform})
 	if err != nil {
+		if errdefs.IsNotFound(err) {
+			return "", nil
+		}
 		return "", err
 	}
 
@@ -54,8 +59,11 @@ func (ic *imageCache) GetCache(parentID string, cfg *container.Config) (imageID 
 	}
 
 	for _, children := range children {
-		childImage, err := ic.c.GetImage(ctx, children.String(), imagetype.GetImageOpts{})
+		childImage, err := ic.c.GetImage(ctx, children.String(), imagetype.GetImageOpts{Platform: &platform})
 		if err != nil {
+			if errdefs.IsNotFound(err) {
+				continue
+			}
 			return "", err
 		}
 
