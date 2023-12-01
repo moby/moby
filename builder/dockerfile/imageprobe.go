@@ -3,6 +3,7 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -10,7 +11,7 @@ import (
 // cache.
 type ImageProber interface {
 	Reset()
-	Probe(parentID string, runConfig *container.Config) (string, error)
+	Probe(parentID string, runConfig *container.Config, platform ocispec.Platform) (string, error)
 }
 
 type imageProber struct {
@@ -37,11 +38,11 @@ func (c *imageProber) Reset() {
 
 // Probe checks if cache match can be found for current build instruction.
 // It returns the cachedID if there is a hit, and the empty string on miss
-func (c *imageProber) Probe(parentID string, runConfig *container.Config) (string, error) {
+func (c *imageProber) Probe(parentID string, runConfig *container.Config, platform ocispec.Platform) (string, error) {
 	if c.cacheBusted {
 		return "", nil
 	}
-	cacheID, err := c.cache.GetCache(parentID, runConfig)
+	cacheID, err := c.cache.GetCache(parentID, runConfig, platform)
 	if err != nil {
 		return "", err
 	}
@@ -58,6 +59,6 @@ type nopProber struct{}
 
 func (c *nopProber) Reset() {}
 
-func (c *nopProber) Probe(_ string, _ *container.Config) (string, error) {
+func (c *nopProber) Probe(_ string, _ *container.Config, _ ocispec.Platform) (string, error) {
 	return "", nil
 }

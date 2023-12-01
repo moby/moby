@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/containerfs"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MockBackend implements the builder.Backend interface for unit testing
@@ -111,7 +112,7 @@ type mockImageCache struct {
 	getCacheFunc func(parentID string, cfg *container.Config) (string, error)
 }
 
-func (mic *mockImageCache) GetCache(parentID string, cfg *container.Config) (string, error) {
+func (mic *mockImageCache) GetCache(parentID string, cfg *container.Config, _ ocispec.Platform) (string, error) {
 	if mic.getCacheFunc != nil {
 		return mic.getCacheFunc(parentID, cfg)
 	}
