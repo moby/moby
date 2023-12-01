@@ -57,6 +57,9 @@ func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
 	if err != nil {
 		return "", err
 	}
+	if err := i.imageStore.SetBuiltLocally(id); err != nil {
+		return "", err
+	}
 
 	if c.ParentImageID != "" {
 		if err := i.imageStore.SetParent(id, image.ID(c.ParentImageID)); err != nil {
