@@ -56,6 +56,15 @@ func (r *Root) validateOpts(opts map[string]string) error {
 			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
 		}
 	}
+	if typeOpt, deviceOpt := opts["type"], opts["device"]; typeOpt == "cifs" && deviceOpt != "" {
+		deviceURL, err := url.Parse(deviceOpt)
+		if err != nil {
+			return errdefs.InvalidParameter(errors.Wrapf(err, "error parsing mount device url"))
+		}
+		if deviceURL.Port() != "" {
+			return errdefs.InvalidParameter(errors.New("port not allowed in CIFS device URL, include 'port' in 'o='"))
+		}
+	}
 	if val, ok := opts["size"]; ok {
 		size, err := units.RAMInBytes(val)
 		if err != nil {
@@ -131,16 +140,12 @@ func (v *localVolume) mount() error {
 		if err != nil {
 			return errors.Wrapf(err, "error parsing mount device url")
 		}
-		if deviceURL.Host != "" && net.ParseIP(deviceURL.Hostname()) == nil {
-			ipAddr, err := net.ResolveIPAddr("ip", deviceURL.Hostname())
+		if deviceURL.Host != "" && net.ParseIP(deviceURL.Host) == nil {
+			ipAddr, err := net.ResolveIPAddr("ip", deviceURL.Host)
 			if err != nil {
 				return errors.Wrapf(err, "error resolving passed in network volume address")
 			}
-			if deviceURL.Port() != "" {
-				deviceURL.Host = net.JoinHostPort(ipAddr.String(), deviceURL.Port())
-			} else {
-				deviceURL.Host = ipAddr.String()
-			}
+			deviceURL.Host = ipAddr.String()
 			mountDevice = deviceURL.String()
 		}
 	}
