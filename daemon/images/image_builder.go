@@ -254,6 +254,9 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 			return nil, errors.Wrapf(err, "failed to set parent %s", parent)
 		}
 	}
+	if err := i.imageStore.SetBuiltLocally(id); err != nil {
+		return nil, errors.Wrapf(err, "failed to mark image %s as built locally", id)
+	}
 
 	return i.imageStore.Get(id)
 }
