@@ -7,12 +7,13 @@ import (
 	"strings"
 
 	distref "github.com/distribution/reference"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
 )
 
 const (

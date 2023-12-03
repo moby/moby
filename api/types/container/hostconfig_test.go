@@ -3,9 +3,10 @@ package container
 import (
 	"testing"
 
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/errdefs"
 )
 
 func TestValidateRestartPolicy(t *testing.T) {

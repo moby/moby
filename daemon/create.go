@@ -9,6 +9,10 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/selinux/go-selinux"
+	archvariant "github.com/tonistiigi/go-archvariant"
+
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -22,9 +26,6 @@ import (
 	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/runconfig"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opencontainers/selinux/go-selinux"
-	archvariant "github.com/tonistiigi/go-archvariant"
 )
 
 type createOpts struct {

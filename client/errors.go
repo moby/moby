@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 )
 
 // errConnectionFailed implements an error returned when connection failed.

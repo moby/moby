@@ -11,6 +11,8 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/docker/go-connections/nat"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -33,7 +35,6 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/go-connections/nat"
 )
 
 // PredefinedNetworkError is returned when user tries to create predefined network that already exists.

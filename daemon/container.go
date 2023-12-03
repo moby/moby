@@ -9,6 +9,11 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/go-connections/nat"
+	"github.com/moby/sys/signal"
+	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
@@ -21,10 +26,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
-	"github.com/docker/go-connections/nat"
-	"github.com/moby/sys/signal"
-	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/pkg/errors"
 )
 
 // GetContainer looks for a container using the provided information, which could be

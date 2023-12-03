@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/docker/docker/daemon/logger/journald/internal/export"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
+
+	"github.com/docker/docker/daemon/logger/journald/internal/export"
 )
 
 func TestExportSerialization(t *testing.T) {

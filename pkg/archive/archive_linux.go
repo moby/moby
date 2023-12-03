@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/pkg/system"
 )
 
 func getWhiteoutConverter(format WhiteoutFormat, inUserNS bool) (tarWhiteoutConverter, error) {

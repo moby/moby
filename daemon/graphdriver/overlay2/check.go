@@ -11,10 +11,11 @@ import (
 
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/userns"
-	"github.com/docker/docker/daemon/graphdriver/overlayutils"
-	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/daemon/graphdriver/overlayutils"
+	"github.com/docker/docker/pkg/system"
 )
 
 // doesSupportNativeDiff checks whether the filesystem has a bug

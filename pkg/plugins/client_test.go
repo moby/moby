@@ -14,10 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/tlsconfig"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/pkg/plugins/transport"
 )
 
 func setupRemotePluginServer(t *testing.T) (mux *http.ServeMux, addr string) {

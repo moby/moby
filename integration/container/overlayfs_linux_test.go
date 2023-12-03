@@ -5,12 +5,13 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/dmesg"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {

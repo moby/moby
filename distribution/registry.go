@@ -13,10 +13,11 @@ import (
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var (

@@ -3,9 +3,10 @@ package cache // import "github.com/docker/docker/image/cache"
 import (
 	"testing"
 
+	"github.com/docker/go-connections/nat"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/go-connections/nat"
 )
 
 // Just to make life easier

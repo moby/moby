@@ -3,12 +3,13 @@ package cluster // import "github.com/docker/docker/daemon/cluster"
 import (
 	"context"
 
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"google.golang.org/grpc"
+
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
-	swarmapi "github.com/moby/swarmkit/v2/api"
-	"google.golang.org/grpc"
 )
 
 // GetTasks returns a list of tasks matching the filter options.

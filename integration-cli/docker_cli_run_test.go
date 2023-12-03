@@ -22,6 +22,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-connections/nat"
+	"github.com/moby/sys/mountinfo"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -33,12 +40,6 @@ import (
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
-	"github.com/docker/go-connections/nat"
-	"github.com/moby/sys/mountinfo"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/icmd"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 type DockerCLIRunSuite struct {

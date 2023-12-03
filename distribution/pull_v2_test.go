@@ -16,13 +16,14 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution/manifest/schema1"
-	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/registry"
 )
 
 // TestFixManifestLayers checks that fixManifestLayers removes a duplicate

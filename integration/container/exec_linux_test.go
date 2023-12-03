@@ -4,11 +4,12 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 func TestExecConsoleSize(t *testing.T) {

@@ -9,8 +9,9 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
+
+	"github.com/docker/docker/libnetwork/types"
 )
 
 // checkConntrackProgrammable checks if the handle supports the

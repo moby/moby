@@ -6,8 +6,9 @@ import (
 	"runtime"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/container"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/container"
 )
 
 // Mount sets container.BaseFS

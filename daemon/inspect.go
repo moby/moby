@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/go-connections/nat"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -15,7 +17,6 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/go-connections/nat"
 )
 
 // ContainerInspect returns low-level information about a

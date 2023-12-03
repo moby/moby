@@ -11,8 +11,9 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types/registry"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/api/types/registry"
 )
 
 // AuthClientID is used the ClientID used for the token server

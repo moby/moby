@@ -12,17 +12,18 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
+	"github.com/moby/sys/sequential"
+	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/specs-go"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/image"
 	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
-	"github.com/moby/sys/sequential"
-	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/specs-go"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 type imageDescriptor struct {

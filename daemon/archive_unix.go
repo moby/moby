@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
@@ -15,7 +17,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	volumemounts "github.com/docker/docker/volume/mounts"
-	"github.com/pkg/errors"
 )
 
 // containerStatPath stats the filesystem resource at the specified path in this

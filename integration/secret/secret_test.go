@@ -8,6 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
@@ -16,10 +21,6 @@ import (
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 func TestSecretInspect(t *testing.T) {

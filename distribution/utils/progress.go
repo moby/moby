@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 )

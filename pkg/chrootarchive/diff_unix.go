@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/pkg/userns"
+
 	"github.com/docker/docker/pkg/archive"
 )
 

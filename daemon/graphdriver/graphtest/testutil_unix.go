@@ -9,10 +9,11 @@ import (
 	"testing"
 
 	contdriver "github.com/containerd/continuity/driver"
-	"github.com/docker/docker/daemon/graphdriver"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/graphdriver"
 )
 
 func verifyFile(t testing.TB, path string, mode os.FileMode, uid, gid uint32) {

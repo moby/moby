@@ -5,10 +5,11 @@ import (
 	"io"
 	"net"
 
+	units "github.com/docker/go-units"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
-	units "github.com/docker/go-units"
 )
 
 // ContainerExecInspect holds information returned by exec inspect.

@@ -12,6 +12,9 @@ import (
 	"testing"
 	"unsafe"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
@@ -20,8 +23,6 @@ import (
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 // This is a regression test for #38488

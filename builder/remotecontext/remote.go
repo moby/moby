@@ -9,9 +9,10 @@ import (
 	"net/url"
 	"regexp"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/pkg/errors"
 )
 
 // When downloading remote contexts, limit the amount (in bytes)

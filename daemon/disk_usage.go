@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/pkg/errors"
-	"golang.org/x/sync/errgroup"
 )
 
 // containerDiskUsage obtains information about container data disk usage

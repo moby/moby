@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/testutil/daemon"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
+
+	"github.com/docker/docker/testutil/daemon"
 )
 
 // Daemon represents a Docker daemon for the testing framework.

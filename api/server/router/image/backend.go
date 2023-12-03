@@ -5,12 +5,13 @@ import (
 	"io"
 
 	"github.com/distribution/reference"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	dockerimage "github.com/docker/docker/image"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Backend is all the methods that need to be implemented

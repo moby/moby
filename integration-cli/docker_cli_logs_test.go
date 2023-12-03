@@ -11,12 +11,13 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
+
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/icmd"
 )
 
 type DockerCLILogsSuite struct {

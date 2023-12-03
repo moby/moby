@@ -6,9 +6,10 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/pkg/errors"
 )
 
 // BuildCachePrune requests the daemon to delete unused cache data

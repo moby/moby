@@ -12,9 +12,10 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd/pkg/userns"
+	"golang.org/x/sys/unix"
+
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
-	"golang.org/x/sys/unix"
 )
 
 func init() {

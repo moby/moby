@@ -9,8 +9,9 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/ns"
 	"github.com/vishvananda/netlink"
+
+	"github.com/docker/docker/libnetwork/ns"
 )
 
 const (

@@ -9,6 +9,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -17,8 +20,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 var imagesAcceptedFilters = map[string]bool{

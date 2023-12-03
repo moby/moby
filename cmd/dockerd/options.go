@@ -6,11 +6,12 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
+	"github.com/docker/go-connections/tlsconfig"
+	"github.com/spf13/pflag"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/go-connections/tlsconfig"
-	"github.com/spf13/pflag"
 )
 
 const (

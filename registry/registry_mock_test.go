@@ -11,8 +11,9 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/registry"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/api/types/registry"
 )
 
 var (

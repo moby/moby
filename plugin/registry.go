@@ -11,9 +11,10 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
-	"github.com/pkg/errors"
 )
 
 // scope builds the correct auth scope for the registry client to authorize against

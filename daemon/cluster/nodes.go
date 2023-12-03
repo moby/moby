@@ -3,12 +3,13 @@ package cluster // import "github.com/docker/docker/daemon/cluster"
 import (
 	"context"
 
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"google.golang.org/grpc"
+
 	apitypes "github.com/docker/docker/api/types"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/errdefs"
-	swarmapi "github.com/moby/swarmkit/v2/api"
-	"google.golang.org/grpc"
 )
 
 // GetNodes returns a list of all nodes known to a cluster.

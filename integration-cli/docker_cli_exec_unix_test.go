@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/integration-cli/cli"
 )
 
 // regression test for #12546

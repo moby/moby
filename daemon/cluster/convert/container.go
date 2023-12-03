@@ -6,13 +6,14 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/container"
-	mounttypes "github.com/docker/docker/api/types/mount"
-	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/go-units"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
+	types "github.com/docker/docker/api/types/swarm"
 )
 
 func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {

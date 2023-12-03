@@ -6,8 +6,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 func TestCleanupServiceDiscovery(t *testing.T) {

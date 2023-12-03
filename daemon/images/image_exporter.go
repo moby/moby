@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image/tarexport"
 )

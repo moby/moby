@@ -2,6 +2,7 @@ package tarexport // import "github.com/docker/docker/image/tarexport"
 
 import (
 	"github.com/docker/distribution"
+
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"

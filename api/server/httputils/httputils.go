@@ -8,8 +8,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/errdefs"
 )
 
 // APIVersionKey is the client's requested API version.

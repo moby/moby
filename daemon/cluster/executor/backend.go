@@ -7,6 +7,9 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
+	"github.com/moby/swarmkit/v2/agent/exec"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -27,8 +30,6 @@ import (
 	networktypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/plugin"
 	volumeopts "github.com/docker/docker/volume/service/opts"
-	"github.com/moby/swarmkit/v2/agent/exec"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Backend defines the executor component for a swarm agent.

@@ -4,10 +4,11 @@ import (
 	"context"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image/cache"
-	"github.com/pkg/errors"
 )
 
 // MakeImageCache creates a stateful image cache.

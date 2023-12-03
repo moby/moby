@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 func TestCreateWithMultiNetworks(t *testing.T) {

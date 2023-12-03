@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/api/types/registry"
 )
 

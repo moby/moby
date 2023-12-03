@@ -12,13 +12,14 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
+
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 )
 
 func getDefaultDaemonConfigDir() (string, error) {

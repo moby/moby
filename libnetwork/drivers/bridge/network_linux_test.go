@@ -3,10 +3,11 @@ package bridge
 import (
 	"testing"
 
+	"github.com/vishvananda/netlink"
+
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/vishvananda/netlink"
 )
 
 func TestLinkCreate(t *testing.T) {

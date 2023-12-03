@@ -3,8 +3,9 @@ package mounts // import "github.com/docker/docker/volume/mounts"
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/types/mount"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/api/types/mount"
 )
 
 type errMountConfig struct {

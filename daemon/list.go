@@ -8,6 +8,9 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/go-connections/nat"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -15,8 +18,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
-	"github.com/docker/go-connections/nat"
-	"github.com/pkg/errors"
 )
 
 var acceptedPsFilterTags = map[string]bool{

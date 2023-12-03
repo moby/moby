@@ -5,9 +5,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/status"
+
+	"github.com/docker/docker/errdefs"
 )
 
 func isNotRunning(err error) bool {

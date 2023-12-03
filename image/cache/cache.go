@@ -6,11 +6,12 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/pkg/errors"
 )
 
 // NewLocal returns a local image cache, based on parent chain

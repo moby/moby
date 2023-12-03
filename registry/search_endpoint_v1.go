@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/client/transport"
+
 	"github.com/docker/docker/api/types/registry"
 )
 

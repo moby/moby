@@ -11,6 +11,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/go-connections/nat"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -18,8 +21,6 @@ import (
 	"github.com/docker/docker/testutil/environment"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/request"
-	"github.com/docker/go-connections/nat"
-	"gotest.tools/v3/assert"
 )
 
 var testEnv *environment.Execution

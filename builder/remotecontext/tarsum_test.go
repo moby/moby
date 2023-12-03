@@ -5,11 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/pkg/errors"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/pkg/errors"
-	"gotest.tools/v3/skip"
 )
 
 const (

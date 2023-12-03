@@ -17,6 +17,10 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
+	"github.com/docker/libtrust"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
@@ -25,9 +29,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
-	"github.com/docker/libtrust"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 const (

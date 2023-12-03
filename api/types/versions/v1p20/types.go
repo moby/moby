@@ -2,9 +2,10 @@
 package v1p20 // import "github.com/docker/docker/api/types/versions/v1p20"
 
 import (
+	"github.com/docker/go-connections/nat"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/go-connections/nat"
 )
 
 // ContainerJSON is a backcompatibility struct for the API 1.20

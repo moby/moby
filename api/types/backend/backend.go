@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ContainerCreateConfig is the parameter set to ContainerCreate()

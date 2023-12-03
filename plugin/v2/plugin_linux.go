@@ -6,10 +6,11 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/oci"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/oci"
 )
 
 // InitSpec creates an OCI spec from the plugin's config.

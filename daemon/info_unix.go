@@ -13,6 +13,9 @@ import (
 
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+	rkclient "github.com/rootless-containers/rootlesskit/pkg/api/client"
+
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/system"
@@ -20,8 +23,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/pkg/errors"
-	rkclient "github.com/rootless-containers/rootlesskit/pkg/api/client"
 )
 
 // fillPlatformInfo fills the platform related info.

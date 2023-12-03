@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 // TestHealthCheckWorkdir verifies that health-checks inherit the containers'

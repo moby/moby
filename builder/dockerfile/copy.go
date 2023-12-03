@@ -13,6 +13,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/builder/remotecontext/urlutil"
@@ -23,9 +27,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
-	"github.com/moby/buildkit/frontend/dockerfile/instructions"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 const unnamedFilename = "__unnamed__"

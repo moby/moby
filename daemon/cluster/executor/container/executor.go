@@ -8,6 +8,14 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/moby/swarmkit/v2/agent"
+	"github.com/moby/swarmkit/v2/agent/exec"
+	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/api/naming"
+	swarmlog "github.com/moby/swarmkit/v2/log"
+	"github.com/moby/swarmkit/v2/template"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
@@ -18,13 +26,6 @@ import (
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/libnetwork"
 	networktypes "github.com/docker/docker/libnetwork/types"
-	"github.com/moby/swarmkit/v2/agent"
-	"github.com/moby/swarmkit/v2/agent/exec"
-	"github.com/moby/swarmkit/v2/api"
-	"github.com/moby/swarmkit/v2/api/naming"
-	swarmlog "github.com/moby/swarmkit/v2/log"
-	"github.com/moby/swarmkit/v2/template"
-	"github.com/pkg/errors"
 )
 
 type executor struct {

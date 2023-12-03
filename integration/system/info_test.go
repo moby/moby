@@ -5,12 +5,13 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 func TestInfoAPI(t *testing.T) {

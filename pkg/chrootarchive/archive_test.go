@@ -12,9 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
-	"gotest.tools/v3/skip"
 )
 
 var chrootArchiver = NewArchiver(idtools.IdentityMapping{})

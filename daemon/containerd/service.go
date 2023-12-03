@@ -12,6 +12,8 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/images"
@@ -21,7 +23,6 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/registry"
-	"github.com/pkg/errors"
 )
 
 // ImageService implements daemon.ImageService

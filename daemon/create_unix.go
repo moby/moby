@@ -9,12 +9,13 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
+	"github.com/opencontainers/selinux/go-selinux/label"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/oci"
 	volumeopts "github.com/docker/docker/volume/service/opts"
-	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality

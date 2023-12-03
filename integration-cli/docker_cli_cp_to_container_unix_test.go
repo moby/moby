@@ -12,8 +12,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/integration-cli/cli"
 )
 
 func (s *DockerCLICpSuite) TestCpToContainerWithPermissions(c *testing.T) {

@@ -3,10 +3,10 @@ package convert
 import (
 	"testing"
 
-	volumetypes "github.com/docker/docker/api/types/volume"
 	swarmapi "github.com/moby/swarmkit/v2/api"
-
 	"gotest.tools/v3/assert"
+
+	volumetypes "github.com/docker/docker/api/types/volume"
 )
 
 func TestTopologyFromGRPC(t *testing.T) {

@@ -3,12 +3,13 @@ package worker
 import (
 	"context"
 
-	mobyexporter "github.com/docker/docker/builder/builder-next/exporter"
-	"github.com/docker/docker/builder/builder-next/exporter/overrides"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/worker/base"
+
+	mobyexporter "github.com/docker/docker/builder/builder-next/exporter"
+	"github.com/docker/docker/builder/builder-next/exporter/overrides"
 )
 
 // ContainerdWorker is a local worker instance with dedicated snapshotter, cache, and so on.
