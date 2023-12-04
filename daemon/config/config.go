@@ -10,16 +10,17 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/text/encoding"
-	"golang.org/x/text/encoding/unicode"
-	"golang.org/x/text/transform"
-
 	"github.com/containerd/log"
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
 )
 
 const (
@@ -53,7 +54,11 @@ const (
 	DefaultContainersNamespace = "moby"
 	// DefaultPluginNamespace is the name of the default containerd namespace used for plugins.
 	DefaultPluginNamespace = "plugins.moby"
-
+	// defaultMinAPIVersion is the minimum API version supported by the API.
+	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
+	// environment variable. The minimum allowed version is determined
+	// by [minAPIVersion].
+	defaultMinAPIVersion = "1.24"
 	// SeccompProfileDefault is the built-in default seccomp profile.
 	SeccompProfileDefault = "builtin"
 	// SeccompProfileUnconfined is a special profile name for seccomp to use an
@@ -247,6 +252,17 @@ type CommonConfig struct {
 
 	// CDISpecDirs is a list of directories in which CDI specifications can be found.
 	CDISpecDirs []string `json:"cdi-spec-dirs,omitempty"`
+
+	// The minimum API version provided by the daemon. Defaults to [defaultMinAPIVersion].
+	//
+	// The DOCKER_MIN_API_VERSION allows overriding the minimum API version within
+	// constraints of the minimum and maximum (current) supported API versions.
+	//
+	// API versions older than [defaultMinAPIVersion] are deprecated and
+	// to be removed in a future release. The "DOCKER_MIN_API_VERSION" env
+	// var should only be used for exceptional cases, and the MinAPIVersion
+	// field is therefore not included in the JSON representation.
+	MinAPIVersion string `json:"-"`
 }
 
 // Proxies holds the proxies that are configured for the daemon.
@@ -290,6 +306,7 @@ func New() (*Config, error) {
 			ContainerdNamespace:       DefaultContainersNamespace,
 			ContainerdPluginNamespace: DefaultPluginNamespace,
 			DefaultRuntime:            StockRuntimeName,
+			MinAPIVersion:             defaultMinAPIVersion,
 		},
 	}
 
@@ -579,6 +596,25 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 
 	if len(conflicts) > 0 {
 		return errors.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", "))
+	}
+	return nil
+}
+
+// ValidateMinAPIVersion verifies if the given API version is within the
+// range supported by the daemon. It is used to validate a custom minimum
+// API version set through DOCKER_MIN_API_VERSION.
+func ValidateMinAPIVersion(ver string) error {
+	if ver == "" {
+		return errors.New(`value is empty`)
+	}
+	if strings.EqualFold(ver[0:1], "v") {
+		return errors.New(`API version must be provided without "v" prefix`)
+	}
+	if versions.LessThan(ver, minAPIVersion) {
+		return errors.Errorf(`minimum supported API version is %s: %s`, minAPIVersion, ver)
+	}
+	if versions.GreaterThan(ver, api.DefaultVersion) {
+		return errors.Errorf(`maximum supported API version is %s: %s`, api.DefaultVersion, ver)
 	}
 	return nil
 }

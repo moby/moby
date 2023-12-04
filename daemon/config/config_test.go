@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/opts"
 	"github.com/google/go-cmp/cmp"
@@ -500,6 +501,62 @@ func TestValidateConfiguration(t *testing.T) {
 			assert.NilError(t, err)
 		})
 	}
+}
+
+func TestValidateMinAPIVersion(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		doc         string
+		input       string
+		expectedErr string
+	}{
+		{
+			doc:         "empty",
+			expectedErr: "value is empty",
+		},
+		{
+			doc:         "with prefix",
+			input:       "v1.43",
+			expectedErr: `API version must be provided without "v" prefix`,
+		},
+		{
+			doc:         "major only",
+			input:       "1",
+			expectedErr: `minimum supported API version is`,
+		},
+		{
+			doc:         "too low",
+			input:       "1.0",
+			expectedErr: `minimum supported API version is`,
+		},
+		{
+			doc:         "minor too high",
+			input:       "1.99",
+			expectedErr: `maximum supported API version is`,
+		},
+		{
+			doc:         "major too high",
+			input:       "9.0",
+			expectedErr: `maximum supported API version is`,
+		},
+		{
+			doc:   "current version",
+			input: api.DefaultVersion,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			err := ValidateMinAPIVersion(tc.input)
+			if tc.expectedErr != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expectedErr))
+			} else {
+				assert.Check(t, err)
+			}
+		})
+	}
+
 }
 
 func TestConfigInvalidDNS(t *testing.T) {
