@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
@@ -52,21 +51,18 @@ func (s *DockerAPISuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
 	if testEnv.DaemonInfo.OSType != runtime.GOOS {
 		c.Skip("Daemon platform doesn't match test platform")
 	}
-	if api.MinVersion == api.DefaultVersion {
-		c.Skip("API MinVersion==DefaultVersion")
-	}
-	v := strings.Split(api.MinVersion, ".")
-	vMinInt, err := strconv.Atoi(v[1])
+
+	major, minor, _ := strings.Cut(testEnv.DaemonVersion.MinAPIVersion, ".")
+	vMinInt, err := strconv.Atoi(minor)
 	assert.NilError(c, err)
 	vMinInt--
-	v[1] = strconv.Itoa(vMinInt)
-	version := strings.Join(v, ".")
+	version := fmt.Sprintf("%s.%d", major, vMinInt)
 
 	resp, body, err := request.Get(testutil.GetContext(c), "/v"+version+"/version")
 	assert.NilError(c, err)
 	defer body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusBadRequest)
-	expected := fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", version, api.MinVersion)
+	expected := fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", version, testEnv.DaemonVersion.MinAPIVersion)
 	content, err := io.ReadAll(body)
 	assert.NilError(c, err)
 	assert.Equal(c, strings.TrimSpace(string(content)), expected)
