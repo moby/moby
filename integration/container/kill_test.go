@@ -147,7 +147,7 @@ func TestKillDifferentUserContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "User containers (container.Config.User) are not yet supported on %q platform", testEnv.DaemonInfo.OSType)
 
 	ctx := setupTest(t)
-	apiClient := request.NewAPIClient(t, client.WithVersion("1.19"))
+	apiClient := request.NewAPIClient(t)
 
 	id := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.Config.User = "daemon"
