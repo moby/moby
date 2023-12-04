@@ -38,8 +38,6 @@ COPY --from=build-dummy /build /build
 FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS base
 COPY --from=xx / /
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
-ARG APT_MIRROR
-RUN test -n "$APT_MIRROR" && sed -ri "s#(httpredir|deb|security).debian.org#${APT_MIRROR}#g" /etc/apt/sources.list.d/debian.sources || true
 RUN apt-get update && apt-get install --no-install-recommends -y file
 ENV GO111MODULE=off
 ENV GOTOOLCHAIN=local
