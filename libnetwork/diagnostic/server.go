@@ -16,58 +16,53 @@ import (
 	"github.com/docker/docker/pkg/stack"
 )
 
-// HTTPHandlerFunc TODO
-type HTTPHandlerFunc func(interface{}, http.ResponseWriter, *http.Request)
-
-type httpHandlerCustom struct {
-	ctx interface{}
-	F   func(interface{}, http.ResponseWriter, *http.Request)
-}
-
-// ServeHTTP TODO
-func (h httpHandlerCustom) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.F(h.ctx, w, r)
-}
-
-var diagPaths2Func = map[string]HTTPHandlerFunc{
-	"/":          notImplemented,
-	"/help":      help,
-	"/ready":     ready,
-	"/stackdump": stackTrace,
-}
-
 // Server when the debug is enabled exposes a
 // This data structure is protected by the Agent mutex so does not require and additional mutex here
 type Server struct {
-	mu                sync.Mutex
-	enable            int32
-	srv               *http.Server
-	port              int
-	mux               *http.ServeMux
-	registeredHanders map[string]bool
+	mu       sync.Mutex
+	enable   int32
+	srv      *http.Server
+	port     int
+	mux      *http.ServeMux
+	handlers map[string]http.Handler
 }
 
 // New creates a new diagnostic server
 func New() *Server {
 	s := &Server{
-		mux:               http.NewServeMux(),
-		registeredHanders: make(map[string]bool),
+		mux:      http.NewServeMux(),
+		handlers: make(map[string]http.Handler),
 	}
-	s.RegisterHandler(s, diagPaths2Func)
+	s.HandleFunc("/", notImplemented)
+	s.HandleFunc("/help", s.help)
+	s.HandleFunc("/ready", ready)
+	s.HandleFunc("/stackdump", stackTrace)
 	return s
 }
 
-// RegisterHandler allows to register new handlers to the mux and to a specific path
-func (s *Server) RegisterHandler(ctx interface{}, hdlrs map[string]HTTPHandlerFunc) {
+// Handle registers the handler for the given pattern,
+// replacing any existing handler.
+func (s *Server) Handle(pattern string, handler http.Handler) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for path, fun := range hdlrs {
-		if _, ok := s.registeredHanders[path]; ok {
-			continue
-		}
-		s.mux.Handle(path, httpHandlerCustom{ctx, fun})
-		s.registeredHanders[path] = true
+	if _, ok := s.handlers[pattern]; !ok {
+		// Register a handler on the mux which allows the underlying handler to
+		// be dynamically switched out. The http.ServeMux will panic if one
+		// attempts to register a handler for the same pattern twice.
+		s.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+			s.mu.Lock()
+			h := s.handlers[pattern]
+			s.mu.Unlock()
+			h.ServeHTTP(w, r)
+		})
 	}
+	s.handlers[pattern] = handler
+}
+
+// Handle registers the handler function for the given pattern,
+// replacing any existing handler.
+func (s *Server) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+	s.Handle(pattern, http.HandlerFunc(handler))
 }
 
 // ServeHTTP this is the method called bu the ListenAndServe, and is needed to allow us to
@@ -123,7 +118,7 @@ func (s *Server) IsDiagnosticEnabled() bool {
 	return s.enable == 1
 }
 
-func notImplemented(ctx interface{}, w http.ResponseWriter, r *http.Request) {
+func notImplemented(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	_, jsonOutput := ParseHTTPFormOptions(r)
 	rsp := WrongCommand("not implemented", fmt.Sprintf("URL path: %s no method implemented check /help\n", r.URL.Path))
@@ -139,7 +134,7 @@ func notImplemented(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, _ = HTTPReply(w, rsp, jsonOutput)
 }
 
-func help(ctx interface{}, w http.ResponseWriter, r *http.Request) {
+func (s *Server) help(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	_, jsonOutput := ParseHTTPFormOptions(r)
 
@@ -151,17 +146,14 @@ func help(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		"url":       r.URL.String(),
 	}).Info("help done")
 
-	n, ok := ctx.(*Server)
 	var result string
-	if ok {
-		for path := range n.registeredHanders {
-			result += fmt.Sprintf("%s\n", path)
-		}
-		_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: result}), jsonOutput)
+	for path := range s.handlers {
+		result += fmt.Sprintf("%s\n", path)
 	}
+	_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: result}), jsonOutput)
 }
 
-func ready(ctx interface{}, w http.ResponseWriter, r *http.Request) {
+func ready(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	_, jsonOutput := ParseHTTPFormOptions(r)
 
@@ -175,7 +167,7 @@ func ready(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: "OK"}), jsonOutput)
 }
 
-func stackTrace(ctx interface{}, w http.ResponseWriter, r *http.Request) {
+func stackTrace(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	_, jsonOutput := ParseHTTPFormOptions(r)
 
