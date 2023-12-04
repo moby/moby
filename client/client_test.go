@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/docker/docker/api"
@@ -481,4 +482,24 @@ func TestClientRedirect(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestClient_NegotiateAPIVersion_race tests calling Client.NegotiateAPIVersion
+// concurrently. The effects of this test can only be seen when running tests
+// with race detection.
+func TestClient_NegotiateAPIVersion_race(t *testing.T) {
+	const count = 32
+
+	client, err := NewClientWithOpts(WithAPIVersionNegotiation())
+	assert.NilError(t, err, "new client should not fail")
+
+	var wg sync.WaitGroup
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			client.NegotiateAPIVersion(context.Background())
+		}()
+	}
+	wg.Wait()
 }
