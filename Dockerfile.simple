@@ -14,10 +14,6 @@ FROM ${GOLANG_IMAGE}
 ENV GO111MODULE=off
 ENV GOTOOLCHAIN=local
 
-# allow replacing debian mirror
-ARG APT_MIRROR
-RUN test -n "$APT_MIRROR" && sed -ri "s#(httpredir|deb|security).debian.org#${APT_MIRROR}#g" /etc/apt/sources.list.d/debian.sources || true
-
 # Compile and runtime deps
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#build-dependencies
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#runtime-dependencies
