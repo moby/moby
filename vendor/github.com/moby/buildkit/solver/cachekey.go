@@ -55,15 +55,17 @@ func (ck *CacheKey) Output() Index {
 }
 
 func (ck *CacheKey) clone() *CacheKey {
+	ck.mu.RLock()
 	nk := &CacheKey{
 		ID:     ck.ID,
 		digest: ck.digest,
 		vtx:    ck.vtx,
 		output: ck.output,
-		ids:    map[*cacheManager]string{},
+		ids:    make(map[*cacheManager]string, len(ck.ids)),
 	}
 	for cm, id := range ck.ids {
 		nk.ids[cm] = id
 	}
+	ck.mu.RUnlock()
 	return nk
 }
