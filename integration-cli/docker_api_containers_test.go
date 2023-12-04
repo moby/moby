@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
@@ -633,30 +632,20 @@ func (s *DockerAPISuite) TestContainerAPIVerifyHeader(c *testing.T) {
 	// Try with no content-type
 	res, body, err := create("")
 	assert.NilError(c, err)
-	// todo: we need to figure out a better way to compare between dockerd versions
-	// comparing between daemon API version is not precise.
-	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	} else {
-		assert.Assert(c, res.StatusCode != http.StatusOK)
-	}
-	body.Close()
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
+	_ = body.Close()
 
 	// Try with wrong content-type
 	res, body, err = create("application/xml")
 	assert.NilError(c, err)
-	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	} else {
-		assert.Assert(c, res.StatusCode != http.StatusOK)
-	}
-	body.Close()
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
+	_ = body.Close()
 
 	// now application/json
 	res, body, err = create("application/json")
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusCreated)
-	body.Close()
+	_ = body.Close()
 }
 
 // Issue 14230. daemon should return 500 for invalid port syntax
@@ -675,11 +664,7 @@ func (s *DockerAPISuite) TestContainerAPIInvalidPortSyntax(c *testing.T) {
 
 	res, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
 	assert.NilError(c, err)
-	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	} else {
-		assert.Assert(c, res.StatusCode != http.StatusOK)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
@@ -699,11 +684,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *testi
 
 	res, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
 	assert.NilError(c, err)
-	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	} else {
-		assert.Assert(c, res.StatusCode != http.StatusOK)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
@@ -723,11 +704,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartPolicyRetryMismatch(c *testing.T
 
 	res, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
 	assert.NilError(c, err)
-	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	} else {
-		assert.Assert(c, res.StatusCode != http.StatusOK)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
@@ -747,11 +724,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *test
 
 	res, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
 	assert.NilError(c, err)
-	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	} else {
-		assert.Assert(c, res.StatusCode != http.StatusOK)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
@@ -836,11 +809,7 @@ func (s *DockerAPISuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
 	b, err2 := request.ReadBody(body)
 	assert.Assert(c, err2 == nil)
 
-	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	} else {
-		assert.Assert(c, res.StatusCode != http.StatusOK)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	assert.Assert(c, strings.Contains(string(b), "Minimum memory limit allowed is 6MB"))
 }
 
@@ -1030,11 +999,7 @@ func (s *DockerAPISuite) TestContainerAPICopyResourcePathEmptyPre124(c *testing.
 
 	res, body, err := request.Post(testutil.GetContext(c), "/v1.23/containers/"+name+"/copy", request.JSONBody(postData))
 	assert.NilError(c, err)
-	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	} else {
-		assert.Assert(c, res.StatusCode != http.StatusOK)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
 	assert.Assert(c, is.Regexp("^Path cannot be empty\n$", string(b)))
@@ -1051,11 +1016,7 @@ func (s *DockerAPISuite) TestContainerAPICopyResourcePathNotFoundPre124(c *testi
 
 	res, body, err := request.Post(testutil.GetContext(c), "/v1.23/containers/"+name+"/copy", request.JSONBody(postData))
 	assert.NilError(c, err)
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
-	} else {
-		assert.Equal(c, res.StatusCode, http.StatusNotFound)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusNotFound)
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
 	assert.Assert(c, is.Regexp("^Could not find the file /notexist in container "+name+"\n$", string(b)))
@@ -1487,11 +1448,7 @@ func (s *DockerAPISuite) TestPostContainersCreateMemorySwappinessHostConfigOmitt
 	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(c), ctr.ID)
 	assert.NilError(c, err)
 
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.31") {
-		assert.Equal(c, *containerJSON.HostConfig.MemorySwappiness, int64(-1))
-	} else {
-		assert.Assert(c, containerJSON.HostConfig.MemorySwappiness == nil)
-	}
+	assert.Assert(c, containerJSON.HostConfig.MemorySwappiness == nil)
 }
 
 // check validation is done daemon side and not only in cli
@@ -1954,13 +1911,8 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 	}
 
 	var selinuxSharedLabel string
-	// this test label was added after a bug fix in 1.32, thus add requirements min API >= 1.32
-	// for the sake of making test pass in earlier versions
-	// bug fixed in https://github.com/moby/moby/pull/34684
-	if !versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		if runtime.GOOS == "linux" {
-			selinuxSharedLabel = "z"
-		}
+	if runtime.GOOS == "linux" {
+		selinuxSharedLabel = "z"
 	}
 
 	cases := []testCase{

@@ -13,7 +13,6 @@ import (
 	"github.com/containerd/containerd/plugin"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/requirement"
@@ -26,12 +25,6 @@ func DaemonIsWindows() bool {
 
 func DaemonIsLinux() bool {
 	return testEnv.DaemonInfo.OSType == "linux"
-}
-
-func MinimumAPIVersion(version string) func() bool {
-	return func() bool {
-		return versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), version)
-	}
 }
 
 func OnlyDefaultNetworks(ctx context.Context) bool {

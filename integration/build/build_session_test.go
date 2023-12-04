@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
@@ -25,7 +24,6 @@ import (
 func TestBuildWithSession(t *testing.T) {
 	t.Skip("TODO: BuildKit")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "experimental in older versions")
 
 	ctx := testutil.StartSpan(baseContext, t)
 

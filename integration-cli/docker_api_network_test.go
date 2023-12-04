@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
@@ -162,11 +161,7 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 			IPAM:   ipam1,
 		},
 	}
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		createNetwork(c, config1, http.StatusInternalServerError)
-	} else {
-		createNetwork(c, config1, http.StatusForbidden)
-	}
+	createNetwork(c, config1, http.StatusForbidden)
 	assert.Assert(c, !isNetworkAvailable(c, "test1"))
 
 	ipam2 := &network.IPAM{
@@ -213,15 +208,6 @@ func createDeletePredefinedNetwork(c *testing.T, name string) {
 	// Create pre-defined network
 	config := types.NetworkCreateRequest{Name: name}
 	expectedStatus := http.StatusForbidden
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.34") {
-		// In the early test code it uses bool value to represent
-		// whether createNetwork() is expected to fail or not.
-		// Therefore, we use negation to handle the same logic after
-		// the code was changed in https://github.com/moby/moby/pull/35030
-		// -http.StatusCreated will also be checked as NOT equal to
-		// http.StatusCreated in createNetwork() function.
-		expectedStatus = -http.StatusCreated
-	}
 	createNetwork(c, config, expectedStatus)
 	deleteNetwork(c, name, false)
 }

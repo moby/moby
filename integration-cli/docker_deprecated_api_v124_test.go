@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
@@ -29,14 +28,11 @@ func (s *DockerAPISuite) TestDeprecatedContainerAPIStartHostConfig(c *testing.T)
 	res, body, err := request.Post(testutil.GetContext(c), "/containers/"+name+"/start", request.JSONBody(config))
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
-		// assertions below won't work before 1.32
-		buf, err := request.ReadBody(body)
-		assert.NilError(c, err)
+	buf, err := request.ReadBody(body)
+	assert.NilError(c, err)
 
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-		assert.Assert(c, strings.Contains(string(buf), "was deprecated since API v1.22"))
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
+	assert.Assert(c, strings.Contains(string(buf), "was deprecated since API v1.22"))
 }
 
 func (s *DockerAPISuite) TestDeprecatedContainerAPIStartVolumeBinds(c *testing.T) {
@@ -94,12 +90,7 @@ func (s *DockerAPISuite) TestDeprecatedContainerAPIStartDupVolumeBinds(c *testin
 
 	buf, err := request.ReadBody(body)
 	assert.NilError(c, err)
-
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
-	} else {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	assert.Assert(c, strings.Contains(string(buf), "Duplicate mount point"), "Expected failure due to duplicate bind mounts to same path, instead got: %q with error: %v", string(buf), err)
 }
 
@@ -171,11 +162,7 @@ func (s *DockerAPISuite) TestDeprecatedStartWithTooLowMemoryLimit(c *testing.T) 
 	assert.NilError(c, err)
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
-	} else {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	assert.Assert(c, is.Contains(string(b), "Minimum memory limit allowed is 6MB"))
 }
 

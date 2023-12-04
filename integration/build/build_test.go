@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil"
@@ -189,7 +188,6 @@ func TestBuildMultiStageCopy(t *testing.T) {
 }
 
 func TestBuildMultiStageParentConfig(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.35"), "broken in earlier versions")
 	dockerfile := `
 		FROM busybox AS stage0
 		ENV WHO=parent
@@ -233,7 +231,6 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 
 // Test cases in #36996
 func TestBuildLabelWithTargets(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "test added after 1.38")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	imgName := strings.ToLower(t.Name() + "-a")
 	testLabels := map[string]string{
@@ -340,7 +337,6 @@ func TestBuildWithEmptyLayers(t *testing.T) {
 // multiple subsequent stages
 // #35652
 func TestBuildMultiStageOnBuild(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.33"), "broken in earlier versions")
 	ctx := setupTest(t)
 
 	// test both metadata and layer based commands as they may be implemented differently
@@ -386,7 +382,6 @@ RUN cat somefile`
 
 // #35403 #36122
 func TestBuildUncleanTarFilenames(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.37"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 
 	ctx := setupTest(t)
@@ -446,7 +441,6 @@ COPY bar /`
 // docker/for-linux#135
 // #35641
 func TestBuildMultiStageLayerLeak(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.37"), "broken in earlier versions")
 	ctx := setupTest(t)
 
 	// all commands need to match until COPY
@@ -572,7 +566,6 @@ COPY --from=intermediate C:\\stuff C:\\stuff
 }
 
 func TestBuildWithEmptyDockerfile(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
 	ctx := setupTest(t)
 
 	tests := []struct {
@@ -628,7 +621,6 @@ func TestBuildWithEmptyDockerfile(t *testing.T) {
 
 func TestBuildPreserveOwnership(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -667,8 +659,6 @@ func TestBuildPreserveOwnership(t *testing.T) {
 }
 
 func TestBuildPlatformInvalid(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "experimental in older versions")
-
 	ctx := setupTest(t)
 
 	dockerfile := `FROM busybox

@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
@@ -252,10 +251,6 @@ func TestServiceUpdateNetwork(t *testing.T) {
 
 // TestServiceUpdatePidsLimit tests creating and updating a service with PidsLimit
 func TestServiceUpdatePidsLimit(t *testing.T) {
-	skip.If(
-		t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.41"),
-		"setting pidslimit for services is not supported before api v1.41",
-	)
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	tests := []struct {
 		name      string
