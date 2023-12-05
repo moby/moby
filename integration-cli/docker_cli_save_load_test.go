@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/internal/testutils/specialimage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -111,8 +112,11 @@ func (s *DockerCLISaveLoadSuite) TestSaveSingleTag(c *testing.T) {
 
 func (s *DockerCLISaveLoadSuite) TestSaveImageId(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
+
+	emptyFSImage := loadSpecialImage(c, specialimage.EmptyFS)
+
 	imgRepoName := "foobar-save-image-id-test"
-	cli.DockerCmd(c, "tag", "emptyfs:latest", fmt.Sprintf("%v:latest", imgRepoName))
+	cli.DockerCmd(c, "tag", emptyFSImage, fmt.Sprintf("%v:latest", imgRepoName))
 
 	out := cli.DockerCmd(c, "images", "-q", "--no-trunc", imgRepoName).Stdout()
 	cleanedLongImageID := strings.TrimPrefix(strings.TrimSpace(out), "sha256:")
@@ -203,13 +207,16 @@ func (s *DockerCLISaveLoadSuite) TestSaveWithNoExistImage(c *testing.T) {
 
 func (s *DockerCLISaveLoadSuite) TestSaveMultipleNames(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
+
+	emptyFSImage := loadSpecialImage(c, specialimage.EmptyFS)
+
 	const imgRepoName = "foobar-save-multi-name-test"
 
 	oneTag := fmt.Sprintf("%v-one:latest", imgRepoName)
 	twoTag := fmt.Sprintf("%v-two:latest", imgRepoName)
 
-	cli.DockerCmd(c, "tag", "emptyfs:latest", oneTag)
-	cli.DockerCmd(c, "tag", "emptyfs:latest", twoTag)
+	cli.DockerCmd(c, "tag", emptyFSImage, oneTag)
+	cli.DockerCmd(c, "tag", emptyFSImage, twoTag)
 
 	out, err := RunCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "save", strings.TrimSuffix(oneTag, ":latest"), twoTag),

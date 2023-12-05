@@ -18,6 +18,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/internal/testutils/specialimage"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -463,4 +465,44 @@ func sumAsIntegers(vals ...interface{}) interface{} {
 		s += v.(int)
 	}
 	return s
+}
+
+func loadSpecialImage(c *testing.T, imageFunc specialimage.SpecialImageFunc) string {
+	tmpDir := c.TempDir()
+
+	imgDir := filepath.Join(tmpDir, "image")
+	assert.NilError(c, os.Mkdir(imgDir, 0o755))
+
+	assert.NilError(c, imageFunc(imgDir))
+
+	rc, err := archive.TarWithOptions(imgDir, &archive.TarOptions{})
+	assert.NilError(c, err)
+	defer rc.Close()
+
+	imgTar := filepath.Join(tmpDir, "image.tar")
+	tarFile, err := os.OpenFile(imgTar, os.O_CREATE|os.O_WRONLY, 0o644)
+	assert.NilError(c, err)
+
+	defer tarFile.Close()
+
+	_, err = io.Copy(tarFile, rc)
+	assert.NilError(c, err)
+
+	tarFile.Close()
+
+	out := cli.DockerCmd(c, "load", "-i", imgTar).Stdout()
+
+	for _, line := range strings.Split(out, "\n") {
+		line := strings.TrimSpace(line)
+
+		if _, imageID, hasID := strings.Cut(line, "Loaded image ID: "); hasID {
+			return imageID
+		}
+		if _, imageRef, hasRef := strings.Cut(line, "Loaded image: "); hasRef {
+			return imageRef
+		}
+	}
+
+	c.Fatalf("failed to extract image ref from %q", out)
+	return ""
 }

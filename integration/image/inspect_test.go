@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/docker/docker/testutil/environment"
+	"github.com/docker/docker/internal/testutils/specialimage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -17,7 +17,7 @@ func TestImageInspectEmptyTagsAndDigests(t *testing.T) {
 
 	client := testEnv.APIClient()
 
-	danglingID := environment.GetTestDanglingImageId(testEnv)
+	danglingID := specialimage.Load(ctx, t, client, specialimage.Dangling)
 
 	inspect, raw, err := client.ImageInspectWithRaw(ctx, danglingID)
 	assert.NilError(t, err)
