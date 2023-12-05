@@ -90,6 +90,13 @@ import (
 // [Go stdlib]: https://github.com/golang/go/blob/6244b1946bc2101b01955468f1be502dbadd6807/src/net/http/transport.go#L558-L569
 const DummyHost = "api.moby.localhost"
 
+// fallbackAPIVersion is the version to fallback to if API-version negotiation
+// fails. This version is the highest version of the API before API-version
+// negotiation was introduced. If negotiation fails (or no API version was
+// included in the API response), we assume the API server uses the most
+// recent version before negotiation was introduced.
+const fallbackAPIVersion = "1.24"
+
 // Client is the API client that performs all operations
 // against a docker server.
 type Client struct {
@@ -329,7 +336,7 @@ func (cli *Client) NegotiateAPIVersionPing(pingResponse types.Ping) {
 func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
 	// default to the latest version before versioning headers existed
 	if pingResponse.APIVersion == "" {
-		pingResponse.APIVersion = "1.24"
+		pingResponse.APIVersion = fallbackAPIVersion
 	}
 
 	// if the client is not initialized with a version, start with the latest supported version

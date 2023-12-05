@@ -29,6 +29,9 @@ const (
 	// StockRuntimeName is the reserved name/alias used to represent the
 	// OCI runtime being shipped with the docker daemon package.
 	StockRuntimeName = "runc"
+
+	// minAPIVersion represents Minimum REST API version supported
+	minAPIVersion = "1.12"
 )
 
 // BridgeConfig stores all the parameters for both the bridge driver and the default bridge network.

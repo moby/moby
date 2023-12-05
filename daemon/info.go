@@ -113,7 +113,7 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) 
 				Details: map[string]string{
 					"GitCommit":     dockerversion.GitCommit,
 					"ApiVersion":    api.DefaultVersion,
-					"MinAPIVersion": api.MinVersion,
+					"MinAPIVersion": cfg.MinAPIVersion,
 					"GoVersion":     runtime.Version(),
 					"Os":            runtime.GOOS,
 					"Arch":          runtime.GOARCH,
@@ -128,7 +128,7 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) 
 		Version:       dockerversion.Version,
 		GitCommit:     dockerversion.GitCommit,
 		APIVersion:    api.DefaultVersion,
-		MinAPIVersion: api.MinVersion,
+		MinAPIVersion: cfg.MinAPIVersion,
 		GoVersion:     runtime.Version(),
 		Os:            runtime.GOOS,
 		Arch:          runtime.GOARCH,

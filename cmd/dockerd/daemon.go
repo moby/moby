@@ -520,6 +520,20 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	conf.LogLevel = opts.LogLevel
 	conf.LogFormat = log.OutputFormat(opts.LogFormat)
 
+	// The DOCKER_MIN_API_VERSION env-var allows overriding the minimum API
+	// version provided by the daemon within constraints of the minimum and
+	// maximum (current) supported API versions.
+	//
+	// API versions older than [config.defaultMinAPIVersion] are deprecated and
+	// to be removed in a future release. The "DOCKER_MIN_API_VERSION" env-var
+	// should only be used for exceptional cases.
+	if ver := os.Getenv("DOCKER_MIN_API_VERSION"); ver != "" {
+		if err := config.ValidateMinAPIVersion(ver); err != nil {
+			return nil, errors.Wrap(err, "invalid DOCKER_MIN_API_VERSION")
+		}
+		conf.MinAPIVersion = ver
+	}
+
 	if flags.Changed(FlagTLS) {
 		conf.TLS = &opts.TLS
 	}
@@ -689,7 +703,7 @@ func initMiddlewares(s *apiserver.Server, cfg *config.Config, pluginStore plugin
 	exp := middleware.NewExperimentalMiddleware(cfg.Experimental)
 	s.UseMiddleware(exp)
 
-	vm := middleware.NewVersionMiddleware(v, api.DefaultVersion, api.MinVersion)
+	vm := middleware.NewVersionMiddleware(v, api.DefaultVersion, cfg.MinAPIVersion)
 	s.UseMiddleware(vm)
 
 	if cfg.CorsHeaders != "" {
