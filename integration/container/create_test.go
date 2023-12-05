@@ -421,12 +421,7 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 
 			resp, err := apiClient.ContainerCreate(ctx, &cfg, &container.HostConfig{}, nil, nil, "")
 			assert.Check(t, is.Equal(len(resp.Warnings), 0))
-
-			if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-				assert.Check(t, errdefs.IsSystem(err))
-			} else {
-				assert.Check(t, errdefs.IsInvalidParameter(err))
-			}
+			assert.Check(t, errdefs.IsInvalidParameter(err))
 			assert.ErrorContains(t, err, tc.expectedErr)
 		})
 	}

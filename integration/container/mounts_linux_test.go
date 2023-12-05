@@ -216,7 +216,6 @@ func TestMountDaemonRoot(t *testing.T) {
 
 func TestContainerBindMountNonRecursive(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "BindOptions.NonRecursive requires API v1.40")
 	skip.If(t, testEnv.IsRootless, "cannot be tested because RootlessKit executes the daemon in private mount namespace (https://github.com/rootless-containers/rootlesskit/issues/97)")
 
 	ctx := setupTest(t)

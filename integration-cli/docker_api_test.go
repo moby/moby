@@ -10,8 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
@@ -52,21 +50,18 @@ func (s *DockerAPISuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
 	if testEnv.DaemonInfo.OSType != runtime.GOOS {
 		c.Skip("Daemon platform doesn't match test platform")
 	}
-	if api.MinVersion == api.DefaultVersion {
-		c.Skip("API MinVersion==DefaultVersion")
-	}
-	v := strings.Split(api.MinVersion, ".")
-	vMinInt, err := strconv.Atoi(v[1])
+
+	major, minor, _ := strings.Cut(testEnv.DaemonVersion.MinAPIVersion, ".")
+	vMinInt, err := strconv.Atoi(minor)
 	assert.NilError(c, err)
 	vMinInt--
-	v[1] = strconv.Itoa(vMinInt)
-	version := strings.Join(v, ".")
+	version := fmt.Sprintf("%s.%d", major, vMinInt)
 
 	resp, body, err := request.Get(testutil.GetContext(c), "/v"+version+"/version")
 	assert.NilError(c, err)
 	defer body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusBadRequest)
-	expected := fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", version, api.MinVersion)
+	expected := fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", version, testEnv.DaemonVersion.MinAPIVersion)
 	content, err := io.ReadAll(body)
 	assert.NilError(c, err)
 	assert.Equal(c, strings.TrimSpace(string(content)), expected)
@@ -75,11 +70,7 @@ func (s *DockerAPISuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
 func (s *DockerAPISuite) TestAPIErrorJSON(c *testing.T) {
 	httpResp, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.JSONBody(struct{}{}))
 	assert.NilError(c, err)
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, httpResp.StatusCode, http.StatusInternalServerError)
-	} else {
-		assert.Equal(c, httpResp.StatusCode, http.StatusBadRequest)
-	}
+	assert.Equal(c, httpResp.StatusCode, http.StatusBadRequest)
 	assert.Assert(c, strings.Contains(httpResp.Header.Get("Content-Type"), "application/json"))
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
@@ -92,11 +83,7 @@ func (s *DockerAPISuite) TestAPIErrorPlainText(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	httpResp, body, err := request.Post(testutil.GetContext(c), "/v1.23/containers/create", request.JSONBody(struct{}{}))
 	assert.NilError(c, err)
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, httpResp.StatusCode, http.StatusInternalServerError)
-	} else {
-		assert.Equal(c, httpResp.StatusCode, http.StatusBadRequest)
-	}
+	assert.Equal(c, httpResp.StatusCode, http.StatusBadRequest)
 	assert.Assert(c, strings.Contains(httpResp.Header.Get("Content-Type"), "text/plain"))
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)

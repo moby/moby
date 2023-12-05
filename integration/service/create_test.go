@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/strslice"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/network"
@@ -330,11 +329,6 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 // confident won't be modified by the container runtime, and won't blow
 // anything up in the test environment
 func TestCreateServiceSysctls(t *testing.T) {
-	skip.If(
-		t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"),
-		"setting service sysctls is unsupported before api v1.40",
-	)
-
 	ctx := setupTest(t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv)
@@ -410,11 +404,6 @@ func TestCreateServiceSysctls(t *testing.T) {
 // capabilities option with the correct value, we can assume that the capabilities has been
 // plumbed correctly.
 func TestCreateServiceCapabilities(t *testing.T) {
-	skip.If(
-		t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.41"),
-		"setting service capabilities is unsupported before api v1.41",
-	)
-
 	ctx := setupTest(t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv)

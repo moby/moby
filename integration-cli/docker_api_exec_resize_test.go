@@ -10,7 +10,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
@@ -26,11 +25,7 @@ func (s *DockerAPISuite) TestExecResizeAPIHeightWidthNoInt(c *testing.T) {
 	endpoint := "/exec/" + cleanedContainerID + "/resize?h=foo&w=bar"
 	res, _, err := request.Post(testutil.GetContext(c), endpoint)
 	assert.NilError(c, err)
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
-	} else {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 }
 
 // Part of #14845

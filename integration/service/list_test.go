@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -29,8 +28,6 @@ import (
 func TestServiceListWithStatuses(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	// statuses were added in API version 1.41
-	skip.If(t, versions.LessThan(testEnv.DaemonInfo.ServerVersion, "1.41"))
 
 	ctx := setupTest(t)
 

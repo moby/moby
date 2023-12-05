@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/request"
@@ -19,7 +18,6 @@ import (
 )
 
 func TestPingCacheHeaders(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "skip test from new feature")
 	ctx := setupTest(t)
 
 	res, _, err := request.Get(ctx, "/_ping")
@@ -44,7 +42,6 @@ func TestPingGet(t *testing.T) {
 }
 
 func TestPingHead(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "skip test from new feature")
 	ctx := setupTest(t)
 
 	res, body, err := request.Head(ctx, "/_ping")

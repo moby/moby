@@ -33,13 +33,15 @@ func TestInfoAPIVersioned(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 	// Windows only supports 1.25 or later
 
-	res, body, err := req.Get(ctx, "/v1.20/info")
+	res, body, err := req.Get(ctx, "/v1.24/info")
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(res.StatusCode, http.StatusOK))
 
 	b, err := req.ReadBody(body)
 	assert.NilError(t, err)
 
+	// Verify the old response on API 1.24 and older before commit
+	// 6d98e344c7702a8a713cb9e02a19d83a79d3f930.
 	out := string(b)
 	assert.Check(t, is.Contains(out, "ExecutionDriver"))
 	assert.Check(t, is.Contains(out, "not supported"))

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
@@ -31,11 +30,7 @@ func (s *DockerAPISuite) TestExecAPICreateNoCmd(c *testing.T) {
 
 	res, body, err := request.Post(testutil.GetContext(c), fmt.Sprintf("/containers/%s/exec", name), request.JSONBody(map[string]interface{}{"Cmd": nil}))
 	assert.NilError(c, err)
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
-	} else {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(getErrorMessage(c, b), "No exec command specified"), "Expected message when creating exec command with no Cmd specified")
@@ -52,11 +47,7 @@ func (s *DockerAPISuite) TestExecAPICreateNoValidContentType(c *testing.T) {
 
 	res, body, err := request.Post(testutil.GetContext(c), fmt.Sprintf("/containers/%s/exec", name), request.RawContent(io.NopCloser(jsonData)), request.ContentType("test/plain"))
 	assert.NilError(c, err)
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
-	} else {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
 	assert.Assert(c, is.Contains(getErrorMessage(c, b), "unsupported Content-Type header (test/plain): must be 'application/json'"))
@@ -198,11 +189,7 @@ func (s *DockerAPISuite) TestExecAPIStartInvalidCommand(c *testing.T) {
 	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
 	id := createExecCmd(c, name, "invalid")
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		startExec(c, id, http.StatusNotFound)
-	} else {
-		startExec(c, id, http.StatusBadRequest)
-	}
+	startExec(c, id, http.StatusBadRequest)
 	ctx := testutil.GetContext(c)
 	waitForExec(ctx, c, id)
 

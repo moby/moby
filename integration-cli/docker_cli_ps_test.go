@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
@@ -223,13 +222,9 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterStatus(c *testing.T) {
 	assert.Equal(c, RemoveOutputForExistingElements(containerOut, existingContainers), secondID)
 
 	result := cli.Docker(cli.Args("ps", "-a", "-q", "--filter=status=rubbish"), cli.WithTimeout(time.Second*60))
-	err := "invalid filter 'status=rubbish'"
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		err = "Unrecognised filter value for status: rubbish"
-	}
 	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      err,
+		Err:      "invalid filter 'status=rubbish'",
 	})
 	// Windows doesn't support pausing of containers
 	if testEnv.DaemonInfo.OSType != "windows" {
@@ -858,7 +853,7 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterPorts(c *testing.T) {
 }
 
 func (s *DockerCLIPsSuite) TestPsNotShowLinknamesOfDeletedContainer(c *testing.T) {
-	testRequires(c, DaemonIsLinux, MinimumAPIVersion("1.31"))
+	testRequires(c, DaemonIsLinux)
 	existingContainers := ExistingContainerNames(c)
 
 	cli.DockerCmd(c, "create", "--name=aaa", "busybox", "top")

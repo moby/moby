@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -15,7 +14,6 @@ import (
 )
 
 func TestCommitInheritsEnv(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.36"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	ctx := setupTest(t)
 

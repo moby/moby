@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -18,7 +17,6 @@ import (
 // TestExecWithCloseStdin adds case for moby#37870 issue.
 func TestExecWithCloseStdin(t *testing.T) {
 	skip.If(t, testEnv.RuntimeIsWindowsContainerd(), "FIXME. Hang on Windows + containerd combination")
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "broken in earlier versions")
 	ctx := setupTest(t)
 
 	apiClient := testEnv.APIClient()
@@ -84,7 +82,6 @@ func TestExecWithCloseStdin(t *testing.T) {
 }
 
 func TestExec(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.35"), "broken in earlier versions")
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
@@ -125,7 +122,6 @@ func TestExec(t *testing.T) {
 }
 
 func TestExecUser(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME. Probably needs to wait for container to be in running state.")
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
@@ -142,7 +138,6 @@ func TestExecUser(t *testing.T) {
 // also has a user set.
 // (regression test for https://github.com/moby/moby/issues/46712)
 func TestExecWithGroupAdd(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME. Probably needs to wait for container to be in running state.")
 
 	ctx := setupTest(t)

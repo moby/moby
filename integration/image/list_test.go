@@ -9,18 +9,15 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 // Regression : #38171
 func TestImagesFilterMultiReference(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
 	ctx := setupTest(t)
 
 	client := testEnv.APIClient()

@@ -16,7 +16,6 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/testutil/registry"
 	"github.com/opencontainers/go-digest"
@@ -28,7 +27,6 @@ import (
 )
 
 func TestImagePullPlatformInvalid(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "experimental in older versions")
 	ctx := setupTest(t)
 
 	client := testEnv.APIClient()
