@@ -9,7 +9,7 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -28,13 +28,13 @@ import (
 )
 
 type createOpts struct {
-	params                  types.ContainerCreateConfig
+	params                  backend.ContainerCreateConfig
 	managed                 bool
 	ignoreImagesArgsEscaped bool
 }
 
 // CreateManagedContainer creates a container that is managed by a Service
-func (daemon *Daemon) CreateManagedContainer(ctx context.Context, params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
+func (daemon *Daemon) CreateManagedContainer(ctx context.Context, params backend.ContainerCreateConfig) (containertypes.CreateResponse, error) {
 	return daemon.containerCreate(ctx, daemon.config(), createOpts{
 		params:  params,
 		managed: true,
@@ -42,7 +42,7 @@ func (daemon *Daemon) CreateManagedContainer(ctx context.Context, params types.C
 }
 
 // ContainerCreate creates a regular container
-func (daemon *Daemon) ContainerCreate(ctx context.Context, params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
+func (daemon *Daemon) ContainerCreate(ctx context.Context, params backend.ContainerCreateConfig) (containertypes.CreateResponse, error) {
 	return daemon.containerCreate(ctx, daemon.config(), createOpts{
 		params: params,
 	})
@@ -50,7 +50,7 @@ func (daemon *Daemon) ContainerCreate(ctx context.Context, params types.Containe
 
 // ContainerCreateIgnoreImagesArgsEscaped creates a regular container. This is called from the builder RUN case
 // and ensures that we do not take the images ArgsEscaped
-func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
+func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, params backend.ContainerCreateConfig) (containertypes.CreateResponse, error) {
 	return daemon.containerCreate(ctx, daemon.config(), createOpts{
 		params:                  params,
 		ignoreImagesArgsEscaped: true,
@@ -176,7 +176,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	}
 	defer func() {
 		if retErr != nil {
-			err = daemon.cleanupContainer(ctr, types.ContainerRmConfig{
+			err = daemon.cleanupContainer(ctr, backend.ContainerRmConfig{
 				ForceRemove:  true,
 				RemoveVolume: true,
 			})

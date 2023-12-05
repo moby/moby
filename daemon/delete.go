@@ -11,7 +11,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
@@ -26,11 +26,11 @@ import (
 // is returned if the container is not found, or if the remove
 // fails. If the remove succeeds, the container name is released, and
 // network links are removed.
-func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) error {
+func (daemon *Daemon) ContainerRm(name string, config *backend.ContainerRmConfig) error {
 	return daemon.containerRm(&daemon.config().Config, name, config)
 }
 
-func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *types.ContainerRmConfig) error {
+func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *backend.ContainerRmConfig) error {
 	start := time.Now()
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
@@ -87,7 +87,7 @@ func (daemon *Daemon) rmLink(cfg *config.Config, container *container.Container,
 
 // cleanupContainer unregisters a container from the daemon, stops stats
 // collection and cleanly removes contents and metadata from the filesystem.
-func (daemon *Daemon) cleanupContainer(container *container.Container, config types.ContainerRmConfig) error {
+func (daemon *Daemon) cleanupContainer(container *container.Container, config backend.ContainerRmConfig) error {
 	if container.IsRunning() {
 		if !config.ForceRemove {
 			if state := container.StateString(); state == "paused" {

@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	containerpkg "github.com/docker/docker/container"
@@ -29,15 +29,15 @@ func newContainerManager(docker builder.ExecBackend) *containerManager {
 
 // Create a container
 func (c *containerManager) Create(ctx context.Context, runConfig *container.Config, hostConfig *container.HostConfig) (container.CreateResponse, error) {
-	container, err := c.backend.ContainerCreateIgnoreImagesArgsEscaped(ctx, types.ContainerCreateConfig{
+	ctr, err := c.backend.ContainerCreateIgnoreImagesArgsEscaped(ctx, backend.ContainerCreateConfig{
 		Config:     runConfig,
 		HostConfig: hostConfig,
 	})
 	if err != nil {
-		return container, err
+		return ctr, err
 	}
-	c.tmpContainers[container.ID] = struct{}{}
-	return container, nil
+	c.tmpContainers[ctr.ID] = struct{}{}
+	return ctr, nil
 }
 
 var errCancelled = errors.New("build cancelled")
@@ -123,7 +123,7 @@ func (e *statusCodeError) StatusCode() int {
 }
 
 func (c *containerManager) removeContainer(containerID string, stdout io.Writer) error {
-	rmConfig := &types.ContainerRmConfig{
+	rmConfig := &backend.ContainerRmConfig{
 		ForceRemove:  true,
 		RemoveVolume: true,
 	}

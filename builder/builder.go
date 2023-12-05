@@ -8,7 +8,6 @@ import (
 	"context"
 	"io"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	containerpkg "github.com/docker/docker/container"
@@ -60,9 +59,9 @@ type ExecBackend interface {
 	// ContainerAttachRaw attaches to container.
 	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
 	// ContainerCreateIgnoreImagesArgsEscaped creates a new Docker container and returns potential warnings
-	ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, config types.ContainerCreateConfig) (container.CreateResponse, error)
+	ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error)
 	// ContainerRm removes a container specified by `id`.
-	ContainerRm(name string, config *types.ContainerRmConfig) error
+	ContainerRm(name string, config *backend.ContainerRmConfig) error
 	// ContainerKill stops the container execution abruptly.
 	ContainerKill(containerID string, sig string) error
 	// ContainerStart starts a new container

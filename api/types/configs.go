@@ -1,31 +1,8 @@
 package types // import "github.com/docker/docker/api/types"
 
-import (
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-)
-
 // configs holds structs used for internal communication between the
 // frontend (such as an http server) and the backend (such as the
 // docker daemon).
-
-// ContainerCreateConfig is the parameter set to ContainerCreate()
-type ContainerCreateConfig struct {
-	Name             string
-	Config           *container.Config
-	HostConfig       *container.HostConfig
-	NetworkingConfig *network.NetworkingConfig
-	Platform         *ocispec.Platform
-	AdjustCPUShares  bool
-}
-
-// ContainerRmConfig holds arguments for the container remove
-// operation. This struct is used to tell the backend what operations
-// to perform.
-type ContainerRmConfig struct {
-	ForceRemove, RemoveVolume, RemoveLink bool
-}
 
 // ExecConfig is a small subset of the Config struct that holds the configuration
 // for the exec feature of docker.

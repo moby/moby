@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
@@ -306,7 +306,7 @@ func (daemon *Daemon) autoRemove(cfg *config.Config, c *container.Container) {
 		return
 	}
 
-	err := daemon.containerRm(cfg, c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
+	err := daemon.containerRm(cfg, c.ID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
 	if err == nil {
 		return
 	}
