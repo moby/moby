@@ -7,7 +7,26 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
+
+// ContainerCreateConfig is the parameter set to ContainerCreate()
+type ContainerCreateConfig struct {
+	Name             string
+	Config           *container.Config
+	HostConfig       *container.HostConfig
+	NetworkingConfig *network.NetworkingConfig
+	Platform         *ocispec.Platform
+	AdjustCPUShares  bool
+}
+
+// ContainerRmConfig holds arguments for the container remove
+// operation. This struct is used to tell the backend what operations
+// to perform.
+type ContainerRmConfig struct {
+	ForceRemove, RemoveVolume, RemoveLink bool
+}
 
 // ContainerAttachConfig holds the streams to use when connecting to a container to view logs.
 type ContainerAttachConfig struct {

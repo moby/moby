@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	timetypes "github.com/docker/docker/api/types/time"
@@ -78,7 +79,7 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 				return nil, err
 			}
 			// TODO: sets RmLink to true?
-			err = daemon.containerRm(cfg, c.ID, &types.ContainerRmConfig{})
+			err = daemon.containerRm(cfg, c.ID, &backend.ContainerRmConfig{})
 			if err != nil {
 				log.G(ctx).Warnf("failed to prune container %s: %v", c.ID, err)
 				continue

@@ -38,7 +38,7 @@ type Backend interface {
 	FindNetwork(idName string) (*libnetwork.Network, error)
 	SetupIngress(clustertypes.NetworkCreateRequest, string) (<-chan struct{}, error)
 	ReleaseIngress() (<-chan struct{}, error)
-	CreateManagedContainer(ctx context.Context, config types.ContainerCreateConfig) (container.CreateResponse, error)
+	CreateManagedContainer(ctx context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error)
 	ContainerStart(ctx context.Context, name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
 	ContainerStop(ctx context.Context, name string, config container.StopOptions) error
 	ContainerLogs(ctx context.Context, name string, config *container.LogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
@@ -48,7 +48,7 @@ type Backend interface {
 	UpdateContainerServiceConfig(containerName string, serviceConfig *clustertypes.ServiceConfig) error
 	ContainerInspectCurrent(ctx context.Context, name string, size bool) (*types.ContainerJSON, error)
 	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)
-	ContainerRm(name string, config *types.ContainerRmConfig) error
+	ContainerRm(name string, config *backend.ContainerRmConfig) error
 	ContainerKill(name string, sig string) error
 	SetContainerDependencyStore(name string, store exec.DependencyGetter) error
 	SetContainerSecretReferences(name string, refs []*swarm.SecretReference) error

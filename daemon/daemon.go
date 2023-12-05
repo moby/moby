@@ -26,6 +26,7 @@ import (
 	"github.com/distribution/reference"
 	dist "github.com/docker/distribution"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	imagetypes "github.com/docker/docker/api/types/image"
 	registrytypes "github.com/docker/docker/api/types/registry"
@@ -594,7 +595,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 		go func(cid string) {
 			_ = sem.Acquire(context.Background(), 1)
 
-			if err := daemon.containerRm(&cfg.Config, cid, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+			if err := daemon.containerRm(&cfg.Config, cid, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 				log.G(context.TODO()).WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
 
