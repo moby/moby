@@ -15,7 +15,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.21.3"
+  GO_VERSION: "1.21.5"
 
 jobs:
   validate-dco:
