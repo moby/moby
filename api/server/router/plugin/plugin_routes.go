@@ -9,6 +9,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/ioutils"
@@ -207,7 +208,7 @@ func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter,
 	if err != nil {
 		return err
 	}
-	config := &types.PluginEnableConfig{Timeout: timeout}
+	config := &backend.PluginEnableConfig{Timeout: timeout}
 
 	return pr.backend.Enable(name, config)
 }
@@ -218,7 +219,7 @@ func (pr *pluginRouter) disablePlugin(ctx context.Context, w http.ResponseWriter
 	}
 
 	name := vars["name"]
-	config := &types.PluginDisableConfig{
+	config := &backend.PluginDisableConfig{
 		ForceDisable: httputils.BoolValue(r, "force"),
 	}
 
@@ -231,7 +232,7 @@ func (pr *pluginRouter) removePlugin(ctx context.Context, w http.ResponseWriter,
 	}
 
 	name := vars["name"]
-	config := &types.PluginRmConfig{
+	config := &backend.PluginRmConfig{
 		ForceRemove: httputils.BoolValue(r, "force"),
 	}
 	return pr.backend.Remove(name, config)

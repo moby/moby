@@ -10,6 +10,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 )
@@ -17,12 +18,12 @@ import (
 var errNotSupported = errors.New("plugins are not supported on this platform")
 
 // Disable deactivates a plugin, which implies that they cannot be used by containers.
-func (pm *Manager) Disable(name string, config *types.PluginDisableConfig) error {
+func (pm *Manager) Disable(name string, config *backend.PluginDisableConfig) error {
 	return errNotSupported
 }
 
 // Enable activates a plugin, which implies that they are ready to be used by containers.
-func (pm *Manager) Enable(name string, config *types.PluginEnableConfig) error {
+func (pm *Manager) Enable(name string, config *backend.PluginEnableConfig) error {
 	return errNotSupported
 }
 
@@ -57,7 +58,7 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 }
 
 // Remove deletes plugin's root directory.
-func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
+func (pm *Manager) Remove(name string, config *backend.PluginRmConfig) error {
 	return errNotSupported
 }
 
