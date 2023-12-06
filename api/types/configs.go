@@ -21,21 +21,6 @@ type ExecConfig struct {
 	Cmd          []string // Execution commands and args
 }
 
-// PluginRmConfig holds arguments for plugin remove.
-type PluginRmConfig struct {
-	ForceRemove bool
-}
-
-// PluginEnableConfig holds arguments for plugin enable
-type PluginEnableConfig struct {
-	Timeout int
-}
-
-// PluginDisableConfig holds arguments for plugin disable.
-type PluginDisableConfig struct {
-	ForceDisable bool
-}
-
 // NetworkListConfig stores the options available for listing networks
 type NetworkListConfig struct {
 	// TODO(@cpuguy83): naming is hard, this is pulled from what was being used in the router before moving here
