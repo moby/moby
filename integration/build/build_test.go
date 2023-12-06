@@ -143,7 +143,7 @@ func buildContainerIdsFilter(buildOutput io.Reader) (filters.Args, error) {
 // GUID path (\\?\Volume{dae8d3ac-b9a1-11e9-88eb-e8554b2ba1db}\newdir\hello}),
 // which currently isn't supported by Golang.
 func TestBuildMultiStageCopy(t *testing.T) {
-	ctx := testutil.StartSpan(baseContext, t)
+	ctx := setupTest(t)
 
 	dockerfile, err := os.ReadFile("testdata/Dockerfile." + t.Name())
 	assert.NilError(t, err)
@@ -200,7 +200,8 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 		FROM stage0
 		WORKDIR sub2
 	`
-	ctx := testutil.StartSpan(baseContext, t)
+
+	ctx := setupTest(t)
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
 	defer source.Close()
 
@@ -247,7 +248,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 		LABEL label-b=inline-b
 		`
 
-	ctx := testutil.StartSpan(baseContext, t)
+	ctx := setupTest(t)
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
 	defer source.Close()
 
@@ -312,7 +313,7 @@ func TestBuildWithEmptyLayers(t *testing.T) {
 		COPY    2/ /target/
 		COPY    3/ /target/
 	`
-	ctx := testutil.StartSpan(baseContext, t)
+	ctx := setupTest(t)
 	source := fakecontext.New(t, "",
 		fakecontext.WithDockerfile(dockerfile),
 		fakecontext.WithFile("1/a", "asdf"),
@@ -622,7 +623,7 @@ func TestBuildWithEmptyDockerfile(t *testing.T) {
 func TestBuildPreserveOwnership(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 
-	ctx := testutil.StartSpan(baseContext, t)
+	ctx := setupTest(t)
 
 	dockerfile, err := os.ReadFile("testdata/Dockerfile." + t.Name())
 	assert.NilError(t, err)
