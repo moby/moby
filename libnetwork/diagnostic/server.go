@@ -147,9 +147,11 @@ func (s *Server) help(w http.ResponseWriter, r *http.Request) {
 	}).Info("help done")
 
 	var result string
+	s.mu.Lock()
 	for path := range s.handlers {
 		result += fmt.Sprintf("%s\n", path)
 	}
+	s.mu.Unlock()
 	_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: result}), jsonOutput)
 }
 
