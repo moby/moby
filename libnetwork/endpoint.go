@@ -484,9 +484,11 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 	extEp := sb.getGatewayEndpoint()
 
 	sb.addEndpoint(ep)
+	sb.updateBuiltinHosts()
 	defer func() {
 		if err != nil {
 			sb.removeEndpoint(ep)
+			sb.updateBuiltinHosts()
 		}
 	}()
 

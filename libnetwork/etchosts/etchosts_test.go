@@ -23,15 +23,24 @@ func TestBuildDefault(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		content, err := os.ReadFile(file.Name())
-		if err != nil {
-			t.Fatal(err)
+		check := func(expected string) {
+			t.Helper()
+			content, err := os.ReadFile(file.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if expected != string(content) {
+				t.Fatalf("Expected to find '%s' got '%s'", expected, content)
+			}
 		}
-		expected := "127.0.0.1\tlocalhost\n::1\tlocalhost ip6-localhost ip6-loopback\nfe00::0\tip6-localnet\nff00::0\tip6-mcastprefix\nff02::1\tip6-allnodes\nff02::2\tip6-allrouters\n"
 
-		if expected != string(content) {
-			t.Fatalf("Expected to find '%s' got '%s'", expected, content)
-		}
+		check("127.0.0.1\tlocalhost\n")
+
+		UpdateIPv6Builtins(file.Name(), true)
+		check("::1\tlocalhost ip6-localhost ip6-loopback\nfe00::0\tip6-localnet\nff00::0\tip6-mcastprefix\nff02::1\tip6-allnodes\nff02::2\tip6-allrouters\n127.0.0.1\tlocalhost\n")
+
+		UpdateIPv6Builtins(file.Name(), false)
+		check("127.0.0.1\tlocalhost\n")
 	}
 }
 
@@ -236,7 +245,7 @@ func TestDeleteIgnoresPrefixedHostname(t *testing.T) {
 			Hosts: "prefixAndMore",
 			IP:    "2.2.2.2",
 		},
-	}); err != nil {
+	}, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -275,7 +284,7 @@ func TestAddEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Add(file.Name(), []Record{}); err != nil {
+	if err := Add(file.Name(), []Record{}, true); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -297,7 +306,7 @@ func TestAdd(t *testing.T) {
 			Hosts: "testhostname",
 			IP:    "2.2.2.2",
 		},
-	}); err != nil {
+	}, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -376,7 +385,7 @@ func TestDelete(t *testing.T) {
 			Hosts: "testhostname3",
 			IP:    "3.3.3.3",
 		},
-	}); err != nil {
+	}, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -424,7 +433,7 @@ func TestConcurrentWrites(t *testing.T) {
 			Hosts: "inithostname",
 			IP:    "172.17.0.1",
 		},
-	}); err != nil {
+	}, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -440,7 +449,7 @@ func TestConcurrentWrites(t *testing.T) {
 			}
 
 			for j := 0; j < 25; j++ {
-				if err := Add(file.Name(), rec); err != nil {
+				if err := Add(file.Name(), rec, true); err != nil {
 					return err
 				}
 
@@ -497,7 +506,7 @@ func benchDelete(b *testing.B) {
 		}
 	}
 
-	if err := Add(file.Name(), records); err != nil {
+	if err := Add(file.Name(), records, true); err != nil {
 		b.Fatal(err)
 	}
 

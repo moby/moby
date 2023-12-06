@@ -27,6 +27,8 @@ var (
 	// Default hosts config records slice
 	defaultContent = []Record{
 		{Hosts: "localhost", IP: "127.0.0.1"},
+	}
+	defaultIPv6Content = []Record{
 		{Hosts: "localhost ip6-localhost ip6-loopback", IP: "::1"},
 		{Hosts: "ip6-localnet", IP: "fe00::0"},
 		{Hosts: "ip6-mcastprefix", IP: "ff00::0"},
@@ -109,15 +111,33 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 	return os.WriteFile(path, content.Bytes(), 0o644)
 }
 
-// Add adds an arbitrary number of Records to an already existing /etc/hosts file
-func Add(path string, recs []Record) error {
+// Add or remove the built-in IPv6 hosts entries.
+func UpdateIPv6Builtins(path string, add bool) error {
+	if add {
+		// Keep the built-in entries at top of the file by prepending.
+		// TODO(robmry) - placing the IPv6 builtins before IPv4's localhost is unusual.
+		//   The file will have:
+		//     <IPv6 built-ins>
+		//     <IPv4 built-in>
+		//     <Other hosts>
+		//   Once the IPv4 entry is removable in an IPv6-only network, it will be easier to
+		//   construct the file in the usual order for containers initially attached to
+		//   dual-stack networks.
+		return Add(path, defaultIPv6Content, false)
+	}
+	return Delete(path, defaultIPv6Content)
+}
+
+// Add adds an arbitrary number of Records to an already existing /etc/hosts file.
+// Records are added to the end of the file if 'append==true', else at the start.
+func Add(path string, recs []Record, append bool) error {
 	defer pathLock(path)()
 
 	if len(recs) == 0 {
 		return nil
 	}
 
-	b, err := mergeRecords(path, recs)
+	b, err := mergeRecords(path, recs, append)
 	if err != nil {
 		return err
 	}
@@ -125,7 +145,7 @@ func Add(path string, recs []Record) error {
 	return os.WriteFile(path, b, 0o644)
 }
 
-func mergeRecords(path string, recs []Record) ([]byte, error) {
+func mergeRecords(path string, recs []Record, append bool) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -134,8 +154,10 @@ func mergeRecords(path string, recs []Record) ([]byte, error) {
 
 	content := bytes.NewBuffer(nil)
 
-	if _, err := content.ReadFrom(f); err != nil {
-		return nil, err
+	if append {
+		if _, err := content.ReadFrom(f); err != nil {
+			return nil, err
+		}
 	}
 
 	for _, r := range recs {
@@ -144,10 +166,29 @@ func mergeRecords(path string, recs []Record) ([]byte, error) {
 		}
 	}
 
+	if !append {
+		if _, err := content.ReadFrom(f); err != nil {
+			return nil, err
+		}
+	}
+
 	return content.Bytes(), nil
 }
 
 // Delete deletes an arbitrary number of Records already existing in /etc/hosts file
+//
+// TODO(robmry) - should this function match on addresses as well as names?
+//
+//	When a container has been connected to more than one network, per-network
+//	duplicate records are added to '/etc/hosts' mapping that network's addresses to
+//	the container's hostname or short-id. (Perhaps that is a problem in itself,
+//	but only the first entry is normally used.) Then, when the container is
+//	disconnected from one of those networks, its addresses/names are sent here as
+//	'recs'. But, because the removal is only by-name, records created for all
+//	other networks are also removed, leaving '/etc/hosts' with no entries for the
+//	container's hostname/short-id. On the default bridge network, with no DNS, the
+//	container's own hostname can then no longer be resolved. (At present 'recs' do
+//	not include IPv6, because Network.getSvcRecords() only looks at IPv4.)
 func Delete(path string, recs []Record) error {
 	defer pathLock(path)()
 

@@ -134,8 +134,31 @@ func (sb *Sandbox) updateHostsFile(ifaceIPs []string) error {
 	return nil
 }
 
+func (sb *Sandbox) updateBuiltinHosts() {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+
+	// Check for IPv6 endpoints.
+	ipv6 := false
+	for _, ep := range sb.endpoints {
+		if ep.network.enableIPv6 {
+			ipv6 = true
+			break
+		}
+	}
+
+	// Add/remove IPv6 built-in hosts, as required.
+	if sb.haveIPv6BuiltinHosts != ipv6 {
+		if err := etchosts.UpdateIPv6Builtins(sb.config.hostsPath, ipv6); err != nil {
+			log.G(context.TODO()).Warnf("Failed to update IPv6 built-in host entries in the running container: %v", err)
+		} else {
+			sb.haveIPv6BuiltinHosts = ipv6
+		}
+	}
+}
+
 func (sb *Sandbox) addHostsEntries(recs []etchosts.Record) {
-	if err := etchosts.Add(sb.config.hostsPath, recs); err != nil {
+	if err := etchosts.Add(sb.config.hostsPath, recs, true); err != nil {
 		log.G(context.TODO()).Warnf("Failed adding service host entries to the running container: %v", err)
 	}
 }

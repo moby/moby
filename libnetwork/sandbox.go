@@ -52,9 +52,12 @@ type Sandbox struct {
 	inDelete           bool
 	ingress            bool
 	ndotsSet           bool
-	oslTypes           []osl.SandboxType // slice of properties of this sandbox
-	loadBalancerNID    string            // NID that this SB is a load balancer for
-	mu                 sync.Mutex
+	// haveIPv6BuiltinHosts is true when built-in hostnames like 'ip6-localhost' have
+	// been included in the container's '/etc/hosts' file.
+	haveIPv6BuiltinHosts bool
+	oslTypes             []osl.SandboxType // slice of properties of this sandbox
+	loadBalancerNID      string            // NID that this SB is a load balancer for
+	mu                   sync.Mutex
 	// This mutex is used to serialize service related operation for an endpoint
 	// The lock is here because the endpoint is saved into the store so is not unique
 	service sync.Mutex
@@ -643,6 +646,8 @@ func (sb *Sandbox) clearNetworkResources(origEp *Endpoint) error {
 	}
 	delete(sb.epPriority, ep.ID())
 	sb.mu.Unlock()
+
+	sb.updateBuiltinHosts()
 
 	if gwepAfter != nil && gwepBefore != gwepAfter {
 		if err := sb.updateGateway(gwepAfter); err != nil {

@@ -244,6 +244,10 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 						sandboxID: sbs.ID,
 					}
 				}
+				if n.enableIPv6 {
+					// Non-Windows containers will already have IPv6 built-in '/etc/hosts' entries.
+					sb.haveIPv6BuiltinHosts = true
+				}
 			}
 			if _, ok := activeSandboxes[sb.ID()]; ok && err != nil {
 				log.G(context.TODO()).Errorf("failed to restore endpoint %s in %s for container %s due to %v", eps.Eid, eps.Nid, sb.ContainerID(), err)

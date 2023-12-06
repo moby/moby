@@ -1455,6 +1455,9 @@ func (n *Network) getSvcRecords(ep *Endpoint) []etchosts.Record {
 		return nil
 	}
 
+	// This doesn't look at "sr.svcIP6Map". But, this method is only used to work out
+	// which entries to remove from '/etc/hosts', and entries are removed by name,
+	// not address+name. So, IPv6 entries are removed, just not explicitly.
 	svcMapKeys := sr.svcMap.Keys()
 	// Loop on service names on this network
 	for _, k := range svcMapKeys {

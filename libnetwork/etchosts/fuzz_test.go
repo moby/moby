@@ -35,6 +35,6 @@ func FuzzAdd(f *testing.F) {
 		if err != nil {
 			return
 		}
-		_ = Add(testFile, recs)
+		_ = Add(testFile, recs, true)
 	})
 }
