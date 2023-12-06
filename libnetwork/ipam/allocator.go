@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/bitmap"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipbits"
 	"github.com/docker/docker/libnetwork/types"
@@ -46,7 +47,7 @@ func newAddrSpace(predefined []*net.IPNet) (*addrSpace, error) {
 	pdf := make([]netip.Prefix, len(predefined))
 	for i, n := range predefined {
 		var ok bool
-		pdf[i], ok = toPrefix(n)
+		pdf[i], ok = netiputil.ToPrefix(n)
 		if !ok {
 			return nil, fmt.Errorf("network at index %d (%v) is not in canonical form", i, n)
 		}
@@ -91,7 +92,7 @@ func (a *Allocator) RequestPool(addressSpace, requestedPool, requestedSubPool st
 		if err != nil {
 			return "", nil, nil, err
 		}
-		return k.String(), toIPNet(k.Subnet), nil, nil
+		return k.String(), netiputil.ToIPNet(k.Subnet), nil, nil
 	}
 
 	if k.Subnet, err = netip.ParsePrefix(requestedPool); err != nil {
@@ -119,7 +120,7 @@ func (a *Allocator) RequestPool(addressSpace, requestedPool, requestedSubPool st
 		return "", nil, nil, err
 	}
 
-	return k.String(), toIPNet(k.Subnet), nil, nil
+	return k.String(), netiputil.ToIPNet(k.Subnet), nil, nil
 }
 
 // ReleasePool releases the address pool identified by the passed id
@@ -336,7 +337,7 @@ func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr
 
 	defer log.G(context.TODO()).Debugf("Released address Address:%v Sequence:%s", address, p.addrs)
 
-	return p.addrs.Unset(hostID(address, uint(nw.Bits())))
+	return p.addrs.Unset(netiputil.HostID(address, uint(nw.Bits())))
 }
 
 func getAddress(base netip.Prefix, bitmask *bitmap.Bitmap, prefAddress netip.Addr, ipr netip.Prefix, serial bool) (netip.Addr, error) {
@@ -353,10 +354,10 @@ func getAddress(base netip.Prefix, bitmask *bitmap.Bitmap, prefAddress netip.Add
 	if ipr == (netip.Prefix{}) && prefAddress == (netip.Addr{}) {
 		ordinal, err = bitmask.SetAny(serial)
 	} else if prefAddress != (netip.Addr{}) {
-		ordinal = hostID(prefAddress, uint(base.Bits()))
+		ordinal = netiputil.HostID(prefAddress, uint(base.Bits()))
 		err = bitmask.Set(ordinal)
 	} else {
-		start, end := subnetRange(base, ipr)
+		start, end := netiputil.SubnetRange(base, ipr)
 		ordinal, err = bitmask.SetAnyInRange(start, end, serial)
 	}
 
