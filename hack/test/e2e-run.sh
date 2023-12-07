@@ -60,5 +60,4 @@ test_env() {
 	)
 }
 
-sh /scripts/build-empty-images.sh
 run_test_integration

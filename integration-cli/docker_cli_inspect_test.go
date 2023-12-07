@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/internal/testutils/specialimage"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )
@@ -31,7 +32,7 @@ func (s *DockerCLIInspectSuite) OnTimeout(c *testing.T) {
 
 func (s *DockerCLIInspectSuite) TestInspectImage(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	imageTest := "emptyfs"
+	imageTest := loadSpecialImage(c, specialimage.EmptyFS)
 	// It is important that this ID remain stable. If a code change causes
 	// it to be different, this is equivalent to a cache bust when pulling
 	// a legacy-format manifest. If the check at the end of this function
@@ -136,7 +137,8 @@ func (s *DockerCLIInspectSuite) TestInspectTypeFlagWithInvalidValue(c *testing.T
 
 func (s *DockerCLIInspectSuite) TestInspectImageFilterInt(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	imageTest := "emptyfs"
+	imageTest := loadSpecialImage(c, specialimage.EmptyFS)
+
 	out := inspectField(c, imageTest, "Size")
 
 	size, err := strconv.Atoi(out)

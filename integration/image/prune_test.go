@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil/environment"
+	"github.com/docker/docker/internal/testutils/specialimage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -18,7 +18,7 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 	ctx := setupTest(t)
 	client := testEnv.APIClient()
 
-	danglingID := environment.GetTestDanglingImageId(testEnv)
+	danglingID := specialimage.Load(ctx, t, client, specialimage.Dangling)
 
 	container.Create(ctx, t, client,
 		container.WithImage(danglingID),

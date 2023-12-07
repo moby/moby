@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
@@ -1933,7 +1934,8 @@ func (s *DockerCLIRunSuite) TestRunCidFileCleanupIfEmpty(c *testing.T) {
 	tmpCidFile := path.Join(tmpDir, "cid")
 
 	// This must be an image that has no CMD or ENTRYPOINT set
-	image := "emptyfs"
+	image := loadSpecialImage(c, specialimage.EmptyFS)
+
 	out, _, err := dockerCmdWithError("run", "--cidfile", tmpCidFile, image)
 	if err == nil {
 		c.Fatalf("Run without command must fail. out=%s", out)
