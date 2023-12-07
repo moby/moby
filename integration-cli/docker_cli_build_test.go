@@ -3144,9 +3144,13 @@ func (s *DockerCLIBuildSuite) TestBuildClearCmd(c *testing.T) {
    ENTRYPOINT ["/bin/bash"]
    CMD []`))
 
-	res := inspectFieldJSON(c, name, "Config.Cmd")
-	if res != "[]" {
-		c.Fatalf("Cmd %s, expected %s", res, "[]")
+	cmd := inspectFieldJSON(c, name, "Config.Cmd")
+	// OCI types specify `omitempty` JSON annotation which doesn't serialize
+	// empty arrays and the Cmd will not be present at all.
+	if testEnv.UsingSnapshotter() {
+		assert.Check(c, is.Equal(cmd, "null"))
+	} else {
+		assert.Check(c, is.Equal(cmd, "[]"))
 	}
 }
 
