@@ -332,7 +332,7 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	}
 
 	// Register the diagnostic handlers
-	c.DiagnosticServer.RegisterHandler(nDB, networkdb.NetDbPaths2Func)
+	nDB.RegisterDiagnosticHandlers(c.DiagnosticServer)
 
 	var cancelList []func()
 	ch, cancel := nDB.Watch(libnetworkEPTable, "")
