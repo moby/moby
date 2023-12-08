@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/utilities"
-	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/grpclog"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/durationpb"
+	field_mask "google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -47,8 +47,7 @@ type DefaultQueryParser struct{}
 // A value is ignored if its key starts with one of the elements in "filter".
 func (*DefaultQueryParser) Parse(msg proto.Message, values url.Values, filter *utilities.DoubleArray) error {
 	for key, values := range values {
-		match := valuesKeyRegexp.FindStringSubmatch(key)
-		if len(match) == 3 {
+		if match := valuesKeyRegexp.FindStringSubmatch(key); len(match) == 3 {
 			key = match[1]
 			values = append([]string{match[2]}, values...)
 		}
@@ -180,10 +179,10 @@ func parseField(fieldDescriptor protoreflect.FieldDescriptor, value string) (pro
 		return protoreflect.ValueOfBool(v), nil
 	case protoreflect.EnumKind:
 		enum, err := protoregistry.GlobalTypes.FindEnumByName(fieldDescriptor.Enum().FullName())
-		switch {
-		case errors.Is(err, protoregistry.NotFound):
-			return protoreflect.Value{}, fmt.Errorf("enum %q is not registered", fieldDescriptor.Enum().FullName())
-		case err != nil:
+		if err != nil {
+			if errors.Is(err, protoregistry.NotFound) {
+				return protoreflect.Value{}, fmt.Errorf("enum %q is not registered", fieldDescriptor.Enum().FullName())
+			}
 			return protoreflect.Value{}, fmt.Errorf("failed to look up enum: %w", err)
 		}
 		// Look for enum by name
@@ -194,8 +193,7 @@ func parseField(fieldDescriptor protoreflect.FieldDescriptor, value string) (pro
 				return protoreflect.Value{}, fmt.Errorf("%q is not a valid value", value)
 			}
 			// Look for enum by number
-			v = enum.Descriptor().Values().ByNumber(protoreflect.EnumNumber(i))
-			if v == nil {
+			if v = enum.Descriptor().Values().ByNumber(protoreflect.EnumNumber(i)); v == nil {
 				return protoreflect.Value{}, fmt.Errorf("%q is not a valid value", value)
 			}
 		}
@@ -271,66 +269,64 @@ func parseMessage(msgDescriptor protoreflect.MessageDescriptor, value string) (p
 		if err != nil {
 			return protoreflect.Value{}, err
 		}
-		msg = &wrapperspb.DoubleValue{Value: v}
+		msg = wrapperspb.Double(v)
 	case "google.protobuf.FloatValue":
 		v, err := strconv.ParseFloat(value, 32)
 		if err != nil {
 			return protoreflect.Value{}, err
 		}
-		msg = &wrapperspb.FloatValue{Value: float32(v)}
+		msg = wrapperspb.Float(float32(v))
 	case "google.protobuf.Int64Value":
 		v, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return protoreflect.Value{}, err
 		}
-		msg = &wrapperspb.Int64Value{Value: v}
+		msg = wrapperspb.Int64(v)
 	case "google.protobuf.Int32Value":
 		v, err := strconv.ParseInt(value, 10, 32)
 		if err != nil {
 			return protoreflect.Value{}, err
 		}
-		msg = &wrapperspb.Int32Value{Value: int32(v)}
+		msg = wrapperspb.Int32(int32(v))
 	case "google.protobuf.UInt64Value":
 		v, err := strconv.ParseUint(value, 10, 64)
 		if err != nil {
 			return protoreflect.Value{}, err
 		}
-		msg = &wrapperspb.UInt64Value{Value: v}
+		msg = wrapperspb.UInt64(v)
 	case "google.protobuf.UInt32Value":
 		v, err := strconv.ParseUint(value, 10, 32)
 		if err != nil {
 			return protoreflect.Value{}, err
 		}
-		msg = &wrapperspb.UInt32Value{Value: uint32(v)}
+		msg = wrapperspb.UInt32(uint32(v))
 	case "google.protobuf.BoolValue":
 		v, err := strconv.ParseBool(value)
 		if err != nil {
 			return protoreflect.Value{}, err
 		}
-		msg = &wrapperspb.BoolValue{Value: v}
+		msg = wrapperspb.Bool(v)
 	case "google.protobuf.StringValue":
-		msg = &wrapperspb.StringValue{Value: value}
+		msg = wrapperspb.String(value)
 	case "google.protobuf.BytesValue":
 		v, err := Bytes(value)
 		if err != nil {
 			return protoreflect.Value{}, err
 		}
-		msg = &wrapperspb.BytesValue{Value: v}
+		msg = wrapperspb.Bytes(v)
 	case "google.protobuf.FieldMask":
 		fm := &field_mask.FieldMask{}
 		fm.Paths = append(fm.Paths, strings.Split(value, ",")...)
 		msg = fm
 	case "google.protobuf.Value":
 		var v structpb.Value
-		err := protojson.Unmarshal([]byte(value), &v)
-		if err != nil {
+		if err := protojson.Unmarshal([]byte(value), &v); err != nil {
 			return protoreflect.Value{}, err
 		}
 		msg = &v
 	case "google.protobuf.Struct":
 		var v structpb.Struct
-		err := protojson.Unmarshal([]byte(value), &v)
-		if err != nil {
+		if err := protojson.Unmarshal([]byte(value), &v); err != nil {
 			return protoreflect.Value{}, err
 		}
 		msg = &v
