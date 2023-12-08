@@ -184,7 +184,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 
 		report.ImagesDeleted = append(report.ImagesDeleted,
 			image.DeleteResponse{
-				Untagged: img.Name,
+				Untagged: imageFamiliarName(img),
 			},
 		)
 
