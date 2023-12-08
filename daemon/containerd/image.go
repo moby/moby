@@ -341,3 +341,14 @@ func (i *ImageService) getAllImagesWithRepository(ctx context.Context, ref refer
 	nameFilter := "^" + regexp.QuoteMeta(ref.Name()) + ":" + reference.TagRegexp.String() + "$"
 	return i.client.ImageService().List(ctx, "name~="+strconv.Quote(nameFilter))
 }
+
+func imageFamiliarName(img containerdimages.Image) string {
+	if isDanglingImage(img) {
+		return img.Target.Digest.String()
+	}
+
+	if ref, err := reference.ParseNamed(img.Name); err == nil {
+		return reference.FamiliarString(ref)
+	}
+	return img.Name
+}
