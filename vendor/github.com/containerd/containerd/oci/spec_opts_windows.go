@@ -62,3 +62,8 @@ func WithDevices(devicePath, containerPath, permissions string) SpecOpts {
 		return nil
 	}
 }
+
+// Windows containers have default path configured at bootup
+func WithDefaultPathEnv(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+	return nil
+}

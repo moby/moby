@@ -1,3 +1,5 @@
+//go:build !windows
+
 /*
    Copyright The containerd Authors.
 
@@ -14,21 +16,17 @@
    limitations under the License.
 */
 
-package version
+package oci
 
-import "runtime"
+import (
+	"context"
 
-var (
-	// Package is filled at linking time
-	Package = "github.com/containerd/containerd"
-
-	// Version holds the complete version number. Filled in at linking time.
-	Version = "1.7.11+unknown"
-
-	// Revision is filled with the VCS (e.g. git) revision being used to build
-	// the program at linking time.
-	Revision = ""
-
-	// GoVersion is Go tree's version.
-	GoVersion = runtime.Version()
+	"github.com/containerd/containerd/containers"
 )
+
+// WithDefaultPathEnv sets the $PATH environment variable to the
+// default PATH defined in this package.
+func WithDefaultPathEnv(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+	s.Process.Env = replaceOrAppendEnvValues(s.Process.Env, defaultUnixEnv)
+	return nil
+}
