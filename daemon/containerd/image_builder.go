@@ -37,6 +37,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+// Digest of the image which was the base image of the committed container.
 const imageLabelClassicBuilderParent = "org.mobyproject.image.parent"
 
 // GetImageAndReleasableLayer returns an image and releaseable layer for a
