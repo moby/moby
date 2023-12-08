@@ -42,7 +42,7 @@ func (i *ImageService) ImagesPrune(ctx context.Context, fltrs filters.Args) (*ty
 		return nil, err
 	}
 
-	danglingOnly, err := fltrs.GetBoolOrDefault("dangling", false)
+	danglingOnly, err := fltrs.GetBoolOrDefault("dangling", true)
 	if err != nil {
 		return nil, err
 	}
