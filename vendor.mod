@@ -108,7 +108,7 @@ require (
 	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.1
-	resenje.org/singleflight v0.4.0
+	resenje.org/singleflight v0.4.1
 	tags.cncf.io/container-device-interface v0.6.2
 )
 
