@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/portmapper"
+	"github.com/docker/docker/testutil"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 )
@@ -36,6 +37,8 @@ func (r *testRegisterer) RegisterDriver(name string, di driverapi.Driver, _ driv
 }
 
 func TestProgramIPTable(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
 	defer netnsutils.SetupTestOSContext(t)()
 
@@ -66,6 +69,8 @@ func TestProgramIPTable(t *testing.T) {
 }
 
 func TestSetupIPChains(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
 	defer netnsutils.SetupTestOSContext(t)()
 

@@ -7,9 +7,12 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/testutil"
 )
 
 func TestPortMappingConfig(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
@@ -89,6 +92,8 @@ func TestPortMappingConfig(t *testing.T) {
 }
 
 func TestPortMappingV6Config(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	if err := loopbackUp(); err != nil {
 		t.Fatalf("Could not bring loopback iface up: %v", err)

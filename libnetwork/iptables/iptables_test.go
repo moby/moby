@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/testutil"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -18,6 +19,8 @@ const (
 )
 
 func createNewChain(t *testing.T) (*IPTable, *ChainInfo, *ChainInfo) {
+	testutil.SkipWhenUnprivileged(t)
+
 	t.Helper()
 	iptable := GetIptable(IPv4)
 

@@ -12,6 +12,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/testutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
@@ -333,6 +334,8 @@ func TestRootMountCleanup(t *testing.T) {
 }
 
 func TestIfaceAddrs(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	CIDR := func(cidr string) *net.IPNet {
 		t.Helper()
 		nw, err := types.ParseCIDR(cidr)

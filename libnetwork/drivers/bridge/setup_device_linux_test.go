@@ -7,10 +7,13 @@ import (
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/netutils"
+	"github.com/docker/docker/testutil"
 	"github.com/vishvananda/netlink"
 )
 
 func TestSetupNewBridge(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
@@ -37,6 +40,8 @@ func TestSetupNewBridge(t *testing.T) {
 }
 
 func TestSetupNewNonDefaultBridge(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
@@ -59,6 +64,8 @@ func TestSetupNewNonDefaultBridge(t *testing.T) {
 }
 
 func TestSetupDeviceUp(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
@@ -84,6 +91,8 @@ func TestSetupDeviceUp(t *testing.T) {
 }
 
 func TestGenerateRandomMAC(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	mac1 := netutils.GenerateRandomMAC()

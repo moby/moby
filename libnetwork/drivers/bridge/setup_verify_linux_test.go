@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/testutil"
 	"github.com/vishvananda/netlink"
 )
 
@@ -27,6 +28,8 @@ func setupVerifyTest(t *testing.T) *bridgeInterface {
 }
 
 func TestSetupVerify(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
@@ -44,6 +47,8 @@ func TestSetupVerify(t *testing.T) {
 }
 
 func TestSetupVerifyBad(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
@@ -62,6 +67,8 @@ func TestSetupVerifyBad(t *testing.T) {
 }
 
 func TestSetupVerifyMissing(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
@@ -75,6 +82,8 @@ func TestSetupVerifyMissing(t *testing.T) {
 }
 
 func TestSetupVerifyIPv6(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
@@ -96,6 +105,8 @@ func TestSetupVerifyIPv6(t *testing.T) {
 }
 
 func TestSetupVerifyIPv6Missing(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	addrv4 := net.IPv4(192, 168, 1, 1)

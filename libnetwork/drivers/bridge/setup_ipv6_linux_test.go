@@ -8,10 +8,13 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/testutil"
 	"github.com/vishvananda/netlink"
 )
 
 func TestSetupIPv6(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
@@ -53,6 +56,8 @@ func TestSetupIPv6(t *testing.T) {
 }
 
 func TestSetupGatewayIPv6(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	_, nw, _ := net.ParseCIDR("2001:db8:ea9:9abc:ffff::/80")

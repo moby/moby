@@ -6,10 +6,13 @@ import (
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/testutil"
 	"github.com/vishvananda/netlink"
 )
 
 func TestLinkCreate(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
@@ -105,6 +108,8 @@ func TestLinkCreate(t *testing.T) {
 }
 
 func TestLinkCreateTwo(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
@@ -143,6 +148,8 @@ func TestLinkCreateTwo(t *testing.T) {
 }
 
 func TestLinkCreateNoEnableIPv6(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
@@ -178,6 +185,8 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 }
 
 func TestLinkDelete(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 

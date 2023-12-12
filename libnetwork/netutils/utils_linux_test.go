@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/testutil"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -247,6 +248,8 @@ func TestUtilGenerateRandomMAC(t *testing.T) {
 }
 
 func TestNetworkRequest(t *testing.T) {
+	testutil.SkipWhenUnprivileged(t)
+
 	defer netnsutils.SetupTestOSContext(t)()
 
 	nw, err := FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
