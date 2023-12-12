@@ -585,18 +585,13 @@ func (r *request) do(ctx context.Context) (*http.Response, error) {
 			return nil
 		}
 	}
-	_, httpSpan := tracing.StartSpan(
-		ctx,
-		tracing.Name("remotes.docker.resolver", "HTTPRequest"),
-		tracing.WithHTTPRequest(req),
-	)
-	defer httpSpan.End()
+
+	tracing.UpdateHTTPClient(client, tracing.Name("remotes.docker.resolver", "HTTPRequest"))
+
 	resp, err := client.Do(req)
 	if err != nil {
-		httpSpan.SetStatus(err)
 		return nil, fmt.Errorf("failed to do request: %w", err)
 	}
-	httpSpan.SetAttributes(tracing.HTTPStatusCodeAttributes(resp.StatusCode)...)
 	log.G(ctx).WithFields(responseFields(resp)).Debug("fetch response received")
 	return resp, nil
 }

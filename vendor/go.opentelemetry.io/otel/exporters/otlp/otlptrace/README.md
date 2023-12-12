@@ -2,7 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/go.opentelemetry.io/otel/exporters/otlp/otlptrace.svg)](https://pkg.go.dev/go.opentelemetry.io/otel/exporters/otlp/otlptrace)
 
-[OpenTelemetry Protocol Exporter](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.5.0/specification/protocol/exporter.md) implementation.
+[OpenTelemetry Protocol Exporter](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.20.0/specification/protocol/exporter.md) implementation.
 
 ## Installation
 
@@ -36,7 +36,7 @@ The `otlptracehttp` package implements a client for the span exporter that sends
 The following environment variables can be used (instead of options objects) to
 override the default configuration. For more information about how each of
 these environment variables is interpreted, see [the OpenTelemetry
-specification](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.8.0/specification/protocol/exporter.md).
+specification](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.20.0/specification/protocol/exporter.md).
 
 | Environment variable                                                     | Option                        | Default value                                            |
 | ------------------------------------------------------------------------ |------------------------------ | -------------------------------------------------------- |

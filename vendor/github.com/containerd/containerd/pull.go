@@ -21,6 +21,9 @@ import (
 	"errors"
 	"fmt"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"golang.org/x/sync/semaphore"
+
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/pkg/unpack"
@@ -29,13 +32,10 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/schema1" //nolint:staticcheck // Ignore SA1019. Need to keep deprecated package for compatibility.
 	"github.com/containerd/containerd/tracing"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/sync/semaphore"
 )
 
 const (
-	pullSpanPrefix                 = "pull"
-	convertedDockerSchema1LabelKey = "io.containerd.image/converted-docker-schema1"
+	pullSpanPrefix = "pull"
 )
 
 // Pull downloads the provided content into containerd's content store
@@ -278,7 +278,7 @@ func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string, lim
 		if rCtx.Labels == nil {
 			rCtx.Labels = make(map[string]string)
 		}
-		rCtx.Labels[convertedDockerSchema1LabelKey] = originalSchema1Digest
+		rCtx.Labels[images.ConvertedDockerSchema1LabelKey] = originalSchema1Digest
 	}
 
 	return images.Image{
