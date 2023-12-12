@@ -2,7 +2,7 @@ package images
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"
@@ -12,8 +12,9 @@ func (i *ImageService) Changes(ctx context.Context, container *container.Contain
 	container.Lock()
 	defer container.Unlock()
 
-	if container.RWLayer == nil {
-		return nil, errors.New("RWLayer of container " + container.Name + " is unexpectedly nil")
+	rwLayer, err := i.layerStore.GetRWLayer(container.ID)
+	if err != nil {
+		return nil, fmt.Errorf("RWLayer of container "+container.Name+" is unexpectedly nil: %w", err)
 	}
-	return container.RWLayer.Changes()
+	return rwLayer.Changes()
 }

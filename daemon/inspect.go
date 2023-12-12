@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -13,8 +12,8 @@ import (
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -198,26 +197,15 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 
 	contJSONBase.GraphDriver.Name = container.Driver
 
-	if daemon.UsesSnapshotter() {
+	gdImageService, ok := daemon.imageService.(*images.ImageService)
+	if !ok {
 		// Additional information only applies to graphDrivers, so we're done.
 		return contJSONBase, nil
 	}
 
-	if container.RWLayer == nil {
-		if container.Dead {
-			return contJSONBase, nil
-		}
-		return nil, errdefs.System(errors.New("RWLayer of container " + container.ID + " is unexpectedly nil"))
-	}
-
-	graphDriverData, err := container.RWLayer.Metadata()
+	graphDriverData, err := gdImageService.GetRWLayerMetadata(container)
 	if err != nil {
-		if container.Dead {
-			// container is marked as Dead, and its graphDriver metadata may
-			// have been removed; we can ignore errors.
-			return contJSONBase, nil
-		}
-		return nil, errdefs.System(err)
+		return nil, err
 	}
 
 	contJSONBase.GraphDriver.Data = graphDriverData

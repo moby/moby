@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -47,16 +46,15 @@ type ImageService interface {
 
 	// Containerd related methods
 
-	PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error
 	GetImageManifest(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*ocispec.Descriptor, error)
 
 	// Layers
 
 	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error)
-	CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error)
+	CreateLayer(ctx context.Context, container *container.Container, requestedImage string, platform *ocispec.Platform, setupInit func(string) error) error
 	LayerStoreStatus() [][2]string
 	GetLayerMountID(cid string) (string, error)
-	ReleaseLayer(rwlayer layer.RWLayer) error
+	ReleaseLayer(context.Context, *container.Container) error
 	LayerDiskUsage(ctx context.Context) (int64, error)
 	GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error)
 	Mount(ctx context.Context, container *container.Container) error
@@ -65,7 +63,7 @@ type ImageService interface {
 
 	// Windows specific
 
-	GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error)
+	GetLayerFolders(img *image.Image, container *container.Container) ([]string, error)
 
 	// Build
 

@@ -19,8 +19,8 @@ import (
 
 const remapSuffix = "-remap"
 
-// PrepareSnapshot prepares a snapshot from a parent image for a container
-func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error {
+// prepareSnapshot prepares a snapshot from a parent image for a container
+func (i *ImageService) prepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error {
 	var parentSnapshot string
 	if parentImage != "" {
 		img, err := i.resolveImage(ctx, parentImage)

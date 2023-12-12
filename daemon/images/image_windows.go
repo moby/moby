@@ -2,7 +2,9 @@ package images
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/pkg/errors"
@@ -15,7 +17,7 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 }
 
 // GetLayerFolders returns the layer folders from an image RootFS
-func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
+func (i *ImageService) GetLayerFolders(img *image.Image, container *container.Container) ([]string, error) {
 	folders := []string{}
 	rd := len(img.RootFS.DiffIDs)
 	for index := 1; index <= rd; index++ {
@@ -31,8 +33,9 @@ func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) 
 		// Reverse order, expecting parent first
 		folders = append([]string{layerPath}, folders...)
 	}
-	if rwLayer == nil {
-		return nil, errors.New("RWLayer is unexpectedly nil")
+	rwLayer, err := i.layerStore.GetRWLayer(container.ID)
+	if err != nil {
+		return nil, fmt.Errorf("RWLayer is unexpectedly nil: %w", err)
 	}
 	m, err := rwLayer.Metadata()
 	if err != nil {
