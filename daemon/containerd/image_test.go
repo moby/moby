@@ -98,13 +98,24 @@ func TestLookup(t *testing.T) {
 		{
 			// Fail to lookup reference with no tag, reference has both tag and digest
 			lookup: "ubuntu@" + ubuntuLatestWithOldDigest.Target.Digest.String(),
-			err:    dockerimages.ErrImageDoesNotExist{Ref: nameDigest("ubuntu", ubuntuLatestWithOldDigest.Target.Digest)},
+			img:    nil,
+			all:    []images.Image{ubuntuLatestWithOldDigest},
 		},
 		{
 			// Get all image with both tag and digest
 			lookup: "ubuntu:latest@" + ubuntuLatestWithOldDigest.Target.Digest.String(),
 			img:    &ubuntuLatestWithOldDigest,
 			all:    []images.Image{ubuntuLatestWithOldDigest},
+		},
+		{
+			// Fail to lookup reference with no tag for digest that doesn't exist
+			lookup: "ubuntu@" + digestFor(20).String(),
+			err:    dockerimages.ErrImageDoesNotExist{Ref: nameDigest("ubuntu", digestFor(20))},
+		},
+		{
+			// Fail to lookup reference with nonexistent tag
+			lookup: "ubuntu:nonexistent",
+			err:    dockerimages.ErrImageDoesNotExist{Ref: nameTag("ubuntu", "nonexistent")},
 		},
 		{
 			// Get abcdef image which also matches short image id

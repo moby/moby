@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
+	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/stringid"
@@ -70,13 +71,39 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 			return nil, dimages.ErrImageDoesNotExist{Ref: parsed}
 		}
 		imgID = image.ID(all[0].Target.Digest)
-		sameRef, err := i.getSameReferences(ctx, nil, all)
+		var named reference.Named
+		if !isImageIDPrefix(imgID.String(), imageRef) {
+			if nn, err := reference.ParseNormalizedNamed(imageRef); err == nil {
+				named = nn
+			}
+		}
+		sameRef, err := i.getSameReferences(ctx, named, all)
 		if err != nil {
 			return nil, err
 		}
 
+		if len(sameRef) == 0 && named != nil {
+			return nil, dimages.ErrImageDoesNotExist{Ref: named}
+		}
+
 		if len(sameRef) == len(all) && !force {
 			c &= ^conflictActiveReference
+		}
+		if named != nil && len(sameRef) > 0 && len(sameRef) != len(all) {
+			var records []imagetypes.DeleteResponse
+			for _, ref := range sameRef {
+				// TODO: Add with target
+				err := i.images.Delete(ctx, ref.Name)
+				if err != nil {
+					return nil, err
+				}
+				if nn, err := reference.ParseNormalizedNamed(ref.Name); err == nil {
+					familiarRef := reference.FamiliarString(nn)
+					i.logImageEvent(ref, familiarRef, events.ActionUnTag)
+					records = append(records, imagetypes.DeleteResponse{Untagged: familiarRef})
+				}
+			}
+			return records, nil
 		}
 	} else {
 		imgID = image.ID(img.Target.Digest)
@@ -89,7 +116,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 			return nil, err
 		}
 
-		sameRef, err := i.getSameReferences(ctx, img, all)
+		sameRef, err := i.getSameReferences(ctx, parsedRef, all)
 		if err != nil {
 			return nil, err
 		}
@@ -255,21 +282,19 @@ func sortParentsByAffinity(parents []imageWithRootfs) {
 //
 // Note: All imgs should have the same target, only the image name will be considered
 // for determining whether images are the same.
-func (i *ImageService) getSameReferences(ctx context.Context, img *images.Image, imgs []images.Image) ([]images.Image, error) {
+func (i *ImageService) getSameReferences(ctx context.Context, named reference.Named, imgs []images.Image) ([]images.Image, error) {
 	var (
-		named      reference.Named
 		tag        string
 		sameRef    []images.Image
 		digestRefs = []images.Image{}
+		allTags    bool
 	)
-	if img != nil {
-		repoRef, err := reference.ParseNamed(img.Name)
-		if err != nil {
-			return nil, err
-		}
-		named = repoRef
+	if named != nil {
 		if tagged, ok := named.(reference.Tagged); ok {
 			tag = tagged.Tag()
+		} else if _, ok := named.(reference.Digested); ok {
+			// If digest is explicitly provided, match all tags
+			allTags = true
 		}
 	}
 	for _, ref := range imgs {
@@ -282,20 +307,22 @@ func (i *ImageService) getSameReferences(ctx context.Context, img *images.Image,
 					}
 				} else if named.Name() != repoRef.Name() {
 					continue
-				} else if tagged, ok := repoRef.(reference.Tagged); ok {
-					if tag == "" {
-						tag = tagged.Tag()
-					} else if tag != tagged.Tag() {
-						// Same repo, different tag, do not include digest refs
-						digestRefs = nil
+				} else if !allTags {
+					if tagged, ok := repoRef.(reference.Tagged); ok {
+						if tag == "" {
+							tag = tagged.Tag()
+						} else if tag != tagged.Tag() {
+							// Same repo, different tag, do not include digest refs
+							digestRefs = nil
+							continue
+						}
+					} else {
+						if digestRefs != nil {
+							digestRefs = append(digestRefs, ref)
+						}
+						// Add digest refs at end if no other tags in the same name
 						continue
 					}
-				} else {
-					if digestRefs != nil {
-						digestRefs = append(digestRefs, ref)
-					}
-					// Add digest refs at end if no other tags in the same name
-					continue
 				}
 			} else {
 				// Ignore names which do not parse

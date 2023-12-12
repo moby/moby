@@ -483,7 +483,12 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 			if !cerrdefs.IsNotFound(err) {
 				return nil, nil, convertError(err)
 			}
-			return nil, nil, images.ErrImageDoesNotExist{Ref: parsed}
+			// If digest is given, continue looking up for matching targets.
+			// There will be no exact match found but the caller may attempt
+			// to match across images with the matching target.
+			if dgst == "" {
+				return nil, nil, images.ErrImageDoesNotExist{Ref: parsed}
+			}
 		} else {
 			img = &cimg
 			if dgst != "" && img.Target.Digest != dgst {
@@ -492,7 +497,6 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 			}
 			dgst = img.Target.Digest
 		}
-
 	}
 
 	// Lookup up all associated images and check for consistency with first reference

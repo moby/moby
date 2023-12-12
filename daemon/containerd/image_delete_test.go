@@ -148,6 +148,76 @@ func TestImageDelete(t *testing.T) {
 				},
 			},
 		},
+		{
+			ref: "repoanddigest@" + digestFor(15).String(),
+			starting: []images.Image{
+				{
+					Name:   "docker.io/library/repoanddigest:latest",
+					Target: desc(15),
+				},
+				{
+					Name:   "docker.io/library/repoanddigest:latest@" + digestFor(15).String(),
+					Target: desc(15),
+				},
+				{
+					Name:   "docker.io/library/someotherrepo:latest",
+					Target: desc(15),
+				},
+			},
+			remaining: []images.Image{
+				{
+					Name:   "docker.io/library/someotherrepo:latest",
+					Target: desc(15),
+				},
+			},
+		},
+		{
+			ref: "repoanddigestothertags@" + digestFor(15).String(),
+			starting: []images.Image{
+				{
+					Name:   "docker.io/library/repoanddigestothertags:v1",
+					Target: desc(15),
+				},
+				{
+					Name:   "docker.io/library/repoanddigestothertags:v1@" + digestFor(15).String(),
+					Target: desc(15),
+				},
+				{
+					Name:   "docker.io/library/repoanddigestothertags:v2",
+					Target: desc(15),
+				},
+				{
+					Name:   "docker.io/library/repoanddigestothertags:v2@" + digestFor(15).String(),
+					Target: desc(15),
+				},
+				{
+					Name:   "docker.io/library/someotherrepo:latest",
+					Target: desc(15),
+				},
+			},
+			remaining: []images.Image{
+				{
+					Name:   "docker.io/library/someotherrepo:latest",
+					Target: desc(15),
+				},
+			},
+		},
+		{
+			ref: "repoanddigestzerocase@" + digestFor(16).String(),
+			starting: []images.Image{
+				{
+					Name:   "docker.io/library/someotherrepo:latest",
+					Target: desc(16),
+				},
+			},
+			remaining: []images.Image{
+				{
+					Name:   "docker.io/library/someotherrepo:latest",
+					Target: desc(16),
+				},
+			},
+			err: dimages.ErrImageDoesNotExist{Ref: nameDigest("repoanddigestzerocase", digestFor(16))},
+		},
 	} {
 		tc := tc
 		t.Run(tc.ref, func(t *testing.T) {
@@ -173,10 +243,8 @@ func TestImageDelete(t *testing.T) {
 			}
 
 			all, err := service.images.List(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-			assert.Equal(t, len(tc.remaining), len(all))
+			assert.NilError(t, err)
+			assert.Assert(t, is.Len(tc.remaining, len(all)))
 
 			// Order should match
 			for i := range all {
