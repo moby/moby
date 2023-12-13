@@ -41,6 +41,7 @@ import (
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
 	dlogger "github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/local"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/daemon/stats"
@@ -339,17 +340,31 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 
 			baseLogger := log.G(context.TODO()).WithField("container", c.ID)
 
-			// Migrate containers that don't have the default ("no") restart-policy set.
-			// The RestartPolicy.Name field may be empty for containers that were
-			// created with versions before v25.0.0.
-			//
-			// We also need to set the MaximumRetryCount to 0, to prevent
-			// validation from failing (MaximumRetryCount is not allowed if
-			// no restart-policy ("none") is set).
-			if c.HostConfig != nil && c.HostConfig.RestartPolicy.Name == "" {
-				baseLogger.WithError(err).Debug("migrated restart-policy")
-				c.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
-				c.HostConfig.RestartPolicy.MaximumRetryCount = 0
+			if c.HostConfig != nil {
+				// Migrate containers that don't have the default ("no") restart-policy set.
+				// The RestartPolicy.Name field may be empty for containers that were
+				// created with versions before v25.0.0.
+				//
+				// We also need to set the MaximumRetryCount to 0, to prevent
+				// validation from failing (MaximumRetryCount is not allowed if
+				// no restart-policy ("none") is set).
+				if c.HostConfig.RestartPolicy.Name == "" {
+					baseLogger.Debug("migrated restart-policy")
+					c.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
+					c.HostConfig.RestartPolicy.MaximumRetryCount = 0
+				}
+
+				// Migrate containers that use the deprecated (and now non-functional)
+				// logentries driver. Update them to use the "local" logging driver
+				// instead.
+				//
+				// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
+				if c.HostConfig.LogConfig.Type == "logentries" {
+					baseLogger.Warn("migrated deprecated logentries logging driver")
+					c.HostConfig.LogConfig = containertypes.LogConfig{
+						Type: local.Name,
+					}
+				}
 			}
 
 			if err := daemon.checkpointAndSave(c); err != nil {

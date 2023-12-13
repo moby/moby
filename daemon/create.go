@@ -62,6 +62,10 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	if opts.params.Config == nil {
 		return containertypes.CreateResponse{}, errdefs.InvalidParameter(runconfig.ErrEmptyConfig)
 	}
+	// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
+	if opts.params.HostConfig != nil && opts.params.HostConfig.LogConfig.Type == "logentries" {
+		return containertypes.CreateResponse{}, errdefs.InvalidParameter(fmt.Errorf("the logentries logging driver has been deprecated and removed"))
+	}
 
 	// Normalize some defaults. Doing this "ad-hoc" here for now, as there's
 	// only one field to migrate, but we should consider having a better
