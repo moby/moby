@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -174,13 +175,15 @@ func TestGetAPIPath(t *testing.T) {
 
 	ctx := context.TODO()
 	for _, tc := range tests {
-		client, err := New(
-			WithAPIVersion(tc.version),
-			WithHost("tcp://localhost:2375"),
-		)
-		assert.NilError(t, err)
-		actual := client.getAPIPath(ctx, tc.path, tc.query)
-		assert.Check(t, is.Equal(actual, tc.expected))
+		t.Run("version="+tc.version+",path="+tc.path, func(t *testing.T) {
+			client, err := New(
+				WithAPIVersion(tc.version),
+				WithHost("tcp://localhost:2375"),
+			)
+			assert.NilError(t, err)
+			actual := client.getAPIPath(ctx, tc.path, tc.query)
+			assert.Check(t, is.Equal(actual, tc.expected))
+		})
 	}
 }
 
@@ -282,6 +285,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 		doc             string
 		clientVersion   string
 		pingVersion     string
+		minAPIVersion   string
 		expectedVersion string
 		expectedErr     string
 	}{
@@ -321,6 +325,36 @@ func TestNegotiateAPIVersion(t *testing.T) {
 			pingVersion:     "1.51",
 			expectedVersion: "1.50",
 		},
+		{
+			// client can downgrade to unsupported versions when overridden,
+			// even if both the daemon and the client support it.
+			doc:             "downgrade minimum version",
+			pingVersion:     "1.1",
+			minAPIVersion:   "1.0",
+			expectedVersion: "1.1",
+		},
+		{
+			// client can limit the negotiated API version.
+			doc:             "upgrade minimum version",
+			pingVersion:     "1.50",
+			minAPIVersion:   "1.50", // higher than default (MinAPIVersion).
+			expectedVersion: "1.50",
+		},
+		{
+			// while not useful; client can limit to the current API version.
+			doc:             "current version only",
+			pingVersion:     MaxAPIVersion,
+			minAPIVersion:   MaxAPIVersion,
+			expectedVersion: MaxAPIVersion,
+		},
+		{
+			// while not useful; client can limit to the current API version.
+			doc:             "current version only no downgrade",
+			pingVersion:     MinAPIVersion,
+			minAPIVersion:   MaxAPIVersion,
+			expectedVersion: MaxAPIVersion,
+			expectedErr:     fmt.Sprintf("API version %s is not supported by this client: the minimum supported API version is %s", MinAPIVersion, MaxAPIVersion),
+		},
 	}
 
 	for _, tc := range tests {
@@ -336,6 +370,11 @@ func TestNegotiateAPIVersion(t *testing.T) {
 				// doing this just to be explicit we are using the default.
 				opts = append(opts, WithAPIVersion(tc.clientVersion))
 			}
+			if tc.minAPIVersion != "" {
+				// override the minimum API version to test downgrade scenarios
+				opts = append(opts, WithMinAPIVersion(tc.minAPIVersion))
+			}
+
 			client, err := New(opts...)
 			assert.NilError(t, err)
 			_, err = client.Ping(t.Context(), PingOptions{

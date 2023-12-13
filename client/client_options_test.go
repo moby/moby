@@ -48,6 +48,180 @@ func TestOptionWithTimeout(t *testing.T) {
 	assert.Check(t, is.Equal(c.client.Timeout, timeout))
 }
 
+func TestOptionWithMinAPIVersion(t *testing.T) {
+	tests := []struct {
+		doc      string
+		version  string
+		expected string
+		expError string
+	}{
+		{
+			doc:      "empty version",
+			version:  "",
+			expError: "value is empty",
+		},
+		{
+			doc:      "version with whitespace",
+			version:  "   1.50   ",
+			expError: "must be formatted <major>.<minor>",
+		},
+		{
+			// We allow downgrading the client's minimum version to an unsupported lower version.
+			doc:      "downgrade minimum version",
+			version:  "1.0",
+			expected: "1.0",
+		},
+		{
+			doc:      "upgrade minimum version",
+			version:  "1.50", // higher than default (MinAPIVersion).
+			expected: "1.50",
+		},
+		{
+			doc:      "unsupported version",
+			version:  "9.99",
+			expError: "must be lower than maximum API version",
+		},
+		{
+			doc:      "empty version with v-prefix",
+			version:  "v",
+			expError: "value is empty",
+		},
+		{
+			doc:      "whitespace with v-prefix",
+			version:  "   v1.0   ",
+			expError: "must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "version with v-prefix",
+			version:  "v1.0",
+			expError: "must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "malformed version",
+			version:  "something-weird",
+			expError: "must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "no minor",
+			version:  "1",
+			expError: "must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "too many digits",
+			version:  "1.2.3",
+			expError: "invalid minor version: must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "embedded whitespace",
+			version:  "1. 0",
+			expError: "invalid minor version: must be formatted <major>.<minor>",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			client, err := New(WithMinAPIVersion(tc.version))
+			if tc.expError != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expError))
+				assert.Check(t, is.Nil(client))
+			} else {
+				assert.NilError(t, err)
+				assert.Check(t, client != nil)
+				assert.Check(t, is.Equal(client.minAPIVersion, tc.expected))
+			}
+		})
+	}
+}
+
+func TestOptionWithMinAPIVersionFromEnv(t *testing.T) {
+	tests := []struct {
+		doc      string
+		version  string
+		expected string
+		expError string
+	}{
+		{
+			doc:      "empty version",
+			version:  "",
+			expected: "",
+		},
+		{
+			doc:      "lower version with whitespace",
+			version:  "   1.50   ",
+			expected: "1.50",
+		},
+		{
+			// We allow downgrading the client's minimum version to an unsupported lower version.
+			doc:      "downgrade minimum version",
+			version:  "1.0",
+			expected: "1.0",
+		},
+		{
+			doc:      "upgrade minimum version",
+			version:  "1.50", // higher than default (MinAPIVersion).
+			expected: "1.50",
+		},
+		{
+			doc:      "unsupported version",
+			version:  "9.99",
+			expError: "must be lower than maximum API version",
+		},
+		{
+			doc:      "empty version with v-prefix",
+			version:  "v",
+			expected: "",
+		},
+		{
+			doc:      "whitespace with v-prefix",
+			version:  "   v1.0   ",
+			expected: "1.0",
+		},
+		{
+			doc:      "version with v-prefix",
+			version:  "v1.0",
+			expected: "1.0",
+		},
+		{
+			doc:      "upgrade version, with v-prefix",
+			version:  "v9.99",
+			expError: "must be lower than maximum API version",
+		},
+		{
+			doc:      "malformed version",
+			version:  "something-weird",
+			expError: "must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "no minor",
+			version:  "1",
+			expError: "must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "too many digits",
+			version:  "1.2.3",
+			expError: "invalid minor version: must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "embedded whitespace",
+			version:  "1. 0",
+			expError: "invalid minor version: must be formatted <major>.<minor>",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Setenv(EnvOverrideMinAPIVersion, tc.version)
+			client, err := New(WithMinAPIVersionFromEnv())
+			if tc.expError != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expError))
+				assert.Check(t, is.Nil(client))
+			} else {
+				assert.NilError(t, err)
+				assert.Check(t, client != nil)
+				assert.Check(t, is.Equal(client.envMinAPIVersion, tc.expected))
+			}
+		})
+	}
+}
+
 func TestOptionWithAPIVersion(t *testing.T) {
 	tests := []struct {
 		doc      string
