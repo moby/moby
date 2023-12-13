@@ -173,13 +173,15 @@ func TestGetAPIPath(t *testing.T) {
 
 	ctx := context.TODO()
 	for _, tc := range tests {
-		client, err := NewClientWithOpts(
-			WithVersion(tc.version),
-			WithHost("tcp://localhost:2375"),
-		)
-		assert.NilError(t, err)
-		actual := client.getAPIPath(ctx, tc.path, tc.query)
-		assert.Check(t, is.Equal(actual, tc.expected))
+		t.Run("version="+tc.version+",path="+tc.path, func(t *testing.T) {
+			client, err := NewClientWithOpts(
+				WithVersion(tc.version),
+				WithHost("tcp://localhost:2375"),
+			)
+			assert.NilError(t, err)
+			actual := client.getAPIPath(ctx, tc.path, tc.query)
+			assert.Check(t, is.Equal(actual, tc.expected))
+		})
 	}
 }
 
@@ -279,12 +281,14 @@ func TestNegotiateAPIVersion(t *testing.T) {
 		doc             string
 		clientVersion   string
 		pingVersion     string
+		minAPIVersion   string
 		expectedVersion string
 	}{
 		{
 			// client should downgrade to the version reported by the daemon.
 			doc:             "downgrade from default",
 			pingVersion:     "1.21",
+			minAPIVersion:   minimumAPIVersion,
 			expectedVersion: "1.21",
 		},
 		{
@@ -310,6 +314,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 			// gives that as a response.
 			doc:             "downgrade old",
 			pingVersion:     "1.19",
+			minAPIVersion:   minimumAPIVersion,
 			expectedVersion: "1.19",
 		},
 		{
@@ -333,6 +338,11 @@ func TestNegotiateAPIVersion(t *testing.T) {
 				opts = append(opts, WithVersion(tc.clientVersion))
 			}
 			client, err := NewClientWithOpts(opts...)
+
+			if tc.minAPIVersion != "" {
+				// override the minimum API version to test downgrade scenarios
+				client.minAPIVersion = tc.minAPIVersion
+			}
 			assert.NilError(t, err)
 			client.NegotiateAPIVersionPing(types.Ping{APIVersion: tc.pingVersion})
 			assert.Equal(t, tc.expectedVersion, client.ClientVersion())

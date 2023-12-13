@@ -90,13 +90,6 @@ import (
 // [Go stdlib]: https://github.com/golang/go/blob/6244b1946bc2101b01955468f1be502dbadd6807/src/net/http/transport.go#L558-L569
 const DummyHost = "api.moby.localhost"
 
-// fallbackAPIVersion is the version to fallback to if API-version negotiation
-// fails. This version is the highest version of the API before API-version
-// negotiation was introduced. If negotiation fails (or no API version was
-// included in the API response), we assume the API server uses the most
-// recent version before negotiation was introduced.
-const fallbackAPIVersion = "1.24"
-
 // Client is the API client that performs all operations
 // against a docker server.
 type Client struct {
@@ -114,6 +107,9 @@ type Client struct {
 	client *http.Client
 	// version of the server to talk to.
 	version string
+	// minAPIVersion represents Minimum REST API version the client is
+	// configured  to support.
+	minAPIVersion string
 	// userAgent is the User-Agent header to use for HTTP requests. It takes
 	// precedence over User-Agent headers set in customHTTPHeaders, and other
 	// header variables. When set to an empty string, the User-Agent header
@@ -184,17 +180,22 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	minAPIVersion, err := getMinAPIVersion()
+	if err != nil {
+		return nil, err
+	}
 
 	client, err := defaultHTTPClient(hostURL)
 	if err != nil {
 		return nil, err
 	}
 	c := &Client{
-		host:    DefaultDockerHost,
-		version: api.DefaultVersion,
-		client:  client,
-		proto:   hostURL.Scheme,
-		addr:    hostURL.Host,
+		host:          DefaultDockerHost,
+		version:       api.DefaultVersion,
+		minAPIVersion: minAPIVersion,
+		client:        client,
+		proto:         hostURL.Scheme,
+		addr:          hostURL.Host,
 	}
 
 	for _, op := range ops {
@@ -345,7 +346,7 @@ func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
 	}
 
 	// if server version is lower than the client version, downgrade
-	if versions.LessThan(pingResponse.APIVersion, cli.version) {
+	if versions.LessThan(pingResponse.APIVersion, cli.version) && versions.GreaterThanOrEqualTo(pingResponse.APIVersion, cli.minAPIVersion) {
 		cli.version = pingResponse.APIVersion
 	}
 
