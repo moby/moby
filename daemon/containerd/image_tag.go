@@ -65,29 +65,8 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 
 	defer i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
 
-	// The tag succeeded, check if the source image is dangling
-	sourceDanglingImg, err := is.Get(compatcontext.WithoutCancel(ctx), danglingImageName(targetImage.Target.Digest))
-	if err != nil {
-		if !cerrdefs.IsNotFound(err) {
-			logger.WithError(err).Warn("unexpected error when checking if source image is dangling")
-		}
-
-		return nil
-	}
-
-	builderLabel, ok := sourceDanglingImg.Labels[imageLabelClassicBuilderParent]
-	if ok {
-		newImg.Labels = map[string]string{
-			imageLabelClassicBuilderParent: builderLabel,
-		}
-
-		if _, err := is.Update(compatcontext.WithoutCancel(ctx), newImg, "labels"); err != nil {
-			logger.WithError(err).Warnf("failed to set %s label on the newly tagged image", imageLabelClassicBuilderParent)
-		}
-	}
-
 	// Delete the source dangling image, as it's no longer dangling.
-	if err := is.Delete(compatcontext.WithoutCancel(ctx), sourceDanglingImg.Name); err != nil {
+	if err := is.Delete(compatcontext.WithoutCancel(ctx), danglingImageName(targetImage.Target.Digest)); err != nil {
 		logger.WithError(err).Warn("unexpected error when deleting dangling image")
 	}
 
