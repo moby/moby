@@ -37,8 +37,13 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// Digest of the image which was the base image of the committed container.
-const imageLabelClassicBuilderParent = "org.mobyproject.image.parent"
+const (
+	// Digest of the image which was the base image of the committed container.
+	imageLabelClassicBuilderParent = "org.mobyproject.image.parent"
+
+	// ID of the container the image was committed from.
+	imageLabelClassicBuilderContainer = "org.mobyproject.image.container"
+)
 
 // GetImageAndReleasableLayer returns an image and releaseable layer for a
 // reference or ID. Every call to GetImageAndReleasableLayer MUST call
@@ -465,7 +470,8 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		Target:    commitManifestDesc,
 		CreatedAt: time.Now(),
 		Labels: map[string]string{
-			imageLabelClassicBuilderParent: parentDigest.String(),
+			imageLabelClassicBuilderParent:    parentDigest.String(),
+			imageLabelClassicBuilderContainer: imgToCreate.Container,
 		},
 	}
 

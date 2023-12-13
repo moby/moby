@@ -85,6 +85,9 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 
 	img := dockerOciImageToDockerImagePartial(image.ID(desc.Target.Digest), ociimage)
 
+	if img.Container, err = i.getImageLabelByDigest(ctx, desc.Target.Digest, imageLabelClassicBuilderContainer); err != nil {
+		return nil, errdefs.System(fmt.Errorf("failed to determine Container property: %w", err))
+	}
 	parent, err := i.getImageLabelByDigest(ctx, desc.Target.Digest, imageLabelClassicBuilderParent)
 	if err != nil {
 		log.G(ctx).WithError(err).Warn("failed to determine Parent property")

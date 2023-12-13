@@ -109,7 +109,8 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 		Target:    commitManifestDesc,
 		CreatedAt: time.Now(),
 		Labels: map[string]string{
-			imageLabelClassicBuilderParent: cc.ParentImageID,
+			imageLabelClassicBuilderParent:    cc.ParentImageID,
+			imageLabelClassicBuilderContainer: cc.ContainerID,
 		},
 	}
 
