@@ -77,6 +77,8 @@ type ImageInspect struct {
 	// Container is the ID of the container that was used to create the image.
 	//
 	// Depending on how the image was created, this field may be empty.
+	//
+	// Deprecated: this field is omitted in API v1.45, but kept for backward compatibility.
 	Container string
 
 	// ContainerConfig is an optional field containing the configuration of the
@@ -84,6 +86,8 @@ type ImageInspect struct {
 	//
 	// Previous versions of Docker builder used this field to store build cache,
 	// and it is not in active use anymore.
+	//
+	// Deprecated: this field is omitted in API v1.45, but kept for backward compatibility.
 	ContainerConfig *container.Config
 
 	// DockerVersion is the version of Docker that was used to build the image.

@@ -1744,10 +1744,15 @@ definitions:
           The ID of the container that was used to create the image.
 
           Depending on how the image was created, this field may be empty.
+
+          **Deprecated**: this field is kept for backward compatibility, but
+          will be removed in API v1.45.
         type: "string"
-        x-nullable: false
         example: "65974bc86f1770ae4bff79f651ebdbce166ae9aada632ee3fa9af3a264911735"
       ContainerConfig:
+        description: |
+          **Deprecated**: this field is kept for backward compatibility, but
+          will be removed in API v1.45.
         $ref: "#/definitions/ContainerConfig"
       DockerVersion:
         description: |
