@@ -17,8 +17,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const remapSuffix = "-remap"
-
 // PrepareSnapshot prepares a snapshot from a parent image for a container
 func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error {
 	var parentSnapshot string

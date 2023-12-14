@@ -29,6 +29,7 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 /*
@@ -81,7 +82,7 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 		}
 	}()
 
-	diffLayerDesc, diffID, err := createDiff(ctx, cc.ContainerID, sn, cs, differ)
+	diffLayerDesc, diffID, err := i.createDiff(ctx, cc.ContainerID, sn, cs, differ)
 	if err != nil {
 		return "", fmt.Errorf("failed to export layer: %w", err)
 	}
@@ -249,10 +250,38 @@ func writeContentsForImage(ctx context.Context, snName string, cs content.Store,
 
 // createDiff creates a layer diff into containerd's content store.
 // If the diff is empty it returns nil empty digest and no error.
-func createDiff(ctx context.Context, name string, sn snapshots.Snapshotter, cs content.Store, comparer diff.Comparer) (*ocispec.Descriptor, digest.Digest, error) {
+func (i *ImageService) createDiff(ctx context.Context, name string, sn snapshots.Snapshotter, cs content.Store, comparer diff.Comparer) (*ocispec.Descriptor, digest.Digest, error) {
+	if !i.idMapping.Empty() {
+		// The rootfs of the container is remapped if an id mapping exists, we
+		// need to "unremap" it before committing the snapshot
+		rootPair := i.idMapping.RootPair()
+		usernsID := fmt.Sprintf("%s-%d-%d", name, rootPair.UID, rootPair.GID)
+		remappedID := usernsID + remapSuffix
+
+		err := sn.Commit(ctx, name+"-pre", name)
+		if err != nil && !cerrdefs.IsAlreadyExists(err) {
+			return nil, "", err
+		}
+
+		if !cerrdefs.IsAlreadyExists(err) {
+			mounts, err := sn.Prepare(ctx, remappedID, name+"-pre")
+			if err != nil {
+				return nil, "", err
+			}
+
+			if err := i.unremapRootFS(ctx, mounts); err != nil {
+				return nil, "", err
+			}
+
+			if err := sn.Commit(ctx, name, remappedID); err != nil {
+				return nil, "", err
+			}
+		}
+	}
+
 	newDesc, err := rootfs.CreateDiff(ctx, name, sn, comparer)
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.Wrap(err, "CreateDiff")
 	}
 
 	ra, err := cs.ReaderAt(ctx, newDesc)
@@ -311,7 +340,7 @@ func (i *ImageService) applyDiffLayer(ctx context.Context, name string, containe
 
 	defer func() {
 		if retErr != nil {
-			// NOTE: the snapshotter should be hold by lease. Even
+			// NOTE: the snapshotter should be held by lease. Even
 			// if the cleanup fails, the containerd gc can delete it.
 			if err := sn.Remove(ctx, key); err != nil {
 				log.G(ctx).Warnf("failed to cleanup aborted apply %s: %s", key, err)
@@ -321,35 +350,6 @@ func (i *ImageService) applyDiffLayer(ctx context.Context, name string, containe
 
 	if _, err = differ.Apply(ctx, diffDesc, mounts); err != nil {
 		return err
-	}
-
-	if !i.idMapping.Empty() {
-		// The rootfs of the container is remapped if an id mapping exists, we
-		// need to "unremap" it before committing the snapshot
-		rootPair := i.idMapping.RootPair()
-		usernsID := fmt.Sprintf("%s-%d-%d", key, rootPair.UID, rootPair.GID)
-		remappedID := usernsID + remapSuffix
-
-		if err = sn.Commit(ctx, name+"-pre", key); err != nil {
-			if cerrdefs.IsAlreadyExists(err) {
-				return nil
-			}
-			return err
-		}
-
-		mounts, err = sn.Prepare(ctx, remappedID, name+"-pre")
-		if err != nil {
-			return err
-		}
-
-		if err := i.unremapRootFS(ctx, mounts); err != nil {
-			return err
-		}
-
-		if err := sn.Commit(ctx, name, remappedID); err != nil {
-			return err
-		}
-		key = remappedID
 	}
 
 	if err = sn.Commit(ctx, name, key); err != nil {

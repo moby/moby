@@ -11,38 +11,33 @@ import (
 
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
-	"github.com/containerd/log"
+	"github.com/containerd/continuity/sysx"
 	"github.com/docker/docker/pkg/idtools"
 )
 
-func (i *ImageService) remapSnapshot(ctx context.Context, snapshotter snapshots.Snapshotter, id string, parentSnapshot string) error {
-	rootPair := i.idMapping.RootPair()
-	usernsID := fmt.Sprintf("%s-%d-%d", parentSnapshot, rootPair.UID, rootPair.GID)
-	remappedID := usernsID + remapSuffix
+const (
+	// Values based on linux/include/uapi/linux/capability.h
+	xattrCapsSz2    = 20
+	versionOffset   = 3
+	vfsCapRevision2 = 2
+	vfsCapRevision3 = 3
+	remapSuffix     = "-remap"
+)
 
-	// If the remapped snapshot already exist we only need to prepare the new snapshot
-	if _, err := snapshotter.Stat(ctx, usernsID); err == nil {
-		_, err = snapshotter.Prepare(ctx, id, usernsID)
+func (i *ImageService) remapSnapshot(ctx context.Context, snapshotter snapshots.Snapshotter, id string, parentSnapshot string) error {
+	_, err := snapshotter.Prepare(ctx, id, parentSnapshot)
+	if err != nil {
 		return err
 	}
-
-	mounts, err := snapshotter.Prepare(ctx, remappedID, parentSnapshot)
+	mounts, err := snapshotter.Mounts(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	if err := i.remapRootFS(ctx, mounts); err != nil {
-		if rmErr := snapshotter.Remove(ctx, usernsID); rmErr != nil {
-			log.G(ctx).WithError(rmErr).Warn("failed to remove snapshot after remap error")
-		}
 		return err
 	}
 
-	if err := snapshotter.Commit(ctx, usernsID, remappedID); err != nil {
-		return err
-	}
-
-	_, err = snapshotter.Prepare(ctx, id, usernsID)
 	return err
 }
 
@@ -63,7 +58,7 @@ func (i *ImageService) remapRootFS(ctx context.Context, mounts []mount.Mount) er
 				return err
 			}
 
-			return os.Lchown(path, ids.UID, ids.GID)
+			return chownWithCaps(path, ids.UID, ids.GID)
 		})
 	})
 }
@@ -85,7 +80,48 @@ func (i *ImageService) unremapRootFS(ctx context.Context, mounts []mount.Mount) 
 				return err
 			}
 
-			return os.Lchown(path, uid, gid)
+			return chownWithCaps(path, uid, gid)
 		})
 	})
+}
+
+// chownWithCaps will chown path and preserve the extended attributes.
+// chowning a file will remove the capabilities, so we need to first get all of
+// them, chown the file, and then set the extended attributes
+func chownWithCaps(path string, uid int, gid int) error {
+	xattrKeys, err := sysx.LListxattr(path)
+	if err != nil {
+		return err
+	}
+
+	xattrs := make(map[string][]byte, len(xattrKeys))
+
+	for _, xattr := range xattrKeys {
+		data, err := sysx.LGetxattr(path, xattr)
+		if err != nil {
+			return err
+		}
+		xattrs[xattr] = data
+	}
+
+	if err := os.Lchown(path, uid, gid); err != nil {
+		return err
+	}
+
+	for xattrKey, xattrValue := range xattrs {
+		length := len(xattrValue)
+		// make sure the capabilities are version 2,
+		// capabilities version 3 also store the root uid of the namespace,
+		// we don't want this when we are in userns-remap mode
+		// see: https://github.com/moby/moby/pull/41724
+		if xattrKey == "security.capability" && xattrValue[versionOffset] == vfsCapRevision3 {
+			xattrValue[versionOffset] = vfsCapRevision2
+			length = xattrCapsSz2
+		}
+		if err := sysx.LSetxattr(path, xattrKey, xattrValue[:length], 0); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
