@@ -65,6 +65,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   The container-wide `MacAddress` field in `Config`, on `POST /containers/create`, is now deprecated.
 * The field `Networks` in the `POST /services/create` and `POST /services/{id}/update`
   requests is now deprecated. You should instead use the field `TaskTemplate.Networks`.
+* The `Container` and `ContainerConfig` fields in the `GET /images/{name}/json`
+  response are deprecated and will no longer be included in API v1.45.
 
 ## v1.43 API changes
 
