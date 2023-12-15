@@ -93,7 +93,7 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 		}
 		if versions.LessThan(version, "1.44") {
 			for k, rt := range info.Runtimes {
-				// Status field introduced inl API v1.44.
+				// Status field introduced in API v1.44.
 				info.Runtimes[k] = system.RuntimeWithStatus{Runtime: rt.Runtime}
 			}
 		}

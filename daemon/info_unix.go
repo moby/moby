@@ -496,7 +496,7 @@ func populateInitVersion(ctx context.Context, cfg *configStore, v *types.Version
 	return nil
 }
 
-// ociRuntimeFeaturesKey is the "well-known" used for including the
+// ociRuntimeFeaturesKey is the "well-known" key used for including the
 // OCI runtime spec "features" struct.
 //
 // see https://github.com/opencontainers/runtime-spec/blob/main/features.md
