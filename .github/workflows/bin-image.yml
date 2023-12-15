@@ -82,6 +82,7 @@ jobs:
     needs:
       - validate-dco
       - prepare
+    if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     strategy:
       fail-fast: false
       matrix:
