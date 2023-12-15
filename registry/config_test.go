@@ -142,21 +142,21 @@ func TestValidateMirror(t *testing.T) {
 		"https://127.0.0.1",
 		"http://127.0.0.1:5000",
 		"https://127.0.0.1:5000",
+		"http://mirror-1.example.com/v1/",
+		"https://mirror-1.example.com/v1/",
 	}
 
 	invalid := []string{
 		"!invalid!://%as%",
 		"ftp://mirror-1.example.com",
 		"http://mirror-1.example.com/?q=foo",
-		"http://mirror-1.example.com/v1/",
 		"http://mirror-1.example.com/v1/?q=foo",
 		"http://mirror-1.example.com/v1/?q=foo#frag",
 		"http://mirror-1.example.com?q=foo",
 		"https://mirror-1.example.com#frag",
 		"https://mirror-1.example.com/#frag",
 		"http://foo:bar@mirror-1.example.com/",
-		"https://mirror-1.example.com/v1/",
-		"https://mirror-1.example.com/v1/#",
+		"https://mirror-1.example.com/v1/#frag",
 		"https://mirror-1.example.com?q",
 	}
 
