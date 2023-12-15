@@ -14,6 +14,11 @@ source hack/make/.integration-test-helpers
 # TODO re-enable test_attach_no_stream after https://github.com/docker/docker-py/issues/2513 is resolved
 # TODO re-enable test_run_container_reading_socket_ws. It's reported in https://github.com/docker/docker-py/issues/1478, and we're getting that error in our tests.
 : "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_run_container_reading_socket_ws}"
+
+# build --squash is not supported with containerd integration.
+if [ -n "$TEST_INTEGRATION_USE_SNAPSHOTTER" ]; then
+	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_build_test.py::BuildTest::test_build_squash"
+fi
 (
 	bundle .integration-daemon-start
 
