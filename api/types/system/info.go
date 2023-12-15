@@ -58,7 +58,7 @@ type Info struct {
 	Labels             []string
 	ExperimentalBuild  bool
 	ServerVersion      string
-	Runtimes           map[string]Runtime
+	Runtimes           map[string]RuntimeWithStatus
 	DefaultRuntime     string
 	Swarm              swarm.Info
 	// LiveRestoreEnabled determines whether containers should be kept
