@@ -144,7 +144,6 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 
 		for _, img := range imgs {
 			ref, err := reference.ParseNamed(img.Name)
-
 			if err != nil {
 				log.G(ctx).WithFields(log.Fields{
 					"image": img.Name,

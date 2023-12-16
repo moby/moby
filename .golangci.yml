@@ -1,6 +1,7 @@
 linters:
   enable:
     - depguard
+    - gofumpt
     - goimports
     - gosec
     - gosimple
@@ -125,6 +126,11 @@ issues:
     - text: "SA1019: (assert|cmp|is)\\.ErrorType is deprecated"
       linters:
         - staticcheck
+
+    # Suppress gofumpt complaining about generated types in api/types/
+    - path: api/types
+      linters:
+        - gofumpt
 
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0
