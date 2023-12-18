@@ -84,6 +84,14 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	ociimage := presentImages[0]
 
 	img := dockerOciImageToDockerImagePartial(image.ID(desc.Target.Digest), ociimage)
+
+	parent, err := i.getImageLabelByDigest(ctx, desc.Target.Digest, imageLabelClassicBuilderParent)
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("failed to determine Parent property")
+	} else {
+		img.Parent = image.ID(parent)
+	}
+
 	if options.Details {
 		lastUpdated := time.Unix(0, 0)
 		size, err := i.size(ctx, desc.Target, platform)
@@ -351,4 +359,26 @@ func imageFamiliarName(img containerdimages.Image) string {
 		return reference.FamiliarString(ref)
 	}
 	return img.Name
+}
+
+// getImageLabelByDigest will return the value of the label for images
+// targeting the specified digest.
+// If images have different values, an errdefs.Conflict error will be returned.
+func (i *ImageService) getImageLabelByDigest(ctx context.Context, target digest.Digest, labelKey string) (string, error) {
+	imgs, err := i.client.ImageService().List(ctx, "target.digest=="+target.String()+",label."+labelKey)
+	if err != nil {
+		return "", errdefs.System(err)
+	}
+
+	var value string
+	for _, img := range imgs {
+		if v, ok := img.Labels[labelKey]; ok {
+			if value != "" && value != v {
+				return value, errdefs.Conflict(fmt.Errorf("conflicting label value %q and %q", value, v))
+			}
+			value = v
+		}
+	}
+
+	return value, nil
 }
