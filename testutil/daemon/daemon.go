@@ -15,6 +15,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-connections/sockets"
+	"github.com/docker/go-connections/tlsconfig"
+	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
+
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
@@ -23,11 +29,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/testutil/request"
-	"github.com/docker/go-connections/sockets"
-	"github.com/docker/go-connections/tlsconfig"
-	"github.com/pkg/errors"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/poll"
 )
 
 // LogT is the subset of the testing.TB interface used by the daemon.

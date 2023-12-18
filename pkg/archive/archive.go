@@ -22,14 +22,15 @@ import (
 
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/system"
 	"github.com/klauspost/compress/zstd"
 	"github.com/moby/patternmatcher"
 	"github.com/moby/sys/sequential"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/pools"
+	"github.com/docker/docker/pkg/system"
 )
 
 // ImpliedDirectoryMode represents the mode (Unix permissions) applied to directories that are implied by files in a

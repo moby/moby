@@ -4,13 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 func TestDaemonDNSFallback(t *testing.T) {

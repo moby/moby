@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
@@ -16,7 +18,6 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
-	"gotest.tools/v3/skip"
 )
 
 func TestNetworkMarshalling(t *testing.T) {

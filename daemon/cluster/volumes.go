@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"google.golang.org/grpc"
+
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/errdefs"
-	swarmapi "github.com/moby/swarmkit/v2/api"
-	"google.golang.org/grpc"
 )
 
 // GetVolume returns a volume from the swarm cluster.

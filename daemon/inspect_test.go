@@ -3,10 +3,11 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"testing"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/container"
 )
 
 func TestGetInspectData(t *testing.T) {

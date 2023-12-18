@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"gotest.tools/v3/assert"
 )
 
 // SecretConstructor defines a swarm secret constructor

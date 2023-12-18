@@ -3,9 +3,10 @@ package convert // import "github.com/docker/docker/daemon/cluster/convert"
 import (
 	"strings"
 
-	types "github.com/docker/docker/api/types/swarm"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+
+	types "github.com/docker/docker/api/types/swarm"
 )
 
 // TaskFromGRPC converts a grpc Task to a Task.

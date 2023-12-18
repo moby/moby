@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"gotest.tools/v3/assert"
 )
 
 // TestReadPluginNoRead tests that reads are supported even if the plugin isn't capable.

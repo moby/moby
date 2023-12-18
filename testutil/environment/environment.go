@@ -8,13 +8,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil/fixtures/load"
-	"github.com/pkg/errors"
-	"gotest.tools/v3/assert"
 )
 
 // Execution contains information about the current test execution and daemon

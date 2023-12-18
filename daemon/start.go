@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
-	"github.com/pkg/errors"
 )
 
 // validateState verifies if the container is in a non-conflicting state.

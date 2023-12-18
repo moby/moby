@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
+
 	"github.com/docker/docker/api/types"
 	imagetypes "github.com/docker/docker/api/types/image"
 	timetypes "github.com/docker/docker/api/types/time"

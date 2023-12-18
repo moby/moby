@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"

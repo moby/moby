@@ -3,8 +3,9 @@ package bridge
 import (
 	"testing"
 
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
+
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 func TestInterfaceDefaultName(t *testing.T) {

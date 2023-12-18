@@ -6,13 +6,14 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/builder/remotecontext"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/reexec"
 )
 
 type dispatchTestCase struct {

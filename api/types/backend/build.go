@@ -3,10 +3,11 @@ package backend // import "github.com/docker/docker/api/types/backend"
 import (
 	"io"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/streamformatter"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // PullOption defines different modes for accessing images

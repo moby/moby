@@ -11,9 +11,10 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/archive"
-	"gotest.tools/v3/assert"
 )
 
 type fileType uint32

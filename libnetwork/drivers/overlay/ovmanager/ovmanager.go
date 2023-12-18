@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/libnetwork/bitmap"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"

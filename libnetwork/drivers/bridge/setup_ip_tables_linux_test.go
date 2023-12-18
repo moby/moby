@@ -4,13 +4,14 @@ import (
 	"net"
 	"testing"
 
+	"github.com/vishvananda/netlink"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/portmapper"
-	"github.com/vishvananda/netlink"
-	"gotest.tools/v3/assert"
 )
 
 const (

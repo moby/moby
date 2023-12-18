@@ -12,9 +12,10 @@ import (
 
 	statsV1 "github.com/containerd/cgroups/v3/cgroup1/stats"
 	statsV2 "github.com/containerd/cgroups/v3/cgroup2/stats"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
-	"github.com/pkg/errors"
 )
 
 func copyBlkioEntry(entries []*statsV1.BlkIOEntry) []types.BlkioStatEntry {

@@ -5,9 +5,10 @@ import (
 	"net"
 	"testing"
 
+	"github.com/vishvananda/netlink"
+
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/netutils"
-	"github.com/vishvananda/netlink"
 )
 
 func TestSetupNewBridge(t *testing.T) {

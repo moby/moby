@@ -5,11 +5,12 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/events"
 	dockercontainer "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
-	"github.com/pkg/errors"
 )
 
 // ContainerRename changes the name of a container, using the oldName

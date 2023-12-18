@@ -8,9 +8,10 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 // DigestWalkFunc is function called by StoreBackend.Walk

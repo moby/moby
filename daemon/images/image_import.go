@@ -8,6 +8,8 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/distribution/reference"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/builder/dockerfile"
@@ -16,7 +18,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImportImage imports an image, getting the archived layer data from layerReader.

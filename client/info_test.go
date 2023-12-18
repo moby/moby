@@ -10,10 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/system"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/api/types/system"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestInfoServerError(t *testing.T) {

@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration-cli/cli"
@@ -23,7 +25,6 @@ import (
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/volume"
-	"gotest.tools/v3/assert"
 )
 
 const volumePluginName = "test-external-volume-driver"

@@ -3,8 +3,9 @@ package oci // import "github.com/docker/docker/oci"
 import (
 	"runtime"
 
-	"github.com/docker/docker/oci/caps"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+
+	"github.com/docker/docker/oci/caps"
 )
 
 func iPtr(i int64) *int64 { return &i }

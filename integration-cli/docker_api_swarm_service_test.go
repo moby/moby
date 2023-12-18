@@ -9,6 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sys/unix"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
@@ -17,10 +22,6 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	"golang.org/x/sys/unix"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/icmd"
-	"gotest.tools/v3/poll"
 )
 
 func setPortConfig(portConfig []swarm.PortConfig) testdaemon.ServiceConstructor {

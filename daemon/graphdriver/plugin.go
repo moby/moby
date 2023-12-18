@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	v2 "github.com/docker/docker/plugin/v2"
-	"github.com/pkg/errors"
 )
 
 func lookupPlugin(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {

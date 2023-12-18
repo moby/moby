@@ -5,11 +5,12 @@ package logging
 import (
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 // Regression test for #35553

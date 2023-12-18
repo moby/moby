@@ -3,9 +3,10 @@ package network
 import (
 	"context"
 
+	"gotest.tools/v3/poll"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"gotest.tools/v3/poll"
 )
 
 // IsRemoved verifies the network is removed.

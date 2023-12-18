@@ -14,16 +14,17 @@ import (
 	"time"
 
 	"github.com/cpuguy83/tar2go"
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/integration/internal/build"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/integration/internal/build"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/testutil/fakecontext"
 )
 
 type imageSaveManifestEntry struct {

@@ -14,11 +14,12 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim/osversion"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 func maxInt(x, y int) int {

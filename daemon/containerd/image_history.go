@@ -8,12 +8,13 @@ import (
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	imagetype "github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/platforms"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	imagetype "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/platforms"
 )
 
 // ImageHistory returns a slice of HistoryResponseItem structures for the

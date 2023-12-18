@@ -6,6 +6,9 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/leases"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution"
@@ -14,8 +17,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	dockerreference "github.com/docker/docker/reference"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 type containerStore interface {

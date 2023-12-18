@@ -1,7 +1,7 @@
 linters:
   enable:
     - depguard
-    - goimports
+    - gci
     - gosec
     - gosimple
     - govet
@@ -39,6 +39,11 @@ linters-settings:
 
   govet:
     check-shadowing: false
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/docker/docker)
   depguard:
     rules:
       main:

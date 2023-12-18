@@ -12,14 +12,6 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
-	mobyexporter "github.com/docker/docker/builder/builder-next/exporter"
-	distmetadata "github.com/docker/docker/distribution/metadata"
-	"github.com/docker/docker/distribution/xfer"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/internal/mod"
-	"github.com/docker/docker/layer"
-	pkgprogress "github.com/docker/docker/pkg/progress"
 	"github.com/moby/buildkit/cache"
 	cacheconfig "github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/client"
@@ -49,6 +41,15 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
+
+	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
+	mobyexporter "github.com/docker/docker/builder/builder-next/exporter"
+	distmetadata "github.com/docker/docker/distribution/metadata"
+	"github.com/docker/docker/distribution/xfer"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/mod"
+	"github.com/docker/docker/layer"
+	pkgprogress "github.com/docker/docker/pkg/progress"
 )
 
 func init() {

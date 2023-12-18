@@ -4,8 +4,9 @@ import (
 	"context"
 	"net"
 
-	"github.com/docker/docker/client"
 	bkclient "github.com/moby/buildkit/client"
+
+	"github.com/docker/docker/client"
 )
 
 // ClientOpts returns a list of buildkit client options which allows the

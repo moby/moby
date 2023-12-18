@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"gotest.tools/v3/poll"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"gotest.tools/v3/poll"
 )
 
 // NoTasksForService verifies that there are no more tasks for the given service

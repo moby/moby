@@ -50,16 +50,17 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	swarmnode "github.com/moby/swarmkit/v2/node"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc"
+
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/controllers/plugin"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	lncluster "github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/pkg/stack"
-	swarmapi "github.com/moby/swarmkit/v2/api"
-	swarmnode "github.com/moby/swarmkit/v2/node"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 )
 
 const (

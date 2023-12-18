@@ -5,6 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
@@ -12,10 +17,6 @@ import (
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/icmd"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 // delInterface removes given network interface

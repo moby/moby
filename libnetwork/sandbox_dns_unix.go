@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/libnetwork/etchosts"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"

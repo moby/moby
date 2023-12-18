@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/go-connections/nat"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -27,7 +29,6 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/go-connections/nat"
 )
 
 func ipAddresses(ips []net.IP) []string {

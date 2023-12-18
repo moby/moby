@@ -8,12 +8,13 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
 )
 
 // MountPoint is the intersection point between a volume and a container. It

@@ -6,12 +6,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	"github.com/docker/docker/errdefs"
 	getter "github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/pkg/errors"
 )
 
 var pluginGetter getter.PluginGetter

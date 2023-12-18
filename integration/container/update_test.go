@@ -4,11 +4,12 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
+
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/integration/internal/container"
 )
 
 func TestUpdateRestartPolicy(t *testing.T) {

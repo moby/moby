@@ -8,9 +8,10 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/vishvananda/netlink"
+
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/vishvananda/netlink"
 )
 
 // DockerChain: DOCKER iptable chain name

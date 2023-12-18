@@ -4,8 +4,9 @@ package snapshotter
 
 import (
 	"github.com/containerd/containerd/mount"
-	"github.com/docker/docker/daemon/graphdriver"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/daemon/graphdriver"
 )
 
 func checker() graphdriver.Checker {

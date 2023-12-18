@@ -9,13 +9,14 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/testutil"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/poll"
 )
 
 func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {

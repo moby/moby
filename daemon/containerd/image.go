@@ -15,16 +15,17 @@ import (
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+	"golang.org/x/sync/semaphore"
+
 	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	imagespec "github.com/docker/docker/image/spec/specs-go/v1"
 	"github.com/docker/docker/pkg/platforms"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
-	"golang.org/x/sync/semaphore"
 )
 
 var truncatedID = regexp.MustCompile(`^(sha256:)?([a-f0-9]{4,64})$`)

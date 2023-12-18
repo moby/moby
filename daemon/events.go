@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	gogotypes "github.com/gogo/protobuf/types"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/libnetwork"
-	gogotypes "github.com/gogo/protobuf/types"
-	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
 // LogContainerEvent generates an event related to a container with only the default attributes.

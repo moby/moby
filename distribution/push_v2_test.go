@@ -10,13 +10,14 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/opencontainers/go-digest"
+
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
 	refstore "github.com/docker/docker/reference"
 	registrypkg "github.com/docker/docker/registry"
-	"github.com/opencontainers/go-digest"
 )
 
 func TestGetRepositoryMountCandidates(t *testing.T) {

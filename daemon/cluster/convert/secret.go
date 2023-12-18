@@ -1,10 +1,11 @@
 package convert // import "github.com/docker/docker/daemon/cluster/convert"
 
 import (
-	swarmtypes "github.com/docker/docker/api/types/swarm"
-	types "github.com/docker/docker/api/types/swarm"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+
+	swarmtypes "github.com/docker/docker/api/types/swarm"
+	types "github.com/docker/docker/api/types/swarm"
 )
 
 // SecretFromGRPC converts a grpc Secret to a Secret.

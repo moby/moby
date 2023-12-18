@@ -6,10 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/sys/symlink"
 	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/pkg/idtools"
 )
 
 func parseChownFlag(ctx context.Context, builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping idtools.IdentityMapping) (idtools.Identity, error) {

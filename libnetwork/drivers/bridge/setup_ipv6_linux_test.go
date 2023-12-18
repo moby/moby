@@ -7,8 +7,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
+
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 func TestSetupIPv6(t *testing.T) {

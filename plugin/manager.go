@@ -16,6 +16,12 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/content/local"
 	"github.com/containerd/log"
+	"github.com/moby/pubsub"
+	"github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/pkg/authorization"
@@ -23,11 +29,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
-	"github.com/moby/pubsub"
-	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (

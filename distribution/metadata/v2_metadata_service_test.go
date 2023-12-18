@@ -7,8 +7,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
+
+	"github.com/docker/docker/layer"
 )
 
 func TestV2MetadataService(t *testing.T) {

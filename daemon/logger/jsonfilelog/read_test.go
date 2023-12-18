@@ -12,9 +12,10 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggertest"
-	"gotest.tools/v3/assert"
 )
 
 func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {

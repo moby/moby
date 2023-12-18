@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/idtools"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/pkg/idtools"
 )
 
 // Setup populates a directory with mountpoints suitable

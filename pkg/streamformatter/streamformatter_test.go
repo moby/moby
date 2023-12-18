@@ -7,11 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/pkg/jsonmessage"
 )
 
 func TestRawProgressFormatterFormatStatus(t *testing.T) {

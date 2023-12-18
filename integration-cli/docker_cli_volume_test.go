@@ -9,6 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
@@ -16,8 +19,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/testutil"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/icmd"
 )
 
 type DockerCLIVolumeSuite struct {

@@ -13,10 +13,11 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
+	"github.com/opencontainers/runtime-spec/specs-go"
+
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 const (

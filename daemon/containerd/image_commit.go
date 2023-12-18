@@ -20,15 +20,16 @@ import (
 	"github.com/containerd/containerd/rootfs"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log"
+	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
+	"github.com/opencontainers/image-spec/specs-go"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/image"
 	imagespec "github.com/docker/docker/image/spec/specs-go/v1"
 	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/identity"
-	"github.com/opencontainers/image-spec/specs-go"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 /*

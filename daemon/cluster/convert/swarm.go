@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	types "github.com/docker/docker/api/types/swarm"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/ca"
+
+	types "github.com/docker/docker/api/types/swarm"
 )
 
 // SwarmFromGRPC converts a grpc Cluster to a Swarm.

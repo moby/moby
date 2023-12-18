@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/go-digest/digestset"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/layer"
 )
 
 // Store is an interface for creating and accessing images

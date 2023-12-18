@@ -8,11 +8,12 @@ import (
 	"net"
 	"os"
 
+	"github.com/pkg/errors"
+	"github.com/vishvananda/netlink"
+
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/pkg/errors"
-	"github.com/vishvananda/netlink"
 )
 
 var networkGetRoutesFct func(netlink.Link, int) ([]netlink.Route, error)

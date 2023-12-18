@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 )
 
 // ContainerUpdate updates configuration of the container

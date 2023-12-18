@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/distribution/reference"
+
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/image"
 )

@@ -13,6 +13,9 @@ import (
 
 	"github.com/containerd/containerd/tracing"
 	"github.com/containerd/log"
+	metrics "github.com/docker/go-metrics"
+	"github.com/opencontainers/selinux/go-selinux"
+
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/system"
@@ -27,8 +30,6 @@ import (
 	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/registry"
-	metrics "github.com/docker/go-metrics"
-	"github.com/opencontainers/selinux/go-selinux"
 )
 
 func doWithTrace[T any](ctx context.Context, name string, f func() T) T {

@@ -4,13 +4,13 @@ import (
 	"os"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 // hasSystemd checks whether the host was booted with systemd as its init

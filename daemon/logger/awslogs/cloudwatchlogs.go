@@ -23,10 +23,11 @@ import (
 	smithymiddleware "github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
-	"github.com/pkg/errors"
 )
 
 const (

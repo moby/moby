@@ -3,12 +3,13 @@ package convert // import "github.com/docker/docker/daemon/cluster/convert"
 import (
 	"testing"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/swarm/runtime"
 	google_protobuf3 "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"gotest.tools/v3/assert"
+
+	containertypes "github.com/docker/docker/api/types/container"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/swarm/runtime"
 )
 
 func TestServiceConvertFromGRPCRuntimeContainer(t *testing.T) {

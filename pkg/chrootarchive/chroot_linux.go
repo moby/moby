@@ -1,10 +1,11 @@
 package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 
 import (
-	"github.com/docker/docker/internal/mounttree"
-	"github.com/docker/docker/internal/unshare"
 	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/internal/mounttree"
+	"github.com/docker/docker/internal/unshare"
 )
 
 // goInChroot starts fn in a goroutine where the root directory, current working

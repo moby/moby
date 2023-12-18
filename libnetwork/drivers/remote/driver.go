@@ -6,6 +6,8 @@ import (
 	"net"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/remote/api"
@@ -13,7 +15,6 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/pkg/errors"
 )
 
 // remote driver must implement the discover-API.

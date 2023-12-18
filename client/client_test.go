@@ -11,12 +11,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/env"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 )
 
 func TestNewClientWithOpsFromEnv(t *testing.T) {

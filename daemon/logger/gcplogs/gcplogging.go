@@ -7,12 +7,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
-
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/logging"
 	"github.com/containerd/log"
 	mrpb "google.golang.org/genproto/googleapis/api/monitoredres"
+
+	"github.com/docker/docker/daemon/logger"
 )
 
 const (

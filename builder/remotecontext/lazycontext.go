@@ -7,9 +7,10 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/pools"
-	"github.com/pkg/errors"
 )
 
 // NewLazySource creates a new LazyContext. LazyContext defines a hashed build

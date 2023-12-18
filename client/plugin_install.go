@@ -8,10 +8,11 @@ import (
 	"net/url"
 
 	"github.com/distribution/reference"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 )
 
 // PluginInstall installs a plugin

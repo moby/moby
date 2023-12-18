@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/integration/internal/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/integration/internal/swarm"
 )
 
 // TestServiceListWithStatuses tests that performing a ServiceList operation

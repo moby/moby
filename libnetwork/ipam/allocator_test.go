@@ -13,13 +13,14 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/docker/docker/libnetwork/bitmap"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/types"
-	"golang.org/x/sync/errgroup"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestKeyString(t *testing.T) {

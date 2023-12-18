@@ -10,6 +10,12 @@ import (
 	"testing"
 	"time"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
@@ -19,11 +25,6 @@ import (
 	net "github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/testutil"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {

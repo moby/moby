@@ -10,11 +10,12 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
-	"github.com/pkg/errors"
-	"gotest.tools/v3/assert"
 )
 
 func (s *DockerAPISuite) TestExecResizeAPIHeightWidthNoInt(c *testing.T) {

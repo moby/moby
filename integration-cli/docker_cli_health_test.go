@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"gotest.tools/v3/assert"
 )
 
 type DockerCLIHealthSuite struct {

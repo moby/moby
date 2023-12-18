@@ -4,8 +4,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
+
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 func setupTestInterface(t *testing.T, nh *netlink.Handle) (*networkConfiguration, *bridgeInterface) {

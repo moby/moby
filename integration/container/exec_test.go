@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/strslice"
+	"github.com/docker/docker/integration/internal/container"
 )
 
 // TestExecWithCloseStdin adds case for moby#37870 issue.

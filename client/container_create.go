@@ -6,10 +6,11 @@ import (
 	"net/url"
 	"path"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type configWrapper struct {

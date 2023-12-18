@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/layer"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/layer"
 )
 
 func TestCreate(t *testing.T) {

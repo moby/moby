@@ -4,12 +4,13 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil/daemon"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 // Regression test for: https://github.com/moby/moby/issues/45732

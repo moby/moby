@@ -25,10 +25,6 @@ import (
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/log"
 	"github.com/containerd/typeurl/v2"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/libcontainerd/queue"
-	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -37,6 +33,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/libcontainerd/queue"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 // DockerContainerBundlePath is the label key pointing to the container's bundle path

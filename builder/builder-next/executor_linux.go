@@ -9,10 +9,6 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/executor/resources"
@@ -21,6 +17,11 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 const networkName = "bridge"

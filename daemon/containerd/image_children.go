@@ -8,11 +8,12 @@ import (
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
 )
 
 // Children returns a slice of image IDs that are children of the `id` image

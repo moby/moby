@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
+
+	"github.com/docker/docker/libnetwork/ns"
+	"github.com/docker/docker/libnetwork/types"
 )
 
 // newInterface creates a new interface in the given namespace using the

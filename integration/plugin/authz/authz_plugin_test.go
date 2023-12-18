@@ -17,6 +17,9 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	eventtypes "github.com/docker/docker/api/types/events"
@@ -25,8 +28,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/testutil/environment"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 const (

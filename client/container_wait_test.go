@@ -14,11 +14,12 @@ import (
 	"testing/iotest"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestContainerWaitError(t *testing.T) {

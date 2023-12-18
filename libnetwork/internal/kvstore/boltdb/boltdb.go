@@ -10,8 +10,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	bolt "go.etcd.io/bbolt"
+
+	store "github.com/docker/docker/libnetwork/internal/kvstore"
 )
 
 var (

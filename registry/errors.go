@@ -4,8 +4,9 @@ import (
 	"net/url"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/errdefs"
 )
 
 func translateV2AuthError(err error) error {

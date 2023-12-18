@@ -6,8 +6,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/miekg/dns"
+
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 // test only works on linux

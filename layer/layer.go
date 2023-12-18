@@ -16,8 +16,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/opencontainers/go-digest"
+
+	"github.com/docker/docker/pkg/archive"
 )
 
 var (

@@ -8,13 +8,14 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/request"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 func TestPingCacheHeaders(t *testing.T) {

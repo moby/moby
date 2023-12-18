@@ -9,10 +9,11 @@ import (
 	"io"
 	"net/http"
 
+	gddohttputil "github.com/golang/gddo/httputil"
+
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
-	gddohttputil "github.com/golang/gddo/httputil"
 )
 
 type pathError struct{}

@@ -6,13 +6,14 @@ import (
 	"io"
 	"runtime"
 
+	"github.com/opencontainers/go-digest"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/opencontainers/go-digest"
 )
 
 // MockBackend implements the builder.Backend interface for unit testing

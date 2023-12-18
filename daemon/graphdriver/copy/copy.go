@@ -13,9 +13,10 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/pkg/userns"
+	"golang.org/x/sys/unix"
+
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
-	"golang.org/x/sys/unix"
 )
 
 // Mode indicates whether to use hardlink or copy content

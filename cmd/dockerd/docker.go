@@ -7,13 +7,14 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/moby/buildkit/util/apicaps"
+	"github.com/moby/term"
+	"github.com/spf13/cobra"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/rootless"
-	"github.com/moby/buildkit/util/apicaps"
-	"github.com/moby/term"
-	"github.com/spf13/cobra"
 )
 
 var honorXDG bool

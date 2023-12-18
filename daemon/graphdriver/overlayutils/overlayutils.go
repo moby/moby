@@ -11,9 +11,10 @@ import (
 
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/daemon/graphdriver"
 )
 
 // ErrDTypeNotSupported denotes that the backing filesystem doesn't support d_type.

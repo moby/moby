@@ -8,10 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"gotest.tools/v3/assert"
 )
 
 type SpecialImageFunc func(string) error

@@ -11,6 +11,11 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/log"
+	"github.com/moby/sys/signal"
+	"github.com/moby/term"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -19,10 +24,6 @@ import (
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/pools"
-	"github.com/moby/sys/signal"
-	"github.com/moby/term"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 )
 
 func (daemon *Daemon) registerExecCommand(container *container.Container, config *container.ExecConfig) {

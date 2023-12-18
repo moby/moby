@@ -3,10 +3,11 @@ package drvregistry
 import (
 	"testing"
 
-	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/scope"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/scope"
 )
 
 const mockDriverName = "mock-driver"

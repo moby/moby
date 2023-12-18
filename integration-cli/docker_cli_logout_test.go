@@ -9,9 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
-	"gotest.tools/v3/assert"
 )
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *testing.T) {

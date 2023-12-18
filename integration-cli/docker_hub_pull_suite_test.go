@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/integration-cli/daemon"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	"gotest.tools/v3/assert"
 )
 
 // DockerHubPullSuite provides an isolated daemon that doesn't have all the

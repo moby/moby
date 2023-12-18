@@ -4,8 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/go-units"
+
+	"github.com/docker/docker/api/types/swarm"
 )
 
 func TestAdjustForAPIVersion(t *testing.T) {

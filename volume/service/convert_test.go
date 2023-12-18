@@ -3,9 +3,10 @@ package service
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types/filters"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/api/types/filters"
 )
 
 func TestFilterWithPrune(t *testing.T) {

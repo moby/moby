@@ -8,9 +8,10 @@ import (
 	"os"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/sysinfo"
-	"gotest.tools/v3/assert"
 )
 
 func TestDecodeHostConfig(t *testing.T) {

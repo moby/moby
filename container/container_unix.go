@@ -10,6 +10,10 @@ import (
 
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/log"
+	"github.com/moby/sys/mount"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -18,9 +22,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
 	volumemounts "github.com/docker/docker/volume/mounts"
-	"github.com/moby/sys/mount"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
 )
 
 const (

@@ -6,8 +6,9 @@ import (
 	"io"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/image"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/image"
 )
 
 // tagImages creates image tags for the imageID.

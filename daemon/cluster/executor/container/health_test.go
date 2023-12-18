@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/moby/swarmkit/v2/api"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/events"
-	"github.com/moby/swarmkit/v2/api"
 )
 
 func TestHealthStates(t *testing.T) {

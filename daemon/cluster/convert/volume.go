@@ -1,9 +1,10 @@
 package convert // import "github.com/docker/docker/daemon/cluster/convert"
 
 import (
-	volumetypes "github.com/docker/docker/api/types/volume"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+
+	volumetypes "github.com/docker/docker/api/types/volume"
 )
 
 // VolumeFromGRPC converts a swarmkit api Volume object to a docker api Volume

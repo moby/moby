@@ -14,14 +14,15 @@ import (
 	"github.com/containerd/containerd/services/server/config"
 	"github.com/containerd/containerd/sys"
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/pidfile"
-	"github.com/docker/docker/pkg/process"
-	"github.com/docker/docker/pkg/system"
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/docker/docker/pkg/pidfile"
+	"github.com/docker/docker/pkg/process"
+	"github.com/docker/docker/pkg/system"
 )
 
 const (

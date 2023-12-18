@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -18,7 +20,6 @@ import (
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/service/opts"
-	"github.com/pkg/errors"
 )
 
 type ds interface {

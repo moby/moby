@@ -11,11 +11,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
-	"github.com/pkg/errors"
 )
 
 func validatePSArgs(psArgs string) error {

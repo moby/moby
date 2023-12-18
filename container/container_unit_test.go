@@ -6,11 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/moby/sys/signal"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types/container"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
-	"github.com/moby/sys/signal"
-	"gotest.tools/v3/assert"
 )
 
 func TestContainerStopSignal(t *testing.T) {

@@ -5,8 +5,9 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/volume"
 	bolt "go.etcd.io/bbolt"
+
+	"github.com/docker/docker/volume"
 )
 
 // restore is called when a new volume store is created.

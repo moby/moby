@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"gotest.tools/v3/assert"
 )
 
 // NodeConstructor defines a swarm node constructor

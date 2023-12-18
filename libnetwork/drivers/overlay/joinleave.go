@@ -9,11 +9,12 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/gogo/protobuf/proto"
+
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/gogo/protobuf/proto"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.

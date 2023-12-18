@@ -7,10 +7,11 @@ import (
 
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mountinfo"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/idtools"
 )
 
 // List of known filesystems that can't be re-mounted or have shared layers

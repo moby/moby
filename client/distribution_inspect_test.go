@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/errdefs"
 )
 
 func TestDistributionInspectUnsupported(t *testing.T) {

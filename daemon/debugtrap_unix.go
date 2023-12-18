@@ -8,8 +8,9 @@ import (
 	"os/signal"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/stack"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/pkg/stack"
 )
 
 func (daemon *Daemon) setupDumpStackTrap(root string) {

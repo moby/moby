@@ -3,8 +3,9 @@ package registry // import "github.com/docker/docker/registry"
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types/registry"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/api/types/registry"
 )
 
 func buildAuthConfigs() map[string]registry.AuthConfig {
