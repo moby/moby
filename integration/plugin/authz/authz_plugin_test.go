@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -25,6 +24,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/testutil/environment"
+	"github.com/docker/go-connections/sockets"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -79,6 +79,17 @@ func isAllowed(reqURI string) bool {
 		}
 	}
 	return false
+}
+
+func socketHTTPClient(u *url.URL) (*http.Client, error) {
+	transport := &http.Transport{}
+	err := sockets.ConfigureTransport(transport, u.Scheme, u.Path)
+	if err != nil {
+		return nil, err
+	}
+	return &http.Client{
+		Transport: transport,
+	}, nil
 }
 
 func TestAuthZPluginAllowRequest(t *testing.T) {
@@ -176,15 +187,17 @@ func TestAuthZPluginAPIDenyResponse(t *testing.T) {
 	daemonURL, err := url.Parse(d.Sock())
 	assert.NilError(t, err)
 
-	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Path, time.Second*10)
+	socketClient, err := socketHTTPClient(daemonURL)
 	assert.NilError(t, err)
-	c := httputil.NewClientConn(conn, nil)
-	req, err := http.NewRequest(http.MethodGet, "/version", nil)
-	assert.NilError(t, err)
-	req = req.WithContext(ctx)
-	resp, err := c.Do(req)
 
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/version", nil)
 	assert.NilError(t, err)
+	req.URL.Scheme = "http"
+	req.URL.Host = client.DummyHost
+
+	resp, err := socketClient.Do(req)
+	assert.NilError(t, err)
+
 	assert.DeepEqual(t, http.StatusForbidden, resp.StatusCode)
 }
 
@@ -471,13 +484,15 @@ func TestAuthZPluginHeader(t *testing.T) {
 	daemonURL, err := url.Parse(d.Sock())
 	assert.NilError(t, err)
 
-	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Path, time.Second*10)
+	socketClient, err := socketHTTPClient(daemonURL)
 	assert.NilError(t, err)
-	client := httputil.NewClientConn(conn, nil)
-	req, err := http.NewRequest(http.MethodGet, "/version", nil)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/version", nil)
 	assert.NilError(t, err)
-	req = req.WithContext(ctx)
-	resp, err := client.Do(req)
+	req.URL.Scheme = "http"
+	req.URL.Host = client.DummyHost
+
+	resp, err := socketClient.Do(req)
 	assert.NilError(t, err)
 	assert.Equal(t, "application/json", resp.Header["Content-Type"][0])
 }
