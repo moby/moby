@@ -3981,6 +3981,44 @@ definitions:
       - "remove"
       - "orphaned"
 
+  ContainerStatus:
+    type: "object"
+    description: "represents the status of a container."
+    properties:
+      ContainerID:
+        type: "string"
+      PID:
+        type: "integer"
+      ExitCode:
+        type: "integer"
+
+  PortStatus:
+    type: "object"
+    description: "represents the port status of a task's host ports whose service has published host ports"
+    properties:
+      Ports:
+        type: "array"
+        items:
+          $ref: "#/definitions/EndpointPortConfig"
+
+  TaskStatus:
+    type: "object"
+    description: "represents the status of a task."
+    properties:
+      Timestamp:
+        type: "string"
+        format: "dateTime"
+      State:
+        $ref: "#/definitions/TaskState"
+      Message:
+        type: "string"
+      Err:
+        type: "string"
+      ContainerStatus:
+        $ref: "#/definitions/ContainerStatus"
+      PortStatus:
+        $ref: "#/definitions/PortStatus"
+
   Task:
     type: "object"
     properties:
@@ -4016,26 +4054,7 @@ definitions:
       AssignedGenericResources:
         $ref: "#/definitions/GenericResources"
       Status:
-        type: "object"
-        properties:
-          Timestamp:
-            type: "string"
-            format: "dateTime"
-          State:
-            $ref: "#/definitions/TaskState"
-          Message:
-            type: "string"
-          Err:
-            type: "string"
-          ContainerStatus:
-            type: "object"
-            properties:
-              ContainerID:
-                type: "string"
-              PID:
-                type: "integer"
-              ExitCode:
-                type: "integer"
+        $ref: "#/definitions/TaskStatus"
       DesiredState:
         $ref: "#/definitions/TaskState"
       JobIteration:
