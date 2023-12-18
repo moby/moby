@@ -295,7 +295,7 @@ RUN echo 2 #layer2
 	// should not be untagged without the -f flag
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, strings.Contains(out, cID[:12]))
-	assert.Assert(c, strings.Contains(out, "(must force)"))
+	assert.Assert(c, strings.Contains(out, "(must force)") || strings.Contains(out, "(must be forced)"))
 	// Add the -f flag and test again.
 	out = cli.DockerCmd(c, "rmi", "-f", newTag).Combined()
 	// should be allowed to untag with the -f flag

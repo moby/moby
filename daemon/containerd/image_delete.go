@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
@@ -135,7 +137,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 				}
 			}
 			return records, nil
-		} else if !force {
+		} else if len(all) > 1 && !force {
 			// Since only a single used reference, remove all active
 			// TODO: Consider keeping the conflict and changing active
 			// reference calculation in image checker.
@@ -145,6 +147,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		using := func(c *container.Container) bool {
 			return c.ImageID == imgID
 		}
+		// TODO: Should this also check parentage here?
 		ctr := i.containers.First(using)
 		if ctr != nil {
 			familiarRef := reference.FamiliarString(parsedRef)
@@ -370,6 +373,24 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img images.Image, 
 	untaggedRef, err := reference.ParseAnyReference(img.Name)
 	if err != nil {
 		return err
+	}
+
+	if !isDanglingImage(img) && len(all) == 1 && extra&conflictActiveReference != 0 {
+		children, err := i.Children(ctx, imgID)
+		if err != nil {
+			return err
+		}
+		if len(children) > 0 {
+			img := images.Image{
+				Name:      danglingImageName(img.Target.Digest),
+				Target:    img.Target,
+				CreatedAt: time.Now(),
+				Labels:    img.Labels,
+			}
+			if _, err = i.client.ImageService().Create(ctx, img); err != nil && !cerrdefs.IsAlreadyExists(err) {
+				return fmt.Errorf("failed to create dangling image: %w", err)
+			}
+		}
 	}
 
 	// TODO: Add target option
