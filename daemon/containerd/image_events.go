@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 
+	"github.com/containerd/containerd/images"
 	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
 )
@@ -23,6 +24,18 @@ func (i *ImageService) LogImageEvent(imageID, refName string, action events.Acti
 	}
 	i.eventsService.Log(action, events.ImageEventType, events.Actor{
 		ID:         imageID,
+		Attributes: attributes,
+	})
+}
+
+// logImageEvent generates an event related to an image with only name attribute.
+func (i *ImageService) logImageEvent(img images.Image, refName string, action events.Action) {
+	attributes := map[string]string{}
+	if refName != "" {
+		attributes["name"] = refName
+	}
+	i.eventsService.Log(action, events.ImageEventType, events.Actor{
+		ID:         img.Target.Digest.String(),
 		Attributes: attributes,
 	})
 }

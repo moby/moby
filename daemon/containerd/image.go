@@ -29,6 +29,8 @@ import (
 
 var truncatedID = regexp.MustCompile(`^(sha256:)?([a-f0-9]{4,64})$`)
 
+var errInconsistentData error = errors.New("consistency error: data changed during operation, retry")
+
 // GetImage returns an image corresponding to the image referred to by refOrID.
 func (i *ImageService) GetImage(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*image.Image, error) {
 	desc, err := i.resolveImage(ctx, refOrID)
@@ -40,8 +42,6 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	if options.Platform != nil {
 		platform = cplatforms.OnlyStrict(*options.Platform)
 	}
-
-	cs := i.client.ContentStore()
 
 	var presentImages []imagespec.DockerOCIImage
 	err = i.walkImageManifests(ctx, desc, func(img *ImageManifest) error {
@@ -57,7 +57,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		}
 
 		var ociimage imagespec.DockerOCIImage
-		if err := readConfig(ctx, cs, conf, &ociimage); err != nil {
+		if err := readConfig(ctx, i.content, conf, &ociimage); err != nil {
 			if cerrdefs.IsNotFound(err) {
 				log.G(ctx).WithFields(log.Fields{
 					"manifestDescriptor": img.Target(),
@@ -99,7 +99,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 			return nil, err
 		}
 
-		tagged, err := i.client.ImageService().List(ctx, "target.digest=="+desc.Target.Digest.String())
+		tagged, err := i.images.List(ctx, "target.digest=="+desc.Target.Digest.String())
 		if err != nil {
 			return nil, err
 		}
@@ -264,11 +264,9 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 		return containerdimages.Image{}, errdefs.InvalidParameter(err)
 	}
 
-	is := i.client.ImageService()
-
 	digested, ok := parsed.(reference.Digested)
 	if ok {
-		imgs, err := is.List(ctx, "target.digest=="+digested.Digest().String())
+		imgs, err := i.images.List(ctx, "target.digest=="+digested.Digest().String())
 		if err != nil {
 			return containerdimages.Image{}, errors.Wrap(err, "failed to lookup digest")
 		}
@@ -298,7 +296,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 	}
 
 	ref := reference.TagNameOnly(parsed.(reference.Named)).String()
-	img, err := is.Get(ctx, ref)
+	img, err := i.images.Get(ctx, ref)
 	if err == nil {
 		return img, nil
 	} else {
@@ -315,7 +313,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 			fmt.Sprintf("name==%q", ref), // Or it could just look like one.
 			"target.digest~=" + strconv.Quote(fmt.Sprintf(`^sha256:%s[0-9a-fA-F]{%d}$`, regexp.QuoteMeta(idWithoutAlgo), 64-len(idWithoutAlgo))),
 		}
-		imgs, err := is.List(ctx, filters...)
+		imgs, err := i.images.List(ctx, filters...)
 		if err != nil {
 			return containerdimages.Image{}, err
 		}
@@ -381,4 +379,155 @@ func (i *ImageService) getImageLabelByDigest(ctx context.Context, target digest.
 	}
 
 	return value, nil
+}
+
+func convertError(err error) error {
+	// TODO: Convert containerd error to Docker error
+	return err
+}
+
+// resolveAllReferences resolves the reference name or ID to an image and returns all the images with
+// the same target.
+//
+// Returns:
+//
+// 1: *(github.com/containerd/containerd/images).Image
+//
+//	An image match from the image store with the provided refOrID
+//
+// 2: [](github.com/containerd/containerd/images).Image
+//
+//	List of all images with the same target that matches the refOrID. If the first argument is
+//	non-nil, the image list will all have the same target as the matched image. If the first
+//	argument is nil but the list is non-empty, this value is a list of all the images with a
+//	target that matches the digest provided in the refOrID, but none are an image name match
+//	to refOrID.
+//
+// 3: error
+//
+//	An error looking up refOrID or no images found with matching name or target. Note that the first
+//	argument may be nil with a nil error if the second argument is non-empty.
+func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string) (*containerdimages.Image, []containerdimages.Image, error) {
+	parsed, err := reference.ParseAnyReference(refOrID)
+	if err != nil {
+		return nil, nil, errdefs.InvalidParameter(err)
+	}
+	var dgst digest.Digest
+	var img *containerdimages.Image
+
+	if truncatedID.MatchString(refOrID) {
+		if d, ok := parsed.(reference.Digested); ok {
+			if cimg, err := i.images.Get(ctx, d.String()); err == nil {
+				img = &cimg
+				dgst = d.Digest()
+				if cimg.Target.Digest != dgst {
+					// Ambiguous image reference, use reference name
+					log.G(ctx).WithField("image", refOrID).WithField("target", cimg.Target.Digest).Warn("digest reference points to image with a different digest")
+					dgst = cimg.Target.Digest
+				}
+			} else if !cerrdefs.IsNotFound(err) {
+				return nil, nil, convertError(err)
+			} else {
+				dgst = d.Digest()
+			}
+		} else {
+			idWithoutAlgo := strings.TrimPrefix(refOrID, "sha256:")
+			name := reference.TagNameOnly(parsed.(reference.Named)).String()
+			filters := []string{
+				fmt.Sprintf("name==%q", name), // Or it could just look like one.
+				"target.digest~=" + strconv.Quote(fmt.Sprintf(`^sha256:%s[0-9a-fA-F]{%d}$`, regexp.QuoteMeta(idWithoutAlgo), 64-len(idWithoutAlgo))),
+			}
+			imgs, err := i.images.List(ctx, filters...)
+			if err != nil {
+				return nil, nil, convertError(err)
+			}
+
+			if len(imgs) == 0 {
+				return nil, nil, images.ErrImageDoesNotExist{Ref: parsed}
+			}
+
+			for _, limg := range imgs {
+				if limg.Name == name {
+					copyImg := limg
+					img = &copyImg
+				}
+				if dgst != "" {
+					if limg.Target.Digest != dgst {
+						return nil, nil, errdefs.NotFound(errors.New("ambiguous reference"))
+					}
+				} else {
+					dgst = limg.Target.Digest
+				}
+			}
+
+			// Return immediately if target digest matches already included
+			if img == nil || len(imgs) > 1 {
+				return img, imgs, nil
+			}
+		}
+	} else {
+		named, ok := parsed.(reference.Named)
+		if !ok {
+			return nil, nil, errdefs.InvalidParameter(errors.New("invalid name reference"))
+		}
+
+		digested, ok := parsed.(reference.Digested)
+		if ok {
+			dgst = digested.Digest()
+		}
+
+		name := reference.TagNameOnly(named).String()
+
+		cimg, err := i.images.Get(ctx, name)
+		if err != nil {
+			if !cerrdefs.IsNotFound(err) {
+				return nil, nil, convertError(err)
+			}
+			// If digest is given, continue looking up for matching targets.
+			// There will be no exact match found but the caller may attempt
+			// to match across images with the matching target.
+			if dgst == "" {
+				return nil, nil, images.ErrImageDoesNotExist{Ref: parsed}
+			}
+		} else {
+			img = &cimg
+			if dgst != "" && img.Target.Digest != dgst {
+				// Ambiguous image reference, use reference name
+				log.G(ctx).WithField("image", name).WithField("target", cimg.Target.Digest).Warn("digest reference points to image with a different digest")
+			}
+			dgst = img.Target.Digest
+		}
+	}
+
+	// Lookup up all associated images and check for consistency with first reference
+	// Ideally operations dependent on multiple values will rely on the garbage collector,
+	// this logic will just check for consistency and throw an error
+	imgs, err := i.images.List(ctx, "target.digest=="+dgst.String())
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to lookup digest")
+	}
+	if len(imgs) == 0 {
+		if img == nil {
+			return nil, nil, images.ErrImageDoesNotExist{Ref: parsed}
+		}
+		err = errInconsistentData
+	} else if img != nil {
+		// Check to ensure the original img is in the list still
+		err = errInconsistentData
+		for _, rimg := range imgs {
+			if rimg.Name == img.Name {
+				err = nil
+				break
+			}
+		}
+	}
+	if errors.Is(err, errInconsistentData) {
+		if retries, ok := ctx.Value(errInconsistentData).(int); !ok || retries < 3 {
+			log.G(ctx).WithFields(log.Fields{"retry": retries, "ref": refOrID}).Info("image changed during lookup, retrying")
+			return i.resolveAllReferences(context.WithValue(ctx, errInconsistentData, retries+1), refOrID)
+		}
+		return nil, nil, err
+	}
+
+	return img, imgs, nil
 }

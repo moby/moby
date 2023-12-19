@@ -17,7 +17,7 @@ import (
 
 // Children returns a slice of image IDs that are children of the `id` image
 func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, error) {
-	imgs, err := i.client.ImageService().List(ctx, "labels."+imageLabelClassicBuilderParent+"=="+string(id))
+	imgs, err := i.images.List(ctx, "labels."+imageLabelClassicBuilderParent+"=="+string(id))
 	if err != nil {
 		return []image.ID{}, errdefs.System(errors.Wrap(err, "failed to list all images"))
 	}
@@ -88,16 +88,14 @@ func (i *ImageService) parents(ctx context.Context, id image.ID) ([]imageWithRoo
 		return nil, errors.Wrap(err, "failed to get child image")
 	}
 
-	cs := i.client.ContentStore()
-
-	allPlatforms, err := containerdimages.Platforms(ctx, cs, target)
+	allPlatforms, err := containerdimages.Platforms(ctx, i.content, target)
 	if err != nil {
 		return nil, errdefs.System(errors.Wrap(err, "failed to list platforms supported by image"))
 	}
 
 	var childRootFS []ocispec.RootFS
 	for _, platform := range allPlatforms {
-		rootfs, err := platformRootfs(ctx, cs, target, platform)
+		rootfs, err := platformRootfs(ctx, i.content, target, platform)
 		if err != nil {
 			if cerrdefs.IsNotFound(err) {
 				continue
@@ -108,7 +106,7 @@ func (i *ImageService) parents(ctx context.Context, id image.ID) ([]imageWithRoo
 		childRootFS = append(childRootFS, rootfs)
 	}
 
-	imgs, err := i.client.ImageService().List(ctx)
+	imgs, err := i.images.List(ctx)
 	if err != nil {
 		return nil, errdefs.System(errors.Wrap(err, "failed to list all images"))
 	}
@@ -117,7 +115,7 @@ func (i *ImageService) parents(ctx context.Context, id image.ID) ([]imageWithRoo
 	for _, img := range imgs {
 	nextImage:
 		for _, platform := range allPlatforms {
-			rootfs, err := platformRootfs(ctx, cs, img.Target, platform)
+			rootfs, err := platformRootfs(ctx, i.content, img.Target, platform)
 			if err != nil {
 				if cerrdefs.IsNotFound(err) {
 					continue
@@ -158,7 +156,7 @@ func (i *ImageService) getParentsByBuilderLabel(ctx context.Context, img contain
 		return nil, nil
 	}
 
-	return i.client.ImageService().List(ctx, "target.digest=="+dgst.String())
+	return i.images.List(ctx, "target.digest=="+dgst.String())
 }
 
 type imageWithRootfs struct {
