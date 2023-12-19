@@ -37,7 +37,7 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	}
 
 	if !config.InhibitIPv4 {
-		addrv4List, _, err := i.addresses()
+		addrv4List, err := i.addresses(netlink.FAMILY_V4)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve bridge interface addresses: %v", err)
 		}

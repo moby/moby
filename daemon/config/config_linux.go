@@ -9,6 +9,7 @@ import (
 	"github.com/containerd/cgroups/v3"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/system"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/rootless"
@@ -176,6 +177,10 @@ func (conf *Config) ValidatePlatformConfig() error {
 	}
 	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
 		return err
+	}
+
+	if err := bridge.ValidateFixedCIDRV6(conf.FixedCIDRv6); err != nil {
+		return errors.Wrap(err, "invalid fixed-cidr-v6")
 	}
 
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)

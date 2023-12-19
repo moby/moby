@@ -87,6 +87,32 @@ func TestBridgeICC(t *testing.T) {
 			linkLocal: true,
 		},
 		{
+			// As for 'LL non-internal', but ping the container by name instead of by address
+			// - the busybox test containers only have one interface with a link local
+			// address, so the zone index is not required:
+			//   RFC-4007, section 6: "[...] for nodes with only a single non-loopback
+			//   interface (e.g., a single Ethernet interface), the common case, link-local
+			//   addresses need not be qualified with a zone index."
+			// So, for this common case, LL addresses should be included in DNS config.
+			name: "IPv6 link-local address on non-internal network ping by name",
+			bridgeOpts: []func(*types.NetworkCreate){
+				network.WithIPv6(),
+				network.WithIPAM("fe80::/64", "fe80::1"),
+			},
+		},
+		{
+			name: "IPv6 nonstandard link-local subnet on non-internal network ping by name",
+			// No interfaces apart from the one on the bridge network with this non-default
+			// subnet will be on this link local subnet (it's not currently possible to
+			// configure two networks with the same LL subnet, although perhaps it should
+			// be). So, again, no zone index is required and the LL address should be
+			// included in DNS config.
+			bridgeOpts: []func(*types.NetworkCreate){
+				network.WithIPv6(),
+				network.WithIPAM("fe80:1234::/64", "fe80:1234::1"),
+			},
+		},
+		{
 			name: "IPv6 non-internal network with SLAAC LL address",
 			bridgeOpts: []func(*types.NetworkCreate){
 				network.WithIPv6(),
@@ -289,6 +315,165 @@ func TestBridgeINC(t *testing.T) {
 			assert.Check(t, res.ExitCode != 0, "ping unexpectedly succeeded")
 			assert.Check(t, is.Contains(res.Stdout.String(), tc.stdout))
 			assert.Check(t, is.Contains(res.Stderr.String(), tc.stderr))
+		})
+	}
+}
+
+func TestDefaultBridgeIPv6(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+
+	testcases := []struct {
+		name          string
+		fixed_cidr_v6 string
+	}{
+		{
+			name:          "IPv6 ULA",
+			fixed_cidr_v6: "fd00:1234::/64",
+		},
+		{
+			name:          "IPv6 LLA only",
+			fixed_cidr_v6: "fe80::/64",
+		},
+		{
+			name:          "IPv6 nonstandard LLA only",
+			fixed_cidr_v6: "fe80:1234::/64",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			d := daemon.New(t)
+			d.StartWithBusybox(ctx, t,
+				"--experimental",
+				"--ip6tables",
+				"--ipv6",
+				"--fixed-cidr-v6", tc.fixed_cidr_v6,
+			)
+			defer d.Stop(t)
+
+			c := d.NewClientT(t)
+			defer c.Close()
+
+			cID := container.Run(ctx, t, c,
+				container.WithImage("busybox:latest"),
+				container.WithCmd("top"),
+			)
+			defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{
+				Force: true,
+			})
+
+			networkName := "bridge"
+			inspect := container.Inspect(ctx, t, c, cID)
+			pingHost := inspect.NetworkSettings.Networks[networkName].GlobalIPv6Address
+
+			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			res := container.RunAttach(attachCtx, t, c,
+				container.WithImage("busybox:latest"),
+				container.WithCmd("ping", "-c1", "-W3", pingHost),
+			)
+			defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{
+				Force: true,
+			})
+
+			assert.Check(t, is.Equal(res.ExitCode, 0))
+			assert.Check(t, is.Equal(res.Stderr.String(), ""))
+			assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
+		})
+	}
+}
+
+// Check that it's possible to change 'fixed-cidr-v6' and restart the daemon.
+func TestDefaultBridgeAddresses(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+
+	type testStep struct {
+		stepName    string
+		fixedCIDRV6 string
+		expAddrs    []string
+	}
+
+	testcases := []struct {
+		name  string
+		steps []testStep
+	}{
+		{
+			name: "Unique-Local Subnet Changes",
+			steps: []testStep{
+				{
+					stepName:    "Set up initial UL prefix",
+					fixedCIDRV6: "fd1c:f1a0:5d8d:aaaa::/64",
+					expAddrs:    []string{"fd1c:f1a0:5d8d:aaaa::1/64", "fe80::1/64"},
+				},
+				{
+					// Modify that prefix, the default bridge's address must be deleted and re-added.
+					stepName:    "Modify UL prefix - address change",
+					fixedCIDRV6: "fd1c:f1a0:5d8d:bbbb::/64",
+					expAddrs:    []string{"fd1c:f1a0:5d8d:bbbb::1/64", "fe80::1/64"},
+				},
+				{
+					// Modify the prefix length, the default bridge's address should not change.
+					stepName:    "Modify UL prefix - no address change",
+					fixedCIDRV6: "fd1c:f1a0:5d8d:bbbb::/80",
+					// The prefix length displayed by 'ip a' is not updated - it's informational, and
+					// can't be changed without unnecessarily deleting and re-adding the address.
+					expAddrs: []string{"fd1c:f1a0:5d8d:bbbb::1/64", "fe80::1/64"},
+				},
+			},
+		},
+		{
+			name: "Link-Local Subnet Changes",
+			steps: []testStep{
+				{
+					stepName:    "Standard LL subnet prefix",
+					fixedCIDRV6: "fe80::/64",
+					expAddrs:    []string{"fe80::1/64"},
+				},
+				{
+					// Modify that prefix, the default bridge's address must be deleted and re-added.
+					// The bridge must still have an address in the required (standard) LL subnet.
+					stepName:    "Nonstandard LL prefix - address change",
+					fixedCIDRV6: "fe80:1234::/32",
+					expAddrs:    []string{"fe80:1234::1/32", "fe80::1/64"},
+				},
+				{
+					// Modify the prefix length, the addresses should not change.
+					stepName:    "Modify LL prefix - no address change",
+					fixedCIDRV6: "fe80:1234::/64",
+					// The prefix length displayed by 'ip a' is not updated - it's informational, and
+					// can't be changed without unnecessarily deleting and re-adding the address.
+					expAddrs: []string{"fe80:1234::1/", "fe80::1/64"},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, step := range tc.steps {
+				// Check that the daemon starts - regression test for:
+				//   https://github.com/moby/moby/issues/46829
+				d.Start(t, "--experimental", "--ipv6", "--ip6tables", "--fixed-cidr-v6="+step.fixedCIDRV6)
+				d.Stop(t)
+
+				// Check that the expected addresses have been applied to the bridge. (Skip in
+				// rootless mode, because the bridge is in a different network namespace.)
+				if !testEnv.IsRootless() {
+					res := testutil.RunCommand(ctx, "ip", "-6", "addr", "show", "docker0")
+					assert.Equal(t, res.ExitCode, 0, step.stepName)
+					stdout := res.Stdout()
+					for _, expAddr := range step.expAddrs {
+						assert.Check(t, is.Contains(stdout, expAddr))
+					}
+				}
+			}
 		})
 	}
 }

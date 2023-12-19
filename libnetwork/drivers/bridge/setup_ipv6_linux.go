@@ -32,23 +32,9 @@ func setupBridgeIPv6(config *networkConfiguration, i *bridgeInterface) error {
 		}
 	}
 
-	// Store bridge network and default gateway
-	i.bridgeIPv6 = bridgeIPv6
-	i.gatewayIPv6 = i.bridgeIPv6.IP
-
-	if err := i.programIPv6Address(); err != nil {
-		return err
-	}
-
-	if config.AddressIPv6 == nil {
-		return nil
-	}
-
-	// Store the user specified bridge network and network gateway and program it
-	i.bridgeIPv6 = config.AddressIPv6
-	i.gatewayIPv6 = config.AddressIPv6.IP
-
-	if err := i.programIPv6Address(); err != nil {
+	// Remove unwanted addresses from the bridge, add required addresses, and assign
+	// values to "i.bridgeIPv6", "i.gatewayIPv6".
+	if err := i.programIPv6Addresses(config); err != nil {
 		return err
 	}
 

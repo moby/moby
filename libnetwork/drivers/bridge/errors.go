@@ -222,19 +222,6 @@ func (ipv4 *IPv4AddrAddError) Error() string {
 // InternalError denotes the type of this error
 func (ipv4 *IPv4AddrAddError) InternalError() {}
 
-// IPv6AddrAddError is returned when IPv6 address could not be added to the bridge.
-type IPv6AddrAddError struct {
-	IP  *net.IPNet
-	Err error
-}
-
-func (ipv6 *IPv6AddrAddError) Error() string {
-	return fmt.Sprintf("failed to add IPv6 address %s to bridge: %v", ipv6.IP, ipv6.Err)
-}
-
-// InternalError denotes the type of this error
-func (ipv6 *IPv6AddrAddError) InternalError() {}
-
 // IPv4AddrNoMatchError is returned when the bridge's IPv4 address does not match configured.
 type IPv4AddrNoMatchError struct {
 	IP    net.IP
