@@ -38,6 +38,10 @@ type tstwriter struct {
 }
 
 func (w *tstwriter) WriteMsg(m *dns.Msg) (err error) {
+	// Assert that the message is serializable.
+	if _, err := m.Pack(); err != nil {
+		return err
+	}
 	w.msg = m
 	return nil
 }
