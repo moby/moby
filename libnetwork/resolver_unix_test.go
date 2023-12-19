@@ -61,7 +61,7 @@ func TestDNSIPQuery(t *testing.T) {
 
 	// test name1's IP is resolved correctly with the default A type query
 	// Also make sure DNS lookups are case insensitive
-	names := []string{"name1", "NaMe1"}
+	names := []string{"name1.", "NaMe1."}
 	for _, name := range names {
 		q := new(dns.Msg)
 		q.SetQuestion(name, dns.TypeA)
@@ -84,7 +84,7 @@ func TestDNSIPQuery(t *testing.T) {
 
 	// test MX query with name1 results in Success response with 0 answer records
 	q := new(dns.Msg)
-	q.SetQuestion("name1", dns.TypeMX)
+	q.SetQuestion("name1.", dns.TypeMX)
 	r.serveDNS(w, q)
 	resp := w.GetResponse()
 	checkNonNullResponse(t, resp)
@@ -96,7 +96,7 @@ func TestDNSIPQuery(t *testing.T) {
 	// test MX query with non existent name results in ServFail response with 0 answer records
 	// since this is a unit test env, we disable proxying DNS above which results in ServFail rather than NXDOMAIN
 	q = new(dns.Msg)
-	q.SetQuestion("nonexistent", dns.TypeMX)
+	q.SetQuestion("nonexistent.", dns.TypeMX)
 	r.serveDNS(w, q)
 	resp = w.GetResponse()
 	checkNonNullResponse(t, resp)

@@ -38,6 +38,10 @@ type tstwriter struct {
 }
 
 func (w *tstwriter) WriteMsg(m *dns.Msg) (err error) {
+	// Assert that the message is serializable.
+	if _, err := m.Pack(); err != nil {
+		return err
+	}
 	w.msg = m
 	return nil
 }
@@ -82,7 +86,7 @@ func checkDNSAnswersCount(t *testing.T, m *dns.Msg, expected int) {
 func checkDNSResponseCode(t *testing.T, m *dns.Msg, expected int) {
 	t.Helper()
 	if m.MsgHdr.Rcode != expected {
-		t.Fatalf("Expected DNS response code: %d. Found: %d", expected, m.MsgHdr.Rcode)
+		t.Fatalf("Expected DNS response code: %d (%s). Found: %d (%s)", expected, dns.RcodeToString[expected], m.MsgHdr.Rcode, dns.RcodeToString[m.MsgHdr.Rcode])
 	}
 }
 
@@ -354,4 +358,27 @@ func TestProxyNXDOMAIN(t *testing.T) {
 	assert.Assert(t, is.Len(resp.Answer, 0))
 	assert.Assert(t, is.Len(resp.Ns, 1))
 	assert.Equal(t, resp.Ns[0].String(), mockSOA.String())
+}
+
+type ptrDNSBackend struct {
+	noopDNSBackend
+	zone map[string]string
+}
+
+func (b *ptrDNSBackend) ResolveIP(_ context.Context, name string) string {
+	return b.zone[name]
+}
+
+// Regression test for https://github.com/moby/moby/issues/46928
+func TestInvalidReverseDNS(t *testing.T) {
+	rsv := NewResolver("", false, &ptrDNSBackend{zone: map[string]string{"4.3.2.1": "sixtyfourcharslong9012345678901234567890123456789012345678901234"}})
+	rsv.logger = testLogger(t)
+
+	w := &tstwriter{}
+	q := new(dns.Msg).SetQuestion("4.3.2.1.in-addr.arpa.", dns.TypePTR)
+	rsv.serveDNS(w, q)
+	resp := w.GetResponse()
+	checkNonNullResponse(t, resp)
+	t.Log("Response: ", resp.String())
+	checkDNSResponseCode(t, resp, dns.RcodeServerFailure)
 }
