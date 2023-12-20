@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/docker/docker/libnetwork/internal/filelease"
 )
 
 // Record Structure for a single host record
@@ -137,21 +139,21 @@ func Add(path string, recs []Record, append bool) error {
 		return nil
 	}
 
-	b, err := mergeRecords(path, recs, append)
+	f, err := filelease.OpenFile(path, false)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	b, err := mergeRecords(f, recs, append)
 	if err != nil {
 		return err
 	}
 
-	return os.WriteFile(path, b, 0o644)
+	return f.WriteFile(b)
 }
 
-func mergeRecords(path string, recs []Record, append bool) ([]byte, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
+func mergeRecords(f io.Reader, recs []Record, append bool) ([]byte, error) {
 	content := bytes.NewBuffer(nil)
 
 	if append {
@@ -195,14 +197,15 @@ func Delete(path string, recs []Record) error {
 	if len(recs) == 0 {
 		return nil
 	}
-	old, err := os.Open(path)
+	f, err := filelease.OpenFile(path, false)
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
 	var buf bytes.Buffer
 
-	s := bufio.NewScanner(old)
+	s := bufio.NewScanner(f)
 	eol := []byte{'\n'}
 loop:
 	for s.Scan() {
@@ -224,11 +227,10 @@ loop:
 		buf.Write(b)
 		buf.Write(eol)
 	}
-	old.Close()
 	if err := s.Err(); err != nil {
 		return err
 	}
-	return os.WriteFile(path, buf.Bytes(), 0o644)
+	return f.WriteFile(buf.Bytes())
 }
 
 // Update all IP addresses where hostname matches.
@@ -238,10 +240,17 @@ loop:
 func Update(path, IP, hostname string) error {
 	defer pathLock(path)()
 
-	old, err := os.ReadFile(path)
+	f, err := filelease.OpenFile(path, false)
 	if err != nil {
 		return err
 	}
+	defer f.Close()
+
+	old := bytes.NewBuffer(nil)
+	if _, err := old.ReadFrom(f); err != nil {
+		return err
+	}
+
 	re := regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)(\\s|\\.)", regexp.QuoteMeta(hostname)))
-	return os.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2"+"$3")), 0o644)
+	return f.WriteFile(re.ReplaceAll(old.Bytes(), []byte(IP+"$2"+"$3")))
 }
