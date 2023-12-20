@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/multierror"
+	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
@@ -650,29 +651,7 @@ func cleanOperationalData(es *network.EndpointSettings) {
 
 func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings, updateSettings bool) error {
 	if containertypes.NetworkMode(n.Name()).IsUserDefined() {
-		addShortID := true
-		shortID := stringid.TruncateID(container.ID)
-		for _, alias := range endpointConfig.Aliases {
-			if alias == shortID {
-				addShortID = false
-				break
-			}
-		}
-		if addShortID {
-			endpointConfig.Aliases = append(endpointConfig.Aliases, shortID)
-		}
-		if container.Name != container.Config.Hostname {
-			addHostname := true
-			for _, alias := range endpointConfig.Aliases {
-				if alias == container.Config.Hostname {
-					addHostname = false
-					break
-				}
-			}
-			if addHostname {
-				endpointConfig.Aliases = append(endpointConfig.Aliases, container.Config.Hostname)
-			}
-		}
+		endpointConfig.DNSNames = buildEndpointDNSNames(container, endpointConfig.Aliases)
 	}
 
 	if err := validateEndpointSettings(n, n.Name(), endpointConfig); err != nil {
@@ -685,6 +664,29 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *lib
 		}
 	}
 	return nil
+}
+
+// buildEndpointDNSNames constructs the list of DNSNames that should be assigned to a given endpoint. The order within
+// the returned slice is important as the first entry will be used to generate the PTR records (for IPv4 and v6)
+// associated to this endpoint.
+func buildEndpointDNSNames(ctr *container.Container, aliases []string) []string {
+	var dnsNames []string
+
+	if ctr.Name != "" {
+		dnsNames = append(dnsNames, strings.TrimPrefix(ctr.Name, "/"))
+	}
+
+	dnsNames = append(dnsNames, aliases...)
+
+	if ctr.ID != "" {
+		dnsNames = append(dnsNames, stringid.TruncateID(ctr.ID))
+	}
+
+	if ctr.Config.Hostname != "" {
+		dnsNames = append(dnsNames, ctr.Config.Hostname)
+	}
+
+	return sliceutil.Dedup(dnsNames)
 }
 
 func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool) (err error) {

@@ -793,10 +793,6 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	var genericOptions = make(options.Generic)
 
 	nwName := n.Name()
-	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
-	if c.NetworkSettings.IsAnonymousEndpoint || (nwName == defaultNetName && !serviceDiscoveryOnDefaultNetwork()) {
-		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
-	}
 
 	if epConfig != nil {
 		if ipam := epConfig.IPAMConfig; ipam != nil {
@@ -822,9 +818,8 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			createOptions = append(createOptions, libnetwork.CreateOptionIpam(ip, ip6, ipList, nil))
 		}
 
-		for _, alias := range epConfig.Aliases {
-			createOptions = append(createOptions, libnetwork.CreateOptionMyAlias(alias))
-		}
+		createOptions = append(createOptions, libnetwork.CreateOptionDNSNames(epConfig.DNSNames))
+
 		for k, v := range epConfig.DriverOpts {
 			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
 		}

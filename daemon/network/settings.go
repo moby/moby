@@ -24,7 +24,6 @@ type Settings struct {
 	Ports                  nat.PortMap
 	SecondaryIPAddresses   []networktypes.Address
 	SecondaryIPv6Addresses []networktypes.Address
-	IsAnonymousEndpoint    bool
 	HasSwarmEndpoint       bool
 }
 

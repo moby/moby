@@ -598,7 +598,7 @@ func (ep *Endpoint) deleteDriverInfoFromCluster() error {
 }
 
 func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
-	if len(ep.myAliases) == 0 && ep.isAnonymous() || ep.Iface() == nil || ep.Iface().Address() == nil {
+	if len(ep.dnsNames) == 0 || ep.Iface() == nil || ep.Iface().Address() == nil {
 		return nil
 	}
 
@@ -628,10 +628,8 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 		return nil
 	}
 
-	name := ep.Name()
-	if ep.isAnonymous() {
-		name = ep.MyAliases()[0]
-	}
+	dnsNames := ep.getDNSNames()
+	primaryDNSName, dnsAliases := dnsNames[0], dnsNames[1:]
 
 	var ingressPorts []*PortConfig
 	if ep.svcID != "" {
@@ -640,24 +638,24 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 		if n.ingress {
 			ingressPorts = ep.ingressPorts
 		}
-		if err := n.getController().addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), name, ep.virtualIP, ingressPorts, ep.svcAliases, ep.myAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
+		if err := n.getController().addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), primaryDNSName, ep.virtualIP, ingressPorts, ep.svcAliases, dnsAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
 			return err
 		}
 	} else {
 		// This is a container simply attached to an attachable network
-		if err := n.getController().addContainerNameResolution(n.ID(), ep.ID(), name, ep.myAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
+		if err := n.getController().addContainerNameResolution(n.ID(), ep.ID(), primaryDNSName, dnsAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
 			return err
 		}
 	}
 
 	buf, err := proto.Marshal(&EndpointRecord{
-		Name:            name,
+		Name:            primaryDNSName,
 		ServiceName:     ep.svcName,
 		ServiceID:       ep.svcID,
 		VirtualIP:       ep.virtualIP.String(),
 		IngressPorts:    ingressPorts,
 		Aliases:         ep.svcAliases,
-		TaskAliases:     ep.myAliases,
+		TaskAliases:     dnsAliases,
 		EndpointIP:      ep.Iface().Address().IP.String(),
 		ServiceDisabled: false,
 	})
@@ -676,7 +674,7 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 }
 
 func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, method string) error {
-	if len(ep.myAliases) == 0 && ep.isAnonymous() {
+	if len(ep.dnsNames) == 0 {
 		return nil
 	}
 
@@ -699,10 +697,8 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 		return nil
 	}
 
-	name := ep.Name()
-	if ep.isAnonymous() {
-		name = ep.MyAliases()[0]
-	}
+	dnsNames := ep.getDNSNames()
+	primaryDNSName, dnsAliases := dnsNames[0], dnsNames[1:]
 
 	// First update the networkDB then locally
 	if fullRemove {
@@ -720,12 +716,12 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 			if n.ingress {
 				ingressPorts = ep.ingressPorts
 			}
-			if err := n.getController().rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), name, ep.virtualIP, ingressPorts, ep.svcAliases, ep.myAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster", true, fullRemove); err != nil {
+			if err := n.getController().rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), primaryDNSName, ep.virtualIP, ingressPorts, ep.svcAliases, dnsAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster", true, fullRemove); err != nil {
 				return err
 			}
 		} else {
 			// This is a container simply attached to an attachable network
-			if err := n.getController().delContainerNameResolution(n.ID(), ep.ID(), name, ep.myAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster"); err != nil {
+			if err := n.getController().delContainerNameResolution(n.ID(), ep.ID(), primaryDNSName, dnsAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster"); err != nil {
 				return err
 			}
 		}

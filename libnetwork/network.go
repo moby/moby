@@ -175,7 +175,7 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 type Network struct {
 	ctrlr            *Controller
 	name             string
-	networkType      string
+	networkType      string // networkType is the name of the netdriver used by this network
 	id               string
 	created          time.Time
 	scope            string // network data scope
@@ -1302,8 +1302,6 @@ func (n *Network) updateSvcRecord(ep *Endpoint, isAdd bool) {
 	}
 
 	var ipv6 net.IP
-	epName := ep.Name()
-	myAliases := ep.MyAliases()
 	if iface.AddressIPv6() != nil {
 		ipv6 = iface.AddressIPv6().IP
 	}
@@ -1312,30 +1310,17 @@ func (n *Network) updateSvcRecord(ep *Endpoint, isAdd bool) {
 	if serviceID == "" {
 		serviceID = ep.ID()
 	}
+
+	dnsNames := ep.getDNSNames()
 	if isAdd {
-		// If anonymous endpoint has an alias use the first alias
-		// for ip->name mapping. Not having the reverse mapping
-		// breaks some apps
-		if ep.isAnonymous() {
-			if len(myAliases) > 0 {
-				n.addSvcRecords(ep.ID(), myAliases[0], serviceID, iface.Address().IP, ipv6, true, "updateSvcRecord")
-			}
-		} else {
-			n.addSvcRecords(ep.ID(), epName, serviceID, iface.Address().IP, ipv6, true, "updateSvcRecord")
-		}
-		for _, alias := range myAliases {
-			n.addSvcRecords(ep.ID(), alias, serviceID, iface.Address().IP, ipv6, false, "updateSvcRecord")
+		for i, dnsName := range dnsNames {
+			ipMapUpdate := i == 0 // ipMapUpdate indicates whether PTR records should be updated.
+			n.addSvcRecords(ep.ID(), dnsName, serviceID, iface.Address().IP, ipv6, ipMapUpdate, "updateSvcRecord")
 		}
 	} else {
-		if ep.isAnonymous() {
-			if len(myAliases) > 0 {
-				n.deleteSvcRecords(ep.ID(), myAliases[0], serviceID, iface.Address().IP, ipv6, true, "updateSvcRecord")
-			}
-		} else {
-			n.deleteSvcRecords(ep.ID(), epName, serviceID, iface.Address().IP, ipv6, true, "updateSvcRecord")
-		}
-		for _, alias := range myAliases {
-			n.deleteSvcRecords(ep.ID(), alias, serviceID, iface.Address().IP, ipv6, false, "updateSvcRecord")
+		for i, dnsName := range dnsNames {
+			ipMapUpdate := i == 0 // ipMapUpdate indicates whether PTR records should be updated.
+			n.deleteSvcRecords(ep.ID(), dnsName, serviceID, iface.Address().IP, ipv6, ipMapUpdate, "updateSvcRecord")
 		}
 	}
 }
@@ -1374,6 +1359,7 @@ func delNameToIP(svcMap *setmatrix.SetMatrix[svcMapEntry], name, serviceID strin
 	})
 }
 
+// TODO(aker): remove ipMapUpdate param and add a proper method dedicated to update PTR records.
 func (n *Network) addSvcRecords(eID, name, serviceID string, epIP, epIPv6 net.IP, ipMapUpdate bool, method string) {
 	// Do not add service names for ingress network as this is a
 	// routing only network
@@ -2175,10 +2161,6 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 	epOptions := []EndpointOption{
 		CreateOptionIpam(n.loadBalancerIP, nil, nil, nil),
 		CreateOptionLoadBalancer(),
-	}
-	if n.hasLoadBalancerEndpoint() && !n.ingress {
-		// Mark LB endpoints as anonymous so they don't show up in DNS
-		epOptions = append(epOptions, CreateOptionAnonymous())
 	}
 	ep, err := n.createEndpoint(endpointName, epOptions...)
 	if err != nil {
