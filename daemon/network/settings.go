@@ -13,7 +13,7 @@ import (
 // Settings stores networking configuration and state for a specific container.
 // TODO Windows. Many of these fields can be factored out.
 type Settings struct {
-	Bridge           string
+	Bridge           string // Bridge contains the name of the default bridge interface iff it was set through the daemon --bridge flag.
 	SandboxID        string
 	SandboxKey       string
 	Networks         map[string]*EndpointSettings
