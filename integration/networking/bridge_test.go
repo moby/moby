@@ -36,6 +36,7 @@ func TestBridgeICC(t *testing.T) {
 		name           string
 		bridgeOpts     []func(*types.NetworkCreate)
 		ctr1MacAddress string
+		isIPv6         bool
 		isLinkLocal    bool
 		pingHost       string
 	}{
@@ -55,6 +56,7 @@ func TestBridgeICC(t *testing.T) {
 				network.WithIPv6(),
 				network.WithIPAM("fdf1:a844:380c:b200::/64", "fdf1:a844:380c:b200::1"),
 			},
+			isIPv6: true,
 		},
 		{
 			name: "IPv6 ULA on internal network",
@@ -63,6 +65,7 @@ func TestBridgeICC(t *testing.T) {
 				network.WithInternal(),
 				network.WithIPAM("fdf1:a844:380c:b247::/64", "fdf1:a844:380c:b247::1"),
 			},
+			isIPv6: true,
 		},
 		{
 			name: "IPv6 link-local address on non-internal network",
@@ -75,6 +78,7 @@ func TestBridgeICC(t *testing.T) {
 				network.WithIPAM("fe80::/64", "fe80::1"),
 			},
 			isLinkLocal: true,
+			isIPv6:      true,
 		},
 		{
 			name: "IPv6 link-local address on internal network",
@@ -85,6 +89,7 @@ func TestBridgeICC(t *testing.T) {
 				network.WithIPAM("fe80::/64", "fe80::1"),
 			},
 			isLinkLocal: true,
+			isIPv6:      true,
 		},
 		{
 			// As for 'LL non-internal', but ping the container by name instead of by address
@@ -122,6 +127,7 @@ func TestBridgeICC(t *testing.T) {
 			// specify one here to hardcode the SLAAC LL address below.
 			ctr1MacAddress: "02:42:ac:11:00:02",
 			pingHost:       "fe80::42:acff:fe11:2%eth0",
+			isIPv6:         true,
 		},
 		{
 			name: "IPv6 internal network with SLAAC LL address",
@@ -133,6 +139,7 @@ func TestBridgeICC(t *testing.T) {
 			// specify one here to hardcode the SLAAC LL address below.
 			ctr1MacAddress: "02:42:ac:11:00:02",
 			pingHost:       "fe80::42:acff:fe11:2%eth0",
+			isIPv6:         true,
 		},
 	}
 
@@ -170,7 +177,11 @@ func TestBridgeICC(t *testing.T) {
 				}
 			}
 
-			pingCmd := []string{"ping", "-c1", "-W3", pingHost}
+			pingCmd := []string{"ping", "-c1", "-W3"}
+			if tc.isIPv6 {
+				pingCmd = append(pingCmd, "-6")
+			}
+			pingCmd = append(pingCmd, pingHost)
 
 			ctr2Name := fmt.Sprintf("ctr-icc-%d-2", tcID)
 			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
