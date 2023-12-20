@@ -36,7 +36,7 @@ func TestBridgeICC(t *testing.T) {
 		name           string
 		bridgeOpts     []func(*types.NetworkCreate)
 		ctr1MacAddress string
-		linkLocal      bool
+		isLinkLocal    bool
 		pingHost       string
 	}{
 		{
@@ -74,7 +74,7 @@ func TestBridgeICC(t *testing.T) {
 				// 2. the one dynamically assigned by the IPAM driver.
 				network.WithIPAM("fe80::/64", "fe80::1"),
 			},
-			linkLocal: true,
+			isLinkLocal: true,
 		},
 		{
 			name: "IPv6 link-local address on internal network",
@@ -84,7 +84,7 @@ func TestBridgeICC(t *testing.T) {
 				// See the note above about link-local addresses.
 				network.WithIPAM("fe80::/64", "fe80::1"),
 			},
-			linkLocal: true,
+			isLinkLocal: true,
 		},
 		{
 			// As for 'LL non-internal', but ping the container by name instead of by address
@@ -162,7 +162,7 @@ func TestBridgeICC(t *testing.T) {
 
 			pingHost := tc.pingHost
 			if pingHost == "" {
-				if tc.linkLocal {
+				if tc.isLinkLocal {
 					inspect := container.Inspect(ctx, t, c, id1)
 					pingHost = inspect.NetworkSettings.Networks[bridgeName].GlobalIPv6Address + "%eth0"
 				} else {
