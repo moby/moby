@@ -351,11 +351,14 @@ func getConfigOrEnv(config string, env ...string) string {
 	return getEnvAny(env...)
 }
 
-// promoteNil converts a nil slice to an empty slice of that type.
+// promoteNil converts a nil slice to an empty slice.
 // A non-nil slice is returned as is.
-func promoteNil[S ~[]E, E any](s S) S {
+//
+// TODO: make generic again once we are a go module,
+// go.dev/issue/64759 is fixed, or we drop support for Go 1.21.
+func promoteNil(s []string) []string {
 	if s == nil {
-		return S{}
+		return []string{}
 	}
 	return s
 }
