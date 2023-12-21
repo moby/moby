@@ -226,6 +226,10 @@ func (c *networkConfiguration) Validate() error {
 		return ErrInvalidMtu(c.Mtu)
 	}
 
+	if err := validateIPv6Subnet(c.AddressIPv6); err != nil {
+		return err
+	}
+
 	// If bridge v4 subnet is specified
 	if c.AddressIPv4 != nil {
 		// If default gw is specified, it must be part of bridge subnet
@@ -556,13 +560,6 @@ func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []d
 		}
 	}
 
-	// TODO(robmry) - move this to networkConfiguration.Validate()
-	//   - but that can't happen until Validate() is called after processIPAM() has set
-	//     up the IP addresses, instead of during parseNetworkOptions().
-	if err := validateIPv6Subnet(c.AddressIPv6); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -588,11 +585,6 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 		if internal, ok := val.(bool); ok && internal {
 			config.Internal = true
 		}
-	}
-
-	// Finally validate the configuration
-	if err = config.Validate(); err != nil {
-		return nil, err
 	}
 
 	if config.BridgeName == "" && !config.DefaultBridge {
@@ -654,13 +646,19 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	}
 	d.Unlock()
 
-	// Parse and validate the config. It should not be conflict with existing networks' config
+	// Parse the config.
 	config, err := parseNetworkOptions(id, option)
 	if err != nil {
 		return err
 	}
 
+	// Add IP addresses/gateways to the configuration.
 	if err = config.processIPAM(id, ipV4Data, ipV6Data); err != nil {
+		return err
+	}
+
+	// Validate the configuration
+	if err = config.Validate(); err != nil {
 		return err
 	}
 
