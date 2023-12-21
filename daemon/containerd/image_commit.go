@@ -17,7 +17,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/rootfs"
+	"github.com/containerd/containerd/pkg/cleanup"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
@@ -251,35 +251,77 @@ func writeContentsForImage(ctx context.Context, snName string, cs content.Store,
 // createDiff creates a layer diff into containerd's content store.
 // If the diff is empty it returns nil empty digest and no error.
 func (i *ImageService) createDiff(ctx context.Context, name string, sn snapshots.Snapshotter, cs content.Store, comparer diff.Comparer) (*ocispec.Descriptor, digest.Digest, error) {
+	info, err := sn.Stat(ctx, name)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var upper []mount.Mount
 	if !i.idMapping.Empty() {
 		// The rootfs of the container is remapped if an id mapping exists, we
 		// need to "unremap" it before committing the snapshot
 		rootPair := i.idMapping.RootPair()
-		usernsID := fmt.Sprintf("%s-%d-%d", name, rootPair.UID, rootPair.GID)
+		usernsID := fmt.Sprintf("%s-%d-%d-%s", name, rootPair.UID, rootPair.GID, uniquePart())
 		remappedID := usernsID + remapSuffix
+		baseName := name
 
-		err := sn.Commit(ctx, name+"-pre", name)
-		if err != nil && !cerrdefs.IsAlreadyExists(err) {
-			return nil, "", err
-		}
-
-		if !cerrdefs.IsAlreadyExists(err) {
-			mounts, err := sn.Prepare(ctx, remappedID, name+"-pre")
+		if info.Kind == snapshots.KindActive {
+			source, err := sn.Mounts(ctx, name)
 			if err != nil {
 				return nil, "", err
 			}
 
-			if err := i.unremapRootFS(ctx, mounts); err != nil {
+			// No need to use parent since the whole snapshot is copied.
+			// Using parent would require doing diff/apply while starting
+			// from empty can just copy the whole snapshot.
+			// TODO: Optimize this for overlay mounts, can use parent
+			// and just copy upper directories without mounting
+			upper, err = sn.Prepare(ctx, remappedID, "")
+			if err != nil {
 				return nil, "", err
 			}
 
-			if err := sn.Commit(ctx, name, remappedID); err != nil {
+			if err := i.copyAndUnremapRootFS(ctx, upper, source); err != nil {
+				return nil, "", err
+			}
+		} else {
+			upper, err = sn.Prepare(ctx, remappedID, baseName)
+			if err != nil {
+				return nil, "", err
+			}
+
+			if err := i.unremapRootFS(ctx, upper); err != nil {
 				return nil, "", err
 			}
 		}
+	} else {
+		if info.Kind == snapshots.KindActive {
+			upper, err = sn.Mounts(ctx, name)
+			if err != nil {
+				return nil, "", err
+			}
+		} else {
+			upperKey := fmt.Sprintf("%s-view-%s", name, uniquePart())
+			upper, err = sn.View(ctx, upperKey, name)
+			if err != nil {
+				return nil, "", err
+			}
+			defer cleanup.Do(ctx, func(ctx context.Context) {
+				sn.Remove(ctx, upperKey)
+			})
+		}
 	}
 
-	newDesc, err := rootfs.CreateDiff(ctx, name, sn, comparer)
+	lowerKey := fmt.Sprintf("%s-parent-view-%s", info.Parent, uniquePart())
+	lower, err := sn.View(ctx, lowerKey, info.Parent)
+	if err != nil {
+		return nil, "", err
+	}
+	defer cleanup.Do(ctx, func(ctx context.Context) {
+		sn.Remove(ctx, lowerKey)
+	})
+
+	newDesc, err := comparer.Compare(ctx, lower, upper)
 	if err != nil {
 		return nil, "", errors.Wrap(err, "CreateDiff")
 	}
@@ -298,12 +340,12 @@ func (i *ImageService) createDiff(ctx context.Context, name string, sn snapshots
 		return nil, "", nil
 	}
 
-	info, err := cs.Info(ctx, newDesc.Digest)
+	cinfo, err := cs.Info(ctx, newDesc.Digest)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get content info: %w", err)
 	}
 
-	diffIDStr, ok := info.Labels["containerd.io/uncompressed"]
+	diffIDStr, ok := cinfo.Labels["containerd.io/uncompressed"]
 	if !ok {
 		return nil, "", fmt.Errorf("invalid differ response with no diffID")
 	}
@@ -316,7 +358,7 @@ func (i *ImageService) createDiff(ctx context.Context, name string, sn snapshots
 	return &ocispec.Descriptor{
 		MediaType: ocispec.MediaTypeImageLayerGzip,
 		Digest:    newDesc.Digest,
-		Size:      info.Size,
+		Size:      cinfo.Size,
 	}, diffID, nil
 }
 

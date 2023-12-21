@@ -11,6 +11,7 @@ import (
 
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
 	"github.com/docker/docker/pkg/idtools"
 )
@@ -59,6 +60,35 @@ func (i *ImageService) remapRootFS(ctx context.Context, mounts []mount.Mount) er
 			}
 
 			return chownWithCaps(path, ids.UID, ids.GID)
+		})
+	})
+}
+
+func (i *ImageService) copyAndUnremapRootFS(ctx context.Context, dst, src []mount.Mount) error {
+	return mount.WithTempMount(ctx, src, func(source string) error {
+		return mount.WithTempMount(ctx, dst, func(root string) error {
+			// TODO: Update CopyDir to support remap directly
+			if err := fs.CopyDir(root, source); err != nil {
+				return fmt.Errorf("failed to copy: %w", err)
+			}
+
+			return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+
+				stat := info.Sys().(*syscall.Stat_t)
+				if stat == nil {
+					return fmt.Errorf("cannot get underlying data for %s", path)
+				}
+
+				uid, gid, err := i.idMapping.ToContainer(idtools.Identity{UID: int(stat.Uid), GID: int(stat.Gid)})
+				if err != nil {
+					return err
+				}
+
+				return chownWithCaps(path, uid, gid)
+			})
 		})
 	})
 }
