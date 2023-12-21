@@ -130,10 +130,8 @@ func TestGetRequiredIPv6Addrs(t *testing.T) {
 				expResult[netip.MustParseAddr(strings.Split(addr, "/")[0])] = netip.MustParsePrefix(addr)
 			}
 
-			reqd, addr, gw, err := getRequiredIPv6Addrs(config)
+			reqd, err := getRequiredIPv6Addrs(config)
 			assert.Check(t, is.Nil(err))
-			assert.Check(t, is.DeepEqual(addr, config.AddressIPv6))
-			assert.Check(t, is.DeepEqual(gw, config.AddressIPv6.IP))
 			assert.Check(t, is.DeepEqual(reqd, expResult,
 				cmp.Comparer(func(a, b netip.Prefix) bool { return a == b })))
 		})
@@ -143,7 +141,7 @@ func TestGetRequiredIPv6Addrs(t *testing.T) {
 func TestProgramIPv6Addresses(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	checkAddrs := func(i *bridgeInterface, expAddrs []string) {
+	checkAddrs := func(i *bridgeInterface, nc *networkConfiguration, expAddrs []string) {
 		t.Helper()
 		exp := []netlink.Addr{}
 		for _, a := range expAddrs {
@@ -153,6 +151,8 @@ func TestProgramIPv6Addresses(t *testing.T) {
 		actual, err := i.addresses(netlink.FAMILY_V6)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, exp, actual)
+		assert.Check(t, is.DeepEqual(i.bridgeIPv6, nc.AddressIPv6))
+		assert.Check(t, is.DeepEqual(i.gatewayIPv6, nc.AddressIPv6.IP))
 	}
 
 	nc := &networkConfiguration{}
@@ -163,7 +163,7 @@ func TestProgramIPv6Addresses(t *testing.T) {
 	nc.AddressIPv6 = cidrToIPNet(t, "2000:3000::1/64")
 	err := i.programIPv6Addresses(nc)
 	assert.NilError(t, err)
-	checkAddrs(i, []string{"2000:3000::1/64", "fe80::1/64"})
+	checkAddrs(i, nc, []string{"2000:3000::1/64", "fe80::1/64"})
 
 	// Shrink the subnet of that regular address, the prefix length of the address
 	// will not be modified - but it's informational-only, the address itself has
@@ -171,18 +171,18 @@ func TestProgramIPv6Addresses(t *testing.T) {
 	nc.AddressIPv6 = cidrToIPNet(t, "2000:3000::1/80")
 	err = i.programIPv6Addresses(nc)
 	assert.NilError(t, err)
-	checkAddrs(i, []string{"2000:3000::1/64", "fe80::1/64"})
+	checkAddrs(i, nc, []string{"2000:3000::1/64", "fe80::1/64"})
 
 	// Ask for link-local only, by specifying an address with the Link Local prefix.
 	// The regular address should be removed.
 	nc.AddressIPv6 = cidrToIPNet(t, "fe80::1/64")
 	err = i.programIPv6Addresses(nc)
 	assert.NilError(t, err)
-	checkAddrs(i, []string{"fe80::1/64"})
+	checkAddrs(i, nc, []string{"fe80::1/64"})
 
 	// Swap the standard link local address for a nonstandard one.
 	nc.AddressIPv6 = cidrToIPNet(t, "fe80:5555::1/55")
 	err = i.programIPv6Addresses(nc)
 	assert.NilError(t, err)
-	checkAddrs(i, []string{"fe80:5555::1/55", "fe80::1/64"})
+	checkAddrs(i, nc, []string{"fe80:5555::1/55", "fe80::1/64"})
 }

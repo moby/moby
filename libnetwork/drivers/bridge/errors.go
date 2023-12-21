@@ -84,16 +84,6 @@ func (eig *ErrInvalidGateway) Error() string {
 // InvalidParameter denotes the type of this error
 func (eig *ErrInvalidGateway) InvalidParameter() {}
 
-// ErrInvalidContainerSubnet is returned when the container subnet (FixedCIDR) is not valid.
-type ErrInvalidContainerSubnet struct{}
-
-func (eis *ErrInvalidContainerSubnet) Error() string {
-	return "container subnet must be a subset of bridge network"
-}
-
-// InvalidParameter denotes the type of this error
-func (eis *ErrInvalidContainerSubnet) InvalidParameter() {}
-
 // ErrInvalidMtu is returned when the user provided MTU is not valid.
 type ErrInvalidMtu int
 

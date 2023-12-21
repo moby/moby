@@ -226,10 +226,6 @@ func (c *networkConfiguration) Validate() error {
 		return ErrInvalidMtu(c.Mtu)
 	}
 
-	if err := validateIPv6Subnet(c.AddressIPv6); err != nil {
-		return err
-	}
-
 	// If bridge v4 subnet is specified
 	if c.AddressIPv4 != nil {
 		// If default gw is specified, it must be part of bridge subnet
@@ -240,12 +236,21 @@ func (c *networkConfiguration) Validate() error {
 		}
 	}
 
-	// If default v6 gw is specified, AddressIPv6 must be specified and gw must belong to AddressIPv6 subnet
-	if c.EnableIPv6 && c.DefaultGatewayIPv6 != nil {
-		if c.AddressIPv6 == nil || !c.AddressIPv6.Contains(c.DefaultGatewayIPv6) {
+	if c.EnableIPv6 {
+		// If IPv6 is enabled, AddressIPv6 must have been configured.
+		if c.AddressIPv6 == nil {
+			return errdefs.System(errors.New("no IPv6 address was allocated for the bridge"))
+		}
+		// AddressIPv6 must be IPv6, and not overlap with the LL subnet prefix.
+		if err := validateIPv6Subnet(c.AddressIPv6); err != nil {
+			return err
+		}
+		// If a default gw is specified, it must belong to AddressIPv6's subnet
+		if c.DefaultGatewayIPv6 != nil && !c.AddressIPv6.Contains(c.DefaultGatewayIPv6) {
 			return &ErrInvalidGateway{}
 		}
 	}
+
 	return nil
 }
 
@@ -791,7 +796,7 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	// Even if a bridge exists try to setup IPv4.
 	bridgeSetup.queueStep(setupBridgeIPv4)
 
-	enableIPv6Forwarding := d.config.EnableIPForwarding && config.AddressIPv6 != nil
+	enableIPv6Forwarding := config.EnableIPv6 && d.config.EnableIPForwarding
 
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {

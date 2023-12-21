@@ -27,7 +27,7 @@ func TestLinkCreate(t *testing.T) {
 	genericOption[netlabel.GenericData] = config
 
 	ipdList := getIPv4Data(t)
-	err := d.CreateNetwork("dummy", genericOption, nil, ipdList, nil)
+	err := d.CreateNetwork("dummy", genericOption, nil, ipdList, getIPv6Data(t))
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestLinkCreateTwo(t *testing.T) {
 	genericOption[netlabel.GenericData] = config
 
 	ipdList := getIPv4Data(t)
-	err := d.CreateNetwork("dummy", genericOption, nil, ipdList, nil)
+	err := d.CreateNetwork("dummy", genericOption, nil, ipdList, getIPv6Data(t))
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	genericOption[netlabel.GenericData] = config
 
 	ipdList := getIPv4Data(t)
-	err := d.CreateNetwork("dummy", genericOption, nil, ipdList, nil)
+	err := d.CreateNetwork("dummy", genericOption, nil, ipdList, getIPv6Data(t))
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestLinkDelete(t *testing.T) {
 	genericOption[netlabel.GenericData] = config
 
 	ipdList := getIPv4Data(t)
-	err := d.CreateNetwork("dummy", genericOption, nil, ipdList, nil)
+	err := d.CreateNetwork("dummy", genericOption, nil, ipdList, getIPv6Data(t))
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
