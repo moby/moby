@@ -24,13 +24,13 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/containerd/ttrpc"
 	"github.com/containerd/typeurl/v2"
-	exec "golang.org/x/sys/execabs"
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/namespaces"
@@ -126,7 +126,7 @@ func WritePidFile(path string, pid int) error {
 	if err != nil {
 		return err
 	}
-	f, err := atomicfile.New(path, 0o666)
+	f, err := atomicfile.New(path, 0o644)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func WriteAddress(path, address string) error {
 	if err != nil {
 		return err
 	}
-	f, err := atomicfile.New(path, 0o666)
+	f, err := atomicfile.New(path, 0o644)
 	if err != nil {
 		return err
 	}

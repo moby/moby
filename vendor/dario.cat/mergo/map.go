@@ -44,7 +44,7 @@ func deepMap(dst, src reflect.Value, visited map[uintptr]*visit, depth int, conf
 			}
 		}
 		// Remember, remember...
-		visited[h] = &visit{addr, typ, seen}
+		visited[h] = &visit{typ, seen, addr}
 	}
 	zeroValue := reflect.Value{}
 	switch dst.Kind() {
@@ -58,7 +58,7 @@ func deepMap(dst, src reflect.Value, visited map[uintptr]*visit, depth int, conf
 			}
 			fieldName := field.Name
 			fieldName = changeInitialCase(fieldName, unicode.ToLower)
-			if v, ok := dstMap[fieldName]; !ok || (isEmptyValue(reflect.ValueOf(v)) || overwrite) {
+			if v, ok := dstMap[fieldName]; !ok || (isEmptyValue(reflect.ValueOf(v), !config.ShouldNotDereference) || overwrite) {
 				dstMap[fieldName] = src.Field(i).Interface()
 			}
 		}
@@ -142,7 +142,7 @@ func MapWithOverwrite(dst, src interface{}, opts ...func(*Config)) error {
 
 func _map(dst, src interface{}, opts ...func(*Config)) error {
 	if dst != nil && reflect.ValueOf(dst).Kind() != reflect.Ptr {
-		return ErrNonPointerAgument
+		return ErrNonPointerArgument
 	}
 	var (
 		vDst, vSrc reflect.Value

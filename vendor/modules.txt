@@ -21,6 +21,9 @@ cloud.google.com/go/longrunning/autogen/longrunningpb
 # code.cloudfoundry.org/clock v1.0.0
 ## explicit
 code.cloudfoundry.org/clock
+# dario.cat/mergo v1.0.0
+## explicit; go 1.13
+dario.cat/mergo
 # github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
 ## explicit; go 1.20
 github.com/AdaLogics/go-fuzz-headers
@@ -236,7 +239,7 @@ github.com/containerd/cgroups/v3/cgroup2/stats
 # github.com/containerd/console v1.0.3
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd v1.7.11
+# github.com/containerd/containerd v1.7.12
 ## explicit; go 1.19
 github.com/containerd/containerd
 github.com/containerd/containerd/api/events
@@ -637,9 +640,6 @@ github.com/hashicorp/memberlist
 ## explicit
 github.com/hashicorp/serf/coordinate
 github.com/hashicorp/serf/serf
-# github.com/imdario/mergo v0.3.13
-## explicit; go 1.13
-github.com/imdario/mergo
 # github.com/in-toto/in-toto-golang v0.5.0
 ## explicit; go 1.17
 github.com/in-toto/in-toto-golang/in_toto

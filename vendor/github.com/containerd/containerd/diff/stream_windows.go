@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/containerd/containerd/protobuf/proto"
 	"github.com/containerd/typeurl/v2"
 	"github.com/sirupsen/logrus"
-	exec "golang.org/x/sys/execabs"
 )
 
 const processorPipe = "STREAM_PROCESSOR_PIPE"
