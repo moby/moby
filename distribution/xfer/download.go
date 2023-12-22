@@ -335,8 +335,9 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				parentLayer = l.ChainID()
 			}
 
-			reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(d.transfer.context(), downloadReader), progressOutput, size, descriptor.ID(), "Extracting")
-			defer reader.Close()
+			readerCtx, cancel := context.WithCancel(d.transfer.context())
+			reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(readerCtx, downloadReader), progressOutput, size, descriptor.ID(), "Extracting")
+			defer cancel()
 
 			inflatedLayerData, err := archive.DecompressStream(reader)
 			if err != nil {

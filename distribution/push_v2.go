@@ -470,19 +470,20 @@ func (pd *pushDescriptor) uploadUsingSession(
 		return distribution.Descriptor{}, retryOnError(err)
 	}
 
-	reader = progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, contentReader), progressOutput, pd.layer.Size(), pd.ID(), "Pushing")
+	readerCtx, cancelReader := context.WithCancel(ctx)
+	reader = progress.NewProgressReader(ioutils.NewCancelReadCloser(readerCtx, contentReader), progressOutput, pd.layer.Size(), pd.ID(), "Pushing")
 
 	switch m := pd.layer.MediaType(); m {
 	case schema2.MediaTypeUncompressedLayer:
 		compressedReader, compressionDone := compress(reader)
-		defer func(closer io.Closer) {
-			closer.Close()
+		defer func() {
+			cancelReader()
 			<-compressionDone
-		}(reader)
+		}()
 		reader = compressedReader
 	case schema2.MediaTypeLayer:
 	default:
-		reader.Close()
+		cancelReader()
 		return distribution.Descriptor{}, xfer.DoNotRetry{Err: fmt.Errorf("unsupported layer media type %s", m)}
 	}
 
@@ -490,7 +491,7 @@ func (pd *pushDescriptor) uploadUsingSession(
 	tee := io.TeeReader(reader, digester.Hash())
 
 	nn, err := layerUpload.ReadFrom(tee)
-	reader.Close()
+	cancelReader()
 	if err != nil {
 		return distribution.Descriptor{}, retryOnError(err)
 	}
