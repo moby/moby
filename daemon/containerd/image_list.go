@@ -654,7 +654,7 @@ func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Ar
 		// It will be returned once a matching config is found.
 		errFoundConfig := errors.New("success, found matching config")
 
-		err := c8dimages.Dispatch(ctx, presentChildrenHandler(store, c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, err error) {
+		err := c8dimages.Dispatch(ctx, presentChildrenHandler(store, c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, _ error) {
 			if !c8dimages.IsConfigType(desc.MediaType) {
 				return nil, nil
 			}
