@@ -54,7 +54,7 @@ type localCache struct {
 	imageService *ImageService
 }
 
-func (ic *localCache) GetCache(parentID string, cfg *container.Config, platform ocispec.Platform) (imageID string, err error) {
+func (ic *localCache) GetCache(parentID string, cfg *container.Config, platform ocispec.Platform) (imageID string, _ error) {
 	ctx := context.TODO()
 
 	var children []image.ID
