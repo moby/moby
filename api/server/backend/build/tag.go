@@ -24,7 +24,7 @@ func tagImages(ctx context.Context, ic ImageComponent, stdout io.Writer, imageID
 // sanitizeRepoAndTags parses the raw "t" parameter received from the client
 // to a slice of repoAndTag. It removes duplicates, and validates each name
 // to not contain a digest.
-func sanitizeRepoAndTags(names []string) (repoAndTags []reference.Named, err error) {
+func sanitizeRepoAndTags(names []string) (repoAndTags []reference.Named, _ error) {
 	uniqNames := map[string]struct{}{}
 	for _, repo := range names {
 		if repo == "" {
