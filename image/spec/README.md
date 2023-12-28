@@ -16,7 +16,7 @@ for an in-depth specification of the OCI Image specs.
 The v1 file layout and manifests are no longer used in Moby and Docker, except in `docker save` and `docker load`.
 
 However, v1 Image JSON (`application/vnd.docker.container.image.v1+json`) has been still widely
-used and officially adopted in [V2 manifest](https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-2.md)
+used and officially adopted in [V2 manifest](https://github.com/distribution/distribution/blob/main/docs/content/spec/manifest-v2-2.md)
 and in [OCI Image Format Specification](https://github.com/opencontainers/image-spec).
 
 ## v1.X rough Changelog
@@ -60,6 +60,6 @@ Changes:
 ## Related specifications
 
 * [Open Containers Initiative (OCI) Image Format Specification v1.0.0](https://github.com/opencontainers/image-spec/tree/v1.0.0)
-* [Docker Image Manifest Version 2, Schema 2](https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-2.md)
-* [Docker Image Manifest Version 2, Schema 1](https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-1.md) (*DEPRECATED*)
+* [Docker Image Manifest Version 2, Schema 2](https://github.com/distribution/distribution/blob/main/docs/content/spec/manifest-v2-2.md)
+* [Docker Image Manifest Version 2, Schema 1](https://github.com/distribution/distribution/blob/main/docs/content/spec/deprecated-schema-v1.md) (*DEPRECATED*)
 * [Docker Registry HTTP API V2](https://docs.docker.com/registry/spec/api/)
