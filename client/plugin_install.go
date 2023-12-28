@@ -15,7 +15,7 @@ import (
 )
 
 // PluginInstall installs a plugin
-func (cli *Client) PluginInstall(ctx context.Context, name string, options types.PluginInstallOptions) (rc io.ReadCloser, err error) {
+func (cli *Client) PluginInstall(ctx context.Context, name string, options types.PluginInstallOptions) (_ io.ReadCloser, retErr error) {
 	query := url.Values{}
 	if _, err := reference.ParseNormalizedNamed(options.RemoteRef); err != nil {
 		return nil, errors.Wrap(err, "invalid remote reference")
@@ -39,31 +39,30 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 
 	pr, pw := io.Pipe()
 	go func() { // todo: the client should probably be designed more around the actual api
-		_, err := io.Copy(pw, resp.body)
-		if err != nil {
-			pw.CloseWithError(err)
+		if _, err := io.Copy(pw, resp.body); err != nil {
+			_ = pw.CloseWithError(err)
 			return
 		}
 		defer func() {
-			if err != nil {
+			if retErr != nil {
 				delResp, _ := cli.delete(ctx, "/plugins/"+name, nil, nil)
 				ensureReaderClosed(delResp)
 			}
 		}()
 		if len(options.Args) > 0 {
 			if err := cli.PluginSet(ctx, name, options.Args); err != nil {
-				pw.CloseWithError(err)
+				_ = pw.CloseWithError(err)
 				return
 			}
 		}
 
 		if options.Disabled {
-			pw.Close()
+			_ = pw.Close()
 			return
 		}
 
 		enableErr := cli.PluginEnable(ctx, name, types.PluginEnableOptions{Timeout: 0})
-		pw.CloseWithError(enableErr)
+		_ = pw.CloseWithError(enableErr)
 	}()
 	return pr, nil
 }
