@@ -111,7 +111,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 	t.Run("happy path with a 'registry://' option", func(t *testing.T) {
 		valueName := "my-cred-spec"
 		key := &dummyRegistryKey{
-			getStringValueFunc: func(name string) (val string, valtype uint32, err error) {
+			getStringValueFunc: func(name string) (val string, valType uint32, _ error) {
 				assert.Equal(t, valueName, name)
 				return dummyCredFileContents, 0, nil
 			},
@@ -141,7 +141,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 	t.Run("when using a 'registry://' option pointing to a value that doesn't exist, it fails gracefully", func(t *testing.T) {
 		valueName := "my-cred-spec"
 		key := &dummyRegistryKey{
-			getStringValueFunc: func(name string) (val string, valtype uint32, err error) {
+			getStringValueFunc: func(name string) (val string, valType uint32, _ error) {
 				assert.Equal(t, valueName, name)
 				return "", 0, registry.ErrNotExist
 			},
@@ -159,7 +159,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 		dummyError := fmt.Errorf("dummy error")
 		valueName := "my-cred-spec"
 		key := &dummyRegistryKey{
-			getStringValueFunc: func(name string) (val string, valtype uint32, err error) {
+			getStringValueFunc: func(name string) (val string, valType uint32, _ error) {
 				assert.Equal(t, valueName, name)
 				return "", 0, dummyError
 			},
@@ -274,11 +274,11 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 /* Helpers below */
 
 type dummyRegistryKey struct {
-	getStringValueFunc func(name string) (val string, valtype uint32, err error)
+	getStringValueFunc func(name string) (val string, valType uint32, err error)
 	closed             bool
 }
 
-func (k *dummyRegistryKey) GetStringValue(name string) (val string, valtype uint32, err error) {
+func (k *dummyRegistryKey) GetStringValue(name string) (val string, valType uint32, _ error) {
 	return k.getStringValueFunc(name)
 }
 
