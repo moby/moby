@@ -85,10 +85,10 @@ func TestWriteDoesNotReturnNegativeWrittenBytes(t *testing.T) {
 	}
 }
 
-func getSrcBuffer(stdOutBytes, stdErrBytes []byte) (buffer *bytes.Buffer, err error) {
-	buffer = new(bytes.Buffer)
+func getSrcBuffer(stdOutBytes, stdErrBytes []byte) (*bytes.Buffer, error) {
+	buffer := new(bytes.Buffer)
 	dstOut := NewStdWriter(buffer, Stdout)
-	_, err = dstOut.Write(stdOutBytes)
+	_, err := dstOut.Write(stdOutBytes)
 	if err != nil {
 		return buffer, err
 	}
