@@ -201,7 +201,7 @@ type fileInfoProvider interface {
 
 type defaultFileInfoProvider struct{}
 
-func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err error) {
+func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, _ error) {
 	fi, err := os.Stat(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
