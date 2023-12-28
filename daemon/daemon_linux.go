@@ -152,7 +152,7 @@ func setupResolvConf(config *config.Config) {
 // interface with name linkName.
 //
 // No error is returned if the named interface does not exist.
-func ifaceAddrs(linkName string) (v4, v6 []*net.IPNet, err error) {
+func ifaceAddrs(linkName string) (v4, v6 []*net.IPNet, _ error) {
 	nl := ns.NlHandle()
 	link, err := nl.LinkByName(linkName)
 	if err != nil {

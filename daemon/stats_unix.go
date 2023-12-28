@@ -318,7 +318,7 @@ const (
 // statistics line and then sums up the first seven fields
 // provided. See `man 5 proc` for details on specific field
 // information.
-func getSystemCPUUsage() (cpuUsage uint64, cpuNum uint32, err error) {
+func getSystemCPUUsage() (cpuUsage uint64, cpuNum uint32, _ error) {
 	f, err := os.Open("/proc/stat")
 	if err != nil {
 		return 0, 0, err
@@ -344,8 +344,7 @@ func getSystemCPUUsage() (cpuUsage uint64, cpuNum uint32, err error) {
 				}
 				totalClockTicks += v
 			}
-			cpuUsage = (totalClockTicks * nanoSecondsPerSecond) /
-				clockTicksPerSecond
+			cpuUsage = (totalClockTicks * nanoSecondsPerSecond) / clockTicksPerSecond
 		}
 		if '0' <= line[3] && line[3] <= '9' {
 			cpuNum++
@@ -355,5 +354,6 @@ func getSystemCPUUsage() (cpuUsage uint64, cpuNum uint32, err error) {
 	if err := scanner.Err(); err != nil {
 		return 0, 0, fmt.Errorf("error scanning '/proc/stat' file: %w", err)
 	}
-	return
+
+	return cpuUsage, cpuNum, nil
 }
