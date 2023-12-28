@@ -479,15 +479,15 @@ func (d *Driver) Cleanup() error {
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
 // The layer should be mounted when calling this function
-func (d *Driver) Diff(id, _ string) (_ io.ReadCloser, err error) {
+func (d *Driver) Diff(id, _ string) (io.ReadCloser, error) {
 	rID, err := d.resolveID(id)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	layerChain, err := d.getLayerChain(rID)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// this is assuming that the layer is unmounted
@@ -503,7 +503,7 @@ func (d *Driver) Diff(id, _ string) (_ io.ReadCloser, err error) {
 	arch, err := d.exportLayer(rID, layerChain)
 	if err != nil {
 		prepare()
-		return
+		return nil, err
 	}
 	return ioutils.NewReadCloserWrapper(arch, func() error {
 		err := arch.Close()
@@ -604,20 +604,20 @@ func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
 // DiffSize calculates the changes between the specified layer
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
-func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
+func (d *Driver) DiffSize(id, parent string) (int64, error) {
 	rPId, err := d.resolveID(parent)
 	if err != nil {
-		return
+		return 0, err
 	}
 
 	changes, err := d.Changes(id, rPId)
 	if err != nil {
-		return
+		return 0, err
 	}
 
 	layerFs, err := d.Get(id, "")
 	if err != nil {
-		return
+		return 0, err
 	}
 	defer d.Put(id)
 
@@ -683,26 +683,26 @@ func (d *Driver) exportLayer(id string, parentLayerPaths []string) (io.ReadClose
 // writeBackupStreamFromTarAndSaveMutatedFiles reads data from a tar stream and
 // writes it to a backup stream, and also saves any files that will be mutated
 // by the import layer process to a backup location.
-func writeBackupStreamFromTarAndSaveMutatedFiles(buf *bufio.Writer, w io.Writer, t *tar.Reader, hdr *tar.Header, root string) (nextHdr *tar.Header, err error) {
-	var bcdBackup *os.File
-	var bcdBackupWriter *winio.BackupFileWriter
+func writeBackupStreamFromTarAndSaveMutatedFiles(buf *bufio.Writer, w io.Writer, t *tar.Reader, hdr *tar.Header, root string) (nextHdr *tar.Header, retErr error) {
 	if backupPath, ok := mutatedFiles[hdr.Name]; ok {
-		bcdBackup, err = os.Create(filepath.Join(root, backupPath))
+		bcdBackup, err := os.Create(filepath.Join(root, backupPath))
 		if err != nil {
 			return nil, err
 		}
 		defer func() {
-			cerr := bcdBackup.Close()
-			if err == nil {
-				err = cerr
+			if err := bcdBackup.Close(); err != nil {
+				if retErr == nil {
+					retErr = err
+				}
 			}
 		}()
 
-		bcdBackupWriter = winio.NewBackupFileWriter(bcdBackup, false)
+		bcdBackupWriter := winio.NewBackupFileWriter(bcdBackup, false)
 		defer func() {
-			cerr := bcdBackupWriter.Close()
-			if err == nil {
-				err = cerr
+			if err := bcdBackupWriter.Close(); err != nil {
+				if retErr == nil {
+					retErr = err
+				}
 			}
 		}()
 
@@ -712,9 +712,10 @@ func writeBackupStreamFromTarAndSaveMutatedFiles(buf *bufio.Writer, w io.Writer,
 	}
 
 	defer func() {
-		ferr := buf.Flush()
-		if err == nil {
-			err = ferr
+		if err := buf.Flush(); err != nil {
+			if retErr == nil {
+				retErr = err
+			}
 		}
 	}()
 
@@ -766,7 +767,7 @@ func writeLayerFromTar(r io.Reader, w hcsshim.LayerWriter, root string) (int64, 
 }
 
 // importLayer adds a new layer to the tag and graph store based on the given data.
-func (d *Driver) importLayer(id string, layerData io.Reader, parentLayerPaths []string) (size int64, err error) {
+func (d *Driver) importLayer(id string, layerData io.Reader, parentLayerPaths []string) (size int64, _ error) {
 	if !noreexec {
 		cmd := reexec.Command(append([]string{"docker-windows-write-layer", d.info.HomeDir, id}, parentLayerPaths...)...)
 		output := bytes.NewBuffer(nil)
@@ -774,11 +775,11 @@ func (d *Driver) importLayer(id string, layerData io.Reader, parentLayerPaths []
 		cmd.Stdout = output
 		cmd.Stderr = output
 
-		if err = cmd.Start(); err != nil {
-			return
+		if err := cmd.Start(); err != nil {
+			return 0, err
 		}
 
-		if err = cmd.Wait(); err != nil {
+		if err := cmd.Wait(); err != nil {
 			return 0, fmt.Errorf("re-exec error: %v: output: %s", err, output)
 		}
 

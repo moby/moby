@@ -445,7 +445,7 @@ func (d *Driver) isParent(id, parent string) bool {
 }
 
 // ApplyDiff applies the new layer into a root
-func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64, err error) {
+func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64, _ error) {
 	if !d.isParent(id, parent) {
 		return d.naiveDiff.ApplyDiff(id, parent, diff)
 	}
@@ -475,7 +475,7 @@ func (d *Driver) getDiffPath(id string) string {
 // DiffSize calculates the changes between the specified id
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
-func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
+func (d *Driver) DiffSize(id, parent string) (int64, error) {
 	return d.naiveDiff.DiffSize(id, parent)
 }
 
@@ -513,7 +513,7 @@ func fusermountU(mountpoint string) (unmounted bool) {
 			if err := unix.Syncfs(fd); err != nil {
 				log.G(context.TODO()).Debugf("Error Syncfs(%s) - %v", mountpoint, err)
 			}
-			unix.Close(fd)
+			_ = unix.Close(fd)
 		}
 	}
 	return
