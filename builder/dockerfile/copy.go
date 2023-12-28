@@ -363,27 +363,27 @@ func getFilenameForDownload(path string, resp *http.Response) string {
 	return ""
 }
 
-func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote builder.Source, p string, err error) {
+func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote builder.Source, filename string, retErr error) {
 	u, err := url.Parse(srcURL)
 	if err != nil {
-		return
+		return nil, "", err
 	}
 
 	resp, err := remotecontext.GetWithStatusError(srcURL)
 	if err != nil {
-		return
+		return nil, "", err
 	}
 
-	filename := getFilenameForDownload(u.Path, resp)
+	filename = getFilenameForDownload(u.Path, resp)
 
 	// Prepare file in a tmp dir
 	tmpDir, err := longpath.MkdirTemp("", "docker-remote")
 	if err != nil {
-		return
+		return nil, "", err
 	}
 	defer func() {
-		if err != nil {
-			os.RemoveAll(tmpDir)
+		if retErr != nil {
+			_ = os.RemoveAll(tmpDir)
 		}
 	}()
 	// If filename is empty, the returned filename will be "" but
@@ -395,7 +395,7 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 	tmpFileName = filepath.Join(tmpDir, tmpFileName)
 	tmpFile, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
-		return
+		return nil, "", err
 	}
 
 	progressOutput := streamformatter.NewJSONProgressOutput(output, true)
@@ -403,11 +403,11 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 	// Download and dump result to tmp file
 	// TODO: add filehash directly
 	if _, err = io.Copy(tmpFile, progressReader); err != nil {
-		tmpFile.Close()
-		return
+		_ = tmpFile.Close()
+		return nil, "", err
 	}
 	// TODO: how important is this random blank line to the output?
-	fmt.Fprintln(stdout)
+	_, _ = fmt.Fprintln(stdout)
 
 	// Set the mtime to the Last-Modified header value if present
 	// Otherwise just remove atime and mtime
@@ -422,10 +422,10 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 		}
 	}
 
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	if err = system.Chtimes(tmpFileName, mTime, mTime); err != nil {
-		return
+		return nil, "", err
 	}
 
 	lc, err := remotecontext.NewLazySource(tmpDir)
