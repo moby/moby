@@ -203,7 +203,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 // also deletes dangling parents if there is no conflict in doing so.
 // Parent images are removed quietly, and if there is any issue/conflict
 // it is logged but does not halt execution/an error is not returned.
-func (i *ImageService) deleteAll(ctx context.Context, imgID image.ID, all []c8dimages.Image, c conflictType, prune bool) (records []imagetypes.DeleteResponse, err error) {
+func (i *ImageService) deleteAll(ctx context.Context, imgID image.ID, all []c8dimages.Image, c conflictType, prune bool) (records []imagetypes.DeleteResponse, _ error) {
 	// Workaround for: https://github.com/moby/buildkit/issues/3797
 	possiblyDeletedConfigs := map[digest.Digest]struct{}{}
 	if len(all) > 0 && i.content != nil {
@@ -236,6 +236,7 @@ func (i *ImageService) deleteAll(ctx context.Context, imgID image.ID, all []c8di
 	var parents []c8dimages.Image
 	if prune {
 		// TODO(dmcgowan): Consider using GC labels to walk for deletion
+		var err error
 		parents, err = i.parents(ctx, imgID)
 		if err != nil {
 			log.G(ctx).WithError(err).Warn("failed to get image parents")
@@ -254,8 +255,7 @@ func (i *ImageService) deleteAll(ctx context.Context, imgID image.ID, all []c8di
 		if !isDanglingImage(parent) {
 			break
 		}
-		err = i.imageDeleteHelper(ctx, parent, all, &records, conflictSoft)
-		if err != nil {
+		if err := i.imageDeleteHelper(ctx, parent, all, &records, conflictSoft); err != nil {
 			log.G(ctx).WithError(err).Warn("failed to remove image parent")
 			break
 		}
