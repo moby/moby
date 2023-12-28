@@ -68,10 +68,10 @@ func makePluginClient(p getter.CompatPlugin) (logPlugin, error) {
 }
 
 func makePluginCreator(name string, l logPlugin, scopePath func(s string) string) Creator {
-	return func(logCtx Info) (logger Logger, err error) {
+	return func(logCtx Info) (logger Logger, retErr error) {
 		defer func() {
-			if err != nil {
-				pluginGetter.Get(name, extName, getter.Release)
+			if retErr != nil {
+				_, _ = pluginGetter.Get(name, extName, getter.Release)
 			}
 		}()
 

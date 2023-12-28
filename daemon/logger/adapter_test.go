@@ -68,7 +68,7 @@ func (l *mockLoggingPlugin) StopLogging(file string) error {
 	return nil
 }
 
-func (l *mockLoggingPlugin) Capabilities() (cap Capability, err error) {
+func (l *mockLoggingPlugin) Capabilities() (Capability, error) {
 	return Capability{ReadLogs: true}, nil
 }
 
