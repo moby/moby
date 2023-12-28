@@ -40,7 +40,7 @@ func (s *Service) ServiceConfig() *registry.ServiceConfig {
 
 // ReplaceConfig prepares a transaction which will atomically replace the
 // registry service's configuration when the returned commit function is called.
-func (s *Service) ReplaceConfig(options ServiceOptions) (commit func(), err error) {
+func (s *Service) ReplaceConfig(options ServiceOptions) (commit func(), _ error) {
 	config, err := newServiceConfig(options)
 	if err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ type APIEndpoint struct {
 
 // LookupPullEndpoints creates a list of v2 endpoints to try to pull from, in order of preference.
 // It gives preference to mirrors over the actual registry, and HTTPS over plain HTTP.
-func (s *Service) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
+func (s *Service) LookupPullEndpoints(hostname string) ([]APIEndpoint, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -157,7 +157,7 @@ func (s *Service) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint,
 
 // LookupPushEndpoints creates a list of v2 endpoints to try to push to, in order of preference.
 // It gives preference to HTTPS over plain HTTP. Mirrors are not included.
-func (s *Service) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
+func (s *Service) LookupPushEndpoints(hostname string) ([]APIEndpoint, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
