@@ -212,7 +212,7 @@ func (pm *Manager) Shutdown() {
 	}
 }
 
-func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *types.PluginPrivileges) (err error) {
+func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *types.PluginPrivileges) (retErr error) {
 	config, err := pm.setupNewPlugin(configDigest, privileges)
 	if err != nil {
 		return err
@@ -234,20 +234,20 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest dige
 	}
 
 	defer func() {
-		if err != nil {
-			if rmErr := os.RemoveAll(orig); rmErr != nil {
-				log.G(context.TODO()).WithError(rmErr).WithField("dir", backup).Error("error cleaning up after failed upgrade")
+		if retErr != nil {
+			if err := os.RemoveAll(orig); err != nil {
+				log.G(context.TODO()).WithError(err).WithField("dir", backup).Error("error cleaning up after failed upgrade")
 				return
 			}
-			if mvErr := os.Rename(backup, orig); mvErr != nil {
-				err = errors.Wrap(mvErr, "error restoring old plugin root on upgrade failure")
+			if err := os.Rename(backup, orig); err != nil {
+				retErr = errors.Wrap(err, "error restoring old plugin root on upgrade failure")
 			}
-			if rmErr := os.RemoveAll(tmpRootFSDir); rmErr != nil && !os.IsNotExist(rmErr) {
-				log.G(context.TODO()).WithError(rmErr).WithField("plugin", p.Name()).Errorf("error cleaning up plugin upgrade dir: %s", tmpRootFSDir)
+			if err := os.RemoveAll(tmpRootFSDir); err != nil && !os.IsNotExist(err) {
+				log.G(context.TODO()).WithError(err).WithField("plugin", p.Name()).Errorf("error cleaning up plugin upgrade dir: %s", tmpRootFSDir)
 			}
 		} else {
-			if rmErr := os.RemoveAll(backup); rmErr != nil {
-				log.G(context.TODO()).WithError(rmErr).WithField("dir", backup).Error("error cleaning up old plugin root after successful upgrade")
+			if err := os.RemoveAll(backup); err != nil {
+				log.G(context.TODO()).WithError(err).WithField("dir", backup).Error("error cleaning up old plugin root after successful upgrade")
 			}
 
 			p.Config = configDigest
@@ -261,8 +261,11 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest dige
 
 	p.PluginObj.Config = config
 	p.Manifest = manifestDigest
-	err = pm.save(p)
-	return errors.Wrap(err, "error saving upgraded plugin config")
+	if err := pm.save(p); err != nil {
+		return errors.Wrap(err, "error saving upgraded plugin config")
+	}
+
+	return nil
 }
 
 func (pm *Manager) setupNewPlugin(configDigest digest.Digest, privileges *types.PluginPrivileges) (types.PluginConfig, error) {
@@ -294,7 +297,7 @@ func (pm *Manager) setupNewPlugin(configDigest digest.Digest, privileges *types.
 }
 
 // createPlugin creates a new plugin. take lock before calling.
-func (pm *Manager) createPlugin(name string, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *types.PluginPrivileges, opts ...CreateOpt) (p *v2.Plugin, err error) {
+func (pm *Manager) createPlugin(name string, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *types.PluginPrivileges, opts ...CreateOpt) (_ *v2.Plugin, retErr error) {
 	if err := pm.config.Store.validateName(name); err != nil { // todo: this check is wrong. remove store
 		return nil, errdefs.InvalidParameter(err)
 	}
@@ -304,7 +307,7 @@ func (pm *Manager) createPlugin(name string, configDigest, manifestDigest digest
 		return nil, err
 	}
 
-	p = &v2.Plugin{
+	p := &v2.Plugin{
 		PluginObj: types.Plugin{
 			Name:   name,
 			ID:     stringid.GenerateRandomID(),
@@ -325,8 +328,8 @@ func (pm *Manager) createPlugin(name string, configDigest, manifestDigest digest
 	}
 
 	defer func() {
-		if err != nil {
-			os.RemoveAll(pdir)
+		if retErr != nil {
+			_ = os.RemoveAll(pdir)
 		}
 	}()
 
