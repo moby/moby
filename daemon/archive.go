@@ -10,41 +10,39 @@ import (
 
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
-func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *container.PathStat, err error) {
+func (daemon *Daemon) ContainerStatPath(name string, path string) (*container.PathStat, error) {
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
 
-	stat, err = daemon.containerStatPath(ctr, path)
-	if err == nil {
-		return stat, nil
+	stat, err := daemon.containerStatPath(ctr, path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, containerFileNotFound{path, name}
+		}
+		return nil, errdefs.System(err)
 	}
-
-	if os.IsNotExist(err) {
-		return nil, containerFileNotFound{path, name}
-	}
-	return nil, errdefs.System(err)
+	return stat, nil
 }
 
 // ContainerArchivePath creates an archive of the filesystem resource at the
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
-func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *container.PathStat, err error) {
+func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *container.PathStat, _ error) {
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	content, stat, err = daemon.containerArchivePath(ctr, path)
-	if err == nil {
-		return content, stat, nil
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil, containerFileNotFound{path, name}
+		}
+		return nil, nil, errdefs.System(err)
 	}
-
-	if os.IsNotExist(err) {
-		return nil, nil, containerFileNotFound{path, name}
-	}
-	return nil, nil, errdefs.System(err)
+	return content, stat, nil
 }
 
 // ContainerExtractToDir extracts the given archive to the specified location
