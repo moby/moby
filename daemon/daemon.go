@@ -760,7 +760,7 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (daemon *Daemon, err error) {
+func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (_ *Daemon, retErr error) {
 	// Verify platform-specific requirements.
 	// TODO(thaJeztah): this should be called before we try to create the daemon; perhaps together with the config validation.
 	if err := checkSystem(); err != nil {
@@ -841,7 +841,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// Ensure the daemon is properly shutdown if there is a failure during
 	// initialization
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			// Use a fresh context here. Passed context could be cancelled.
 			if err := d.Shutdown(context.Background()); err != nil {
 				log.G(ctx).Error(err)
