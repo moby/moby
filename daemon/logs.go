@@ -177,7 +177,7 @@ func (daemon *Daemon) getLogger(container *container.Container) (l logger.Logger
 		created = true
 		l, err = container.StartLogger()
 	}
-	return
+	return l, created, err
 }
 
 // mergeAndVerifyLogConfig merges the daemon log config to the container's log config if the container's log driver is not specified.
