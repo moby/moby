@@ -87,7 +87,7 @@ func (p *Controller) Update(ctx context.Context, t *api.Task) error {
 }
 
 // Prepare is the prepare phase from swarmkit
-func (p *Controller) Prepare(ctx context.Context) (err error) {
+func (p *Controller) Prepare(ctx context.Context) (retErr error) {
 	p.logger.Debug("Prepare")
 
 	remote, err := reference.ParseNormalizedNamed(p.spec.Remote)
@@ -105,7 +105,7 @@ func (p *Controller) Prepare(ctx context.Context) (err error) {
 	pl, err := p.backend.Get(p.spec.Name)
 
 	defer func() {
-		if pl != nil && err == nil {
+		if pl != nil && retErr == nil {
 			pl.Acquire()
 		}
 	}()
