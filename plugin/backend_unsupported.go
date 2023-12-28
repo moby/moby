@@ -28,7 +28,7 @@ func (pm *Manager) Enable(name string, config *backend.PluginEnableConfig) error
 }
 
 // Inspect examines a plugin config
-func (pm *Manager) Inspect(refOrID string) (tp *types.Plugin, err error) {
+func (pm *Manager) Inspect(refOrID string) (*types.Plugin, error) {
 	return nil, errNotSupported
 }
 
