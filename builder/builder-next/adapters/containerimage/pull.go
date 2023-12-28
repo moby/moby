@@ -271,10 +271,10 @@ func (p *puller) resolveLocal() {
 }
 
 func (p *puller) resolve(ctx context.Context, g session.Group) error {
-	_, err := p.g.Do(ctx, "", func(ctx context.Context) (_ struct{}, err error) {
+	_, err := p.g.Do(ctx, "", func(ctx context.Context) (_ struct{}, retErr error) {
 		resolveProgressDone := oneOffProgress(ctx, "resolve "+p.src.Reference.String())
 		defer func() {
-			resolveProgressDone(err)
+			_ = resolveProgressDone(retErr)
 		}()
 
 		ref, err := distreference.ParseNormalizedNamed(p.src.Reference.String())
@@ -298,11 +298,11 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 		// It may be possible to have a mapping between schema 1 manifests
 		// and the schema 2 manifests they are converted to.
 		if p.config == nil && p.desc.MediaType != images.MediaTypeDockerSchema1Manifest {
-			ref, err := distreference.WithDigest(ref, p.desc.Digest)
+			refWithDigest, err := distreference.WithDigest(ref, p.desc.Digest)
 			if err != nil {
 				return struct{}{}, err
 			}
-			newRef, _, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: p.src.ResolveMode.String()}, p.sm, g)
+			newRef, _, dt, err := p.is.ResolveImageConfig(ctx, refWithDigest.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: p.src.ResolveMode.String()}, p.sm, g)
 			if err != nil {
 				return struct{}{}, err
 			}
