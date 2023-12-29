@@ -7,6 +7,6 @@ const (
 	defaultPortRangeEnd = 65000
 )
 
-func getDynamicPortRange() (start int, end int, err error) {
+func getDynamicPortRange() (start int, end int, _ error) {
 	return defaultPortRangeStart, defaultPortRangeEnd, nil
 }
