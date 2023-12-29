@@ -85,11 +85,11 @@ func (p *proxyCommand) Start() error {
 		if string(buf) != "0\n" {
 			errStr, err := io.ReadAll(r)
 			if err != nil {
-				errchan <- fmt.Errorf("Error reading exit status from userland proxy: %v", err)
+				errchan <- fmt.Errorf("error reading exit status from userland proxy: %v", err)
 				return
 			}
 
-			errchan <- fmt.Errorf("Error starting userland proxy: %s", errStr)
+			errchan <- fmt.Errorf("error starting userland proxy: %s", errStr)
 			return
 		}
 		errchan <- nil
@@ -99,7 +99,7 @@ func (p *proxyCommand) Start() error {
 	case err := <-errchan:
 		return err
 	case <-time.After(16 * time.Second):
-		return fmt.Errorf("Timed out proxy starting the userland proxy")
+		return fmt.Errorf("timed out starting the userland proxy")
 	}
 }
 
