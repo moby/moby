@@ -71,6 +71,11 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		if err != nil {
 			return nil, err
 		}
+		defer func() {
+			if retErr != nil {
+				pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
+			}
+		}()
 
 		m = &mapping{
 			proto:     proto,
@@ -97,6 +102,11 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		if err != nil {
 			return nil, err
 		}
+		defer func() {
+			if retErr != nil {
+				pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
+			}
+		}()
 
 		m = &mapping{
 			proto:     proto,
@@ -123,6 +133,11 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		if err != nil {
 			return nil, err
 		}
+		defer func() {
+			if retErr != nil {
+				pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
+			}
+		}()
 
 		m = &mapping{
 			proto:     proto,
@@ -149,13 +164,6 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		return nil, ErrUnknownBackendAddressType
 	}
 
-	// release the allocated port on any further error during return.
-	defer func() {
-		if retErr != nil {
-			pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
-		}
-	}()
-
 	key := getKey(m.host)
 	if _, exists := pm.currentMappings[key]; exists {
 		return nil, ErrPortMappedForIP
@@ -170,10 +178,6 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		// need to undo the iptables rules before we return
 		m.userlandProxy.Stop()
 		pm.DeleteForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
-		if err := pm.allocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
-			return err
-		}
-
 		return nil
 	}
 
