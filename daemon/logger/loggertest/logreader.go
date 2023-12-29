@@ -1,6 +1,7 @@
 package loggertest // import "github.com/docker/docker/daemon/logger/loggertest"
 
 import (
+	"fmt"
 	"runtime"
 	"strings"
 	"sync"
@@ -194,28 +195,31 @@ func (tr Reader) testTailEmptyLogs(t *testing.T, live bool) {
 func (tr Reader) TestFollow(t *testing.T) {
 	// Reader sends all logs and closes after logger is closed
 	// - Starting from empty log (like run)
-	t.Run("FromEmptyLog", func(t *testing.T) {
-		t.Parallel()
-		l := tr.Factory(t, logger.Info{
-			ContainerID:   "followstart0",
-			ContainerName: "logloglog",
-		})(t)
-		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: -1, Follow: true})
-		defer lw.ConsumerGone()
+	for i, tail := range []int{-1, 0, 1, 42} {
+		i, tail := i, tail
+		t.Run(fmt.Sprintf("FromEmptyLog/Tail=%d", tail), func(t *testing.T) {
+			t.Parallel()
+			l := tr.Factory(t, logger.Info{
+				ContainerID:   fmt.Sprintf("followstart%d", i),
+				ContainerName: fmt.Sprintf("logloglog%d", i),
+			})(t)
+			lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: tail, Follow: true})
+			defer lw.ConsumerGone()
 
-		doneReading := make(chan struct{})
-		var logs []*logger.Message
-		go func() {
-			defer close(doneReading)
-			logs = readAll(t, lw)
-		}()
+			doneReading := make(chan struct{})
+			var logs []*logger.Message
+			go func() {
+				defer close(doneReading)
+				logs = readAll(t, lw)
+			}()
 
-		mm := makeTestMessages()
-		expected := logMessages(t, l, mm)
-		assert.NilError(t, l.Close())
-		<-doneReading
-		assert.DeepEqual(t, logs, expected, compareLog)
-	})
+			mm := makeTestMessages()
+			expected := logMessages(t, l, mm)
+			assert.NilError(t, l.Close())
+			<-doneReading
+			assert.DeepEqual(t, logs, expected, compareLog)
+		})
+	}
 
 	t.Run("AttachMidStream", func(t *testing.T) {
 		t.Parallel()
