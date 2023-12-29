@@ -47,7 +47,7 @@ func NewWithPortAllocator(allocator *portallocator.PortAllocator, proxyPath stri
 }
 
 // Map maps the specified container transport address to the host's network address and transport port
-func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, useProxy bool) (host net.Addr, err error) {
+func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, useProxy bool) (host net.Addr, _ error) {
 	return pm.MapRange(container, hostIP, hostPort, hostPort, useProxy)
 }
 
@@ -174,17 +174,11 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		return nil, err
 	}
 
-	cleanup := func() error {
-		// need to undo the iptables rules before we return
-		m.userlandProxy.Stop()
-		pm.DeleteForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
-		return nil
-	}
-
 	if err := m.userlandProxy.Start(); err != nil {
-		if err := cleanup(); err != nil {
-			return nil, fmt.Errorf("Error during port allocation cleanup: %v", err)
-		}
+		// FIXME(thaJeztah): both stopping the proxy and deleting iptables rules can produce an error, and both are not currently handled.
+		m.userlandProxy.Stop()
+		// need to undo the iptables rules before we return
+		pm.DeleteForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
 		return nil, err
 	}
 
