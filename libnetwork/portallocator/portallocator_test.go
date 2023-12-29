@@ -48,9 +48,7 @@ func TestReleasePort(t *testing.T) {
 		t.Fatalf("Expected port 5000 got %d", port)
 	}
 
-	if err := p.ReleasePort(defaultIP, "tcp", 5000); err != nil {
-		t.Fatal(err)
-	}
+	p.ReleasePort(defaultIP, "tcp", 5000)
 }
 
 func TestReuseReleasedPort(t *testing.T) {
@@ -65,9 +63,7 @@ func TestReuseReleasedPort(t *testing.T) {
 		t.Fatalf("Expected port 5000 got %d", port)
 	}
 
-	if err := p.ReleasePort(defaultIP, "tcp", 5000); err != nil {
-		t.Fatal(err)
-	}
+	p.ReleasePort(defaultIP, "tcp", 5000)
 
 	port, err = p.RequestPort(defaultIP, "tcp", 5000)
 	if err != nil {
@@ -131,9 +127,7 @@ func TestAllocateAllPorts(t *testing.T) {
 
 	// release a port in the middle and ensure we get another tcp port
 	port := p.Begin + 5
-	if err := p.ReleasePort(defaultIP, "tcp", port); err != nil {
-		t.Fatal(err)
-	}
+	p.ReleasePort(defaultIP, "tcp", port)
 	newPort, err := p.RequestPort(defaultIP, "tcp", 0)
 	if err != nil {
 		t.Fatal(err)
@@ -144,9 +138,7 @@ func TestAllocateAllPorts(t *testing.T) {
 
 	// now pm.last == newPort, release it so that it's the only free port of
 	// the range, and ensure we get it back
-	if err := p.ReleasePort(defaultIP, "tcp", newPort); err != nil {
-		t.Fatal(err)
-	}
+	p.ReleasePort(defaultIP, "tcp", newPort)
 	port, err = p.RequestPort(defaultIP, "tcp", 0)
 	if err != nil {
 		t.Fatal(err)
@@ -215,9 +207,7 @@ func TestPortAllocation(t *testing.T) {
 	if _, err := p.RequestPort(ip2, "tcp", 80); err == nil {
 		t.Fatalf("Acquiring a port already in use should return an error")
 	}
-	if err := p.ReleasePort(ip, "tcp", 80); err != nil {
-		t.Fatal(err)
-	}
+	p.ReleasePort(ip, "tcp", 80)
 	if _, err := p.RequestPort(ip, "tcp", 80); err != nil {
 		t.Fatal(err)
 	}

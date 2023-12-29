@@ -211,16 +211,19 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 
 	switch a := host.(type) {
 	case *net.TCPAddr:
-		return pm.allocator.ReleasePort(a.IP, "tcp", a.Port)
+		pm.allocator.ReleasePort(a.IP, "tcp", a.Port)
 	case *net.UDPAddr:
-		return pm.allocator.ReleasePort(a.IP, "udp", a.Port)
+		pm.allocator.ReleasePort(a.IP, "udp", a.Port)
 	case *sctp.SCTPAddr:
 		if len(a.IPAddrs) == 0 {
 			return ErrSCTPAddrNoIP
 		}
-		return pm.allocator.ReleasePort(a.IPAddrs[0].IP, "sctp", a.Port)
+		pm.allocator.ReleasePort(a.IPAddrs[0].IP, "sctp", a.Port)
+	default:
+		return ErrUnknownBackendAddressType
 	}
-	return ErrUnknownBackendAddressType
+
+	return nil
 }
 
 // ReMapAll re-applies all port mappings
