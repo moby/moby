@@ -1,12 +1,14 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/containerd/cgroups/v3"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
@@ -33,6 +35,10 @@ const (
 
 	// minAPIVersion represents Minimum REST API version supported
 	minAPIVersion = "1.12"
+
+	// userlandProxyBinary is the name of the userland-proxy binary.
+	// In rootless-mode, [rootless.RootlessKitDockerProxyBinary] is used instead.
+	userlandProxyBinary = "docker-proxy"
 )
 
 // BridgeConfig stores all the parameters for both the bridge driver and the default bridge network.
@@ -175,6 +181,21 @@ func (conf *Config) ValidatePlatformConfig() error {
 	if conf.OOMScoreAdjust != 0 {
 		return errors.New(`DEPRECATED: The "oom-score-adjust" config parameter and the dockerd "--oom-score-adjust" options have been removed.`)
 	}
+
+	if conf.EnableUserlandProxy {
+		if conf.UserlandProxyPath == "" {
+			return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
+		}
+		if !filepath.IsAbs(conf.UserlandProxyPath) {
+			return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.UserlandProxyPath)
+		}
+		// Using exec.LookPath here, because it also produces an error if the
+		// given path is not a valid executable or a directory.
+		if _, err := exec.LookPath(conf.UserlandProxyPath); err != nil {
+			return errors.Wrap(err, "invalid userland-proxy-path")
+		}
+	}
+
 	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
 		return err
 	}
@@ -227,6 +248,17 @@ func setPlatformDefaults(cfg *Config) error {
 		cfg.ExecRoot = filepath.Join(runtimeDir, "docker")
 		cfg.Pidfile = filepath.Join(runtimeDir, "docker.pid")
 	} else {
+		var err error
+		cfg.BridgeConfig.UserlandProxyPath, err = exec.LookPath(userlandProxyBinary)
+		if err != nil {
+			// Log a warning, but don't error here. This allows running a daemon
+			// with userland-proxy disabled (which does not require the binary
+			// to be present).
+			//
+			// An error is still produced by [Config.ValidatePlatformConfig] if
+			// userland-proxy is enabled in the configuration.
+			log.G(context.TODO()).WithError(err).Warn("failed to lookup default userland-proxy binary")
+		}
 		cfg.Root = "/var/lib/docker"
 		cfg.ExecRoot = "/var/run/docker"
 		cfg.Pidfile = "/var/run/docker.pid"
