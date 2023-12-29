@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -e
 
-EXITCODE=0
+EXITCODE=0 
 
 # bits of this were adapted from lxc-checkconfig
 # see also https://github.com/lxc/lxc/blob/lxc-1.0.2/src/lxc/lxc-checkconfig.in
