@@ -6,13 +6,13 @@ import (
 	"os/exec"
 )
 
-func getDynamicPortRange() (start int, end int, err error) {
+func getDynamicPortRange() (start int, end int, _ error) {
 	portRangeKernelSysctl := []string{"net.inet.ip.portrange.hifirst", "net.ip.portrange.hilast"}
 	portRangeLowCmd := exec.Command("/sbin/sysctl", portRangeKernelSysctl[0])
 	var portRangeLowOut bytes.Buffer
 	portRangeLowCmd.Stdout = &portRangeLowOut
-	cmdErr := portRangeLowCmd.Run()
-	if cmdErr != nil {
+	err := portRangeLowCmd.Run()
+	if err != nil {
 		return 0, 0, fmt.Errorf("port allocator - sysctl net.inet.ip.portrange.hifirst failed: %v", err)
 	}
 	n, err := fmt.Sscanf(portRangeLowOut.String(), "%d", &start)
@@ -26,8 +26,8 @@ func getDynamicPortRange() (start int, end int, err error) {
 	portRangeHighCmd := exec.Command("/sbin/sysctl", portRangeKernelSysctl[1])
 	var portRangeHighOut bytes.Buffer
 	portRangeHighCmd.Stdout = &portRangeHighOut
-	cmdErr = portRangeHighCmd.Run()
-	if cmdErr != nil {
+	err = portRangeHighCmd.Run()
+	if err != nil {
 		return 0, 0, fmt.Errorf("port allocator - sysctl net.inet.ip.portrange.hilast failed: %v", err)
 	}
 	n, err = fmt.Sscanf(portRangeHighOut.String(), "%d", &end)
