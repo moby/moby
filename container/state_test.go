@@ -68,7 +68,7 @@ func TestStateRunStop(t *testing.T) {
 
 		// Set the state to "Running".
 		s.Lock()
-		s.SetRunning(nil, &mockTask{pid: uint32(i)}, true)
+		s.SetRunning(nil, &mockTask{pid: uint32(i)}, time.Now())
 		s.Unlock()
 
 		// Assert desired state.
@@ -133,7 +133,7 @@ func TestStateTimeoutWait(t *testing.T) {
 	s := NewState()
 
 	s.Lock()
-	s.SetRunning(nil, nil, true)
+	s.SetRunning(nil, nil, time.Now())
 	s.Unlock()
 
 	// Start a wait with a timeout.
@@ -182,7 +182,7 @@ func TestCorrectStateWaitResultAfterRestart(t *testing.T) {
 	s := NewState()
 
 	s.Lock()
-	s.SetRunning(nil, nil, true)
+	s.SetRunning(nil, nil, time.Now())
 	s.Unlock()
 
 	waitC := s.Wait(context.Background(), WaitConditionNotRunning)
@@ -193,7 +193,7 @@ func TestCorrectStateWaitResultAfterRestart(t *testing.T) {
 	s.Unlock()
 
 	s.Lock()
-	s.SetRunning(nil, nil, true)
+	s.SetRunning(nil, nil, time.Now())
 	s.Unlock()
 
 	got := <-waitC

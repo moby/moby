@@ -199,6 +199,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return setExitCodeFromError(container.SetExitCode, err)
 	}
 
+	startupTime := time.Now()
 	// TODO(mlaventure): we need to specify checkpoint options here
 	tsk, err := ctr.Start(context.TODO(), // Passing ctx to ctr.Start caused integration tests to be stuck in the cleanup phase
 		checkpointDir, container.StreamConfig.Stdin() != nil || container.Config.Tty,
@@ -212,7 +213,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	}
 
 	container.HasBeenManuallyRestarted = false
-	container.SetRunning(ctr, tsk, true)
+	container.SetRunning(ctr, tsk, startupTime)
 	container.HasBeenStartedBefore = true
 	daemon.setStateCounter(container)
 
