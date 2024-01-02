@@ -12,7 +12,7 @@ type dummyWriter struct {
 	failOnWrite bool
 }
 
-func (dw *dummyWriter) Write(p []byte) (n int, err error) {
+func (dw *dummyWriter) Write(p []byte) (int, error) {
 	if dw.failOnWrite {
 		return 0, errors.New("Fake fail")
 	}
