@@ -68,12 +68,12 @@ type OnEOFReader struct {
 	Fn func()
 }
 
-func (r *OnEOFReader) Read(p []byte) (n int, err error) {
-	n, err = r.Rc.Read(p)
+func (r *OnEOFReader) Read(p []byte) (int, error) {
+	n, err := r.Rc.Read(p)
 	if err == io.EOF {
 		r.runFunc()
 	}
-	return
+	return n, err
 }
 
 // Close closes the file and run the function.
@@ -142,14 +142,14 @@ func NewCancelReadCloser(ctx context.Context, in io.ReadCloser) io.ReadCloser {
 
 // Read wraps the Read method of the pipe that provides data from the wrapped
 // ReadCloser.
-func (p *cancelReadCloser) Read(buf []byte) (n int, err error) {
+func (p *cancelReadCloser) Read(buf []byte) (int, error) {
 	return p.pR.Read(buf)
 }
 
 // closeWithError closes the wrapper and its underlying reader. It will
 // cause future calls to Read to return err.
 func (p *cancelReadCloser) closeWithError(err error) {
-	p.pW.CloseWithError(err)
+	_ = p.pW.CloseWithError(err)
 	p.cancel()
 }
 
