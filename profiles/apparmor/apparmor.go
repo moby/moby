@@ -4,13 +4,13 @@ package apparmor // import "github.com/docker/docker/profiles/apparmor"
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"text/template"
-
-	"github.com/docker/docker/pkg/aaparser"
 )
 
 // profileDirectory is the file store for apparmor profiles and macros.
@@ -94,7 +94,7 @@ func InstallDefault(name string) error {
 		return err
 	}
 
-	return aaparser.LoadProfile(profilePath)
+	return loadProfile(profilePath)
 }
 
 // IsLoaded checks if a profile with the given name has been loaded into the
@@ -121,4 +121,19 @@ func IsLoaded(name string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// loadProfile runs `apparmor_parser -Kr` on a specified apparmor profile to
+// replace the profile. The `-K` is necessary to make sure that apparmor_parser
+// doesn't try to write to a read-only filesystem.
+func loadProfile(profilePath string) error {
+	c := exec.Command("apparmor_parser", "-Kr", profilePath)
+	c.Dir = ""
+
+	output, err := c.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("running `%s %s` failed with output: %s\nerror: %v", c.Path, strings.Join(c.Args, " "), output, err)
+	}
+
+	return nil
 }
