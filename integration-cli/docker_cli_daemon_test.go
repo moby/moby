@@ -2469,6 +2469,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *testing.T)
 
 func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
+	ctx := context.TODO()
 
 	dockerProxyPath, err := exec.LookPath("docker-proxy")
 	assert.NilError(c, err)
@@ -2490,11 +2491,20 @@ func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// not exist
-	s.d.Restart(c, "--userland-proxy-path", "/does/not/exist")
-	out, err = s.d.Cmd("run", "-p", "5000:5000", "busybox:latest", "true")
-	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "driver failed programming external connectivity on endpoint"))
-	assert.Assert(c, strings.Contains(out, "/does/not/exist: no such file or directory"))
+	s.d.Stop(c)
+	err = s.d.StartWithError("--userland-proxy-path", "/does/not/exist")
+	assert.ErrorContains(c, err, "", "daemon should fail to start")
+	expected := "invalid userland-proxy-path"
+	ok, _ := s.d.ScanLogsT(ctx, c, testdaemon.ScanLogsMatchString(expected))
+	assert.Assert(c, ok, "logs did not contain: %s", expected)
+
+	// not an absolute path
+	s.d.Stop(c)
+	err = s.d.StartWithError("--userland-proxy-path", "docker-proxy")
+	assert.ErrorContains(c, err, "", "daemon should fail to start")
+	expected = "invalid userland-proxy-path: must be an absolute path: docker-proxy"
+	ok, _ = s.d.ScanLogsT(ctx, c, testdaemon.ScanLogsMatchString(expected))
+	assert.Assert(c, ok, "logs did not contain: %s", expected)
 }
 
 // Test case for #22471
