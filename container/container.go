@@ -310,8 +310,8 @@ func (container *Container) GetResourcePath(path string) (string, error) {
 		return "", errors.New("GetResourcePath: BaseFS of container " + container.ID + " is unexpectedly empty")
 	}
 	// IMPORTANT - These are paths on the OS where the daemon is running, hence
-	// any filepath operations must be done in an OS agnostic way.
-	r, e := containerfs.ResolveScopedPath(container.BaseFS, containerfs.CleanScopedPath(path))
+	// any filepath operations must be done in an OS-agnostic way.
+	r, e := symlink.FollowSymlinkInScope(filepath.Join(container.BaseFS, containerfs.CleanScopedPath(path)), container.BaseFS)
 
 	// Log this here on the daemon side as there's otherwise no indication apart
 	// from the error being propagated all the way back to the client. This makes
