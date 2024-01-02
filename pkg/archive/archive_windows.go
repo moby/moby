@@ -36,9 +36,9 @@ func setHeaderForSpecialDevice(hdr *tar.Header, name string, stat interface{}) (
 	return
 }
 
-func getInodeFromStat(stat interface{}) (inode uint64, err error) {
+func getInodeFromStat(stat interface{}) uint64 {
 	// do nothing. no notion of Inode in stat on Windows
-	return
+	return 0
 }
 
 // handleTarTypeBlockCharFifo is an OS-specific helper function used by
