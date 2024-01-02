@@ -88,19 +88,19 @@ func SplitPathDirEntry(path string) (dir, base string) {
 // This function acts as a convenient wrapper around TarWithOptions, which
 // requires a directory as the source path. TarResource accepts either a
 // directory or a file path and correctly sets the Tar options.
-func TarResource(sourceInfo CopyInfo) (content io.ReadCloser, err error) {
+func TarResource(sourceInfo CopyInfo) (content io.ReadCloser, _ error) {
 	return TarResourceRebase(sourceInfo.Path, sourceInfo.RebaseName)
 }
 
 // TarResourceRebase is like TarResource but renames the first path element of
 // items in the resulting tar archive to match the given rebaseName if not "".
-func TarResourceRebase(sourcePath, rebaseName string) (content io.ReadCloser, err error) {
+func TarResourceRebase(sourcePath, rebaseName string) (content io.ReadCloser, _ error) {
 	sourcePath = normalizePath(sourcePath)
-	if _, err = os.Lstat(sourcePath); err != nil {
+	if _, err := os.Lstat(sourcePath); err != nil {
 		// Catches the case where the source does not exist or is not a
 		// directory if asserted to be a directory, as this also causes an
 		// error.
-		return
+		return content, err
 	}
 
 	// Separate the source path between its directory and
@@ -167,7 +167,7 @@ func CopyInfoSourcePath(path string, followLink bool) (CopyInfo, error) {
 // CopyInfoDestinationPath stats the given path to create a CopyInfo
 // struct representing that resource for the destination of an archive copy
 // operation. The given path should be an absolute local path.
-func CopyInfoDestinationPath(path string) (info CopyInfo, err error) {
+func CopyInfoDestinationPath(path string) (CopyInfo, error) {
 	maxSymlinkIter := 10 // filepath.EvalSymlinks uses 255, but 10 already seems like a lot.
 	path = normalizePath(path)
 	originalPath := path
@@ -246,7 +246,7 @@ func CopyInfoDestinationPath(path string) (info CopyInfo, err error) {
 // contain the archived resource described by srcInfo, to the destination
 // described by dstInfo. Returns the possibly modified content archive along
 // with the path to the destination directory which it should be extracted to.
-func PrepareArchiveCopy(srcContent io.Reader, srcInfo, dstInfo CopyInfo) (dstDir string, content io.ReadCloser, err error) {
+func PrepareArchiveCopy(srcContent io.Reader, srcInfo, dstInfo CopyInfo) (dstDir string, content io.ReadCloser, _ error) {
 	// Ensure in platform semantics
 	srcInfo.Path = normalizePath(srcInfo.Path)
 	dstInfo.Path = normalizePath(dstInfo.Path)

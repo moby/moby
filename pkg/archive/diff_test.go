@@ -310,25 +310,25 @@ func TestApplyLayerWhiteouts(t *testing.T) {
 	}
 }
 
-func makeTestLayer(paths []string) (rc io.ReadCloser, err error) {
+func makeTestLayer(paths []string) (rc io.ReadCloser, retErr error) {
 	tmpDir, err := os.MkdirTemp("", "graphdriver-test-mklayer")
 	if err != nil {
 		return
 	}
 	defer func() {
-		if err != nil {
-			os.RemoveAll(tmpDir)
+		if retErr != nil {
+			_ = os.RemoveAll(tmpDir)
 		}
 	}()
 	for _, p := range paths {
 		// Source files are always in Unix format. But we use filepath on
-		// creation to be platform agnostic.
+		// creation to be platform-agnostic.
 		if p[len(p)-1] == '/' {
-			if err = os.MkdirAll(filepath.Join(tmpDir, p), 0o700); err != nil {
+			if err := os.MkdirAll(filepath.Join(tmpDir, p), 0o700); err != nil {
 				return
 			}
 		} else {
-			if err = os.WriteFile(filepath.Join(tmpDir, p), nil, 0o600); err != nil {
+			if err := os.WriteFile(filepath.Join(tmpDir, p), nil, 0o600); err != nil {
 				return
 			}
 		}
@@ -339,7 +339,7 @@ func makeTestLayer(paths []string) (rc io.ReadCloser, err error) {
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
-		os.RemoveAll(tmpDir)
+		_ = os.RemoveAll(tmpDir)
 		return err
 	}), nil
 }

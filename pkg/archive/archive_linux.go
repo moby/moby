@@ -21,7 +21,7 @@ func getWhiteoutConverter(format WhiteoutFormat) tarWhiteoutConverter {
 
 type overlayWhiteoutConverter struct{}
 
-func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os.FileInfo) (wo *tar.Header, err error) {
+func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os.FileInfo) (*tar.Header, error) {
 	// convert whiteouts to AUFS format
 	if fi.Mode()&os.ModeCharDevice != 0 && hdr.Devmajor == 0 && hdr.Devminor == 0 {
 		// we just rename the file and make it normal
@@ -32,6 +32,7 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 		hdr.Size = 0
 	}
 
+	var wo *tar.Header
 	if fi.Mode()&os.ModeDir != 0 {
 		opaqueXattrName := "trusted.overlay.opaque"
 		if userns.RunningInUserNS() {
@@ -63,7 +64,7 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 		}
 	}
 
-	return
+	return wo, nil
 }
 
 func (c overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, path string) (bool, error) {
