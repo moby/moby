@@ -255,17 +255,21 @@ func (r *reader) readJournal() error {
 		return nil
 	}
 
-	var drainTimeout <-chan time.Time
+	var drainDeadline time.Time
 	if !r.config.Follow {
 		if r.s.readSyncTimeout == 0 {
 			return nil
 		}
-		tmr := time.NewTimer(r.s.readSyncTimeout)
-		defer tmr.Stop()
-		drainTimeout = tmr.C
+		drainDeadline = time.Now().Add(r.s.readSyncTimeout)
 	}
 
 	for {
+		if !drainDeadline.IsZero() && time.Now().After(drainDeadline) {
+			// Container is gone but we haven't found the end of the
+			// logs within the timeout. Maybe it was dropped by
+			// journald, e.g. due to rate-limiting.
+			return nil
+		}
 		status, err := r.j.Wait(250 * time.Millisecond)
 		if err != nil {
 			return err
@@ -273,11 +277,6 @@ func (r *reader) readJournal() error {
 		select {
 		case <-r.logWatcher.WatchConsumerGone():
 			return nil // won't be able to write anything anymore
-		case <-drainTimeout:
-			// Container is gone but we haven't found the end of the
-			// logs within the timeout. Maybe it was dropped by
-			// journald, e.g. due to rate-limiting.
-			return nil
 		case <-r.s.closed:
 			// container is gone, drain journal
 			lastSeq := atomic.LoadUint64(&r.s.ordinal)
@@ -285,13 +284,10 @@ func (r *reader) readJournal() error {
 				// All caught up with the logger!
 				return nil
 			}
-			if drainTimeout == nil {
-				tmr := time.NewTimer(closedDrainTimeout)
-				defer tmr.Stop()
-				drainTimeout = tmr.C
+			if drainDeadline.IsZero() {
+				drainDeadline = time.Now().Add(closedDrainTimeout)
 			}
 		default:
-			// container is still alive
 			if status == sdjournal.StatusNOP {
 				// no new data -- keep waiting
 				continue
