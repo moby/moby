@@ -20,7 +20,7 @@ func (w *unbuffered) Add(writer io.WriteCloser) {
 
 // Write writes bytes to all writers. Failed writers will be evicted during
 // this call.
-func (w *unbuffered) Write(p []byte) (n int, err error) {
+func (w *unbuffered) Write(p []byte) (int, error) {
 	w.mu.Lock()
 	var evict []int
 	for i, sw := range w.writers {
