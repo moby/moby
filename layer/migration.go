@@ -13,12 +13,12 @@ import (
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
-func (ls *layerStore) ChecksumForGraphID(id, parent, newTarDataPath string) (diffID DiffID, size int64, err error) {
-	rawarchive, err := ls.driver.Diff(id, parent)
+func (ls *layerStore) ChecksumForGraphID(id, parent, newTarDataPath string) (diffID DiffID, size int64, _ error) {
+	rawArchive, err := ls.driver.Diff(id, parent)
 	if err != nil {
 		return "", 0, err
 	}
-	defer rawarchive.Close()
+	defer rawArchive.Close()
 
 	f, err := os.Create(newTarDataPath)
 	if err != nil {
@@ -31,7 +31,7 @@ func (ls *layerStore) ChecksumForGraphID(id, parent, newTarDataPath string) (dif
 
 	packerCounter := &packSizeCounter{metaPacker, &size}
 
-	archive, err := asm.NewInputTarStream(rawarchive, packerCounter, nil)
+	archive, err := asm.NewInputTarStream(rawArchive, packerCounter, nil)
 	if err != nil {
 		return "", 0, err
 	}
@@ -43,10 +43,10 @@ func (ls *layerStore) ChecksumForGraphID(id, parent, newTarDataPath string) (dif
 }
 
 func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID DiffID, tarDataFile string, size int64) (Layer, error) {
-	// err is used to hold the error which will always trigger
+	// cleanupErr is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
-	var err error
+	var cleanupErr error
 	var p *roLayer
 	if string(parent) != "" {
 		ls.layerL.Lock()
@@ -58,9 +58,9 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 
 		// Release parent chain if error
 		defer func() {
-			if err != nil {
+			if cleanupErr != nil {
 				ls.layerL.Lock()
-				ls.releaseLayer(p)
+				_, _ = ls.releaseLayer(p)
 				ls.layerL.Unlock()
 			}
 		}()
@@ -83,45 +83,45 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 
 	if existingLayer := ls.get(layer.chainID); existingLayer != nil {
 		// Set error for cleanup, but do not return
-		err = errors.New("layer already exists")
+		cleanupErr = errors.New("layer already exists")
 		return existingLayer.getReference(), nil
 	}
 
-	tx, err := ls.store.StartTransaction()
-	if err != nil {
-		return nil, err
+	tx, cleanupErr := ls.store.StartTransaction()
+	if cleanupErr != nil {
+		return nil, cleanupErr
 	}
 
 	defer func() {
-		if err != nil {
-			log.G(context.TODO()).Debugf("Cleaning up transaction after failed migration for %s: %v", graphID, err)
+		if cleanupErr != nil {
+			log.G(context.TODO()).Debugf("Cleaning up transaction after failed migration for %s: %v", graphID, cleanupErr)
 			if err := tx.Cancel(); err != nil {
 				log.G(context.TODO()).Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
 			}
 		}
 	}()
 
-	tsw, err := tx.TarSplitWriter(false)
-	if err != nil {
-		return nil, err
+	tsw, cleanupErr := tx.TarSplitWriter(false)
+	if cleanupErr != nil {
+		return nil, cleanupErr
 	}
 	defer tsw.Close()
-	tdf, err := os.Open(tarDataFile)
-	if err != nil {
-		return nil, err
+	tdf, cleanupErr := os.Open(tarDataFile)
+	if cleanupErr != nil {
+		return nil, cleanupErr
 	}
 	defer tdf.Close()
-	_, err = io.Copy(tsw, tdf)
-	if err != nil {
-		return nil, err
+	_, cleanupErr = io.Copy(tsw, tdf)
+	if cleanupErr != nil {
+		return nil, cleanupErr
 	}
 
-	if err = storeLayer(tx, layer); err != nil {
-		return nil, err
+	if cleanupErr = storeLayer(tx, layer); cleanupErr != nil {
+		return nil, cleanupErr
 	}
 
-	if err = tx.Commit(layer.chainID); err != nil {
-		return nil, err
+	if cleanupErr = tx.Commit(layer.chainID); cleanupErr != nil {
+		return nil, cleanupErr
 	}
 
 	ls.layerMap[layer.chainID] = layer

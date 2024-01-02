@@ -486,7 +486,7 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 		return nil, ErrMountNameConflict
 	}
 
-	var pid string
+	var parentID string
 	var p *roLayer
 	if string(parent) != "" {
 		ls.layerL.Lock()
@@ -495,13 +495,13 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 		if p == nil {
 			return nil, ErrLayerDoesNotExist
 		}
-		pid = p.cacheID
+		parentID = p.cacheID
 
 		// Release parent chain if error
 		defer func() {
 			if retErr != nil {
 				ls.layerL.Lock()
-				ls.releaseLayer(p)
+				_, _ = ls.releaseLayer(p)
 				ls.layerL.Unlock()
 			}
 		}()
@@ -517,18 +517,18 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 
 	if initFunc != nil {
 		var err error
-		pid, err = ls.initMount(m.mountID, pid, mountLabel, initFunc, storageOpt)
+		parentID, err = ls.initMount(m.mountID, parentID, mountLabel, initFunc, storageOpt)
 		if err != nil {
 			return nil, err
 		}
-		m.initID = pid
+		m.initID = parentID
 	}
 
 	createOpts := &graphdriver.CreateOpts{
 		StorageOpt: storageOpt,
 	}
 
-	if err := ls.driver.CreateReadWrite(m.mountID, pid, createOpts); err != nil {
+	if err := ls.driver.CreateReadWrite(m.mountID, parentID, createOpts); err != nil {
 		return nil, err
 	}
 	if err := ls.saveMount(m); err != nil {
