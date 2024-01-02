@@ -70,39 +70,28 @@ func (i *bridgeInterface) addresses(family int) ([]netlink.Addr, error) {
 	return addrs, nil
 }
 
-func getRequiredIPv6Addrs(config *networkConfiguration) (requiredAddrs map[netip.Addr]netip.Prefix, addr *net.IPNet, gateway net.IP, err error) {
+func getRequiredIPv6Addrs(config *networkConfiguration) (requiredAddrs map[netip.Addr]netip.Prefix, err error) {
 	requiredAddrs = make(map[netip.Addr]netip.Prefix)
-
-	// TODO(robmry) - is config.AddressIPv6 always set at this point?
-	//   The logic here is preserved from the original setupBridgeIPv6(), but
-	//   can probably be simplified.
 
 	// Always give the bridge 'fe80::1' - every interface is required to have an
 	// address in 'fe80::/64'. Linux may assign an address, but we'll replace it with
 	// 'fe80::1'. Then, if the configured prefix is 'fe80::/64', the IPAM pool
 	// assigned address will not be a second address in the LL subnet.
-	addr = bridgeIPv6
-	gateway = bridgeIPv6.IP
 	ra, ok := netiputil.ToPrefix(bridgeIPv6)
 	if !ok {
 		err = fmt.Errorf("Failed to convert Link-Local IPv6 address to netip.Prefix")
-		return nil, nil, net.IP{}, err
+		return nil, err
 	}
 	requiredAddrs[ra.Addr()] = ra
 
-	// Set up the user-specified bridge address and gateway.
-	if config.AddressIPv6 != nil {
-		addr = config.AddressIPv6
-		gateway = config.AddressIPv6.IP
-		ra, ok := netiputil.ToPrefix(config.AddressIPv6)
-		if !ok {
-			err = fmt.Errorf("failed to convert bridge IPv6 address '%s' to netip.Prefix", config.AddressIPv6.String())
-			return nil, nil, net.IP{}, err
-		}
-		requiredAddrs[ra.Addr()] = ra
+	ra, ok = netiputil.ToPrefix(config.AddressIPv6)
+	if !ok {
+		err = fmt.Errorf("failed to convert bridge IPv6 address '%s' to netip.Prefix", config.AddressIPv6.String())
+		return nil, err
 	}
+	requiredAddrs[ra.Addr()] = ra
 
-	return requiredAddrs, addr, gateway, nil
+	return requiredAddrs, nil
 }
 
 func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) error {
@@ -114,10 +103,12 @@ func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) err
 
 	// Get the list of required IPv6 addresses for this bridge.
 	var requiredAddrs map[netip.Addr]netip.Prefix
-	requiredAddrs, i.bridgeIPv6, i.gatewayIPv6, err = getRequiredIPv6Addrs(config)
+	requiredAddrs, err = getRequiredIPv6Addrs(config)
 	if err != nil {
 		return errdefs.System(err)
 	}
+	i.bridgeIPv6 = config.AddressIPv6
+	i.gatewayIPv6 = config.AddressIPv6.IP
 
 	// Remove addresses that aren't required.
 	for _, existingAddr := range existingAddrs {

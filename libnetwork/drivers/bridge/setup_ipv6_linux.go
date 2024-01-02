@@ -53,9 +53,6 @@ func setupBridgeIPv6(config *networkConfiguration, i *bridgeInterface) error {
 }
 
 func setupGatewayIPv6(config *networkConfiguration, i *bridgeInterface) error {
-	if config.AddressIPv6 == nil {
-		return &ErrInvalidContainerSubnet{}
-	}
 	if !config.AddressIPv6.Contains(config.DefaultGatewayIPv6) {
 		return &ErrInvalidGateway{}
 	}
