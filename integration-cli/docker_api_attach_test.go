@@ -296,7 +296,7 @@ func readTimeout(r io.Reader, buf []byte, timeout time.Duration) (n int, err err
 	}()
 	select {
 	case <-ch:
-		return
+		return n, err
 	case <-time.After(timeout):
 		return 0, errors.New("Timeout")
 	}
