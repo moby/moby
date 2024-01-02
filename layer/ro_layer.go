@@ -161,19 +161,19 @@ type verifiedReadCloser struct {
 	verifier digest.Verifier
 }
 
-func (vrc *verifiedReadCloser) Read(p []byte) (n int, err error) {
-	n, err = vrc.rc.Read(p)
+func (vrc *verifiedReadCloser) Read(p []byte) (int, error) {
+	n, err := vrc.rc.Read(p)
 	if n > 0 {
-		if n, err := vrc.verifier.Write(p[:n]); err != nil {
-			return n, err
+		if n2, err := vrc.verifier.Write(p[:n]); err != nil {
+			return n2, err
 		}
 	}
 	if err == io.EOF {
 		if !vrc.verifier.Verified() {
-			err = fmt.Errorf("could not verify layer data for: %s. This may be because internal files in the layer store were modified. Re-pulling or rebuilding this image may resolve the issue", vrc.dgst)
+			return n, fmt.Errorf("could not verify layer data for: %s. This may be because internal files in the layer store were modified. Re-pulling or rebuilding this image may resolve the issue", vrc.dgst)
 		}
 	}
-	return
+	return n, err
 }
 
 func (vrc *verifiedReadCloser) Close() error {
