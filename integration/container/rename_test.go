@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stringid"
 	"gotest.tools/v3/assert"
@@ -21,7 +20,6 @@ import (
 // and then deleting and recreating the source container linked to the new target.
 // This checks that "rename" updates source container correctly and doesn't set it to null.
 func TestRenameLinkedContainer(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.32"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()

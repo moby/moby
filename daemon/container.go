@@ -122,9 +122,8 @@ func (daemon *Daemon) Register(c *container.Container) error {
 
 func (daemon *Daemon) newContainer(name string, operatingSystem string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
 	var (
-		id             string
-		err            error
-		noExplicitName = name == ""
+		id  string
+		err error
 	)
 	id, name, err = daemon.generateIDAndName(name)
 	if err != nil {
@@ -151,7 +150,7 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	base.Config = config
 	base.HostConfig = &containertypes.HostConfig{}
 	base.ImageID = imgID
-	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
+	base.NetworkSettings = &network.Settings{}
 	base.Name = name
 	base.Driver = daemon.imageService.StorageDriver()
 	base.OS = operatingSystem

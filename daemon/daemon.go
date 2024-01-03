@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.19
+
 // Package daemon exposes the functions that occur on the host server
 // that the Docker daemon is running.
 //
@@ -26,6 +29,7 @@ import (
 	"github.com/distribution/reference"
 	dist "github.com/docker/distribution"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	imagetypes "github.com/docker/docker/api/types/image"
 	registrytypes "github.com/docker/docker/api/types/registry"
@@ -40,6 +44,7 @@ import (
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
 	dlogger "github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/local"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/daemon/stats"
@@ -48,6 +53,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/layer"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/libnetwork"
@@ -337,17 +343,31 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 
 			baseLogger := log.G(context.TODO()).WithField("container", c.ID)
 
-			// Migrate containers that don't have the default ("no") restart-policy set.
-			// The RestartPolicy.Name field may be empty for containers that were
-			// created with versions before v25.0.0.
-			//
-			// We also need to set the MaximumRetryCount to 0, to prevent
-			// validation from failing (MaximumRetryCount is not allowed if
-			// no restart-policy ("none") is set).
-			if c.HostConfig != nil && c.HostConfig.RestartPolicy.Name == "" {
-				baseLogger.WithError(err).Debug("migrated restart-policy")
-				c.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
-				c.HostConfig.RestartPolicy.MaximumRetryCount = 0
+			if c.HostConfig != nil {
+				// Migrate containers that don't have the default ("no") restart-policy set.
+				// The RestartPolicy.Name field may be empty for containers that were
+				// created with versions before v25.0.0.
+				//
+				// We also need to set the MaximumRetryCount to 0, to prevent
+				// validation from failing (MaximumRetryCount is not allowed if
+				// no restart-policy ("none") is set).
+				if c.HostConfig.RestartPolicy.Name == "" {
+					baseLogger.Debug("migrated restart-policy")
+					c.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
+					c.HostConfig.RestartPolicy.MaximumRetryCount = 0
+				}
+
+				// Migrate containers that use the deprecated (and now non-functional)
+				// logentries driver. Update them to use the "local" logging driver
+				// instead.
+				//
+				// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
+				if c.HostConfig.LogConfig.Type == "logentries" {
+					baseLogger.Warn("migrated deprecated logentries logging driver")
+					c.HostConfig.LogConfig = containertypes.LogConfig{
+						Type: local.Name,
+					}
+				}
 			}
 
 			if err := daemon.checkpointAndSave(c); err != nil {
@@ -494,9 +514,12 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 				restartContainers[c] = make(chan struct{})
 				mapLock.Unlock()
 			} else if c.HostConfig != nil && c.HostConfig.AutoRemove {
-				mapLock.Lock()
-				removeContainers[c.ID] = c
-				mapLock.Unlock()
+				// Remove the container if live-restore is disabled or if the container has already exited.
+				if !cfg.LiveRestoreEnabled || !alive {
+					mapLock.Lock()
+					removeContainers[c.ID] = c
+					mapLock.Unlock()
+				}
 			}
 
 			c.Lock()
@@ -590,7 +613,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 		go func(cid string) {
 			_ = sem.Acquire(context.Background(), 1)
 
-			if err := daemon.containerRm(&cfg.Config, cid, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+			if err := daemon.containerRm(&cfg.Config, cid, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 				log.G(context.TODO()).WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
 
@@ -1174,7 +1197,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	close(d.startupDone)
 
-	info := d.SystemInfo()
+	info, err := d.SystemInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 	for _, w := range info.Warnings {
 		log.G(ctx).Warn(w)
 	}
@@ -1212,14 +1238,16 @@ func (daemon *Daemon) waitForStartupDone() {
 }
 
 func (daemon *Daemon) shutdownContainer(c *container.Container) error {
+	ctx := compatcontext.WithoutCancel(context.TODO())
+
 	// If container failed to exit in stopTimeout seconds of SIGTERM, then using the force
-	if err := daemon.containerStop(context.TODO(), c, containertypes.StopOptions{}); err != nil {
+	if err := daemon.containerStop(ctx, c, containertypes.StopOptions{}); err != nil {
 		return fmt.Errorf("Failed to stop container %s with error: %v", c.ID, err)
 	}
 
 	// Wait without timeout for the container to exit.
 	// Ignore the result.
-	<-c.Wait(context.Background(), container.WaitConditionNotRunning)
+	<-c.Wait(ctx, container.WaitConditionNotRunning)
 	return nil
 }
 
@@ -1346,7 +1374,7 @@ func (daemon *Daemon) Subnets() ([]net.IPNet, []net.IPNet) {
 	var v4Subnets []net.IPNet
 	var v6Subnets []net.IPNet
 
-	for _, managedNetwork := range daemon.netController.Networks() {
+	for _, managedNetwork := range daemon.netController.Networks(context.TODO()) {
 		v4infos, v6infos := managedNetwork.IpamInfo()
 		for _, info := range v4infos {
 			if info.IPAMData.Pool != nil {

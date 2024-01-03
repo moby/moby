@@ -249,13 +249,16 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 			}
 
 			if lurl.Host != lhost.Host || lhost.Scheme != lurl.Scheme {
-
 				lhost.Scheme = lurl.Scheme
 				lhost.Host = lurl.Host
-				log.G(ctx).WithField("host", lhost.Host).WithField("scheme", lhost.Scheme).Debug("upload changed destination")
 
-				// Strip authorizer if change to host or scheme
-				lhost.Authorizer = nil
+				// Check if different than what was requested, accounting for fallback in the transport layer
+				requested := resp.Request.URL
+				if requested.Host != lhost.Host || requested.Scheme != lhost.Scheme {
+					// Strip authorizer if change to host or scheme
+					lhost.Authorizer = nil
+					log.G(ctx).WithField("host", lhost.Host).WithField("scheme", lhost.Scheme).Debug("upload changed destination, authorizer removed")
+				}
 			}
 		}
 		q := lurl.Query()

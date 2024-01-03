@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/docker/docker/api/types/versions"
 	req "github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -13,7 +12,6 @@ import (
 
 func TestSessionCreate(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "experimental in older versions")
 
 	ctx := setupTest(t)
 	daemonHost := req.DaemonHost()
@@ -34,7 +32,6 @@ func TestSessionCreate(t *testing.T) {
 
 func TestSessionCreateWithBadUpgrade(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "experimental in older versions")
 
 	ctx := setupTest(t)
 	daemonHost := req.DaemonHost()

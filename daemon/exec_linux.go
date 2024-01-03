@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/containers"
-	"github.com/containerd/containerd/oci"
 	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/pkg/apparmor"
 	"github.com/docker/docker/container"
@@ -13,13 +11,6 @@ import (
 	"github.com/docker/docker/oci/caps"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
-
-func withResetAdditionalGIDs() oci.SpecOpts {
-	return func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
-		s.Process.User.AdditionalGids = nil
-		return nil
-	}
-}
 
 func getUserFromContainerd(ctx context.Context, containerdCli *containerd.Client, ec *container.ExecConfig) (specs.User, error) {
 	ctr, err := containerdCli.LoadContainer(ctx, ec.Container.ID)
@@ -37,10 +28,10 @@ func getUserFromContainerd(ctx context.Context, containerdCli *containerd.Client
 		return specs.User{}, err
 	}
 
-	opts := []oci.SpecOpts{
+	opts := []coci.SpecOpts{
 		coci.WithUser(ec.User),
-		withResetAdditionalGIDs(),
 		coci.WithAdditionalGIDs(ec.User),
+		coci.WithAppendAdditionalGroups(ec.Container.HostConfig.GroupAdd...),
 	}
 	for _, opt := range opts {
 		if err := opt(ctx, containerdCli, &cinfo, spec); err != nil {

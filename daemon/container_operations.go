@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/multierror"
+	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
@@ -29,6 +30,14 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 )
+
+func ipAddresses(ips []net.IP) []string {
+	var addrs []string
+	for _, ip := range ips {
+		addrs = append(addrs, ip.String())
+	}
+	return addrs
+}
 
 func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *container.Container) ([]libnetwork.SandboxOption, error) {
 	var sboxOptions []libnetwork.SandboxOption
@@ -49,7 +58,7 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 	if len(container.HostConfig.DNS) > 0 {
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(container.HostConfig.DNS))
 	} else if len(cfg.DNS) > 0 {
-		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(cfg.DNS))
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(ipAddresses(cfg.DNS)))
 	}
 	if len(container.HostConfig.DNSSearch) > 0 {
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(container.HostConfig.DNSSearch))
@@ -612,6 +621,13 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 		}
 	}
 
+	if epConfig.MacAddress != "" {
+		_, err := net.ParseMAC(epConfig.MacAddress)
+		if err != nil {
+			return fmt.Errorf("invalid MAC address %s", epConfig.MacAddress)
+		}
+	}
+
 	if err := multierror.Join(errs...); err != nil {
 		return fmt.Errorf("invalid endpoint settings:\n%w", err)
 	}
@@ -628,7 +644,6 @@ func cleanOperationalData(es *network.EndpointSettings) {
 	es.IPv6Gateway = ""
 	es.GlobalIPv6Address = ""
 	es.GlobalIPv6PrefixLen = 0
-	es.MacAddress = ""
 	if es.IPAMOperational {
 		es.IPAMConfig = nil
 	}
@@ -636,29 +651,7 @@ func cleanOperationalData(es *network.EndpointSettings) {
 
 func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings, updateSettings bool) error {
 	if containertypes.NetworkMode(n.Name()).IsUserDefined() {
-		addShortID := true
-		shortID := stringid.TruncateID(container.ID)
-		for _, alias := range endpointConfig.Aliases {
-			if alias == shortID {
-				addShortID = false
-				break
-			}
-		}
-		if addShortID {
-			endpointConfig.Aliases = append(endpointConfig.Aliases, shortID)
-		}
-		if container.Name != container.Config.Hostname {
-			addHostname := true
-			for _, alias := range endpointConfig.Aliases {
-				if alias == container.Config.Hostname {
-					addHostname = false
-					break
-				}
-			}
-			if addHostname {
-				endpointConfig.Aliases = append(endpointConfig.Aliases, container.Config.Hostname)
-			}
-		}
+		endpointConfig.DNSNames = buildEndpointDNSNames(container, endpointConfig.Aliases)
 	}
 
 	if err := validateEndpointSettings(n, n.Name(), endpointConfig); err != nil {
@@ -671,6 +664,29 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *lib
 		}
 	}
 	return nil
+}
+
+// buildEndpointDNSNames constructs the list of DNSNames that should be assigned to a given endpoint. The order within
+// the returned slice is important as the first entry will be used to generate the PTR records (for IPv4 and v6)
+// associated to this endpoint.
+func buildEndpointDNSNames(ctr *container.Container, aliases []string) []string {
+	var dnsNames []string
+
+	if ctr.Name != "" {
+		dnsNames = append(dnsNames, strings.TrimPrefix(ctr.Name, "/"))
+	}
+
+	dnsNames = append(dnsNames, aliases...)
+
+	if ctr.ID != "" {
+		dnsNames = append(dnsNames, stringid.TruncateID(ctr.ID))
+	}
+
+	if ctr.Config.Hostname != "" {
+		dnsNames = append(dnsNames, ctr.Config.Hostname)
+	}
+
+	return sliceutil.Dedup(dnsNames)
 }
 
 func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool) (err error) {
@@ -720,7 +736,7 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 
 	// TODO(thaJeztah): should this fail early if no sandbox was found?
 	sb, _ := daemon.netController.GetSandbox(container.ID)
-	createOptions, err := buildCreateEndpointOptions(container, n, endpointConfig, sb, cfg.DNS)
+	createOptions, err := buildCreateEndpointOptions(container, n, endpointConfig, sb, ipAddresses(cfg.DNS))
 	if err != nil {
 		return err
 	}

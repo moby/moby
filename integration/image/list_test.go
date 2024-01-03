@@ -9,18 +9,15 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 // Regression : #38171
 func TestImagesFilterMultiReference(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
 	ctx := setupTest(t)
 
 	client := testEnv.APIClient()
@@ -55,6 +52,50 @@ func TestImagesFilterMultiReference(t *testing.T) {
 			t.Errorf("list images doesn't match any repoTag we expected, repoTag: %s", repoTag)
 		}
 	}
+}
+
+func TestImagesFilterUntil(t *testing.T) {
+	ctx := setupTest(t)
+
+	client := testEnv.APIClient()
+
+	name := strings.ToLower(t.Name())
+	ctr := container.Create(ctx, t, client, container.WithName(name))
+
+	imgs := make([]string, 5)
+	for i := range imgs {
+		if i > 0 {
+			// Make really really sure each image has a distinct timestamp.
+			time.Sleep(time.Millisecond)
+		}
+		id, err := client.ContainerCommit(ctx, ctr, containertypes.CommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
+		assert.NilError(t, err)
+		imgs[i] = id.ID
+	}
+
+	olderImage, _, err := client.ImageInspectWithRaw(ctx, imgs[2])
+	assert.NilError(t, err)
+	olderUntil := olderImage.Created
+
+	laterImage, _, err := client.ImageInspectWithRaw(ctx, imgs[3])
+	assert.NilError(t, err)
+	laterUntil := laterImage.Created
+
+	filter := filters.NewArgs(
+		filters.Arg("since", imgs[0]),
+		filters.Arg("until", olderUntil),
+		filters.Arg("until", laterUntil),
+		filters.Arg("before", imgs[len(imgs)-1]),
+	)
+	list, err := client.ImageList(ctx, types.ImageListOptions{Filters: filter})
+	assert.NilError(t, err)
+
+	var listedIDs []string
+	for _, i := range list {
+		t.Logf("ImageList: ID=%v RepoTags=%v", i.ID, i.RepoTags)
+		listedIDs = append(listedIDs, i.ID)
+	}
+	assert.DeepEqual(t, listedIDs, imgs[1:2], cmpopts.SortSlices(func(a, b string) bool { return a < b }))
 }
 
 func TestImagesFilterBeforeSince(t *testing.T) {

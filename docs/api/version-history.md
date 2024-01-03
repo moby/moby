@@ -17,6 +17,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.44](https://docs.docker.com/engine/api/v1.44/) documentation
 
+* GET `/images/json` now accepts an `until` filter. This accepts a timestamp and
+  lists all images created before it. The `<timestamp>` can be Unix timestamps,
+  date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`)
+  computed relative to the daemon machine’s time. This change is not versioned,
+  and affects all API versions if the daemon has this patch.
 * The `VirtualSize` field in the `GET /images/{name}/json`, `GET /images/json`,
   and `GET /system/df` responses is now omitted. Use the `Size` field instead,
   which contains the same information.
@@ -55,6 +60,21 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /services/create` and `POST /services/{id}/update` now accept `Seccomp`
   and `AppArmor` fields in the `ContainerSpec.Privileges` object. This allows
   some configuration of Seccomp and AppArmor in Swarm services.
+* A new endpoint-specific `MacAddress` field has been added to `NetworkSettings.EndpointSettings`
+  on `POST /containers/create`, and to `EndpointConfig` on `POST /networks/{id}/connect`.
+  The container-wide `MacAddress` field in `Config`, on `POST /containers/create`, is now deprecated.
+* The field `Networks` in the `POST /services/create` and `POST /services/{id}/update`
+  requests is now deprecated. You should instead use the field `TaskTemplate.Networks`.
+* The `Container` and `ContainerConfig` fields in the `GET /images/{name}/json`
+  response are deprecated and will no longer be included in API v1.45.
+* `GET /info` now includes `status` properties in `Runtimes`.
+* A new field named `DNSNames` and containing all non-fully qualified DNS names
+  a container takes on a specific network has been added to `GET /containers/{name:.*}/json`.
+* The `Aliases` field returned in calls to `GET /containers/{name:.*}/json` in v1.44  and older
+  versions contains the short container ID. This will change in the next API version,  v1.45.
+  Starting with that API version, this specific value will  be removed from the `Aliases` field
+  such that this field will reflect exactly the values originally submitted to the
+  `POST /containers/create` endpoint. The newly introduced `DNSNames` should now be used instead.
 
 ## v1.43 API changes
 

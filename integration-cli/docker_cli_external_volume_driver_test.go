@@ -16,6 +16,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
@@ -277,13 +278,13 @@ func (s *DockerExternalVolumeSuite) TearDownSuite(ctx context.Context, c *testin
 }
 
 func (s *DockerExternalVolumeSuite) TestVolumeCLICreateOptionConflict(c *testing.T) {
-	dockerCmd(c, "volume", "create", "test")
+	cli.DockerCmd(c, "volume", "create", "test")
 
 	out, _, err := dockerCmdWithError("volume", "create", "test", "--driver", volumePluginName)
 	assert.Assert(c, err != nil, "volume create exception name already in use with another driver")
 	assert.Assert(c, strings.Contains(out, "must be unique"))
-	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Driver }}", "test")
-	_, _, err = dockerCmdWithError("volume", "create", "test", "--driver", strings.TrimSpace(out))
+	driver := cli.DockerCmd(c, "volume", "inspect", "--format={{ .Driver }}", "test").Stdout()
+	_, _, err = dockerCmdWithError("volume", "create", "test", "--driver", strings.TrimSpace(driver))
 	assert.NilError(c, err)
 }
 
@@ -440,8 +441,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyE
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c *testing.T) {
-	dockerCmd(c, "volume", "create", "-d", volumePluginName, "foo")
-	dockerCmd(c, "run", "-d", "--name", "testing", "-v", "foo:/bar", "busybox", "top")
+	cli.DockerCmd(c, "volume", "create", "-d", volumePluginName, "foo")
+	cli.DockerCmd(c, "run", "-d", "--name", "testing", "-v", "foo:/bar", "busybox", "top")
 
 	var mounts []struct {
 		Name   string
@@ -455,8 +456,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverList(c *testing.T) {
-	dockerCmd(c, "volume", "create", "-d", volumePluginName, "abc3")
-	out, _ := dockerCmd(c, "volume", "ls")
+	cli.DockerCmd(c, "volume", "create", "-d", volumePluginName, "abc3")
+	out := cli.DockerCmd(c, "volume", "ls").Stdout()
 	ls := strings.Split(strings.TrimSpace(out), "\n")
 	assert.Equal(c, len(ls), 2, fmt.Sprintf("\n%s", out))
 
@@ -474,8 +475,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "No such volume"))
 	assert.Equal(c, s.ec.gets, 1)
 
-	dockerCmd(c, "volume", "create", "test", "-d", volumePluginName)
-	out, _ = dockerCmd(c, "volume", "inspect", "test")
+	cli.DockerCmd(c, "volume", "create", "test", "-d", volumePluginName)
+	out = cli.DockerCmd(c, "volume", "inspect", "test").Stdout()
 
 	type vol struct {
 		Status map[string]string
@@ -489,10 +490,10 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *testing.T) {
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c *testing.T) {
-	dockerCmd(c, "volume", "create", "-d", volumePluginName, "abc1")
+	cli.DockerCmd(c, "volume", "create", "-d", volumePluginName, "abc1")
 	s.d.Restart(c)
 
-	dockerCmd(c, "run", "--name=test", "-v", "abc1:/foo", "busybox", "true")
+	cli.DockerCmd(c, "run", "--name=test", "-v", "abc1:/foo", "busybox", "true")
 	var mounts []types.MountPoint
 	inspectFieldAndUnmarshall(c, "test", "Mounts", &mounts)
 	assert.Equal(c, len(mounts), 1)

@@ -49,9 +49,9 @@ func (r *remote) stopDaemon() {
 
 func (r *remote) killDaemon() {
 	// Try to get a stack trace
-	syscall.Kill(r.daemonPid, syscall.SIGUSR1)
+	_ = syscall.Kill(r.daemonPid, syscall.SIGUSR1)
 	<-time.After(100 * time.Millisecond)
-	process.Kill(r.daemonPid)
+	_ = process.Kill(r.daemonPid)
 }
 
 func (r *remote) platformCleanup() {

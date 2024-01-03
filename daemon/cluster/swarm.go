@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	apitypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	types "github.com/docker/docker/api/types/swarm"
@@ -414,7 +414,7 @@ func (c *Cluster) Leave(ctx context.Context, force bool) error {
 			return err
 		}
 		for _, id := range nodeContainers {
-			if err := c.config.Backend.ContainerRm(id, &apitypes.ContainerRmConfig{ForceRemove: true}); err != nil {
+			if err := c.config.Backend.ContainerRm(id, &backend.ContainerRmConfig{ForceRemove: true}); err != nil {
 				log.G(ctx).Errorf("error removing %v: %v", id, err)
 			}
 		}
@@ -429,7 +429,7 @@ func (c *Cluster) Leave(ctx context.Context, force bool) error {
 }
 
 // Info returns information about the current cluster state.
-func (c *Cluster) Info() types.Info {
+func (c *Cluster) Info(ctx context.Context) types.Info {
 	info := types.Info{
 		NodeAddr: c.GetAdvertiseAddress(),
 	}
@@ -442,7 +442,7 @@ func (c *Cluster) Info() types.Info {
 		info.Error = state.err.Error()
 	}
 
-	ctx, cancel := c.getRequestContext()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	if state.IsActiveManager() {

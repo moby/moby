@@ -122,10 +122,6 @@ func (sbs *sbState) CopyTo(o datastore.KVObject) error {
 	return nil
 }
 
-func (sbs *sbState) DataScope() string {
-	return scope.Local
-}
-
 func (sb *Sandbox) storeUpdate() error {
 	sbs := &sbState{
 		c:          sb.controller,
@@ -184,7 +180,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 			// It's normal for no sandboxes to be found. Just bail out.
 			return nil
 		}
-		return fmt.Errorf("failed to get sandboxes for scope %s: %v", store.Scope(), err)
+		return fmt.Errorf("failed to get sandboxes: %v", err)
 	}
 
 	for _, s := range sandboxStates {
@@ -278,9 +274,11 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 		}
 
 		for _, ep := range sb.endpoints {
-			// Watch for service records
 			if !c.isAgent() {
-				c.watchSvcRecord(ep)
+				n := ep.getNetwork()
+				if !c.isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
+					n.updateSvcRecord(ep, true)
+				}
 			}
 		}
 	}

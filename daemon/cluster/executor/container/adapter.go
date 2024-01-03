@@ -293,7 +293,7 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 func (c *containerAdapter) create(ctx context.Context) error {
 	var cr containertypes.CreateResponse
 	var err error
-	if cr, err = c.backend.CreateManagedContainer(ctx, types.ContainerCreateConfig{
+	if cr, err = c.backend.CreateManagedContainer(ctx, backend.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
 		HostConfig: c.container.hostConfig(c.dependencies.Volumes()),
@@ -417,7 +417,7 @@ func (c *containerAdapter) terminate(ctx context.Context) error {
 }
 
 func (c *containerAdapter) remove(ctx context.Context) error {
-	return c.backend.ContainerRm(c.container.name(), &types.ContainerRmConfig{
+	return c.backend.ContainerRm(c.container.name(), &backend.ContainerRmConfig{
 		RemoveVolume: true,
 		ForceRemove:  true,
 	})

@@ -21,6 +21,8 @@ func TestSetupIPv6(t *testing.T) {
 	defer nh.Close()
 
 	config, br := setupTestInterface(t, nh)
+	addr, nw, _ := net.ParseCIDR("fdcc:949:6399:1234::1/64")
+	config.AddressIPv6 = &net.IPNet{IP: addr, Mask: nw.Mask}
 	if err := setupBridgeIPv6(config, br); err != nil {
 		t.Fatalf("Failed to setup bridge IPv6: %v", err)
 	}

@@ -6,18 +6,13 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/pkg/errors"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/semconv/v1.17.0/httpconv"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // postHijacked sends a POST request and hijacks the connection.
@@ -55,32 +50,16 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", proto)
 
-	// We aren't using the configured RoundTripper here so manually inject the trace context
-	tp := cli.tp
-	if tp == nil {
-		if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
-			tp = span.TracerProvider()
-		} else {
-			tp = otel.GetTracerProvider()
-		}
-	}
-
-	ctx, span := tp.Tracer("").Start(ctx, req.Method+" "+req.URL.Path, trace.WithSpanKind(trace.SpanKindClient))
-	span.SetAttributes(httpconv.ClientRequest(req)...)
-	defer func() {
-		if retErr != nil {
-			span.RecordError(retErr)
-			span.SetStatus(codes.Error, retErr.Error())
-		}
-		span.End()
-	}()
-	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
-
 	dialer := cli.Dialer()
 	conn, err := dialer(ctx)
 	if err != nil {
 		return nil, "", errors.Wrap(err, "cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
 	}
+	defer func() {
+		if retErr != nil {
+			conn.Close()
+		}
+	}()
 
 	// When we set up a TCP connection for hijack, there could be long periods
 	// of inactivity (a long running command with no output) that in certain
@@ -92,38 +71,29 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 		_ = tcpConn.SetKeepAlivePeriod(30 * time.Second)
 	}
 
-	clientconn := httputil.NewClientConn(conn, nil)
-	defer clientconn.Close()
+	hc := &hijackedConn{conn, bufio.NewReader(conn)}
 
 	// Server hijacks the connection, error 'connection closed' expected
-	resp, err := clientconn.Do(req)
-	if resp != nil {
-		span.SetStatus(httpconv.ClientStatus(resp.StatusCode))
+	resp, err := otelhttp.NewTransport(hc).RoundTrip(req)
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		_ = resp.Body.Close()
+		return nil, "", fmt.Errorf("unable to upgrade to %s, received %d", proto, resp.StatusCode)
 	}
 
-	//nolint:staticcheck // ignore SA1019 for connecting to old (pre go1.8) daemons
-	if err != httputil.ErrPersistEOF {
-		if err != nil {
-			return nil, "", err
-		}
-		if resp.StatusCode != http.StatusSwitchingProtocols {
-			_ = resp.Body.Close()
-			return nil, "", fmt.Errorf("unable to upgrade to %s, received %d", proto, resp.StatusCode)
-		}
-	}
-
-	c, br := clientconn.Hijack()
-	if br.Buffered() > 0 {
+	if hc.r.Buffered() > 0 {
 		// If there is buffered content, wrap the connection.  We return an
 		// object that implements CloseWrite if the underlying connection
 		// implements it.
-		if _, ok := c.(types.CloseWriter); ok {
-			c = &hijackedConnCloseWriter{&hijackedConn{c, br}}
+		if _, ok := hc.Conn.(types.CloseWriter); ok {
+			conn = &hijackedConnCloseWriter{hc}
 		} else {
-			c = &hijackedConn{c, br}
+			conn = hc
 		}
 	} else {
-		br.Reset(nil)
+		hc.r.Reset(nil)
 	}
 
 	var mediaType string
@@ -132,7 +102,7 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 		mediaType = resp.Header.Get("Content-Type")
 	}
 
-	return c, mediaType, nil
+	return conn, mediaType, nil
 }
 
 // hijackedConn wraps a net.Conn and is returned by setupHijackConn in the case
@@ -142,6 +112,13 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 type hijackedConn struct {
 	net.Conn
 	r *bufio.Reader
+}
+
+func (c *hijackedConn) RoundTrip(req *http.Request) (*http.Response, error) {
+	if err := req.Write(c.Conn); err != nil {
+		return nil, err
+	}
+	return http.ReadResponse(c.r, req)
 }
 
 func (c *hijackedConn) Read(b []byte) (int, error) {

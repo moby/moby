@@ -107,7 +107,7 @@ func (aSpace *addrSpace) allocateSubnet(nw, sub netip.Prefix) error {
 func (aSpace *addrSpace) allocateSubnetL(nw, sub netip.Prefix) error {
 	// If master pool, check for overlap
 	if sub == (netip.Prefix{}) {
-		if aSpace.contains(nw) {
+		if aSpace.overlaps(nw) {
 			return ipamapi.ErrPoolOverlap
 		}
 		// This is a new master pool, add it along with corresponding bitmask
@@ -157,10 +157,11 @@ func (aSpace *addrSpace) releaseSubnet(nw, sub netip.Prefix) error {
 	return nil
 }
 
-// contains checks whether nw is a superset or subset of any of the existing subnets in this address space.
-func (aSpace *addrSpace) contains(nw netip.Prefix) bool {
+// overlaps reports whether nw contains any IP addresses in common with any of
+// the existing subnets in this address space.
+func (aSpace *addrSpace) overlaps(nw netip.Prefix) bool {
 	for pool := range aSpace.subnets {
-		if nw.Contains(pool.Addr()) || pool.Contains(nw.Addr()) {
+		if pool.Overlaps(nw) {
 			return true
 		}
 	}

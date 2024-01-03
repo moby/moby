@@ -31,6 +31,8 @@ const (
 	ErrUnsupportedNetworkAndAlias validationError = "network-scoped alias is supported only for containers in user defined networks"
 	// ErrConflictUTSHostname conflict between the hostname and the UTS mode
 	ErrConflictUTSHostname validationError = "conflicting options: hostname and the UTS mode"
+	// ErrEmptyConfig when container config is nil
+	ErrEmptyConfig validationError = "config cannot be empty in order to create a container"
 )
 
 type validationError string

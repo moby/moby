@@ -1,6 +1,3 @@
-variable "APT_MIRROR" {
-  default = ""
-}
 variable "DOCKER_DEBUG" {
   default = ""
 }
@@ -64,7 +61,6 @@ function "bindir" {
 target "_common" {
   args = {
     BUILDKIT_CONTEXT_KEEP_GIT_DIR = 1
-    APT_MIRROR = APT_MIRROR
     DOCKER_DEBUG = DOCKER_DEBUG
     DOCKER_STATIC = DOCKER_STATIC
     DOCKER_LDFLAGS = DOCKER_LDFLAGS

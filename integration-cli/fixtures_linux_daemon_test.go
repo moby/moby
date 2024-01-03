@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil/fixtures/load"
 	"gotest.tools/v3/assert"
 )
@@ -49,7 +50,7 @@ func ensureSyscallTest(ctx context.Context, c *testing.T) {
 
 	dockerFile := filepath.Join(tmp, "Dockerfile")
 	content := []byte(`
-	FROM debian:bullseye-slim
+	FROM debian:bookworm-slim
 	COPY . /usr/bin/
 	`)
 	err = os.WriteFile(dockerFile, content, 0o600)
@@ -61,11 +62,11 @@ func ensureSyscallTest(ctx context.Context, c *testing.T) {
 	}
 	buildArgs = append(buildArgs, []string{"-q", "-t", "syscall-test", tmp}...)
 	buildArgs = append([]string{"build"}, buildArgs...)
-	dockerCmd(c, buildArgs...)
+	cli.DockerCmd(c, buildArgs...)
 }
 
 func ensureSyscallTestBuild(ctx context.Context, c *testing.T) {
-	err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), "debian:bullseye-slim")
+	err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), "debian:bookworm-slim")
 	assert.NilError(c, err)
 
 	var buildArgs []string
@@ -74,7 +75,7 @@ func ensureSyscallTestBuild(ctx context.Context, c *testing.T) {
 	}
 	buildArgs = append(buildArgs, []string{"-q", "-t", "syscall-test", "../contrib/syscall-test"}...)
 	buildArgs = append([]string{"build"}, buildArgs...)
-	dockerCmd(c, buildArgs...)
+	cli.DockerCmd(c, buildArgs...)
 }
 
 func ensureNNPTest(ctx context.Context, c *testing.T) {
@@ -103,7 +104,7 @@ func ensureNNPTest(ctx context.Context, c *testing.T) {
 
 	dockerfile := filepath.Join(tmp, "Dockerfile")
 	content := `
-	FROM debian:bullseye-slim
+	FROM debian:bookworm-slim
 	COPY . /usr/bin
 	RUN chmod +s /usr/bin/nnp-test
 	`
@@ -116,11 +117,11 @@ func ensureNNPTest(ctx context.Context, c *testing.T) {
 	}
 	buildArgs = append(buildArgs, []string{"-q", "-t", "nnp-test", tmp}...)
 	buildArgs = append([]string{"build"}, buildArgs...)
-	dockerCmd(c, buildArgs...)
+	cli.DockerCmd(c, buildArgs...)
 }
 
 func ensureNNPTestBuild(ctx context.Context, c *testing.T) {
-	err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), "debian:bullseye-slim")
+	err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), "debian:bookworm-slim")
 	assert.NilError(c, err)
 
 	var buildArgs []string
@@ -129,5 +130,5 @@ func ensureNNPTestBuild(ctx context.Context, c *testing.T) {
 	}
 	buildArgs = append(buildArgs, []string{"-q", "-t", "npp-test", "../contrib/nnp-test"}...)
 	buildArgs = append([]string{"build"}, buildArgs...)
-	dockerCmd(c, buildArgs...)
+	cli.DockerCmd(c, buildArgs...)
 }

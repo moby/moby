@@ -338,8 +338,8 @@ func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, er
 		Parent:          img.Parent.String(),
 		Comment:         comment,
 		Created:         created,
-		Container:       img.Container,
-		ContainerConfig: &img.ContainerConfig,
+		Container:       img.Container,        //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
+		ContainerConfig: &img.ContainerConfig, //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
 		DockerVersion:   img.DockerVersion,
 		Author:          img.Author,
 		Config:          img.Config,

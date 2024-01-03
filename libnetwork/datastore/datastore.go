@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/libnetwork/discoverapi"
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
-	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -21,7 +20,6 @@ var (
 
 type Store struct {
 	mu    sync.Mutex
-	scope string
 	store store.Store
 	cache *cache
 }
@@ -43,14 +41,8 @@ type KVObject interface {
 	// Exists returns true if the object exists in the datastore, false if it hasn't been stored yet.
 	// When SetIndex() is called, the object has been stored.
 	Exists() bool
-	// DataScope indicates the storage scope of the KV object
-	DataScope() string
 	// Skip provides a way for a KV Object to avoid persisting it in the KV Store
 	Skip() bool
-}
-
-// KVConstructor interface defines methods which can construct a KVObject from another.
-type KVConstructor interface {
 	// New returns a new object which is created based on the
 	// source object
 	New() KVObject
@@ -143,10 +135,7 @@ func newClient(kv string, addr string, config *store.Config) (*Store, error) {
 		return nil, err
 	}
 
-	ds := &Store{scope: scope.Local, store: s}
-	ds.cache = newCache(ds)
-
-	return ds, nil
+	return &Store{store: s, cache: newCache(s)}, nil
 }
 
 // New creates a new Store instance.
@@ -189,18 +178,8 @@ func (ds *Store) Close() {
 	ds.store.Close()
 }
 
-// Scope returns the scope of the store.
-func (ds *Store) Scope() string {
-	return ds.scope
-}
-
 // PutObjectAtomic provides an atomic add and update operation for a Record.
 func (ds *Store) PutObjectAtomic(kvObject KVObject) error {
-	var (
-		previous *store.KVPair
-		pair     *store.KVPair
-		err      error
-	)
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
@@ -214,34 +193,26 @@ func (ds *Store) PutObjectAtomic(kvObject KVObject) error {
 		return types.InvalidParameterErrorf("invalid KV Object with a nil Value for key %s", Key(kvObject.Key()...))
 	}
 
-	if kvObject.Skip() {
-		goto add_cache
-	}
-
-	if kvObject.Exists() {
-		previous = &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
-	} else {
-		previous = nil
-	}
-
-	pair, err = ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous)
-	if err != nil {
-		if err == store.ErrKeyExists {
-			return ErrKeyModified
+	if !kvObject.Skip() {
+		var previous *store.KVPair
+		if kvObject.Exists() {
+			previous = &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
 		}
-		return err
+
+		pair, err := ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous)
+		if err != nil {
+			if err == store.ErrKeyExists {
+				return ErrKeyModified
+			}
+			return err
+		}
+
+		kvObject.SetIndex(pair.LastIndex)
 	}
 
-	kvObject.SetIndex(pair.LastIndex)
-
-add_cache:
-	if ds.cache != nil {
-		// If persistent store is skipped, sequencing needs to
-		// happen in cache.
-		return ds.cache.add(kvObject, kvObject.Skip())
-	}
-
-	return nil
+	// If persistent store is skipped, sequencing needs to
+	// happen in cache.
+	return ds.cache.add(kvObject, kvObject.Skip())
 }
 
 // GetObject gets data from the store and unmarshals to the specified object.
@@ -249,23 +220,7 @@ func (ds *Store) GetObject(key string, o KVObject) error {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
-	if ds.cache != nil {
-		return ds.cache.get(o)
-	}
-
-	kvPair, err := ds.store.Get(key)
-	if err != nil {
-		return err
-	}
-
-	if err := o.SetValue(kvPair.Value); err != nil {
-		return err
-	}
-
-	// Make sure the object has a correct view of the DB index in
-	// case we need to modify it and update the DB.
-	o.SetIndex(kvPair.LastIndex)
-	return nil
+	return ds.cache.get(o)
 }
 
 func (ds *Store) ensureParent(parent string) error {
@@ -285,27 +240,10 @@ func (ds *Store) List(key string, kvObject KVObject) ([]KVObject, error) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
-	if ds.cache != nil {
-		return ds.cache.list(kvObject)
-	}
-
-	var kvol []KVObject
-	err := ds.iterateKVPairsFromStore(key, kvObject, func(key string, val KVObject) {
-		kvol = append(kvol, val)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return kvol, nil
+	return ds.cache.list(kvObject)
 }
 
-func (ds *Store) iterateKVPairsFromStore(key string, kvObject KVObject, callback func(string, KVObject)) error {
-	// Bail out right away if the kvObject does not implement KVConstructor
-	ctor, ok := kvObject.(KVConstructor)
-	if !ok {
-		return fmt.Errorf("error listing objects, object does not implement KVConstructor interface")
-	}
-
+func (ds *Store) iterateKVPairsFromStore(key string, ctor KVObject, callback func(string, KVObject)) error {
 	// Make sure the parent key exists
 	if err := ds.ensureParent(key); err != nil {
 		return err
@@ -362,24 +300,17 @@ func (ds *Store) DeleteObjectAtomic(kvObject KVObject) error {
 
 	previous := &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
 
-	if kvObject.Skip() {
-		goto deleteCache
-	}
-
-	if err := ds.store.AtomicDelete(Key(kvObject.Key()...), previous); err != nil {
-		if err == store.ErrKeyExists {
-			return ErrKeyModified
+	if !kvObject.Skip() {
+		if err := ds.store.AtomicDelete(Key(kvObject.Key()...), previous); err != nil {
+			if err == store.ErrKeyExists {
+				return ErrKeyModified
+			}
+			return err
 		}
-		return err
 	}
 
-deleteCache:
 	// cleanup the cache only if AtomicDelete went through successfully
-	if ds.cache != nil {
-		// If persistent store is skipped, sequencing needs to
-		// happen in cache.
-		return ds.cache.del(kvObject, kvObject.Skip())
-	}
-
-	return nil
+	// If persistent store is skipped, sequencing needs to
+	// happen in cache.
+	return ds.cache.del(kvObject, kvObject.Skip())
 }

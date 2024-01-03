@@ -53,6 +53,10 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 				return err
 			}
 
+			if len(imgs) == 0 {
+				return fmt.Errorf("An image does not exist locally with the tag: %s", reference.FamiliarName(sourceRef))
+			}
+
 			for _, img := range imgs {
 				named, err := reference.ParseNamed(img.Name)
 				if err != nil {
@@ -89,13 +93,16 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, m
 
 	img, err := i.client.ImageService().Get(ctx, targetRef.String())
 	if err != nil {
+		if cerrdefs.IsNotFound(err) {
+			return errdefs.NotFound(fmt.Errorf("tag does not exist: %s", reference.FamiliarString(targetRef)))
+		}
 		return errdefs.NotFound(err)
 	}
 
 	target := img.Target
 	store := i.client.ContentStore()
 
-	resolver, tracker := i.newResolverFromAuthConfig(ctx, authConfig)
+	resolver, tracker := i.newResolverFromAuthConfig(ctx, authConfig, targetRef)
 	pp := pushProgress{Tracker: tracker}
 	jobsQueue := newJobs()
 	finishProgress := jobsQueue.showProgress(ctx, out, combinedProgress([]progressUpdater{

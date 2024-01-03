@@ -24,6 +24,7 @@ env:
 
 jobs:
   validate-dco:
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     uses: ./.github/workflows/.dco.yml
 
   prepare:
@@ -81,6 +82,7 @@ jobs:
     needs:
       - validate-dco
       - prepare
+    if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     strategy:
       fail-fast: false
       matrix:
@@ -142,9 +144,9 @@ jobs:
 
   merge:
     runs-on: ubuntu-20.04
-    if: github.event_name != 'pull_request' && github.repository == 'moby/moby'
     needs:
       - build
+    if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && github.event_name != 'pull_request' && github.repository == 'moby/moby'
     steps:
       -
         name: Download meta bake definition

@@ -6,13 +6,17 @@ import (
 	"io"
 	"os"
 
+	"github.com/containerd/containerd/tracing"
 	"github.com/containerd/log"
 	"golang.org/x/sys/unix"
 )
 
 // GetTotalUsedFds Returns the number of used File Descriptors by
 // reading it via /proc filesystem.
-func GetTotalUsedFds() int {
+func GetTotalUsedFds(ctx context.Context) int {
+	ctx, span := tracing.StartSpan(ctx, "GetTotalUsedFds")
+	defer span.End()
+
 	name := fmt.Sprintf("/proc/%d/fd", os.Getpid())
 
 	// Fast-path for Linux 6.2 (since [f1f1f2569901ec5b9d425f2e91c09a0e320768f3]).
@@ -30,19 +34,26 @@ func GetTotalUsedFds() int {
 
 	f, err := os.Open(name)
 	if err != nil {
-		log.G(context.TODO()).WithError(err).Error("Error listing file descriptors")
+		log.G(ctx).WithError(err).Error("Error listing file descriptors")
 		return -1
 	}
 	defer f.Close()
 
 	var fdCount int
 	for {
+		select {
+		case <-ctx.Done():
+			log.G(ctx).WithError(ctx.Err()).Error("Context cancelled while counting file descriptors")
+			return -1
+		default:
+		}
+
 		names, err := f.Readdirnames(100)
 		fdCount += len(names)
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			log.G(context.TODO()).WithError(err).Error("Error listing file descriptors")
+			log.G(ctx).WithError(err).Error("Error listing file descriptors")
 			return -1
 		}
 	}

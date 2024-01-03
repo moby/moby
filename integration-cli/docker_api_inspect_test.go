@@ -8,15 +8,16 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
-
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
 	cleanedContainerID := strings.TrimSpace(out)
+
 	keysBase := []string{
 		"Id", "State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings",
 		"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "MountLabel", "ProcessLabel", "GraphDriver",
@@ -61,8 +62,7 @@ func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
 func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriverLegacy(c *testing.T) {
 	// No legacy implications for Windows
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
-
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
 	cleanedContainerID := strings.TrimSpace(out)
 
 	cases := []string{"v1.19", "v1.20"}
@@ -82,8 +82,7 @@ func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriverLegacy(c *testing.T)
 }
 
 func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "--volume-driver", "local", "busybox", "true")
-
+	out := cli.DockerCmd(c, "run", "-d", "--volume-driver", "local", "busybox", "true").Stdout()
 	cleanedContainerID := strings.TrimSpace(out)
 
 	body := getInspectBody(c, "v1.25", cleanedContainerID)
@@ -106,7 +105,7 @@ func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestInspectAPIImageResponse(c *testing.T) {
-	dockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
+	cli.DockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
@@ -123,8 +122,7 @@ func (s *DockerAPISuite) TestInspectAPIImageResponse(c *testing.T) {
 func (s *DockerAPISuite) TestInspectAPIEmptyFieldsInConfigPre121(c *testing.T) {
 	// Not relevant on Windows
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
-
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
 	cleanedContainerID := strings.TrimSpace(out)
 
 	cases := []string{"v1.19", "v1.20"}
@@ -147,9 +145,9 @@ func (s *DockerAPISuite) TestInspectAPIEmptyFieldsInConfigPre121(c *testing.T) {
 func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings120(c *testing.T) {
 	// Not relevant on Windows, and besides it doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
 	containerID := strings.TrimSpace(out)
-	waitRun(containerID)
+	cli.WaitRun(c, containerID)
 
 	body := getInspectBody(c, "v1.20", containerID)
 
@@ -164,9 +162,9 @@ func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings120(c *testing.T) {
 func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings121(c *testing.T) {
 	// Windows doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
 	containerID := strings.TrimSpace(out)
-	waitRun(containerID)
+	cli.WaitRun(c, containerID)
 
 	body := getInspectBody(c, "v1.21", containerID)
 

@@ -81,11 +81,15 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 			sizes = sizes[1:]
 		}
 
+		var created int64
+		if h.Created != nil {
+			created = h.Created.Unix()
+		}
 		history = append([]*imagetype.HistoryResponseItem{{
 			ID:        "<missing>",
 			Comment:   h.Comment,
 			CreatedBy: h.CreatedBy,
-			Created:   h.Created.Unix(),
+			Created:   created,
 			Size:      size,
 			Tags:      nil,
 		}}, history...)

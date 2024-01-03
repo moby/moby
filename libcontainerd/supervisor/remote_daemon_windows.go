@@ -40,7 +40,7 @@ func (r *remote) stopDaemon() {
 }
 
 func (r *remote) killDaemon() {
-	process.Kill(r.daemonPid)
+	_ = process.Kill(r.daemonPid)
 }
 
 func (r *remote) platformCleanup() {

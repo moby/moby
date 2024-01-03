@@ -84,16 +84,6 @@ func (eig *ErrInvalidGateway) Error() string {
 // InvalidParameter denotes the type of this error
 func (eig *ErrInvalidGateway) InvalidParameter() {}
 
-// ErrInvalidContainerSubnet is returned when the container subnet (FixedCIDR) is not valid.
-type ErrInvalidContainerSubnet struct{}
-
-func (eis *ErrInvalidContainerSubnet) Error() string {
-	return "container subnet must be a subset of bridge network"
-}
-
-// InvalidParameter denotes the type of this error
-func (eis *ErrInvalidContainerSubnet) InvalidParameter() {}
-
 // ErrInvalidMtu is returned when the user provided MTU is not valid.
 type ErrInvalidMtu int
 
@@ -180,35 +170,6 @@ func (ndbee NonDefaultBridgeNeedsIPError) Error() string {
 // Forbidden denotes the type of this error
 func (ndbee NonDefaultBridgeNeedsIPError) Forbidden() {}
 
-// FixedCIDRv4Error is returned when fixed-cidrv4 configuration
-// failed.
-type FixedCIDRv4Error struct {
-	Net    *net.IPNet
-	Subnet *net.IPNet
-	Err    error
-}
-
-func (fcv4 *FixedCIDRv4Error) Error() string {
-	return fmt.Sprintf("setup FixedCIDRv4 failed for subnet %s in %s: %v", fcv4.Subnet, fcv4.Net, fcv4.Err)
-}
-
-// InternalError denotes the type of this error
-func (fcv4 *FixedCIDRv4Error) InternalError() {}
-
-// FixedCIDRv6Error is returned when fixed-cidrv6 configuration
-// failed.
-type FixedCIDRv6Error struct {
-	Net *net.IPNet
-	Err error
-}
-
-func (fcv6 *FixedCIDRv6Error) Error() string {
-	return fmt.Sprintf("setup FixedCIDRv6 failed for subnet %s in %s: %v", fcv6.Net, fcv6.Net, fcv6.Err)
-}
-
-// InternalError denotes the type of this error
-func (fcv6 *FixedCIDRv6Error) InternalError() {}
-
 // IPv4AddrAddError is returned when IPv4 address could not be added to the bridge.
 type IPv4AddrAddError struct {
 	IP  *net.IPNet
@@ -221,19 +182,6 @@ func (ipv4 *IPv4AddrAddError) Error() string {
 
 // InternalError denotes the type of this error
 func (ipv4 *IPv4AddrAddError) InternalError() {}
-
-// IPv6AddrAddError is returned when IPv6 address could not be added to the bridge.
-type IPv6AddrAddError struct {
-	IP  *net.IPNet
-	Err error
-}
-
-func (ipv6 *IPv6AddrAddError) Error() string {
-	return fmt.Sprintf("failed to add IPv6 address %s to bridge: %v", ipv6.IP, ipv6.Err)
-}
-
-// InternalError denotes the type of this error
-func (ipv6 *IPv6AddrAddError) InternalError() {}
 
 // IPv4AddrNoMatchError is returned when the bridge's IPv4 address does not match configured.
 type IPv4AddrNoMatchError struct {

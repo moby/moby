@@ -110,10 +110,9 @@ func (s *DockerCLIAttachSuite) TestAttachTTYWithoutStdin(c *testing.T) {
 	// will just fail and `MISS` all the other tests. For now, disabling it. Will
 	// open an issue to track re-enabling this and root-causing the problem.
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
-
+	out := cli.DockerCmd(c, "run", "-d", "-ti", "busybox").Stdout()
 	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	cli.WaitRun(c, id)
 
 	done := make(chan error, 1)
 	go func() {
@@ -129,10 +128,17 @@ func (s *DockerCLIAttachSuite) TestAttachTTYWithoutStdin(c *testing.T) {
 		if runtime.GOOS == "windows" {
 			expected += ".  If you are using mintty, try prefixing the command with 'winpty'"
 		}
-		if out, _, err := runCommandWithOutput(cmd); err == nil {
+		result := icmd.RunCmd(icmd.Cmd{
+			Command: cmd.Args,
+			Env:     cmd.Env,
+			Dir:     cmd.Dir,
+			Stdin:   cmd.Stdin,
+			Stdout:  cmd.Stdout,
+		})
+		if result.Error == nil {
 			done <- fmt.Errorf("attach should have failed")
 			return
-		} else if !strings.Contains(out, expected) {
+		} else if !strings.Contains(result.Combined(), expected) {
 			done <- fmt.Errorf("attach failed with error %q: expected %q", out, expected)
 			return
 		}
@@ -148,7 +154,7 @@ func (s *DockerCLIAttachSuite) TestAttachTTYWithoutStdin(c *testing.T) {
 
 func (s *DockerCLIAttachSuite) TestAttachDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-di", "busybox", "/bin/cat")
+	out := cli.DockerCmd(c, "run", "-di", "busybox", "/bin/cat").Stdout()
 	id := strings.TrimSpace(out)
 
 	cmd := exec.Command(dockerBinary, "attach", id)
@@ -182,9 +188,9 @@ func (s *DockerCLIAttachSuite) TestAttachDisconnect(c *testing.T) {
 func (s *DockerCLIAttachSuite) TestAttachPausedContainer(c *testing.T) {
 	testRequires(c, IsPausable)
 	runSleepingContainer(c, "-d", "--name=test")
-	dockerCmd(c, "pause", "test")
+	cli.DockerCmd(c, "pause", "test")
 
-	result := dockerCmdWithResult("attach", "test")
+	result := cli.Docker(cli.Args("attach", "test"))
 	result.Assert(c, icmd.Expected{
 		Error:    "exit status 1",
 		ExitCode: 1,

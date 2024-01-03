@@ -124,8 +124,8 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) erro
 		return types.ForbiddenErrorf("encryption key is not present")
 	}
 
-	lIP := net.ParseIP(d.bindAddress)
-	aIP := net.ParseIP(d.advertiseAddress)
+	lIP := d.bindAddress
+	aIP := d.advertiseAddress
 	nodes := map[string]net.IP{}
 
 	switch {
@@ -225,7 +225,19 @@ func removeEncryption(localIP, remoteIP net.IP, em *encrMap) error {
 	return nil
 }
 
-func programMangle(vni uint32, add bool) error {
+func (d *driver) transportIPTable() (*iptables.IPTable, error) {
+	v6, err := d.isIPv6Transport()
+	if err != nil {
+		return nil, err
+	}
+	version := iptables.IPv4
+	if v6 {
+		version = iptables.IPv6
+	}
+	return iptables.GetIptable(version), nil
+}
+
+func (d *driver) programMangle(vni uint32, add bool) error {
 	var (
 		m      = strconv.FormatUint(mark, 10)
 		chain  = "OUTPUT"
@@ -234,8 +246,11 @@ func programMangle(vni uint32, add bool) error {
 		action = "install"
 	)
 
-	// TODO IPv6 support
-	iptable := iptables.GetIptable(iptables.IPv4)
+	iptable, err := d.transportIPTable()
+	if err != nil {
+		// Fail closed if unsure. Better safe than cleartext.
+		return err
+	}
 
 	if !add {
 		a = iptables.Delete
@@ -249,7 +264,7 @@ func programMangle(vni uint32, add bool) error {
 	return nil
 }
 
-func programInput(vni uint32, add bool) error {
+func (d *driver) programInput(vni uint32, add bool) error {
 	var (
 		plainVxlan = matchVXLAN(overlayutils.VXLANUDPPort(), vni)
 		chain      = "INPUT"
@@ -261,8 +276,11 @@ func programInput(vni uint32, add bool) error {
 		return append(args, "-j", jump)
 	}
 
-	// TODO IPv6 support
-	iptable := iptables.GetIptable(iptables.IPv4)
+	iptable, err := d.transportIPTable()
+	if err != nil {
+		// Fail closed if unsure. Better safe than cleartext.
+		return err
+	}
 
 	if !add {
 		msg = "remove"
@@ -495,8 +513,8 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		newIdx = -1
 		priIdx = -1
 		delIdx = -1
-		lIP    = net.ParseIP(d.bindAddress)
-		aIP    = net.ParseIP(d.advertiseAddress)
+		lIP    = d.bindAddress
+		aIP    = d.advertiseAddress
 	)
 
 	d.Lock()

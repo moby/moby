@@ -538,7 +538,8 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	current := len(controller.Networks())
+	ctx := context.TODO()
+	current := len(controller.Networks(ctx))
 
 	// Create network 2
 	netOption = options.Generic{
@@ -558,7 +559,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	}()
 
 	// Test Networks method
-	if len(controller.Networks()) != current+1 {
+	if len(controller.Networks(ctx)) != current+1 {
 		t.Fatalf("Did not find the expected number of networks")
 	}
 

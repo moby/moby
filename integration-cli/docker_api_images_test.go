@@ -26,7 +26,7 @@ func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 	defer body.Close()
 	assert.Equal(c, res.StatusCode, http.StatusOK)
 
-	dockerCmd(c, "rmi", id)
+	cli.DockerCmd(c, "rmi", id)
 
 	res, loadBody, err := request.Post(ctx, "/images/load", request.RawContent(body), request.ContentType("application/x-tar"))
 	assert.NilError(c, err)
@@ -49,7 +49,7 @@ func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
 	buildImageSuccessfully(c, name, build.WithDockerfile("FROM busybox\nENV FOO bar"))
 	id := getIDByName(c, name)
 
-	dockerCmd(c, "tag", name, "test:tag1")
+	cli.DockerCmd(c, "tag", name, "test:tag1")
 
 	_, err = apiClient.ImageRemove(testutil.GetContext(c), id, types.ImageRemoveOptions{})
 	assert.ErrorContains(c, err, "unable to delete")

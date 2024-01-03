@@ -6,7 +6,6 @@ import (
 	"io"
 	"runtime"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
@@ -18,7 +17,7 @@ import (
 
 // MockBackend implements the builder.Backend interface for unit testing
 type MockBackend struct {
-	containerCreateFunc func(config types.ContainerCreateConfig) (container.CreateResponse, error)
+	containerCreateFunc func(config backend.ContainerCreateConfig) (container.CreateResponse, error)
 	commitFunc          func(backend.CommitConfig) (image.ID, error)
 	getImageFunc        func(string) (builder.Image, builder.ROLayer, error)
 	makeImageCacheFunc  func(cacheFrom []string) builder.ImageCache
@@ -28,14 +27,14 @@ func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout
 	return nil
 }
 
-func (m *MockBackend) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, config types.ContainerCreateConfig) (container.CreateResponse, error) {
+func (m *MockBackend) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error) {
 	if m.containerCreateFunc != nil {
 		return m.containerCreateFunc(config)
 	}
 	return container.CreateResponse{}, nil
 }
 
-func (m *MockBackend) ContainerRm(name string, config *types.ContainerRmConfig) error {
+func (m *MockBackend) ContainerRm(name string, config *backend.ContainerRmConfig) error {
 	return nil
 }
 

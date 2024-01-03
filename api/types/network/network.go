@@ -1,6 +1,20 @@
 package network // import "github.com/docker/docker/api/types/network"
+
 import (
 	"github.com/docker/docker/api/types/filters"
+)
+
+const (
+	// NetworkDefault is a platform-independent alias to choose the platform-specific default network stack.
+	NetworkDefault = "default"
+	// NetworkHost is the name of the predefined network used when the NetworkMode host is selected (only available on Linux)
+	NetworkHost = "host"
+	// NetworkNone is the name of the predefined network used when the NetworkMode none is selected (available on both Linux and Windows)
+	NetworkNone = "none"
+	// NetworkBridge is the name of the default network on Linux
+	NetworkBridge = "bridge"
+	// NetworkNat is the name of the default network on Windows
+	NetworkNat = "nat"
 )
 
 // Address represents an IP address

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"testing"
@@ -19,6 +20,8 @@ import (
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestEndpointMarshalling(t *testing.T) {
@@ -216,6 +219,15 @@ func getIPv4Data(t *testing.T) []driverapi.IPAMData {
 	return []driverapi.IPAMData{ipd}
 }
 
+func getIPv6Data(t *testing.T) []driverapi.IPAMData {
+	ipd := driverapi.IPAMData{AddressSpace: "full"}
+	// There's no default IPv6 address pool, so use an arbitrary unique-local prefix.
+	addr, nw, _ := net.ParseCIDR("fdcd:d1b1:99d2:abcd::1/64")
+	ipd.Pool = nw
+	ipd.Gateway = &net.IPNet{IP: addr, Mask: nw.Mask}
+	return []driverapi.IPAMData{ipd}
+}
+
 func TestCreateFullOptions(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
@@ -252,7 +264,7 @@ func TestCreateFullOptions(t *testing.T) {
 			AuxAddresses: map[string]*net.IPNet{DefaultGatewayV4AuxKey: defgw},
 		},
 	}
-	err := d.CreateNetwork("dummy", netOption, nil, ipdList, nil)
+	err := d.CreateNetwork("dummy", netOption, nil, ipdList, getIPv6Data(t))
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -642,9 +654,18 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	d := newDriver()
 	d.portAllocator = portallocator.NewInstance()
 
+	var proxyBinary string
+	var err error
+	if ulPxyEnabled {
+		proxyBinary, err = exec.LookPath("docker-proxy")
+		if err != nil {
+			t.Fatalf("failed to lookup userland-proxy binary: %v", err)
+		}
+	}
 	config := &configuration{
 		EnableIPTables:      true,
 		EnableUserlandProxy: ulPxyEnabled,
+		UserlandProxyPath:   proxyBinary,
 	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
@@ -661,7 +682,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	genericOption[netlabel.GenericData] = netconfig
 
 	ipdList := getIPv4Data(t)
-	err := d.CreateNetwork("net1", genericOption, nil, ipdList, nil)
+	err = d.CreateNetwork("net1", genericOption, nil, ipdList, nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -964,6 +985,81 @@ func TestValidateConfig(t *testing.T) {
 	}
 }
 
+func TestValidateFixedCIDRV6(t *testing.T) {
+	tests := []struct {
+		doc, input, expectedErr string
+	}{
+		{
+			doc:   "valid",
+			input: "2001:db8::/32",
+		},
+		{
+			// fixed-cidr-v6 doesn't have to be specified.
+			doc: "empty",
+		},
+		{
+			// Using the LL subnet prefix is ok.
+			doc:   "Link-Local subnet prefix",
+			input: "fe80::/64",
+		},
+		{
+			// Using a nonstandard LL prefix that doesn't overlap with the standard LL prefix
+			// is ok.
+			doc:   "non-overlapping link-local prefix",
+			input: "fe80:1234::/80",
+		},
+		{
+			// Overlapping with the standard LL prefix isn't allowed.
+			doc:         "overlapping link-local prefix fe80::/63",
+			input:       "fe80::/63",
+			expectedErr: "clash with the Link-Local prefix 'fe80::/64'",
+		},
+		{
+			// Overlapping with the standard LL prefix isn't allowed.
+			doc:         "overlapping link-local subnet fe80::/65",
+			input:       "fe80::/65",
+			expectedErr: "clash with the Link-Local prefix 'fe80::/64'",
+		},
+		{
+			// The address has to be valid IPv6 subnet.
+			doc:         "invalid IPv6 subnet",
+			input:       "2000:db8::",
+			expectedErr: "invalid CIDR address: 2000:db8::",
+		},
+		{
+			doc:         "non-IPv6 subnet",
+			input:       "10.3.4.5/24",
+			expectedErr: "fixed-cidr-v6 is not an IPv6 subnet",
+		},
+		{
+			doc:         "IPv4-mapped subnet 1",
+			input:       "::ffff:10.2.4.0/24",
+			expectedErr: "fixed-cidr-v6 is not an IPv6 subnet",
+		},
+		{
+			doc:         "IPv4-mapped subnet 2",
+			input:       "::ffff:a01:203/24",
+			expectedErr: "fixed-cidr-v6 is not an IPv6 subnet",
+		},
+		{
+			doc:         "invalid subnet",
+			input:       "nonsense",
+			expectedErr: "invalid CIDR address: nonsense",
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			err := ValidateFixedCIDRV6(tc.input)
+			if tc.expectedErr == "" {
+				assert.Check(t, err)
+			} else {
+				assert.Check(t, is.Error(err, tc.expectedErr))
+			}
+		})
+	}
+}
+
 func TestSetDefaultGw(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
@@ -1098,7 +1194,7 @@ func TestCreateWithExistingBridge(t *testing.T) {
 		t.Fatalf("Failed to getNetwork(%s): %v", brName, err)
 	}
 
-	addrs4, _, err := nw.bridge.addresses()
+	addrs4, err := nw.bridge.addresses(netlink.FAMILY_V4)
 	if err != nil {
 		t.Fatalf("Failed to get the bridge network's address: %v", err)
 	}

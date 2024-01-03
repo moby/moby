@@ -3,15 +3,20 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	testContainer "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
@@ -212,4 +217,74 @@ func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
 			poll.WaitOn(t, testContainer.IsRemoved(ctx, apiClient, cID))
 		})
 	}
+}
+
+// TestContainerRestartWithCancelledRequest verifies that cancelling a restart
+// request does not cancel the restart operation, and still starts the container
+// after it was stopped.
+//
+// Regression test for https://github.com/moby/moby/discussions/46682
+func TestContainerRestartWithCancelledRequest(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	testutil.StartSpan(ctx, t)
+
+	// Create a container that ignores SIGTERM and doesn't stop immediately,
+	// giving us time to cancel the request.
+	//
+	// Restarting a container is "stop" (and, if needed, "kill"), then "start"
+	// the container. We're trying to create the scenario where the "stop" is
+	// handled, but the request was cancelled and therefore the "start" not
+	// taking place.
+	cID := testContainer.Run(ctx, t, apiClient, testContainer.WithCmd("sh", "-c", "trap 'echo received TERM' TERM; while true; do usleep 10; done"))
+	defer func() {
+		err := apiClient.ContainerRemove(ctx, cID, container.RemoveOptions{Force: true})
+		if t.Failed() && err != nil {
+			t.Logf("Cleaning up test container failed with error: %v", err)
+		}
+	}()
+
+	// Start listening for events.
+	messages, errs := apiClient.Events(ctx, types.EventsOptions{
+		Filters: filters.NewArgs(
+			filters.Arg("container", cID),
+			filters.Arg("event", string(events.ActionRestart)),
+		),
+	})
+
+	// Make restart request, but cancel the request before the container
+	// is (forcibly) killed.
+	ctx2, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	stopTimeout := 1
+	err := apiClient.ContainerRestart(ctx2, cID, container.StopOptions{
+		Timeout: &stopTimeout,
+	})
+	assert.Check(t, is.ErrorIs(err, context.DeadlineExceeded))
+	cancel()
+
+	// Validate that the restart event occurred, which is emitted
+	// after the restart (stop (kill) start) finished.
+	//
+	// Note that we cannot use RestartCount for this, as that's only
+	// used for restart-policies.
+	restartTimeout := 2 * time.Second
+	if runtime.GOOS == "windows" {
+		// hcs can sometimes take a long time to stop container.
+		restartTimeout = StopContainerWindowsPollTimeout
+	}
+	select {
+	case m := <-messages:
+		assert.Check(t, is.Equal(m.Actor.ID, cID))
+		assert.Check(t, is.Equal(m.Action, events.ActionRestart))
+	case err := <-errs:
+		assert.NilError(t, err)
+	case <-time.After(restartTimeout):
+		t.Errorf("timeout waiting for restart event")
+	}
+
+	// Container should be restarted (running).
+	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(inspect.State.Status, "running"))
 }

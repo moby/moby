@@ -23,6 +23,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
@@ -47,7 +48,7 @@ var acceptedPluginFilterTags = map[string]bool{
 }
 
 // Disable deactivates a plugin. This means resources (volumes, networks) cant use them.
-func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) error {
+func (pm *Manager) Disable(refOrID string, config *backend.PluginDisableConfig) error {
 	p, err := pm.config.Store.GetV2Plugin(refOrID)
 	if err != nil {
 		return err
@@ -75,7 +76,7 @@ func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) er
 }
 
 // Enable activates a plugin, which implies that they are ready to be used by containers.
-func (pm *Manager) Enable(refOrID string, config *types.PluginEnableConfig) error {
+func (pm *Manager) Enable(refOrID string, config *backend.PluginEnableConfig) error {
 	p, err := pm.config.Store.GetV2Plugin(refOrID)
 	if err != nil {
 		return err
@@ -559,7 +560,7 @@ func writeManifest(ctx context.Context, cs content.Store, m *manifest) (ocispec.
 }
 
 // Remove deletes plugin's root directory.
-func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
+func (pm *Manager) Remove(name string, config *backend.PluginRmConfig) error {
 	p, err := pm.config.Store.GetV2Plugin(name)
 	pm.mu.RLock()
 	c := pm.cMap[p]

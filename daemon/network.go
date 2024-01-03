@@ -12,6 +12,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -139,7 +140,8 @@ func (daemon *Daemon) getAllNetworks() []*libnetwork.Network {
 	if c == nil {
 		return nil
 	}
-	return c.Networks()
+	ctx := context.TODO()
+	return c.Networks(ctx)
 }
 
 type ingressJob struct {
@@ -465,7 +467,7 @@ func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, netwo
 
 // GetNetworkDriverList returns the list of plugins drivers
 // registered for network.
-func (daemon *Daemon) GetNetworkDriverList() []string {
+func (daemon *Daemon) GetNetworkDriverList(ctx context.Context) []string {
 	if !daemon.NetworkControllerEnabled() {
 		return nil
 	}
@@ -483,7 +485,7 @@ func (daemon *Daemon) GetNetworkDriverList() []string {
 		pluginMap[plugin] = true
 	}
 
-	networks := daemon.netController.Networks()
+	networks := daemon.netController.Networks(ctx)
 
 	for _, nw := range networks {
 		if !pluginMap[nw.Type()] {
@@ -549,7 +551,7 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 }
 
 // GetNetworks returns a list of all networks
-func (daemon *Daemon) GetNetworks(filter filters.Args, config types.NetworkListConfig) (networks []types.NetworkResource, err error) {
+func (daemon *Daemon) GetNetworks(filter filters.Args, config backend.NetworkListConfig) (networks []types.NetworkResource, err error) {
 	var idx map[string]*libnetwork.Network
 	if config.Detailed {
 		idx = make(map[string]*libnetwork.Network)
@@ -788,12 +790,9 @@ func (daemon *Daemon) clearAttachableNetworks() {
 // buildCreateEndpointOptions builds endpoint options from a given network.
 func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, epConfig *network.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
 	var createOptions []libnetwork.EndpointOption
+	var genericOptions = make(options.Generic)
 
 	nwName := n.Name()
-	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
-	if c.NetworkSettings.IsAnonymousEndpoint || (nwName == defaultNetName && !serviceDiscoveryOnDefaultNetwork()) {
-		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
-	}
 
 	if epConfig != nil {
 		if ipam := epConfig.IPAMConfig; ipam != nil {
@@ -819,11 +818,18 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			createOptions = append(createOptions, libnetwork.CreateOptionIpam(ip, ip6, ipList, nil))
 		}
 
-		for _, alias := range epConfig.Aliases {
-			createOptions = append(createOptions, libnetwork.CreateOptionMyAlias(alias))
-		}
+		createOptions = append(createOptions, libnetwork.CreateOptionDNSNames(epConfig.DNSNames))
+
 		for k, v := range epConfig.DriverOpts {
 			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
+		}
+
+		if epConfig.MacAddress != "" {
+			mac, err := net.ParseMAC(epConfig.MacAddress)
+			if err != nil {
+				return nil, err
+			}
+			genericOptions[netlabel.MacAddress] = mac
 		}
 	}
 
@@ -852,28 +858,36 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
 	}
 
-	// configs that are applicable only for the endpoint in the network
-	// to which container was connected to on docker run.
-	// Ideally all these network-specific endpoint configurations must be moved under
-	// container.NetworkSettings.Networks[n.Name()]
-	netMode := c.HostConfig.NetworkMode
-	if nwName == netMode.NetworkName() || n.ID() == netMode.NetworkName() || (nwName == defaultNetName && netMode.IsDefault()) {
-		if c.Config.MacAddress != "" {
-			mac, err := net.ParseMAC(c.Config.MacAddress)
-			if err != nil {
-				return nil, err
-			}
-			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(options.Generic{
-				netlabel.MacAddress: mac,
-			}))
+	opts, err := buildPortsRelatedCreateEndpointOptions(c, n, sb)
+	if err != nil {
+		return nil, err
+	}
+	createOptions = append(createOptions, opts...)
+
+	// On Windows, DNS config is a per-adapter config option whereas on Linux, it's a sandbox-wide parameter; hence why
+	// we're dealing with DNS config both here and in buildSandboxOptions. Following DNS options are only honored by
+	// Windows netdrivers, whereas DNS options in buildSandboxOptions are only honored by Linux netdrivers.
+	if !n.Internal() {
+		if len(c.HostConfig.DNS) > 0 {
+			createOptions = append(createOptions, libnetwork.CreateOptionDNS(c.HostConfig.DNS))
+		} else if len(daemonDNS) > 0 {
+			createOptions = append(createOptions, libnetwork.CreateOptionDNS(daemonDNS))
 		}
 	}
 
+	createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOptions))
+
+	return createOptions, nil
+}
+
+// buildPortsRelatedCreateEndpointOptions returns the appropriate endpoint options to apply config related to port
+// mapping and exposed ports.
+func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwork.Network, sb *libnetwork.Sandbox) ([]libnetwork.EndpointOption, error) {
 	// Port-mapping rules belong to the container & applicable only to non-internal networks.
 	//
 	// TODO(thaJeztah): Look if we can provide a more minimal function for getPortMapInfo, as it does a lot, and we only need the "length".
 	if n.Internal() || len(getPortMapInfo(sb)) > 0 {
-		return createOptions, nil
+		return nil, nil
 	}
 
 	bindings := make(nat.PortMap)
@@ -934,15 +948,10 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		}
 	}
 
-	if len(c.HostConfig.DNS) > 0 {
-		createOptions = append(createOptions, libnetwork.CreateOptionDNS(c.HostConfig.DNS))
-	} else if len(daemonDNS) > 0 {
-		createOptions = append(createOptions, libnetwork.CreateOptionDNS(daemonDNS))
-	}
-
-	createOptions = append(createOptions, libnetwork.CreateOptionPortMapping(publishedPorts), libnetwork.CreateOptionExposedPorts(exposedPorts))
-
-	return createOptions, nil
+	return []libnetwork.EndpointOption{
+		libnetwork.CreateOptionPortMapping(publishedPorts),
+		libnetwork.CreateOptionExposedPorts(exposedPorts),
+	}, nil
 }
 
 // getPortMapInfo retrieves the current port-mapping programmed for the given sandbox

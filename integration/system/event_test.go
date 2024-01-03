@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -28,7 +27,6 @@ import (
 )
 
 func TestEventsExecDie(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.36"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME. Suspect may need to wait until container is running before exec")
 	ctx := setupTest(t)
 	client := testEnv.APIClient()

@@ -1,8 +1,8 @@
 package bridge
 
 import (
+	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/iptables"
@@ -22,6 +23,7 @@ import (
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 )
 
@@ -74,6 +76,7 @@ type networkConfiguration struct {
 	DefaultBindingIP     net.IP
 	DefaultBridge        bool
 	HostIPv4             net.IP
+	HostIPv6             net.IP
 	ContainerIfacePrefix string
 	// Internal fields set after ipam data parsing
 	AddressIPv4        *net.IPNet
@@ -178,6 +181,44 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	})
 }
 
+// The behaviour of previous implementations of bridge subnet prefix assignment
+// is preserved here...
+//
+// The LL prefix, 'fe80::/64' can be used as an IPAM pool. Linux always assigns
+// link-local addresses with this prefix. But, pool-assigned addresses are very
+// unlikely to conflict.
+//
+// Don't allow a nonstandard LL subnet to overlap with 'fe80::/64'. For example,
+// if the config asked for subnet prefix 'fe80::/80', the bridge and its
+// containers would each end up with two LL addresses, Linux's '/64' and one from
+// the IPAM pool claiming '/80'. Although the specified prefix length must not
+// affect the host's determination of whether the address is on-link and to be
+// added to the interface's Prefix List (RFC-5942), differing prefix lengths
+// would be confusing and have been disallowed by earlier implementations of
+// bridge address assignment.
+func validateIPv6Subnet(addr *net.IPNet) error {
+	if addr != nil && bridgeIPv6.Contains(addr.IP) && !bytes.Equal(bridgeIPv6.Mask, addr.Mask) {
+		return errdefs.InvalidParameter(errors.New("clash with the Link-Local prefix 'fe80::/64'"))
+	}
+	return nil
+}
+
+// ValidateFixedCIDRV6 checks that val is an IPv6 address and prefix length that
+// does not overlap with the link local subnet prefix 'fe80::/64'.
+func ValidateFixedCIDRV6(val string) error {
+	if val == "" {
+		return nil
+	}
+	ip, ipNet, err := net.ParseCIDR(val)
+	if err != nil {
+		return errdefs.InvalidParameter(err)
+	}
+	if ip.To4() != nil {
+		return errdefs.InvalidParameter(errors.New("fixed-cidr-v6 is not an IPv6 subnet"))
+	}
+	return validateIPv6Subnet(ipNet)
+}
+
 // Validate performs a static validation on the network configuration parameters.
 // Whatever can be assessed a priori before attempting any programming.
 func (c *networkConfiguration) Validate() error {
@@ -195,12 +236,21 @@ func (c *networkConfiguration) Validate() error {
 		}
 	}
 
-	// If default v6 gw is specified, AddressIPv6 must be specified and gw must belong to AddressIPv6 subnet
-	if c.EnableIPv6 && c.DefaultGatewayIPv6 != nil {
-		if c.AddressIPv6 == nil || !c.AddressIPv6.Contains(c.DefaultGatewayIPv6) {
+	if c.EnableIPv6 {
+		// If IPv6 is enabled, AddressIPv6 must have been configured.
+		if c.AddressIPv6 == nil {
+			return errdefs.System(errors.New("no IPv6 address was allocated for the bridge"))
+		}
+		// AddressIPv6 must be IPv6, and not overlap with the LL subnet prefix.
+		if err := validateIPv6Subnet(c.AddressIPv6); err != nil {
+			return err
+		}
+		// If a default gw is specified, it must belong to AddressIPv6's subnet
+		if c.DefaultGatewayIPv6 != nil && !c.AddressIPv6.Contains(c.DefaultGatewayIPv6) {
 			return &ErrInvalidGateway{}
 		}
 	}
+
 	return nil
 }
 
@@ -268,6 +318,10 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 			c.ContainerIfacePrefix = value
 		case netlabel.HostIPv4:
 			if c.HostIPv4 = net.ParseIP(value); c.HostIPv4 == nil {
+				return parseErr(label, value, "nil ip")
+			}
+		case netlabel.HostIPv6:
+			if c.HostIPv6 = net.ParseIP(value); c.HostIPv6 == nil {
 				return parseErr(label, value, "nil ip")
 			}
 		}
@@ -538,11 +592,6 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 		}
 	}
 
-	// Finally validate the configuration
-	if err = config.Validate(); err != nil {
-		return nil, err
-	}
-
 	if config.BridgeName == "" && !config.DefaultBridge {
 		config.BridgeName = "br-" + id[:12]
 	}
@@ -602,13 +651,19 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	}
 	d.Unlock()
 
-	// Parse and validate the config. It should not be conflict with existing networks' config
+	// Parse the config.
 	config, err := parseNetworkOptions(id, option)
 	if err != nil {
 		return err
 	}
 
+	// Add IP addresses/gateways to the configuration.
 	if err = config.processIPAM(id, ipV4Data, ipV6Data); err != nil {
+		return err
+	}
+
+	// Validate the configuration
+	if err = config.Validate(); err != nil {
 		return err
 	}
 
@@ -730,10 +785,18 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		bridgeSetup.queueStep(setupDefaultSysctl)
 	}
 
+	// Always set the bridge's MTU if specified. This is purely cosmetic; a bridge's
+	// MTU is the min MTU of device connected to it, and MTU will be set on each
+	// 'veth'. But, for a non-default MTU, the bridge's MTU will look wrong until a
+	// container is attached.
+	if config.Mtu > 0 {
+		bridgeSetup.queueStep(setupMTU)
+	}
+
 	// Even if a bridge exists try to setup IPv4.
 	bridgeSetup.queueStep(setupBridgeIPv4)
 
-	enableIPv6Forwarding := d.config.EnableIPForwarding && config.AddressIPv6 != nil
+	enableIPv6Forwarding := config.EnableIPv6 && d.config.EnableIPForwarding
 
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
@@ -746,9 +809,9 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		// assigned an IPv6 link-local address.
 		{config.EnableIPv6, setupBridgeIPv6},
 
-		// We ensure that the bridge has the expectedIPv4 and IPv6 addresses in
-		// the case of a previously existing device.
-		{bridgeAlreadyExists && !config.InhibitIPv4, setupVerifyAndReconcile},
+		// Ensure the bridge has the expected IPv4 addresses in the case of a previously
+		// existing device.
+		{bridgeAlreadyExists && !config.InhibitIPv4, setupVerifyAndReconcileIPv4},
 
 		// Enable IPv6 Forwarding
 		{enableIPv6Forwarding, setupIPv6Forwarding},
@@ -1046,7 +1109,6 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		if config.AddressIPv6 != nil {
 			network = config.AddressIPv6
 		}
-
 		ones, _ := network.Mask.Size()
 		if ones > 80 {
 			err = types.ForbiddenErrorf("Cannot self generate an IPv6 address on network %v: At least 48 host bits are needed.", network)

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
 )
 
@@ -108,7 +109,7 @@ func (s *DockerBenchmarkSuite) BenchmarkConcurrentContainerActions(c *testing.B)
 }
 
 func (s *DockerBenchmarkSuite) BenchmarkLogsCLIRotateFollow(c *testing.B) {
-	out, _ := dockerCmd(c, "run", "-d", "--log-opt", "max-size=1b", "--log-opt", "max-file=10", "busybox", "sh", "-c", "while true; do usleep 50000; echo hello; done")
+	out := cli.DockerCmd(c, "run", "-d", "--log-opt", "max-size=1b", "--log-opt", "max-file=10", "busybox", "sh", "-c", "while true; do usleep 50000; echo hello; done").Combined()
 	id := strings.TrimSpace(out)
 	ch := make(chan error, 1)
 	go func() {

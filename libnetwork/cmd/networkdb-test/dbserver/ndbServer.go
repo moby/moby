@@ -21,11 +21,7 @@ var (
 	ipAddr string
 )
 
-var testerPaths2Func = map[string]diagnostic.HTTPHandlerFunc{
-	"/myip": ipaddress,
-}
-
-func ipaddress(ctx interface{}, w http.ResponseWriter, r *http.Request) {
+func ipaddress(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s\n", ipAddr)
 }
 
@@ -52,7 +48,6 @@ func Server(args []string) {
 	log.G(context.TODO()).Infof("%s uses IP %s\n", localNodeName, ipAddr)
 
 	server = diagnostic.New()
-	server.Init()
 	conf := networkdb.DefaultConfig()
 	conf.Hostname = localNodeName
 	conf.AdvertiseAddr = ipAddr
@@ -64,9 +59,9 @@ func Server(args []string) {
 	}
 
 	// Register network db handlers
-	server.RegisterHandler(nDB, networkdb.NetDbPaths2Func)
-	server.RegisterHandler(nil, testerPaths2Func)
-	server.RegisterHandler(nDB, dummyclient.DummyClientPaths2Func)
+	nDB.RegisterDiagnosticHandlers(server)
+	server.HandleFunc("/myip", ipaddress)
+	dummyclient.RegisterDiagnosticHandlers(server, nDB)
 	server.EnableDiagnostic("", port)
 	// block here
 	select {}

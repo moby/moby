@@ -14,7 +14,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-var frozenImages = []string{"busybox:latest", "busybox:glibc", "hello-world:frozen", "debian:bullseye-slim"}
+var frozenImages = []string{"busybox:latest", "busybox:glibc", "hello-world:frozen", "debian:bookworm-slim"}
 
 type protectedElements struct {
 	containers map[string]struct{}
@@ -101,7 +101,6 @@ func ProtectImages(ctx context.Context, t testing.TB, testEnv *Execution) {
 		images = append(images, frozenImages...)
 	}
 	testEnv.ProtectImage(t, images...)
-	testEnv.ProtectImage(t, DanglingImageIdGraphDriver, DanglingImageIdSnapshotter)
 }
 
 func getExistingImages(ctx context.Context, t testing.TB, testEnv *Execution) []string {

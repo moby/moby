@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/integration/internal/process"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -381,6 +382,73 @@ func TestLiveRestore(t *testing.T) {
 	_ = testutil.StartSpan(baseContext, t)
 
 	t.Run("volume references", testLiveRestoreVolumeReferences)
+	t.Run("autoremove", testLiveRestoreAutoRemove)
+}
+
+func testLiveRestoreAutoRemove(t *testing.T) {
+	skip.If(t, testEnv.IsRootless(), "restarted rootless daemon will have a new process namespace")
+
+	t.Parallel()
+	ctx := testutil.StartSpan(baseContext, t)
+
+	run := func(t *testing.T) (*daemon.Daemon, func(), string) {
+		d := daemon.New(t)
+		d.StartWithBusybox(ctx, t, "--live-restore", "--iptables=false")
+		t.Cleanup(func() {
+			d.Stop(t)
+			d.Cleanup(t)
+		})
+
+		tmpDir := t.TempDir()
+
+		apiClient := d.NewClientT(t)
+
+		cID := container.Run(ctx, t, apiClient,
+			container.WithBind(tmpDir, "/v"),
+			// Run until a 'stop' file is created.
+			container.WithCmd("sh", "-c", "while [ ! -f /v/stop ]; do sleep 0.1; done"),
+			container.WithAutoRemove)
+		t.Cleanup(func() { apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true}) })
+		finishContainer := func() {
+			file, err := os.Create(filepath.Join(tmpDir, "stop"))
+			assert.NilError(t, err, "Failed to create 'stop' file")
+			file.Close()
+		}
+		return d, finishContainer, cID
+	}
+
+	t.Run("engine restart shouldnt kill alive containers", func(t *testing.T) {
+		d, finishContainer, cID := run(t)
+
+		d.Restart(t, "--live-restore", "--iptables=false")
+
+		apiClient := d.NewClientT(t)
+		_, err := apiClient.ContainerInspect(ctx, cID)
+		assert.NilError(t, err, "Container shouldn't be removed after engine restart")
+
+		finishContainer()
+
+		poll.WaitOn(t, container.IsRemoved(ctx, apiClient, cID))
+	})
+	t.Run("engine restart should remove containers that exited", func(t *testing.T) {
+		d, finishContainer, cID := run(t)
+
+		apiClient := d.NewClientT(t)
+
+		// Get PID of the container process.
+		inspect, err := apiClient.ContainerInspect(ctx, cID)
+		assert.NilError(t, err)
+		pid := inspect.State.Pid
+
+		d.Stop(t)
+
+		finishContainer()
+		poll.WaitOn(t, process.NotAlive(pid))
+
+		d.Start(t, "--live-restore", "--iptables=false")
+
+		poll.WaitOn(t, container.IsRemoved(ctx, apiClient, cID))
+	})
 }
 
 func testLiveRestoreVolumeReferences(t *testing.T) {

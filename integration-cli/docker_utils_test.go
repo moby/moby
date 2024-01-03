@@ -18,6 +18,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/internal/testutils/specialimage"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -40,20 +42,13 @@ func dockerCmdWithError(args ...string) (string, int, error) {
 }
 
 // Deprecated: use cli.Docker or cli.DockerCmd
-func dockerCmd(c testing.TB, args ...string) (string, int) {
-	c.Helper()
-	result := cli.DockerCmd(c, args...)
-	return result.Combined(), result.ExitCode
-}
-
-// Deprecated: use cli.Docker or cli.DockerCmd
 func dockerCmdWithResult(args ...string) *icmd.Result {
 	return cli.Docker(cli.Args(args...))
 }
 
 func findContainerIP(c *testing.T, id string, network string) string {
 	c.Helper()
-	out, _ := dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id)
+	out := cli.DockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id).Stdout()
 	return strings.Trim(out, " \r\n'")
 }
 
@@ -216,9 +211,7 @@ func runCommandAndReadContainerFile(c *testing.T, filename string, command strin
 	result := icmd.RunCommand(command, args...)
 	result.Assert(c, icmd.Success)
 	contID := strings.TrimSpace(result.Combined())
-	if err := waitRun(contID); err != nil {
-		c.Fatalf("%v: %q", contID, err)
-	}
+	cli.WaitRun(c, contID)
 	return readContainerFile(c, contID, filename)
 }
 
@@ -307,12 +300,6 @@ func createTmpFile(c *testing.T, content string) string {
 	assert.NilError(c, err)
 
 	return filename
-}
-
-// waitRun will wait for the specified container to be running, maximum 5 seconds.
-// Deprecated: use cli.WaitFor
-func waitRun(contID string) error {
-	return daemon.WaitInspectWithArgs(dockerBinary, contID, "{{.State.Running}}", "true", 5*time.Second)
 }
 
 // waitInspect will wait for the specified container to have the specified string
@@ -478,4 +465,44 @@ func sumAsIntegers(vals ...interface{}) interface{} {
 		s += v.(int)
 	}
 	return s
+}
+
+func loadSpecialImage(c *testing.T, imageFunc specialimage.SpecialImageFunc) string {
+	tmpDir := c.TempDir()
+
+	imgDir := filepath.Join(tmpDir, "image")
+	assert.NilError(c, os.Mkdir(imgDir, 0o755))
+
+	assert.NilError(c, imageFunc(imgDir))
+
+	rc, err := archive.TarWithOptions(imgDir, &archive.TarOptions{})
+	assert.NilError(c, err)
+	defer rc.Close()
+
+	imgTar := filepath.Join(tmpDir, "image.tar")
+	tarFile, err := os.OpenFile(imgTar, os.O_CREATE|os.O_WRONLY, 0o644)
+	assert.NilError(c, err)
+
+	defer tarFile.Close()
+
+	_, err = io.Copy(tarFile, rc)
+	assert.NilError(c, err)
+
+	tarFile.Close()
+
+	out := cli.DockerCmd(c, "load", "-i", imgTar).Stdout()
+
+	for _, line := range strings.Split(out, "\n") {
+		line := strings.TrimSpace(line)
+
+		if _, imageID, hasID := strings.Cut(line, "Loaded image ID: "); hasID {
+			return imageID
+		}
+		if _, imageRef, hasRef := strings.Cut(line, "Loaded image: "); hasRef {
+			return imageRef
+		}
+	}
+
+	c.Fatalf("failed to extract image ref from %q", out)
+	return ""
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/containerd/containerd"
 	cerrdefs "github.com/containerd/containerd/errdefs"
@@ -14,7 +15,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/registry"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/compatcontext"
@@ -24,14 +25,49 @@ import (
 	"github.com/pkg/errors"
 )
 
-// PullImage initiates a pull operation. ref is the image to pull.
-func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
+// PullImage initiates a pull operation. baseRef is the image to pull.
+// If reference is not tagged, all tags are pulled.
+func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, outStream io.Writer) error {
+	out := streamformatter.NewJSONProgressOutput(outStream, false)
+
+	if !reference.IsNameOnly(baseRef) {
+		return i.pullTag(ctx, baseRef, platform, metaHeaders, authConfig, out)
+	}
+
+	tags, err := distribution.Tags(ctx, baseRef, &distribution.Config{
+		RegistryService: i.registryService,
+		MetaHeaders:     metaHeaders,
+		AuthConfig:      authConfig,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, tag := range tags {
+		ref, err := reference.WithTag(baseRef, tag)
+		if err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"tag":     tag,
+				"baseRef": baseRef,
+			}).Warn("invalid tag, won't pull")
+			continue
+		}
+
+		if err := i.pullTag(ctx, ref, platform, metaHeaders, authConfig, out); err != nil {
+			return fmt.Errorf("error pulling %s: %w", ref, err)
+		}
+	}
+
+	return nil
+}
+
+func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.Format(*platform)))
 	}
 
-	resolver, _ := i.newResolverFromAuthConfig(ctx, authConfig)
+	resolver, _ := i.newResolverFromAuthConfig(ctx, authConfig, ref)
 	opts = append(opts, containerd.WithResolver(resolver))
 
 	old, err := i.resolveDescriptor(ctx, ref.String())
@@ -52,7 +88,6 @@ func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platf
 	})
 	opts = append(opts, containerd.WithImageHandler(h))
 
-	out := streamformatter.NewJSONProgressOutput(outStream, false)
 	pp := pullProgress{store: i.client.ContentStore(), showExists: true}
 	finishProgress := jobs.showProgress(ctx, out, pp)
 
@@ -124,6 +159,11 @@ func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platf
 	img, err := i.client.Pull(ctx, ref.String(), opts...)
 	if err != nil {
 		if errors.Is(err, docker.ErrInvalidAuthorization) {
+			// Match error returned by containerd.
+			// https://github.com/containerd/containerd/blob/v1.7.8/remotes/docker/authorizer.go#L189-L191
+			if strings.Contains(err.Error(), "no basic auth credentials") {
+				return err
+			}
 			return errdefs.NotFound(fmt.Errorf("pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(ref)))
 		}
 		return err

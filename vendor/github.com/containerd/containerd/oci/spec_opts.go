@@ -185,13 +185,6 @@ func WithEnv(environmentVariables []string) SpecOpts {
 	}
 }
 
-// WithDefaultPathEnv sets the $PATH environment variable to the
-// default PATH defined in this package.
-func WithDefaultPathEnv(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
-	s.Process.Env = replaceOrAppendEnvValues(s.Process.Env, defaultUnixEnv)
-	return nil
-}
-
 // replaceOrAppendEnvValues returns the defaults with the overrides either
 // replaced by env key or appended to the list
 func replaceOrAppendEnvValues(defaults, overrides []string) []string {

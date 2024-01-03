@@ -162,7 +162,7 @@ func (sb *Sandbox) delete(force bool) error {
 		}
 		// Retain the sanbdox if we can't obtain the network from store.
 		if _, err := c.getNetworkFromStore(ep.getNetwork().ID()); err != nil {
-			if c.isDistributedControl() {
+			if !c.isSwarmNode() {
 				retain = true
 			}
 			log.G(context.TODO()).Warnf("Failed getting network for ep %s during sandbox %s delete: %v", ep.ID(), sb.ID(), err)
@@ -459,7 +459,7 @@ func (sb *Sandbox) ResolveName(ctx context.Context, name string, ipType int) ([]
 	// network, ingress network and docker_gwbridge network. Name resolution
 	// should prioritize returning the VIP/IPs on user overlay network.
 	newList := []*Endpoint{}
-	if !sb.controller.isDistributedControl() {
+	if sb.controller.isSwarmNode() {
 		newList = append(newList, getDynamicNwEndpoints(epList)...)
 		ingressEP := getIngressNwEndpoint(epList)
 		if ingressEP != nil {

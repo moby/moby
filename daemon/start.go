@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
@@ -142,7 +142,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 			// if containers AutoRemove flag is set, remove it after clean up
 			if container.HostConfig.AutoRemove {
 				container.Unlock()
-				if err := daemon.containerRm(&daemonCfg.Config, container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+				if err := daemon.containerRm(&daemonCfg.Config, container.ID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 					log.G(ctx).Errorf("can't remove container %s: %v", container.ID, err)
 				}
 				container.Lock()

@@ -787,8 +787,8 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 	// which may happen if it was created with the same IP range.
 	deleteInterface(c, "docker0")
 
-	bridgeName := "ext-bridge5"
-	bridgeIP := "192.169.1.1/24"
+	const bridgeName = "ext-bridge5"
+	const bridgeIP = "192.169.1.1/24"
 
 	createInterface(c, "bridge", bridgeName, bridgeIP)
 	defer deleteInterface(c, bridgeName)
@@ -796,19 +796,30 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 	d.StartWithBusybox(testutil.GetContext(c), c, "--bridge", bridgeName, "--icc=false")
 	defer d.Restart(c)
 
-	result := icmd.RunCommand("iptables", "-nvL", "FORWARD")
+	result := icmd.RunCommand("sh", "-c", "iptables -vL FORWARD | grep DROP")
 	result.Assert(c, icmd.Success)
-	regex := fmt.Sprintf("DROP.*all.*%s.*%s", bridgeName, bridgeName)
-	matched, _ := regexp.MatchString(regex, result.Combined())
-	assert.Equal(c, matched, true, fmt.Sprintf("iptables output should have contained %q, but was %q", regex, result.Combined()))
+
+	// strip whitespace and newlines to verify we only found a single DROP
+	out := strings.TrimSpace(result.Stdout())
+	assert.Assert(c, is.Equal(strings.Count(out, "\n"), 0), "only expected a single DROP rules")
+
+	// Column headers are stripped because of grep-ing, but should be:
+	//
+	//    pkts bytes target     prot opt in          out          source    destination
+	//       0     0 DROP       all  --  ext-bridge5 ext-bridge5  anywhere  anywhere
+	cols := strings.Fields(out)
+
+	expected := []string{"0", "0", "DROP", "all", "--", bridgeName, bridgeName, "anywhere", "anywhere"}
+	assert.DeepEqual(c, cols, expected)
+
 	// Pinging another container must fail with --icc=false
 	pingContainers(c, d, true)
 
-	ipStr := "192.171.1.1/24"
-	ip, _, _ := net.ParseCIDR(ipStr)
-	ifName := "icc-dummy"
+	const cidr = "192.171.1.1/24"
+	ip, _, _ := net.ParseCIDR(cidr)
+	const ifName = "icc-dummy"
 
-	createInterface(c, "dummy", ifName, ipStr)
+	createInterface(c, "dummy", ifName, cidr)
 	defer deleteInterface(c, ifName)
 
 	// But, Pinging external or a Host interface must succeed
@@ -825,8 +836,8 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *testing.T) {
 	// which may happen if it was created with the same IP range.
 	deleteInterface(c, "docker0")
 
-	bridgeName := "ext-bridge6"
-	bridgeIP := "192.169.1.1/24"
+	const bridgeName = "ext-bridge6"
+	const bridgeIP = "192.169.1.1/24"
 
 	createInterface(c, "bridge", bridgeName, bridgeIP)
 	defer deleteInterface(c, bridgeName)
@@ -834,11 +845,22 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *testing.T) {
 	d.StartWithBusybox(testutil.GetContext(c), c, "--bridge", bridgeName, "--icc=false")
 	defer d.Restart(c)
 
-	result := icmd.RunCommand("iptables", "-nvL", "FORWARD")
+	result := icmd.RunCommand("sh", "-c", "iptables -vL FORWARD | grep DROP")
 	result.Assert(c, icmd.Success)
-	regex := fmt.Sprintf("DROP.*all.*%s.*%s", bridgeName, bridgeName)
-	matched, _ := regexp.MatchString(regex, result.Combined())
-	assert.Equal(c, matched, true, fmt.Sprintf("iptables output should have contained %q, but was %q", regex, result.Combined()))
+
+	// strip whitespace and newlines to verify we only found a single DROP
+	out := strings.TrimSpace(result.Stdout())
+	assert.Assert(c, is.Equal(strings.Count(out, "\n"), 0), "only expected a single DROP rules")
+
+	// Column headers are stripped because of grep-ing, but should be:
+	//
+	//    pkts bytes target     prot opt in          out          source    destination
+	//       0     0 DROP       all  --  ext-bridge6 ext-bridge6  anywhere  anywhere
+	cols := strings.Fields(out)
+
+	expected := []string{"0", "0", "DROP", "all", "--", bridgeName, bridgeName, "anywhere", "anywhere"}
+	assert.DeepEqual(c, cols, expected)
+
 	out, err := d.Cmd("run", "-d", "--expose", "4567", "--name", "icc1", "busybox", "nc", "-l", "-p", "4567")
 	assert.NilError(c, err, out)
 
@@ -1198,7 +1220,7 @@ func (s *DockerDaemonSuite) TestHTTPSRun(c *testing.T) {
 // TestTLSVerify verifies that --tlsverify=false turns on tls
 func (s *DockerDaemonSuite) TestTLSVerify(c *testing.T) {
 	out, err := exec.Command(dockerdBinary, "--tlsverify=false").CombinedOutput()
-	if err == nil || !strings.Contains(string(out), "Could not load X509 key pair") {
+	if err == nil || !strings.Contains(string(out), "could not load X509 key pair") {
 		c.Fatalf("Daemon should not have started due to missing certs: %v\n%s", err, string(out))
 	}
 }
@@ -1267,7 +1289,7 @@ func pingContainers(c *testing.T, d *daemon.Daemon, expectFailure bool) {
 	}
 
 	args := append(dargs, "run", "-d", "--name", "container1", "busybox", "top")
-	dockerCmd(c, args...)
+	cli.DockerCmd(c, args...)
 
 	args = append(dargs, "run", "--rm", "--link", "container1:alias1", "busybox", "sh", "-c")
 	pingCmd := "ping -c 1 %s -W 1"
@@ -1281,7 +1303,7 @@ func pingContainers(c *testing.T, d *daemon.Daemon, expectFailure bool) {
 	}
 
 	args = append(dargs, "rm", "-f", "container1")
-	dockerCmd(c, args...)
+	cli.DockerCmd(c, args...)
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *testing.T) {
@@ -1549,14 +1571,13 @@ func (s *DockerDaemonSuite) TestDaemonStartWithDefaultTLSHost(c *testing.T) {
 	// The client with --tlsverify should also use default host localhost:2376
 	c.Setenv("DOCKER_HOST", "")
 
-	out, _ := dockerCmd(
-		c,
+	out := cli.DockerCmd(c,
 		"--tlsverify",
 		"--tlscacert", "fixtures/https/ca.pem",
 		"--tlscert", "fixtures/https/client-cert.pem",
 		"--tlskey", "fixtures/https/client-key.pem",
 		"version",
-	)
+	).Stdout()
 	if !strings.Contains(out, "Server") {
 		c.Fatalf("docker version should return information of server side")
 	}
@@ -1625,13 +1646,15 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	assert.Assert(c, mount.MakeRShared(testDir) == nil)
 	defer mount.Unmount(testDir)
 
-	// create a 3MiB image (with a 2MiB ext4 fs) and mount it as graph root
-	// Why in a container? Because `mount` sometimes behaves weirdly and often fails outright on this test in debian:bullseye (which is what the test suite runs under if run from the Makefile)
-	dockerCmd(c, "run", "--rm", "-v", testDir+":/test", "busybox", "sh", "-c", "dd of=/test/testfs.img bs=1M seek=3 count=0")
-	icmd.RunCommand("mkfs.ext4", "-F", filepath.Join(testDir, "testfs.img")).Assert(c, icmd.Success)
+	// create a 3MiB image (with a 2MiB ext4 fs) and mount it as storage root
+	storageFS := filepath.Join(testDir, "testfs.img")
+	icmd.RunCommand("dd", "of="+storageFS, "bs=1M", "seek=3", "count=0").Assert(c, icmd.Success)
+	icmd.RunCommand("mkfs.ext4", "-F", storageFS).Assert(c, icmd.Success)
 
-	dockerCmd(c, "run", "--privileged", "--rm", "-v", testDir+":/test:shared", "busybox", "sh", "-c", "mkdir -p /test/test-mount && mount -n -t ext4 /test/testfs.img /test/test-mount")
-	defer mount.Unmount(filepath.Join(testDir, "test-mount"))
+	testMount, err := os.MkdirTemp(testDir, "test-mount")
+	assert.NilError(c, err)
+	icmd.RunCommand("mount", "-n", "-t", "ext4", storageFS, testMount).Assert(c, icmd.Success)
+	defer mount.Unmount(testMount)
 
 	driver := "vfs"
 	if testEnv.UsingSnapshotter() {
@@ -1639,18 +1662,18 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	}
 
 	s.d.Start(c,
-		"--data-root", filepath.Join(testDir, "test-mount"),
+		"--data-root", testMount,
 		"--storage-driver", driver,
 
 		// Pass empty containerd socket to force daemon to create a new
-		// supervised containerd daemon. Otherwise the global containerd daemon
+		// supervised containerd daemon, otherwise the global containerd daemon
 		// will be used and its data won't be stored in the specified data-root.
 		"--containerd", "",
 	)
 	defer s.d.Stop(c)
 
 	// pull a repository large enough to overfill the mounted filesystem
-	pullOut, err := s.d.Cmd("pull", "debian:bullseye-slim")
+	pullOut, err := s.d.Cmd("pull", "debian:bookworm-slim")
 	assert.Check(c, err != nil)
 	assert.Check(c, is.Contains(pullOut, "no space left on device"))
 }
@@ -1732,8 +1755,8 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *testing.T) {
 	id := strings.TrimSpace(out)
 	expectedCgroup := path.Join(cgroupParent, id)
 	found := false
-	for _, path := range cgroupPaths {
-		if strings.HasSuffix(path, expectedCgroup) {
+	for _, p := range cgroupPaths {
+		if strings.HasSuffix(p, expectedCgroup) {
 			found = true
 			break
 		}
@@ -2446,6 +2469,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *testing.T)
 
 func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
+	ctx := context.TODO()
 
 	dockerProxyPath, err := exec.LookPath("docker-proxy")
 	assert.NilError(c, err)
@@ -2467,11 +2491,20 @@ func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// not exist
-	s.d.Restart(c, "--userland-proxy-path", "/does/not/exist")
-	out, err = s.d.Cmd("run", "-p", "5000:5000", "busybox:latest", "true")
-	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "driver failed programming external connectivity on endpoint"))
-	assert.Assert(c, strings.Contains(out, "/does/not/exist: no such file or directory"))
+	s.d.Stop(c)
+	err = s.d.StartWithError("--userland-proxy-path", "/does/not/exist")
+	assert.ErrorContains(c, err, "", "daemon should fail to start")
+	expected := "invalid userland-proxy-path"
+	ok, _ := s.d.ScanLogsT(ctx, c, testdaemon.ScanLogsMatchString(expected))
+	assert.Assert(c, ok, "logs did not contain: %s", expected)
+
+	// not an absolute path
+	s.d.Stop(c)
+	err = s.d.StartWithError("--userland-proxy-path", "docker-proxy")
+	assert.ErrorContains(c, err, "", "daemon should fail to start")
+	expected = "invalid userland-proxy-path: must be an absolute path: docker-proxy"
+	ok, _ = s.d.ScanLogsT(ctx, c, testdaemon.ScanLogsMatchString(expected))
+	assert.Assert(c, ok, "logs did not contain: %s", expected)
 }
 
 // Test case for #22471
@@ -2768,13 +2801,13 @@ func (s *DockerDaemonSuite) TestFailedPluginRemove(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, testEnv.IsLocalDaemon)
 	d := daemon.New(c, dockerBinary, dockerdBinary)
 	d.Start(c)
-	cli := d.NewClientT(c)
+	apiClient := d.NewClientT(c)
 
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 300*time.Second)
 	defer cancel()
 
 	name := "test-plugin-rm-fail"
-	out, err := cli.PluginInstall(ctx, name, types.PluginInstallOptions{
+	out, err := apiClient.PluginInstall(ctx, name, types.PluginInstallOptions{
 		Disabled:             true,
 		AcceptAllPermissions: true,
 		RemoteRef:            "cpuguy83/docker-logdriver-test",
@@ -2785,7 +2818,7 @@ func (s *DockerDaemonSuite) TestFailedPluginRemove(c *testing.T) {
 
 	ctx, cancel = context.WithTimeout(testutil.GetContext(c), 30*time.Second)
 	defer cancel()
-	p, _, err := cli.PluginInspectWithRaw(ctx, name)
+	p, _, err := apiClient.PluginInspectWithRaw(ctx, name)
 	assert.NilError(c, err)
 
 	// simulate a bad/partial removal by removing the plugin config.
@@ -2795,10 +2828,10 @@ func (s *DockerDaemonSuite) TestFailedPluginRemove(c *testing.T) {
 	d.Restart(c)
 	ctx, cancel = context.WithTimeout(testutil.GetContext(c), 30*time.Second)
 	defer cancel()
-	_, err = cli.Ping(ctx)
+	_, err = apiClient.Ping(ctx)
 	assert.NilError(c, err)
 
-	_, _, err = cli.PluginInspectWithRaw(ctx, name)
+	_, _, err = apiClient.PluginInspectWithRaw(ctx, name)
 	// plugin should be gone since the config.json is gone
 	assert.ErrorContains(c, err, "")
 }

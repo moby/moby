@@ -8,6 +8,7 @@ package local // import "github.com/docker/docker/volume/local"
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strings"
 	"syscall"
@@ -53,6 +54,15 @@ func (r *Root) validateOpts(opts map[string]string) error {
 	for opt := range opts {
 		if _, ok := validOpts[opt]; !ok {
 			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
+		}
+	}
+	if typeOpt, deviceOpt := opts["type"], opts["device"]; typeOpt == "cifs" && deviceOpt != "" {
+		deviceURL, err := url.Parse(deviceOpt)
+		if err != nil {
+			return errdefs.InvalidParameter(errors.Wrapf(err, "error parsing mount device url"))
+		}
+		if deviceURL.Port() != "" {
+			return errdefs.InvalidParameter(errors.New("port not allowed in CIFS device URL, include 'port' in 'o='"))
 		}
 	}
 	if val, ok := opts["size"]; ok {
@@ -112,9 +122,12 @@ func (v *localVolume) mount() error {
 	if v.opts.MountDevice == "" {
 		return fmt.Errorf("missing device in volume options")
 	}
+
 	mountOpts := v.opts.MountOpts
+	mountDevice := v.opts.MountDevice
+
 	switch v.opts.MountType {
-	case "nfs", "cifs":
+	case "nfs":
 		if addrValue := getAddress(v.opts.MountOpts); addrValue != "" && net.ParseIP(addrValue).To4() == nil {
 			ipAddr, err := net.ResolveIPAddr("ip", addrValue)
 			if err != nil {
@@ -122,8 +135,21 @@ func (v *localVolume) mount() error {
 			}
 			mountOpts = strings.Replace(mountOpts, "addr="+addrValue, "addr="+ipAddr.String(), 1)
 		}
+	case "cifs":
+		deviceURL, err := url.Parse(v.opts.MountDevice)
+		if err != nil {
+			return errors.Wrapf(err, "error parsing mount device url")
+		}
+		if deviceURL.Host != "" && net.ParseIP(deviceURL.Host) == nil {
+			ipAddr, err := net.ResolveIPAddr("ip", deviceURL.Host)
+			if err != nil {
+				return errors.Wrapf(err, "error resolving passed in network volume address")
+			}
+			deviceURL.Host = ipAddr.String()
+			mountDevice = deviceURL.String()
+		}
 	}
-	if err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts); err != nil {
+	if err := mount.Mount(mountDevice, v.path, v.opts.MountType, mountOpts); err != nil {
 		if password := getPassword(v.opts.MountOpts); password != "" {
 			err = errors.New(strings.Replace(err.Error(), "password="+password, "password=********", 1))
 		}

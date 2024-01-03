@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
@@ -16,14 +17,15 @@ import (
 
 // TagImage creates an image named as newTag and targeting the given descriptor id.
 func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag reference.Named) error {
-	target, err := i.resolveDescriptor(ctx, imageID.String())
+	targetImage, err := i.resolveImage(ctx, imageID.String())
 	if err != nil {
 		return errors.Wrapf(err, "failed to resolve image id %q to a descriptor", imageID.String())
 	}
 
 	newImg := containerdimages.Image{
 		Name:   newTag.String(),
-		Target: target,
+		Target: targetImage.Target,
+		Labels: targetImage.Labels,
 	}
 
 	is := i.client.ImageService()
@@ -33,20 +35,22 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 			return errdefs.System(errors.Wrapf(err, "failed to create image with name %s and target %s", newImg.Name, newImg.Target.Digest.String()))
 		}
 
-		replacedImg, err := is.Get(ctx, newImg.Name)
+		replacedImg, all, err := i.resolveAllReferences(ctx, newImg.Name)
 		if err != nil {
 			return errdefs.Unknown(errors.Wrapf(err, "creating image %s failed because it already exists, but accessing it also failed", newImg.Name))
+		} else if replacedImg == nil {
+			return errdefs.Unknown(fmt.Errorf("creating image %s failed because it already exists, but failed to resolve", newImg.Name))
 		}
 
 		// Check if image we would replace already resolves to the same target.
 		// No need to do anything.
-		if replacedImg.Target.Digest == target.Digest {
+		if replacedImg.Target.Digest == targetImage.Target.Digest {
 			i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
 			return nil
 		}
 
 		// If there already exists an image with this tag, delete it
-		if err := i.softImageDelete(ctx, replacedImg); err != nil {
+		if err := i.softImageDelete(ctx, *replacedImg, all); err != nil {
 			return errors.Wrapf(err, "failed to delete previous image %s", replacedImg.Name)
 		}
 
@@ -64,29 +68,8 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 
 	defer i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
 
-	// The tag succeeded, check if the source image is dangling
-	sourceDanglingImg, err := is.Get(compatcontext.WithoutCancel(ctx), danglingImageName(target.Digest))
-	if err != nil {
-		if !cerrdefs.IsNotFound(err) {
-			logger.WithError(err).Warn("unexpected error when checking if source image is dangling")
-		}
-
-		return nil
-	}
-
-	builderLabel, ok := sourceDanglingImg.Labels[imageLabelClassicBuilderParent]
-	if ok {
-		newImg.Labels = map[string]string{
-			imageLabelClassicBuilderParent: builderLabel,
-		}
-
-		if _, err := is.Update(compatcontext.WithoutCancel(ctx), newImg, "labels"); err != nil {
-			logger.WithError(err).Warnf("failed to set %s label on the newly tagged image", imageLabelClassicBuilderParent)
-		}
-	}
-
 	// Delete the source dangling image, as it's no longer dangling.
-	if err := is.Delete(compatcontext.WithoutCancel(ctx), sourceDanglingImg.Name); err != nil {
+	if err := is.Delete(compatcontext.WithoutCancel(ctx), danglingImageName(targetImage.Target.Digest)); err != nil {
 		logger.WithError(err).Warn("unexpected error when deleting dangling image")
 	}
 

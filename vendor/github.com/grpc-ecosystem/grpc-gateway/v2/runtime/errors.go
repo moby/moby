@@ -38,7 +38,7 @@ func HTTPStatusFromCode(code codes.Code) int {
 	case codes.OK:
 		return http.StatusOK
 	case codes.Canceled:
-		return http.StatusRequestTimeout
+		return 499
 	case codes.Unknown:
 		return http.StatusInternalServerError
 	case codes.InvalidArgument:
@@ -70,10 +70,10 @@ func HTTPStatusFromCode(code codes.Code) int {
 		return http.StatusServiceUnavailable
 	case codes.DataLoss:
 		return http.StatusInternalServerError
+	default:
+		grpclog.Infof("Unknown gRPC error code: %v", code)
+		return http.StatusInternalServerError
 	}
-
-	grpclog.Infof("Unknown gRPC error code: %v", code)
-	return http.StatusInternalServerError
 }
 
 // HTTPError uses the mux-configured error handler.

@@ -15,6 +15,8 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/sliceutil"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -27,8 +29,21 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, size bo
 		return daemon.containerInspectPre120(ctx, name)
 	case versions.Equal(version, "1.20"):
 		return daemon.containerInspect120(name)
+	case versions.LessThan(version, "1.45"):
+		ctr, err := daemon.ContainerInspectCurrent(ctx, name, size)
+		if err != nil {
+			return nil, err
+		}
+
+		shortCID := stringid.TruncateID(ctr.ID)
+		for _, ep := range ctr.NetworkSettings.Networks {
+			ep.Aliases = sliceutil.Dedup(append(ep.Aliases, shortCID, ctr.Config.Hostname))
+		}
+
+		return ctr, nil
+	default:
+		return daemon.ContainerInspectCurrent(ctx, name, size)
 	}
-	return daemon.ContainerInspectCurrent(ctx, name, size)
 }
 
 // ContainerInspectCurrent returns low-level information about a
@@ -116,7 +131,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 		Mounts:            ctr.GetMountPoints(),
 		Config: &v1p20.ContainerConfig{
 			Config:          ctr.Config,
-			MacAddress:      ctr.Config.MacAddress,
+			MacAddress:      ctr.Config.MacAddress, //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 			NetworkDisabled: ctr.Config.NetworkDisabled,
 			ExposedPorts:    ctr.Config.ExposedPorts,
 			VolumeDriver:    ctr.HostConfig.VolumeDriver,
@@ -137,6 +152,18 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 
 	// We merge the Ulimits from hostConfig with daemon default
 	daemon.mergeUlimits(&hostConfig, daemonCfg)
+
+	// Migrate the container's default network's MacAddress to the top-level
+	// Config.MacAddress field for older API versions (< 1.44). We set it here
+	// unconditionally, to keep backward compatibility with clients that use
+	// unversioned API endpoints.
+	if container.Config != nil && container.Config.MacAddress == "" { //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+		if nwm := hostConfig.NetworkMode; nwm.IsDefault() || nwm.IsBridge() || nwm.IsUserDefined() {
+			if epConf, ok := container.NetworkSettings.Networks[nwm.NetworkName()]; ok {
+				container.Config.MacAddress = epConf.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+			}
+		}
+	}
 
 	var containerHealth *types.Health
 	if container.State.Health != nil {
@@ -270,7 +297,7 @@ func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Se
 func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings {
 	var settings types.DefaultNetworkSettings
 
-	if defaultNetwork, ok := networks["bridge"]; ok && defaultNetwork.EndpointSettings != nil {
+	if defaultNetwork, ok := networks[networktypes.NetworkBridge]; ok && defaultNetwork.EndpointSettings != nil {
 		settings.EndpointID = defaultNetwork.EndpointID
 		settings.Gateway = defaultNetwork.Gateway
 		settings.GlobalIPv6Address = defaultNetwork.GlobalIPv6Address

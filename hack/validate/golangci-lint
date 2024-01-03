@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
-SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPODIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"
 
 # CI platforms differ, so per-platform GOLANGCI_LINT_OPTS can be set
 # from a platform-specific Dockerfile, otherwise let's just set
@@ -24,4 +24,4 @@ GOGC=75 golangci-lint run \
 	--print-resources-usage \
 	--build-tags="${DOCKER_BUILDTAGS}" \
 	--verbose \
-	--config "${SCRIPTDIR}/golangci-lint.yml"
+	--config "${REPODIR}/.golangci.yml"

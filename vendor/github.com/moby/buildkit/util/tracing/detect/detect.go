@@ -26,6 +26,8 @@ type detector struct {
 var ServiceName string
 var Recorder *TraceRecorder
 
+var Resource *resource.Resource
+
 var detectors map[string]detector
 var once sync.Once
 var tp trace.TracerProvider
@@ -97,13 +99,16 @@ func detect() error {
 	// enable log with traceID when valid exporter
 	bklog.EnableLogWithTraceID(true)
 
-	res, err := resource.Detect(context.Background(), serviceNameDetector{})
-	if err != nil {
-		return err
-	}
-	res, err = resource.Merge(resource.Default(), res)
-	if err != nil {
-		return err
+	if Resource == nil {
+		res, err := resource.Detect(context.Background(), serviceNameDetector{})
+		if err != nil {
+			return err
+		}
+		res, err = resource.Merge(resource.Default(), res)
+		if err != nil {
+			return err
+		}
+		Resource = res
 	}
 
 	sp := sdktrace.NewBatchSpanProcessor(exp)
@@ -112,7 +117,10 @@ func detect() error {
 		Recorder.flush = sp.ForceFlush
 	}
 
-	sdktp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(sp), sdktrace.WithResource(res))
+	sdktp := sdktrace.NewTracerProvider(
+		sdktrace.WithSpanProcessor(sp),
+		sdktrace.WithResource(Resource),
+	)
 	closers = append(closers, sdktp.Shutdown)
 
 	exporter = exp

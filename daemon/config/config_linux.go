@@ -1,14 +1,17 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/containerd/cgroups/v3"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/system"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/rootless"
@@ -29,29 +32,40 @@ const (
 	// StockRuntimeName is the reserved name/alias used to represent the
 	// OCI runtime being shipped with the docker daemon package.
 	StockRuntimeName = "runc"
+
+	// minAPIVersion represents Minimum REST API version supported
+	minAPIVersion = "1.12"
+
+	// userlandProxyBinary is the name of the userland-proxy binary.
+	// In rootless-mode, [rootless.RootlessKitDockerProxyBinary] is used instead.
+	userlandProxyBinary = "docker-proxy"
 )
 
-// BridgeConfig stores all the bridge driver specific
-// configuration.
+// BridgeConfig stores all the parameters for both the bridge driver and the default bridge network.
 type BridgeConfig struct {
-	commonBridgeConfig
+	DefaultBridgeConfig
 
-	// Fields below here are platform specific.
-	MTU                         int    `json:"mtu,omitempty"`
-	DefaultIP                   net.IP `json:"ip,omitempty"`
-	IP                          string `json:"bip,omitempty"`
-	DefaultGatewayIPv4          net.IP `json:"default-gateway,omitempty"`
-	DefaultGatewayIPv6          net.IP `json:"default-gateway-v6,omitempty"`
-	InterContainerCommunication bool   `json:"icc,omitempty"`
-
-	EnableIPv6          bool   `json:"ipv6,omitempty"`
 	EnableIPTables      bool   `json:"iptables,omitempty"`
 	EnableIP6Tables     bool   `json:"ip6tables,omitempty"`
 	EnableIPForward     bool   `json:"ip-forward,omitempty"`
 	EnableIPMasq        bool   `json:"ip-masq,omitempty"`
 	EnableUserlandProxy bool   `json:"userland-proxy,omitempty"`
 	UserlandProxyPath   string `json:"userland-proxy-path,omitempty"`
-	FixedCIDRv6         string `json:"fixed-cidr-v6,omitempty"`
+}
+
+// DefaultBridgeConfig stores all the parameters for the default bridge network.
+type DefaultBridgeConfig struct {
+	commonBridgeConfig
+
+	// Fields below here are platform specific.
+	EnableIPv6                  bool   `json:"ipv6,omitempty"`
+	FixedCIDRv6                 string `json:"fixed-cidr-v6,omitempty"`
+	MTU                         int    `json:"mtu,omitempty"`
+	DefaultIP                   net.IP `json:"ip,omitempty"`
+	IP                          string `json:"bip,omitempty"`
+	DefaultGatewayIPv4          net.IP `json:"default-gateway,omitempty"`
+	DefaultGatewayIPv6          net.IP `json:"default-gateway-v6,omitempty"`
+	InterContainerCommunication bool   `json:"icc,omitempty"`
 }
 
 // Config defines the configuration of a docker daemon.
@@ -167,8 +181,27 @@ func (conf *Config) ValidatePlatformConfig() error {
 	if conf.OOMScoreAdjust != 0 {
 		return errors.New(`DEPRECATED: The "oom-score-adjust" config parameter and the dockerd "--oom-score-adjust" options have been removed.`)
 	}
+
+	if conf.EnableUserlandProxy {
+		if conf.UserlandProxyPath == "" {
+			return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
+		}
+		if !filepath.IsAbs(conf.UserlandProxyPath) {
+			return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.UserlandProxyPath)
+		}
+		// Using exec.LookPath here, because it also produces an error if the
+		// given path is not a valid executable or a directory.
+		if _, err := exec.LookPath(conf.UserlandProxyPath); err != nil {
+			return errors.Wrap(err, "invalid userland-proxy-path")
+		}
+	}
+
 	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
 		return err
+	}
+
+	if err := bridge.ValidateFixedCIDRV6(conf.FixedCIDRv6); err != nil {
+		return errors.Wrap(err, "invalid fixed-cidr-v6")
 	}
 
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
@@ -215,6 +248,17 @@ func setPlatformDefaults(cfg *Config) error {
 		cfg.ExecRoot = filepath.Join(runtimeDir, "docker")
 		cfg.Pidfile = filepath.Join(runtimeDir, "docker.pid")
 	} else {
+		var err error
+		cfg.BridgeConfig.UserlandProxyPath, err = exec.LookPath(userlandProxyBinary)
+		if err != nil {
+			// Log a warning, but don't error here. This allows running a daemon
+			// with userland-proxy disabled (which does not require the binary
+			// to be present).
+			//
+			// An error is still produced by [Config.ValidatePlatformConfig] if
+			// userland-proxy is enabled in the configuration.
+			log.G(context.TODO()).WithError(err).Warn("failed to lookup default userland-proxy binary")
+		}
 		cfg.Root = "/var/lib/docker"
 		cfg.ExecRoot = "/var/run/docker"
 		cfg.Pidfile = "/var/run/docker.pid"

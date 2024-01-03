@@ -12,8 +12,7 @@ import (
 // walkPresentChildren is a simple wrapper for containerdimages.Walk with presentChildrenHandler.
 // This is only a convenient helper to reduce boilerplate.
 func (i *ImageService) walkPresentChildren(ctx context.Context, target ocispec.Descriptor, f func(context.Context, ocispec.Descriptor) error) error {
-	store := i.client.ContentStore()
-	return containerdimages.Walk(ctx, presentChildrenHandler(store, containerdimages.HandlerFunc(
+	return containerdimages.Walk(ctx, presentChildrenHandler(i.content, containerdimages.HandlerFunc(
 		func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 			return nil, f(ctx, desc)
 		})), target)

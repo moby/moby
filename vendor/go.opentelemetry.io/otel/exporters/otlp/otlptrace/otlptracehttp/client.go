@@ -30,10 +30,10 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/internal"
-	"go.opentelemetry.io/otel/exporters/otlp/internal/retry"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/otlpconfig"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp/internal"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp/internal/otlpconfig"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp/internal/retry"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 )
@@ -164,8 +164,8 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 			}()
 		}
 
-		switch resp.StatusCode {
-		case http.StatusOK:
+		switch sc := resp.StatusCode; {
+		case sc >= 200 && sc <= 299:
 			// Success, do not retry.
 			// Read the partial success message, if any.
 			var respData bytes.Buffer
@@ -190,7 +190,7 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 			}
 			return nil
 
-		case http.StatusTooManyRequests, http.StatusServiceUnavailable:
+		case sc == http.StatusTooManyRequests, sc == http.StatusServiceUnavailable:
 			// Retry-able failures.  Drain the body to reuse the connection.
 			if _, err := io.Copy(io.Discard, resp.Body); err != nil {
 				otel.Handle(err)
@@ -209,7 +209,8 @@ func (d *client) newRequest(body []byte) (request, error) {
 		return request{Request: r}, err
 	}
 
-	r.Header.Set("User-Agent", internal.GetUserAgentHeader())
+	userAgent := "OTel OTLP Exporter Go/" + otlptrace.Version()
+	r.Header.Set("User-Agent", userAgent)
 
 	for k, v := range d.cfg.Headers {
 		r.Header.Set(k, v)

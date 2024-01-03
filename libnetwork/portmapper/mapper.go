@@ -47,12 +47,12 @@ func NewWithPortAllocator(allocator *portallocator.PortAllocator, proxyPath stri
 }
 
 // Map maps the specified container transport address to the host's network address and transport port
-func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, useProxy bool) (host net.Addr, err error) {
+func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, useProxy bool) (host net.Addr, _ error) {
 	return pm.MapRange(container, hostIP, hostPort, hostPort, useProxy)
 }
 
 // MapRange maps the specified container transport address to the host's network address and transport port range
-func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart, hostPortEnd int, useProxy bool) (host net.Addr, err error) {
+func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart, hostPortEnd int, useProxy bool) (host net.Addr, retErr error) {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
@@ -65,9 +65,17 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 	switch t := container.(type) {
 	case *net.TCPAddr:
 		proto = "tcp"
-		if allocatedHostPort, err = pm.allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd); err != nil {
+
+		var err error
+		allocatedHostPort, err = pm.allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd)
+		if err != nil {
 			return nil, err
 		}
+		defer func() {
+			if retErr != nil {
+				pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
+			}
+		}()
 
 		m = &mapping{
 			proto:     proto,
@@ -88,9 +96,17 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		}
 	case *net.UDPAddr:
 		proto = "udp"
-		if allocatedHostPort, err = pm.allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd); err != nil {
+
+		var err error
+		allocatedHostPort, err = pm.allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd)
+		if err != nil {
 			return nil, err
 		}
+		defer func() {
+			if retErr != nil {
+				pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
+			}
+		}()
 
 		m = &mapping{
 			proto:     proto,
@@ -111,9 +127,17 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		}
 	case *sctp.SCTPAddr:
 		proto = "sctp"
-		if allocatedHostPort, err = pm.allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd); err != nil {
+
+		var err error
+		allocatedHostPort, err = pm.allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd)
+		if err != nil {
 			return nil, err
 		}
+		defer func() {
+			if retErr != nil {
+				pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
+			}
+		}()
 
 		m = &mapping{
 			proto:     proto,
@@ -140,13 +164,6 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		return nil, ErrUnknownBackendAddressType
 	}
 
-	// release the allocated port on any further error during return.
-	defer func() {
-		if err != nil {
-			pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
-		}
-	}()
-
 	key := getKey(m.host)
 	if _, exists := pm.currentMappings[key]; exists {
 		return nil, ErrPortMappedForIP
@@ -157,21 +174,11 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		return nil, err
 	}
 
-	cleanup := func() error {
-		// need to undo the iptables rules before we return
-		m.userlandProxy.Stop()
-		pm.DeleteForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
-		if err := pm.allocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
-			return err
-		}
-
-		return nil
-	}
-
 	if err := m.userlandProxy.Start(); err != nil {
-		if err := cleanup(); err != nil {
-			return nil, fmt.Errorf("Error during port allocation cleanup: %v", err)
-		}
+		// FIXME(thaJeztah): both stopping the proxy and deleting iptables rules can produce an error, and both are not currently handled.
+		m.userlandProxy.Stop()
+		// need to undo the iptables rules before we return
+		pm.DeleteForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
 		return nil, err
 	}
 
@@ -204,16 +211,19 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 
 	switch a := host.(type) {
 	case *net.TCPAddr:
-		return pm.allocator.ReleasePort(a.IP, "tcp", a.Port)
+		pm.allocator.ReleasePort(a.IP, "tcp", a.Port)
 	case *net.UDPAddr:
-		return pm.allocator.ReleasePort(a.IP, "udp", a.Port)
+		pm.allocator.ReleasePort(a.IP, "udp", a.Port)
 	case *sctp.SCTPAddr:
 		if len(a.IPAddrs) == 0 {
 			return ErrSCTPAddrNoIP
 		}
-		return pm.allocator.ReleasePort(a.IPAddrs[0].IP, "sctp", a.Port)
+		pm.allocator.ReleasePort(a.IPAddrs[0].IP, "sctp", a.Port)
+	default:
+		return ErrUnknownBackendAddressType
 	}
-	return ErrUnknownBackendAddressType
+
+	return nil
 }
 
 // ReMapAll re-applies all port mappings

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/iptables"
@@ -241,6 +242,14 @@ func (r iptRule) Delete() error {
 	return r.exec(iptables.Delete)
 }
 
+func (r iptRule) String() string {
+	cmd := append([]string{"iptables"}, r.cmdArgs("-A")...)
+	if r.ipv == iptables.IPv6 {
+		cmd[0] = "ip6tables"
+	}
+	return strings.Join(cmd, " ")
+}
+
 func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguration, addr *net.IPNet, hairpin, enable bool) error {
 	var (
 		address   = addr.String()
@@ -249,9 +258,13 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 		natArgs   []string
 		hpNatArgs []string
 	)
-	// If config.HostIPv4 is set, the user wants IPv4 SNAT with the given address.
-	if config.HostIPv4 != nil && ipVer == iptables.IPv4 {
-		hostAddr := config.HostIPv4.String()
+	hostIP := config.HostIPv4
+	if ipVer == iptables.IPv6 {
+		hostIP = config.HostIPv6
+	}
+	// If hostIP is set, the user wants IPv4/IPv6 SNAT with the given address.
+	if hostIP != nil {
+		hostAddr := hostIP.String()
 		natArgs = []string{"-s", address, "!", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
 		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
 		// Else use MASQUERADE which picks the src-ip based on NH from the route table

@@ -299,7 +299,6 @@ func TestDaemonIpcModeShareableFromConfig(t *testing.T) {
 // TestIpcModeOlderClient checks that older client gets shareable IPC mode
 // by default, even when the daemon default is private.
 func TestIpcModeOlderClient(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "requires a daemon with DefaultIpcMode: private")
 	apiClient := testEnv.APIClient()
 	skip.If(t, versions.LessThan(apiClient.ClientVersion(), "1.40"), "requires client API >= 1.40")
 

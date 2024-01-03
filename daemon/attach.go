@@ -175,7 +175,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		}()
 	}
 
-	ctx := c.InitAttachContext()
+	ctx := c.AttachContext()
 	err := <-c.StreamConfig.CopyStreams(ctx, cfg)
 	if err != nil {
 		var ierr term.EscapeError

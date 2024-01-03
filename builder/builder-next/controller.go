@@ -10,6 +10,7 @@ import (
 	ctd "github.com/containerd/containerd"
 	"github.com/containerd/containerd/content/local"
 	ctdmetadata "github.com/containerd/containerd/metadata"
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
@@ -103,6 +104,11 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	policy, err := getGCPolicy(opt.BuilderConfig, opt.Root)
 	if err != nil {
 		return nil, err
+	}
+
+	// make sure platforms are normalized moby/buildkit#4391
+	for i, p := range wo.Platforms {
+		wo.Platforms[i] = platforms.Normalize(p)
 	}
 
 	wo.GCPolicy = policy

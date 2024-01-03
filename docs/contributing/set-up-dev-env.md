@@ -136,6 +136,8 @@ can take over 15 minutes to complete.
 
    At this point, your prompt reflects the container's BASH shell.
 
+   Alternatively you can use the provided devcontainer in an IDE that supports them (VSCode, Goland, etc.)
+
 5. List the contents of the current directory (`/go/src/github.com/docker/docker`).
 
    You should see the image's source from the  `/go/src/github.com/docker/docker`

@@ -8,10 +8,12 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -22,21 +24,22 @@ type EndpointOption func(ep *Endpoint)
 
 // Endpoint represents a logical connection between a network and a sandbox.
 type Endpoint struct {
-	name              string
-	id                string
-	network           *Network
-	iface             *EndpointInterface
-	joinInfo          *endpointJoinInfo
-	sandboxID         string
-	exposedPorts      []types.TransportPort
-	anonymous         bool
+	name         string
+	id           string
+	network      *Network
+	iface        *EndpointInterface
+	joinInfo     *endpointJoinInfo
+	sandboxID    string
+	exposedPorts []types.TransportPort
+	// dnsNames holds all the non-fully qualified DNS names associated to this endpoint. Order matters: first entry
+	// will be used for the PTR records associated to the endpoint's IPv4 and IPv6 addresses.
+	dnsNames          []string
 	disableResolution bool
 	generic           map[string]interface{}
 	prefAddress       net.IP
 	prefAddressV6     net.IP
 	ipamOptions       map[string]string
 	aliases           map[string]string
-	myAliases         []string
 	svcID             string
 	svcName           string
 	virtualIP         net.IP
@@ -63,9 +66,8 @@ func (ep *Endpoint) MarshalJSON() ([]byte, error) {
 		epMap["generic"] = ep.generic
 	}
 	epMap["sandbox"] = ep.sandboxID
-	epMap["anonymous"] = ep.anonymous
+	epMap["dnsNames"] = ep.dnsNames
 	epMap["disableResolution"] = ep.disableResolution
-	epMap["myAliases"] = ep.myAliases
 	epMap["svcName"] = ep.svcName
 	epMap["svcID"] = ep.svcID
 	epMap["virtualIP"] = ep.virtualIP.String()
@@ -155,8 +157,9 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 		}
 	}
 
+	var anonymous bool
 	if v, ok := epMap["anonymous"]; ok {
-		ep.anonymous = v.(bool)
+		anonymous = v.(bool)
 	}
 	if v, ok := epMap["disableResolution"]; ok {
 		ep.disableResolution = v.(bool)
@@ -191,7 +194,23 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	ma, _ := json.Marshal(epMap["myAliases"])
 	var myAliases []string
 	json.Unmarshal(ma, &myAliases) //nolint:errcheck
-	ep.myAliases = myAliases
+
+	_, hasDNSNames := epMap["dnsNames"]
+	dn, _ := json.Marshal(epMap["dnsNames"])
+	var dnsNames []string
+	json.Unmarshal(dn, &dnsNames)
+	ep.dnsNames = dnsNames
+
+	// TODO(aker): remove this migration code in v27
+	if !hasDNSNames {
+		// The field dnsNames was introduced in v25.0. If we don't have it, the on-disk state was written by an older
+		// daemon, thus we need to populate dnsNames based off of myAliases and anonymous values.
+		if !anonymous {
+			myAliases = append([]string{ep.name}, myAliases...)
+		}
+		ep.dnsNames = sliceutil.Dedup(myAliases)
+	}
+
 	return nil
 }
 
@@ -209,7 +228,6 @@ func (ep *Endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.sandboxID = ep.sandboxID
 	dstEp.dbIndex = ep.dbIndex
 	dstEp.dbExists = ep.dbExists
-	dstEp.anonymous = ep.anonymous
 	dstEp.disableResolution = ep.disableResolution
 	dstEp.svcName = ep.svcName
 	dstEp.svcID = ep.svcID
@@ -239,8 +257,8 @@ func (ep *Endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.exposedPorts = make([]types.TransportPort, len(ep.exposedPorts))
 	copy(dstEp.exposedPorts, ep.exposedPorts)
 
-	dstEp.myAliases = make([]string, len(ep.myAliases))
-	copy(dstEp.myAliases, ep.myAliases)
+	dstEp.dnsNames = make([]string, len(ep.dnsNames))
+	copy(dstEp.dnsNames, ep.dnsNames)
 
 	dstEp.generic = options.Generic{}
 	for k, v := range ep.generic {
@@ -266,13 +284,6 @@ func (ep *Endpoint) Name() string {
 	return ep.name
 }
 
-func (ep *Endpoint) MyAliases() []string {
-	ep.mu.Lock()
-	defer ep.mu.Unlock()
-
-	return ep.myAliases
-}
-
 // Network returns the name of the network to which this endpoint is attached.
 func (ep *Endpoint) Network() string {
 	if ep.network == nil {
@@ -282,10 +293,15 @@ func (ep *Endpoint) Network() string {
 	return ep.network.name
 }
 
-func (ep *Endpoint) isAnonymous() bool {
+// getDNSNames returns a copy of the DNS names associated to this endpoint. The first entry is the one used for PTR
+// records.
+func (ep *Endpoint) getDNSNames() []string {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
-	return ep.anonymous
+
+	dnsNames := make([]string, len(ep.dnsNames))
+	copy(dnsNames, ep.dnsNames)
+	return dnsNames
 }
 
 // isServiceEnabled check if service is enabled on the endpoint
@@ -456,9 +472,10 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 		}
 	}()
 
-	// Watch for service records
 	if !n.getController().isAgent() {
-		n.getController().watchSvcRecord(ep)
+		if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
+			n.updateSvcRecord(ep, true)
+		}
 	}
 
 	// Do not update hosts file with internal networks endpoint IP
@@ -566,86 +583,52 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 }
 
 func (ep *Endpoint) rename(name string) error {
-	var (
-		err error
-		ok  bool
-	)
+	ep.mu.Lock()
+	ep.name = name
+	ep.mu.Unlock()
 
-	n := ep.getNetwork()
-	if n == nil {
-		return fmt.Errorf("network not connected for ep %q", ep.name)
+	// Update the store with the updated name
+	if err := ep.getNetwork().getController().updateToStore(ep); err != nil {
+		return err
 	}
 
-	c := n.getController()
+	return nil
+}
 
+func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
+	nw := ep.getNetwork()
+	c := nw.getController()
 	sb, ok := ep.getSandbox()
 	if !ok {
-		log.G(context.TODO()).Warnf("rename for %s aborted, sandbox %s is not anymore present", ep.ID(), ep.sandboxID)
+		log.G(context.TODO()).WithFields(log.Fields{
+			"sandboxID":  ep.sandboxID,
+			"endpointID": ep.ID(),
+		}).Warn("DNSNames update aborted, sandbox is not present anymore")
 		return nil
 	}
 
 	if c.isAgent() {
-		if err = ep.deleteServiceInfoFromCluster(sb, true, "rename"); err != nil {
-			return types.InternalErrorf("Could not delete service state for endpoint %s from cluster on rename: %v", ep.Name(), err)
+		if err := ep.deleteServiceInfoFromCluster(sb, true, "UpdateDNSNames"); err != nil {
+			return types.InternalErrorf("could not delete service state for endpoint %s from cluster on UpdateDNSNames: %v", ep.Name(), err)
+		}
+
+		ep.dnsNames = dnsNames
+		if err := ep.addServiceInfoToCluster(sb); err != nil {
+			return types.InternalErrorf("could not add service state for endpoint %s to cluster on UpdateDNSNames: %v", ep.Name(), err)
 		}
 	} else {
-		c.mu.Lock()
-		_, ok = c.nmap[n.ID()]
-		c.mu.Unlock()
-		if !ok {
-			// FIXME(thaJeztah): what is this check for, or is this to prevent a race condition (network removed)?
-			return fmt.Errorf("watch null for network %q", n.Name())
-		}
-		n.updateSvcRecord(ep, false)
-	}
+		nw.updateSvcRecord(ep, false)
 
-	oldName := ep.name
-	oldAnonymous := ep.anonymous
-	ep.name = name
-	ep.anonymous = false
-
-	if c.isAgent() {
-		if err = ep.addServiceInfoToCluster(sb); err != nil {
-			return types.InternalErrorf("Could not add service state for endpoint %s to cluster on rename: %v", ep.Name(), err)
-		}
-		defer func() {
-			if err != nil {
-				if err2 := ep.deleteServiceInfoFromCluster(sb, true, "rename"); err2 != nil {
-					log.G(context.TODO()).WithField("main error", err).WithError(err2).Debug("Error during cleanup due deleting service info from cluster while cleaning up due to other error")
-				}
-				ep.name = oldName
-				ep.anonymous = oldAnonymous
-				if err2 := ep.addServiceInfoToCluster(sb); err2 != nil {
-					log.G(context.TODO()).WithField("main error", err).WithError(err2).Debug("Error during cleanup due adding service to from cluster while cleaning up due to other error")
-				}
-			}
-		}()
-	} else {
-		n.updateSvcRecord(ep, true)
-		defer func() {
-			if err != nil {
-				n.updateSvcRecord(ep, false)
-				ep.name = oldName
-				ep.anonymous = oldAnonymous
-				n.updateSvcRecord(ep, true)
-			}
-		}()
+		ep.dnsNames = dnsNames
+		nw.updateSvcRecord(ep, true)
 	}
 
 	// Update the store with the updated name
-	if err = c.updateToStore(ep); err != nil {
+	if err := c.updateToStore(ep); err != nil {
 		return err
 	}
-	// After the name change do a dummy endpoint count update to
-	// trigger the service record update in the peer nodes
 
-	// Ignore the error because updateStore fail for EpCnt is a
-	// benign error. Besides there is no meaningful recovery that
-	// we can do. When the cluster recovers subsequent EpCnt update
-	// will force the peers to get the correct EP name.
-	_ = n.getEpCnt().updateStore()
-
-	return err
+	return nil
 }
 
 func (ep *Endpoint) hasInterface(iName string) bool {
@@ -818,8 +801,9 @@ func (ep *Endpoint) Delete(force bool) error {
 		}
 	}()
 
-	// unwatch for service records
-	n.getController().unWatchSvcRecord(ep)
+	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
+		n.updateSvcRecord(ep, false)
+	}
 
 	if err = ep.deleteEndpoint(force); err != nil && !force {
 		return err
@@ -963,11 +947,11 @@ func CreateOptionDNS(dns []string) EndpointOption {
 	}
 }
 
-// CreateOptionAnonymous function returns an option setter for setting
-// this endpoint as anonymous
-func CreateOptionAnonymous() EndpointOption {
+// CreateOptionDNSNames specifies the list of (non fully qualified) DNS names associated to an endpoint. These will be
+// used to populate the embedded DNS server. Order matters: first name will be used to generate PTR records.
+func CreateOptionDNSNames(names []string) EndpointOption {
 	return func(ep *Endpoint) {
-		ep.anonymous = true
+		ep.dnsNames = names
 	}
 }
 
@@ -1000,13 +984,6 @@ func CreateOptionService(name, id string, vip net.IP, ingressPorts []*PortConfig
 	}
 }
 
-// CreateOptionMyAlias function returns an option setter for setting endpoint's self alias
-func CreateOptionMyAlias(alias string) EndpointOption {
-	return func(ep *Endpoint) {
-		ep.myAliases = append(ep.myAliases, alias)
-	}
-}
-
 // CreateOptionLoadBalancer function returns an option setter for denoting the endpoint is a load balancer for a network
 func CreateOptionLoadBalancer() EndpointOption {
 	return func(ep *Endpoint) {
@@ -1029,10 +1006,6 @@ func JoinOptionPriority(prio int) EndpointOption {
 		}
 		sb.epPriority[ep.id] = prio
 	}
-}
-
-func (ep *Endpoint) DataScope() string {
-	return ep.getNetwork().DataScope()
 }
 
 func (ep *Endpoint) assignAddress(ipam ipamapi.Ipam, assignIPv4, assignIPv6 bool) error {
@@ -1137,7 +1110,7 @@ func (ep *Endpoint) releaseAddress() {
 		}
 	}
 
-	if ep.iface.addrv6 != nil && ep.iface.addrv6.IP.IsGlobalUnicast() {
+	if ep.iface.addrv6 != nil {
 		if err := ipam.ReleaseAddress(ep.iface.v6PoolID, ep.iface.addrv6.IP); err != nil {
 			log.G(context.TODO()).Warnf("Failed to release ip address %s on delete of endpoint %s (%s): %v", ep.iface.addrv6.IP, ep.Name(), ep.ID(), err)
 		}

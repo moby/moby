@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"github.com/pkg/errors"
@@ -19,23 +19,19 @@ import (
 
 func (s *DockerAPISuite) TestExecResizeAPIHeightWidthNoInt(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
 	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/exec/" + cleanedContainerID + "/resize?h=foo&w=bar"
 	res, _, err := request.Post(testutil.GetContext(c), endpoint)
 	assert.NilError(c, err)
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
-	} else {
-		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	}
+	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 }
 
 // Part of #14845
 func (s *DockerAPISuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 	name := "exec_resize_test"
-	dockerCmd(c, "run", "-d", "-i", "-t", "--name", name, "--restart", "always", "busybox", "/bin/sh")
+	cli.DockerCmd(c, "run", "-d", "-i", "-t", "--name", name, "--restart", "always", "busybox", "/bin/sh")
 
 	testExecResize := func() error {
 		data := map[string]interface{}{

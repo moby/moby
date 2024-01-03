@@ -378,9 +378,18 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 
 	reply := func(msg *dns.Msg) {
 		if err = w.WriteMsg(msg); err != nil {
-			r.log(ctx).WithError(err).Errorf("[resolver] failed to write response")
+			r.log(ctx).WithError(err).Error("[resolver] failed to write response")
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "WriteMsg failed")
+			// Make a best-effort attempt to send a failure response to the
+			// client so it doesn't have to wait for a timeout if the failure
+			// has to do with the content of msg rather than the connection.
+			if msg.Rcode != dns.RcodeServerFailure {
+				if err := w.WriteMsg(new(dns.Msg).SetRcode(query, dns.RcodeServerFailure)); err != nil {
+					r.log(ctx).WithError(err).Error("[resolver] writing ServFail response also failed")
+					span.RecordError(err)
+				}
+			}
 		}
 	}
 

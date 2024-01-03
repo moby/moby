@@ -114,6 +114,18 @@ func WithTmpfs(targetAndOpts string) func(config *TestContainerConfig) {
 	}
 }
 
+func WithMacAddress(networkName, mac string) func(config *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.NetworkingConfig.EndpointsConfig == nil {
+			c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
+		}
+		if v, ok := c.NetworkingConfig.EndpointsConfig[networkName]; !ok || v == nil {
+			c.NetworkingConfig.EndpointsConfig[networkName] = &network.EndpointSettings{}
+		}
+		c.NetworkingConfig.EndpointsConfig[networkName].MacAddress = mac
+	}
+}
+
 // WithIPv4 sets the specified ip for the specified network of the container
 func WithIPv4(networkName, ip string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
@@ -190,6 +202,13 @@ func WithRestartPolicy(policy container.RestartPolicyMode) func(c *TestContainer
 func WithUser(user string) func(c *TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		c.Config.User = user
+	}
+}
+
+// WithAdditionalGroups sets the additional groups for the container
+func WithAdditionalGroups(groups ...string) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.GroupAdd = groups
 	}
 }
 
@@ -298,8 +317,8 @@ func WithStopSignal(stopSignal string) func(c *TestContainerConfig) {
 	}
 }
 
-func WithMacAddress(address string) func(c *TestContainerConfig) {
+func WithContainerWideMacAddress(address string) func(c *TestContainerConfig) {
 	return func(c *TestContainerConfig) {
-		c.Config.MacAddress = address
+		c.Config.MacAddress = address //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 	}
 }

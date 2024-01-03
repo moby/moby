@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
 	containerddefaults "github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/tracing"
 	"github.com/containerd/log"
@@ -64,6 +63,8 @@ import (
 	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 // DaemonCli represents the daemon CLI.
@@ -238,6 +239,10 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	setOTLPProtoDefault()
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+
+	// Override BuildKit's default Resource so that it matches the semconv
+	// version that is used in our code.
+	detect.Resource = resource.Default()
 	detect.Recorder = detect.NewTraceRecorder()
 
 	tp, err := detect.TracerProvider()
@@ -269,7 +274,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// queries the properties of device on the host as wel as performs the injection of device nodes and their access permissions into the OCI spec.
 	//
 	// In order to lift this restriction the following would have to be addressed:
-	// - Support needs to be added to the cdi package for injecting Windows devices: https://github.com/container-orchestrated-devices/container-device-interface/issues/28
+	// - Support needs to be added to the cdi package for injecting Windows devices: https://tags.cncf.io/container-device-interface/issues/28
 	// - The DeviceRequests API must be extended to non-linux platforms.
 	if runtime.GOOS == "linux" && cli.Config.Experimental {
 		daemon.RegisterCDIDriver(cli.Config.CDISpecDirs...)
@@ -520,6 +525,20 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	conf.LogLevel = opts.LogLevel
 	conf.LogFormat = log.OutputFormat(opts.LogFormat)
 
+	// The DOCKER_MIN_API_VERSION env-var allows overriding the minimum API
+	// version provided by the daemon within constraints of the minimum and
+	// maximum (current) supported API versions.
+	//
+	// API versions older than [config.defaultMinAPIVersion] are deprecated and
+	// to be removed in a future release. The "DOCKER_MIN_API_VERSION" env-var
+	// should only be used for exceptional cases.
+	if ver := os.Getenv("DOCKER_MIN_API_VERSION"); ver != "" {
+		if err := config.ValidateMinAPIVersion(ver); err != nil {
+			return nil, errors.Wrap(err, "invalid DOCKER_MIN_API_VERSION")
+		}
+		conf.MinAPIVersion = ver
+	}
+
 	if flags.Changed(FlagTLS) {
 		conf.TLS = &opts.TLS
 	}
@@ -689,7 +708,7 @@ func initMiddlewares(s *apiserver.Server, cfg *config.Config, pluginStore plugin
 	exp := middleware.NewExperimentalMiddleware(cfg.Experimental)
 	s.UseMiddleware(exp)
 
-	vm := middleware.NewVersionMiddleware(v, api.DefaultVersion, api.MinVersion)
+	vm := middleware.NewVersionMiddleware(v, api.DefaultVersion, cfg.MinAPIVersion)
 	s.UseMiddleware(vm)
 
 	if cfg.CorsHeaders != "" {

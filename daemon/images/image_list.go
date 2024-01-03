@@ -10,6 +10,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
 	imagetypes "github.com/docker/docker/api/types/image"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -21,6 +22,7 @@ var acceptedImageFilterTags = map[string]bool{
 	"before":    true,
 	"since":     true,
 	"reference": true,
+	"until":     true,
 }
 
 // byCreated is a temporary type used to sort a list of images by creation
@@ -52,6 +54,25 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		// equivalent to ANDing all the values together.
 		if img.Created != nil && (beforeFilter.IsZero() || beforeFilter.After(*img.Created)) {
 			beforeFilter = *img.Created
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	err = opts.Filters.WalkValues("until", func(value string) error {
+		ts, err := timetypes.GetTimestamp(value, time.Now())
+		if err != nil {
+			return err
+		}
+		seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+		if err != nil {
+			return err
+		}
+		timestamp := time.Unix(seconds, nanoseconds)
+		if beforeFilter.IsZero() || beforeFilter.After(timestamp) {
+			beforeFilter = timestamp
 		}
 		return nil
 	})

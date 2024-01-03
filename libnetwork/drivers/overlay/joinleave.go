@@ -107,7 +107,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		}
 	}
 
-	d.peerAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, net.ParseIP(d.advertiseAddress), false, false, true)
+	d.peerAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, d.advertiseAddress, false, false, true)
 
 	if err = d.checkEncryption(nid, nil, true, true); err != nil {
 		log.G(context.TODO()).Warn(err)
@@ -116,7 +116,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	buf, err := proto.Marshal(&PeerRecord{
 		EndpointIP:       ep.addr.String(),
 		EndpointMAC:      ep.mac.String(),
-		TunnelEndpointIP: d.advertiseAddress,
+		TunnelEndpointIP: d.advertiseAddress.String(),
 	})
 	if err != nil {
 		return err
@@ -162,7 +162,7 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 
 	// Ignore local peers. We already know about them and they
 	// should not be added to vxlan fdb.
-	if peer.TunnelEndpointIP == d.advertiseAddress {
+	if net.ParseIP(peer.TunnelEndpointIP).Equal(d.advertiseAddress) {
 		return
 	}
 
@@ -209,7 +209,7 @@ func (d *driver) Leave(nid, eid string) error {
 		return types.InternalMaskableErrorf("could not find endpoint with id %s", eid)
 	}
 
-	d.peerDelete(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, net.ParseIP(d.advertiseAddress), true)
+	d.peerDelete(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, d.advertiseAddress, true)
 
 	n.leaveSandbox()
 

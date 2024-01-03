@@ -12,3 +12,9 @@ type Runtime struct {
 	Type    string                 `json:"runtimeType,omitempty"`
 	Options map[string]interface{} `json:"options,omitempty"`
 }
+
+// RuntimeWithStatus extends [Runtime] to hold [RuntimeStatus].
+type RuntimeWithStatus struct {
+	Runtime
+	Status map[string]string `json:"status,omitempty"`
+}

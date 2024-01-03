@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -40,7 +40,7 @@ func (s *DockerAPISuite) TestAPINetworkInspectBridge(c *testing.T) {
 	assert.Equal(c, nr.Name, "bridge")
 
 	// run a container and attach it to the default bridge network
-	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "--name", "test", "busybox", "top").Stdout()
 	containerID := strings.TrimSpace(out)
 	containerIP := findContainerIP(c, "test", "bridge")
 
@@ -104,7 +104,7 @@ func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	assert.Equal(c, len(nr.Containers), 0)
 
 	// run a container
-	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "--name", "test", "busybox", "top").Stdout()
 	containerID := strings.TrimSpace(out)
 
 	// connect the container to the test network
@@ -161,11 +161,7 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 			IPAM:   ipam1,
 		},
 	}
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		createNetwork(c, config1, http.StatusInternalServerError)
-	} else {
-		createNetwork(c, config1, http.StatusForbidden)
-	}
+	createNetwork(c, config1, http.StatusForbidden)
 	assert.Assert(c, !isNetworkAvailable(c, "test1"))
 
 	ipam2 := &network.IPAM{
@@ -212,15 +208,6 @@ func createDeletePredefinedNetwork(c *testing.T, name string) {
 	// Create pre-defined network
 	config := types.NetworkCreateRequest{Name: name}
 	expectedStatus := http.StatusForbidden
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.34") {
-		// In the early test code it uses bool value to represent
-		// whether createNetwork() is expected to fail or not.
-		// Therefore, we use negation to handle the same logic after
-		// the code was changed in https://github.com/moby/moby/pull/35030
-		// -http.StatusCreated will also be checked as NOT equal to
-		// http.StatusCreated in createNetwork() function.
-		expectedStatus = -http.StatusCreated
-	}
 	createNetwork(c, config, expectedStatus)
 	deleteNetwork(c, name, false)
 }

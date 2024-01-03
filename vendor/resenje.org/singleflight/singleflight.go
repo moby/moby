@@ -82,8 +82,9 @@ func (g *Group[K, V]) wait(ctx context.Context, key K, c *call[V]) (v V, shared 
 		c.cancel()
 		delete(g.calls, key)
 	}
+	shared = c.shared
 	g.mu.Unlock()
-	return v, c.shared, err
+	return v, shared, err
 }
 
 // Forget tells the singleflight to forget about a key. Future calls

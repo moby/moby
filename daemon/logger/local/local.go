@@ -187,7 +187,7 @@ func messageToProto(msg *logger.Message, proto *logdriver.LogEntry, partial *log
 func protoToMessage(proto *logdriver.LogEntry) *logger.Message {
 	msg := &logger.Message{
 		Source:    proto.Source,
-		Timestamp: time.Unix(0, proto.TimeNano),
+		Timestamp: time.Unix(0, proto.TimeNano).UTC(),
 	}
 	if proto.Partial {
 		var md backend.PartialLogMetaData

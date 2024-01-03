@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -594,32 +593,15 @@ func (container *Container) ResetRestartManager(resetCount bool) {
 	container.restartManager = nil
 }
 
-type attachContext struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	mu     sync.Mutex
-}
-
-// InitAttachContext initializes or returns existing context for attach calls to
-// track container liveness.
-func (container *Container) InitAttachContext() context.Context {
-	container.attachContext.mu.Lock()
-	defer container.attachContext.mu.Unlock()
-	if container.attachContext.ctx == nil {
-		container.attachContext.ctx, container.attachContext.cancel = context.WithCancel(context.Background())
-	}
-	return container.attachContext.ctx
+// AttachContext returns the context for attach calls to track container liveness.
+func (container *Container) AttachContext() context.Context {
+	return container.attachContext.init()
 }
 
 // CancelAttachContext cancels attach context. All attach calls should detach
 // after this call.
 func (container *Container) CancelAttachContext() {
-	container.attachContext.mu.Lock()
-	if container.attachContext.ctx != nil {
-		container.attachContext.cancel()
-		container.attachContext.ctx = nil
-	}
-	container.attachContext.mu.Unlock()
+	container.attachContext.cancel()
 }
 
 func (container *Container) startLogging() error {

@@ -10,7 +10,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -63,7 +62,6 @@ func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
 
 func TestPauseStopPausedContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.31"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()

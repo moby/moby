@@ -762,6 +762,9 @@ func (h *HistoryQueue) Listen(ctx context.Context, req *controlapi.BuildHistoryR
 		}()
 	}
 
+	// make a copy of events for active builds so we don't keep a lock during grpc send
+	actives := make([]*controlapi.BuildHistoryEvent, 0, len(h.active))
+
 	for _, e := range h.active {
 		if req.Ref != "" && e.Ref != req.Ref {
 			continue
@@ -769,13 +772,19 @@ func (h *HistoryQueue) Listen(ctx context.Context, req *controlapi.BuildHistoryR
 		if _, ok := h.deleted[e.Ref]; ok {
 			continue
 		}
-		sub.send(&controlapi.BuildHistoryEvent{
+		actives = append(actives, &controlapi.BuildHistoryEvent{
 			Type:   controlapi.BuildHistoryEventType_STARTED,
 			Record: e,
 		})
 	}
 
 	h.mu.Unlock()
+
+	for _, e := range actives {
+		if err := f(e); err != nil {
+			return err
+		}
+	}
 
 	if !req.ActiveOnly {
 		events := []*controlapi.BuildHistoryEvent{}
@@ -810,7 +819,7 @@ func (h *HistoryQueue) Listen(ctx context.Context, req *controlapi.BuildHistoryR
 		}
 		h.mu.Unlock()
 		for _, e := range events {
-			if e.Record == nil {
+			if e == nil || e.Record == nil {
 				continue
 			}
 			if err := f(e); err != nil {

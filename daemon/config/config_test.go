@@ -1,12 +1,14 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/opts"
 	"github.com/google/go-cmp/cmp"
@@ -239,28 +241,6 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			expectedErr: "bad attribute format: one",
 		},
 		{
-			name: "single DNS, invalid IP-address",
-			config: &Config{
-				CommonConfig: CommonConfig{
-					DNSConfig: DNSConfig{
-						DNS: []string{"1.1.1.1o"},
-					},
-				},
-			},
-			expectedErr: "1.1.1.1o is not an ip address",
-		},
-		{
-			name: "multiple DNS, invalid IP-address",
-			config: &Config{
-				CommonConfig: CommonConfig{
-					DNSConfig: DNSConfig{
-						DNS: []string{"2.2.2.2", "1.1.1.1o"},
-					},
-				},
-			},
-			expectedErr: "1.1.1.1o is not an ip address",
-		},
-		{
 			name: "single DNSSearch",
 			config: &Config{
 				CommonConfig: CommonConfig{
@@ -286,7 +266,11 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			name: "negative MTU",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					BridgeConfig: BridgeConfig{MTU: -10},
+					BridgeConfig: BridgeConfig{
+						DefaultBridgeConfig: DefaultBridgeConfig{
+							MTU: -10,
+						},
+					},
 				},
 			},
 			expectedErr: "invalid default MTU: -10",
@@ -417,17 +401,6 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name:  "with dns",
-			field: "DNSConfig",
-			config: &Config{
-				CommonConfig: CommonConfig{
-					DNSConfig: DNSConfig{
-						DNS: []string{"1.1.1.1"},
-					},
-				},
-			},
-		},
-		{
 			name:  "with dns-search",
 			field: "DNSConfig",
 			config: &Config{
@@ -443,7 +416,11 @@ func TestValidateConfiguration(t *testing.T) {
 			field: "MTU",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					BridgeConfig: BridgeConfig{MTU: 1234},
+					BridgeConfig: BridgeConfig{
+						DefaultBridgeConfig: DefaultBridgeConfig{
+							MTU: 1234,
+						},
+					},
 				},
 			},
 		},
@@ -522,6 +499,90 @@ func TestValidateConfiguration(t *testing.T) {
 			assert.Check(t, is.DeepEqual(cfg, tc.config, field(tc.field)))
 			err = Validate(cfg)
 			assert.NilError(t, err)
+		})
+	}
+}
+
+func TestValidateMinAPIVersion(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		doc         string
+		input       string
+		expectedErr string
+	}{
+		{
+			doc:         "empty",
+			expectedErr: "value is empty",
+		},
+		{
+			doc:         "with prefix",
+			input:       "v1.43",
+			expectedErr: `API version must be provided without "v" prefix`,
+		},
+		{
+			doc:         "major only",
+			input:       "1",
+			expectedErr: `minimum supported API version is`,
+		},
+		{
+			doc:         "too low",
+			input:       "1.0",
+			expectedErr: `minimum supported API version is`,
+		},
+		{
+			doc:         "minor too high",
+			input:       "1.99",
+			expectedErr: `maximum supported API version is`,
+		},
+		{
+			doc:         "major too high",
+			input:       "9.0",
+			expectedErr: `maximum supported API version is`,
+		},
+		{
+			doc:   "current version",
+			input: api.DefaultVersion,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			err := ValidateMinAPIVersion(tc.input)
+			if tc.expectedErr != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expectedErr))
+			} else {
+				assert.Check(t, err)
+			}
+		})
+	}
+
+}
+
+func TestConfigInvalidDNS(t *testing.T) {
+	tests := []struct {
+		doc         string
+		input       string
+		expectedErr string
+	}{
+		{
+			doc:         "single DNS, invalid IP-address",
+			input:       `{"dns": ["1.1.1.1o"]}`,
+			expectedErr: `invalid IP address: 1.1.1.1o`,
+		},
+		{
+			doc:         "multiple DNS, invalid IP-address",
+			input:       `{"dns": ["2.2.2.2", "1.1.1.1o"]}`,
+			expectedErr: `invalid IP address: 1.1.1.1o`,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			var cfg Config
+			err := json.Unmarshal([]byte(tc.input), &cfg)
+			assert.Check(t, is.Error(err, tc.expectedErr))
 		})
 	}
 }

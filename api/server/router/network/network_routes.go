@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
@@ -39,7 +40,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 
 	// Combine the network list returned by Docker daemon if it is not already
 	// returned by the cluster manager
-	localNetworks, err := n.backend.GetNetworks(filter, types.NetworkListConfig{Detailed: versions.LessThan(httputils.VersionFromContext(ctx), "1.28")})
+	localNetworks, err := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: versions.LessThan(httputils.VersionFromContext(ctx), "1.28")})
 	if err != nil {
 		return err
 	}
@@ -117,7 +118,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	if networkScope != "" {
 		filter.Add("scope", networkScope)
 	}
-	networks, _ := n.backend.GetNetworks(filter, types.NetworkListConfig{Detailed: true, Verbose: verbose})
+	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true, Verbose: verbose})
 	for _, nw := range networks {
 		if nw.ID == term {
 			return httputils.WriteJSON(w, http.StatusOK, nw)
@@ -311,7 +312,7 @@ func (n *networkRouter) findUniqueNetwork(term string) (types.NetworkResource, e
 	listByPartialID := map[string]types.NetworkResource{}
 
 	filter := filters.NewArgs(filters.Arg("idOrName", term))
-	networks, _ := n.backend.GetNetworks(filter, types.NetworkListConfig{Detailed: true})
+	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true})
 	for _, nw := range networks {
 		if nw.ID == term {
 			return nw, nil

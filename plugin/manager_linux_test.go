@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/stringid"
@@ -63,7 +64,7 @@ func TestManagerWithPluginMounts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := m.Remove(p1.GetID(), &types.PluginRmConfig{ForceRemove: true}); err != nil {
+	if err := m.Remove(p1.GetID(), &backend.PluginRmConfig{ForceRemove: true}); err != nil {
 		t.Fatal(err)
 	}
 	if mounted, err := mountinfo.Mounted(p2Mount); !mounted || err != nil {
@@ -127,7 +128,7 @@ func TestCreateFailed(t *testing.T) {
 		t.Fatalf("expected Create failed error, got %v", err)
 	}
 
-	if err := m.Remove(p.GetID(), &types.PluginRmConfig{ForceRemove: true}); err != nil {
+	if err := m.Remove(p.GetID(), &backend.PluginRmConfig{ForceRemove: true}); err != nil {
 		t.Fatal(err)
 	}
 }

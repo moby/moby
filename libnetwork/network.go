@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.19
+
 package libnetwork
 
 import (
@@ -172,7 +175,7 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 type Network struct {
 	ctrlr            *Controller
 	name             string
-	networkType      string
+	networkType      string // networkType is the name of the netdriver used by this network
 	id               string
 	created          time.Time
 	scope            string // network data scope
@@ -508,15 +511,6 @@ func (n *Network) CopyTo(o datastore.KVObject) error {
 	}
 
 	return nil
-}
-
-func (n *Network) DataScope() string {
-	s := n.Scope()
-	// All swarm scope networks have local datascope
-	if s == scope.Swarm {
-		s = scope.Local
-	}
-	return s
 }
 
 func (n *Network) getEpCnt() *endpointCnt {
@@ -1225,13 +1219,14 @@ func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpo
 		return nil, err
 	}
 
-	// Watch for service records
-	n.getController().watchSvcRecord(ep)
-	defer func() {
-		if err != nil {
-			n.getController().unWatchSvcRecord(ep)
-		}
-	}()
+	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
+		n.updateSvcRecord(ep, true)
+		defer func() {
+			if err != nil {
+				n.updateSvcRecord(ep, false)
+			}
+		}()
+	}
 
 	// Increment endpoint count to indicate completion of endpoint addition
 	if err = n.getEpCnt().IncEndpointCnt(); err != nil {
@@ -1299,44 +1294,33 @@ func (n *Network) EndpointByID(id string) (*Endpoint, error) {
 	return ep, nil
 }
 
+// updateSvcRecord adds or deletes local DNS records for a given Endpoint.
 func (n *Network) updateSvcRecord(ep *Endpoint, isAdd bool) {
-	var ipv6 net.IP
-	epName := ep.Name()
-	if iface := ep.Iface(); iface != nil && iface.Address() != nil {
-		myAliases := ep.MyAliases()
-		if iface.AddressIPv6() != nil {
-			ipv6 = iface.AddressIPv6().IP
-		}
+	iface := ep.Iface()
+	if iface == nil || iface.Address() == nil {
+		return
+	}
 
-		serviceID := ep.svcID
-		if serviceID == "" {
-			serviceID = ep.ID()
+	var ipv6 net.IP
+	if iface.AddressIPv6() != nil {
+		ipv6 = iface.AddressIPv6().IP
+	}
+
+	serviceID := ep.svcID
+	if serviceID == "" {
+		serviceID = ep.ID()
+	}
+
+	dnsNames := ep.getDNSNames()
+	if isAdd {
+		for i, dnsName := range dnsNames {
+			ipMapUpdate := i == 0 // ipMapUpdate indicates whether PTR records should be updated.
+			n.addSvcRecords(ep.ID(), dnsName, serviceID, iface.Address().IP, ipv6, ipMapUpdate, "updateSvcRecord")
 		}
-		if isAdd {
-			// If anonymous endpoint has an alias use the first alias
-			// for ip->name mapping. Not having the reverse mapping
-			// breaks some apps
-			if ep.isAnonymous() {
-				if len(myAliases) > 0 {
-					n.addSvcRecords(ep.ID(), myAliases[0], serviceID, iface.Address().IP, ipv6, true, "updateSvcRecord")
-				}
-			} else {
-				n.addSvcRecords(ep.ID(), epName, serviceID, iface.Address().IP, ipv6, true, "updateSvcRecord")
-			}
-			for _, alias := range myAliases {
-				n.addSvcRecords(ep.ID(), alias, serviceID, iface.Address().IP, ipv6, false, "updateSvcRecord")
-			}
-		} else {
-			if ep.isAnonymous() {
-				if len(myAliases) > 0 {
-					n.deleteSvcRecords(ep.ID(), myAliases[0], serviceID, iface.Address().IP, ipv6, true, "updateSvcRecord")
-				}
-			} else {
-				n.deleteSvcRecords(ep.ID(), epName, serviceID, iface.Address().IP, ipv6, true, "updateSvcRecord")
-			}
-			for _, alias := range myAliases {
-				n.deleteSvcRecords(ep.ID(), alias, serviceID, iface.Address().IP, ipv6, false, "updateSvcRecord")
-			}
+	} else {
+		for i, dnsName := range dnsNames {
+			ipMapUpdate := i == 0 // ipMapUpdate indicates whether PTR records should be updated.
+			n.deleteSvcRecords(ep.ID(), dnsName, serviceID, iface.Address().IP, ipv6, ipMapUpdate, "updateSvcRecord")
 		}
 	}
 }
@@ -1375,6 +1359,7 @@ func delNameToIP(svcMap *setmatrix.SetMatrix[svcMapEntry], name, serviceID strin
 	})
 }
 
+// TODO(aker): remove ipMapUpdate param and add a proper method dedicated to update PTR records.
 func (n *Network) addSvcRecords(eID, name, serviceID string, epIP, epIPv6 net.IP, ipMapUpdate bool, method string) {
 	// Do not add service names for ingress network as this is a
 	// routing only network
@@ -1768,7 +1753,7 @@ func (n *Network) deriveAddressSpace() (string, error) {
 	if err != nil {
 		return "", types.NotFoundErrorf("failed to get default address space: %v", err)
 	}
-	if n.DataScope() == scope.Global {
+	if n.Scope() == scope.Global {
 		return global, nil
 	}
 	return local, nil
@@ -2176,10 +2161,6 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 	epOptions := []EndpointOption{
 		CreateOptionIpam(n.loadBalancerIP, nil, nil, nil),
 		CreateOptionLoadBalancer(),
-	}
-	if n.hasLoadBalancerEndpoint() && !n.ingress {
-		// Mark LB endpoints as anonymous so they don't show up in DNS
-		epOptions = append(epOptions, CreateOptionAnonymous())
 	}
 	ep, err := n.createEndpoint(endpointName, epOptions...)
 	if err != nil {

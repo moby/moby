@@ -20,29 +20,22 @@ func TestInfoAPI(t *testing.T) {
 	info, err := client.Info(ctx)
 	assert.NilError(t, err)
 
-	// always shown fields
-	stringsToCheck := []string{
-		"ID",
-		"Containers",
-		"ContainersRunning",
-		"ContainersPaused",
-		"ContainersStopped",
-		"Images",
-		"LoggingDriver",
-		"OperatingSystem",
-		"NCPU",
-		"OSType",
-		"Architecture",
-		"MemTotal",
-		"KernelVersion",
-		"Driver",
-		"ServerVersion",
-		"SecurityOptions",
-	}
-
-	out := fmt.Sprintf("%+v", info)
-	for _, linePrefix := range stringsToCheck {
-		assert.Check(t, is.Contains(out, linePrefix))
+	// TODO(thaJeztah): make sure we have other tests that run a local daemon and check other fields based on known state.
+	assert.Check(t, info.ID != "")
+	assert.Check(t, is.Equal(info.Containers, info.ContainersRunning+info.ContainersPaused+info.ContainersStopped))
+	assert.Check(t, info.LoggingDriver != "")
+	assert.Check(t, info.OperatingSystem != "")
+	assert.Check(t, info.NCPU != 0)
+	assert.Check(t, info.OSType != "")
+	assert.Check(t, info.Architecture != "")
+	assert.Check(t, info.MemTotal != 0)
+	assert.Check(t, info.KernelVersion != "")
+	assert.Check(t, info.Driver != "")
+	assert.Check(t, info.ServerVersion != "")
+	assert.Check(t, info.SystemTime != "")
+	if testEnv.DaemonInfo.OSType != "windows" {
+		// Windows currently doesn't have security-options in the info response.
+		assert.Check(t, len(info.SecurityOptions) != 0)
 	}
 }
 
@@ -91,7 +84,6 @@ func TestInfoDebug(t *testing.T) {
 	// TODO need a stable way to generate event listeners
 	// assert.Check(t, info.NEventsListener != 0)
 	assert.Check(t, info.NGoroutines != 0)
-	assert.Check(t, info.SystemTime != "")
 	assert.Equal(t, info.DockerRootDir, d.Root)
 }
 

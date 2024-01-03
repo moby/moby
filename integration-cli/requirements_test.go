@@ -13,8 +13,8 @@ import (
 	"github.com/containerd/containerd/plugin"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/requirement"
 	"github.com/docker/docker/testutil/registry"
 )
@@ -25,12 +25,6 @@ func DaemonIsWindows() bool {
 
 func DaemonIsLinux() bool {
 	return testEnv.DaemonInfo.OSType == "linux"
-}
-
-func MinimumAPIVersion(version string) func() bool {
-	return func() bool {
-		return versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), version)
-	}
 }
 
 func OnlyDefaultNetworks(ctx context.Context) bool {
@@ -173,7 +167,7 @@ func TODOBuildkit() bool {
 }
 
 func DockerCLIVersion(t testing.TB) string {
-	out, _ := dockerCmd(t, "--version")
+	out := cli.DockerCmd(t, "--version").Stdout()
 	version := strings.Fields(out)
 	if len(version) < 3 {
 		t.Fatal("unknown version output", version)

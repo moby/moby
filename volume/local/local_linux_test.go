@@ -199,6 +199,32 @@ func TestVolCreateValidation(t *testing.T) {
 				"o":      "foo",
 			},
 		},
+		{
+			doc: "cifs",
+			opts: map[string]string{
+				"type":   "cifs",
+				"device": "//some.example.com/thepath",
+				"o":      "foo",
+			},
+		},
+		{
+			doc: "cifs with port in url",
+			opts: map[string]string{
+				"type":   "cifs",
+				"device": "//some.example.com:2345/thepath",
+				"o":      "foo",
+			},
+			expectedErr: "port not allowed in CIFS device URL, include 'port' in 'o='",
+		},
+		{
+			doc: "cifs with bad url",
+			opts: map[string]string{
+				"type":   "cifs",
+				"device": ":::",
+				"o":      "foo",
+			},
+			expectedErr: `error parsing mount device url: parse ":::": missing protocol scheme`,
+		},
 	}
 
 	for i, tc := range tests {

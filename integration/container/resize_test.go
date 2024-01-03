@@ -5,13 +5,11 @@ import (
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	req "github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 func TestResize(t *testing.T) {
@@ -34,7 +32,6 @@ func TestResize(t *testing.T) {
 	})
 
 	t.Run("invalid size", func(t *testing.T) {
-		skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.32"), "broken in earlier versions")
 		cID := container.Run(ctx, t, apiClient)
 
 		// Manually creating a request here, as the APIClient would invalidate

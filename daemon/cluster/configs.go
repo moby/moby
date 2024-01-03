@@ -41,7 +41,9 @@ func (c *Cluster) GetConfigs(options apitypes.ConfigListOptions) ([]types.Config
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := c.getRequestContext()
+
+	ctx := context.TODO()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	r, err := state.controlClient.ListConfigs(ctx,

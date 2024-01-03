@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime"
 	"strconv"
@@ -11,7 +10,7 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -32,13 +31,13 @@ import (
 )
 
 type createOpts struct {
-	params                  types.ContainerCreateConfig
+	params                  backend.ContainerCreateConfig
 	managed                 bool
 	ignoreImagesArgsEscaped bool
 }
 
 // CreateManagedContainer creates a container that is managed by a Service
-func (daemon *Daemon) CreateManagedContainer(ctx context.Context, params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
+func (daemon *Daemon) CreateManagedContainer(ctx context.Context, params backend.ContainerCreateConfig) (containertypes.CreateResponse, error) {
 	return daemon.containerCreate(ctx, daemon.config(), createOpts{
 		params:  params,
 		managed: true,
@@ -46,7 +45,7 @@ func (daemon *Daemon) CreateManagedContainer(ctx context.Context, params types.C
 }
 
 // ContainerCreate creates a regular container
-func (daemon *Daemon) ContainerCreate(ctx context.Context, params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
+func (daemon *Daemon) ContainerCreate(ctx context.Context, params backend.ContainerCreateConfig) (containertypes.CreateResponse, error) {
 	return daemon.containerCreate(ctx, daemon.config(), createOpts{
 		params: params,
 	})
@@ -54,7 +53,7 @@ func (daemon *Daemon) ContainerCreate(ctx context.Context, params types.Containe
 
 // ContainerCreateIgnoreImagesArgsEscaped creates a regular container. This is called from the builder RUN case
 // and ensures that we do not take the images ArgsEscaped
-func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
+func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, params backend.ContainerCreateConfig) (containertypes.CreateResponse, error) {
 	return daemon.containerCreate(ctx, daemon.config(), createOpts{
 		params:                  params,
 		ignoreImagesArgsEscaped: true,
@@ -64,7 +63,11 @@ func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context
 func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStore, opts createOpts) (containertypes.CreateResponse, error) {
 	start := time.Now()
 	if opts.params.Config == nil {
-		return containertypes.CreateResponse{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
+		return containertypes.CreateResponse{}, errdefs.InvalidParameter(runconfig.ErrEmptyConfig)
+	}
+	// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
+	if opts.params.HostConfig != nil && opts.params.HostConfig.LogConfig.Type == "logentries" {
+		return containertypes.CreateResponse{}, errdefs.InvalidParameter(fmt.Errorf("the logentries logging driver has been deprecated and removed"))
 	}
 
 	// Normalize some defaults. Doing this "ad-hoc" here for now, as there's
@@ -194,7 +197,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	}
 	defer func() {
 		if retErr != nil {
-			err = daemon.cleanupContainer(ctr, types.ContainerRmConfig{
+			err = daemon.cleanupContainer(ctr, backend.ContainerRmConfig{
 				ForceRemove:  true,
 				RemoveVolume: true,
 			})
