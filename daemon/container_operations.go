@@ -71,16 +71,6 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNSOptions(cfg.DNSOptions))
 	}
 
-	if container.NetworkSettings.SecondaryIPAddresses != nil {
-		name := container.Config.Hostname
-		if container.Config.Domainname != "" {
-			name = name + "." + container.Config.Domainname
-		}
-		for _, a := range container.NetworkSettings.SecondaryIPAddresses {
-			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(name, a.Addr))
-		}
-	}
-
 	for _, extraHost := range container.HostConfig.ExtraHosts {
 		// allow IPv6 addresses in extra hosts; only split on first ":"
 		if _, err := opts.ValidateExtraHost(extraHost); err != nil {
