@@ -339,17 +339,27 @@ type SummaryNetworkSettings struct {
 	Networks map[string]*network.EndpointSettings
 }
 
-// NetworkSettingsBase holds basic information about networks
+// NetworkSettingsBase holds networking state for a container when inspecting it.
 type NetworkSettingsBase struct {
-	Bridge                 string      // Bridge is the Bridge name the network uses(e.g. `docker0`)
-	SandboxID              string      // SandboxID uniquely represents a container's network stack
-	HairpinMode            bool        // HairpinMode specifies if hairpin NAT should be enabled on the virtual interface
-	LinkLocalIPv6Address   string      // LinkLocalIPv6Address is an IPv6 unicast address using the link-local prefix
-	LinkLocalIPv6PrefixLen int         // LinkLocalIPv6PrefixLen is the prefix length of an IPv6 unicast address
-	Ports                  nat.PortMap // Ports is a collection of PortBinding indexed by Port
-	SandboxKey             string      // SandboxKey identifies the sandbox
-	SecondaryIPAddresses   []network.Address
-	SecondaryIPv6Addresses []network.Address
+	Bridge     string      // Bridge contains the name of the default bridge interface iff it was set through the daemon --bridge flag.
+	SandboxID  string      // SandboxID uniquely represents a container's network stack
+	SandboxKey string      // SandboxKey identifies the sandbox
+	Ports      nat.PortMap // Ports is a collection of PortBinding indexed by Port
+
+	// HairpinMode specifies if hairpin NAT should be enabled on the virtual interface
+	//
+	// Deprecated: This field is never set and will be removed in a future release.
+	HairpinMode bool
+	// LinkLocalIPv6Address is an IPv6 unicast address using the link-local prefix
+	//
+	// Deprecated: This field is never set and will be removed in a future release.
+	LinkLocalIPv6Address string
+	// LinkLocalIPv6PrefixLen is the prefix length of an IPv6 unicast address
+	//
+	// Deprecated: This field is never set and will be removed in a future release.
+	LinkLocalIPv6PrefixLen int
+	SecondaryIPAddresses   []network.Address // Deprecated: This field is never set and will be removed in a future release.
+	SecondaryIPv6Addresses []network.Address // Deprecated: This field is never set and will be removed in a future release.
 }
 
 // DefaultNetworkSettings holds network information

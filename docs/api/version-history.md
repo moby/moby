@@ -75,6 +75,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   Starting with that API version, this specific value will  be removed from the `Aliases` field
   such that this field will reflect exactly the values originally submitted to the
   `POST /containers/create` endpoint. The newly introduced `DNSNames` should now be used instead.
+* The fields `HairpinMode`, `LinkLocalIPv6Address`, `LinkLocalIPv6PrefixLen`, `SecondaryIPAddresses`,
+  `SecondaryIPv6Addresses` available in `NetworkSettings` when calling `GET /containers/{id}/json` are
+  deprecated and will be removed in a future release. You should instead look for the default network in
+  `NetworkSettings.Networks`.
 
 ## v1.43 API changes
 
