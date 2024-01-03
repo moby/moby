@@ -318,7 +318,8 @@ type ContainerJSONBase struct {
 	SizeRootFs      *int64 `json:",omitempty"`
 }
 
-// ContainerJSON is newly used struct along with MountPoint
+// ContainerJSON is a representation of a container state meant to be externally consumed (eg. through the API, by
+// swamrkit, etc...).
 type ContainerJSON struct {
 	*ContainerJSONBase
 	Mounts          []MountPoint
@@ -326,7 +327,7 @@ type ContainerJSON struct {
 	NetworkSettings *NetworkSettings
 }
 
-// NetworkSettings exposes the network settings in the api
+// NetworkSettings represents the networking state of a specific container when inspecting it.
 type NetworkSettings struct {
 	NetworkSettingsBase
 	DefaultNetworkSettings
@@ -339,7 +340,7 @@ type SummaryNetworkSettings struct {
 	Networks map[string]*network.EndpointSettings
 }
 
-// NetworkSettingsBase holds basic information about networks
+// NetworkSettingsBase holds the networking state of a specific container when inspecting it.
 type NetworkSettingsBase struct {
 	Bridge                 string      // Bridge is the Bridge name the network uses(e.g. `docker0`)
 	SandboxID              string      // SandboxID uniquely represents a container's network stack
@@ -352,9 +353,9 @@ type NetworkSettingsBase struct {
 	SecondaryIPv6Addresses []network.Address
 }
 
-// DefaultNetworkSettings holds network information
-// during the 2 release deprecation period.
-// It will be removed in Docker 1.11.
+// DefaultNetworkSettings holds network information for the default bridge. It was initially holding state data for the
+// network a container was connected to at a time where only a single network per container was allowed (ie. prior to
+// v1.09, see moby/moby#16645).
 type DefaultNetworkSettings struct {
 	EndpointID          string // EndpointID uniquely represents a service endpoint in a Sandbox
 	Gateway             string // Gateway holds the gateway address for the network

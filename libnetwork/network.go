@@ -202,7 +202,7 @@ type Network struct {
 	inDelete         bool
 	ingress          bool
 	driverTables     []networkDBTable
-	dynamic          bool
+	dynamic          bool // dynamic indicates whether this network is created on-demand by Swarm
 	configOnly       bool
 	configFrom       string
 	loadBalancerIP   net.IP
@@ -1864,6 +1864,7 @@ func (n *Network) Ingress() bool {
 	return n.ingress
 }
 
+// Dynamic indicates whether this network was created on-demand by Swarm
 func (n *Network) Dynamic() bool {
 	n.mu.Lock()
 	defer n.mu.Unlock()
