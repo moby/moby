@@ -131,7 +131,8 @@ func (c *Controller) acceptClientConnections(sock string, l net.Listener) {
 		conn, err := l.Accept()
 		if err != nil {
 			if _, err1 := os.Stat(sock); os.IsNotExist(err1) {
-				log.G(context.TODO()).Debugf("Unix socket %s doesn't exist. cannot accept client connections", sock)
+				// This happens when the socket is closed by the daemon, eg. during shutdown.
+				log.G(context.TODO()).Debugf("Unix socket %s was closed. The external key listener will stop.", sock)
 				return
 			}
 			log.G(context.TODO()).Errorf("Error accepting connection %v", err)
