@@ -7,6 +7,12 @@ import (
 	"github.com/containerd/containerd/snapshots"
 )
 
+const remapSuffix = "-remap"
+
+func (i *ImageService) copyAndUnremapRootFS(ctx context.Context, dst, src []mount.Mount) error {
+	return nil
+}
+
 func (i *ImageService) remapSnapshot(ctx context.Context, snapshotter snapshots.Snapshotter, id string, parentSnapshot string) error {
 	return nil
 }
