@@ -17,13 +17,13 @@ import (
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/builder/remotecontext/urlutil"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/sys/symlink"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -45,7 +45,7 @@ type copyInfo struct {
 }
 
 func (c copyInfo) fullPath() (string, error) {
-	return containerfs.ResolveScopedPath(c.root, c.path)
+	return symlink.FollowSymlinkInScope(filepath.Join(c.root, c.path), c.root)
 }
 
 func newCopyInfoFromSource(source builder.Source, path string, hash string) copyInfo {
