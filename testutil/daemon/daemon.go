@@ -1,9 +1,10 @@
 package daemon // import "github.com/docker/docker/testutil/daemon"
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
-	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -14,16 +15,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
 )
 
 // LogT is the subset of the testing.TB interface used by the daemon.
@@ -77,7 +81,9 @@ type Daemon struct {
 	log                        LogT
 	pidFile                    string
 	args                       []string
+	extraEnv                   []string
 	containerdSocket           string
+	usernsRemap                string
 	rootlessUser               *user.User
 	rootlessXDGRuntimeDir      string
 
@@ -89,7 +95,7 @@ type Daemon struct {
 	DataPathPort    uint32
 	OOMScoreAdjust  int
 	// cached information
-	CachedInfo types.Info
+	CachedInfo system.Info
 }
 
 // NewDaemon returns a Daemon instance to be used for testing.
@@ -98,18 +104,18 @@ type Daemon struct {
 func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 	storageDriver := os.Getenv("DOCKER_GRAPHDRIVER")
 
-	if err := os.MkdirAll(SockRoot, 0700); err != nil {
+	if err := os.MkdirAll(SockRoot, 0o700); err != nil {
 		return nil, errors.Wrapf(err, "failed to create daemon socket root %q", SockRoot)
 	}
 
-	id := fmt.Sprintf("d%s", stringid.TruncateID(stringid.GenerateRandomID()))
+	id := "d" + stringid.TruncateID(stringid.GenerateRandomID())
 	dir := filepath.Join(workingDir, id)
 	daemonFolder, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
 	}
 	daemonRoot := filepath.Join(daemonFolder, "root")
-	if err := os.MkdirAll(daemonRoot, 0755); err != nil {
+	if err := os.MkdirAll(daemonRoot, 0o755); err != nil {
 		return nil, errors.Wrapf(err, "failed to create daemon root %q", daemonRoot)
 	}
 
@@ -139,7 +145,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 	}
 
 	if d.rootlessUser != nil {
-		if err := os.Chmod(SockRoot, 0777); err != nil {
+		if err := os.Chmod(SockRoot, 0o777); err != nil {
 			return nil, err
 		}
 		uid, err := strconv.Atoi(d.rootlessUser.Uid)
@@ -156,20 +162,20 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 		if err := os.Chown(d.Root, uid, gid); err != nil {
 			return nil, err
 		}
-		if err := os.MkdirAll(filepath.Dir(d.execRoot), 0700); err != nil {
+		if err := os.MkdirAll(filepath.Dir(d.execRoot), 0o700); err != nil {
 			return nil, err
 		}
 		if err := os.Chown(filepath.Dir(d.execRoot), uid, gid); err != nil {
 			return nil, err
 		}
-		if err := os.MkdirAll(d.execRoot, 0700); err != nil {
+		if err := os.MkdirAll(d.execRoot, 0o700); err != nil {
 			return nil, err
 		}
 		if err := os.Chown(d.execRoot, uid, gid); err != nil {
 			return nil, err
 		}
 		d.rootlessXDGRuntimeDir = filepath.Join(d.Folder, "xdgrun")
-		if err := os.MkdirAll(d.rootlessXDGRuntimeDir, 0700); err != nil {
+		if err := os.MkdirAll(d.rootlessXDGRuntimeDir, 0o700); err != nil {
 			return nil, err
 		}
 		if err := os.Chown(d.rootlessXDGRuntimeDir, uid, gid); err != nil {
@@ -248,7 +254,7 @@ func (d *Daemon) StorageDriver() string {
 
 // Sock returns the socket path of the daemon
 func (d *Daemon) Sock() string {
-	return fmt.Sprintf("unix://" + d.sockPath())
+	return "unix://" + d.sockPath()
 }
 
 func (d *Daemon) sockPath() string {
@@ -272,6 +278,7 @@ func (d *Daemon) NewClientT(t testing.TB, extraOpts ...client.Opt) *client.Clien
 
 	c, err := d.NewClient(extraOpts...)
 	assert.NilError(t, err, "[%s] could not create daemon client", d.id)
+	t.Cleanup(func() { c.Close() })
 	return c
 }
 
@@ -291,13 +298,109 @@ func (d *Daemon) Cleanup(t testing.TB) {
 	t.Helper()
 	cleanupMount(t, d)
 	cleanupRaftDir(t, d)
+	cleanupDaemonStorage(t, d)
 	cleanupNetworkNamespace(t, d)
+}
+
+// TailLogsT attempts to tail N lines from the daemon logs.
+// If there is an error the error is only logged, it does not cause an error with the test.
+func (d *Daemon) TailLogsT(t LogT, n int) {
+	lines, err := d.TailLogs(n)
+	if err != nil {
+		t.Logf("[%s] %v", d.id, err)
+		return
+	}
+	for _, l := range lines {
+		t.Logf("[%s] %s", d.id, string(l))
+	}
+}
+
+// PollCheckLogs is a poll.Check that checks the daemon logs using the passed in match function.
+func (d *Daemon) PollCheckLogs(ctx context.Context, match func(s string) bool) poll.Check {
+	return func(t poll.LogT) poll.Result {
+		ok, _, err := d.ScanLogs(ctx, match)
+		if err != nil {
+			return poll.Error(err)
+		}
+		if !ok {
+			return poll.Continue("waiting for daemon logs match")
+		}
+		return poll.Success()
+	}
+}
+
+// ScanLogsMatchString returns a function that can be used to scan the daemon logs for the passed in string (`contains`).
+func ScanLogsMatchString(contains string) func(string) bool {
+	return func(line string) bool {
+		return strings.Contains(line, contains)
+	}
+}
+
+// ScanLogsMatchAll returns a function that can be used to scan the daemon logs until *all* the passed in strings are matched
+func ScanLogsMatchAll(contains ...string) func(string) bool {
+	matched := make(map[string]bool)
+	return func(line string) bool {
+		for _, c := range contains {
+			if strings.Contains(line, c) {
+				matched[c] = true
+			}
+		}
+		return len(matched) == len(contains)
+	}
+}
+
+// ScanLogsT uses `ScanLogs` to match the daemon logs using the passed in match function.
+// If there is an error or the match fails, the test will fail.
+func (d *Daemon) ScanLogsT(ctx context.Context, t testing.TB, match func(s string) bool) (bool, string) {
+	t.Helper()
+	ok, line, err := d.ScanLogs(ctx, match)
+	assert.NilError(t, err)
+	return ok, line
+}
+
+// ScanLogs scans the daemon logs and passes each line to the match function.
+func (d *Daemon) ScanLogs(ctx context.Context, match func(s string) bool) (bool, string, error) {
+	stat, err := d.logFile.Stat()
+	if err != nil {
+		return false, "", err
+	}
+	rdr := io.NewSectionReader(d.logFile, 0, stat.Size())
+
+	scanner := bufio.NewScanner(rdr)
+	for scanner.Scan() {
+		if match(scanner.Text()) {
+			return true, scanner.Text(), nil
+		}
+		select {
+		case <-ctx.Done():
+			return false, "", ctx.Err()
+		default:
+		}
+	}
+	return false, "", scanner.Err()
+}
+
+// TailLogs tails N lines from the daemon logs
+func (d *Daemon) TailLogs(n int) ([][]byte, error) {
+	logF, err := os.Open(d.logFile.Name())
+	if err != nil {
+		return nil, errors.Wrap(err, "error opening daemon log file after failed start")
+	}
+
+	defer logF.Close()
+	lines, err := tailfile.TailFile(logF, n)
+	if err != nil {
+		return nil, errors.Wrap(err, "error tailing log daemon logs")
+	}
+
+	return lines, nil
 }
 
 // Start starts the daemon and return once it is ready to receive requests.
 func (d *Daemon) Start(t testing.TB, args ...string) {
 	t.Helper()
 	if err := d.StartWithError(args...); err != nil {
+		d.TailLogsT(t, 20)
 		d.DumpStackAndQuit() // in case the daemon is stuck
 		t.Fatalf("[%s] failed to start daemon with arguments %v : %v", d.id, d.args, err)
 	}
@@ -306,7 +409,7 @@ func (d *Daemon) Start(t testing.TB, args ...string) {
 // StartWithError starts the daemon and return once it is ready to receive requests.
 // It returns an error in case it couldn't start.
 func (d *Daemon) StartWithError(args ...string) error {
-	logFile, err := os.OpenFile(filepath.Join(d.Folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
+	logFile, err := os.OpenFile(filepath.Join(d.Folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o600)
 	if err != nil {
 		return errors.Wrapf(err, "[%s] failed to create logfile", d.id)
 	}
@@ -334,9 +437,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		dockerdBinary = "sudo"
 		d.args = append(d.args,
 			"-u", d.rootlessUser.Username,
-			"-E", "XDG_RUNTIME_DIR="+d.rootlessXDGRuntimeDir,
-			"-E", "HOME="+d.rootlessUser.HomeDir,
-			"-E", "PATH="+os.Getenv("PATH"),
+			"--preserve-env",
+			"--preserve-env=PATH", // Pass through PATH, overriding secure_path.
+			"XDG_RUNTIME_DIR="+d.rootlessXDGRuntimeDir,
+			"HOME="+d.rootlessUser.HomeDir,
 			"--",
 			defaultDockerdRootlessBinary,
 		)
@@ -346,12 +450,16 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
 		"--pidfile", d.pidFile,
-		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
+		"--userland-proxy="+strconv.FormatBool(d.userlandProxy),
 		"--containerd-namespace", d.id,
 		"--containerd-plugins-namespace", d.id+"p",
 	)
 	if d.containerdSocket != "" {
 		d.args = append(d.args, "--containerd", d.containerdSocket)
+	}
+
+	if d.usernsRemap != "" {
+		d.args = append(d.args, "--userns-remap", d.usernsRemap)
 	}
 
 	if d.defaultCgroupNamespaceMode != "" {
@@ -390,32 +498,34 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	}
 
 	d.args = append(d.args, providedArgs...)
-	d.cmd = exec.Command(dockerdBinary, d.args...)
-	d.cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
-	d.cmd.Stdout = out
-	d.cmd.Stderr = out
+	cmd := exec.Command(dockerdBinary, d.args...)
+	cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
+	cmd.Env = append(cmd.Env, d.extraEnv...)
+	cmd.Env = append(cmd.Env, "OTEL_SERVICE_NAME=dockerd-"+d.id)
+	cmd.Stdout = out
+	cmd.Stderr = out
 	d.logFile = out
 	if d.rootlessUser != nil {
 		// sudo requires this for propagating signals
-		setsid(d.cmd)
+		setsid(cmd)
 	}
 
-	if err := d.cmd.Start(); err != nil {
+	if err := cmd.Start(); err != nil {
 		return errors.Wrapf(err, "[%s] could not start daemon container", d.id)
 	}
 
 	wait := make(chan error, 1)
+	d.cmd = cmd
+	d.Wait = wait
 
 	go func() {
-		ret := d.cmd.Wait()
+		ret := cmd.Wait()
 		d.log.Logf("[%s] exiting daemon", d.id)
 		// If we send before logging, we might accidentally log _after_ the test is done.
 		// As of Go 1.12, this incurs a panic instead of silently being dropped.
 		wait <- ret
 		close(wait)
 	}()
-
-	d.Wait = wait
 
 	clientConfig, err := d.getClientConfig()
 	if err != nil {
@@ -477,10 +587,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 // StartWithBusybox will first start the daemon with Daemon.Start()
 // then save the busybox image from the main daemon and load it into this Daemon instance.
-func (d *Daemon) StartWithBusybox(t testing.TB, arg ...string) {
+func (d *Daemon) StartWithBusybox(ctx context.Context, t testing.TB, arg ...string) {
 	t.Helper()
 	d.Start(t, arg...)
-	d.LoadBusybox(t)
+	d.LoadBusybox(ctx, t)
 }
 
 // Kill will send a SIGKILL to the daemon
@@ -660,7 +770,7 @@ func (d *Daemon) ReloadConfig() error {
 	errCh := make(chan error, 1)
 	started := make(chan struct{})
 	go func() {
-		_, body, err := request.Get("/events", request.Host(d.Sock()))
+		_, body, err := request.Get(context.TODO(), "/events", request.Host(d.Sock()))
 		close(started)
 		if err != nil {
 			errCh <- err
@@ -677,7 +787,7 @@ func (d *Daemon) ReloadConfig() error {
 			if e.Type != events.DaemonEventType {
 				continue
 			}
-			if e.Action != "reload" {
+			if e.Action != events.ActionReload {
 				continue
 			}
 			close(errCh) // notify that we are done
@@ -701,13 +811,12 @@ func (d *Daemon) ReloadConfig() error {
 }
 
 // LoadBusybox image into the daemon
-func (d *Daemon) LoadBusybox(t testing.TB) {
+func (d *Daemon) LoadBusybox(ctx context.Context, t testing.TB) {
 	t.Helper()
 	clientHost, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(t, err, "[%s] failed to create client", d.id)
 	defer clientHost.Close()
 
-	ctx := context.Background()
 	reader, err := clientHost.ImageSave(ctx, []string{"busybox:latest"})
 	assert.NilError(t, err, "[%s] failed to download busybox", d.id)
 	defer reader.Close()
@@ -813,7 +922,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 }
 
 // Info returns the info struct for this daemon
-func (d *Daemon) Info(t testing.TB) types.Info {
+func (d *Daemon) Info(t testing.TB) system.Info {
 	t.Helper()
 	c := d.NewClientT(t)
 	info, err := c.Info(context.Background())
@@ -822,11 +931,61 @@ func (d *Daemon) Info(t testing.TB) types.Info {
 	return info
 }
 
+// TamperWithContainerConfig modifies the on-disk config of a container.
+func (d *Daemon) TamperWithContainerConfig(t testing.TB, containerID string, tamper func(*container.Container)) {
+	t.Helper()
+
+	configPath := filepath.Join(d.Root, "containers", containerID, "config.v2.json")
+	configBytes, err := os.ReadFile(configPath)
+	assert.NilError(t, err)
+
+	var c container.Container
+	assert.NilError(t, json.Unmarshal(configBytes, &c))
+	c.State = container.NewState()
+	tamper(&c)
+	configBytes, err = json.Marshal(&c)
+	assert.NilError(t, err)
+	assert.NilError(t, os.WriteFile(configPath, configBytes, 0o600))
+}
+
 // cleanupRaftDir removes swarmkit wal files if present
 func cleanupRaftDir(t testing.TB, d *Daemon) {
 	t.Helper()
 	for _, p := range []string{"wal", "wal-v3-encrypted", "snap-v3-encrypted"} {
 		dir := filepath.Join(d.Root, "swarm/raft", p)
+		if err := os.RemoveAll(dir); err != nil {
+			t.Logf("[%s] error removing %v: %v", d.id, dir, err)
+		}
+	}
+}
+
+// cleanupDaemonStorage removes the daemon's storage directory.
+//
+// Note that we don't delete the whole directory, as some files (e.g. daemon
+// logs) are collected for inclusion in the "bundles" that are stored as Jenkins
+// artifacts.
+//
+// We currently do not include container logs in the bundles, so this also
+// removes the "containers" sub-directory.
+func cleanupDaemonStorage(t testing.TB, d *Daemon) {
+	t.Helper()
+	dirs := []string{
+		"builder",
+		"buildkit",
+		"containers",
+		"image",
+		"network",
+		"plugins",
+		"tmp",
+		"trust",
+		"volumes",
+		// note: this assumes storage-driver name matches the subdirectory,
+		// which is currently true, but not guaranteed.
+		d.storageDriver,
+	}
+
+	for _, p := range dirs {
+		dir := filepath.Join(d.Root, p)
 		if err := os.RemoveAll(dir); err != nil {
 			t.Logf("[%s] error removing %v: %v", d.id, dir, err)
 		}

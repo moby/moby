@@ -1,10 +1,10 @@
 //go:build linux
-// +build linux
 
 package copy // import "github.com/docker/docker/daemon/graphdriver/copy"
 
 import (
 	"container/list"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -90,6 +90,11 @@ func legacyCopy(srcFile io.Reader, dstFile io.Writer) error {
 func copyXattr(srcPath, dstPath, attr string) error {
 	data, err := system.Lgetxattr(srcPath, attr)
 	if err != nil {
+		if errors.Is(err, syscall.EOPNOTSUPP) {
+			// Task failed successfully: there is no xattr to copy
+			// if the source filesystem doesn't support xattrs.
+			return nil
+		}
 		return err
 	}
 	if data != nil {
@@ -110,11 +115,13 @@ type dirMtimeInfo struct {
 	stat    *syscall.Stat_t
 }
 
-// DirCopy copies or hardlinks the contents of one directory to another,
-// properly handling xattrs, and soft links
+// DirCopy copies or hardlinks the contents of one directory to another, properly
+// handling soft links, "security.capability" and (optionally) "trusted.overlay.opaque"
+// xattrs.
 //
-// Copying xattrs can be opted out of by passing false for copyXattrs.
-func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
+// The copyOpaqueXattrs controls if "trusted.overlay.opaque" xattrs are copied.
+// Passing false disables copying "trusted.overlay.opaque" xattrs.
+func DirCopy(srcDir, dstDir string, copyMode Mode, copyOpaqueXattrs bool) error {
 	copyWithFileRange := true
 	copyWithFileClone := true
 
@@ -152,6 +159,7 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 					return err2
 				}
 			} else if hardLinkDstPath, ok := copiedFiles[id]; ok {
+				isHardlink = true
 				if err2 := os.Link(hardLinkDstPath, dstPath); err2 != nil {
 					return err2
 				}
@@ -207,7 +215,11 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 			return err
 		}
 
-		if copyXattrs {
+		if err := copyXattr(srcPath, dstPath, "security.capability"); err != nil {
+			return err
+		}
+
+		if copyOpaqueXattrs {
 			if err := doCopyXattrs(srcPath, dstPath); err != nil {
 				return err
 			}
@@ -228,8 +240,8 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 		if f.IsDir() {
 			dirsToSetMtimes.PushFront(&dirMtimeInfo{dstPath: &dstPath, stat: stat})
 		} else if !isSymlink {
-			aTime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
-			mTime := time.Unix(int64(stat.Mtim.Sec), int64(stat.Mtim.Nsec))
+			aTime := time.Unix(stat.Atim.Unix())
+			mTime := time.Unix(stat.Mtim.Unix())
 			if err := system.Chtimes(dstPath, aTime, mTime); err != nil {
 				return err
 			}
@@ -256,10 +268,6 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 }
 
 func doCopyXattrs(srcPath, dstPath string) error {
-	if err := copyXattr(srcPath, dstPath, "security.capability"); err != nil {
-		return err
-	}
-
 	// We need to copy this attribute if it appears in an overlay upper layer, as
 	// this function is used to copy those. It is set by overlay if a directory
 	// is removed and then re-created and should not inherit anything from the

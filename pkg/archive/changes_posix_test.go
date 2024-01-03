@@ -8,6 +8,8 @@ import (
 	"path"
 	"sort"
 	"testing"
+
+	"github.com/docker/docker/pkg/idtools"
 )
 
 func TestHardLinkOrder(t *testing.T) {
@@ -60,7 +62,7 @@ func TestHardLinkOrder(t *testing.T) {
 	sort.Sort(changesByPath(changes))
 
 	// ExportChanges
-	ar, err := ExportChanges(dest, changes, nil, nil)
+	ar, err := ExportChanges(dest, changes, idtools.IdentityMapping{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +74,7 @@ func TestHardLinkOrder(t *testing.T) {
 	// reverse sort
 	sort.Sort(sort.Reverse(changesByPath(changes)))
 	// ExportChanges
-	arRev, err := ExportChanges(dest, changes, nil, nil)
+	arRev, err := ExportChanges(dest, changes, idtools.IdentityMapping{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +102,6 @@ func TestHardLinkOrder(t *testing.T) {
 			t.Errorf("headers - %q expected linkname %q; but got %q", hdrs[i].Name, hdrs[i].Linkname, hdrsRev[i].Linkname)
 		}
 	}
-
 }
 
 type tarHeaders []tar.Header

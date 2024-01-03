@@ -1,0 +1,14 @@
+dist
+/doc
+/doc-staging
+.yardoc
+Gemfile.lock
+/internal/awstesting/integration/smoke/**/importmarker__.go
+/internal/awstesting/integration/smoke/_test/
+/vendor
+/private/model/cli/gen-api/gen-api
+.gradle/
+build/
+.idea/
+bin/
+.vscode/

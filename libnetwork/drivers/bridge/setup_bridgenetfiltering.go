@@ -1,15 +1,15 @@
 //go:build linux
-// +build linux
 
 package bridge
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"syscall"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 )
 
 // Enumeration type saying which versions of IP protocol to process.
@@ -22,49 +22,44 @@ const (
 	ipvboth
 )
 
-//Gets the IP version in use ( [ipv4], [ipv6] or [ipv4 and ipv6] )
+// getIPVersion gets the IP version in use ( [ipv4], [ipv6] or [ipv4 and ipv6] )
 func getIPVersion(config *networkConfiguration) ipVersion {
-	ipVersion := ipv4
+	ipVer := ipv4
 	if config.AddressIPv6 != nil || config.EnableIPv6 {
-		ipVersion |= ipv6
+		ipVer |= ipv6
 	}
-	return ipVersion
+	return ipVer
 }
 
-func setupBridgeNetFiltering(config *networkConfiguration, i *bridgeInterface) error {
-	err := checkBridgeNetFiltering(config, i)
-	if err != nil {
-		if ptherr, ok := err.(*os.PathError); ok {
-			if errno, ok := ptherr.Err.(syscall.Errno); ok && errno == syscall.ENOENT {
-				if isRunningInContainer() {
-					logrus.Warnf("running inside docker container, ignoring missing kernel params: %v", err)
-					err = nil
-				} else {
-					err = errors.New("please ensure that br_netfilter kernel module is loaded")
-				}
+func setupBridgeNetFiltering(config *networkConfiguration, _ *bridgeInterface) error {
+	if err := checkBridgeNetFiltering(config); err != nil {
+		var pathErr *os.PathError
+		if errors.As(err, &pathErr) && errors.Is(pathErr, syscall.ENOENT) {
+			if isRunningInContainer() {
+				log.G(context.TODO()).WithError(err).Warnf("running inside docker container, ignoring missing kernel params")
+				return nil
 			}
+			err = errors.New("ensure that the br_netfilter kernel module is loaded")
 		}
-		if err != nil {
-			return fmt.Errorf("cannot restrict inter-container communication: %v", err)
-		}
+		return fmt.Errorf("cannot restrict inter-container communication: %v", err)
 	}
 	return nil
 }
 
-//Enable bridge net filtering if ip forwarding is enabled. See github issue #11404
-func checkBridgeNetFiltering(config *networkConfiguration, i *bridgeInterface) error {
+// Enable bridge net filtering if ip forwarding is enabled. See github issue #11404
+func checkBridgeNetFiltering(config *networkConfiguration) error {
 	ipVer := getIPVersion(config)
 	iface := config.BridgeName
 	doEnable := func(ipVer ipVersion) error {
-		var ipVerName string
-		if ipVer == ipv4 {
-			ipVerName = "IPv4"
-		} else {
-			ipVerName = "IPv6"
-		}
 		enabled, err := isPacketForwardingEnabled(ipVer, iface)
 		if err != nil {
-			logrus.Warnf("failed to check %s forwarding: %v", ipVerName, err)
+			var ipVerName string
+			if ipVer == ipv4 {
+				ipVerName = "IPv4"
+			} else {
+				ipVerName = "IPv6"
+			}
+			log.G(context.TODO()).Warnf("failed to check %s forwarding: %v", ipVerName, err)
 		} else if enabled {
 			enabled, err := getKernelBoolParam(getBridgeNFKernelParam(ipVer))
 			if err != nil || enabled {
@@ -121,7 +116,7 @@ func getBridgeNFKernelParam(ipVer ipVersion) string {
 	}
 }
 
-//Gets the value of the kernel parameters located at the given path
+// Gets the value of the kernel parameters located at the given path
 func getKernelBoolParam(path string) (bool, error) {
 	enabled := false
 	line, err := os.ReadFile(path)
@@ -134,16 +129,16 @@ func getKernelBoolParam(path string) (bool, error) {
 	return enabled, err
 }
 
-//Sets the value of the kernel parameter located at the given path
+// Sets the value of the kernel parameter located at the given path
 func setKernelBoolParam(path string, on bool) error {
 	value := byte('0')
 	if on {
 		value = byte('1')
 	}
-	return os.WriteFile(path, []byte{value, '\n'}, 0644)
+	return os.WriteFile(path, []byte{value, '\n'}, 0o644)
 }
 
-//Checks to see if packet forwarding is enabled
+// Checks to see if packet forwarding is enabled
 func isPacketForwardingEnabled(ipVer ipVersion, iface string) (bool, error) {
 	switch ipVer {
 	case ipv4, ipv6:

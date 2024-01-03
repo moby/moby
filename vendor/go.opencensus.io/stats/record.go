@@ -31,10 +31,19 @@ func init() {
 	}
 }
 
+// Recorder provides an interface for exporting measurement information from
+// the static Record method by using the WithRecorder option.
+type Recorder interface {
+	// Record records a set of measurements associated with the given tags and attachments.
+	// The second argument is a `[]Measurement`.
+	Record(*tag.Map, interface{}, map[string]interface{})
+}
+
 type recordOptions struct {
 	attachments  metricdata.Attachments
 	mutators     []tag.Mutator
 	measurements []Measurement
+	recorder     Recorder
 }
 
 // WithAttachments applies provided exemplar attachments.
@@ -58,6 +67,14 @@ func WithMeasurements(measurements ...Measurement) Options {
 	}
 }
 
+// WithRecorder records the measurements to the specified `Recorder`, rather
+// than to the global metrics recorder.
+func WithRecorder(meter Recorder) Options {
+	return func(ro *recordOptions) {
+		ro.recorder = meter
+	}
+}
+
 // Options apply changes to recordOptions.
 type Options func(*recordOptions)
 
@@ -69,10 +86,29 @@ func createRecordOption(ros ...Options) *recordOptions {
 	return o
 }
 
+type measurementRecorder = func(tags *tag.Map, measurement []Measurement, attachments map[string]interface{})
+
 // Record records one or multiple measurements with the same context at once.
 // If there are any tags in the context, measurements will be tagged with them.
 func Record(ctx context.Context, ms ...Measurement) {
-	RecordWithOptions(ctx, WithMeasurements(ms...))
+	// Record behaves the same as RecordWithOptions, but because we do not have to handle generic functionality
+	// (RecordOptions) we can reduce some allocations to speed up this hot path
+	if len(ms) == 0 {
+		return
+	}
+	recorder := internal.MeasurementRecorder.(measurementRecorder)
+	record := false
+	for _, m := range ms {
+		if m.desc.subscribed() {
+			record = true
+			break
+		}
+	}
+	if !record {
+		return
+	}
+	recorder(tag.FromContext(ctx), ms, nil)
+	return
 }
 
 // RecordWithTags records one or multiple measurements at once.
@@ -93,6 +129,9 @@ func RecordWithOptions(ctx context.Context, ros ...Options) error {
 		return nil
 	}
 	recorder := internal.DefaultRecorder
+	if o.recorder != nil {
+		recorder = o.recorder.Record
+	}
 	if recorder == nil {
 		return nil
 	}

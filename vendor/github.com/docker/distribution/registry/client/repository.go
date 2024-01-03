@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/api/v2"
+	v2 "github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/distribution/registry/storage/cache"
 	"github.com/docker/distribution/registry/storage/cache/memory"
@@ -114,9 +114,7 @@ func (r *registry) Repositories(ctx context.Context, entries []string, last stri
 			return 0, err
 		}
 
-		for cnt := range ctlg.Repositories {
-			entries[cnt] = ctlg.Repositories[cnt]
-		}
+		copy(entries, ctlg.Repositories)
 		numFilled = len(ctlg.Repositories)
 
 		link := resp.Header.Get("Link")
@@ -736,7 +734,12 @@ func (bs *blobs) Create(ctx context.Context, options ...distribution.BlobCreateO
 		return nil, err
 	}
 
-	resp, err := bs.client.Post(u, "", nil)
+	req, err := http.NewRequest("POST", u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := bs.client.Do(req)
 	if err != nil {
 		return nil, err
 	}

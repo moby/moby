@@ -15,6 +15,12 @@ import (
 )
 
 func GetUser(root, username string) (uint32, uint32, []uint32, error) {
+	var isDefault bool
+	if username == "" {
+		username = "0"
+		isDefault = true
+	}
+
 	// fast path from uid/gid
 	if uid, gid, err := ParseUIDGID(username); err == nil {
 		return uid, gid, nil, nil
@@ -31,6 +37,9 @@ func GetUser(root, username string) (uint32, uint32, []uint32, error) {
 
 	execUser, err := user.GetExecUser(username, nil, passwdFile, groupFile)
 	if err != nil {
+		if isDefault {
+			return 0, 0, nil, nil
+		}
 		return 0, 0, nil, err
 	}
 	var sgids []uint32
@@ -82,6 +91,7 @@ func parseUID(str string) (uint32, error) {
 // once the PR in containerd is merged we should remove this function.
 func WithUIDGID(uid, gid uint32, sgids []uint32) containerdoci.SpecOpts {
 	return func(_ context.Context, _ containerdoci.Client, _ *containers.Container, s *containerdoci.Spec) error {
+		defer ensureAdditionalGids(s)
 		setProcess(s)
 		s.Process.User.UID = uid
 		s.Process.User.GID = gid
@@ -96,4 +106,16 @@ func setProcess(s *containerdoci.Spec) {
 	if s.Process == nil {
 		s.Process = &specs.Process{}
 	}
+}
+
+// ensureAdditionalGids ensures that the primary GID is also included in the additional GID list.
+// From https://github.com/containerd/containerd/blob/v1.7.0-beta.4/oci/spec_opts.go#L124-L133
+func ensureAdditionalGids(s *containerdoci.Spec) {
+	setProcess(s)
+	for _, f := range s.Process.User.AdditionalGids {
+		if f == s.Process.User.GID {
+			return
+		}
+	}
+	s.Process.User.AdditionalGids = append([]uint32{s.Process.User.GID}, s.Process.User.AdditionalGids...)
 }

@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/containerfs"
 )
 
 type mountedLayer struct {
@@ -100,7 +99,7 @@ type referencedRWLayer struct {
 	*mountedLayer
 }
 
-func (rl *referencedRWLayer) Mount(mountLabel string) (containerfs.ContainerFS, error) {
+func (rl *referencedRWLayer) Mount(mountLabel string) (string, error) {
 	return rl.layerStore.driver.Get(rl.mountedLayer.mountID, mountLabel)
 }
 

@@ -5,6 +5,7 @@
 package socket
 
 import (
+	"net"
 	"syscall"
 	"unsafe"
 
@@ -22,25 +23,8 @@ const (
 	sysAF_INET6  = windows.AF_INET6
 
 	sysSOCK_RAW = windows.SOCK_RAW
-)
 
-type sockaddrInet struct {
-	Family uint16
-	Port   uint16
-	Addr   [4]byte /* in_addr */
-	Zero   [8]uint8
-}
-
-type sockaddrInet6 struct {
-	Family   uint16
-	Port     uint16
-	Flowinfo uint32
-	Addr     [16]byte /* in6_addr */
-	Scope_id uint32
-}
-
-const (
-	sizeofSockaddrInet  = 0x10
+	sizeofSockaddrInet4 = 0x10
 	sizeofSockaddrInet6 = 0x1c
 )
 
@@ -54,11 +38,11 @@ func setsockopt(s uintptr, level, name int, b []byte) error {
 	return syscall.Setsockopt(syscall.Handle(s), int32(level), int32(name), (*byte)(unsafe.Pointer(&b[0])), int32(len(b)))
 }
 
-func recvmsg(s uintptr, h *msghdr, flags int) (int, error) {
-	return 0, errNotImplemented
+func recvmsg(s uintptr, buffers [][]byte, oob []byte, flags int, network string) (n, oobn int, recvflags int, from net.Addr, err error) {
+	return 0, 0, 0, nil, errNotImplemented
 }
 
-func sendmsg(s uintptr, h *msghdr, flags int) (int, error) {
+func sendmsg(s uintptr, buffers [][]byte, oob []byte, to net.Addr, flags int) (int, error) {
 	return 0, errNotImplemented
 }
 

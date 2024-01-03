@@ -1,4 +1,5 @@
-// Package parser implements a parser and parse tree dumper for Dockerfiles.
+// The parser package implements a parser that transforms a raw byte-stream
+// into a low-level Abstract Syntax Tree.
 package parser
 
 import (
@@ -27,7 +28,6 @@ import (
 // This data structure is frankly pretty lousy for handling complex languages,
 // but lucky for us the Dockerfile isn't very complicated. This structure
 // works a little more effectively than a "proper" parse tree for our needs.
-//
 type Node struct {
 	Value       string          // actual content
 	Next        *Node           // the next item in the current sexp
@@ -49,8 +49,7 @@ func (node *Node) Location() []Range {
 // Dump dumps the AST defined by `node` as a list of sexps.
 // Returns a string suitable for printing.
 func (node *Node) Dump() string {
-	str := ""
-	str += node.Value
+	str := strings.ToLower(node.Value)
 
 	if len(node.Flags) > 0 {
 		str += fmt.Sprintf(" %q", node.Flags)
@@ -77,10 +76,17 @@ func (node *Node) lines(start, end int) {
 }
 
 func (node *Node) canContainHeredoc() bool {
-	if _, allowedDirective := heredocDirectives[node.Value]; !allowedDirective {
+	// check for compound commands, like ONBUILD
+	if ok := heredocCompoundDirectives[strings.ToLower(node.Value)]; ok {
+		if node.Next != nil && len(node.Next.Children) > 0 {
+			node = node.Next.Children[0]
+		}
+	}
+
+	if ok := heredocDirectives[strings.ToLower(node.Value)]; !ok {
 		return false
 	}
-	if _, isJSON := node.Attributes["json"]; isJSON {
+	if isJSON := node.Attributes["json"]; isJSON {
 		return false
 	}
 
@@ -106,30 +112,36 @@ type Heredoc struct {
 }
 
 var (
-	dispatch          map[string]func(string, *directives) (*Node, map[string]bool, error)
-	heredocDirectives map[string]bool
-	reWhitespace      = regexp.MustCompile(`[\t\v\f\r ]+`)
-	reDirectives      = regexp.MustCompile(`^#\s*([a-zA-Z][a-zA-Z0-9]*)\s*=\s*(.+?)\s*$`)
-	reComment         = regexp.MustCompile(`^#.*$`)
-	reHeredoc         = regexp.MustCompile(`^(\d*)<<(-?)(['"]?)([a-zA-Z][a-zA-Z0-9]*)(['"]?)$`)
-	reLeadingTabs     = regexp.MustCompile(`(?m)^\t+`)
+	dispatch      map[string]func(string, *directives) (*Node, map[string]bool, error)
+	reWhitespace  = regexp.MustCompile(`[\t\v\f\r ]+`)
+	reComment     = regexp.MustCompile(`^#.*$`)
+	reHeredoc     = regexp.MustCompile(`^(\d*)<<(-?)([^<]*)$`)
+	reLeadingTabs = regexp.MustCompile(`(?m)^\t+`)
 )
 
 // DefaultEscapeToken is the default escape token
 const DefaultEscapeToken = '\\'
 
-var validDirectives = map[string]struct{}{
-	"escape": {},
-	"syntax": {},
-}
+var (
+	// Directives allowed to contain heredocs
+	heredocDirectives = map[string]bool{
+		command.Add:  true,
+		command.Copy: true,
+		command.Run:  true,
+	}
 
-// directive is the structure used during a build run to hold the state of
+	// Directives allowed to contain directives containing heredocs
+	heredocCompoundDirectives = map[string]bool{
+		command.Onbuild: true,
+	}
+)
+
+// directives is the structure used during a build run to hold the state of
 // parsing directives.
 type directives struct {
-	escapeToken           rune                // Current escape token
-	lineContinuationRegex *regexp.Regexp      // Current line continuation regex
-	done                  bool                // Whether we are done looking for directives
-	seen                  map[string]struct{} // Whether the escape directive has been seen
+	parser                DirectiveParser
+	escapeToken           rune           // Current escape token
+	lineContinuationRegex *regexp.Regexp // Current line continuation regex
 }
 
 // setEscapeToken sets the default token for escaping characters and as line-
@@ -158,40 +170,19 @@ func (d *directives) setEscapeToken(s string) error {
 // Parser directives must precede any builder instruction or other comments,
 // and cannot be repeated.
 func (d *directives) possibleParserDirective(line string) error {
-	if d.done {
-		return nil
+	directive, err := d.parser.ParseLine([]byte(line))
+	if err != nil {
+		return err
 	}
-
-	match := reDirectives.FindStringSubmatch(line)
-	if len(match) == 0 {
-		d.done = true
-		return nil
+	if directive != nil && directive.Name == keyEscape {
+		return d.setEscapeToken(directive.Value)
 	}
-
-	k := strings.ToLower(match[1])
-	_, ok := validDirectives[k]
-	if !ok {
-		d.done = true
-		return nil
-	}
-
-	if _, ok := d.seen[k]; ok {
-		return errors.Errorf("only one %s parser directive can be used", k)
-	}
-	d.seen[k] = struct{}{}
-
-	if k == "escape" {
-		return d.setEscapeToken(match[2])
-	}
-
 	return nil
 }
 
 // newDefaultDirectives returns a new directives structure with the default escapeToken token
 func newDefaultDirectives() *directives {
-	d := &directives{
-		seen: map[string]struct{}{},
-	}
+	d := &directives{}
 	d.setEscapeToken(string(DefaultEscapeToken))
 	return d
 }
@@ -234,7 +225,7 @@ func newNodeFromLine(line string, d *directives, comments []string) (*Node, erro
 		return nil, err
 	}
 
-	fn := dispatch[cmd]
+	fn := dispatch[strings.ToLower(cmd)]
 	// Ignore invalid Dockerfile instructions
 	if fn == nil {
 		fn = parseIgnore
@@ -254,11 +245,20 @@ func newNodeFromLine(line string, d *directives, comments []string) (*Node, erro
 	}, nil
 }
 
-// Result is the result of parsing a Dockerfile
+// Result contains the bundled outputs from parsing a Dockerfile.
 type Result struct {
 	AST         *Node
 	EscapeToken rune
-	Warnings    []string
+	Warnings    []Warning
+}
+
+// Warning contains information to identify and locate a warning generated
+// during parsing.
+type Warning struct {
+	Short    string
+	Detail   [][]byte
+	URL      string
+	Location *Range
 }
 
 // PrintWarnings to the writer
@@ -266,18 +266,23 @@ func (r *Result) PrintWarnings(out io.Writer) {
 	if len(r.Warnings) == 0 {
 		return
 	}
-	fmt.Fprintf(out, strings.Join(r.Warnings, "\n")+"\n")
+	for _, w := range r.Warnings {
+		fmt.Fprintf(out, "[WARNING]: %s\n", w.Short)
+	}
+	if len(r.Warnings) > 0 {
+		fmt.Fprintf(out, "[WARNING]: Empty continuation lines will become errors in a future release.\n")
+	}
 }
 
-// Parse reads lines from a Reader, parses the lines into an AST and returns
-// the AST and escape token
+// Parse consumes lines from a provided Reader, parses each line into an AST
+// and returns the results of doing so.
 func Parse(rwc io.Reader) (*Result, error) {
 	d := newDefaultDirectives()
 	currentLine := 0
 	root := &Node{StartLine: -1}
 	scanner := bufio.NewScanner(rwc)
 	scanner.Split(scanLines)
-	warnings := []string{}
+	warnings := []Warning{}
 	var comments []string
 
 	var err error
@@ -330,7 +335,12 @@ func Parse(rwc io.Reader) (*Result, error) {
 		}
 
 		if hasEmptyContinuationLine {
-			warnings = append(warnings, "[WARNING]: Empty continuation line found in:\n    "+line)
+			warnings = append(warnings, Warning{
+				Short:    "Empty continuation line found in: " + line,
+				Detail:   [][]byte{[]byte("Empty continuation lines will become errors in a future release")},
+				URL:      "https://github.com/moby/moby/pull/33719",
+				Location: &Range{Start: Position{Line: currentLine}, End: Position{Line: currentLine}},
+			})
 		}
 
 		child, err := newNodeFromLine(line, d, comments)
@@ -373,10 +383,6 @@ func Parse(rwc io.Reader) (*Result, error) {
 		comments = nil
 	}
 
-	if len(warnings) > 0 {
-		warnings = append(warnings, "[WARNING]: Empty continuation lines will become errors in a future release.")
-	}
-
 	if root.StartLine < 0 {
 		return nil, withLocation(errors.New("file with no instructions"), currentLine, 0)
 	}
@@ -388,36 +394,68 @@ func Parse(rwc io.Reader) (*Result, error) {
 	}, withLocation(handleScannerError(scanner.Err()), currentLine, 0)
 }
 
+// heredocFromMatch extracts a heredoc from a possible heredoc regex match.
 func heredocFromMatch(match []string) (*Heredoc, error) {
 	if len(match) == 0 {
 		return nil, nil
 	}
 
-	fileDescriptor, _ := strconv.ParseUint(match[1], 10, 0)
+	fd, _ := strconv.ParseUint(match[1], 10, 0)
 	chomp := match[2] == "-"
-	quoteOpen := match[3]
-	name := match[4]
-	quoteClose := match[5]
+	rest := match[3]
 
-	expand := true
-	if quoteOpen != "" || quoteClose != "" {
-		if quoteOpen != quoteClose {
-			return nil, errors.New("quoted heredoc quotes do not match")
-		}
-		expand = false
+	if len(rest) == 0 {
+		return nil, nil
 	}
 
+	shlex := shell.NewLex('\\')
+	shlex.SkipUnsetEnv = true
+
+	// Attempt to parse both the heredoc both with *and* without quotes.
+	// If there are quotes in one but not the other, then we know that some
+	// part of the heredoc word is quoted, so we shouldn't expand the content.
+	shlex.RawQuotes = false
+	words, err := shlex.ProcessWords(rest, []string{})
+	if err != nil {
+		return nil, err
+	}
+	// quick sanity check that rest is a single word
+	if len(words) != 1 {
+		return nil, nil
+	}
+
+	shlex.RawQuotes = true
+	wordsRaw, err := shlex.ProcessWords(rest, []string{})
+	if err != nil {
+		return nil, err
+	}
+	if len(wordsRaw) != len(words) {
+		return nil, errors.Errorf("internal lexing of heredoc produced inconsistent results: %s", rest)
+	}
+
+	word := words[0]
+	wordQuoteCount := strings.Count(word, `'`) + strings.Count(word, `"`)
+	wordRaw := wordsRaw[0]
+	wordRawQuoteCount := strings.Count(wordRaw, `'`) + strings.Count(wordRaw, `"`)
+
+	expand := wordQuoteCount == wordRawQuoteCount
+
 	return &Heredoc{
-		Name:           name,
+		Name:           word,
 		Expand:         expand,
 		Chomp:          chomp,
-		FileDescriptor: uint(fileDescriptor),
+		FileDescriptor: uint(fd),
 	}, nil
 }
 
+// ParseHeredoc parses a heredoc word from a target string, returning the
+// components from the doc.
 func ParseHeredoc(src string) (*Heredoc, error) {
 	return heredocFromMatch(reHeredoc.FindStringSubmatch(src))
 }
+
+// MustParseHeredoc is a variant of ParseHeredoc that discards the error, if
+// there was one present.
 func MustParseHeredoc(src string) *Heredoc {
 	heredoc, _ := ParseHeredoc(src)
 	return heredoc
@@ -426,6 +464,8 @@ func MustParseHeredoc(src string) *Heredoc {
 func heredocsFromLine(line string) ([]Heredoc, error) {
 	shlex := shell.NewLex('\\')
 	shlex.RawQuotes = true
+	shlex.RawEscapes = true
+	shlex.SkipUnsetEnv = true
 	words, _ := shlex.ProcessWords(line, []string{})
 
 	var docs []Heredoc
@@ -441,6 +481,7 @@ func heredocsFromLine(line string) ([]Heredoc, error) {
 	return docs, nil
 }
 
+// ChompHeredocContent chomps leading tabs from the heredoc.
 func ChompHeredocContent(src string) string {
 	return reLeadingTabs.ReplaceAllString(src, "")
 }

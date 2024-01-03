@@ -7,16 +7,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
-	"github.com/docker/docker/dockerversion"
-
-	"github.com/pkg/errors"
-
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/dockerversion"
+	"github.com/pkg/errors"
 )
 
 // scope builds the correct auth scope for the registry client to authorize against
@@ -30,7 +27,7 @@ func scope(ref reference.Named, push bool) string {
 	return scope
 }
 
-func (pm *Manager) newResolver(ctx context.Context, tracker docker.StatusTracker, auth *types.AuthConfig, headers http.Header, httpFallback bool) (remotes.Resolver, error) {
+func (pm *Manager) newResolver(ctx context.Context, tracker docker.StatusTracker, auth *registry.AuthConfig, headers http.Header, httpFallback bool) (remotes.Resolver, error) {
 	if headers == nil {
 		headers = http.Header{}
 	}
@@ -58,7 +55,7 @@ func registryHTTPClient(config *tls.Config) *http.Client {
 	}
 }
 
-func (pm *Manager) registryHostsFn(auth *types.AuthConfig, httpFallback bool) docker.RegistryHosts {
+func (pm *Manager) registryHostsFn(auth *registry.AuthConfig, httpFallback bool) docker.RegistryHosts {
 	return func(hostname string) ([]docker.RegistryHost, error) {
 		eps, err := pm.config.RegistryService.LookupPullEndpoints(hostname)
 		if err != nil {
@@ -72,7 +69,7 @@ func (pm *Manager) registryHostsFn(auth *types.AuthConfig, httpFallback bool) do
 			// pass to it.
 			// So it is the callers responsibility to retry with this flag set.
 			if httpFallback && ep.URL.Scheme != "http" {
-				logrus.WithField("registryHost", hostname).WithField("endpoint", ep).Debugf("Skipping non-http endpoint")
+				log.G(context.TODO()).WithField("registryHost", hostname).WithField("endpoint", ep).Debugf("Skipping non-http endpoint")
 				continue
 			}
 
@@ -104,7 +101,7 @@ func (pm *Manager) registryHostsFn(auth *types.AuthConfig, httpFallback bool) do
 				),
 			})
 		}
-		logrus.WithField("registryHost", hostname).WithField("hosts", hosts).Debug("Resolved registry hosts")
+		log.G(context.TODO()).WithField("registryHost", hostname).WithField("hosts", hosts).Debug("Resolved registry hosts")
 
 		return hosts, nil
 	}

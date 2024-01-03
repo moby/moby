@@ -1,11 +1,9 @@
 //go:build !windows
-// +build !windows
 
 package main
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -13,14 +11,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/containerd/containerd/runtime/v1/linux"
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -49,31 +46,13 @@ func getDefaultDaemonConfigFile() (string, error) {
 // setDefaultUmask sets the umask to 0022 to avoid problems
 // caused by custom umask
 func setDefaultUmask() error {
-	desiredUmask := 0022
+	desiredUmask := 0o022
 	unix.Umask(desiredUmask)
 	if umask := unix.Umask(desiredUmask); umask != desiredUmask {
-		return fmt.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)
+		return errors.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)
 	}
 
 	return nil
-}
-
-func getDaemonConfDir(_ string) (string, error) {
-	return getDefaultDaemonConfigDir()
-}
-
-func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
-	opts := []supervisor.DaemonOpt{
-		supervisor.WithOOMScore(cli.Config.OOMScoreAdjust),
-		supervisor.WithPlugin("linux", &linux.Config{
-			Shim:        config.DefaultShimBinary,
-			Runtime:     config.DefaultRuntimeBinary,
-			RuntimeRoot: filepath.Join(cli.Config.Root, "runc"),
-			ShimDebug:   cli.Config.Debug,
-		}),
-	}
-
-	return opts, nil
 }
 
 // setupConfigReloadTrap configures the SIGHUP signal to reload the configuration.
@@ -98,25 +77,25 @@ func (cli *DaemonCli) getSwarmRunRoot() string {
 func allocateDaemonPort(addr string) error {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error parsing tcp address")
 	}
 
 	intPort, err := strconv.Atoi(port)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error parsing tcp address")
 	}
 
 	var hostIPs []net.IP
 	if parsedIP := net.ParseIP(host); parsedIP != nil {
 		hostIPs = append(hostIPs, parsedIP)
 	} else if hostIPs, err = net.LookupIP(host); err != nil {
-		return fmt.Errorf("failed to lookup %s address in host specification", host)
+		return errors.Errorf("failed to lookup %s address in host specification", host)
 	}
 
 	pa := portallocator.Get()
 	for _, hostIP := range hostIPs {
 		if _, err := pa.RequestPort(hostIP, "tcp", intPort); err != nil {
-			return fmt.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
+			return errors.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
 		}
 	}
 	return nil
@@ -137,33 +116,34 @@ func newCgroupParent(config *config.Config) string {
 	return cgroupParent
 }
 
-func (cli *DaemonCli) initContainerD(ctx context.Context) (func(time.Duration) error, error) {
-	var waitForShutdown func(time.Duration) error
-	if cli.Config.ContainerdAddr == "" {
-		systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
-		if err != nil {
-			return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
-		}
-		if !ok {
-			logrus.Debug("Containerd not running, starting daemon managed containerd")
-			opts, err := cli.getContainerdDaemonOpts()
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to generate containerd options")
-			}
-
-			r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to start containerd")
-			}
-			logrus.Debug("Started daemon managed containerd")
-			cli.Config.ContainerdAddr = r.Address()
-
-			// Try to wait for containerd to shutdown
-			waitForShutdown = r.WaitTimeout
-		} else {
-			cli.Config.ContainerdAddr = systemContainerdAddr
-		}
+func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
+	if cli.ContainerdAddr != "" {
+		// use system containerd at the given address.
+		return nil, nil
 	}
 
-	return waitForShutdown, nil
+	systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
+	}
+	if ok {
+		// detected a system containerd at the given address.
+		cli.ContainerdAddr = systemContainerdAddr
+		return nil, nil
+	}
+
+	log.G(ctx).Info("containerd not running, starting managed containerd")
+	opts, err := cli.getContainerdDaemonOpts()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate containerd options")
+	}
+
+	r, err := supervisor.Start(ctx, filepath.Join(cli.Root, "containerd"), filepath.Join(cli.ExecRoot, "containerd"), opts...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to start containerd")
+	}
+	cli.ContainerdAddr = r.Address()
+
+	// Try to wait for containerd to shutdown
+	return r.WaitTimeout, nil
 }

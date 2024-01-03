@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 )
 
 type start struct {
@@ -26,7 +27,7 @@ func main() {
 			return
 		}
 
-		f, err := os.OpenFile(startReq.File, os.O_RDONLY, 0600)
+		f, err := os.OpenFile(startReq.File, os.O_RDONLY, 0o600)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -40,8 +41,9 @@ func main() {
 		fmt.Fprintln(w, `{}`)
 	})
 	server := http.Server{
-		Addr:    l.Addr().String(),
-		Handler: mux,
+		Addr:              l.Addr().String(),
+		Handler:           mux,
+		ReadHeaderTimeout: 2 * time.Second, // This server is not for production code; picked an arbitrary timeout to statisfy gosec (G112: Potential Slowloris Attack)
 	}
 
 	server.Serve(l)

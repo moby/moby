@@ -12,12 +12,13 @@ The `zstd` package is provided as open source software using a Go standard licen
 
 Currently the package is heavily optimized for 64 bit processors and will be significantly slower on 32 bit processors.
 
+For seekable zstd streams, see [this excellent package](https://github.com/SaveTheRbtz/zstd-seekable-format-go).
+
 ## Installation
 
 Install using `go get -u github.com/klauspost/compress`. The package is located in `github.com/klauspost/compress/zstd`.
 
-Godoc Documentation: https://godoc.org/github.com/klauspost/compress/zstd
-
+[![Go Reference](https://pkg.go.dev/badge/github.com/klauspost/compress/zstd.svg)](https://pkg.go.dev/github.com/klauspost/compress/zstd)
 
 ## Compressor
 
@@ -79,6 +80,9 @@ of a stream. This is independent of the `WithEncoderConcurrency(n)`, but that is
 in the future. So if you want to limit concurrency for future updates, specify the concurrency
 you would like.
 
+If you would like stream encoding to be done without spawning async goroutines, use `WithEncoderConcurrency(1)`
+which will compress input as each block is completed, blocking on writes until each has completed.
+
 You can specify your desired compression level using `WithEncoderLevel()` option. Currently only pre-defined 
 compression settings can be specified.
 
@@ -105,7 +109,8 @@ and seems to ignore concatenated streams, even though [it is part of the spec](h
 For compressing small blocks, the returned encoder has a function called `EncodeAll(src, dst []byte) []byte`.
 
 `EncodeAll` will encode all input in src and append it to dst.
-This function can be called concurrently, but each call will only run on a single goroutine.
+This function can be called concurrently. 
+Each call will only run on a same goroutine as the caller.
 
 Encoded blocks can be concatenated and the result will be the combined input stream.
 Data compressed with EncodeAll can be decoded with the Decoder, using either a stream or `DecodeAll`.
@@ -150,10 +155,10 @@ http://sun.aei.polsl.pl/~sdeor/corpus/silesia.zip
 
 This package:
 file    out     level   insize      outsize     millis  mb/s
-silesia.tar zskp    1   211947520   73101992    643     313.87
-silesia.tar zskp    2   211947520   67504318    969     208.38
-silesia.tar zskp    3   211947520   65177448    1899    106.44
-silesia.tar zskp    4   211947520   61381950    8115    24.91
+silesia.tar zskp    1   211947520   73821326    634     318.47
+silesia.tar zskp    2   211947520   67655404    1508    133.96
+silesia.tar zskp    3   211947520   64746933    3000    67.37
+silesia.tar zskp    4   211947520   60073508    16926   11.94
 
 cgo zstd:
 silesia.tar zstd    1   211947520   73605392    543     371.56
@@ -162,89 +167,99 @@ silesia.tar zstd    6   211947520   62916450    1913    105.66
 silesia.tar zstd    9   211947520   60212393    5063    39.92
 
 gzip, stdlib/this package:
-silesia.tar gzstd   1   211947520   80007735    1654    122.21
-silesia.tar gzkp    1   211947520   80369488    1168    173.06
+silesia.tar gzstd   1   211947520   80007735    1498    134.87
+silesia.tar gzkp    1   211947520   80088272    1009    200.31
 
 GOB stream of binary data. Highly compressible.
 https://files.klauspost.com/compress/gob-stream.7z
 
 file        out     level   insize  outsize     millis  mb/s
-gob-stream  zskp    1   1911399616  235022249   3088    590.30
-gob-stream  zskp    2   1911399616  205669791   3786    481.34
-gob-stream  zskp    3   1911399616  185792019   9324    195.48
-gob-stream  zskp    4   1911399616  171537212   32113   56.76
+gob-stream  zskp    1   1911399616  233948096   3230    564.34
+gob-stream  zskp    2   1911399616  203997694   4997    364.73
+gob-stream  zskp    3   1911399616  173526523   13435   135.68
+gob-stream  zskp    4   1911399616  162195235   47559   38.33
+
 gob-stream  zstd    1   1911399616  249810424   2637    691.26
 gob-stream  zstd    3   1911399616  208192146   3490    522.31
 gob-stream  zstd    6   1911399616  193632038   6687    272.56
 gob-stream  zstd    9   1911399616  177620386   16175   112.70
-gob-stream  gzstd   1   1911399616  357382641   10251   177.82
-gob-stream  gzkp    1   1911399616  362156523   5695    320.08
+
+gob-stream  gzstd   1   1911399616  357382013   9046    201.49
+gob-stream  gzkp    1   1911399616  359136669   4885    373.08
 
 The test data for the Large Text Compression Benchmark is the first
 10^9 bytes of the English Wikipedia dump on Mar. 3, 2006.
 http://mattmahoney.net/dc/textdata.html
 
 file    out level   insize      outsize     millis  mb/s
-enwik9  zskp    1   1000000000  343848582   3609    264.18
-enwik9  zskp    2   1000000000  317276632   5746    165.97
-enwik9  zskp    3   1000000000  294540704   11725   81.34
-enwik9  zskp    4   1000000000  276609671   44029   21.66
+enwik9  zskp    1   1000000000  343833605   3687    258.64
+enwik9  zskp    2   1000000000  317001237   7672    124.29
+enwik9  zskp    3   1000000000  291915823   15923   59.89
+enwik9  zskp    4   1000000000  261710291   77697   12.27
+
 enwik9  zstd    1   1000000000  358072021   3110    306.65
 enwik9  zstd    3   1000000000  313734672   4784    199.35
 enwik9  zstd    6   1000000000  295138875   10290   92.68
 enwik9  zstd    9   1000000000  278348700   28549   33.40
-enwik9  gzstd   1   1000000000  382578136   9604    99.30
-enwik9  gzkp    1   1000000000  383825945   6544    145.73
+
+enwik9  gzstd   1   1000000000  382578136   8608    110.78
+enwik9  gzkp    1   1000000000  382781160   5628    169.45
 
 Highly compressible JSON file.
 https://files.klauspost.com/compress/github-june-2days-2019.json.zst
 
 file                        out level   insize      outsize     millis  mb/s
-github-june-2days-2019.json zskp    1   6273951764  699045015   10620   563.40
-github-june-2days-2019.json zskp    2   6273951764  617881763   11687   511.96
-github-june-2days-2019.json zskp    3   6273951764  537511906   29252   204.54
-github-june-2days-2019.json zskp    4   6273951764  512796117   97791   61.18
+github-june-2days-2019.json zskp    1   6273951764  697439532   9789    611.17
+github-june-2days-2019.json zskp    2   6273951764  610876538   18553   322.49
+github-june-2days-2019.json zskp    3   6273951764  517662858   44186   135.41
+github-june-2days-2019.json zskp    4   6273951764  464617114   165373  36.18
+
 github-june-2days-2019.json zstd    1   6273951764  766284037   8450    708.00
 github-june-2days-2019.json zstd    3   6273951764  661889476   10927   547.57
 github-june-2days-2019.json zstd    6   6273951764  642756859   22996   260.18
 github-june-2days-2019.json zstd    9   6273951764  601974523   52413   114.16
-github-june-2days-2019.json gzstd   1   6273951764  1164400847  29948   199.79
-github-june-2days-2019.json gzkp    1   6273951764  1128755542  19236   311.03
+
+github-june-2days-2019.json gzstd   1   6273951764  1164397768  26793   223.32
+github-june-2days-2019.json gzkp    1   6273951764  1120631856  17693   338.16
 
 VM Image, Linux mint with a few installed applications:
 https://files.klauspost.com/compress/rawstudio-mint14.7z
 
 file                    out level   insize      outsize     millis  mb/s
-rawstudio-mint14.tar    zskp    1   8558382592  3667489370  20210   403.84
-rawstudio-mint14.tar    zskp    2   8558382592  3364592300  31873   256.07
-rawstudio-mint14.tar    zskp    3   8558382592  3224594213  71751   113.75
-rawstudio-mint14.tar    zskp    4   8558382592  3027332295  486243  16.79
+rawstudio-mint14.tar    zskp    1   8558382592  3718400221  18206   448.29
+rawstudio-mint14.tar    zskp    2   8558382592  3326118337  37074   220.15
+rawstudio-mint14.tar    zskp    3   8558382592  3163842361  87306   93.49
+rawstudio-mint14.tar    zskp    4   8558382592  2970480650  783862  10.41
+
 rawstudio-mint14.tar    zstd    1   8558382592  3609250104  17136   476.27
 rawstudio-mint14.tar    zstd    3   8558382592  3341679997  29262   278.92
 rawstudio-mint14.tar    zstd    6   8558382592  3235846406  77904   104.77
 rawstudio-mint14.tar    zstd    9   8558382592  3160778861  140946  57.91
-rawstudio-mint14.tar    gzstd   1   8558382592  3926257486  57722   141.40
-rawstudio-mint14.tar    gzkp    1   8558382592  3970463184  41749   195.49
+
+rawstudio-mint14.tar    gzstd   1   8558382592  3926234992  51345   158.96
+rawstudio-mint14.tar    gzkp    1   8558382592  3960117298  36722   222.26
 
 CSV data:
 https://files.klauspost.com/compress/nyc-taxi-data-10M.csv.zst
 
 file                    out level   insize      outsize     millis  mb/s
-nyc-taxi-data-10M.csv   zskp    1   3325605752  641339945   8925    355.35
-nyc-taxi-data-10M.csv   zskp    2   3325605752  591748091   11268   281.44
-nyc-taxi-data-10M.csv   zskp    3   3325605752  538490114   19880   159.53
-nyc-taxi-data-10M.csv   zskp    4   3325605752  495986829   89368   35.49
+nyc-taxi-data-10M.csv   zskp    1   3325605752  641319332   9462    335.17
+nyc-taxi-data-10M.csv   zskp    2   3325605752  588976126   17570   180.50
+nyc-taxi-data-10M.csv   zskp    3   3325605752  529329260   32432   97.79
+nyc-taxi-data-10M.csv   zskp    4   3325605752  474949772   138025  22.98
+
 nyc-taxi-data-10M.csv   zstd    1   3325605752  687399637   8233    385.18
 nyc-taxi-data-10M.csv   zstd    3   3325605752  598514411   10065   315.07
 nyc-taxi-data-10M.csv   zstd    6   3325605752  570522953   20038   158.27
 nyc-taxi-data-10M.csv   zstd    9   3325605752  517554797   64565   49.12
-nyc-taxi-data-10M.csv   gzstd   1   3325605752  928656485   23876   132.83
-nyc-taxi-data-10M.csv   gzkp    1   3325605752  924718719   16388   193.53
+
+nyc-taxi-data-10M.csv   gzstd   1   3325605752  928654908   21270   149.11
+nyc-taxi-data-10M.csv   gzkp    1   3325605752  922273214   13929   227.68
 ```
 
 ## Decompressor
 
-Staus: STABLE - there may still be subtle bugs, but a wide variety of content has been tested.
+Status: STABLE - there may still be subtle bugs, but a wide variety of content has been tested.
 
 This library is being continuously [fuzz-tested](https://github.com/klauspost/compress-fuzz),
 kindly supplied by [fuzzit.dev](https://fuzzit.dev/). 
@@ -274,8 +289,13 @@ func Decompress(in io.Reader, out io.Writer) error {
 }
 ```
 
-It is important to use the "Close" function when you no longer need the Reader to stop running goroutines. 
-See "Allocation-less operation" below.
+It is important to use the "Close" function when you no longer need the Reader to stop running goroutines, 
+when running with default settings.
+Goroutines will exit once an error has been returned, including `io.EOF` at the end of a stream.
+
+Streams are decoded concurrently in 4 asynchronous stages to give the best possible throughput.
+However, if you prefer synchronous decompression, use `WithDecoderConcurrency(1)` which will decompress data 
+as it is being requested only.
 
 For decoding buffers, it could look something like this:
 
@@ -284,7 +304,7 @@ import "github.com/klauspost/compress/zstd"
 
 // Create a reader that caches decompressors.
 // For this operation type we supply a nil Reader.
-var decoder, _ = zstd.NewReader(nil)
+var decoder, _ = zstd.NewReader(nil, zstd.WithDecoderConcurrency(0))
 
 // Decompress a buffer. We don't supply a destination buffer,
 // so it will be allocated by the decoder.
@@ -294,9 +314,12 @@ func Decompress(src []byte) ([]byte, error) {
 ```
 
 Both of these cases should provide the functionality needed. 
-The decoder can be used for *concurrent* decompression of multiple buffers. 
+The decoder can be used for *concurrent* decompression of multiple buffers.
+By default 4 decompressors will be created. 
+
 It will only allow a certain number of concurrent operations to run. 
-To tweak that yourself use the `WithDecoderConcurrency(n)` option when creating the decoder.   
+To tweak that yourself use the `WithDecoderConcurrency(n)` option when creating the decoder.
+It is possible to use `WithDecoderConcurrency(0)` to create GOMAXPROCS decoders.
 
 ### Dictionaries
 
@@ -348,69 +371,70 @@ In this case no unneeded allocations should be made.
 The buffer decoder does everything on the same goroutine and does nothing concurrently.
 It can however decode several buffers concurrently. Use `WithDecoderConcurrency(n)` to limit that.
 
-The stream decoder operates on
+The stream decoder will create goroutines that:
 
-* One goroutine reads input and splits the input to several block decoders.
-* A number of decoders will decode blocks.
-* A goroutine coordinates these blocks and sends history from one to the next.
+1) Reads input and splits the input into blocks.
+2) Decompression of literals.
+3) Decompression of sequences.
+4) Reconstruction of output stream.
 
 So effectively this also means the decoder will "read ahead" and prepare data to always be available for output.
 
+The concurrency level will, for streams, determine how many blocks ahead the compression will start.
+
 Since "blocks" are quite dependent on the output of the previous block stream decoding will only have limited concurrency.
 
-In practice this means that concurrency is often limited to utilizing about 2 cores effectively.
- 
- 
+In practice this means that concurrency is often limited to utilizing about 3 cores effectively.
+  
 ### Benchmarks
 
-These are some examples of performance compared to [datadog cgo library](https://github.com/DataDog/zstd).
-
 The first two are streaming decodes and the last are smaller inputs. 
- 
+
+Running on AMD Ryzen 9 3950X 16-Core Processor. AMD64 assembly used.
+
 ```
-BenchmarkDecoderSilesia-8                          3     385000067 ns/op     550.51 MB/s        5498 B/op          8 allocs/op
-BenchmarkDecoderSilesiaCgo-8                       6     197666567 ns/op    1072.25 MB/s      270672 B/op          8 allocs/op
+BenchmarkDecoderSilesia-32    	                   5	 206878840 ns/op	1024.50 MB/s	   49808 B/op	      43 allocs/op
+BenchmarkDecoderEnwik9-32                          1	1271809000 ns/op	 786.28 MB/s	   72048 B/op	      52 allocs/op
 
-BenchmarkDecoderEnwik9-8                           1    2027001600 ns/op     493.34 MB/s       10496 B/op         18 allocs/op
-BenchmarkDecoderEnwik9Cgo-8                        2     979499200 ns/op    1020.93 MB/s      270672 B/op          8 allocs/op
+Concurrent blocks, performance:
 
-Concurrent performance:
-
-BenchmarkDecoder_DecodeAllParallel/kppkn.gtb.zst-16                28915         42469 ns/op    4340.07 MB/s         114 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/geo.protodata.zst-16           116505          9965 ns/op    11900.16 MB/s         16 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/plrabn12.txt.zst-16              8952        134272 ns/op    3588.70 MB/s         915 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/lcet10.txt.zst-16               11820        102538 ns/op    4161.90 MB/s         594 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/asyoulik.txt.zst-16             34782         34184 ns/op    3661.88 MB/s          60 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/alice29.txt.zst-16              27712         43447 ns/op    3500.58 MB/s          99 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/html_x_4.zst-16                 62826         18750 ns/op    21845.10 MB/s        104 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/paper-100k.pdf.zst-16          631545          1794 ns/op    57078.74 MB/s          2 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/fireworks.jpeg.zst-16         1690140           712 ns/op    172938.13 MB/s         1 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/urls.10K.zst-16                 10432        113593 ns/op    6180.73 MB/s        1143 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/html.zst-16                    113206         10671 ns/op    9596.27 MB/s          15 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/comp-data.bin.zst-16          1530615           779 ns/op    5229.49 MB/s           0 B/op          0 allocs/op
-
-BenchmarkDecoder_DecodeAllParallelCgo/kppkn.gtb.zst-16             65217         16192 ns/op    11383.34 MB/s         46 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/geo.protodata.zst-16        292671          4039 ns/op    29363.19 MB/s          6 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/plrabn12.txt.zst-16          26314         46021 ns/op    10470.43 MB/s        293 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/lcet10.txt.zst-16            33897         34900 ns/op    12227.96 MB/s        205 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/asyoulik.txt.zst-16         104348         11433 ns/op    10949.01 MB/s         20 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/alice29.txt.zst-16           75949         15510 ns/op    9805.60 MB/s          32 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/html_x_4.zst-16             173910          6756 ns/op    60624.29 MB/s         37 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/paper-100k.pdf.zst-16       923076          1339 ns/op    76474.87 MB/s          1 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/fireworks.jpeg.zst-16       922920          1351 ns/op    91102.57 MB/s          2 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/urls.10K.zst-16              27649         43618 ns/op    16096.19 MB/s        407 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/html.zst-16                 279073          4160 ns/op    24614.18 MB/s          6 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/comp-data.bin.zst-16        749938          1579 ns/op    2581.71 MB/s           0 B/op          0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/kppkn.gtb.zst-32         	   67356	     17857 ns/op	10321.96 MB/s	        22.48 pct	     102 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/geo.protodata.zst-32     	  266656	      4421 ns/op	26823.21 MB/s	        11.89 pct	      19 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/plrabn12.txt.zst-32      	   20992	     56842 ns/op	8477.17 MB/s	        39.90 pct	     754 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/lcet10.txt.zst-32        	   27456	     43932 ns/op	9714.01 MB/s	        33.27 pct	     524 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/asyoulik.txt.zst-32      	   78432	     15047 ns/op	8319.15 MB/s	        40.34 pct	      66 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/alice29.txt.zst-32       	   65800	     18436 ns/op	8249.63 MB/s	        37.75 pct	      88 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/html_x_4.zst-32          	  102993	     11523 ns/op	35546.09 MB/s	         3.637 pct	     143 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/paper-100k.pdf.zst-32    	 1000000	      1070 ns/op	95720.98 MB/s	        80.53 pct	       3 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/fireworks.jpeg.zst-32    	  749802	      1752 ns/op	70272.35 MB/s	       100.0 pct	       5 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/urls.10K.zst-32          	   22640	     52934 ns/op	13263.37 MB/s	        26.25 pct	    1014 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/html.zst-32              	  226412	      5232 ns/op	19572.27 MB/s	        14.49 pct	      20 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/comp-data.bin.zst-32     	  923041	      1276 ns/op	3194.71 MB/s	        31.26 pct	       0 B/op	       0 allocs/op
 ```
 
-This reflects the performance around May 2020, but this may be out of date.
+This reflects the performance around May 2022, but this may be out of date.
+
+## Zstd inside ZIP files
+
+It is possible to use zstandard to compress individual files inside zip archives.
+While this isn't widely supported it can be useful for internal files.
+
+To support the compression and decompression of these files you must register a compressor and decompressor.
+
+It is highly recommended registering the (de)compressors on individual zip Reader/Writer and NOT
+use the global registration functions. The main reason for this is that 2 registrations from 
+different packages will result in a panic.
+
+It is a good idea to only have a single compressor and decompressor, since they can be used for multiple zip
+files concurrently, and using a single instance will allow reusing some resources.
+
+See [this example](https://pkg.go.dev/github.com/klauspost/compress/zstd#example-ZipCompressor) for 
+how to compress and decompress files inside zip archives.
 
 # Contributions
 
 Contributions are always welcome. 
 For new features/fixes, remember to add tests and for performance enhancements include benchmarks.
-
-For sending files for reproducing errors use a service like [goobox](https://goobox.io/#/upload) or similar to share your files.
 
 For general feedback and experience reports, feel free to open an issue or write me on [Twitter](https://twitter.com/sh0dan).
 

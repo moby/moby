@@ -2,25 +2,22 @@ package plugin // import "github.com/docker/docker/api/server/router/plugin"
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/pkg/errors"
 )
 
-func parseHeaders(headers http.Header) (map[string][]string, *types.AuthConfig) {
-
+func parseHeaders(headers http.Header) (map[string][]string, *registry.AuthConfig) {
 	metaHeaders := map[string][]string{}
 	for k, v := range headers {
 		if strings.HasPrefix(k, "X-Meta-") {
@@ -28,16 +25,8 @@ func parseHeaders(headers http.Header) (map[string][]string, *types.AuthConfig) 
 		}
 	}
 
-	// Get X-Registry-Auth
-	authEncoded := headers.Get("X-Registry-Auth")
-	authConfig := &types.AuthConfig{}
-	if authEncoded != "" {
-		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-		if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
-			authConfig = &types.AuthConfig{}
-		}
-	}
-
+	// Ignore invalid AuthConfig to increase compatibility with the existing API.
+	authConfig, _ := registry.DecodeAuthConfig(headers.Get(registry.AuthHeader))
 	return metaHeaders, authConfig
 }
 
@@ -96,12 +85,8 @@ func (pr *pluginRouter) upgradePlugin(ctx context.Context, w http.ResponseWriter
 	}
 
 	var privileges types.PluginPrivileges
-	dec := json.NewDecoder(r.Body)
-	if err := dec.Decode(&privileges); err != nil {
-		return errors.Wrap(err, "failed to parse privileges")
-	}
-	if dec.More() {
-		return errors.New("invalid privileges")
+	if err := httputils.ReadJSON(r, &privileges); err != nil {
+		return err
 	}
 
 	metaHeaders, authConfig := parseHeaders(r.Header)
@@ -135,12 +120,8 @@ func (pr *pluginRouter) pullPlugin(ctx context.Context, w http.ResponseWriter, r
 	}
 
 	var privileges types.PluginPrivileges
-	dec := json.NewDecoder(r.Body)
-	if err := dec.Decode(&privileges); err != nil {
-		return errors.Wrap(err, "failed to parse privileges")
-	}
-	if dec.More() {
-		return errors.New("invalid privileges")
+	if err := httputils.ReadJSON(r, &privileges); err != nil {
+		return err
 	}
 
 	metaHeaders, authConfig := parseHeaders(r.Header)
@@ -206,7 +187,8 @@ func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter,
 	}
 
 	options := &types.PluginCreateOptions{
-		RepoName: r.FormValue("name")}
+		RepoName: r.FormValue("name"),
+	}
 
 	if err := pr.backend.CreateFromContext(ctx, r.Body, options); err != nil {
 		return err
@@ -226,7 +208,7 @@ func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter,
 	if err != nil {
 		return err
 	}
-	config := &types.PluginEnableConfig{Timeout: timeout}
+	config := &backend.PluginEnableConfig{Timeout: timeout}
 
 	return pr.backend.Enable(name, config)
 }
@@ -237,7 +219,7 @@ func (pr *pluginRouter) disablePlugin(ctx context.Context, w http.ResponseWriter
 	}
 
 	name := vars["name"]
-	config := &types.PluginDisableConfig{
+	config := &backend.PluginDisableConfig{
 		ForceDisable: httputils.BoolValue(r, "force"),
 	}
 
@@ -250,7 +232,7 @@ func (pr *pluginRouter) removePlugin(ctx context.Context, w http.ResponseWriter,
 	}
 
 	name := vars["name"]
-	config := &types.PluginRmConfig{
+	config := &backend.PluginRmConfig{
 		ForceRemove: httputils.BoolValue(r, "force"),
 	}
 	return pr.backend.Remove(name, config)
@@ -277,11 +259,8 @@ func (pr *pluginRouter) pushPlugin(ctx context.Context, w http.ResponseWriter, r
 
 func (pr *pluginRouter) setPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var args []string
-	if err := json.NewDecoder(r.Body).Decode(&args); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &args); err != nil {
+		return err
 	}
 	if err := pr.backend.Set(vars["name"], args); err != nil {
 		return err

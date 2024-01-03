@@ -1,0 +1,35 @@
+# reusable workflow
+name: .test-prepare
+
+# TODO: hide reusable workflow from the UI. Tracked in https://github.com/community/community/discussions/12025
+
+on:
+  workflow_call:
+    outputs:
+      matrix:
+        description: Test matrix
+        value: ${{ jobs.run.outputs.matrix }}
+
+jobs:
+  run:
+    runs-on: ubuntu-20.04
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Create matrix
+        id: set
+        uses: actions/github-script@v6
+        with:
+          script: |
+            let matrix = ['graphdriver'];
+            if ("${{ contains(github.event.pull_request.labels.*.name, 'containerd-integration') || github.event_name != 'pull_request' }}" == "true") {
+              matrix.push('snapshotter');
+            }
+            await core.group(`Set matrix`, async () => {
+              core.info(`matrix: ${JSON.stringify(matrix)}`);
+              core.setOutput('matrix', JSON.stringify(matrix));
+            });

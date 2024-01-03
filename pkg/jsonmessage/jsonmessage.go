@@ -16,8 +16,8 @@ import (
 // ensure the formatted time isalways the same number of characters.
 const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
-// JSONError wraps a concrete Code and Message, `Code` is
-// is an integer error code, `Message` is the error message.
+// JSONError wraps a concrete Code and Message, Code is
+// an integer error code, Message is the error message.
 type JSONError struct {
 	Code    int    `json:"code,omitempty"`
 	Message string `json:"message,omitempty"`
@@ -27,20 +27,28 @@ func (e *JSONError) Error() string {
 	return e.Message
 }
 
-// JSONProgress describes a Progress. terminalFd is the fd of the current terminal,
-// Start is the initial value for the operation. Current is the current status and
-// value of the progress made towards Total. Total is the end value describing when
-// we made 100% progress for an operation.
+// JSONProgress describes a progress message in a JSON stream.
 type JSONProgress struct {
+	// Current is the current status and value of the progress made towards Total.
+	Current int64 `json:"current,omitempty"`
+	// Total is the end value describing when we made 100% progress for an operation.
+	Total int64 `json:"total,omitempty"`
+	// Start is the initial value for the operation.
+	Start int64 `json:"start,omitempty"`
+	// HideCounts. if true, hides the progress count indicator (xB/yB).
+	HideCounts bool `json:"hidecounts,omitempty"`
+	// Units is the unit to print for progress. It defaults to "bytes" if empty.
+	Units string `json:"units,omitempty"`
+
+	// terminalFd is the fd of the current terminal, if any. It is used
+	// to get the terminal width.
 	terminalFd uintptr
-	Current    int64 `json:"current,omitempty"`
-	Total      int64 `json:"total,omitempty"`
-	Start      int64 `json:"start,omitempty"`
-	// If true, don't show xB/yB
-	HideCounts bool   `json:"hidecounts,omitempty"`
-	Units      string `json:"units,omitempty"`
-	nowFunc    func() time.Time
-	winSize    int
+
+	// nowFunc is used to override the current time in tests.
+	nowFunc func() time.Time
+
+	// winSize is used to override the terminal width in tests.
+	winSize int
 }
 
 func (p *JSONProgress) String() string {
@@ -56,8 +64,7 @@ func (p *JSONProgress) String() string {
 	if p.Total <= 0 {
 		switch p.Units {
 		case "":
-			current := units.HumanSize(float64(p.Current))
-			return fmt.Sprintf("%8v", current)
+			return fmt.Sprintf("%8v", units.HumanSize(float64(p.Current)))
 		default:
 			return fmt.Sprintf("%d %s", p.Current, p.Units)
 		}
@@ -110,17 +117,17 @@ func (p *JSONProgress) String() string {
 	return pbBox + numbersBox + timeLeftBox
 }
 
-// shim for testing
+// now returns the current time in UTC, but can be overridden in tests
+// by setting JSONProgress.nowFunc to a custom function.
 func (p *JSONProgress) now() time.Time {
-	if p.nowFunc == nil {
-		p.nowFunc = func() time.Time {
-			return time.Now().UTC()
-		}
+	if p.nowFunc != nil {
+		return p.nowFunc()
 	}
-	return p.nowFunc()
+	return time.Now().UTC()
 }
 
-// shim for testing
+// width returns the current terminal's width, but can be overridden
+// in tests by setting JSONProgress.winSize to a non-zero value.
 func (p *JSONProgress) width() int {
 	if p.winSize != 0 {
 		return p.winSize
@@ -164,13 +171,11 @@ func cursorDown(out io.Writer, l uint) {
 	fmt.Fprint(out, aec.Down(l))
 }
 
-// Display displays the JSONMessage to `out`. If `isTerminal` is true, it will erase the
-// entire current line when displaying the progressbar.
+// Display prints the JSONMessage to out. If isTerminal is true, it erases
+// the entire current line when displaying the progressbar. It returns an
+// error if the [JSONMessage.Error] field is non-nil.
 func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	if jm.Error != nil {
-		if jm.Error.Code == 401 {
-			return fmt.Errorf("authentication is required")
-		}
 		return jm.Error
 	}
 	var endl string
@@ -204,9 +209,22 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	return nil
 }
 
-// DisplayJSONMessagesStream displays a json message stream from `in` to `out`, `isTerminal`
-// describes if `out` is a terminal. If this is the case, it will print `\n` at the end of
-// each line and move the cursor while displaying.
+// DisplayJSONMessagesStream reads a JSON message stream from in, and writes
+// each [JSONMessage] to out. It returns an error if an invalid JSONMessage
+// is received, or if a JSONMessage containers a non-zero [JSONMessage.Error].
+//
+// Presentation of the JSONMessage depends on whether a terminal is attached,
+// and on the terminal width. Progress bars ([JSONProgress]) are suppressed
+// on narrower terminals (< 110 characters).
+//
+//   - isTerminal describes if out is a terminal, in which case it prints
+//     a newline ("\n") at the end of each line and moves the cursor while
+//     displaying.
+//   - terminalFd is the fd of the current terminal (if any), and used
+//     to get the terminal width.
+//   - auxCallback allows handling the [JSONMessage.Aux] field. It is
+//     called if a JSONMessage contains an Aux field, in which case
+//     DisplayJSONMessagesStream does not present the JSONMessage.
 func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
 	var (
 		dec = json.NewDecoder(in)
@@ -271,13 +289,19 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 	return nil
 }
 
-type stream interface {
+// Stream is an io.Writer for output with utilities to get the output's file
+// descriptor and to detect wether it's a terminal.
+//
+// it is subset of the streams.Out type in
+// https://pkg.go.dev/github.com/docker/cli@v20.10.17+incompatible/cli/streams#Out
+type Stream interface {
 	io.Writer
 	FD() uintptr
 	IsTerminal() bool
 }
 
-// DisplayJSONMessagesToStream prints json messages to the output stream
-func DisplayJSONMessagesToStream(in io.Reader, stream stream, auxCallback func(JSONMessage)) error {
+// DisplayJSONMessagesToStream prints json messages to the output Stream. It is
+// used by the Docker CLI to print JSONMessage streams.
+func DisplayJSONMessagesToStream(in io.Reader, stream Stream, auxCallback func(JSONMessage)) error {
 	return DisplayJSONMessagesStream(in, stream, stream.FD(), stream.IsTerminal(), auxCallback)
 }

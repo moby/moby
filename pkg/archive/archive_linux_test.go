@@ -1,6 +1,9 @@
 package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
+	"archive/tar"
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -8,45 +11,48 @@ import (
 
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/system"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
 // setupOverlayTestDir creates files in a directory with overlay whiteouts
 // Tree layout
-// .
-// ├── d1     # opaque, 0700
-// │   └── f1 # empty file, 0600
-// ├── d2     # opaque, 0750
-// │   └── f1 # empty file, 0660
-// └── d3     # 0700
-//     └── f1 # whiteout, 0644
+//
+//	.
+//	├── d1     # opaque, 0700
+//	│   └── f1 # empty file, 0600
+//	├── d2     # opaque, 0750
+//	│   └── f1 # empty file, 0660
+//	└── d3     # 0700
+//	    └── f1 # whiteout, 0644
 func setupOverlayTestDir(t *testing.T, src string) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	skip.If(t, userns.RunningInUserNS(), "skipping test that requires initial userns (trusted.overlay.opaque xattr cannot be set in userns, even with Ubuntu kernel)")
 	// Create opaque directory containing single file and permission 0700
-	err := os.Mkdir(filepath.Join(src, "d1"), 0700)
+	err := os.Mkdir(filepath.Join(src, "d1"), 0o700)
 	assert.NilError(t, err)
 
 	err = system.Lsetxattr(filepath.Join(src, "d1"), "trusted.overlay.opaque", []byte("y"), 0)
 	assert.NilError(t, err)
 
-	err = os.WriteFile(filepath.Join(src, "d1", "f1"), []byte{}, 0600)
+	err = os.WriteFile(filepath.Join(src, "d1", "f1"), []byte{}, 0o600)
 	assert.NilError(t, err)
 
 	// Create another opaque directory containing single file but with permission 0750
-	err = os.Mkdir(filepath.Join(src, "d2"), 0750)
+	err = os.Mkdir(filepath.Join(src, "d2"), 0o750)
 	assert.NilError(t, err)
 
 	err = system.Lsetxattr(filepath.Join(src, "d2"), "trusted.overlay.opaque", []byte("y"), 0)
 	assert.NilError(t, err)
 
-	err = os.WriteFile(filepath.Join(src, "d2", "f1"), []byte{}, 0660)
+	err = os.WriteFile(filepath.Join(src, "d2", "f1"), []byte{}, 0o660)
 	assert.NilError(t, err)
 
 	// Create regular directory with deleted file
-	err = os.Mkdir(filepath.Join(src, "d3"), 0700)
+	err = os.Mkdir(filepath.Join(src, "d3"), 0o700)
 	assert.NilError(t, err)
 
 	err = system.Mknod(filepath.Join(src, "d3", "f1"), unix.S_IFCHR, 0)
@@ -60,7 +66,6 @@ func checkOpaqueness(t *testing.T, path string, opaque string) {
 	if string(xattrOpaque) != opaque {
 		t.Fatalf("Unexpected opaque value: %q, expected %q", string(xattrOpaque), opaque)
 	}
-
 }
 
 func checkOverlayWhiteout(t *testing.T, path string) {
@@ -86,9 +91,8 @@ func checkFileMode(t *testing.T, path string, perm os.FileMode) {
 }
 
 func TestOverlayTarUntar(t *testing.T) {
-	oldmask, err := system.Umask(0)
-	assert.NilError(t, err)
-	defer system.Umask(oldmask)
+	restore := overrideUmask(0)
+	defer restore()
 
 	src, err := os.MkdirTemp("", "docker-test-overlay-tar-src")
 	assert.NilError(t, err)
@@ -104,18 +108,46 @@ func TestOverlayTarUntar(t *testing.T) {
 		Compression:    Uncompressed,
 		WhiteoutFormat: OverlayWhiteoutFormat,
 	}
-	archive, err := TarWithOptions(src, options)
+	reader, err := TarWithOptions(src, options)
 	assert.NilError(t, err)
-	defer archive.Close()
-
-	err = Untar(archive, dst, options)
+	archive, err := io.ReadAll(reader)
+	reader.Close()
 	assert.NilError(t, err)
 
-	checkFileMode(t, filepath.Join(dst, "d1"), 0700|os.ModeDir)
-	checkFileMode(t, filepath.Join(dst, "d2"), 0750|os.ModeDir)
-	checkFileMode(t, filepath.Join(dst, "d3"), 0700|os.ModeDir)
-	checkFileMode(t, filepath.Join(dst, "d1", "f1"), 0600)
-	checkFileMode(t, filepath.Join(dst, "d2", "f1"), 0660)
+	// The archive should encode opaque directories and file whiteouts
+	// in AUFS format.
+	entries := make(map[string]struct{})
+	rdr := tar.NewReader(bytes.NewReader(archive))
+	for {
+		h, err := rdr.Next()
+		if err == io.EOF {
+			break
+		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(h.Devmajor, int64(0)), "unexpected device file in archive")
+		assert.Check(t, is.DeepEqual(h.PAXRecords, map[string]string(nil), cmpopts.EquateEmpty()))
+		entries[h.Name] = struct{}{}
+	}
+
+	assert.DeepEqual(t, entries, map[string]struct{}{
+		"d1/":                         {},
+		"d1/" + WhiteoutOpaqueDir:     {},
+		"d1/f1":                       {},
+		"d2/":                         {},
+		"d2/" + WhiteoutOpaqueDir:     {},
+		"d2/f1":                       {},
+		"d3/":                         {},
+		"d3/" + WhiteoutPrefix + "f1": {},
+	})
+
+	err = Untar(bytes.NewReader(archive), dst, options)
+	assert.NilError(t, err)
+
+	checkFileMode(t, filepath.Join(dst, "d1"), 0o700|os.ModeDir)
+	checkFileMode(t, filepath.Join(dst, "d2"), 0o750|os.ModeDir)
+	checkFileMode(t, filepath.Join(dst, "d3"), 0o700|os.ModeDir)
+	checkFileMode(t, filepath.Join(dst, "d1", "f1"), 0o600)
+	checkFileMode(t, filepath.Join(dst, "d2", "f1"), 0o660)
 	checkFileMode(t, filepath.Join(dst, "d3", "f1"), os.ModeCharDevice|os.ModeDevice)
 
 	checkOpaqueness(t, filepath.Join(dst, "d1"), "y")
@@ -125,9 +157,8 @@ func TestOverlayTarUntar(t *testing.T) {
 }
 
 func TestOverlayTarAUFSUntar(t *testing.T) {
-	oldmask, err := system.Umask(0)
-	assert.NilError(t, err)
-	defer system.Umask(oldmask)
+	restore := overrideUmask(0)
+	defer restore()
 
 	src, err := os.MkdirTemp("", "docker-test-overlay-tar-src")
 	assert.NilError(t, err)
@@ -152,12 +183,12 @@ func TestOverlayTarAUFSUntar(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	checkFileMode(t, filepath.Join(dst, "d1"), 0700|os.ModeDir)
-	checkFileMode(t, filepath.Join(dst, "d1", WhiteoutOpaqueDir), 0700)
-	checkFileMode(t, filepath.Join(dst, "d2"), 0750|os.ModeDir)
-	checkFileMode(t, filepath.Join(dst, "d2", WhiteoutOpaqueDir), 0750)
-	checkFileMode(t, filepath.Join(dst, "d3"), 0700|os.ModeDir)
-	checkFileMode(t, filepath.Join(dst, "d1", "f1"), 0600)
-	checkFileMode(t, filepath.Join(dst, "d2", "f1"), 0660)
-	checkFileMode(t, filepath.Join(dst, "d3", WhiteoutPrefix+"f1"), 0600)
+	checkFileMode(t, filepath.Join(dst, "d1"), 0o700|os.ModeDir)
+	checkFileMode(t, filepath.Join(dst, "d1", WhiteoutOpaqueDir), 0o700)
+	checkFileMode(t, filepath.Join(dst, "d2"), 0o750|os.ModeDir)
+	checkFileMode(t, filepath.Join(dst, "d2", WhiteoutOpaqueDir), 0o750)
+	checkFileMode(t, filepath.Join(dst, "d3"), 0o700|os.ModeDir)
+	checkFileMode(t, filepath.Join(dst, "d1", "f1"), 0o600)
+	checkFileMode(t, filepath.Join(dst, "d2", "f1"), 0o660)
+	checkFileMode(t, filepath.Join(dst, "d3", WhiteoutPrefix+"f1"), 0o600)
 }

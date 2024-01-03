@@ -1,23 +1,24 @@
 package awslogs // import "github.com/docker/docker/daemon/logger/awslogs"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"reflect"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
@@ -119,52 +120,107 @@ func TestNewStreamConfig(t *testing.T) {
 }
 
 func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userAgent := r.Header.Get("User-Agent")
+		assert.Check(t, is.Contains(userAgent, "Docker/"+dockerversion.Version))
+		fmt.Fprintln(w, "{}")
+	}))
+	defer ts.Close()
+
 	info := logger.Info{
 		Config: map[string]string{
-			regionKey: "us-east-1",
+			regionKey:   "us-east-1",
+			endpointKey: ts.URL,
 		},
 	}
 
-	client, err := newAWSLogsClient(info)
+	client, err := newAWSLogsClient(
+		info,
+		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
+			Value: aws.Credentials{AccessKeyID: "AKID", SecretAccessKey: "SECRET", SessionToken: "SESSION"},
+		}),
+	)
 	assert.NilError(t, err)
 
-	realClient, ok := client.(*cloudwatchlogs.CloudWatchLogs)
-	assert.Check(t, ok, "Could not cast client to cloudwatchlogs.CloudWatchLogs")
+	_, err = client.CreateLogGroup(context.TODO(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
+	assert.NilError(t, err)
+}
 
-	buildHandlerList := realClient.Handlers.Build
-	request := &request.Request{
-		HTTPRequest: &http.Request{
-			Header: http.Header{},
+func TestNewAWSLogsClientLogFormatHeaderHandler(t *testing.T) {
+	tests := []struct {
+		logFormat           string
+		expectedHeaderValue string
+	}{
+		{
+			logFormat:           jsonEmfLogFormat,
+			expectedHeaderValue: "json/emf",
+		},
+		{
+			logFormat:           "",
+			expectedHeaderValue: "",
 		},
 	}
-	buildHandlerList.Run(request)
-	expectedUserAgentString := fmt.Sprintf("Docker %s (%s) %s/%s (%s; %s; %s)",
-		dockerversion.Version, runtime.GOOS, aws.SDKName, aws.SDKVersion, runtime.Version(), runtime.GOOS, runtime.GOARCH)
-	userAgent := request.HTTPRequest.Header.Get("User-Agent")
-	if userAgent != expectedUserAgentString {
-		t.Errorf("Wrong User-Agent string, expected \"%s\" but was \"%s\"",
-			expectedUserAgentString, userAgent)
+	for _, tc := range tests {
+		t.Run(tc.logFormat, func(t *testing.T) {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				logFormatHeaderVal := r.Header.Get("x-amzn-logs-format")
+				assert.Check(t, is.Equal(tc.expectedHeaderValue, logFormatHeaderVal))
+				fmt.Fprintln(w, "{}")
+			}))
+			defer ts.Close()
+
+			info := logger.Info{
+				Config: map[string]string{
+					regionKey:    "us-east-1",
+					logFormatKey: tc.logFormat,
+					endpointKey:  ts.URL,
+				},
+			}
+
+			client, err := newAWSLogsClient(
+				info,
+				config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
+					Value: aws.Credentials{AccessKeyID: "AKID", SecretAccessKey: "SECRET", SessionToken: "SESSION"},
+				}),
+			)
+			assert.NilError(t, err)
+
+			_, err = client.CreateLogGroup(context.TODO(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
+			assert.NilError(t, err)
+		})
 	}
 }
 
 func TestNewAWSLogsClientAWSLogsEndpoint(t *testing.T) {
-	endpoint := "mock-endpoint"
+	called := atomic.Value{} // for go1.19 and later, can use atomic.Bool
+	called.Store(false)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called.Store(true)
+		fmt.Fprintln(w, "{}")
+	}))
+	defer ts.Close()
+
 	info := logger.Info{
 		Config: map[string]string{
 			regionKey:   "us-east-1",
-			endpointKey: endpoint,
+			endpointKey: ts.URL,
 		},
 	}
 
-	client, err := newAWSLogsClient(info)
+	client, err := newAWSLogsClient(
+		info,
+		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
+			Value: aws.Credentials{AccessKeyID: "AKID", SecretAccessKey: "SECRET", SessionToken: "SESSION"},
+		}),
+	)
 	assert.NilError(t, err)
 
-	realClient, ok := client.(*cloudwatchlogs.CloudWatchLogs)
-	assert.Check(t, ok, "Could not cast client to cloudwatchlogs.CloudWatchLogs")
+	_, err = client.CreateLogGroup(context.TODO(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
+	assert.NilError(t, err)
 
-	endpointWithScheme := realClient.Endpoint
-	expectedEndpointWithScheme := "https://" + endpoint
-	assert.Equal(t, endpointWithScheme, expectedEndpointWithScheme, "Wrong endpoint")
+	// make sure the endpoint was actually hit
+	assert.Check(t, called.Load().(bool))
 }
 
 func TestNewAWSLogsClientRegionDetect(t *testing.T) {
@@ -173,7 +229,7 @@ func TestNewAWSLogsClientRegionDetect(t *testing.T) {
 	}
 
 	mockMetadata := newMockMetadataClient()
-	newRegionFinder = func() (regionFinder, error) {
+	newRegionFinder = func(context.Context) (regionFinder, error) {
 		return mockMetadata, nil
 	}
 	mockMetadata.regionResult <- &regionResult{
@@ -185,51 +241,46 @@ func TestNewAWSLogsClientRegionDetect(t *testing.T) {
 }
 
 func TestCreateSuccess(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:          mockClient,
 		logGroupName:    groupName,
 		logStreamName:   streamName,
 		logCreateStream: true,
 	}
-	mockClient.createLogStreamResult <- &createLogStreamResult{}
+	var input *cloudwatchlogs.CreateLogStreamInput
+	mockClient.createLogStreamFunc = func(ctx context.Context, i *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+		input = i
+		return &cloudwatchlogs.CreateLogStreamOutput{}, nil
+	}
 
 	err := stream.create()
 
-	if err != nil {
-		t.Errorf("Received unexpected err: %v\n", err)
-	}
-	argument := <-mockClient.createLogStreamArgument
-	if argument.LogGroupName == nil {
-		t.Fatal("Expected non-nil LogGroupName")
-	}
-	if *argument.LogGroupName != groupName {
-		t.Errorf("Expected LogGroupName to be %s", groupName)
-	}
-	if argument.LogStreamName == nil {
-		t.Fatal("Expected non-nil LogStreamName")
-	}
-	if *argument.LogStreamName != streamName {
-		t.Errorf("Expected LogStreamName to be %s", streamName)
-	}
+	assert.NilError(t, err)
+	assert.Equal(t, groupName, aws.ToString(input.LogGroupName), "LogGroupName")
+	assert.Equal(t, streamName, aws.ToString(input.LogStreamName), "LogStreamName")
 }
 
 func TestCreateStreamSkipped(t *testing.T) {
+	mockClient := &mockClient{}
 	stream := &logStream{
+		client:          mockClient,
 		logGroupName:    groupName,
 		logStreamName:   streamName,
 		logCreateStream: false,
 	}
+	mockClient.createLogStreamFunc = func(ctx context.Context, i *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+		t.Error("CreateLogStream should not be called")
+		return nil, errors.New("should not be called")
+	}
 
 	err := stream.create()
 
-	if err != nil {
-		t.Errorf("Received unexpected err: %v\n", err)
-	}
+	assert.NilError(t, err)
 }
 
 func TestCreateLogGroupSuccess(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:          mockClient,
 		logGroupName:    groupName,
@@ -237,37 +288,44 @@ func TestCreateLogGroupSuccess(t *testing.T) {
 		logCreateGroup:  true,
 		logCreateStream: true,
 	}
-	mockClient.createLogGroupResult <- &createLogGroupResult{}
-	mockClient.createLogStreamResult <- &createLogStreamResult{}
+	var logGroupInput *cloudwatchlogs.CreateLogGroupInput
+	mockClient.createLogGroupFunc = func(ctx context.Context, input *cloudwatchlogs.CreateLogGroupInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogGroupOutput, error) {
+		logGroupInput = input
+		return &cloudwatchlogs.CreateLogGroupOutput{}, nil
+	}
+	var logStreamInput *cloudwatchlogs.CreateLogStreamInput
+	createLogStreamCalls := 0
+	mockClient.createLogStreamFunc = func(ctx context.Context, input *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+		createLogStreamCalls++
+		if logGroupInput == nil {
+			// log group not created yet
+			return nil, &types.ResourceNotFoundException{}
+		}
+		logStreamInput = input
+		return &cloudwatchlogs.CreateLogStreamOutput{}, nil
+	}
 
 	err := stream.create()
 
-	if err != nil {
-		t.Errorf("Received unexpected err: %v\n", err)
+	assert.NilError(t, err)
+	if createLogStreamCalls < 2 {
+		t.Errorf("Expected CreateLogStream to be called twice, was called %d times", createLogStreamCalls)
 	}
-	argument := <-mockClient.createLogStreamArgument
-	if argument.LogGroupName == nil {
-		t.Fatal("Expected non-nil LogGroupName")
-	}
-	if *argument.LogGroupName != groupName {
-		t.Errorf("Expected LogGroupName to be %s", groupName)
-	}
-	if argument.LogStreamName == nil {
-		t.Fatal("Expected non-nil LogStreamName")
-	}
-	if *argument.LogStreamName != streamName {
-		t.Errorf("Expected LogStreamName to be %s", streamName)
-	}
+	assert.Check(t, logGroupInput != nil)
+	assert.Equal(t, groupName, aws.ToString(logGroupInput.LogGroupName), "LogGroupName in LogGroupInput")
+	assert.Check(t, logStreamInput != nil)
+	assert.Equal(t, groupName, aws.ToString(logStreamInput.LogGroupName), "LogGroupName in LogStreamInput")
+	assert.Equal(t, streamName, aws.ToString(logStreamInput.LogStreamName), "LogStreamName in LogStreamInput")
 }
 
 func TestCreateError(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:          mockClient,
 		logCreateStream: true,
 	}
-	mockClient.createLogStreamResult <- &createLogStreamResult{
-		errorResult: errors.New("Error"),
+	mockClient.createLogStreamFunc = func(ctx context.Context, i *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+		return nil, errors.New("error")
 	}
 
 	err := stream.create()
@@ -278,37 +336,38 @@ func TestCreateError(t *testing.T) {
 }
 
 func TestCreateAlreadyExists(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:          mockClient,
 		logCreateStream: true,
 	}
-	mockClient.createLogStreamResult <- &createLogStreamResult{
-		errorResult: awserr.New(resourceAlreadyExistsCode, "", nil),
+	calls := 0
+	mockClient.createLogStreamFunc = func(ctx context.Context, input *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+		calls++
+		return nil, &types.ResourceAlreadyExistsException{}
 	}
 
 	err := stream.create()
 
 	assert.NilError(t, err)
+	assert.Equal(t, 1, calls)
 }
 
 func TestLogClosed(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client: mockClient,
 		closed: true,
 	}
 	err := stream.Log(&logger.Message{})
-	if err == nil {
-		t.Fatal("Expected non-nil error")
-	}
+	assert.Check(t, err != nil)
 }
 
 // TestLogBlocking tests that the Log method blocks appropriately when
 // non-blocking behavior is not enabled.  Blocking is achieved through an
 // internal channel that must be drained for Log to return.
 func TestLogBlocking(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:   mockClient,
 		messages: make(chan *logger.Message),
@@ -345,233 +404,153 @@ func TestLogBlocking(t *testing.T) {
 	}
 }
 
-func TestLogNonBlockingBufferEmpty(t *testing.T) {
-	mockClient := newMockClient()
+func TestLogBufferEmpty(t *testing.T) {
+	mockClient := &mockClient{}
 	stream := &logStream{
-		client:         mockClient,
-		messages:       make(chan *logger.Message, 1),
-		logNonBlocking: true,
+		client:   mockClient,
+		messages: make(chan *logger.Message, 1),
 	}
 	err := stream.Log(&logger.Message{})
 	assert.NilError(t, err)
 }
 
-func TestLogNonBlockingBufferFull(t *testing.T) {
-	mockClient := newMockClient()
-	stream := &logStream{
-		client:         mockClient,
-		messages:       make(chan *logger.Message, 1),
-		logNonBlocking: true,
-	}
-	stream.messages <- &logger.Message{}
-	errorCh := make(chan error, 1)
-	started := make(chan bool)
-	go func() {
-		started <- true
-		err := stream.Log(&logger.Message{})
-		errorCh <- err
-	}()
-	<-started
-	select {
-	case err := <-errorCh:
-		if err == nil {
-			t.Fatal("Expected non-nil error")
-		}
-	case <-time.After(30 * time.Second):
-		t.Fatal("Expected Log call to not block")
-	}
-}
 func TestPublishBatchSuccess(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	var input *cloudwatchlogs.PutLogEventsInput
+	mockClient.putLogEventsFunc = func(ctx context.Context, i *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		input = i
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
 	events := []wrappedEvent{
 		{
-			inputLogEvent: &cloudwatchlogs.InputLogEvent{
+			inputLogEvent: types.InputLogEvent{
 				Message: aws.String(logline),
 			},
 		},
 	}
 
 	stream.publishBatch(testEventBatch(events))
-	if stream.sequenceToken == nil {
-		t.Fatal("Expected non-nil sequenceToken")
-	}
-	if *stream.sequenceToken != nextSequenceToken {
-		t.Errorf("Expected sequenceToken to be %s, but was %s", nextSequenceToken, *stream.sequenceToken)
-	}
-	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if argument.SequenceToken == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
-	}
-	if *argument.SequenceToken != sequenceToken {
-		t.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", sequenceToken, *argument.SequenceToken)
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
-	}
-	if argument.LogEvents[0] != events[0].inputLogEvent {
-		t.Error("Expected event to equal input")
-	}
+	assert.Equal(t, nextSequenceToken, aws.ToString(stream.sequenceToken), "sequenceToken")
+	assert.Assert(t, input != nil)
+	assert.Equal(t, sequenceToken, aws.ToString(input.SequenceToken), "input.SequenceToken")
+	assert.Assert(t, len(input.LogEvents) == 1)
+	assert.Equal(t, events[0].inputLogEvent, input.LogEvents[0])
 }
 
 func TestPublishBatchError(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		errorResult: errors.New("Error"),
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		return nil, errors.New("error")
 	}
 
 	events := []wrappedEvent{
 		{
-			inputLogEvent: &cloudwatchlogs.InputLogEvent{
+			inputLogEvent: types.InputLogEvent{
 				Message: aws.String(logline),
 			},
 		},
 	}
 
 	stream.publishBatch(testEventBatch(events))
-	if stream.sequenceToken == nil {
-		t.Fatal("Expected non-nil sequenceToken")
-	}
-	if *stream.sequenceToken != sequenceToken {
-		t.Errorf("Expected sequenceToken to be %s, but was %s", sequenceToken, *stream.sequenceToken)
-	}
+	assert.Equal(t, sequenceToken, aws.ToString(stream.sequenceToken))
 }
 
 func TestPublishBatchInvalidSeqSuccess(t *testing.T) {
-	mockClient := newMockClientBuffered(2)
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		errorResult: awserr.New(invalidSequenceTokenCode, "use token token", nil),
-	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		if aws.ToString(input.SequenceToken) != "token" {
+			return nil, &types.InvalidSequenceTokenException{
+				ExpectedSequenceToken: aws.String("token"),
+			}
+		}
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
 
 	events := []wrappedEvent{
 		{
-			inputLogEvent: &cloudwatchlogs.InputLogEvent{
+			inputLogEvent: types.InputLogEvent{
 				Message: aws.String(logline),
 			},
 		},
 	}
 
 	stream.publishBatch(testEventBatch(events))
-	if stream.sequenceToken == nil {
-		t.Fatal("Expected non-nil sequenceToken")
-	}
-	if *stream.sequenceToken != nextSequenceToken {
-		t.Errorf("Expected sequenceToken to be %s, but was %s", nextSequenceToken, *stream.sequenceToken)
-	}
+	assert.Equal(t, nextSequenceToken, aws.ToString(stream.sequenceToken))
+	assert.Assert(t, len(calls) == 2)
+	argument := calls[0]
+	assert.Assert(t, argument != nil)
+	assert.Equal(t, sequenceToken, aws.ToString(argument.SequenceToken))
+	assert.Assert(t, len(argument.LogEvents) == 1)
+	assert.Equal(t, events[0].inputLogEvent, argument.LogEvents[0])
 
-	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if argument.SequenceToken == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
-	}
-	if *argument.SequenceToken != sequenceToken {
-		t.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", sequenceToken, *argument.SequenceToken)
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
-	}
-	if argument.LogEvents[0] != events[0].inputLogEvent {
-		t.Error("Expected event to equal input")
-	}
-
-	argument = <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if argument.SequenceToken == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
-	}
-	if *argument.SequenceToken != "token" {
-		t.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", "token", *argument.SequenceToken)
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
-	}
-	if argument.LogEvents[0] != events[0].inputLogEvent {
-		t.Error("Expected event to equal input")
-	}
+	argument = calls[1]
+	assert.Assert(t, argument != nil)
+	assert.Equal(t, "token", aws.ToString(argument.SequenceToken))
+	assert.Assert(t, len(argument.LogEvents) == 1)
+	assert.Equal(t, events[0].inputLogEvent, argument.LogEvents[0])
 }
 
 func TestPublishBatchAlreadyAccepted(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		errorResult: awserr.New(dataAlreadyAcceptedCode, "use token token", nil),
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		return nil, &types.DataAlreadyAcceptedException{
+			ExpectedSequenceToken: aws.String("token"),
+		}
 	}
 
 	events := []wrappedEvent{
 		{
-			inputLogEvent: &cloudwatchlogs.InputLogEvent{
+			inputLogEvent: types.InputLogEvent{
 				Message: aws.String(logline),
 			},
 		},
 	}
 
 	stream.publishBatch(testEventBatch(events))
-	if stream.sequenceToken == nil {
-		t.Fatal("Expected non-nil sequenceToken")
-	}
-	if *stream.sequenceToken != "token" {
-		t.Errorf("Expected sequenceToken to be %s, but was %s", "token", *stream.sequenceToken)
-	}
-
-	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if argument.SequenceToken == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
-	}
-	if *argument.SequenceToken != sequenceToken {
-		t.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", sequenceToken, *argument.SequenceToken)
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
-	}
-	if argument.LogEvents[0] != events[0].inputLogEvent {
-		t.Error("Expected event to equal input")
-	}
+	assert.Assert(t, stream.sequenceToken != nil)
+	assert.Equal(t, "token", aws.ToString(stream.sequenceToken))
+	assert.Assert(t, len(calls) == 1)
+	argument := calls[0]
+	assert.Assert(t, argument != nil)
+	assert.Equal(t, sequenceToken, aws.ToString(argument.SequenceToken))
+	assert.Assert(t, len(argument.LogEvents) == 1)
+	assert.Equal(t, events[0].inputLogEvent, argument.LogEvents[0])
 }
 
 func TestCollectBatchSimple(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
@@ -579,10 +558,12 @@ func TestCollectBatchSimple(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 		messages:      make(chan *logger.Message),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
 	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
@@ -600,22 +581,18 @@ func TestCollectBatchSimple(t *testing.T) {
 	})
 
 	ticks <- time.Time{}
+	ticks <- time.Time{}
 	stream.Close()
 
-	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != logline {
-		t.Errorf("Expected message to be %s but was %s", logline, *argument.LogEvents[0].Message)
-	}
+	assert.Assert(t, len(calls) == 1)
+	argument := calls[0]
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 1)
+	assert.Equal(t, logline, aws.ToString(argument.LogEvents[0].Message))
 }
 
 func TestCollectBatchTicker(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
@@ -623,10 +600,14 @@ func TestCollectBatchTicker(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 		messages:      make(chan *logger.Message),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
 	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
@@ -649,21 +630,15 @@ func TestCollectBatchTicker(t *testing.T) {
 	})
 
 	ticks <- time.Time{}
-
 	// Verify first batch
-	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 2 {
-		t.Errorf("Expected LogEvents to contain 2 elements, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != logline+" 1" {
-		t.Errorf("Expected message to be %s but was %s", logline+" 1", *argument.LogEvents[0].Message)
-	}
-	if *argument.LogEvents[1].Message != logline+" 2" {
-		t.Errorf("Expected message to be %s but was %s", logline+" 2", *argument.LogEvents[0].Message)
-	}
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument := calls[0]
+	calls = calls[1:]
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 2)
+	assert.Equal(t, logline+" 1", aws.ToString(argument.LogEvents[0].Message))
+	assert.Equal(t, logline+" 2", aws.ToString(argument.LogEvents[1].Message))
 
 	stream.Log(&logger.Message{
 		Line:      []byte(logline + " 3"),
@@ -671,23 +646,19 @@ func TestCollectBatchTicker(t *testing.T) {
 	})
 
 	ticks <- time.Time{}
-	argument = <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != logline+" 3" {
-		t.Errorf("Expected message to be %s but was %s", logline+" 3", *argument.LogEvents[0].Message)
-	}
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument = calls[0]
+	close(called)
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 1)
+	assert.Equal(t, logline+" 3", aws.ToString(argument.LogEvents[0].Message))
 
 	stream.Close()
-
 }
 
 func TestCollectBatchMultilinePattern(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	multilinePattern := regexp.MustCompile("xxxx")
 	stream := &logStream{
 		client:           mockClient,
@@ -697,10 +668,14 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 		sequenceToken:    aws.String(sequenceToken),
 		messages:         make(chan *logger.Message),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
 	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
@@ -729,23 +704,29 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 	ticks <- time.Now()
 
 	// Verify single multiline event
-	argument := <-mockClient.putLogEventsArgument
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument := calls[0]
+	calls = calls[1:]
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
 	assert.Check(t, is.Equal(1, len(argument.LogEvents)), "Expected single multiline event")
-	assert.Check(t, is.Equal(logline+"\n"+logline+"\n", *argument.LogEvents[0].Message), "Received incorrect multiline message")
+	assert.Check(t, is.Equal(logline+"\n"+logline+"\n", aws.ToString(argument.LogEvents[0].Message)), "Received incorrect multiline message")
 
 	stream.Close()
 
 	// Verify single event
-	argument = <-mockClient.putLogEventsArgument
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument = calls[0]
+	close(called)
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
 	assert.Check(t, is.Equal(1, len(argument.LogEvents)), "Expected single multiline event")
-	assert.Check(t, is.Equal("xxxx "+logline+"\n", *argument.LogEvents[0].Message), "Received incorrect multiline message")
+	assert.Check(t, is.Equal("xxxx "+logline+"\n", aws.ToString(argument.LogEvents[0].Message)), "Received incorrect multiline message")
 }
 
 func BenchmarkCollectBatch(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		mockClient := newMockClient()
+		mockClient := &mockClient{}
 		stream := &logStream{
 			client:        mockClient,
 			logGroupName:  groupName,
@@ -753,10 +734,10 @@ func BenchmarkCollectBatch(b *testing.B) {
 			sequenceToken: aws.String(sequenceToken),
 			messages:      make(chan *logger.Message),
 		}
-		mockClient.putLogEventsResult <- &putLogEventsResult{
-			successResult: &cloudwatchlogs.PutLogEventsOutput{
+		mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+			return &cloudwatchlogs.PutLogEventsOutput{
 				NextSequenceToken: aws.String(nextSequenceToken),
-			},
+			}, nil
 		}
 		ticks := make(chan time.Time)
 		newTicker = func(_ time.Duration) *time.Ticker {
@@ -776,7 +757,7 @@ func BenchmarkCollectBatch(b *testing.B) {
 
 func BenchmarkCollectBatchMultilinePattern(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		mockClient := newMockClient()
+		mockClient := &mockClient{}
 		multilinePattern := regexp.MustCompile(`\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1,2][0-9]|3[0,1]) (?:[0,1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]`)
 		stream := &logStream{
 			client:           mockClient,
@@ -786,10 +767,10 @@ func BenchmarkCollectBatchMultilinePattern(b *testing.B) {
 			sequenceToken:    aws.String(sequenceToken),
 			messages:         make(chan *logger.Message),
 		}
-		mockClient.putLogEventsResult <- &putLogEventsResult{
-			successResult: &cloudwatchlogs.PutLogEventsOutput{
+		mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+			return &cloudwatchlogs.PutLogEventsOutput{
 				NextSequenceToken: aws.String(nextSequenceToken),
-			},
+			}, nil
 		}
 		ticks := make(chan time.Time)
 		newTicker = func(_ time.Duration) *time.Ticker {
@@ -807,7 +788,7 @@ func BenchmarkCollectBatchMultilinePattern(b *testing.B) {
 }
 
 func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	multilinePattern := regexp.MustCompile("xxxx")
 	stream := &logStream{
 		client:           mockClient,
@@ -817,10 +798,14 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 		sequenceToken:    aws.String(sequenceToken),
 		messages:         make(chan *logger.Message),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
 	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
@@ -848,10 +833,13 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 	ticks <- time.Now().Add(defaultForceFlushInterval + time.Second)
 
 	// Verify single multiline event is flushed after maximum event buffer age (defaultForceFlushInterval)
-	argument := <-mockClient.putLogEventsArgument
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument := calls[0]
+	calls = calls[1:]
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
 	assert.Check(t, is.Equal(1, len(argument.LogEvents)), "Expected single multiline event")
-	assert.Check(t, is.Equal(logline+"\n"+logline+"\n", *argument.LogEvents[0].Message), "Received incorrect multiline message")
+	assert.Check(t, is.Equal(logline+"\n"+logline+"\n", aws.ToString(argument.LogEvents[0].Message)), "Received incorrect multiline message")
 
 	// Log an event 1 second later
 	stream.Log(&logger.Message{
@@ -863,15 +851,18 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 	ticks <- time.Now().Add(2*defaultForceFlushInterval + time.Second)
 
 	// Verify the event buffer is truly flushed - we should only receive a single event
-	argument = <-mockClient.putLogEventsArgument
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument = calls[0]
+	close(called)
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
 	assert.Check(t, is.Equal(1, len(argument.LogEvents)), "Expected single multiline event")
-	assert.Check(t, is.Equal(logline+"\n", *argument.LogEvents[0].Message), "Received incorrect multiline message")
+	assert.Check(t, is.Equal(logline+"\n", aws.ToString(argument.LogEvents[0].Message)), "Received incorrect multiline message")
 	stream.Close()
 }
 
 func TestCollectBatchMultilinePatternNegativeEventAge(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	multilinePattern := regexp.MustCompile("xxxx")
 	stream := &logStream{
 		client:           mockClient,
@@ -881,10 +872,14 @@ func TestCollectBatchMultilinePatternNegativeEventAge(t *testing.T) {
 		sequenceToken:    aws.String(sequenceToken),
 		messages:         make(chan *logger.Message),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
 	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
@@ -912,16 +907,19 @@ func TestCollectBatchMultilinePatternNegativeEventAge(t *testing.T) {
 	ticks <- time.Now().Add(-time.Second)
 
 	// Verify single multiline event is flushed with a negative event buffer age
-	argument := <-mockClient.putLogEventsArgument
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument := calls[0]
+	close(called)
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
 	assert.Check(t, is.Equal(1, len(argument.LogEvents)), "Expected single multiline event")
-	assert.Check(t, is.Equal(logline+"\n"+logline+"\n", *argument.LogEvents[0].Message), "Received incorrect multiline message")
+	assert.Check(t, is.Equal(logline+"\n"+logline+"\n", aws.ToString(argument.LogEvents[0].Message)), "Received incorrect multiline message")
 
 	stream.Close()
 }
 
 func TestCollectBatchMultilinePatternMaxEventSize(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	multilinePattern := regexp.MustCompile("xxxx")
 	stream := &logStream{
 		client:           mockClient,
@@ -931,10 +929,14 @@ func TestCollectBatchMultilinePatternMaxEventSize(t *testing.T) {
 		sequenceToken:    aws.String(sequenceToken),
 		messages:         make(chan *logger.Message),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
 	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
@@ -967,16 +969,19 @@ func TestCollectBatchMultilinePatternMaxEventSize(t *testing.T) {
 	// Verify multiline events
 	// We expect a maximum sized event with no new line characters and a
 	// second short event with a new line character at the end
-	argument := <-mockClient.putLogEventsArgument
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument := calls[0]
+	close(called)
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
 	assert.Check(t, is.Equal(2, len(argument.LogEvents)), "Expected two events")
-	assert.Check(t, is.Equal(longline, *argument.LogEvents[0].Message), "Received incorrect multiline message")
-	assert.Check(t, is.Equal(shortline+"\n", *argument.LogEvents[1].Message), "Received incorrect multiline message")
+	assert.Check(t, is.Equal(longline, aws.ToString(argument.LogEvents[0].Message)), "Received incorrect multiline message")
+	assert.Check(t, is.Equal(shortline+"\n", aws.ToString(argument.LogEvents[1].Message)), "Received incorrect multiline message")
 	stream.Close()
 }
 
 func TestCollectBatchClose(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
@@ -984,12 +989,16 @@ func TestCollectBatchClose(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 		messages:      make(chan *logger.Message),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
-	var ticks = make(chan time.Time)
+	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
 		return &time.Ticker{
 			C: ticks,
@@ -1008,16 +1017,13 @@ func TestCollectBatchClose(t *testing.T) {
 	// no ticks
 	stream.Close()
 
-	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != logline {
-		t.Errorf("Expected message to be %s but was %s", logline, *argument.LogEvents[0].Message)
-	}
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument := calls[0]
+	close(called)
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 1)
+	assert.Equal(t, logline, *(argument.LogEvents[0].Message))
 }
 
 func TestEffectiveLen(t *testing.T) {
@@ -1072,12 +1078,12 @@ func TestProcessEventEmoji(t *testing.T) {
 	bytes := []byte(strings.Repeat("🙃", maximumBytesPerEvent/4+1))
 	stream.processEvent(batch, bytes, 0)
 	assert.Equal(t, 2, len(batch.batch), "should be two events in the batch")
-	assert.Equal(t, strings.Repeat("🙃", maximumBytesPerEvent/4), aws.StringValue(batch.batch[0].inputLogEvent.Message))
-	assert.Equal(t, "🙃", aws.StringValue(batch.batch[1].inputLogEvent.Message))
+	assert.Equal(t, strings.Repeat("🙃", maximumBytesPerEvent/4), *batch.batch[0].inputLogEvent.Message)
+	assert.Equal(t, "🙃", *batch.batch[1].inputLogEvent.Message)
 }
 
 func TestCollectBatchLineSplit(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
@@ -1085,12 +1091,16 @@ func TestCollectBatchLineSplit(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 		messages:      make(chan *logger.Message),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
-	var ticks = make(chan time.Time)
+	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
 		return &time.Ticker{
 			C: ticks,
@@ -1110,23 +1120,18 @@ func TestCollectBatchLineSplit(t *testing.T) {
 	// no ticks
 	stream.Close()
 
-	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 2 {
-		t.Errorf("Expected LogEvents to contain 2 elements, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != longline {
-		t.Errorf("Expected message to be %s but was %s", longline, *argument.LogEvents[0].Message)
-	}
-	if *argument.LogEvents[1].Message != "B" {
-		t.Errorf("Expected message to be %s but was %s", "B", *argument.LogEvents[1].Message)
-	}
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument := calls[0]
+	close(called)
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 2)
+	assert.Equal(t, longline, aws.ToString(argument.LogEvents[0].Message))
+	assert.Equal(t, "B", aws.ToString(argument.LogEvents[1].Message))
 }
 
 func TestCollectBatchLineSplitWithBinary(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
@@ -1134,12 +1139,16 @@ func TestCollectBatchLineSplitWithBinary(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 		messages:      make(chan *logger.Message),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
-	var ticks = make(chan time.Time)
+	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
 		return &time.Ticker{
 			C: ticks,
@@ -1159,23 +1168,18 @@ func TestCollectBatchLineSplitWithBinary(t *testing.T) {
 	// no ticks
 	stream.Close()
 
-	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 2 {
-		t.Errorf("Expected LogEvents to contain 2 elements, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != longline {
-		t.Errorf("Expected message to be %s but was %s", longline, *argument.LogEvents[0].Message)
-	}
-	if *argument.LogEvents[1].Message != "\xFD" {
-		t.Errorf("Expected message to be %s but was %s", "\xFD", *argument.LogEvents[1].Message)
-	}
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument := calls[0]
+	close(called)
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 2)
+	assert.Equal(t, longline, aws.ToString(argument.LogEvents[0].Message))
+	assert.Equal(t, "\xFD", aws.ToString(argument.LogEvents[1].Message))
 }
 
 func TestCollectBatchMaxEvents(t *testing.T) {
-	mockClient := newMockClientBuffered(1)
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
@@ -1183,12 +1187,16 @@ func TestCollectBatchMaxEvents(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 		messages:      make(chan *logger.Message),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
-	var ticks = make(chan time.Time)
+	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
 		return &time.Ticker{
 			C: ticks,
@@ -1210,26 +1218,22 @@ func TestCollectBatchMaxEvents(t *testing.T) {
 	// no ticks
 	stream.Close()
 
-	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != maximumLogEventsPerPut {
-		t.Errorf("Expected LogEvents to contain %d elements, but contains %d", maximumLogEventsPerPut, len(argument.LogEvents))
-	}
+	<-called
+	<-called
+	assert.Assert(t, len(calls) == 2)
+	argument := calls[0]
+	assert.Assert(t, argument != nil)
+	assert.Check(t, len(argument.LogEvents) == maximumLogEventsPerPut)
 
-	argument = <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain %d elements, but contains %d", 1, len(argument.LogEvents))
-	}
+	argument = calls[1]
+	close(called)
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 1)
 }
 
 func TestCollectBatchMaxTotalBytes(t *testing.T) {
 	expectedPuts := 2
-	mockClient := newMockClientBuffered(expectedPuts)
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
@@ -1237,15 +1241,17 @@ func TestCollectBatchMaxTotalBytes(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 		messages:      make(chan *logger.Message),
 	}
-	for i := 0; i < expectedPuts; i++ {
-		mockClient.putLogEventsResult <- &putLogEventsResult{
-			successResult: &cloudwatchlogs.PutLogEventsOutput{
-				NextSequenceToken: aws.String(nextSequenceToken),
-			},
-		}
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		}, nil
 	}
 
-	var ticks = make(chan time.Time)
+	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
 		return &time.Ticker{
 			C: ticks,
@@ -1279,10 +1285,12 @@ func TestCollectBatchMaxTotalBytes(t *testing.T) {
 	// no ticks, guarantee batch by size (and chan close)
 	stream.Close()
 
-	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+	for i := 0; i < expectedPuts; i++ {
+		<-called
 	}
+	assert.Assert(t, len(calls) == expectedPuts)
+	argument := calls[0]
+	assert.Assert(t, argument != nil)
 
 	// Should total to the maximum allowed bytes.
 	eventBytes := 0
@@ -1295,26 +1303,18 @@ func TestCollectBatchMaxTotalBytes(t *testing.T) {
 	// don't lend themselves to align with the maximum event size.
 	lowestMaxBatch := maximumBytesPerPut - maximumBytesPerEvent
 
-	if payloadTotal > maximumBytesPerPut {
-		t.Errorf("Expected <= %d bytes but was %d", maximumBytesPerPut, payloadTotal)
-	}
-	if payloadTotal < lowestMaxBatch {
-		t.Errorf("Batch to be no less than %d but was %d", lowestMaxBatch, payloadTotal)
-	}
+	assert.Check(t, payloadTotal <= maximumBytesPerPut)
+	assert.Check(t, payloadTotal >= lowestMaxBatch)
 
-	argument = <-mockClient.putLogEventsArgument
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	}
+	argument = calls[1]
+	assert.Assert(t, len(argument.LogEvents) == 1)
 	message := *argument.LogEvents[len(argument.LogEvents)-1].Message
-	if message[len(message)-1:] != "B" {
-		t.Errorf("Expected message to be %s but was %s", "B", message[len(message)-1:])
-	}
+	assert.Equal(t, "B", message[len(message)-1:])
 }
 
 func TestCollectBatchMaxTotalBytesWithBinary(t *testing.T) {
 	expectedPuts := 2
-	mockClient := newMockClientBuffered(expectedPuts)
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
@@ -1322,15 +1322,17 @@ func TestCollectBatchMaxTotalBytesWithBinary(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 		messages:      make(chan *logger.Message),
 	}
-	for i := 0; i < expectedPuts; i++ {
-		mockClient.putLogEventsResult <- &putLogEventsResult{
-			successResult: &cloudwatchlogs.PutLogEventsOutput{
-				NextSequenceToken: aws.String(nextSequenceToken),
-			},
-		}
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		}, nil
 	}
 
-	var ticks = make(chan time.Time)
+	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
 		return &time.Ticker{
 			C: ticks,
@@ -1359,10 +1361,12 @@ func TestCollectBatchMaxTotalBytesWithBinary(t *testing.T) {
 	// no ticks, guarantee batch by size (and chan close)
 	stream.Close()
 
-	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+	for i := 0; i < expectedPuts; i++ {
+		<-called
 	}
+	assert.Assert(t, len(calls) == expectedPuts)
+	argument := calls[0]
+	assert.Assert(t, argument != nil)
 
 	// Should total to the maximum allowed bytes.
 	eventBytes := 0
@@ -1375,22 +1379,16 @@ func TestCollectBatchMaxTotalBytesWithBinary(t *testing.T) {
 	// don't lend themselves to align with the maximum event size.
 	lowestMaxBatch := maximumBytesPerPut - maximumBytesPerEvent
 
-	if payloadTotal > maximumBytesPerPut {
-		t.Errorf("Expected <= %d bytes but was %d", maximumBytesPerPut, payloadTotal)
-	}
-	if payloadTotal < lowestMaxBatch {
-		t.Errorf("Batch to be no less than %d but was %d", lowestMaxBatch, payloadTotal)
-	}
+	assert.Check(t, payloadTotal <= maximumBytesPerPut)
+	assert.Check(t, payloadTotal >= lowestMaxBatch)
 
-	argument = <-mockClient.putLogEventsArgument
+	argument = calls[1]
 	message := *argument.LogEvents[len(argument.LogEvents)-1].Message
-	if message[len(message)-1:] != "B" {
-		t.Errorf("Expected message to be %s but was %s", "B", message[len(message)-1:])
-	}
+	assert.Equal(t, "B", message[len(message)-1:])
 }
 
 func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	stream := &logStream{
 		client:        mockClient,
 		logGroupName:  groupName,
@@ -1398,10 +1396,14 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 		messages:      make(chan *logger.Message),
 	}
-	mockClient.putLogEventsResult <- &putLogEventsResult{
-		successResult: &cloudwatchlogs.PutLogEventsOutput{
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
-		},
+		}, nil
 	}
 	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
@@ -1414,19 +1416,19 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 	close(d)
 	go stream.collectBatch(d)
 
-	var expectedEvents []*cloudwatchlogs.InputLogEvent
+	var expectedEvents []types.InputLogEvent
 	times := maximumLogEventsPerPut
 	timestamp := time.Now()
 	for i := 0; i < times; i++ {
-		line := fmt.Sprintf("%d", i)
+		line := strconv.Itoa(i)
 		if i%2 == 0 {
-			timestamp.Add(1 * time.Nanosecond)
+			timestamp = timestamp.Add(1 * time.Nanosecond)
 		}
 		stream.Log(&logger.Message{
 			Line:      []byte(line),
 			Timestamp: timestamp,
 		})
-		expectedEvents = append(expectedEvents, &cloudwatchlogs.InputLogEvent{
+		expectedEvents = append(expectedEvents, types.InputLogEvent{
 			Message:   aws.String(line),
 			Timestamp: aws.Int64(timestamp.UnixNano() / int64(time.Millisecond)),
 		})
@@ -1435,16 +1437,15 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 	ticks <- time.Time{}
 	stream.Close()
 
-	argument := <-mockClient.putLogEventsArgument
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != times {
-		t.Errorf("Expected LogEvents to contain %d elements, but contains %d", times, len(argument.LogEvents))
-	}
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument := calls[0]
+	close(called)
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == times)
 	for i := 0; i < times; i++ {
-		if !reflect.DeepEqual(*argument.LogEvents[i], *expectedEvents[i]) {
-			t.Errorf("Expected event to be %v but was %v", *expectedEvents[i], *argument.LogEvents[i])
+		if !reflect.DeepEqual(argument.LogEvents[i], expectedEvents[i]) {
+			t.Errorf("Expected event to be %v but was %v", expectedEvents[i], argument.LogEvents[i])
 		}
 	}
 }
@@ -1559,8 +1560,45 @@ func TestValidateLogOptionsMaxBufferedEvents(t *testing.T) {
 	}
 }
 
+func TestValidateLogOptionsFormat(t *testing.T) {
+	tests := []struct {
+		format           string
+		multiLinePattern string
+		datetimeFormat   string
+		expErrMsg        string
+	}{
+		{"json/emf", "", "", ""},
+		{"random", "", "", "unsupported log format 'random'"},
+		{"", "", "", ""},
+		{"json/emf", "---", "", "you cannot configure log opt 'awslogs-datetime-format' or 'awslogs-multiline-pattern' when log opt 'awslogs-format' is set to 'json/emf'"},
+		{"json/emf", "", "yyyy-dd-mm", "you cannot configure log opt 'awslogs-datetime-format' or 'awslogs-multiline-pattern' when log opt 'awslogs-format' is set to 'json/emf'"},
+	}
+
+	for i, tc := range tests {
+		t.Run(fmt.Sprintf("%d/%s", i, tc.format), func(t *testing.T) {
+			cfg := map[string]string{
+				logGroupKey:  groupName,
+				logFormatKey: tc.format,
+			}
+			if tc.multiLinePattern != "" {
+				cfg[multilinePatternKey] = tc.multiLinePattern
+			}
+			if tc.datetimeFormat != "" {
+				cfg[datetimeFormatKey] = tc.datetimeFormat
+			}
+
+			err := ValidateLogOpt(cfg)
+			if tc.expErrMsg != "" {
+				assert.Error(t, err, tc.expErrMsg)
+			} else {
+				assert.NilError(t, err)
+			}
+		})
+	}
+}
+
 func TestCreateTagSuccess(t *testing.T) {
-	mockClient := newMockClient()
+	mockClient := &mockClient{}
 	info := logger.Info{
 		ContainerName: "/test-container",
 		ContainerID:   "container-abcdefghijklmnopqrstuvwxyz01234567890",
@@ -1576,23 +1614,26 @@ func TestCreateTagSuccess(t *testing.T) {
 		logStreamName:   logStreamName,
 		logCreateStream: true,
 	}
-	mockClient.createLogStreamResult <- &createLogStreamResult{}
+	calls := make([]*cloudwatchlogs.CreateLogStreamInput, 0)
+	mockClient.createLogStreamFunc = func(ctx context.Context, input *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+		calls = append(calls, input)
+		return &cloudwatchlogs.CreateLogStreamOutput{}, nil
+	}
 
 	err := stream.create()
 
 	assert.NilError(t, err)
-	argument := <-mockClient.createLogStreamArgument
+	assert.Equal(t, 1, len(calls))
+	argument := calls[0]
 
-	if *argument.LogStreamName != "test-container/container-abcdefghijklmnopqrstuvwxyz01234567890" {
-		t.Errorf("Expected LogStreamName to be %s", "test-container/container-abcdefghijklmnopqrstuvwxyz01234567890")
-	}
+	assert.Equal(t, "test-container/container-abcdefghijklmnopqrstuvwxyz01234567890", aws.ToString(argument.LogStreamName))
 }
 
 func BenchmarkUnwrapEvents(b *testing.B) {
 	events := make([]wrappedEvent, maximumLogEventsPerPut)
 	for i := 0; i < maximumLogEventsPerPut; i++ {
 		mes := strings.Repeat("0", maximumBytesPerEvent)
-		events[i].inputLogEvent = &cloudwatchlogs.InputLogEvent{
+		events[i].inputLogEvent = types.InputLogEvent{
 			Message: &mes,
 		}
 	}
@@ -1606,20 +1647,27 @@ func BenchmarkUnwrapEvents(b *testing.B) {
 
 func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {
 	// required for the cloudwatchlogs client
-	os.Setenv("AWS_REGION", "us-west-2")
-	defer os.Unsetenv("AWS_REGION")
+	t.Setenv("AWS_REGION", "us-west-2")
 
 	credsResp := `{
 		"AccessKeyId" :    "test-access-key-id",
 		"SecretAccessKey": "test-secret-access-key"
 		}`
 
-	expectedAccessKeyID := "test-access-key-id"
-	expectedSecretAccessKey := "test-secret-access-key"
+	credsRetrieved := false
+	actualAuthHeader := ""
 
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, credsResp)
+		switch r.URL.Path {
+		case "/creds":
+			credsRetrieved = true
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintln(w, credsResp)
+		case "/":
+			actualAuthHeader = r.Header.Get("Authorization")
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintln(w, "{}")
+		}
 	}))
 	defer testServer.Close()
 
@@ -1627,96 +1675,23 @@ func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {
 	newSDKEndpoint = testServer.URL
 
 	info := logger.Info{
-		Config: map[string]string{},
+		Config: map[string]string{
+			endpointKey:            testServer.URL,
+			credentialsEndpointKey: "/creds",
+		},
 	}
 
-	info.Config["awslogs-credentials-endpoint"] = "/creds"
-
-	c, err := newAWSLogsClient(info)
+	client, err := newAWSLogsClient(info)
 	assert.Check(t, err)
 
-	client := c.(*cloudwatchlogs.CloudWatchLogs)
+	_, err = client.CreateLogGroup(context.TODO(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
+	assert.NilError(t, err)
 
-	creds, err := client.Config.Credentials.Get()
-	assert.Check(t, err)
+	assert.Check(t, credsRetrieved)
 
-	assert.Check(t, is.Equal(expectedAccessKeyID, creds.AccessKeyID))
-	assert.Check(t, is.Equal(expectedSecretAccessKey, creds.SecretAccessKey))
-}
-
-func TestNewAWSLogsClientCredentialEnvironmentVariable(t *testing.T) {
-	// required for the cloudwatchlogs client
-	os.Setenv("AWS_REGION", "us-west-2")
-	defer os.Unsetenv("AWS_REGION")
-
-	expectedAccessKeyID := "test-access-key-id"
-	expectedSecretAccessKey := "test-secret-access-key"
-
-	os.Setenv("AWS_ACCESS_KEY_ID", expectedAccessKeyID)
-	defer os.Unsetenv("AWS_ACCESS_KEY_ID")
-
-	os.Setenv("AWS_SECRET_ACCESS_KEY", expectedSecretAccessKey)
-	defer os.Unsetenv("AWS_SECRET_ACCESS_KEY")
-
-	info := logger.Info{
-		Config: map[string]string{},
-	}
-
-	c, err := newAWSLogsClient(info)
-	assert.Check(t, err)
-
-	client := c.(*cloudwatchlogs.CloudWatchLogs)
-
-	creds, err := client.Config.Credentials.Get()
-	assert.Check(t, err)
-
-	assert.Check(t, is.Equal(expectedAccessKeyID, creds.AccessKeyID))
-	assert.Check(t, is.Equal(expectedSecretAccessKey, creds.SecretAccessKey))
-}
-
-func TestNewAWSLogsClientCredentialSharedFile(t *testing.T) {
-	// required for the cloudwatchlogs client
-	os.Setenv("AWS_REGION", "us-west-2")
-	defer os.Unsetenv("AWS_REGION")
-
-	expectedAccessKeyID := "test-access-key-id"
-	expectedSecretAccessKey := "test-secret-access-key"
-
-	contentStr := `
-	[default]
-	aws_access_key_id = "test-access-key-id"
-	aws_secret_access_key =  "test-secret-access-key"
-	`
-	content := []byte(contentStr)
-
-	tmpfile, err := os.CreateTemp("", "example")
-	defer os.Remove(tmpfile.Name()) // clean up
-	assert.Check(t, err)
-
-	_, err = tmpfile.Write(content)
-	assert.Check(t, err)
-
-	err = tmpfile.Close()
-	assert.Check(t, err)
-
-	os.Unsetenv("AWS_ACCESS_KEY_ID")
-	os.Unsetenv("AWS_SECRET_ACCESS_KEY")
-
-	os.Setenv("AWS_SHARED_CREDENTIALS_FILE", tmpfile.Name())
-	defer os.Unsetenv("AWS_SHARED_CREDENTIALS_FILE")
-
-	info := logger.Info{
-		Config: map[string]string{},
-	}
-
-	c, err := newAWSLogsClient(info)
-	assert.Check(t, err)
-
-	client := c.(*cloudwatchlogs.CloudWatchLogs)
-
-	creds, err := client.Config.Credentials.Get()
-	assert.Check(t, err)
-
-	assert.Check(t, is.Equal(expectedAccessKeyID, creds.AccessKeyID))
-	assert.Check(t, is.Equal(expectedSecretAccessKey, creds.SecretAccessKey))
+	// sample header val:
+	// AWS4-HMAC-SHA256 Credential=test-access-key-id/20220915/us-west-2/logs/aws4_request, SignedHeaders=amz-sdk-invocation-id;amz-sdk-request;content-length;content-type;host;x-amz-date;x-amz-target, Signature=9cc0f8347e379ec77884616bb4b5a9d4a9a11f63cdc4c765e2f0131f45fe06d3
+	assert.Check(t, is.Contains(actualAuthHeader, "AWS4-HMAC-SHA256 Credential=test-access-key-id/"))
+	assert.Check(t, is.Contains(actualAuthHeader, "us-west-2"))
+	assert.Check(t, is.Contains(actualAuthHeader, "Signature="))
 }

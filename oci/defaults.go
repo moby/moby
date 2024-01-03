@@ -1,16 +1,31 @@
 package oci // import "github.com/docker/docker/oci"
 
 import (
-	"os"
 	"runtime"
 
 	"github.com/docker/docker/oci/caps"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func iPtr(i int64) *int64        { return &i }
-func u32Ptr(i int64) *uint32     { u := uint32(i); return &u }
-func fmPtr(i int64) *os.FileMode { fm := os.FileMode(i); return &fm }
+func iPtr(i int64) *int64 { return &i }
+
+const defaultUnixPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+// DefaultPathEnv is unix style list of directories to search for
+// executables. Each directory is separated from the next by a colon
+// ':' character .
+// For Windows containers, an empty string is returned as the default
+// path will be set by the container, and Docker has no context of what the
+// default path should be.
+//
+// TODO(thaJeztah) align Windows default with BuildKit; see https://github.com/moby/buildkit/pull/1747
+// TODO(thaJeztah) use defaults from containerd (but align it with BuildKit; see https://github.com/moby/buildkit/pull/1747)
+func DefaultPathEnv(os string) string {
+	if os == "windows" {
+		return ""
+	}
+	return defaultUnixPathEnv
+}
 
 // DefaultSpec returns the default spec used by docker for the current Platform
 func DefaultSpec() specs.Spec {
@@ -36,10 +51,9 @@ func DefaultLinuxSpec() specs.Spec {
 		Version: specs.Version,
 		Process: &specs.Process{
 			Capabilities: &specs.LinuxCapabilities{
-				Bounding:    caps.DefaultCapabilities(),
-				Permitted:   caps.DefaultCapabilities(),
-				Inheritable: caps.DefaultCapabilities(),
-				Effective:   caps.DefaultCapabilities(),
+				Bounding:  caps.DefaultCapabilities(),
+				Permitted: caps.DefaultCapabilities(),
+				Effective: caps.DefaultCapabilities(),
 			},
 		},
 		Root: &specs.Root{},
@@ -99,6 +113,7 @@ func DefaultLinuxSpec() specs.Spec {
 				"/proc/sched_debug",
 				"/proc/scsi",
 				"/sys/firmware",
+				"/sys/devices/virtual/powercap",
 			},
 			ReadonlyPaths: []string{
 				"/proc/bus",
@@ -108,11 +123,11 @@ func DefaultLinuxSpec() specs.Spec {
 				"/proc/sysrq-trigger",
 			},
 			Namespaces: []specs.LinuxNamespace{
-				{Type: "mount"},
-				{Type: "network"},
-				{Type: "uts"},
-				{Type: "pid"},
-				{Type: "ipc"},
+				{Type: specs.MountNamespace},
+				{Type: specs.NetworkNamespace},
+				{Type: specs.UTSNamespace},
+				{Type: specs.PIDNamespace},
+				{Type: specs.IPCNamespace},
 			},
 			// Devices implicitly contains the following devices:
 			// null, zero, full, random, urandom, tty, console, and ptmx.

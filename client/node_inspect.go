@@ -17,7 +17,7 @@ func (cli *Client) NodeInspectWithRaw(ctx context.Context, nodeID string) (swarm
 	serverResp, err := cli.get(ctx, "/nodes/"+nodeID, nil, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
-		return swarm.Node{}, nil, wrapResponseError(err, serverResp, "node", nodeID)
+		return swarm.Node{}, nil, err
 	}
 
 	body, err := io.ReadAll(serverResp.body)

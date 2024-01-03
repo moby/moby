@@ -1,20 +1,21 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/testutil"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/assert"
@@ -28,11 +29,9 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	// chown only applies to Linux bind mounted volumes; must be same host to verify
 	skip.If(t, testEnv.IsRemoteDaemon)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	ctx := context.Background()
-
-	tmpDir := fs.NewDir(t, "network-file-mounts", fs.WithMode(0755), fs.WithFile("nwfile", "network file bind mount", fs.WithMode(0644)))
+	tmpDir := fs.NewDir(t, "network-file-mounts", fs.WithMode(0o755), fs.WithFile("nwfile", "network file bind mount", fs.WithMode(0o644)))
 	defer tmpDir.Remove()
 
 	tmpNWFileMount := tmpDir.Join("nwfile")
@@ -67,7 +66,7 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	ctrCreate, err := cli.ContainerCreate(ctx, &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(t, err)
 	// container will exit immediately because of no tty, but we only need the start sequence to test the condition
-	err = cli.ContainerStart(ctx, ctrCreate.ID, types.ContainerStartOptions{})
+	err = cli.ContainerStart(ctx, ctrCreate.ID, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	// Check that host-located bind mount network file did not change ownership when the container was started
@@ -80,18 +79,18 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	// daemon. In all other volume/bind mount situations we have taken this
 	// same line--we don't chown host file content.
 	// See GitHub PR 34224 for details.
-	statT, err := system.Stat(tmpNWFileMount)
+	info, err := os.Stat(tmpNWFileMount)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(uint32(0), statT.UID()), "bind mounted network file should not change ownership from root")
+	fi := info.Sys().(*syscall.Stat_t)
+	assert.Check(t, is.Equal(fi.Uid, uint32(0)), "bind mounted network file should not change ownership from root")
 }
 
 func TestMountDaemonRoot(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 
-	defer setupTest(t)()
-	client := testEnv.APIClient()
-	ctx := context.Background()
-	info, err := client.Info(ctx)
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+	info, err := apiClient.Info(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,6 +136,8 @@ func TestMountDaemonRoot(t *testing.T) {
 			test := test
 			t.Parallel()
 
+			ctx := testutil.StartSpan(ctx, t)
+
 			propagationSpec := fmt.Sprintf(":%s", test.propagation)
 			if test.propagation == "" {
 				propagationSpec = ""
@@ -172,11 +173,12 @@ func TestMountDaemonRoot(t *testing.T) {
 					hc := hc
 					t.Parallel()
 
-					c, err := client.ContainerCreate(ctx, &containertypes.Config{
+					ctx := testutil.StartSpan(ctx, t)
+
+					c, err := apiClient.ContainerCreate(ctx, &containertypes.Config{
 						Image: "busybox",
 						Cmd:   []string{"true"},
 					}, hc, nil, nil, "")
-
 					if err != nil {
 						if test.expected != "" {
 							t.Fatal(err)
@@ -189,12 +191,12 @@ func TestMountDaemonRoot(t *testing.T) {
 					}
 
 					defer func() {
-						if err := client.ContainerRemove(ctx, c.ID, types.ContainerRemoveOptions{Force: true}); err != nil {
+						if err := apiClient.ContainerRemove(ctx, c.ID, containertypes.RemoveOptions{Force: true}); err != nil {
 							panic(err)
 						}
 					}()
 
-					inspect, err := client.ContainerInspect(ctx, c.ID)
+					inspect, err := apiClient.ContainerInspect(ctx, c.ID)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -214,17 +216,16 @@ func TestMountDaemonRoot(t *testing.T) {
 
 func TestContainerBindMountNonRecursive(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "BindOptions.NonRecursive requires API v1.40")
 	skip.If(t, testEnv.IsRootless, "cannot be tested because RootlessKit executes the daemon in private mount namespace (https://github.com/rootless-containers/rootlesskit/issues/97)")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	tmpDir1 := fs.NewDir(t, "tmpdir1", fs.WithMode(0755),
-		fs.WithDir("mnt", fs.WithMode(0755)))
+	tmpDir1 := fs.NewDir(t, "tmpdir1", fs.WithMode(0o755),
+		fs.WithDir("mnt", fs.WithMode(0o755)))
 	defer tmpDir1.Remove()
 	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt")
-	tmpDir2 := fs.NewDir(t, "tmpdir2", fs.WithMode(0755),
-		fs.WithFile("file", "should not be visible when NonRecursive", fs.WithMode(0644)))
+	tmpDir2 := fs.NewDir(t, "tmpdir2", fs.WithMode(0o755),
+		fs.WithFile("file", "should not be visible when NonRecursive", fs.WithMode(0o644)))
 	defer tmpDir2.Remove()
 
 	err := mount.Mount(tmpDir2.Path(), tmpDir1Mnt, "none", "bind,ro")
@@ -255,16 +256,15 @@ func TestContainerBindMountNonRecursive(t *testing.T) {
 	}
 	nonRecursiveVerifier := []string{"test", "!", "-f", "/foo/mnt/file"}
 
-	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	containers := []string{
-		container.Run(ctx, t, client, container.WithMount(implicit), container.WithCmd(recursiveVerifier...)),
-		container.Run(ctx, t, client, container.WithMount(recursive), container.WithCmd(recursiveVerifier...)),
-		container.Run(ctx, t, client, container.WithMount(nonRecursive), container.WithCmd(nonRecursiveVerifier...)),
+		container.Run(ctx, t, apiClient, container.WithMount(implicit), container.WithCmd(recursiveVerifier...)),
+		container.Run(ctx, t, apiClient, container.WithMount(recursive), container.WithCmd(recursiveVerifier...)),
+		container.Run(ctx, t, apiClient, container.WithMount(nonRecursive), container.WithCmd(nonRecursiveVerifier...)),
 	}
 
 	for _, c := range containers {
-		poll.WaitOn(t, container.IsSuccessful(ctx, client, c), poll.WithDelay(100*time.Millisecond))
+		poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, c), poll.WithDelay(100*time.Millisecond))
 	}
 }
 
@@ -275,11 +275,11 @@ func TestContainerVolumesMountedAsShared(t *testing.T) {
 	skip.If(t, testEnv.IsUserNamespace)
 	skip.If(t, testEnv.IsRootless, "cannot be tested because RootlessKit executes the daemon in private mount namespace (https://github.com/rootless-containers/rootlesskit/issues/97)")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	// Prepare a source directory to bind mount
-	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0755),
-		fs.WithDir("mnt1", fs.WithMode(0755)))
+	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0o755),
+		fs.WithDir("mnt1", fs.WithMode(0o755)))
 	defer tmpDir1.Remove()
 	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt1")
 
@@ -308,10 +308,9 @@ func TestContainerVolumesMountedAsShared(t *testing.T) {
 
 	bindMountCmd := []string{"mount", "--bind", "/volume-dest/mnt1", "/volume-dest/mnt1"}
 
-	ctx := context.Background()
-	client := testEnv.APIClient()
-	containerID := container.Run(ctx, t, client, container.WithPrivileged(true), container.WithMount(sharedMount), container.WithCmd(bindMountCmd...))
-	poll.WaitOn(t, container.IsSuccessful(ctx, client, containerID), poll.WithDelay(100*time.Millisecond))
+	apiClient := testEnv.APIClient()
+	containerID := container.Run(ctx, t, apiClient, container.WithPrivileged(true), container.WithMount(sharedMount), container.WithCmd(bindMountCmd...))
+	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, containerID), poll.WithDelay(100*time.Millisecond))
 
 	// Make sure a bind mount under a shared volume propagated to host.
 	if mounted, _ := mountinfo.Mounted(tmpDir1Mnt); !mounted {
@@ -328,16 +327,18 @@ func TestContainerVolumesMountedAsSlave(t *testing.T) {
 	skip.If(t, testEnv.IsUserNamespace)
 	skip.If(t, testEnv.IsRootless, "cannot be tested because RootlessKit executes the daemon in private mount namespace (https://github.com/rootless-containers/rootlesskit/issues/97)")
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	// Prepare a source directory to bind mount
-	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0755),
-		fs.WithDir("mnt1", fs.WithMode(0755)))
+	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0o755),
+		fs.WithDir("mnt1", fs.WithMode(0o755)))
 	defer tmpDir1.Remove()
 	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt1")
 
 	// Prepare a source directory with file in it. We will bind mount this
 	// directory and see if file shows up.
-	tmpDir2 := fs.NewDir(t, "volume-source2", fs.WithMode(0755),
-		fs.WithFile("slave-testfile", "Test", fs.WithMode(0644)))
+	tmpDir2 := fs.NewDir(t, "volume-source2", fs.WithMode(0o755),
+		fs.WithFile("slave-testfile", "Test", fs.WithMode(0o644)))
 	defer tmpDir2.Remove()
 
 	// Convert this directory into a shared mount point so that we do
@@ -365,9 +366,8 @@ func TestContainerVolumesMountedAsSlave(t *testing.T) {
 
 	topCmd := []string{"top"}
 
-	ctx := context.Background()
-	client := testEnv.APIClient()
-	containerID := container.Run(ctx, t, client, container.WithTty(true), container.WithMount(slaveMount), container.WithCmd(topCmd...))
+	apiClient := testEnv.APIClient()
+	containerID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithMount(slaveMount), container.WithCmd(topCmd...))
 
 	// Bind mount tmpDir2/ onto tmpDir1/mnt1. If mount propagates inside
 	// container then contents of tmpDir2/slave-testfile should become
@@ -383,11 +383,124 @@ func TestContainerVolumesMountedAsSlave(t *testing.T) {
 
 	mountCmd := []string{"cat", "/volume-dest/mnt1/slave-testfile"}
 
-	if result, err := container.Exec(ctx, client, containerID, mountCmd); err == nil {
+	if result, err := container.Exec(ctx, apiClient, containerID, mountCmd); err == nil {
 		if result.Stdout() != "Test" {
 			t.Fatalf("Bind mount under slave volume did not propagate to container")
 		}
 	} else {
 		t.Fatal(err)
+	}
+}
+
+// Regression test for #38995 and #43390.
+func TestContainerCopyLeaksMounts(t *testing.T) {
+	ctx := setupTest(t)
+
+	bindMount := mounttypes.Mount{
+		Type:   mounttypes.TypeBind,
+		Source: "/var",
+		Target: "/hostvar",
+		BindOptions: &mounttypes.BindOptions{
+			Propagation: mounttypes.PropagationRSlave,
+		},
+	}
+
+	apiClient := testEnv.APIClient()
+	cid := container.Run(ctx, t, apiClient, container.WithMount(bindMount), container.WithCmd("sleep", "120s"))
+
+	getMounts := func() string {
+		t.Helper()
+		res, err := container.Exec(ctx, apiClient, cid, []string{"cat", "/proc/self/mountinfo"})
+		assert.NilError(t, err)
+		assert.Equal(t, res.ExitCode, 0)
+		return res.Stdout()
+	}
+
+	mountsBefore := getMounts()
+
+	_, _, err := apiClient.CopyFromContainer(ctx, cid, "/etc/passwd")
+	assert.NilError(t, err)
+
+	mountsAfter := getMounts()
+
+	assert.Equal(t, mountsBefore, mountsAfter)
+}
+
+func TestContainerBindMountRecursivelyReadOnly(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "requires API v1.44")
+
+	ctx := setupTest(t)
+
+	// 0o777 for allowing rootless containers to write to this directory
+	tmpDir1 := fs.NewDir(t, "tmpdir1", fs.WithMode(0o777),
+		fs.WithDir("mnt", fs.WithMode(0o777)))
+	defer tmpDir1.Remove()
+	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt")
+	tmpDir2 := fs.NewDir(t, "tmpdir2", fs.WithMode(0o777),
+		fs.WithFile("file", "should not be writable when recursively read only", fs.WithMode(0o666)))
+	defer tmpDir2.Remove()
+
+	if err := mount.Mount(tmpDir2.Path(), tmpDir1Mnt, "none", "bind"); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := mount.Unmount(tmpDir1Mnt); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	rroSupported := kernel.CheckKernelVersion(5, 12, 0)
+
+	nonRecursiveVerifier := []string{`/bin/sh`, `-xc`, `touch /foo/mnt/file; [ $? = 0 ]`}
+	forceRecursiveVerifier := []string{`/bin/sh`, `-xc`, `touch /foo/mnt/file; [ $? != 0 ]`}
+
+	// ro (recursive if kernel >= 5.12)
+	ro := mounttypes.Mount{
+		Type:     mounttypes.TypeBind,
+		Source:   tmpDir1.Path(),
+		Target:   "/foo",
+		ReadOnly: true,
+		BindOptions: &mounttypes.BindOptions{
+			Propagation: mounttypes.PropagationRPrivate,
+		},
+	}
+	roAsStr := ro.Source + ":" + ro.Target + ":ro,rprivate"
+	roVerifier := nonRecursiveVerifier
+	if rroSupported {
+		roVerifier = forceRecursiveVerifier
+	}
+
+	// Non-recursive
+	nonRecursive := ro
+	nonRecursive.BindOptions = &mounttypes.BindOptions{
+		ReadOnlyNonRecursive: true,
+		Propagation:          mounttypes.PropagationRPrivate,
+	}
+
+	// Force recursive
+	forceRecursive := ro
+	forceRecursive.BindOptions = &mounttypes.BindOptions{
+		ReadOnlyForceRecursive: true,
+		Propagation:            mounttypes.PropagationRPrivate,
+	}
+
+	apiClient := testEnv.APIClient()
+
+	containers := []string{
+		container.Run(ctx, t, apiClient, container.WithMount(ro), container.WithCmd(roVerifier...)),
+		container.Run(ctx, t, apiClient, container.WithBindRaw(roAsStr), container.WithCmd(roVerifier...)),
+
+		container.Run(ctx, t, apiClient, container.WithMount(nonRecursive), container.WithCmd(nonRecursiveVerifier...)),
+	}
+
+	if rroSupported {
+		containers = append(containers,
+			container.Run(ctx, t, apiClient, container.WithMount(forceRecursive), container.WithCmd(forceRecursiveVerifier...)),
+		)
+	}
+
+	for _, c := range containers {
+		poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, c), poll.WithDelay(100*time.Millisecond))
 	}
 }

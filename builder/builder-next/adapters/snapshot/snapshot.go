@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
@@ -15,23 +16,26 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/moby/buildkit/util/leaseutil"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
 
-var keyParent = []byte("parent")
-var keyCommitted = []byte("committed")
-var keyIsCommitted = []byte("iscommitted")
-var keyChainID = []byte("chainid")
-var keySize = []byte("size")
+var (
+	keyParent      = []byte("parent")
+	keyCommitted   = []byte("committed")
+	keyIsCommitted = []byte("iscommitted")
+	keyChainID     = []byte("chainid")
+	keySize        = []byte("size")
+)
 
 // Opt defines options for creating the snapshotter
 type Opt struct {
 	GraphDriver     graphdriver.Driver
 	LayerStore      layer.Store
 	Root            string
-	IdentityMapping *idtools.IdentityMapping
+	IdentityMapping idtools.IdentityMapping
 }
 
 type graphIDRegistrar interface {
@@ -54,9 +58,9 @@ type snapshotter struct {
 }
 
 // NewSnapshotter creates a new snapshotter
-func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, leases.Manager, error) {
+func NewSnapshotter(opt Opt, prevLM leases.Manager, ns string) (snapshot.Snapshotter, *leaseutil.Manager, error) {
 	dbPath := filepath.Join(opt.Root, "snapshots.db")
-	db, err := bolt.Open(dbPath, 0600, nil)
+	db, err := bolt.Open(dbPath, 0o600, nil)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to open database file %s", dbPath)
 	}
@@ -73,7 +77,8 @@ func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, lease
 		reg:  reg,
 	}
 
-	lm := newLeaseManager(s, prevLM)
+	slm := newLeaseManager(s, prevLM)
+	lm := leaseutil.WithNamespace(slm, ns)
 
 	ll, err := lm.List(context.TODO())
 	if err != nil {
@@ -86,7 +91,7 @@ func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, lease
 		}
 		for _, r := range rr {
 			if r.Type == "snapshots/default" {
-				lm.addRef(l.ID, r.ID)
+				slm.addRef(l.ID, r.ID)
 			}
 		}
 	}
@@ -99,7 +104,12 @@ func (s *snapshotter) Name() string {
 }
 
 func (s *snapshotter) IdentityMapping() *idtools.IdentityMapping {
-	return s.opt.IdentityMapping
+	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
+	// https://github.com/moby/moby/pull/39444
+	if s.opt.IdentityMapping.Empty() {
+		return nil
+	}
+	return &s.opt.IdentityMapping
 }
 
 func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error {
@@ -198,7 +208,7 @@ func (s *snapshotter) getGraphDriverID(key string) (string, bool) {
 	if err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(key))
 		if b == nil {
-			return errors.Errorf("not found") // TODO: typed
+			return errors.Wrapf(cerrdefs.ErrNotFound, "key %s", key)
 		}
 		v := b.Get(keyCommitted)
 		if v != nil {
@@ -242,7 +252,7 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 	if err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(id))
 		if b == nil && l == nil {
-			return errors.Errorf("snapshot %s not found", id) // TODO: typed
+			return errors.Wrapf(cerrdefs.ErrNotFound, "snapshot %s", id)
 		}
 		inf.Name = key
 		if b != nil {
@@ -285,7 +295,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 					return nil, nil, err
 				}
 				return []mount.Mount{{
-						Source:  rootfs.Path(),
+						Source:  rootfs,
 						Type:    "bind",
 						Options: []string{"rbind"},
 					}}, func() error {
@@ -306,7 +316,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 				return nil, nil, err
 			}
 			return []mount.Mount{{
-					Source:  rootfs.Path(),
+					Source:  rootfs,
 					Type:    "bind",
 					Options: []string{"rbind"},
 				}}, func() error {
@@ -405,11 +415,7 @@ func (s *snapshotter) Usage(ctx context.Context, key string) (us snapshots.Usage
 	if l, err := s.getLayer(key, true); err != nil {
 		return usage, err
 	} else if l != nil {
-		s, err := l.DiffSize()
-		if err != nil {
-			return usage, err
-		}
-		usage.Size = s
+		usage.Size = l.DiffSize()
 		return usage, nil
 	}
 
@@ -485,7 +491,7 @@ type mountable struct {
 	acquire  func() ([]mount.Mount, func() error, error)
 	release  func() error
 	refCount int
-	idmap    *idtools.IdentityMapping
+	idmap    idtools.IdentityMapping
 }
 
 func (m *mountable) Mount() ([]mount.Mount, func() error, error) {
@@ -530,5 +536,10 @@ func (m *mountable) releaseMount() error {
 }
 
 func (m *mountable) IdentityMapping() *idtools.IdentityMapping {
-	return m.idmap
+	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
+	// https://github.com/moby/moby/pull/39444
+	if m.idmap.Empty() {
+		return nil
+	}
+	return &m.idmap
 }

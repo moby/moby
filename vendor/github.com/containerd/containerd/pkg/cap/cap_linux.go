@@ -19,12 +19,11 @@ package cap
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 // FromNumber returns a cap string like "CAP_SYS_ADMIN"
@@ -81,17 +80,16 @@ func ParseProcPIDStatus(r io.Reader) (map[Type]uint64, error) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := scanner.Text()
-		pair := strings.SplitN(line, ":", 2)
-		if len(pair) != 2 {
+		k, v, ok := strings.Cut(line, ":")
+		if !ok {
 			continue
 		}
-		k := strings.TrimSpace(pair[0])
-		v := strings.TrimSpace(pair[1])
+		k = strings.TrimSpace(k)
 		switch k {
 		case "CapInh", "CapPrm", "CapEff", "CapBnd", "CapAmb":
-			ui64, err := strconv.ParseUint(v, 16, 64)
+			ui64, err := strconv.ParseUint(strings.TrimSpace(v), 16, 64)
 			if err != nil {
-				return nil, errors.Errorf("failed to parse line %q", line)
+				return nil, fmt.Errorf("failed to parse line %q", line)
 			}
 			switch k {
 			case "CapInh":
@@ -117,9 +115,6 @@ func ParseProcPIDStatus(r io.Reader) (map[Type]uint64, error) {
 // the current process.
 //
 // The result is like []string{"CAP_SYS_ADMIN", ...}.
-//
-// The result does not contain caps that are not recognized by
-// the "github.com/syndtr/gocapability" library.
 func Current() ([]string, error) {
 	f, err := os.Open("/proc/self/status")
 	if err != nil {

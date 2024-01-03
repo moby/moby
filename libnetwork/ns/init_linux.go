@@ -1,15 +1,15 @@
 package ns
 
 import (
+	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -27,29 +27,16 @@ func Init() {
 	var err error
 	initNs, err = netns.Get()
 	if err != nil {
-		logrus.Errorf("could not get initial namespace: %v", err)
+		log.G(context.TODO()).Errorf("could not get initial namespace: %v", err)
 	}
 	initNl, err = netlink.NewHandle(getSupportedNlFamilies()...)
 	if err != nil {
-		logrus.Errorf("could not create netlink handle on initial namespace: %v", err)
+		log.G(context.TODO()).Errorf("could not create netlink handle on initial namespace: %v", err)
 	}
 	err = initNl.SetSocketTimeout(NetlinkSocketsTimeout)
 	if err != nil {
-		logrus.Warnf("Failed to set the timeout on the default netlink handle sockets: %v", err)
+		log.G(context.TODO()).Warnf("Failed to set the timeout on the default netlink handle sockets: %v", err)
 	}
-}
-
-// SetNamespace sets the initial namespace handler
-func SetNamespace() error {
-	initOnce.Do(Init)
-	if err := netns.Set(initNs); err != nil {
-		linkInfo, linkErr := getLink()
-		if linkErr != nil {
-			linkInfo = linkErr.Error()
-		}
-		return fmt.Errorf("failed to set to initial namespace, %v, initns fd %d: %v", linkInfo, initNs, err)
-	}
-	return nil
 }
 
 // ParseHandlerInt transforms the namespace handler into an integer
@@ -63,10 +50,6 @@ func getHandler() netns.NsHandle {
 	return initNs
 }
 
-func getLink() (string, error) {
-	return os.Readlink(fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), syscall.Gettid()))
-}
-
 // NlHandle returns the netlink handler
 func NlHandle() *netlink.Handle {
 	initOnce.Do(Init)
@@ -77,14 +60,14 @@ func getSupportedNlFamilies() []int {
 	fams := []int{syscall.NETLINK_ROUTE}
 	// NETLINK_XFRM test
 	if err := checkXfrmSocket(); err != nil {
-		logrus.Warnf("Could not load necessary modules for IPSEC rules: %v", err)
+		log.G(context.TODO()).Warnf("Could not load necessary modules for IPSEC rules: %v", err)
 	} else {
 		fams = append(fams, syscall.NETLINK_XFRM)
 	}
 	// NETLINK_NETFILTER test
 	if err := loadNfConntrackModules(); err != nil {
 		if checkNfSocket() != nil {
-			logrus.Warnf("Could not load necessary modules for Conntrack: %v", err)
+			log.G(context.TODO()).Warnf("Could not load necessary modules for Conntrack: %v", err)
 		} else {
 			fams = append(fams, syscall.NETLINK_NETFILTER)
 		}

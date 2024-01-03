@@ -62,12 +62,10 @@ func NewTarSumHash(r io.Reader, dc bool, v Version, tHash THash) (TarSum, error)
 
 // NewTarSumForLabel creates a new TarSum using the provided TarSum version+hash label.
 func NewTarSumForLabel(r io.Reader, disableCompression bool, label string) (TarSum, error) {
-	parts := strings.SplitN(label, "+", 2)
-	if len(parts) != 2 {
+	versionName, hashName, ok := strings.Cut(label, "+")
+	if !ok {
 		return nil, errors.New("tarsum label string should be of the form: {tarsum_version}+{hash_name}")
 	}
-
-	versionName, hashName := parts[0], parts[1]
 
 	version, ok := tarSumVersionsByName[versionName]
 	if !ok {
@@ -139,13 +137,11 @@ type tHashConfig struct {
 	hash crypto.Hash
 }
 
-var (
-	// NOTE: DO NOT include MD5 or SHA1, which are considered insecure.
-	standardHashConfigs = map[string]tHashConfig{
-		"sha256": {name: "sha256", hash: crypto.SHA256},
-		"sha512": {name: "sha512", hash: crypto.SHA512},
-	}
-)
+// NOTE: DO NOT include MD5 or SHA1, which are considered insecure.
+var standardHashConfigs = map[string]tHashConfig{
+	"sha256": {name: "sha256", hash: crypto.SHA256},
+	"sha512": {name: "sha512", hash: crypto.SHA512},
+}
 
 // DefaultTHash is default TarSum hashing algorithm - "sha256".
 var DefaultTHash = NewTHash("sha256", sha256.New)
@@ -246,6 +242,7 @@ func (ts *tarSum) Read(buf []byte) (int, error) {
 				return 0, err
 			}
 
+			//#nosec G305 -- The joined path is not passed to any filesystem APIs.
 			ts.currentFile = path.Join(".", path.Join("/", currentHeader.Name))
 			if err := ts.encodeHeader(currentHeader); err != nil {
 				return 0, err

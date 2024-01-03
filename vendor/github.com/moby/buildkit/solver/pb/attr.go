@@ -12,6 +12,7 @@ const AttrIncludePatterns = "local.includepattern"
 const AttrFollowPaths = "local.followpaths"
 const AttrExcludePatterns = "local.excludepatterns"
 const AttrSharedKeyHint = "local.sharedkeyhint"
+
 const AttrLLBDefinitionFilename = "llbbuild.filename"
 
 const AttrHTTPChecksum = "http.checksum"
@@ -25,5 +26,14 @@ const AttrImageResolveModeDefault = "default"
 const AttrImageResolveModeForcePull = "pull"
 const AttrImageResolveModePreferLocal = "local"
 const AttrImageRecordType = "image.recordtype"
+const AttrImageLayerLimit = "image.layerlimit"
+
+const AttrOCILayoutSessionID = "oci.session"
+const AttrOCILayoutStoreID = "oci.store"
+const AttrOCILayoutLayerLimit = "oci.layerlimit"
+
+const AttrLocalDiffer = "local.differ"
+const AttrLocalDifferNone = "none"
+const AttrLocalDifferMetadata = "metadata"
 
 type IsFileAction = isFileAction_Action

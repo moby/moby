@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -19,9 +18,8 @@ import (
 func TestInspectCpusetInConfigPre120(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows" || !testEnv.DaemonInfo.CPUSet)
 
-	defer setupTest(t)()
-	client := request.NewAPIClient(t, client.WithVersion("1.19"))
-	ctx := context.Background()
+	ctx := setupTest(t)
+	apiClient := request.NewAPIClient(t, client.WithVersion("1.19"))
 
 	name := strings.ToLower(t.Name())
 	// Create container with up to-date-API
@@ -31,9 +29,9 @@ func TestInspectCpusetInConfigPre120(t *testing.T) {
 			c.HostConfig.Resources.CpusetCpus = "0"
 		},
 	)
-	poll.WaitOn(t, container.IsInState(ctx, client, name, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, name, "exited"), poll.WithDelay(100*time.Millisecond))
 
-	_, body, err := client.ContainerInspectWithRaw(ctx, name, false)
+	_, body, err := apiClient.ContainerInspectWithRaw(ctx, name, false)
 	assert.NilError(t, err)
 
 	var inspectJSON map[string]interface{}
@@ -46,4 +44,27 @@ func TestInspectCpusetInConfigPre120(t *testing.T) {
 	cfg := config.(map[string]interface{})
 	_, ok = cfg["Cpuset"]
 	assert.Check(t, is.Equal(true, ok), "API version 1.19 expected to include Cpuset in 'Config'")
+}
+
+func TestInspectAnnotations(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := request.NewAPIClient(t)
+
+	annotations := map[string]string{
+		"hello": "world",
+		"foo":   "bar",
+	}
+
+	name := strings.ToLower(t.Name())
+	id := container.Create(ctx, t, apiClient,
+		container.WithName(name),
+		container.WithCmd("true"),
+		func(c *container.TestContainerConfig) {
+			c.HostConfig.Annotations = annotations
+		},
+	)
+
+	inspect, err := apiClient.ContainerInspect(ctx, id)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(inspect.HostConfig.Annotations, annotations))
 }

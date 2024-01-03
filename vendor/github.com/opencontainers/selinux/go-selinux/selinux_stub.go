@@ -1,11 +1,21 @@
+//go:build !linux
 // +build !linux
 
 package selinux
 
-const privContainerMountLabel = ""
-
-func setDisabled() {
+func attrPath(string) string {
+	return ""
 }
+
+func readCon(fpath string) (string, error) {
+	return "", nil
+}
+
+func writeCon(string, string) error {
+	return nil
+}
+
+func setDisabled() {}
 
 func getEnabled() bool {
 	return false
@@ -19,7 +29,15 @@ func setFileLabel(fpath string, label string) error {
 	return nil
 }
 
+func lSetFileLabel(fpath string, label string) error {
+	return nil
+}
+
 func fileLabel(fpath string) (string, error) {
+	return "", nil
+}
+
+func lFileLabel(fpath string) (string, error) {
 	return "", nil
 }
 
@@ -55,22 +73,6 @@ func calculateGlbLub(sourceRange, targetRange string) (string, error) {
 	return "", nil
 }
 
-func setExecLabel(label string) error {
-	return nil
-}
-
-func setTaskLabel(label string) error {
-	return nil
-}
-
-func setSocketLabel(label string) error {
-	return nil
-}
-
-func socketLabel() (string, error) {
-	return "", nil
-}
-
 func peerLabel(fd uintptr) (string, error) {
 	return "", nil
 }
@@ -79,23 +81,22 @@ func setKeyLabel(label string) error {
 	return nil
 }
 
-func keyLabel() (string, error) {
-	return "", nil
-}
-
 func (c Context) get() string {
 	return ""
 }
 
 func newContext(label string) (Context, error) {
-	c := make(Context)
-	return c, nil
+	return Context{}, nil
 }
 
 func clearLabels() {
 }
 
 func reserveLabel(label string) {
+}
+
+func isMLSEnabled() bool {
+	return false
 }
 
 func enforceMode() int {
@@ -145,10 +146,10 @@ func dupSecOpt(src string) ([]string, error) {
 	return nil, nil
 }
 
-func disableSecOpt() []string {
-	return []string{"disable"}
-}
-
 func getDefaultContextWithLevel(user, level, scon string) (string, error) {
 	return "", nil
+}
+
+func label(_ string) string {
+	return ""
 }

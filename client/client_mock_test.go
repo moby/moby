@@ -17,9 +17,21 @@ func (tf transportFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return tf(req)
 }
 
+func transportEnsureBody(f transportFunc) transportFunc {
+	return func(req *http.Request) (*http.Response, error) {
+		resp, err := f(req)
+		if resp != nil && resp.Body == nil {
+			resp.Body = http.NoBody
+		}
+		return resp, err
+	}
+}
+
 func newMockClient(doer func(*http.Request) (*http.Response, error)) *http.Client {
 	return &http.Client{
-		Transport: transportFunc(doer),
+		// Some tests return a response with a nil body, this is incorrect semantically and causes a panic with wrapper transports (such as otelhttp's)
+		// Wrap the doer to ensure a body is always present even if it is empty.
+		Transport: transportEnsureBody(transportFunc(doer)),
 	}
 }
 

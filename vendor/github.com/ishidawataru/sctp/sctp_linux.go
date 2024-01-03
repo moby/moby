@@ -22,6 +22,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"unsafe"
+	"runtime"
 )
 
 func setsockopt(fd int, optname, optval, optlen uintptr) (uintptr, uintptr, error) {
@@ -40,6 +41,9 @@ func setsockopt(fd int, optname, optval, optlen uintptr) (uintptr, uintptr, erro
 }
 
 func getsockopt(fd int, optname, optval, optlen uintptr) (uintptr, uintptr, error) {
+	if runtime.GOARCH == "s390x" {
+		optlen = uintptr(unsafe.Pointer(&optlen))
+	}
 	// FIXME: syscall.SYS_GETSOCKOPT is undefined on 386
 	r0, r1, errno := syscall.Syscall6(syscall.SYS_GETSOCKOPT,
 		uintptr(fd),
@@ -292,7 +296,7 @@ func dialSCTPExtConfig(network string, laddr, raddr *SCTPAddr, options InitMsg, 
 				laddr.IPAddrs = append(laddr.IPAddrs, net.IPAddr{IP: net.IPv6zero})
 			}
 		}
-		err := SCTPBind(sock, laddr, SCTP_BINDX_ADD_ADDR)
+		err = SCTPBind(sock, laddr, SCTP_BINDX_ADD_ADDR)
 		if err != nil {
 			return nil, err
 		}

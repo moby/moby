@@ -1,13 +1,15 @@
+//go:build !windows
 // +build !windows
 
 package snapshot
 
 import (
-	"io/ioutil"
 	"os"
 	"syscall"
 
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/pkg/userns"
+	rootlessmountopts "github.com/moby/buildkit/util/rootless/mountopts"
 	"github.com/pkg/errors"
 )
 
@@ -15,13 +17,21 @@ func (lm *localMounter) Mount() (string, error) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
-	if lm.mounts == nil {
+	if lm.mounts == nil && lm.mountable != nil {
 		mounts, release, err := lm.mountable.Mount()
 		if err != nil {
 			return "", err
 		}
 		lm.mounts = mounts
 		lm.release = release
+	}
+
+	if userns.RunningInUserNS() {
+		var err error
+		lm.mounts, err = rootlessmountopts.FixUp(lm.mounts)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	if len(lm.mounts) == 1 && (lm.mounts[0].Type == "bind" || lm.mounts[0].Type == "rbind") {
@@ -37,7 +47,7 @@ func (lm *localMounter) Mount() (string, error) {
 		}
 	}
 
-	dir, err := ioutil.TempDir("", "buildkit-mount")
+	dir, err := os.MkdirTemp("", "buildkit-mount")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create temp dir")
 	}

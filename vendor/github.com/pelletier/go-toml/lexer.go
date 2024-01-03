@@ -9,12 +9,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 )
-
-var dateRegexp *regexp.Regexp
 
 // Define state functions
 type tomlLexStateFn func() tomlLexStateFn
@@ -216,18 +213,12 @@ func (l *tomlLexer) lexRvalue() tomlLexStateFn {
 			break
 		}
 
-		possibleDate := l.peekString(35)
-		dateSubmatches := dateRegexp.FindStringSubmatch(possibleDate)
-		if dateSubmatches != nil && dateSubmatches[0] != "" {
-			l.fastForward(len(dateSubmatches[0]))
-			if dateSubmatches[2] == "" { // no timezone information => local date
-				return l.lexLocalDate
-			}
-			return l.lexDate
+		if next == '+' || next == '-' {
+			return l.lexNumber
 		}
 
-		if next == '+' || next == '-' || isDigit(next) {
-			return l.lexNumber
+		if isDigit(next) {
+			return l.lexDateTimeOrNumber
 		}
 
 		return l.errorf("no value can start with %c", next)
@@ -235,6 +226,32 @@ func (l *tomlLexer) lexRvalue() tomlLexStateFn {
 
 	l.emit(tokenEOF)
 	return nil
+}
+
+func (l *tomlLexer) lexDateTimeOrNumber() tomlLexStateFn {
+	// Could be either a date/time, or a digit.
+	// The options for date/times are:
+	//   YYYY-... => date or date-time
+	//   HH:... => time
+	// Anything else should be a number.
+
+	lookAhead := l.peekString(5)
+	if len(lookAhead) < 3 {
+		return l.lexNumber()
+	}
+
+	for idx, r := range lookAhead {
+		if !isDigit(r) {
+			if idx == 2 && r == ':' {
+				return l.lexDateTimeOrTime()
+			}
+			if idx == 4 && r == '-' {
+				return l.lexDateTimeOrTime()
+			}
+			return l.lexNumber()
+		}
+	}
+	return l.lexNumber()
 }
 
 func (l *tomlLexer) lexLeftCurlyBrace() tomlLexStateFn {
@@ -254,14 +271,245 @@ func (l *tomlLexer) lexRightCurlyBrace() tomlLexStateFn {
 	return l.lexRvalue
 }
 
-func (l *tomlLexer) lexDate() tomlLexStateFn {
-	l.emit(tokenDate)
+func (l *tomlLexer) lexDateTimeOrTime() tomlLexStateFn {
+	// Example matches:
+	// 1979-05-27T07:32:00Z
+	// 1979-05-27T00:32:00-07:00
+	// 1979-05-27T00:32:00.999999-07:00
+	// 1979-05-27 07:32:00Z
+	// 1979-05-27 00:32:00-07:00
+	// 1979-05-27 00:32:00.999999-07:00
+	// 1979-05-27T07:32:00
+	// 1979-05-27T00:32:00.999999
+	// 1979-05-27 07:32:00
+	// 1979-05-27 00:32:00.999999
+	// 1979-05-27
+	// 07:32:00
+	// 00:32:00.999999
+
+	// we already know those two are digits
+	l.next()
+	l.next()
+
+	// Got 2 digits. At that point it could be either a time or a date(-time).
+
+	r := l.next()
+	if r == ':' {
+		return l.lexTime()
+	}
+
+	return l.lexDateTime()
+}
+
+func (l *tomlLexer) lexDateTime() tomlLexStateFn {
+	// This state accepts an offset date-time, a local date-time, or a local date.
+	//
+	//   v--- cursor
+	// 1979-05-27T07:32:00Z
+	// 1979-05-27T00:32:00-07:00
+	// 1979-05-27T00:32:00.999999-07:00
+	// 1979-05-27 07:32:00Z
+	// 1979-05-27 00:32:00-07:00
+	// 1979-05-27 00:32:00.999999-07:00
+	// 1979-05-27T07:32:00
+	// 1979-05-27T00:32:00.999999
+	// 1979-05-27 07:32:00
+	// 1979-05-27 00:32:00.999999
+	// 1979-05-27
+
+	// date
+
+	// already checked by lexRvalue
+	l.next() // digit
+	l.next() // -
+
+	for i := 0; i < 2; i++ {
+		r := l.next()
+		if !isDigit(r) {
+			return l.errorf("invalid month digit in date: %c", r)
+		}
+	}
+
+	r := l.next()
+	if r != '-' {
+		return l.errorf("expected - to separate month of a date, not %c", r)
+	}
+
+	for i := 0; i < 2; i++ {
+		r := l.next()
+		if !isDigit(r) {
+			return l.errorf("invalid day digit in date: %c", r)
+		}
+	}
+
+	l.emit(tokenLocalDate)
+
+	r = l.peek()
+
+	if r == eof {
+
+		return l.lexRvalue
+	}
+
+	if r != ' ' && r != 'T' {
+		return l.errorf("incorrect date/time separation character: %c", r)
+	}
+
+	if r == ' ' {
+		lookAhead := l.peekString(3)[1:]
+		if len(lookAhead) < 2 {
+			return l.lexRvalue
+		}
+		for _, r := range lookAhead {
+			if !isDigit(r) {
+				return l.lexRvalue
+			}
+		}
+	}
+
+	l.skip() // skip the T or ' '
+
+	// time
+
+	for i := 0; i < 2; i++ {
+		r := l.next()
+		if !isDigit(r) {
+			return l.errorf("invalid hour digit in time: %c", r)
+		}
+	}
+
+	r = l.next()
+	if r != ':' {
+		return l.errorf("time hour/minute separator should be :, not %c", r)
+	}
+
+	for i := 0; i < 2; i++ {
+		r := l.next()
+		if !isDigit(r) {
+			return l.errorf("invalid minute digit in time: %c", r)
+		}
+	}
+
+	r = l.next()
+	if r != ':' {
+		return l.errorf("time minute/second separator should be :, not %c", r)
+	}
+
+	for i := 0; i < 2; i++ {
+		r := l.next()
+		if !isDigit(r) {
+			return l.errorf("invalid second digit in time: %c", r)
+		}
+	}
+
+	r = l.peek()
+	if r == '.' {
+		l.next()
+		r := l.next()
+		if !isDigit(r) {
+			return l.errorf("expected at least one digit in time's fraction, not %c", r)
+		}
+
+		for {
+			r := l.peek()
+			if !isDigit(r) {
+				break
+			}
+			l.next()
+		}
+	}
+
+	l.emit(tokenLocalTime)
+
+	return l.lexTimeOffset
+
+}
+
+func (l *tomlLexer) lexTimeOffset() tomlLexStateFn {
+	// potential offset
+
+	// Z
+	// -07:00
+	// +07:00
+	// nothing
+
+	r := l.peek()
+
+	if r == 'Z' {
+		l.next()
+		l.emit(tokenTimeOffset)
+	} else if r == '+' || r == '-' {
+		l.next()
+
+		for i := 0; i < 2; i++ {
+			r := l.next()
+			if !isDigit(r) {
+				return l.errorf("invalid hour digit in time offset: %c", r)
+			}
+		}
+
+		r = l.next()
+		if r != ':' {
+			return l.errorf("time offset hour/minute separator should be :, not %c", r)
+		}
+
+		for i := 0; i < 2; i++ {
+			r := l.next()
+			if !isDigit(r) {
+				return l.errorf("invalid minute digit in time offset: %c", r)
+			}
+		}
+
+		l.emit(tokenTimeOffset)
+	}
+
 	return l.lexRvalue
 }
 
-func (l *tomlLexer) lexLocalDate() tomlLexStateFn {
-	l.emit(tokenLocalDate)
+func (l *tomlLexer) lexTime() tomlLexStateFn {
+	//   v--- cursor
+	// 07:32:00
+	// 00:32:00.999999
+
+	for i := 0; i < 2; i++ {
+		r := l.next()
+		if !isDigit(r) {
+			return l.errorf("invalid minute digit in time: %c", r)
+		}
+	}
+
+	r := l.next()
+	if r != ':' {
+		return l.errorf("time minute/second separator should be :, not %c", r)
+	}
+
+	for i := 0; i < 2; i++ {
+		r := l.next()
+		if !isDigit(r) {
+			return l.errorf("invalid second digit in time: %c", r)
+		}
+	}
+
+	r = l.peek()
+	if r == '.' {
+		l.next()
+		r := l.next()
+		if !isDigit(r) {
+			return l.errorf("expected at least one digit in time's fraction, not %c", r)
+		}
+
+		for {
+			r := l.peek()
+			if !isDigit(r) {
+				break
+			}
+			l.next()
+		}
+	}
+
+	l.emit(tokenLocalTime)
 	return l.lexRvalue
+
 }
 
 func (l *tomlLexer) lexTrue() tomlLexStateFn {
@@ -765,30 +1013,6 @@ func (l *tomlLexer) run() {
 	for state := l.lexVoid; state != nil; {
 		state = state()
 	}
-}
-
-func init() {
-	// Regexp for all date/time formats supported by TOML.
-	// Group 1: nano precision
-	// Group 2: timezone
-	//
-	// /!\ also matches the empty string
-	//
-	// Example matches:
-	// 1979-05-27T07:32:00Z
-	// 1979-05-27T00:32:00-07:00
-	// 1979-05-27T00:32:00.999999-07:00
-	// 1979-05-27 07:32:00Z
-	// 1979-05-27 00:32:00-07:00
-	// 1979-05-27 00:32:00.999999-07:00
-	// 1979-05-27T07:32:00
-	// 1979-05-27T00:32:00.999999
-	// 1979-05-27 07:32:00
-	// 1979-05-27 00:32:00.999999
-	// 1979-05-27
-	// 07:32:00
-	// 00:32:00.999999
-	dateRegexp = regexp.MustCompile(`^(?:\d{1,4}-\d{2}-\d{2})?(?:[T ]?\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}:\d{2})?)?`)
 }
 
 // Entry point

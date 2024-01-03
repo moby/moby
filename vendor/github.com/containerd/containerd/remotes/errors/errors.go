@@ -19,7 +19,6 @@ package errors
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -34,14 +33,14 @@ type ErrUnexpectedStatus struct {
 }
 
 func (e ErrUnexpectedStatus) Error() string {
-	return fmt.Sprintf("unexpected status: %s", e.Status)
+	return fmt.Sprintf("unexpected status from %s request to %s: %s", e.RequestMethod, e.RequestURL, e.Status)
 }
 
 // NewUnexpectedStatusErr creates an ErrUnexpectedStatus from HTTP response
 func NewUnexpectedStatusErr(resp *http.Response) error {
 	var b []byte
 	if resp.Body != nil {
-		b, _ = ioutil.ReadAll(io.LimitReader(resp.Body, 64000)) // 64KB
+		b, _ = io.ReadAll(io.LimitReader(resp.Body, 64000)) // 64KB
 	}
 	err := ErrUnexpectedStatus{
 		Body:          b,

@@ -1,5 +1,4 @@
 //go:build linux && !exclude_disk_quota && cgo
-// +build linux,!exclude_disk_quota,cgo
 
 //
 // projectquota.go - implements XFS project quota controls
@@ -52,7 +51,9 @@ struct fsxattr {
 const int Q_XGETQSTAT_PRJQUOTA = QCMD(Q_XGETQSTAT, PRJQUOTA);
 */
 import "C"
+
 import (
+	"context"
 	"os"
 	"path"
 	"path/filepath"
@@ -60,8 +61,8 @@ import (
 	"unsafe"
 
 	"github.com/containerd/containerd/pkg/userns"
+	"github.com/containerd/log"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -70,8 +71,10 @@ type pquotaState struct {
 	nextProjectID uint32
 }
 
-var pquotaStateInst *pquotaState
-var pquotaStateOnce sync.Once
+var (
+	pquotaStateInst *pquotaState
+	pquotaStateOnce sync.Once
+)
 
 // getPquotaState - get global pquota state tracker instance
 func getPquotaState() *pquotaState {
@@ -102,9 +105,10 @@ func (state *pquotaState) updateMinProjID(minProjectID uint32) {
 // This test will fail if the backing fs is not xfs.
 //
 // xfs_quota tool can be used to assign a project id to the driver home directory, e.g.:
-//    echo 999:/var/lib/docker/overlay2 >> /etc/projects
-//    echo docker:999 >> /etc/projid
-//    xfs_quota -x -c 'project -s docker' /<xfs mount point>
+//
+//	echo 999:/var/lib/docker/overlay2 >> /etc/projects
+//	echo docker:999 >> /etc/projid
+//	xfs_quota -x -c 'project -s docker' /<xfs mount point>
 //
 // In that case, the home directory project id will be used as a "start offset"
 // and all containers will be assigned larger project ids (e.g. >= 1000).
@@ -113,7 +117,6 @@ func (state *pquotaState) updateMinProjID(minProjectID uint32) {
 // Then try to create a test directory with the next project id and set a quota
 // on it. If that works, continue to scan existing containers to map allocated
 // project ids.
-//
 func NewControl(basePath string) (*Control, error) {
 	//
 	// If we are running in a user namespace quota won't be supported for
@@ -180,7 +183,7 @@ func NewControl(basePath string) (*Control, error) {
 		return nil, err
 	}
 
-	logrus.Debugf("NewControl(%s): nextProjectID = %d", basePath, state.nextProjectID)
+	log.G(context.TODO()).Debugf("NewControl(%s): nextProjectID = %d", basePath, state.nextProjectID)
 	return &q, nil
 }
 
@@ -215,7 +218,7 @@ func (q *Control) SetQuota(targetPath string, quota Quota) error {
 	//
 	// set the quota limit for the container's project id
 	//
-	logrus.Debugf("SetQuota(%s, %d): projectID=%d", targetPath, quota.Size, projectID)
+	log.G(context.TODO()).Debugf("SetQuota(%s, %d): projectID=%d", targetPath, quota.Size, projectID)
 	return setProjectQuota(q.backingFsBlockDev, projectID, quota)
 }
 
@@ -230,7 +233,7 @@ func setProjectQuota(backingFsBlockDev string, projectID uint32, quota Quota) er
 	d.d_blk_hardlimit = C.__u64(quota.Size / 512)
 	d.d_blk_softlimit = d.d_blk_hardlimit
 
-	var cs = C.CString(backingFsBlockDev)
+	cs := C.CString(backingFsBlockDev)
 	defer C.free(unsafe.Pointer(cs))
 
 	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, C.Q_XSETPQLIM,
@@ -258,7 +261,7 @@ func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 	//
 	var d C.fs_disk_quota_t
 
-	var cs = C.CString(q.backingFsBlockDev)
+	cs := C.CString(q.backingFsBlockDev)
 	defer C.free(unsafe.Pointer(cs))
 
 	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, C.Q_XGETPQUOTA,
@@ -409,7 +412,7 @@ func makeBackingFsDev(home string) (string, error) {
 	backingFsBlockDev := path.Join(home, "backingFsBlockDev")
 	// Re-create just in case someone copied the home directory over to a new device
 	unix.Unlink(backingFsBlockDev)
-	err := unix.Mknod(backingFsBlockDev, unix.S_IFBLK|0600, int(stat.Dev))
+	err := unix.Mknod(backingFsBlockDev, unix.S_IFBLK|0o600, int(stat.Dev))
 	switch err {
 	case nil:
 		return backingFsBlockDev, nil
@@ -423,7 +426,7 @@ func makeBackingFsDev(home string) (string, error) {
 }
 
 func hasQuotaSupport(backingFsBlockDev string) (bool, error) {
-	var cs = C.CString(backingFsBlockDev)
+	cs := C.CString(backingFsBlockDev)
 	defer free(cs)
 	var qstat C.fs_quota_stat_t
 

@@ -1,4 +1,5 @@
-/*Package env provides functions to test code that read environment variables
+/*
+Package env provides functions to test code that read environment variables
 or the current working directory.
 */
 package env // import "gotest.tools/v3/env"
@@ -21,6 +22,8 @@ type helperT interface {
 //
 // When used with Go 1.14+ the unpatch function will be called automatically
 // when the test ends, unless the TEST_NOCLEANUP env var is set to true.
+//
+// Deprecated: use t.SetEnv
 func Patch(t assert.TestingT, key, value string) func() {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
@@ -69,7 +72,7 @@ func PatchAll(t assert.TestingT, env map[string]string) func() {
 	return clean
 }
 
-// ToMap takes a list of strings in the format returned by os.Environ() and
+// ToMap takes a list of strings in the format returned by [os.Environ] and
 // returns a mapping of keys to values.
 func ToMap(env []string) map[string]string {
 	result := map[string]string{}

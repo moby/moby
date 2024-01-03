@@ -1,15 +1,15 @@
 //go:build linux
-// +build linux
 
 package macvlan
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -31,7 +31,7 @@ func createMacVlan(containerIfName, parent, macvlanMode string) (string, error) 
 	// Get the link for the master index (Example: the docker host eth iface)
 	parentLink, err := ns.NlHandle().LinkByName(parent)
 	if err != nil {
-		return "", fmt.Errorf("error occurred looking up the %s parent iface %s error: %s", macvlanType, parent, err)
+		return "", fmt.Errorf("error occurred looking up the macvlan parent iface %s error: %s", parent, err)
 	}
 	// Create a macvlan link
 	macvlan := &netlink.Macvlan{
@@ -43,7 +43,7 @@ func createMacVlan(containerIfName, parent, macvlanMode string) (string, error) 
 	}
 	if err := ns.NlHandle().LinkAdd(macvlan); err != nil {
 		// If a user creates a macvlan and ipvlan on same parent, only one slave iface can be active at a time.
-		return "", fmt.Errorf("failed to create the %s port: %v", macvlanType, err)
+		return "", fmt.Errorf("failed to create the macvlan port: %v", err)
 	}
 
 	return macvlan.Attrs().Name, nil
@@ -102,7 +102,7 @@ func createVlanLink(parentName string) error {
 		if err := ns.NlHandle().LinkSetUp(vlanLink); err != nil {
 			return fmt.Errorf("failed to enable %s the macvlan parent link %v", vlanLink.Name, err)
 		}
-		logrus.Debugf("Added a vlan tagged netlink subinterface: %s with a vlan id: %d", parentName, vidInt)
+		log.G(context.TODO()).Debugf("Added a vlan tagged netlink subinterface: %s with a vlan id: %d", parentName, vidInt)
 		return nil
 	}
 
@@ -129,7 +129,7 @@ func delVlanLink(linkName string) error {
 		if err := ns.NlHandle().LinkDel(vlanLink); err != nil {
 			return fmt.Errorf("failed to delete  %s link: %v", linkName, err)
 		}
-		logrus.Debugf("Deleted a vlan tagged netlink subinterface: %s", linkName)
+		log.G(context.TODO()).Debugf("Deleted a vlan tagged netlink subinterface: %s", linkName)
 	}
 	// if the subinterface doesn't parse to iface.vlan_id leave the interface in
 	// place since it could be a user specified name not created by the driver.
@@ -170,7 +170,7 @@ func createDummyLink(dummyName, truncNetID string) error {
 	}
 	parentDummyLink, err := ns.NlHandle().LinkByName(dummyName)
 	if err != nil {
-		return fmt.Errorf("error occurred looking up the %s parent iface %s error: %s", macvlanType, dummyName, err)
+		return fmt.Errorf("error occurred looking up the macvlan parent iface %s error: %s", dummyName, err)
 	}
 	// bring the new netlink iface up
 	if err := ns.NlHandle().LinkSetUp(parentDummyLink); err != nil {
@@ -195,7 +195,7 @@ func delDummyLink(linkName string) error {
 	if err := ns.NlHandle().LinkDel(dummyLink); err != nil {
 		return fmt.Errorf("failed to delete the dummy %s link: %v", linkName, err)
 	}
-	logrus.Debugf("Deleted a dummy parent link: %s", linkName)
+	log.G(context.TODO()).Debugf("Deleted a dummy parent link: %s", linkName)
 
 	return nil
 }

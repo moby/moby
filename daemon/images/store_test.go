@@ -8,16 +8,16 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/content/local"
-	c8derrdefs "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/metadata"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/docker/docker/image"
-	digest "github.com/opencontainers/go-digest"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.etcd.io/bbolt"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func setupTestStores(t *testing.T) (context.Context, content.Store, *imageStoreWithLease, func(t *testing.T)) {
@@ -29,7 +29,7 @@ func setupTestStores(t *testing.T) (context.Context, content.Store, *imageStoreW
 	is, err := image.NewImageStore(backend, nil)
 	assert.NilError(t, err)
 
-	db, err := bbolt.Open(filepath.Join(dir, "metadata.db"), 0600, nil)
+	db, err := bbolt.Open(filepath.Join(dir, "metadata.db"), 0o600, nil)
 	assert.NilError(t, err)
 
 	cs, err := local.NewStore(filepath.Join(dir, "content"))
@@ -68,35 +68,35 @@ func TestImageDelete(t *testing.T) {
 		assert.NilError(t, err)
 		defer images.Delete(id)
 
-		leaseID := imageKey(digest.Digest(id))
+		leaseID := imageKey(id.String())
 		_, err = images.leases.Create(ctx, leases.WithID(leaseID))
 		assert.NilError(t, err)
 		defer images.leases.Delete(ctx, leases.Lease{ID: leaseID})
 
 		ls, err := images.leases.List(ctx)
 		assert.NilError(t, err)
-		assert.Check(t, cmp.Equal(len(ls), 1), ls)
+		assert.Check(t, is.Equal(len(ls), 1), ls)
 
 		_, err = images.Delete(id)
 		assert.NilError(t, err)
 
 		ls, err = images.leases.List(ctx)
 		assert.NilError(t, err)
-		assert.Check(t, cmp.Equal(len(ls), 0), ls)
+		assert.Check(t, is.Equal(len(ls), 0), ls)
 	})
 }
 
 func TestContentStoreForPull(t *testing.T) {
-	ctx, cs, is, cleanup := setupTestStores(t)
+	ctx, cs, imgStore, cleanup := setupTestStores(t)
 	defer cleanup(t)
 
 	csP := &contentStoreForPull{
 		ContentStore: cs,
-		leases:       is.leases,
+		leases:       imgStore.leases,
 	}
 
 	data := []byte(`{}`)
-	desc := v1.Descriptor{
+	desc := ocispec.Descriptor{
 		Digest: digest.Canonical.FromBytes(data),
 		Size:   int64(len(data)),
 	}
@@ -112,12 +112,12 @@ func TestContentStoreForPull(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Equal(t, len(csP.digested), 1)
-	assert.Check(t, cmp.Equal(csP.digested[0], desc.Digest))
+	assert.Check(t, is.Equal(csP.digested[0], desc.Digest))
 
 	// Test already exists
 	csP.digested = nil
 	_, err = csP.Writer(ctx, content.WithRef(t.Name()), content.WithDescriptor(desc))
-	assert.Check(t, c8derrdefs.IsAlreadyExists(err))
+	assert.Check(t, cerrdefs.IsAlreadyExists(err))
 	assert.Equal(t, len(csP.digested), 1)
-	assert.Check(t, cmp.Equal(csP.digested[0], desc.Digest))
+	assert.Check(t, is.Equal(csP.digested[0], desc.Digest))
 }

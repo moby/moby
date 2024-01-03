@@ -27,9 +27,10 @@ const (
 
 // OtherName describes a name related to a certificate which is not in one
 // of the standard name formats. RFC 5280, 4.2.1.6:
-// OtherName ::= SEQUENCE {
-//      type-id    OBJECT IDENTIFIER,
-//      value      [0] EXPLICIT ANY DEFINED BY type-id }
+//
+//	OtherName ::= SEQUENCE {
+//	     type-id    OBJECT IDENTIFIER,
+//	     value      [0] EXPLICIT ANY DEFINED BY type-id }
 type OtherName struct {
 	TypeID asn1.ObjectIdentifier
 	Value  asn1.RawValue

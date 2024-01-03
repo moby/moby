@@ -5,21 +5,60 @@
 package zstd
 
 import (
+	"bytes"
 	"fmt"
-	"math/bits"
+
+	"github.com/klauspost/compress"
 )
 
 const (
-	bestLongTableBits = 20                     // Bits used in the long match table
+	bestLongTableBits = 22                     // Bits used in the long match table
 	bestLongTableSize = 1 << bestLongTableBits // Size of the table
+	bestLongLen       = 8                      // Bytes used for table hash
 
 	// Note: Increasing the short table bits or making the hash shorter
 	// can actually lead to compression degradation since it will 'steal' more from the
 	// long match table and match offsets are quite big.
 	// This greatly depends on the type of input.
-	bestShortTableBits = 16                      // Bits used in the short match table
+	bestShortTableBits = 18                      // Bits used in the short match table
 	bestShortTableSize = 1 << bestShortTableBits // Size of the table
+	bestShortLen       = 4                       // Bytes used for table hash
+
 )
+
+type match struct {
+	offset int32
+	s      int32
+	length int32
+	rep    int32
+	est    int32
+}
+
+const highScore = maxMatchLen * 8
+
+// estBits will estimate output bits from predefined tables.
+func (m *match) estBits(bitsPerByte int32) {
+	mlc := mlCode(uint32(m.length - zstdMinMatch))
+	var ofc uint8
+	if m.rep < 0 {
+		ofc = ofCode(uint32(m.s-m.offset) + 3)
+	} else {
+		ofc = ofCode(uint32(m.rep) & 3)
+	}
+	// Cost, excluding
+	ofTT, mlTT := fsePredefEnc[tableOffsets].ct.symbolTT[ofc], fsePredefEnc[tableMatchLengths].ct.symbolTT[mlc]
+
+	// Add cost of match encoding...
+	m.est = int32(ofTT.outBits + mlTT.outBits)
+	m.est += int32(ofTT.deltaNbBits>>16 + mlTT.deltaNbBits>>16)
+	// Subtract savings compared to literal encoding...
+	m.est -= (m.length * bitsPerByte) >> 10
+	if m.est > 0 {
+		// Unlikely gain..
+		m.length = 0
+		m.est = highScore
+	}
+}
 
 // bestFastEncoder uses 2 tables, one for short matches (5 bytes) and one for long matches.
 // The long match table contains the previous entry with the same hash,
@@ -45,14 +84,10 @@ func (e *bestFastEncoder) Encode(blk *blockEnc, src []byte) {
 	)
 
 	// Protect against e.cur wraparound.
-	for e.cur >= bufferReset {
+	for e.cur >= e.bufferReset-int32(len(e.hist)) {
 		if len(e.hist) == 0 {
-			for i := range e.table[:] {
-				e.table[i] = prevEntry{}
-			}
-			for i := range e.longTable[:] {
-				e.longTable[i] = prevEntry{}
-			}
+			e.table = [bestShortTableSize]prevEntry{}
+			e.longTable = [bestLongTableSize]prevEntry{}
 			e.cur = e.maxMatchOff
 			break
 		}
@@ -109,6 +144,14 @@ func (e *bestFastEncoder) Encode(blk *blockEnc, src []byte) {
 		return
 	}
 
+	// Use this to estimate literal cost.
+	// Scaled by 10 bits.
+	bitsPerByte := int32((compress.ShannonEntropyBits(src) * 1024) / len(src))
+	// Huffman can never go < 1 bit/byte
+	if bitsPerByte < 1024 {
+		bitsPerByte = 1024
+	}
+
 	// Override src
 	src = e.hist
 	sLimit := int32(len(src)) - inputMargin
@@ -116,7 +159,6 @@ func (e *bestFastEncoder) Encode(blk *blockEnc, src []byte) {
 
 	// nextEmit is where in src the next emitLiteral should start from.
 	nextEmit := s
-	cv := load6432(src, s)
 
 	// Relative offsets
 	offset1 := int32(blk.recentOffsets[0])
@@ -130,9 +172,8 @@ func (e *bestFastEncoder) Encode(blk *blockEnc, src []byte) {
 		blk.literals = append(blk.literals, src[nextEmit:until]...)
 		s.litLen = uint32(until - nextEmit)
 	}
-	_ = addLiterals
 
-	if debug {
+	if debugEncoder {
 		println("recent offsets:", blk.recentOffsets)
 	}
 
@@ -145,56 +186,103 @@ encodeLoop:
 			panic("offset0 was 0")
 		}
 
-		type match struct {
-			offset int32
-			s      int32
-			length int32
-			rep    int32
-		}
-		matchAt := func(offset int32, s int32, first uint32, rep int32) match {
-			if s-offset >= e.maxMatchOff || load3232(src, offset) != first {
-				return match{offset: offset, s: s}
-			}
-			return match{offset: offset, s: s, length: 4 + e.matchlen(s+4, offset+4, src), rep: rep}
-		}
+		const goodEnough = 250
 
-		bestOf := func(a, b match) match {
-			aScore := b.s - a.s + a.length
-			bScore := a.s - b.s + b.length
-			if a.rep < 0 {
-				aScore = aScore - int32(bits.Len32(uint32(a.offset)))/8
-			}
-			if b.rep < 0 {
-				bScore = bScore - int32(bits.Len32(uint32(b.offset)))/8
-			}
-			if aScore >= bScore {
-				return a
-			}
-			return b
-		}
-		const goodEnough = 100
+		cv := load6432(src, s)
 
-		nextHashL := hash8(cv, bestLongTableBits)
-		nextHashS := hash4x64(cv, bestShortTableBits)
+		nextHashL := hashLen(cv, bestLongTableBits, bestLongLen)
+		nextHashS := hashLen(cv, bestShortTableBits, bestShortLen)
 		candidateL := e.longTable[nextHashL]
 		candidateS := e.table[nextHashS]
 
-		best := bestOf(matchAt(candidateL.offset-e.cur, s, uint32(cv), -1), matchAt(candidateL.prev-e.cur, s, uint32(cv), -1))
-		best = bestOf(best, matchAt(candidateS.offset-e.cur, s, uint32(cv), -1))
-		best = bestOf(best, matchAt(candidateS.prev-e.cur, s, uint32(cv), -1))
+		// Set m to a match at offset if it looks like that will improve compression.
+		improve := func(m *match, offset int32, s int32, first uint32, rep int32) {
+			delta := s - offset
+			if delta >= e.maxMatchOff || delta <= 0 || load3232(src, offset) != first {
+				return
+			}
+			if debugAsserts {
+				if offset >= s {
+					panic(fmt.Sprintf("offset: %d - s:%d - rep: %d - cur :%d - max: %d", offset, s, rep, e.cur, e.maxMatchOff))
+				}
+				if !bytes.Equal(src[s:s+4], src[offset:offset+4]) {
+					panic(fmt.Sprintf("first match mismatch: %v != %v, first: %08x", src[s:s+4], src[offset:offset+4], first))
+				}
+			}
+			// Try to quick reject if we already have a long match.
+			if m.length > 16 {
+				left := len(src) - int(m.s+m.length)
+				// If we are too close to the end, keep as is.
+				if left <= 0 {
+					return
+				}
+				checkLen := m.length - (s - m.s) - 8
+				if left > 2 && checkLen > 4 {
+					// Check 4 bytes, 4 bytes from the end of the current match.
+					a := load3232(src, offset+checkLen)
+					b := load3232(src, s+checkLen)
+					if a != b {
+						return
+					}
+				}
+			}
+			l := 4 + e.matchlen(s+4, offset+4, src)
+			if true {
+				// Extend candidate match backwards as far as possible.
+				tMin := s - e.maxMatchOff
+				if tMin < 0 {
+					tMin = 0
+				}
+				for offset > tMin && s > nextEmit && src[offset-1] == src[s-1] && l < maxMatchLength {
+					s--
+					offset--
+					l++
+				}
+			}
+
+			cand := match{offset: offset, s: s, length: l, rep: rep}
+			cand.estBits(bitsPerByte)
+			if m.est >= highScore || cand.est-m.est+(cand.s-m.s)*bitsPerByte>>10 < 0 {
+				*m = cand
+			}
+		}
+
+		best := match{s: s, est: highScore}
+		improve(&best, candidateL.offset-e.cur, s, uint32(cv), -1)
+		improve(&best, candidateL.prev-e.cur, s, uint32(cv), -1)
+		improve(&best, candidateS.offset-e.cur, s, uint32(cv), -1)
+		improve(&best, candidateS.prev-e.cur, s, uint32(cv), -1)
+
 		if canRepeat && best.length < goodEnough {
-			best = bestOf(best, matchAt(s-offset1+1, s+1, uint32(cv>>8), 1))
-			best = bestOf(best, matchAt(s-offset2+1, s+1, uint32(cv>>8), 2))
-			best = bestOf(best, matchAt(s-offset3+1, s+1, uint32(cv>>8), 3))
-			if best.length > 0 {
-				best = bestOf(best, matchAt(s-offset1+3, s+3, uint32(cv>>24), 1))
-				best = bestOf(best, matchAt(s-offset2+3, s+3, uint32(cv>>24), 2))
-				best = bestOf(best, matchAt(s-offset3+3, s+3, uint32(cv>>24), 3))
+			if s == nextEmit {
+				// Check repeats straight after a match.
+				improve(&best, s-offset2, s, uint32(cv), 1|4)
+				improve(&best, s-offset3, s, uint32(cv), 2|4)
+				if offset1 > 1 {
+					improve(&best, s-(offset1-1), s, uint32(cv), 3|4)
+				}
+			}
+
+			// If either no match or a non-repeat match, check at + 1
+			if best.rep <= 0 {
+				cv32 := uint32(cv >> 8)
+				spp := s + 1
+				improve(&best, spp-offset1, spp, cv32, 1)
+				improve(&best, spp-offset2, spp, cv32, 2)
+				improve(&best, spp-offset3, spp, cv32, 3)
+				if best.rep < 0 {
+					cv32 = uint32(cv >> 24)
+					spp += 2
+					improve(&best, spp-offset1, spp, cv32, 1)
+					improve(&best, spp-offset2, spp, cv32, 2)
+					improve(&best, spp-offset3, spp, cv32, 3)
+				}
 			}
 		}
 		// Load next and check...
 		e.longTable[nextHashL] = prevEntry{offset: s + e.cur, prev: candidateL.offset}
 		e.table[nextHashS] = prevEntry{offset: s + e.cur, prev: candidateS.offset}
+		index0 := s + 1
 
 		// Look far ahead, unless we have a really long match already...
 		if best.length < goodEnough {
@@ -204,86 +292,105 @@ encodeLoop:
 				if s >= sLimit {
 					break encodeLoop
 				}
-				cv = load6432(src, s)
 				continue
 			}
 
-			s++
-			candidateS = e.table[hash4x64(cv>>8, bestShortTableBits)]
-			cv = load6432(src, s)
-			cv2 := load6432(src, s+1)
-			candidateL = e.longTable[hash8(cv, bestLongTableBits)]
-			candidateL2 := e.longTable[hash8(cv2, bestLongTableBits)]
+			candidateS = e.table[hashLen(cv>>8, bestShortTableBits, bestShortLen)]
+			cv = load6432(src, s+1)
+			cv2 := load6432(src, s+2)
+			candidateL = e.longTable[hashLen(cv, bestLongTableBits, bestLongLen)]
+			candidateL2 := e.longTable[hashLen(cv2, bestLongTableBits, bestLongLen)]
 
-			best = bestOf(best, matchAt(candidateS.offset-e.cur, s, uint32(cv), -1))
-			best = bestOf(best, matchAt(candidateL.offset-e.cur, s, uint32(cv), -1))
-			best = bestOf(best, matchAt(candidateL.prev-e.cur, s, uint32(cv), -1))
-			best = bestOf(best, matchAt(candidateL2.offset-e.cur, s+1, uint32(cv2), -1))
-			best = bestOf(best, matchAt(candidateL2.prev-e.cur, s+1, uint32(cv2), -1))
+			// Short at s+1
+			improve(&best, candidateS.offset-e.cur, s+1, uint32(cv), -1)
+			// Long at s+1, s+2
+			improve(&best, candidateL.offset-e.cur, s+1, uint32(cv), -1)
+			improve(&best, candidateL.prev-e.cur, s+1, uint32(cv), -1)
+			improve(&best, candidateL2.offset-e.cur, s+2, uint32(cv2), -1)
+			improve(&best, candidateL2.prev-e.cur, s+2, uint32(cv2), -1)
+			if false {
+				// Short at s+3.
+				// Too often worse...
+				improve(&best, e.table[hashLen(cv2>>8, bestShortTableBits, bestShortLen)].offset-e.cur, s+3, uint32(cv2>>8), -1)
+			}
+
+			// Start check at a fixed offset to allow for a few mismatches.
+			// For this compression level 2 yields the best results.
+			// We cannot do this if we have already indexed this position.
+			const skipBeginning = 2
+			if best.s > s-skipBeginning {
+				// See if we can find a better match by checking where the current best ends.
+				// Use that offset to see if we can find a better full match.
+				if sAt := best.s + best.length; sAt < sLimit {
+					nextHashL := hashLen(load6432(src, sAt), bestLongTableBits, bestLongLen)
+					candidateEnd := e.longTable[nextHashL]
+
+					if off := candidateEnd.offset - e.cur - best.length + skipBeginning; off >= 0 {
+						improve(&best, off, best.s+skipBeginning, load3232(src, best.s+skipBeginning), -1)
+						if off := candidateEnd.prev - e.cur - best.length + skipBeginning; off >= 0 {
+							improve(&best, off, best.s+skipBeginning, load3232(src, best.s+skipBeginning), -1)
+						}
+					}
+				}
+			}
+		}
+
+		if debugAsserts {
+			if !bytes.Equal(src[best.s:best.s+best.length], src[best.offset:best.offset+best.length]) {
+				panic(fmt.Sprintf("match mismatch: %v != %v", src[best.s:best.s+best.length], src[best.offset:best.offset+best.length]))
+			}
 		}
 
 		// We have a match, we can store the forward value
 		if best.rep > 0 {
-			s = best.s
 			var seq seq
 			seq.matchLen = uint32(best.length - zstdMinMatch)
-
-			// We might be able to match backwards.
-			// Extend as long as we can.
-			start := best.s
-			// We end the search early, so we don't risk 0 literals
-			// and have to do special offset treatment.
-			startLimit := nextEmit + 1
-
-			tMin := s - e.maxMatchOff
-			if tMin < 0 {
-				tMin = 0
+			if debugAsserts && s < nextEmit {
+				panic("s < nextEmit")
 			}
-			repIndex := best.offset
-			for repIndex > tMin && start > startLimit && src[repIndex-1] == src[start-1] && seq.matchLen < maxMatchLength-zstdMinMatch-1 {
-				repIndex--
-				start--
-				seq.matchLen++
-			}
-			addLiterals(&seq, start)
+			addLiterals(&seq, best.s)
 
-			// rep 0
-			seq.offset = uint32(best.rep)
+			// Repeat. If bit 4 is set, this is a non-lit repeat.
+			seq.offset = uint32(best.rep & 3)
 			if debugSequences {
 				println("repeat sequence", seq, "next s:", s)
 			}
 			blk.sequences = append(blk.sequences, seq)
 
-			// Index match start+1 (long) -> s - 1
-			index0 := s
+			// Index old s + 1 -> s - 1
 			s = best.s + best.length
-
 			nextEmit = s
-			if s >= sLimit {
-				if debug {
-					println("repeat ended", s, best.length)
 
-				}
-				break encodeLoop
-			}
 			// Index skipped...
+			end := s
+			if s > sLimit+4 {
+				end = sLimit + 4
+			}
 			off := index0 + e.cur
-			for index0 < s-1 {
+			for index0 < end {
 				cv0 := load6432(src, index0)
-				h0 := hash8(cv0, bestLongTableBits)
-				h1 := hash4x64(cv0, bestShortTableBits)
+				h0 := hashLen(cv0, bestLongTableBits, bestLongLen)
+				h1 := hashLen(cv0, bestShortTableBits, bestShortLen)
 				e.longTable[h0] = prevEntry{offset: off, prev: e.longTable[h0].offset}
 				e.table[h1] = prevEntry{offset: off, prev: e.table[h1].offset}
 				off++
 				index0++
 			}
+
 			switch best.rep {
-			case 2:
+			case 2, 4 | 1:
 				offset1, offset2 = offset2, offset1
-			case 3:
+			case 3, 4 | 2:
 				offset1, offset2, offset3 = offset3, offset1, offset2
+			case 4 | 3:
+				offset1, offset2, offset3 = offset1-1, offset1, offset2
 			}
-			cv = load6432(src, s)
+			if s >= sLimit {
+				if debugEncoder {
+					println("repeat ended", s, best.length)
+				}
+				break encodeLoop
+			}
 			continue
 		}
 
@@ -297,26 +404,13 @@ encodeLoop:
 			panic(fmt.Sprintf("s (%d) <= t (%d)", s, t))
 		}
 
-		if debugAsserts && canRepeat && int(offset1) > len(src) {
+		if debugAsserts && int(offset1) > len(src) {
 			panic("invalid offset")
-		}
-
-		// Extend the n-byte match as long as possible.
-		l := best.length
-
-		// Extend backwards
-		tMin := s - e.maxMatchOff
-		if tMin < 0 {
-			tMin = 0
-		}
-		for t > tMin && s > nextEmit && src[t-1] == src[s-1] && l < maxMatchLength {
-			s--
-			t--
-			l++
 		}
 
 		// Write our sequence
 		var seq seq
+		l := best.length
 		seq.litLen = uint32(s - nextEmit)
 		seq.matchLen = uint32(l - zstdMinMatch)
 		if seq.litLen > 0 {
@@ -329,65 +423,25 @@ encodeLoop:
 		}
 		blk.sequences = append(blk.sequences, seq)
 		nextEmit = s
-		if s >= sLimit {
-			break encodeLoop
+
+		// Index old s + 1 -> s - 1 or sLimit
+		end := s
+		if s > sLimit-4 {
+			end = sLimit - 4
 		}
 
-		// Index match start+1 (long) -> s - 1
-		index0 := s - l + 1
-		// every entry
-		for index0 < s-1 {
+		off := index0 + e.cur
+		for index0 < end {
 			cv0 := load6432(src, index0)
-			h0 := hash8(cv0, bestLongTableBits)
-			h1 := hash4x64(cv0, bestShortTableBits)
-			off := index0 + e.cur
+			h0 := hashLen(cv0, bestLongTableBits, bestLongLen)
+			h1 := hashLen(cv0, bestShortTableBits, bestShortLen)
 			e.longTable[h0] = prevEntry{offset: off, prev: e.longTable[h0].offset}
 			e.table[h1] = prevEntry{offset: off, prev: e.table[h1].offset}
 			index0++
+			off++
 		}
-
-		cv = load6432(src, s)
-		if !canRepeat {
-			continue
-		}
-
-		// Check offset 2
-		for {
-			o2 := s - offset2
-			if load3232(src, o2) != uint32(cv) {
-				// Do regular search
-				break
-			}
-
-			// Store this, since we have it.
-			nextHashS := hash4x64(cv, bestShortTableBits)
-			nextHashL := hash8(cv, bestLongTableBits)
-
-			// We have at least 4 byte match.
-			// No need to check backwards. We come straight from a match
-			l := 4 + e.matchlen(s+4, o2+4, src)
-
-			e.longTable[nextHashL] = prevEntry{offset: s + e.cur, prev: e.longTable[nextHashL].offset}
-			e.table[nextHashS] = prevEntry{offset: s + e.cur, prev: e.table[nextHashS].offset}
-			seq.matchLen = uint32(l) - zstdMinMatch
-			seq.litLen = 0
-
-			// Since litlen is always 0, this is offset 1.
-			seq.offset = 1
-			s += l
-			nextEmit = s
-			if debugSequences {
-				println("sequence", seq, "next s:", s)
-			}
-			blk.sequences = append(blk.sequences, seq)
-
-			// Swap offset 1 and 2.
-			offset1, offset2 = offset2, offset1
-			if s >= sLimit {
-				// Finished
-				break encodeLoop
-			}
-			cv = load6432(src, s)
+		if s >= sLimit {
+			break encodeLoop
 		}
 	}
 
@@ -398,7 +452,7 @@ encodeLoop:
 	blk.recentOffsets[0] = uint32(offset1)
 	blk.recentOffsets[1] = uint32(offset2)
 	blk.recentOffsets[2] = uint32(offset3)
-	if debug {
+	if debugEncoder {
 		println("returning, recent offsets:", blk.recentOffsets, "extra literals:", blk.extraLits)
 	}
 }
@@ -411,7 +465,7 @@ func (e *bestFastEncoder) EncodeNoHist(blk *blockEnc, src []byte) {
 	e.Encode(blk, src)
 }
 
-// ResetDict will reset and set a dictionary if not nil
+// Reset will reset and set a dictionary if not nil
 func (e *bestFastEncoder) Reset(d *dict, singleBlock bool) {
 	e.resetBase(d, singleBlock)
 	if d == nil {
@@ -427,10 +481,10 @@ func (e *bestFastEncoder) Reset(d *dict, singleBlock bool) {
 			const hashLog = bestShortTableBits
 
 			cv := load6432(d.content, i-e.maxMatchOff)
-			nextHash := hash4x64(cv, hashLog)      // 0 -> 4
-			nextHash1 := hash4x64(cv>>8, hashLog)  // 1 -> 5
-			nextHash2 := hash4x64(cv>>16, hashLog) // 2 -> 6
-			nextHash3 := hash4x64(cv>>24, hashLog) // 3 -> 7
+			nextHash := hashLen(cv, hashLog, bestShortLen)      // 0 -> 4
+			nextHash1 := hashLen(cv>>8, hashLog, bestShortLen)  // 1 -> 5
+			nextHash2 := hashLen(cv>>16, hashLog, bestShortLen) // 2 -> 6
+			nextHash3 := hashLen(cv>>24, hashLog, bestShortLen) // 3 -> 7
 			e.dictTable[nextHash] = prevEntry{
 				prev:   e.dictTable[nextHash].offset,
 				offset: i,
@@ -458,7 +512,7 @@ func (e *bestFastEncoder) Reset(d *dict, singleBlock bool) {
 		}
 		if len(d.content) >= 8 {
 			cv := load6432(d.content, 0)
-			h := hash8(cv, bestLongTableBits)
+			h := hashLen(cv, bestLongTableBits, bestLongLen)
 			e.dictLongTable[h] = prevEntry{
 				offset: e.maxMatchOff,
 				prev:   e.dictLongTable[h].offset,
@@ -468,7 +522,7 @@ func (e *bestFastEncoder) Reset(d *dict, singleBlock bool) {
 			off := 8 // First to read
 			for i := e.maxMatchOff + 1; i < end; i++ {
 				cv = cv>>8 | (uint64(d.content[off]) << 56)
-				h := hash8(cv, bestLongTableBits)
+				h := hashLen(cv, bestLongTableBits, bestLongLen)
 				e.dictLongTable[h] = prevEntry{
 					offset: i,
 					prev:   e.dictLongTable[h].offset,

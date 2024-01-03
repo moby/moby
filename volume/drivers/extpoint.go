@@ -3,17 +3,18 @@
 package drivers // import "github.com/docker/docker/volume/drivers"
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
 	getter "github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/volume"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const extName = "VolumeDriver"
@@ -21,13 +22,14 @@ const extName = "VolumeDriver"
 // volumeDriver defines the available functions that volume plugins must implement.
 // This interface is only defined to generate the proxy objects.
 // It's not intended to be public or reused.
-//nolint: deadcode
+//
+//nolint:unused
 type volumeDriver interface {
 	// Create a volume with the given name
 	Create(name string, opts map[string]string) (err error)
 	// Remove the volume with the given name
 	Remove(name string) (err error)
-	// Get the mountpoint of the given volume
+	// Path returns the mountpoint of the given volume.
 	Path(name string) (mountpoint string, err error)
 	// Mount the given volume and return the mountpoint
 	Mount(name, id string) (mountpoint string, err error)
@@ -96,7 +98,7 @@ func (s *Store) lookup(name string, mode int) (volume.Driver, error) {
 			if mode > 0 {
 				// Undo any reference count changes from the initial `Get`
 				if _, err := s.pluginGetter.Get(name, extName, mode*-1); err != nil {
-					logrus.WithError(err).WithField("action", "validate-driver").WithField("plugin", name).Error("error releasing reference to plugin")
+					log.G(context.TODO()).WithError(err).WithField("action", "validate-driver").WithField("plugin", name).Error("error releasing reference to plugin")
 				}
 			}
 			return nil, err

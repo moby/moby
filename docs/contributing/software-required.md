@@ -90,5 +90,7 @@ You must log out and log back in for this modification to take effect.
 
 ## Where to go next
 
-In the next section, you'll [learn how to set up and configure Git for
-contributing to Moby](set-up-git.md).
+In the next section, you'll [configure the project to be properly recognized by the IDE](set-up-ide.md).
+
+If you don't want to use IDE, you can proceed to the next step
+and [learn how to set up and configure Git for contributing to Moby](set-up-git.md).

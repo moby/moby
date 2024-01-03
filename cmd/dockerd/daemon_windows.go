@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/pkg/system"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )
 
@@ -23,10 +21,6 @@ func setDefaultUmask() error {
 	return nil
 }
 
-func getDaemonConfDir(root string) (string, error) {
-	return filepath.Join(root, `\config`), nil
-}
-
 // preNotifyReady sends a message to the host when the API is active, but before the daemon is
 func preNotifyReady() {
 	// start the service now to prevent timeouts waiting for daemon to start
@@ -34,7 +28,7 @@ func preNotifyReady() {
 	if service != nil {
 		err := service.started()
 		if err != nil {
-			logrus.Fatal(err)
+			log.G(context.TODO()).Fatal(err)
 		}
 	}
 }
@@ -51,14 +45,10 @@ func notifyStopping() {
 func notifyShutdown(err error) {
 	if service != nil {
 		if err != nil {
-			logrus.Fatal(err)
+			log.G(context.TODO()).Fatal(err)
 		}
 		service.stopped(err)
 	}
-}
-
-func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
-	return nil, nil
 }
 
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
@@ -70,7 +60,7 @@ func (cli *DaemonCli) setupConfigReloadTrap() {
 		event := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
 		ev, _ := windows.UTF16PtrFromString(event)
 		if h, _ := windows.CreateEvent(&sa, 0, 0, ev); h != 0 {
-			logrus.Debugf("Config reload - waiting signal at %s", event)
+			log.G(context.TODO()).Debugf("Config reload - waiting signal at %s", event)
 			for {
 				windows.WaitForSingleObject(h, windows.INFINITE)
 				cli.reloadConfig()
@@ -93,7 +83,11 @@ func newCgroupParent(config *config.Config) string {
 	return ""
 }
 
-func (cli *DaemonCli) initContainerD(_ context.Context) (func(time.Duration) error, error) {
-	system.InitContainerdRuntime(cli.Config.ContainerdAddr)
+func (cli *DaemonCli) initContainerd(_ context.Context) (func(time.Duration) error, error) {
+	system.InitContainerdRuntime(cli.ContainerdAddr)
 	return nil, nil
+}
+
+func validateCPURealtimeOptions(_ *config.Config) error {
+	return nil
 }

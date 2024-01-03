@@ -1,21 +1,19 @@
 //go:build !windows
-// +build !windows
 
 package main
 
 import (
-	"bytes"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
-var (
-	// SysInfo stores information about which features a kernel supports.
-	SysInfo *sysinfo.SysInfo
-)
+var sysInfo *sysinfo.SysInfo
+
+func setupLocalInfo() {
+	sysInfo = sysinfo.New()
+}
 
 func cpuCfsPeriod() bool {
 	return testEnv.DaemonInfo.CPUCfsPeriod
@@ -34,7 +32,7 @@ func oomControl() bool {
 }
 
 func pidsLimit() bool {
-	return SysInfo.PidsLimit
+	return sysInfo.PidsLimit
 }
 
 func memoryLimitSupport() bool {
@@ -42,7 +40,7 @@ func memoryLimitSupport() bool {
 }
 
 func memoryReservationSupport() bool {
-	return SysInfo.MemoryReservation
+	return sysInfo.MemoryReservation
 }
 
 func swapMemorySupport() bool {
@@ -50,11 +48,11 @@ func swapMemorySupport() bool {
 }
 
 func memorySwappinessSupport() bool {
-	return testEnv.IsLocalDaemon() && SysInfo.MemorySwappiness
+	return testEnv.IsLocalDaemon() && sysInfo.MemorySwappiness
 }
 
 func blkioWeight() bool {
-	return testEnv.IsLocalDaemon() && SysInfo.BlkioWeight
+	return testEnv.IsLocalDaemon() && sysInfo.BlkioWeight
 }
 
 func cgroupCpuset() bool {
@@ -62,29 +60,14 @@ func cgroupCpuset() bool {
 }
 
 func seccompEnabled() bool {
-	return supportsSeccomp && SysInfo.Seccomp
+	return sysInfo.Seccomp
 }
 
 func bridgeNfIptables() bool {
-	return !SysInfo.BridgeNFCallIPTablesDisabled
+	return !sysInfo.BridgeNFCallIPTablesDisabled
 }
 
 func unprivilegedUsernsClone() bool {
 	content, err := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
 	return err != nil || !strings.Contains(string(content), "0")
-}
-
-func overlayFSSupported() bool {
-	cmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "/bin/sh", "-c", "cat /proc/filesystems")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return false
-	}
-	return bytes.Contains(out, []byte("overlay\n"))
-}
-
-func init() {
-	if testEnv.IsLocalDaemon() {
-		SysInfo = sysinfo.New()
-	}
 }

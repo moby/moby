@@ -5,9 +5,11 @@
 base="$ABS_DEST/.."
 export PATH="$base/dynbinary-daemon:$base/binary-daemon:$PATH"
 
-export TEST_CLIENT_BINARY=docker
-
+if [ -z "$TEST_CLIENT_BINARY" ]; then
+	export TEST_CLIENT_BINARY=docker
+fi
 if [ -n "$DOCKER_CLI_PATH" ]; then
+	# /usr/local/cli is a bind mount to the base dir of DOCKER_CLI_PATH (if used)
 	export TEST_CLIENT_BINARY=/usr/local/cli/$(basename "$DOCKER_CLI_PATH")
 fi
 
@@ -44,6 +46,9 @@ export DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE=1
 export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
 
+# Allow testing old API versions
+export DOCKER_MIN_API_VERSION=1.12
+
 # example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
 storage_params=""
 if [ -n "$DOCKER_STORAGE_OPTS" ]; then
@@ -68,7 +73,7 @@ fi
 
 dockerd="dockerd"
 if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
-	if [ -z "$TEST_SKIP_INTEGRATION_CLI" ]; then
+	if [ -z "$TEST_IGNORE_CGROUP_CHECK" ] && [ -z "$TEST_SKIP_INTEGRATION_CLI" ]; then
 		echo >&2 '# cgroup v2 requires TEST_SKIP_INTEGRATION_CLI to be set'
 		exit 1
 	fi
@@ -79,7 +84,6 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 		echo >&2 '# DOCKER_ROOTLESS requires TEST_SKIP_INTEGRATION_CLI to be set'
 		exit 1
 	fi
-	ln -sf "$(command -v vpnkit."$(uname -m)")" /usr/local/bin/vpnkit
 	user="unprivilegeduser"
 	uid=$(id -u $user)
 	# shellcheck disable=SC2174
@@ -101,8 +105,19 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		)
 	fi
 
-	# "pwd" tricks to make sure $DEST is an absolute path, not a relative one
-	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock"
+	if [ -n "${DOCKER_ROOTLESS}" ]; then
+		# "pwd" tricks to make sure $DEST is an absolute path, not a relative one
+		export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock"
+	else
+		# Put socket in /run because:
+		# 1. That's the normal place for such things
+		# 2. When running on Docker For Mac, if you need to run tests with the bundles dir mounted (e.g. to poke through test artifacts).
+		#    the socket will not work because it will be over osxfs.
+		mkdir -p /run/docker
+		sock_dir=$(mktemp -d -p /run/docker)
+		chmod 0755 "$sock_dir"
+		export DOCKER_HOST="unix://${sock_dir}/docker.sock"
+	fi
 	(
 		echo "Starting dockerd"
 		[ -n "$TESTDEBUG" ] && set -x

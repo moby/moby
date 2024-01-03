@@ -4,7 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/registry"
 )
 
 // CORSMiddleware injects CORS headers to each request
@@ -28,9 +29,9 @@ func (c CORSMiddleware) WrapHandler(handler func(ctx context.Context, w http.Res
 			corsHeaders = "*"
 		}
 
-		logrus.Debugf("CORS header is enabled and set to: %s", corsHeaders)
+		log.G(ctx).Debugf("CORS header is enabled and set to: %s", corsHeaders)
 		w.Header().Add("Access-Control-Allow-Origin", corsHeaders)
-		w.Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
+		w.Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, "+registry.AuthHeader)
 		w.Header().Add("Access-Control-Allow-Methods", "HEAD, GET, POST, DELETE, PUT, OPTIONS")
 		return handler(ctx, w, r, vars)
 	}

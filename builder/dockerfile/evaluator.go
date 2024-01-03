@@ -20,22 +20,23 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/oci"
 	"github.com/docker/docker/runconfig/opts"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	"github.com/pkg/errors"
 )
 
-func dispatch(d dispatchRequest, cmd instructions.Command) (err error) {
+func dispatch(ctx context.Context, d dispatchRequest, cmd instructions.Command) (err error) {
 	if c, ok := cmd.(instructions.PlatformSpecific); ok {
 		err := c.CheckPlatform(d.state.operatingSystem)
 		if err != nil {
@@ -66,39 +67,39 @@ func dispatch(d dispatchRequest, cmd instructions.Command) (err error) {
 	}()
 	switch c := cmd.(type) {
 	case *instructions.EnvCommand:
-		return dispatchEnv(d, c)
+		return dispatchEnv(ctx, d, c)
 	case *instructions.MaintainerCommand:
-		return dispatchMaintainer(d, c)
+		return dispatchMaintainer(ctx, d, c)
 	case *instructions.LabelCommand:
-		return dispatchLabel(d, c)
+		return dispatchLabel(ctx, d, c)
 	case *instructions.AddCommand:
-		return dispatchAdd(d, c)
+		return dispatchAdd(ctx, d, c)
 	case *instructions.CopyCommand:
-		return dispatchCopy(d, c)
+		return dispatchCopy(ctx, d, c)
 	case *instructions.OnbuildCommand:
-		return dispatchOnbuild(d, c)
+		return dispatchOnbuild(ctx, d, c)
 	case *instructions.WorkdirCommand:
-		return dispatchWorkdir(d, c)
+		return dispatchWorkdir(ctx, d, c)
 	case *instructions.RunCommand:
-		return dispatchRun(d, c)
+		return dispatchRun(ctx, d, c)
 	case *instructions.CmdCommand:
-		return dispatchCmd(d, c)
+		return dispatchCmd(ctx, d, c)
 	case *instructions.HealthCheckCommand:
-		return dispatchHealthcheck(d, c)
+		return dispatchHealthcheck(ctx, d, c)
 	case *instructions.EntrypointCommand:
-		return dispatchEntrypoint(d, c)
+		return dispatchEntrypoint(ctx, d, c)
 	case *instructions.ExposeCommand:
-		return dispatchExpose(d, c, envs)
+		return dispatchExpose(ctx, d, c, envs)
 	case *instructions.UserCommand:
-		return dispatchUser(d, c)
+		return dispatchUser(ctx, d, c)
 	case *instructions.VolumeCommand:
-		return dispatchVolume(d, c)
+		return dispatchVolume(ctx, d, c)
 	case *instructions.StopSignalCommand:
-		return dispatchStopSignal(d, c)
+		return dispatchStopSignal(ctx, d, c)
 	case *instructions.ArgCommand:
-		return dispatchArg(d, c)
+		return dispatchArg(ctx, d, c)
 	case *instructions.ShellCommand:
-		return dispatchShell(d, c)
+		return dispatchShell(ctx, d, c)
 	}
 	return errors.Errorf("unsupported command type: %v", reflect.TypeOf(cmd))
 }
@@ -212,24 +213,21 @@ func (s *dispatchState) hasFromImage() bool {
 	return s.imageID != "" || (s.baseImage != nil && s.baseImage.ImageID() == "")
 }
 
-func (s *dispatchState) beginStage(stageName string, image builder.Image) error {
+func (s *dispatchState) beginStage(stageName string, img builder.Image) error {
 	s.stageName = stageName
-	s.imageID = image.ImageID()
-	s.operatingSystem = image.OperatingSystem()
-	if s.operatingSystem == "" { // In case it isn't set
-		s.operatingSystem = runtime.GOOS
-	}
-	if !system.IsOSSupported(s.operatingSystem) {
-		return system.ErrNotSupportedOperatingSystem
+	s.imageID = img.ImageID()
+	s.operatingSystem = img.OperatingSystem()
+	if err := image.CheckOS(s.operatingSystem); err != nil {
+		return err
 	}
 
-	if image.RunConfig() != nil {
+	if img.RunConfig() != nil {
 		// copy avoids referencing the same instance when 2 stages have the same base
-		s.runConfig = copyRunConfig(image.RunConfig())
+		s.runConfig = copyRunConfig(img.RunConfig())
 	} else {
 		s.runConfig = &container.Config{}
 	}
-	s.baseImage = image
+	s.baseImage = img
 	s.setDefaultPath()
 	s.runConfig.OpenStdin = false
 	s.runConfig.StdinOnce = false
@@ -239,7 +237,8 @@ func (s *dispatchState) beginStage(stageName string, image builder.Image) error 
 // Add the default PATH to runConfig.ENV if one exists for the operating system and there
 // is no PATH set. Note that Windows containers on Windows won't have one as it's set by HCS
 func (s *dispatchState) setDefaultPath() {
-	defaultPath := system.DefaultPathEnv(s.operatingSystem)
+	// TODO(thaJeztah): use github.com/moby/buildkit/util/system.DefaultPathEnv() once https://github.com/moby/buildkit/pull/3158 is resolved.
+	defaultPath := oci.DefaultPathEnv(s.operatingSystem)
 	if defaultPath == "" {
 		return
 	}

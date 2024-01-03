@@ -13,6 +13,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNetworkListError(t *testing.T) {
@@ -20,49 +22,39 @@ func TestNetworkListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.NetworkList(context.Background(), types.NetworkListOptions{
-		Filters: filters.NewArgs(),
-	})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	_, err := client.NetworkList(context.Background(), types.NetworkListOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestNetworkList(t *testing.T) {
-	expectedURL := "/networks"
-
-	noDanglingFilters := filters.NewArgs()
-	noDanglingFilters.Add("dangling", "false")
-
-	danglingFilters := filters.NewArgs()
-	danglingFilters.Add("dangling", "true")
-
-	labelFilters := filters.NewArgs()
-	labelFilters.Add("label", "label1")
-	labelFilters.Add("label", "label2")
+	const expectedURL = "/networks"
 
 	listCases := []struct {
 		options         types.NetworkListOptions
 		expectedFilters string
 	}{
 		{
-			options: types.NetworkListOptions{
-				Filters: filters.NewArgs(),
-			},
+			options:         types.NetworkListOptions{},
 			expectedFilters: "",
-		}, {
+		},
+		{
 			options: types.NetworkListOptions{
-				Filters: noDanglingFilters,
+				Filters: filters.NewArgs(filters.Arg("dangling", "false")),
 			},
 			expectedFilters: `{"dangling":{"false":true}}`,
-		}, {
+		},
+		{
 			options: types.NetworkListOptions{
-				Filters: danglingFilters,
+				Filters: filters.NewArgs(filters.Arg("dangling", "true")),
 			},
 			expectedFilters: `{"dangling":{"true":true}}`,
-		}, {
+		},
+		{
 			options: types.NetworkListOptions{
-				Filters: labelFilters,
+				Filters: filters.NewArgs(
+					filters.Arg("label", "label1"),
+					filters.Arg("label", "label2"),
+				),
 			},
 			expectedFilters: `{"label":{"label1":true,"label2":true}}`,
 		},

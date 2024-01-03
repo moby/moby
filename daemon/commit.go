@@ -1,13 +1,16 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
@@ -37,16 +40,16 @@ func merge(userConf, imageConf *containertypes.Config) error {
 	} else {
 		for _, imageEnv := range imageConf.Env {
 			found := false
-			imageEnvKey := strings.Split(imageEnv, "=")[0]
+			imageEnvKey, _, _ := strings.Cut(imageEnv, "=")
 			for _, userEnv := range userConf.Env {
-				userEnvKey := strings.Split(userEnv, "=")[0]
+				userEnvKey, _, _ := strings.Cut(userEnv, "=")
 				if isWindows {
 					// Case insensitive environment variables on Windows
-					imageEnvKey = strings.ToUpper(imageEnvKey)
-					userEnvKey = strings.ToUpper(userEnvKey)
+					found = strings.EqualFold(imageEnvKey, userEnvKey)
+				} else {
+					found = imageEnvKey == userEnvKey
 				}
-				if imageEnvKey == userEnvKey {
-					found = true
+				if found {
 					break
 				}
 			}
@@ -90,6 +93,9 @@ func merge(userConf, imageConf *containertypes.Config) error {
 			if userConf.Healthcheck.StartPeriod == 0 {
 				userConf.Healthcheck.StartPeriod = imageConf.Healthcheck.StartPeriod
 			}
+			if userConf.Healthcheck.StartInterval == 0 {
+				userConf.Healthcheck.StartInterval = imageConf.Healthcheck.StartInterval
+			}
 			if userConf.Healthcheck.Retries == 0 {
 				userConf.Healthcheck.Retries = imageConf.Healthcheck.Retries
 			}
@@ -116,8 +122,9 @@ func merge(userConf, imageConf *containertypes.Config) error {
 // CreateImageFromContainer creates a new image from a container. The container
 // config will be updated by applying the change set to the custom config, then
 // applying that config over the existing container config.
-func (daemon *Daemon) CreateImageFromContainer(name string, c *backend.CreateImageConfig) (string, error) {
+func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string, c *backend.CreateImageConfig) (string, error) {
 	start := time.Now()
+
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return "", err
@@ -129,13 +136,11 @@ func (daemon *Daemon) CreateImageFromContainer(name string, c *backend.CreateIma
 	}
 
 	if container.IsDead() {
-		err := fmt.Errorf("You cannot commit container %s which is Dead", container.ID)
-		return "", errdefs.Conflict(err)
+		return "", errdefs.Conflict(fmt.Errorf("You cannot commit container %s which is Dead", container.ID))
 	}
 
 	if container.IsRemovalInProgress() {
-		err := fmt.Errorf("You cannot commit container %s which is being removed", container.ID)
-		return "", errdefs.Conflict(err)
+		return "", errdefs.Conflict(fmt.Errorf("You cannot commit container %s which is being removed", container.ID))
 	}
 
 	if c.Pause && !container.IsPaused() {
@@ -146,7 +151,7 @@ func (daemon *Daemon) CreateImageFromContainer(name string, c *backend.CreateIma
 	if c.Config == nil {
 		c.Config = container.Config
 	}
-	newConfig, err := dockerfile.BuildFromConfig(c.Config, c.Changes, container.OS)
+	newConfig, err := dockerfile.BuildFromConfig(ctx, c.Config, c.Changes, container.OS)
 	if err != nil {
 		return "", err
 	}
@@ -154,7 +159,7 @@ func (daemon *Daemon) CreateImageFromContainer(name string, c *backend.CreateIma
 		return "", err
 	}
 
-	id, err := daemon.imageService.CommitImage(backend.CommitConfig{
+	id, err := daemon.imageService.CommitImage(ctx, backend.CommitConfig{
 		Author:              c.Author,
 		Comment:             c.Comment,
 		Config:              newConfig,
@@ -168,14 +173,15 @@ func (daemon *Daemon) CreateImageFromContainer(name string, c *backend.CreateIma
 		return "", err
 	}
 
-	var imageRef string
-	if c.Repo != "" {
-		imageRef, err = daemon.imageService.TagImage(string(id), c.Repo, c.Tag)
+	imageRef := ""
+	if c.Tag != nil {
+		err = daemon.imageService.TagImage(ctx, id, c.Tag)
 		if err != nil {
 			return "", err
 		}
+		imageRef = reference.FamiliarString(c.Tag)
 	}
-	daemon.LogContainerEventWithAttributes(container, "commit", map[string]string{
+	daemon.LogContainerEventWithAttributes(container, events.ActionCommit, map[string]string{
 		"comment":  c.Comment,
 		"imageID":  id.String(),
 		"imageRef": imageRef,

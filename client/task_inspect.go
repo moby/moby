@@ -17,7 +17,7 @@ func (cli *Client) TaskInspectWithRaw(ctx context.Context, taskID string) (swarm
 	serverResp, err := cli.get(ctx, "/tasks/"+taskID, nil, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
-		return swarm.Task{}, nil, wrapResponseError(err, serverResp, "task", taskID)
+		return swarm.Task{}, nil, err
 	}
 
 	body, err := io.ReadAll(serverResp.body)

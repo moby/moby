@@ -1,3 +1,5 @@
+//go:build windows
+
 package wclayer
 
 import (
@@ -16,7 +18,7 @@ import (
 // ExpandScratchSize expands the size of a layer to at least size bytes.
 func ExpandScratchSize(ctx context.Context, path string, size uint64) (err error) {
 	title := "hcsshim::ExpandScratchSize"
-	ctx, span := trace.StartSpan(ctx, title)
+	ctx, span := oc.StartSpan(ctx, title)
 	defer span.End()
 	defer func() { oc.SetSpanStatus(span, err) }()
 	span.AddAttributes(
@@ -25,7 +27,7 @@ func ExpandScratchSize(ctx context.Context, path string, size uint64) (err error
 
 	err = expandSandboxSize(&stdDriverInfo, path, size)
 	if err != nil {
-		return hcserror.New(err, title+" - failed", "")
+		return hcserror.New(err, title, "")
 	}
 
 	// Manually expand the volume now in order to work around bugs in 19H1 and

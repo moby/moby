@@ -26,10 +26,17 @@ func Create(ctx context.Context, client client.APIClient, name string, ops ...fu
 }
 
 // CreateNoError creates a network with the specified options and verifies there were no errors
-func CreateNoError(ctx context.Context, t *testing.T, client client.APIClient, name string, ops ...func(*types.NetworkCreate)) string { //nolint: golint
+func CreateNoError(ctx context.Context, t *testing.T, client client.APIClient, name string, ops ...func(*types.NetworkCreate)) string {
 	t.Helper()
 
 	name, err := createNetwork(ctx, client, name, ops...)
 	assert.NilError(t, err)
 	return name
+}
+
+func RemoveNoError(ctx context.Context, t *testing.T, apiClient client.APIClient, name string) {
+	t.Helper()
+
+	err := apiClient.NetworkRemove(ctx, name)
+	assert.NilError(t, err)
 }

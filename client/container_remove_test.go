@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -19,19 +19,17 @@ func TestContainerRemoveError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.ContainerRemove(context.Background(), "container_id", types.ContainerRemoveOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	err := client.ContainerRemove(context.Background(), "container_id", container.RemoveOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerRemoveNotFoundError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "missing")),
+		client: newMockClient(errorMock(http.StatusNotFound, "no such container: container_id")),
 	}
-	err := client.ContainerRemove(context.Background(), "container_id", types.ContainerRemoveOptions{})
-	assert.Check(t, is.Error(err, "Error: No such container: container_id"))
-	assert.Check(t, IsErrNotFound(err))
+	err := client.ContainerRemove(context.Background(), "container_id", container.RemoveOptions{})
+	assert.Check(t, is.ErrorContains(err, "no such container: container_id"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestContainerRemove(t *testing.T) {
@@ -61,7 +59,7 @@ func TestContainerRemove(t *testing.T) {
 		}),
 	}
 
-	err := client.ContainerRemove(context.Background(), "container_id", types.ContainerRemoveOptions{
+	err := client.ContainerRemove(context.Background(), "container_id", container.RemoveOptions{
 		RemoveVolumes: true,
 		Force:         true,
 	})

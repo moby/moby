@@ -23,31 +23,12 @@ func TestContainersPruneError(t *testing.T) {
 		version: "1.25",
 	}
 
-	filters := filters.NewArgs()
-
-	_, err := client.ContainersPrune(context.Background(), filters)
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	_, err := client.ContainersPrune(context.Background(), filters.Args{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainersPrune(t *testing.T) {
 	expectedURL := "/v1.25/containers/prune"
-
-	danglingFilters := filters.NewArgs()
-	danglingFilters.Add("dangling", "true")
-
-	noDanglingFilters := filters.NewArgs()
-	noDanglingFilters.Add("dangling", "false")
-
-	danglingUntilFilters := filters.NewArgs()
-	danglingUntilFilters.Add("dangling", "true")
-	danglingUntilFilters.Add("until", "2016-12-15T14:00")
-
-	labelFilters := filters.NewArgs()
-	labelFilters.Add("dangling", "true")
-	labelFilters.Add("label", "label1=foo")
-	labelFilters.Add("label", "label2!=bar")
 
 	listCases := []struct {
 		filters             filters.Args
@@ -62,7 +43,7 @@ func TestContainersPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: danglingFilters,
+			filters: filters.NewArgs(filters.Arg("dangling", "true")),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -70,7 +51,10 @@ func TestContainersPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: danglingUntilFilters,
+			filters: filters.NewArgs(
+				filters.Arg("dangling", "true"),
+				filters.Arg("until", "2016-12-15T14:00"),
+			),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -78,7 +62,7 @@ func TestContainersPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: noDanglingFilters,
+			filters: filters.NewArgs(filters.Arg("dangling", "false")),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -86,7 +70,11 @@ func TestContainersPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: labelFilters,
+			filters: filters.NewArgs(
+				filters.Arg("dangling", "true"),
+				filters.Arg("label", "label1=foo"),
+				filters.Arg("label", "label2!=bar"),
+			),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",

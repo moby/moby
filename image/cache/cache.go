@@ -227,7 +227,7 @@ func getLocalCachedImage(imageStore image.Store, imgID image.ID, config *contain
 
 			if compare(&img.ContainerConfig, config) {
 				// check for the most up to date match
-				if match == nil || match.Created.Before(img.Created) {
+				if img.Created != nil && (match == nil || match.Created.Before(*img.Created)) {
 					match = img
 				}
 			}

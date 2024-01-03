@@ -1,18 +1,18 @@
 package runconfig // import "github.com/docker/docker/runconfig"
 
 import (
-	"encoding/json"
 	"io"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 )
 
 // DecodeHostConfig creates a HostConfig based on the specified Reader.
 // It assumes the content of the reader will be JSON, and decodes it.
 func decodeHostConfig(src io.Reader) (*container.HostConfig, error) {
 	var w ContainerConfigWrapper
-	if err := json.NewDecoder(src).Decode(&w); err != nil {
+	if err := loadJSON(src, &w); err != nil {
 		return nil, err
 	}
 	return w.getHostConfig(), nil
@@ -24,7 +24,7 @@ func decodeHostConfig(src io.Reader) (*container.HostConfig, error) {
 // docker daemon.
 func SetDefaultNetModeIfBlank(hc *container.HostConfig) {
 	if hc != nil && hc.NetworkMode == "" {
-		hc.NetworkMode = "default"
+		hc.NetworkMode = network.NetworkDefault
 	}
 }
 
@@ -52,10 +52,6 @@ func validateNetContainerMode(c *container.Config, hc *container.HostConfig) err
 
 	if hc.NetworkMode.IsContainer() && len(hc.ExtraHosts) > 0 {
 		return ErrConflictNetworkHosts
-	}
-
-	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && c.MacAddress != "" {
-		return ErrConflictContainerNetworkAndMac
 	}
 
 	if hc.NetworkMode.IsContainer() && (len(hc.PortBindings) > 0 || hc.PublishAllPorts) {

@@ -2,37 +2,46 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"os"
-	"reflect"
 	"sort"
 	"testing"
-	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/pkg/discovery"
-	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/registry"
-	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 // muteLogs suppresses logs that are generated during the test
-func muteLogs() {
-	logrus.SetLevel(logrus.ErrorLevel)
+func muteLogs(t *testing.T) {
+	t.Helper()
+	err := log.SetLevel("error")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func newDaemonForReloadT(t *testing.T, cfg *config.Config) *Daemon {
+	t.Helper()
+	daemon := &Daemon{
+		imageService: images.NewImageService(images.ImageServiceConfig{}),
+	}
+	var err error
+	daemon.registryService, err = registry.NewService(registry.ServiceOptions{})
+	assert.Assert(t, err)
+	daemon.configStore.Store(&configStore{Config: *cfg})
+	return daemon
 }
 
 func TestDaemonReloadLabels(t *testing.T) {
-	daemon := &Daemon{
-		configStore: &config.Config{
-			CommonConfig: config.CommonConfig{
-				Labels: []string{"foo:bar"},
-			},
+	daemon := newDaemonForReloadT(t, &config.Config{
+		CommonConfig: config.CommonConfig{
+			Labels: []string{"foo:bar"},
 		},
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-	}
-	muteLogs()
+	})
+	muteLogs(t)
 
 	valuesSets := make(map[string]interface{})
 	valuesSets["labels"] = "foo:baz"
@@ -47,22 +56,19 @@ func TestDaemonReloadLabels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	label := daemon.configStore.Labels[0]
+	label := daemon.config().Labels[0]
 	if label != "foo:baz" {
 		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
 	}
 }
 
 func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
-	daemon := &Daemon{
-		configStore:  &config.Config{},
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-	}
-	muteLogs()
+	daemon := newDaemonForReloadT(t, &config.Config{})
+	muteLogs(t)
 
 	var err error
 	// Initialize daemon with some registries.
-	daemon.RegistryService, err = registry.NewService(registry.ServiceOptions{
+	daemon.registryService, err = registry.NewService(registry.ServiceOptions{
 		AllowNondistributableArtifacts: []string{
 			"127.0.0.0/8",
 			"10.10.1.11:5000",
@@ -99,7 +105,7 @@ func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
 	}
 
 	var actual []string
-	serviceConfig := daemon.RegistryService.ServiceConfig()
+	serviceConfig := daemon.registryService.ServiceConfig()
 	for _, value := range serviceConfig.AllowNondistributableArtifactsCIDRs {
 		actual = append(actual, value.String())
 	}
@@ -114,10 +120,10 @@ func TestDaemonReloadMirrors(t *testing.T) {
 	daemon := &Daemon{
 		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
-	muteLogs()
+	muteLogs(t)
 
 	var err error
-	daemon.RegistryService, err = registry.NewService(registry.ServiceOptions{
+	daemon.registryService, err = registry.NewService(registry.ServiceOptions{
 		InsecureRegistries: []string{},
 		Mirrors: []string{
 			"https://mirror.test1.example.com",
@@ -128,8 +134,6 @@ func TestDaemonReloadMirrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	daemon.configStore = &config.Config{}
 
 	type pair struct {
 		valid   bool
@@ -184,7 +188,7 @@ func TestDaemonReloadMirrors(t *testing.T) {
 				// mirrors should be valid, should be no error
 				t.Fatal(err)
 			}
-			registryService := daemon.RegistryService.ServiceConfig()
+			registryService := daemon.registryService.ServiceConfig()
 
 			if len(registryService.Mirrors) != len(value.after) {
 				t.Fatalf("Expected %d daemon mirrors %s while get %d with %s",
@@ -215,11 +219,11 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 	daemon := &Daemon{
 		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
-	muteLogs()
+	muteLogs(t)
 
 	var err error
 	// initialize daemon with existing insecure registries: "127.0.0.0/8", "10.10.1.11:5000", "10.10.1.22:5000"
-	daemon.RegistryService, err = registry.NewService(registry.ServiceOptions{
+	daemon.registryService, err = registry.NewService(registry.ServiceOptions{
 		InsecureRegistries: []string{
 			"127.0.0.0/8",
 			"10.10.1.11:5000",
@@ -232,8 +236,6 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon.configStore = &config.Config{}
-
 	insecureRegistries := []string{
 		"127.0.0.0/8",         // this will be kept
 		"10.10.1.11:5000",     // this will be kept
@@ -242,13 +244,19 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 		"docker3.example.com", // this will be newly added
 	}
 
+	mirrors := []string{
+		"https://mirror.test.example.com",
+	}
+
 	valuesSets := make(map[string]interface{})
 	valuesSets["insecure-registries"] = insecureRegistries
+	valuesSets["registry-mirrors"] = mirrors
 
 	newConfig := &config.Config{
 		CommonConfig: config.CommonConfig{
 			ServiceOptions: registry.ServiceOptions{
 				InsecureRegistries: insecureRegistries,
+				Mirrors:            mirrors,
 			},
 			ValuesSet: valuesSets,
 		},
@@ -260,7 +268,7 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 
 	// After Reload, daemon.RegistryService will be changed which is useful
 	// for registry communication in daemon.
-	registries := daemon.RegistryService.ServiceConfig()
+	registries := daemon.registryService.ServiceConfig()
 
 	// After Reload(), newConfig has come to registries.InsecureRegistryCIDRs and registries.IndexConfigs in daemon.
 	// Then collect registries.InsecureRegistryCIDRs in dataMap.
@@ -306,17 +314,13 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 }
 
 func TestDaemonReloadNotAffectOthers(t *testing.T) {
-	daemon := &Daemon{
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-	}
-	muteLogs()
-
-	daemon.configStore = &config.Config{
+	daemon := newDaemonForReloadT(t, &config.Config{
 		CommonConfig: config.CommonConfig{
 			Labels: []string{"foo:bar"},
 			Debug:  true,
 		},
-	}
+	})
+	muteLogs(t)
 
 	valuesSets := make(map[string]interface{})
 	valuesSets["labels"] = "foo:baz"
@@ -331,187 +335,13 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	label := daemon.configStore.Labels[0]
+	label := daemon.config().Labels[0]
 	if label != "foo:baz" {
 		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
 	}
-	debug := daemon.configStore.Debug
+	debug := daemon.config().Debug
 	if !debug {
 		t.Fatal("Expected debug 'enabled', got 'disabled'")
-	}
-}
-
-func TestDaemonDiscoveryReload(t *testing.T) {
-	daemon := &Daemon{
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-	}
-	muteLogs()
-	daemon.configStore = &config.Config{
-		CommonConfig: config.CommonConfig{
-			ClusterStore:     "memory://127.0.0.1",
-			ClusterAdvertise: "127.0.0.1:3333",
-		},
-	}
-
-	if err := daemon.initDiscovery(daemon.configStore); err != nil {
-		t.Fatal(err)
-	}
-
-	expected := discovery.Entries{
-		&discovery.Entry{Host: "127.0.0.1", Port: "3333"},
-	}
-
-	select {
-	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for discovery")
-	case <-daemon.discoveryWatcher.ReadyCh():
-	}
-
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-	ch, errCh := daemon.discoveryWatcher.Watch(stopCh)
-
-	select {
-	case <-time.After(1 * time.Second):
-		t.Fatal("failed to get discovery advertisements in time")
-	case e := <-ch:
-		if !reflect.DeepEqual(e, expected) {
-			t.Fatalf("expected %v, got %v\n", expected, e)
-		}
-	case e := <-errCh:
-		t.Fatal(e)
-	}
-
-	valuesSets := make(map[string]interface{})
-	valuesSets["cluster-store"] = "memory://127.0.0.1:2222"
-	valuesSets["cluster-advertise"] = "127.0.0.1:5555"
-	newConfig := &config.Config{
-		CommonConfig: config.CommonConfig{
-			ClusterStore:     "memory://127.0.0.1:2222",
-			ClusterAdvertise: "127.0.0.1:5555",
-			ValuesSet:        valuesSets,
-		},
-	}
-
-	expected = discovery.Entries{
-		&discovery.Entry{Host: "127.0.0.1", Port: "5555"},
-	}
-
-	if err := daemon.Reload(newConfig); err != nil {
-		t.Fatal(err)
-	}
-
-	select {
-	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for discovery")
-	case <-daemon.discoveryWatcher.ReadyCh():
-	}
-
-	ch, errCh = daemon.discoveryWatcher.Watch(stopCh)
-
-	select {
-	case <-time.After(1 * time.Second):
-		t.Fatal("failed to get discovery advertisements in time")
-	case e := <-ch:
-		if !reflect.DeepEqual(e, expected) {
-			t.Fatalf("expected %v, got %v\n", expected, e)
-		}
-	case e := <-errCh:
-		t.Fatal(e)
-	}
-}
-
-func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
-	daemon := &Daemon{
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-	}
-	daemon.configStore = &config.Config{}
-	muteLogs()
-
-	valuesSet := make(map[string]interface{})
-	valuesSet["cluster-store"] = "memory://127.0.0.1:2222"
-	valuesSet["cluster-advertise"] = "127.0.0.1:5555"
-	newConfig := &config.Config{
-		CommonConfig: config.CommonConfig{
-			ClusterStore:     "memory://127.0.0.1:2222",
-			ClusterAdvertise: "127.0.0.1:5555",
-			ValuesSet:        valuesSet,
-		},
-	}
-
-	expected := discovery.Entries{
-		&discovery.Entry{Host: "127.0.0.1", Port: "5555"},
-	}
-
-	if err := daemon.Reload(newConfig); err != nil {
-		t.Fatal(err)
-	}
-
-	select {
-	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for discovery")
-	case <-daemon.discoveryWatcher.ReadyCh():
-	}
-
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-	ch, errCh := daemon.discoveryWatcher.Watch(stopCh)
-
-	select {
-	case <-time.After(1 * time.Second):
-		t.Fatal("failed to get discovery advertisements in time")
-	case e := <-ch:
-		if !reflect.DeepEqual(e, expected) {
-			t.Fatalf("expected %v, got %v\n", expected, e)
-		}
-	case e := <-errCh:
-		t.Fatal(e)
-	}
-}
-
-func TestDaemonDiscoveryReloadOnlyClusterAdvertise(t *testing.T) {
-	daemon := &Daemon{
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-	}
-	daemon.configStore = &config.Config{
-		CommonConfig: config.CommonConfig{
-			ClusterStore: "memory://127.0.0.1",
-		},
-	}
-	valuesSets := make(map[string]interface{})
-	valuesSets["cluster-advertise"] = "127.0.0.1:5555"
-	newConfig := &config.Config{
-		CommonConfig: config.CommonConfig{
-			ClusterAdvertise: "127.0.0.1:5555",
-			ValuesSet:        valuesSets,
-		},
-	}
-	expected := discovery.Entries{
-		&discovery.Entry{Host: "127.0.0.1", Port: "5555"},
-	}
-
-	if err := daemon.Reload(newConfig); err != nil {
-		t.Fatal(err)
-	}
-
-	select {
-	case <-daemon.discoveryWatcher.ReadyCh():
-	case <-time.After(10 * time.Second):
-		t.Fatal("Timeout waiting for discovery")
-	}
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-	ch, errCh := daemon.discoveryWatcher.Watch(stopCh)
-
-	select {
-	case <-time.After(1 * time.Second):
-		t.Fatal("failed to get discovery advertisements in time")
-	case e := <-ch:
-		if !reflect.DeepEqual(e, expected) {
-			t.Fatalf("expected %v, got %v\n", expected, e)
-		}
-	case e := <-errCh:
-		t.Fatal(e)
 	}
 }
 
@@ -519,24 +349,18 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("root required")
 	}
-	daemon := &Daemon{
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-	}
-	daemon.configStore = &config.Config{}
+	daemon := newDaemonForReloadT(t, &config.Config{})
 
-	valuesSet := make(map[string]interface{})
-	valuesSet["network-diagnostic-port"] = 2000
 	enableConfig := &config.Config{
 		CommonConfig: config.CommonConfig{
 			NetworkDiagnosticPort: 2000,
-			ValuesSet:             valuesSet,
+			ValuesSet: map[string]interface{}{
+				"network-diagnostic-port": 2000,
+			},
 		},
 	}
-	disableConfig := &config.Config{
-		CommonConfig: config.CommonConfig{},
-	}
 
-	netOptions, err := daemon.networkOptions(enableConfig, nil, nil)
+	netOptions, err := daemon.networkOptions(&config.Config{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -554,16 +378,16 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 		}
 		// Check that the diagnostic is enabled
 		if !daemon.netController.IsDiagnosticEnabled() {
-			t.Fatalf("diagnostic should be enable")
+			t.Fatalf("diagnostic should be enabled")
 		}
 
 		// Reload
-		if err := daemon.Reload(disableConfig); err != nil {
+		if err := daemon.Reload(&config.Config{}); err != nil {
 			t.Fatal(err)
 		}
 		// Check that the diagnostic is disabled
 		if daemon.netController.IsDiagnosticEnabled() {
-			t.Fatalf("diagnostic should be disable")
+			t.Fatalf("diagnostic should be disabled")
 		}
 	}
 
@@ -585,5 +409,4 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	if !daemon.netController.IsDiagnosticEnabled() {
 		t.Fatalf("diagnostic should be enable")
 	}
-
 }

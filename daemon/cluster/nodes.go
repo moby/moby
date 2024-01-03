@@ -7,7 +7,7 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/errdefs"
-	swarmapi "github.com/docker/swarmkit/api"
+	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
 )
 
@@ -26,7 +26,8 @@ func (c *Cluster) GetNodes(options apitypes.NodeListOptions) ([]types.Node, erro
 		return nil, err
 	}
 
-	ctx, cancel := c.getRequestContext()
+	ctx := context.TODO()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	r, err := state.controlClient.ListNodes(
@@ -72,7 +73,8 @@ func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) 
 			return errdefs.InvalidParameter(err)
 		}
 
-		ctx, cancel := c.getRequestContext()
+		ctx := context.TODO()
+		ctx, cancel := c.getRequestContext(ctx)
 		defer cancel()
 
 		currentNode, err := getNode(ctx, state.controlClient, input)

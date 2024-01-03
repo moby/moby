@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package daemon // import "github.com/docker/docker/daemon"
 
@@ -9,14 +8,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/oci"
-	"github.com/docker/docker/pkg/stringid"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/sirupsen/logrus"
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
@@ -42,13 +40,12 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 	}
 
 	for spec := range config.Volumes {
-		name := stringid.GenerateRandomID()
 		destination := filepath.Clean(spec)
 
 		// Skip volumes for which we already have something mounted on that
 		// destination because of a --volume-from.
 		if container.HasMountFor(destination) {
-			logrus.WithField("container", container.ID).WithField("destination", spec).Debug("mountpoint already exists, skipping anonymous volume")
+			log.G(context.TODO()).WithField("container", container.ID).WithField("destination", spec).Debug("mountpoint already exists, skipping anonymous volume")
 			// Not an error, this could easily have come from the image config.
 			continue
 		}
@@ -62,7 +59,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 			return fmt.Errorf("cannot mount volume over existing file, file exists %s", path)
 		}
 
-		v, err := daemon.volumes.Create(context.TODO(), name, hostConfig.VolumeDriver, volumeopts.WithCreateReference(container.ID))
+		v, err := daemon.volumes.Create(context.TODO(), "", hostConfig.VolumeDriver, volumeopts.WithCreateReference(container.ID))
 		if err != nil {
 			return err
 		}
@@ -88,7 +85,7 @@ func (daemon *Daemon) populateVolumes(c *container.Container) error {
 			continue
 		}
 
-		logrus.Debugf("copying image data from %s:%s, to %s", c.ID, mnt.Destination, mnt.Name)
+		log.G(context.TODO()).Debugf("copying image data from %s:%s, to %s", c.ID, mnt.Destination, mnt.Name)
 		if err := c.CopyImagePathContent(mnt.Volume, mnt.Destination); err != nil {
 			return err
 		}

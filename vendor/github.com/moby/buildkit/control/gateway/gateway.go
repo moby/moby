@@ -111,6 +111,14 @@ func (gwf *GatewayForwarder) ReadFile(ctx context.Context, req *gwapi.ReadFileRe
 	return fwd.ReadFile(ctx, req)
 }
 
+func (gwf *GatewayForwarder) Evaluate(ctx context.Context, req *gwapi.EvaluateRequest) (*gwapi.EvaluateResponse, error) {
+	fwd, err := gwf.lookupForwarder(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "forwarding Evaluate")
+	}
+	return fwd.Evaluate(ctx, req)
+}
+
 func (gwf *GatewayForwarder) Ping(ctx context.Context, req *gwapi.PingRequest) (*gwapi.PongResponse, error) {
 	fwd, err := gwf.lookupForwarder(ctx)
 	if err != nil {
@@ -175,4 +183,12 @@ func (gwf *GatewayForwarder) ExecProcess(srv gwapi.LLBBridge_ExecProcessServer) 
 		return errors.Wrap(err, "forwarding ExecProcess")
 	}
 	return fwd.ExecProcess(srv)
+}
+
+func (gwf *GatewayForwarder) Warn(ctx context.Context, req *gwapi.WarnRequest) (*gwapi.WarnResponse, error) {
+	fwd, err := gwf.lookupForwarder(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "forwarding Warn")
+	}
+	return fwd.Warn(ctx, req)
 }

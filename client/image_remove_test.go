@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -22,19 +23,17 @@ func TestImageRemoveError(t *testing.T) {
 	}
 
 	_, err := client.ImageRemove(context.Background(), "image_id", types.ImageRemoveOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestImageRemoveImageNotFound(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "missing")),
+		client: newMockClient(errorMock(http.StatusNotFound, "no such image: unknown")),
 	}
 
 	_, err := client.ImageRemove(context.Background(), "unknown", types.ImageRemoveOptions{})
-	assert.Check(t, is.Error(err, "Error: No such image: unknown"))
-	assert.Check(t, IsErrNotFound(err))
+	assert.Check(t, is.ErrorContains(err, "no such image: unknown"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestImageRemove(t *testing.T) {
@@ -76,7 +75,7 @@ func TestImageRemove(t *testing.T) {
 						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 					}
 				}
-				b, err := json.Marshal([]types.ImageDeleteResponseItem{
+				b, err := json.Marshal([]image.DeleteResponse{
 					{
 						Untagged: "image_id1",
 					},

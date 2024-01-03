@@ -12,6 +12,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerExecCreateError(t *testing.T) {
@@ -19,9 +21,7 @@ func TestContainerExecCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerExecCreate(context.Background(), "container_id", types.ExecConfig{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerExecCreate(t *testing.T) {
@@ -74,9 +74,7 @@ func TestContainerExecStartError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerExecStart(context.Background(), "nothing", types.ExecStartCheck{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerExecStart(t *testing.T) {
@@ -118,9 +116,7 @@ func TestContainerExecInspectError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerExecInspect(context.Background(), "nothing")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerExecInspect(t *testing.T) {

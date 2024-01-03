@@ -25,9 +25,10 @@ const (
 	Complex64Size  = 10
 	Complex128Size = 18
 
-	TimeSize = 15
-	BoolSize = 1
-	NilSize  = 1
+	DurationSize = Int64Size
+	TimeSize     = 15
+	BoolSize     = 1
+	NilSize      = 1
 
 	MapHeaderSize   = 5
 	ArrayHeaderSize = 5

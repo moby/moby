@@ -1,80 +1,36 @@
 package awslogs // import "github.com/docker/docker/daemon/logger/awslogs"
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 )
 
-type mockcwlogsclient struct {
-	createLogGroupArgument  chan *cloudwatchlogs.CreateLogGroupInput
-	createLogGroupResult    chan *createLogGroupResult
-	createLogStreamArgument chan *cloudwatchlogs.CreateLogStreamInput
-	createLogStreamResult   chan *createLogStreamResult
-	putLogEventsArgument    chan *cloudwatchlogs.PutLogEventsInput
-	putLogEventsResult      chan *putLogEventsResult
+type mockClient struct {
+	createLogGroupFunc  func(context.Context, *cloudwatchlogs.CreateLogGroupInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogGroupOutput, error)
+	createLogStreamFunc func(context.Context, *cloudwatchlogs.CreateLogStreamInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error)
+	putLogEventsFunc    func(context.Context, *cloudwatchlogs.PutLogEventsInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error)
 }
 
-type createLogGroupResult struct {
-	successResult *cloudwatchlogs.CreateLogGroupOutput
-	errorResult   error
+func (m *mockClient) CreateLogGroup(ctx context.Context, input *cloudwatchlogs.CreateLogGroupInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogGroupOutput, error) {
+	return m.createLogGroupFunc(ctx, input, opts...)
 }
 
-type createLogStreamResult struct {
-	successResult *cloudwatchlogs.CreateLogStreamOutput
-	errorResult   error
+func (m *mockClient) CreateLogStream(ctx context.Context, input *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+	return m.createLogStreamFunc(ctx, input, opts...)
 }
 
-type putLogEventsResult struct {
-	successResult *cloudwatchlogs.PutLogEventsOutput
-	errorResult   error
-}
-
-func newMockClient() *mockcwlogsclient {
-	return &mockcwlogsclient{
-		createLogGroupArgument:  make(chan *cloudwatchlogs.CreateLogGroupInput, 1),
-		createLogGroupResult:    make(chan *createLogGroupResult, 1),
-		createLogStreamArgument: make(chan *cloudwatchlogs.CreateLogStreamInput, 1),
-		createLogStreamResult:   make(chan *createLogStreamResult, 1),
-		putLogEventsArgument:    make(chan *cloudwatchlogs.PutLogEventsInput, 1),
-		putLogEventsResult:      make(chan *putLogEventsResult, 1),
+func (m *mockClient) PutLogEvents(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	if err := checkPutLogEventsConstraints(input); err != nil {
+		return nil, err
 	}
+	return m.putLogEventsFunc(ctx, input, opts...)
 }
 
-func newMockClientBuffered(buflen int) *mockcwlogsclient {
-	return &mockcwlogsclient{
-		createLogStreamArgument: make(chan *cloudwatchlogs.CreateLogStreamInput, buflen),
-		createLogStreamResult:   make(chan *createLogStreamResult, buflen),
-		putLogEventsArgument:    make(chan *cloudwatchlogs.PutLogEventsInput, buflen),
-		putLogEventsResult:      make(chan *putLogEventsResult, buflen),
-	}
-}
-
-func (m *mockcwlogsclient) CreateLogGroup(input *cloudwatchlogs.CreateLogGroupInput) (*cloudwatchlogs.CreateLogGroupOutput, error) {
-	m.createLogGroupArgument <- input
-	output := <-m.createLogGroupResult
-	return output.successResult, output.errorResult
-}
-
-func (m *mockcwlogsclient) CreateLogStream(input *cloudwatchlogs.CreateLogStreamInput) (*cloudwatchlogs.CreateLogStreamOutput, error) {
-	m.createLogStreamArgument <- input
-	output := <-m.createLogStreamResult
-	return output.successResult, output.errorResult
-}
-
-func (m *mockcwlogsclient) PutLogEvents(input *cloudwatchlogs.PutLogEventsInput) (*cloudwatchlogs.PutLogEventsOutput, error) {
-	events := make([]*cloudwatchlogs.InputLogEvent, len(input.LogEvents))
-	copy(events, input.LogEvents)
-	m.putLogEventsArgument <- &cloudwatchlogs.PutLogEventsInput{
-		LogEvents:     events,
-		SequenceToken: input.SequenceToken,
-		LogGroupName:  input.LogGroupName,
-		LogStreamName: input.LogStreamName,
-	}
-
-	// Intended mock output
-	output := <-m.putLogEventsResult
-
+func checkPutLogEventsConstraints(input *cloudwatchlogs.PutLogEventsInput) error {
+	events := input.LogEvents
 	// Checked enforced limits in mock
 	totalBytes := 0
 	for _, evt := range events {
@@ -84,7 +40,7 @@ func (m *mockcwlogsclient) PutLogEvents(input *cloudwatchlogs.PutLogEventsInput)
 		eventBytes := len([]byte(*evt.Message))
 		if eventBytes > maximumBytesPerEvent {
 			// exceeded per event message size limits
-			return nil, fmt.Errorf("maximum bytes per event exceeded: Event too large %d, max allowed: %d", eventBytes, maximumBytesPerEvent)
+			return fmt.Errorf("maximum bytes per event exceeded: Event too large %d, max allowed: %d", eventBytes, maximumBytesPerEvent)
 		}
 		// total event bytes including overhead
 		totalBytes += eventBytes + perEventBytes
@@ -92,10 +48,9 @@ func (m *mockcwlogsclient) PutLogEvents(input *cloudwatchlogs.PutLogEventsInput)
 
 	if totalBytes > maximumBytesPerPut {
 		// exceeded per put maximum size limit
-		return nil, fmt.Errorf("maximum bytes per put exceeded: Upload too large %d, max allowed: %d", totalBytes, maximumBytesPerPut)
+		return fmt.Errorf("maximum bytes per put exceeded: Upload too large %d, max allowed: %d", totalBytes, maximumBytesPerPut)
 	}
-
-	return output.successResult, output.errorResult
+	return nil
 }
 
 type mockmetadataclient struct {
@@ -113,7 +68,11 @@ func newMockMetadataClient() *mockmetadataclient {
 	}
 }
 
-func (m *mockmetadataclient) Region() (string, error) {
+func (m *mockmetadataclient) GetRegion(context.Context, *imds.GetRegionInput, ...func(*imds.Options)) (*imds.GetRegionOutput, error) {
 	output := <-m.regionResult
-	return output.successResult, output.errorResult
+	err := output.errorResult
+	if err != nil {
+		return nil, err
+	}
+	return &imds.GetRegionOutput{Region: output.successResult}, err
 }

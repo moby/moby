@@ -13,6 +13,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestPluginInspectError(t *testing.T) {
@@ -21,9 +23,7 @@ func TestPluginInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.PluginInspectWithRaw(context.Background(), "nothing")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestPluginInspectWithEmptyID(t *testing.T) {
@@ -33,9 +33,7 @@ func TestPluginInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.PluginInspectWithRaw(context.Background(), "")
-	if !IsErrNotFound(err) {
-		t.Fatalf("Expected NotFoundError, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestPluginInspect(t *testing.T) {

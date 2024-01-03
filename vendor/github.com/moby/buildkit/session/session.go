@@ -4,13 +4,15 @@ import (
 	"context"
 	"net"
 	"strings"
+	"sync"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/util/grpcerrors"
-	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -23,6 +25,8 @@ const (
 	headerSessionMethod    = "X-Docker-Expose-Session-Grpc-Method"
 )
 
+var propagators = propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
+
 // Dialer returns a connection that can be used by the session
 type Dialer func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error)
 
@@ -33,14 +37,16 @@ type Attachable interface {
 
 // Session is a long running connection between client and a daemon
 type Session struct {
-	id         string
-	name       string
-	sharedKey  string
-	ctx        context.Context
-	cancelCtx  func()
-	done       chan struct{}
-	grpcServer *grpc.Server
-	conn       net.Conn
+	mu          sync.Mutex // synchronizes conn run and close
+	id          string
+	name        string
+	sharedKey   string
+	ctx         context.Context
+	cancelCtx   func()
+	done        chan struct{}
+	grpcServer  *grpc.Server
+	conn        net.Conn
+	closeCalled bool
 }
 
 // NewSession returns a new long running session
@@ -51,10 +57,10 @@ func NewSession(ctx context.Context, name, sharedKey string) (*Session, error) {
 	var stream []grpc.StreamServerInterceptor
 
 	serverOpts := []grpc.ServerOption{}
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		tracer := span.Tracer()
-		unary = append(unary, otgrpc.OpenTracingServerInterceptor(tracer, traceFilter()))
-		stream = append(stream, otgrpc.OpenTracingStreamServerInterceptor(span.Tracer(), traceFilter()))
+
+	if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
+		unary = append(unary, filterServer(otelgrpc.UnaryServerInterceptor(otelgrpc.WithTracerProvider(span.TracerProvider()), otelgrpc.WithPropagators(propagators))))
+		stream = append(stream, otelgrpc.StreamServerInterceptor(otelgrpc.WithTracerProvider(span.TracerProvider()), otelgrpc.WithPropagators(propagators)))
 	}
 
 	unary = append(unary, grpcerrors.UnaryServerInterceptor)
@@ -96,6 +102,11 @@ func (s *Session) ID() string {
 
 // Run activates the session
 func (s *Session) Run(ctx context.Context, dialer Dialer) error {
+	s.mu.Lock()
+	if s.closeCalled {
+		s.mu.Unlock()
+		return nil
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	s.cancelCtx = cancel
 	s.done = make(chan struct{})
@@ -115,15 +126,18 @@ func (s *Session) Run(ctx context.Context, dialer Dialer) error {
 	}
 	conn, err := dialer(ctx, "h2c", meta)
 	if err != nil {
+		s.mu.Unlock()
 		return errors.Wrap(err, "failed to dial gRPC")
 	}
 	s.conn = conn
+	s.mu.Unlock()
 	serve(ctx, s.grpcServer, conn)
 	return nil
 }
 
 // Close closes the session
 func (s *Session) Close() error {
+	s.mu.Lock()
 	if s.cancelCtx != nil && s.done != nil {
 		if s.conn != nil {
 			s.conn.Close()
@@ -131,6 +145,8 @@ func (s *Session) Close() error {
 		s.grpcServer.Stop()
 		<-s.done
 	}
+	s.closeCalled = true
+	s.mu.Unlock()
 	return nil
 }
 
@@ -152,10 +168,21 @@ func MethodURL(s, m string) string {
 	return "/" + s + "/" + m
 }
 
-func traceFilter() otgrpc.Option {
-	return otgrpc.IncludingSpans(func(parentSpanCtx opentracing.SpanContext,
-		method string,
-		req, resp interface{}) bool {
-		return !strings.HasSuffix(method, "Health/Check")
-	})
+// updates needed in opentelemetry-contrib to avoid this
+func filterServer(intercept grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+		if strings.HasSuffix(info.FullMethod, "Health/Check") {
+			return handler(ctx, req)
+		}
+		return intercept(ctx, req, info, handler)
+	}
+}
+
+func filterClient(intercept grpc.UnaryClientInterceptor) grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		if strings.HasSuffix(method, "Health/Check") {
+			return invoker(ctx, method, req, reply, cc, opts...)
+		}
+		return intercept(ctx, method, req, reply, cc, invoker, opts...)
+	}
 }

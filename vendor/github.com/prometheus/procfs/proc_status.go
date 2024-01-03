@@ -33,37 +33,37 @@ type ProcStatus struct {
 	TGID int
 
 	// Peak virtual memory size.
-	VmPeak uint64 // nolint:golint
+	VmPeak uint64 // nolint:revive
 	// Virtual memory size.
-	VmSize uint64 // nolint:golint
+	VmSize uint64 // nolint:revive
 	// Locked memory size.
-	VmLck uint64 // nolint:golint
+	VmLck uint64 // nolint:revive
 	// Pinned memory size.
-	VmPin uint64 // nolint:golint
+	VmPin uint64 // nolint:revive
 	// Peak resident set size.
-	VmHWM uint64 // nolint:golint
+	VmHWM uint64 // nolint:revive
 	// Resident set size (sum of RssAnnon RssFile and RssShmem).
-	VmRSS uint64 // nolint:golint
+	VmRSS uint64 // nolint:revive
 	// Size of resident anonymous memory.
-	RssAnon uint64 // nolint:golint
+	RssAnon uint64 // nolint:revive
 	// Size of resident file mappings.
-	RssFile uint64 // nolint:golint
+	RssFile uint64 // nolint:revive
 	// Size of resident shared memory.
-	RssShmem uint64 // nolint:golint
+	RssShmem uint64 // nolint:revive
 	// Size of data segments.
-	VmData uint64 // nolint:golint
+	VmData uint64 // nolint:revive
 	// Size of stack segments.
-	VmStk uint64 // nolint:golint
+	VmStk uint64 // nolint:revive
 	// Size of text segments.
-	VmExe uint64 // nolint:golint
+	VmExe uint64 // nolint:revive
 	// Shared library code size.
-	VmLib uint64 // nolint:golint
+	VmLib uint64 // nolint:revive
 	// Page table entries size.
-	VmPTE uint64 // nolint:golint
+	VmPTE uint64 // nolint:revive
 	// Size of second-level page tables.
-	VmPMD uint64 // nolint:golint
+	VmPMD uint64 // nolint:revive
 	// Swapped-out virtual memory size by anonymous private.
-	VmSwap uint64 // nolint:golint
+	VmSwap uint64 // nolint:revive
 	// Size of hugetlb memory portions
 	HugetlbPages uint64
 
@@ -72,8 +72,10 @@ type ProcStatus struct {
 	// Number of involuntary context switches.
 	NonVoluntaryCtxtSwitches uint64
 
-	// UIDs of the process (Real, effective, saved set, and filesystem UIDs (GIDs))
+	// UIDs of the process (Real, effective, saved set, and filesystem UIDs)
 	UIDs [4]string
+	// GIDs of the process (Real, effective, saved set, and filesystem GIDs)
+	GIDs [4]string
 }
 
 // NewStatus returns the current status information of the process.
@@ -94,10 +96,10 @@ func (p Proc) NewStatus() (ProcStatus, error) {
 		kv := strings.SplitN(line, ":", 2)
 
 		// removes spaces
-		k := string(strings.TrimSpace(kv[0]))
-		v := string(strings.TrimSpace(kv[1]))
+		k := strings.TrimSpace(kv[0])
+		v := strings.TrimSpace(kv[1])
 		// removes "kB"
-		v = string(bytes.Trim([]byte(v), " kB"))
+		v = strings.TrimSuffix(v, " kB")
 
 		// value to int when possible
 		// we can skip error check here, 'cause vKBytes is not used when value is a string
@@ -119,6 +121,8 @@ func (s *ProcStatus) fillStatus(k string, vString string, vUint uint64, vUintByt
 		s.Name = vString
 	case "Uid":
 		copy(s.UIDs[:], strings.Split(vString, "\t"))
+	case "Gid":
+		copy(s.GIDs[:], strings.Split(vString, "\t"))
 	case "VmPeak":
 		s.VmPeak = vUintBytes
 	case "VmSize":

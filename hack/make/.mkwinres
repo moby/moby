@@ -1,0 +1,85 @@
+#!/usr/bin/env sh
+
+quadVersionNum() {
+	num=$(echo "${1:-0}" | cut -d. -f"$2")
+	if [ "$num" != "0" ]; then
+		echo "${num#0}"
+	else
+		echo "$num"
+	fi
+}
+
+# Create version quad for Windows of the form major.minor.patch.build
+VERSION_QUAD=$(printf "%s" "$VERSION" | sed -re 's/^([0-9.]*).*$/\1/' | sed -re 's/\.$//' | sed -re 's/^[0-9]+$/\0\.0/' | sed -re 's/^[0-9]+\.[0-9]+$/\0\.0/' | sed -re 's/^[0-9]+\.[0-9]+\.[0-9]+$/\0\.0/')
+
+# Generate winres.json to be able to create a syso file which contains
+# Microsoft Windows Version Information and an icon using go-winres.
+# https://docs.microsoft.com/en-us/windows/win32/menurc/stringfileinfo-block
+# https://github.com/tc-hib/go-winres#json-format
+cat > "./cli/winresources/${BINARY_NAME}/winres.json" << EOL
+{
+  "RT_GROUP_ICON": {
+    "#1": {
+      "0409": "../../winresources/docker.ico"
+    }
+  },
+  "RT_MANIFEST": {
+    "#1": {
+      "0409": {
+        "identity": {},
+        "description": "Docker Engine",
+        "minimum-os": "vista",
+        "execution-level": "",
+        "ui-access": false,
+        "auto-elevate": false,
+        "dpi-awareness": "unaware",
+        "disable-theming": false,
+        "disable-window-filtering": false,
+        "high-resolution-scrolling-aware": false,
+        "ultra-high-resolution-scrolling-aware": false,
+        "long-path-aware": false,
+        "printer-driver-isolation": false,
+        "gdi-scaling": false,
+        "segment-heap": false,
+        "use-common-controls-v6": false
+      }
+    }
+  },
+  "RT_MESSAGETABLE": {
+    "#1": {
+      "0409": "../../winresources/event_messages.bin"
+    }
+  },
+  "RT_VERSION": {
+    "#1": {
+      "0409": {
+        "fixed": {
+          "file_version": "$(quadVersionNum "$VERSION_QUAD" 1).$(quadVersionNum "$VERSION_QUAD" 2).$(quadVersionNum "$VERSION_QUAD" 3).$(quadVersionNum "$VERSION_QUAD" 4)",
+          "product_version": "$(quadVersionNum "$VERSION_QUAD" 1).$(quadVersionNum "$VERSION_QUAD" 2).$(quadVersionNum "$VERSION_QUAD" 3).$(quadVersionNum "$VERSION_QUAD" 4)",
+          "type": "Unknown"
+        },
+        "info": {
+          "0000": {
+            "CompanyName": "${PACKAGER_NAME}",
+            "FileVersion": "${VERSION}",
+            "LegalCopyright": "Copyright © 2015-$(date +'%Y') Docker Inc.",
+            "OriginalFileName": "$(basename "${BINARY_FULLNAME}")",
+            "ProductName": "${PRODUCT}",
+            "ProductVersion": "${VERSION}",
+            "SpecialBuild": "${GITCOMMIT}"
+          }
+        }
+      }
+    }
+  }
+}
+EOL
+(
+	set -x
+	cat "./cli/winresources/${BINARY_NAME}/winres.json"
+)
+
+# Create winresources package stub if removed while using tmpfs in Dockerfile
+if [ ! -f "./cli/winresources/${BINARY_NAME}/winresources.go" ]; then
+	echo "package winresources" > "./cli/winresources/${BINARY_NAME}/winresources.go"
+fi

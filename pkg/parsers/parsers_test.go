@@ -7,8 +7,8 @@ import (
 
 func TestParseKeyValueOpt(t *testing.T) {
 	invalids := map[string]string{
-		"":    "Unable to parse key/value option: ",
-		"key": "Unable to parse key/value option: key",
+		"":    "unable to parse key/value option: ",
+		"key": "unable to parse key/value option: key",
 	}
 	for invalid, expectedError := range invalids {
 		if _, _, err := ParseKeyValueOpt(invalid); err == nil || err.Error() != expectedError {

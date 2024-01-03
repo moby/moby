@@ -2,18 +2,21 @@ package session
 
 import (
 	"context"
+	"math"
 	"net"
 	"sync/atomic"
 	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/grpcerrors"
-	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -22,7 +25,7 @@ func serve(ctx context.Context, grpcServer *grpc.Server, conn net.Conn) {
 		<-ctx.Done()
 		conn.Close()
 	}()
-	logrus.Debugf("serving grpc connection")
+	bklog.G(ctx).Debugf("serving grpc connection")
 	(&http2.Server{}).ServeConn(conn, &http2.ServeConnOpts{Handler: grpcServer})
 }
 
@@ -40,13 +43,12 @@ func grpcClientConn(ctx context.Context, conn net.Conn) (context.Context, *grpc.
 
 	dialOpts := []grpc.DialOption{
 		dialer,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		tracer := span.Tracer()
-		unary = append(unary, otgrpc.OpenTracingClientInterceptor(tracer, traceFilter()))
-		stream = append(stream, otgrpc.OpenTracingStreamClientInterceptor(tracer, traceFilter()))
+	if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
+		unary = append(unary, filterClient(otelgrpc.UnaryClientInterceptor(otelgrpc.WithTracerProvider(span.TracerProvider()), otelgrpc.WithPropagators(propagators))))
+		stream = append(stream, otelgrpc.StreamClientInterceptor(otelgrpc.WithTracerProvider(span.TracerProvider()), otelgrpc.WithPropagators(propagators)))
 	}
 
 	unary = append(unary, grpcerrors.UnaryClientInterceptor)
@@ -79,21 +81,60 @@ func monitorHealth(ctx context.Context, cc *grpc.ClientConn, cancelConn func()) 
 	defer cancelConn()
 	defer cc.Close()
 
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	healthClient := grpc_health_v1.NewHealthClient(cc)
+
+	failedBefore := false
+	consecutiveSuccessful := 0
+	defaultHealthcheckDuration := 30 * time.Second
+	lastHealthcheckDuration := time.Duration(0)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			// This healthcheck can erroneously fail in some instances, such as receiving lots of data in a low-bandwidth scenario or too many concurrent builds.
+			// So, this healthcheck is purposely long, and can tolerate some failures on purpose.
+
+			healthcheckStart := time.Now()
+
+			timeout := time.Duration(math.Max(float64(defaultHealthcheckDuration), float64(lastHealthcheckDuration)*1.5))
+			ctx, cancel := context.WithTimeout(ctx, timeout)
 			_, err := healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
 			cancel()
-			if err != nil {
-				return
+
+			lastHealthcheckDuration = time.Since(healthcheckStart)
+			logFields := logrus.Fields{
+				"timeout":        timeout,
+				"actualDuration": lastHealthcheckDuration,
 			}
+
+			if err != nil {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				if failedBefore {
+					bklog.G(ctx).Error("healthcheck failed fatally")
+					return
+				}
+
+				failedBefore = true
+				consecutiveSuccessful = 0
+				bklog.G(ctx).WithFields(logFields).Warn("healthcheck failed")
+			} else {
+				consecutiveSuccessful++
+
+				if consecutiveSuccessful >= 5 && failedBefore {
+					failedBefore = false
+					bklog.G(ctx).WithFields(logFields).Debug("reset healthcheck failure")
+				}
+			}
+
+			bklog.G(ctx).WithFields(logFields).Trace("healthcheck completed")
 		}
 	}
 }

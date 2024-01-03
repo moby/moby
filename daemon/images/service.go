@@ -2,13 +2,10 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/leases"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution"
@@ -17,19 +14,16 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	dockerreference "github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
-	"github.com/docker/libtrust"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/singleflight"
 )
 
 type containerStore interface {
-	// used by image delete
+	// First is used by image delete
 	First(container.StoreFilter) *container.Container
-	// used by image prune, and image list
+	// List is used by image prune, and image list
 	List() []*container.Container
+	// Get is used by CommitBuildStep
 	// TODO: remove, only used for CommitBuildStep
 	Get(string) *container.Container
 }
@@ -45,8 +39,7 @@ type ImageServiceConfig struct {
 	MaxConcurrentUploads      int
 	MaxDownloadAttempts       int
 	ReferenceStore            dockerreference.Store
-	RegistryService           registry.Service
-	TrustKey                  libtrust.PrivateKey
+	RegistryService           distribution.RegistryResolver
 	ContentStore              content.Store
 	Leases                    leases.Manager
 	ContentNamespace          string
@@ -54,9 +47,6 @@ type ImageServiceConfig struct {
 
 // NewImageService returns a new ImageService from a configuration
 func NewImageService(config ImageServiceConfig) *ImageService {
-	logrus.Debugf("Max Concurrent Downloads: %d", config.MaxConcurrentDownloads)
-	logrus.Debugf("Max Concurrent Uploads: %d", config.MaxConcurrentUploads)
-	logrus.Debugf("Max Download Attempts: %d", config.MaxDownloadAttempts)
 	return &ImageService{
 		containers:                config.ContainerStore,
 		distributionMetadataStore: config.DistributionMetadataStore,
@@ -66,7 +56,6 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 		layerStore:                config.LayerStore,
 		referenceStore:            config.ReferenceStore,
 		registryService:           config.RegistryService,
-		trustKey:                  config.TrustKey,
 		uploadManager:             xfer.NewLayerUploadManager(config.MaxConcurrentUploads),
 		leases:                    config.Leases,
 		content:                   config.ContentStore,
@@ -84,18 +73,16 @@ type ImageService struct {
 	layerStore                layer.Store
 	pruneRunning              int32
 	referenceStore            dockerreference.Store
-	registryService           registry.Service
-	trustKey                  libtrust.PrivateKey
+	registryService           distribution.RegistryResolver
 	uploadManager             *xfer.LayerUploadManager
 	leases                    leases.Manager
 	content                   content.Store
 	contentNamespace          string
-	usage                     singleflight.Group
 }
 
 // DistributionServices provides daemon image storage services
 type DistributionServices struct {
-	DownloadManager   distribution.RootFSDownloadManager
+	DownloadManager   *xfer.LayerDownloadManager
 	V2MetadataService metadata.V2MetadataService
 	LayerStore        layer.Store
 	ImageStore        image.Store
@@ -115,15 +102,15 @@ func (i *ImageService) DistributionServices() DistributionServices {
 
 // CountImages returns the number of images stored by ImageService
 // called from info.go
-func (i *ImageService) CountImages() int {
+func (i *ImageService) CountImages(ctx context.Context) int {
 	return i.imageStore.Len()
 }
 
 // Children returns the children image.IDs for a parent image.
 // called from list.go to filter containers
 // TODO: refactor to expose an ancestry for image.ID?
-func (i *ImageService) Children(id image.ID) []image.ID {
-	return i.imageStore.Children(id)
+func (i *ImageService) Children(_ context.Context, id image.ID) ([]image.ID, error) {
+	return i.imageStore.Children(id), nil
 }
 
 // CreateLayer creates a filesystem layer for a container.
@@ -145,13 +132,11 @@ func (i *ImageService) CreateLayer(container *container.Container, initFunc laye
 		StorageOpt: container.HostConfig.StorageOpt,
 	}
 
-	// Indexing by OS is safe here as validation of OS has already been performed in create() (the only
-	// caller), and guaranteed non-nil
 	return i.layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)
 }
 
 // GetLayerByID returns a layer by ID
-// called from daemon.go Daemon.restore(), and Daemon.containerExport()
+// called from daemon.go Daemon.restore().
 func (i *ImageService) GetLayerByID(cid string) (layer.RWLayer, error) {
 	return i.layerStore.GetRWLayer(cid)
 }
@@ -171,25 +156,23 @@ func (i *ImageService) GetLayerMountID(cid string) (string, error) {
 
 // Cleanup resources before the process is shutdown.
 // called from daemon.go Daemon.Shutdown()
-func (i *ImageService) Cleanup() {
+func (i *ImageService) Cleanup() error {
 	if err := i.layerStore.Cleanup(); err != nil {
-		logrus.Errorf("Error during layer Store.Cleanup(): %v", err)
+		return errors.Wrap(err, "error during layerStore.Cleanup()")
 	}
+	return nil
 }
 
-// GraphDriverName returns the name of the graph drvier
-// moved from Daemon.GraphDriverName, used by:
-// - newContainer
-// - to report an error in Daemon.Mount(container)
-func (i *ImageService) GraphDriverName() string {
+// StorageDriver returns the name of the storage driver used by the ImageService.
+func (i *ImageService) StorageDriver() string {
 	return i.layerStore.DriverName()
 }
 
 // ReleaseLayer releases a layer allowing it to be removed
-// called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
-func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, containerOS string) error {
-	metadata, err := i.layerStore.ReleaseRWLayer(rwlayer)
-	layer.LogReleaseMetadata(metadata)
+// called from delete.go Daemon.cleanupContainer().
+func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
+	metaData, err := i.layerStore.ReleaseRWLayer(rwlayer)
+	layer.LogReleaseMetadata(metaData)
 	if err != nil && !errors.Is(err, layer.ErrMountDoesNotExist) && !errors.Is(err, os.ErrNotExist) {
 		return errors.Wrapf(err, "driver %q failed to remove root filesystem",
 			i.layerStore.DriverName())
@@ -200,36 +183,21 @@ func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, containerOS string) e
 // LayerDiskUsage returns the number of bytes used by layer stores
 // called from disk_usage.go
 func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
-	ch := i.usage.DoChan("LayerDiskUsage", func() (interface{}, error) {
-		var allLayersSize int64
-		layerRefs := i.getLayerRefs()
-		allLayers := i.layerStore.Map()
-		for _, l := range allLayers {
-			select {
-			case <-ctx.Done():
-				return allLayersSize, ctx.Err()
-			default:
-				size, err := l.DiffSize()
-				if err == nil {
-					if _, ok := layerRefs[l.ChainID()]; ok {
-						allLayersSize += size
-					}
-				} else {
-					logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
-				}
+	var allLayersSize int64
+	layerRefs := i.getLayerRefs()
+	allLayers := i.layerStore.Map()
+	for _, l := range allLayers {
+		select {
+		case <-ctx.Done():
+			return allLayersSize, ctx.Err()
+		default:
+			size := l.DiffSize()
+			if _, ok := layerRefs[l.ChainID()]; ok {
+				allLayersSize += size
 			}
 		}
-		return allLayersSize, nil
-	})
-	select {
-	case <-ctx.Done():
-		return 0, ctx.Err()
-	case res := <-ch:
-		if res.Err != nil {
-			return 0, res.Err
-		}
-		return res.Val.(int64), nil
 	}
+	return allLayersSize, nil
 }
 
 func (i *ImageService) getLayerRefs() map[layer.ChainID]int {
@@ -253,39 +221,14 @@ func (i *ImageService) getLayerRefs() map[layer.ChainID]int {
 	return layerRefs
 }
 
-// ImageDiskUsage returns information about image data disk usage.
-func (i *ImageService) ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error) {
-	ch := i.usage.DoChan("ImageDiskUsage", func() (interface{}, error) {
-		// Get all top images with extra attributes
-		images, err := i.Images(ctx, types.ImageListOptions{
-			Filters:        filters.NewArgs(),
-			SharedSize:     true,
-			ContainerCount: true,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve image list: %v", err)
-		}
-		return images, nil
-	})
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case res := <-ch:
-		if res.Err != nil {
-			return nil, res.Err
-		}
-		return res.Val.([]*types.ImageSummary), nil
-	}
-}
-
 // UpdateConfig values
 //
 // called from reload.go
-func (i *ImageService) UpdateConfig(maxDownloads, maxUploads *int) {
-	if i.downloadManager != nil && maxDownloads != nil {
-		i.downloadManager.SetConcurrency(*maxDownloads)
+func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
+	if i.downloadManager != nil && maxDownloads != 0 {
+		i.downloadManager.SetConcurrency(maxDownloads)
 	}
-	if i.uploadManager != nil && maxUploads != nil {
-		i.uploadManager.SetConcurrency(*maxUploads)
+	if i.uploadManager != nil && maxUploads != 0 {
+		i.uploadManager.SetConcurrency(maxUploads)
 	}
 }

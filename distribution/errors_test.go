@@ -18,15 +18,13 @@ var alwaysContinue = []error{
 	errUnexpected,
 	// nested
 	errcode.Errors{errUnexpected},
-	ErrNoSupport{Err: errUnexpected},
 }
 
 var continueFromMirrorEndpoint = []error{
-	ImageConfigPullError{},
+	imageConfigPullError{},
 	errcode.Error{},
 	// nested
 	errcode.Errors{errcode.Error{}},
-	ErrNoSupport{Err: errcode.Error{}},
 }
 
 var neverContinue = []error{

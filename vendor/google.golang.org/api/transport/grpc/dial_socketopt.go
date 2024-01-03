@@ -1,17 +1,8 @@
-// Copyright 2019 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 Google LLC.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
+//go:build go1.11 && linux
 // +build go1.11,linux
 
 package grpc
@@ -21,7 +12,6 @@ import (
 	"net"
 	"syscall"
 
-	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 )
 
@@ -29,6 +19,9 @@ const (
 	// defaultTCPUserTimeout is the default TCP_USER_TIMEOUT socket option. By
 	// default is 20 seconds.
 	tcpUserTimeoutMilliseconds = 20000
+
+	// Copied from golang.org/x/sys/unix.TCP_USER_TIMEOUT.
+	tcpUserTimeoutOp = 0x12
 )
 
 func init() {
@@ -42,7 +35,7 @@ func dialTCPUserTimeout(ctx context.Context, addr string) (net.Conn, error) {
 		var syscallErr error
 		controlErr := c.Control(func(fd uintptr) {
 			syscallErr = syscall.SetsockoptInt(
-				int(fd), syscall.IPPROTO_TCP, unix.TCP_USER_TIMEOUT, tcpUserTimeoutMilliseconds)
+				int(fd), syscall.IPPROTO_TCP, tcpUserTimeoutOp, tcpUserTimeoutMilliseconds)
 		})
 		if syscallErr != nil {
 			return syscallErr

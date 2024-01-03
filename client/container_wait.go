@@ -1,13 +1,18 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/url"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 )
+
+const containerWaitErrorMsgLimit = 2 * 1024 /* Max: 2KiB */
 
 // ContainerWait waits until the specified container is in a certain state
 // indicated by the given condition, either "not-running" (default),
@@ -24,16 +29,24 @@ import (
 // wait request or in getting the response. This allows the caller to
 // synchronize ContainerWait with other calls, such as specifying a
 // "next-exit" condition before issuing a ContainerStart request.
-func (cli *Client) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error) {
+func (cli *Client) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
+	// Make sure we negotiated (if the client is configured to do so),
+	// as code below contains API-version specific handling of options.
+	//
+	// Normally, version-negotiation (if enabled) would not happen until
+	// the API request is made.
+	cli.checkVersion(ctx)
 	if versions.LessThan(cli.ClientVersion(), "1.30") {
 		return cli.legacyContainerWait(ctx, containerID)
 	}
 
-	resultC := make(chan container.ContainerWaitOKBody)
+	resultC := make(chan container.WaitResponse)
 	errC := make(chan error, 1)
 
 	query := url.Values{}
-	query.Set("condition", string(condition))
+	if condition != "" {
+		query.Set("condition", string(condition))
+	}
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/wait", query, nil, nil)
 	if err != nil {
@@ -44,9 +57,27 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 
 	go func() {
 		defer ensureReaderClosed(resp)
-		var res container.ContainerWaitOKBody
-		if err := json.NewDecoder(resp.body).Decode(&res); err != nil {
-			errC <- err
+
+		body := resp.body
+		responseText := bytes.NewBuffer(nil)
+		stream := io.TeeReader(body, responseText)
+
+		var res container.WaitResponse
+		if err := json.NewDecoder(stream).Decode(&res); err != nil {
+			// NOTE(nicks): The /wait API does not work well with HTTP proxies.
+			// At any time, the proxy could cut off the response stream.
+			//
+			// But because the HTTP status has already been written, the proxy's
+			// only option is to write a plaintext error message.
+			//
+			// If there's a JSON parsing error, read the real error message
+			// off the body and send it to the client.
+			if errors.As(err, new(*json.SyntaxError)) {
+				_, _ = io.ReadAll(io.LimitReader(stream, containerWaitErrorMsgLimit))
+				errC <- errors.New(responseText.String())
+			} else {
+				errC <- err
+			}
 			return
 		}
 
@@ -58,8 +89,8 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 
 // legacyContainerWait returns immediately and doesn't have an option to wait
 // until the container is removed.
-func (cli *Client) legacyContainerWait(ctx context.Context, containerID string) (<-chan container.ContainerWaitOKBody, <-chan error) {
-	resultC := make(chan container.ContainerWaitOKBody)
+func (cli *Client) legacyContainerWait(ctx context.Context, containerID string) (<-chan container.WaitResponse, <-chan error) {
+	resultC := make(chan container.WaitResponse)
 	errC := make(chan error)
 
 	go func() {
@@ -70,7 +101,7 @@ func (cli *Client) legacyContainerWait(ctx context.Context, containerID string) 
 		}
 		defer ensureReaderClosed(resp)
 
-		var res container.ContainerWaitOKBody
+		var res container.WaitResponse
 		if err := json.NewDecoder(resp.body).Decode(&res); err != nil {
 			errC <- err
 			return

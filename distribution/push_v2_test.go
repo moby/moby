@@ -2,22 +2,21 @@ package distribution // import "github.com/docker/docker/distribution"
 
 import (
 	"context"
-	"net/http"
 	"net/url"
 	"reflect"
 	"testing"
 
+	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
 	refstore "github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
-	digest "github.com/opencontainers/go-digest"
+	registrypkg "github.com/docker/docker/registry"
+	"github.com/opencontainers/go-digest"
 )
 
 func TestGetRepositoryMountCandidates(t *testing.T) {
@@ -395,16 +394,16 @@ func TestLayerAlreadyExists(t *testing.T) {
 		}
 		ctx := context.Background()
 		ms := &mockV2MetadataService{}
-		pd := &v2PushDescriptor{
+		pd := &pushDescriptor{
 			hmacKey:  []byte(tc.hmacKey),
 			repoInfo: repoInfo,
 			layer: &storeLayer{
 				Layer: layer.EmptyLayer,
 			},
-			repo:              repo,
-			v2MetadataService: ms,
-			pushState:         &pushState{remoteLayers: make(map[layer.DiffID]distribution.Descriptor)},
-			checkedDigests:    make(map[digest.Digest]struct{}),
+			repo:            repo,
+			metadataService: ms,
+			pushState:       &pushState{remoteLayers: make(map[layer.DiffID]distribution.Descriptor)},
+			checkedDigests:  make(map[digest.Digest]struct{}),
 		}
 
 		desc, exists, err := pd.layerAlreadyExists(ctx, &progressSink{t}, layer.EmptyLayer.DiffID(), tc.checkOtherRepositories, tc.maxExistenceChecks, tc.metadata)
@@ -467,25 +466,11 @@ func TestLayerAlreadyExists(t *testing.T) {
 }
 
 type mockReferenceStore struct {
+	refstore.Store
 }
 
-func (s *mockReferenceStore) References(id digest.Digest) []reference.Named {
-	return []reference.Named{}
-}
 func (s *mockReferenceStore) ReferencesByName(ref reference.Named) []refstore.Association {
 	return []refstore.Association{}
-}
-func (s *mockReferenceStore) AddTag(ref reference.Named, id digest.Digest, force bool) error {
-	return nil
-}
-func (s *mockReferenceStore) AddDigest(ref reference.Canonical, id digest.Digest, force bool) error {
-	return nil
-}
-func (s *mockReferenceStore) Delete(ref reference.Named) (bool, error) {
-	return true, nil
-}
-func (s *mockReferenceStore) Get(ref reference.Named) (digest.Digest, error) {
-	return "", nil
 }
 
 func TestWhenEmptyAuthConfig(t *testing.T) {
@@ -515,28 +500,27 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 		},
 	} {
 		imagePushConfig := &ImagePushConfig{}
-		imagePushConfig.AuthConfig = &types.AuthConfig{
+		imagePushConfig.AuthConfig = &registry.AuthConfig{
 			Username:      authInfo.username,
 			Password:      authInfo.password,
 			RegistryToken: authInfo.registryToken,
 		}
 		imagePushConfig.ReferenceStore = &mockReferenceStore{}
 		repoInfo, _ := reference.ParseNormalizedNamed("xujihui1985/test.img")
-		pusher := &v2Pusher{
+		pusher := &pusher{
 			config: imagePushConfig,
-			repoInfo: &registry.RepositoryInfo{
+			repoInfo: &registrypkg.RepositoryInfo{
 				Name: repoInfo,
 			},
-			endpoint: registry.APIEndpoint{
+			endpoint: registrypkg.APIEndpoint{
 				URL: &url.URL{
 					Scheme: "https",
-					Host:   "index.docker.io",
+					Host:   registrypkg.IndexHostname,
 				},
-				Version:      registry.APIVersion2,
 				TrimHostname: true,
 			},
 		}
-		pusher.Push(context.Background())
+		pusher.push(context.Background())
 		if pusher.pushState.hasAuthInfo != authInfo.expected {
 			t.Errorf("hasAuthInfo does not match expected: %t != %t", authInfo.expected, pusher.pushState.hasAuthInfo)
 		}
@@ -598,14 +582,14 @@ func TestPushRegistryWhenAuthInfoEmpty(t *testing.T) {
 			requests: []string{},
 		},
 	}
-	pd := &v2PushDescriptor{
+	pd := &pushDescriptor{
 		hmacKey:  []byte("abcd"),
 		repoInfo: repoInfo,
 		layer: &storeLayer{
 			Layer: layer.EmptyLayer,
 		},
-		repo:              repo,
-		v2MetadataService: ms,
+		repo:            repo,
+		metadataService: ms,
 		pushState: &pushState{
 			remoteLayers: make(map[layer.DiffID]distribution.Descriptor),
 			hasAuthInfo:  false,
@@ -629,6 +613,7 @@ func taggedMetadata(key string, dgst string, sourceRepo string) metadata.V2Metad
 }
 
 type mockRepo struct {
+	distribution.Repository
 	t        *testing.T
 	errors   map[digest.Digest]error
 	blobs    map[digest.Digest]distribution.Descriptor
@@ -637,18 +622,6 @@ type mockRepo struct {
 
 var _ distribution.Repository = &mockRepo{}
 
-func (m *mockRepo) Named() reference.Named {
-	m.t.Fatalf("Named() not implemented")
-	return nil
-}
-func (m *mockRepo) Manifests(ctc context.Context, options ...distribution.ManifestServiceOption) (distribution.ManifestService, error) {
-	m.t.Fatalf("Manifests() not implemented")
-	return nil, nil
-}
-func (m *mockRepo) Tags(ctc context.Context) distribution.TagService {
-	m.t.Fatalf("Tags() not implemented")
-	return nil
-}
 func (m *mockRepo) Blobs(ctx context.Context) distribution.BlobStore {
 	return &mockBlobStore{
 		repo: m,
@@ -656,6 +629,7 @@ func (m *mockRepo) Blobs(ctx context.Context) distribution.BlobStore {
 }
 
 type mockBlobStore struct {
+	distribution.BlobStore
 	repo *mockRepo
 }
 
@@ -671,60 +645,26 @@ func (m *mockBlobStore) Stat(ctx context.Context, dgst digest.Digest) (distribut
 	}
 	return distribution.Descriptor{}, distribution.ErrBlobUnknown
 }
-func (m *mockBlobStore) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {
-	m.repo.t.Fatal("Get() not implemented")
-	return nil, nil
-}
-
-func (m *mockBlobStore) Open(ctx context.Context, dgst digest.Digest) (distribution.ReadSeekCloser, error) {
-	m.repo.t.Fatal("Open() not implemented")
-	return nil, nil
-}
-
-func (m *mockBlobStore) Put(ctx context.Context, mediaType string, p []byte) (distribution.Descriptor, error) {
-	m.repo.t.Fatal("Put() not implemented")
-	return distribution.Descriptor{}, nil
-}
-
-func (m *mockBlobStore) Create(ctx context.Context, options ...distribution.BlobCreateOption) (distribution.BlobWriter, error) {
-	m.repo.t.Fatal("Create() not implemented")
-	return nil, nil
-}
-func (m *mockBlobStore) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
-	m.repo.t.Fatal("Resume() not implemented")
-	return nil, nil
-}
-func (m *mockBlobStore) Delete(ctx context.Context, dgst digest.Digest) error {
-	m.repo.t.Fatal("Delete() not implemented")
-	return nil
-}
-func (m *mockBlobStore) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
-	m.repo.t.Fatalf("ServeBlob() not implemented")
-	return nil
-}
 
 type mockV2MetadataService struct {
+	metadata.V2MetadataService
 	added   []metadata.V2Metadata
 	removed []metadata.V2Metadata
 }
 
 var _ metadata.V2MetadataService = &mockV2MetadataService{}
 
-func (*mockV2MetadataService) GetMetadata(diffID layer.DiffID) ([]metadata.V2Metadata, error) {
-	return nil, nil
-}
-func (*mockV2MetadataService) GetDiffID(dgst digest.Digest) (layer.DiffID, error) {
-	return "", nil
-}
 func (m *mockV2MetadataService) Add(diffID layer.DiffID, metadata metadata.V2Metadata) error {
 	m.added = append(m.added, metadata)
 	return nil
 }
+
 func (m *mockV2MetadataService) TagAndAdd(diffID layer.DiffID, hmacKey []byte, meta metadata.V2Metadata) error {
 	meta.HMAC = metadata.ComputeV2MetadataHMAC(hmacKey, &meta)
 	m.Add(diffID, meta)
 	return nil
 }
+
 func (m *mockV2MetadataService) Remove(metadata metadata.V2Metadata) error {
 	m.removed = append(m.removed, metadata)
 	return nil

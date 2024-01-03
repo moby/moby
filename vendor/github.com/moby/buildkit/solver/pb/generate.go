@@ -1,3 +1,3 @@
 package pb
 
-//go:generate protoc -I=. -I=../../vendor/ --gogofaster_out=. ops.proto
+//go:generate protoc -I=. -I=../../vendor/ -I=../../vendor/github.com/gogo/protobuf/ --gogofaster_out=. ops.proto

@@ -16,24 +16,23 @@
  *
  */
 
-//go:generate ./regenerate.sh
-
 // Package grpclb defines a grpclb balancer.
 //
 // To install grpclb balancer, import this package as:
-//    import _ "google.golang.org/grpc/balancer/grpclb"
+//
+//	import _ "google.golang.org/grpc/balancer/grpclb"
 package grpclb
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
-	durationpb "github.com/golang/protobuf/ptypes/duration"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer"
-	lbpb "google.golang.org/grpc/balancer/grpclb/grpc_lb_v1"
+	grpclbstate "google.golang.org/grpc/balancer/grpclb/state"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
@@ -41,6 +40,9 @@ import (
 	"google.golang.org/grpc/internal/backoff"
 	"google.golang.org/grpc/internal/resolver/dns"
 	"google.golang.org/grpc/resolver"
+
+	durationpb "github.com/golang/protobuf/ptypes/duration"
+	lbpb "google.golang.org/grpc/balancer/grpclb/grpc_lb_v1"
 )
 
 const (
@@ -50,6 +52,7 @@ const (
 )
 
 var errServerTerminatedConnection = errors.New("grpclb: failed to recv server list: server terminated connection")
+var logger = grpclog.Component("grpclb")
 
 func convertDuration(d *durationpb.Duration) time.Duration {
 	if d == nil {
@@ -133,7 +136,8 @@ func (b *lbBuilder) Build(cc balancer.ClientConn, opt balancer.BuildOptions) bal
 
 	lb := &lbBalancer{
 		cc:              newLBCacheClientConn(cc),
-		target:          opt.Target.Endpoint,
+		dialTarget:      opt.Target.Endpoint(),
+		target:          opt.Target.Endpoint(),
 		opt:             opt,
 		fallbackTimeout: b.fallbackTimeout,
 		doneCh:          make(chan struct{}),
@@ -150,23 +154,22 @@ func (b *lbBuilder) Build(cc balancer.ClientConn, opt balancer.BuildOptions) bal
 	if opt.CredsBundle != nil {
 		lb.grpclbClientConnCreds, err = opt.CredsBundle.NewWithMode(internal.CredsBundleModeBalancer)
 		if err != nil {
-			grpclog.Warningf("lbBalancer: client connection creds NewWithMode failed: %v", err)
+			logger.Warningf("lbBalancer: client connection creds NewWithMode failed: %v", err)
 		}
 		lb.grpclbBackendCreds, err = opt.CredsBundle.NewWithMode(internal.CredsBundleModeBackendFromBalancer)
 		if err != nil {
-			grpclog.Warningf("lbBalancer: backend creds NewWithMode failed: %v", err)
+			logger.Warningf("lbBalancer: backend creds NewWithMode failed: %v", err)
 		}
 	}
 
 	return lb
 }
 
-var _ balancer.V2Balancer = (*lbBalancer)(nil) // Assert that we implement V2Balancer
-
 type lbBalancer struct {
-	cc     *lbCacheClientConn
-	target string
-	opt    balancer.BuildOptions
+	cc         *lbCacheClientConn
+	dialTarget string // user's dial target
+	target     string // same as dialTarget unless overridden in service config
+	opt        balancer.BuildOptions
 
 	usePickFirst bool
 
@@ -210,9 +213,9 @@ type lbBalancer struct {
 	backendAddrsWithoutMetadata []resolver.Address
 	// Roundrobin functionalities.
 	state    connectivity.State
-	subConns map[resolver.Address]balancer.SubConn   // Used to new/remove SubConn.
+	subConns map[resolver.Address]balancer.SubConn   // Used to new/shutdown SubConn.
 	scStates map[balancer.SubConn]connectivity.State // Used to filter READY SubConns.
-	picker   balancer.V2Picker
+	picker   balancer.Picker
 	// Support fallback to resolved backend addresses if there's no response
 	// from remote balancer within fallbackTimeout.
 	remoteBalancerConnected bool
@@ -222,16 +225,18 @@ type lbBalancer struct {
 	// when resolved address updates are received, and read in the goroutine
 	// handling fallback.
 	resolvedBackendAddrs []resolver.Address
+	connErr              error // the last connection error
 }
 
 // regeneratePicker takes a snapshot of the balancer, and generates a picker from
 // it. The picker
-//  - always returns ErrTransientFailure if the balancer is in TransientFailure,
-//  - does two layer roundrobin pick otherwise.
+//   - always returns ErrTransientFailure if the balancer is in TransientFailure,
+//   - does two layer roundrobin pick otherwise.
+//
 // Caller must hold lb.mu.
 func (lb *lbBalancer) regeneratePicker(resetDrop bool) {
 	if lb.state == connectivity.TransientFailure {
-		lb.picker = &errPicker{err: balancer.ErrTransientFailure}
+		lb.picker = &errPicker{err: fmt.Errorf("all SubConns are in TransientFailure, last connection error: %v", lb.connErr)}
 		return
 	}
 
@@ -285,12 +290,16 @@ func (lb *lbBalancer) regeneratePicker(resetDrop bool) {
 // aggregateSubConnStats calculate the aggregated state of SubConns in
 // lb.SubConns. These SubConns are subconns in use (when switching between
 // fallback and grpclb). lb.scState contains states for all SubConns, including
-// those in cache (SubConns are cached for 10 seconds after remove).
+// those in cache (SubConns are cached for 10 seconds after shutdown).
 //
-// The aggregated state is:
-//  - If at least one SubConn in Ready, the aggregated state is Ready;
-//  - Else if at least one SubConn in Connecting, the aggregated state is Connecting;
-//  - Else the aggregated state is TransientFailure.
+//	The aggregated state is:
+//	- If at least one SubConn in Ready, the aggregated state is Ready;
+//	- Else if at least one SubConn in Connecting or IDLE, the aggregated state is Connecting;
+//	  - It's OK to consider IDLE as Connecting. SubConns never stay in IDLE,
+//	    they start to connect immediately. But there's a race between the overall
+//	    state is reported, and when the new SubConn state arrives. And SubConns
+//	    never go back to IDLE.
+//	- Else the aggregated state is TransientFailure.
 func (lb *lbBalancer) aggregateSubConnStates() connectivity.State {
 	var numConnecting uint64
 
@@ -299,7 +308,7 @@ func (lb *lbBalancer) aggregateSubConnStates() connectivity.State {
 			switch state {
 			case connectivity.Ready:
 				return connectivity.Ready
-			case connectivity.Connecting:
+			case connectivity.Connecting, connectivity.Idle:
 				numConnecting++
 			}
 		}
@@ -310,22 +319,24 @@ func (lb *lbBalancer) aggregateSubConnStates() connectivity.State {
 	return connectivity.TransientFailure
 }
 
-func (lb *lbBalancer) HandleSubConnStateChange(sc balancer.SubConn, s connectivity.State) {
-	panic("not used")
+// UpdateSubConnState is unused; NewSubConn's options always specifies
+// updateSubConnState as the listener.
+func (lb *lbBalancer) UpdateSubConnState(sc balancer.SubConn, scs balancer.SubConnState) {
+	logger.Errorf("grpclb: UpdateSubConnState(%v, %+v) called unexpectedly", sc, scs)
 }
 
-func (lb *lbBalancer) UpdateSubConnState(sc balancer.SubConn, scs balancer.SubConnState) {
+func (lb *lbBalancer) updateSubConnState(sc balancer.SubConn, scs balancer.SubConnState) {
 	s := scs.ConnectivityState
-	if grpclog.V(2) {
-		grpclog.Infof("lbBalancer: handle SubConn state change: %p, %v", sc, s)
+	if logger.V(2) {
+		logger.Infof("lbBalancer: handle SubConn state change: %p, %v", sc, s)
 	}
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
 
 	oldS, ok := lb.scStates[sc]
 	if !ok {
-		if grpclog.V(2) {
-			grpclog.Infof("lbBalancer: got state changes for an unknown SubConn: %p, %v", sc, s)
+		if logger.V(2) {
+			logger.Infof("lbBalancer: got state changes for an unknown SubConn: %p, %v", sc, s)
 		}
 		return
 	}
@@ -334,9 +345,11 @@ func (lb *lbBalancer) UpdateSubConnState(sc balancer.SubConn, scs balancer.SubCo
 	case connectivity.Idle:
 		sc.Connect()
 	case connectivity.Shutdown:
-		// When an address was removed by resolver, b called RemoveSubConn but
-		// kept the sc's state in scStates. Remove state for this sc here.
+		// When an address was removed by resolver, b called Shutdown but kept
+		// the sc's state in scStates. Remove state for this sc here.
 		delete(lb.scStates, sc)
+	case connectivity.TransientFailure:
+		lb.connErr = scs.ConnectionError
 	}
 	// Force regenerate picker if
 	//  - this sc became ready from not-ready
@@ -366,8 +379,13 @@ func (lb *lbBalancer) updateStateAndPicker(forceRegeneratePicker bool, resetDrop
 	if forceRegeneratePicker || (lb.state != oldAggrState) {
 		lb.regeneratePicker(resetDrop)
 	}
+	var cc balancer.ClientConn = lb.cc
+	if lb.usePickFirst {
+		// Bypass the caching layer that would wrap the picker.
+		cc = lb.cc.ClientConn
+	}
 
-	lb.cc.UpdateState(balancer.State{ConnectivityState: lb.state, Picker: lb.picker})
+	cc.UpdateState(balancer.State{ConnectivityState: lb.state, Picker: lb.picker})
 }
 
 // fallbackToBackendsAfter blocks for fallbackTimeout and falls back to use
@@ -391,23 +409,40 @@ func (lb *lbBalancer) fallbackToBackendsAfter(fallbackTimeout time.Duration) {
 	lb.mu.Unlock()
 }
 
-// HandleResolvedAddrs sends the updated remoteLB addresses to remoteLB
-// clientConn. The remoteLB clientConn will handle creating/removing remoteLB
-// connections.
-func (lb *lbBalancer) HandleResolvedAddrs(addrs []resolver.Address, err error) {
-	panic("not used")
-}
-
 func (lb *lbBalancer) handleServiceConfig(gc *grpclbServiceConfig) {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
+
+	// grpclb uses the user's dial target to populate the `Name` field of the
+	// `InitialLoadBalanceRequest` message sent to the remote balancer. But when
+	// grpclb is used a child policy in the context of RLS, we want the `Name`
+	// field to be populated with the value received from the RLS server. To
+	// support this use case, an optional "target_name" field has been added to
+	// the grpclb LB policy's config.  If specified, it overrides the name of
+	// the target to be sent to the remote balancer; if not, the target to be
+	// sent to the balancer will continue to be obtained from the target URI
+	// passed to the gRPC client channel. Whenever that target to be sent to the
+	// balancer is updated, we need to restart the stream to the balancer as
+	// this target is sent in the first message on the stream.
+	if gc != nil {
+		target := lb.dialTarget
+		if gc.ServiceName != "" {
+			target = gc.ServiceName
+		}
+		if target != lb.target {
+			lb.target = target
+			if lb.ccRemoteLB != nil {
+				lb.ccRemoteLB.cancelRemoteBalancerCall()
+			}
+		}
+	}
 
 	newUsePickFirst := childIsPickFirst(gc)
 	if lb.usePickFirst == newUsePickFirst {
 		return
 	}
-	if grpclog.V(2) {
-		grpclog.Infof("lbBalancer: switching mode, new usePickFirst: %+v", newUsePickFirst)
+	if logger.V(2) {
+		logger.Infof("lbBalancer: switching mode, new usePickFirst: %+v", newUsePickFirst)
 	}
 	lb.refreshSubConns(lb.backendAddrs, lb.inFallback, newUsePickFirst)
 }
@@ -418,27 +453,25 @@ func (lb *lbBalancer) ResolverError(error) {
 }
 
 func (lb *lbBalancer) UpdateClientConnState(ccs balancer.ClientConnState) error {
-	if grpclog.V(2) {
-		grpclog.Infof("lbBalancer: UpdateClientConnState: %+v", ccs)
+	if logger.V(2) {
+		logger.Infof("lbBalancer: UpdateClientConnState: %+v", ccs)
 	}
 	gc, _ := ccs.BalancerConfig.(*grpclbServiceConfig)
 	lb.handleServiceConfig(gc)
 
-	addrs := ccs.ResolverState.Addresses
-	if len(addrs) == 0 {
+	backendAddrs := ccs.ResolverState.Addresses
+
+	var remoteBalancerAddrs []resolver.Address
+	if sd := grpclbstate.Get(ccs.ResolverState); sd != nil {
+		// Override any balancer addresses provided via
+		// ccs.ResolverState.Addresses.
+		remoteBalancerAddrs = sd.BalancerAddresses
+	}
+
+	if len(backendAddrs)+len(remoteBalancerAddrs) == 0 {
 		// There should be at least one address, either grpclb server or
 		// fallback. Empty address is not valid.
 		return balancer.ErrBadResolverState
-	}
-
-	var remoteBalancerAddrs, backendAddrs []resolver.Address
-	for _, a := range addrs {
-		if a.Type == resolver.GRPCLB {
-			a.Type = resolver.Backend
-			remoteBalancerAddrs = append(remoteBalancerAddrs, a)
-		} else {
-			backendAddrs = append(backendAddrs, a)
-		}
 	}
 
 	if len(remoteBalancerAddrs) == 0 {
@@ -486,3 +519,5 @@ func (lb *lbBalancer) Close() {
 	}
 	lb.cc.close()
 }
+
+func (lb *lbBalancer) ExitIdle() {}

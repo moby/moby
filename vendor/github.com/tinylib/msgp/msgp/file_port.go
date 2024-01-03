@@ -1,4 +1,5 @@
-// +build windows appengine
+//go:build windows || appengine || tinygo
+// +build windows appengine tinygo
 
 package msgp
 

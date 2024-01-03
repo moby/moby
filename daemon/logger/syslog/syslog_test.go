@@ -1,8 +1,13 @@
 package syslog // import "github.com/docker/docker/daemon/logger/syslog"
 
 import (
+	"log"
 	"net"
+	"os"
+	"path/filepath"
 	"reflect"
+	"runtime"
+	"strings"
 	"testing"
 
 	syslog "github.com/RackSec/srslog"
@@ -63,42 +68,66 @@ func TestValidateLogOptEmpty(t *testing.T) {
 }
 
 func TestValidateSyslogAddress(t *testing.T) {
-	err := ValidateLogOpt(map[string]string{
-		"syslog-address": "this is not an uri",
-	})
-	if err == nil {
-		t.Fatal("Expected error with invalid uri")
-	}
-
-	// File exists
-	err = ValidateLogOpt(map[string]string{
-		"syslog-address": "unix:///",
-	})
+	const sockPlaceholder = "/TEMPDIR/socket.sock"
+	s, err := os.Create(filepath.Join(t.TempDir(), "socket.sock"))
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
+	socketPath := s.Name()
+	_ = s.Close()
 
-	// File does not exist
-	err = ValidateLogOpt(map[string]string{
-		"syslog-address": "unix:///does_not_exist",
-	})
-	if err == nil {
-		t.Fatal("Expected error when address is non existing file")
+	tests := []struct {
+		address     string
+		expectedErr string
+		skipOn      string
+	}{
+		{
+			address:     "this is not an uri",
+			expectedErr: "unsupported scheme: ''",
+		},
+		{
+			address:     "corrupted:42",
+			expectedErr: "unsupported scheme: 'corrupted'",
+		},
+		{
+			address: "unix://" + sockPlaceholder,
+			skipOn:  "windows", // doesn't work with unix:// sockets
+		},
+		{
+			address:     "unix:///does_not_exist",
+			expectedErr: "no such file or directory",
+			skipOn:      "windows", // error message differs
+		},
+		{
+			address: "tcp://1.2.3.4",
+		},
+		{
+			address: "udp://1.2.3.4",
+		},
+		{
+			address:     "http://1.2.3.4",
+			expectedErr: "unsupported scheme: 'http'",
+		},
 	}
-
-	// accepts udp and tcp URIs
-	err = ValidateLogOpt(map[string]string{
-		"syslog-address": "udp://1.2.3.4",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = ValidateLogOpt(map[string]string{
-		"syslog-address": "tcp://1.2.3.4",
-	})
-	if err != nil {
-		t.Fatal(err)
+	for _, tc := range tests {
+		tc := tc
+		if tc.skipOn == runtime.GOOS {
+			continue
+		}
+		t.Run(tc.address, func(t *testing.T) {
+			address := strings.Replace(tc.address, sockPlaceholder, socketPath, 1)
+			err := ValidateLogOpt(map[string]string{"syslog-address": address})
+			if tc.expectedErr != "" {
+				if err == nil {
+					t.Fatal("expected an error, got nil")
+				}
+				if !strings.Contains(err.Error(), tc.expectedErr) {
+					t.Fatalf("expected error to contain '%s', got: '%s'", tc.expectedErr, err)
+				}
+			} else if err != nil {
+				t.Fatalf("unexpected error: '%s'", err)
+			}
+		})
 	}
 }
 
@@ -109,8 +138,8 @@ func TestParseAddressDefaultPort(t *testing.T) {
 	}
 
 	_, port, _ := net.SplitHostPort(address)
-	if port != "514" {
-		t.Fatalf("Expected to default to port 514. It used port %s", port)
+	if port != defaultPort {
+		t.Fatalf("Expected to default to port %s. It used port %s", defaultPort, port)
 	}
 }
 

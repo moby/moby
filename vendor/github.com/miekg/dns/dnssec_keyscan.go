@@ -4,13 +4,12 @@ import (
 	"bufio"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"io"
 	"math/big"
 	"strconv"
 	"strings"
-
-	"golang.org/x/crypto/ed25519"
 )
 
 // NewPrivateKey returns a PrivateKey by parsing the string s.
@@ -43,15 +42,7 @@ func (k *DNSKEY) ReadPrivateKey(q io.Reader, file string) (crypto.PrivateKey, er
 		return nil, ErrPrivKey
 	}
 	switch uint8(algo) {
-	case RSAMD5, DSA, DSANSEC3SHA1:
-		return nil, ErrAlg
-	case RSASHA1:
-		fallthrough
-	case RSASHA1NSEC3SHA1:
-		fallthrough
-	case RSASHA256:
-		fallthrough
-	case RSASHA512:
+	case RSASHA1, RSASHA1NSEC3SHA1, RSASHA256, RSASHA512:
 		priv, err := readPrivateKeyRSA(m)
 		if err != nil {
 			return nil, err
@@ -62,11 +53,7 @@ func (k *DNSKEY) ReadPrivateKey(q io.Reader, file string) (crypto.PrivateKey, er
 		}
 		priv.PublicKey = *pub
 		return priv, nil
-	case ECCGOST:
-		return nil, ErrPrivKey
-	case ECDSAP256SHA256:
-		fallthrough
-	case ECDSAP384SHA384:
+	case ECDSAP256SHA256, ECDSAP384SHA384:
 		priv, err := readPrivateKeyECDSA(m)
 		if err != nil {
 			return nil, err
@@ -80,7 +67,7 @@ func (k *DNSKEY) ReadPrivateKey(q io.Reader, file string) (crypto.PrivateKey, er
 	case ED25519:
 		return readPrivateKeyED25519(m)
 	default:
-		return nil, ErrPrivKey
+		return nil, ErrAlg
 	}
 }
 

@@ -18,10 +18,11 @@ func TestSetGetMeta(t *testing.T) {
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
-	db, err := bolt.Open(filepath.Join(dir, "db"), 0600, &bolt.Options{Timeout: 1 * time.Second})
+	db, err := bolt.Open(filepath.Join(dir, "db"), 0o600, &bolt.Options{Timeout: 1 * time.Second})
 	assert.NilError(t, err)
 
 	store := &VolumeStore{db: db}
+	defer store.Shutdown()
 
 	_, err = store.getMeta("test")
 	assert.Assert(t, is.ErrorContains(err, ""))

@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/moby/buildkit/solver/internal/pipe"
+	"github.com/moby/buildkit/util/bklog"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type edgeStatusType int
@@ -68,6 +68,8 @@ type edge struct {
 	index         *edgeIndex
 
 	secondaryExporters []expDep
+
+	failedOnce sync.Once
 }
 
 // dep holds state for a dependant edge
@@ -134,11 +136,11 @@ func (e *edge) release() {
 
 // commitOptions returns parameters for the op execution
 func (e *edge) commitOptions() ([]*CacheKey, []CachedResult) {
-	k := NewCacheKey(e.cacheMap.Digest, e.edge.Index)
+	k := NewCacheKey(e.cacheMap.Digest, e.edge.Vertex.Digest(), e.edge.Index)
 	if len(e.deps) == 0 {
 		keys := make([]*CacheKey, 0, len(e.cacheMapDigests))
 		for _, dgst := range e.cacheMapDigests {
-			keys = append(keys, NewCacheKey(dgst, e.edge.Index))
+			keys = append(keys, NewCacheKey(dgst, e.edge.Vertex.Digest(), e.edge.Index))
 		}
 		return keys, nil
 	}
@@ -171,7 +173,7 @@ func (e *edge) finishIncoming(req pipe.Sender) {
 		err = context.Canceled
 	}
 	if debugScheduler {
-		logrus.Debugf("finishIncoming %s %v %#v desired=%s", e.edge.Vertex.Name(), err, e.edgeState, req.Request().Payload.(*edgeRequest).desiredState)
+		bklog.G(context.TODO()).Debugf("finishIncoming %s %v %#v desired=%s", e.edge.Vertex.Name(), err, e.edgeState, req.Request().Payload.(*edgeRequest).desiredState)
 	}
 	req.Finalize(&e.edgeState, err)
 }
@@ -179,7 +181,7 @@ func (e *edge) finishIncoming(req pipe.Sender) {
 // updateIncoming updates the current value of incoming pipe request
 func (e *edge) updateIncoming(req pipe.Sender) {
 	if debugScheduler {
-		logrus.Debugf("updateIncoming %s %#v desired=%s", e.edge.Vertex.Name(), e.edgeState, req.Request().Payload.(*edgeRequest).desiredState)
+		bklog.G(context.TODO()).Debugf("updateIncoming %s %#v desired=%s", e.edge.Vertex.Name(), e.edgeState, req.Request().Payload.(*edgeRequest).desiredState)
 	}
 	req.Update(&e.edgeState)
 }
@@ -199,6 +201,7 @@ func (e *edge) probeCache(d *dep, depKeys []CacheKeyWithSelector) bool {
 	}
 	found := false
 	for _, k := range keys {
+		k.vtx = e.edge.Vertex.Digest()
 		if _, ok := d.keyMap[k.ID]; !ok {
 			d.keyMap[k.ID] = k
 			found = true
@@ -273,7 +276,7 @@ func (e *edge) currentIndexKey() *CacheKey {
 		}
 	}
 
-	k := NewCacheKey(e.cacheMap.Digest, e.edge.Index)
+	k := NewCacheKey(e.cacheMap.Digest, e.edge.Vertex.Digest(), e.edge.Index)
 	k.deps = keys
 
 	return k
@@ -315,10 +318,10 @@ func (e *edge) skipPhase2FastCache(dep *dep) bool {
 // previous calls.
 // To avoid deadlocks and resource leaks this function needs to follow
 // following rules:
-// 1) this function needs to return unclosed outgoing requests if some incoming
-//    requests were not completed
-// 2) this function may not return outgoing requests if it has completed all
-//    incoming requests
+//  1. this function needs to return unclosed outgoing requests if some incoming
+//     requests were not completed
+//  2. this function may not return outgoing requests if it has completed all
+//     incoming requests
 func (e *edge) unpark(incoming []pipe.Sender, updates, allPipes []pipe.Receiver, f *pipeFactory) {
 	// process all incoming changes
 	depChanged := false
@@ -358,12 +361,11 @@ func (e *edge) unpark(incoming []pipe.Sender, updates, allPipes []pipe.Receiver,
 
 	if e.execReq == nil {
 		if added := e.createInputRequests(desiredState, f, false); !added && !e.hasActiveOutgoing && !cacheMapReq {
-			logrus.Errorf("buildkit scheluding error: leaving incoming open. forcing solve. Please report this with BUILDKIT_SCHEDULER_DEBUG=1")
+			bklog.G(context.TODO()).Errorf("buildkit scheluding error: leaving incoming open. forcing solve. Please report this with BUILDKIT_SCHEDULER_DEBUG=1")
 			debugSchedulerPreUnpark(e, incoming, updates, allPipes)
 			e.createInputRequests(desiredState, f, true)
 		}
 	}
-
 }
 
 func (e *edge) makeExportable(k *CacheKey, records []*CacheRecord) ExportableCacheKey {
@@ -375,7 +377,9 @@ func (e *edge) makeExportable(k *CacheKey, records []*CacheRecord) ExportableCac
 
 func (e *edge) markFailed(f *pipeFactory, err error) {
 	e.err = err
-	e.postpone(f)
+	e.failedOnce.Do(func() {
+		e.postpone(f)
+	})
 }
 
 // processUpdate is called by unpark for every updated pipe request
@@ -397,12 +401,13 @@ func (e *edge) processUpdate(upt pipe.Receiver) (depChanged bool) {
 				if !e.op.IgnoreCache() {
 					keys, err := e.op.Cache().Query(nil, 0, e.cacheMap.Digest, e.edge.Index)
 					if err != nil {
-						logrus.Error(errors.Wrap(err, "invalid query response")) // make the build fail for this error
+						bklog.G(context.TODO()).Error(errors.Wrap(err, "invalid query response")) // make the build fail for this error
 					} else {
 						for _, k := range keys {
-							records, err := e.op.Cache().Records(k)
+							k.vtx = e.edge.Vertex.Digest()
+							records, err := e.op.Cache().Records(context.Background(), k)
 							if err != nil {
-								logrus.Errorf("error receiving cache records: %v", err)
+								bklog.G(context.TODO()).Errorf("error receiving cache records: %v", err)
 								continue
 							}
 
@@ -458,7 +463,14 @@ func (e *edge) processUpdate(upt pipe.Receiver) (depChanged bool) {
 			dep.err = err
 		}
 
-		state := upt.Status().Value.(*edgeState)
+		if upt.Status().Value == nil {
+			return
+		}
+		state, isEdgeState := upt.Status().Value.(*edgeState)
+		if !isEdgeState {
+			bklog.G(context.TODO()).Warnf("invalid edgeState value for update: %T", state)
+			return
+		}
 
 		if len(dep.keys) < len(state.keys) {
 			newKeys := state.keys[len(dep.keys):]
@@ -498,7 +510,7 @@ func (e *edge) processUpdate(upt pipe.Receiver) (depChanged bool) {
 			} else if !dep.slowCacheComplete {
 				dgst := upt.Status().Value.(digest.Digest)
 				if e.cacheMap.Deps[int(dep.index)].ComputeDigestFunc != nil && dgst != "" {
-					k := NewCacheKey(dgst, -1)
+					k := NewCacheKey(dgst, "", -1)
 					dep.slowCacheKey = &ExportableCacheKey{CacheKey: k, Exporter: &exporter{k: k}}
 					slowKeyExp := CacheKeyWithSelector{CacheKey: *dep.slowCacheKey}
 					defKeys := make([]CacheKeyWithSelector, 0, len(dep.result.CacheKeys()))
@@ -571,9 +583,9 @@ func (e *edge) recalcCurrentState() {
 			}
 		}
 
-		records, err := e.op.Cache().Records(mergedKey)
+		records, err := e.op.Cache().Records(context.Background(), mergedKey)
 		if err != nil {
-			logrus.Errorf("error receiving cache records: %v", err)
+			bklog.G(context.TODO()).Errorf("error receiving cache records: %v", err)
 			continue
 		}
 
@@ -665,7 +677,7 @@ func (e *edge) recalcCurrentState() {
 					if len(openKeys) == 0 {
 						e.state = edgeStatusCacheSlow
 						if debugScheduler {
-							logrus.Debugf("upgrade to cache-slow because no open keys")
+							bklog.G(context.TODO()).Debugf("upgrade to cache-slow because no open keys")
 						}
 					}
 				}
@@ -704,7 +716,7 @@ func (e *edge) respondToIncoming(incoming []pipe.Sender, allPipes []pipe.Receive
 	}
 
 	if debugScheduler {
-		logrus.Debugf("status state=%s cancomplete=%v hasouts=%v noPossibleCache=%v depsCacheFast=%v keys=%d cacheRecords=%d", e.state, allIncomingCanComplete, e.hasActiveOutgoing, e.noCacheMatchPossible, e.allDepsCompletedCacheFast, len(e.keys), len(e.cacheRecords))
+		bklog.G(context.TODO()).Debugf("status state=%s cancomplete=%v hasouts=%v noPossibleCache=%v depsCacheFast=%v keys=%d cacheRecords=%d", e.state, allIncomingCanComplete, e.hasActiveOutgoing, e.noCacheMatchPossible, e.allDepsCompletedCacheFast, len(e.keys), len(e.cacheRecords))
 	}
 
 	if allIncomingCanComplete && e.hasActiveOutgoing {
@@ -876,10 +888,10 @@ func (e *edge) loadCache(ctx context.Context) (interface{}, error) {
 	rec := getBestResult(recs)
 	e.cacheRecordsLoaded[rec.ID] = struct{}{}
 
-	logrus.Debugf("load cache for %s with %s", e.edge.Vertex.Name(), rec.ID)
+	bklog.G(ctx).Debugf("load cache for %s with %s", e.edge.Vertex.Name(), rec.ID)
 	res, err := e.op.LoadCache(ctx, rec)
 	if err != nil {
-		logrus.Debugf("load cache for %s err: %v", e.edge.Vertex.Name(), err)
+		bklog.G(ctx).Debugf("load cache for %s err: %v", e.edge.Vertex.Name(), err)
 		return nil, errors.Wrap(err, "failed to load cache")
 	}
 

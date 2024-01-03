@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
-SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPODIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"
 
 # CI platforms differ, so per-platform GOLANGCI_LINT_OPTS can be set
 # from a platform-specific Dockerfile, otherwise let's just set
@@ -11,10 +11,8 @@ SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -n "${TESTDEBUG}" ] && set -x
 
 # TODO find a way to share this code with hack/make.sh
-if ${PKG_CONFIG} 'libsystemd >= 209' 2> /dev/null; then
+if pkg-config 'libsystemd' 2> /dev/null; then
 	DOCKER_BUILDTAGS+=" journald"
-elif ${PKG_CONFIG} 'libsystemd-journal' 2> /dev/null; then
-	DOCKER_BUILDTAGS+=" journald journald_compat"
 fi
 
 echo -e "\n\033[0;36mINFO\033[0m Start validation with golang-ci-lint"
@@ -26,4 +24,4 @@ GOGC=75 golangci-lint run \
 	--print-resources-usage \
 	--build-tags="${DOCKER_BUILDTAGS}" \
 	--verbose \
-	--config "${SCRIPTDIR}/golangci-lint.yml"
+	--config "${REPODIR}/.golangci.yml"

@@ -17,15 +17,15 @@
 package mount
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
+	"runtime"
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/sys"
-	"github.com/pkg/errors"
+	exec "golang.org/x/sys/execabs"
 	"golang.org/x/sys/unix"
 )
 
@@ -42,7 +42,7 @@ func init() {
 //
 // If m.Type starts with "fuse." or "fuse3.", "mount.fuse" or "mount.fuse3"
 // helper binary is called.
-func (m *Mount) Mount(target string) (err error) {
+func (m *Mount) mount(target string) (err error) {
 	for _, helperBinary := range allowedHelperBinaries {
 		// helperBinary = "mount.fuse", typePrefix = "fuse."
 		typePrefix := strings.TrimPrefix(helperBinary, "mount.") + "."
@@ -63,9 +63,6 @@ func (m *Mount) Mount(target string) (err error) {
 	}
 
 	flags, data, losetup := parseMountOptions(options)
-	if len(data) > pagesize {
-		return errors.Errorf("mount options is too long")
-	}
 
 	// propagation types.
 	const ptypes = unix.MS_SHARED | unix.MS_PRIVATE | unix.MS_SLAVE | unix.MS_UNBINDABLE
@@ -73,15 +70,27 @@ func (m *Mount) Mount(target string) (err error) {
 	// Ensure propagation type change flags aren't included in other calls.
 	oflags := flags &^ ptypes
 
+	var loopParams LoopParams
+	if losetup {
+		loopParams = LoopParams{
+			Readonly:  oflags&unix.MS_RDONLY == unix.MS_RDONLY,
+			Autoclear: true,
+		}
+		loopParams.Direct, data = hasDirectIO(data)
+	}
+
+	dataInStr := strings.Join(data, ",")
+	if len(dataInStr) > pagesize {
+		return errors.New("mount options is too long")
+	}
+
 	// In the case of remounting with changed data (data != ""), need to call mount (moby/moby#34077).
-	if flags&unix.MS_REMOUNT == 0 || data != "" {
+	if flags&unix.MS_REMOUNT == 0 || dataInStr != "" {
 		// Initial call applying all non-propagation flags for mount
 		// or remount with changed data
 		source := m.Source
 		if losetup {
-			loFile, err := setupLoop(m.Source, LoopParams{
-				Readonly:  oflags&unix.MS_RDONLY == unix.MS_RDONLY,
-				Autoclear: true})
+			loFile, err := setupLoop(m.Source, loopParams)
 			if err != nil {
 				return err
 			}
@@ -90,7 +99,7 @@ func (m *Mount) Mount(target string) (err error) {
 			// Mount the loop device instead
 			source = loFile.Name()
 		}
-		if err := mountAt(chdir, source, target, m.Type, uintptr(oflags), data); err != nil {
+		if err := mountAt(chdir, source, target, m.Type, uintptr(oflags), dataInStr); err != nil {
 			return err
 		}
 	}
@@ -164,7 +173,7 @@ func unmount(target string, flags int) error {
 		}
 		return nil
 	}
-	return errors.Wrapf(unix.EBUSY, "failed to unmount target %s", target)
+	return fmt.Errorf("failed to unmount target %s: %w", target, unix.EBUSY)
 }
 
 // UnmountAll repeatedly unmounts the given mount point until there
@@ -199,7 +208,7 @@ func UnmountAll(mount string, flags int) error {
 
 // parseMountOptions takes fstab style mount options and parses them for
 // use with a standard mount() syscall
-func parseMountOptions(options []string) (int, string, bool) {
+func parseMountOptions(options []string) (int, []string, bool) {
 	var (
 		flag    int
 		losetup bool
@@ -252,7 +261,16 @@ func parseMountOptions(options []string) (int, string, bool) {
 			data = append(data, o)
 		}
 	}
-	return flag, strings.Join(data, ","), losetup
+	return flag, data, losetup
+}
+
+func hasDirectIO(opts []string) (bool, []string) {
+	for idx, opt := range opts {
+		if opt == "direct-io" {
+			return true, append(opts[:idx], opts[idx+1:]...)
+		}
+	}
+	return false, opts
 }
 
 // compactLowerdirOption updates overlay lowdir option and returns the common
@@ -364,21 +382,29 @@ func mountAt(chdir string, source, target, fstype string, flags uintptr, data st
 		return unix.Mount(source, target, fstype, flags, data)
 	}
 
-	f, err := os.Open(chdir)
-	if err != nil {
-		return errors.Wrap(err, "failed to mountat")
-	}
-	defer f.Close()
+	ch := make(chan error, 1)
+	go func() {
+		runtime.LockOSThread()
 
-	fs, err := f.Stat()
-	if err != nil {
-		return errors.Wrap(err, "failed to mountat")
-	}
+		// Do not unlock this thread.
+		// If the thread is unlocked go will try to use it for other goroutines.
+		// However it is not possible to restore the thread state after CLONE_FS.
+		//
+		// Once the goroutine exits the thread should eventually be terminated by go.
 
-	if !fs.IsDir() {
-		return errors.Wrap(errors.Errorf("%s is not dir", chdir), "failed to mountat")
-	}
-	return errors.Wrap(sys.FMountat(f.Fd(), source, target, fstype, flags, data), "failed to mountat")
+		if err := unix.Unshare(unix.CLONE_FS); err != nil {
+			ch <- err
+			return
+		}
+
+		if err := unix.Chdir(chdir); err != nil {
+			ch <- err
+			return
+		}
+
+		ch <- unix.Mount(source, target, fstype, flags, data)
+	}()
+	return <-ch
 }
 
 func (m *Mount) mountWithHelper(helperBinary, typePrefix, target string) error {
@@ -407,7 +433,7 @@ func (m *Mount) mountWithHelper(helperBinary, typePrefix, target string) error {
 			return nil
 		}
 		if !errors.Is(err, unix.ECHILD) {
-			return errors.Wrapf(err, "mount helper [%s %v] failed: %q", helperBinary, args, string(out))
+			return fmt.Errorf("mount helper [%s %v] failed: %q: %w", helperBinary, args, string(out), err)
 		}
 		// We got ECHILD, we are not sure whether the mount was successful.
 		// If the mount ID has changed, we are sure we got some new mount, but still not sure it is fully completed.
@@ -420,5 +446,5 @@ func (m *Mount) mountWithHelper(helperBinary, typePrefix, target string) error {
 			_ = unmount(target, 0)
 		}
 	}
-	return errors.Errorf("mount helper [%s %v] failed with ECHILD (retired %d times)", helperBinary, args, retriesOnECHILD)
+	return fmt.Errorf("mount helper [%s %v] failed with ECHILD (retired %d times)", helperBinary, args, retriesOnECHILD)
 }

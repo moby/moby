@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
 adds=$(validate_diff --numstat | awk '{ s += $1 } END { print s }')

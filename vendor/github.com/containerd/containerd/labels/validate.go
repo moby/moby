@@ -17,21 +17,25 @@
 package labels
 
 import (
+	"fmt"
+
 	"github.com/containerd/containerd/errdefs"
-	"github.com/pkg/errors"
 )
 
 const (
 	maxSize = 4096
+	// maximum length of key portion of error message if len of key + len of value > maxSize
+	keyMaxLen = 64
 )
 
 // Validate a label's key and value are under 4096 bytes
 func Validate(k, v string) error {
-	if (len(k) + len(v)) > maxSize {
-		if len(k) > 10 {
-			k = k[:10]
+	total := len(k) + len(v)
+	if total > maxSize {
+		if len(k) > keyMaxLen {
+			k = k[:keyMaxLen]
 		}
-		return errors.Wrapf(errdefs.ErrInvalidArgument, "label key and value greater than maximum size (%d bytes), key: %s", maxSize, k)
+		return fmt.Errorf("label key and value length (%d bytes) greater than maximum size (%d bytes), key: %s: %w", total, maxSize, k, errdefs.ErrInvalidArgument)
 	}
 	return nil
 }

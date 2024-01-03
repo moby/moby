@@ -3,19 +3,19 @@ package swarm // import "github.com/docker/docker/api/server/router/swarm"
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
 	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
 )
 
 // swarmLogs takes an http response, request, and selector, and writes the logs
 // specified by the selector to the response
-func (sr *swarmRouter) swarmLogs(ctx context.Context, w io.Writer, r *http.Request, selector *backend.LogSelector) error {
+func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, selector *backend.LogSelector) error {
 	// Args are validated before the stream starts because when it starts we're
 	// sending HTTP 200 by writing an empty chunk of data to tell the client that
 	// daemon is going to stream. By sending this initial HTTP 200 we can't report
@@ -26,9 +26,9 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w io.Writer, r *http.Reque
 		return fmt.Errorf("Bad parameters: you must choose at least one stream")
 	}
 
-	// there is probably a neater way to manufacture the ContainerLogsOptions
+	// there is probably a neater way to manufacture the LogsOptions
 	// struct, probably in the caller, to eliminate the dependency on net/http
-	logsConfig := &basictypes.ContainerLogsOptions{
+	logsConfig := &container.LogsOptions{
 		Follow:     httputils.BoolValue(r, "follow"),
 		Timestamps: httputils.BoolValue(r, "timestamps"),
 		Since:      r.Form.Get("since"),
@@ -63,6 +63,11 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w io.Writer, r *http.Reque
 		return err
 	}
 
+	contentType := basictypes.MediaTypeRawStream
+	if !tty && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+		contentType = basictypes.MediaTypeMultiplexedStream
+	}
+	w.Header().Set("Content-Type", contentType)
 	httputils.WriteLogStream(ctx, w, msgs, logsConfig, !tty)
 	return nil
 }
@@ -113,5 +118,14 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 		// mode, then something down the pipe will thrown an error.
 		service.Mode.ReplicatedJob = nil
 		service.Mode.GlobalJob = nil
+	}
+
+	if versions.LessThan(cliVersion, "1.44") {
+		// seccomp, apparmor, and no_new_privs were added in 1.44.
+		if service.TaskTemplate.ContainerSpec != nil && service.TaskTemplate.ContainerSpec.Privileges != nil {
+			service.TaskTemplate.ContainerSpec.Privileges.Seccomp = nil
+			service.TaskTemplate.ContainerSpec.Privileges.AppArmor = nil
+			service.TaskTemplate.ContainerSpec.Privileges.NoNewPrivileges = false
+		}
 	}
 }

@@ -1,4 +1,5 @@
-// +build freebsd
+//go:build freebsd || dragonfly
+// +build freebsd dragonfly
 
 /*
    Copyright The containerd Authors.

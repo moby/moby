@@ -21,8 +21,17 @@ import "github.com/opencontainers/image-spec/specs-go"
 type Index struct {
 	specs.Versioned
 
+	// MediaType specifies the type of this document data structure e.g. `application/vnd.oci.image.index.v1+json`
+	MediaType string `json:"mediaType,omitempty"`
+
+	// ArtifactType specifies the IANA media type of artifact when the manifest is used for an artifact.
+	ArtifactType string `json:"artifactType,omitempty"`
+
 	// Manifests references platform specific manifests.
 	Manifests []Descriptor `json:"manifests"`
+
+	// Subject is an optional link from the image manifest to another manifest forming an association between the image manifest and the other manifest.
+	Subject *Descriptor `json:"subject,omitempty"`
 
 	// Annotations contains arbitrary metadata for the image index.
 	Annotations map[string]string `json:"annotations,omitempty"`

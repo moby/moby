@@ -2,22 +2,25 @@ package remotecontext // import "github.com/docker/docker/builder/remotecontext"
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/containerd/continuity/driver"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/remotecontext/urlutil"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/urlutil"
-	"github.com/moby/buildkit/frontend/dockerfile/dockerignore"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	"github.com/moby/patternmatcher"
+	"github.com/moby/patternmatcher/ignorefile"
+	"github.com/moby/sys/symlink"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ClientSessionRemote is identifier for client-session context transport
@@ -101,7 +104,7 @@ func newURLRemote(url string, dockerfilePath string, progressReader func(in io.R
 	defer content.Close()
 
 	switch contentType {
-	case mimeTypes.TextPlain:
+	case mimeTypeTextPlain:
 		res, err := parser.Parse(progressReader(content))
 		return nil, res, errdefs.InvalidParameter(err)
 	default:
@@ -122,17 +125,17 @@ func removeDockerfile(c modifiableContext, filesToRemove ...string) error {
 	case err != nil:
 		return err
 	}
-	excludes, err := dockerignore.ReadAll(f)
+	excludes, err := ignorefile.ReadAll(f)
 	if err != nil {
 		f.Close()
-		return err
+		return errors.Wrap(err, "error reading .dockerignore")
 	}
 	f.Close()
 	filesToRemove = append([]string{".dockerignore"}, filesToRemove...)
 	for _, fileToRemove := range filesToRemove {
-		if rm, _ := fileutils.MatchesOrParentMatches(fileToRemove, excludes); rm {
+		if rm, _ := patternmatcher.MatchesOrParentMatches(fileToRemove, excludes); rm {
 			if err := c.Remove(fileToRemove); err != nil {
-				logrus.Errorf("failed to remove %s: %v", fileToRemove, err)
+				log.G(context.TODO()).Errorf("failed to remove %s: %v", fileToRemove, err)
 			}
 		}
 	}
@@ -161,7 +164,7 @@ func openAt(remote builder.Source, path string) (driver.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return remote.Root().Open(fullPath)
+	return os.Open(fullPath)
 }
 
 // StatAt is a helper for calling Stat on a path from a source
@@ -170,12 +173,13 @@ func StatAt(remote builder.Source, path string) (os.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return remote.Root().Stat(fullPath)
+	return os.Stat(fullPath)
 }
 
 // FullPath is a helper for getting a full path for a path from a source
 func FullPath(remote builder.Source, path string) (string, error) {
-	fullPath, err := remote.Root().ResolveScopedPath(path, true)
+	remoteRoot := remote.Root()
+	fullPath, err := symlink.FollowSymlinkInScope(filepath.Join(remoteRoot, path), remoteRoot)
 	if err != nil {
 		if runtime.GOOS == "windows" {
 			return "", fmt.Errorf("failed to resolve scoped path %s (%s): %s. Possible cause is a forbidden path outside the build context", path, fullPath, err)

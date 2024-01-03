@@ -12,12 +12,13 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 )
 
-func (s *DockerSuite) TestAPINetworkGetDefaults(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkGetDefaults(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// By default docker daemon creates 3 networks. check if they are present
 	defaults := []string{"bridge", "host", "none"}
@@ -26,58 +27,20 @@ func (s *DockerSuite) TestAPINetworkGetDefaults(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestAPINetworkCreateCheckDuplicate(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	name := "testcheckduplicate"
-	configOnCheck := types.NetworkCreateRequest{
-		Name: name,
-		NetworkCreate: types.NetworkCreate{
-			CheckDuplicate: true,
-		},
-	}
-	configNotCheck := types.NetworkCreateRequest{
-		Name: name,
-		NetworkCreate: types.NetworkCreate{
-			CheckDuplicate: false,
-		},
-	}
-
-	// Creating a new network first
-	createNetwork(c, configOnCheck, http.StatusCreated)
-	assert.Assert(c, isNetworkAvailable(c, name))
-
-	// Creating another network with same name and CheckDuplicate must fail
-	isOlderAPI := versions.LessThan(testEnv.DaemonAPIVersion(), "1.34")
-	expectedStatus := http.StatusConflict
-	if isOlderAPI {
-		// In the early test code it uses bool value to represent
-		// whether createNetwork() is expected to fail or not.
-		// Therefore, we use negation to handle the same logic after
-		// the code was changed in https://github.com/moby/moby/pull/35030
-		// -http.StatusCreated will also be checked as NOT equal to
-		// http.StatusCreated in createNetwork() function.
-		expectedStatus = -http.StatusCreated
-	}
-	createNetwork(c, configOnCheck, expectedStatus)
-
-	// Creating another network with same name and not CheckDuplicate must succeed
-	createNetwork(c, configNotCheck, http.StatusCreated)
-}
-
-func (s *DockerSuite) TestAPINetworkFilter(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkFilter(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	nr := getNetworkResource(c, getNetworkIDByName(c, "bridge"))
 	assert.Equal(c, nr.Name, "bridge")
 }
 
-func (s *DockerSuite) TestAPINetworkInspectBridge(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkInspectBridge(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Inspect default bridge network
 	nr := getNetworkResource(c, "bridge")
 	assert.Equal(c, nr.Name, "bridge")
 
 	// run a container and attach it to the default bridge network
-	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "--name", "test", "busybox", "top").Stdout()
 	containerID := strings.TrimSpace(out)
 	containerIP := findContainerIP(c, "test", "bridge")
 
@@ -96,7 +59,7 @@ func (s *DockerSuite) TestAPINetworkInspectBridge(c *testing.T) {
 	assert.Equal(c, ip.String(), containerIP)
 }
 
-func (s *DockerSuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// IPAM configuration inspect
 	ipam := &network.IPAM{
@@ -127,7 +90,7 @@ func (s *DockerSuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
 	assert.Assert(c, !isNetworkAvailable(c, "br0"))
 }
 
-func (s *DockerSuite) TestAPINetworkConnectDisconnect(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Create test network
 	name := "testnetwork"
@@ -141,7 +104,7 @@ func (s *DockerSuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	assert.Equal(c, len(nr.Containers), 0)
 
 	// run a container
-	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "--name", "test", "busybox", "top").Stdout()
 	containerID := strings.TrimSpace(out)
 
 	// connect the container to the test network
@@ -169,7 +132,7 @@ func (s *DockerSuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	deleteNetwork(c, nr.ID, true)
 }
 
-func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// test0 bridge network
 	ipam0 := &network.IPAM{
@@ -198,11 +161,7 @@ func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) {
 			IPAM:   ipam1,
 		},
 	}
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		createNetwork(c, config1, http.StatusInternalServerError)
-	} else {
-		createNetwork(c, config1, http.StatusForbidden)
-	}
+	createNetwork(c, config1, http.StatusForbidden)
 	assert.Assert(c, !isNetworkAvailable(c, "test1"))
 
 	ipam2 := &network.IPAM{
@@ -238,7 +197,7 @@ func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestAPICreateDeletePredefinedNetworks(c *testing.T) {
+func (s *DockerAPISuite) TestAPICreateDeletePredefinedNetworks(c *testing.T) {
 	testRequires(c, DaemonIsLinux, SwarmInactive)
 	createDeletePredefinedNetwork(c, "bridge")
 	createDeletePredefinedNetwork(c, "none")
@@ -247,28 +206,14 @@ func (s *DockerSuite) TestAPICreateDeletePredefinedNetworks(c *testing.T) {
 
 func createDeletePredefinedNetwork(c *testing.T, name string) {
 	// Create pre-defined network
-	config := types.NetworkCreateRequest{
-		Name: name,
-		NetworkCreate: types.NetworkCreate{
-			CheckDuplicate: true,
-		},
-	}
+	config := types.NetworkCreateRequest{Name: name}
 	expectedStatus := http.StatusForbidden
-	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.34") {
-		// In the early test code it uses bool value to represent
-		// whether createNetwork() is expected to fail or not.
-		// Therefore, we use negation to handle the same logic after
-		// the code was changed in https://github.com/moby/moby/pull/35030
-		// -http.StatusCreated will also be checked as NOT equal to
-		// http.StatusCreated in createNetwork() function.
-		expectedStatus = -http.StatusCreated
-	}
 	createNetwork(c, config, expectedStatus)
 	deleteNetwork(c, name, false)
 }
 
 func isNetworkAvailable(c *testing.T, name string) bool {
-	resp, body, err := request.Get("/networks")
+	resp, body, err := request.Get(testutil.GetContext(c), "/networks")
 	assert.NilError(c, err)
 	defer resp.Body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
@@ -286,16 +231,12 @@ func isNetworkAvailable(c *testing.T, name string) bool {
 }
 
 func getNetworkIDByName(c *testing.T, name string) string {
-	var (
-		v          = url.Values{}
-		filterArgs = filters.NewArgs()
-	)
-	filterArgs.Add("name", name)
-	filterJSON, err := filters.ToJSON(filterArgs)
+	filterJSON, err := filters.ToJSON(filters.NewArgs(filters.Arg("name", name)))
 	assert.NilError(c, err)
+	v := url.Values{}
 	v.Set("filters", filterJSON)
 
-	resp, body, err := request.Get("/networks?" + v.Encode())
+	resp, body, err := request.Get(testutil.GetContext(c), "/networks?"+v.Encode())
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
 	assert.NilError(c, err)
 
@@ -315,7 +256,7 @@ func getNetworkIDByName(c *testing.T, name string) string {
 }
 
 func getNetworkResource(c *testing.T, id string) *types.NetworkResource {
-	_, obj, err := request.Get("/networks/" + id)
+	_, obj, err := request.Get(testutil.GetContext(c), "/networks/"+id)
 	assert.NilError(c, err)
 
 	nr := types.NetworkResource{}
@@ -326,7 +267,7 @@ func getNetworkResource(c *testing.T, id string) *types.NetworkResource {
 }
 
 func createNetwork(c *testing.T, config types.NetworkCreateRequest, expectedStatusCode int) string {
-	resp, body, err := request.Post("/networks/create", request.JSONBody(config))
+	resp, body, err := request.Post(testutil.GetContext(c), "/networks/create", request.JSONBody(config))
 	assert.NilError(c, err)
 	defer resp.Body.Close()
 
@@ -351,7 +292,7 @@ func connectNetwork(c *testing.T, nid, cid string) {
 		Container: cid,
 	}
 
-	resp, _, err := request.Post("/networks/"+nid+"/connect", request.JSONBody(config))
+	resp, _, err := request.Post(testutil.GetContext(c), "/networks/"+nid+"/connect", request.JSONBody(config))
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
 	assert.NilError(c, err)
 }
@@ -361,13 +302,13 @@ func disconnectNetwork(c *testing.T, nid, cid string) {
 		Container: cid,
 	}
 
-	resp, _, err := request.Post("/networks/"+nid+"/disconnect", request.JSONBody(config))
+	resp, _, err := request.Post(testutil.GetContext(c), "/networks/"+nid+"/disconnect", request.JSONBody(config))
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
 	assert.NilError(c, err)
 }
 
 func deleteNetwork(c *testing.T, id string, shouldSucceed bool) {
-	resp, _, err := request.Delete("/networks/" + id)
+	resp, _, err := request.Delete(testutil.GetContext(c), "/networks/"+id)
 	assert.NilError(c, err)
 	defer resp.Body.Close()
 	if !shouldSucceed {

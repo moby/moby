@@ -1,6 +1,7 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 
@@ -12,7 +13,11 @@ import (
 )
 
 // CommitImage creates a new image from a commit config
-func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
+func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
 	rwTar, err := exportContainerRw(i.layerStore, c.ContainerID, c.ContainerMountLabel)
 	if err != nil {
 		return "", err
@@ -104,19 +109,19 @@ func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.R
 // the build.
 //
 // This method is different from CreateImageFromContainer:
-//   * it doesn't attempt to validate container state
-//   * it doesn't send a commit action to metrics
-//   * it doesn't log a container commit event
+//   - it doesn't attempt to validate container state
+//   - it doesn't send a commit action to metrics
+//   - it doesn't log a container commit event
 //
 // This is a temporary shim. Should be removed when builder stops using commit.
-func (i *ImageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
-	container := i.containers.Get(c.ContainerID)
-	if container == nil {
+func (i *ImageService) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
+	ctr := i.containers.Get(c.ContainerID)
+	if ctr == nil {
 		// TODO: use typed error
 		return "", errors.Errorf("container not found: %s", c.ContainerID)
 	}
-	c.ContainerMountLabel = container.MountLabel
-	c.ContainerOS = container.OS
-	c.ParentImageID = string(container.ImageID)
-	return i.CommitImage(c)
+	c.ContainerMountLabel = ctr.MountLabel
+	c.ContainerOS = ctr.OS
+	c.ParentImageID = string(ctr.ImageID)
+	return i.CommitImage(ctx, c)
 }

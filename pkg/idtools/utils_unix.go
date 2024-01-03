@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package idtools // import "github.com/docker/docker/pkg/idtools"
 
@@ -24,9 +23,4 @@ func resolveBinary(binname string) (string, error) {
 		return resolvedPath, nil
 	}
 	return "", fmt.Errorf("Binary %q does not resolve to a binary of that name in $PATH (%q)", binname, resolvedPath)
-}
-
-func execCmd(cmd string, arg ...string) ([]byte, error) {
-	execCmd := exec.Command(cmd, arg...)
-	return execCmd.CombinedOutput()
 }

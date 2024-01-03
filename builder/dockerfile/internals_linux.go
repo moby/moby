@@ -1,17 +1,18 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/sys/symlink"
-	lcUser "github.com/opencontainers/runc/libcontainer/user"
+	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 )
 
-func parseChownFlag(builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping *idtools.IdentityMapping) (idtools.Identity, error) {
+func parseChownFlag(ctx context.Context, builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping idtools.IdentityMapping) (idtools.Identity, error) {
 	var userStr, grpStr string
 	parts := strings.Split(chown, ":")
 	if len(parts) > 2 {
@@ -56,7 +57,7 @@ func lookupUser(userStr, filepath string) (int, error) {
 	if err == nil {
 		return uid, nil
 	}
-	users, err := lcUser.ParsePasswdFileFilter(filepath, func(u lcUser.User) bool {
+	users, err := user.ParsePasswdFileFilter(filepath, func(u user.User) bool {
 		return u.Name == userStr
 	})
 	if err != nil {
@@ -75,7 +76,7 @@ func lookupGroup(groupStr, filepath string) (int, error) {
 	if err == nil {
 		return gid, nil
 	}
-	groups, err := lcUser.ParseGroupFileFilter(filepath, func(g lcUser.Group) bool {
+	groups, err := user.ParseGroupFileFilter(filepath, func(g user.Group) bool {
 		return g.Name == groupStr
 	})
 	if err != nil {

@@ -19,8 +19,7 @@ syntax = "proto3";
 package containerd.events;
 
 import "google/protobuf/any.proto";
-import weak "gogoproto/gogo.proto";
-import weak "github.com/containerd/containerd/protobuf/plugin/fieldpath.proto";
+import "github.com/containerd/containerd/protobuf/plugin/fieldpath.proto";
 
 option go_package = "github.com/containerd/containerd/api/events;events";
 option (containerd.plugin.fieldpath_all) = true;

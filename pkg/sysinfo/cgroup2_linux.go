@@ -1,14 +1,15 @@
 package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import (
+	"context"
 	"os"
 	"path"
 	"strings"
 
-	cgroupsV2 "github.com/containerd/cgroups/v2"
+	"github.com/containerd/cgroups/v3"
+	cgroupsV2 "github.com/containerd/cgroups/v3/cgroup2"
 	"github.com/containerd/containerd/pkg/userns"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 )
 
 func newV2(options ...Opt) *SysInfo {
@@ -27,14 +28,14 @@ func newV2(options ...Opt) *SysInfo {
 		applyCgroupNsInfo,
 	}
 
-	m, err := cgroupsV2.LoadManager("/sys/fs/cgroup", sysInfo.cg2GroupPath)
+	m, err := cgroupsV2.Load(sysInfo.cg2GroupPath)
 	if err != nil {
-		logrus.Warn(err)
+		log.G(context.TODO()).Warn(err)
 	} else {
 		sysInfo.cg2Controllers = make(map[string]struct{})
 		controllers, err := m.Controllers()
 		if err != nil {
-			logrus.Warn(err)
+			log.G(context.TODO()).Warn(err)
 		}
 		for _, c := range controllers {
 			sysInfo.cg2Controllers[c] = struct{}{}
@@ -56,12 +57,11 @@ func newV2(options ...Opt) *SysInfo {
 }
 
 func getSwapLimitV2() bool {
-	groups, err := cgroups.ParseCgroupFile("/proc/self/cgroup")
+	_, g, err := cgroups.ParseCgroupFileUnified("/proc/self/cgroup")
 	if err != nil {
 		return false
 	}
 
-	g := groups[""]
 	if g == "" {
 		return false
 	}

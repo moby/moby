@@ -1,0 +1,105 @@
+#!/bin/bash
+set -e
+
+# Set the container env-var, so that AppArmor is enabled in the daemon and
+# containerd when running docker-in-docker.
+#
+# see: https://github.com/containerd/containerd/blob/787943dc1027a67f3b52631e084db0d4a6be2ccc/pkg/apparmor/apparmor_linux.go#L29-L45
+# see: https://github.com/moby/moby/commit/de191e86321f7d3136ff42ff75826b8107399497
+container=docker
+export container
+
+if [ $# -eq 0 ]; then
+	echo >&2 'ERROR: No command specified. You probably want to run `journalctl -f`, or maybe `bash`?'
+	exit 1
+fi
+
+if [ ! -t 0 ]; then
+	echo >&2 'ERROR: TTY needs to be enabled (`docker run -t ...`).'
+	exit 1
+fi
+
+# Change mount propagation to shared, which SystemD PID 1 would normally do
+# itself when started by the kernel. SystemD skips that when it detects it is
+# running in a container.
+mount --make-rshared /
+
+# Allow AppArmor to work inside the container;
+#
+#     aa-status
+#     apparmor filesystem is not mounted.
+#     apparmor module is loaded.
+#
+#     mount -t securityfs none /sys/kernel/security
+#
+#     aa-status
+#     apparmor module is loaded.
+#     30 profiles are loaded.
+#     30 profiles are in enforce mode.
+#       /snap/snapd/18357/usr/lib/snapd/snap-confine
+#       ...
+#
+# Note: https://0xn3va.gitbook.io/cheat-sheets/container/escaping/sensitive-mounts#sys-kernel-security
+#
+#     ## /sys/kernel/security
+#
+#     In /sys/kernel/security mounted the securityfs interface, which allows
+#     configuration of Linux Security Modules. This allows configuration of
+#     AppArmor policies, and so access to this may allow a container to disable
+#     its MAC system.
+#
+# Given that we're running privileged already, this should not be an issue.
+if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security; then
+	mount -t securityfs none /sys/kernel/security || {
+		echo >&2 'Could not mount /sys/kernel/security.'
+		echo >&2 'AppArmor detection and --privileged mode might break.'
+	}
+fi
+
+env > /etc/docker-entrypoint-env
+
+cat > /etc/systemd/system/docker-entrypoint.target << EOF
+[Unit]
+Description=the target for docker-entrypoint.service
+Requires=docker-entrypoint.service systemd-logind.service systemd-user-sessions.service
+EOF
+
+quoted_args="$(printf " %q" "${@}")"
+echo "${quoted_args}" > /etc/docker-entrypoint-cmd
+
+cat > /etc/systemd/system/docker-entrypoint.service << EOF
+[Unit]
+Description=docker-entrypoint.service
+
+[Service]
+ExecStart=/bin/bash -exc "source /etc/docker-entrypoint-cmd"
+# EXIT_STATUS is either an exit code integer or a signal name string, see systemd.exec(5)
+ExecStopPost=/bin/bash -ec "if echo \${EXIT_STATUS} | grep [A-Z] > /dev/null; then echo >&2 \"got signal \${EXIT_STATUS}\"; systemctl exit \$(( 128 + \$( kill -l \${EXIT_STATUS} ) )); else systemctl exit \${EXIT_STATUS}; fi"
+StandardInput=tty-force
+StandardOutput=inherit
+StandardError=inherit
+WorkingDirectory=$(pwd)
+EnvironmentFile=/etc/docker-entrypoint-env
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl mask systemd-firstboot.service systemd-udevd.service
+systemctl unmask systemd-logind
+systemctl enable docker-entrypoint.service
+
+systemd=
+if [ -x /lib/systemd/systemd ]; then
+	systemd=/lib/systemd/systemd
+elif [ -x /usr/lib/systemd/systemd ]; then
+	systemd=/usr/lib/systemd/systemd
+elif [ -x /sbin/init ]; then
+	systemd=/sbin/init
+else
+	echo >&2 'ERROR: systemd is not installed'
+	exit 1
+fi
+systemd_args="--show-status=false --unit=docker-entrypoint.target"
+echo "$0: starting $systemd $systemd_args"
+exec $systemd $systemd_args

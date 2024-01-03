@@ -18,12 +18,12 @@ package images
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/containerd/containerd/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // mediatype definitions for image components handled in containerd.
@@ -38,7 +38,9 @@ const (
 	MediaTypeDockerSchema2Config           = "application/vnd.docker.container.image.v1+json"
 	MediaTypeDockerSchema2Manifest         = "application/vnd.docker.distribution.manifest.v2+json"
 	MediaTypeDockerSchema2ManifestList     = "application/vnd.docker.distribution.manifest.list.v2+json"
+
 	// Checkpoint/Restore Media Types
+
 	MediaTypeContainerd1Checkpoint               = "application/vnd.containerd.container.criu.checkpoint.criu.tar"
 	MediaTypeContainerd1CheckpointPreDump        = "application/vnd.containerd.container.criu.checkpoint.predump.tar"
 	MediaTypeContainerd1Resource                 = "application/vnd.containerd.container.resource.tar"
@@ -47,9 +49,12 @@ const (
 	MediaTypeContainerd1CheckpointOptions        = "application/vnd.containerd.container.checkpoint.options.v1+proto"
 	MediaTypeContainerd1CheckpointRuntimeName    = "application/vnd.containerd.container.checkpoint.runtime.name"
 	MediaTypeContainerd1CheckpointRuntimeOptions = "application/vnd.containerd.container.checkpoint.runtime.options+proto"
-	// Legacy Docker schema1 manifest
+
+	// MediaTypeDockerSchema1Manifest is the legacy Docker schema1 manifest
 	MediaTypeDockerSchema1Manifest = "application/vnd.docker.distribution.manifest.v1+prettyjws"
-	// Encypted media types
+
+	// Encrypted media types
+
 	MediaTypeImageLayerEncrypted     = ocispec.MediaTypeImageLayer + "+encrypted"
 	MediaTypeImageLayerGzipEncrypted = ocispec.MediaTypeImageLayerGzip + "+encrypted"
 )
@@ -87,22 +92,29 @@ func DiffCompression(ctx context.Context, mediaType string) (string, error) {
 		}
 		return "", nil
 	default:
-		return "", errors.Wrapf(errdefs.ErrNotImplemented, "unrecognised mediatype %s", mediaType)
+		return "", fmt.Errorf("unrecognised mediatype %s: %w", mediaType, errdefs.ErrNotImplemented)
 	}
 }
 
 // parseMediaTypes splits the media type into the base type and
 // an array of sorted extensions
-func parseMediaTypes(mt string) (string, []string) {
+func parseMediaTypes(mt string) (mediaType string, suffixes []string) {
 	if mt == "" {
 		return "", []string{}
 	}
+	mediaType, ext, ok := strings.Cut(mt, "+")
+	if !ok {
+		return mediaType, []string{}
+	}
 
-	s := strings.Split(mt, "+")
-	ext := s[1:]
-	sort.Strings(ext)
-
-	return s[0], ext
+	// Splitting the extensions following the mediatype "(+)gzip+encrypted".
+	// We expect this to be a limited list, so add an arbitrary limit (50).
+	//
+	// Note that DiffCompression is only using the last element, so perhaps we
+	// should split on the last "+" only.
+	suffixes = strings.SplitN(ext, "+", 50)
+	sort.Strings(suffixes)
+	return mediaType, suffixes
 }
 
 // IsNonDistributable returns true if the media type is non-distributable.
@@ -118,8 +130,7 @@ func IsLayerType(mt string) bool {
 	}
 
 	// Parse Docker media types, strip off any + suffixes first
-	base, _ := parseMediaTypes(mt)
-	switch base {
+	switch base, _ := parseMediaTypes(mt); base {
 	case MediaTypeDockerSchema2Layer, MediaTypeDockerSchema2LayerGzip,
 		MediaTypeDockerSchema2LayerForeign, MediaTypeDockerSchema2LayerForeignGzip:
 		return true

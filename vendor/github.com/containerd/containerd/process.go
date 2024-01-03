@@ -18,6 +18,7 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"syscall"
 	"time"
@@ -25,7 +26,7 @@ import (
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/errdefs"
-	"github.com/pkg/errors"
+	"github.com/containerd/containerd/protobuf"
 )
 
 // Process represents a system process
@@ -71,8 +72,10 @@ type ExitStatus struct {
 
 // Result returns the exit code and time of the exit status.
 // An error may be returned here to which indicates there was an error
-//   at some point while waiting for the exit status. It does not signify
-//   an error with the process itself.
+//
+//	at some point while waiting for the exit status. It does not signify
+//	an error with the process itself.
+//
 // If an error is returned, the process may still be running.
 func (s ExitStatus) Result() (uint32, time.Time, error) {
 	return s.code, s.exitedAt, s.err
@@ -164,7 +167,7 @@ func (p *process) Wait(ctx context.Context) (<-chan ExitStatus, error) {
 		}
 		c <- ExitStatus{
 			code:     r.ExitStatus,
-			exitedAt: r.ExitedAt,
+			exitedAt: protobuf.FromTimestamp(r.ExitedAt),
 		}
 	}()
 	return c, nil
@@ -210,7 +213,7 @@ func (p *process) Delete(ctx context.Context, opts ...ProcessDeleteOpts) (*ExitS
 	}
 	switch status.Status {
 	case Running, Paused, Pausing:
-		return nil, errors.Wrapf(errdefs.ErrFailedPrecondition, "process must be stopped before deletion")
+		return nil, fmt.Errorf("current process state: %s, process must be stopped before deletion: %w", status.Status, errdefs.ErrFailedPrecondition)
 	}
 	r, err := p.task.client.TaskService().DeleteProcess(ctx, &tasks.DeleteProcessRequest{
 		ContainerID: p.task.id,
@@ -224,7 +227,7 @@ func (p *process) Delete(ctx context.Context, opts ...ProcessDeleteOpts) (*ExitS
 		p.io.Wait()
 		p.io.Close()
 	}
-	return &ExitStatus{code: r.ExitStatus, exitedAt: r.ExitedAt}, nil
+	return &ExitStatus{code: r.ExitStatus, exitedAt: protobuf.FromTimestamp(r.ExitedAt)}, nil
 }
 
 func (p *process) Status(ctx context.Context) (Status, error) {

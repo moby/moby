@@ -1,4 +1,4 @@
-// +build !windows
+//go:build !windows
 
 /*
    Copyright The containerd Authors.
@@ -20,15 +20,14 @@ package cio
 
 import (
 	"context"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
 	"syscall"
 
 	"github.com/containerd/fifo"
-	"github.com/pkg/errors"
 )
 
 // NewFIFOSetInDir returns a new FIFOSet with paths in a temporary directory under root
@@ -38,7 +37,7 @@ func NewFIFOSetInDir(root, id string, terminal bool) (*FIFOSet, error) {
 			return nil, err
 		}
 	}
-	dir, err := ioutil.TempDir(root, "")
+	dir, err := os.MkdirTemp(root, "")
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +98,14 @@ func copyIO(fifos *FIFOSet, ioset *Streams) (*cio, error) {
 		config:  fifos.Config,
 		wg:      wg,
 		closers: append(pipes.closers(), fifos),
-		cancel:  cancel,
+		cancel: func() {
+			cancel()
+			for _, c := range pipes.closers() {
+				if c != nil {
+					c.Close()
+				}
+			}
+		},
 	}, nil
 }
 
@@ -112,7 +118,7 @@ func openFifos(ctx context.Context, fifos *FIFOSet) (f pipes, retErr error) {
 
 	if fifos.Stdin != "" {
 		if f.Stdin, retErr = fifo.OpenFifo(ctx, fifos.Stdin, syscall.O_WRONLY|syscall.O_CREAT|syscall.O_NONBLOCK, 0700); retErr != nil {
-			return f, errors.Wrapf(retErr, "failed to open stdin fifo")
+			return f, fmt.Errorf("failed to open stdin fifo: %w", retErr)
 		}
 		defer func() {
 			if retErr != nil && f.Stdin != nil {
@@ -122,7 +128,7 @@ func openFifos(ctx context.Context, fifos *FIFOSet) (f pipes, retErr error) {
 	}
 	if fifos.Stdout != "" {
 		if f.Stdout, retErr = fifo.OpenFifo(ctx, fifos.Stdout, syscall.O_RDONLY|syscall.O_CREAT|syscall.O_NONBLOCK, 0700); retErr != nil {
-			return f, errors.Wrapf(retErr, "failed to open stdout fifo")
+			return f, fmt.Errorf("failed to open stdout fifo: %w", retErr)
 		}
 		defer func() {
 			if retErr != nil && f.Stdout != nil {
@@ -132,7 +138,7 @@ func openFifos(ctx context.Context, fifos *FIFOSet) (f pipes, retErr error) {
 	}
 	if !fifos.Terminal && fifos.Stderr != "" {
 		if f.Stderr, retErr = fifo.OpenFifo(ctx, fifos.Stderr, syscall.O_RDONLY|syscall.O_CREAT|syscall.O_NONBLOCK, 0700); retErr != nil {
-			return f, errors.Wrapf(retErr, "failed to open stderr fifo")
+			return f, fmt.Errorf("failed to open stderr fifo: %w", retErr)
 		}
 	}
 	return f, nil

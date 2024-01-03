@@ -6,10 +6,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var (
-	// List of drivers that should be used in an order
-	priority = "zfs"
-)
+// List of drivers that should be used in an order
+var priority = "zfs"
 
 // Mounted checks if the given path is mounted as the fs type
 func Mounted(fsType FsMagic, mountPath string) (bool, error) {

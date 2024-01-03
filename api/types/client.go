@@ -7,46 +7,9 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/registry"
 	units "github.com/docker/go-units"
 )
-
-// CheckpointCreateOptions holds parameters to create a checkpoint from a container
-type CheckpointCreateOptions struct {
-	CheckpointID  string
-	CheckpointDir string
-	Exit          bool
-}
-
-// CheckpointListOptions holds parameters to list checkpoints for a container
-type CheckpointListOptions struct {
-	CheckpointDir string
-}
-
-// CheckpointDeleteOptions holds parameters to delete a checkpoint from a container
-type CheckpointDeleteOptions struct {
-	CheckpointID  string
-	CheckpointDir string
-}
-
-// ContainerAttachOptions holds parameters to attach to a container.
-type ContainerAttachOptions struct {
-	Stream     bool
-	Stdin      bool
-	Stdout     bool
-	Stderr     bool
-	DetachKeys string
-	Logs       bool
-}
-
-// ContainerCommitOptions holds parameters to commit changes into a container.
-type ContainerCommitOptions struct {
-	Reference string
-	Comment   string
-	Author    string
-	Changes   []string
-	Pause     bool
-	Config    *container.Config
-}
 
 // ContainerExecInspect holds information returned by exec inspect.
 type ContainerExecInspect struct {
@@ -55,42 +18,6 @@ type ContainerExecInspect struct {
 	Running     bool
 	ExitCode    int
 	Pid         int
-}
-
-// ContainerListOptions holds parameters to list containers with.
-type ContainerListOptions struct {
-	Size    bool
-	All     bool
-	Latest  bool
-	Since   string
-	Before  string
-	Limit   int
-	Filters filters.Args
-}
-
-// ContainerLogsOptions holds parameters to filter logs with.
-type ContainerLogsOptions struct {
-	ShowStdout bool
-	ShowStderr bool
-	Since      string
-	Until      string
-	Timestamps bool
-	Follow     bool
-	Tail       string
-	Details    bool
-}
-
-// ContainerRemoveOptions holds parameters to remove containers.
-type ContainerRemoveOptions struct {
-	RemoveVolumes bool
-	RemoveLinks   bool
-	Force         bool
-}
-
-// ContainerStartOptions holds parameters to start containers.
-type ContainerStartOptions struct {
-	CheckpointID  string
-	CheckpointDir string
 }
 
 // CopyToContainerOptions holds information
@@ -112,15 +39,30 @@ type NetworkListOptions struct {
 	Filters filters.Args
 }
 
+// NewHijackedResponse intializes a HijackedResponse type
+func NewHijackedResponse(conn net.Conn, mediaType string) HijackedResponse {
+	return HijackedResponse{Conn: conn, Reader: bufio.NewReader(conn), mediaType: mediaType}
+}
+
 // HijackedResponse holds connection information for a hijacked request.
 type HijackedResponse struct {
-	Conn   net.Conn
-	Reader *bufio.Reader
+	mediaType string
+	Conn      net.Conn
+	Reader    *bufio.Reader
 }
 
 // Close closes the hijacked connection and reader.
 func (h *HijackedResponse) Close() {
 	h.Conn.Close()
+}
+
+// MediaType let client know if HijackedResponse hold a raw or multiplexed stream.
+// returns false if HTTP Content-Type is not relevant, and container must be inspected
+func (h *HijackedResponse) MediaType() (string, bool) {
+	if h.mediaType == "" {
+		return "", false
+	}
+	return h.mediaType, true
 }
 
 // CloseWriter is an interface that implements structs
@@ -165,7 +107,7 @@ type ImageBuildOptions struct {
 	// at all (nil). See the parsing of buildArgs in
 	// api/server/router/build/build_routes.go for even more info.
 	BuildArgs   map[string]*string
-	AuthConfigs map[string]AuthConfig
+	AuthConfigs map[string]registry.AuthConfig
 	Context     io.Reader
 	Labels      map[string]string
 	// squash the resulting image's layers to the parent
@@ -291,14 +233,6 @@ type ImageSearchOptions struct {
 	Limit         int
 }
 
-// ResizeOptions holds parameters to resize a tty.
-// It can be used to resize container ttys and
-// exec process ttys too.
-type ResizeOptions struct {
-	Height uint
-	Width  uint
-}
-
 // NodeListOptions holds parameters to list nodes with.
 type NodeListOptions struct {
 	Filters filters.Args
@@ -322,15 +256,6 @@ type ServiceCreateOptions struct {
 	// the image digest and manifest, which in turn can be used to update
 	// platform or other information about the service.
 	QueryRegistry bool
-}
-
-// ServiceCreateResponse contains the information returned to a client
-// on the creation of a new service.
-type ServiceCreateResponse struct {
-	// ID is the ID of the created service.
-	ID string
-	// Warnings is a set of non-fatal warning messages to pass on to the user.
-	Warnings []string `json:",omitempty"`
 }
 
 // Values for RegistryAuthFrom in ServiceUpdateOptions

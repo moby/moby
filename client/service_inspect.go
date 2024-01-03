@@ -22,7 +22,7 @@ func (cli *Client) ServiceInspectWithRaw(ctx context.Context, serviceID string, 
 	serverResp, err := cli.get(ctx, "/services/"+serviceID, query, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
-		return swarm.Service{}, nil, wrapResponseError(err, serverResp, "service", serviceID)
+		return swarm.Service{}, nil, err
 	}
 
 	body, err := io.ReadAll(serverResp.body)

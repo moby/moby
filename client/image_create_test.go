@@ -10,7 +10,10 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImageCreateError(t *testing.T) {
@@ -18,9 +21,7 @@ func TestImageCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImageCreate(context.Background(), "reference", types.ImageCreateOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestImageCreate(t *testing.T) {
@@ -34,9 +35,9 @@ func TestImageCreate(t *testing.T) {
 			if !strings.HasPrefix(r.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
 			}
-			registryAuth := r.Header.Get("X-Registry-Auth")
+			registryAuth := r.Header.Get(registry.AuthHeader)
 			if registryAuth != expectedRegistryAuth {
-				return nil, fmt.Errorf("X-Registry-Auth header not properly set in the request. Expected '%s', got %s", expectedRegistryAuth, registryAuth)
+				return nil, fmt.Errorf("%s header not properly set in the request. Expected '%s', got %s", registry.AuthHeader, expectedRegistryAuth, registryAuth)
 			}
 
 			query := r.URL.Query()

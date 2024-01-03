@@ -37,6 +37,8 @@ BIN=""
 SYSTEMD=""
 CFG_DIR=""
 XDG_RUNTIME_DIR_CREATED=""
+USERNAME=""
+USERNAME_ESCAPED=""
 
 # run checks and also initialize global vars
 init() {
@@ -77,6 +79,11 @@ init() {
 		ERROR "HOME needs to be writable"
 		exit 1
 	fi
+
+	# Set USERNAME from `id -un` and potentially protect backslash
+	# for windbind/samba domain users
+	USERNAME=$(id -un)
+	USERNAME_ESCAPED=$(echo $USERNAME | sed 's/\\/\\\\/g')
 
 	# set CFG_DIR
 	CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -222,21 +229,21 @@ init() {
 	fi
 
 	# instructions: validate subuid/subgid files for current user
-	if ! grep -q "^$(id -un):\|^$(id -u):" /etc/subuid 2> /dev/null; then
+	if ! grep -q "^$USERNAME_ESCAPED:\|^$(id -u):" /etc/subuid 2> /dev/null; then
 		instructions=$(
 			cat <<- EOI
 				${instructions}
-				# Add subuid entry for $(id -un)
-				echo "$(id -un):100000:65536" >> /etc/subuid
+				# Add subuid entry for ${USERNAME}
+				echo "${USERNAME}:100000:65536" >> /etc/subuid
 			EOI
 		)
 	fi
-	if ! grep -q "^$(id -un):\|^$(id -u):" /etc/subgid 2> /dev/null; then
+	if ! grep -q "^$USERNAME_ESCAPED:\|^$(id -u):" /etc/subgid 2> /dev/null; then
 		instructions=$(
 			cat <<- EOI
 				${instructions}
-				# Add subgid entry for $(id -un)
-				echo "$(id -un):100000:65536" >> /etc/subgid
+				# Add subgid entry for ${USERNAME}
+				echo "${USERNAME}:100000:65536" >> /etc/subgid
 			EOI
 		)
 	fi
@@ -340,7 +347,7 @@ install_systemd() {
 	)
 	INFO "Installed ${SYSTEMD_UNIT} successfully."
 	INFO "To control ${SYSTEMD_UNIT}, run: \`systemctl --user (start|stop|restart) ${SYSTEMD_UNIT}\`"
-	INFO "To run ${SYSTEMD_UNIT} on system startup, run: \`sudo loginctl enable-linger $(id -un)\`"
+	INFO "To run ${SYSTEMD_UNIT} on system startup, run: \`sudo loginctl enable-linger ${USERNAME}\`"
 	echo
 }
 
@@ -354,19 +361,24 @@ install_nonsystemd() {
 
 cli_ctx_exists() {
 	name="$1"
-	"${BIN}/docker" context inspect -f "{{.Name}}" "${name}" > /dev/null 2>&1
+	"${BIN}/docker" --context=default context inspect -f "{{.Name}}" "${name}" > /dev/null 2>&1
 }
 
 cli_ctx_create() {
 	name="$1"
 	host="$2"
 	description="$3"
-	"${BIN}/docker" context create "${name}" --docker "host=${host}" --description "${description}" > /dev/null
+	"${BIN}/docker" --context=default context create "${name}" --docker "host=${host}" --description "${description}" > /dev/null
+}
+
+cli_ctx_use() {
+	name="$1"
+	"${BIN}/docker" --context=default context use "${name}" > /dev/null
 }
 
 cli_ctx_rm() {
 	name="$1"
-	"${BIN}/docker" context rm -f "${name}" > /dev/null
+	"${BIN}/docker" --context=default context rm -f "${name}" > /dev/null
 }
 
 # CLI subcommand: "install"
@@ -385,14 +397,18 @@ cmd_entrypoint_install() {
 		cli_ctx_create "${CLI_CONTEXT}" "unix://${XDG_RUNTIME_DIR}/docker.sock" "Rootless mode"
 	fi
 
+	INFO "Using CLI context \"${CLI_CONTEXT}\""
+	cli_ctx_use "${CLI_CONTEXT}"
+
 	echo
-	INFO "Make sure the following environment variables are set (or add them to ~/.bashrc):"
-	echo
+	INFO "Make sure the following environment variable(s) are set (or add them to ~/.bashrc):"
 	if [ -n "$XDG_RUNTIME_DIR_CREATED" ]; then
 		echo "# WARNING: systemd not found. You have to remove XDG_RUNTIME_DIR manually on every logout."
 		echo "export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}"
 	fi
 	echo "export PATH=${BIN}:\$PATH"
+	echo
+	INFO "Some applications may require the following environment variable too:"
 	echo "export DOCKER_HOST=unix://${XDG_RUNTIME_DIR}/docker.sock"
 	echo
 
@@ -421,7 +437,12 @@ cmd_entrypoint_uninstall() {
 		cli_ctx_rm "${CLI_CONTEXT}"
 		INFO "Deleted CLI context \"${CLI_CONTEXT}\""
 	fi
-
+	unset DOCKER_HOST
+	unset DOCKER_CONTEXT
+	cli_ctx_use "default"
+	INFO 'Configured CLI to use the "default" context.'
+	INFO
+	INFO 'Make sure to unset or update the environment PATH, DOCKER_HOST, and DOCKER_CONTEXT environment variables if you have added them to `~/.bashrc`.'
 	INFO "This uninstallation tool does NOT remove Docker binaries and data."
 	INFO "To remove data, run: \`$BIN/rootlesskit rm -rf $HOME/.local/share/docker\`"
 }

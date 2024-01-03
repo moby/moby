@@ -1,23 +1,24 @@
 package libnetwork
 
-//go:generate protoc -I.:Godeps/_workspace/src/github.com/gogo/protobuf  --gogo_out=import_path=github.com/docker/docker/libnetwork,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. agent.proto
+//go:generate protoc -I=. -I=../vendor/ --gogofaster_out=import_path=github.com/docker/docker/libnetwork:. agent.proto
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"sort"
 	"sync"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/cluster"
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/networkdb"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/go-events"
 	"github.com/gogo/protobuf/proto"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -34,19 +35,19 @@ func (b ByTime) Len() int           { return len(b) }
 func (b ByTime) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 func (b ByTime) Less(i, j int) bool { return b[i].LamportTime < b[j].LamportTime }
 
-type agent struct {
+type nwAgent struct {
 	networkDB         *networkdb.NetworkDB
-	bindAddr          string
+	bindAddr          net.IP
 	advertiseAddr     string
 	dataPathAddr      string
 	coreCancelFuncs   []func()
 	driverCancelFuncs map[string][]func()
-	sync.Mutex
+	mu                sync.Mutex
 }
 
-func (a *agent) dataPathAddress() string {
-	a.Lock()
-	defer a.Unlock()
+func (a *nwAgent) dataPathAddress() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	if a.dataPathAddr != "" {
 		return a.dataPathAddr
 	}
@@ -55,15 +56,15 @@ func (a *agent) dataPathAddress() string {
 
 const libnetworkEPTable = "endpoint_table"
 
-func getBindAddr(ifaceName string) (string, error) {
+func getBindAddr(ifaceName string) (net.IP, error) {
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
-		return "", fmt.Errorf("failed to find interface %s: %v", ifaceName, err)
+		return nil, fmt.Errorf("failed to find interface %s: %v", ifaceName, err)
 	}
 
 	addrs, err := iface.Addrs()
 	if err != nil {
-		return "", fmt.Errorf("failed to get interface addresses: %v", err)
+		return nil, fmt.Errorf("failed to get interface addresses: %v", err)
 	}
 
 	for _, a := range addrs {
@@ -77,38 +78,45 @@ func getBindAddr(ifaceName string) (string, error) {
 			continue
 		}
 
-		return addrIP.String(), nil
+		return addrIP, nil
 	}
 
-	return "", fmt.Errorf("failed to get bind address")
+	return nil, fmt.Errorf("failed to get bind address")
 }
 
-func resolveAddr(addrOrInterface string) (string, error) {
+// resolveAddr resolves the given address, which can be one of, and
+// parsed in the following order or priority:
+//
+// - a well-formed IP-address
+// - a hostname
+// - an interface-name
+func resolveAddr(addrOrInterface string) (net.IP, error) {
 	// Try and see if this is a valid IP address
-	if net.ParseIP(addrOrInterface) != nil {
-		return addrOrInterface, nil
+	if ip := net.ParseIP(addrOrInterface); ip != nil {
+		return ip, nil
 	}
 
+	// If not a valid IP address, it could be a hostname.
 	addr, err := net.ResolveIPAddr("ip", addrOrInterface)
 	if err != nil {
-		// If not a valid IP address, it should be a valid interface
+		// If hostname lookup failed, try to look for an interface with the given name.
 		return getBindAddr(addrOrInterface)
 	}
-	return addr.String(), nil
+	return addr.IP, nil
 }
 
-func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
+func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	drvEnc := discoverapi.DriverEncryptionUpdate{}
 
-	a := c.getAgent()
-	if a == nil {
-		logrus.Debug("Skipping key change as agent is nil")
+	agent := c.getAgent()
+	if agent == nil {
+		log.G(context.TODO()).Debug("Skipping key change as agent is nil")
 		return nil
 	}
 
 	// Find the deleted key. If the deleted key was the primary key,
 	// a new primary key should be set before removing if from keyring.
-	c.Lock()
+	c.mu.Lock()
 	added := []byte{}
 	deleted := []byte{}
 	j := len(c.keys)
@@ -157,17 +165,17 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 			}
 		}
 	}
-	c.Unlock()
+	c.mu.Unlock()
 
 	if len(added) > 0 {
-		a.networkDB.SetKey(added)
+		agent.networkDB.SetKey(added)
 	}
 
 	key, _, err := c.getPrimaryKeyTag(subsysGossip)
 	if err != nil {
 		return err
 	}
-	a.networkDB.SetPrimaryKey(key)
+	agent.networkDB.SetPrimaryKey(key)
 
 	key, tag, err := c.getPrimaryKeyTag(subsysIPSec)
 	if err != nil {
@@ -177,22 +185,25 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	drvEnc.PrimaryTag = tag
 
 	if len(deleted) > 0 {
-		a.networkDB.RemoveKey(deleted)
+		agent.networkDB.RemoveKey(deleted)
 	}
 
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-		err := driver.DiscoverNew(discoverapi.EncryptionKeysUpdate, drvEnc)
-		if err != nil {
-			logrus.Warnf("Failed to update datapath keys in driver %s: %v", name, err)
+		dr, ok := driver.(discoverapi.Discover)
+		if !ok {
+			return false
+		}
+		if err := dr.DiscoverNew(discoverapi.EncryptionKeysUpdate, drvEnc); err != nil {
+			log.G(context.TODO()).Warnf("Failed to update datapath keys in driver %s: %v", name, err)
 			// Attempt to reconfigure keys in case of a update failure
 			// which can arise due to a mismatch of keys
 			// if worker nodes get temporarily disconnected
-			logrus.Warnf("Reconfiguring datapath keys for  %s", name)
+			log.G(context.TODO()).Warnf("Reconfiguring datapath keys for  %s", name)
 			drvCfgEnc := discoverapi.DriverEncryptionConfig{}
 			drvCfgEnc.Keys, drvCfgEnc.Tags = c.getKeys(subsysIPSec)
-			err = driver.DiscoverNew(discoverapi.EncryptionKeysConfig, drvCfgEnc)
+			err = dr.DiscoverNew(discoverapi.EncryptionKeysConfig, drvCfgEnc)
 			if err != nil {
-				logrus.Warnf("Failed to reset datapath keys in driver %s: %v", name, err)
+				log.G(context.TODO()).Warnf("Failed to reset datapath keys in driver %s: %v", name, err)
 			}
 		}
 		return false
@@ -201,11 +212,10 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	return nil
 }
 
-func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
+func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 	agent := c.getAgent()
-
-	// If the agent is already present there is no need to try to initialize it again
 	if agent != nil {
+		// agent is already present, so there is no need initialize it again.
 		return nil
 	}
 
@@ -222,16 +232,24 @@ func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
 	listen := clusterProvider.GetListenAddress()
 	listenAddr, _, _ := net.SplitHostPort(listen)
 
-	logrus.Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Data-addr=%s Remote-addr-list=%v MTU=%d",
-		listenAddr, bindAddr, advAddr, dataAddr, remoteAddrList, c.Config().Daemon.NetworkControlPlaneMTU)
-	if advAddr != "" && agent == nil {
+	log.G(context.TODO()).WithFields(log.Fields{
+		"listen-addr":               listenAddr,
+		"local-addr":                bindAddr,
+		"advertise-addr":            advAddr,
+		"data-path-addr":            dataAddr,
+		"remote-addr-list":          remoteAddrList,
+		"network-control-plane-mtu": c.Config().NetworkControlPlaneMTU,
+	}).Info("Initializing Libnetwork Agent")
+	if advAddr != "" {
 		if err := c.agentInit(listenAddr, bindAddr, advAddr, dataAddr); err != nil {
-			logrus.Errorf("error in agentInit: %v", err)
+			log.G(context.TODO()).WithError(err).Errorf("Error in agentInit")
 			return err
 		}
 		c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-			if capability.ConnectivityScope == datastore.GlobalScope {
-				c.agentDriverNotify(driver)
+			if capability.ConnectivityScope == scope.Global {
+				if d, ok := driver.(discoverapi.Discover); ok {
+					c.agentDriverNotify(d)
+				}
 			}
 			return false
 		})
@@ -239,7 +257,7 @@ func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
 
 	if len(remoteAddrList) > 0 {
 		if err := c.agentJoin(remoteAddrList); err != nil {
-			logrus.Errorf("Error in joining gossip cluster : %v(join will be retried in background)", err)
+			log.G(context.TODO()).WithError(err).Error("Error in joining gossip cluster: join will be retried in background")
 		}
 	}
 
@@ -248,42 +266,48 @@ func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
 
 // For a given subsystem getKeys sorts the keys by lamport time and returns
 // slice of keys and lamport time which can used as a unique tag for the keys
-func (c *controller) getKeys(subsys string) ([][]byte, []uint64) {
-	c.Lock()
-	defer c.Unlock()
+func (c *Controller) getKeys(subsystem string) (keys [][]byte, tags []uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	sort.Sort(ByTime(c.keys))
 
-	keys := [][]byte{}
-	tags := []uint64{}
+	keys = make([][]byte, 0, len(c.keys))
+	tags = make([]uint64, 0, len(c.keys))
 	for _, key := range c.keys {
-		if key.Subsystem == subsys {
+		if key.Subsystem == subsystem {
 			keys = append(keys, key.Key)
 			tags = append(tags, key.LamportTime)
 		}
 	}
 
-	keys[0], keys[1] = keys[1], keys[0]
-	tags[0], tags[1] = tags[1], tags[0]
+	if len(keys) > 1 {
+		// TODO(thaJeztah): why are we swapping order here? This code was added in https://github.com/moby/libnetwork/commit/e83d68b7d1fd9c479120914024242238f791b4dc
+		keys[0], keys[1] = keys[1], keys[0]
+		tags[0], tags[1] = tags[1], tags[0]
+	}
 	return keys, tags
 }
 
 // getPrimaryKeyTag returns the primary key for a given subsystem from the
 // list of sorted key and the associated tag
-func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
-	c.Lock()
-	defer c.Unlock()
+func (c *Controller) getPrimaryKeyTag(subsystem string) (key []byte, lamportTime uint64, _ error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	sort.Sort(ByTime(c.keys))
-	keys := []*types.EncryptionKey{}
-	for _, key := range c.keys {
-		if key.Subsystem == subsys {
-			keys = append(keys, key)
+	keys := make([]*types.EncryptionKey, 0, len(c.keys))
+	for _, k := range c.keys {
+		if k.Subsystem == subsystem {
+			keys = append(keys, k)
 		}
+	}
+	if len(keys) < 2 {
+		return nil, 0, fmt.Errorf("no primary key found for %s subsystem: %d keys found on controller, expected at least 2", subsystem, len(keys))
 	}
 	return keys[1].Key, keys[1].LamportTime, nil
 }
 
-func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, dataPathAddr string) error {
+func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, dataPathAddr string) error {
 	bindAddr, err := resolveAddr(bindAddrOrInterface)
 	if err != nil {
 		return err
@@ -295,12 +319,12 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	netDBConf.BindAddr = listenAddr
 	netDBConf.AdvertiseAddr = advertiseAddr
 	netDBConf.Keys = keys
-	if c.Config().Daemon.NetworkControlPlaneMTU != 0 {
+	if c.Config().NetworkControlPlaneMTU != 0 {
 		// Consider the MTU remove the IP hdr (IPv4 or IPv6) and the TCP/UDP hdr.
 		// To be on the safe side let's cut 100 bytes
-		netDBConf.PacketBufferSize = (c.Config().Daemon.NetworkControlPlaneMTU - 100)
-		logrus.Debugf("Control plane MTU: %d will initialize NetworkDB with: %d",
-			c.Config().Daemon.NetworkControlPlaneMTU, netDBConf.PacketBufferSize)
+		netDBConf.PacketBufferSize = (c.Config().NetworkControlPlaneMTU - 100)
+		log.G(context.TODO()).Debugf("Control plane MTU: %d will initialize NetworkDB with: %d",
+			c.Config().NetworkControlPlaneMTU, netDBConf.PacketBufferSize)
 	}
 	nDB, err := networkdb.New(netDBConf)
 	if err != nil {
@@ -308,16 +332,16 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	}
 
 	// Register the diagnostic handlers
-	c.DiagnosticServer.RegisterHandler(nDB, networkdb.NetDbPaths2Func)
+	nDB.RegisterDiagnosticHandlers(c.DiagnosticServer)
 
 	var cancelList []func()
-	ch, cancel := nDB.Watch(libnetworkEPTable, "", "")
+	ch, cancel := nDB.Watch(libnetworkEPTable, "")
 	cancelList = append(cancelList, cancel)
-	nodeCh, cancel := nDB.Watch(networkdb.NodeTable, "", "")
+	nodeCh, cancel := nDB.Watch(networkdb.NodeTable, "")
 	cancelList = append(cancelList, cancel)
 
-	c.Lock()
-	c.agent = &agent{
+	c.mu.Lock()
+	c.agent = &nwAgent{
 		networkDB:         nDB,
 		bindAddr:          bindAddr,
 		advertiseAddr:     advertiseAddr,
@@ -325,20 +349,20 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 		coreCancelFuncs:   cancelList,
 		driverCancelFuncs: make(map[string][]func()),
 	}
-	c.Unlock()
+	c.mu.Unlock()
 
 	go c.handleTableEvents(ch, c.handleEpTableEvent)
 	go c.handleTableEvents(nodeCh, c.handleNodeTableEvent)
 
-	drvEnc := discoverapi.DriverEncryptionConfig{}
 	keys, tags := c.getKeys(subsysIPSec)
-	drvEnc.Keys = keys
-	drvEnc.Tags = tags
-
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-		err := driver.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc)
-		if err != nil {
-			logrus.Warnf("Failed to set datapath keys in driver %s: %v", name, err)
+		if dr, ok := driver.(discoverapi.Discover); ok {
+			if err := dr.DiscoverNew(discoverapi.EncryptionKeysConfig, discoverapi.DriverEncryptionConfig{
+				Keys: keys,
+				Tags: tags,
+			}); err != nil {
+				log.G(context.TODO()).Warnf("Failed to set datapath keys in driver %s: %v", name, err)
+			}
 		}
 		return false
 	})
@@ -348,7 +372,7 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	return nil
 }
 
-func (c *controller) agentJoin(remoteAddrList []string) error {
+func (c *Controller) agentJoin(remoteAddrList []string) error {
 	agent := c.getAgent()
 	if agent == nil {
 		return nil
@@ -356,7 +380,7 @@ func (c *controller) agentJoin(remoteAddrList []string) error {
 	return agent.networkDB.Join(remoteAddrList)
 }
 
-func (c *controller) agentDriverNotify(d driverapi.Driver) {
+func (c *Controller) agentDriverNotify(d discoverapi.Discover) {
 	agent := c.getAgent()
 	if agent == nil {
 		return
@@ -364,29 +388,28 @@ func (c *controller) agentDriverNotify(d driverapi.Driver) {
 
 	if err := d.DiscoverNew(discoverapi.NodeDiscovery, discoverapi.NodeDiscoveryData{
 		Address:     agent.dataPathAddress(),
-		BindAddress: agent.bindAddr,
+		BindAddress: agent.bindAddr.String(),
 		Self:        true,
 	}); err != nil {
-		logrus.Warnf("Failed the node discovery in driver: %v", err)
+		log.G(context.TODO()).Warnf("Failed the node discovery in driver: %v", err)
 	}
 
-	drvEnc := discoverapi.DriverEncryptionConfig{}
 	keys, tags := c.getKeys(subsysIPSec)
-	drvEnc.Keys = keys
-	drvEnc.Tags = tags
-
-	if err := d.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc); err != nil {
-		logrus.Warnf("Failed to set datapath keys in driver: %v", err)
+	if err := d.DiscoverNew(discoverapi.EncryptionKeysConfig, discoverapi.DriverEncryptionConfig{
+		Keys: keys,
+		Tags: tags,
+	}); err != nil {
+		log.G(context.TODO()).Warnf("Failed to set datapath keys in driver: %v", err)
 	}
 }
 
-func (c *controller) agentClose() {
+func (c *Controller) agentClose() {
 	// Acquire current agent instance and reset its pointer
 	// then run closing functions
-	c.Lock()
+	c.mu.Lock()
 	agent := c.agent
 	c.agent = nil
-	c.Unlock()
+	c.mu.Unlock()
 
 	// when the agent is closed the cluster provider should be cleaned up
 	c.SetClusterProvider(nil)
@@ -397,14 +420,14 @@ func (c *controller) agentClose() {
 
 	var cancelList []func()
 
-	agent.Lock()
+	agent.mu.Lock()
 	for _, cancelFuncs := range agent.driverCancelFuncs {
 		cancelList = append(cancelList, cancelFuncs...)
 	}
 
 	// Add also the cancel functions for the network db
 	cancelList = append(cancelList, agent.coreCancelFuncs...)
-	agent.Unlock()
+	agent.mu.Unlock()
 
 	for _, cancel := range cancelList {
 		cancel()
@@ -435,50 +458,46 @@ type epRecord struct {
 	lbIndex int
 }
 
-func (n *network) Services() map[string]ServiceInfo {
-	eps := make(map[string]epRecord)
-
-	if !n.isClusterEligible() {
+// Services returns a map of services keyed by the service name with the details
+// of all the tasks that belong to the service. Applicable only in swarm mode.
+func (n *Network) Services() map[string]ServiceInfo {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
-	agent := n.getController().getAgent()
-	if agent == nil {
+	nwID := n.ID()
+	d, err := n.driver(true)
+	if err != nil {
+		log.G(context.TODO()).Errorf("Could not resolve driver for network %s/%s while fetching services: %v", n.networkType, nwID, err)
 		return nil
 	}
 
 	// Walk through libnetworkEPTable and fetch the driver agnostic endpoint info
-	entries := agent.networkDB.GetTableByNetwork(libnetworkEPTable, n.id)
-	for eid, value := range entries {
+	eps := make(map[string]epRecord)
+	c := n.getController()
+	for eid, value := range agent.networkDB.GetTableByNetwork(libnetworkEPTable, nwID) {
 		var epRec EndpointRecord
-		nid := n.ID()
 		if err := proto.Unmarshal(value.Value, &epRec); err != nil {
-			logrus.Errorf("Unmarshal of libnetworkEPTable failed for endpoint %s in network %s, %v", eid, nid, err)
+			log.G(context.TODO()).Errorf("Unmarshal of libnetworkEPTable failed for endpoint %s in network %s, %v", eid, nwID, err)
 			continue
 		}
-		i := n.getController().getLBIndex(epRec.ServiceID, nid, epRec.IngressPorts)
 		eps[eid] = epRecord{
 			ep:      epRec,
-			lbIndex: i,
+			lbIndex: c.getLBIndex(epRec.ServiceID, nwID, epRec.IngressPorts),
 		}
 	}
 
 	// Walk through the driver's tables, have the driver decode the entries
 	// and return the tuple {ep ID, value}. value is a string that coveys
 	// relevant info about the endpoint.
-	d, err := n.driver(true)
-	if err != nil {
-		logrus.Errorf("Could not resolve driver for network %s/%s while fetching services: %v", n.networkType, n.ID(), err)
-		return nil
-	}
 	for _, table := range n.driverTables {
 		if table.objType != driverapi.EndpointObject {
 			continue
 		}
-		entries := agent.networkDB.GetTableByNetwork(table.name, n.id)
-		for key, value := range entries {
+		for key, value := range agent.networkDB.GetTableByNetwork(table.name, nwID) {
 			epID, info := d.DecodeTableEntry(table.name, key, value.Value)
 			if ep, ok := eps[epID]; !ok {
-				logrus.Errorf("Inconsistent driver and libnetwork state for endpoint %s", epID)
+				log.G(context.TODO()).Errorf("Inconsistent driver and libnetwork state for endpoint %s", epID)
 			} else {
 				ep.info = info
 				eps[epID] = ep
@@ -489,21 +508,17 @@ func (n *network) Services() map[string]ServiceInfo {
 	// group the endpoints into a map keyed by the service name
 	sinfo := make(map[string]ServiceInfo)
 	for ep, epr := range eps {
-		var (
-			s  ServiceInfo
-			ok bool
-		)
-		if s, ok = sinfo[epr.ep.ServiceName]; !ok {
+		s, ok := sinfo[epr.ep.ServiceName]
+		if !ok {
 			s = ServiceInfo{
 				VIP:          epr.ep.VirtualIP,
 				LocalLBIndex: epr.lbIndex,
 			}
 		}
-		ports := []string{}
 		if s.Ports == nil {
+			ports := make([]string, 0, len(epr.ep.IngressPorts))
 			for _, port := range epr.ep.IngressPorts {
-				p := fmt.Sprintf("Target: %d, Publish: %d", port.TargetPort, port.PublishedPort)
-				ports = append(ports, p)
+				ports = append(ports, fmt.Sprintf("Target: %d, Publish: %d", port.TargetPort, port.PublishedPort))
 			}
 			s.Ports = ports
 		}
@@ -518,96 +533,84 @@ func (n *network) Services() map[string]ServiceInfo {
 	return sinfo
 }
 
-func (n *network) isClusterEligible() bool {
-	if n.scope != datastore.SwarmScope || !n.driverIsMultihost() {
-		return false
+// clusterAgent returns the cluster agent if the network is a swarm-scoped,
+// multi-host network.
+func (n *Network) clusterAgent() (agent *nwAgent, ok bool) {
+	if n.scope != scope.Swarm || !n.driverIsMultihost() {
+		return nil, false
 	}
-	return n.getController().getAgent() != nil
+	a := n.getController().getAgent()
+	return a, a != nil
 }
 
-func (n *network) joinCluster() error {
-	if !n.isClusterEligible() {
+func (n *Network) joinCluster() error {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
-
-	agent := n.getController().getAgent()
-	if agent == nil {
-		return nil
-	}
-
 	return agent.networkDB.JoinNetwork(n.ID())
 }
 
-func (n *network) leaveCluster() error {
-	if !n.isClusterEligible() {
+func (n *Network) leaveCluster() error {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
-
-	agent := n.getController().getAgent()
-	if agent == nil {
-		return nil
-	}
-
 	return agent.networkDB.LeaveNetwork(n.ID())
 }
 
-func (ep *endpoint) addDriverInfoToCluster() error {
+func (ep *Endpoint) addDriverInfoToCluster() error {
+	if ep.joinInfo == nil || len(ep.joinInfo.driverTableEntries) == 0 {
+		return nil
+	}
 	n := ep.getNetwork()
-	if !n.isClusterEligible() {
-		return nil
-	}
-	if ep.joinInfo == nil {
-		return nil
-	}
-
-	agent := n.getController().getAgent()
-	if agent == nil {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
 
+	nwID := n.ID()
 	for _, te := range ep.joinInfo.driverTableEntries {
-		if err := agent.networkDB.CreateEntry(te.tableName, n.ID(), te.key, te.value); err != nil {
+		if err := agent.networkDB.CreateEntry(te.tableName, nwID, te.key, te.value); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (ep *endpoint) deleteDriverInfoFromCluster() error {
+func (ep *Endpoint) deleteDriverInfoFromCluster() error {
+	if ep.joinInfo == nil || len(ep.joinInfo.driverTableEntries) == 0 {
+		return nil
+	}
 	n := ep.getNetwork()
-	if !n.isClusterEligible() {
-		return nil
-	}
-	if ep.joinInfo == nil {
-		return nil
-	}
-
-	agent := n.getController().getAgent()
-	if agent == nil {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
 
+	nwID := n.ID()
 	for _, te := range ep.joinInfo.driverTableEntries {
-		if err := agent.networkDB.DeleteEntry(te.tableName, n.ID(), te.key); err != nil {
+		if err := agent.networkDB.DeleteEntry(te.tableName, nwID, te.key); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (ep *endpoint) addServiceInfoToCluster(sb *sandbox) error {
-	if ep.isAnonymous() && len(ep.myAliases) == 0 || ep.Iface() == nil || ep.Iface().Address() == nil {
+func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
+	if len(ep.dnsNames) == 0 || ep.Iface() == nil || ep.Iface().Address() == nil {
 		return nil
 	}
 
 	n := ep.getNetwork()
-	if !n.isClusterEligible() {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
 
-	sb.Service.Lock()
-	defer sb.Service.Unlock()
-	logrus.Debugf("addServiceInfoToCluster START for %s %s", ep.svcName, ep.ID())
+	sb.service.Lock()
+	defer sb.service.Unlock()
+	log.G(context.TODO()).Debugf("addServiceInfoToCluster START for %s %s", ep.svcName, ep.ID())
 
 	// Check that the endpoint is still present on the sandbox before adding it to the service discovery.
 	// This is to handle a race between the EnableService and the sbLeave
@@ -620,18 +623,13 @@ func (ep *endpoint) addServiceInfoToCluster(sb *sandbox) error {
 	// In case the deleteServiceInfoToCluster arrives first, this one is happening after the endpoint is
 	// removed from the list, in this situation the delete will bail out not finding any data to cleanup
 	// and the add will bail out not finding the endpoint on the sandbox.
-	if e := sb.getEndpoint(ep.ID()); e == nil {
-		logrus.Warnf("addServiceInfoToCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
+	if err := sb.getEndpoint(ep.ID()); err == nil {
+		log.G(context.TODO()).Warnf("addServiceInfoToCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
 		return nil
 	}
 
-	c := n.getController()
-	agent := c.getAgent()
-
-	name := ep.Name()
-	if ep.isAnonymous() {
-		name = ep.MyAliases()[0]
-	}
+	dnsNames := ep.getDNSNames()
+	primaryDNSName, dnsAliases := dnsNames[0], dnsNames[1:]
 
 	var ingressPorts []*PortConfig
 	if ep.svcID != "" {
@@ -640,24 +638,24 @@ func (ep *endpoint) addServiceInfoToCluster(sb *sandbox) error {
 		if n.ingress {
 			ingressPorts = ep.ingressPorts
 		}
-		if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), name, ep.virtualIP, ingressPorts, ep.svcAliases, ep.myAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
+		if err := n.getController().addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), primaryDNSName, ep.virtualIP, ingressPorts, ep.svcAliases, dnsAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
 			return err
 		}
 	} else {
 		// This is a container simply attached to an attachable network
-		if err := c.addContainerNameResolution(n.ID(), ep.ID(), name, ep.myAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
+		if err := n.getController().addContainerNameResolution(n.ID(), ep.ID(), primaryDNSName, dnsAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
 			return err
 		}
 	}
 
 	buf, err := proto.Marshal(&EndpointRecord{
-		Name:            name,
+		Name:            primaryDNSName,
 		ServiceName:     ep.svcName,
 		ServiceID:       ep.svcID,
 		VirtualIP:       ep.virtualIP.String(),
 		IngressPorts:    ingressPorts,
 		Aliases:         ep.svcAliases,
-		TaskAliases:     ep.myAliases,
+		TaskAliases:     dnsAliases,
 		EndpointIP:      ep.Iface().Address().IP.String(),
 		ServiceDisabled: false,
 	})
@@ -665,58 +663,50 @@ func (ep *endpoint) addServiceInfoToCluster(sb *sandbox) error {
 		return err
 	}
 
-	if agent != nil {
-		if err := agent.networkDB.CreateEntry(libnetworkEPTable, n.ID(), ep.ID(), buf); err != nil {
-			logrus.Warnf("addServiceInfoToCluster NetworkDB CreateEntry failed for %s %s err:%s", ep.id, n.id, err)
-			return err
-		}
+	if err := agent.networkDB.CreateEntry(libnetworkEPTable, n.ID(), ep.ID(), buf); err != nil {
+		log.G(context.TODO()).Warnf("addServiceInfoToCluster NetworkDB CreateEntry failed for %s %s err:%s", ep.id, n.id, err)
+		return err
 	}
 
-	logrus.Debugf("addServiceInfoToCluster END for %s %s", ep.svcName, ep.ID())
+	log.G(context.TODO()).Debugf("addServiceInfoToCluster END for %s %s", ep.svcName, ep.ID())
 
 	return nil
 }
 
-func (ep *endpoint) deleteServiceInfoFromCluster(sb *sandbox, fullRemove bool, method string) error {
-	if ep.isAnonymous() && len(ep.myAliases) == 0 {
+func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, method string) error {
+	if len(ep.dnsNames) == 0 {
 		return nil
 	}
 
 	n := ep.getNetwork()
-	if !n.isClusterEligible() {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return nil
 	}
 
-	sb.Service.Lock()
-	defer sb.Service.Unlock()
-	logrus.Debugf("deleteServiceInfoFromCluster from %s START for %s %s", method, ep.svcName, ep.ID())
+	sb.service.Lock()
+	defer sb.service.Unlock()
+	log.G(context.TODO()).Debugf("deleteServiceInfoFromCluster from %s START for %s %s", method, ep.svcName, ep.ID())
 
 	// Avoid a race w/ with a container that aborts preemptively.  This would
 	// get caught in disableServceInNetworkDB, but we check here to make the
 	// nature of the condition more clear.
 	// See comment in addServiceInfoToCluster()
-	if e := sb.getEndpoint(ep.ID()); e == nil {
-		logrus.Warnf("deleteServiceInfoFromCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
+	if err := sb.getEndpoint(ep.ID()); err == nil {
+		log.G(context.TODO()).Warnf("deleteServiceInfoFromCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
 		return nil
 	}
 
-	c := n.getController()
-	agent := c.getAgent()
+	dnsNames := ep.getDNSNames()
+	primaryDNSName, dnsAliases := dnsNames[0], dnsNames[1:]
 
-	name := ep.Name()
-	if ep.isAnonymous() {
-		name = ep.MyAliases()[0]
-	}
-
-	if agent != nil {
-		// First update the networkDB then locally
-		if fullRemove {
-			if err := agent.networkDB.DeleteEntry(libnetworkEPTable, n.ID(), ep.ID()); err != nil {
-				logrus.Warnf("deleteServiceInfoFromCluster NetworkDB DeleteEntry failed for %s %s err:%s", ep.id, n.id, err)
-			}
-		} else {
-			disableServiceInNetworkDB(agent, n, ep)
+	// First update the networkDB then locally
+	if fullRemove {
+		if err := agent.networkDB.DeleteEntry(libnetworkEPTable, n.ID(), ep.ID()); err != nil {
+			log.G(context.TODO()).Warnf("deleteServiceInfoFromCluster NetworkDB DeleteEntry failed for %s %s err:%s", ep.id, n.id, err)
 		}
+	} else {
+		disableServiceInNetworkDB(agent, n, ep)
 	}
 
 	if ep.Iface() != nil && ep.Iface().Address() != nil {
@@ -726,70 +716,70 @@ func (ep *endpoint) deleteServiceInfoFromCluster(sb *sandbox, fullRemove bool, m
 			if n.ingress {
 				ingressPorts = ep.ingressPorts
 			}
-			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), name, ep.virtualIP, ingressPorts, ep.svcAliases, ep.myAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster", true, fullRemove); err != nil {
+			if err := n.getController().rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), primaryDNSName, ep.virtualIP, ingressPorts, ep.svcAliases, dnsAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster", true, fullRemove); err != nil {
 				return err
 			}
 		} else {
 			// This is a container simply attached to an attachable network
-			if err := c.delContainerNameResolution(n.ID(), ep.ID(), name, ep.myAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster"); err != nil {
+			if err := n.getController().delContainerNameResolution(n.ID(), ep.ID(), primaryDNSName, dnsAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster"); err != nil {
 				return err
 			}
 		}
 	}
 
-	logrus.Debugf("deleteServiceInfoFromCluster from %s END for %s %s", method, ep.svcName, ep.ID())
+	log.G(context.TODO()).Debugf("deleteServiceInfoFromCluster from %s END for %s %s", method, ep.svcName, ep.ID())
 
 	return nil
 }
 
-func disableServiceInNetworkDB(a *agent, n *network, ep *endpoint) {
+func disableServiceInNetworkDB(a *nwAgent, n *Network, ep *Endpoint) {
 	var epRec EndpointRecord
 
-	logrus.Debugf("disableServiceInNetworkDB for %s %s", ep.svcName, ep.ID())
+	log.G(context.TODO()).Debugf("disableServiceInNetworkDB for %s %s", ep.svcName, ep.ID())
 
 	// Update existing record to indicate that the service is disabled
 	inBuf, err := a.networkDB.GetEntry(libnetworkEPTable, n.ID(), ep.ID())
 	if err != nil {
-		logrus.Warnf("disableServiceInNetworkDB GetEntry failed for %s %s err:%s", ep.id, n.id, err)
+		log.G(context.TODO()).Warnf("disableServiceInNetworkDB GetEntry failed for %s %s err:%s", ep.id, n.id, err)
 		return
 	}
 	// Should never fail
 	if err := proto.Unmarshal(inBuf, &epRec); err != nil {
-		logrus.Errorf("disableServiceInNetworkDB unmarshal failed for %s %s err:%s", ep.id, n.id, err)
+		log.G(context.TODO()).Errorf("disableServiceInNetworkDB unmarshal failed for %s %s err:%s", ep.id, n.id, err)
 		return
 	}
 	epRec.ServiceDisabled = true
 	// Should never fail
 	outBuf, err := proto.Marshal(&epRec)
 	if err != nil {
-		logrus.Errorf("disableServiceInNetworkDB marshalling failed for %s %s err:%s", ep.id, n.id, err)
+		log.G(context.TODO()).Errorf("disableServiceInNetworkDB marshalling failed for %s %s err:%s", ep.id, n.id, err)
 		return
 	}
 	// Send update to the whole cluster
 	if err := a.networkDB.UpdateEntry(libnetworkEPTable, n.ID(), ep.ID(), outBuf); err != nil {
-		logrus.Warnf("disableServiceInNetworkDB UpdateEntry failed for %s %s err:%s", ep.id, n.id, err)
+		log.G(context.TODO()).Warnf("disableServiceInNetworkDB UpdateEntry failed for %s %s err:%s", ep.id, n.id, err)
 	}
 }
 
-func (n *network) addDriverWatches() {
-	if !n.isClusterEligible() {
+func (n *Network) addDriverWatches() {
+	if len(n.driverTables) == 0 {
+		return
+	}
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return
 	}
 
 	c := n.getController()
-	agent := c.getAgent()
-	if agent == nil {
-		return
-	}
 	for _, table := range n.driverTables {
-		ch, cancel := agent.networkDB.Watch(table.name, n.ID(), "")
-		agent.Lock()
+		ch, cancel := agent.networkDB.Watch(table.name, n.ID())
+		agent.mu.Lock()
 		agent.driverCancelFuncs[n.ID()] = append(agent.driverCancelFuncs[n.ID()], cancel)
-		agent.Unlock()
+		agent.mu.Unlock()
 		go c.handleTableEvents(ch, n.handleDriverTableEvent)
 		d, err := n.driver(false)
 		if err != nil {
-			logrus.Errorf("Could not resolve driver %s while walking driver tabl: %v", n.networkType, err)
+			log.G(context.TODO()).Errorf("Could not resolve driver %s while walking driver tabl: %v", n.networkType, err)
 			return
 		}
 
@@ -802,32 +792,28 @@ func (n *network) addDriverWatches() {
 			return false
 		})
 		if err != nil {
-			logrus.WithError(err).Warn("Error while walking networkdb")
+			log.G(context.TODO()).WithError(err).Warn("Error while walking networkdb")
 		}
 	}
 }
 
-func (n *network) cancelDriverWatches() {
-	if !n.isClusterEligible() {
+func (n *Network) cancelDriverWatches() {
+	agent, ok := n.clusterAgent()
+	if !ok {
 		return
 	}
 
-	agent := n.getController().getAgent()
-	if agent == nil {
-		return
-	}
-
-	agent.Lock()
+	agent.mu.Lock()
 	cancelFuncs := agent.driverCancelFuncs[n.ID()]
 	delete(agent.driverCancelFuncs, n.ID())
-	agent.Unlock()
+	agent.mu.Unlock()
 
 	for _, cancel := range cancelFuncs {
 		cancel()
 	}
 }
 
-func (c *controller) handleTableEvents(ch *events.Channel, fn func(events.Event)) {
+func (c *Controller) handleTableEvents(ch *events.Channel, fn func(events.Event)) {
 	for {
 		select {
 		case ev := <-ch.C:
@@ -838,10 +824,10 @@ func (c *controller) handleTableEvents(ch *events.Channel, fn func(events.Event)
 	}
 }
 
-func (n *network) handleDriverTableEvent(ev events.Event) {
+func (n *Network) handleDriverTableEvent(ev events.Event) {
 	d, err := n.driver(false)
 	if err != nil {
-		logrus.Errorf("Could not resolve driver %s while handling driver table event: %v", n.networkType, err)
+		log.G(context.TODO()).Errorf("Could not resolve driver %s while handling driver table event: %v", n.networkType, err)
 		return
 	}
 
@@ -873,7 +859,7 @@ func (n *network) handleDriverTableEvent(ev events.Event) {
 	d.EventNotify(etype, n.ID(), tname, key, value)
 }
 
-func (c *controller) handleNodeTableEvent(ev events.Event) {
+func (c *Controller) handleNodeTableEvent(ev events.Event) {
 	var (
 		value    []byte
 		isAdd    bool
@@ -886,19 +872,18 @@ func (c *controller) handleNodeTableEvent(ev events.Event) {
 	case networkdb.DeleteEvent:
 		value = event.Value
 	case networkdb.UpdateEvent:
-		logrus.Errorf("Unexpected update node table event = %#v", event)
+		log.G(context.TODO()).Errorf("Unexpected update node table event = %#v", event)
 	}
 
 	err := json.Unmarshal(value, &nodeAddr)
 	if err != nil {
-		logrus.Errorf("Error unmarshalling node table event %v", err)
+		log.G(context.TODO()).Errorf("Error unmarshalling node table event %v", err)
 		return
 	}
 	c.processNodeDiscovery([]net.IP{nodeAddr.Addr}, isAdd)
-
 }
 
-func (c *controller) handleEpTableEvent(ev events.Event) {
+func (c *Controller) handleEpTableEvent(ev events.Event) {
 	var (
 		nid   string
 		eid   string
@@ -920,13 +905,13 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 		eid = event.Key
 		value = event.Value
 	default:
-		logrus.Errorf("Unexpected update service table event = %#v", event)
+		log.G(context.TODO()).Errorf("Unexpected update service table event = %#v", event)
 		return
 	}
 
 	err := proto.Unmarshal(value, &epRec)
 	if err != nil {
-		logrus.Errorf("Failed to unmarshal service table value: %v", err)
+		log.G(context.TODO()).Errorf("Failed to unmarshal service table value: %v", err)
 		return
 	}
 
@@ -940,51 +925,51 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	taskAliases := epRec.TaskAliases
 
 	if containerName == "" || ip == nil {
-		logrus.Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
+		log.G(context.TODO()).Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
 		return
 	}
 
 	switch ev.(type) {
 	case networkdb.CreateEvent:
-		logrus.Debugf("handleEpTableEvent ADD %s R:%v", eid, epRec)
+		log.G(context.TODO()).Debugf("handleEpTableEvent ADD %s R:%v", eid, epRec)
 		if svcID != "" {
 			// This is a remote task part of a service
 			if err := c.addServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				logrus.Errorf("failed adding service binding for %s epRec:%v err:%v", eid, epRec, err)
+				log.G(context.TODO()).Errorf("failed adding service binding for %s epRec:%v err:%v", eid, epRec, err)
 				return
 			}
 		} else {
 			// This is a remote container simply attached to an attachable network
 			if err := c.addContainerNameResolution(nid, eid, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				logrus.Errorf("failed adding container name resolution for %s epRec:%v err:%v", eid, epRec, err)
+				log.G(context.TODO()).Errorf("failed adding container name resolution for %s epRec:%v err:%v", eid, epRec, err)
 			}
 		}
 
 	case networkdb.DeleteEvent:
-		logrus.Debugf("handleEpTableEvent DEL %s R:%v", eid, epRec)
+		log.G(context.TODO()).Debugf("handleEpTableEvent DEL %s R:%v", eid, epRec)
 		if svcID != "" {
 			// This is a remote task part of a service
 			if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, true); err != nil {
-				logrus.Errorf("failed removing service binding for %s epRec:%v err:%v", eid, epRec, err)
+				log.G(context.TODO()).Errorf("failed removing service binding for %s epRec:%v err:%v", eid, epRec, err)
 				return
 			}
 		} else {
 			// This is a remote container simply attached to an attachable network
 			if err := c.delContainerNameResolution(nid, eid, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				logrus.Errorf("failed removing container name resolution for %s epRec:%v err:%v", eid, epRec, err)
+				log.G(context.TODO()).Errorf("failed removing container name resolution for %s epRec:%v err:%v", eid, epRec, err)
 			}
 		}
 	case networkdb.UpdateEvent:
-		logrus.Debugf("handleEpTableEvent UPD %s R:%v", eid, epRec)
+		log.G(context.TODO()).Debugf("handleEpTableEvent UPD %s R:%v", eid, epRec)
 		// We currently should only get these to inform us that an endpoint
 		// is disabled.  Report if otherwise.
 		if svcID == "" || !epRec.ServiceDisabled {
-			logrus.Errorf("Unexpected update table event for %s epRec:%v", eid, epRec)
+			log.G(context.TODO()).Errorf("Unexpected update table event for %s epRec:%v", eid, epRec)
 			return
 		}
 		// This is a remote task that is part of a service that is now disabled
 		if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, false); err != nil {
-			logrus.Errorf("failed disabling service binding for %s epRec:%v err:%v", eid, epRec, err)
+			log.G(context.TODO()).Errorf("failed disabling service binding for %s epRec:%v err:%v", eid, epRec, err)
 			return
 		}
 	}

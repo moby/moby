@@ -1,19 +1,35 @@
+//go:build !windows
 // +build !windows
 
 package oci
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"strings"
+	"sync"
 
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/oci"
+	cdseccomp "github.com/containerd/containerd/pkg/seccomp"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/profiles/seccomp"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/entitlements/security"
-	"github.com/moby/buildkit/util/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	selinux "github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+)
+
+var (
+	cgroupNSOnce     sync.Once
+	supportsCgroupNS bool
+)
+
+const (
+	tracingSocketPath = "/dev/otel-grpc.sock"
 )
 
 func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
@@ -27,7 +43,10 @@ func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
 }
 
 // generateSecurityOpts may affect mounts, so must be called after generateMountOpts
-func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string) (opts []oci.SpecOpts, _ error) {
+func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string, selinuxB bool) (opts []oci.SpecOpts, _ error) {
+	if selinuxB && !selinux.GetEnabled() {
+		return nil, errors.New("selinux is not available")
+	}
 	switch mode {
 	case pb.SecurityMode_INSECURE:
 		return []oci.SpecOpts{
@@ -36,12 +55,14 @@ func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string) (opts []
 			oci.WithWriteableSysfs,
 			func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
 				var err error
-				s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels([]string{"disable"})
+				if selinuxB {
+					s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels([]string{"disable"})
+				}
 				return err
 			},
 		}, nil
 	case pb.SecurityMode_SANDBOX:
-		if system.SeccompSupported() {
+		if cdseccomp.IsEnabled() {
 			opts = append(opts, withDefaultProfile())
 		}
 		if apparmorProfile != "" {
@@ -49,7 +70,9 @@ func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string) (opts []
 		}
 		opts = append(opts, func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
 			var err error
-			s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels(nil)
+			if selinuxB {
+				s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels(nil)
+			}
 			return err
 		})
 		return opts, nil
@@ -74,7 +97,30 @@ func generateIDmapOpts(idmap *idtools.IdentityMapping) ([]oci.SpecOpts, error) {
 		return nil, nil
 	}
 	return []oci.SpecOpts{
-		oci.WithUserNamespace(specMapping(idmap.UIDs()), specMapping(idmap.GIDs())),
+		oci.WithUserNamespace(specMapping(idmap.UIDMaps), specMapping(idmap.GIDMaps)),
+	}, nil
+}
+
+func generateRlimitOpts(ulimits []*pb.Ulimit) ([]oci.SpecOpts, error) {
+	if len(ulimits) == 0 {
+		return nil, nil
+	}
+	var rlimits []specs.POSIXRlimit
+	for _, u := range ulimits {
+		if u == nil {
+			continue
+		}
+		rlimits = append(rlimits, specs.POSIXRlimit{
+			Type: fmt.Sprintf("RLIMIT_%s", strings.ToUpper(u.Name)),
+			Hard: uint64(u.Hard),
+			Soft: uint64(u.Soft),
+		})
+	}
+	return []oci.SpecOpts{
+		func(_ context.Context, _ oci.Client, _ *containers.Container, s *specs.Spec) error {
+			s.Process.Rlimits = rlimits
+			return nil
+		},
 	}, nil
 }
 
@@ -86,4 +132,34 @@ func withDefaultProfile() oci.SpecOpts {
 		s.Linux.Seccomp, err = seccomp.GetDefaultProfile(s)
 		return err
 	}
+}
+
+func getTracingSocketMount(socket string) specs.Mount {
+	return specs.Mount{
+		Destination: tracingSocketPath,
+		Type:        "bind",
+		Source:      socket,
+		Options:     []string{"ro", "rbind"},
+	}
+}
+
+func getTracingSocket() string {
+	return fmt.Sprintf("unix://%s", tracingSocketPath)
+}
+
+func cgroupV2NamespaceSupported() bool {
+	// Check if cgroups v2 namespaces are supported.  Trying to do cgroup
+	// namespaces with cgroups v1 results in EINVAL when we encounter a
+	// non-standard hierarchy.
+	// See https://github.com/moby/buildkit/issues/4108
+	cgroupNSOnce.Do(func() {
+		if _, err := os.Stat("/proc/self/ns/cgroup"); os.IsNotExist(err) {
+			return
+		}
+		if _, err := os.Stat("/sys/fs/cgroup/cgroup.subtree_control"); os.IsNotExist(err) {
+			return
+		}
+		supportsCgroupNS = true
+	})
+	return supportsCgroupNS
 }

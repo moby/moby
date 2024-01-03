@@ -62,9 +62,8 @@ func (s symbolTransform) String() string {
 // To indicate that you have populated the histogram call HistogramFinished
 // with the value of the highest populated symbol, as well as the number of entries
 // in the most populated entry. These are accepted at face value.
-// The returned slice will always be length 256.
-func (s *fseEncoder) Histogram() []uint32 {
-	return s.count[:]
+func (s *fseEncoder) Histogram() *[256]uint32 {
+	return &s.count
 }
 
 // HistogramFinished can be called to indicate that the histogram has been populated.
@@ -75,21 +74,6 @@ func (s *fseEncoder) HistogramFinished(maxSymbol uint8, maxCount int) {
 	s.maxCount = maxCount
 	s.symbolLen = uint16(maxSymbol) + 1
 	s.clearCount = maxCount != 0
-}
-
-// prepare will prepare and allocate scratch tables used for both compression and decompression.
-func (s *fseEncoder) prepare() (*fseEncoder, error) {
-	if s == nil {
-		s = &fseEncoder{}
-	}
-	s.useRLE = false
-	if s.clearCount && s.maxCount == 0 {
-		for i := range s.count {
-			s.count[i] = 0
-		}
-		s.clearCount = false
-	}
-	return s, nil
 }
 
 // allocCtable will allocate tables needed for compression.
@@ -229,7 +213,7 @@ func (s *fseEncoder) setRLE(val byte) {
 		deltaFindState: 0,
 		deltaNbBits:    0,
 	}
-	if debug {
+	if debugEncoder {
 		println("setRLE: val", val, "symbolTT", s.ct.symbolTT[val])
 	}
 	s.rleVal = val
@@ -708,15 +692,6 @@ func (c *cState) init(bw *bitWriter, ct *cTable, first symbolTransform) {
 	im := int32((nbBitsOut << 16) - first.deltaNbBits)
 	lu := (im >> nbBitsOut) + int32(first.deltaFindState)
 	c.state = c.stateTable[lu]
-	return
-}
-
-// encode the output symbol provided and write it to the bitstream.
-func (c *cState) encode(symbolTT symbolTransform) {
-	nbBitsOut := (uint32(c.state) + symbolTT.deltaNbBits) >> 16
-	dstState := int32(c.state>>(nbBitsOut&15)) + int32(symbolTT.deltaFindState)
-	c.bw.addBits16NC(c.state, uint8(nbBitsOut))
-	c.state = c.stateTable[dstState]
 }
 
 // flush will write the tablelog to the output and flush the remaining full bytes.

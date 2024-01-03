@@ -33,6 +33,7 @@ package promhttp
 
 import (
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -84,6 +85,13 @@ func Handler() http.Handler {
 // instrumentation. Use the InstrumentMetricHandler function to apply the same
 // kind of instrumentation as it is used by the Handler function.
 func HandlerFor(reg prometheus.Gatherer, opts HandlerOpts) http.Handler {
+	return HandlerForTransactional(prometheus.ToTransactionalGatherer(reg), opts)
+}
+
+// HandlerForTransactional is like HandlerFor, but it uses transactional gather, which
+// can safely change in-place returned *dto.MetricFamily before call to `Gather` and after
+// call to `done` of that `Gather`.
+func HandlerForTransactional(reg prometheus.TransactionalGatherer, opts HandlerOpts) http.Handler {
 	var (
 		inFlightSem chan struct{}
 		errCnt      = prometheus.NewCounterVec(
@@ -99,11 +107,12 @@ func HandlerFor(reg prometheus.Gatherer, opts HandlerOpts) http.Handler {
 		inFlightSem = make(chan struct{}, opts.MaxRequestsInFlight)
 	}
 	if opts.Registry != nil {
-		// Initialize all possibilites that can occur below.
+		// Initialize all possibilities that can occur below.
 		errCnt.WithLabelValues("gathering")
 		errCnt.WithLabelValues("encoding")
 		if err := opts.Registry.Register(errCnt); err != nil {
-			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			are := &prometheus.AlreadyRegisteredError{}
+			if errors.As(err, are) {
 				errCnt = are.ExistingCollector.(*prometheus.CounterVec)
 			} else {
 				panic(err)
@@ -123,7 +132,8 @@ func HandlerFor(reg prometheus.Gatherer, opts HandlerOpts) http.Handler {
 				return
 			}
 		}
-		mfs, err := reg.Gather()
+		mfs, done, err := reg.Gather()
+		defer done()
 		if err != nil {
 			if opts.ErrorLog != nil {
 				opts.ErrorLog.Println("error gathering metrics:", err)
@@ -242,7 +252,8 @@ func InstrumentMetricHandler(reg prometheus.Registerer, handler http.Handler) ht
 	cnt.WithLabelValues("500")
 	cnt.WithLabelValues("503")
 	if err := reg.Register(cnt); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+		are := &prometheus.AlreadyRegisteredError{}
+		if errors.As(err, are) {
 			cnt = are.ExistingCollector.(*prometheus.CounterVec)
 		} else {
 			panic(err)
@@ -254,7 +265,8 @@ func InstrumentMetricHandler(reg prometheus.Registerer, handler http.Handler) ht
 		Help: "Current number of scrapes being served.",
 	})
 	if err := reg.Register(gge); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+		are := &prometheus.AlreadyRegisteredError{}
+		if errors.As(err, are) {
 			gge = are.ExistingCollector.(prometheus.Gauge)
 		} else {
 			panic(err)
@@ -303,8 +315,12 @@ type Logger interface {
 // HandlerOpts specifies options how to serve metrics via an http.Handler. The
 // zero value of HandlerOpts is a reasonable default.
 type HandlerOpts struct {
-	// ErrorLog specifies an optional logger for errors collecting and
-	// serving metrics. If nil, errors are not logged at all.
+	// ErrorLog specifies an optional Logger for errors collecting and
+	// serving metrics. If nil, errors are not logged at all. Note that the
+	// type of a reported error is often prometheus.MultiError, which
+	// formats into a multi-line error string. If you want to avoid the
+	// latter, create a Logger implementation that detects a
+	// prometheus.MultiError and formats the contained errors into one line.
 	ErrorLog Logger
 	// ErrorHandling defines how errors are handled. Note that errors are
 	// logged regardless of the configured ErrorHandling provided ErrorLog

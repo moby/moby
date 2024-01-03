@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/docker/swarmkit/api"
+	"github.com/moby/swarmkit/v2/api"
 )
 
 func validateMounts(mounts []api.Mount) error {
@@ -37,6 +37,8 @@ func validateMounts(mounts []api.Mount) error {
 			if mount.Source == "" {
 				return errors.New("invalid npipe source, source must not be empty")
 			}
+		case api.MountTypeCluster:
+			// nothing to do here.
 		default:
 			return fmt.Errorf("invalid mount type: %s", mount.Type)
 		}

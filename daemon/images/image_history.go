@@ -1,20 +1,20 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/system"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
 // name by walking the image lineage.
-func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, error) {
+func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*image.HistoryResponseItem, error) {
 	start := time.Now()
-	img, err := i.GetImage(name, nil)
+	img, err := i.GetImage(ctx, name, image.GetImageOpts{})
 	if err != nil {
 		return nil, err
 	}
@@ -32,20 +32,13 @@ func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, 
 			if len(img.RootFS.DiffIDs) <= layerCounter {
 				return nil, fmt.Errorf("too many non-empty layers in History section")
 			}
-			if !system.IsOSSupported(img.OperatingSystem()) {
-				return nil, system.ErrNotSupportedOperatingSystem
-			}
 			rootFS.Append(img.RootFS.DiffIDs[layerCounter])
 			l, err := i.layerStore.Get(rootFS.ChainID())
 			if err != nil {
 				return nil, err
 			}
-			layerSize, err = l.DiffSize()
+			layerSize = l.DiffSize()
 			layer.ReleaseAndLog(i.layerStore, l)
-			if err != nil {
-				return nil, err
-			}
-
 			layerCounter++
 		}
 
@@ -77,7 +70,7 @@ func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, 
 		if id == "" {
 			break
 		}
-		histImg, err = i.GetImage(id.String(), nil)
+		histImg, err = i.GetImage(ctx, id.String(), image.GetImageOpts{})
 		if err != nil {
 			break
 		}

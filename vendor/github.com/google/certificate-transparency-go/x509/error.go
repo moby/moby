@@ -163,12 +163,18 @@ func (e *Errors) Fatal() bool {
 
 // Empty indicates whether e has no errors.
 func (e *Errors) Empty() bool {
+	if e == nil {
+		return true
+	}
 	return len(e.Errs) == 0
 }
 
 // FirstFatal returns the first fatal error in e, or nil
 // if there is no fatal error.
 func (e *Errors) FirstFatal() error {
+	if e == nil {
+		return nil
+	}
 	for _, err := range e.Errs {
 		if err.Fatal {
 			return err

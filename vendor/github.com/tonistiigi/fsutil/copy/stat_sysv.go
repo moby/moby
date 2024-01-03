@@ -1,3 +1,4 @@
+//go:build dragonfly || linux || solaris
 // +build dragonfly linux solaris
 
 package fs

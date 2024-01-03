@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016 Google LLC. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -33,6 +33,7 @@ import (
 	ct "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/x509"
 	"golang.org/x/net/context/ctxhttp"
+	"k8s.io/klog/v2"
 )
 
 const maxJitter = 250 * time.Millisecond
@@ -58,6 +59,7 @@ type JSONClient struct {
 	Verifier   *ct.SignatureVerifier // nil for no verification (e.g. no public key available)
 	logger     Logger                // interface to use for logging warnings and errors
 	backoff    backoffer             // object used to store and calculate backoff information
+	userAgent  string                // If set, this is sent as the UserAgent header.
 }
 
 // Logger is a simple logging interface used to log internal errors and warnings
@@ -75,6 +77,8 @@ type Options struct {
 	PublicKey string
 	// DER format public key to use for signature verification.
 	PublicKeyDER []byte
+	// UserAgent, if set, will be sent as the User-Agent header with each request.
+	UserAgent string
 }
 
 // ParsePublicKey parses and returns the public key contained in opts.
@@ -103,6 +107,19 @@ type basicLogger struct{}
 
 func (bl *basicLogger) Printf(msg string, args ...interface{}) {
 	log.Printf(msg, args...)
+}
+
+// RspError represents an error that occurred when processing a response from a server,
+// and also includes key details from the http.Response that triggered the error.
+type RspError struct {
+	Err        error
+	StatusCode int
+	Body       []byte
+}
+
+// Error formats the RspError instance, focusing on the error.
+func (e RspError) Error() string {
+	return e.Err.Error()
 }
 
 // New constructs a new JSONClient instance, for the given base URI, using the
@@ -136,6 +153,7 @@ func New(uri string, hc *http.Client, opts Options) (*JSONClient, error) {
 		Verifier:   verifier,
 		logger:     logger,
 		backoff:    &backoff{},
+		userAgent:  opts.UserAgent,
 	}, nil
 }
 
@@ -144,11 +162,10 @@ func (c *JSONClient) BaseURI() string {
 	return c.uri
 }
 
-// GetAndParse makes a HTTP GET call to the given path, and attempta to parse
+// GetAndParse makes a HTTP GET call to the given path, and attempts to parse
 // the response as a JSON representation of the rsp structure.  Returns the
-// http.Response, the body of the response, and an error.  Note that the
-// returned http.Response can be non-nil even when an error is returned,
-// in particular when the HTTP status is not OK or when the JSON parsing fails.
+// http.Response, the body of the response, and an error (which may be of
+// type RspError if the HTTP response was available).
 func (c *JSONClient) GetAndParse(ctx context.Context, path string, params map[string]string, rsp interface{}) (*http.Response, []byte, error) {
 	if ctx == nil {
 		return nil, nil, errors.New("context.Context required")
@@ -159,9 +176,13 @@ func (c *JSONClient) GetAndParse(ctx context.Context, path string, params map[st
 		vals.Add(k, v)
 	}
 	fullURI := fmt.Sprintf("%s%s?%s", c.uri, path, vals.Encode())
+	klog.V(2).Infof("GET %s", fullURI)
 	httpReq, err := http.NewRequest(http.MethodGet, fullURI, nil)
 	if err != nil {
 		return nil, nil, err
+	}
+	if len(c.userAgent) != 0 {
+		httpReq.Header.Set("User-Agent", c.userAgent)
 	}
 
 	httpRsp, err := ctxhttp.Do(ctx, c.httpClient, httpReq)
@@ -170,18 +191,18 @@ func (c *JSONClient) GetAndParse(ctx context.Context, path string, params map[st
 	}
 
 	// Read everything now so http.Client can reuse the connection.
-	body, err := ioutil.ReadAll(httpRsp.Body)
+	body, err := io.ReadAll(httpRsp.Body)
 	httpRsp.Body.Close()
 	if err != nil {
-		return httpRsp, body, fmt.Errorf("failed to read response body: %v", err)
+		return nil, nil, RspError{Err: fmt.Errorf("failed to read response body: %v", err), StatusCode: httpRsp.StatusCode, Body: body}
 	}
 
 	if httpRsp.StatusCode != http.StatusOK {
-		return httpRsp, body, fmt.Errorf("got HTTP Status %q", httpRsp.Status)
+		return nil, nil, RspError{Err: fmt.Errorf("got HTTP Status %q", httpRsp.Status), StatusCode: httpRsp.StatusCode, Body: body}
 	}
 
 	if err := json.NewDecoder(bytes.NewReader(body)).Decode(rsp); err != nil {
-		return httpRsp, body, err
+		return nil, nil, RspError{Err: err, StatusCode: httpRsp.StatusCode, Body: body}
 	}
 
 	return httpRsp, body, nil
@@ -190,9 +211,7 @@ func (c *JSONClient) GetAndParse(ctx context.Context, path string, params map[st
 // PostAndParse makes a HTTP POST call to the given path, including the request
 // parameters, and attempts to parse the response as a JSON representation of
 // the rsp structure. Returns the http.Response, the body of the response, and
-// an error.  Note that the returned http.Response can be non-nil even when an
-// error is returned, in particular when the HTTP status is not OK or when the
-// JSON parsing fails.
+// an error (which may be of type RspError if the HTTP response was available).
 func (c *JSONClient) PostAndParse(ctx context.Context, path string, req, rsp interface{}) (*http.Response, []byte, error) {
 	if ctx == nil {
 		return nil, nil, errors.New("context.Context required")
@@ -203,9 +222,13 @@ func (c *JSONClient) PostAndParse(ctx context.Context, path string, req, rsp int
 		return nil, nil, err
 	}
 	fullURI := fmt.Sprintf("%s%s", c.uri, path)
+	klog.V(2).Infof("POST %s", fullURI)
 	httpReq, err := http.NewRequest(http.MethodPost, fullURI, bytes.NewReader(postBody))
 	if err != nil {
 		return nil, nil, err
+	}
+	if len(c.userAgent) != 0 {
+		httpReq.Header.Set("User-Agent", c.userAgent)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
@@ -214,16 +237,19 @@ func (c *JSONClient) PostAndParse(ctx context.Context, path string, req, rsp int
 	// Read all of the body, if there is one, so that the http.Client can do Keep-Alive.
 	var body []byte
 	if httpRsp != nil {
-		body, err = ioutil.ReadAll(httpRsp.Body)
+		body, err = io.ReadAll(httpRsp.Body)
 		httpRsp.Body.Close()
 	}
 	if err != nil {
-		return httpRsp, body, err
+		if httpRsp != nil {
+			return nil, nil, RspError{StatusCode: httpRsp.StatusCode, Body: body, Err: err}
+		}
+		return nil, nil, err
 	}
 
 	if httpRsp.StatusCode == http.StatusOK {
 		if err = json.Unmarshal(body, &rsp); err != nil {
-			return httpRsp, body, err
+			return nil, nil, RspError{StatusCode: httpRsp.StatusCode, Body: body, Err: err}
 		}
 	}
 	return httpRsp, body, nil
@@ -260,15 +286,17 @@ func (c *JSONClient) PostAndParseWithRetry(ctx context.Context, path string, req
 				return nil, nil, err
 			}
 			wait := c.backoff.set(nil)
-			c.logger.Printf("Request failed, backing-off for %s: %s", wait, err)
+			c.logger.Printf("Request to %s failed, backing-off %s: %s", c.uri, wait, err)
 		} else {
 			switch {
 			case httpRsp.StatusCode == http.StatusOK:
 				return httpRsp, body, nil
 			case httpRsp.StatusCode == http.StatusRequestTimeout:
 				// Request timeout, retry immediately
-				c.logger.Printf("Request timed out, retrying immediately")
+				c.logger.Printf("Request to %s timed out, retrying immediately", c.uri)
 			case httpRsp.StatusCode == http.StatusServiceUnavailable:
+				fallthrough
+			case httpRsp.StatusCode == http.StatusTooManyRequests:
 				var backoff *time.Duration
 				// Retry-After may be either a number of seconds as a int or a RFC 1123
 				// date string (RFC 7231 Section 7.1.3)
@@ -277,14 +305,17 @@ func (c *JSONClient) PostAndParseWithRetry(ctx context.Context, path string, req
 						b := time.Duration(seconds) * time.Second
 						backoff = &b
 					} else if date, err := time.Parse(time.RFC1123, retryAfter); err == nil {
-						b := date.Sub(time.Now())
+						b := time.Until(date)
 						backoff = &b
 					}
 				}
 				wait := c.backoff.set(backoff)
-				c.logger.Printf("Request failed, backing-off for %s: got HTTP status %s", wait, httpRsp.Status)
+				c.logger.Printf("Request to %s failed, backing-off for %s: got HTTP status %s", c.uri, wait, httpRsp.Status)
 			default:
-				return httpRsp, body, fmt.Errorf("got HTTP Status %q", httpRsp.Status)
+				return nil, nil, RspError{
+					StatusCode: httpRsp.StatusCode,
+					Body:       body,
+					Err:        fmt.Errorf("got HTTP status %q", httpRsp.Status)}
 			}
 		}
 		if err := c.waitForBackoff(ctx); err != nil {

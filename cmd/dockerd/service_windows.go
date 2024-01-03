@@ -2,18 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
-	"unsafe"
 
-	"github.com/Microsoft/hcsshim/osversion"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
@@ -28,9 +25,8 @@ var (
 	flUnregisterService *bool
 	flRunService        *bool
 
-	setStdHandle = windows.NewLazySystemDLL("kernel32.dll").NewProc("SetStdHandle")
-	oldStderr    windows.Handle
-	panicFile    *os.File
+	oldStderr windows.Handle
+	panicFile *os.File
 
 	service *handler
 )
@@ -65,40 +61,40 @@ type etwHook struct {
 	log *eventlog.Log
 }
 
-func (h *etwHook) Levels() []logrus.Level {
-	return []logrus.Level{
-		logrus.PanicLevel,
-		logrus.FatalLevel,
-		logrus.ErrorLevel,
-		logrus.WarnLevel,
-		logrus.InfoLevel,
-		logrus.DebugLevel,
+func (h *etwHook) Levels() []log.Level {
+	return []log.Level{
+		log.PanicLevel,
+		log.FatalLevel,
+		log.ErrorLevel,
+		log.WarnLevel,
+		log.InfoLevel,
+		log.DebugLevel,
 	}
 }
 
-func (h *etwHook) Fire(e *logrus.Entry) error {
+func (h *etwHook) Fire(e *log.Entry) error {
 	var (
 		etype uint16
 		eid   uint32
 	)
 
 	switch e.Level {
-	case logrus.PanicLevel:
+	case log.PanicLevel:
 		etype = windows.EVENTLOG_ERROR_TYPE
 		eid = eventPanic
-	case logrus.FatalLevel:
+	case log.FatalLevel:
 		etype = windows.EVENTLOG_ERROR_TYPE
 		eid = eventFatal
-	case logrus.ErrorLevel:
+	case log.ErrorLevel:
 		etype = windows.EVENTLOG_ERROR_TYPE
 		eid = eventError
-	case logrus.WarnLevel:
+	case log.WarnLevel:
 		etype = windows.EVENTLOG_WARNING_TYPE
 		eid = eventWarn
-	case logrus.InfoLevel:
+	case log.InfoLevel:
 		etype = windows.EVENTLOG_INFORMATION_TYPE
 		eid = eventInfo
-	case logrus.DebugLevel:
+	case log.DebugLevel:
 		etype = windows.EVENTLOG_INFORMATION_TYPE
 		eid = eventDebug
 	default:
@@ -148,16 +144,8 @@ func (h *etwHook) Fire(e *logrus.Entry) error {
 	return windows.ReportEvent(h.log.Handle, etype, 0, eid, 0, count, 0, &ss[0], nil)
 }
 
-func getServicePath() (string, error) {
-	p, err := exec.LookPath(os.Args[0])
-	if err != nil {
-		return "", err
-	}
-	return filepath.Abs(p)
-}
-
 func registerService() error {
-	p, err := getServicePath()
+	p, err := os.Executable()
 	if err != nil {
 		return err
 	}
@@ -167,19 +155,11 @@ func registerService() error {
 	}
 	defer m.Disconnect()
 
-	depends := []string{}
-
-	// This dependency is required on build 14393 (RS1)
-	// it is added to the platform in newer builds
-	if osversion.Build() == osversion.RS1 {
-		depends = append(depends, "ConDrv")
-	}
-
 	c := mgr.Config{
 		ServiceType:  windows.SERVICE_WIN32_OWN_PROCESS,
 		StartType:    mgr.StartAutomatic,
 		ErrorControl: mgr.ErrorNormal,
-		Dependencies: depends,
+		Dependencies: []string{},
 		DisplayName:  "Docker Engine",
 	}
 
@@ -197,35 +177,14 @@ func registerService() error {
 	}
 	defer s.Close()
 
-	// See http://stackoverflow.com/questions/35151052/how-do-i-configure-failure-actions-of-a-windows-service-written-in-go
-	const (
-		scActionNone       = 0
-		scActionRestart    = 1
-		scActionReboot     = 2
-		scActionRunCommand = 3
-
-		serviceConfigFailureActions = 2
+	err = s.SetRecoveryActions(
+		[]mgr.RecoveryAction{
+			{Type: mgr.ServiceRestart, Delay: 15 * time.Second},
+			{Type: mgr.ServiceRestart, Delay: 15 * time.Second},
+			{Type: mgr.NoAction},
+		},
+		uint32(24*time.Hour/time.Second),
 	)
-
-	type serviceFailureActions struct {
-		ResetPeriod  uint32
-		RebootMsg    *uint16
-		Command      *uint16
-		ActionsCount uint32
-		Actions      uintptr
-	}
-
-	type scAction struct {
-		Type  uint32
-		Delay uint32
-	}
-	t := []scAction{
-		{Type: scActionRestart, Delay: uint32(60 * time.Second / time.Millisecond)},
-		{Type: scActionRestart, Delay: uint32(60 * time.Second / time.Millisecond)},
-		{Type: scActionNone},
-	}
-	lpInfo := serviceFailureActions{ResetPeriod: uint32(24 * time.Hour / time.Second), ActionsCount: uint32(3), Actions: uintptr(unsafe.Pointer(&t[0]))}
-	err = windows.ChangeServiceConfig2(s.Handle, serviceConfigFailureActions, (*byte)(unsafe.Pointer(&lpInfo)))
 	if err != nil {
 		return err
 	}
@@ -273,7 +232,8 @@ func initService(daemonCli *DaemonCli) (bool, bool, error) {
 		return false, false, nil
 	}
 
-	interactive, err := svc.IsAnInteractiveSession()
+	// Check if we're running as a Windows service or interactively.
+	isService, err := svc.IsWindowsService()
 	if err != nil {
 		return false, false, err
 	}
@@ -284,23 +244,23 @@ func initService(daemonCli *DaemonCli) (bool, bool, error) {
 		daemonCli: daemonCli,
 	}
 
-	var log *eventlog.Log
-	if !interactive {
-		log, err = eventlog.Open(*flServiceName)
+	var eventLog *eventlog.Log
+	if isService {
+		eventLog, err = eventlog.Open(*flServiceName)
 		if err != nil {
 			return false, false, err
 		}
 	}
 
-	logrus.AddHook(&etwHook{log})
-	logrus.SetOutput(io.Discard)
+	log.L.Logger.AddHook(&etwHook{eventLog})
+	log.L.Logger.SetOutput(io.Discard)
 
 	service = h
 	go func() {
-		if interactive {
-			err = debug.Run(*flServiceName, h)
-		} else {
+		if isService {
 			err = svc.Run(*flServiceName, h)
+		} else {
+			err = debug.Run(*flServiceName, h)
 		}
 
 		h.fromsvc <- err
@@ -326,7 +286,7 @@ func (h *handler) started() error {
 }
 
 func (h *handler) stopped(err error) {
-	logrus.Debugf("Stopping service: %v", err)
+	log.G(context.TODO()).Debugf("Stopping service: %v", err)
 	h.tosvc <- err != nil
 	<-h.fromsvc
 }
@@ -339,12 +299,12 @@ func (h *handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.S
 	// Wait for initialization to complete.
 	failed := <-h.tosvc
 	if failed {
-		logrus.Debug("Aborting service start due to failure during initialization")
+		log.G(context.TODO()).Debug("Aborting service start due to failure during initialization")
 		return true, 1
 	}
 
 	s <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown | svc.Accepted(windows.SERVICE_ACCEPT_PARAMCHANGE)}
-	logrus.Debug("Service running")
+	log.G(context.TODO()).Debug("Service running")
 Loop:
 	for {
 		select {
@@ -396,24 +356,22 @@ func initPanicFile(path string) error {
 	// Update STD_ERROR_HANDLE to point to the panic file so that Go writes to
 	// it when it panics. Remember the old stderr to restore it before removing
 	// the panic file.
-	sh := uint32(windows.STD_ERROR_HANDLE)
-	h, err := windows.GetStdHandle(sh)
+	h, err := windows.GetStdHandle(windows.STD_ERROR_HANDLE)
+	if err != nil {
+		return err
+	}
+	oldStderr = h
+
+	err = windows.SetStdHandle(windows.STD_ERROR_HANDLE, windows.Handle(panicFile.Fd()))
 	if err != nil {
 		return err
 	}
 
-	oldStderr = h
-
-	r, _, err := setStdHandle.Call(uintptr(sh), uintptr(panicFile.Fd()))
-	if r == 0 && err != nil {
-		return err
-	}
-
 	// Reset os.Stderr to the panic file (so fmt.Fprintf(os.Stderr,...) actually gets redirected)
-	os.Stderr = os.NewFile(uintptr(panicFile.Fd()), "/dev/stderr")
+	os.Stderr = os.NewFile(panicFile.Fd(), "/dev/stderr")
 
 	// Force threads that panic to write to stderr (the panicFile handle now), otherwise it will go into the ether
-	log.SetOutput(os.Stderr)
+	log.L.Logger.SetOutput(os.Stderr)
 
 	return nil
 }
@@ -421,8 +379,7 @@ func initPanicFile(path string) error {
 func removePanicFile() {
 	if st, err := panicFile.Stat(); err == nil {
 		if st.Size() == 0 {
-			sh := uint32(windows.STD_ERROR_HANDLE)
-			setStdHandle.Call(uintptr(sh), uintptr(oldStderr))
+			windows.SetStdHandle(windows.STD_ERROR_HANDLE, oldStderr)
 			panicFile.Close()
 			os.Remove(panicFile.Name())
 		}

@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 

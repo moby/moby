@@ -1,4 +1,4 @@
-// Copyright 2016 The Linux Foundation
+// Copyright 2016-2022 The Linux Foundation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import digest "github.com/opencontainers/go-digest"
 // when marshalled to JSON.
 type Descriptor struct {
 	// MediaType is the media type of the object this schema refers to.
-	MediaType string `json:"mediaType,omitempty"`
+	MediaType string `json:"mediaType"`
 
 	// Digest is the digest of the targeted content.
 	Digest digest.Digest `json:"digest"`
@@ -35,16 +35,24 @@ type Descriptor struct {
 	// Annotations contains arbitrary metadata relating to the targeted content.
 	Annotations map[string]string `json:"annotations,omitempty"`
 
+	// Data is an embedding of the targeted content. This is encoded as a base64
+	// string when marshalled to JSON (automatically, by encoding/json). If
+	// present, Data can be used directly to avoid fetching the targeted content.
+	Data []byte `json:"data,omitempty"`
+
 	// Platform describes the platform which the image in the manifest runs on.
 	//
 	// This should only be used when referring to a manifest.
 	Platform *Platform `json:"platform,omitempty"`
+
+	// ArtifactType is the IANA media type of this artifact.
+	ArtifactType string `json:"artifactType,omitempty"`
 }
 
 // Platform describes the platform which the image in the manifest runs on.
 type Platform struct {
 	// Architecture field specifies the CPU architecture, for example
-	// `amd64` or `ppc64`.
+	// `amd64` or `ppc64le`.
 	Architecture string `json:"architecture"`
 
 	// OS specifies the operating system, for example `linux` or `windows`.
@@ -61,4 +69,12 @@ type Platform struct {
 	// Variant is an optional field specifying a variant of the CPU, for
 	// example `v7` to specify ARMv7 when architecture is `arm`.
 	Variant string `json:"variant,omitempty"`
+}
+
+// DescriptorEmptyJSON is the descriptor of a blob with content of `{}`.
+var DescriptorEmptyJSON = Descriptor{
+	MediaType: MediaTypeEmptyJSON,
+	Digest:    `sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a`,
+	Size:      2,
+	Data:      []byte(`{}`),
 }

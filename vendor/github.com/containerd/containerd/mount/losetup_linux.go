@@ -17,15 +17,13 @@
 package mount
 
 import (
+	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"strings"
-	"syscall"
 	"time"
-	"unsafe"
 
-	"github.com/pkg/errors"
+	"github.com/containerd/containerd/pkg/randutil"
 	"golang.org/x/sys/unix"
 )
 
@@ -47,24 +45,15 @@ type LoopParams struct {
 	Direct bool
 }
 
-func ioctl(fd, req, args uintptr) (uintptr, uintptr, error) {
-	r1, r2, errno := syscall.Syscall(syscall.SYS_IOCTL, fd, req, args)
-	if errno != 0 {
-		return 0, 0, errno
-	}
-
-	return r1, r2, nil
-}
-
 func getFreeLoopDev() (uint32, error) {
 	ctrl, err := os.OpenFile(loopControlPath, os.O_RDWR, 0)
 	if err != nil {
-		return 0, errors.Errorf("could not open %v: %v", loopControlPath, err)
+		return 0, fmt.Errorf("could not open %v: %v", loopControlPath, err)
 	}
 	defer ctrl.Close()
-	num, _, err := ioctl(ctrl.Fd(), unix.LOOP_CTL_GET_FREE, 0)
+	num, err := unix.IoctlRetInt(int(ctrl.Fd()), unix.LOOP_CTL_GET_FREE)
 	if err != nil {
-		return 0, errors.Wrap(err, "could not get free loop device")
+		return 0, fmt.Errorf("could not get free loop device: %w", err)
 	}
 	return uint32(num), nil
 }
@@ -81,13 +70,13 @@ func setupLoopDev(backingFile, loopDev string, param LoopParams) (_ *os.File, re
 
 	back, err := os.OpenFile(backingFile, flags, 0)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not open backing file: %s", backingFile)
+		return nil, fmt.Errorf("could not open backing file: %s: %w", backingFile, err)
 	}
 	defer back.Close()
 
 	loop, err := os.OpenFile(loopDev, flags, 0)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not open loop device: %s", loopDev)
+		return nil, fmt.Errorf("could not open loop device: %s: %w", loopDev, err)
 	}
 	defer func() {
 		if retErr != nil {
@@ -96,9 +85,15 @@ func setupLoopDev(backingFile, loopDev string, param LoopParams) (_ *os.File, re
 	}()
 
 	// 2. Set FD
-	if _, _, err = ioctl(loop.Fd(), unix.LOOP_SET_FD, back.Fd()); err != nil {
-		return nil, errors.Wrapf(err, "could not set loop fd for device: %s", loopDev)
+	if err := unix.IoctlSetInt(int(loop.Fd()), unix.LOOP_SET_FD, int(back.Fd())); err != nil {
+		return nil, fmt.Errorf("could not set loop fd for device: %s: %w", loopDev, err)
 	}
+
+	defer func() {
+		if retErr != nil {
+			_ = unix.IoctlSetInt(int(loop.Fd()), unix.LOOP_CLR_FD, 0)
+		}
+	}()
 
 	// 3. Set Info
 	info := unix.LoopInfo64{}
@@ -111,27 +106,20 @@ func setupLoopDev(backingFile, loopDev string, param LoopParams) (_ *os.File, re
 		info.Flags |= unix.LO_FLAGS_AUTOCLEAR
 	}
 
-	if param.Direct {
-		info.Flags |= unix.LO_FLAGS_DIRECT_IO
+	err = unix.IoctlLoopSetStatus64(int(loop.Fd()), &info)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set loop device info: %w", err)
 	}
 
-	_, _, err = ioctl(loop.Fd(), unix.LOOP_SET_STATUS64, uintptr(unsafe.Pointer(&info)))
-	if err == nil {
-		return loop, nil
-	}
-
+	// 4. Set Direct IO
 	if param.Direct {
-		// Retry w/o direct IO flag in case kernel does not support it. The downside is that
-		// it will suffer from double cache problem.
-		info.Flags &= ^(uint32(unix.LO_FLAGS_DIRECT_IO))
-		_, _, err = ioctl(loop.Fd(), unix.LOOP_SET_STATUS64, uintptr(unsafe.Pointer(&info)))
-		if err == nil {
-			return loop, nil
+		err = unix.IoctlSetInt(int(loop.Fd()), unix.LOOP_SET_DIRECT_IO, 1)
+		if err != nil {
+			return nil, fmt.Errorf("failed to setup loop with direct: %w", err)
 		}
 	}
 
-	_, _, _ = ioctl(loop.Fd(), unix.LOOP_CLR_FD, 0)
-	return nil, errors.Errorf("failed to set loop device info: %v", err)
+	return loop, nil
 }
 
 // setupLoop looks for (and possibly creates) a free loop device, and
@@ -163,7 +151,7 @@ func setupLoop(backingFile string, param LoopParams) (*os.File, error) {
 			// with EBUSY when trying to set it up.
 			if strings.Contains(err.Error(), ebusyString) {
 				// Fallback a bit to avoid live lock
-				time.Sleep(time.Millisecond * time.Duration(rand.Intn(retry*10)))
+				time.Sleep(time.Millisecond * time.Duration(randutil.Intn(retry*10)))
 				continue
 			}
 			return nil, err
@@ -182,8 +170,7 @@ func removeLoop(loopdev string) error {
 	}
 	defer file.Close()
 
-	_, _, err = ioctl(file.Fd(), unix.LOOP_CLR_FD, 0)
-	return err
+	return unix.IoctlSetInt(int(file.Fd()), unix.LOOP_CLR_FD, 0)
 }
 
 // AttachLoopDevice attaches a specified backing file to a loop device
@@ -200,7 +187,7 @@ func AttachLoopDevice(backingFile string) (string, error) {
 func DetachLoopDevice(devices ...string) error {
 	for _, dev := range devices {
 		if err := removeLoop(dev); err != nil {
-			return errors.Wrapf(err, "failed to remove loop device: %s", dev)
+			return fmt.Errorf("failed to remove loop device: %s: %w", dev, err)
 		}
 	}
 

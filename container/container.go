@@ -10,16 +10,16 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/container/stream"
-	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/logger/local"
@@ -28,19 +28,20 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
+	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/restartmanager"
 	"github.com/docker/docker/volume"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	units "github.com/docker/go-units"
-	agentexec "github.com/docker/swarmkit/agent/exec"
+	agentexec "github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/sys/signal"
 	"github.com/moby/sys/symlink"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -53,9 +54,6 @@ type ExitStatus struct {
 	// The exit code with which the container exited.
 	ExitCode int
 
-	// Whether the container encountered an OOM.
-	OOMKilled bool
-
 	// Time at which the container died
 	ExitedAt time.Time
 }
@@ -64,10 +62,10 @@ type ExitStatus struct {
 type Container struct {
 	StreamConfig *stream.Config
 	// embed for Container to support states directly.
-	*State          `json:"State"`          // Needed for Engine API version <= 1.11
-	Root            string                  `json:"-"` // Path to the "home" of the container, including metadata.
-	BaseFS          containerfs.ContainerFS `json:"-"` // interface containing graphdriver mount
-	RWLayer         layer.RWLayer           `json:"-"`
+	*State          `json:"State"` // Needed for Engine API version <= 1.11
+	Root            string         `json:"-"` // Path to the "home" of the container, including metadata.
+	BaseFS          string         `json:"-"` // Path to the graphdriver mountpoint
+	RWLayer         layer.RWLayer  `json:"-"`
 	ID              string
 	Created         time.Time
 	Managed         bool
@@ -75,42 +73,49 @@ type Container struct {
 	Args            []string
 	Config          *containertypes.Config
 	ImageID         image.ID `json:"Image"`
+	ImageManifest   *ocispec.Descriptor
 	NetworkSettings *network.Settings
 	LogPath         string
 	Name            string
 	Driver          string
 	OS              string
-	// MountLabel contains the options for the 'mount' command
-	MountLabel             string
-	ProcessLabel           string
-	RestartCount           int
-	HasBeenStartedBefore   bool
-	HasBeenManuallyStopped bool // used for unless-stopped restart policy
-	MountPoints            map[string]*volumemounts.MountPoint
-	HostConfig             *containertypes.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
-	ExecCommands           *exec.Store                `json:"-"`
-	DependencyStore        agentexec.DependencyGetter `json:"-"`
-	SecretReferences       []*swarmtypes.SecretReference
-	ConfigReferences       []*swarmtypes.ConfigReference
+
+	RestartCount             int
+	HasBeenStartedBefore     bool
+	HasBeenManuallyStopped   bool // used for unless-stopped restart policy
+	HasBeenManuallyRestarted bool `json:"-"` // used to distinguish restart caused by restart policy from the manual one
+	MountPoints              map[string]*volumemounts.MountPoint
+	HostConfig               *containertypes.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
+	ExecCommands             *ExecStore                 `json:"-"`
+	DependencyStore          agentexec.DependencyGetter `json:"-"`
+	SecretReferences         []*swarmtypes.SecretReference
+	ConfigReferences         []*swarmtypes.ConfigReference
 	// logDriver for closing
 	LogDriver      logger.Logger  `json:"-"`
 	LogCopier      *logger.Copier `json:"-"`
-	restartManager restartmanager.RestartManager
+	restartManager *restartmanager.RestartManager
 	attachContext  *attachContext
 
 	// Fields here are specific to Unix platforms
-	AppArmorProfile string
-	HostnamePath    string
-	HostsPath       string
-	ShmPath         string
-	ResolvConfPath  string
-	SeccompProfile  string
-	NoNewPrivileges bool
+	SecurityOptions
+	HostnamePath   string
+	HostsPath      string
+	ShmPath        string
+	ResolvConfPath string
 
 	// Fields here are specific to Windows
 	NetworkSharedContainerID string            `json:"-"`
 	SharedEndpointList       []string          `json:"-"`
 	LocalLogCacheMeta        localLogCacheMeta `json:",omitempty"`
+}
+
+type SecurityOptions struct {
+	// MountLabel contains the options for the "mount" command.
+	MountLabel      string
+	ProcessLabel    string
+	AppArmorProfile string
+	SeccompProfile  string
+	NoNewPrivileges bool
 }
 
 type localLogCacheMeta struct {
@@ -123,7 +128,7 @@ func NewBaseContainer(id, root string) *Container {
 	return &Container{
 		ID:            id,
 		State:         NewState(),
-		ExecCommands:  exec.NewStore(),
+		ExecCommands:  NewExecStore(),
 		Root:          root,
 		MountPoints:   make(map[string]*volumemounts.MountPoint),
 		StreamConfig:  stream.NewConfig(),
@@ -170,7 +175,7 @@ func (container *Container) toDisk() (*Container, error) {
 	}
 
 	// Save container settings
-	f, err := ioutils.NewAtomicFileWriter(pth, 0600)
+	f, err := ioutils.NewAtomicFileWriter(pth, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +200,7 @@ func (container *Container) toDisk() (*Container, error) {
 
 // CheckpointTo makes the Container's current state visible to queries, and persists state.
 // Callers must hold a Container lock.
-func (container *Container) CheckpointTo(store ViewDB) error {
+func (container *Container) CheckpointTo(store *ViewDB) error {
 	deepCopy, err := container.toDisk()
 	if err != nil {
 		return err
@@ -245,7 +250,7 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 		return nil, err
 	}
 
-	f, err := ioutils.NewAtomicFileWriter(pth, 0600)
+	f, err := ioutils.NewAtomicFileWriter(pth, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +279,7 @@ func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity)
 		return err
 	}
 
-	if err := idtools.MkdirAllAndChownNew(pth, 0755, rootIdentity); err != nil {
+	if err := idtools.MkdirAllAndChownNew(pth, 0o755, rootIdentity); err != nil {
 		pthInfo, err2 := os.Stat(pth)
 		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
 			return errors.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
@@ -295,23 +300,24 @@ func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity)
 // particular path inside the container as though you were a process in that
 // container.
 //
-// NOTE: The returned path is *only* safely scoped inside the container's BaseFS
-//       if no component of the returned path changes (such as a component
-//       symlinking to a different path) between using this method and using the
-//       path. See symlink.FollowSymlinkInScope for more details.
+// # NOTE
+// The returned path is *only* safely scoped inside the container's BaseFS
+// if no component of the returned path changes (such as a component
+// symlinking to a different path) between using this method and using the
+// path. See symlink.FollowSymlinkInScope for more details.
 func (container *Container) GetResourcePath(path string) (string, error) {
-	if container.BaseFS == nil {
-		return "", errors.New("GetResourcePath: BaseFS of container " + container.ID + " is unexpectedly nil")
+	if container.BaseFS == "" {
+		return "", errors.New("GetResourcePath: BaseFS of container " + container.ID + " is unexpectedly empty")
 	}
 	// IMPORTANT - These are paths on the OS where the daemon is running, hence
-	// any filepath operations must be done in an OS agnostic way.
-	r, e := container.BaseFS.ResolveScopedPath(path, false)
+	// any filepath operations must be done in an OS-agnostic way.
+	r, e := symlink.FollowSymlinkInScope(filepath.Join(container.BaseFS, containerfs.CleanScopedPath(path)), container.BaseFS)
 
 	// Log this here on the daemon side as there's otherwise no indication apart
 	// from the error being propagated all the way back to the client. This makes
 	// debugging significantly easier and clearly indicates the error comes from the daemon.
 	if e != nil {
-		logrus.Errorf("Failed to ResolveScopedPath BaseFS %s path %s %s\n", container.BaseFS.Path(), path, e)
+		log.G(context.TODO()).Errorf("Failed to ResolveScopedPath BaseFS %s path %s %s\n", container.BaseFS, path, e)
 	}
 	return r, e
 }
@@ -324,10 +330,11 @@ func (container *Container) GetResourcePath(path string) (string, error) {
 // Only use this method to safely access the container's `container.json` or
 // other metadata files. If in doubt, use container.GetResourcePath.
 //
-// NOTE: The returned path is *only* safely scoped inside the container's root
-//       if no component of the returned path changes (such as a component
-//       symlinking to a different path) between using this method and using the
-//       path. See symlink.FollowSymlinkInScope for more details.
+// # NOTE
+// The returned path is *only* safely scoped inside the container's root
+// if no component of the returned path changes (such as a component
+// symlinking to a different path) between using this method and using the
+// path. See symlink.FollowSymlinkInScope for more details.
 func (container *Container) GetRootResourcePath(path string) (string, error) {
 	// IMPORTANT - These are paths on the OS where the daemon is running, hence
 	// any filepath operations must be done in an OS agnostic way.
@@ -395,7 +402,7 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := os.MkdirAll(logDir, 0700); err != nil {
+		if err := os.MkdirAll(logDir, 0o700); err != nil {
 			return nil, errdefs.System(errors.Wrap(err, "error creating local logs dir"))
 		}
 		info.LogPath = filepath.Join(logDir, "container.log")
@@ -425,7 +432,7 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 			}
 
 			if !container.LocalLogCacheMeta.HaveNotifyEnabled {
-				logrus.WithField("container", container.ID).WithField("driver", container.HostConfig.LogConfig.Type).Info("Configured log driver does not support reads, enabling local file cache for container logs")
+				log.G(context.TODO()).WithField("container", container.ID).WithField("driver", container.HostConfig.LogConfig.Type).Info("Configured log driver does not support reads, enabling local file cache for container logs")
 				container.LocalLogCacheMeta.HaveNotifyEnabled = true
 			}
 			info.LogPath = logPath
@@ -481,26 +488,24 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 }
 
 // UnmountVolumes unmounts all volumes
-func (container *Container) UnmountVolumes(volumeEventLog func(name, action string, attributes map[string]string)) error {
-	var errors []string
+func (container *Container) UnmountVolumes(volumeEventLog func(name string, action events.Action, attributes map[string]string)) error {
+	var errs []string
 	for _, volumeMount := range container.MountPoints {
 		if volumeMount.Volume == nil {
 			continue
 		}
 
 		if err := volumeMount.Cleanup(); err != nil {
-			errors = append(errors, err.Error())
+			errs = append(errs, err.Error())
 			continue
 		}
-
-		attributes := map[string]string{
+		volumeEventLog(volumeMount.Volume.Name(), events.ActionUnmount, map[string]string{
 			"driver":    volumeMount.Volume.DriverName(),
 			"container": container.ID,
-		}
-		volumeEventLog(volumeMount.Volume.Name(), "unmount", attributes)
+		})
 	}
-	if len(errors) > 0 {
-		return fmt.Errorf("error while unmounting volumes for container %s: %s", container.ID, strings.Join(errors, "; "))
+	if len(errs) > 0 {
+		return fmt.Errorf("error while unmounting volumes for container %s: %s", container.ID, strings.Join(errs, "; "))
 	}
 	return nil
 }
@@ -511,16 +516,16 @@ func (container *Container) IsDestinationMounted(destination string) bool {
 }
 
 // StopSignal returns the signal used to stop the container.
-func (container *Container) StopSignal() int {
+func (container *Container) StopSignal() syscall.Signal {
 	var stopSignal syscall.Signal
 	if container.Config.StopSignal != "" {
 		stopSignal, _ = signal.ParseSignal(container.Config.StopSignal)
 	}
 
-	if int(stopSignal) == 0 {
+	if stopSignal == 0 {
 		stopSignal, _ = signal.ParseSignal(defaultStopSignal)
 	}
-	return int(stopSignal)
+	return stopSignal
 }
 
 // StopTimeout returns the timeout (in seconds) used to stop the container.
@@ -557,13 +562,7 @@ func (container *Container) InitDNSHostConfig() {
 
 // UpdateMonitor updates monitor configure for running container
 func (container *Container) UpdateMonitor(restartPolicy containertypes.RestartPolicy) {
-	type policySetter interface {
-		SetPolicy(containertypes.RestartPolicy)
-	}
-
-	if rm, ok := container.RestartManager().(policySetter); ok {
-		rm.SetPolicy(restartPolicy)
-	}
+	container.RestartManager().SetPolicy(restartPolicy)
 }
 
 // FullHostname returns hostname and optional domain appended to it.
@@ -576,7 +575,7 @@ func (container *Container) FullHostname() string {
 }
 
 // RestartManager returns the current restartmanager instance connected to container.
-func (container *Container) RestartManager() restartmanager.RestartManager {
+func (container *Container) RestartManager() *restartmanager.RestartManager {
 	if container.restartManager == nil {
 		container.restartManager = restartmanager.New(container.HostConfig.RestartPolicy, container.RestartCount)
 	}
@@ -594,32 +593,15 @@ func (container *Container) ResetRestartManager(resetCount bool) {
 	container.restartManager = nil
 }
 
-type attachContext struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	mu     sync.Mutex
-}
-
-// InitAttachContext initializes or returns existing context for attach calls to
-// track container liveness.
-func (container *Container) InitAttachContext() context.Context {
-	container.attachContext.mu.Lock()
-	defer container.attachContext.mu.Unlock()
-	if container.attachContext.ctx == nil {
-		container.attachContext.ctx, container.attachContext.cancel = context.WithCancel(context.Background())
-	}
-	return container.attachContext.ctx
+// AttachContext returns the context for attach calls to track container liveness.
+func (container *Container) AttachContext() context.Context {
+	return container.attachContext.init()
 }
 
 // CancelAttachContext cancels attach context. All attach calls should detach
 // after this call.
 func (container *Container) CancelAttachContext() {
-	container.attachContext.mu.Lock()
-	if container.attachContext.ctx != nil {
-		container.attachContext.cancel()
-		container.attachContext.ctx = nil
-	}
-	container.attachContext.mu.Unlock()
+	container.attachContext.cancel()
 }
 
 func (container *Container) startLogging() error {
@@ -672,7 +654,7 @@ func (container *Container) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
 	if container.StreamConfig.Stdin() == nil && !container.Config.Tty {
 		if iop.Stdin != nil {
 			if err := iop.Stdin.Close(); err != nil {
-				logrus.Warnf("error closing stdin: %+v", err)
+				log.G(context.TODO()).Warnf("error closing stdin: %+v", err)
 			}
 		}
 	}
@@ -737,7 +719,7 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 
 	env := make([]string, 0, envSize)
 	if runtime.GOOS != "windows" {
-		env = append(env, "PATH="+system.DefaultPathEnv(ctrOS))
+		env = append(env, "PATH="+oci.DefaultPathEnv(ctrOS))
 		env = append(env, "HOSTNAME="+container.Config.Hostname)
 		if tty {
 			env = append(env, "TERM=xterm")
@@ -750,6 +732,47 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 	// else.
 	env = ReplaceOrAppendEnvValues(env, container.Config.Env)
 	return env
+}
+
+// RestoreTask restores the containerd container and task handles and reattaches
+// the IO for the running task. Container state is not synced with containerd's
+// state.
+//
+// An errdefs.NotFound error is returned if the container does not exist in
+// containerd. However, a nil error is returned if the task does not exist in
+// containerd.
+func (container *Container) RestoreTask(ctx context.Context, client libcontainerdtypes.Client) error {
+	container.Lock()
+	defer container.Unlock()
+	var err error
+	container.ctr, err = client.LoadContainer(ctx, container.ID)
+	if err != nil {
+		return err
+	}
+	container.task, err = container.ctr.AttachTask(ctx, container.InitializeStdio)
+	if err != nil && !errdefs.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+// GetRunningTask asserts that the container is running and returns the Task for
+// the container. An errdefs.Conflict error is returned if the container is not
+// in the Running state.
+//
+// A system error is returned if container is in a bad state: Running is true
+// but has a nil Task.
+//
+// The container lock must be held when calling this method.
+func (container *Container) GetRunningTask() (libcontainerdtypes.Task, error) {
+	if !container.Running {
+		return nil, errdefs.Conflict(fmt.Errorf("container %s is not running", container.ID))
+	}
+	tsk, ok := container.Task()
+	if !ok {
+		return nil, errdefs.System(errors.WithStack(fmt.Errorf("container %s is in Running state but has no containerd Task set", container.ID)))
+	}
+	return tsk, nil
 }
 
 type rio struct {

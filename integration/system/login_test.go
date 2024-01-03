@@ -1,11 +1,12 @@
 package system // import "github.com/docker/docker/integration/system"
 
 import (
-	"context"
+	"fmt"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/integration/internal/requirement"
+	registrypkg "github.com/docker/docker/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -15,15 +16,15 @@ import (
 func TestLoginFailsWithBadCredentials(t *testing.T) {
 	skip.If(t, !requirement.HasHubConnectivity(t))
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
 
-	config := types.AuthConfig{
+	config := registry.AuthConfig{
 		Username: "no-user",
 		Password: "no-password",
 	}
-	_, err := client.RegistryLogin(context.Background(), config)
+	_, err := client.RegistryLogin(ctx, config)
 	assert.Assert(t, err != nil)
 	assert.Check(t, is.ErrorContains(err, "unauthorized: incorrect username or password"))
-	assert.Check(t, is.ErrorContains(err, "https://registry-1.docker.io/v2/"))
+	assert.Check(t, is.ErrorContains(err, fmt.Sprintf("https://%s/v2/", registrypkg.DefaultRegistryHost)))
 }

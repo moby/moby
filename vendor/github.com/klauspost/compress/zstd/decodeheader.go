@@ -4,7 +4,7 @@
 package zstd
 
 import (
-	"bytes"
+	"encoding/binary"
 	"errors"
 	"io"
 )
@@ -15,17 +15,49 @@ const HeaderMaxSize = 14 + 3
 
 // Header contains information about the first frame and block within that.
 type Header struct {
-	// Window Size the window of data to keep while decoding.
-	// Will only be set if HasFCS is false.
-	WindowSize uint64
+	// SingleSegment specifies whether the data is to be decompressed into a
+	// single contiguous memory segment.
+	// It implies that WindowSize is invalid and that FrameContentSize is valid.
+	SingleSegment bool
 
-	// Frame content size.
-	// Expected size of the entire frame.
-	FrameContentSize uint64
+	// WindowSize is the window of data to keep while decoding.
+	// Will only be set if SingleSegment is false.
+	WindowSize uint64
 
 	// Dictionary ID.
 	// If 0, no dictionary.
 	DictionaryID uint32
+
+	// HasFCS specifies whether FrameContentSize has a valid value.
+	HasFCS bool
+
+	// FrameContentSize is the expected uncompressed size of the entire frame.
+	FrameContentSize uint64
+
+	// Skippable will be true if the frame is meant to be skipped.
+	// This implies that FirstBlock.OK is false.
+	Skippable bool
+
+	// SkippableID is the user-specific ID for the skippable frame.
+	// Valid values are between 0 to 15, inclusive.
+	SkippableID int
+
+	// SkippableSize is the length of the user data to skip following
+	// the header.
+	SkippableSize uint32
+
+	// HeaderSize is the raw size of the frame header.
+	//
+	// For normal frames, it includes the size of the magic number and
+	// the size of the header (per section 3.1.1.1).
+	// It does not include the size for any data blocks (section 3.1.1.2) nor
+	// the size for the trailing content checksum.
+	//
+	// For skippable frames, this counts the size of the magic number
+	// along with the size of the size field of the payload.
+	// It does not include the size of the skippable payload itself.
+	// The total frame size is the HeaderSize plus the SkippableSize.
+	HeaderSize int
 
 	// First block information.
 	FirstBlock struct {
@@ -51,17 +83,9 @@ type Header struct {
 		CompressedSize int
 	}
 
-	// Skippable will be true if the frame is meant to be skipped.
-	// No other information will be populated.
-	Skippable bool
-
 	// If set there is a checksum present for the block content.
+	// The checksum field at the end is always 4 bytes long.
 	HasCheckSum bool
-
-	// If this is true FrameContentSize will have a valid value
-	HasFCS bool
-
-	SingleSegment bool
 }
 
 // Decode the header from the beginning of the stream.
@@ -71,39 +95,46 @@ type Header struct {
 // If there isn't enough input, io.ErrUnexpectedEOF is returned.
 // The FirstBlock.OK will indicate if enough information was available to decode the first block header.
 func (h *Header) Decode(in []byte) error {
+	*h = Header{}
 	if len(in) < 4 {
 		return io.ErrUnexpectedEOF
 	}
+	h.HeaderSize += 4
 	b, in := in[:4], in[4:]
-	if !bytes.Equal(b, frameMagic) {
-		if !bytes.Equal(b[1:4], skippableFrameMagic) || b[0]&0xf0 != 0x50 {
+	if string(b) != frameMagic {
+		if string(b[1:4]) != skippableFrameMagic || b[0]&0xf0 != 0x50 {
 			return ErrMagicMismatch
 		}
-		*h = Header{Skippable: true}
+		if len(in) < 4 {
+			return io.ErrUnexpectedEOF
+		}
+		h.HeaderSize += 4
+		h.Skippable = true
+		h.SkippableID = int(b[0] & 0xf)
+		h.SkippableSize = binary.LittleEndian.Uint32(in)
 		return nil
-	}
-	if len(in) < 1 {
-		return io.ErrUnexpectedEOF
-	}
-
-	// Clear output
-	*h = Header{}
-	fhd, in := in[0], in[1:]
-	h.SingleSegment = fhd&(1<<5) != 0
-	h.HasCheckSum = fhd&(1<<2) != 0
-
-	if fhd&(1<<3) != 0 {
-		return errors.New("Reserved bit set on frame header")
 	}
 
 	// Read Window_Descriptor
 	// https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#window_descriptor
+	if len(in) < 1 {
+		return io.ErrUnexpectedEOF
+	}
+	fhd, in := in[0], in[1:]
+	h.HeaderSize++
+	h.SingleSegment = fhd&(1<<5) != 0
+	h.HasCheckSum = fhd&(1<<2) != 0
+	if fhd&(1<<3) != 0 {
+		return errors.New("reserved bit set on frame header")
+	}
+
 	if !h.SingleSegment {
 		if len(in) < 1 {
 			return io.ErrUnexpectedEOF
 		}
 		var wd byte
 		wd, in = in[0], in[1:]
+		h.HeaderSize++
 		windowLog := 10 + (wd >> 3)
 		windowBase := uint64(1) << windowLog
 		windowAdd := (windowBase / 8) * uint64(wd&0x7)
@@ -120,10 +151,8 @@ func (h *Header) Decode(in []byte) error {
 			return io.ErrUnexpectedEOF
 		}
 		b, in = in[:size], in[size:]
-		if b == nil {
-			return io.ErrUnexpectedEOF
-		}
-		switch size {
+		h.HeaderSize += int(size)
+		switch len(b) {
 		case 1:
 			h.DictionaryID = uint32(b[0])
 		case 2:
@@ -152,10 +181,8 @@ func (h *Header) Decode(in []byte) error {
 			return io.ErrUnexpectedEOF
 		}
 		b, in = in[:fcsSize], in[fcsSize:]
-		if b == nil {
-			return io.ErrUnexpectedEOF
-		}
-		switch fcsSize {
+		h.HeaderSize += int(fcsSize)
+		switch len(b) {
 		case 1:
 			h.FrameContentSize = uint64(b[0])
 		case 2:
@@ -174,7 +201,7 @@ func (h *Header) Decode(in []byte) error {
 	if len(in) < 3 {
 		return nil
 	}
-	tmp, in := in[:3], in[3:]
+	tmp := in[:3]
 	bh := uint32(tmp[0]) | (uint32(tmp[1]) << 8) | (uint32(tmp[2]) << 16)
 	h.FirstBlock.Last = bh&1 != 0
 	blockType := blockType((bh >> 1) & 3)

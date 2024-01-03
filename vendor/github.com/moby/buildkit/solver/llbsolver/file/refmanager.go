@@ -7,18 +7,20 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/pkg/errors"
 )
 
-func NewRefManager(cm cache.Manager) *RefManager {
-	return &RefManager{cm: cm}
+func NewRefManager(cm cache.Manager, name string) *RefManager {
+	return &RefManager{cm: cm, desc: name}
 }
 
 type RefManager struct {
-	cm cache.Manager
+	cm   cache.Manager
+	desc string
 }
 
-func (rm *RefManager) Prepare(ctx context.Context, ref fileoptypes.Ref, readonly bool, g session.Group) (fileoptypes.Mount, error) {
+func (rm *RefManager) Prepare(ctx context.Context, ref fileoptypes.Ref, readonly bool, g session.Group) (_ fileoptypes.Mount, rerr error) {
 	ir, ok := ref.(cache.ImmutableRef)
 	if !ok && ref != nil {
 		return nil, errors.Errorf("invalid ref type: %T", ref)
@@ -32,10 +34,24 @@ func (rm *RefManager) Prepare(ctx context.Context, ref fileoptypes.Ref, readonly
 		return &Mount{m: m, readonly: readonly}, nil
 	}
 
-	mr, err := rm.cm.New(ctx, ir, g, cache.WithDescription("fileop target"), cache.CachePolicyRetain)
+	desc := "fileop target"
+
+	if d := rm.desc; d != "" {
+		desc = d
+	}
+
+	mr, err := rm.cm.New(ctx, ir, g, cache.WithDescription(desc), cache.CachePolicyRetain)
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if rerr != nil {
+			if err := mr.SetCachePolicyDefault(); err != nil {
+				bklog.G(ctx).Errorf("failed to reset FileOp mutable ref cachepolicy: %v", err)
+			}
+			mr.Release(context.TODO())
+		}
+	}()
 	m, err := mr.Mount(ctx, readonly, g)
 	if err != nil {
 		return nil, err

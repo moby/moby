@@ -1,18 +1,18 @@
 //go:build linux
-// +build linux
 
 package ipvlan
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -30,17 +30,13 @@ type configuration struct {
 	Internal         bool
 	Parent           string
 	IpvlanMode       string
+	IpvlanFlag       string
 	CreatedSlaveLink bool
-	Ipv4Subnets      []*ipv4Subnet
-	Ipv6Subnets      []*ipv6Subnet
+	Ipv4Subnets      []*ipSubnet
+	Ipv6Subnets      []*ipSubnet
 }
 
-type ipv4Subnet struct {
-	SubnetIP string
-	GwIP     string
-}
-
-type ipv6Subnet struct {
+type ipSubnet struct {
 	SubnetIP string
 	GwIP     string
 }
@@ -53,7 +49,7 @@ func (d *driver) initStore(option map[string]interface{}) error {
 		if !ok {
 			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
 		}
-		d.store, err = datastore.NewDataStoreFromConfig(dsc)
+		d.store, err = datastore.FromConfig(dsc)
 		if err != nil {
 			return types.InternalErrorf("ipvlan driver failed to initialize data store: %v", err)
 		}
@@ -84,7 +80,7 @@ func (d *driver) populateNetworks() error {
 	for _, kvo := range kvol {
 		config := kvo.(*configuration)
 		if _, err = d.createNetwork(config); err != nil {
-			logrus.Warnf("could not create ipvlan network for id %s from persistent state", config.ID)
+			log.G(context.TODO()).Warnf("could not create ipvlan network for id %s from persistent state", config.ID)
 		}
 	}
 
@@ -105,15 +101,15 @@ func (d *driver) populateEndpoints() error {
 		ep := kvo.(*endpoint)
 		n, ok := d.networks[ep.nid]
 		if !ok {
-			logrus.Debugf("Network (%.7s) not found for restored ipvlan endpoint (%.7s)", ep.nid, ep.id)
-			logrus.Debugf("Deleting stale ipvlan endpoint (%.7s) from store", ep.id)
+			log.G(context.TODO()).Debugf("Network (%.7s) not found for restored ipvlan endpoint (%.7s)", ep.nid, ep.id)
+			log.G(context.TODO()).Debugf("Deleting stale ipvlan endpoint (%.7s) from store", ep.id)
 			if err := d.storeDelete(ep); err != nil {
-				logrus.Debugf("Failed to delete stale ipvlan endpoint (%.7s) from store", ep.id)
+				log.G(context.TODO()).Debugf("Failed to delete stale ipvlan endpoint (%.7s) from store", ep.id)
 			}
 			continue
 		}
 		n.endpoints[ep.id] = ep
-		logrus.Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
+		log.G(context.TODO()).Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
 	}
 
 	return nil
@@ -122,7 +118,7 @@ func (d *driver) populateEndpoints() error {
 // storeUpdate used to update persistent ipvlan network records as they are created
 func (d *driver) storeUpdate(kvObject datastore.KVObject) error {
 	if d.store == nil {
-		logrus.Warnf("ipvlan store not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
+		log.G(context.TODO()).Warnf("ipvlan store not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
 		return nil
 	}
 	if err := d.store.PutObjectAtomic(kvObject); err != nil {
@@ -135,7 +131,7 @@ func (d *driver) storeUpdate(kvObject datastore.KVObject) error {
 // storeDelete used to delete ipvlan network records from persistent cache as they are deleted
 func (d *driver) storeDelete(kvObject datastore.KVObject) error {
 	if d.store == nil {
-		logrus.Debugf("ipvlan store not initialized. kv object %s is not deleted from store", datastore.Key(kvObject.Key()...))
+		log.G(context.TODO()).Debugf("ipvlan store not initialized. kv object %s is not deleted from store", datastore.Key(kvObject.Key()...))
 		return nil
 	}
 retry:
@@ -158,6 +154,7 @@ func (config *configuration) MarshalJSON() ([]byte, error) {
 	nMap["Mtu"] = config.Mtu
 	nMap["Parent"] = config.Parent
 	nMap["IpvlanMode"] = config.IpvlanMode
+	nMap["IpvlanFlag"] = config.IpvlanFlag
 	nMap["Internal"] = config.Internal
 	nMap["CreatedSubIface"] = config.CreatedSlaveLink
 	if len(config.Ipv4Subnets) > 0 {
@@ -191,6 +188,12 @@ func (config *configuration) UnmarshalJSON(b []byte) error {
 	config.Mtu = int(nMap["Mtu"].(float64))
 	config.Parent = nMap["Parent"].(string)
 	config.IpvlanMode = nMap["IpvlanMode"].(string)
+	if v, ok := nMap["IpvlanFlag"]; ok {
+		config.IpvlanFlag = v.(string)
+	} else {
+		// Migrate config from an older daemon which did not have the flag configurable.
+		config.IpvlanFlag = flagBridge
+	}
 	config.Internal = nMap["Internal"].(bool)
 	config.CreatedSlaveLink = nMap["CreatedSubIface"].(bool)
 	if v, ok := nMap["Ipv4Subnets"]; ok {
@@ -252,10 +255,6 @@ func (config *configuration) CopyTo(o datastore.KVObject) error {
 	dstNcfg := o.(*configuration)
 	*dstNcfg = *config
 	return nil
-}
-
-func (config *configuration) DataScope() string {
-	return datastore.LocalScope
 }
 
 func (ep *endpoint) MarshalJSON() ([]byte, error) {
@@ -352,8 +351,4 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp := o.(*endpoint)
 	*dstEp = *ep
 	return nil
-}
-
-func (ep *endpoint) DataScope() string {
-	return datastore.LocalScope
 }

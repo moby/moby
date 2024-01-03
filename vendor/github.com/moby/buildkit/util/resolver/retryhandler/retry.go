@@ -5,18 +5,21 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/containerd/containerd/images"
 	remoteserrors "github.com/containerd/containerd/remotes/errors"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
+// MaxRetryBackoff is the maximum backoff time before giving up. This is a
+// variable so that code which embeds BuildKit can override the default value.
+var MaxRetryBackoff = 8 * time.Second
+
 func New(f images.HandlerFunc, logger func([]byte)) images.HandlerFunc {
-	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	return func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
 		backoff := time.Second
 		for {
 			descs, err := f(ctx, desc)
@@ -36,7 +39,7 @@ func New(f images.HandlerFunc, logger func([]byte)) images.HandlerFunc {
 				return descs, nil
 			}
 			// backoff logic
-			if backoff >= 8*time.Second {
+			if backoff >= MaxRetryBackoff {
 				return nil, err
 			}
 			if logger != nil {
@@ -57,20 +60,15 @@ func retryError(err error) bool {
 		return true
 	}
 
-	if errors.Is(err, io.EOF) || errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) {
+	if errors.Is(err, io.EOF) || errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) || errors.Is(err, net.ErrClosed) {
 		return true
 	}
 	// catches TLS timeout or other network-related temporary errors
-	if ne, ok := errors.Cause(err).(net.Error); ok && ne.Temporary() {
+	if ne, ok := errors.Cause(err).(net.Error); ok && ne.Temporary() { //nolint:staticcheck // ignoring "SA1019: Temporary is deprecated", continue to propagate net.Error through the "temporary" status
 		return true
 	}
 	// https://github.com/containerd/containerd/pull/4724
 	if errors.Cause(err).Error() == "no response" {
-		return true
-	}
-
-	// net.ErrClosed exposed in go1.16
-	if strings.Contains(err.Error(), "use of closed network connection") {
 		return true
 	}
 

@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/containerd/services/content/contentserver"
 	"github.com/moby/buildkit/session"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -104,7 +104,7 @@ func (cs *attachableContentStore) Writer(ctx context.Context, opts ...content.Wr
 	return store.Writer(ctx, opts...)
 }
 
-func (cs *attachableContentStore) ReaderAt(ctx context.Context, desc ocispec.Descriptor) (content.ReaderAt, error) {
+func (cs *attachableContentStore) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
 	store, err := cs.choose(ctx)
 	if err != nil {
 		return nil, err

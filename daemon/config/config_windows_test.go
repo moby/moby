@@ -1,7 +1,6 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
-	"os"
 	"testing"
 
 	"github.com/docker/docker/opts"
@@ -11,39 +10,24 @@ import (
 )
 
 func TestDaemonConfigurationMerge(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	configFile := f.Name()
-
-	f.Write([]byte(`
+	configFile := makeConfigFile(t, `
 		{
-			"debug": true,
-			"log-opts": {
-				"tag": "test_tag"
-			}
-		}`))
+			"debug": true
+		}`)
 
-	f.Close()
-
-	c := &Config{
-		CommonConfig: CommonConfig{
-			AutoRestart: true,
-			LogConfig: LogConfig{
-				Type:   "syslog",
-				Config: map[string]string{"tag": "test"},
-			},
-		},
-	}
+	conf, err := New()
+	assert.NilError(t, err)
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
-	var debug bool
-	flags.BoolVarP(&debug, "debug", "D", false, "")
-	flags.Var(opts.NewNamedMapOpts("log-opts", nil, nil), "log-opt", "")
+	flags.BoolVarP(&conf.Debug, "debug", "D", false, "")
+	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "")
+	flags.StringVar(&conf.LogConfig.Type, "log-driver", "json-file", "")
+	flags.Var(opts.NewNamedMapOpts("log-opts", conf.LogConfig.Config, nil), "log-opt", "")
+	assert.Check(t, flags.Set("restart", "true"))
+	assert.Check(t, flags.Set("log-driver", "syslog"))
+	assert.Check(t, flags.Set("log-opt", "tag=from_flag"))
 
-	cc, err := MergeDaemonConfigurations(c, flags, configFile)
+	cc, err := MergeDaemonConfigurations(conf, flags, configFile)
 	assert.NilError(t, err)
 
 	assert.Check(t, cc.Debug)
@@ -51,7 +35,7 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 
 	expectedLogConfig := LogConfig{
 		Type:   "syslog",
-		Config: map[string]string{"tag": "test_tag"},
+		Config: map[string]string{"tag": "from_flag"},
 	}
 
 	assert.Check(t, is.DeepEqual(expectedLogConfig, cc.LogConfig))

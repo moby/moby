@@ -86,6 +86,20 @@ func (t *Tree) Txn() *Txn {
 	return txn
 }
 
+// Clone makes an independent copy of the transaction. The new transaction
+// does not track any nodes and has TrackMutate turned off. The cloned transaction will contain any uncommitted writes in the original transaction but further mutations to either will be independent and result in different radix trees on Commit. A cloned transaction may be passed to another goroutine and mutated there independently however each transaction may only be mutated in a single thread.
+func (t *Txn) Clone() *Txn {
+	// reset the writable node cache to avoid leaking future writes into the clone
+	t.writable = nil
+
+	txn := &Txn{
+		root: t.root,
+		snap: t.snap,
+		size: t.size,
+	}
+	return txn
+}
+
 // TrackMutate can be used to toggle if mutations are tracked. If this is enabled
 // then notifications will be issued for affected internal nodes and leaves when
 // the transaction is committed.
@@ -338,6 +352,11 @@ func (t *Txn) delete(parent, n *Node, search []byte) (*Node, *leafNode) {
 		if !n.isLeaf() {
 			return nil, nil
 		}
+		// Copy the pointer in case we are in a transaction that already
+		// modified this node since the node will be reused. Any changes
+		// made to the node will not affect returning the original leaf
+		// value.
+		oldLeaf := n.leaf
 
 		// Remove the leaf node
 		nc := t.writeNode(n, true)
@@ -347,7 +366,7 @@ func (t *Txn) delete(parent, n *Node, search []byte) (*Node, *leafNode) {
 		if n != t.root && len(nc.edges) == 1 {
 			t.mergeChild(nc)
 		}
-		return nc, n.leaf
+		return nc, oldLeaf
 	}
 
 	// Look for an edge

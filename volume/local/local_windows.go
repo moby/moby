@@ -5,8 +5,6 @@ package local // import "github.com/docker/docker/volume/local"
 
 import (
 	"os"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -16,19 +14,15 @@ import (
 
 type optsConfig struct{}
 
-// scopedPath verifies that the path where the volume is located
-// is under Docker's root and the valid local paths.
-func (r *Root) scopedPath(realPath string) bool {
-	if strings.HasPrefix(realPath, filepath.Join(r.scope, volumesPathName)) && realPath != filepath.Join(r.scope, volumesPathName) {
-		return true
+func (r *Root) validateOpts(opts map[string]string) error {
+	if len(opts) == 0 {
+		return nil
 	}
-	return false
+	return errdefs.InvalidParameter(errors.New("options are not supported on this platform"))
 }
 
-func setOpts(v *localVolume, opts map[string]string) error {
-	if len(opts) > 0 {
-		return errdefs.InvalidParameter(errors.New("options are not supported on this platform"))
-	}
+func (v *localVolume) setOpts(opts map[string]string) error {
+	// Windows does not support any options currently
 	return nil
 }
 
@@ -39,6 +33,7 @@ func (v *localVolume) needsMount() bool {
 func (v *localVolume) mount() error {
 	return nil
 }
+
 func (v *localVolume) unmount() error {
 	return nil
 }
@@ -49,8 +44,13 @@ func (v *localVolume) postMount() error {
 	return nil
 }
 
+// restoreIfMounted is a no-op on Windows (because mounts are not supported).
+func (v *localVolume) restoreIfMounted() error {
+	return nil
+}
+
 func (v *localVolume) CreatedAt() (time.Time, error) {
-	fileInfo, err := os.Stat(v.path)
+	fileInfo, err := os.Stat(v.rootPath)
 	if err != nil {
 		return time.Time{}, err
 	}

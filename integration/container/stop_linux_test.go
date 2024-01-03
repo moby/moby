@@ -1,28 +1,32 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
+	"bytes"
 	"context"
-	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/icmd"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 // TestStopContainerWithTimeout checks that ContainerStop with
 // a timeout works as documented, i.e. in case of negative timeout
 // waiting is not limited (issue #35311).
 func TestStopContainerWithTimeout(t *testing.T) {
-	defer setupTest(t)()
-	client := testEnv.APIClient()
-	ctx := context.Background()
+	ctx := setupTest(t)
+
+	apiClient := testEnv.APIClient()
 
 	testCmd := container.WithCmd("sh", "-c", "sleep 2 && exit 42")
 	testData := []struct {
@@ -54,47 +58,91 @@ func TestStopContainerWithTimeout(t *testing.T) {
 		d := d
 		t.Run(strconv.Itoa(d.timeout), func(t *testing.T) {
 			t.Parallel()
-			id := container.Run(ctx, t, client, testCmd)
+			ctx := testutil.StartSpan(ctx, t)
+			id := container.Run(ctx, t, apiClient, testCmd)
 
-			timeout := time.Duration(d.timeout) * time.Second
-			err := client.ContainerStop(ctx, id, &timeout)
+			err := apiClient.ContainerStop(ctx, id, containertypes.StopOptions{Timeout: &d.timeout})
 			assert.NilError(t, err)
 
-			poll.WaitOn(t, container.IsStopped(ctx, client, id),
+			poll.WaitOn(t, container.IsStopped(ctx, apiClient, id),
 				poll.WithDelay(100*time.Millisecond))
 
-			inspect, err := client.ContainerInspect(ctx, id)
+			inspect, err := apiClient.ContainerInspect(ctx, id)
 			assert.NilError(t, err)
 			assert.Equal(t, inspect.State.ExitCode, d.expectedExitCode)
 		})
 	}
 }
 
-func TestDeleteDevicemapper(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.Driver != "devicemapper")
-	skip.If(t, testEnv.IsRemoteDaemon)
+// TestStopContainerWithTimeoutCancel checks that ContainerStop is not cancelled
+// if the request is cancelled.
+// See issue https://github.com/moby/moby/issues/45731
+func TestStopContainerWithTimeoutCancel(t *testing.T) {
+	t.Parallel()
 
-	defer setupTest(t)()
-	client := testEnv.APIClient()
-	ctx := context.Background()
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+	t.Cleanup(func() { _ = apiClient.Close() })
 
-	id := container.Run(ctx, t, client, container.WithName("foo-"+t.Name()), container.WithCmd("echo"))
+	id := container.Run(ctx, t, apiClient,
+		container.WithCmd("sh", "-c", "trap 'echo received TERM' TERM; while true; do usleep 10; done"),
+	)
 
-	poll.WaitOn(t, container.IsStopped(ctx, client, id), poll.WithDelay(100*time.Millisecond))
+	ctxCancel, cancel := context.WithCancel(ctx)
+	t.Cleanup(cancel)
+	const stopTimeout = 3
 
-	inspect, err := client.ContainerInspect(ctx, id)
-	assert.NilError(t, err)
+	stoppedCh := make(chan error)
+	go func() {
+		sto := stopTimeout
+		stoppedCh <- apiClient.ContainerStop(ctxCancel, id, containertypes.StopOptions{Timeout: &sto})
+	}()
 
-	deviceID := inspect.GraphDriver.Data["DeviceId"]
+	poll.WaitOn(t, logsContains(ctx, apiClient, id, "received TERM"))
 
-	// Find pool name from device name
-	deviceName := inspect.GraphDriver.Data["DeviceName"]
-	devicePrefix := deviceName[:strings.LastIndex(deviceName, "-")]
-	devicePool := fmt.Sprintf("/dev/mapper/%s-pool", devicePrefix)
+	// Cancel the context once we verified the container was signaled, and check
+	// that the container is not killed immediately
+	cancel()
 
-	result := icmd.RunCommand("dmsetup", "message", devicePool, "0", fmt.Sprintf("delete %s", deviceID))
-	result.Assert(t, icmd.Success)
+	select {
+	case stoppedErr := <-stoppedCh:
+		assert.Check(t, is.ErrorType(stoppedErr, errdefs.IsCancelled))
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for stop request to be cancelled")
+	}
+	inspect, err := apiClient.ContainerInspect(ctx, id)
+	assert.Check(t, err)
+	assert.Check(t, inspect.State.Running)
 
-	err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{})
-	assert.NilError(t, err)
+	// container should be stopped after stopTimeout is reached. The daemon.containerStop
+	// code is rather convoluted, and waits another 2 seconds for the container to
+	// terminate after signaling it;
+	// https://github.com/moby/moby/blob/97455cc31ffa08078db6591f018256ed59c35bbc/daemon/stop.go#L101-L112
+	//
+	// Adding 3 seconds to the specified stopTimeout to take this into account,
+	// and add another second margin to try to avoid flakiness.
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, id), poll.WithTimeout((3+stopTimeout)*time.Second))
+}
+
+// logsContains verifies the container contains the given text in the log's stdout.
+func logsContains(ctx context.Context, client client.APIClient, containerID string, logString string) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		logs, err := client.ContainerLogs(ctx, containerID, containertypes.LogsOptions{
+			ShowStdout: true,
+		})
+		if err != nil {
+			return poll.Error(err)
+		}
+		defer logs.Close()
+
+		var stdout bytes.Buffer
+		_, err = stdcopy.StdCopy(&stdout, io.Discard, logs)
+		if err != nil {
+			return poll.Error(err)
+		}
+		if strings.Contains(stdout.String(), logString) {
+			return poll.Success()
+		}
+		return poll.Continue("waiting for logstring '%s' in container", logString)
+	}
 }

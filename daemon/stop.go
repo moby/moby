@@ -4,10 +4,14 @@ import (
 	"context"
 	"time"
 
-	containerpkg "github.com/docker/docker/container"
+	"github.com/containerd/log"
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/compatcontext"
+	"github.com/moby/sys/signal"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ContainerStop looks for the given container and stops it.
@@ -18,84 +22,106 @@ import (
 // If the timeout is nil, the container's StopTimeout value is used, if set,
 // otherwise the engine default. A negative timeout value can be specified,
 // meaning no timeout, i.e. no forceful termination is performed.
-func (daemon *Daemon) ContainerStop(name string, timeout *int) error {
-	container, err := daemon.GetContainer(name)
+func (daemon *Daemon) ContainerStop(ctx context.Context, name string, options containertypes.StopOptions) error {
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
-	if !container.IsRunning() {
-		return containerNotModifiedError{running: false}
+	if !ctr.IsRunning() {
+		// This is not an actual error, but produces a 304 "not modified"
+		// when returned through the API to indicates the container is
+		// already in the desired state. It's implemented as an error
+		// to make the code calling this function terminate early (as
+		// no further processing is needed).
+		return errdefs.NotModified(errors.New("container is already stopped"))
 	}
-	if timeout == nil {
-		stopTimeout := container.StopTimeout()
-		timeout = &stopTimeout
-	}
-	if err := daemon.containerStop(container, *timeout); err != nil {
+	err = daemon.containerStop(ctx, ctr, options)
+	if err != nil {
 		return errdefs.System(errors.Wrapf(err, "cannot stop container: %s", name))
 	}
 	return nil
 }
 
-// containerStop sends a stop signal, waits, sends a kill signal.
-func (daemon *Daemon) containerStop(container *containerpkg.Container, seconds int) error {
-	// TODO propagate a context down to this function
-	ctx := context.TODO()
-	if !container.IsRunning() {
+// containerStop sends a stop signal, waits, sends a kill signal. It uses
+// a [context.WithoutCancel], so cancelling the context does not cancel
+// the request to stop the container.
+func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Container, options containertypes.StopOptions) (retErr error) {
+	// Cancelling the request should not cancel the stop.
+	ctx = compatcontext.WithoutCancel(ctx)
+
+	if !ctr.IsRunning() {
 		return nil
 	}
+
+	var (
+		stopSignal  = ctr.StopSignal()
+		stopTimeout = ctr.StopTimeout()
+	)
+	if options.Signal != "" {
+		sig, err := signal.ParseSignal(options.Signal)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		stopSignal = sig
+	}
+	if options.Timeout != nil {
+		stopTimeout = *options.Timeout
+	}
+
 	var wait time.Duration
-	if seconds >= 0 {
-		wait = time.Duration(seconds) * time.Second
+	if stopTimeout >= 0 {
+		wait = time.Duration(stopTimeout) * time.Second
 	}
-	success := func() error {
-		daemon.LogContainerEvent(container, "stop")
-		return nil
-	}
-	stopSignal := container.StopSignal()
+	defer func() {
+		if retErr == nil {
+			daemon.LogContainerEvent(ctr, events.ActionStop)
+		}
+	}()
 
 	// 1. Send a stop signal
-	err := daemon.killPossiblyDeadProcess(container, stopSignal)
+	err := daemon.killPossiblyDeadProcess(ctr, stopSignal)
 	if err != nil {
 		wait = 2 * time.Second
 	}
 
 	var subCtx context.Context
 	var cancel context.CancelFunc
-	if seconds >= 0 {
+	if stopTimeout >= 0 {
 		subCtx, cancel = context.WithTimeout(ctx, wait)
 	} else {
 		subCtx, cancel = context.WithCancel(ctx)
 	}
 	defer cancel()
 
-	if status := <-container.Wait(subCtx, containerpkg.WaitConditionNotRunning); status.Err() == nil {
+	if status := <-ctr.Wait(subCtx, container.WaitConditionNotRunning); status.Err() == nil {
 		// container did exit, so ignore any previous errors and return
-		return success()
+		return nil
 	}
 
 	if err != nil {
 		// the container has still not exited, and the kill function errored, so log the error here:
-		logrus.WithError(err).WithField("container", container.ID).Errorf("Error sending stop (signal %d) to container", stopSignal)
+		log.G(ctx).WithError(err).WithField("container", ctr.ID).Errorf("Error sending stop (signal %d) to container", stopSignal)
 	}
-	if seconds < 0 {
+	if stopTimeout < 0 {
 		// if the client requested that we never kill / wait forever, but container.Wait was still
 		// interrupted (parent context cancelled, for example), we should propagate the signal failure
 		return err
 	}
 
-	logrus.WithField("container", container.ID).Infof("Container failed to exit within %s of signal %d - using the force", wait, stopSignal)
-	// Stop either failed or container didnt exit, so fallback to kill.
-	if err := daemon.Kill(container); err != nil {
+	log.G(ctx).WithField("container", ctr.ID).Infof("Container failed to exit within %s of signal %d - using the force", wait, stopSignal)
+
+	// Stop either failed or container didn't exit, so fallback to kill.
+	if err := daemon.Kill(ctr); err != nil {
 		// got a kill error, but give container 2 more seconds to exit just in case
 		subCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
-		if status := <-container.Wait(subCtx, containerpkg.WaitConditionNotRunning); status.Err() == nil {
-			// container did exit, so ignore error and return
-			return success()
+		status := <-ctr.Wait(subCtx, container.WaitConditionNotRunning)
+		if status.Err() != nil {
+			log.G(ctx).WithError(err).WithField("container", ctr.ID).Errorf("error killing container: %v", status.Err())
+			return err
 		}
-		logrus.WithError(err).WithField("container", container.ID).Error("Error killing the container")
-		return err
+		// container did exit, so ignore previous errors and continue
 	}
 
-	return success()
+	return nil
 }

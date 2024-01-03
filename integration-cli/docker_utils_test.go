@@ -18,6 +18,9 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/internal/testutils/specialimage"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -39,20 +42,13 @@ func dockerCmdWithError(args ...string) (string, int, error) {
 }
 
 // Deprecated: use cli.Docker or cli.DockerCmd
-func dockerCmd(c testing.TB, args ...string) (string, int) {
-	c.Helper()
-	result := cli.DockerCmd(c, args...)
-	return result.Combined(), result.ExitCode
-}
-
-// Deprecated: use cli.Docker or cli.DockerCmd
 func dockerCmdWithResult(args ...string) *icmd.Result {
 	return cli.Docker(cli.Args(args...))
 }
 
 func findContainerIP(c *testing.T, id string, network string) string {
 	c.Helper()
-	out, _ := dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id)
+	out := cli.DockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id).Stdout()
 	return strings.Trim(out, " \r\n'")
 }
 
@@ -81,12 +77,10 @@ func inspectFieldAndUnmarshall(c *testing.T, name, field string, output interfac
 	c.Helper()
 	str := inspectFieldJSON(c, name, field)
 	err := json.Unmarshal([]byte(str), output)
-	if c != nil {
-		assert.Assert(c, err == nil, "failed to unmarshal: %v", err)
-	}
+	assert.Assert(c, err == nil, "failed to unmarshal: %v", err)
 }
 
-// Deprecated: use cli.Inspect
+// Deprecated: use cli.Docker
 func inspectFilter(name, filter string) (string, error) {
 	format := fmt.Sprintf("{{%s}}", filter)
 	result := icmd.RunCommand(dockerBinary, "inspect", "-f", format, name)
@@ -96,42 +90,36 @@ func inspectFilter(name, filter string) (string, error) {
 	return strings.TrimSpace(result.Combined()), nil
 }
 
-// Deprecated: use cli.Inspect
+// Deprecated: use cli.Docker
 func inspectFieldWithError(name, field string) (string, error) {
-	return inspectFilter(name, fmt.Sprintf(".%s", field))
+	return inspectFilter(name, "."+field)
 }
 
-// Deprecated: use cli.Inspect
+// Deprecated: use cli.Docker
 func inspectField(c *testing.T, name, field string) string {
 	c.Helper()
-	out, err := inspectFilter(name, fmt.Sprintf(".%s", field))
-	if c != nil {
-		assert.NilError(c, err)
-	}
+	out, err := inspectFilter(name, "."+field)
+	assert.NilError(c, err)
 	return out
 }
 
-// Deprecated: use cli.Inspect
+// Deprecated: use cli.Docker
 func inspectFieldJSON(c *testing.T, name, field string) string {
 	c.Helper()
-	out, err := inspectFilter(name, fmt.Sprintf("json .%s", field))
-	if c != nil {
-		assert.NilError(c, err)
-	}
+	out, err := inspectFilter(name, "json ."+field)
+	assert.NilError(c, err)
 	return out
 }
 
-// Deprecated: use cli.Inspect
+// Deprecated: use cli.Docker
 func inspectFieldMap(c *testing.T, name, path, field string) string {
 	c.Helper()
 	out, err := inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
-	if c != nil {
-		assert.NilError(c, err)
-	}
+	assert.NilError(c, err)
 	return out
 }
 
-// Deprecated: use cli.Inspect
+// Deprecated: use cli.Docker
 func inspectMountSourceField(name, destination string) (string, error) {
 	m, err := inspectMountPoint(name, destination)
 	if err != nil {
@@ -140,22 +128,17 @@ func inspectMountSourceField(name, destination string) (string, error) {
 	return m.Source, nil
 }
 
-// Deprecated: use cli.Inspect
+var errMountNotFound = errors.New("mount point not found")
+
+// Deprecated: use cli.Docker
 func inspectMountPoint(name, destination string) (types.MountPoint, error) {
 	out, err := inspectFilter(name, "json .Mounts")
 	if err != nil {
 		return types.MountPoint{}, err
 	}
 
-	return inspectMountPointJSON(out, destination)
-}
-
-var errMountNotFound = errors.New("mount point not found")
-
-// Deprecated: use cli.Inspect
-func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
 	var mp []types.MountPoint
-	if err := json.Unmarshal([]byte(j), &mp); err != nil {
+	if err := json.Unmarshal([]byte(out), &mp); err != nil {
 		return types.MountPoint{}, err
 	}
 
@@ -181,15 +164,15 @@ func getIDByName(c *testing.T, name string) string {
 	return id
 }
 
-// Deprecated: use cli.Build
+// Deprecated: use cli.Docker
 func buildImageSuccessfully(c *testing.T, name string, cmdOperators ...cli.CmdOperator) {
 	c.Helper()
 	buildImage(name, cmdOperators...).Assert(c, icmd.Success)
 }
 
-// Deprecated: use cli.Build
+// Deprecated: use cli.Docker
 func buildImage(name string, cmdOperators ...cli.CmdOperator) *icmd.Result {
-	return cli.Docker(cli.Build(name), cmdOperators...)
+	return cli.Docker(cli.Args("build", "-t", name), cmdOperators...)
 }
 
 // Write `content` to the file at path `dst`, creating it if necessary,
@@ -199,8 +182,8 @@ func buildImage(name string, cmdOperators ...cli.CmdOperator) *icmd.Result {
 func writeFile(dst, content string, c *testing.T) {
 	c.Helper()
 	// Create subdirectories if necessary
-	assert.Assert(c, os.MkdirAll(path.Dir(dst), 0700) == nil)
-	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0700)
+	assert.Assert(c, os.MkdirAll(path.Dir(dst), 0o700) == nil)
+	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o700)
 	assert.NilError(c, err)
 	defer f.Close()
 	// Write content (truncate if it exists)
@@ -228,9 +211,7 @@ func runCommandAndReadContainerFile(c *testing.T, filename string, command strin
 	result := icmd.RunCommand(command, args...)
 	result.Assert(c, icmd.Success)
 	contID := strings.TrimSpace(result.Combined())
-	if err := waitRun(contID); err != nil {
-		c.Fatalf("%v: %q", contID, err)
-	}
+	cli.WaitRun(c, contID)
 	return readContainerFile(c, contID, filename)
 }
 
@@ -258,11 +239,11 @@ func daemonTime(c *testing.T) time.Time {
 	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
-	info, err := cli.Info(context.Background())
+	info, err := apiClient.Info(testutil.GetContext(c))
 	assert.NilError(c, err)
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
@@ -315,16 +296,10 @@ func createTmpFile(c *testing.T, content string) string {
 
 	filename := f.Name()
 
-	err = os.WriteFile(filename, []byte(content), 0644)
+	err = os.WriteFile(filename, []byte(content), 0o644)
 	assert.NilError(c, err)
 
 	return filename
-}
-
-// waitRun will wait for the specified container to be running, maximum 5 seconds.
-// Deprecated: use cli.WaitFor
-func waitRun(contID string) error {
-	return waitInspect(contID, "{{.State.Running}}", "true", 5*time.Second)
 }
 
 // waitInspect will wait for the specified container to have the specified string
@@ -332,20 +307,15 @@ func waitRun(contID string) error {
 // is reached.
 // Deprecated: use cli.WaitFor
 func waitInspect(name, expr, expected string, timeout time.Duration) error {
-	return waitInspectWithArgs(name, expr, expected, timeout)
-}
-
-// Deprecated: use cli.WaitFor
-func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg ...string) error {
-	return daemon.WaitInspectWithArgs(dockerBinary, name, expr, expected, timeout, arg...)
+	return daemon.WaitInspectWithArgs(dockerBinary, name, expr, expected, timeout)
 }
 
 func getInspectBody(c *testing.T, version, id string) []byte {
 	c.Helper()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(version))
+	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(version))
 	assert.NilError(c, err)
-	defer cli.Close()
-	_, body, err := cli.ContainerInspectWithRaw(context.Background(), id, false)
+	defer apiClient.Close()
+	_, body, err := apiClient.ContainerInspectWithRaw(testutil.GetContext(c), id, false)
 	assert.NilError(c, err)
 	return body
 }
@@ -374,43 +344,69 @@ func minimalBaseImage() string {
 	return testEnv.PlatformDefaults.BaseImage
 }
 
-func getGoroutineNumber() (int, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		return 0, err
-	}
-	defer cli.Close()
-
-	info, err := cli.Info(context.Background())
+func getGoroutineNumber(ctx context.Context, apiClient client.APIClient) (int, error) {
+	info, err := apiClient.Info(ctx)
 	if err != nil {
 		return 0, err
 	}
 	return info.NGoroutines, nil
 }
 
-func waitForGoroutines(expected int) error {
-	t := time.After(30 * time.Second)
-	for {
-		select {
-		case <-t:
-			n, err := getGoroutineNumber()
-			if err != nil {
-				return err
-			}
-			if n > expected {
-				return fmt.Errorf("leaked goroutines: expected less than or equal to %d, got: %d", expected, n)
-			}
-		default:
-			n, err := getGoroutineNumber()
-			if err != nil {
-				return err
-			}
-			if n <= expected {
-				return nil
-			}
-			time.Sleep(200 * time.Millisecond)
+func waitForStableGourtineCount(ctx context.Context, t poll.TestingT, apiClient client.APIClient) int {
+	var out int
+	poll.WaitOn(t, stableGoroutineCount(ctx, apiClient, &out), poll.WithTimeout(30*time.Second))
+	return out
+}
+
+func stableGoroutineCount(ctx context.Context, apiClient client.APIClient, count *int) poll.Check {
+	var (
+		numStable int
+		nRoutines int
+	)
+
+	return func(t poll.LogT) poll.Result {
+		n, err := getGoroutineNumber(ctx, apiClient)
+		if err != nil {
+			return poll.Error(err)
 		}
+
+		last := nRoutines
+
+		if nRoutines == n {
+			numStable++
+		} else {
+			numStable = 0
+			nRoutines = n
+		}
+
+		if numStable > 3 {
+			*count = n
+			return poll.Success()
+		}
+		return poll.Continue("goroutine count is not stable: last %d, current %d, stable iters: %d", last, n, numStable)
 	}
+}
+
+func checkGoroutineCount(ctx context.Context, apiClient client.APIClient, expected int) poll.Check {
+	first := true
+	return func(t poll.LogT) poll.Result {
+		n, err := getGoroutineNumber(ctx, apiClient)
+		if err != nil {
+			return poll.Error(err)
+		}
+		if n > expected {
+			if first {
+				t.Log("Waiting for goroutines to stabilize")
+				first = false
+			}
+			return poll.Continue("exepcted %d goroutines, got %d", expected, n)
+		}
+		return poll.Success()
+	}
+}
+
+func waitForGoroutines(ctx context.Context, t poll.TestingT, apiClient client.APIClient, expected int) {
+	poll.WaitOn(t, checkGoroutineCount(ctx, apiClient, expected), poll.WithDelay(500*time.Millisecond), poll.WithTimeout(30*time.Second))
 }
 
 // getErrorMessage returns the error message from an error API response
@@ -421,8 +417,10 @@ func getErrorMessage(c *testing.T, body []byte) string {
 	return strings.TrimSpace(resp.Message)
 }
 
-type checkF func(*testing.T) (interface{}, string)
-type reducer func(...interface{}) interface{}
+type (
+	checkF  func(*testing.T) (interface{}, string)
+	reducer func(...interface{}) interface{}
+)
 
 func pollCheck(t *testing.T, f checkF, compare func(x interface{}) assert.BoolOrComparison) poll.Check {
 	return func(poll.LogT) poll.Result {
@@ -467,4 +465,44 @@ func sumAsIntegers(vals ...interface{}) interface{} {
 		s += v.(int)
 	}
 	return s
+}
+
+func loadSpecialImage(c *testing.T, imageFunc specialimage.SpecialImageFunc) string {
+	tmpDir := c.TempDir()
+
+	imgDir := filepath.Join(tmpDir, "image")
+	assert.NilError(c, os.Mkdir(imgDir, 0o755))
+
+	assert.NilError(c, imageFunc(imgDir))
+
+	rc, err := archive.TarWithOptions(imgDir, &archive.TarOptions{})
+	assert.NilError(c, err)
+	defer rc.Close()
+
+	imgTar := filepath.Join(tmpDir, "image.tar")
+	tarFile, err := os.OpenFile(imgTar, os.O_CREATE|os.O_WRONLY, 0o644)
+	assert.NilError(c, err)
+
+	defer tarFile.Close()
+
+	_, err = io.Copy(tarFile, rc)
+	assert.NilError(c, err)
+
+	tarFile.Close()
+
+	out := cli.DockerCmd(c, "load", "-i", imgTar).Stdout()
+
+	for _, line := range strings.Split(out, "\n") {
+		line := strings.TrimSpace(line)
+
+		if _, imageID, hasID := strings.Cut(line, "Loaded image ID: "); hasID {
+			return imageID
+		}
+		if _, imageRef, hasRef := strings.Cut(line, "Loaded image: "); hasRef {
+			return imageRef
+		}
+	}
+
+	c.Fatalf("failed to extract image ref from %q", out)
+	return ""
 }

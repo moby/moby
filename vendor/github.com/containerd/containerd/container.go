@@ -19,6 +19,7 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,14 +32,13 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/oci"
+	"github.com/containerd/containerd/protobuf"
 	"github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/fifo"
-	"github.com/containerd/typeurl"
-	prototypes "github.com/gogo/protobuf/types"
+	"github.com/containerd/typeurl/v2"
 	ver "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -74,7 +74,7 @@ type Container interface {
 	// SetLabels sets the provided labels for the container and returns the final label set
 	SetLabels(context.Context, map[string]string) (map[string]string, error)
 	// Extensions returns the extensions set on the container
-	Extensions(context.Context) (map[string]prototypes.Any, error)
+	Extensions(context.Context) (map[string]typeurl.Any, error)
 	// Update a container
 	Update(context.Context, ...UpdateContainerOpts) error
 	// Checkpoint creates a checkpoint image of the current container
@@ -120,7 +120,7 @@ func (c *container) Info(ctx context.Context, opts ...InfoOpts) (containers.Cont
 	return c.metadata, nil
 }
 
-func (c *container) Extensions(ctx context.Context) (map[string]prototypes.Any, error) {
+func (c *container) Extensions(ctx context.Context) (map[string]typeurl.Any, error) {
 	r, err := c.get(ctx)
 	if err != nil {
 		return nil, err
@@ -163,7 +163,7 @@ func (c *container) Spec(ctx context.Context) (*oci.Spec, error) {
 		return nil, err
 	}
 	var s oci.Spec
-	if err := json.Unmarshal(r.Spec.Value, &s); err != nil {
+	if err := json.Unmarshal(r.Spec.GetValue(), &s); err != nil {
 		return nil, err
 	}
 	return &s, nil
@@ -173,7 +173,7 @@ func (c *container) Spec(ctx context.Context) (*oci.Spec, error) {
 // an error is returned if the container has running tasks
 func (c *container) Delete(ctx context.Context, opts ...DeleteOpts) error {
 	if _, err := c.loadTask(ctx, nil); err == nil {
-		return errors.Wrapf(errdefs.ErrFailedPrecondition, "cannot delete running task %v", c.id)
+		return fmt.Errorf("cannot delete running task %v: %w", c.id, errdefs.ErrFailedPrecondition)
 	}
 	r, err := c.get(ctx)
 	if err != nil {
@@ -198,11 +198,11 @@ func (c *container) Image(ctx context.Context) (Image, error) {
 		return nil, err
 	}
 	if r.Image == "" {
-		return nil, errors.Wrap(errdefs.ErrNotFound, "container not created from an image")
+		return nil, fmt.Errorf("container not created from an image: %w", errdefs.ErrNotFound)
 	}
 	i, err := c.client.ImageService().Get(ctx, r.Image)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get image %s for container", r.Image)
+		return nil, fmt.Errorf("failed to get image %s for container: %w", r.Image, err)
 	}
 	return NewImage(c.client, i), nil
 }
@@ -232,7 +232,7 @@ func (c *container) NewTask(ctx context.Context, ioCreate cio.Creator, opts ...N
 	}
 	if r.SnapshotKey != "" {
 		if r.Snapshotter == "" {
-			return nil, errors.Wrapf(errdefs.ErrInvalidArgument, "unable to resolve rootfs mounts without snapshotter on container")
+			return nil, fmt.Errorf("unable to resolve rootfs mounts without snapshotter on container: %w", errdefs.ErrInvalidArgument)
 		}
 
 		// get the rootfs from the snapshotter and add it to the request
@@ -258,6 +258,7 @@ func (c *container) NewTask(ctx context.Context, ioCreate cio.Creator, opts ...N
 			request.Rootfs = append(request.Rootfs, &types.Mount{
 				Type:    m.Type,
 				Source:  m.Source,
+				Target:  m.Target,
 				Options: m.Options,
 			})
 		}
@@ -275,16 +276,18 @@ func (c *container) NewTask(ctx context.Context, ioCreate cio.Creator, opts ...N
 			request.Rootfs = append(request.Rootfs, &types.Mount{
 				Type:    m.Type,
 				Source:  m.Source,
+				Target:  m.Target,
 				Options: m.Options,
 			})
 		}
 	}
+	request.RuntimePath = info.RuntimePath
 	if info.Options != nil {
 		any, err := typeurl.MarshalAny(info.Options)
 		if err != nil {
 			return nil, err
 		}
-		request.Options = any
+		request.Options = protobuf.FromAny(any)
 	}
 	t := &task{
 		client: c.client,
@@ -391,12 +394,12 @@ func (c *container) loadTask(ctx context.Context, ioAttach cio.Attach) (Task, er
 	if err != nil {
 		err = errdefs.FromGRPC(err)
 		if errdefs.IsNotFound(err) {
-			return nil, errors.Wrapf(err, "no running task found")
+			return nil, fmt.Errorf("no running task found: %w", err)
 		}
 		return nil, err
 	}
 	var i cio.IO
-	if ioAttach != nil && response.Process.Status != tasktypes.StatusUnknown {
+	if ioAttach != nil && response.Process.Status != tasktypes.Status_UNKNOWN {
 		// Do not attach IO for task in unknown state, because there
 		// are no fifo paths anyway.
 		if i, err = attachExistingIO(response, ioAttach); err != nil {

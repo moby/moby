@@ -5,20 +5,21 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/content"
-	c8derrdefs "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/log"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
-func imageKey(dgst digest.Digest) string {
-	return "moby-image-" + dgst.String()
+const imageKeyPrefix = "moby-image-"
+
+func imageKey(dgst string) string {
+	return imageKeyPrefix + dgst
 }
 
 // imageStoreWithLease wraps the configured image store with one that deletes the lease
@@ -36,7 +37,7 @@ type imageStoreWithLease struct {
 
 func (s *imageStoreWithLease) Delete(id image.ID) ([]layer.Metadata, error) {
 	ctx := namespaces.WithNamespace(context.TODO(), s.ns)
-	if err := s.leases.Delete(ctx, leases.Lease{ID: imageKey(digest.Digest(id))}); err != nil && !c8derrdefs.IsNotFound(err) {
+	if err := s.leases.Delete(ctx, leases.Lease{ID: imageKey(id.String())}); err != nil && !cerrdefs.IsNotFound(err) {
 		return nil, errors.Wrap(err, "error deleting lease")
 	}
 	return s.Store.Delete(id)
@@ -67,10 +68,10 @@ func (s *imageStoreForPull) Get(ctx context.Context, dgst digest.Digest) ([]byte
 }
 
 func (s *imageStoreForPull) updateLease(ctx context.Context, dgst digest.Digest) error {
-	leaseID := imageKey(dgst)
+	leaseID := imageKey(dgst.String())
 	lease, err := s.leases.Create(ctx, leases.WithID(leaseID))
 	if err != nil {
-		if !c8derrdefs.IsAlreadyExists(err) {
+		if !cerrdefs.IsAlreadyExists(err) {
 			return errors.Wrap(err, "error creating lease")
 		}
 		lease = leases.Lease{ID: leaseID}
@@ -81,7 +82,7 @@ func (s *imageStoreForPull) updateLease(ctx context.Context, dgst digest.Digest)
 		Type: "content",
 	}
 	for _, dgst := range digested {
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"digest": dgst,
 			"lease":  lease.ID,
 		}).Debug("Adding content digest to lease")
@@ -123,13 +124,12 @@ func (c *contentStoreForPull) getDigested() []digest.Digest {
 func (c *contentStoreForPull) Writer(ctx context.Context, opts ...content.WriterOpt) (content.Writer, error) {
 	w, err := c.ContentStore.Writer(ctx, opts...)
 	if err != nil {
-		if c8derrdefs.IsAlreadyExists(err) {
+		if cerrdefs.IsAlreadyExists(err) {
 			var cfg content.WriterOpts
 			for _, o := range opts {
 				if err := o(&cfg); err != nil {
 					return nil, err
 				}
-
 			}
 			c.addDigested(cfg.Desc.Digest)
 		}
@@ -148,7 +148,7 @@ type contentWriter struct {
 
 func (w *contentWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
 	err := w.Writer.Commit(ctx, size, expected, opts...)
-	if err == nil || c8derrdefs.IsAlreadyExists(err) {
+	if err == nil || cerrdefs.IsAlreadyExists(err) {
 		w.cs.addDigested(expected)
 	}
 	return err

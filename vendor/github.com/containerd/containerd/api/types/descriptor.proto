@@ -18,8 +18,6 @@ syntax = "proto3";
 
 package containerd.types;
 
-import weak "gogoproto/gogo.proto";
-
 option go_package = "github.com/containerd/containerd/api/types;types";
 
 // Descriptor describes a blob in a content store.
@@ -29,7 +27,7 @@ option go_package = "github.com/containerd/containerd/api/types;types";
 // See https://godoc.org/github.com/opencontainers/image-spec/specs-go/v1#Descriptor
 message Descriptor {
 	string media_type = 1;
-	string digest = 2 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string digest = 2;
 	int64 size = 3;
 	map<string, string> annotations = 5;
 }

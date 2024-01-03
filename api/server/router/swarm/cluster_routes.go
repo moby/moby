@@ -2,30 +2,26 @@ package swarm // import "github.com/docker/docker/api/server/router/swarm"
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/registry"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func (sr *swarmRouter) initCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var req types.InitRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &req); err != nil {
+		return err
 	}
 	version := httputils.VersionFromContext(ctx)
 
@@ -40,7 +36,7 @@ func (sr *swarmRouter) initCluster(ctx context.Context, w http.ResponseWriter, r
 	}
 	nodeID, err := sr.backend.Init(req)
 	if err != nil {
-		logrus.Errorf("Error initializing swarm: %v", err)
+		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error initializing swarm")
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, nodeID)
@@ -48,11 +44,8 @@ func (sr *swarmRouter) initCluster(ctx context.Context, w http.ResponseWriter, r
 
 func (sr *swarmRouter) joinCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var req types.JoinRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &req); err != nil {
+		return err
 	}
 	return sr.backend.Join(req)
 }
@@ -63,13 +56,13 @@ func (sr *swarmRouter) leaveCluster(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	force := httputils.BoolValue(r, "force")
-	return sr.backend.Leave(force)
+	return sr.backend.Leave(ctx, force)
 }
 
 func (sr *swarmRouter) inspectCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	swarm, err := sr.backend.Inspect()
 	if err != nil {
-		logrus.Errorf("Error getting swarm: %v", err)
+		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting swarm")
 		return err
 	}
 
@@ -78,11 +71,8 @@ func (sr *swarmRouter) inspectCluster(ctx context.Context, w http.ResponseWriter
 
 func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var swarm types.Spec
-	if err := json.NewDecoder(r.Body).Decode(&swarm); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &swarm); err != nil {
+		return err
 	}
 
 	rawVersion := r.URL.Query().Get("version")
@@ -124,7 +114,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	}
 
 	if err := sr.backend.Update(version, swarm, flags); err != nil {
-		logrus.Errorf("Error configuring swarm: %v", err)
+		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error configuring swarm")
 		return err
 	}
 	return nil
@@ -132,15 +122,12 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 
 func (sr *swarmRouter) unlockCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var req types.UnlockRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &req); err != nil {
+		return err
 	}
 
 	if err := sr.backend.UnlockSwarm(req); err != nil {
-		logrus.Errorf("Error unlocking swarm: %v", err)
+		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error unlocking swarm")
 		return err
 	}
 	return nil
@@ -149,7 +136,7 @@ func (sr *swarmRouter) unlockCluster(ctx context.Context, w http.ResponseWriter,
 func (sr *swarmRouter) getUnlockKey(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	unlockKey, err := sr.backend.GetUnlockKey()
 	if err != nil {
-		logrus.WithError(err).Errorf("Error retrieving swarm unlock key")
+		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error retrieving swarm unlock key")
 		return err
 	}
 
@@ -164,7 +151,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 	}
 	filter, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return err
 	}
 
 	// the status query parameter is only support in API versions >= 1.41. If
@@ -181,7 +168,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 
 	services, err := sr.backend.GetServices(basictypes.ServiceListOptions{Filters: filter, Status: status})
 	if err != nil {
-		logrus.Errorf("Error getting services: %v", err)
+		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting services")
 		return err
 	}
 
@@ -207,7 +194,10 @@ func (sr *swarmRouter) getService(ctx context.Context, w http.ResponseWriter, r 
 
 	service, err := sr.backend.GetService(vars["id"], insertDefaults)
 	if err != nil {
-		logrus.Errorf("Error getting service %s: %v", vars["id"], err)
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
+			"error":      err,
+			"service-id": vars["id"],
+		}).Debug("Error getting service")
 		return err
 	}
 
@@ -216,15 +206,16 @@ func (sr *swarmRouter) getService(ctx context.Context, w http.ResponseWriter, r 
 
 func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var service types.ServiceSpec
-	if err := json.NewDecoder(r.Body).Decode(&service); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &service); err != nil {
+		return err
+	}
+	// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
+	if service.TaskTemplate.LogDriver != nil && service.TaskTemplate.LogDriver.Name == "logentries" {
+		return errdefs.InvalidParameter(errors.New("the logentries logging driver has been deprecated and removed"))
 	}
 
 	// Get returns "" if the header does not exist
-	encodedAuth := r.Header.Get("X-Registry-Auth")
+	encodedAuth := r.Header.Get(registry.AuthHeader)
 	queryRegistry := false
 	if v := httputils.VersionFromContext(ctx); v != "" {
 		if versions.LessThan(v, "1.30") {
@@ -232,9 +223,21 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 		}
 		adjustForAPIVersion(v, &service)
 	}
+
+	version := httputils.VersionFromContext(ctx)
+	if versions.LessThan(version, "1.44") {
+		if service.TaskTemplate.ContainerSpec != nil && service.TaskTemplate.ContainerSpec.Healthcheck != nil {
+			// StartInterval was added in API 1.44
+			service.TaskTemplate.ContainerSpec.Healthcheck.StartInterval = 0
+		}
+	}
+
 	resp, err := sr.backend.CreateService(service, encodedAuth, queryRegistry)
 	if err != nil {
-		logrus.Errorf("Error creating service %s: %v", service.Name, err)
+		log.G(ctx).WithFields(log.Fields{
+			"error":        err,
+			"service-name": service.Name,
+		}).Debug("Error creating service")
 		return err
 	}
 
@@ -243,11 +246,12 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 
 func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var service types.ServiceSpec
-	if err := json.NewDecoder(r.Body).Decode(&service); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &service); err != nil {
+		return err
+	}
+	// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
+	if service.TaskTemplate.LogDriver != nil && service.TaskTemplate.LogDriver.Name == "logentries" {
+		return errdefs.InvalidParameter(errors.New("the logentries logging driver has been deprecated and removed"))
 	}
 
 	rawVersion := r.URL.Query().Get("version")
@@ -260,7 +264,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	var flags basictypes.ServiceUpdateOptions
 
 	// Get returns "" if the header does not exist
-	flags.EncodedRegistryAuth = r.Header.Get("X-Registry-Auth")
+	flags.EncodedRegistryAuth = r.Header.Get(registry.AuthHeader)
 	flags.RegistryAuthFrom = r.URL.Query().Get("registryAuthFrom")
 	flags.Rollback = r.URL.Query().Get("rollback")
 	queryRegistry := false
@@ -273,7 +277,10 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 
 	resp, err := sr.backend.UpdateService(vars["id"], version, service, flags, queryRegistry)
 	if err != nil {
-		logrus.Errorf("Error updating service %s: %v", vars["id"], err)
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
+			"error":      err,
+			"service-id": vars["id"],
+		}).Debug("Error updating service")
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, resp)
@@ -281,7 +288,10 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 
 func (sr *swarmRouter) removeService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := sr.backend.RemoveService(vars["id"]); err != nil {
-		logrus.Errorf("Error removing service %s: %v", vars["id"], err)
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
+			"error":      err,
+			"service-id": vars["id"],
+		}).Debug("Error removing service")
 		return err
 	}
 	return nil
@@ -322,7 +332,7 @@ func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *h
 
 	nodes, err := sr.backend.GetNodes(basictypes.NodeListOptions{Filters: filter})
 	if err != nil {
-		logrus.Errorf("Error getting nodes: %v", err)
+		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting nodes")
 		return err
 	}
 
@@ -332,7 +342,10 @@ func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *h
 func (sr *swarmRouter) getNode(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	node, err := sr.backend.GetNode(vars["id"])
 	if err != nil {
-		logrus.Errorf("Error getting node %s: %v", vars["id"], err)
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
+			"error":   err,
+			"node-id": vars["id"],
+		}).Debug("Error getting node")
 		return err
 	}
 
@@ -341,11 +354,8 @@ func (sr *swarmRouter) getNode(ctx context.Context, w http.ResponseWriter, r *ht
 
 func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var node types.NodeSpec
-	if err := json.NewDecoder(r.Body).Decode(&node); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &node); err != nil {
+		return err
 	}
 
 	rawVersion := r.URL.Query().Get("version")
@@ -356,7 +366,10 @@ func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r 
 	}
 
 	if err := sr.backend.UpdateNode(vars["id"], version, node); err != nil {
-		logrus.Errorf("Error updating node %s: %v", vars["id"], err)
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
+			"error":   err,
+			"node-id": vars["id"],
+		}).Debug("Error updating node")
 		return err
 	}
 	return nil
@@ -370,7 +383,10 @@ func (sr *swarmRouter) removeNode(ctx context.Context, w http.ResponseWriter, r 
 	force := httputils.BoolValue(r, "force")
 
 	if err := sr.backend.RemoveNode(vars["id"], force); err != nil {
-		logrus.Errorf("Error removing node %s: %v", vars["id"], err)
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
+			"error":   err,
+			"node-id": vars["id"],
+		}).Debug("Error removing node")
 		return err
 	}
 	return nil
@@ -387,7 +403,7 @@ func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *h
 
 	tasks, err := sr.backend.GetTasks(basictypes.TaskListOptions{Filters: filter})
 	if err != nil {
-		logrus.Errorf("Error getting tasks: %v", err)
+		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting tasks")
 		return err
 	}
 
@@ -397,7 +413,10 @@ func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *h
 func (sr *swarmRouter) getTask(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	task, err := sr.backend.GetTask(vars["id"])
 	if err != nil {
-		logrus.Errorf("Error getting task %s: %v", vars["id"], err)
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
+			"error":   err,
+			"task-id": vars["id"],
+		}).Debug("Error getting task")
 		return err
 	}
 
@@ -423,11 +442,8 @@ func (sr *swarmRouter) getSecrets(ctx context.Context, w http.ResponseWriter, r 
 
 func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var secret types.SecretSpec
-	if err := json.NewDecoder(r.Body).Decode(&secret); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &secret); err != nil {
+		return err
 	}
 	version := httputils.VersionFromContext(ctx)
 	if secret.Templating != nil && versions.LessThan(version, "1.37") {
@@ -464,11 +480,8 @@ func (sr *swarmRouter) getSecret(ctx context.Context, w http.ResponseWriter, r *
 
 func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var secret types.SecretSpec
-	if err := json.NewDecoder(r.Body).Decode(&secret); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &secret); err != nil {
+		return err
 	}
 
 	rawVersion := r.URL.Query().Get("version")
@@ -500,11 +513,8 @@ func (sr *swarmRouter) getConfigs(ctx context.Context, w http.ResponseWriter, r 
 
 func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var config types.ConfigSpec
-	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &config); err != nil {
+		return err
 	}
 
 	version := httputils.VersionFromContext(ctx)
@@ -542,11 +552,8 @@ func (sr *swarmRouter) getConfig(ctx context.Context, w http.ResponseWriter, r *
 
 func (sr *swarmRouter) updateConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var config types.ConfigSpec
-	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &config); err != nil {
+		return err
 	}
 
 	rawVersion := r.URL.Query().Get("version")

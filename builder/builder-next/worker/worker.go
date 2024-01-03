@@ -5,23 +5,23 @@ import (
 	"fmt"
 	"io"
 	nethttp "net/http"
-	"runtime"
-	"strings"
 	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
+	"github.com/containerd/log"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
-	"github.com/docker/docker/distribution"
+	mobyexporter "github.com/docker/docker/builder/builder-next/exporter"
 	distmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/mod"
 	"github.com/docker/docker/layer"
 	pkgprogress "github.com/docker/docker/pkg/progress"
 	"github.com/moby/buildkit/cache"
-	"github.com/moby/buildkit/cache/metadata"
+	cacheconfig "github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/executor"
@@ -31,6 +31,7 @@ import (
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
+	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/llbsolver/ops"
@@ -40,16 +41,21 @@ import (
 	"github.com/moby/buildkit/source/http"
 	"github.com/moby/buildkit/source/local"
 	"github.com/moby/buildkit/util/archutil"
-	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/contentutil"
+	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/moby/buildkit/version"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sync/semaphore"
 )
+
+func init() {
+	if v := mod.Version("github.com/moby/buildkit"); v != "" {
+		version.Version = v
+	}
+}
 
 const labelCreatedAt = "buildkit/createdat"
 
@@ -64,13 +70,13 @@ type Opt struct {
 	ID                string
 	Labels            map[string]string
 	GCPolicy          []client.PruneInfo
-	MetadataStore     *metadata.Store
 	Executor          executor.Executor
 	Snapshotter       snapshot.Snapshotter
-	ContentStore      content.Store
+	ContentStore      *containerdsnapshot.Store
 	CacheManager      cache.Manager
+	LeaseManager      *leaseutil.Manager
 	ImageSource       *containerimage.Source
-	DownloadManager   distribution.RootFSDownloadManager
+	DownloadManager   *xfer.LayerDownloadManager
 	V2MetadataService distmetadata.V2MetadataService
 	Transport         nethttp.RoundTripper
 	Exporter          exporter.Exporter
@@ -85,6 +91,10 @@ type Worker struct {
 	SourceManager *source.Manager
 }
 
+var _ interface {
+	GetRemotes(context.Context, cache.ImmutableRef, bool, cacheconfig.RefConfig, bool, session.Group) ([]*solver.Remote, error)
+} = &Worker{}
+
 // NewWorker instantiates a local worker
 func NewWorker(opt Opt) (*Worker, error) {
 	sm, err := source.NewManager()
@@ -97,33 +107,30 @@ func NewWorker(opt Opt) (*Worker, error) {
 
 	gs, err := git.NewSource(git.Opt{
 		CacheAccessor: cm,
-		MetadataStore: opt.MetadataStore,
 	})
 	if err == nil {
 		sm.Register(gs)
 	} else {
-		logrus.Warnf("Could not register builder git source: %s", err)
+		log.G(context.TODO()).Warnf("Could not register builder git source: %s", err)
 	}
 
 	hs, err := http.NewSource(http.Opt{
 		CacheAccessor: cm,
-		MetadataStore: opt.MetadataStore,
 		Transport:     opt.Transport,
 	})
 	if err == nil {
 		sm.Register(hs)
 	} else {
-		logrus.Warnf("Could not register builder http source: %s", err)
+		log.G(context.TODO()).Warnf("Could not register builder http source: %s", err)
 	}
 
 	ss, err := local.NewSource(local.Opt{
 		CacheAccessor: cm,
-		MetadataStore: opt.MetadataStore,
 	})
 	if err == nil {
 		sm.Register(ss)
 	} else {
-		logrus.Warnf("Could not register builder local source: %s", err)
+		log.G(context.TODO()).Warnf("Could not register builder local source: %s", err)
 	}
 
 	return &Worker{
@@ -150,9 +157,8 @@ func (w *Worker) Platforms(noCache bool) []ocispec.Platform {
 			pm[platforms.Format(p)] = struct{}{}
 		}
 		for _, p := range archutil.SupportedPlatforms(noCache) {
-			if _, ok := pm[p]; !ok {
-				pp, _ := platforms.Parse(p)
-				w.Opt.Platforms = append(w.Opt.Platforms, pp)
+			if _, ok := pm[platforms.Format(p)]; !ok {
+				w.Opt.Platforms = append(w.Opt.Platforms, p)
 			}
 		}
 	}
@@ -167,14 +173,28 @@ func (w *Worker) GCPolicy() []client.PruneInfo {
 	return w.Opt.GCPolicy
 }
 
-// ContentStore returns content store
-func (w *Worker) ContentStore() content.Store {
+// BuildkitVersion returns BuildKit version
+func (w *Worker) BuildkitVersion() client.BuildkitVersion {
+	return client.BuildkitVersion{
+		Package:  version.Package,
+		Version:  version.Version + "-moby",
+		Revision: version.Revision,
+	}
+}
+
+// Close closes the worker and releases all resources
+func (w *Worker) Close() error {
+	return nil
+}
+
+// ContentStore returns the wrapped content store
+func (w *Worker) ContentStore() *containerdsnapshot.Store {
 	return w.Opt.ContentStore
 }
 
-// MetadataStore returns the metadata store
-func (w *Worker) MetadataStore() *metadata.Store {
-	return w.Opt.MetadataStore
+// LeaseManager returns the wrapped lease manager
+func (w *Worker) LeaseManager() *leaseutil.Manager {
+	return w.Opt.LeaseManager
 }
 
 // LoadRef loads a reference by ID
@@ -183,7 +203,13 @@ func (w *Worker) LoadRef(ctx context.Context, id string, hidden bool) (cache.Imm
 	if hidden {
 		opts = append(opts, cache.NoUpdateLastUsed)
 	}
-	return w.CacheManager().Get(ctx, id, opts...)
+	if id == "" {
+		// results can have nil refs if they are optimized out to be equal to scratch,
+		// i.e. Diff(A,A) == scratch
+		return nil, nil
+	}
+
+	return w.CacheManager().Get(ctx, id, nil, opts...)
 }
 
 // ResolveOp converts a LLB vertex into a LLB operation
@@ -195,18 +221,22 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *se
 		case *pb.Op_Source:
 			return ops.NewSourceOp(v, op, baseOp.Platform, w.SourceManager, parallelism, sm, w)
 		case *pb.Op_Exec:
-			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheManager(), parallelism, sm, w.Opt.MetadataStore, w.Executor(), w)
+			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheManager(), parallelism, sm, w.Executor(), w)
 		case *pb.Op_File:
-			return ops.NewFileOp(v, op, w.CacheManager(), parallelism, w.Opt.MetadataStore, w)
+			return ops.NewFileOp(v, op, w.CacheManager(), parallelism, w)
 		case *pb.Op_Build:
 			return ops.NewBuildOp(v, op, s, w)
+		case *pb.Op_Merge:
+			return ops.NewMergeOp(v, op, w)
+		case *pb.Op_Diff:
+			return ops.NewDiffOp(v, op, w)
 		}
 	}
 	return nil, errors.Errorf("could not resolve %v", v)
 }
 
 // ResolveImageConfig returns image config for an image
-func (w *Worker) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
+func (w *Worker) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (string, digest.Digest, []byte, error) {
 	return w.ImageSource.ResolveImageConfig(ctx, ref, opt, sm, g)
 }
 
@@ -223,7 +253,7 @@ func (w *Worker) Prune(ctx context.Context, ch chan client.UsageInfo, info ...cl
 // Exporter returns exporter by name
 func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, error) {
 	switch name {
-	case "moby":
+	case mobyexporter.Moby:
 		return w.Opt.Exporter, nil
 	case client.ExporterLocal:
 		return localexporter.New(localexporter.Opt{
@@ -238,8 +268,11 @@ func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, 
 	}
 }
 
-// GetRemote returns a remote snapshot reference for a local one
-func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool, _ compression.Type, _ session.Group) (*solver.Remote, error) {
+// GetRemotes returns the remote snapshot references given a local reference
+func (w *Worker) GetRemotes(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool, _ cacheconfig.RefConfig, all bool, s session.Group) ([]*solver.Remote, error) {
+	if ref == nil {
+		return nil, nil
+	}
 	var diffIDs []layer.DiffID
 	var err error
 	if !createIfNeeded {
@@ -248,7 +281,10 @@ func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIf
 			return nil, err
 		}
 	} else {
-		if err := ref.Finalize(ctx, true); err != nil {
+		if err := ref.Finalize(ctx); err != nil {
+			return nil, err
+		}
+		if err := ref.Extract(ctx, s); err != nil {
 			return nil, err
 		}
 		diffIDs, err = w.Layers.EnsureLayer(ctx, ref.ID())
@@ -266,10 +302,10 @@ func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIf
 		}
 	}
 
-	return &solver.Remote{
+	return []*solver.Remote{{
 		Descriptors: descriptors,
 		Provider:    &emptyProvider{},
-	}, nil
+	}}, nil
 }
 
 // PruneCacheMounts removes the current cache snapshots for specified IDs
@@ -279,32 +315,20 @@ func (w *Worker) PruneCacheMounts(ctx context.Context, ids []string) error {
 	defer mu.Unlock()
 
 	for _, id := range ids {
-		id = "cache-dir:" + id
-		sis, err := w.Opt.MetadataStore.Search(id)
+		mds, err := mounts.SearchCacheDir(ctx, w.CacheManager(), id)
 		if err != nil {
 			return err
 		}
-		for _, si := range sis {
-			for _, k := range si.Indexes() {
-				if k == id || strings.HasPrefix(k, id+":") {
-					if siCached := w.CacheManager().Metadata(si.ID()); siCached != nil {
-						si = siCached
-					}
-					if err := cache.CachePolicyDefault(si); err != nil {
-						return err
-					}
-					si.Queue(func(b *bolt.Bucket) error {
-						return si.SetValue(b, k, nil)
-					})
-					if err := si.Commit(); err != nil {
-						return err
-					}
-					// if ref is unused try to clean it up right away by releasing it
-					if mref, err := w.CacheManager().GetMutable(ctx, si.ID()); err == nil {
-						go mref.Release(context.TODO())
-					}
-					break
-				}
+		for _, md := range mds {
+			if err := md.SetCachePolicyDefault(); err != nil {
+				return err
+			}
+			if err := md.ClearCacheDirIndex(); err != nil {
+				return err
+			}
+			// if ref is unused try to clean it up right away by releasing it
+			if mref, err := w.CacheManager().GetMutable(ctx, md.ID()); err == nil {
+				go mref.Release(context.TODO())
 			}
 		}
 	}
@@ -357,7 +381,7 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (cache.I
 	}()
 
 	r := image.NewRootFS()
-	rootFS, release, err := w.DownloadManager.Download(ctx, *r, runtime.GOOS, layers, &discardProgress{})
+	rootFS, release, err := w.DownloadManager.Download(ctx, *r, layers, &discardProgress{})
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +458,7 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogr
 
 	// TODO should this write output to progressOutput? Or use something similar to loggerFromContext()? see https://github.com/moby/buildkit/commit/aa29e7729464f3c2a773e27795e584023c751cb8
 	discardLogs := func(_ []byte) {}
-	if err := contentutil.Copy(ctx, ld.w.ContentStore(), ld.provider, ld.desc, discardLogs); err != nil {
+	if err := contentutil.Copy(ctx, ld.w.ContentStore(), ld.provider, ld.desc, "", discardLogs); err != nil {
 		return nil, 0, done(err)
 	}
 	_ = done(nil)
@@ -481,7 +505,7 @@ func getLayers(ctx context.Context, descs []ocispec.Descriptor) ([]rootfs.Layer,
 }
 
 func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	now := time.Now()
 	st := progress.Status{
 		Started: &now,
@@ -497,8 +521,7 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 	}
 }
 
-type emptyProvider struct {
-}
+type emptyProvider struct{}
 
 func (p *emptyProvider) ReaderAt(ctx context.Context, dec ocispec.Descriptor) (content.ReaderAt, error) {
 	return nil, errors.Errorf("ReaderAt not implemented for empty provider")

@@ -61,5 +61,4 @@ func (v VersionMiddleware) WrapHandler(handler func(ctx context.Context, w http.
 		ctx = context.WithValue(ctx, httputils.APIVersionKey{}, apiVersion)
 		return handler(ctx, w, r, vars)
 	}
-
 }

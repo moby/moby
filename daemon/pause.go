@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
-	"github.com/sirupsen/logrus"
 )
 
 // ContainerPause pauses a container
@@ -24,8 +25,9 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 	defer container.Unlock()
 
 	// We cannot Pause the container which is not running
-	if !container.Running {
-		return errNotRunning(container.ID)
+	tsk, err := container.GetRunningTask()
+	if err != nil {
+		return err
 	}
 
 	// We cannot Pause the container which is already paused
@@ -38,17 +40,17 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 		return errContainerIsRestarting(container.ID)
 	}
 
-	if err := daemon.containerd.Pause(context.Background(), container.ID); err != nil {
-		return fmt.Errorf("Cannot pause container %s: %s", container.ID, err)
+	if err := tsk.Pause(context.Background()); err != nil {
+		return fmt.Errorf("cannot pause container %s: %s", container.ID, err)
 	}
 
 	container.Paused = true
 	daemon.setStateCounter(container)
 	daemon.updateHealthMonitor(container)
-	daemon.LogContainerEvent(container, "pause")
+	daemon.LogContainerEvent(container, events.ActionPause)
 
 	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
-		logrus.WithError(err).Warn("could not save container to disk")
+		log.G(context.TODO()).WithError(err).Warn("could not save container to disk")
 	}
 
 	return nil

@@ -1,4 +1,4 @@
-// +build linux solaris
+//go:build linux || solaris
 
 /*
    Copyright The containerd Authors.
@@ -26,7 +26,7 @@ import (
 
 func getATime(fi os.FileInfo) time.Time {
 	if st, ok := fi.Sys().(*syscall.Stat_t); ok {
-		return time.Unix(int64(st.Atim.Sec), int64(st.Atim.Nsec)) //nolint: unconvert // int64 conversions ensure the line compiles for 32-bit systems as well.
+		return time.Unix(st.Atim.Unix())
 	}
 
 	return fi.ModTime()

@@ -3,17 +3,17 @@ package mounts
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/moby/buildkit/util/bklog"
+
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/cache"
-	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
@@ -24,17 +24,14 @@ import (
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc/codes"
 )
 
-func NewMountManager(name string, cm cache.Manager, sm *session.Manager, md *metadata.Store) *MountManager {
+func NewMountManager(name string, cm cache.Manager, sm *session.Manager) *MountManager {
 	return &MountManager{
 		cm:          cm,
 		sm:          sm,
 		cacheMounts: map[string]*cacheRefShare{},
-		md:          md,
 		managerName: name,
 	}
 }
@@ -44,18 +41,20 @@ type MountManager struct {
 	sm            *session.Manager
 	cacheMountsMu sync.Mutex
 	cacheMounts   map[string]*cacheRefShare
-	md            *metadata.Store
 	managerName   string
 }
 
 func (mm *MountManager) getRefCacheDir(ctx context.Context, ref cache.ImmutableRef, id string, m *pb.Mount, sharing pb.CacheSharingOpt, s session.Group) (mref cache.MutableRef, err error) {
+	name := fmt.Sprintf("cached mount %s from %s", m.Dest, mm.managerName)
+	if id != m.Dest {
+		name += fmt.Sprintf(" with id %q", id)
+	}
 	g := &cacheRefGetter{
 		locker:          &mm.cacheMountsMu,
 		cacheMounts:     mm.cacheMounts,
 		cm:              mm.cm,
-		md:              mm.md,
 		globalCacheRefs: sharedCacheRefs,
-		name:            fmt.Sprintf("cached mount %s from %s", m.Dest, mm.managerName),
+		name:            name,
 		session:         s,
 	}
 	return g.getRefCacheDir(ctx, ref, id, sharing)
@@ -65,14 +64,13 @@ type cacheRefGetter struct {
 	locker          sync.Locker
 	cacheMounts     map[string]*cacheRefShare
 	cm              cache.Manager
-	md              *metadata.Store
 	globalCacheRefs *cacheRefs
 	name            string
 	session         session.Group
 }
 
 func (g *cacheRefGetter) getRefCacheDir(ctx context.Context, ref cache.ImmutableRef, id string, sharing pb.CacheSharingOpt) (mref cache.MutableRef, err error) {
-	key := "cache-dir:" + id
+	key := id
 	if ref != nil {
 		key += ":" + ref.ID()
 	}
@@ -81,19 +79,19 @@ func (g *cacheRefGetter) getRefCacheDir(ctx context.Context, ref cache.Immutable
 	defer mu.Unlock()
 
 	if ref, ok := g.cacheMounts[key]; ok {
-		return ref.clone(), nil
+		return ref.clone(ctx), nil
 	}
 	defer func() {
 		if err == nil {
 			share := &cacheRefShare{MutableRef: mref, refs: map[*cacheRef]struct{}{}}
 			g.cacheMounts[key] = share
-			mref = share.clone()
+			mref = share.clone(ctx)
 		}
 	}()
 
 	switch sharing {
 	case pb.CacheSharingOpt_SHARED:
-		return g.globalCacheRefs.get(key, func() (cache.MutableRef, error) {
+		return g.globalCacheRefs.get(ctx, key, func() (cache.MutableRef, error) {
 			return g.getRefCacheDirNoCache(ctx, key, ref, id, false)
 		})
 	case pb.CacheSharingOpt_PRIVATE:
@@ -107,23 +105,30 @@ func (g *cacheRefGetter) getRefCacheDir(ctx context.Context, ref cache.Immutable
 
 func (g *cacheRefGetter) getRefCacheDirNoCache(ctx context.Context, key string, ref cache.ImmutableRef, id string, block bool) (cache.MutableRef, error) {
 	makeMutable := func(ref cache.ImmutableRef) (cache.MutableRef, error) {
-		return g.cm.New(ctx, ref, g.session, cache.WithRecordType(client.UsageRecordTypeCacheMount), cache.WithDescription(g.name), cache.CachePolicyRetain)
+		newRef, err := g.cm.New(ctx, ref, g.session, cache.WithRecordType(client.UsageRecordTypeCacheMount), cache.WithDescription(g.name), cache.CachePolicyRetain)
+		if err != nil {
+			return nil, err
+		}
+		bklog.G(ctx).Debugf("created new ref for cache dir %q: %s", id, newRef.ID())
+		return newRef, nil
 	}
 
 	cacheRefsLocker.Lock(key)
 	defer cacheRefsLocker.Unlock(key)
 	for {
-		sis, err := g.md.Search(key)
+		sis, err := SearchCacheDir(ctx, g.cm, key)
 		if err != nil {
 			return nil, err
 		}
 		locked := false
 		for _, si := range sis {
 			if mRef, err := g.cm.GetMutable(ctx, si.ID()); err == nil {
-				logrus.Debugf("reusing ref for cache dir: %s", mRef.ID())
+				bklog.G(ctx).Debugf("reusing ref for cache dir %q: %s", id, mRef.ID())
 				return mRef, nil
 			} else if errors.Is(err, cache.ErrLocked) {
 				locked = true
+			} else {
+				bklog.G(ctx).WithError(err).Errorf("failed to get reuse ref for cache dir %q: %s", id, si.ID())
 			}
 		}
 		if block && locked {
@@ -144,16 +149,8 @@ func (g *cacheRefGetter) getRefCacheDirNoCache(ctx context.Context, key string, 
 		return nil, err
 	}
 
-	si, _ := g.md.Get(mRef.ID())
-	v, err := metadata.NewValue(key)
-	if err != nil {
-		mRef.Release(context.TODO())
-		return nil, err
-	}
-	v.Index = key
-	if err := si.Update(func(b *bolt.Bucket) error {
-		return si.SetValue(b, key, v)
-	}); err != nil {
+	md := CacheRefMetadata{mRef}
+	if err := md.setCacheDirIndex(key); err != nil {
 		mRef.Release(context.TODO())
 		return nil, err
 	}
@@ -265,14 +262,14 @@ func (mm *MountManager) getSecretMountable(ctx context.Context, m *pb.Mount, g s
 	err = mm.sm.Any(ctx, g, func(ctx context.Context, _ string, caller session.Caller) error {
 		dt, err = secrets.GetSecret(ctx, caller, id)
 		if err != nil {
-			if errors.Is(err, secrets.ErrNotFound) && m.SecretOpt.Optional {
-				return nil
-			}
 			return err
 		}
 		return nil
 	})
-	if err != nil || dt == nil {
+	if err != nil {
+		if errors.Is(err, secrets.ErrNotFound) && m.SecretOpt.Optional {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &secretMount{mount: m, data: dt, idmap: mm.cm.IdentityMapping()}, nil
@@ -295,7 +292,7 @@ type secretMountInstance struct {
 }
 
 func (sm *secretMountInstance) Mount() ([]mount.Mount, func() error, error) {
-	dir, err := ioutil.TempDir("", "buildkit-secrets")
+	dir, err := os.MkdirTemp("", "buildkit-secrets")
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create temp dir")
 	}
@@ -314,7 +311,7 @@ func (sm *secretMountInstance) Mount() ([]mount.Mount, func() error, error) {
 		Options: []string{"nodev", "nosuid", "noexec", fmt.Sprintf("uid=%d,gid=%d", os.Geteuid(), os.Getegid())},
 	}
 
-	if sys.RunningInUserNS() {
+	if userns.RunningInUserNS() {
 		tmpMount.Options = nil
 	}
 
@@ -333,7 +330,7 @@ func (sm *secretMountInstance) Mount() ([]mount.Mount, func() error, error) {
 
 	randID := identity.NewID()
 	fp := filepath.Join(dir, randID)
-	if err := ioutil.WriteFile(fp, sm.sm.data, 0600); err != nil {
+	if err := os.WriteFile(fp, sm.sm.data, 0600); err != nil {
 		cleanup()
 		return nil, nil, err
 	}
@@ -382,8 +379,8 @@ func (mm *MountManager) MountableCache(ctx context.Context, m *pb.Mount, ref cac
 	return mm.getRefCacheDir(ctx, ref, m.CacheOpt.ID, m, m.CacheOpt.Sharing, g)
 }
 
-func (mm *MountManager) MountableTmpFS() cache.Mountable {
-	return newTmpfs(mm.cm.IdentityMapping())
+func (mm *MountManager) MountableTmpFS(m *pb.Mount) cache.Mountable {
+	return newTmpfs(mm.cm.IdentityMapping(), m.TmpfsOpt)
 }
 
 func (mm *MountManager) MountableSecret(ctx context.Context, m *pb.Mount, g session.Group) (cache.Mountable, error) {
@@ -394,27 +391,34 @@ func (mm *MountManager) MountableSSH(ctx context.Context, m *pb.Mount, g session
 	return mm.getSSHMountable(ctx, m, g)
 }
 
-func newTmpfs(idmap *idtools.IdentityMapping) cache.Mountable {
-	return &tmpfs{idmap: idmap}
+func newTmpfs(idmap *idtools.IdentityMapping, opt *pb.TmpfsOpt) cache.Mountable {
+	return &tmpfs{idmap: idmap, opt: opt}
 }
 
 type tmpfs struct {
 	idmap *idtools.IdentityMapping
+	opt   *pb.TmpfsOpt
 }
 
 func (f *tmpfs) Mount(ctx context.Context, readonly bool, g session.Group) (snapshot.Mountable, error) {
-	return &tmpfsMount{readonly: readonly, idmap: f.idmap}, nil
+	return &tmpfsMount{readonly: readonly, idmap: f.idmap, opt: f.opt}, nil
 }
 
 type tmpfsMount struct {
 	readonly bool
 	idmap    *idtools.IdentityMapping
+	opt      *pb.TmpfsOpt
 }
 
 func (m *tmpfsMount) Mount() ([]mount.Mount, func() error, error) {
 	opt := []string{"nosuid"}
 	if m.readonly {
 		opt = append(opt, "ro")
+	}
+	if m.opt != nil {
+		if m.opt.Size_ > 0 {
+			opt = append(opt, fmt.Sprintf("size=%d", m.opt.Size_))
+		}
 	}
 	return []mount.Mount{{
 		Type:    "tmpfs",
@@ -445,7 +449,7 @@ func CacheMountsLocker() sync.Locker {
 	return &sharedCacheRefs.mu
 }
 
-func (r *cacheRefs) get(key string, fn func() (cache.MutableRef, error)) (cache.MutableRef, error) {
+func (r *cacheRefs) get(ctx context.Context, key string, fn func() (cache.MutableRef, error)) (cache.MutableRef, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -455,7 +459,7 @@ func (r *cacheRefs) get(key string, fn func() (cache.MutableRef, error)) (cache.
 
 	share, ok := r.shares[key]
 	if ok {
-		return share.clone(), nil
+		return share.clone(ctx), nil
 	}
 
 	mref, err := fn()
@@ -465,7 +469,7 @@ func (r *cacheRefs) get(key string, fn func() (cache.MutableRef, error)) (cache.
 
 	share = &cacheRefShare{MutableRef: mref, main: r, key: key, refs: map[*cacheRef]struct{}{}}
 	r.shares[key] = share
-	return share.clone(), nil
+	return share.clone(ctx), nil
 }
 
 type cacheRefShare struct {
@@ -476,7 +480,11 @@ type cacheRefShare struct {
 	key  string
 }
 
-func (r *cacheRefShare) clone() cache.MutableRef {
+func (r *cacheRefShare) clone(ctx context.Context) cache.MutableRef {
+	bklog.G(ctx).WithFields(map[string]any{
+		"key":   r.key,
+		"stack": bklog.LazyStackTrace{},
+	}).Trace("cloning cache mount ref share")
 	cacheRef := &cacheRef{cacheRefShare: r}
 	if cacheRefCloneHijack != nil {
 		cacheRefCloneHijack()
@@ -488,6 +496,10 @@ func (r *cacheRefShare) clone() cache.MutableRef {
 }
 
 func (r *cacheRefShare) release(ctx context.Context) error {
+	bklog.G(ctx).WithFields(map[string]any{
+		"key":   r.key,
+		"stack": bklog.LazyStackTrace{},
+	}).Trace("releasing cache mount ref share main")
 	if r.main != nil {
 		delete(r.main.shares, r.key)
 	}
@@ -502,6 +514,10 @@ type cacheRef struct {
 }
 
 func (r *cacheRef) Release(ctx context.Context) error {
+	bklog.G(ctx).WithFields(map[string]any{
+		"key":   r.key,
+		"stack": bklog.LazyStackTrace{},
+	}).Trace("releasing cache mount ref share")
 	if r.main != nil {
 		r.main.mu.Lock()
 		defer r.main.mu.Unlock()
@@ -516,4 +532,31 @@ func (r *cacheRef) Release(ctx context.Context) error {
 		return r.release(ctx)
 	}
 	return nil
+}
+
+const keyCacheDir = "cache-dir"
+const cacheDirIndex = keyCacheDir + ":"
+
+func SearchCacheDir(ctx context.Context, store cache.MetadataStore, id string) ([]CacheRefMetadata, error) {
+	var results []CacheRefMetadata
+	mds, err := store.Search(ctx, cacheDirIndex+id)
+	if err != nil {
+		return nil, err
+	}
+	for _, md := range mds {
+		results = append(results, CacheRefMetadata{md})
+	}
+	return results, nil
+}
+
+type CacheRefMetadata struct {
+	cache.RefMetadata
+}
+
+func (md CacheRefMetadata) setCacheDirIndex(id string) error {
+	return md.SetString(keyCacheDir, id, cacheDirIndex+id)
+}
+
+func (md CacheRefMetadata) ClearCacheDirIndex() error {
+	return md.ClearValueAndIndex(keyCacheDir, cacheDirIndex)
 }

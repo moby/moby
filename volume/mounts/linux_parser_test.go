@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/mount"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestLinuxParseMountRaw(t *testing.T) {
@@ -109,15 +110,68 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 		expRW     bool
 		fail      bool
 	}{
-		{"/tmp:/tmp1", "", mount.TypeBind, "/tmp1", "/tmp", "", "", true, false},
-		{"/tmp:/tmp2:ro", "", mount.TypeBind, "/tmp2", "/tmp", "", "", false, false},
-		{"/tmp:/tmp3:rw", "", mount.TypeBind, "/tmp3", "/tmp", "", "", true, false},
-		{"/tmp:/tmp4:foo", "", mount.TypeBind, "", "", "", "", false, true},
-		{"name:/named1", "", mount.TypeVolume, "/named1", "", "name", "", true, false},
-		{"name:/named2", "external", mount.TypeVolume, "/named2", "", "name", "external", true, false},
-		{"name:/named3:ro", "local", mount.TypeVolume, "/named3", "", "name", "local", false, false},
-		{"local/name:/tmp:rw", "", mount.TypeVolume, "/tmp", "", "local/name", "", true, false},
-		{"/tmp:tmp", "", mount.TypeBind, "", "", "", "", true, true},
+		{
+			bind:      "/tmp:/tmp1",
+			expType:   mount.TypeBind,
+			expDest:   "/tmp1",
+			expSource: "/tmp",
+			expRW:     true,
+		},
+		{
+			bind:      "/tmp:/tmp2:ro",
+			expType:   mount.TypeBind,
+			expDest:   "/tmp2",
+			expSource: "/tmp",
+		},
+		{
+			bind:      "/tmp:/tmp3:rw",
+			expType:   mount.TypeBind,
+			expDest:   "/tmp3",
+			expSource: "/tmp",
+			expRW:     true,
+		},
+		{
+			bind:    "/tmp:/tmp4:foo",
+			expType: mount.TypeBind,
+			fail:    true,
+		},
+		{
+			bind:    "name:/named1",
+			expType: mount.TypeVolume,
+			expDest: "/named1",
+			expName: "name",
+			expRW:   true,
+		},
+		{
+			bind:      "name:/named2",
+			driver:    "external",
+			expType:   mount.TypeVolume,
+			expDest:   "/named2",
+			expName:   "name",
+			expDriver: "external",
+			expRW:     true,
+		},
+		{
+			bind:      "name:/named3:ro",
+			driver:    "local",
+			expType:   mount.TypeVolume,
+			expDest:   "/named3",
+			expName:   "name",
+			expDriver: "local",
+		},
+		{
+			bind:    "local/name:/tmp:rw",
+			expType: mount.TypeVolume,
+			expDest: "/tmp",
+			expName: "local/name",
+			expRW:   true,
+		},
+		{
+			bind:    "/tmp:tmp",
+			expType: mount.TypeBind,
+			expRW:   true,
+			fail:    true,
+		},
 	}
 
 	parser := NewLinuxParser()
@@ -125,22 +179,22 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 		p.fi = mockFiProvider{}
 	}
 
-	for i, c := range cases {
-		c := c
-		t.Run(fmt.Sprintf("%d_%s", i, c.bind), func(t *testing.T) {
-			m, err := parser.ParseMountRaw(c.bind, c.driver)
-			if c.fail {
-				assert.ErrorContains(t, err, "", "expected an error")
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.bind, func(t *testing.T) {
+			m, err := parser.ParseMountRaw(tc.bind, tc.driver)
+			if tc.fail {
+				assert.Check(t, is.ErrorContains(err, ""), "expected an error")
 				return
 			}
 
 			assert.NilError(t, err)
-			assert.Equal(t, m.Destination, c.expDest)
-			assert.Equal(t, m.Source, c.expSource)
-			assert.Equal(t, m.Name, c.expName)
-			assert.Equal(t, m.Driver, c.expDriver)
-			assert.Equal(t, m.RW, c.expRW)
-			assert.Equal(t, m.Type, c.expType)
+			assert.Check(t, is.Equal(m.Destination, tc.expDest))
+			assert.Check(t, is.Equal(m.Source, tc.expSource))
+			assert.Check(t, is.Equal(m.Name, tc.expName))
+			assert.Check(t, is.Equal(m.Driver, tc.expDriver))
+			assert.Check(t, is.Equal(m.RW, tc.expRW))
+			assert.Check(t, is.Equal(m.Type, tc.expType))
 		})
 	}
 }
@@ -187,7 +241,7 @@ func TestConvertTmpfsOptions(t *testing.T) {
 	}
 	cases := []testCase{
 		{
-			opt:                  mount.TmpfsOptions{SizeBytes: 1024 * 1024, Mode: 0700},
+			opt:                  mount.TmpfsOptions{SizeBytes: 1024 * 1024, Mode: 0o700},
 			readOnly:             false,
 			expectedSubstrings:   []string{"size=1m", "mode=700"},
 			unexpectedSubstrings: []string{"ro"},
@@ -200,21 +254,21 @@ func TestConvertTmpfsOptions(t *testing.T) {
 		},
 	}
 	p := NewLinuxParser()
-	for _, c := range cases {
-		data, err := p.ConvertTmpfsOptions(&c.opt, c.readOnly)
+	for _, tc := range cases {
+		data, err := p.ConvertTmpfsOptions(&tc.opt, tc.readOnly)
 		if err != nil {
 			t.Fatalf("could not convert %+v (readOnly: %v) to string: %v",
-				c.opt, c.readOnly, err)
+				tc.opt, tc.readOnly, err)
 		}
 		t.Logf("data=%q", data)
-		for _, s := range c.expectedSubstrings {
+		for _, s := range tc.expectedSubstrings {
 			if !strings.Contains(data, s) {
-				t.Fatalf("expected substring: %s, got %v (case=%+v)", s, data, c)
+				t.Fatalf("expected substring: %s, got %v (case=%+v)", s, data, tc)
 			}
 		}
-		for _, s := range c.unexpectedSubstrings {
+		for _, s := range tc.unexpectedSubstrings {
 			if strings.Contains(data, s) {
-				t.Fatalf("unexpected substring: %s, got %v (case=%+v)", s, data, c)
+				t.Fatalf("unexpected substring: %s, got %v (case=%+v)", s, data, tc)
 			}
 		}
 	}

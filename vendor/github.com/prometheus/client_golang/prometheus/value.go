@@ -19,8 +19,11 @@ import (
 	"time"
 	"unicode/utf8"
 
+	//nolint:staticcheck // Ignore SA1019. Need to keep deprecated package for compatibility.
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/prometheus/client_golang/prometheus/internal"
 
 	dto "github.com/prometheus/client_model/go"
 )
@@ -36,6 +39,23 @@ const (
 	GaugeValue
 	UntypedValue
 )
+
+var (
+	CounterMetricTypePtr = func() *dto.MetricType { d := dto.MetricType_COUNTER; return &d }()
+	GaugeMetricTypePtr   = func() *dto.MetricType { d := dto.MetricType_GAUGE; return &d }()
+	UntypedMetricTypePtr = func() *dto.MetricType { d := dto.MetricType_UNTYPED; return &d }()
+)
+
+func (v ValueType) ToDTO() *dto.MetricType {
+	switch v {
+	case CounterValue:
+		return CounterMetricTypePtr
+	case GaugeValue:
+		return GaugeMetricTypePtr
+	default:
+		return UntypedMetricTypePtr
+	}
+}
 
 // valueFunc is a generic metric for simple values retrieved on collect time
 // from a function. It implements Metric and Collector. Its effective type is
@@ -62,7 +82,7 @@ func newValueFunc(desc *Desc, valueType ValueType, function func() float64) *val
 		desc:       desc,
 		valType:    valueType,
 		function:   function,
-		labelPairs: makeLabelPairs(desc, nil),
+		labelPairs: MakeLabelPairs(desc, nil),
 	}
 	result.init(result)
 	return result
@@ -90,11 +110,15 @@ func NewConstMetric(desc *Desc, valueType ValueType, value float64, labelValues 
 	if err := validateLabelValues(labelValues, len(desc.variableLabels)); err != nil {
 		return nil, err
 	}
+
+	metric := &dto.Metric{}
+	if err := populateMetric(valueType, value, MakeLabelPairs(desc, labelValues), nil, metric); err != nil {
+		return nil, err
+	}
+
 	return &constMetric{
-		desc:       desc,
-		valType:    valueType,
-		val:        value,
-		labelPairs: makeLabelPairs(desc, labelValues),
+		desc:   desc,
+		metric: metric,
 	}, nil
 }
 
@@ -109,10 +133,8 @@ func MustNewConstMetric(desc *Desc, valueType ValueType, value float64, labelVal
 }
 
 type constMetric struct {
-	desc       *Desc
-	valType    ValueType
-	val        float64
-	labelPairs []*dto.LabelPair
+	desc   *Desc
+	metric *dto.Metric
 }
 
 func (m *constMetric) Desc() *Desc {
@@ -120,7 +142,11 @@ func (m *constMetric) Desc() *Desc {
 }
 
 func (m *constMetric) Write(out *dto.Metric) error {
-	return populateMetric(m.valType, m.val, m.labelPairs, nil, out)
+	out.Label = m.metric.Label
+	out.Counter = m.metric.Counter
+	out.Gauge = m.metric.Gauge
+	out.Untyped = m.metric.Untyped
+	return nil
 }
 
 func populateMetric(
@@ -144,7 +170,14 @@ func populateMetric(
 	return nil
 }
 
-func makeLabelPairs(desc *Desc, labelValues []string) []*dto.LabelPair {
+// MakeLabelPairs is a helper function to create protobuf LabelPairs from the
+// variable and constant labels in the provided Desc. The values for the
+// variable labels are defined by the labelValues slice, which must be in the
+// same order as the corresponding variable labels in the Desc.
+//
+// This function is only needed for custom Metric implementations. See MetricVec
+// example.
+func MakeLabelPairs(desc *Desc, labelValues []string) []*dto.LabelPair {
 	totalLen := len(desc.variableLabels) + len(desc.constLabelPairs)
 	if totalLen == 0 {
 		// Super fast path.
@@ -162,12 +195,12 @@ func makeLabelPairs(desc *Desc, labelValues []string) []*dto.LabelPair {
 		})
 	}
 	labelPairs = append(labelPairs, desc.constLabelPairs...)
-	sort.Sort(labelPairSorter(labelPairs))
+	sort.Sort(internal.LabelPairSorter(labelPairs))
 	return labelPairs
 }
 
 // ExemplarMaxRunes is the max total number of runes allowed in exemplar labels.
-const ExemplarMaxRunes = 64
+const ExemplarMaxRunes = 128
 
 // newExemplar creates a new dto.Exemplar from the provided values. An error is
 // returned if any of the label names or values are invalid or if the total
@@ -175,8 +208,8 @@ const ExemplarMaxRunes = 64
 func newExemplar(value float64, ts time.Time, l Labels) (*dto.Exemplar, error) {
 	e := &dto.Exemplar{}
 	e.Value = proto.Float64(value)
-	tsProto, err := ptypes.TimestampProto(ts)
-	if err != nil {
+	tsProto := timestamppb.New(ts)
+	if err := tsProto.CheckValid(); err != nil {
 		return nil, err
 	}
 	e.Timestamp = tsProto

@@ -7,58 +7,75 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// ImageTypes represents the schema2 config types for images
-var ImageTypes = []string{
-	schema2.MediaTypeImageConfig,
-	ocispec.MediaTypeImageConfig,
-	// Handle unexpected values from https://github.com/docker/distribution/issues/1621
-	// (see also https://github.com/docker/docker/issues/22378,
-	// https://github.com/docker/docker/issues/30083)
-	"application/octet-stream",
-	"application/json",
-	"text/html",
-	// Treat defaulted values as images, newer types cannot be implied
-	"",
-}
+var (
+	// supportedMediaTypes represents acceptable media-type(-prefixes)
+	// we use this list to prevent obscure errors when trying to pull
+	// OCI artifacts.
+	supportedMediaTypes = []string{
+		// valid prefixes
+		"application/vnd.oci.image",
+		"application/vnd.docker",
 
-// PluginTypes represents the schema2 config types for plugins
-var PluginTypes = []string{
-	schema2.MediaTypePluginConfig,
-}
+		// these types may occur on old images, and are copied from
+		// defaultImageTypes below.
+		"application/octet-stream",
+		"application/json",
+		"text/html",
+		"",
+	}
 
-var mediaTypeClasses map[string]string
+	// defaultImageTypes represents the schema2 config types for images
+	defaultImageTypes = []string{
+		schema2.MediaTypeImageConfig,
+		ocispec.MediaTypeImageConfig,
+		// Handle unexpected values from https://github.com/docker/distribution/issues/1621
+		// (see also https://github.com/docker/docker/issues/22378,
+		// https://github.com/docker/docker/issues/30083)
+		"application/octet-stream",
+		"application/json",
+		"text/html",
+		// Treat defaulted values as images, newer types cannot be implied
+		"",
+	}
+
+	// pluginTypes represents the schema2 config types for plugins
+	pluginTypes = []string{
+		schema2.MediaTypePluginConfig,
+	}
+
+	mediaTypeClasses map[string]string
+)
 
 func init() {
-	// initialize media type classes with all know types for
-	// plugin
+	// initialize media type classes with all know types for images and plugins.
 	mediaTypeClasses = map[string]string{}
-	for _, t := range ImageTypes {
+	for _, t := range defaultImageTypes {
 		mediaTypeClasses[t] = "image"
 	}
-	for _, t := range PluginTypes {
+	for _, t := range pluginTypes {
 		mediaTypeClasses[t] = "plugin"
 	}
 }
 
-// NewV2Repository returns a repository (v2 only). It creates an HTTP transport
+// newRepository returns a repository (v2 only). It creates an HTTP transport
 // providing timeout settings and authentication support, and also verifies the
 // remote API version.
-func NewV2Repository(
+func newRepository(
 	ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint,
-	metaHeaders http.Header, authConfig *types.AuthConfig, actions ...string,
-) (repo distribution.Repository, err error) {
+	metaHeaders http.Header, authConfig *registrytypes.AuthConfig, actions ...string,
+) (distribution.Repository, error) {
 	repoName := repoInfo.Name.Name()
 	// If endpoint does not support CanonicalName, use the RemoteName instead
 	if endpoint.TrimHostname {
@@ -68,7 +85,6 @@ func NewV2Repository(
 	direct := &net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
-		DualStack: true,
 	}
 
 	// TODO(dmcgowan): Call close idle connections when complete, use keep alive
@@ -98,23 +114,19 @@ func NewV2Repository(
 	}
 
 	if authConfig.RegistryToken != "" {
-		passThruTokenHandler := &existingTokenHandler{token: authConfig.RegistryToken}
-		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, passThruTokenHandler))
+		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, &passThruTokenHandler{token: authConfig.RegistryToken}))
 	} else {
-		scope := auth.RepositoryScope{
-			Repository: repoName,
-			Actions:    actions,
-			Class:      repoInfo.Class,
-		}
-
 		creds := registry.NewStaticCredentialStore(authConfig)
-		tokenHandlerOptions := auth.TokenHandlerOptions{
+		tokenHandler := auth.NewTokenHandlerWithOptions(auth.TokenHandlerOptions{
 			Transport:   authTransport,
 			Credentials: creds,
-			Scopes:      []auth.Scope{scope},
-			ClientID:    registry.AuthClientID,
-		}
-		tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
+			Scopes: []auth.Scope{auth.RepositoryScope{
+				Repository: repoName,
+				Actions:    actions,
+				Class:      repoInfo.Class,
+			}},
+			ClientID: registry.AuthClientID,
+		})
 		basicHandler := auth.NewBasicHandler(creds)
 		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
 	}
@@ -128,25 +140,26 @@ func NewV2Repository(
 		}
 	}
 
-	repo, err = client.NewRepository(repoNameRef, endpoint.URL.String(), tr)
+	repo, err := client.NewRepository(repoNameRef, endpoint.URL.String(), tr)
 	if err != nil {
-		err = fallbackError{
+		return nil, fallbackError{
 			err:         err,
 			transportOK: true,
 		}
 	}
-	return
+
+	return repo, nil
 }
 
-type existingTokenHandler struct {
+type passThruTokenHandler struct {
 	token string
 }
 
-func (th *existingTokenHandler) Scheme() string {
+func (th *passThruTokenHandler) Scheme() string {
 	return "bearer"
 }
 
-func (th *existingTokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
+func (th *passThruTokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", th.token))
 	return nil
 }

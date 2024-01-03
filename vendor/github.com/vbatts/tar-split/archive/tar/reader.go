@@ -41,7 +41,7 @@ type fileReader interface {
 // RawBytes accesses the raw bytes of the archive, apart from the file payload itself.
 // This includes the header and padding.
 //
-// This call resets the current rawbytes buffer
+// # This call resets the current rawbytes buffer
 //
 // Only when RawAccounting is enabled, otherwise this returns nil
 func (tr *Reader) RawBytes() []byte {
@@ -126,7 +126,9 @@ func (tr *Reader) next() (*Header, error) {
 				return nil, err
 			}
 			if hdr.Typeflag == TypeXGlobalHeader {
-				mergePAX(hdr, paxHdrs)
+				if err = mergePAX(hdr, paxHdrs); err != nil {
+					return nil, err
+				}
 				return &Header{
 					Name:       hdr.Name,
 					Typeflag:   hdr.Typeflag,
@@ -381,9 +383,9 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 // header in case further processing is required.
 //
 // The err will be set to io.EOF only when one of the following occurs:
-//	* Exactly 0 bytes are read and EOF is hit.
-//	* Exactly 1 block of zeros is read and EOF is hit.
-//	* At least 2 blocks of zeros are read.
+//   - Exactly 0 bytes are read and EOF is hit.
+//   - Exactly 1 block of zeros is read and EOF is hit.
+//   - At least 2 blocks of zeros are read.
 func (tr *Reader) readHeader() (*Header, *block, error) {
 	// Two blocks of zero bytes marks the end of the archive.
 	n, err := io.ReadFull(tr.r, tr.blk[:])

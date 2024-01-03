@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 )
 
@@ -48,12 +48,12 @@ func (ml *mockLayer) Parent() layer.Layer {
 	return ml.parent
 }
 
-func (ml *mockLayer) Size() (size int64, err error) {
-	return 0, nil
+func (ml *mockLayer) Size() int64 {
+	return 0
 }
 
-func (ml *mockLayer) DiffSize() (size int64, err error) {
-	return 0, nil
+func (ml *mockLayer) DiffSize() int64 {
+	return 0
 }
 
 func (ml *mockLayer) Metadata() (map[string]string, error) {
@@ -126,6 +126,7 @@ func (ls *mockLayerStore) Get(chainID layer.ChainID) (layer.Layer, error) {
 func (ls *mockLayerStore) Release(l layer.Layer) ([]layer.Metadata, error) {
 	return []layer.Metadata{}, nil
 }
+
 func (ls *mockLayerStore) CreateRWLayer(string, layer.ChainID, *layer.CreateRWLayerOpts) (layer.RWLayer, error) {
 	return nil, errors.New("not implemented")
 }
@@ -137,6 +138,7 @@ func (ls *mockLayerStore) GetRWLayer(string) (layer.RWLayer, error) {
 func (ls *mockLayerStore) ReleaseRWLayer(layer.RWLayer) ([]layer.Metadata, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (ls *mockLayerStore) GetMountID(string) (string, error) {
 	return "", errors.New("not implemented")
 }
@@ -216,7 +218,7 @@ func (d *mockDownloadDescriptor) Download(ctx context.Context, progressOutput pr
 
 	if d.retries < d.simulateRetries {
 		d.retries++
-		return nil, 0, fmt.Errorf("simulating download attempt %d/%d", d.retries, d.simulateRetries)
+		return nil, 0, fmt.Errorf("simulating download attempt failure %d/%d", d.retries, d.simulateRetries)
 	}
 
 	return d.mockTarStream(), 0, nil
@@ -293,7 +295,7 @@ func TestSuccessfulDownload(t *testing.T) {
 	}
 	firstDescriptor.diffID = l.DiffID()
 
-	rootFS, releaseFunc, err := ldm.Download(context.Background(), *image.NewRootFS(), runtime.GOOS, descriptors, progress.ChanOutput(progressChan))
+	rootFS, releaseFunc, err := ldm.Download(context.Background(), *image.NewRootFS(), descriptors, progress.ChanOutput(progressChan))
 	if err != nil {
 		t.Fatalf("download error: %v", err)
 	}
@@ -348,8 +350,9 @@ func TestCancelledDownload(t *testing.T) {
 	}()
 
 	descriptors := downloadDescriptors(nil)
-	_, _, err := ldm.Download(ctx, *image.NewRootFS(), runtime.GOOS, descriptors, progress.ChanOutput(progressChan))
+	_, _, err := ldm.Download(ctx, *image.NewRootFS(), descriptors, progress.ChanOutput(progressChan))
 	if err != context.Canceled {
+		close(progressChan)
 		t.Fatal("expected download to be cancelled")
 	}
 
@@ -366,28 +369,29 @@ func TestMaxDownloadAttempts(t *testing.T) {
 	}{
 		{
 			name:                "max-attempts=5, succeed at 2nd attempt",
-			simulateRetries:     2,
+			simulateRetries:     1,
 			maxDownloadAttempts: 5,
 		},
 		{
 			name:                "max-attempts=5, succeed at 5th attempt",
+			simulateRetries:     4,
+			maxDownloadAttempts: 5,
+		},
+		{
+			name:                "max-attempts=5, fail at 5th attempt",
 			simulateRetries:     5,
 			maxDownloadAttempts: 5,
+			expectedErr:         "simulating download attempt failure 5/5",
 		},
 		{
-			name:                "max-attempts=5, fail at 6th attempt",
-			simulateRetries:     6,
-			maxDownloadAttempts: 5,
-			expectedErr:         "simulating download attempt 5/6",
-		},
-		{
-			name:                "max-attempts=0, fail after 1 attempt",
+			name:                "max-attempts=1, fail after 1 attempt",
 			simulateRetries:     1,
-			maxDownloadAttempts: 0,
-			expectedErr:         "simulating download attempt 1/1",
+			maxDownloadAttempts: 1,
+			expectedErr:         "simulating download attempt failure 1/1",
 		},
 	}
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			layerStore := &mockLayerStore{make(map[layer.ChainID]*mockLayer)}
@@ -412,7 +416,7 @@ func TestMaxDownloadAttempts(t *testing.T) {
 			descriptors := downloadDescriptors(&currentDownloads)
 			descriptors[4].(*mockDownloadDescriptor).simulateRetries = tc.simulateRetries
 
-			_, _, err := ldm.Download(context.Background(), *image.NewRootFS(), runtime.GOOS, descriptors, progress.ChanOutput(progressChan))
+			_, _, err := ldm.Download(context.Background(), *image.NewRootFS(), descriptors, progress.ChanOutput(progressChan))
 			if tc.expectedErr == "" {
 				assert.NilError(t, err)
 			} else {

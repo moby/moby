@@ -64,7 +64,7 @@ func title(s string) string {
 	if strings.ToLower(s) == "id" {
 		return "ID"
 	}
-	return strings.Title(s)
+	return strings.Title(s) //nolint:staticcheck // SA1019: strings.Title is deprecated: The rule Title uses for word boundaries does not handle Unicode punctuation properly. Use golang.org/x/text/cases instead.
 }
 
 var generatedTempl = template.Must(template.New("rpc_cient").Funcs(templFuncs).Parse(`

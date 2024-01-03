@@ -18,9 +18,11 @@ import (
 // It doesn't support all flavors of ${xx:...} formats but new ones can
 // be added by adding code to the "special ${} format processing" section
 type Lex struct {
-	escapeToken  rune
-	RawQuotes    bool
-	SkipUnsetEnv bool
+	escapeToken       rune
+	RawQuotes         bool
+	RawEscapes        bool
+	SkipProcessQuotes bool
+	SkipUnsetEnv      bool
 }
 
 // NewLex creates a new Lex which uses escapeToken to escape quotes.
@@ -54,28 +56,47 @@ func (s *Lex) ProcessWordWithMap(word string, env map[string]string) (string, er
 	return word, err
 }
 
+// ProcessWordWithMatches will use the 'env' list of environment variables,
+// replace any env var references in 'word' and return the env that were used.
+func (s *Lex) ProcessWordWithMatches(word string, env map[string]string) (string, map[string]struct{}, error) {
+	sw := s.init(word, env)
+	word, _, err := sw.process(word)
+	return word, sw.matches, err
+}
+
 func (s *Lex) ProcessWordsWithMap(word string, env map[string]string) ([]string, error) {
 	_, words, err := s.process(word, env)
 	return words, err
 }
 
-func (s *Lex) process(word string, env map[string]string) (string, []string, error) {
+func (s *Lex) init(word string, env map[string]string) *shellWord {
 	sw := &shellWord{
-		envs:         env,
-		escapeToken:  s.escapeToken,
-		skipUnsetEnv: s.SkipUnsetEnv,
-		rawQuotes:    s.RawQuotes,
+		envs:              env,
+		escapeToken:       s.escapeToken,
+		skipUnsetEnv:      s.SkipUnsetEnv,
+		skipProcessQuotes: s.SkipProcessQuotes,
+		rawQuotes:         s.RawQuotes,
+		rawEscapes:        s.RawEscapes,
+		matches:           make(map[string]struct{}),
 	}
 	sw.scanner.Init(strings.NewReader(word))
+	return sw
+}
+
+func (s *Lex) process(word string, env map[string]string) (string, []string, error) {
+	sw := s.init(word, env)
 	return sw.process(word)
 }
 
 type shellWord struct {
-	scanner      scanner.Scanner
-	envs         map[string]string
-	escapeToken  rune
-	rawQuotes    bool
-	skipUnsetEnv bool
+	scanner           scanner.Scanner
+	envs              map[string]string
+	escapeToken       rune
+	rawQuotes         bool
+	rawEscapes        bool
+	skipUnsetEnv      bool
+	skipProcessQuotes bool
+	matches           map[string]struct{}
 }
 
 func (sw *shellWord) process(source string) (string, []string, error) {
@@ -138,9 +159,11 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 	var words wordsStruct
 
 	var charFuncMapping = map[rune]func() (string, error){
-		'\'': sw.processSingleQuote,
-		'"':  sw.processDoubleQuote,
-		'$':  sw.processDollar,
+		'$': sw.processDollar,
+	}
+	if !sw.skipProcessQuotes {
+		charFuncMapping['\''] = sw.processSingleQuote
+		charFuncMapping['"'] = sw.processDoubleQuote
 	}
 
 	for sw.scanner.Peek() != scanner.EOF {
@@ -168,6 +191,11 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 			ch = sw.scanner.Next()
 
 			if ch == sw.escapeToken {
+				if sw.rawEscapes {
+					words.addRawChar(ch)
+					result.WriteRune(ch)
+				}
+
 				// '\' (default escape token, but ` allowed) escapes, except end of line
 				ch = sw.scanner.Next()
 
@@ -260,6 +288,10 @@ func (sw *shellWord) processDoubleQuote() (string, error) {
 		default:
 			ch := sw.scanner.Next()
 			if ch == sw.escapeToken {
+				if sw.rawEscapes {
+					result.WriteRune(ch)
+				}
+
 				switch sw.scanner.Peek() {
 				case scanner.EOF:
 					// Ignore \ at end of word
@@ -303,39 +335,23 @@ func (sw *shellWord) processDollar() (string, error) {
 	}
 	name := sw.processName()
 	ch := sw.scanner.Next()
+	chs := string(ch)
+	nullIsUnset := false
+
 	switch ch {
 	case '}':
 		// Normal ${xx} case
-		value, found := sw.getEnv(name)
-		if !found && sw.skipUnsetEnv {
+		value, set := sw.getEnv(name)
+		if !set && sw.skipUnsetEnv {
 			return fmt.Sprintf("${%s}", name), nil
 		}
 		return value, nil
-	case '?':
-		word, _, err := sw.processStopOn('}')
-		if err != nil {
-			if sw.scanner.Peek() == scanner.EOF {
-				return "", errors.New("syntax error: missing '}'")
-			}
-			return "", err
-		}
-		newValue, found := sw.getEnv(name)
-		if !found {
-			if sw.skipUnsetEnv {
-				return fmt.Sprintf("${%s?%s}", name, word), nil
-			}
-			message := "is not allowed to be unset"
-			if word != "" {
-				message = word
-			}
-			return "", errors.Errorf("%s: %s", name, message)
-		}
-		return newValue, nil
 	case ':':
-		// Special ${xx:...} format processing
-		// Yes it allows for recursive $'s in the ... spot
-		modifier := sw.scanner.Next()
-
+		nullIsUnset = true
+		ch = sw.scanner.Next()
+		chs += string(ch)
+		fallthrough
+	case '+', '-', '?':
 		word, _, err := sw.processStopOn('}')
 		if err != nil {
 			if sw.scanner.Peek() == scanner.EOF {
@@ -345,54 +361,45 @@ func (sw *shellWord) processDollar() (string, error) {
 		}
 
 		// Grab the current value of the variable in question so we
-		// can use to to determine what to do based on the modifier
-		newValue, found := sw.getEnv(name)
+		// can use it to determine what to do based on the modifier
+		value, set := sw.getEnv(name)
+		if sw.skipUnsetEnv && !set {
+			return fmt.Sprintf("${%s%s%s}", name, chs, word), nil
+		}
 
-		switch modifier {
-		case '+':
-			if newValue != "" {
-				newValue = word
-			}
-			if !found && sw.skipUnsetEnv {
-				return fmt.Sprintf("${%s:%s%s}", name, string(modifier), word), nil
-			}
-			return newValue, nil
-
+		switch ch {
 		case '-':
-			if newValue == "" {
-				newValue = word
+			if !set || (nullIsUnset && value == "") {
+				return word, nil
 			}
-			if !found && sw.skipUnsetEnv {
-				return fmt.Sprintf("${%s:%s%s}", name, string(modifier), word), nil
+			return value, nil
+		case '+':
+			if !set || (nullIsUnset && value == "") {
+				return "", nil
 			}
-
-			return newValue, nil
-
+			return word, nil
 		case '?':
-			if !found {
-				if sw.skipUnsetEnv {
-					return fmt.Sprintf("${%s:%s%s}", name, string(modifier), word), nil
-				}
+			if !set {
 				message := "is not allowed to be unset"
 				if word != "" {
 					message = word
 				}
 				return "", errors.Errorf("%s: %s", name, message)
 			}
-			if newValue == "" {
+			if nullIsUnset && value == "" {
 				message := "is not allowed to be empty"
 				if word != "" {
 					message = word
 				}
 				return "", errors.Errorf("%s: %s", name, message)
 			}
-			return newValue, nil
-
+			return value, nil
 		default:
-			return "", errors.Errorf("unsupported modifier (%c) in substitution", modifier)
+			return "", errors.Errorf("unsupported modifier (%s) in substitution", chs)
 		}
+	default:
+		return "", errors.Errorf("unsupported modifier (%s) in substitution", chs)
 	}
-	return "", errors.Errorf("missing ':' in substitution")
 }
 
 func (sw *shellWord) processName() string {
@@ -439,6 +446,7 @@ func isSpecialParam(char rune) bool {
 func (sw *shellWord) getEnv(name string) (string, bool) {
 	for key, value := range sw.envs {
 		if EqualEnvKeys(name, key) {
+			sw.matches[name] = struct{}{}
 			return value, true
 		}
 	}

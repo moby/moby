@@ -1,29 +1,35 @@
 //go:build linux && cgo
-// +build linux,cgo
+
+// Package loopback provides utilities to work with loopback devices.
+//
+// Deprecated: this package is deprecated and will be removed in the next release.
 
 package loopback // import "github.com/docker/docker/pkg/loopback"
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 	"golang.org/x/sys/unix"
 )
 
 func getLoopbackBackingFile(file *os.File) (uint64, uint64, error) {
-	loopInfo, err := ioctlLoopGetStatus64(file.Fd())
+	loopInfo, err := unix.IoctlLoopGetStatus64(int(file.Fd()))
 	if err != nil {
-		logrus.Errorf("Error get loopback backing file: %s", err)
+		log.G(context.TODO()).Errorf("Error get loopback backing file: %s", err)
 		return 0, 0, ErrGetLoopbackBackingFile
 	}
 	return loopInfo.Device, loopInfo.Inode, nil
 }
 
 // SetCapacity reloads the size for the loopback device.
+//
+// Deprecated: the loopback package is deprected and will be removed in the next release.
 func SetCapacity(file *os.File) error {
-	if err := ioctlLoopSetCapacity(file.Fd(), 0); err != nil {
-		logrus.Errorf("Error loopbackSetCapacity: %s", err)
+	if err := unix.IoctlSetInt(int(file.Fd()), unix.LOOP_SET_CAPACITY, 0); err != nil {
+		log.G(context.TODO()).Errorf("Error loopbackSetCapacity: %s", err)
 		return ErrSetCapacity
 	}
 	return nil
@@ -31,6 +37,8 @@ func SetCapacity(file *os.File) error {
 
 // FindLoopDeviceFor returns a loopback device file for the specified file which
 // is backing file of a loop back device.
+//
+// Deprecated: the loopback package is deprected and will be removed in the next release.
 func FindLoopDeviceFor(file *os.File) *os.File {
 	var stat unix.Stat_t
 	err := unix.Stat(file.Name(), &stat)
@@ -38,8 +46,7 @@ func FindLoopDeviceFor(file *os.File) *os.File {
 		return nil
 	}
 	targetInode := stat.Ino
-	// the type is 32bit on mips
-	targetDevice := uint64(stat.Dev) //nolint: unconvert
+	targetDevice := uint64(stat.Dev) //nolint: unconvert // the type is 32bit on mips
 
 	for i := 0; true; i++ {
 		path := fmt.Sprintf("/dev/loop%d", i)

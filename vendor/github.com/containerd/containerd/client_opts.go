@@ -34,6 +34,7 @@ type clientOpts struct {
 	defaultPlatform platforms.MatchComparer
 	services        *services
 	dialOptions     []grpc.DialOption
+	callOptions     []grpc.CallOption
 	timeout         time.Duration
 }
 
@@ -71,6 +72,14 @@ func WithDefaultPlatform(platform platforms.MatchComparer) ClientOpt {
 func WithDialOpts(opts []grpc.DialOption) ClientOpt {
 	return func(c *clientOpts) error {
 		c.dialOptions = opts
+		return nil
+	}
+}
+
+// WithCallOpts allows grpc.CallOptions to be set on the connection
+func WithCallOpts(opts []grpc.CallOption) ClientOpt {
+	return func(c *clientOpts) error {
+		c.callOptions = opts
 		return nil
 	}
 }
@@ -191,6 +200,8 @@ func WithChildLabelMap(fn func(ocispec.Descriptor) []string) RemoteOpt {
 // WithSchema1Conversion is used to convert Docker registry schema 1
 // manifests to oci manifests on pull. Without this option schema 1
 // manifests will return a not supported error.
+//
+// Deprecated: use Schema 2 or OCI images.
 func WithSchema1Conversion(client *Client, c *RemoteContext) error {
 	c.ConvertSchema1 = true
 	return nil

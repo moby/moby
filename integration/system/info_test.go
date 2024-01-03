@@ -1,12 +1,12 @@
 package system // import "github.com/docker/docker/integration/system"
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"testing"
 
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -14,47 +14,44 @@ import (
 )
 
 func TestInfoAPI(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
 
-	info, err := client.Info(context.Background())
+	info, err := client.Info(ctx)
 	assert.NilError(t, err)
 
-	// always shown fields
-	stringsToCheck := []string{
-		"ID",
-		"Containers",
-		"ContainersRunning",
-		"ContainersPaused",
-		"ContainersStopped",
-		"Images",
-		"LoggingDriver",
-		"OperatingSystem",
-		"NCPU",
-		"OSType",
-		"Architecture",
-		"MemTotal",
-		"KernelVersion",
-		"Driver",
-		"ServerVersion",
-		"SecurityOptions"}
-
-	out := fmt.Sprintf("%+v", info)
-	for _, linePrefix := range stringsToCheck {
-		assert.Check(t, is.Contains(out, linePrefix))
+	// TODO(thaJeztah): make sure we have other tests that run a local daemon and check other fields based on known state.
+	assert.Check(t, info.ID != "")
+	assert.Check(t, is.Equal(info.Containers, info.ContainersRunning+info.ContainersPaused+info.ContainersStopped))
+	assert.Check(t, info.LoggingDriver != "")
+	assert.Check(t, info.OperatingSystem != "")
+	assert.Check(t, info.NCPU != 0)
+	assert.Check(t, info.OSType != "")
+	assert.Check(t, info.Architecture != "")
+	assert.Check(t, info.MemTotal != 0)
+	assert.Check(t, info.KernelVersion != "")
+	assert.Check(t, info.Driver != "")
+	assert.Check(t, info.ServerVersion != "")
+	assert.Check(t, info.SystemTime != "")
+	if testEnv.DaemonInfo.OSType != "windows" {
+		// Windows currently doesn't have security-options in the info response.
+		assert.Check(t, len(info.SecurityOptions) != 0)
 	}
 }
 
 func TestInfoAPIWarnings(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
+
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
 	c := d.NewClientT(t)
 
 	d.Start(t, "-H=0.0.0.0:23756", "-H="+d.Sock())
 	defer d.Stop(t)
 
-	info, err := c.Info(context.Background())
+	info, err := c.Info(ctx)
 	assert.NilError(t, err)
 
 	stringsToCheck := []string{
@@ -72,6 +69,8 @@ func TestInfoDebug(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: test starts daemon with -H unix://.....")
 
+	_ = testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
 	d.Start(t, "--debug")
 	defer d.Stop(t)
@@ -85,7 +84,6 @@ func TestInfoDebug(t *testing.T) {
 	// TODO need a stable way to generate event listeners
 	// assert.Check(t, info.NEventsListener != 0)
 	assert.Check(t, info.NGoroutines != 0)
-	assert.Check(t, info.SystemTime != "")
 	assert.Equal(t, info.DockerRootDir, d.Root)
 }
 

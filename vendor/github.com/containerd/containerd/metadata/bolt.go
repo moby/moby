@@ -18,8 +18,8 @@ package metadata
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -55,7 +55,7 @@ func update(ctx context.Context, db transactor, fn func(*bolt.Tx) error) error {
 	if !ok {
 		return db.Update(fn)
 	} else if !tx.Writable() {
-		return errors.Wrap(bolt.ErrTxNotWritable, "unable to use transaction from context")
+		return fmt.Errorf("unable to use transaction from context: %w", bolt.ErrTxNotWritable)
 	}
 	return fn(tx)
 }

@@ -6,7 +6,7 @@ import (
 	apitypes "github.com/docker/docker/api/types"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
-	swarmapi "github.com/docker/swarmkit/api"
+	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
 )
 
@@ -41,7 +41,9 @@ func (c *Cluster) GetConfigs(options apitypes.ConfigListOptions) ([]types.Config
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := c.getRequestContext()
+
+	ctx := context.TODO()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	r, err := state.controlClient.ListConfigs(ctx,

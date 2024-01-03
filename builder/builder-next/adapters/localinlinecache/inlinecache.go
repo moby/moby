@@ -8,7 +8,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes/docker"
-	distreference "github.com/docker/distribution/reference"
+	distreference "github.com/distribution/reference"
 	imagestore "github.com/docker/docker/image"
 	"github.com/docker/docker/reference"
 	"github.com/moby/buildkit/cache/remotecache"
@@ -17,24 +17,18 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/worker"
-	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
-func init() {
-	// See https://github.com/moby/buildkit/pull/1993.
-	v1.EmptyLayerRemovalSupported = false
-}
-
 // ResolveCacheImporterFunc returns a resolver function for local inline cache
 func ResolveCacheImporterFunc(sm *session.Manager, resolverFunc docker.RegistryHosts, cs content.Store, rs reference.Store, is imagestore.Store) remotecache.ResolveCacheImporterFunc {
-
 	upstream := registryremotecache.ResolveCacheImporterFunc(sm, cs, resolverFunc)
 
-	return func(ctx context.Context, group session.Group, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
+	return func(ctx context.Context, group session.Group, attrs map[string]string) (remotecache.Importer, ocispec.Descriptor, error) {
 		if dt, err := tryImportLocal(rs, is, attrs["ref"]); err == nil {
-			return newLocalImporter(dt), specs.Descriptor{}, nil
+			return newLocalImporter(dt), ocispec.Descriptor{}, nil
 		}
 		return upstream(ctx, group, attrs)
 	}
@@ -65,7 +59,7 @@ type localImporter struct {
 	dt []byte
 }
 
-func (li *localImporter) Resolve(ctx context.Context, _ specs.Descriptor, id string, w worker.Worker) (solver.CacheManager, error) {
+func (li *localImporter) Resolve(ctx context.Context, _ ocispec.Descriptor, id string, w worker.Worker) (solver.CacheManager, error) {
 	cc := v1.NewCacheChains()
 	if err := li.importInlineCache(ctx, li.dt, cc); err != nil {
 		return nil, err
@@ -75,7 +69,7 @@ func (li *localImporter) Resolve(ctx context.Context, _ specs.Descriptor, id str
 	if err != nil {
 		return nil, err
 	}
-	return solver.NewCacheManager(id, keysStorage, resultStorage), nil
+	return solver.NewCacheManager(ctx, id, keysStorage, resultStorage), nil
 }
 
 func (li *localImporter) importInlineCache(ctx context.Context, dt []byte, cc solver.CacheExporterTarget) error {
@@ -102,7 +96,7 @@ func (li *localImporter) importInlineCache(ctx context.Context, dt []byte, cc so
 	layers := v1.DescriptorProvider{}
 	for i, diffID := range img.Rootfs.DiffIDs {
 		dgst := digest.Digest(diffID.String())
-		desc := specs.Descriptor{
+		desc := ocispec.Descriptor{
 			Digest:      dgst,
 			Size:        -1,
 			MediaType:   images.MediaTypeDockerSchema2Layer,
@@ -160,9 +154,8 @@ func parseCreatedLayerInfo(img image) ([]string, []string, error) {
 	return dates, createdBy, nil
 }
 
-type emptyProvider struct {
-}
+type emptyProvider struct{}
 
-func (p *emptyProvider) ReaderAt(ctx context.Context, dec specs.Descriptor) (content.ReaderAt, error) {
+func (p *emptyProvider) ReaderAt(ctx context.Context, dec ocispec.Descriptor) (content.ReaderAt, error) {
 	return nil, errors.Errorf("ReaderAt not implemented for empty provider")
 }

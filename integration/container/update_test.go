@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -13,18 +12,17 @@ import (
 )
 
 func TestUpdateRestartPolicy(t *testing.T) {
-	defer setupTest(t)()
-	client := testEnv.APIClient()
-	ctx := context.Background()
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, client, container.WithCmd("sh", "-c", "sleep 1 && false"), func(c *container.TestContainerConfig) {
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("sh", "-c", "sleep 1 && false"), func(c *container.TestContainerConfig) {
 		c.HostConfig.RestartPolicy = containertypes.RestartPolicy{
 			Name:              "on-failure",
 			MaximumRetryCount: 3,
 		}
 	})
 
-	_, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
+	_, err := apiClient.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
 		RestartPolicy: containertypes.RestartPolicy{
 			Name:              "on-failure",
 			MaximumRetryCount: 5,
@@ -33,26 +31,25 @@ func TestUpdateRestartPolicy(t *testing.T) {
 	assert.NilError(t, err)
 
 	timeout := 60 * time.Second
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		timeout = 180 * time.Second
 	}
 
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(timeout))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(timeout))
 
-	inspect, err := client.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.RestartCount, 5))
 	assert.Check(t, is.Equal(inspect.HostConfig.RestartPolicy.MaximumRetryCount, 5))
 }
 
 func TestUpdateRestartWithAutoRemove(t *testing.T) {
-	defer setupTest(t)()
-	client := testEnv.APIClient()
-	ctx := context.Background()
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, client, container.WithAutoRemove)
+	cID := container.Run(ctx, t, apiClient, container.WithAutoRemove)
 
-	_, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
+	_, err := apiClient.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
 		RestartPolicy: containertypes.RestartPolicy{
 			Name: "always",
 		},

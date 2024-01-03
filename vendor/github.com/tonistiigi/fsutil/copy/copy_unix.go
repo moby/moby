@@ -1,3 +1,4 @@
+//go:build solaris || darwin || freebsd
 // +build solaris darwin freebsd
 
 package fs
@@ -15,8 +16,7 @@ func getUIDGID(fi os.FileInfo) (uid, gid int) {
 	return int(st.Uid), int(st.Gid)
 }
 
-func (c *copier) copyFileInfo(fi os.FileInfo, name string) error {
-	st := fi.Sys().(*syscall.Stat_t)
+func (c *copier) copyFileInfo(fi os.FileInfo, src, name string) error {
 	chown := c.chown
 	uid, gid := getUIDGID(fi)
 	old := &User{UID: uid, GID: gid}
@@ -39,23 +39,21 @@ func (c *copier) copyFileInfo(fi os.FileInfo, name string) error {
 		}
 	}
 
-	if c.utime != nil {
-		if err := Utimes(name, c.utime); err != nil {
-			return err
-		}
-	} else {
-		timespec := []unix.Timespec{unix.Timespec(StatAtime(st)), unix.Timespec(StatMtime(st))}
-		if err := unix.UtimesNanoAt(unix.AT_FDCWD, name, timespec, unix.AT_SYMLINK_NOFOLLOW); err != nil {
-			return errors.Wrapf(err, "failed to utime %s", name)
-		}
+	if err := c.copyFileTimestamp(fi, name); err != nil {
+		return err
 	}
 	return nil
 }
 
-func copyDevice(dst string, fi os.FileInfo) error {
-	st, ok := fi.Sys().(*syscall.Stat_t)
-	if !ok {
-		return errors.New("unsupported stat type")
+func (c *copier) copyFileTimestamp(fi os.FileInfo, name string) error {
+	if c.utime != nil {
+		return Utimes(name, c.utime)
 	}
-	return unix.Mknod(dst, uint32(fi.Mode()), int(st.Rdev))
+
+	st := fi.Sys().(*syscall.Stat_t)
+	timespec := []unix.Timespec{unix.Timespec(StatAtime(st)), unix.Timespec(StatMtime(st))}
+	if err := unix.UtimesNanoAt(unix.AT_FDCWD, name, timespec, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+		return errors.Wrapf(err, "failed to utime %s", name)
+	}
+	return nil
 }

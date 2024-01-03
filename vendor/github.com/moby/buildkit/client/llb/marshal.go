@@ -2,7 +2,6 @@ package llb
 
 import (
 	"io"
-	"io/ioutil"
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/solver/pb"
@@ -12,9 +11,10 @@ import (
 // Definition is the LLB definition structure with per-vertex metadata entries
 // Corresponds to the Definition structure defined in solver/pb.Definition.
 type Definition struct {
-	Def      [][]byte
-	Metadata map[digest.Digest]pb.OpMetadata
-	Source   *pb.Source
+	Def         [][]byte
+	Metadata    map[digest.Digest]pb.OpMetadata
+	Source      *pb.Source
+	Constraints *Constraints
 }
 
 func (def *Definition) ToPB() *pb.Definition {
@@ -38,6 +38,24 @@ func (def *Definition) FromPB(x *pb.Definition) {
 	}
 }
 
+func (def *Definition) Head() (digest.Digest, error) {
+	if len(def.Def) == 0 {
+		return "", nil
+	}
+
+	last := def.Def[len(def.Def)-1]
+
+	var pop pb.Op
+	if err := (&pop).Unmarshal(last); err != nil {
+		return "", err
+	}
+	if len(pop.Inputs) == 0 {
+		return "", nil
+	}
+
+	return pop.Inputs[0].Digest, nil
+}
+
 func WriteTo(def *Definition, w io.Writer) error {
 	b, err := def.ToPB().Marshal()
 	if err != nil {
@@ -48,7 +66,7 @@ func WriteTo(def *Definition, w io.Writer) error {
 }
 
 func ReadFrom(r io.Reader) (*Definition, error) {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
@@ -69,10 +87,7 @@ func MarshalConstraints(base, override *Constraints) (*pb.Op, *pb.OpMetadata) {
 		c.Platform = p
 	}
 
-	for _, wc := range override.WorkerConstraints {
-		c.WorkerConstraints = append(c.WorkerConstraints, wc)
-	}
-
+	c.WorkerConstraints = append(c.WorkerConstraints, override.WorkerConstraints...)
 	c.Metadata = mergeMetadata(c.Metadata, override.Metadata)
 
 	if c.Platform == nil {

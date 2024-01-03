@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
-	"github.com/sirupsen/logrus"
 )
 
 // ContainerUnpause unpauses a container
@@ -26,18 +27,22 @@ func (daemon *Daemon) containerUnpause(ctr *container.Container) error {
 	if !ctr.Paused {
 		return fmt.Errorf("Container %s is not paused", ctr.ID)
 	}
+	tsk, err := ctr.GetRunningTask()
+	if err != nil {
+		return err
+	}
 
-	if err := daemon.containerd.Resume(context.Background(), ctr.ID); err != nil {
+	if err := tsk.Resume(context.Background()); err != nil {
 		return fmt.Errorf("Cannot unpause container %s: %s", ctr.ID, err)
 	}
 
 	ctr.Paused = false
 	daemon.setStateCounter(ctr)
 	daemon.updateHealthMonitor(ctr)
-	daemon.LogContainerEvent(ctr, "unpause")
+	daemon.LogContainerEvent(ctr, events.ActionUnPause)
 
 	if err := ctr.CheckpointTo(daemon.containersReplica); err != nil {
-		logrus.WithError(err).Warn("could not save container to disk")
+		log.G(context.TODO()).WithError(err).Warn("could not save container to disk")
 	}
 
 	return nil

@@ -3,21 +3,44 @@ package logfields
 const (
 	// Identifiers
 
+	Name      = "name"
+	Namespace = "namespace"
+	Operation = "operation"
+
+	ID          = "id"
+	SandboxID   = "sid"
 	ContainerID = "cid"
-	UVMID       = "uvm-id"
+	ExecID      = "eid"
 	ProcessID   = "pid"
+	TaskID      = "tid"
+	UVMID       = "uvm-id"
+
+	// networking and IO
+
+	File  = "file"
+	Path  = "path"
+	Bytes = "bytes"
+	Pipe  = "pipe"
 
 	// Common Misc
 
-	// Timeout represents an operation timeout.
-	Timeout = "timeout"
+	Attempt = "attemptNo"
 	JSON    = "json"
+
+	// Time
+
+	StartTime = "startTime"
+	EndTime   = "endTime"
+	Duration  = "duration"
+	Timeout   = "timeout"
 
 	// Keys/values
 
 	Field         = "field"
+	Key           = "key"
 	OCIAnnotation = "oci-annotation"
 	Value         = "value"
+	Options       = "options"
 
 	// Golang type's
 
@@ -29,4 +52,10 @@ const (
 	// runhcs
 
 	VMShimOperation = "vmshim-op"
+
+	// logging and tracing
+
+	TraceID      = "traceID"
+	SpanID       = "spanID"
+	ParentSpanID = "parentSpanID"
 )

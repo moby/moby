@@ -75,20 +75,19 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 
 	content := bytes.NewBuffer(nil)
 	if IP != "" {
-		//set main record
+		// set main record
 		var mainRec Record
 		mainRec.IP = IP
 		// User might have provided a FQDN in hostname or split it across hostname
 		// and domainname.  We want the FQDN and the bare hostname.
 		fqdn := hostname
 		if domainname != "" {
-			fqdn = fmt.Sprintf("%s.%s", fqdn, domainname)
+			fqdn += "." + domainname
 		}
-		parts := strings.SplitN(fqdn, ".", 2)
-		if len(parts) == 2 {
-			mainRec.Hosts = fmt.Sprintf("%s %s", fqdn, parts[0])
-		} else {
-			mainRec.Hosts = fqdn
+		mainRec.Hosts = fqdn
+
+		if hostName, _, ok := strings.Cut(fqdn, "."); ok {
+			mainRec.Hosts += " " + hostName
 		}
 		if _, err := mainRec.WriteTo(content); err != nil {
 			return err
@@ -107,7 +106,7 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 		}
 	}
 
-	return os.WriteFile(path, content.Bytes(), 0644)
+	return os.WriteFile(path, content.Bytes(), 0o644)
 }
 
 // Add adds an arbitrary number of Records to an already existing /etc/hosts file
@@ -123,7 +122,7 @@ func Add(path string, recs []Record) error {
 		return err
 	}
 
-	return os.WriteFile(path, b, 0644)
+	return os.WriteFile(path, b, 0o644)
 }
 
 func mergeRecords(path string, recs []Record) ([]byte, error) {
@@ -188,7 +187,7 @@ loop:
 	if err := s.Err(); err != nil {
 		return err
 	}
-	return os.WriteFile(path, buf.Bytes(), 0644)
+	return os.WriteFile(path, buf.Bytes(), 0o644)
 }
 
 // Update all IP addresses where hostname matches.
@@ -202,6 +201,6 @@ func Update(path, IP, hostname string) error {
 	if err != nil {
 		return err
 	}
-	var re = regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)(\\s|\\.)", regexp.QuoteMeta(hostname)))
-	return os.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2"+"$3")), 0644)
+	re := regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)(\\s|\\.)", regexp.QuoteMeta(hostname)))
+	return os.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2"+"$3")), 0o644)
 }

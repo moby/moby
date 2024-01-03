@@ -22,9 +22,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
 // ChangeKind is the type of modification that
@@ -81,12 +80,13 @@ type ChangeFunc func(ChangeKind, string, os.FileInfo, error) error
 //
 // The change callback is called by the order of path names and
 // should be appliable in that order.
-//  Due to this apply ordering, the following is true
-//  - Removed directory trees only create a single change for the root
-//    directory removed. Remaining changes are implied.
-//  - A directory which is modified to become a file will not have
-//    delete entries for sub-path items, their removal is implied
-//    by the removal of the parent directory.
+//
+//	Due to this apply ordering, the following is true
+//	- Removed directory trees only create a single change for the root
+//	  directory removed. Remaining changes are implied.
+//	- A directory which is modified to become a file will not have
+//	  delete entries for sub-path items, their removal is implied
+//	  by the removal of the parent directory.
 //
 // Opaque directories will not be treated specially and each file
 // removed from the base directory will show up as a removal.

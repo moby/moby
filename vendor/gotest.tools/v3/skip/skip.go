@@ -1,4 +1,5 @@
-/*Package skip provides functions for skipping a test and printing the source code
+/*
+Package skip provides functions for skipping a test and printing the source code
 of the condition used to skip the test.
 */
 package skip // import "gotest.tools/v3/skip"

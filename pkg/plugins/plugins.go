@@ -13,7 +13,7 @@
 // A handshake is send at /Plugin.Activate, and plugins are expected to return
 // a Manifest with a list of Docker subsystems which this plugin implements.
 //
-// In order to use a plugins, you can use the ``Get`` with the name of the
+// In order to use a plugins, you can use the `Get` with the name of the
 // plugin and the subsystem it implements.
 //
 //	plugin, err := plugins.Get("example", "VolumeDriver")
@@ -23,22 +23,21 @@
 package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/sirupsen/logrus"
 )
 
 // ProtocolSchemeHTTPV1 is the name of the protocol used for interacting with plugins using this package.
 const ProtocolSchemeHTTPV1 = "moby.plugins.http/v1"
 
-var (
-	// ErrNotImplements is returned if the plugin does not implement the requested driver.
-	ErrNotImplements = errors.New("Plugin does not implement the requested driver")
-)
+// ErrNotImplements is returned if the plugin does not implement the requested driver.
+var ErrNotImplements = errors.New("Plugin does not implement the requested driver")
 
 type plugins struct {
 	sync.Mutex
@@ -102,6 +101,12 @@ func (p *Plugin) IsV1() bool {
 	return true
 }
 
+// ScopedPath returns the path scoped to the plugin's rootfs.
+// For v1 plugins, this always returns the path unchanged as v1 plugins run directly on the host.
+func (p *Plugin) ScopedPath(s string) string {
+	return s
+}
+
 // NewLocalPlugin creates a new local plugin.
 func NewLocalPlugin(name, addr string) *Plugin {
 	return &Plugin{
@@ -151,7 +156,6 @@ func (p *Plugin) runHandlers() {
 		p.handlersRun = true
 	}
 	handlers.RUnlock()
-
 }
 
 // activated returns if the plugin has already been activated.
@@ -197,14 +201,14 @@ func (p *Plugin) implements(kind string) bool {
 	return false
 }
 
-func load(name string) (*Plugin, error) {
-	return loadWithRetry(name, true)
-}
-
 func loadWithRetry(name string, retry bool) (*Plugin, error) {
-	registry := newLocalRegistry()
+	registry := NewLocalRegistry()
 	start := time.Now()
-
+	var testTimeOut int
+	if name == testNonExistingPlugin {
+		// override the timeout in tests
+		testTimeOut = 2
+	}
 	var retries int
 	for {
 		pl, err := registry.Plugin(name)
@@ -214,11 +218,11 @@ func loadWithRetry(name string, retry bool) (*Plugin, error) {
 			}
 
 			timeOff := backoff(retries)
-			if abort(start, timeOff) {
+			if abort(start, timeOff, testTimeOut) {
 				return nil, err
 			}
 			retries++
-			logrus.Warnf("Unable to locate plugin: %s, retrying in %v", name, timeOff)
+			log.G(context.TODO()).Warnf("Unable to locate plugin: %s, retrying in %v", name, timeOff)
 			time.Sleep(timeOff)
 			continue
 		}
@@ -250,7 +254,7 @@ func get(name string) (*Plugin, error) {
 	if ok {
 		return pl, pl.activate()
 	}
-	return load(name)
+	return loadWithRetry(name, true)
 }
 
 // Get returns the plugin given the specified name and requested implementation.
@@ -263,7 +267,7 @@ func Get(name, imp string) (*Plugin, error) {
 		return nil, err
 	}
 	if err := pl.waitActive(); err == nil && pl.implements(imp) {
-		logrus.Debugf("%s implements: %s", name, imp)
+		log.G(context.TODO()).Debugf("%s implements: %s", name, imp)
 		return pl, nil
 	}
 	return nil, fmt.Errorf("%w: plugin=%q, requested implementation=%q", ErrNotImplements, name, imp)
@@ -294,8 +298,8 @@ func Handle(iface string, fn func(string, *Client)) {
 }
 
 // GetAll returns all the plugins for the specified implementation
-func GetAll(imp string) ([]*Plugin, error) {
-	pluginNames, err := Scan()
+func (l *LocalRegistry) GetAll(imp string) ([]*Plugin, error) {
+	pluginNames, err := l.Scan()
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +334,7 @@ func GetAll(imp string) ([]*Plugin, error) {
 	var out []*Plugin
 	for pl := range chPl {
 		if pl.err != nil {
-			logrus.Error(pl.err)
+			log.G(context.TODO()).Error(pl.err)
 			continue
 		}
 		if err := pl.pl.waitActive(); err == nil && pl.pl.implements(imp) {

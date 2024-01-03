@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package ipvlan
 
@@ -8,23 +7,29 @@ import (
 	"sync"
 
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
 const (
-	vethLen             = 7
 	containerVethPrefix = "eth"
 	vethPrefix          = "veth"
-	ipvlanType          = "ipvlan" // driver type name
-	modeL2              = "l2"     // ipvlan mode l2 is the default
-	modeL3              = "l3"     // ipvlan L3 mode
-	parentOpt           = "parent" // parent interface -o parent
-	modeOpt             = "_mode"  // ipvlan mode ux opt suffix
-)
+	vethLen             = len(vethPrefix) + 7
 
-var driverModeOpt = ipvlanType + modeOpt // mode -o ipvlan_mode
+	NetworkType   = "ipvlan"      // driver type name
+	parentOpt     = "parent"      // parent interface -o parent
+	driverModeOpt = "ipvlan_mode" // mode -o ipvlan_mode
+	driverFlagOpt = "ipvlan_flag" // flag -o ipvlan_flag
+
+	modeL2  = "l2"  // ipvlan L2 mode (default)
+	modeL3  = "l3"  // ipvlan L3 mode
+	modeL3S = "l3s" // ipvlan L3S mode
+
+	flagBridge  = "bridge"  // ipvlan flag bridge (default)
+	flagPrivate = "private" // ipvlan flag private
+	flagVepa    = "vepa"    // ipvlan flag vepa
+)
 
 type endpointTable map[string]*endpoint
 
@@ -34,7 +39,7 @@ type driver struct {
 	networks networkTable
 	sync.Once
 	sync.Mutex
-	store datastore.DataStore
+	store *datastore.Store
 }
 
 type endpoint struct {
@@ -56,20 +61,18 @@ type network struct {
 	sync.Mutex
 }
 
-// Init initializes and registers the libnetwork ipvlan driver
-func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	c := driverapi.Capability{
-		DataScope:         datastore.LocalScope,
-		ConnectivityScope: datastore.GlobalScope,
-	}
+// Register initializes and registers the libnetwork ipvlan driver.
+func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	d := &driver{
 		networks: networkTable{},
 	}
 	if err := d.initStore(config); err != nil {
 		return err
 	}
-
-	return dc.RegisterDriver(ipvlanType, d, c)
+	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
+		DataScope:         scope.Local,
+		ConnectivityScope: scope.Global,
+	})
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
@@ -85,7 +88,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 }
 
 func (d *driver) Type() string {
-	return ipvlanType
+	return NetworkType
 }
 
 func (d *driver) IsBuiltIn() bool {
@@ -97,16 +100,6 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 }
 
 func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
-	return nil
-}
-
-// DiscoverNew is a notification for a new discovery event.
-func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
-	return nil
-}
-
-// DiscoverDelete is a notification for a discovery delete event.
-func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
 }
 

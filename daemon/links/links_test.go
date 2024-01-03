@@ -2,6 +2,7 @@ package links // import "github.com/docker/docker/daemon/links"
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -200,7 +201,7 @@ func TestLinkPortRangeEnv(t *testing.T) {
 		if env[tcpaddr] != "172.0.17.2" {
 			t.Fatalf("Expected env %s  = 172.0.17.2, got %s", tcpaddr, env[tcpaddr])
 		}
-		if env[tcpport] != fmt.Sprintf("%d", i) {
+		if env[tcpport] != strconv.Itoa(i) {
 			t.Fatalf("Expected env %s  = %d, got %s", tcpport, i, env[tcpport])
 		}
 		if env[tcpproto] != "tcp" {

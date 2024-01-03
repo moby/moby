@@ -13,6 +13,86 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.44 API changes
+
+[Docker Engine API v1.44](https://docs.docker.com/engine/api/v1.44/) documentation
+
+* GET `/images/json` now accepts an `until` filter. This accepts a timestamp and
+  lists all images created before it. The `<timestamp>` can be Unix timestamps,
+  date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`)
+  computed relative to the daemon machine’s time. This change is not versioned,
+  and affects all API versions if the daemon has this patch.
+* The `VirtualSize` field in the `GET /images/{name}/json`, `GET /images/json`,
+  and `GET /system/df` responses is now omitted. Use the `Size` field instead,
+  which contains the same information.
+* Deprecated: The `is_automated` field in the `GET /images/search` response has
+  been deprecated and will always be set to false in the future because Docker
+  Hub is deprecating the `is_automated` field in its search API. The deprecation
+  is not versioned, and applies to all API versions.
+* Deprecated: The `is-automated` filter for the `GET /images/search` endpoint.
+  The `is_automated` field has been deprecated by Docker Hub's search API.
+  Consequently, searching for `is-automated=true` will yield no results. The
+  deprecation is not versioned, and applies to all API versions.
+* Read-only bind mounts are now made recursively read-only on kernel >= 5.12
+  with runtimes which support the feature.
+  `POST /containers/create`, `GET /containers/{id}/json`, and `GET /containers/json` now supports
+  `BindOptions.ReadOnlyNonRecursive` and `BindOptions.ReadOnlyForceRecursive` to customize the behavior.
+* `POST /containers/create` now accepts a `HealthConfig.StartInterval` to set the
+  interval for health checks during the start period.
+* `GET /info` now includes a `CDISpecDirs` field indicating the configured CDI
+  specifications directories. The use of the applied setting requires the daemon
+  to have expermental enabled, and for non-experimental daemons an empty list is
+  always returned.
+* `POST /networks/create` now returns a 400 if the `IPAMConfig` has invalid
+  values. Note that this change is _unversioned_ and applied to all API
+  versions on daemon that support version 1.44.
+* `POST /networks/create` with a duplicated name now fails systematically. As
+  such, the `CheckDuplicate` field is now deprecated. Note that this change is
+  _unversioned_ and applied to all API versions on daemon that support version
+  1.44.
+* `POST /containers/create` now accepts multiple `EndpointSettings` in
+  `NetworkingConfig.EndpointSettings`.
+* `POST /containers/create` and `POST /networks/{id}/connect` will now catch
+  validation errors that were previously only returned during `POST /containers/{id}/start`.
+  These endpoints will also return the full set of validation errors they find,
+  instead of returning only the first one.
+  Note that this change is _unversioned_ and applies to all API versions.
+* `POST /services/create` and `POST /services/{id}/update` now accept `Seccomp`
+  and `AppArmor` fields in the `ContainerSpec.Privileges` object. This allows
+  some configuration of Seccomp and AppArmor in Swarm services.
+* A new endpoint-specific `MacAddress` field has been added to `NetworkSettings.EndpointSettings`
+  on `POST /containers/create`, and to `EndpointConfig` on `POST /networks/{id}/connect`.
+  The container-wide `MacAddress` field in `Config`, on `POST /containers/create`, is now deprecated.
+* The field `Networks` in the `POST /services/create` and `POST /services/{id}/update`
+  requests is now deprecated. You should instead use the field `TaskTemplate.Networks`.
+* The `Container` and `ContainerConfig` fields in the `GET /images/{name}/json`
+  response are deprecated and will no longer be included in API v1.45.
+* `GET /info` now includes `status` properties in `Runtimes`.
+* A new field named `DNSNames` and containing all non-fully qualified DNS names
+  a container takes on a specific network has been added to `GET /containers/{name:.*}/json`.
+* The `Aliases` field returned in calls to `GET /containers/{name:.*}/json` in v1.44  and older
+  versions contains the short container ID. This will change in the next API version,  v1.45.
+  Starting with that API version, this specific value will  be removed from the `Aliases` field
+  such that this field will reflect exactly the values originally submitted to the
+  `POST /containers/create` endpoint. The newly introduced `DNSNames` should now be used instead.
+
+## v1.43 API changes
+
+[Docker Engine API v1.43](https://docs.docker.com/engine/api/v1.43/) documentation
+
+* `POST /containers/create` now accepts `Annotations` as part of `HostConfig`.
+  Can be used to attach arbitrary metadata to the container, which will also be
+  passed to the runtime when the container is started.
+* `GET /images/json` no longer includes hardcoded `<none>:<none>` and
+  `<none>@<none>` in `RepoTags` and`RepoDigests` for untagged images.
+  In such cases, empty arrays will be produced instead.
+* The `VirtualSize` field in the `GET /images/{name}/json`, `GET /images/json`,
+  and `GET /system/df` responses is deprecated and will no longer be included
+  in API v1.44. Use the `Size` field instead, which contains the same information.
+* `GET /info` now includes `no-new-privileges` in the `SecurityOptions` string
+  list when this option is enabled globally. This change is not versioned, and
+  affects all API versions if the daemon has this patch.
+
 ## v1.42 API changes
 
 [Docker Engine API v1.42](https://docs.docker.com/engine/api/v1.42/) documentation
@@ -21,6 +101,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   was introduced in API 1.31 as part of an experimental feature, and no longer
   used since API 1.40.
   Use field `BuildCache` instead to track storage used by the builder component.
+* `POST /containers/{id}/stop` and `POST /containers/{id}/restart` now accept a
+  `signal` query parameter, which allows overriding the container's default stop-
+  signal.
 * `GET /images/json` now accepts query parameter `shared-size`. When set `true`,
   images returned will include `SharedSize`, which provides the size on disk shared
   with other images present on the system.
@@ -34,6 +117,89 @@ keywords: "API, Docker, rcli, REST, documentation"
   (`a disk usage operation is already running`) would be returned in this
   situation. This change is not versioned, and affects all API versions if the
   daemon has this patch.
+* The `POST /images/create` now supports both the operating system and architecture
+  that is passed through the `platform` query parameter when using the `fromSrc`
+  option to import an image from an archive. Previously, only the operating system
+  was used and the architecture was ignored. If no `platform` option is set, the
+  host's operating system and architecture as used as default. This change is not
+  versioned, and affects all API versions if the daemon has this patch.
+* The `POST /containers/{id}/wait` endpoint now returns a `400` status code if an
+  invalid `condition` is provided (on API 1.30 and up).
+* Removed the `KernelMemory` field from the `POST /containers/create` and
+  `POST /containers/{id}/update` endpoints, any value it is set to will be ignored
+  on API version `v1.42` and up. Older API versions still accept this field, but
+  may take no effect, depending on the kernel version and OCI runtime in use.
+* `GET /containers/{id}/json` now omits the `KernelMemory` and `KernelMemoryTCP`
+  if they are not set.
+* `GET /info` now omits the `KernelMemory` and `KernelMemoryTCP` if they are not
+  supported by the host or host's configuration (if cgroups v2 are in use).
+* `GET /_ping` and `HEAD /_ping` now return `Builder-Version` by default.
+  This header contains the default builder to use, and is a recommendation as
+  advertised by the daemon. However, it is up to the client to choose which builder
+  to use.
+
+  The default value on Linux is version "2" (BuildKit), but the daemon can be
+  configured to recommend version "1" (classic Builder). Windows does not yet
+  support BuildKit for native Windows images, and uses "1" (classic builder) as
+  a default.
+
+  This change is not versioned, and affects all API versions if the daemon has
+  this patch.
+* `GET /_ping` and `HEAD /_ping` now return a `Swarm` header, which allows a
+  client to detect if Swarm is enabled on the daemon, without having to call
+  additional endpoints.
+  This change is not versioned, and affects all API versions if the daemon has
+  this patch. Clients must consider this header "optional", and fall back to
+  using other endpoints to get this information if the header is not present.
+
+  The `Swarm` header can contain one of the following values:
+
+    - "inactive"
+    - "pending"
+    - "error"
+    - "locked"
+    - "active/worker"
+    - "active/manager"
+* `POST /containers/create` for Windows containers now accepts a new syntax in
+  `HostConfig.Resources.Devices.PathOnHost`. As well as the existing `class/<GUID>`
+  syntax, `<IDType>://<ID>` is now recognised. Support for specific `<IDType>` values
+  depends on the underlying implementation and Windows version. This change is not
+  versioned, and affects all API versions if the daemon has this patch.
+* `GET /containers/{id}/attach`, `GET /exec/{id}/start`, `GET /containers/{id}/logs`
+  `GET /services/{id}/logs` and `GET /tasks/{id}/logs` now set Content-Type header
+  to `application/vnd.docker.multiplexed-stream` when a multiplexed stdout/stderr
+  stream is sent to client, `application/vnd.docker.raw-stream` otherwise.
+* `POST /volumes/create` now accepts a new `ClusterVolumeSpec` to create a cluster
+  volume (CNI). This option can only be used if the daemon is a Swarm manager.
+  The Volume response on creation now also can contain a `ClusterVolume` field
+  with information about the created volume.
+* The `BuildCache.Parent` field, as returned by `GET /system/df` is deprecated
+  and is now omitted. API versions before v1.42 continue to include this field.
+* `GET /system/df` now includes a new `Parents` field, for "build-cache" records,
+  which contains a list of parent IDs for the build-cache record.
+* Volume information returned by `GET /volumes/{name}`, `GET /volumes` and
+  `GET /system/df` can now contain a `ClusterVolume` if the volume is a cluster
+  volume (requires the daemon to be a Swarm manager).
+* The `Volume` type, as returned by `Added new `ClusterVolume` fields
+* Added a new `PUT /volumes{name}` endpoint to update cluster volumes (CNI).
+  Cluster volumes are only supported if the daemon is a Swarm manager.
+* `GET /containers/{name}/attach/ws` endpoint now accepts `stdin`, `stdout` and
+  `stderr` query parameters to only attach to configured streams.
+
+  NOTE: These parameters were documented before in older API versions, but not
+  actually supported. API versions before v1.42 continue to ignore these parameters
+  and default to attaching to all streams. To preserve the pre-v1.42 behavior,
+  set all three query parameters (`?stdin=1,stdout=1,stderr=1`).
+* `POST /containers/create` on Linux now respects the `HostConfig.ConsoleSize` property.
+  Container is immediately created with the desired terminal size and clients no longer
+  need to set the desired size on their own.
+* `POST /containers/create` allow to set `CreateMountpoint` for host path to be
+  created if missing. This brings parity with `Binds`
+* `POST /containers/create` rejects request if BindOptions|VolumeOptions|TmpfsOptions
+  is set with a non-matching mount Type.
+* `POST /containers/{id}/exec` now accepts an optional `ConsoleSize` parameter.
+  It allows to set the console size of the executed process immediately when it's created.
+* `POST /volumes/prune` will now only prune "anonymous" volumes (volumes which were not given a name) by default. A new filter parameter `all` can be set to a truth-y value (`true`, `1`) to get the old behavior.
 
 ## v1.41 API changes
 
@@ -67,6 +233,22 @@ keywords: "API, Docker, rcli, REST, documentation"
   to limit the maximum number of PIDs.
 * `GET /tasks` now  returns `Pids` in `TaskTemplate.Resources.Limits`.
 * `GET /tasks/{id}` now  returns `Pids` in `TaskTemplate.Resources.Limits`.
+* `POST /containers/create` now accepts a `platform` query parameter in the format
+  `os[/arch[/variant]]`.
+
+  When set, the daemon checks if the requested image is present in the local image
+  cache with the given OS and Architecture, and otherwise returns a `404` status.
+
+  If the option is _not_ set, the host's native OS and Architecture are used to
+  look up the image in the image cache. However, if no platform is passed and the
+  given image _does_ exist in the local image cache, but its OS or architecture
+  do not match, the container is created with the available image, and a warning
+  is added to the `Warnings` field in the response, for example;
+
+      WARNING: The requested image's platform (linux/arm64/v8) does not
+               match the detected host platform (linux/amd64) and no
+               specific platform was requested
+
 * `POST /containers/create` on Linux now accepts the `HostConfig.CgroupnsMode` property.
   Set the property to `host` to create the container in the daemon's cgroup namespace, or
   `private` to create the container in its own private cgroup namespace.  The per-daemon
@@ -214,7 +396,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.36](https://docs.docker.com/engine/api/v1.36/) documentation
 
-* `Get /events` now return `exec_die` event when an exec process terminates.  
+* `Get /events` now return `exec_die` event when an exec process terminates.
 
 
 ## v1.35 API changes
@@ -262,6 +444,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.32](https://docs.docker.com/engine/api/v1.32/) documentation
 
+* `POST /images/create` now accepts a `platform` parameter in the form of `os[/arch[/variant]]`.
 * `POST /containers/create` now accepts additional values for the
   `HostConfig.IpcMode` property. New values are `private`, `shareable`,
   and `none`.
@@ -355,6 +538,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /services/create` and `POST /services/(id or name)/update` now accept an optional `RollbackConfig` object which specifies rollback options.
 * `GET /services` now supports a `mode` filter to filter services based on the service mode (either `global` or `replicated`).
 * `POST /containers/(name)/update` now supports updating `NanoCpus` that represents CPU quota in units of 10<sup>-9</sup> CPUs.
+* `POST /plugins/{name}/disable` now accepts a `force` query-parameter to disable a plugin even if still in use.
 
 ## v1.27 API changes
 
@@ -376,6 +560,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /version` now returns `MinAPIVersion`.
 * `POST /build` accepts `networkmode` parameter to specify network used during build.
 * `GET /images/(name)/json` now returns `OsVersion` if populated
+* `GET /images/(name)/json` no longer contains the `RootFS.BaseLayer` field. This
+  field was used for Windows images that used a base-image that was pre-installed
+  on the host (`RootFS.Type` `layers+base`), which is no longer supported, and
+  the `RootFS.BaseLayer` field has been removed.
 * `GET /info` now returns `Isolation`.
 * `POST /containers/create` now takes `AutoRemove` in HostConfig, to enable auto-removal of the container on daemon side when the container's process exits.
 * `GET /containers/json` and `GET /containers/(id or name)/json` now return `"removing"` as a value for the `State.Status` field if the container is being removed. Previously, "exited" was returned as status.
@@ -416,7 +604,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /services/create` and `POST /services/(id or name)/update` now accept the `TTY` parameter, which allocate a pseudo-TTY in container.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept the `DNSConfig` parameter, which specifies DNS related configurations in resolver configuration file (resolv.conf) through `Nameservers`, `Search`, and `Options`.
 * `POST /services/create` and `POST /services/(id or name)/update` now support
-  `node.platform.arch` and `node.platform.os` constraints in the services 
+  `node.platform.arch` and `node.platform.os` constraints in the services
   `TaskSpec.Placement.Constraints` field.
 * `GET /networks/(id or name)` now includes IP and name of all peers nodes for swarm mode overlay networks.
 * `GET /plugins` list plugins.
@@ -499,6 +687,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.22](v1.22.md) documentation
 
+* The `HostConfig.LxcConf` field has been removed, and is no longer available on
+  `POST /containers/create` and `GET /containers/(id)/json`.
 * `POST /container/(name)/update` updates the resources of a container.
 * `GET /containers/json` supports filter `isolation` on Windows.
 * `GET /containers/json` now returns the list of networks of containers.

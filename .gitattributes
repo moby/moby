@@ -1,0 +1,3 @@
+Dockerfile* linguist-language=Dockerfile
+vendor.mod linguist-language=Go-Module
+vendor.sum linguist-language=Go-Checksums

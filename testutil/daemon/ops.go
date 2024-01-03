@@ -19,6 +19,12 @@ func WithContainerdSocket(socket string) Option {
 	}
 }
 
+func WithUserNsRemap(remap string) Option {
+	return func(d *Daemon) {
+		d.usernsRemap = remap
+	}
+}
+
 // WithDefaultCgroupNamespaceMode sets the default cgroup namespace mode for the daemon
 func WithDefaultCgroupNamespaceMode(mode string) Option {
 	return func(d *Daemon) {
@@ -120,5 +126,12 @@ func WithRootlessUser(username string) Option {
 func WithOOMScoreAdjust(score int) Option {
 	return func(d *Daemon) {
 		d.OOMScoreAdjust = score
+	}
+}
+
+// WithEnvVars sets additional environment variables for the daemon
+func WithEnvVars(vars ...string) Option {
+	return func(d *Daemon) {
+		d.extraEnv = append(d.extraEnv, vars...)
 	}
 }

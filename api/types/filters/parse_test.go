@@ -1,12 +1,35 @@
 package filters // import "github.com/docker/docker/api/types/filters"
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"sort"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+func TestMarshalJSON(t *testing.T) {
+	fields := map[string]map[string]bool{
+		"created":    {"today": true},
+		"image.name": {"ubuntu*": true, "*untu": true},
+	}
+	a := Args{fields: fields}
+
+	_, err := a.MarshalJSON()
+	if err != nil {
+		t.Errorf("failed to marshal the filters: %s", err)
+	}
+}
+
+func TestMarshalJSONWithEmpty(t *testing.T) {
+	_, err := json.Marshal(NewArgs())
+	if err != nil {
+		t.Errorf("failed to marshal the filters: %s", err)
+	}
+}
 
 func TestToJSON(t *testing.T) {
 	fields := map[string]map[string]bool{
@@ -69,14 +92,23 @@ func TestFromJSON(t *testing.T) {
 	}
 
 	for _, invalid := range invalids {
-		if _, err := FromJSON(invalid); err == nil {
+		_, err := FromJSON(invalid)
+		if err == nil {
 			t.Fatalf("Expected an error with %v, got nothing", invalid)
+		}
+		var invalidFilterError *invalidFilter
+		if !errors.As(err, &invalidFilterError) {
+			t.Fatalf("Expected an invalidFilter error, got %T", err)
+		}
+		wrappedErr := fmt.Errorf("something went wrong: %w", err)
+		if !errors.Is(wrappedErr, err) {
+			t.Errorf("Expected a wrapped error to be detected as invalidFilter")
 		}
 	}
 
 	for expectedArgs, matchers := range valid {
-		for _, json := range matchers {
-			args, err := FromJSON(json)
+		for _, jsonString := range matchers {
+			args, err := FromJSON(jsonString)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -137,13 +169,17 @@ func TestArgsMatchKVList(t *testing.T) {
 
 	matches := map[*Args]string{
 		{}: "field",
-		{map[string]map[string]bool{
-			"created": {"today": true},
-			"labels":  {"key1": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today": true},
+				"labels":  {"key1": true},
+			},
 		}: "labels",
-		{map[string]map[string]bool{
-			"created": {"today": true},
-			"labels":  {"key1=value1": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today": true},
+				"labels":  {"key1=value1": true},
+			},
 		}: "labels",
 	}
 
@@ -154,16 +190,22 @@ func TestArgsMatchKVList(t *testing.T) {
 	}
 
 	differs := map[*Args]string{
-		{map[string]map[string]bool{
-			"created": {"today": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"today": true},
-			"labels":  {"key4": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today": true},
+				"labels":  {"key4": true},
+			},
 		}: "labels",
-		{map[string]map[string]bool{
-			"created": {"today": true},
-			"labels":  {"key1=value3": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today": true},
+				"labels":  {"key1=value3": true},
+			},
 		}: "labels",
 	}
 
@@ -179,20 +221,30 @@ func TestArgsMatch(t *testing.T) {
 
 	matches := map[*Args]string{
 		{}: "field",
-		{map[string]map[string]bool{
-			"created": {"today": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today": true},
+			},
 		}: "today",
-		{map[string]map[string]bool{
-			"created": {"to*": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"to*": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"to(.*)": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"to(.*)": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"tod": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"tod": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"anything": true, "to*": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"anything": true, "to*": true},
+			},
 		}: "created",
 	}
 
@@ -202,21 +254,31 @@ func TestArgsMatch(t *testing.T) {
 	}
 
 	differs := map[*Args]string{
-		{map[string]map[string]bool{
-			"created": {"tomorrow": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"tomorrow": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"to(day": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"to(day": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"tom(.*)": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"tom(.*)": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"tom": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"tom": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"today1": true},
-			"labels":  {"today": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today1": true},
+				"labels":  {"today": true},
+			},
 		}: "created",
 	}
 
@@ -327,8 +389,17 @@ func TestValidate(t *testing.T) {
 	}
 
 	f.Add("bogus", "running")
-	if err := f.Validate(valid); err == nil {
+	err := f.Validate(valid)
+	if err == nil {
 		t.Fatal("Expected to return an error, got nil")
+	}
+	var invalidFilterError *invalidFilter
+	if !errors.As(err, &invalidFilterError) {
+		t.Errorf("Expected an invalidFilter error, got %T", err)
+	}
+	wrappedErr := fmt.Errorf("something went wrong: %w", err)
+	if !errors.Is(wrappedErr, err) {
+		t.Errorf("Expected a wrapped error to be detected as invalidFilter")
 	}
 }
 
@@ -386,4 +457,121 @@ func TestClone(t *testing.T) {
 	f2 := f.Clone()
 	f2.Add("baz", "qux")
 	assert.Check(t, is.Len(f.Get("baz"), 0))
+}
+
+func TestGetBoolOrDefault(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		args          map[string][]string
+		defValue      bool
+		expectedErr   error
+		expectedValue bool
+	}{
+		{
+			name: "single true",
+			args: map[string][]string{
+				"dangling": {"true"},
+			},
+			defValue:      false,
+			expectedErr:   nil,
+			expectedValue: true,
+		},
+		{
+			name: "single false",
+			args: map[string][]string{
+				"dangling": {"false"},
+			},
+			defValue:      true,
+			expectedErr:   nil,
+			expectedValue: false,
+		},
+		{
+			name: "single bad value",
+			args: map[string][]string{
+				"dangling": {"potato"},
+			},
+			defValue:      true,
+			expectedErr:   &invalidFilter{Filter: "dangling", Value: []string{"potato"}},
+			expectedValue: true,
+		},
+		{
+			name: "two bad values",
+			args: map[string][]string{
+				"dangling": {"banana", "potato"},
+			},
+			defValue:      true,
+			expectedErr:   &invalidFilter{Filter: "dangling", Value: []string{"banana", "potato"}},
+			expectedValue: true,
+		},
+		{
+			name: "two conflicting values",
+			args: map[string][]string{
+				"dangling": {"false", "true"},
+			},
+			defValue:      false,
+			expectedErr:   &invalidFilter{Filter: "dangling", Value: []string{"false", "true"}},
+			expectedValue: false,
+		},
+		{
+			name: "multiple conflicting values",
+			args: map[string][]string{
+				"dangling": {"false", "true", "1"},
+			},
+			defValue:      true,
+			expectedErr:   &invalidFilter{Filter: "dangling", Value: []string{"false", "true", "1"}},
+			expectedValue: true,
+		},
+		{
+			name: "1 means true",
+			args: map[string][]string{
+				"dangling": {"1"},
+			},
+			defValue:      false,
+			expectedErr:   nil,
+			expectedValue: true,
+		},
+		{
+			name: "0 means false",
+			args: map[string][]string{
+				"dangling": {"0"},
+			},
+			defValue:      true,
+			expectedErr:   nil,
+			expectedValue: false,
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			a := NewArgs()
+
+			for key, values := range tc.args {
+				for _, value := range values {
+					a.Add(key, value)
+				}
+			}
+
+			value, err := a.GetBoolOrDefault("dangling", tc.defValue)
+
+			if tc.expectedErr == nil {
+				assert.Check(t, is.Nil(err))
+			} else {
+				assert.Check(t, is.ErrorType(err, tc.expectedErr))
+
+				// Check if error is the same.
+				expected := tc.expectedErr.(*invalidFilter)
+				actual := err.(*invalidFilter)
+
+				assert.Check(t, is.Equal(expected.Filter, actual.Filter))
+
+				sort.Strings(expected.Value)
+				sort.Strings(actual.Value)
+				assert.Check(t, is.DeepEqual(expected.Value, actual.Value))
+
+				wrappedErr := fmt.Errorf("something went wrong: %w", err)
+				assert.Check(t, errors.Is(wrappedErr, err), "Expected a wrapped error to be detected as invalidFilter")
+			}
+
+			assert.Check(t, is.Equal(tc.expectedValue, value))
+		})
+	}
 }

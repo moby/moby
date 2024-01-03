@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package daemon // import "github.com/docker/docker/daemon"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/opencontainers/selinux/go-selinux"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -68,30 +68,31 @@ func TestAdjustCPUShares(t *testing.T) {
 		repository: tmp,
 		root:       tmp,
 	}
-	muteLogs()
+	cfg := &config.Config{}
+	muteLogs(t)
 
 	hostConfig := &containertypes.HostConfig{
 		Resources: containertypes.Resources{CPUShares: linuxMinCPUShares - 1},
 	}
-	daemon.adaptContainerSettings(hostConfig, true)
+	daemon.adaptContainerSettings(cfg, hostConfig, true)
 	if hostConfig.CPUShares != linuxMinCPUShares {
 		t.Errorf("Expected CPUShares to be %d", linuxMinCPUShares)
 	}
 
 	hostConfig.CPUShares = linuxMaxCPUShares + 1
-	daemon.adaptContainerSettings(hostConfig, true)
+	daemon.adaptContainerSettings(cfg, hostConfig, true)
 	if hostConfig.CPUShares != linuxMaxCPUShares {
 		t.Errorf("Expected CPUShares to be %d", linuxMaxCPUShares)
 	}
 
 	hostConfig.CPUShares = 0
-	daemon.adaptContainerSettings(hostConfig, true)
+	daemon.adaptContainerSettings(cfg, hostConfig, true)
 	if hostConfig.CPUShares != 0 {
 		t.Error("Expected CPUShares to be unchanged")
 	}
 
 	hostConfig.CPUShares = 1024
-	daemon.adaptContainerSettings(hostConfig, true)
+	daemon.adaptContainerSettings(cfg, hostConfig, true)
 	if hostConfig.CPUShares != 1024 {
 		t.Error("Expected CPUShares to be unchanged")
 	}
@@ -108,29 +109,30 @@ func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
 		repository: tmp,
 		root:       tmp,
 	}
+	cfg := &config.Config{}
 
 	hostConfig := &containertypes.HostConfig{
 		Resources: containertypes.Resources{CPUShares: linuxMinCPUShares - 1},
 	}
-	daemon.adaptContainerSettings(hostConfig, false)
+	daemon.adaptContainerSettings(cfg, hostConfig, false)
 	if hostConfig.CPUShares != linuxMinCPUShares-1 {
 		t.Errorf("Expected CPUShares to be %d", linuxMinCPUShares-1)
 	}
 
 	hostConfig.CPUShares = linuxMaxCPUShares + 1
-	daemon.adaptContainerSettings(hostConfig, false)
+	daemon.adaptContainerSettings(cfg, hostConfig, false)
 	if hostConfig.CPUShares != linuxMaxCPUShares+1 {
 		t.Errorf("Expected CPUShares to be %d", linuxMaxCPUShares+1)
 	}
 
 	hostConfig.CPUShares = 0
-	daemon.adaptContainerSettings(hostConfig, false)
+	daemon.adaptContainerSettings(cfg, hostConfig, false)
 	if hostConfig.CPUShares != 0 {
 		t.Error("Expected CPUShares to be unchanged")
 	}
 
 	hostConfig.CPUShares = 1024
-	daemon.adaptContainerSettings(hostConfig, false)
+	daemon.adaptContainerSettings(cfg, hostConfig, false)
 	if hostConfig.CPUShares != 1024 {
 		t.Error("Expected CPUShares to be unchanged")
 	}
@@ -138,139 +140,136 @@ func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
 
 // Unix test as uses settings which are not available on Windows
 func TestParseSecurityOptWithDeprecatedColon(t *testing.T) {
-	ctr := &container.Container{}
+	opts := &container.SecurityOptions{}
 	cfg := &containertypes.HostConfig{}
 
 	// test apparmor
 	cfg.SecurityOpt = []string{"apparmor=test_profile"}
-	if err := parseSecurityOpt(ctr, cfg); err != nil {
+	if err := parseSecurityOpt(opts, cfg); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
-	if ctr.AppArmorProfile != "test_profile" {
-		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", ctr.AppArmorProfile)
+	if opts.AppArmorProfile != "test_profile" {
+		t.Fatalf(`Unexpected AppArmorProfile, expected: "test_profile", got %q`, opts.AppArmorProfile)
 	}
 
 	// test seccomp
 	sp := "/path/to/seccomp_test.json"
 	cfg.SecurityOpt = []string{"seccomp=" + sp}
-	if err := parseSecurityOpt(ctr, cfg); err != nil {
+	if err := parseSecurityOpt(opts, cfg); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
-	if ctr.SeccompProfile != sp {
-		t.Fatalf("Unexpected AppArmorProfile, expected: %q, got %q", sp, ctr.SeccompProfile)
+	if opts.SeccompProfile != sp {
+		t.Fatalf("Unexpected AppArmorProfile, expected: %q, got %q", sp, opts.SeccompProfile)
 	}
 
 	// test valid label
 	cfg.SecurityOpt = []string{"label=user:USER"}
-	if err := parseSecurityOpt(ctr, cfg); err != nil {
+	if err := parseSecurityOpt(opts, cfg); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
 
 	// test invalid label
 	cfg.SecurityOpt = []string{"label"}
-	if err := parseSecurityOpt(ctr, cfg); err == nil {
+	if err := parseSecurityOpt(opts, cfg); err == nil {
 		t.Fatal("Expected parseSecurityOpt error, got nil")
 	}
 
 	// test invalid opt
 	cfg.SecurityOpt = []string{"test"}
-	if err := parseSecurityOpt(ctr, cfg); err == nil {
+	if err := parseSecurityOpt(opts, cfg); err == nil {
 		t.Fatal("Expected parseSecurityOpt error, got nil")
 	}
 }
 
 func TestParseSecurityOpt(t *testing.T) {
-	ctr := &container.Container{}
-	cfg := &containertypes.HostConfig{}
-
-	// test apparmor
-	cfg.SecurityOpt = []string{"apparmor=test_profile"}
-	if err := parseSecurityOpt(ctr, cfg); err != nil {
-		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
-	}
-	if ctr.AppArmorProfile != "test_profile" {
-		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", ctr.AppArmorProfile)
-	}
-
-	// test seccomp
-	sp := "/path/to/seccomp_test.json"
-	cfg.SecurityOpt = []string{"seccomp=" + sp}
-	if err := parseSecurityOpt(ctr, cfg); err != nil {
-		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
-	}
-	if ctr.SeccompProfile != sp {
-		t.Fatalf("Unexpected SeccompProfile, expected: %q, got %q", sp, ctr.SeccompProfile)
-	}
-
-	// test valid label
-	cfg.SecurityOpt = []string{"label=user:USER"}
-	if err := parseSecurityOpt(ctr, cfg); err != nil {
-		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
-	}
-
-	// test invalid label
-	cfg.SecurityOpt = []string{"label"}
-	if err := parseSecurityOpt(ctr, cfg); err == nil {
-		t.Fatal("Expected parseSecurityOpt error, got nil")
-	}
-
-	// test invalid opt
-	cfg.SecurityOpt = []string{"test"}
-	if err := parseSecurityOpt(ctr, cfg); err == nil {
-		t.Fatal("Expected parseSecurityOpt error, got nil")
-	}
+	t.Run("apparmor", func(t *testing.T) {
+		secOpts := &container.SecurityOptions{}
+		err := parseSecurityOpt(secOpts, &containertypes.HostConfig{
+			SecurityOpt: []string{"apparmor=test_profile"},
+		})
+		assert.Check(t, err)
+		assert.Equal(t, secOpts.AppArmorProfile, "test_profile")
+	})
+	t.Run("apparmor using legacy separator", func(t *testing.T) {
+		secOpts := &container.SecurityOptions{}
+		err := parseSecurityOpt(secOpts, &containertypes.HostConfig{
+			SecurityOpt: []string{"apparmor:test_profile"},
+		})
+		assert.Check(t, err)
+		assert.Equal(t, secOpts.AppArmorProfile, "test_profile")
+	})
+	t.Run("seccomp", func(t *testing.T) {
+		secOpts := &container.SecurityOptions{}
+		err := parseSecurityOpt(secOpts, &containertypes.HostConfig{
+			SecurityOpt: []string{"seccomp=/path/to/seccomp_test.json"},
+		})
+		assert.Check(t, err)
+		assert.Equal(t, secOpts.SeccompProfile, "/path/to/seccomp_test.json")
+	})
+	t.Run("valid label", func(t *testing.T) {
+		secOpts := &container.SecurityOptions{}
+		err := parseSecurityOpt(secOpts, &containertypes.HostConfig{
+			SecurityOpt: []string{"label=user:USER"},
+		})
+		assert.Check(t, err)
+		if selinux.GetEnabled() {
+			// TODO(thaJeztah): set expected labels here (or "partial" if depends on host)
+			// assert.Check(t, is.Equal(secOpts.MountLabel, ""))
+			// assert.Check(t, is.Equal(secOpts.ProcessLabel, ""))
+		} else {
+			assert.Check(t, is.Equal(secOpts.MountLabel, ""))
+			assert.Check(t, is.Equal(secOpts.ProcessLabel, ""))
+		}
+	})
+	t.Run("invalid label", func(t *testing.T) {
+		secOpts := &container.SecurityOptions{}
+		err := parseSecurityOpt(secOpts, &containertypes.HostConfig{
+			SecurityOpt: []string{"label"},
+		})
+		assert.Error(t, err, `invalid --security-opt 1: "label"`)
+	})
+	t.Run("invalid option (no value)", func(t *testing.T) {
+		secOpts := &container.SecurityOptions{}
+		err := parseSecurityOpt(secOpts, &containertypes.HostConfig{
+			SecurityOpt: []string{"unknown"},
+		})
+		assert.Error(t, err, `invalid --security-opt 1: "unknown"`)
+	})
+	t.Run("unknown option", func(t *testing.T) {
+		secOpts := &container.SecurityOptions{}
+		err := parseSecurityOpt(secOpts, &containertypes.HostConfig{
+			SecurityOpt: []string{"unknown=something"},
+		})
+		assert.Error(t, err, `invalid --security-opt 2: "unknown=something"`)
+	})
 }
 
 func TestParseNNPSecurityOptions(t *testing.T) {
-	daemon := &Daemon{
-		configStore: &config.Config{NoNewPrivileges: true},
-	}
-	ctr := &container.Container{}
+	daemonCfg := &configStore{Config: config.Config{NoNewPrivileges: true}}
+	daemon := &Daemon{}
+	daemon.configStore.Store(daemonCfg)
+	opts := &container.SecurityOptions{}
 	cfg := &containertypes.HostConfig{}
 
 	// test NNP when "daemon:true" and "no-new-privileges=false""
 	cfg.SecurityOpt = []string{"no-new-privileges=false"}
 
-	if err := daemon.parseSecurityOpt(ctr, cfg); err != nil {
+	if err := daemon.parseSecurityOpt(&daemonCfg.Config, opts, cfg); err != nil {
 		t.Fatalf("Unexpected daemon.parseSecurityOpt error: %v", err)
 	}
-	if ctr.NoNewPrivileges {
-		t.Fatalf("container.NoNewPrivileges should be FALSE: %v", ctr.NoNewPrivileges)
+	if opts.NoNewPrivileges {
+		t.Fatalf("container.NoNewPrivileges should be FALSE: %v", opts.NoNewPrivileges)
 	}
 
 	// test NNP when "daemon:false" and "no-new-privileges=true""
-	daemon.configStore.NoNewPrivileges = false
+	daemonCfg.NoNewPrivileges = false
 	cfg.SecurityOpt = []string{"no-new-privileges=true"}
 
-	if err := daemon.parseSecurityOpt(ctr, cfg); err != nil {
+	if err := daemon.parseSecurityOpt(&daemonCfg.Config, opts, cfg); err != nil {
 		t.Fatalf("Unexpected daemon.parseSecurityOpt error: %v", err)
 	}
-	if !ctr.NoNewPrivileges {
-		t.Fatalf("container.NoNewPrivileges should be TRUE: %v", ctr.NoNewPrivileges)
-	}
-}
-
-func TestNetworkOptions(t *testing.T) {
-	daemon := &Daemon{}
-	dconfigCorrect := &config.Config{
-		CommonConfig: config.CommonConfig{
-			ClusterStore:     "consul://localhost:8500",
-			ClusterAdvertise: "192.168.0.1:8000",
-		},
-	}
-
-	if _, err := daemon.networkOptions(dconfigCorrect, nil, nil); err != nil {
-		t.Fatalf("Expect networkOptions success, got error: %v", err)
-	}
-
-	dconfigWrong := &config.Config{
-		CommonConfig: config.CommonConfig{
-			ClusterStore: "consul://localhost:8500://test://bbb",
-		},
-	}
-
-	if _, err := daemon.networkOptions(dconfigWrong, nil, nil); err == nil {
-		t.Fatal("Expected networkOptions error, got nil")
+	if !opts.NoNewPrivileges {
+		t.Fatalf("container.NoNewPrivileges should be TRUE: %v", opts.NoNewPrivileges)
 	}
 }
 

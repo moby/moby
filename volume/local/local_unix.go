@@ -1,5 +1,4 @@
 //go:build linux || freebsd
-// +build linux freebsd
 
 // Package local provides the default implementation for volumes. It
 // is used to mount data volume containers and directories local to
@@ -9,8 +8,8 @@ package local // import "github.com/docker/docker/volume/local"
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -24,8 +23,6 @@ import (
 )
 
 var (
-	oldVfsDir = filepath.Join("vfs", "dir")
-
 	validOpts = map[string]struct{}{
 		"type":   {}, // specify the filesystem type for mount, e.g. nfs
 		"o":      {}, // generic mount options
@@ -50,55 +47,31 @@ func (o *optsConfig) String() string {
 	return fmt.Sprintf("type='%s' device='%s' o='%s' size='%d'", o.MountType, o.MountDevice, o.MountOpts, o.Quota.Size)
 }
 
-// scopedPath verifies that the path where the volume is located
-// is under Docker's root and the valid local paths.
-func (r *Root) scopedPath(realPath string) bool {
-	// Volumes path for Docker version >= 1.7
-	if strings.HasPrefix(realPath, filepath.Join(r.scope, volumesPathName)) && realPath != filepath.Join(r.scope, volumesPathName) {
-		return true
-	}
-
-	// Volumes path for Docker version < 1.7
-	if strings.HasPrefix(realPath, filepath.Join(r.scope, oldVfsDir)) {
-		return true
-	}
-
-	return false
-}
-
-func setOpts(v *localVolume, opts map[string]string) error {
-	if len(opts) == 0 {
-		return nil
-	}
-	err := validateOpts(opts)
-	if err != nil {
-		return err
-	}
-	v.opts = &optsConfig{
-		MountType:   opts["type"],
-		MountOpts:   opts["o"],
-		MountDevice: opts["device"],
-	}
-	if val, ok := opts["size"]; ok {
-		size, err := units.RAMInBytes(val)
-		if err != nil {
-			return err
-		}
-		if size > 0 && v.quotaCtl == nil {
-			return errdefs.InvalidParameter(errors.Errorf("quota size requested but no quota support"))
-		}
-		v.opts.Quota.Size = uint64(size)
-	}
-	return nil
-}
-
-func validateOpts(opts map[string]string) error {
+func (r *Root) validateOpts(opts map[string]string) error {
 	if len(opts) == 0 {
 		return nil
 	}
 	for opt := range opts {
 		if _, ok := validOpts[opt]; !ok {
 			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
+		}
+	}
+	if typeOpt, deviceOpt := opts["type"], opts["device"]; typeOpt == "cifs" && deviceOpt != "" {
+		deviceURL, err := url.Parse(deviceOpt)
+		if err != nil {
+			return errdefs.InvalidParameter(errors.Wrapf(err, "error parsing mount device url"))
+		}
+		if deviceURL.Port() != "" {
+			return errdefs.InvalidParameter(errors.New("port not allowed in CIFS device URL, include 'port' in 'o='"))
+		}
+	}
+	if val, ok := opts["size"]; ok {
+		size, err := units.RAMInBytes(val)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		if size > 0 && r.quotaCtl == nil {
+			return errdefs.InvalidParameter(errors.New("quota size requested but no quota support"))
 		}
 	}
 	for opt, reqopts := range mandatoryOpts {
@@ -113,8 +86,26 @@ func validateOpts(opts map[string]string) error {
 	return nil
 }
 
-func unmount(path string) {
-	_ = mount.Unmount(path)
+func (v *localVolume) setOpts(opts map[string]string) error {
+	if len(opts) == 0 {
+		return nil
+	}
+	v.opts = &optsConfig{
+		MountType:   opts["type"],
+		MountOpts:   opts["o"],
+		MountDevice: opts["device"],
+	}
+	if val, ok := opts["size"]; ok {
+		size, err := units.RAMInBytes(val)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		if size > 0 && v.quotaCtl == nil {
+			return errdefs.InvalidParameter(errors.New("quota size requested but no quota support"))
+		}
+		v.opts.Quota.Size = uint64(size)
+	}
+	return v.saveOpts()
 }
 
 func (v *localVolume) needsMount() bool {
@@ -131,9 +122,12 @@ func (v *localVolume) mount() error {
 	if v.opts.MountDevice == "" {
 		return fmt.Errorf("missing device in volume options")
 	}
+
 	mountOpts := v.opts.MountOpts
+	mountDevice := v.opts.MountDevice
+
 	switch v.opts.MountType {
-	case "nfs", "cifs":
+	case "nfs":
 		if addrValue := getAddress(v.opts.MountOpts); addrValue != "" && net.ParseIP(addrValue).To4() == nil {
 			ipAddr, err := net.ResolveIPAddr("ip", addrValue)
 			if err != nil {
@@ -141,9 +135,27 @@ func (v *localVolume) mount() error {
 			}
 			mountOpts = strings.Replace(mountOpts, "addr="+addrValue, "addr="+ipAddr.String(), 1)
 		}
+	case "cifs":
+		deviceURL, err := url.Parse(v.opts.MountDevice)
+		if err != nil {
+			return errors.Wrapf(err, "error parsing mount device url")
+		}
+		if deviceURL.Host != "" && net.ParseIP(deviceURL.Host) == nil {
+			ipAddr, err := net.ResolveIPAddr("ip", deviceURL.Host)
+			if err != nil {
+				return errors.Wrapf(err, "error resolving passed in network volume address")
+			}
+			deviceURL.Host = ipAddr.String()
+			mountDevice = deviceURL.String()
+		}
 	}
-	err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts)
-	return errors.Wrap(err, "failed to mount local volume")
+	if err := mount.Mount(mountDevice, v.path, v.opts.MountType, mountOpts); err != nil {
+		if password := getPassword(v.opts.MountOpts); password != "" {
+			err = errors.New(strings.Replace(err.Error(), "password="+password, "password=********", 1))
+		}
+		return errors.Wrap(err, "failed to mount local volume")
+	}
+	return nil
 }
 
 func (v *localVolume) postMount() error {
@@ -152,12 +164,9 @@ func (v *localVolume) postMount() error {
 	}
 	if v.opts.Quota.Size > 0 {
 		if v.quotaCtl != nil {
-			err := v.quotaCtl.SetQuota(v.path, v.opts.Quota)
-			if err != nil {
-				return err
-			}
+			return v.quotaCtl.SetQuota(v.path, v.opts.Quota)
 		} else {
-			return fmt.Errorf("size quota requested for volume but no quota support")
+			return errors.New("size quota requested for volume but no quota support")
 		}
 	}
 	return nil
@@ -175,8 +184,31 @@ func (v *localVolume) unmount() error {
 	return nil
 }
 
+// restoreIfMounted restores the mounted status if the _data directory is already mounted.
+func (v *localVolume) restoreIfMounted() error {
+	if v.needsMount() {
+		// Check if the _data directory is already mounted.
+		mounted, err := mountinfo.Mounted(v.path)
+		if err != nil {
+			return fmt.Errorf("failed to determine if volume _data path is already mounted: %w", err)
+		}
+
+		if mounted {
+			// Mark volume as mounted, but don't increment active count. If
+			// any container needs this, the refcount will be incremented
+			// by the live-restore (if enabled).
+			// In other case, refcount will be zero but the volume will
+			// already be considered as mounted when Mount is called, and
+			// only the refcount will be incremented.
+			v.active.mounted = true
+		}
+	}
+
+	return nil
+}
+
 func (v *localVolume) CreatedAt() (time.Time, error) {
-	fileInfo, err := os.Stat(v.path)
+	fileInfo, err := os.Stat(v.rootPath)
 	if err != nil {
 		return time.Time{}, err
 	}

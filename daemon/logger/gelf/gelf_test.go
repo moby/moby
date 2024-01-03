@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package gelf // import "github.com/docker/docker/daemon/logger/gelf"
 
@@ -223,12 +222,12 @@ func TestNewTCP(t *testing.T) {
 		ContainerID: "12345678901234567890",
 	}
 
-	logger, err := New(info)
+	gelfLogger, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = logger.Close()
+	err = gelfLogger.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,12 +249,12 @@ func TestNewUDP(t *testing.T) {
 		ContainerID: "12345678901234567890",
 	}
 
-	logger, err := New(info)
+	gelfLogger, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = logger.Close()
+	err = gelfLogger.Close()
 	if err != nil {
 		t.Fatal(err)
 	}

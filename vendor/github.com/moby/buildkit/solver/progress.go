@@ -3,12 +3,14 @@ package solver
 import (
 	"context"
 	"io"
+	"sort"
 	"time"
+
+	"github.com/moby/buildkit/util/bklog"
 
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/util/progress"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 )
 
 func (j *Job) Status(ctx context.Context, ch chan *client.SolveStatus) error {
@@ -38,7 +40,7 @@ func (j *Job) Status(ctx context.Context, ch chan *client.SolveStatus) error {
 			case progress.Status:
 				vtx, ok := p.Meta("vertex")
 				if !ok {
-					logrus.Warnf("progress %s status without vertex info", p.ID)
+					bklog.G(ctx).Warnf("progress %s status without vertex info", p.ID)
 					continue
 				}
 				vs := &client.VertexStatus{
@@ -55,14 +57,38 @@ func (j *Job) Status(ctx context.Context, ch chan *client.SolveStatus) error {
 			case client.VertexLog:
 				vtx, ok := p.Meta("vertex")
 				if !ok {
-					logrus.Warnf("progress %s log without vertex info", p.ID)
+					bklog.G(ctx).Warnf("progress %s log without vertex info", p.ID)
 					continue
 				}
 				v.Vertex = vtx.(digest.Digest)
 				v.Timestamp = p.Timestamp
 				ss.Logs = append(ss.Logs, &v)
+			case client.VertexWarning:
+				vtx, ok := p.Meta("vertex")
+				if !ok {
+					bklog.G(ctx).Warnf("progress %s warning without vertex info", p.ID)
+					continue
+				}
+				v.Vertex = vtx.(digest.Digest)
+				ss.Warnings = append(ss.Warnings, &v)
 			}
 		}
+		sort.Slice(ss.Vertexes, func(i, j int) bool {
+			if ss.Vertexes[i].Started == nil {
+				return true
+			}
+			if ss.Vertexes[j].Started == nil {
+				return false
+			}
+			return ss.Vertexes[i].Started.Before(*ss.Vertexes[j].Started)
+		})
+		sort.Slice(ss.Statuses, func(i, j int) bool {
+			return ss.Statuses[i].Timestamp.Before(ss.Statuses[j].Timestamp)
+		})
+		sort.Slice(ss.Logs, func(i, j int) bool {
+			return ss.Logs[i].Timestamp.Before(ss.Logs[j].Timestamp)
+		})
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()

@@ -4,54 +4,56 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/events"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/moby/sys/signal"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type errNoSuchProcess struct {
 	pid    int
-	signal int
+	signal syscall.Signal
 }
 
 func (e errNoSuchProcess) Error() string {
-	return fmt.Sprintf("Cannot kill process (pid=%d) with signal %d: no such process.", e.pid, e.signal)
+	return fmt.Sprintf("cannot kill process (pid=%d) with signal %d: no such process", e.pid, e.signal)
 }
 
 func (errNoSuchProcess) NotFound() {}
 
-// isErrNoSuchProcess returns true if the error
-// is an instance of errNoSuchProcess.
-func isErrNoSuchProcess(err error) bool {
-	_, ok := err.(errNoSuchProcess)
-	return ok
-}
-
 // ContainerKill sends signal to the container
-// If no signal is given (sig 0), then Kill with SIGKILL and wait
+// If no signal is given, then Kill with SIGKILL and wait
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
-func (daemon *Daemon) ContainerKill(name string, sig uint64) error {
+func (daemon *Daemon) ContainerKill(name, stopSignal string) error {
+	var (
+		err error
+		sig = syscall.SIGKILL
+	)
+	if stopSignal != "" {
+		sig, err = signal.ParseSignal(stopSignal)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		if !signal.ValidSignalForPlatform(sig) {
+			return errdefs.InvalidParameter(errors.Errorf("the %s daemon does not support signal %d", runtime.GOOS, sig))
+		}
+	}
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
-
-	if sig != 0 && !signal.ValidSignalForPlatform(syscall.Signal(sig)) {
-		return fmt.Errorf("The %s daemon does not support signal %d", runtime.GOOS, sig)
-	}
-
-	// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
-	if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
+	if sig == syscall.SIGKILL {
+		// perform regular Kill (SIGKILL + wait())
 		return daemon.Kill(container)
 	}
-	return daemon.killWithSignal(container, int(sig))
+	return daemon.killWithSignal(container, sig)
 }
 
 // killWithSignal sends the container the given signal. This wrapper for the
@@ -59,22 +61,23 @@ func (daemon *Daemon) ContainerKill(name string, sig uint64) error {
 // to send the signal. An error is returned if the container is paused
 // or not running, or if there is a problem returned from the
 // underlying kill command.
-func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int) error {
-	logrus.Debugf("Sending kill signal %d to container %s", sig, container.ID)
+func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSignal syscall.Signal) error {
+	log.G(context.TODO()).Debugf("Sending kill signal %d to container %s", stopSignal, container.ID)
 	container.Lock()
 	defer container.Unlock()
 
-	if !container.Running {
-		return errNotRunning(container.ID)
+	task, err := container.GetRunningTask()
+	if err != nil {
+		return err
 	}
 
 	var unpause bool
-	if container.Config.StopSignal != "" && syscall.Signal(sig) != syscall.SIGKILL {
+	if container.Config.StopSignal != "" && stopSignal != syscall.SIGKILL {
 		containerStopSignal, err := signal.ParseSignal(container.Config.StopSignal)
 		if err != nil {
 			return err
 		}
-		if containerStopSignal == syscall.Signal(sig) {
+		if containerStopSignal == stopSignal {
 			container.ExitOnNext()
 			unpause = container.Paused
 		}
@@ -85,7 +88,12 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 
 	if !daemon.IsShuttingDown() {
 		container.HasBeenManuallyStopped = true
-		container.CheckpointTo(daemon.containersReplica)
+		if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error":     err,
+				"container": container.ID,
+			}).Warn("error checkpointing container state")
+		}
 	}
 
 	// if the container is currently restarting we do not need to send the signal
@@ -95,10 +103,10 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 		return nil
 	}
 
-	if err := daemon.kill(container, sig); err != nil {
+	if err := task.Kill(context.Background(), stopSignal); err != nil {
 		if errdefs.IsNotFound(err) {
 			unpause = false
-			logrus.WithError(err).WithField("container", container.ID).WithField("action", "kill").Debug("container kill failed because of 'container not found' or 'no such process'")
+			log.G(context.TODO()).WithError(err).WithField("container", container.ID).WithField("action", "kill").Debug("container kill failed because of 'container not found' or 'no such process'")
 			go func() {
 				// We need to clean up this container but it is possible there is a case where we hit here before the exit event is processed
 				// but after it was fired off.
@@ -109,7 +117,13 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 				defer cancel()
 				s := <-container.Wait(ctx, containerpkg.WaitConditionNotRunning)
 				if s.Err() != nil {
-					daemon.handleContainerExit(container, nil)
+					if err := daemon.handleContainerExit(container, nil); err != nil {
+						log.G(context.TODO()).WithFields(log.Fields{
+							"error":     err,
+							"container": container.ID,
+							"action":    "kill",
+						}).Warn("error while handling container exit")
+					}
 				}
 			}()
 		} else {
@@ -119,15 +133,14 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 
 	if unpause {
 		// above kill signal will be sent once resume is finished
-		if err := daemon.containerd.Resume(context.Background(), container.ID); err != nil {
-			logrus.Warnf("Cannot unpause container %s: %s", container.ID, err)
+		if err := task.Resume(context.Background()); err != nil {
+			log.G(context.TODO()).Warnf("Cannot unpause container %s: %s", container.ID, err)
 		}
 	}
 
-	attributes := map[string]string{
-		"signal": fmt.Sprintf("%d", sig),
-	}
-	daemon.LogContainerEventWithAttributes(container, "kill", attributes)
+	daemon.LogContainerEventWithAttributes(container, events.ActionKill, map[string]string{
+		"signal": strconv.Itoa(int(stopSignal)),
+	})
 	return nil
 }
 
@@ -138,14 +151,19 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	}
 
 	// 1. Send SIGKILL
-	if err := daemon.killPossiblyDeadProcess(container, int(syscall.SIGKILL)); err != nil {
+	if err := daemon.killPossiblyDeadProcess(container, syscall.SIGKILL); err != nil {
 		// kill failed, check if process is no longer running.
-		if isErrNoSuchProcess(err) {
+		if errors.As(err, &errNoSuchProcess{}) {
 			return nil
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	waitTimeout := 10 * time.Second
+	if runtime.GOOS == "windows" {
+		waitTimeout = 75 * time.Second // runhcs can be sloooooow.
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 
 	status := <-container.Wait(ctx, containerpkg.WaitConditionNotRunning)
@@ -153,10 +171,10 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 		return nil
 	}
 
-	logrus.WithError(status.Err()).WithField("container", container.ID).Error("Container failed to exit within 10 seconds of kill - trying direct SIGKILL")
+	log.G(ctx).WithFields(log.Fields{"error": status.Err(), "container": container.ID}).Warnf("Container failed to exit within %v of kill - trying direct SIGKILL", waitTimeout)
 
 	if err := killProcessDirectly(container); err != nil {
-		if isErrNoSuchProcess(err) {
+		if errors.As(err, &errNoSuchProcess{}) {
 			return nil
 		}
 		return err
@@ -172,17 +190,13 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	return nil
 }
 
-// killPossibleDeadProcess is a wrapper around killSig() suppressing "no such process" error.
-func (daemon *Daemon) killPossiblyDeadProcess(container *containerpkg.Container, sig int) error {
+// killPossiblyDeadProcess is a wrapper around killSig() suppressing "no such process" error.
+func (daemon *Daemon) killPossiblyDeadProcess(container *containerpkg.Container, sig syscall.Signal) error {
 	err := daemon.killWithSignal(container, sig)
 	if errdefs.IsNotFound(err) {
-		e := errNoSuchProcess{container.GetPID(), sig}
-		logrus.Debug(e)
-		return e
+		err = errNoSuchProcess{container.GetPID(), sig}
+		log.G(context.TODO()).Debug(err)
+		return err
 	}
 	return err
-}
-
-func (daemon *Daemon) kill(c *containerpkg.Container, sig int) error {
-	return daemon.containerd.SignalProcess(context.Background(), c.ID, libcontainerdtypes.InitProcessName, sig)
 }

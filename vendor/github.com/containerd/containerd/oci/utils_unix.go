@@ -1,4 +1,4 @@
-// +build !windows
+//go:build !windows
 
 /*
    Copyright The containerd Authors.
@@ -19,16 +19,25 @@
 package oci
 
 import (
-	"io/ioutil"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/containerd/containerd/pkg/userns"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
-var errNotADevice = errors.New("not a device node")
+// ErrNotADevice denotes that a file is not a valid linux device.
+var ErrNotADevice = errors.New("not a device node")
+
+// Testing dependencies
+var (
+	osReadDir              = os.ReadDir
+	usernsRunningInUserNS  = userns.RunningInUserNS
+	overrideDeviceFromPath func(path string) error
+)
 
 // HostDevices returns all devices that can be found under /dev directory.
 func HostDevices() ([]specs.LinuxDevice, error) {
@@ -38,11 +47,11 @@ func HostDevices() ([]specs.LinuxDevice, error) {
 func getDevices(path, containerPath string) ([]specs.LinuxDevice, error) {
 	stat, err := os.Stat(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "error stating device path")
+		return nil, fmt.Errorf("error stating device path: %w", err)
 	}
 
 	if !stat.IsDir() {
-		dev, err := deviceFromPath(path)
+		dev, err := DeviceFromPath(path)
 		if err != nil {
 			return nil, err
 		}
@@ -52,7 +61,7 @@ func getDevices(path, containerPath string) ([]specs.LinuxDevice, error) {
 		return []specs.LinuxDevice{*dev}, nil
 	}
 
-	files, err := ioutil.ReadDir(path)
+	files, err := osReadDir(path)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +81,12 @@ func getDevices(path, containerPath string) ([]specs.LinuxDevice, error) {
 				}
 				sub, err := getDevices(filepath.Join(path, f.Name()), cp)
 				if err != nil {
+					if errors.Is(err, os.ErrPermission) && usernsRunningInUserNS() {
+						// ignore the "permission denied" error if running in userns.
+						// This allows rootless containers to use devices that are
+						// accessible, ignoring devices / subdirectories that are not.
+						continue
+					}
 					return nil, err
 				}
 
@@ -80,49 +95,77 @@ func getDevices(path, containerPath string) ([]specs.LinuxDevice, error) {
 			}
 		case f.Name() == "console":
 			continue
-		}
-		device, err := deviceFromPath(filepath.Join(path, f.Name()))
-		if err != nil {
-			if err == errNotADevice {
+		default:
+			device, err := DeviceFromPath(filepath.Join(path, f.Name()))
+			if err != nil {
+				if err == ErrNotADevice {
+					continue
+				}
+				if os.IsNotExist(err) {
+					continue
+				}
+				if errors.Is(err, os.ErrPermission) && usernsRunningInUserNS() {
+					// ignore the "permission denied" error if running in userns.
+					// This allows rootless containers to use devices that are
+					// accessible, ignoring devices that are not.
+					continue
+				}
+				return nil, err
+			}
+			if device.Type == fifoDevice {
 				continue
 			}
-			if os.IsNotExist(err) {
-				continue
+			if containerPath != "" {
+				device.Path = filepath.Join(containerPath, filepath.Base(f.Name()))
 			}
-			return nil, err
+			out = append(out, *device)
 		}
-		if containerPath != "" {
-			device.Path = filepath.Join(containerPath, filepath.Base(f.Name()))
-		}
-		out = append(out, *device)
 	}
 	return out, nil
 }
 
-func deviceFromPath(path string) (*specs.LinuxDevice, error) {
+// TODO consider adding these consts to the OCI runtime-spec.
+const (
+	wildcardDevice = "a" //nolint:nolintlint,unused,varcheck // currently unused, but should be included when upstreaming to OCI runtime-spec.
+	blockDevice    = "b"
+	charDevice     = "c" // or "u"
+	fifoDevice     = "p"
+)
+
+// DeviceFromPath takes the path to a device to look up the information about a
+// linux device and returns that information as a LinuxDevice struct.
+func DeviceFromPath(path string) (*specs.LinuxDevice, error) {
+	if overrideDeviceFromPath != nil {
+		if err := overrideDeviceFromPath(path); err != nil {
+			return nil, err
+		}
+	}
+
 	var stat unix.Stat_t
 	if err := unix.Lstat(path, &stat); err != nil {
 		return nil, err
 	}
 
 	var (
-		devNumber = uint64(stat.Rdev) //nolint: unconvert // the type is 32bit on mips.
+		devNumber = uint64(stat.Rdev) //nolint:nolintlint,unconvert // the type is 32bit on mips.
 		major     = unix.Major(devNumber)
 		minor     = unix.Minor(devNumber)
 	)
-	if major == 0 {
-		return nil, errNotADevice
-	}
 
 	var (
 		devType string
 		mode    = stat.Mode
 	)
-	switch {
-	case mode&unix.S_IFBLK == unix.S_IFBLK:
-		devType = "b"
-	case mode&unix.S_IFCHR == unix.S_IFCHR:
-		devType = "c"
+
+	switch mode & unix.S_IFMT {
+	case unix.S_IFBLK:
+		devType = blockDevice
+	case unix.S_IFCHR:
+		devType = charDevice
+	case unix.S_IFIFO:
+		devType = fifoDevice
+	default:
+		return nil, ErrNotADevice
 	}
 	fm := os.FileMode(mode &^ unix.S_IFMT)
 	return &specs.LinuxDevice{

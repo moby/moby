@@ -160,12 +160,10 @@ func (sm *Manager) Get(ctx context.Context, id string, noWait bool) (Caller, err
 	defer cancel()
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			sm.mu.Lock()
-			sm.updateCondition.Broadcast()
-			sm.mu.Unlock()
-		}
+		<-ctx.Done()
+		sm.mu.Lock()
+		sm.updateCondition.Broadcast()
+		sm.mu.Unlock()
 	}()
 
 	var c *client

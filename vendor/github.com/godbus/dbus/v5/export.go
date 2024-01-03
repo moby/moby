@@ -3,6 +3,7 @@ package dbus
 import (
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 )
@@ -25,6 +26,27 @@ var (
 		[]interface{}{"Object does not implement the interface"},
 	}
 )
+
+func MakeNoObjectError(path ObjectPath) Error {
+	return Error{
+		"org.freedesktop.DBus.Error.NoSuchObject",
+		[]interface{}{fmt.Sprintf("No such object '%s'", string(path))},
+	}
+}
+
+func MakeUnknownMethodError(methodName string) Error {
+	return Error{
+		"org.freedesktop.DBus.Error.UnknownMethod",
+		[]interface{}{fmt.Sprintf("Unknown / invalid method '%s'", methodName)},
+	}
+}
+
+func MakeUnknownInterfaceError(ifaceName string) Error {
+	return Error{
+		"org.freedesktop.DBus.Error.UnknownInterface",
+		[]interface{}{fmt.Sprintf("Object does not implement the interface '%s'", ifaceName)},
+	}
+}
 
 func MakeFailedError(err error) *Error {
 	return &Error{
@@ -128,6 +150,11 @@ func (conn *Conn) handleCall(msg *Message) {
 	ifaceName, _ := msg.Headers[FieldInterface].value.(string)
 	sender, hasSender := msg.Headers[FieldSender].value.(string)
 	serial := msg.serial
+
+	if len(name) == 0 {
+		conn.sendError(ErrMsgUnknownMethod, sender, serial)
+	}
+
 	if ifaceName == "org.freedesktop.DBus.Peer" {
 		switch name {
 		case "Ping":
@@ -135,29 +162,26 @@ func (conn *Conn) handleCall(msg *Message) {
 		case "GetMachineId":
 			conn.sendReply(sender, serial, conn.uuid)
 		default:
-			conn.sendError(ErrMsgUnknownMethod, sender, serial)
+			conn.sendError(MakeUnknownMethodError(name), sender, serial)
 		}
 		return
-	}
-	if len(name) == 0 {
-		conn.sendError(ErrMsgUnknownMethod, sender, serial)
 	}
 
 	object, ok := conn.handler.LookupObject(path)
 	if !ok {
-		conn.sendError(ErrMsgNoObject, sender, serial)
+		conn.sendError(MakeNoObjectError(path), sender, serial)
 		return
 	}
 
 	iface, exists := object.LookupInterface(ifaceName)
 	if !exists {
-		conn.sendError(ErrMsgUnknownInterface, sender, serial)
+		conn.sendError(MakeUnknownInterfaceError(ifaceName), sender, serial)
 		return
 	}
 
 	m, exists := iface.LookupMethod(name)
 	if !exists {
-		conn.sendError(ErrMsgUnknownMethod, sender, serial)
+		conn.sendError(MakeUnknownMethodError(name), sender, serial)
 		return
 	}
 	args, err := conn.decodeArguments(m, sender, msg)
@@ -186,28 +210,23 @@ func (conn *Conn) handleCall(msg *Message) {
 		}
 		reply.Headers[FieldSignature] = MakeVariant(SignatureOf(reply.Body...))
 
-		conn.sendMessageAndIfClosed(reply, nil)
+		if err := reply.IsValid(); err != nil {
+			fmt.Fprintf(os.Stderr, "dbus: dropping invalid reply to %s.%s on obj %s: %s\n", ifaceName, name, path, err)
+		} else {
+			conn.sendMessageAndIfClosed(reply, nil)
+		}
 	}
 }
 
 // Emit emits the given signal on the message bus. The name parameter must be
 // formatted as "interface.member", e.g., "org.freedesktop.DBus.NameLost".
 func (conn *Conn) Emit(path ObjectPath, name string, values ...interface{}) error {
-	if !path.IsValid() {
-		return errors.New("dbus: invalid object path")
-	}
 	i := strings.LastIndex(name, ".")
 	if i == -1 {
 		return errors.New("dbus: invalid method name")
 	}
 	iface := name[:i]
 	member := name[i+1:]
-	if !isValidMember(member) {
-		return errors.New("dbus: invalid method name")
-	}
-	if !isValidInterface(iface) {
-		return errors.New("dbus: invalid interface name")
-	}
 	msg := new(Message)
 	msg.Type = TypeSignal
 	msg.Headers = make(map[HeaderField]Variant)
@@ -217,6 +236,9 @@ func (conn *Conn) Emit(path ObjectPath, name string, values ...interface{}) erro
 	msg.Body = values
 	if len(values) > 0 {
 		msg.Headers[FieldSignature] = MakeVariant(SignatureOf(values...))
+	}
+	if err := msg.IsValid(); err != nil {
+		return err
 	}
 
 	var closed bool

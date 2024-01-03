@@ -97,7 +97,8 @@ type remoteFileServer struct {
 func (f *remoteFileServer) URL() string {
 	u := url.URL{
 		Scheme: "http",
-		Host:   f.host}
+		Host:   f.host,
+	}
 	return u.String()
 }
 
@@ -124,7 +125,7 @@ func (f *remoteFileServer) Close() error {
 	if f.container == "" {
 		return nil
 	}
-	return f.client.ContainerRemove(context.Background(), f.container, types.ContainerRemoveOptions{
+	return f.client.ContainerRemove(context.Background(), f.container, containertypes.RemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	})
@@ -156,7 +157,7 @@ COPY . /static`); err != nil {
 		Image: image,
 	}, &containertypes.HostConfig{}, nil, nil, container)
 	assert.NilError(t, err)
-	err = c.ContainerStart(context.Background(), b.ID, types.ContainerStartOptions{})
+	err = c.ContainerStart(context.Background(), b.ID, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	// Find out the system assigned port

@@ -1,27 +1,27 @@
 package libnetwork
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
+	"reflect"
 	"runtime"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/discoverapi"
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/internal/setmatrix"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
-	"github.com/docker/docker/libnetwork/testutils"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"gotest.tools/v3/skip"
 )
 
 func TestNetworkMarshalling(t *testing.T) {
-	n := &network{
+	n := &Network{
 		name:        "Miao",
 		id:          "abccba",
 		ipamType:    "default",
@@ -129,7 +129,7 @@ func TestNetworkMarshalling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nn := &network{}
+	nn := &Network{}
 	err = json.Unmarshal(b, nn)
 	if err != nil {
 		t.Fatal(err)
@@ -188,12 +188,11 @@ func TestEndpointMarshalling(t *testing.T) {
 		lla = append(lla, ll)
 	}
 
-	e := &endpoint{
+	e := &Endpoint{
 		name:      "Bau",
 		id:        "efghijklmno",
 		sandboxID: "ambarabaciccicocco",
-		anonymous: true,
-		iface: &endpointInterface{
+		iface: &EndpointInterface{
 			mac: []byte{11, 12, 13, 14, 15, 16},
 			addr: &net.IPNet{
 				IP:   net.IP{10, 0, 1, 23},
@@ -206,6 +205,7 @@ func TestEndpointMarshalling(t *testing.T) {
 			v6PoolID:  "poolv6",
 			llAddrs:   lla,
 		},
+		dnsNames: []string{"test", "foobar", "baz"},
 	}
 
 	b, err := json.Marshal(e)
@@ -213,18 +213,18 @@ func TestEndpointMarshalling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ee := &endpoint{}
+	ee := &Endpoint{}
 	err = json.Unmarshal(b, ee)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if e.name != ee.name || e.id != ee.id || e.sandboxID != ee.sandboxID || !compareEndpointInterface(e.iface, ee.iface) || e.anonymous != ee.anonymous {
+	if e.name != ee.name || e.id != ee.id || e.sandboxID != ee.sandboxID || !reflect.DeepEqual(e.dnsNames, ee.dnsNames) || !compareEndpointInterface(e.iface, ee.iface) {
 		t.Fatalf("JSON marsh/unmarsh failed.\nOriginal:\n%#v\nDecoded:\n%#v\nOriginal iface: %#v\nDecodediface:\n%#v", e, ee, e.iface, ee.iface)
 	}
 }
 
-func compareEndpointInterface(a, b *endpointInterface) bool {
+func compareEndpointInterface(a, b *EndpointInterface) bool {
 	if a == b {
 		return true
 	}
@@ -312,13 +312,15 @@ func compareNwLists(a, b []*net.IPNet) bool {
 }
 
 func TestAuxAddresses(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
 	c, err := New()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Stop()
 
-	n := &network{ipamType: ipamapi.DefaultIPAM, networkType: "bridge", ctrlr: c.(*controller)}
+	n := &Network{ipamType: ipamapi.DefaultIPAM, networkType: "bridge", ctrlr: c}
 
 	input := []struct {
 		masterPool   string
@@ -334,7 +336,6 @@ func TestAuxAddresses(t *testing.T) {
 	}
 
 	for _, i := range input {
-
 		n.ipamV4Config = []*IpamConf{{PreferredPool: i.masterPool, SubPool: i.subPool, AuxAddresses: i.auxAddresses}}
 
 		err = n.ipamAllocate()
@@ -349,6 +350,8 @@ func TestAuxAddresses(t *testing.T) {
 
 func TestSRVServiceQuery(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
+	defer netnsutils.SetupTestOSContext(t)()
 
 	c, err := New()
 	if err != nil {
@@ -386,11 +389,8 @@ func TestSRVServiceQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sr := svcInfo{
-		svcMap:     setmatrix.NewSetMatrix(),
-		svcIPv6Map: setmatrix.NewSetMatrix(),
-		ipMap:      setmatrix.NewSetMatrix(),
-		service:    make(map[string][]servicePorts),
+	sr := &svcInfo{
+		service: make(map[string][]servicePorts),
 	}
 	// backing container for the service
 	cTarget := serviceTarget{
@@ -418,9 +418,10 @@ func TestSRVServiceQuery(t *testing.T) {
 	sr.service["web.swarm"] = append(sr.service["web.swarm"], httpPort)
 	sr.service["web.swarm"] = append(sr.service["web.swarm"], extHTTPPort)
 
-	c.(*controller).svcRecords[n.ID()] = sr
+	c.svcRecords[n.ID()] = sr
 
-	_, ip := ep.Info().Sandbox().ResolveService("_http._tcp.web.swarm")
+	ctx := context.Background()
+	_, ip := ep.Info().Sandbox().ResolveService(ctx, "_http._tcp.web.swarm")
 
 	if len(ip) == 0 {
 		t.Fatal(err)
@@ -429,7 +430,7 @@ func TestSRVServiceQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, ip = ep.Info().Sandbox().ResolveService("_host_http._tcp.web.swarm")
+	_, ip = ep.Info().Sandbox().ResolveService(ctx, "_host_http._tcp.web.swarm")
 
 	if len(ip) == 0 {
 		t.Fatal(err)
@@ -439,7 +440,7 @@ func TestSRVServiceQuery(t *testing.T) {
 	}
 
 	// Service name with invalid protocol name. Should fail without error
-	_, ip = ep.Info().Sandbox().ResolveService("_http._icmp.web.swarm")
+	_, ip = ep.Info().Sandbox().ResolveService(ctx, "_http._icmp.web.swarm")
 	if len(ip) != 0 {
 		t.Fatal("Valid response for invalid service name")
 	}
@@ -447,6 +448,8 @@ func TestSRVServiceQuery(t *testing.T) {
 
 func TestServiceVIPReuse(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
+	defer netnsutils.SetupTestOSContext(t)()
 
 	c, err := New()
 	if err != nil {
@@ -485,12 +488,13 @@ func TestServiceVIPReuse(t *testing.T) {
 	}
 
 	// Add 2 services with same name but different service ID to share the same VIP
-	n.(*network).addSvcRecords("ep1", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
-	n.(*network).addSvcRecords("ep2", "service_test", "serviceID2", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
+	n.addSvcRecords("ep1", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
+	n.addSvcRecords("ep2", "service_test", "serviceID2", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
 
 	ipToResolve := netutils.ReverseIP("192.168.0.1")
 
-	ipList, _ := n.(*network).ResolveName("service_test", types.IPv4)
+	ctx := context.Background()
+	ipList, _ := n.ResolveName(ctx, "service_test", types.IPv4)
 	if len(ipList) == 0 {
 		t.Fatal("There must be the VIP")
 	}
@@ -500,7 +504,7 @@ func TestServiceVIPReuse(t *testing.T) {
 	if ipList[0].String() != "192.168.0.1" {
 		t.Fatal("The service VIP is 192.168.0.1")
 	}
-	name := n.(*network).ResolveIP(ipToResolve)
+	name := n.ResolveIP(ctx, ipToResolve)
 	if name == "" {
 		t.Fatal("It must return a name")
 	}
@@ -509,8 +513,8 @@ func TestServiceVIPReuse(t *testing.T) {
 	}
 
 	// Delete service record for one of the services, the IP should remain because one service is still associated with it
-	n.(*network).deleteSvcRecords("ep1", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
-	ipList, _ = n.(*network).ResolveName("service_test", types.IPv4)
+	n.deleteSvcRecords("ep1", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
+	ipList, _ = n.ResolveName(ctx, "service_test", types.IPv4)
 	if len(ipList) == 0 {
 		t.Fatal("There must be the VIP")
 	}
@@ -520,7 +524,7 @@ func TestServiceVIPReuse(t *testing.T) {
 	if ipList[0].String() != "192.168.0.1" {
 		t.Fatal("The service VIP is 192.168.0.1")
 	}
-	name = n.(*network).ResolveIP(ipToResolve)
+	name = n.ResolveIP(ctx, ipToResolve)
 	if name == "" {
 		t.Fatal("It must return a name")
 	}
@@ -529,8 +533,8 @@ func TestServiceVIPReuse(t *testing.T) {
 	}
 
 	// Delete again the service using the previous service ID, nothing should happen
-	n.(*network).deleteSvcRecords("ep2", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
-	ipList, _ = n.(*network).ResolveName("service_test", types.IPv4)
+	n.deleteSvcRecords("ep2", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
+	ipList, _ = n.ResolveName(ctx, "service_test", types.IPv4)
 	if len(ipList) == 0 {
 		t.Fatal("There must be the VIP")
 	}
@@ -540,7 +544,7 @@ func TestServiceVIPReuse(t *testing.T) {
 	if ipList[0].String() != "192.168.0.1" {
 		t.Fatal("The service VIP is 192.168.0.1")
 	}
-	name = n.(*network).ResolveIP(ipToResolve)
+	name = n.ResolveIP(ctx, ipToResolve)
 	if name == "" {
 		t.Fatal("It must return a name")
 	}
@@ -549,12 +553,12 @@ func TestServiceVIPReuse(t *testing.T) {
 	}
 
 	// Delete now using the second service ID, now all the entries should be gone
-	n.(*network).deleteSvcRecords("ep2", "service_test", "serviceID2", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
-	ipList, _ = n.(*network).ResolveName("service_test", types.IPv4)
+	n.deleteSvcRecords("ep2", "service_test", "serviceID2", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
+	ipList, _ = n.ResolveName(ctx, "service_test", types.IPv4)
 	if len(ipList) != 0 {
 		t.Fatal("All the VIPs should be gone now")
 	}
-	name = n.(*network).ResolveIP(ipToResolve)
+	name = n.ResolveIP(ctx, ipToResolve)
 	if name != "" {
 		t.Fatalf("It must return empty no more services associated, instead:%s", name)
 	}
@@ -563,23 +567,15 @@ func TestServiceVIPReuse(t *testing.T) {
 func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer netnsutils.SetupTestOSContext(t)()
 
-	cfgOptions, err := OptionBoltdbWithRandomDBFile()
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := New(cfgOptions...)
+	c, err := New(OptionBoltdbWithRandomDBFile(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Stop()
 
-	cc := c.(*controller)
-
-	if err := cc.drvRegistry.AddDriver(badDriverName, badDriverInit, nil); err != nil {
+	if err := badDriverRegister(&c.drvRegistry); err != nil {
 		t.Fatal(err)
 	}
 
@@ -630,7 +626,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ep.Delete(false) // nolint:errcheck
+	defer ep.Delete(false) //nolint:errcheck
 
 	expectedIP, _ := types.ParseCIDR("10.35.0.1/16")
 	if !types.CompareIPNet(ep.Info().Iface().Address(), expectedIP) {
@@ -646,8 +642,8 @@ type badDriver struct {
 
 var bd = badDriver{failNetworkCreation: true}
 
-func badDriverInit(reg driverapi.DriverCallback, opt map[string]interface{}) error {
-	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: datastore.LocalScope})
+func badDriverRegister(reg driverapi.Registerer) error {
+	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: scope.Local})
 }
 
 func (b *badDriver) CreateNetwork(nid string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
@@ -656,39 +652,43 @@ func (b *badDriver) CreateNetwork(nid string, options map[string]interface{}, nI
 	}
 	return nil
 }
+
 func (b *badDriver) DeleteNetwork(nid string) error {
 	return nil
 }
+
 func (b *badDriver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, options map[string]interface{}) error {
 	return fmt.Errorf("I will not create any endpoint")
 }
+
 func (b *badDriver) DeleteEndpoint(nid, eid string) error {
 	return nil
 }
+
 func (b *badDriver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
 	return nil, nil
 }
+
 func (b *badDriver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
 	return fmt.Errorf("I will not allow any join")
 }
+
 func (b *badDriver) Leave(nid, eid string) error {
 	return nil
 }
-func (b *badDriver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
-	return nil
-}
-func (b *badDriver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
-	return nil
-}
+
 func (b *badDriver) Type() string {
 	return badDriverName
 }
+
 func (b *badDriver) IsBuiltIn() bool {
 	return false
 }
+
 func (b *badDriver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
 	return nil
 }
+
 func (b *badDriver) RevokeExternalConnectivity(nid, eid string) error {
 	return nil
 }

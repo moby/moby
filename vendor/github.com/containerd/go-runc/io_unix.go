@@ -1,4 +1,4 @@
-// +build !windows
+//go:build !windows
 
 /*
    Copyright The containerd Authors.
@@ -19,14 +19,15 @@
 package runc
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+	"runtime"
+
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
-	"runtime"
 )
 
-// NewPipeIO creates pipe pairs to be used with runc
-func NewPipeIO(uid, gid int, opts ...IOOpt) (i IO, err error) {
+// newPipeIO creates pipe pairs to be used with runc
+func newPipeIO(uid, gid int, opts ...IOOpt) (i IO, err error) {
 	option := defaultIOOption()
 	for _, o := range opts {
 		o(option)
@@ -54,7 +55,7 @@ func NewPipeIO(uid, gid int, opts ...IOOpt) (i IO, err error) {
 			if runtime.GOOS == "darwin" {
 				logrus.WithError(err).Debug("failed to chown stdin, ignored")
 			} else {
-				return nil, errors.Wrap(err, "failed to chown stdin")
+				return nil, fmt.Errorf("failed to chown stdin: %w", err)
 			}
 		}
 	}
@@ -69,7 +70,7 @@ func NewPipeIO(uid, gid int, opts ...IOOpt) (i IO, err error) {
 			if runtime.GOOS == "darwin" {
 				logrus.WithError(err).Debug("failed to chown stdout, ignored")
 			} else {
-				return nil, errors.Wrap(err, "failed to chown stdout")
+				return nil, fmt.Errorf("failed to chown stdout: %w", err)
 			}
 		}
 	}
@@ -84,7 +85,7 @@ func NewPipeIO(uid, gid int, opts ...IOOpt) (i IO, err error) {
 			if runtime.GOOS == "darwin" {
 				logrus.WithError(err).Debug("failed to chown stderr, ignored")
 			} else {
-				return nil, errors.Wrap(err, "failed to chown stderr")
+				return nil, fmt.Errorf("failed to chown stderr: %w", err)
 			}
 		}
 	}

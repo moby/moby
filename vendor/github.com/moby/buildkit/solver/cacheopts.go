@@ -3,31 +3,39 @@ package solver
 import (
 	"context"
 
+	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/progress"
+
 	digest "github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 )
 
 type CacheOpts map[interface{}]interface{}
 
+type progressKey struct{}
+
 type cacheOptGetterKey struct{}
 
-func CacheOptGetterOf(ctx context.Context) func(keys ...interface{}) map[interface{}]interface{} {
+func CacheOptGetterOf(ctx context.Context) func(includeAncestors bool, keys ...interface{}) map[interface{}]interface{} {
 	if v := ctx.Value(cacheOptGetterKey{}); v != nil {
-		if getter, ok := v.(func(keys ...interface{}) map[interface{}]interface{}); ok {
+		if getter, ok := v.(func(includeAncestors bool, keys ...interface{}) map[interface{}]interface{}); ok {
 			return getter
 		}
 	}
 	return nil
 }
 
+func WithCacheOptGetter(ctx context.Context, getter func(includeAncestors bool, keys ...interface{}) map[interface{}]interface{}) context.Context {
+	return context.WithValue(ctx, cacheOptGetterKey{}, getter)
+}
+
 func withAncestorCacheOpts(ctx context.Context, start *state) context.Context {
-	return context.WithValue(ctx, cacheOptGetterKey{}, func(keys ...interface{}) map[interface{}]interface{} {
+	return WithCacheOptGetter(ctx, func(includeAncestors bool, keys ...interface{}) map[interface{}]interface{} {
 		keySet := make(map[interface{}]struct{})
 		for _, k := range keys {
 			keySet[k] = struct{}{}
 		}
 		values := make(map[interface{}]interface{})
-		walkAncestors(start, func(st *state) bool {
+		walkAncestors(ctx, start, func(st *state) bool {
 			if st.clientVertex.Error != "" {
 				// don't use values from cancelled or otherwise error'd vertexes
 				return false
@@ -46,13 +54,13 @@ func withAncestorCacheOpts(ctx context.Context, start *state) context.Context {
 					}
 				}
 			}
-			return false
+			return !includeAncestors // stop after the first state unless includeAncestors is true
 		})
 		return values
 	})
 }
 
-func walkAncestors(start *state, f func(*state) bool) {
+func walkAncestors(ctx context.Context, start *state, f func(*state) bool) {
 	stack := [][]*state{{start}}
 	cache := make(map[digest.Digest]struct{})
 	for len(stack) > 0 {
@@ -79,10 +87,22 @@ func walkAncestors(start *state, f func(*state) bool) {
 			parent := st.solver.actives[parentDgst]
 			st.solver.mu.RUnlock()
 			if parent == nil {
-				logrus.Warnf("parent %q not found in active job list during cache opt search", parentDgst)
+				bklog.G(ctx).Warnf("parent %q not found in active job list during cache opt search", parentDgst)
 				continue
 			}
 			stack[len(stack)-1] = append(stack[len(stack)-1], parent)
 		}
 	}
+}
+
+func ProgressControllerFromContext(ctx context.Context) progress.Controller {
+	var pg progress.Controller
+	if optGetter := CacheOptGetterOf(ctx); optGetter != nil {
+		if kv := optGetter(false, progressKey{}); kv != nil {
+			if v, ok := kv[progressKey{}].(progress.Controller); ok {
+				pg = v
+			}
+		}
+	}
+	return pg
 }

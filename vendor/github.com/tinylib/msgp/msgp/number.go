@@ -29,7 +29,6 @@ type Number struct {
 
 // AsInt sets the number to an int64.
 func (n *Number) AsInt(i int64) {
-
 	// we always store int(0)
 	// as {0, InvalidType} in
 	// order to preserve

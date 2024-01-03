@@ -65,7 +65,6 @@
 // ```
 // name==foo,labels.bar
 // ```
-//
 package filters
 
 import (

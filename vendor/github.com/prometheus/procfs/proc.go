@@ -16,7 +16,7 @@ package procfs
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -82,7 +82,7 @@ func (fs FS) Self() (Proc, error) {
 
 // NewProc returns a process for the given pid.
 //
-// Deprecated: use fs.Proc() instead
+// Deprecated: Use fs.Proc() instead.
 func (fs FS) NewProc(pid int) (Proc, error) {
 	return fs.Proc(pid)
 }
@@ -105,7 +105,7 @@ func (fs FS) AllProcs() (Procs, error) {
 
 	names, err := d.Readdirnames(-1)
 	if err != nil {
-		return Procs{}, fmt.Errorf("could not read %s: %s", d.Name(), err)
+		return Procs{}, fmt.Errorf("could not read %q: %w", d.Name(), err)
 	}
 
 	p := Procs{}
@@ -132,6 +132,27 @@ func (p Proc) CmdLine() ([]string, error) {
 	}
 
 	return strings.Split(string(bytes.TrimRight(data, string("\x00"))), string(byte(0))), nil
+}
+
+// Wchan returns the wchan (wait channel) of a process.
+func (p Proc) Wchan() (string, error) {
+	f, err := os.Open(p.path("wchan"))
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return "", err
+	}
+
+	wchan := string(data)
+	if wchan == "" || wchan == "0" {
+		return "", nil
+	}
+
+	return wchan, nil
 }
 
 // Comm returns the command name of a process.
@@ -164,7 +185,7 @@ func (p Proc) Cwd() (string, error) {
 	return wd, err
 }
 
-// RootDir returns the absolute path to the process's root directory (as set by chroot)
+// RootDir returns the absolute path to the process's root directory (as set by chroot).
 func (p Proc) RootDir() (string, error) {
 	rdir, err := os.Readlink(p.path("root"))
 	if os.IsNotExist(err) {
@@ -185,7 +206,7 @@ func (p Proc) FileDescriptors() ([]uintptr, error) {
 	for i, n := range names {
 		fd, err := strconv.ParseInt(n, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse fd %s: %s", n, err)
+			return nil, fmt.Errorf("could not parse fd %q: %w", n, err)
 		}
 		fds[i] = uintptr(fd)
 	}
@@ -257,7 +278,7 @@ func (p Proc) fileDescriptors() ([]string, error) {
 
 	names, err := d.Readdirnames(-1)
 	if err != nil {
-		return nil, fmt.Errorf("could not read %s: %s", d.Name(), err)
+		return nil, fmt.Errorf("could not read %q: %w", d.Name(), err)
 	}
 
 	return names, nil
@@ -290,7 +311,7 @@ func (p Proc) FileDescriptorsInfo() (ProcFDInfos, error) {
 
 // Schedstat returns task scheduling information for the process.
 func (p Proc) Schedstat() (ProcSchedstat, error) {
-	contents, err := ioutil.ReadFile(p.path("schedstat"))
+	contents, err := os.ReadFile(p.path("schedstat"))
 	if err != nil {
 		return ProcSchedstat{}, err
 	}

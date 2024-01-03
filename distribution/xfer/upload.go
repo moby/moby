@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/sirupsen/logrus"
 )
 
 const maxUploadAttempts = 5
@@ -16,19 +16,19 @@ const maxUploadAttempts = 5
 // LayerUploadManager provides task management and progress reporting for
 // uploads.
 type LayerUploadManager struct {
-	tm           TransferManager
+	tm           *transferManager
 	waitDuration time.Duration
 }
 
 // SetConcurrency sets the max concurrent uploads for each push
 func (lum *LayerUploadManager) SetConcurrency(concurrency int) {
-	lum.tm.SetConcurrency(concurrency)
+	lum.tm.setConcurrency(concurrency)
 }
 
 // NewLayerUploadManager returns a new LayerUploadManager.
 func NewLayerUploadManager(concurrencyLimit int, options ...func(*LayerUploadManager)) *LayerUploadManager {
 	manager := LayerUploadManager{
-		tm:           NewTransferManager(concurrencyLimit),
+		tm:           newTransferManager(concurrencyLimit),
 		waitDuration: time.Second,
 	}
 	for _, option := range options {
@@ -38,7 +38,7 @@ func NewLayerUploadManager(concurrencyLimit int, options ...func(*LayerUploadMan
 }
 
 type uploadTransfer struct {
-	Transfer
+	transfer
 
 	remoteDescriptor distribution.Descriptor
 	err              error
@@ -79,8 +79,8 @@ func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescri
 		}
 
 		xferFunc := lum.makeUploadFunc(descriptor)
-		upload, watcher := lum.tm.Transfer(descriptor.Key(), xferFunc, progressOutput)
-		defer upload.Release(watcher)
+		upload, watcher := lum.tm.transfer(descriptor.Key(), xferFunc, progressOutput)
+		defer upload.release(watcher)
 		uploads = append(uploads, upload.(*uploadTransfer))
 		dedupDescriptors[key] = upload.(*uploadTransfer)
 	}
@@ -89,7 +89,7 @@ func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescri
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-upload.Transfer.Done():
+		case <-upload.transfer.done():
 			if upload.err != nil {
 				return upload.err
 			}
@@ -102,10 +102,10 @@ func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescri
 	return nil
 }
 
-func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFunc {
-	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) doFunc {
+	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) transfer {
 		u := &uploadTransfer{
-			Transfer: NewTransfer(),
+			transfer: newTransfer(),
 		}
 
 		go func() {
@@ -124,7 +124,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 
 			retries := 0
 			for {
-				remoteDescriptor, err := descriptor.Upload(u.Transfer.Context(), progressOutput)
+				remoteDescriptor, err := descriptor.Upload(u.transfer.context(), progressOutput)
 				if err == nil {
 					u.remoteDescriptor = remoteDescriptor
 					break
@@ -133,7 +133,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 				// If an error was returned because the context
 				// was cancelled, we shouldn't retry.
 				select {
-				case <-u.Transfer.Context().Done():
+				case <-u.transfer.context().Done():
 					u.err = err
 					return
 				default:
@@ -141,12 +141,12 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 
 				retries++
 				if _, isDNR := err.(DoNotRetry); isDNR || retries == maxUploadAttempts {
-					logrus.Errorf("Upload failed: %v", err)
+					log.G(context.TODO()).Errorf("Upload failed: %v", err)
 					u.err = err
 					return
 				}
 
-				logrus.Errorf("Upload failed, retrying: %v", err)
+				log.G(context.TODO()).Errorf("Upload failed, retrying: %v", err)
 				delay := retries * 5
 				ticker := time.NewTicker(lum.waitDuration)
 
@@ -160,7 +160,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 							ticker.Stop()
 							break selectLoop
 						}
-					case <-u.Transfer.Context().Done():
+					case <-u.transfer.context().Done():
 						ticker.Stop()
 						u.err = errors.New("upload cancelled during retry delay")
 						return

@@ -20,19 +20,17 @@ func TestServiceRemoveError(t *testing.T) {
 	}
 
 	err := client.ServiceRemove(context.Background(), "service_id")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestServiceRemoveNotFoundError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "missing")),
+		client: newMockClient(errorMock(http.StatusNotFound, "no such service: service_id")),
 	}
 
 	err := client.ServiceRemove(context.Background(), "service_id")
-	assert.Check(t, is.Error(err, "Error: No such service: service_id"))
-	assert.Check(t, IsErrNotFound(err))
+	assert.Check(t, is.ErrorContains(err, "no such service: service_id"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestServiceRemove(t *testing.T) {

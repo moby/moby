@@ -72,7 +72,7 @@ anybody starts working on it.
 We are always thrilled to receive pull requests. We do our best to process them
 quickly. If your pull request is not accepted on the first try,
 don't get discouraged! Our contributor's guide explains [the review process we
-use for simple changes](https://docs.docker.com/opensource/workflow/make-a-contribution/).
+use for simple changes](https://docs.docker.com/contribute/overview/).
 
 ### Design and cleanup proposals
 
@@ -101,9 +101,8 @@ the contributors guide.
     <td>
       <p>
         Register for the Docker Community Slack at
-	<a href="https://community.docker.com/registrations/groups/4316" target="_blank">https://community.docker.com/registrations/groups/4316</a>.
+	<a href="https://dockr.ly/slack" target="_blank">https://dockr.ly/slack</a>.
         We use the #moby-project channel for general discussion, and there are separate channels for other Moby projects such as #containerd.
-	Archives are available at <a href="https://dockercommunity.slackarchive.io/" target="_blank">https://dockercommunity.slackarchive.io/</a>.
       </p>
     </td>
   </tr>
@@ -310,36 +309,6 @@ Don't forget: being a maintainer is a time investment. Make sure you
 will have time to make yourself available. You don't have to be a
 maintainer to make a difference on the project!
 
-### Manage issues and pull requests using the Derek bot
-
-If you want to help label, assign, close or reopen issues or pull requests
-without commit rights, ask a maintainer to add your Github handle to the 
-`.DEREK.yml` file. [Derek](https://github.com/alexellis/derek) is a bot that extends
-Github's user permissions to help non-committers to manage issues and pull requests simply by commenting.
-
-For example:
-
-* Labels
-
-```
-Derek add label: kind/question
-Derek remove label: status/claimed
-```
-
-* Assign work
-
-```
-Derek assign: username
-Derek unassign: me
-```
-
-* Manage issues and PRs
-
-```
-Derek close
-Derek reopen
-```
-
 ## Moby community guidelines
 
 We want to keep the Moby community awesome, growing and collaborative. We need
@@ -453,6 +422,6 @@ The rules:
     guidelines. Since you've read all the rules, you now know that.
 
 If you are having trouble getting into the mood of idiomatic Go, we recommend
-reading through [Effective Go](https://golang.org/doc/effective_go.html). The
-[Go Blog](https://blog.golang.org) is also a great resource. Drinking the
+reading through [Effective Go](https://go.dev/doc/effective_go). The
+[Go Blog](https://go.dev/blog/) is also a great resource. Drinking the
 kool-aid is a lot easier than going thirsty.

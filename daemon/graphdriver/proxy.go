@@ -6,7 +6,6 @@ import (
 	"io"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
@@ -38,13 +37,12 @@ type graphDriverResponse struct {
 }
 
 type graphDriverInitRequest struct {
-	Home    string
-	Opts    []string        `json:"Opts"`
-	UIDMaps []idtools.IDMap `json:"UIDMaps"`
-	GIDMaps []idtools.IDMap `json:"GIDMaps"`
+	Home string
+	Opts []string `json:"Opts"`
+	idtools.IdentityMapping
 }
 
-func (d *graphDriverProxy) Init(home string, opts []string, uidMaps, gidMaps []idtools.IDMap) error {
+func (d *graphDriverProxy) Init(home string, opts []string, idMap idtools.IdentityMapping) error {
 	if !d.p.IsV1() {
 		if cp, ok := d.p.(plugingetter.CountedPlugin); ok {
 			// always acquire here, it will be cleaned up on daemon shutdown
@@ -52,10 +50,9 @@ func (d *graphDriverProxy) Init(home string, opts []string, uidMaps, gidMaps []i
 		}
 	}
 	args := &graphDriverInitRequest{
-		Home:    home,
-		Opts:    opts,
-		UIDMaps: uidMaps,
-		GIDMaps: gidMaps,
+		Home:            home,
+		Opts:            opts,
+		IdentityMapping: idMap,
 	}
 	var ret graphDriverResponse
 	if err := d.client.Call("GraphDriver.Init", args, &ret); err != nil {
@@ -130,20 +127,20 @@ func (d *graphDriverProxy) Remove(id string) error {
 	return nil
 }
 
-func (d *graphDriverProxy) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
+func (d *graphDriverProxy) Get(id, mountLabel string) (string, error) {
 	args := &graphDriverRequest{
 		ID:         id,
 		MountLabel: mountLabel,
 	}
 	var ret graphDriverResponse
 	if err := d.client.Call("GraphDriver.Get", args, &ret); err != nil {
-		return nil, err
+		return "", err
 	}
 	var err error
 	if ret.Err != "" {
 		err = errors.New(ret.Err)
 	}
-	return containerfs.NewLocalContainerFS(d.p.ScopedPath(ret.Dir)), err
+	return d.p.ScopedPath(ret.Dir), err
 }
 
 func (d *graphDriverProxy) Put(id string) error {

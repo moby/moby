@@ -2,20 +2,17 @@ package distribution // import "github.com/docker/docker/api/server/router/distr
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
-	"strings"
 
+	"github.com/distribution/reference"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -25,21 +22,6 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-
-	var (
-		config              = &types.AuthConfig{}
-		authEncoded         = r.Header.Get("X-Registry-Auth")
-		distributionInspect registrytypes.DistributionInspect
-	)
-
-	if authEncoded != "" {
-		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-		if err := json.NewDecoder(authJSON).Decode(&config); err != nil {
-			// for a search it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting to be empty
-			config = &types.AuthConfig{}
-		}
-	}
 
 	image := vars["name"]
 
@@ -57,12 +39,16 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 		return errdefs.InvalidParameter(errors.Errorf("unknown image reference format: %s", image))
 	}
 
-	distrepo, err := s.backend.GetRepository(ctx, namedRef, config)
+	// For a search it is not an error if no auth was given. Ignore invalid
+	// AuthConfig to increase compatibility with the existing API.
+	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
+	distrepo, err := s.backend.GetRepository(ctx, namedRef, authConfig)
 	if err != nil {
 		return err
 	}
 	blobsrvc := distrepo.Blobs(ctx)
 
+	var distributionInspect registry.DistributionInspect
 	if canonicalRef, ok := namedRef.(reference.Canonical); !ok {
 		namedRef = reference.TagNameOnly(namedRef)
 
@@ -75,7 +61,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 		if err != nil {
 			return err
 		}
-		distributionInspect.Descriptor = v1.Descriptor{
+		distributionInspect.Descriptor = ocispec.Descriptor{
 			MediaType: descriptor.MediaType,
 			Digest:    descriptor.Digest,
 			Size:      descriptor.Size,
@@ -121,7 +107,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	switch mnfstObj := mnfst.(type) {
 	case *manifestlist.DeserializedManifestList:
 		for _, m := range mnfstObj.Manifests {
-			distributionInspect.Platforms = append(distributionInspect.Platforms, v1.Platform{
+			distributionInspect.Platforms = append(distributionInspect.Platforms, ocispec.Platform{
 				Architecture: m.Platform.Architecture,
 				OS:           m.Platform.OS,
 				OSVersion:    m.Platform.OSVersion,
@@ -131,7 +117,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 		}
 	case *schema2.DeserializedManifest:
 		configJSON, err := blobsrvc.Get(ctx, mnfstObj.Config.Digest)
-		var platform v1.Platform
+		var platform ocispec.Platform
 		if err == nil {
 			err := json.Unmarshal(configJSON, &platform)
 			if err == nil && (platform.OS != "" || platform.Architecture != "") {
@@ -139,7 +125,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 			}
 		}
 	case *schema1.SignedManifest:
-		platform := v1.Platform{
+		platform := ocispec.Platform{
 			Architecture: mnfstObj.Architecture,
 			OS:           "linux",
 		}

@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/moby/buildkit/cache"
+	cacheconfig "github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
-	"github.com/moby/buildkit/util/compression"
 )
 
 func NewWorkerRefResult(ref cache.ImmutableRef, worker Worker) solver.Result {
@@ -26,16 +26,26 @@ func (wr *WorkerRef) ID() string {
 	return wr.Worker.ID() + "::" + refID
 }
 
-// GetRemote method abstracts ImmutableRef's GetRemote to allow a Worker to override.
-// This is needed for moby integration.
-// Use this method instead of calling ImmutableRef.GetRemote() directly.
-func (wr *WorkerRef) GetRemote(ctx context.Context, createIfNeeded bool, compressionType compression.Type, g session.Group) (*solver.Remote, error) {
-	if w, ok := wr.Worker.(interface {
-		GetRemote(context.Context, cache.ImmutableRef, bool, compression.Type, session.Group) (*solver.Remote, error)
-	}); ok {
-		return w.GetRemote(ctx, wr.ImmutableRef, createIfNeeded, compressionType, g)
+func (wr *WorkerRef) Release(ctx context.Context) error {
+	if wr.ImmutableRef == nil {
+		return nil
 	}
-	return wr.ImmutableRef.GetRemote(ctx, createIfNeeded, compressionType, g)
+	return wr.ImmutableRef.Release(ctx)
+}
+
+// GetRemotes method abstracts ImmutableRef's GetRemotes to allow a Worker to override.
+// This is needed for moby integration.
+// Use this method instead of calling ImmutableRef.GetRemotes() directly.
+func (wr *WorkerRef) GetRemotes(ctx context.Context, createIfNeeded bool, refCfg cacheconfig.RefConfig, all bool, g session.Group) ([]*solver.Remote, error) {
+	if w, ok := wr.Worker.(interface {
+		GetRemotes(context.Context, cache.ImmutableRef, bool, cacheconfig.RefConfig, bool, session.Group) ([]*solver.Remote, error)
+	}); ok {
+		return w.GetRemotes(ctx, wr.ImmutableRef, createIfNeeded, refCfg, all, g)
+	}
+	if wr.ImmutableRef == nil {
+		return nil, nil
+	}
+	return wr.ImmutableRef.GetRemotes(ctx, createIfNeeded, refCfg, all, g)
 }
 
 type workerRefResult struct {

@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package main
 
@@ -12,13 +11,14 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
 )
 
 // regression test for #12546
-func (s *DockerSuite) TestExecInteractiveStdinClose(c *testing.T) {
+func (s *DockerCLIExecSuite) TestExecInteractiveStdinClose(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-itd", "busybox", "/bin/cat")
+	out := cli.DockerCmd(c, "run", "-itd", "busybox", "/bin/cat").Stdout()
 	contID := strings.TrimSpace(out)
 
 	cmd := exec.Command(dockerBinary, "exec", "-i", contID, "echo", "-n", "hello")
@@ -45,9 +45,9 @@ func (s *DockerSuite) TestExecInteractiveStdinClose(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestExecTTY(c *testing.T) {
+func (s *DockerCLIExecSuite) TestExecTTY(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	dockerCmd(c, "run", "-d", "--name=test", "busybox", "sh", "-c", "echo hello > /foo && top")
+	cli.DockerCmd(c, "run", "-d", "--name=test", "busybox", "sh", "-c", "echo hello > /foo && top")
 
 	cmd := exec.Command(dockerBinary, "exec", "-it", "test", "sh")
 	p, err := pty.Start(cmd)
@@ -75,9 +75,9 @@ func (s *DockerSuite) TestExecTTY(c *testing.T) {
 }
 
 // Test the TERM env var is set when -t is provided on exec
-func (s *DockerSuite) TestExecWithTERM(c *testing.T) {
+func (s *DockerCLIExecSuite) TestExecWithTERM(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	out, _ := dockerCmd(c, "run", "-id", "busybox", "/bin/cat")
+	out := cli.DockerCmd(c, "run", "-id", "busybox", "/bin/cat").Stdout()
 	contID := strings.TrimSpace(out)
 	cmd := exec.Command(dockerBinary, "exec", "-t", contID, "sh", "-c", "if [ -z $TERM ]; then exit 1; else exit 0; fi")
 	if err := cmd.Run(); err != nil {
@@ -87,9 +87,9 @@ func (s *DockerSuite) TestExecWithTERM(c *testing.T) {
 
 // Test that the TERM env var is not set on exec when -t is not provided, even if it was set
 // on run
-func (s *DockerSuite) TestExecWithNoTERM(c *testing.T) {
+func (s *DockerCLIExecSuite) TestExecWithNoTERM(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	out, _ := dockerCmd(c, "run", "-itd", "busybox", "/bin/cat")
+	out := cli.DockerCmd(c, "run", "-itd", "busybox", "/bin/cat").Stdout()
 	contID := strings.TrimSpace(out)
 	cmd := exec.Command(dockerBinary, "exec", contID, "sh", "-c", "if [ -z $TERM ]; then exit 0; else exit 1; fi")
 	if err := cmd.Run(); err != nil {

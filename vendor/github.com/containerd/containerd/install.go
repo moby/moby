@@ -19,6 +19,8 @@ package containerd
 import (
 	"archive/tar"
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -28,10 +30,10 @@ import (
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
-	"github.com/pkg/errors"
 )
 
-// Install a binary image into the opt service
+// Install a binary image into the opt service.
+// More info: https://github.com/containerd/containerd/blob/main/docs/managed-opt.md.
 func (c *Client) Install(ctx context.Context, image Image, opts ...InstallOpts) error {
 	var config InstallConfig
 	for _, o := range opts {
@@ -66,9 +68,11 @@ func (c *Client) Install(ctx context.Context, image Image, opts ...InstallOpts) 
 		cr := content.NewReader(ra)
 		r, err := compression.DecompressStream(cr)
 		if err != nil {
+			ra.Close()
 			return err
 		}
-		if _, err := archive.Apply(ctx, path, r, archive.WithFilter(func(hdr *tar.Header) (bool, error) {
+
+		filter := archive.WithFilter(func(hdr *tar.Header) (bool, error) {
 			d := filepath.Dir(hdr.Name)
 			result := d == binDir
 
@@ -81,15 +85,25 @@ func (c *Client) Install(ctx context.Context, image Image, opts ...InstallOpts) 
 			}
 			if result && !config.Replace {
 				if _, err := os.Lstat(filepath.Join(path, hdr.Name)); err == nil {
-					return false, errors.Errorf("cannot replace %s in %s", hdr.Name, path)
+					return false, fmt.Errorf("cannot replace %s in %s", hdr.Name, path)
 				}
 			}
 			return result, nil
-		})); err != nil {
+		})
+
+		opts := []archive.ApplyOpt{filter}
+
+		if runtime.GOOS == "windows" {
+			opts = append(opts, archive.WithNoSameOwner())
+		}
+
+		if _, err := archive.Apply(ctx, path, r, opts...); err != nil {
 			r.Close()
+			ra.Close()
 			return err
 		}
 		r.Close()
+		ra.Close()
 	}
 	return nil
 }

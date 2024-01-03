@@ -36,9 +36,9 @@ func (ra *remoteReaderAt) Size() int64 {
 
 func (ra *remoteReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	rr := &contentapi.ReadContentRequest{
-		Digest: ra.digest,
+		Digest: ra.digest.String(),
 		Offset: off,
-		Size_:  int64(len(p)),
+		Size:   int64(len(p)),
 	}
 	// we need a child context with cancel, or the eventually called
 	// grpc.NewStream will leak the goroutine until the whole thing is cleared.

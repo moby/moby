@@ -18,9 +18,11 @@ package diff
 
 import (
 	"context"
+	"io"
+	"time"
 
 	"github.com/containerd/containerd/mount"
-	"github.com/gogo/protobuf/types"
+	"github.com/containerd/typeurl/v2"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -37,6 +39,15 @@ type Config struct {
 
 	// Labels are the labels to apply to the generated content
 	Labels map[string]string
+
+	// Compressor is a function to compress the diff stream
+	// instead of the default gzip compressor. Differ passes
+	// the MediaType of the target diff content to the compressor.
+	// When using this config, MediaType must be specified as well.
+	Compressor func(dest io.Writer, mediaType string) (io.WriteCloser, error)
+
+	// SourceDateEpoch specifies the SOURCE_DATE_EPOCH without touching the env vars.
+	SourceDateEpoch *time.Time
 }
 
 // Opt is used to configure a diff operation
@@ -55,7 +66,7 @@ type Comparer interface {
 // ApplyConfig is used to hold parameters needed for a apply operation
 type ApplyConfig struct {
 	// ProcessorPayloads specifies the payload sent to various processors
-	ProcessorPayloads map[string]*types.Any
+	ProcessorPayloads map[string]typeurl.Any
 }
 
 // ApplyOpt is used to configure an Apply operation
@@ -69,6 +80,14 @@ type Applier interface {
 	// case the descriptor is a file system difference in tar format,
 	// that tar would be applied on top of the mounts.
 	Apply(ctx context.Context, desc ocispec.Descriptor, mount []mount.Mount, opts ...ApplyOpt) (ocispec.Descriptor, error)
+}
+
+// WithCompressor sets the function to be used to compress the diff stream.
+func WithCompressor(f func(dest io.Writer, mediaType string) (io.WriteCloser, error)) Opt {
+	return func(c *Config) error {
+		c.Compressor = f
+		return nil
+	}
 }
 
 // WithMediaType sets the media type to use for creating the diff, without
@@ -99,9 +118,18 @@ func WithLabels(labels map[string]string) Opt {
 }
 
 // WithPayloads sets the apply processor payloads to the config
-func WithPayloads(payloads map[string]*types.Any) ApplyOpt {
+func WithPayloads(payloads map[string]typeurl.Any) ApplyOpt {
 	return func(_ context.Context, _ ocispec.Descriptor, c *ApplyConfig) error {
 		c.ProcessorPayloads = payloads
+		return nil
+	}
+}
+
+// WithSourceDateEpoch specifies the timestamp used for whiteouts to provide control for reproducibility.
+// See also https://reproducible-builds.org/docs/source-date-epoch/ .
+func WithSourceDateEpoch(tm *time.Time) Opt {
+	return func(c *Config) error {
+		c.SourceDateEpoch = tm
 		return nil
 	}
 }

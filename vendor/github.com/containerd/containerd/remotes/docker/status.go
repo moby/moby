@@ -17,12 +17,12 @@
 package docker
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/moby/locker"
-	"github.com/pkg/errors"
 )
 
 // Status of a content operation
@@ -31,8 +31,22 @@ type Status struct {
 
 	Committed bool
 
+	// ErrClosed contains error encountered on close.
+	ErrClosed error
+
 	// UploadUUID is used by the Docker registry to reference blob uploads
 	UploadUUID string
+
+	// PushStatus contains status related to push.
+	PushStatus
+}
+
+type PushStatus struct {
+	// MountedFrom is the source content was cross-repo mounted from (empty if no cross-repo mount was performed).
+	MountedFrom string
+
+	// Exists indicates whether content already exists in the repository and wasn't uploaded.
+	Exists bool
 }
 
 // StatusTracker to track status of operations
@@ -67,7 +81,7 @@ func (t *memoryStatusTracker) GetStatus(ref string) (Status, error) {
 	defer t.m.Unlock()
 	status, ok := t.statuses[ref]
 	if !ok {
-		return Status{}, errors.Wrapf(errdefs.ErrNotFound, "status for ref %v", ref)
+		return Status{}, fmt.Errorf("status for ref %v: %w", ref, errdefs.ErrNotFound)
 	}
 	return status, nil
 }

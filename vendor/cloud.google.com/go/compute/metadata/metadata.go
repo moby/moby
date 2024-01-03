@@ -16,7 +16,7 @@
 // metadata and API service accounts.
 //
 // This package is a wrapper around the GCE metadata service,
-// as documented at https://developers.google.com/compute/docs/metadata.
+// as documented at https://cloud.google.com/compute/docs/metadata/overview.
 package metadata // import "cloud.google.com/go/compute/metadata"
 
 import (
@@ -61,25 +61,20 @@ var (
 	instID  = &cachedValue{k: "instance/id", trim: true}
 )
 
-var (
-	defaultClient = &Client{hc: &http.Client{
+var defaultClient = &Client{hc: newDefaultHTTPClient()}
+
+func newDefaultHTTPClient() *http.Client {
+	return &http.Client{
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
 				Timeout:   2 * time.Second,
 				KeepAlive: 30 * time.Second,
 			}).Dial,
-			ResponseHeaderTimeout: 2 * time.Second,
+			IdleConnTimeout: 60 * time.Second,
 		},
-	}}
-	subscribeClient = &Client{hc: &http.Client{
-		Transport: &http.Transport{
-			Dial: (&net.Dialer{
-				Timeout:   2 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-		},
-	}}
-)
+		Timeout: 5 * time.Second,
+	}
+}
 
 // NotDefinedError is returned when requested metadata is not defined.
 //
@@ -141,7 +136,7 @@ func testOnGCE() bool {
 	go func() {
 		req, _ := http.NewRequest("GET", "http://"+metadataIP, nil)
 		req.Header.Set("User-Agent", userAgent)
-		res, err := defaultClient.hc.Do(req.WithContext(ctx))
+		res, err := newDefaultHTTPClient().Do(req.WithContext(ctx))
 		if err != nil {
 			resc <- false
 			return
@@ -151,7 +146,8 @@ func testOnGCE() bool {
 	}()
 
 	go func() {
-		addrs, err := net.LookupHost("metadata.google.internal")
+		resolver := &net.Resolver{}
+		addrs, err := resolver.LookupHost(ctx, "metadata.google.internal.")
 		if err != nil || len(addrs) == 0 {
 			resc <- false
 			return
@@ -206,10 +202,9 @@ func systemInfoSuggestsGCE() bool {
 	return name == "Google" || name == "Google Compute Engine"
 }
 
-// Subscribe calls Client.Subscribe on a client designed for subscribing (one with no
-// ResponseHeaderTimeout).
+// Subscribe calls Client.Subscribe on the default client.
 func Subscribe(suffix string, fn func(v string, ok bool) error) error {
-	return subscribeClient.Subscribe(suffix, fn)
+	return defaultClient.Subscribe(suffix, fn)
 }
 
 // Get calls Client.Get on the default client.
@@ -226,6 +221,9 @@ func InternalIP() (string, error) { return defaultClient.InternalIP() }
 
 // ExternalIP returns the instance's primary external (public) IP address.
 func ExternalIP() (string, error) { return defaultClient.ExternalIP() }
+
+// Email calls Client.Email on the default client.
+func Email(serviceAccount string) (string, error) { return defaultClient.Email(serviceAccount) }
 
 // Hostname returns the instance's hostname. This will be of the form
 // "<instanceID>.c.<projID>.internal".
@@ -277,15 +275,21 @@ type Client struct {
 	hc *http.Client
 }
 
-// NewClient returns a Client that can be used to fetch metadata. All HTTP requests
-// will use the given http.Client instead of the default client.
+// NewClient returns a Client that can be used to fetch metadata.
+// Returns the client that uses the specified http.Client for HTTP requests.
+// If nil is specified, returns the default client.
 func NewClient(c *http.Client) *Client {
+	if c == nil {
+		return defaultClient
+	}
+
 	return &Client{hc: c}
 }
 
 // getETag returns a value from the metadata service as well as the associated ETag.
 // This func is otherwise equivalent to Get.
 func (c *Client) getETag(suffix string) (value, etag string, err error) {
+	ctx := context.TODO()
 	// Using a fixed IP makes it very difficult to spoof the metadata service in
 	// a container, which is an important use-case for local testing of cloud
 	// deployments. To enable spoofing of the metadata service, the environment
@@ -300,13 +304,33 @@ func (c *Client) getETag(suffix string) (value, etag string, err error) {
 		// being stable anyway.
 		host = metadataIP
 	}
+	suffix = strings.TrimLeft(suffix, "/")
 	u := "http://" + host + "/computeMetadata/v1/" + suffix
-	req, _ := http.NewRequest("GET", u, nil)
-	req.Header.Set("Metadata-Flavor", "Google")
-	req.Header.Set("User-Agent", userAgent)
-	res, err := c.hc.Do(req)
+	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return "", "", err
+	}
+	req.Header.Set("Metadata-Flavor", "Google")
+	req.Header.Set("User-Agent", userAgent)
+	var res *http.Response
+	var reqErr error
+	retryer := newRetryer()
+	for {
+		res, reqErr = c.hc.Do(req)
+		var code int
+		if res != nil {
+			code = res.StatusCode
+		}
+		if delay, shouldRetry := retryer.Retry(code, reqErr); shouldRetry {
+			if err := sleep(ctx, delay); err != nil {
+				return "", "", err
+			}
+			continue
+		}
+		break
+	}
+	if reqErr != nil {
+		return "", "", reqErr
 	}
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusNotFound {
@@ -367,6 +391,16 @@ func (c *Client) InternalIP() (string, error) {
 	return c.getTrimmed("instance/network-interfaces/0/ip")
 }
 
+// Email returns the email address associated with the service account.
+// The account may be empty or the string "default" to use the instance's
+// main account.
+func (c *Client) Email(serviceAccount string) (string, error) {
+	if serviceAccount == "" {
+		serviceAccount = "default"
+	}
+	return c.getTrimmed("instance/service-accounts/" + serviceAccount + "/email")
+}
+
 // ExternalIP returns the instance's primary external (public) IP address.
 func (c *Client) ExternalIP() (string, error) {
 	return c.getTrimmed("instance/network-interfaces/0/access-configs/0/external-ip")
@@ -394,11 +428,7 @@ func (c *Client) InstanceTags() ([]string, error) {
 
 // InstanceName returns the current VM's instance ID string.
 func (c *Client) InstanceName() (string, error) {
-	host, err := c.Hostname()
-	if err != nil {
-		return "", err
-	}
-	return strings.Split(host, ".")[0], nil
+	return c.getTrimmed("instance/name")
 }
 
 // Zone returns the current VM's zone, such as "us-central1-b".

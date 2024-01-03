@@ -3,27 +3,28 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/url"
 
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 )
 
 // DistributionInspect returns the image digest with the full manifest.
-func (cli *Client) DistributionInspect(ctx context.Context, image, encodedRegistryAuth string) (registrytypes.DistributionInspect, error) {
+func (cli *Client) DistributionInspect(ctx context.Context, image, encodedRegistryAuth string) (registry.DistributionInspect, error) {
 	// Contact the registry to retrieve digest and platform information
-	var distributionInspect registrytypes.DistributionInspect
+	var distributionInspect registry.DistributionInspect
 	if image == "" {
 		return distributionInspect, objectNotFoundError{object: "distribution", id: image}
 	}
 
-	if err := cli.NewVersionError("1.30", "distribution inspect"); err != nil {
+	if err := cli.NewVersionError(ctx, "1.30", "distribution inspect"); err != nil {
 		return distributionInspect, err
 	}
-	var headers map[string][]string
 
+	var headers http.Header
 	if encodedRegistryAuth != "" {
-		headers = map[string][]string{
-			"X-Registry-Auth": {encodedRegistryAuth},
+		headers = http.Header{
+			registry.AuthHeader: {encodedRegistryAuth},
 		}
 	}
 

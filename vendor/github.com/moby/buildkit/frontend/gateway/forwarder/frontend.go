@@ -23,7 +23,7 @@ type GatewayForwarder struct {
 }
 
 func (gf *GatewayForwarder) Solve(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string, inputs map[string]*pb.Definition, sid string, sm *session.Manager) (retRes *frontend.Result, retErr error) {
-	c, err := llbBridgeToGatewayClient(ctx, llbBridge, opts, inputs, gf.workers, sid, sm)
+	c, err := LLBBridgeToGatewayClient(ctx, llbBridge, opts, inputs, gf.workers, sid, sm)
 	if err != nil {
 		return nil, err
 	}

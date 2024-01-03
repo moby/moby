@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-# Entrypoint for jenkins experimental CI
-set -eu -o pipefail
-
-export DOCKER_EXPERIMENTAL=1
-
-hack/make.sh \
-	binary-daemon \
-	test-integration

@@ -49,16 +49,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/controllers/plugin"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	lncluster "github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/pkg/stack"
-	swarmapi "github.com/docker/swarmkit/api"
-	swarmnode "github.com/docker/swarmkit/node"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	swarmnode "github.com/moby/swarmkit/v2/node"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
@@ -68,7 +68,7 @@ const (
 	swarmConnectTimeout            = 20 * time.Second
 	swarmRequestTimeout            = 20 * time.Second
 	stateFile                      = "docker-state.json"
-	defaultAddr                    = "0.0.0.0:2377"
+	defaultAddr                    = "tcp://0.0.0.0:2377"
 	isWindows                      = runtime.GOOS == "windows"
 	initialReconnectDelay          = 100 * time.Millisecond
 	maxReconnectDelay              = 30 * time.Second
@@ -140,7 +140,7 @@ type attacher struct {
 // New creates a new Cluster instance using provided config.
 func New(config Config) (*Cluster, error) {
 	root := filepath.Join(config.Root, swarmDirName)
-	if err := os.MkdirAll(root, 0700); err != nil {
+	if err := os.MkdirAll(root, 0o700); err != nil {
 		return nil, err
 	}
 	if config.RuntimeRoot == "" {
@@ -154,7 +154,7 @@ func New(config Config) (*Cluster, error) {
 		config.RaftElectionTick = 10 * config.RaftHeartbeatTick
 	}
 
-	if err := os.MkdirAll(config.RuntimeRoot, 0700); err != nil {
+	if err := os.MkdirAll(config.RuntimeRoot, 0o700); err != nil {
 		return nil, err
 	}
 	c := &Cluster{
@@ -193,10 +193,10 @@ func (c *Cluster) Start() error {
 
 	select {
 	case <-timer.C:
-		logrus.Error("swarm component could not be started before timeout was reached")
+		log.G(context.TODO()).Error("swarm component could not be started before timeout was reached")
 	case err := <-nr.Ready():
 		if err != nil {
-			logrus.WithError(err).Error("swarm component could not be started")
+			log.G(context.TODO()).WithError(err).Error("swarm component could not be started")
 			return nil
 		}
 	}
@@ -249,8 +249,8 @@ func (c *Cluster) newNodeRunner(conf nodeStartConfig) (*nodeRunner, error) {
 	return nr, nil
 }
 
-func (c *Cluster) getRequestContext() (context.Context, func()) { // TODO: not needed when requests don't block on qourum lost
-	return context.WithTimeout(context.Background(), swarmRequestTimeout)
+func (c *Cluster) getRequestContext(ctx context.Context) (context.Context, func()) { // TODO: not needed when requests don't block on qourum lost
+	return context.WithTimeout(ctx, swarmRequestTimeout)
 }
 
 // IsManager returns true if Cluster is participating as a manager.
@@ -359,7 +359,7 @@ func (c *Cluster) errNoManager(st nodeState) error {
 		if st.err == errSwarmCertificatesExpired {
 			return errSwarmCertificatesExpired
 		}
-		return errors.WithStack(notAvailableError("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again."))
+		return errors.WithStack(notAvailableError(`This node is not a swarm manager. Use "docker swarm init" or "docker swarm join" to connect this node to swarm and try again.`))
 	}
 	if st.swarmNode.Manager() != nil {
 		return errors.WithStack(notAvailableError("This node is not a swarm manager. Manager is being prepared or has trouble connecting to the cluster."))
@@ -386,13 +386,13 @@ func (c *Cluster) Cleanup() {
 		if err == nil {
 			singlenode := active && isLastManager(reachable, unreachable)
 			if active && !singlenode && removingManagerCausesLossOfQuorum(reachable, unreachable) {
-				logrus.Errorf("Leaving cluster with %v managers left out of %v. Raft quorum will be lost.", reachable-1, reachable+unreachable)
+				log.G(context.TODO()).Errorf("Leaving cluster with %v managers left out of %v. Raft quorum will be lost.", reachable-1, reachable+unreachable)
 			}
 		}
 	}
 
 	if err := node.Stop(); err != nil {
-		logrus.Errorf("failed to shut down cluster node: %v", err)
+		log.G(context.TODO()).Errorf("failed to shut down cluster node: %v", err)
 		stack.Dump()
 	}
 
@@ -443,7 +443,8 @@ func (c *Cluster) lockedManagerAction(fn func(ctx context.Context, state nodeSta
 		return c.errNoManager(state)
 	}
 
-	ctx, cancel := c.getRequestContext()
+	ctx := context.TODO()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	return fn(ctx, state)

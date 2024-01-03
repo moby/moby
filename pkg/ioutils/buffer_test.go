@@ -17,7 +17,7 @@ func TestFixedBufferCap(t *testing.T) {
 func TestFixedBufferLen(t *testing.T) {
 	buf := &fixedBuffer{buf: make([]byte, 0, 10)}
 
-	buf.Write([]byte("hello"))
+	_, _ = buf.Write([]byte("hello"))
 	l := buf.Len()
 	if l != 5 {
 		t.Fatalf("expected buffer length to be 5 bytes, got %d", l)
@@ -31,7 +31,7 @@ func TestFixedBufferLen(t *testing.T) {
 
 	// read 5 bytes
 	b := make([]byte, 5)
-	buf.Read(b)
+	_, _ = buf.Read(b)
 
 	l = buf.Len()
 	if l != 5 {
@@ -61,22 +61,22 @@ func TestFixedBufferLen(t *testing.T) {
 func TestFixedBufferString(t *testing.T) {
 	buf := &fixedBuffer{buf: make([]byte, 0, 10)}
 
-	buf.Write([]byte("hello"))
-	buf.Write([]byte("world"))
+	_, _ = buf.Write([]byte("hello"))
+	_, _ = buf.Write([]byte("world"))
 
 	out := buf.String()
 	if out != "helloworld" {
-		t.Fatalf("expected output to be \"helloworld\", got %q", out)
+		t.Fatalf(`expected output to be "helloworld", got %q`, out)
 	}
 
 	// read 5 bytes
 	b := make([]byte, 5)
-	buf.Read(b)
+	_, _ = buf.Read(b)
 
 	// test that fixedBuffer.String() only returns the part that hasn't been read
 	out = buf.String()
 	if out != "world" {
-		t.Fatalf("expected output to be \"world\", got %q", out)
+		t.Fatalf(`expected output to be "world", got %q`, out)
 	}
 }
 
@@ -92,7 +92,7 @@ func TestFixedBufferWrite(t *testing.T) {
 	}
 
 	if string(buf.buf[:5]) != "hello" {
-		t.Fatalf("expected \"hello\", got %q", string(buf.buf[:5]))
+		t.Fatalf(`expected "hello", got %q`, string(buf.buf[:5]))
 	}
 
 	n, err = buf.Write(bytes.Repeat([]byte{1}, 64))
@@ -121,7 +121,7 @@ func TestFixedBufferRead(t *testing.T) {
 	}
 
 	if string(b) != "hello" {
-		t.Fatalf("expected \"hello\", got %q", string(b))
+		t.Fatalf(`expected "hello", got %q`, string(b))
 	}
 
 	n, err = buf.Read(b)
@@ -134,7 +134,7 @@ func TestFixedBufferRead(t *testing.T) {
 	}
 
 	if string(b) != " worl" {
-		t.Fatalf("expected \" worl\", got %s", string(b))
+		t.Fatalf(`expected " worl", got %s`, string(b))
 	}
 
 	b = b[:1]
@@ -148,6 +148,6 @@ func TestFixedBufferRead(t *testing.T) {
 	}
 
 	if string(b) != "d" {
-		t.Fatalf("expected \"d\", got %s", string(b))
+		t.Fatalf(`expected "d", got %s`, string(b))
 	}
 }

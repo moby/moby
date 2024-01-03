@@ -2,22 +2,21 @@ package fs
 
 import (
 	"bytes"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 )
 
 const defaultFileMode = 0644
 
-// PathOp is a function which accepts a Path and performs an operation on that
-// path. When called with real filesystem objects (File or Dir) a PathOp modifies
-// the filesystem at the path. When used with a Manifest object a PathOp updates
+// PathOp is a function which accepts a [Path] and performs an operation on that
+// path. When called with real filesystem objects ([File] or [Dir]) a PathOp modifies
+// the filesystem at the path. When used with a [Manifest] object a PathOp updates
 // the manifest to expect a value.
 type PathOp func(path Path) error
 
@@ -39,33 +38,33 @@ type manifestDirectory interface {
 	AddDirectory(path string, ops ...PathOp) error
 }
 
-// WithContent writes content to a file at Path
+// WithContent writes content to a file at [Path]
 func WithContent(content string) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestFile); ok {
-			m.SetContent(ioutil.NopCloser(strings.NewReader(content)))
+			m.SetContent(io.NopCloser(strings.NewReader(content)))
 			return nil
 		}
-		return ioutil.WriteFile(path.Path(), []byte(content), defaultFileMode)
+		return os.WriteFile(path.Path(), []byte(content), defaultFileMode)
 	}
 }
 
-// WithBytes write bytes to a file at Path
+// WithBytes write bytes to a file at [Path]
 func WithBytes(raw []byte) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestFile); ok {
-			m.SetContent(ioutil.NopCloser(bytes.NewReader(raw)))
+			m.SetContent(io.NopCloser(bytes.NewReader(raw)))
 			return nil
 		}
-		return ioutil.WriteFile(path.Path(), raw, defaultFileMode)
+		return os.WriteFile(path.Path(), raw, defaultFileMode)
 	}
 }
 
-// WithReaderContent copies the reader contents to the file at Path
+// WithReaderContent copies the reader contents to the file at [Path]
 func WithReaderContent(r io.Reader) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestFile); ok {
-			m.SetContent(ioutil.NopCloser(r))
+			m.SetContent(io.NopCloser(r))
 			return nil
 		}
 		f, err := os.OpenFile(path.Path(), os.O_WRONLY, defaultFileMode)
@@ -78,7 +77,7 @@ func WithReaderContent(r io.Reader) PathOp {
 	}
 }
 
-// AsUser changes ownership of the file system object at Path
+// AsUser changes ownership of the file system object at [Path]
 func AsUser(uid, gid int) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestResource); ok {
@@ -107,7 +106,7 @@ func WithFile(filename, content string, ops ...PathOp) PathOp {
 }
 
 func createFile(fullpath string, content string) error {
-	return ioutil.WriteFile(fullpath, []byte(content), defaultFileMode)
+	return os.WriteFile(fullpath, []byte(content), defaultFileMode)
 }
 
 // WithFiles creates all the files in the directory at path with their content
@@ -133,17 +132,17 @@ func WithFiles(files map[string]string) PathOp {
 	}
 }
 
-// FromDir copies the directory tree from the source path into the new Dir
+// FromDir copies the directory tree from the source path into the new [Dir]
 func FromDir(source string) PathOp {
 	return func(path Path) error {
 		if _, ok := path.(manifestDirectory); ok {
-			return errors.New("use manifest.FromDir")
+			return fmt.Errorf("use manifest.FromDir")
 		}
 		return copyDirectory(source, path.Path())
 	}
 }
 
-// WithDir creates a subdirectory in the directory at path. Additional PathOp
+// WithDir creates a subdirectory in the directory at path. Additional [PathOp]
 // can be used to modify the subdirectory
 func WithDir(name string, ops ...PathOp) PathOp {
 	const defaultMode = 0755
@@ -162,7 +161,7 @@ func WithDir(name string, ops ...PathOp) PathOp {
 	}
 }
 
-// Apply the PathOps to the File
+// Apply the PathOps to the [File]
 func Apply(t assert.TestingT, path Path, ops ...PathOp) {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
@@ -179,7 +178,7 @@ func applyPathOps(path Path, ops []PathOp) error {
 	return nil
 }
 
-// WithMode sets the file mode on the directory or file at path
+// WithMode sets the file mode on the directory or file at [Path]
 func WithMode(mode os.FileMode) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestResource); ok {
@@ -191,32 +190,36 @@ func WithMode(mode os.FileMode) PathOp {
 }
 
 func copyDirectory(source, dest string) error {
-	entries, err := ioutil.ReadDir(source)
+	entries, err := os.ReadDir(source)
 	if err != nil {
 		return err
 	}
 	for _, entry := range entries {
 		sourcePath := filepath.Join(source, entry.Name())
 		destPath := filepath.Join(dest, entry.Name())
-		switch {
-		case entry.IsDir():
-			if err := os.Mkdir(destPath, 0755); err != nil {
-				return err
-			}
-			if err := copyDirectory(sourcePath, destPath); err != nil {
-				return err
-			}
-		case entry.Mode()&os.ModeSymlink != 0:
-			if err := copySymLink(sourcePath, destPath); err != nil {
-				return err
-			}
-		default:
-			if err := copyFile(sourcePath, destPath); err != nil {
-				return err
-			}
+		err = copyEntry(entry, destPath, sourcePath)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func copyEntry(entry os.DirEntry, destPath string, sourcePath string) error {
+	if entry.IsDir() {
+		if err := os.Mkdir(destPath, 0755); err != nil {
+			return err
+		}
+		return copyDirectory(sourcePath, destPath)
+	}
+	info, err := entry.Info()
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return copySymLink(sourcePath, destPath)
+	}
+	return copyFile(sourcePath, destPath)
 }
 
 func copySymLink(source, dest string) error {
@@ -228,17 +231,17 @@ func copySymLink(source, dest string) error {
 }
 
 func copyFile(source, dest string) error {
-	content, err := ioutil.ReadFile(source)
+	content, err := os.ReadFile(source)
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(dest, content, 0644)
+	return os.WriteFile(dest, content, 0644)
 }
 
 // WithSymlink creates a symlink in the directory which links to target.
 // Target must be a path relative to the directory.
 //
-// Note: the argument order is the inverse of os.Symlink to be consistent with
+// Note: the argument order is the inverse of [os.Symlink] to be consistent with
 // the other functions in this package.
 func WithSymlink(path, target string) PathOp {
 	return func(root Path) error {
@@ -252,12 +255,12 @@ func WithSymlink(path, target string) PathOp {
 // WithHardlink creates a link in the directory which links to target.
 // Target must be a path relative to the directory.
 //
-// Note: the argument order is the inverse of os.Link to be consistent with
+// Note: the argument order is the inverse of [os.Link] to be consistent with
 // the other functions in this package.
 func WithHardlink(path, target string) PathOp {
 	return func(root Path) error {
 		if _, ok := root.(manifestDirectory); ok {
-			return errors.New("WithHardlink not implemented for manifests")
+			return fmt.Errorf("WithHardlink not implemented for manifests")
 		}
 		return os.Link(filepath.Join(root.Path(), target), filepath.Join(root.Path(), path))
 	}
@@ -268,7 +271,7 @@ func WithHardlink(path, target string) PathOp {
 func WithTimestamps(atime, mtime time.Time) PathOp {
 	return func(root Path) error {
 		if _, ok := root.(manifestDirectory); ok {
-			return errors.New("WithTimestamp not implemented for manifests")
+			return fmt.Errorf("WithTimestamp not implemented for manifests")
 		}
 		return os.Chtimes(root.Path(), atime, mtime)
 	}

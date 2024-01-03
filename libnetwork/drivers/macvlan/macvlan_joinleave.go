@@ -1,22 +1,20 @@
 //go:build linux
-// +build linux
 
 package macvlan
 
 import (
+	"context"
 	"fmt"
 	"net"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/osl"
-	"github.com/sirupsen/logrus"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
-	defer osl.InitOSContext()()
 	n, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -56,7 +54,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 			if err != nil {
 				return err
 			}
-			logrus.Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, MacVlan_Mode: %s, Parent: %s",
+			log.G(context.TODO()).Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, MacVlan_Mode: %s, Parent: %s",
 				ep.addr.IP.String(), v4gw.String(), n.config.MacvlanMode, n.config.Parent)
 		}
 		// parse and match the endpoint address with the available v6 subnets
@@ -73,16 +71,16 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 			if err != nil {
 				return err
 			}
-			logrus.Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s Gateway: %s MacVlan_Mode: %s, Parent: %s",
+			log.G(context.TODO()).Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s Gateway: %s MacVlan_Mode: %s, Parent: %s",
 				ep.addrv6.IP.String(), v6gw.String(), n.config.MacvlanMode, n.config.Parent)
 		}
 	} else {
 		if len(n.config.Ipv4Subnets) > 0 {
-			logrus.Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, MacVlan_Mode: %s, Parent: %s",
+			log.G(context.TODO()).Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, MacVlan_Mode: %s, Parent: %s",
 				ep.addr.IP.String(), n.config.MacvlanMode, n.config.Parent)
 		}
 		if len(n.config.Ipv6Subnets) > 0 {
-			logrus.Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s MacVlan_Mode: %s, Parent: %s",
+			log.G(context.TODO()).Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s MacVlan_Mode: %s, Parent: %s",
 				ep.addrv6.IP.String(), n.config.MacvlanMode, n.config.Parent)
 		}
 	}
@@ -94,12 +92,12 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	if err := d.storeUpdate(ep); err != nil {
 		return fmt.Errorf("failed to save macvlan endpoint %.7s to store: %v", ep.id, err)
 	}
+
 	return nil
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid string) error {
-	defer osl.InitOSContext()()
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -115,30 +113,18 @@ func (d *driver) Leave(nid, eid string) error {
 	return nil
 }
 
-// getSubnetforIP returns the ipv4 subnet to which the given IP belongs
-func (n *network) getSubnetforIPv4(ip *net.IPNet) *ipv4Subnet {
-	for _, s := range n.config.Ipv4Subnets {
-		_, snet, err := net.ParseCIDR(s.SubnetIP)
-		if err != nil {
-			return nil
-		}
-		// first check if the mask lengths are the same
-		i, _ := snet.Mask.Size()
-		j, _ := ip.Mask.Size()
-		if i != j {
-			continue
-		}
-		if snet.Contains(ip.IP) {
-			return s
-		}
-	}
-
-	return nil
+// getSubnetforIPv4 returns the ipv4 subnet to which the given IP belongs
+func (n *network) getSubnetforIPv4(ip *net.IPNet) *ipSubnet {
+	return getSubnetForIP(ip, n.config.Ipv4Subnets)
 }
 
 // getSubnetforIPv6 returns the ipv6 subnet to which the given IP belongs
-func (n *network) getSubnetforIPv6(ip *net.IPNet) *ipv6Subnet {
-	for _, s := range n.config.Ipv6Subnets {
+func (n *network) getSubnetforIPv6(ip *net.IPNet) *ipSubnet {
+	return getSubnetForIP(ip, n.config.Ipv6Subnets)
+}
+
+func getSubnetForIP(ip *net.IPNet, subnets []*ipSubnet) *ipSubnet {
+	for _, s := range subnets {
 		_, snet, err := net.ParseCIDR(s.SubnetIP)
 		if err != nil {
 			return nil

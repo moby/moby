@@ -34,14 +34,14 @@ func (capRes GetCapabilityResponse) ToCapability() *ipamapi.Capability {
 	}
 }
 
-// GetAddressSpacesResponse is the response to the ``get default address spaces`` request message
+// GetAddressSpacesResponse is the response to the “get default address spaces“ request message
 type GetAddressSpacesResponse struct {
 	Response
 	LocalDefaultAddressSpace  string
 	GlobalDefaultAddressSpace string
 }
 
-// RequestPoolRequest represents the expected data in a ``request address pool`` request message
+// RequestPoolRequest represents the expected data in a “request address pool“ request message
 type RequestPoolRequest struct {
 	AddressSpace string
 	Pool         string
@@ -50,7 +50,7 @@ type RequestPoolRequest struct {
 	V6           bool
 }
 
-// RequestPoolResponse represents the response message to a ``request address pool`` request
+// RequestPoolResponse represents the response message to a “request address pool“ request
 type RequestPoolResponse struct {
 	Response
 	PoolID string
@@ -58,37 +58,37 @@ type RequestPoolResponse struct {
 	Data   map[string]string
 }
 
-// ReleasePoolRequest represents the expected data in a ``release address pool`` request message
+// ReleasePoolRequest represents the expected data in a “release address pool“ request message
 type ReleasePoolRequest struct {
 	PoolID string
 }
 
-// ReleasePoolResponse represents the response message to a ``release address pool`` request
+// ReleasePoolResponse represents the response message to a “release address pool“ request
 type ReleasePoolResponse struct {
 	Response
 }
 
-// RequestAddressRequest represents the expected data in a ``request address`` request message
+// RequestAddressRequest represents the expected data in a “request address“ request message
 type RequestAddressRequest struct {
 	PoolID  string
 	Address string
 	Options map[string]string
 }
 
-// RequestAddressResponse represents the expected data in the response message to a ``request address`` request
+// RequestAddressResponse represents the expected data in the response message to a “request address“ request
 type RequestAddressResponse struct {
 	Response
 	Address string // in CIDR format
 	Data    map[string]string
 }
 
-// ReleaseAddressRequest represents the expected data in a ``release address`` request message
+// ReleaseAddressRequest represents the expected data in a “release address“ request message
 type ReleaseAddressRequest struct {
 	PoolID  string
 	Address string
 }
 
-// ReleaseAddressResponse represents the response message to a ``release address`` request
+// ReleaseAddressResponse represents the response message to a “release address“ request
 type ReleaseAddressResponse struct {
 	Response
 }

@@ -1,15 +1,16 @@
 package image // import "github.com/docker/docker/image"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/ioutils"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // DigestWalkFunc is function called by StoreBackend.Walk
@@ -46,21 +47,21 @@ func newFSStore(root string) (*fs, error) {
 	s := &fs{
 		root: root,
 	}
-	if err := os.MkdirAll(filepath.Join(root, contentDirName, string(digest.Canonical)), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, contentDirName, string(digest.Canonical)), 0o700); err != nil {
 		return nil, errors.Wrap(err, "failed to create storage backend")
 	}
-	if err := os.MkdirAll(filepath.Join(root, metadataDirName, string(digest.Canonical)), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, metadataDirName, string(digest.Canonical)), 0o700); err != nil {
 		return nil, errors.Wrap(err, "failed to create storage backend")
 	}
 	return s, nil
 }
 
 func (s *fs) contentFile(dgst digest.Digest) string {
-	return filepath.Join(s.root, contentDirName, string(dgst.Algorithm()), dgst.Hex())
+	return filepath.Join(s.root, contentDirName, string(dgst.Algorithm()), dgst.Encoded())
 }
 
 func (s *fs) metadataDir(dgst digest.Digest) string {
-	return filepath.Join(s.root, metadataDirName, string(dgst.Algorithm()), dgst.Hex())
+	return filepath.Join(s.root, metadataDirName, string(dgst.Algorithm()), dgst.Encoded())
 }
 
 // Walk calls the supplied callback for each image ID in the storage backend.
@@ -73,9 +74,9 @@ func (s *fs) Walk(f DigestWalkFunc) error {
 		return err
 	}
 	for _, v := range dir {
-		dgst := digest.NewDigestFromHex(string(digest.Canonical), v.Name())
+		dgst := digest.NewDigestFromEncoded(digest.Canonical, v.Name())
 		if err := dgst.Validate(); err != nil {
-			logrus.Debugf("skipping invalid digest %s: %s", dgst, err)
+			log.G(context.TODO()).Debugf("skipping invalid digest %s: %s", dgst, err)
 			continue
 		}
 		if err := f(dgst); err != nil {
@@ -117,7 +118,7 @@ func (s *fs) Set(data []byte) (digest.Digest, error) {
 	}
 
 	dgst := digest.FromBytes(data)
-	if err := ioutils.AtomicWriteFile(s.contentFile(dgst), data, 0600); err != nil {
+	if err := ioutils.AtomicWriteFile(s.contentFile(dgst), data, 0o600); err != nil {
 		return "", errors.Wrap(err, "failed to write digest data")
 	}
 
@@ -144,10 +145,10 @@ func (s *fs) SetMetadata(dgst digest.Digest, key string, data []byte) error {
 	}
 
 	baseDir := filepath.Join(s.metadataDir(dgst))
-	if err := os.MkdirAll(baseDir, 0700); err != nil {
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		return err
 	}
-	return ioutils.AtomicWriteFile(filepath.Join(s.metadataDir(dgst), key), data, 0600)
+	return ioutils.AtomicWriteFile(filepath.Join(s.metadataDir(dgst), key), data, 0o600)
 }
 
 // GetMetadata returns metadata for a given digest.

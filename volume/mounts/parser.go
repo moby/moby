@@ -14,7 +14,7 @@ var ErrVolumeTargetIsRoot = errors.New("invalid specification: destination can't
 // read-write modes
 var rwModes = map[string]bool{
 	"rw": true,
-	"ro": true,
+	"ro": true, // attempts recursive read-only if possible
 }
 
 // Parser represents a platform specific parser for mount expressions

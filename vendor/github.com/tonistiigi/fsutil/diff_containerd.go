@@ -33,6 +33,19 @@ const (
 	ChangeKindDelete
 )
 
+func (k ChangeKind) String() string {
+	switch k {
+	case ChangeKindAdd:
+		return "add"
+	case ChangeKindModify:
+		return "modify"
+	case ChangeKindDelete:
+		return "delete"
+	default:
+		return "unknown"
+	}
+}
+
 // ChangeFunc is the type of function called for each change
 // computed during a directory changes calculation.
 type ChangeFunc func(ChangeKind, string, os.FileInfo, error) error

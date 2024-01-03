@@ -5,10 +5,11 @@ import (
 
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/pkg/errors"
 )
 
-func dispatchSecret(m *instructions.Mount) (llb.RunOption, error) {
+func dispatchSecret(d *dispatchState, m *instructions.Mount, loc []parser.Range) (llb.RunOption, error) {
 	id := m.CacheID
 	if m.Source != "" {
 		id = m.Source
@@ -24,6 +25,13 @@ func dispatchSecret(m *instructions.Mount) (llb.RunOption, error) {
 	target := m.Target
 	if target == "" {
 		target = "/run/secrets/" + path.Base(id)
+	}
+
+	if _, ok := d.outline.secrets[id]; !ok {
+		d.outline.secrets[id] = secretInfo{
+			location: loc,
+			required: m.Required,
+		}
 	}
 
 	opts := []llb.SecretOption{llb.SecretID(id)}

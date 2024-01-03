@@ -167,7 +167,7 @@ func MakeFakePlugin(d volume.Driver, l net.Listener) (plugingetter.CompatPlugin,
 		w.Write([]byte("{}"))
 	})
 
-	go http.Serve(l, mux)
+	go http.Serve(l, mux) // #nosec G114 -- Ignoring for test-code: G114: Use of net/http serve function that has no support for setting timeouts (gosec)
 	return &fakePlugin{client: c, name: d.Name()}, nil
 }
 

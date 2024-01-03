@@ -33,17 +33,16 @@ func TestStrSliceUnmarshalJSON(t *testing.T) {
 		"[]":                      {},
 		`["/bin/sh","-c","echo"]`: {"/bin/sh", "-c", "echo"},
 	}
-	for json, expectedParts := range parts {
+	for input, expected := range parts {
 		strs := StrSlice{"default", "values"}
-		if err := strs.UnmarshalJSON([]byte(json)); err != nil {
+		if err := strs.UnmarshalJSON([]byte(input)); err != nil {
 			t.Fatal(err)
 		}
 
 		actualParts := []string(strs)
-		if !reflect.DeepEqual(actualParts, expectedParts) {
-			t.Fatalf("%#v: expected %v, got %v", json, expectedParts, actualParts)
+		if !reflect.DeepEqual(actualParts, expected) {
+			t.Fatalf("%#v: expected %v, got %v", input, expected, actualParts)
 		}
-
 	}
 }
 

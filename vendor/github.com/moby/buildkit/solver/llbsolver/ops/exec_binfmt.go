@@ -2,10 +2,10 @@ package ops
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/platforms"
@@ -13,7 +13,8 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/archutil"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/moby/buildkit/util/bklog"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	copy "github.com/tonistiigi/fsutil/copy"
 )
@@ -26,6 +27,7 @@ var qemuArchMap = map[string]string{
 	"riscv64": "riscv64",
 	"arm":     "arm",
 	"s390x":   "s390x",
+	"ppc64":   "ppc64",
 	"ppc64le": "ppc64le",
 	"386":     "i386",
 }
@@ -45,7 +47,7 @@ type staticEmulatorMount struct {
 }
 
 func (m *staticEmulatorMount) Mount() ([]mount.Mount, func() error, error) {
-	tmpdir, err := ioutil.TempDir("", "buildkit-qemu-emulator")
+	tmpdir, err := os.MkdirTemp("", "buildkit-qemu-emulator")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -77,28 +79,36 @@ func (m *staticEmulatorMount) Mount() ([]mount.Mount, func() error, error) {
 		}}, func() error {
 			return os.RemoveAll(tmpdir)
 		}, nil
-
 }
+
 func (m *staticEmulatorMount) IdentityMapping() *idtools.IdentityMapping {
 	return m.idmap
 }
 
-func getEmulator(p *pb.Platform, idmap *idtools.IdentityMapping) (*emulator, error) {
+func getEmulator(ctx context.Context, p *pb.Platform, idmap *idtools.IdentityMapping) (*emulator, error) {
 	all := archutil.SupportedPlatforms(false)
-	m := make(map[string]struct{}, len(all))
-
-	for _, p := range all {
-		m[p] = struct{}{}
-	}
-
-	pp := platforms.Normalize(specs.Platform{
+	pp := platforms.Normalize(ocispecs.Platform{
 		Architecture: p.Architecture,
 		OS:           p.OS,
 		Variant:      p.Variant,
 	})
 
-	if _, ok := m[platforms.Format(pp)]; ok {
-		return nil, nil
+	for _, p := range all {
+		if platforms.Only(p).Match(pp) {
+			return nil, nil
+		}
+	}
+
+	if pp.Architecture == "amd64" {
+		if pp.Variant != "" && pp.Variant != "v2" {
+			var supported []string
+			for _, p := range all {
+				if p.Architecture == "amd64" {
+					supported = append(supported, platforms.Format(p))
+				}
+			}
+			return nil, errors.Errorf("no support for running processes with %s platform, supported: %s", platforms.Format(pp), strings.Join(supported, ", "))
+		}
 	}
 
 	a, ok := qemuArchMap[pp.Architecture]
@@ -108,7 +118,8 @@ func getEmulator(p *pb.Platform, idmap *idtools.IdentityMapping) (*emulator, err
 
 	fn, err := exec.LookPath("buildkit-qemu-" + a)
 	if err != nil {
-		return nil, errors.Errorf("no emulator available for %v", pp.OS)
+		bklog.G(ctx).Warn(err.Error()) // TODO: remove this with pull support
+		return nil, nil                // no emulator available
 	}
 
 	return &emulator{path: fn}, nil

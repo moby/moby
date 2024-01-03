@@ -48,6 +48,10 @@
 			"subArchitectures": [
 				"SCMP_ARCH_S390"
 			]
+		},
+		{
+			"architecture": "SCMP_ARCH_RISCV64",
+			"subArchitectures": null
 		}
 	],
 	"syscalls": [
@@ -127,6 +131,7 @@
 				"ftruncate64",
 				"futex",
 				"futex_time64",
+				"futex_waitv",
 				"futimesat",
 				"getcpu",
 				"getcwd",
@@ -178,11 +183,11 @@
 				"ioprio_set",
 				"io_setup",
 				"io_submit",
-				"io_uring_enter",
-				"io_uring_register",
-				"io_uring_setup",
 				"ipc",
 				"kill",
+				"landlock_add_rule",
+				"landlock_create_ruleset",
+				"landlock_restrict_self",
 				"lchown",
 				"lchown32",
 				"lgetxattr",
@@ -200,6 +205,7 @@
 				"madvise",
 				"membarrier",
 				"memfd_create",
+				"memfd_secret",
 				"mincore",
 				"mkdir",
 				"mkdirat",
@@ -228,6 +234,7 @@
 				"munlock",
 				"munlockall",
 				"munmap",
+				"name_to_handle_at",
 				"nanosleep",
 				"newfstatat",
 				"_newselect",
@@ -239,6 +246,9 @@
 				"pidfd_send_signal",
 				"pipe",
 				"pipe2",
+				"pkey_alloc",
+				"pkey_free",
+				"pkey_mprotect",
 				"poll",
 				"ppoll",
 				"ppoll_time64",
@@ -247,6 +257,7 @@
 				"preadv",
 				"preadv2",
 				"prlimit64",
+				"process_mrelease",
 				"pselect6",
 				"pselect6_time64",
 				"pwrite64",
@@ -343,7 +354,6 @@
 				"signalfd4",
 				"sigprocmask",
 				"sigreturn",
-				"socket",
 				"socketcall",
 				"socketpair",
 				"splice",
@@ -406,6 +416,19 @@
 			"includes": {
 				"minKernel": "4.8"
 			}
+		},
+		{
+			"names": [
+				"socket"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"args": [
+				{
+					"index": 0,
+					"value": 40,
+					"op": "SCMP_CMP_NE"
+				}
+			]
 		},
 		{
 			"names": [
@@ -474,7 +497,8 @@
 		},
 		{
 			"names": [
-				"sync_file_range2"
+				"sync_file_range2",
+				"swapcontext"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"includes": {
@@ -541,6 +565,17 @@
 		},
 		{
 			"names": [
+				"riscv_flush_icache"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"includes": {
+				"arches": [
+					"riscv64"
+				]
+			}
+		},
+		{
+			"names": [
 				"open_by_handle_at"
 			],
 			"action": "SCMP_ACT_ALLOW",
@@ -562,11 +597,12 @@
 				"fspick",
 				"lookup_dcookie",
 				"mount",
+				"mount_setattr",
 				"move_mount",
-				"name_to_handle_at",
 				"open_tree",
 				"perf_event_open",
 				"quotactl",
+				"quotactl_fd",
 				"setdomainname",
 				"sethostname",
 				"setns",
@@ -719,7 +755,8 @@
 			"names": [
 				"settimeofday",
 				"stime",
-				"clock_settime"
+				"clock_settime",
+				"clock_settime64"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"includes": {
@@ -760,6 +797,28 @@
 			"includes": {
 				"caps": [
 					"CAP_SYSLOG"
+				]
+			}
+		},
+		{
+			"names": [
+				"bpf"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"includes": {
+				"caps": [
+					"CAP_BPF"
+				]
+			}
+		},
+		{
+			"names": [
+				"perf_event_open"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"includes": {
+				"caps": [
+					"CAP_PERFMON"
 				]
 			}
 		}

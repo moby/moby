@@ -2,12 +2,13 @@ package layer // import "github.com/docker/docker/layer"
 
 import (
 	"compress/gzip"
+	"context"
 	"errors"
 	"io"
 	"os"
 
-	digest "github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
+	"github.com/opencontainers/go-digest"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -87,7 +88,9 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 	var err error
 	var p *roLayer
 	if string(parent) != "" {
+		ls.layerL.Lock()
 		p = ls.get(parent)
+		ls.layerL.Unlock()
 		if p == nil {
 			return nil, ErrLayerDoesNotExist
 		}
@@ -117,7 +120,7 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 	ls.layerL.Lock()
 	defer ls.layerL.Unlock()
 
-	if existingLayer := ls.getWithoutLock(layer.chainID); existingLayer != nil {
+	if existingLayer := ls.get(layer.chainID); existingLayer != nil {
 		// Set error for cleanup, but do not return
 		err = errors.New("layer already exists")
 		return existingLayer.getReference(), nil
@@ -130,9 +133,9 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 
 	defer func() {
 		if err != nil {
-			logrus.Debugf("Cleaning up transaction after failed migration for %s: %v", graphID, err)
+			log.G(context.TODO()).Debugf("Cleaning up transaction after failed migration for %s: %v", graphID, err)
 			if err := tx.Cancel(); err != nil {
-				logrus.Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
+				log.G(context.TODO()).Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
 			}
 		}
 	}()

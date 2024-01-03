@@ -64,11 +64,26 @@ type ServerConfig struct {
 	// Config contains configuration shared between client and server.
 	Config
 
+	// PublicKeyAuthAlgorithms specifies the supported client public key
+	// authentication algorithms. Note that this should not include certificate
+	// types since those use the underlying algorithm. This list is sent to the
+	// client if it supports the server-sig-algs extension. Order is irrelevant.
+	// If unspecified then a default set of algorithms is used.
+	PublicKeyAuthAlgorithms []string
+
 	hostKeys []Signer
 
 	// NoClientAuth is true if clients are allowed to connect without
 	// authenticating.
+	// To determine NoClientAuth at runtime, set NoClientAuth to true
+	// and the optional NoClientAuthCallback to a non-nil value.
 	NoClientAuth bool
+
+	// NoClientAuthCallback, if non-nil, is called when a user
+	// attempts to authenticate with auth method "none".
+	// NoClientAuth must also be set to true for this be used, or
+	// this func is unused.
+	NoClientAuthCallback func(ConnMetadata) (*Permissions, error)
 
 	// MaxAuthTries specifies the maximum number of authentication attempts
 	// permitted per connection. If set to a negative number, the number of
@@ -120,7 +135,7 @@ type ServerConfig struct {
 }
 
 // AddHostKey adds a private key as a host key. If an existing host
-// key exists with the same algorithm, it is overwritten. Each server
+// key exists with the same public key format, it is replaced. Each server
 // config must have at least one host key.
 func (s *ServerConfig) AddHostKey(key Signer) {
 	for i, k := range s.hostKeys {
@@ -193,9 +208,20 @@ func NewServerConn(c net.Conn, config *ServerConfig) (*ServerConn, <-chan NewCha
 	if fullConf.MaxAuthTries == 0 {
 		fullConf.MaxAuthTries = 6
 	}
+	if len(fullConf.PublicKeyAuthAlgorithms) == 0 {
+		fullConf.PublicKeyAuthAlgorithms = supportedPubKeyAuthAlgos
+	} else {
+		for _, algo := range fullConf.PublicKeyAuthAlgorithms {
+			if !contains(supportedPubKeyAuthAlgos, algo) {
+				c.Close()
+				return nil, nil, nil, fmt.Errorf("ssh: unsupported public key authentication algorithm %s", algo)
+			}
+		}
+	}
 	// Check if the config contains any unsupported key exchanges
 	for _, kex := range fullConf.KeyExchanges {
 		if _, ok := serverForbiddenKexAlgos[kex]; ok {
+			c.Close()
 			return nil, nil, nil, fmt.Errorf("ssh: unsupported key exchange %s for server", kex)
 		}
 	}
@@ -212,9 +238,10 @@ func NewServerConn(c net.Conn, config *ServerConfig) (*ServerConn, <-chan NewCha
 }
 
 // signAndMarshal signs the data with the appropriate algorithm,
-// and serializes the result in SSH wire format.
-func signAndMarshal(k Signer, rand io.Reader, data []byte) ([]byte, error) {
-	sig, err := k.Sign(rand, data)
+// and serializes the result in SSH wire format. algo is the negotiate
+// algorithm and may be a certificate type.
+func signAndMarshal(k AlgorithmSigner, rand io.Reader, data []byte, algo string) ([]byte, error) {
+	sig, err := k.SignWithAlgorithm(rand, data, underlyingAlgo(algo))
 	if err != nil {
 		return nil, err
 	}
@@ -282,15 +309,6 @@ func (s *connection) serverHandshake(config *ServerConfig) (*Permissions, error)
 	return perms, err
 }
 
-func isAcceptableAlgo(algo string) bool {
-	switch algo {
-	case KeyAlgoRSA, KeyAlgoDSA, KeyAlgoECDSA256, KeyAlgoECDSA384, KeyAlgoECDSA521, KeyAlgoSKECDSA256, KeyAlgoED25519, KeyAlgoSKED25519,
-		CertAlgoRSAv01, CertAlgoDSAv01, CertAlgoECDSA256v01, CertAlgoECDSA384v01, CertAlgoECDSA521v01, CertAlgoSKECDSA256v01, CertAlgoED25519v01, CertAlgoSKED25519v01:
-		return true
-	}
-	return false
-}
-
 func checkSourceAddress(addr net.Addr, sourceAddrs string) error {
 	if addr == nil {
 		return errors.New("ssh: no address known for client, but source-address match required")
@@ -321,7 +339,7 @@ func checkSourceAddress(addr net.Addr, sourceAddrs string) error {
 	return fmt.Errorf("ssh: remote address %v is not allowed because of source-address restriction", addr)
 }
 
-func gssExchangeToken(gssapiConfig *GSSAPIWithMICConfig, firstToken []byte, s *connection,
+func gssExchangeToken(gssapiConfig *GSSAPIWithMICConfig, token []byte, s *connection,
 	sessionID []byte, userAuthReq userAuthRequestMsg) (authErr error, perms *Permissions, err error) {
 	gssAPIServer := gssapiConfig.Server
 	defer gssAPIServer.DeleteSecContext()
@@ -331,7 +349,7 @@ func gssExchangeToken(gssapiConfig *GSSAPIWithMICConfig, firstToken []byte, s *c
 			outToken     []byte
 			needContinue bool
 		)
-		outToken, srcName, needContinue, err = gssAPIServer.AcceptSecContext(firstToken)
+		outToken, srcName, needContinue, err = gssAPIServer.AcceptSecContext(token)
 		if err != nil {
 			return err, nil, nil
 		}
@@ -353,6 +371,7 @@ func gssExchangeToken(gssapiConfig *GSSAPIWithMICConfig, firstToken []byte, s *c
 		if err := Unmarshal(packet, userAuthGSSAPITokenReq); err != nil {
 			return nil, nil, err
 		}
+		token = userAuthGSSAPITokenReq.Token
 	}
 	packet, err := s.transport.readPacket()
 	if err != nil {
@@ -368,6 +387,25 @@ func gssExchangeToken(gssapiConfig *GSSAPIWithMICConfig, firstToken []byte, s *c
 	}
 	perms, authErr = gssapiConfig.AllowLogin(s, srcName)
 	return authErr, perms, nil
+}
+
+// isAlgoCompatible checks if the signature format is compatible with the
+// selected algorithm taking into account edge cases that occur with old
+// clients.
+func isAlgoCompatible(algo, sigFormat string) bool {
+	// Compatibility for old clients.
+	//
+	// For certificate authentication with OpenSSH 7.2-7.7 signature format can
+	// be rsa-sha2-256 or rsa-sha2-512 for the algorithm
+	// ssh-rsa-cert-v01@openssh.com.
+	//
+	// With gpg-agent < 2.2.6 the algorithm can be rsa-sha2-256 or rsa-sha2-512
+	// for signature format ssh-rsa.
+	if isRSA(algo) && isRSA(sigFormat) {
+		return true
+	}
+	// Standard case: the underlying algorithm must match the signature format.
+	return underlyingAlgo(algo) == sigFormat
 }
 
 // ServerAuthError represents server authentication errors and is
@@ -454,7 +492,11 @@ userAuthLoop:
 		switch userAuthReq.Method {
 		case "none":
 			if config.NoClientAuth {
-				authErr = nil
+				if config.NoClientAuthCallback != nil {
+					perms, authErr = config.NoClientAuthCallback(s)
+				} else {
+					authErr = nil
+				}
 			}
 
 			// allow initial attempt of 'none' without penalty
@@ -501,7 +543,7 @@ userAuthLoop:
 				return nil, parseError(msgUserAuthRequest)
 			}
 			algo := string(algoBytes)
-			if !isAcceptableAlgo(algo) {
+			if !contains(config.PublicKeyAuthAlgorithms, underlyingAlgo(algo)) {
 				authErr = fmt.Errorf("ssh: algorithm %q not accepted", algo)
 				break
 			}
@@ -553,16 +595,31 @@ userAuthLoop:
 				if !ok || len(payload) > 0 {
 					return nil, parseError(msgUserAuthRequest)
 				}
+				// Ensure the declared public key algo is compatible with the
+				// decoded one. This check will ensure we don't accept e.g.
+				// ssh-rsa-cert-v01@openssh.com algorithm with ssh-rsa public
+				// key type. The algorithm and public key type must be
+				// consistent: both must be certificate algorithms, or neither.
+				if !contains(algorithmsForKeyFormat(pubKey.Type()), algo) {
+					authErr = fmt.Errorf("ssh: public key type %q not compatible with selected algorithm %q",
+						pubKey.Type(), algo)
+					break
+				}
 				// Ensure the public key algo and signature algo
 				// are supported.  Compare the private key
 				// algorithm name that corresponds to algo with
 				// sig.Format.  This is usually the same, but
 				// for certs, the names differ.
-				if !isAcceptableAlgo(sig.Format) {
+				if !contains(config.PublicKeyAuthAlgorithms, sig.Format) {
 					authErr = fmt.Errorf("ssh: algorithm %q not accepted", sig.Format)
 					break
 				}
-				signedData := buildDataSignedForAuth(sessionID, userAuthReq, algoBytes, pubKeyData)
+				if !isAlgoCompatible(algo, sig.Format) {
+					authErr = fmt.Errorf("ssh: signature %q not compatible with selected algorithm %q", sig.Format, algo)
+					break
+				}
+
+				signedData := buildDataSignedForAuth(sessionID, userAuthReq, algo, pubKeyData)
 
 				if err := pubKey.Verify(signedData, sig); err != nil {
 					return nil, err
@@ -633,6 +690,30 @@ userAuthLoop:
 		}
 
 		authFailures++
+		if config.MaxAuthTries > 0 && authFailures >= config.MaxAuthTries {
+			// If we have hit the max attempts, don't bother sending the
+			// final SSH_MSG_USERAUTH_FAILURE message, since there are
+			// no more authentication methods which can be attempted,
+			// and this message may cause the client to re-attempt
+			// authentication while we send the disconnect message.
+			// Continue, and trigger the disconnect at the start of
+			// the loop.
+			//
+			// The SSH specification is somewhat confusing about this,
+			// RFC 4252 Section 5.1 requires each authentication failure
+			// be responded to with a respective SSH_MSG_USERAUTH_FAILURE
+			// message, but Section 4 says the server should disconnect
+			// after some number of attempts, but it isn't explicit which
+			// message should take precedence (i.e. should there be a failure
+			// message than a disconnect message, or if we are going to
+			// disconnect, should we only send that message.)
+			//
+			// Either way, OpenSSH disconnects immediately after the last
+			// failed authnetication attempt, and given they are typically
+			// considered the golden implementation it seems reasonable
+			// to match that behavior.
+			continue
+		}
 
 		var failureMsg userAuthFailureMsg
 		if config.PasswordCallback != nil {
@@ -670,7 +751,7 @@ type sshClientKeyboardInteractive struct {
 	*connection
 }
 
-func (c *sshClientKeyboardInteractive) Challenge(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
+func (c *sshClientKeyboardInteractive) Challenge(name, instruction string, questions []string, echos []bool) (answers []string, err error) {
 	if len(questions) != len(echos) {
 		return nil, errors.New("ssh: echos and questions must have equal length")
 	}
@@ -682,6 +763,7 @@ func (c *sshClientKeyboardInteractive) Challenge(user, instruction string, quest
 	}
 
 	if err := c.transport.writePacket(Marshal(&userAuthInfoRequestMsg{
+		Name:        name,
 		Instruction: instruction,
 		NumPrompts:  uint32(len(questions)),
 		Prompts:     prompts,

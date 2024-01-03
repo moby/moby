@@ -18,12 +18,11 @@ package driver
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 )
 
-// ReadFile works the same as ioutil.ReadFile with the Driver abstraction
+// ReadFile works the same as os.ReadFile with the Driver abstraction
 func ReadFile(r Driver, filename string) ([]byte, error) {
 	f, err := r.Open(filename)
 	if err != nil {
@@ -31,7 +30,7 @@ func ReadFile(r Driver, filename string) ([]byte, error) {
 	}
 	defer f.Close()
 
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +38,7 @@ func ReadFile(r Driver, filename string) ([]byte, error) {
 	return data, nil
 }
 
-// WriteFile works the same as ioutil.WriteFile with the Driver abstraction
+// WriteFile works the same as os.WriteFile with the Driver abstraction
 func WriteFile(r Driver, filename string, data []byte, perm os.FileMode) error {
 	f, err := r.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
@@ -57,7 +56,7 @@ func WriteFile(r Driver, filename string, data []byte, perm os.FileMode) error {
 	return nil
 }
 
-// ReadDir works the same as ioutil.ReadDir with the Driver abstraction
+// ReadDir works the same as os.ReadDir with the Driver abstraction
 func ReadDir(r Driver, dirname string) ([]os.FileInfo, error) {
 	f, err := r.Open(dirname)
 	if err != nil {

@@ -15,6 +15,9 @@ const (
 	sysAF_INET6  = 0xa
 
 	sysSOCK_RAW = 0x3
+
+	sizeofSockaddrInet4 = 0x10
+	sizeofSockaddrInet6 = 0x1c
 )
 
 func marshalInetAddr(ip net.IP, port int, zone string) []byte {
@@ -33,11 +36,11 @@ func setsockopt(s uintptr, level, name int, b []byte) error {
 	return errNotImplemented
 }
 
-func recvmsg(s uintptr, h *msghdr, flags int) (int, error) {
-	return 0, errNotImplemented
+func recvmsg(s uintptr, buffers [][]byte, oob []byte, flags int, network string) (n, oobn int, recvflags int, from net.Addr, err error) {
+	return 0, 0, 0, nil, errNotImplemented
 }
 
-func sendmsg(s uintptr, h *msghdr, flags int) (int, error) {
+func sendmsg(s uintptr, buffers [][]byte, oob []byte, to net.Addr, flags int) (int, error) {
 	return 0, errNotImplemented
 }
 

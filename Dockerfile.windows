@@ -154,20 +154,17 @@
 
 # The number of build steps below are explicitly minimised to improve performance.
 
-# Extremely important - do not change the following line to reference a "specific" image, 
-# such as `mcr.microsoft.com/windows/servercore:ltsc2019`. If using this Dockerfile in process
-# isolated containers, the kernel of the host must match the container image, and hence
-# would fail between Windows Server 2016 (aka RS1) and Windows Server 2019 (aka RS5).
-# It is expected that the image `microsoft/windowsservercore:latest` is present, and matches
-# the hosts kernel version before doing a build. 
-FROM microsoft/windowsservercore
+ARG WINDOWS_BASE_IMAGE=mcr.microsoft.com/windows/servercore
+ARG WINDOWS_BASE_IMAGE_TAG=ltsc2022
+FROM ${WINDOWS_BASE_IMAGE}:${WINDOWS_BASE_IMAGE_TAG}
 
 # Use PowerShell as the default shell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ARG GO_VERSION=1.17.2
-ARG CONTAINERD_VERSION=1.5.7
-ARG GOTESTSUM_VERSION=v1.7.0
+ARG GO_VERSION=1.21.5
+ARG GOTESTSUM_VERSION=v1.8.2
+ARG GOWINRES_VERSION=v0.3.1
+ARG CONTAINERD_VERSION=v1.7.11
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
@@ -178,8 +175,10 @@ ENV GO_VERSION=${GO_VERSION} `
     GIT_VERSION=2.11.1 `
     GOPATH=C:\gopath `
     GO111MODULE=off `
+    GOTOOLCHAIN=local `
     FROM_DOCKERFILE=1 `
-    GOTESTSUM_VERSION=${GOTESTSUM_VERSION}
+    GOTESTSUM_VERSION=${GOTESTSUM_VERSION} `
+    GOWINRES_VERSION=${GOWINRES_VERSION}
 
 RUN `
   Function Test-Nano() { `
@@ -221,8 +220,8 @@ RUN `
   Download-File $location C:\gitsetup.zip; `
   `
   Write-Host INFO: Downloading go...; `
-  $dlGoVersion=$Env:GO_VERSION -replace '\.0$',''; `
-  Download-File "https://golang.org/dl/go${dlGoVersion}.windows-amd64.zip" C:\go.zip; `
+  $dlGoVersion=$Env:GO_VERSION; `
+  Download-File "https://go.dev/dl/go${dlGoVersion}.windows-amd64.zip" C:\go.zip; `
   `
   Write-Host INFO: Downloading compiler 1 of 3...; `
   Download-File https://raw.githubusercontent.com/moby/docker-tdmgcc/master/gcc.zip C:\gcc.zip; `
@@ -257,7 +256,7 @@ RUN `
   `
   Write-Host INFO: Downloading containerd; `
   Install-Package -Force 7Zip4PowerShell; `
-  $location='https://github.com/containerd/containerd/releases/download/v'+$Env:CONTAINERD_VERSION+'/containerd-'+$Env:CONTAINERD_VERSION+'-windows-amd64.tar.gz'; `
+  $location='https://github.com/containerd/containerd/releases/download/'+$Env:CONTAINERD_VERSION+'/containerd-'+$Env:CONTAINERD_VERSION.TrimStart('v')+'-windows-amd64.tar.gz'; `
   Download-File $location C:\containerd.tar.gz; `
   New-Item -Path C:\containerd -ItemType Directory; `
   Expand-7Zip C:\containerd.tar.gz C:\; `
@@ -288,6 +287,22 @@ RUN `
   } `
   `
   Install-GoTestSum
+
+RUN `
+  Function Install-GoWinres() { `
+    $Env:GO111MODULE = 'on'; `
+    $tmpGobin = "${Env:GOBIN_TMP}"; `
+    $Env:GOBIN = """${Env:GOPATH}`\bin"""; `
+    Write-Host "INFO: Installing go-winres version $Env:GOWINRES_VERSION in $Env:GOBIN"; `
+    &go install "github.com/tc-hib/go-winres@${Env:GOWINRES_VERSION}"; `
+    $Env:GOBIN = "${tmpGobin}"; `
+    $Env:GO111MODULE = 'off'; `
+    if ($LASTEXITCODE -ne 0) {  `
+      Throw '"go-winres install failed..."'; `
+    } `
+  } `
+  `
+  Install-GoWinres
 
 # Make PowerShell the default entrypoint
 ENTRYPOINT ["powershell.exe"]

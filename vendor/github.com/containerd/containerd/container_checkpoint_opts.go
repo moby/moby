@@ -19,6 +19,7 @@ package containerd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"runtime"
 
@@ -27,11 +28,12 @@ import (
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/protobuf"
+	"github.com/containerd/containerd/protobuf/proto"
 	"github.com/containerd/containerd/rootfs"
 	"github.com/containerd/containerd/runtime/v2/runc/options"
-	"github.com/containerd/typeurl"
+	"github.com/opencontainers/go-digest"
 	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -56,7 +58,7 @@ func WithCheckpointImage(ctx context.Context, client *Client, c *containers.Cont
 
 // WithCheckpointTask includes the running task
 func WithCheckpointTask(ctx context.Context, client *Client, c *containers.Container, index *imagespec.Index, copts *options.CheckpointOptions) error {
-	any, err := typeurl.MarshalAny(copts)
+	any, err := protobuf.MarshalAnyToProto(copts)
 	if err != nil {
 		return nil
 	}
@@ -71,14 +73,14 @@ func WithCheckpointTask(ctx context.Context, client *Client, c *containers.Conta
 		platformSpec := platforms.DefaultSpec()
 		index.Manifests = append(index.Manifests, imagespec.Descriptor{
 			MediaType:   d.MediaType,
-			Size:        d.Size_,
-			Digest:      d.Digest,
+			Size:        d.Size,
+			Digest:      digest.Digest(d.Digest),
 			Platform:    &platformSpec,
 			Annotations: d.Annotations,
 		})
 	}
 	// save copts
-	data, err := any.Marshal()
+	data, err := proto.Marshal(any)
 	if err != nil {
 		return err
 	}
@@ -97,8 +99,9 @@ func WithCheckpointTask(ctx context.Context, client *Client, c *containers.Conta
 
 // WithCheckpointRuntime includes the container runtime info
 func WithCheckpointRuntime(ctx context.Context, client *Client, c *containers.Container, index *imagespec.Index, copts *options.CheckpointOptions) error {
-	if c.Runtime.Options != nil {
-		data, err := c.Runtime.Options.Marshal()
+	if c.Runtime.Options != nil && c.Runtime.Options.GetValue() != nil {
+		any := protobuf.FromAny(c.Runtime.Options)
+		data, err := proto.Marshal(any)
 		if err != nil {
 			return err
 		}

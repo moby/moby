@@ -8,23 +8,17 @@ import (
 	"testing"
 )
 
-var (
-	testMode os.FileMode = 0640
-)
+var testMode os.FileMode = 0o640
 
 func init() {
 	// Windows does not support full Linux file mode
 	if runtime.GOOS == "windows" {
-		testMode = 0666
+		testMode = 0o666
 	}
 }
 
 func TestAtomicWriteToFile(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "atomic-writers-test")
-	if err != nil {
-		t.Fatalf("Error when creating temporary directory: %s", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	expected := []byte("barbaz")
 	if err := AtomicWriteFile(filepath.Join(tmpDir, "foo"), expected, testMode); err != nil {
@@ -50,13 +44,9 @@ func TestAtomicWriteToFile(t *testing.T) {
 }
 
 func TestAtomicWriteSetCommit(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "atomic-writerset-test")
-	if err != nil {
-		t.Fatalf("Error when creating temporary directory: %s", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
-	if err := os.Mkdir(filepath.Join(tmpDir, "tmp"), 0700); err != nil {
+	if err := os.Mkdir(filepath.Join(tmpDir, "tmp"), 0o700); err != nil {
 		t.Fatalf("Error creating tmp directory: %s", err)
 	}
 
@@ -95,17 +85,12 @@ func TestAtomicWriteSetCommit(t *testing.T) {
 	if expected := testMode; st.Mode() != expected {
 		t.Fatalf("Mode mismatched, expected %o, got %o", expected, st.Mode())
 	}
-
 }
 
 func TestAtomicWriteSetCancel(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "atomic-writerset-test")
-	if err != nil {
-		t.Fatalf("Error when creating temporary directory: %s", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
-	if err := os.Mkdir(filepath.Join(tmpDir, "tmp"), 0700); err != nil {
+	if err := os.Mkdir(filepath.Join(tmpDir, "tmp"), 0o700); err != nil {
 		t.Fatalf("Error creating tmp directory: %s", err)
 	}
 

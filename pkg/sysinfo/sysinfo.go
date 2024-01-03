@@ -1,3 +1,4 @@
+// Package sysinfo stores information about which features a kernel supports.
 package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import "github.com/docker/docker/pkg/parsers"
@@ -71,10 +72,14 @@ type cgroupMemInfo struct {
 	// Whether memory swappiness is supported or not
 	MemorySwappiness bool
 
-	// Whether kernel memory limit is supported or not
+	// Whether kernel memory limit is supported or not. This option is used to
+	// detect support for kernel-memory limits on API < v1.42. Kernel memory
+	// limit (`kmem.limit_in_bytes`) is not supported on cgroups v2, and has been
+	// removed in kernel 5.4.
 	KernelMemory bool
 
-	// Whether kernel memory TCP limit is supported or not
+	// Whether kernel memory TCP limit is supported or not. Kernel memory TCP
+	// limit (`memory.kmem.tcp.limit_in_bytes`) is not supported on cgroups v2.
 	KernelMemoryTCP bool
 }
 
@@ -146,13 +151,13 @@ func isCpusetListAvailable(provided, available string) (bool, error) {
 	}
 	// 8192 is the normal maximum number of CPUs in Linux, so accept numbers up to this
 	// or more if we actually have more CPUs.
-	max := 8192
+	maxCPUs := 8192
 	for m := range parsedAvailable {
-		if m > max {
-			max = m
+		if m > maxCPUs {
+			maxCPUs = m
 		}
 	}
-	parsedProvided, err := parsers.ParseUintListMaximum(provided, max)
+	parsedProvided, err := parsers.ParseUintListMaximum(provided, maxCPUs)
 	if err != nil {
 		return false, err
 	}

@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package main
 
@@ -12,19 +11,19 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
 )
 
 // #9860 Make sure attach ends when container ends (with no errors)
-func (s *DockerSuite) TestAttachClosedOnContainerStop(c *testing.T) {
+func (s *DockerCLIAttachSuite) TestAttachClosedOnContainerStop(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 
-	out, _ := dockerCmd(c, "run", "-dti", "busybox", "/bin/sh", "-c", `trap 'exit 0' SIGTERM; while true; do sleep 1; done`)
-
+	out := cli.DockerCmd(c, "run", "-dti", "busybox", "/bin/sh", "-c", `trap 'exit 0' SIGTERM; while true; do sleep 1; done`).Stdout()
 	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	cli.WaitRun(c, id)
 
-	pty, tty, err := pty.Open()
+	pt, tty, err := pty.Open()
 	assert.NilError(c, err)
 
 	attachCmd := exec.Command(dockerBinary, "attach", id)
@@ -39,27 +38,26 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *testing.T) {
 		time.Sleep(300 * time.Millisecond)
 		defer close(errChan)
 		// Container is waiting for us to signal it to stop
-		dockerCmd(c, "stop", id)
+		cli.DockerCmd(c, "stop", id)
 		// And wait for the attach command to end
 		errChan <- attachCmd.Wait()
 	}()
 
 	// Wait for the docker to end (should be done by the
 	// stop command in the go routine)
-	dockerCmd(c, "wait", id)
+	cli.DockerCmd(c, "wait", id)
 
 	select {
 	case err := <-errChan:
 		tty.Close()
-		out, _ := io.ReadAll(pty)
+		out, _ := io.ReadAll(pt)
 		assert.Assert(c, err == nil, "out: %v", string(out))
 	case <-time.After(attachWait):
 		c.Fatal("timed out without attach returning")
 	}
-
 }
 
-func (s *DockerSuite) TestAttachAfterDetach(c *testing.T) {
+func (s *DockerCLIAttachSuite) TestAttachAfterDetach(c *testing.T) {
 	name := "detachtest"
 
 	cpty, tty, err := pty.Open()
@@ -75,7 +73,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *testing.T) {
 		close(cmdExit)
 	}()
 
-	assert.Assert(c, waitRun(name) == nil)
+	cli.WaitRun(c, name)
 
 	cpty.Write([]byte{16})
 	time.Sleep(100 * time.Millisecond)
@@ -124,10 +122,10 @@ func (s *DockerSuite) TestAttachAfterDetach(c *testing.T) {
 }
 
 // TestAttachDetach checks that attach in tty mode can be detached using the long container ID
-func (s *DockerSuite) TestAttachDetach(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-itd", "busybox", "cat")
+func (s *DockerCLIAttachSuite) TestAttachDetach(c *testing.T) {
+	out := cli.DockerCmd(c, "run", "-itd", "busybox", "cat").Stdout()
 	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	cli.WaitRun(c, id)
 
 	cpty, tty, err := pty.Open()
 	assert.NilError(c, err)
@@ -140,7 +138,7 @@ func (s *DockerSuite) TestAttachDetach(c *testing.T) {
 	defer stdout.Close()
 	err = cmd.Start()
 	assert.NilError(c, err)
-	assert.NilError(c, waitRun(id))
+	cli.WaitRun(c, id)
 
 	_, err = cpty.Write([]byte("hello\n"))
 	assert.NilError(c, err)

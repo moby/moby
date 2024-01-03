@@ -7,8 +7,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/moby/buildkit/util/bklog"
+
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/fsutil"
 	fstypes "github.com/tonistiigi/fsutil/types"
 	"google.golang.org/grpc"
@@ -70,10 +71,10 @@ func (wc *streamWriterCloser) Close() error {
 	return nil
 }
 
-func recvDiffCopy(ds grpc.ClientStream, dest string, cu CacheUpdater, progress progressCb, filter func(string, *fstypes.Stat) bool) (err error) {
+func recvDiffCopy(ds grpc.ClientStream, dest string, cu CacheUpdater, progress progressCb, differ fsutil.DiffType, filter func(string, *fstypes.Stat) bool) (err error) {
 	st := time.Now()
 	defer func() {
-		logrus.Debugf("diffcopy took: %v", time.Since(st))
+		bklog.G(ds.Context()).Debugf("diffcopy took: %v", time.Since(st))
 	}()
 	var cf fsutil.ChangeFunc
 	var ch fsutil.ContentHasher
@@ -93,6 +94,7 @@ func recvDiffCopy(ds grpc.ClientStream, dest string, cu CacheUpdater, progress p
 		ContentHasher: ch,
 		ProgressCb:    progress,
 		Filter:        fsutil.FilterFunc(filter),
+		Differ:        differ,
 	}))
 }
 

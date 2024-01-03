@@ -1,5 +1,4 @@
 //go:build windows
-// +build windows
 
 package main
 
@@ -7,13 +6,14 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func (s *DockerSuite) TestBuildWithRecycleBin(c *testing.T) {
+func (s *DockerAPISuite) TestBuildWithRecycleBin(c *testing.T) {
 	testRequires(c, DaemonIsWindows)
 
 	dockerfile := "" +
@@ -25,7 +25,7 @@ func (s *DockerSuite) TestBuildWithRecycleBin(c *testing.T) {
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile))
 	defer ctx.Close()
 
-	res, body, err := request.Post(
+	res, body, err := request.Post(testutil.GetContext(c),
 		"/build",
 		request.RawContent(ctx.AsTarReader(c)),
 		request.ContentType("application/x-tar"))

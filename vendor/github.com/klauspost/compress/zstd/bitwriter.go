@@ -5,8 +5,6 @@
 
 package zstd
 
-import "fmt"
-
 // bitWriter will write bits.
 // First bit will be LSB of the first byte of output.
 type bitWriter struct {
@@ -38,11 +36,31 @@ func (b *bitWriter) addBits16NC(value uint16, bits uint8) {
 	b.nBits += bits
 }
 
-// addBits32NC will add up to 32 bits.
+// addBits32NC will add up to 31 bits.
 // It will not check if there is space for them,
 // so the caller must ensure that it has flushed recently.
 func (b *bitWriter) addBits32NC(value uint32, bits uint8) {
 	b.bitContainer |= uint64(value&bitMask32[bits&31]) << (b.nBits & 63)
+	b.nBits += bits
+}
+
+// addBits64NC will add up to 64 bits.
+// There must be space for 32 bits.
+func (b *bitWriter) addBits64NC(value uint64, bits uint8) {
+	if bits <= 31 {
+		b.addBits32Clean(uint32(value), bits)
+		return
+	}
+	b.addBits32Clean(uint32(value), 32)
+	b.flush32()
+	b.addBits32Clean(uint32(value>>32), bits-32)
+}
+
+// addBits32Clean will add up to 32 bits.
+// It will not check if there is space for them.
+// The input must not contain more bits than specified.
+func (b *bitWriter) addBits32Clean(value uint32, bits uint8) {
+	b.bitContainer |= uint64(value) << (b.nBits & 63)
 	b.nBits += bits
 }
 
@@ -51,80 +69,6 @@ func (b *bitWriter) addBits32NC(value uint32, bits uint8) {
 func (b *bitWriter) addBits16Clean(value uint16, bits uint8) {
 	b.bitContainer |= uint64(value) << (b.nBits & 63)
 	b.nBits += bits
-}
-
-// flush will flush all pending full bytes.
-// There will be at least 56 bits available for writing when this has been called.
-// Using flush32 is faster, but leaves less space for writing.
-func (b *bitWriter) flush() {
-	v := b.nBits >> 3
-	switch v {
-	case 0:
-	case 1:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-		)
-	case 2:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-		)
-	case 3:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-			byte(b.bitContainer>>16),
-		)
-	case 4:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-			byte(b.bitContainer>>16),
-			byte(b.bitContainer>>24),
-		)
-	case 5:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-			byte(b.bitContainer>>16),
-			byte(b.bitContainer>>24),
-			byte(b.bitContainer>>32),
-		)
-	case 6:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-			byte(b.bitContainer>>16),
-			byte(b.bitContainer>>24),
-			byte(b.bitContainer>>32),
-			byte(b.bitContainer>>40),
-		)
-	case 7:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-			byte(b.bitContainer>>16),
-			byte(b.bitContainer>>24),
-			byte(b.bitContainer>>32),
-			byte(b.bitContainer>>40),
-			byte(b.bitContainer>>48),
-		)
-	case 8:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-			byte(b.bitContainer>>16),
-			byte(b.bitContainer>>24),
-			byte(b.bitContainer>>32),
-			byte(b.bitContainer>>40),
-			byte(b.bitContainer>>48),
-			byte(b.bitContainer>>56),
-		)
-	default:
-		panic(fmt.Errorf("bits (%d) > 64", b.nBits))
-	}
-	b.bitContainer >>= v << 3
-	b.nBits &= 7
 }
 
 // flush32 will flush out, so there are at least 32 bits available for writing.
@@ -153,12 +97,11 @@ func (b *bitWriter) flushAlign() {
 
 // close will write the alignment bit and write the final byte(s)
 // to the output.
-func (b *bitWriter) close() error {
+func (b *bitWriter) close() {
 	// End mark
 	b.addBits16Clean(1, 1)
 	// flush until next byte.
 	b.flushAlign()
-	return nil
 }
 
 // reset and continue writing by appending to out.

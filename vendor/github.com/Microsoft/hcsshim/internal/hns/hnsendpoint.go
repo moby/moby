@@ -1,3 +1,5 @@
+//go:build windows
+
 package hns
 
 import (
@@ -20,6 +22,7 @@ type HNSEndpoint struct {
 	IPv6Address        net.IP            `json:",omitempty"`
 	DNSSuffix          string            `json:",omitempty"`
 	DNSServerList      string            `json:",omitempty"`
+	DNSDomain          string            `json:",omitempty"`
 	GatewayAddress     string            `json:",omitempty"`
 	GatewayAddressV6   string            `json:",omitempty"`
 	EnableInternalDNS  bool              `json:",omitempty"`
@@ -30,9 +33,10 @@ type HNSEndpoint struct {
 	EnableLowMetric    bool              `json:",omitempty"`
 	Namespace          *Namespace        `json:",omitempty"`
 	EncapOverhead      uint16            `json:",omitempty"`
+	SharedContainers   []string          `json:",omitempty"`
 }
 
-//SystemType represents the type of the system on which actions are done
+// SystemType represents the type of the system on which actions are done
 type SystemType string
 
 // SystemType const
@@ -57,6 +61,18 @@ type EndpointResquestResponse struct {
 	Error   string
 }
 
+// EndpointStats is the object that has stats for a given endpoint
+type EndpointStats struct {
+	BytesReceived          uint64 `json:"BytesReceived"`
+	BytesSent              uint64 `json:"BytesSent"`
+	DroppedPacketsIncoming uint64 `json:"DroppedPacketsIncoming"`
+	DroppedPacketsOutgoing uint64 `json:"DroppedPacketsOutgoing"`
+	EndpointID             string `json:"EndpointId"`
+	InstanceID             string `json:"InstanceId"`
+	PacketsReceived        uint64 `json:"PacketsReceived"`
+	PacketsSent            uint64 `json:"PacketsSent"`
+}
+
 // HNSEndpointRequest makes a HNS call to modify/query a network endpoint
 func HNSEndpointRequest(method, path, request string) (*HNSEndpoint, error) {
 	endpoint := &HNSEndpoint{}
@@ -79,9 +95,25 @@ func HNSListEndpointRequest() ([]HNSEndpoint, error) {
 	return endpoint, nil
 }
 
+// hnsEndpointStatsRequest makes a HNS call to query the stats for a given endpoint ID
+func hnsEndpointStatsRequest(id string) (*EndpointStats, error) {
+	var stats EndpointStats
+	err := hnsCall("GET", "/endpointstats/"+id, "", &stats)
+	if err != nil {
+		return nil, err
+	}
+
+	return &stats, nil
+}
+
 // GetHNSEndpointByID get the Endpoint by ID
 func GetHNSEndpointByID(endpointID string) (*HNSEndpoint, error) {
 	return HNSEndpointRequest("GET", endpointID, "")
+}
+
+// GetHNSEndpointStats get the stats for a n Endpoint by ID
+func GetHNSEndpointStats(endpointID string) (*EndpointStats, error) {
+	return hnsEndpointStatsRequest(endpointID)
 }
 
 // GetHNSEndpointByName gets the endpoint filtered by Name
@@ -116,7 +148,6 @@ func (endpoint *HNSEndpoint) IsAttached(vID string) (bool, error) {
 	}
 
 	return false, nil
-
 }
 
 // Create Endpoint by sending EndpointRequest to HNS. TODO: Create a separate HNS interface to place all these methods
@@ -251,7 +282,6 @@ func (endpoint *HNSEndpoint) HostAttach(compartmentID uint16) error {
 		return err
 	}
 	return hnsCall("POST", "/endpoints/"+endpoint.Id+"/attach", string(jsonString), &response)
-
 }
 
 // HostDetach detaches a nic on the host

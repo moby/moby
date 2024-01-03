@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types/filters"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	swarmapi "github.com/docker/swarmkit/api"
+	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
 func newListNodesFilters(filter filters.Args) (*swarmapi.ListNodesRequest_Filters, error) {

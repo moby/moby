@@ -13,7 +13,7 @@ import (
 func (cli *Client) ContainersPrune(ctx context.Context, pruneFilters filters.Args) (types.ContainersPruneReport, error) {
 	var report types.ContainersPruneReport
 
-	if err := cli.NewVersionError("1.25", "container prune"); err != nil {
+	if err := cli.NewVersionError(ctx, "1.25", "container prune"); err != nil {
 		return report, err
 	}
 

@@ -17,6 +17,8 @@ const (
 	TypeTmpfs Type = "tmpfs"
 	// TypeNamedPipe is the type for mounting Windows named pipes
 	TypeNamedPipe Type = "npipe"
+	// TypeCluster is the type for Swarm Cluster Volumes.
+	TypeCluster Type = "cluster"
 )
 
 // Mount represents a mount (volume).
@@ -27,12 +29,13 @@ type Mount struct {
 	// Source is not supported for tmpfs (must be an empty value)
 	Source      string      `json:",omitempty"`
 	Target      string      `json:",omitempty"`
-	ReadOnly    bool        `json:",omitempty"`
+	ReadOnly    bool        `json:",omitempty"` // attempts recursive read-only if possible
 	Consistency Consistency `json:",omitempty"`
 
-	BindOptions   *BindOptions   `json:",omitempty"`
-	VolumeOptions *VolumeOptions `json:",omitempty"`
-	TmpfsOptions  *TmpfsOptions  `json:",omitempty"`
+	BindOptions    *BindOptions    `json:",omitempty"`
+	VolumeOptions  *VolumeOptions  `json:",omitempty"`
+	TmpfsOptions   *TmpfsOptions   `json:",omitempty"`
+	ClusterOptions *ClusterOptions `json:",omitempty"`
 }
 
 // Propagation represents the propagation of a mount.
@@ -79,8 +82,14 @@ const (
 
 // BindOptions defines options specific to mounts of type "bind".
 type BindOptions struct {
-	Propagation  Propagation `json:",omitempty"`
-	NonRecursive bool        `json:",omitempty"`
+	Propagation      Propagation `json:",omitempty"`
+	NonRecursive     bool        `json:",omitempty"`
+	CreateMountpoint bool        `json:",omitempty"`
+	// ReadOnlyNonRecursive makes the mount non-recursively read-only, but still leaves the mount recursive
+	// (unless NonRecursive is set to true in conjunction).
+	ReadOnlyNonRecursive bool `json:",omitempty"`
+	// ReadOnlyForceRecursive raises an error if the mount cannot be made recursively read-only.
+	ReadOnlyForceRecursive bool `json:",omitempty"`
 }
 
 // VolumeOptions represents the options for a mount of type volume.
@@ -128,4 +137,9 @@ type TmpfsOptions struct {
 	//
 	// Some of these may be straightforward to add, but others, such as
 	// uid/gid have implications in a clustered system.
+}
+
+// ClusterOptions specifies options for a Cluster volume.
+type ClusterOptions struct {
+	// intentionally empty
 }

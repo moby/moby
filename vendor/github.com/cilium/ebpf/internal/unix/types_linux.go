@@ -1,9 +1,9 @@
+//go:build linux
 // +build linux
 
 package unix
 
 import (
-	"bytes"
 	"syscall"
 
 	linux "golang.org/x/sys/unix"
@@ -20,10 +20,13 @@ const (
 	EPERM   = linux.EPERM
 	ESRCH   = linux.ESRCH
 	ENODEV  = linux.ENODEV
+	EBADF   = linux.EBADF
+	E2BIG   = linux.E2BIG
+	EFAULT  = linux.EFAULT
+	EACCES  = linux.EACCES
 	// ENOTSUPP is not the same as ENOTSUP or EOPNOTSUP
 	ENOTSUPP = syscall.Errno(0x20c)
 
-	EBADF                    = linux.EBADF
 	BPF_F_NO_PREALLOC        = linux.BPF_F_NO_PREALLOC
 	BPF_F_NUMA_NODE          = linux.BPF_F_NUMA_NODE
 	BPF_F_RDONLY             = linux.BPF_F_RDONLY
@@ -35,6 +38,9 @@ const (
 	BPF_F_INNER_MAP          = linux.BPF_F_INNER_MAP
 	BPF_OBJ_NAME_LEN         = linux.BPF_OBJ_NAME_LEN
 	BPF_TAG_SIZE             = linux.BPF_TAG_SIZE
+	BPF_RINGBUF_BUSY_BIT     = linux.BPF_RINGBUF_BUSY_BIT
+	BPF_RINGBUF_DISCARD_BIT  = linux.BPF_RINGBUF_DISCARD_BIT
+	BPF_RINGBUF_HDR_SZ       = linux.BPF_RINGBUF_HDR_SZ
 	SYS_BPF                  = linux.SYS_BPF
 	F_DUPFD_CLOEXEC          = linux.F_DUPFD_CLOEXEC
 	EPOLL_CTL_ADD            = linux.EPOLL_CTL_ADD
@@ -61,18 +67,18 @@ const (
 	PERF_RECORD_SAMPLE       = linux.PERF_RECORD_SAMPLE
 	AT_FDCWD                 = linux.AT_FDCWD
 	RENAME_NOREPLACE         = linux.RENAME_NOREPLACE
+	SO_ATTACH_BPF            = linux.SO_ATTACH_BPF
+	SO_DETACH_BPF            = linux.SO_DETACH_BPF
+	SOL_SOCKET               = linux.SOL_SOCKET
 )
 
 // Statfs_t is a wrapper
 type Statfs_t = linux.Statfs_t
 
+type Stat_t = linux.Stat_t
+
 // Rlimit is a wrapper
 type Rlimit = linux.Rlimit
-
-// Setrlimit is a wrapper
-func Setrlimit(resource int, rlim *Rlimit) (err error) {
-	return linux.Setrlimit(resource, rlim)
-}
 
 // Syscall is a wrapper
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno) {
@@ -191,14 +197,14 @@ func Renameat2(olddirfd int, oldpath string, newdirfd int, newpath string, flags
 	return linux.Renameat2(olddirfd, oldpath, newdirfd, newpath, flags)
 }
 
-func KernelRelease() (string, error) {
-	var uname Utsname
-	err := Uname(&uname)
-	if err != nil {
-		return "", err
-	}
+func Prlimit(pid, resource int, new, old *Rlimit) error {
+	return linux.Prlimit(pid, resource, new, old)
+}
 
-	end := bytes.IndexByte(uname.Release[:], 0)
-	release := string(uname.Release[:end])
-	return release, nil
+func Open(path string, mode int, perm uint32) (int, error) {
+	return linux.Open(path, mode, perm)
+}
+
+func Fstat(fd int, stat *Stat_t) error {
+	return linux.Fstat(fd, stat)
 }

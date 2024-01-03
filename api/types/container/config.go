@@ -1,9 +1,11 @@
 package container // import "github.com/docker/docker/api/types/container"
 
 import (
+	"io"
 	"time"
 
 	"github.com/docker/docker/api/types/strslice"
+	dockerspec "github.com/docker/docker/image/spec/specs-go/v1"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -13,25 +15,33 @@ import (
 // Docker interprets it as 3 nanoseconds.
 const MinimumDuration = 1 * time.Millisecond
 
+// StopOptions holds the options to stop or restart a container.
+type StopOptions struct {
+	// Signal (optional) is the signal to send to the container to (gracefully)
+	// stop it before forcibly terminating the container with SIGKILL after the
+	// timeout expires. If not value is set, the default (SIGTERM) is used.
+	Signal string `json:",omitempty"`
+
+	// Timeout (optional) is the timeout (in seconds) to wait for the container
+	// to stop gracefully before forcibly terminating it with SIGKILL.
+	//
+	// - Use nil to use the default timeout (10 seconds).
+	// - Use '-1' to wait indefinitely.
+	// - Use '0' to not wait for the container to exit gracefully, and
+	//   immediately proceeds to forcibly terminating the container.
+	// - Other positive values are used as timeout (in seconds).
+	Timeout *int `json:",omitempty"`
+}
+
 // HealthConfig holds configuration settings for the HEALTHCHECK feature.
-type HealthConfig struct {
-	// Test is the test to perform to check that the container is healthy.
-	// An empty slice means to inherit the default.
-	// The options are:
-	// {} : inherit healthcheck
-	// {"NONE"} : disable healthcheck
-	// {"CMD", args...} : exec arguments directly
-	// {"CMD-SHELL", command} : run command with system's default shell
-	Test []string `json:",omitempty"`
+type HealthConfig = dockerspec.HealthcheckConfig
 
-	// Zero means to inherit. Durations are expressed as integer nanoseconds.
-	Interval    time.Duration `json:",omitempty"` // Interval is the time to wait between checks.
-	Timeout     time.Duration `json:",omitempty"` // Timeout is the time to wait before considering the check to have hung.
-	StartPeriod time.Duration `json:",omitempty"` // The start period for the container to initialize before the retries starts to count down.
-
-	// Retries is the number of consecutive failures needed to consider a container as unhealthy.
-	// Zero means inherit.
-	Retries int `json:",omitempty"`
+// ExecStartOptions holds the options to start container's exec.
+type ExecStartOptions struct {
+	Stdin       io.Reader
+	Stdout      io.Writer
+	Stderr      io.Writer
+	ConsoleSize *[2]uint `json:",omitempty"`
 }
 
 // Config contains the configuration data about a container.
@@ -60,10 +70,13 @@ type Config struct {
 	WorkingDir      string              // Current directory (PWD) in the command will be launched
 	Entrypoint      strslice.StrSlice   // Entrypoint to run when starting the container
 	NetworkDisabled bool                `json:",omitempty"` // Is network disabled
-	MacAddress      string              `json:",omitempty"` // Mac Address of the container
-	OnBuild         []string            // ONBUILD metadata that were defined on the image Dockerfile
-	Labels          map[string]string   // List of labels set to this container
-	StopSignal      string              `json:",omitempty"` // Signal to stop a container
-	StopTimeout     *int                `json:",omitempty"` // Timeout (in seconds) to stop a container
-	Shell           strslice.StrSlice   `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
+	// Mac Address of the container.
+	//
+	// Deprecated: this field is deprecated since API v1.44. Use EndpointSettings.MacAddress instead.
+	MacAddress  string            `json:",omitempty"`
+	OnBuild     []string          // ONBUILD metadata that were defined on the image Dockerfile
+	Labels      map[string]string // List of labels set to this container
+	StopSignal  string            `json:",omitempty"` // Signal to stop a container
+	StopTimeout *int              `json:",omitempty"` // Timeout (in seconds) to stop a container
+	Shell       strslice.StrSlice `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
 }

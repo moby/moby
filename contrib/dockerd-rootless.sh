@@ -77,6 +77,8 @@ if [ -z "$mtu" ]; then
 	mtu=1500
 fi
 
+dockerd="${DOCKERD:-dockerd}"
+
 if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
 	_DOCKERD_ROOTLESS_CHILD=1
 	export _DOCKERD_ROOTLESS_CHILD
@@ -105,7 +107,7 @@ if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
 		--copy-up=/etc --copy-up=/run \
 		--propagation=rslave \
 		$DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS \
-		$0 $@
+		"$0" "$@"
 else
 	[ "$_DOCKERD_ROOTLESS_CHILD" = 1 ]
 	# remove the symlinks for the existing files in the parent namespace if any,
@@ -128,5 +130,5 @@ else
 		mount --rbind ${realpath_etc_ssl} /etc/ssl
 	fi
 
-	exec dockerd $@
+	exec "$dockerd" "$@"
 fi

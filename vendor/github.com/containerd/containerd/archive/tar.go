@@ -19,18 +19,21 @@ package archive
 import (
 	"archive/tar"
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/containerd/containerd/archive/tarheader"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/pkg/epoch"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/continuity/fs"
-	"github.com/pkg/errors"
 )
 
 var bufPool = &sync.Pool{
@@ -48,12 +51,15 @@ var errInvalidArchive = errors.New("invalid archive")
 // Produces a tar using OCI style file markers for deletions. Deleted
 // files will be prepended with the prefix ".wh.". This style is
 // based off AUFS whiteouts.
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md
-func Diff(ctx context.Context, a, b string) io.ReadCloser {
+// See https://github.com/opencontainers/image-spec/blob/main/layer.md
+func Diff(ctx context.Context, a, b string, opts ...WriteDiffOpt) io.ReadCloser {
 	r, w := io.Pipe()
 
 	go func() {
-		err := WriteDiff(ctx, w, a, b)
+		err := WriteDiff(ctx, w, a, b, opts...)
+		if err != nil {
+			log.G(ctx).WithError(err).Debugf("write diff failed")
+		}
 		if err = w.CloseWithError(err); err != nil {
 			log.G(ctx).WithError(err).Debugf("closing tar pipe failed")
 		}
@@ -68,14 +74,18 @@ func Diff(ctx context.Context, a, b string) io.ReadCloser {
 // Produces a tar using OCI style file markers for deletions. Deleted
 // files will be prepended with the prefix ".wh.". This style is
 // based off AUFS whiteouts.
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md
+// See https://github.com/opencontainers/image-spec/blob/main/layer.md
 func WriteDiff(ctx context.Context, w io.Writer, a, b string, opts ...WriteDiffOpt) error {
 	var options WriteDiffOptions
 	for _, opt := range opts {
 		if err := opt(&options); err != nil {
-			return errors.Wrap(err, "failed to apply option")
+			return fmt.Errorf("failed to apply option: %w", err)
 		}
 	}
+	if tm := epoch.FromContext(ctx); tm != nil && options.SourceDateEpoch == nil {
+		options.SourceDateEpoch = tm
+	}
+
 	if options.writeDiffFunc == nil {
 		options.writeDiffFunc = writeDiffNaive
 	}
@@ -89,12 +99,18 @@ func WriteDiff(ctx context.Context, w io.Writer, a, b string, opts ...WriteDiffO
 // Produces a tar using OCI style file markers for deletions. Deleted
 // files will be prepended with the prefix ".wh.". This style is
 // based off AUFS whiteouts.
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md
-func writeDiffNaive(ctx context.Context, w io.Writer, a, b string, _ WriteDiffOptions) error {
-	cw := newChangeWriter(w, b)
+// See https://github.com/opencontainers/image-spec/blob/main/layer.md
+func writeDiffNaive(ctx context.Context, w io.Writer, a, b string, o WriteDiffOptions) error {
+	var opts []ChangeWriterOpt
+	if o.SourceDateEpoch != nil {
+		opts = append(opts,
+			WithModTimeUpperBound(*o.SourceDateEpoch),
+			WithWhiteoutTime(*o.SourceDateEpoch))
+	}
+	cw := NewChangeWriter(w, b, opts...)
 	err := fs.Changes(ctx, a, b, cw.HandleChange)
 	if err != nil {
-		return errors.Wrap(err, "failed to create diff tar stream")
+		return fmt.Errorf("failed to create diff tar stream: %w", err)
 	}
 	return cw.Close()
 }
@@ -102,7 +118,7 @@ func writeDiffNaive(ctx context.Context, w io.Writer, a, b string, _ WriteDiffOp
 const (
 	// whiteoutPrefix prefix means file is a whiteout. If this is followed by a
 	// filename this means that file has been removed from the base layer.
-	// See https://github.com/opencontainers/image-spec/blob/master/layer.md#whiteouts
+	// See https://github.com/opencontainers/image-spec/blob/main/layer.md#whiteouts
 	whiteoutPrefix = ".wh."
 
 	// whiteoutMetaPrefix prefix means whiteout has a special meaning and is not
@@ -115,17 +131,19 @@ const (
 	whiteoutOpaqueDir = whiteoutMetaPrefix + ".opq"
 
 	paxSchilyXattr = "SCHILY.xattr."
+
+	userXattrPrefix = "user."
 )
 
 // Apply applies a tar stream of an OCI style diff tar.
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md#applying-changesets
+// See https://github.com/opencontainers/image-spec/blob/main/layer.md#applying-changesets
 func Apply(ctx context.Context, root string, r io.Reader, opts ...ApplyOpt) (int64, error) {
 	root = filepath.Clean(root)
 
 	var options ApplyOptions
 	for _, opt := range opts {
 		if err := opt(&options); err != nil {
-			return 0, errors.Wrap(err, "failed to apply option")
+			return 0, fmt.Errorf("failed to apply option: %w", err)
 		}
 	}
 	if options.Filter == nil {
@@ -140,7 +158,7 @@ func Apply(ctx context.Context, root string, r io.Reader, opts ...ApplyOpt) (int
 
 // applyNaive applies a tar stream of an OCI style diff tar to a directory
 // applying each file as either a whole file or whiteout.
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md#applying-changesets
+// See https://github.com/opencontainers/image-spec/blob/main/layer.md#applying-changesets
 func applyNaive(ctx context.Context, root string, r io.Reader, options ApplyOptions) (size int64, err error) {
 	var (
 		dirs []*tar.Header
@@ -233,7 +251,7 @@ func applyNaive(ctx context.Context, root string, r io.Reader, options ApplyOpti
 		ppath, base := filepath.Split(hdr.Name)
 		ppath, err = fs.RootPath(root, ppath)
 		if err != nil {
-			return 0, errors.Wrap(err, "failed to get root path")
+			return 0, fmt.Errorf("failed to get root path: %w", err)
 		}
 
 		// Join to root before joining to parent path to ensure relative links are
@@ -263,7 +281,7 @@ func applyNaive(ctx context.Context, root string, r io.Reader, options ApplyOpti
 		}
 		writeFile, err := convertWhiteout(hdr, path)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to convert whiteout file %q", hdr.Name)
+			return 0, fmt.Errorf("failed to convert whiteout file %q: %w", hdr.Name, err)
 		}
 		if !writeFile {
 			continue
@@ -283,7 +301,7 @@ func applyNaive(ctx context.Context, root string, r io.Reader, options ApplyOpti
 		srcData := io.Reader(tr)
 		srcHdr := hdr
 
-		if err := createTarFile(ctx, path, root, srcHdr, srcData); err != nil {
+		if err := createTarFile(ctx, path, root, srcHdr, srcData, options.NoSameOwner); err != nil {
 			return 0, err
 		}
 
@@ -308,7 +326,7 @@ func applyNaive(ctx context.Context, root string, r io.Reader, options ApplyOpti
 	return size, nil
 }
 
-func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header, reader io.Reader) error {
+func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header, reader io.Reader, noSameOwner bool) error {
 	// hdr.Mode is in linux format, which we can use for syscalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -324,6 +342,7 @@ func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header
 			}
 		}
 
+	//nolint:staticcheck // TypeRegA is deprecated but we may still receive an external tar with TypeRegA
 	case tar.TypeReg, tar.TypeRegA:
 		file, err := openFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, hdrInfo.Mode())
 		if err != nil {
@@ -356,7 +375,7 @@ func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header
 			return err
 		}
 
-		if err := os.Link(targetPath, path); err != nil {
+		if err := link(targetPath, path); err != nil {
 			return err
 		}
 
@@ -370,12 +389,15 @@ func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header
 		return nil
 
 	default:
-		return errors.Errorf("unhandled tar header type %d\n", hdr.Typeflag)
+		return fmt.Errorf("unhandled tar header type %d", hdr.Typeflag)
 	}
 
-	// Lchown is not supported on Windows.
-	if runtime.GOOS != "windows" {
+	if !noSameOwner {
 		if err := os.Lchown(path, hdr.Uid, hdr.Gid); err != nil {
+			err = fmt.Errorf("failed to Lchown %q for UID %d, GID %d: %w", path, hdr.Uid, hdr.Gid, err)
+			if errors.Is(err, syscall.EINVAL) && userns.RunningInUserNS() {
+				err = fmt.Errorf("%w (Hint: try increasing the number of subordinate IDs in /etc/subuid and /etc/subgid)", err)
+			}
 			return err
 		}
 	}
@@ -384,11 +406,19 @@ func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header
 		if strings.HasPrefix(key, paxSchilyXattr) {
 			key = key[len(paxSchilyXattr):]
 			if err := setxattr(path, key, value); err != nil {
+				if errors.Is(err, syscall.EPERM) && strings.HasPrefix(key, userXattrPrefix) {
+					// In the user.* namespace, only regular files and directories can have extended attributes.
+					// See https://man7.org/linux/man-pages/man7/xattr.7.html for details.
+					if fi, err := os.Lstat(path); err == nil && (!fi.Mode().IsRegular() && !fi.Mode().IsDir()) {
+						log.G(ctx).WithError(err).Warnf("ignored xattr %s in archive", key)
+						continue
+					}
+				}
 				if errors.Is(err, syscall.ENOTSUP) {
 					log.G(ctx).WithError(err).Warnf("ignored xattr %s in archive", key)
 					continue
 				}
-				return err
+				return fmt.Errorf("failed to setxattr %q for key %q: %w", path, key, err)
 			}
 		}
 	}
@@ -461,27 +491,65 @@ func mkparent(ctx context.Context, path, root string, parents []string) error {
 	return nil
 }
 
-type changeWriter struct {
-	tw        *tar.Writer
-	source    string
-	whiteoutT time.Time
-	inodeSrc  map[uint64]string
-	inodeRefs map[uint64][]string
-	addedDirs map[string]struct{}
+// ChangeWriter provides tar stream from filesystem change information.
+// The privided tar stream is styled as an OCI layer. Change information
+// (add/modify/delete/unmodified) for each file needs to be passed to this
+// writer through HandleChange method.
+//
+// This should be used combining with continuity's diff computing functionality
+// (e.g. `fs.Change` of github.com/containerd/continuity/fs).
+//
+// See also https://github.com/opencontainers/image-spec/blob/main/layer.md for details
+// about OCI layers
+type ChangeWriter struct {
+	tw                *tar.Writer
+	source            string
+	modTimeUpperBound *time.Time
+	whiteoutT         time.Time
+	inodeSrc          map[uint64]string
+	inodeRefs         map[uint64][]string
+	addedDirs         map[string]struct{}
 }
 
-func newChangeWriter(w io.Writer, source string) *changeWriter {
-	return &changeWriter{
+// ChangeWriterOpt can be specified in NewChangeWriter.
+type ChangeWriterOpt func(cw *ChangeWriter)
+
+// WithModTimeUpperBound sets the mod time upper bound.
+func WithModTimeUpperBound(tm time.Time) ChangeWriterOpt {
+	return func(cw *ChangeWriter) {
+		cw.modTimeUpperBound = &tm
+	}
+}
+
+// WithWhiteoutTime sets the whiteout timestamp.
+func WithWhiteoutTime(tm time.Time) ChangeWriterOpt {
+	return func(cw *ChangeWriter) {
+		cw.whiteoutT = tm
+	}
+}
+
+// NewChangeWriter returns ChangeWriter that writes tar stream of the source directory
+// to the privided writer. Change information (add/modify/delete/unmodified) for each
+// file needs to be passed through HandleChange method.
+func NewChangeWriter(w io.Writer, source string, opts ...ChangeWriterOpt) *ChangeWriter {
+	cw := &ChangeWriter{
 		tw:        tar.NewWriter(w),
 		source:    source,
-		whiteoutT: time.Now(),
+		whiteoutT: time.Now(), // can be overridden with WithWhiteoutTime(time.Time) ChangeWriterOpt .
 		inodeSrc:  map[uint64]string{},
 		inodeRefs: map[uint64][]string{},
 		addedDirs: map[string]struct{}{},
 	}
+	for _, o := range opts {
+		o(cw)
+	}
+	return cw
 }
 
-func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, err error) error {
+// HandleChange receives filesystem change information and reflect that information to
+// the result tar stream. This function implements `fs.ChangeFunc` of continuity
+// (github.com/containerd/continuity/fs) and should be used with that package.
+func (cw *ChangeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, err error) error {
 	if err != nil {
 		return err
 	}
@@ -501,7 +569,7 @@ func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 			return err
 		}
 		if err := cw.tw.WriteHeader(hdr); err != nil {
-			return errors.Wrap(err, "failed to write whiteout header")
+			return fmt.Errorf("failed to write whiteout header: %w", err)
 		}
 	} else {
 		var (
@@ -519,7 +587,8 @@ func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 			}
 		}
 
-		hdr, err := tar.FileInfoHeader(f, link)
+		// Use FileInfoHeaderNoLookups to avoid propagating user names and group names from the host
+		hdr, err := tarheader.FileInfoHeaderNoLookups(f, link)
 		if err != nil {
 			return err
 		}
@@ -528,6 +597,9 @@ func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 
 		// truncate timestamp for compatibility. without PAX stdlib rounds timestamps instead
 		hdr.Format = tar.FormatPAX
+		if cw.modTimeUpperBound != nil && hdr.ModTime.After(*cw.modTimeUpperBound) {
+			hdr.ModTime = *cw.modTimeUpperBound
+		}
 		hdr.ModTime = hdr.ModTime.Truncate(time.Second)
 		hdr.AccessTime = time.Time{}
 		hdr.ChangeTime = time.Time{}
@@ -536,21 +608,19 @@ func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 		if strings.HasPrefix(name, string(filepath.Separator)) {
 			name, err = filepath.Rel(string(filepath.Separator), name)
 			if err != nil {
-				return errors.Wrap(err, "failed to make path relative")
+				return fmt.Errorf("failed to make path relative: %w", err)
 			}
 		}
-		name, err = tarName(name)
-		if err != nil {
-			return errors.Wrap(err, "cannot canonicalize path")
-		}
-		// suffix with '/' for directories
+		// Canonicalize to POSIX-style paths using forward slashes. Directory
+		// entries must end with a slash.
+		name = filepath.ToSlash(name)
 		if f.IsDir() && !strings.HasSuffix(name, "/") {
 			name += "/"
 		}
 		hdr.Name = name
 
 		if err := setHeaderForSpecialDevice(hdr, name, f); err != nil {
-			return errors.Wrap(err, "failed to set device headers")
+			return fmt.Errorf("failed to set device headers: %w", err)
 		}
 
 		// additionalLinks stores file names which must be linked to
@@ -578,8 +648,8 @@ func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 		}
 
 		if capability, err := getxattr(source, "security.capability"); err != nil {
-			return errors.Wrap(err, "failed to get capabilities xattr")
-		} else if capability != nil {
+			return fmt.Errorf("failed to get capabilities xattr: %w", err)
+		} else if len(capability) > 0 {
 			if hdr.PAXRecords == nil {
 				hdr.PAXRecords = map[string]string{}
 			}
@@ -590,19 +660,19 @@ func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 			return err
 		}
 		if err := cw.tw.WriteHeader(hdr); err != nil {
-			return errors.Wrap(err, "failed to write file header")
+			return fmt.Errorf("failed to write file header: %w", err)
 		}
 
 		if hdr.Typeflag == tar.TypeReg && hdr.Size > 0 {
 			file, err := open(source)
 			if err != nil {
-				return errors.Wrapf(err, "failed to open path: %v", source)
+				return fmt.Errorf("failed to open path: %v: %w", source, err)
 			}
 			defer file.Close()
 
 			n, err := copyBuffered(context.TODO(), cw.tw, file)
 			if err != nil {
-				return errors.Wrap(err, "failed to copy")
+				return fmt.Errorf("failed to copy: %w", err)
 			}
 			if n != hdr.Size {
 				return errors.New("short write copying file")
@@ -621,7 +691,7 @@ func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 					return err
 				}
 				if err := cw.tw.WriteHeader(hdr); err != nil {
-					return errors.Wrap(err, "failed to write file header")
+					return fmt.Errorf("failed to write file header: %w", err)
 				}
 			}
 		}
@@ -629,14 +699,15 @@ func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 	return nil
 }
 
-func (cw *changeWriter) Close() error {
+// Close closes this writer.
+func (cw *ChangeWriter) Close() error {
 	if err := cw.tw.Close(); err != nil {
-		return errors.Wrap(err, "failed to close tar writer")
+		return fmt.Errorf("failed to close tar writer: %w", err)
 	}
 	return nil
 }
 
-func (cw *changeWriter) includeParents(hdr *tar.Header) error {
+func (cw *ChangeWriter) includeParents(hdr *tar.Header) error {
 	if cw.addedDirs == nil {
 		return nil
 	}
@@ -744,7 +815,7 @@ func validateWhiteout(path string) error {
 			dir += string(filepath.Separator)
 		}
 		if !strings.HasPrefix(originalPath, dir) {
-			return errors.Wrapf(errInvalidArchive, "invalid whiteout name: %v", base)
+			return fmt.Errorf("invalid whiteout name: %v: %w", base, errInvalidArchive)
 		}
 	}
 	return nil

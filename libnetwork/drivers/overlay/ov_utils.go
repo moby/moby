@@ -1,18 +1,17 @@
 //go:build linux
-// +build linux
 
 package overlay
 
 import (
+	"context"
 	"fmt"
-	"strings"
+	"net"
 	"syscall"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/osl"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -32,7 +31,6 @@ func validateID(nid, eid string) error {
 }
 
 func createVethPair() (string, string, error) {
-	defer osl.InitOSContext()()
 	nlh := ns.NlHandle()
 
 	// Generate a name for what will be the host side pipe interface
@@ -50,7 +48,8 @@ func createVethPair() (string, string, error) {
 	// Generate and add the interface pipe host <-> sandbox
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: name1, TxQLen: 0},
-		PeerName:  name2}
+		PeerName:  name2,
+	}
 	if err := nlh.LinkAdd(veth); err != nil {
 		return "", "", fmt.Errorf("error creating veth pair: %v", err)
 	}
@@ -58,9 +57,7 @@ func createVethPair() (string, string, error) {
 	return name1, name2, nil
 }
 
-func createVxlan(name string, vni uint32, mtu int) error {
-	defer osl.InitOSContext()()
-
+func createVxlan(name string, vni uint32, mtu int, vtepIPv6 bool) error {
 	vxlan := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{Name: name, MTU: mtu},
 		VxlanId:   int(vni),
@@ -71,6 +68,19 @@ func createVxlan(name string, vni uint32, mtu int) error {
 		L2miss:    true,
 	}
 
+	// The kernel restricts the destination VTEP (virtual tunnel endpoint) in
+	// VXLAN forwarding database entries to a single address family, defaulting
+	// to IPv4 unless either an IPv6 group or default remote destination address
+	// is configured when the VXLAN link is created.
+	//
+	// Set up the VXLAN link for IPv6 destination addresses by setting the VXLAN
+	// group address to the IPv6 unspecified address, like iproute2.
+	// https://github.com/iproute2/iproute2/commit/97d564b90ccb1e4a3c756d9caae161f55b2b63a2
+	// https://patchwork.ozlabs.org/project/netdev/patch/20180917171325.GA2660@localhost.localdomain/
+	if vtepIPv6 {
+		vxlan.Group = net.IPv6unspecified
+	}
+
 	if err := ns.NlHandle().LinkAdd(vxlan); err != nil {
 		return fmt.Errorf("error creating vxlan interface: %v", err)
 	}
@@ -78,40 +88,7 @@ func createVxlan(name string, vni uint32, mtu int) error {
 	return nil
 }
 
-func deleteInterfaceBySubnet(brPrefix string, s *subnet) error {
-	defer osl.InitOSContext()()
-
-	nlh := ns.NlHandle()
-	links, err := nlh.LinkList()
-	if err != nil {
-		return fmt.Errorf("failed to list interfaces while deleting bridge interface by subnet: %v", err)
-	}
-
-	for _, l := range links {
-		name := l.Attrs().Name
-		if _, ok := l.(*netlink.Bridge); ok && strings.HasPrefix(name, brPrefix) {
-			addrList, err := nlh.AddrList(l, netlink.FAMILY_V4)
-			if err != nil {
-				logrus.Errorf("error getting AddressList for bridge %s", name)
-				continue
-			}
-			for _, addr := range addrList {
-				if netutils.NetworkOverlaps(addr.IPNet, s.subnetIP) {
-					err = nlh.LinkDel(l)
-					if err != nil {
-						logrus.Errorf("error deleting bridge (%s) with subnet %v: %v", name, addr.IPNet, err)
-					}
-				}
-			}
-		}
-	}
-	return nil
-
-}
-
 func deleteInterface(name string) error {
-	defer osl.InitOSContext()()
-
 	link, err := ns.NlHandle().LinkByName(name)
 	if err != nil {
 		return fmt.Errorf("failed to find interface with name %s: %v", name, err)
@@ -125,8 +102,6 @@ func deleteInterface(name string) error {
 }
 
 func deleteVxlanByVNI(path string, vni uint32) error {
-	defer osl.InitOSContext()()
-
 	nlh := ns.NlHandle()
 	if path != "" {
 		ns, err := netns.GetFromPath(path)
@@ -139,10 +114,10 @@ func deleteVxlanByVNI(path string, vni uint32) error {
 		if err != nil {
 			return fmt.Errorf("failed to get netlink handle for ns %s: %v", path, err)
 		}
-		defer nlh.Delete()
+		defer nlh.Close()
 		err = nlh.SetSocketTimeout(soTimeout)
 		if err != nil {
-			logrus.Warnf("Failed to set the timeout on the netlink handle sockets for vxlan deletion: %v", err)
+			log.G(context.TODO()).Warnf("Failed to set the timeout on the netlink handle sockets for vxlan deletion: %v", err)
 		}
 	}
 

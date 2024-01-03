@@ -5,7 +5,7 @@ ssd is a troubleshooting utility for Docker swarm networks.
 ### control-plane and datapath consistency check on a node
 ssd checks for the consistency between docker network control-plane (from the docker daemon in-memory state) and kernel data path programming. Currently the tool checks only for the consistency of the Load balancer (implemented using IPVS).
 
-In a three node swarm cluser ssd status for a overlay network `ov2` which has three services running, each replicated to 3 instances.
+In a three node swarm cluster ssd status for a overlay network `ov2` which has three services running, each replicated to 3 instances.
 
 ````bash
 vagrant@net-1:~/code/go/src/github.com/docker/docker-e2e/tests$ docker run -v /var/run/docker.sock:/var/run/docker.sock -v /var/run/docker/netns:/var/run/docker/netns --privileged --net=host sanimej/ssd ov2

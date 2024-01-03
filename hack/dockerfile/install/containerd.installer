@@ -11,11 +11,11 @@ set -e
 #
 # Generally, the commit specified here should match a tagged release.
 #
-# The containerd golang package is also pinned in vendor.conf. When updating
+# The containerd golang package is also pinned in vendor.mod. When updating
 # the binary version you may also need to update the vendor version to pick up
 # bug fixes or new APIs, however, usually the Go packages are built from a
 # commit from the master branch.
-: "${CONTAINERD_VERSION:=v1.5.7}"
+: "${CONTAINERD_VERSION:=v1.7.11}"
 
 install_containerd() (
 	echo "Install containerd version $CONTAINERD_VERSION"
@@ -36,7 +36,6 @@ install_containerd() (
 	make
 
 	install -D bin/containerd "${PREFIX}/containerd"
-	install -D bin/containerd-shim "${PREFIX}/containerd-shim"
 	install -D bin/containerd-shim-runc-v2 "${PREFIX}/containerd-shim-runc-v2"
 	install -D bin/ctr "${PREFIX}/ctr"
 )

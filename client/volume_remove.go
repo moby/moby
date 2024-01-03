@@ -10,12 +10,18 @@ import (
 // VolumeRemove removes a volume from the docker host.
 func (cli *Client) VolumeRemove(ctx context.Context, volumeID string, force bool) error {
 	query := url.Values{}
-	if versions.GreaterThanOrEqualTo(cli.version, "1.25") {
-		if force {
+	if force {
+		// Make sure we negotiated (if the client is configured to do so),
+		// as code below contains API-version specific handling of options.
+		//
+		// Normally, version-negotiation (if enabled) would not happen until
+		// the API request is made.
+		cli.checkVersion(ctx)
+		if versions.GreaterThanOrEqualTo(cli.version, "1.25") {
 			query.Set("force", "1")
 		}
 	}
 	resp, err := cli.delete(ctx, "/volumes/"+volumeID, query, nil)
 	defer ensureReaderClosed(resp)
-	return wrapResponseError(err, resp, "volume", volumeID)
+	return err
 }

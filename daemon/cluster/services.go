@@ -11,23 +11,26 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/distribution/reference"
-	apitypes "github.com/docker/docker/api/types"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
-	types "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/swarm"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/compatcontext"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
+	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
 // GetServices returns all services of a managed swarm cluster.
-func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Service, error) {
+func (c *Cluster) GetServices(options types.ServiceListOptions) ([]swarm.Service, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -53,7 +56,7 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 
 	if len(options.Filters.Get("runtime")) == 0 {
 		// Default to using the container runtime filter
-		options.Filters.Add("runtime", string(types.RuntimeContainer))
+		options.Filters.Add("runtime", string(swarm.RuntimeContainer))
 	}
 
 	filters := &swarmapi.ListServicesRequest_Filters{
@@ -63,7 +66,8 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 		Runtimes:     options.Filters.Get("runtime"),
 	}
 
-	ctx, cancel := c.getRequestContext()
+	ctx := context.TODO()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	r, err := state.controlClient.ListServices(
@@ -75,7 +79,7 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 		return nil, err
 	}
 
-	services := make([]types.Service, 0, len(r.Services))
+	services := make([]swarm.Service, 0, len(r.Services))
 
 	// if the  user requests the service statuses, we'll store the IDs needed
 	// in this slice
@@ -132,9 +136,9 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 		// result would be quadratic. instead, make a mapping of service IDs to
 		// service statuses so that this is roughly linear. additionally,
 		// convert the status response to an engine api service status here.
-		serviceMap := map[string]*types.ServiceStatus{}
+		serviceMap := map[string]*swarm.ServiceStatus{}
 		for _, status := range resp.Statuses {
-			serviceMap[status.ServiceID] = &types.ServiceStatus{
+			serviceMap[status.ServiceID] = &swarm.ServiceStatus{
 				RunningTasks:   status.RunningTasks,
 				DesiredTasks:   status.DesiredTasks,
 				CompletedTasks: status.CompletedTasks,
@@ -159,7 +163,7 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 }
 
 // GetService returns a service based on an ID or name.
-func (c *Cluster) GetService(input string, insertDefaults bool) (types.Service, error) {
+func (c *Cluster) GetService(input string, insertDefaults bool) (swarm.Service, error) {
 	var service *swarmapi.Service
 	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		s, err := getService(ctx, state.controlClient, input, insertDefaults)
@@ -169,18 +173,18 @@ func (c *Cluster) GetService(input string, insertDefaults bool) (types.Service, 
 		service = s
 		return nil
 	}); err != nil {
-		return types.Service{}, err
+		return swarm.Service{}, err
 	}
 	svc, err := convert.ServiceFromGRPC(*service)
 	if err != nil {
-		return types.Service{}, err
+		return swarm.Service{}, err
 	}
 	return svc, nil
 }
 
 // CreateService creates a new service in a managed swarm cluster.
-func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string, queryRegistry bool) (*apitypes.ServiceCreateResponse, error) {
-	var resp *apitypes.ServiceCreateResponse
+func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRegistry bool) (*swarm.ServiceCreateResponse, error) {
+	var resp *swarm.ServiceCreateResponse
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &s)
 		if err != nil {
@@ -192,17 +196,17 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string, queryRe
 			return errdefs.InvalidParameter(err)
 		}
 
-		resp = &apitypes.ServiceCreateResponse{}
+		resp = &swarm.ServiceCreateResponse{}
 
 		switch serviceSpec.Task.Runtime.(type) {
 		case *swarmapi.TaskSpec_Attachment:
-			return fmt.Errorf("invalid task spec: spec type %q not supported", types.RuntimeNetworkAttachment)
+			return fmt.Errorf("invalid task spec: spec type %q not supported", swarm.RuntimeNetworkAttachment)
 		// handle other runtimes here
 		case *swarmapi.TaskSpec_Generic:
 			switch serviceSpec.Task.GetGeneric().Kind {
-			case string(types.RuntimePlugin):
+			case string(swarm.RuntimePlugin):
 				if !c.config.Backend.HasExperimental() {
-					return fmt.Errorf("runtime type %q only supported in experimental", types.RuntimePlugin)
+					return fmt.Errorf("runtime type %q only supported in experimental", swarm.RuntimePlugin)
 				}
 				if s.TaskTemplate.PluginSpec == nil {
 					return errors.New("plugin spec must be set")
@@ -228,12 +232,12 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string, queryRe
 			}
 
 			// retrieve auth config from encoded auth
-			authConfig := &apitypes.AuthConfig{}
+			authConfig := &registry.AuthConfig{}
 			if encodedAuth != "" {
 				authReader := strings.NewReader(encodedAuth)
 				dec := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, authReader))
 				if err := dec.Decode(authConfig); err != nil {
-					logrus.Warnf("invalid authconfig: %v", err)
+					log.G(ctx).Warnf("invalid authconfig: %v", err)
 				}
 			}
 
@@ -244,17 +248,14 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string, queryRe
 			if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" && queryRegistry {
 				digestImage, err := c.imageWithDigestString(ctx, ctnr.Image, authConfig)
 				if err != nil {
-					logrus.Warnf("unable to pin image %s to digest: %s", ctnr.Image, err.Error())
+					log.G(ctx).Warnf("unable to pin image %s to digest: %s", ctnr.Image, err.Error())
 					// warning in the client response should be concise
 					resp.Warnings = append(resp.Warnings, digestWarning(ctnr.Image))
-
 				} else if ctnr.Image != digestImage {
-					logrus.Debugf("pinning image %s by digest: %s", ctnr.Image, digestImage)
+					log.G(ctx).Debugf("pinning image %s by digest: %s", ctnr.Image, digestImage)
 					ctnr.Image = digestImage
-
 				} else {
-					logrus.Debugf("creating service using supplied digest reference %s", ctnr.Image)
-
+					log.G(ctx).Debugf("creating service using supplied digest reference %s", ctnr.Image)
 				}
 
 				// Replace the context with a fresh one.
@@ -264,7 +265,8 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string, queryRe
 				// "ctx" could make it impossible to create a service
 				// if the registry is slow or unresponsive.
 				var cancel func()
-				ctx, cancel = c.getRequestContext()
+				ctx = compatcontext.WithoutCancel(ctx)
+				ctx, cancel = c.getRequestContext(ctx)
 				defer cancel()
 			}
 
@@ -282,11 +284,10 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string, queryRe
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec types.ServiceSpec, flags apitypes.ServiceUpdateOptions, queryRegistry bool) (*apitypes.ServiceUpdateResponse, error) {
-	var resp *apitypes.ServiceUpdateResponse
+func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swarm.ServiceSpec, flags types.ServiceUpdateOptions, queryRegistry bool) (*swarm.ServiceUpdateResponse, error) {
+	var resp *swarm.ServiceUpdateResponse
 
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
-
 		err := c.populateNetworkID(ctx, state.controlClient, &spec)
 		if err != nil {
 			return err
@@ -302,14 +303,14 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			return err
 		}
 
-		resp = &apitypes.ServiceUpdateResponse{}
+		resp = &swarm.ServiceUpdateResponse{}
 
 		switch serviceSpec.Task.Runtime.(type) {
 		case *swarmapi.TaskSpec_Attachment:
-			return fmt.Errorf("invalid task spec: spec type %q not supported", types.RuntimeNetworkAttachment)
+			return fmt.Errorf("invalid task spec: spec type %q not supported", swarm.RuntimeNetworkAttachment)
 		case *swarmapi.TaskSpec_Generic:
 			switch serviceSpec.Task.GetGeneric().Kind {
-			case string(types.RuntimePlugin):
+			case string(swarm.RuntimePlugin):
 				if spec.TaskTemplate.PluginSpec == nil {
 					return errors.New("plugin spec must be set")
 				}
@@ -328,9 +329,9 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 				// shouldn't lose it, and continue to use the one that was already present
 				var ctnr *swarmapi.ContainerSpec
 				switch flags.RegistryAuthFrom {
-				case apitypes.RegistryAuthFromSpec, "":
+				case types.RegistryAuthFromSpec, "":
 					ctnr = currentService.Spec.Task.GetContainer()
-				case apitypes.RegistryAuthFromPreviousSpec:
+				case types.RegistryAuthFromPreviousSpec:
 					if currentService.PreviousSpec == nil {
 						return errors.New("service does not have a previous spec")
 					}
@@ -349,10 +350,10 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			}
 
 			// retrieve auth config from encoded auth
-			authConfig := &apitypes.AuthConfig{}
+			authConfig := &registry.AuthConfig{}
 			if encodedAuth != "" {
 				if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuth))).Decode(authConfig); err != nil {
-					logrus.Warnf("invalid authconfig: %v", err)
+					log.G(ctx).Warnf("invalid authconfig: %v", err)
 				}
 			}
 
@@ -363,14 +364,14 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" && queryRegistry {
 				digestImage, err := c.imageWithDigestString(ctx, newCtnr.Image, authConfig)
 				if err != nil {
-					logrus.Warnf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error())
+					log.G(ctx).Warnf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error())
 					// warning in the client response should be concise
 					resp.Warnings = append(resp.Warnings, digestWarning(newCtnr.Image))
 				} else if newCtnr.Image != digestImage {
-					logrus.Debugf("pinning image %s by digest: %s", newCtnr.Image, digestImage)
+					log.G(ctx).Debugf("pinning image %s by digest: %s", newCtnr.Image, digestImage)
 					newCtnr.Image = digestImage
 				} else {
-					logrus.Debugf("updating service using supplied digest reference %s", newCtnr.Image)
+					log.G(ctx).Debugf("updating service using supplied digest reference %s", newCtnr.Image)
 				}
 
 				// Replace the context with a fresh one.
@@ -380,7 +381,8 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 				// "ctx" could make it impossible to update a service
 				// if the registry is slow or unresponsive.
 				var cancel func()
-				ctx, cancel = c.getRequestContext()
+				ctx = compatcontext.WithoutCancel(ctx)
+				ctx, cancel = c.getRequestContext(ctx)
 				defer cancel()
 			}
 		}
@@ -425,7 +427,7 @@ func (c *Cluster) RemoveService(input string) error {
 }
 
 // ServiceLogs collects service logs and writes them back to `config.OutStream`
-func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector, config *apitypes.ContainerLogsOptions) (<-chan *backend.LogMessage, error) {
+func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector, config *container.LogsOptions) (<-chan *backend.LogMessage, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -459,7 +461,7 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 	} else {
 		t, err := strconv.Atoi(config.Tail)
 		if err != nil {
-			return nil, errors.New("tail value must be a positive integer or \"all\"")
+			return nil, errors.New(`tail value must be a positive integer or "all"`)
 		}
 		if t < 0 {
 			return nil, errors.New("negative tail values not supported")
@@ -612,7 +614,7 @@ func convertSelector(ctx context.Context, cc swarmapi.ControlClient, selector *b
 
 // imageWithDigestString takes an image such as name or name:tag
 // and returns the image pinned to a digest, such as name@sha256:34234
-func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authConfig *apitypes.AuthConfig) (string, error) {
+func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authConfig *registry.AuthConfig) (string, error) {
 	ref, err := reference.ParseAnyReference(image)
 	if err != nil {
 		return "", err

@@ -1,145 +1,17 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
-	"net/http"
-	"net/http/httputil"
-	"os"
-	"strings"
 	"testing"
 
-	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/registry"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
+	is "gotest.tools/v3/assert/cmp"
 )
-
-func spawnTestRegistrySession(t *testing.T) *Session {
-	authConfig := &types.AuthConfig{}
-	endpoint, err := NewV1Endpoint(makeIndex("/v1/"), "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	userAgent := "docker test client"
-	var tr http.RoundTripper = debugTransport{NewTransport(nil), t.Log}
-	tr = transport.NewTransport(AuthTransport(tr, authConfig, false), Headers(userAgent, nil)...)
-	client := HTTPClient(tr)
-	r, err := NewSession(client, authConfig, endpoint)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// In a normal scenario for the v1 registry, the client should send a `X-Docker-Token: true`
-	// header while authenticating, in order to retrieve a token that can be later used to
-	// perform authenticated actions.
-	//
-	// The mock v1 registry does not support that, (TODO(tiborvass): support it), instead,
-	// it will consider authenticated any request with the header `X-Docker-Token: fake-token`.
-	//
-	// Because we know that the client's transport is an `*authTransport` we simply cast it,
-	// in order to set the internal cached token to the fake token, and thus send that fake token
-	// upon every subsequent requests.
-	r.client.Transport.(*authTransport).token = []string{"fake-token"}
-	return r
-}
-
-func TestPingRegistryEndpoint(t *testing.T) {
-	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	testPing := func(index *registrytypes.IndexInfo, expectedStandalone bool, assertMessage string) {
-		ep, err := NewV1Endpoint(index, "", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		regInfo, err := ep.Ping()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		assertEqual(t, regInfo.Standalone, expectedStandalone, assertMessage)
-	}
-
-	testPing(makeIndex("/v1/"), true, "Expected standalone to be true (default)")
-	testPing(makeHTTPSIndex("/v1/"), true, "Expected standalone to be true (default)")
-	testPing(makePublicIndex(), false, "Expected standalone to be false for public index")
-}
-
-func TestEndpoint(t *testing.T) {
-	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	// Simple wrapper to fail test if err != nil
-	expandEndpoint := func(index *registrytypes.IndexInfo) *V1Endpoint {
-		endpoint, err := NewV1Endpoint(index, "", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return endpoint
-	}
-
-	assertInsecureIndex := func(index *registrytypes.IndexInfo) {
-		index.Secure = true
-		_, err := NewV1Endpoint(index, "", nil)
-		assertNotEqual(t, err, nil, index.Name+": Expected error for insecure index")
-		assertEqual(t, strings.Contains(err.Error(), "insecure-registry"), true, index.Name+": Expected insecure-registry  error for insecure index")
-		index.Secure = false
-	}
-
-	assertSecureIndex := func(index *registrytypes.IndexInfo) {
-		index.Secure = true
-		_, err := NewV1Endpoint(index, "", nil)
-		assertNotEqual(t, err, nil, index.Name+": Expected cert error for secure index")
-		assertEqual(t, strings.Contains(err.Error(), "certificate signed by unknown authority"), true, index.Name+": Expected cert error for secure index")
-		index.Secure = false
-	}
-
-	index := &registrytypes.IndexInfo{}
-	index.Name = makeURL("/v1/")
-	endpoint := expandEndpoint(index)
-	assertEqual(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
-	assertInsecureIndex(index)
-
-	index.Name = makeURL("")
-	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
-	assertInsecureIndex(index)
-
-	httpURL := makeURL("")
-	index.Name = strings.SplitN(httpURL, "://", 2)[1]
-	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), httpURL+"/v1/", index.Name+": Expected endpoint to be "+httpURL+"/v1/")
-	assertInsecureIndex(index)
-
-	index.Name = makeHTTPSURL("/v1/")
-	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
-	assertSecureIndex(index)
-
-	index.Name = makeHTTPSURL("")
-	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
-	assertSecureIndex(index)
-
-	httpsURL := makeHTTPSURL("")
-	index.Name = strings.SplitN(httpsURL, "://", 2)[1]
-	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), httpsURL+"/v1/", index.Name+": Expected endpoint to be "+httpsURL+"/v1/")
-	assertSecureIndex(index)
-
-	badEndpoints := []string{
-		"http://127.0.0.1/v1/",
-		"https://127.0.0.1/v1/",
-		"http://127.0.0.1",
-		"https://127.0.0.1",
-		"127.0.0.1",
-	}
-	for _, address := range badEndpoints {
-		index.Name = address
-		_, err := NewV1Endpoint(index, "", nil)
-		checkNotEqual(t, err, nil, "Expected error while expanding bad endpoint")
-	}
-}
 
 func TestParseRepositoryInfo(t *testing.T) {
 	type staticRepositoryInfo struct {
-		Index         *registrytypes.IndexInfo
+		Index         *registry.IndexInfo
 		RemoteName    string
 		CanonicalName string
 		LocalName     string
@@ -148,7 +20,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 
 	expectedRepoInfos := map[string]staticRepositoryInfo{
 		"fooo/bar": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -158,7 +30,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"library/ubuntu": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -168,7 +40,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      true,
 		},
 		"nonlibrary/ubuntu": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -178,7 +50,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"ubuntu": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -188,7 +60,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      true,
 		},
 		"other/library": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -198,7 +70,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"127.0.0.1:8000/private/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "127.0.0.1:8000",
 				Official: false,
 			},
@@ -208,7 +80,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"127.0.0.1:8000/privatebase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "127.0.0.1:8000",
 				Official: false,
 			},
@@ -218,7 +90,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"localhost:8000/private/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "localhost:8000",
 				Official: false,
 			},
@@ -228,7 +100,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"localhost:8000/privatebase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "localhost:8000",
 				Official: false,
 			},
@@ -238,7 +110,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"example.com/private/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "example.com",
 				Official: false,
 			},
@@ -248,7 +120,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"example.com/privatebase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "example.com",
 				Official: false,
 			},
@@ -258,7 +130,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"example.com:8000/private/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "example.com:8000",
 				Official: false,
 			},
@@ -268,7 +140,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"example.com:8000/privatebase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "example.com:8000",
 				Official: false,
 			},
@@ -278,7 +150,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"localhost/private/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "localhost",
 				Official: false,
 			},
@@ -288,7 +160,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"localhost/privatebase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "localhost",
 				Official: false,
 			},
@@ -298,7 +170,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		IndexName + "/public/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -308,7 +180,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"index." + IndexName + "/public/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -318,7 +190,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"ubuntu-12.04-base": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -328,7 +200,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      true,
 		},
 		IndexName + "/ubuntu-12.04-base": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -338,7 +210,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      true,
 		},
 		"index." + IndexName + "/ubuntu-12.04-base": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -359,34 +231,34 @@ func TestParseRepositoryInfo(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		} else {
-			checkEqual(t, repoInfo.Index.Name, expectedRepoInfo.Index.Name, reposName)
-			checkEqual(t, reference.Path(repoInfo.Name), expectedRepoInfo.RemoteName, reposName)
-			checkEqual(t, reference.FamiliarName(repoInfo.Name), expectedRepoInfo.LocalName, reposName)
-			checkEqual(t, repoInfo.Name.Name(), expectedRepoInfo.CanonicalName, reposName)
-			checkEqual(t, repoInfo.Index.Official, expectedRepoInfo.Index.Official, reposName)
-			checkEqual(t, repoInfo.Official, expectedRepoInfo.Official, reposName)
+			assert.Check(t, is.Equal(repoInfo.Index.Name, expectedRepoInfo.Index.Name), reposName)
+			assert.Check(t, is.Equal(reference.Path(repoInfo.Name), expectedRepoInfo.RemoteName), reposName)
+			assert.Check(t, is.Equal(reference.FamiliarName(repoInfo.Name), expectedRepoInfo.LocalName), reposName)
+			assert.Check(t, is.Equal(repoInfo.Name.Name(), expectedRepoInfo.CanonicalName), reposName)
+			assert.Check(t, is.Equal(repoInfo.Index.Official, expectedRepoInfo.Index.Official), reposName)
+			assert.Check(t, is.Equal(repoInfo.Official, expectedRepoInfo.Official), reposName)
 		}
 	}
 }
 
 func TestNewIndexInfo(t *testing.T) {
-	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registrytypes.IndexInfo) {
+	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registry.IndexInfo) {
 		for indexName, expectedIndexInfo := range expectedIndexInfos {
 			index, err := newIndexInfo(config, indexName)
 			if err != nil {
 				t.Fatal(err)
 			} else {
-				checkEqual(t, index.Name, expectedIndexInfo.Name, indexName+" name")
-				checkEqual(t, index.Official, expectedIndexInfo.Official, indexName+" is official")
-				checkEqual(t, index.Secure, expectedIndexInfo.Secure, indexName+" is secure")
-				checkEqual(t, len(index.Mirrors), len(expectedIndexInfo.Mirrors), indexName+" mirrors")
+				assert.Check(t, is.Equal(index.Name, expectedIndexInfo.Name), indexName+" name")
+				assert.Check(t, is.Equal(index.Official, expectedIndexInfo.Official), indexName+" is official")
+				assert.Check(t, is.Equal(index.Secure, expectedIndexInfo.Secure), indexName+" is secure")
+				assert.Check(t, is.Equal(len(index.Mirrors), len(expectedIndexInfo.Mirrors)), indexName+" mirrors")
 			}
 		}
 	}
 
 	config := emptyServiceConfig
 	var noMirrors []string
-	expectedIndexInfos := map[string]*registrytypes.IndexInfo{
+	expectedIndexInfos := map[string]*registry.IndexInfo{
 		IndexName: {
 			Name:     IndexName,
 			Official: true,
@@ -421,7 +293,7 @@ func TestNewIndexInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedIndexInfos = map[string]*registrytypes.IndexInfo{
+	expectedIndexInfos = map[string]*registry.IndexInfo{
 		IndexName: {
 			Name:     IndexName,
 			Official: true,
@@ -471,7 +343,7 @@ func TestNewIndexInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedIndexInfos = map[string]*registrytypes.IndexInfo{
+	expectedIndexInfos = map[string]*registry.IndexInfo{
 		"example.com": {
 			Name:     "example.com",
 			Official: false,
@@ -507,7 +379,6 @@ func TestNewIndexInfo(t *testing.T) {
 }
 
 func TestMirrorEndpointLookup(t *testing.T) {
-	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	containsMirror := func(endpoints []APIEndpoint) bool {
 		for _, pe := range endpoints {
 			if pe.URL.Host == "my.mirror" {
@@ -520,7 +391,7 @@ func TestMirrorEndpointLookup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := DefaultService{config: cfg}
+	s := Service{config: cfg}
 
 	imageName, err := reference.WithName(IndexName + "/test/image")
 	if err != nil {
@@ -540,83 +411,6 @@ func TestMirrorEndpointLookup(t *testing.T) {
 	}
 	if !containsMirror(pullAPIEndpoints) {
 		t.Fatal("Pull endpoint should contain mirror")
-	}
-}
-
-func TestSearchRepositories(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	results, err := r.SearchRepositories("fakequery", 25)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if results == nil {
-		t.Fatal("Expected non-nil SearchResults object")
-	}
-	assertEqual(t, results.NumResults, 1, "Expected 1 search results")
-	assertEqual(t, results.Query, "fakequery", "Expected 'fakequery' as query")
-	assertEqual(t, results.Results[0].StarCount, 42, "Expected 'fakeimage' to have 42 stars")
-}
-
-func TestTrustedLocation(t *testing.T) {
-	for _, url := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.com", "https://fakedocker.com"} {
-		req, _ := http.NewRequest(http.MethodGet, url, nil)
-		assert.Check(t, !trustedLocation(req))
-	}
-
-	for _, url := range []string{"https://docker.io", "https://test.docker.com:80"} {
-		req, _ := http.NewRequest(http.MethodGet, url, nil)
-		assert.Check(t, trustedLocation(req))
-	}
-}
-
-func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
-	for _, urls := range [][]string{
-		{"http://docker.io", "https://docker.com"},
-		{"https://foo.docker.io:7777", "http://bar.docker.com"},
-		{"https://foo.docker.io", "https://example.com"},
-	} {
-		reqFrom, _ := http.NewRequest(http.MethodGet, urls[0], nil)
-		reqFrom.Header.Add("Content-Type", "application/json")
-		reqFrom.Header.Add("Authorization", "super_secret")
-		reqTo, _ := http.NewRequest(http.MethodGet, urls[1], nil)
-
-		addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
-
-		if len(reqTo.Header) != 1 {
-			t.Fatalf("Expected 1 headers, got %d", len(reqTo.Header))
-		}
-
-		if reqTo.Header.Get("Content-Type") != "application/json" {
-			t.Fatal("'Content-Type' should be 'application/json'")
-		}
-
-		if reqTo.Header.Get("Authorization") != "" {
-			t.Fatal("'Authorization' should be empty")
-		}
-	}
-
-	for _, urls := range [][]string{
-		{"https://docker.io", "https://docker.com"},
-		{"https://foo.docker.io:7777", "https://bar.docker.com"},
-	} {
-		reqFrom, _ := http.NewRequest(http.MethodGet, urls[0], nil)
-		reqFrom.Header.Add("Content-Type", "application/json")
-		reqFrom.Header.Add("Authorization", "super_secret")
-		reqTo, _ := http.NewRequest(http.MethodGet, urls[1], nil)
-
-		addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
-
-		if len(reqTo.Header) != 2 {
-			t.Fatalf("Expected 2 headers, got %d", len(reqTo.Header))
-		}
-
-		if reqTo.Header.Get("Content-Type") != "application/json" {
-			t.Fatal("'Content-Type' should be 'application/json'")
-		}
-
-		if reqTo.Header.Get("Authorization") != "super_secret" {
-			t.Fatal("'Authorization' should be 'super_secret'")
-		}
 	}
 }
 
@@ -659,7 +453,7 @@ func TestAllowNondistributableArtifacts(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if v := allowNondistributableArtifacts(config, tt.addr); v != tt.expected {
+		if v := config.allowNondistributableArtifacts(tt.addr); v != tt.expected {
 			t.Errorf("allowNondistributableArtifacts failed for %q %v, expected %v got %v", tt.addr, tt.registries, tt.expected, v)
 		}
 	}
@@ -702,31 +496,8 @@ func TestIsSecureIndex(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if sec := isSecureIndex(config, tt.addr); sec != tt.expected {
+		if sec := config.isSecureIndex(tt.addr); sec != tt.expected {
 			t.Errorf("isSecureIndex failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
 		}
 	}
-}
-
-type debugTransport struct {
-	http.RoundTripper
-	log func(...interface{})
-}
-
-func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	dump, err := httputil.DumpRequestOut(req, false)
-	if err != nil {
-		tr.log("could not dump request")
-	}
-	tr.log(string(dump))
-	resp, err := tr.RoundTripper.RoundTrip(req)
-	if err != nil {
-		return nil, err
-	}
-	dump, err = httputil.DumpResponse(resp, false)
-	if err != nil {
-		tr.log("could not dump response")
-	}
-	tr.log(string(dump))
-	return resp, err
 }

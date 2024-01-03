@@ -1,33 +1,33 @@
 package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
-	"github.com/docker/distribution/reference"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
 	enginecontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	enginemount "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
-	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
-	netconst "github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
-	"github.com/docker/swarmkit/agent/exec"
-	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/api/genericresource"
-	"github.com/docker/swarmkit/template"
 	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/moby/swarmkit/v2/agent/exec"
+	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/api/genericresource"
+	"github.com/moby/swarmkit/v2/template"
 )
 
 const (
@@ -255,12 +255,42 @@ func (c *containerConfig) labels() map[string]string {
 	return labels
 }
 
-func (c *containerConfig) mounts() []enginemount.Mount {
+func (c *containerConfig) mounts(deps exec.VolumeGetter) []enginemount.Mount {
 	var r []enginemount.Mount
 	for _, mount := range c.spec().Mounts {
-		r = append(r, convertMount(mount))
+		if mount.Type == api.MountTypeCluster {
+			r = append(r, c.convertCSIMount(mount, deps))
+		} else {
+			r = append(r, convertMount(mount))
+		}
 	}
 	return r
+}
+
+// convertCSIMount matches the CSI mount with the path of the CSI volume.
+//
+// technically quadratic with respect to the number of CSI mounts, but that
+// number shouldn't ever be large enough for quadratic to matter.
+//
+// TODO(dperny): figure out a scheme for errors? or maybe add code to
+// checkMounts?
+func (c *containerConfig) convertCSIMount(m api.Mount, deps exec.VolumeGetter) enginemount.Mount {
+	var mount enginemount.Mount
+
+	// these are actually bind mounts
+	mount.Type = enginemount.TypeBind
+
+	for _, attach := range c.task.Volumes {
+		if attach.Source == m.Source && attach.Target == m.Target {
+			// we should not get an error here, because we should have checked
+			// already that the volume is ready
+			path, _ := deps.Get(attach.ID)
+			mount.Source = path
+			mount.Target = m.Target
+		}
+	}
+
+	return mount
 }
 
 func convertMount(m api.Mount) enginemount.Mount {
@@ -279,11 +309,16 @@ func convertMount(m api.Mount) enginemount.Mount {
 		mount.Type = enginemount.TypeTmpfs
 	case api.MountTypeNamedPipe:
 		mount.Type = enginemount.TypeNamedPipe
+	case api.MountTypeCluster:
+		mount.Type = enginemount.TypeCluster
 	}
 
 	if m.BindOptions != nil {
 		mount.BindOptions = &enginemount.BindOptions{
-			NonRecursive: m.BindOptions.NonRecursive,
+			NonRecursive:           m.BindOptions.NonRecursive,
+			CreateMountpoint:       m.BindOptions.CreateMountpoint,
+			ReadOnlyNonRecursive:   m.BindOptions.ReadOnlyNonRecursive,
+			ReadOnlyForceRecursive: m.BindOptions.ReadOnlyForceRecursive,
 		}
 		switch m.BindOptions.Propagation {
 		case api.MountPropagationRPrivate:
@@ -351,12 +386,12 @@ func (c *containerConfig) healthcheck() *enginecontainer.HealthConfig {
 	}
 }
 
-func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
+func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *enginecontainer.HostConfig {
 	hc := &enginecontainer.HostConfig{
 		Resources:      c.resources(),
 		GroupAdd:       c.spec().Groups,
 		PortBindings:   c.portBindings(),
-		Mounts:         c.mounts(),
+		Mounts:         c.mounts(deps),
 		ReadonlyRootfs: c.spec().ReadOnly,
 		Isolation:      c.isolation(),
 		Init:           c.init(),
@@ -406,7 +441,7 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 }
 
 // This handles the case of volumes that are defined inside a service Mount
-func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volumetypes.VolumeCreateBody {
+func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volume.CreateOptions {
 	var (
 		driverName string
 		driverOpts map[string]string
@@ -420,7 +455,7 @@ func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volumetypes.Vol
 	}
 
 	if mount.VolumeOptions != nil {
-		return &volumetypes.VolumeCreateBody{
+		return &volume.CreateOptions{
 			Name:       mount.Source,
 			Driver:     driverName,
 			DriverOpts: driverOpts,
@@ -468,7 +503,6 @@ func (c *containerConfig) resources() enginecontainer.Resources {
 	return resources
 }
 
-// Docker daemon supports just 1 network during container create.
 func (c *containerConfig) createNetworkingConfig(b executorpkg.Backend) *network.NetworkingConfig {
 	var networks []*api.NetworkAttachment
 	if c.task.Spec.GetContainer() != nil || c.task.Spec.GetAttachment() != nil {
@@ -476,28 +510,10 @@ func (c *containerConfig) createNetworkingConfig(b executorpkg.Backend) *network
 	}
 
 	epConfig := make(map[string]*network.EndpointSettings)
-	if len(networks) > 0 {
-		epConfig[networks[0].Network.Spec.Annotations.Name] = getEndpointConfig(networks[0], b)
-	}
-
-	return &network.NetworkingConfig{EndpointsConfig: epConfig}
-}
-
-// TODO: Merge this function with createNetworkingConfig after daemon supports multiple networks in container create
-func (c *containerConfig) connectNetworkingConfig(b executorpkg.Backend) *network.NetworkingConfig {
-	var networks []*api.NetworkAttachment
-	if c.task.Spec.GetContainer() != nil {
-		networks = c.task.Networks
-	}
-	// First network is used during container create. Other networks are used in "docker network connect"
-	if len(networks) < 2 {
-		return nil
-	}
-
-	epConfig := make(map[string]*network.EndpointSettings)
-	for _, na := range networks[1:] {
+	for _, na := range networks {
 		epConfig[na.Network.Spec.Annotations.Name] = getEndpointConfig(na, b)
 	}
+
 	return &network.NetworkingConfig{EndpointsConfig: epConfig}
 }
 
@@ -560,7 +576,7 @@ func (c *containerConfig) serviceConfig() *clustertypes.ServiceConfig {
 		return nil
 	}
 
-	logrus.Debugf("Creating service config in agent for t = %+v", c.task)
+	log.G(context.TODO()).Debugf("Creating service config in agent for t = %+v", c.task)
 	svcCfg := &clustertypes.ServiceConfig{
 		Name:             c.task.ServiceAnnotations.Name,
 		Aliases:          make(map[string][]string),
@@ -604,13 +620,12 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 
 	options := types.NetworkCreate{
 		// ID:     na.Network.ID,
-		Labels:         na.Network.Spec.Annotations.Labels,
-		Internal:       na.Network.Spec.Internal,
-		Attachable:     na.Network.Spec.Attachable,
-		Ingress:        convert.IsIngressNetwork(na.Network),
-		EnableIPv6:     na.Network.Spec.Ipv6Enabled,
-		CheckDuplicate: true,
-		Scope:          netconst.SwarmScope,
+		Labels:     na.Network.Spec.Annotations.Labels,
+		Internal:   na.Network.Spec.Internal,
+		Attachable: na.Network.Spec.Attachable,
+		Ingress:    convert.IsIngressNetwork(na.Network),
+		EnableIPv6: na.Network.Spec.Ipv6Enabled,
+		Scope:      scope.Swarm,
 	}
 
 	if na.Network.Spec.GetNetwork() != "" {
@@ -683,12 +698,38 @@ func (c *containerConfig) applyPrivileges(hc *enginecontainer.HostConfig) {
 			hc.SecurityOpt = append(hc.SecurityOpt, "label=type:"+selinux.Type)
 		}
 	}
+
+	// variable to make the lines shorter and easier to read
+	if seccomp := privileges.Seccomp; seccomp != nil {
+		switch seccomp.Mode {
+		// case api.Privileges_SeccompOpts_DEFAULT:
+		//   if the setting is default, nothing needs to be set here. we leave
+		//   the option empty.
+		case api.Privileges_SeccompOpts_UNCONFINED:
+			hc.SecurityOpt = append(hc.SecurityOpt, "seccomp=unconfined")
+		case api.Privileges_SeccompOpts_CUSTOM:
+			// Profile is bytes, but those bytes are actually a string. This is
+			// basically verbatim what happens in the cli after a file is read.
+			hc.SecurityOpt = append(hc.SecurityOpt, fmt.Sprintf("seccomp=%s", seccomp.Profile))
+		}
+	}
+
+	// if the setting is DEFAULT, then nothing to be done. If it's DISABLED,
+	// we set that. Custom not supported yet. When custom *is* supported, make
+	// it look like the above.
+	if apparmor := privileges.Apparmor; apparmor != nil && apparmor.Mode == api.Privileges_AppArmorOpts_DISABLED {
+		hc.SecurityOpt = append(hc.SecurityOpt, "apparmor=unconfined")
+	}
+
+	if privileges.NoNewPrivileges {
+		hc.SecurityOpt = append(hc.SecurityOpt, "no-new-privileges=true")
+	}
 }
 
-func (c containerConfig) eventFilter() filters.Args {
-	filter := filters.NewArgs()
-	filter.Add("type", events.ContainerEventType)
-	filter.Add("name", c.name())
-	filter.Add("label", fmt.Sprintf("%v.task.id=%v", systemLabelPrefix, c.task.ID))
-	return filter
+func (c *containerConfig) eventFilter() filters.Args {
+	return filters.NewArgs(
+		filters.Arg("type", string(events.ContainerEventType)),
+		filters.Arg("name", c.name()),
+		filters.Arg("label", fmt.Sprintf("%v.task.id=%v", systemLabelPrefix, c.task.ID)),
+	)
 }

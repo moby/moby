@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/opencontainers/go-digest"
 )
@@ -131,6 +131,19 @@ var (
 		},
 		ErrorCodes: []errcode.ErrorCode{
 			errcode.ErrorCodeUnauthorized,
+		},
+	}
+
+	invalidPaginationResponseDescriptor = ResponseDescriptor{
+		Name:        "Invalid pagination number",
+		Description: "The received parameter n was invalid in some way, as described by the error code. The client should resolve the issue and retry the request.",
+		StatusCode:  http.StatusBadRequest,
+		Body: BodyDescriptor{
+			ContentType: "application/json",
+			Format:      errorsBody,
+		},
+		ErrorCodes: []errcode.ErrorCode{
+			ErrorCodePaginationNumberInvalid,
 		},
 	}
 
@@ -490,6 +503,7 @@ var routeDescriptors = []RouteDescriptor{
 							},
 						},
 						Failures: []ResponseDescriptor{
+							invalidPaginationResponseDescriptor,
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
@@ -1577,6 +1591,9 @@ var routeDescriptors = []RouteDescriptor{
 									linkHeader,
 								},
 							},
+						},
+						Failures: []ResponseDescriptor{
+							invalidPaginationResponseDescriptor,
 						},
 					},
 				},

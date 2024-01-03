@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package iptables
 
@@ -13,19 +12,16 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const chainName = "DOCKEREST"
-
-var natChain *ChainInfo
-var filterChain *ChainInfo
-var bridgeName string
-
-func TestNewChain(t *testing.T) {
-	var err error
-
+const (
+	chainName  = "DOCKEREST"
 	bridgeName = "lo"
+)
+
+func createNewChain(t *testing.T) (*IPTable, *ChainInfo, *ChainInfo) {
+	t.Helper()
 	iptable := GetIptable(IPv4)
 
-	natChain, err = iptable.NewChain(chainName, Nat, false)
+	natChain, err := iptable.NewChain(chainName, Nat, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +30,7 @@ func TestNewChain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	filterChain, err = iptable.NewChain(chainName, Filter, false)
+	filterChain, err := iptable.NewChain(chainName, Filter, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,17 +38,22 @@ func TestNewChain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	return iptable, natChain, filterChain
+}
+
+func TestNewChain(t *testing.T) {
+	createNewChain(t)
 }
 
 func TestForward(t *testing.T) {
+	iptable, natChain, filterChain := createNewChain(t)
+
 	ip := net.ParseIP("192.168.1.1")
 	port := 1234
 	dstAddr := "172.17.0.1"
 	dstPort := 4321
 	proto := "tcp"
-
-	bridgeName := "lo"
-	iptable := GetIptable(IPv4)
 
 	err := natChain.Forward(Insert, ip, port, proto, dstAddr, dstPort, bridgeName)
 	if err != nil {
@@ -99,16 +100,13 @@ func TestForward(t *testing.T) {
 }
 
 func TestLink(t *testing.T) {
-	var err error
-
-	bridgeName := "lo"
-	iptable := GetIptable(IPv4)
+	iptable, _, filterChain := createNewChain(t)
 	ip1 := net.ParseIP("192.168.1.1")
 	ip2 := net.ParseIP("192.168.1.2")
 	port := 1234
 	proto := "tcp"
 
-	err = filterChain.Link(Append, ip1, ip2, port, proto, bridgeName)
+	err := filterChain.Link(Append, ip1, ip2, port, proto, bridgeName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +118,8 @@ func TestLink(t *testing.T) {
 		"-s", ip1.String(),
 		"-d", ip2.String(),
 		"--dport", strconv.Itoa(port),
-		"-j", "ACCEPT"}
+		"-j", "ACCEPT",
+	}
 
 	if !iptable.Exists(filterChain.Table, filterChain.Name, rule1...) {
 		t.Fatal("rule1 does not exist")
@@ -133,7 +132,8 @@ func TestLink(t *testing.T) {
 		"-s", ip2.String(),
 		"-d", ip1.String(),
 		"--sport", strconv.Itoa(port),
-		"-j", "ACCEPT"}
+		"-j", "ACCEPT",
+	}
 
 	if !iptable.Exists(filterChain.Table, filterChain.Name, rule2...) {
 		t.Fatal("rule2 does not exist")
@@ -141,11 +141,9 @@ func TestLink(t *testing.T) {
 }
 
 func TestPrerouting(t *testing.T) {
-	args := []string{
-		"-i", "lo",
-		"-d", "192.168.1.1"}
-	iptable := GetIptable(IPv4)
+	iptable, natChain, _ := createNewChain(t)
 
+	args := []string{"-i", "lo", "-d", "192.168.1.1"}
 	err := natChain.Prerouting(Insert, args...)
 	if err != nil {
 		t.Fatal(err)
@@ -162,11 +160,9 @@ func TestPrerouting(t *testing.T) {
 }
 
 func TestOutput(t *testing.T) {
-	args := []string{
-		"-o", "lo",
-		"-d", "192.168.1.1"}
-	iptable := GetIptable(IPv4)
+	iptable, natChain, _ := createNewChain(t)
 
+	args := []string{"-o", "lo", "-d", "192.168.1.1"}
 	err := natChain.Output(Insert, args...)
 	if err != nil {
 		t.Fatal(err)
@@ -176,8 +172,10 @@ func TestOutput(t *testing.T) {
 		t.Fatal("rule does not exist")
 	}
 
-	delRule := append([]string{"-D", "OUTPUT", "-t",
-		string(natChain.Table)}, args...)
+	delRule := append([]string{
+		"-D", "OUTPUT", "-t",
+		string(natChain.Table),
+	}, args...)
 	if _, err = iptable.Raw(delRule...); err != nil {
 		t.Fatal(err)
 	}
@@ -196,6 +194,8 @@ func TestConcurrencyNoWait(t *testing.T) {
 // Note that if iptables does not support the xtable lock on this
 // system, then allowXlock has no effect -- it will always be off.
 func RunConcurrencyTest(t *testing.T, allowXlock bool) {
+	_, natChain, _ := createNewChain(t)
+
 	if !allowXlock && supportsXlock {
 		supportsXlock = false
 		defer func() { supportsXlock = true }()
@@ -219,22 +219,24 @@ func RunConcurrencyTest(t *testing.T, allowXlock bool) {
 }
 
 func TestCleanup(t *testing.T) {
-	var err error
+	iptable, _, filterChain := createNewChain(t)
+
 	var rules []byte
 
 	// Cleanup filter/FORWARD first otherwise output of iptables-save is dirty
-	link := []string{"-t", string(filterChain.Table),
+	link := []string{
+		"-t", string(filterChain.Table),
 		string(Delete), "FORWARD",
 		"-o", bridgeName,
-		"-j", filterChain.Name}
-	iptable := GetIptable(IPv4)
+		"-j", filterChain.Name,
+	}
 
-	if _, err = iptable.Raw(link...); err != nil {
+	if _, err := iptable.Raw(link...); err != nil {
 		t.Fatal(err)
 	}
 	filterChain.Remove()
 
-	err = iptable.RemoveExistingChain(chainName, Nat)
+	err := iptable.RemoveExistingChain(chainName, Nat)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,8 +251,8 @@ func TestCleanup(t *testing.T) {
 }
 
 func TestExistsRaw(t *testing.T) {
-	testChain1 := "ABCD"
-	testChain2 := "EFGH"
+	const testChain1 = "ABCD"
+	const testChain2 = "EFGH"
 
 	iptable := GetIptable(IPv4)
 
@@ -284,44 +286,15 @@ func TestExistsRaw(t *testing.T) {
 		if err != nil {
 			t.Fatalf("i=%d, err: %v", i, err)
 		}
-		if !iptable.existsRaw(Filter, testChain1, r.rule...) {
+		if !iptable.exists(true, Filter, testChain1, r.rule...) {
 			t.Fatalf("Failed to detect rule. i=%d", i)
 		}
 		// Truncate the rule
 		trg := r.rule[len(r.rule)-1]
 		trg = trg[:len(trg)-2]
 		r.rule[len(r.rule)-1] = trg
-		if iptable.existsRaw(Filter, testChain1, r.rule...) {
+		if iptable.exists(true, Filter, testChain1, r.rule...) {
 			t.Fatalf("Invalid detection. i=%d", i)
-		}
-	}
-}
-
-func TestGetVersion(t *testing.T) {
-	mj, mn, mc := parseVersionNumbers("iptables v1.4.19.1-alpha")
-	if mj != 1 || mn != 4 || mc != 19 {
-		t.Fatal("Failed to parse version numbers")
-	}
-}
-
-func TestSupportsCOption(t *testing.T) {
-	input := []struct {
-		mj int
-		mn int
-		mc int
-		ok bool
-	}{
-		{1, 4, 11, true},
-		{1, 4, 12, true},
-		{1, 5, 0, true},
-		{0, 4, 11, false},
-		{0, 5, 12, false},
-		{1, 3, 12, false},
-		{1, 4, 10, false},
-	}
-	for ind, inp := range input {
-		if inp.ok != supportsCOption(inp.mj, inp.mn, inp.mc) {
-			t.Fatalf("Incorrect check: %d", ind)
 		}
 	}
 }

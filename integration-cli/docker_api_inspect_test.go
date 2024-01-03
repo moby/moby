@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -9,16 +8,20 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func (s *DockerSuite) TestInspectAPIContainerResponse(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
-
+func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
 	cleanedContainerID := strings.TrimSpace(out)
-	keysBase := []string{"Id", "State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings",
-		"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "MountLabel", "ProcessLabel", "GraphDriver"}
+
+	keysBase := []string{
+		"Id", "State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings",
+		"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "MountLabel", "ProcessLabel", "GraphDriver",
+	}
 
 	type acase struct {
 		version string
@@ -27,11 +30,10 @@ func (s *DockerSuite) TestInspectAPIContainerResponse(c *testing.T) {
 
 	var cases []acase
 
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		cases = []acase{
 			{"v1.25", append(keysBase, "Mounts")},
 		}
-
 	} else {
 		cases = []acase{
 			{"v1.20", append(keysBase, "Mounts")},
@@ -51,17 +53,16 @@ func (s *DockerSuite) TestInspectAPIContainerResponse(c *testing.T) {
 			assert.Check(c, ok, "%s does not exist in response for version %s", key, cs.version)
 		}
 
-		//Issue #6830: type not properly converted to JSON/back
+		// Issue #6830: type not properly converted to JSON/back
 		_, ok := inspectJSON["Path"].(bool)
 		assert.Assert(c, !ok, "Path of `true` should not be converted to boolean `true` via JSON marshalling")
 	}
 }
 
-func (s *DockerSuite) TestInspectAPIContainerVolumeDriverLegacy(c *testing.T) {
+func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriverLegacy(c *testing.T) {
 	// No legacy implications for Windows
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
-
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
 	cleanedContainerID := strings.TrimSpace(out)
 
 	cases := []string{"v1.19", "v1.20"}
@@ -80,9 +81,8 @@ func (s *DockerSuite) TestInspectAPIContainerVolumeDriverLegacy(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "--volume-driver", "local", "busybox", "true")
-
+func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
+	out := cli.DockerCmd(c, "run", "-d", "--volume-driver", "local", "busybox", "true").Stdout()
 	cleanedContainerID := strings.TrimSpace(out)
 
 	body := getInspectBody(c, "v1.25", cleanedContainerID)
@@ -104,13 +104,13 @@ func (s *DockerSuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
 	assert.Assert(c, ok, "API version 1.25 expected to include VolumeDriver in 'HostConfig'")
 }
 
-func (s *DockerSuite) TestInspectAPIImageResponse(c *testing.T) {
-	dockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+func (s *DockerAPISuite) TestInspectAPIImageResponse(c *testing.T) {
+	cli.DockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
-	imageJSON, _, err := cli.ImageInspectWithRaw(context.Background(), "busybox")
+	imageJSON, _, err := apiClient.ImageInspectWithRaw(testutil.GetContext(c), "busybox")
 	assert.NilError(c, err)
 
 	assert.Check(c, len(imageJSON.RepoTags) == 2)
@@ -119,11 +119,10 @@ func (s *DockerSuite) TestInspectAPIImageResponse(c *testing.T) {
 }
 
 // #17131, #17139, #17173
-func (s *DockerSuite) TestInspectAPIEmptyFieldsInConfigPre121(c *testing.T) {
+func (s *DockerAPISuite) TestInspectAPIEmptyFieldsInConfigPre121(c *testing.T) {
 	// Not relevant on Windows
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
-
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
 	cleanedContainerID := strings.TrimSpace(out)
 
 	cases := []string{"v1.19", "v1.20"}
@@ -143,12 +142,12 @@ func (s *DockerSuite) TestInspectAPIEmptyFieldsInConfigPre121(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestInspectAPIBridgeNetworkSettings120(c *testing.T) {
+func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings120(c *testing.T) {
 	// Not relevant on Windows, and besides it doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
 	containerID := strings.TrimSpace(out)
-	waitRun(containerID)
+	cli.WaitRun(c, containerID)
 
 	body := getInspectBody(c, "v1.20", containerID)
 
@@ -160,12 +159,12 @@ func (s *DockerSuite) TestInspectAPIBridgeNetworkSettings120(c *testing.T) {
 	assert.Assert(c, len(settings.IPAddress) != 0)
 }
 
-func (s *DockerSuite) TestInspectAPIBridgeNetworkSettings121(c *testing.T) {
+func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings121(c *testing.T) {
 	// Windows doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
 	containerID := strings.TrimSpace(out)
-	waitRun(containerID)
+	cli.WaitRun(c, containerID)
 
 	body := getInspectBody(c, "v1.21", containerID)
 

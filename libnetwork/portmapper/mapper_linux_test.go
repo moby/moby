@@ -14,7 +14,7 @@ func init() {
 }
 
 func TestSetIptablesChain(t *testing.T) {
-	pm := New("")
+	pm := New()
 
 	c := &iptables.ChainInfo{
 		Name: "TEST",
@@ -31,7 +31,7 @@ func TestSetIptablesChain(t *testing.T) {
 }
 
 func TestMapTCPPorts(t *testing.T) {
-	pm := New("")
+	pm := New()
 	dstIP1 := net.ParseIP("192.168.0.1")
 	dstIP2 := net.ParseIP("192.168.0.2")
 	dstAddr1 := &net.TCPAddr{IP: dstIP1, Port: 80}
@@ -110,7 +110,7 @@ func TestGetUDPIPAndPort(t *testing.T) {
 }
 
 func TestMapUDPPorts(t *testing.T) {
-	pm := New("")
+	pm := New()
 	dstIP1 := net.ParseIP("192.168.0.1")
 	dstIP2 := net.ParseIP("192.168.0.2")
 	dstAddr1 := &net.UDPAddr{IP: dstIP1, Port: 80}
@@ -156,7 +156,7 @@ func TestMapUDPPorts(t *testing.T) {
 }
 
 func TestMapAllPortsSingleInterface(t *testing.T) {
-	pm := New("")
+	pm := New()
 	dstIP1 := net.ParseIP("0.0.0.0")
 	srcAddr1 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("172.16.0.1")}
 
@@ -171,7 +171,7 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 	}()
 
 	for i := 0; i < 10; i++ {
-		start, end := pm.Allocator.Begin, pm.Allocator.End
+		start, end := pm.allocator.Begin, pm.allocator.End
 		for i := start; i < end; i++ {
 			if host, err = pm.Map(srcAddr1, dstIP1, 0, true); err != nil {
 				t.Fatal(err)
@@ -195,7 +195,7 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 }
 
 func TestMapTCPDummyListen(t *testing.T) {
-	pm := New("")
+	pm := New()
 	dstIP := net.ParseIP("0.0.0.0")
 	dstAddr := &net.TCPAddr{IP: dstIP, Port: 80}
 
@@ -232,7 +232,7 @@ func TestMapTCPDummyListen(t *testing.T) {
 }
 
 func TestMapUDPDummyListen(t *testing.T) {
-	pm := New("")
+	pm := New()
 	dstIP := net.ParseIP("0.0.0.0")
 	dstAddr := &net.UDPAddr{IP: dstIP, Port: 80}
 

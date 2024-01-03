@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/util/compression"
 	"github.com/pkg/errors"
 )
 
@@ -298,11 +299,11 @@ func (s *inMemoryResultStore) Load(ctx context.Context, res CacheResult) (Result
 	return v.(Result), nil
 }
 
-func (s *inMemoryResultStore) LoadRemote(_ context.Context, _ CacheResult, _ session.Group) (*Remote, error) {
+func (s *inMemoryResultStore) LoadRemotes(_ context.Context, _ CacheResult, _ *compression.Config, _ session.Group) ([]*Remote, error) {
 	return nil, nil
 }
 
-func (s *inMemoryResultStore) Exists(id string) bool {
+func (s *inMemoryResultStore) Exists(ctx context.Context, id string) bool {
 	_, ok := s.m.Load(id)
 	return ok
 }

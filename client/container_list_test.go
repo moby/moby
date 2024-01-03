@@ -11,18 +11,19 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerListError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ContainerList(context.Background(), types.ContainerListOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	_, err := client.ContainerList(context.Background(), container.ListOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerList(t *testing.T) {
@@ -39,8 +40,8 @@ func TestContainerList(t *testing.T) {
 				return nil, fmt.Errorf("all not set in URL query properly. Expected '1', got %s", all)
 			}
 			limit := query.Get("limit")
-			if limit != "0" {
-				return nil, fmt.Errorf("limit should have not be present in query. Expected '0', got %s", limit)
+			if limit != "" {
+				return nil, fmt.Errorf("limit should have not be present in query, got %s", limit)
 			}
 			since := query.Get("since")
 			if since != "container" {
@@ -48,15 +49,15 @@ func TestContainerList(t *testing.T) {
 			}
 			before := query.Get("before")
 			if before != "" {
-				return nil, fmt.Errorf("before should have not be present in query, go %s", before)
+				return nil, fmt.Errorf("before should have not be present in query, got %s", before)
 			}
 			size := query.Get("size")
 			if size != "1" {
 				return nil, fmt.Errorf("size not set in URL query properly. Expected '1', got %s", size)
 			}
-			filters := query.Get("filters")
-			if filters != expectedFilters {
-				return nil, fmt.Errorf("expected filters incoherent '%v' with actual filters %v", expectedFilters, filters)
+			fltrs := query.Get("filters")
+			if fltrs != expectedFilters {
+				return nil, fmt.Errorf("expected filters incoherent '%v' with actual filters %v", expectedFilters, fltrs)
 			}
 
 			b, err := json.Marshal([]types.Container{
@@ -78,15 +79,15 @@ func TestContainerList(t *testing.T) {
 		}),
 	}
 
-	filters := filters.NewArgs()
-	filters.Add("label", "label1")
-	filters.Add("label", "label2")
-	filters.Add("before", "container")
-	containers, err := client.ContainerList(context.Background(), types.ContainerListOptions{
-		Size:    true,
-		All:     true,
-		Since:   "container",
-		Filters: filters,
+	containers, err := client.ContainerList(context.Background(), container.ListOptions{
+		Size:  true,
+		All:   true,
+		Since: "container",
+		Filters: filters.NewArgs(
+			filters.Arg("label", "label1"),
+			filters.Arg("label", "label2"),
+			filters.Arg("before", "container"),
+		),
 	})
 	if err != nil {
 		t.Fatal(err)

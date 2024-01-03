@@ -22,9 +22,9 @@ func NewLCOWParser() Parser {
 // rxLCOWDestination is the regex expression for the mount destination for LCOW
 //
 // Destination (aka container path):
-//    -  Variation on hostdir but can be a drive followed by colon as well
-//    -  If a path, must be absolute. Can include spaces
-//    -  Drive cannot be c: (explicitly checked in code, not RegEx)
+//   - Variation on hostdir but can be a drive followed by colon as well
+//   - If a path, must be absolute. Can include spaces
+//   - Drive cannot be c: (explicitly checked in code, not RegEx)
 const rxLCOWDestination = `(?P<destination>/(?:[^\\/:*?"<>\r\n]+[/]?)*)`
 
 var (

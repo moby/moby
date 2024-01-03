@@ -2,8 +2,8 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/subtle"
-	"math/rand"
 	"sync"
 
 	"github.com/moby/buildkit/session"

@@ -3,6 +3,8 @@ package zstd
 import (
 	"errors"
 	"fmt"
+	"math"
+	"math/bits"
 	"runtime"
 	"strings"
 )
@@ -24,6 +26,7 @@ type encoderOptions struct {
 	allLitEntropy   bool
 	customWindow    bool
 	customALEntropy bool
+	customBlockSize bool
 	lowMem          bool
 	dict            *dict
 }
@@ -33,10 +36,10 @@ func (o *encoderOptions) setDefault() {
 		concurrent:    runtime.GOMAXPROCS(0),
 		crc:           true,
 		single:        nil,
-		blockSize:     1 << 16,
+		blockSize:     maxCompressedBlockSize,
 		windowSize:    8 << 20,
 		level:         SpeedDefault,
-		allLitEntropy: true,
+		allLitEntropy: false,
 		lowMem:        false,
 	}
 }
@@ -46,22 +49,22 @@ func (o encoderOptions) encoder() encoder {
 	switch o.level {
 	case SpeedFastest:
 		if o.dict != nil {
-			return &fastEncoderDict{fastEncoder: fastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), lowMem: o.lowMem}}}
+			return &fastEncoderDict{fastEncoder: fastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), bufferReset: math.MaxInt32 - int32(o.windowSize*2), lowMem: o.lowMem}}}
 		}
-		return &fastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), lowMem: o.lowMem}}
+		return &fastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), bufferReset: math.MaxInt32 - int32(o.windowSize*2), lowMem: o.lowMem}}
 
 	case SpeedDefault:
 		if o.dict != nil {
-			return &doubleFastEncoderDict{fastEncoderDict: fastEncoderDict{fastEncoder: fastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), lowMem: o.lowMem}}}}
+			return &doubleFastEncoderDict{fastEncoderDict: fastEncoderDict{fastEncoder: fastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), bufferReset: math.MaxInt32 - int32(o.windowSize*2), lowMem: o.lowMem}}}}
 		}
-		return &doubleFastEncoder{fastEncoder: fastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), lowMem: o.lowMem}}}
+		return &doubleFastEncoder{fastEncoder: fastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), bufferReset: math.MaxInt32 - int32(o.windowSize*2), lowMem: o.lowMem}}}
 	case SpeedBetterCompression:
 		if o.dict != nil {
-			return &betterFastEncoderDict{betterFastEncoder: betterFastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), lowMem: o.lowMem}}}
+			return &betterFastEncoderDict{betterFastEncoder: betterFastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), bufferReset: math.MaxInt32 - int32(o.windowSize*2), lowMem: o.lowMem}}}
 		}
-		return &betterFastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), lowMem: o.lowMem}}
+		return &betterFastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), bufferReset: math.MaxInt32 - int32(o.windowSize*2), lowMem: o.lowMem}}
 	case SpeedBestCompression:
-		return &bestFastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), lowMem: o.lowMem}}
+		return &bestFastEncoder{fastBase: fastBase{maxMatchOff: int32(o.windowSize), bufferReset: math.MaxInt32 - int32(o.windowSize*2), lowMem: o.lowMem}}
 	}
 	panic("unknown compression level")
 }
@@ -73,8 +76,9 @@ func WithEncoderCRC(b bool) EOption {
 }
 
 // WithEncoderConcurrency will set the concurrency,
-// meaning the maximum number of decoders to run concurrently.
+// meaning the maximum number of encoders to run concurrently.
 // The value supplied must be at least 1.
+// For streams, setting a value of 1 will disable async compression.
 // By default this will be set to GOMAXPROCS.
 func WithEncoderConcurrency(n int) EOption {
 	return func(o *encoderOptions) error {
@@ -106,6 +110,7 @@ func WithWindowSize(n int) EOption {
 		o.customWindow = true
 		if o.blockSize > o.windowSize {
 			o.blockSize = o.windowSize
+			o.customBlockSize = true
 		}
 		return nil
 	}
@@ -124,7 +129,7 @@ func WithEncoderPadding(n int) EOption {
 		}
 		// No need to waste our time.
 		if n == 1 {
-			o.pad = 0
+			n = 0
 		}
 		if n > 1<<30 {
 			return fmt.Errorf("padding must less than 1GB (1<<30 bytes) ")
@@ -188,10 +193,9 @@ func EncoderLevelFromZstd(level int) EncoderLevel {
 		return SpeedDefault
 	case level >= 6 && level < 10:
 		return SpeedBetterCompression
-	case level >= 10:
-		return SpeedBetterCompression
+	default:
+		return SpeedBestCompression
 	}
-	return SpeedDefault
 }
 
 // String provides a string representation of the compression level.
@@ -222,6 +226,9 @@ func WithEncoderLevel(l EncoderLevel) EOption {
 			switch o.level {
 			case SpeedFastest:
 				o.windowSize = 4 << 20
+				if !o.customBlockSize {
+					o.blockSize = 1 << 16
+				}
 			case SpeedDefault:
 				o.windowSize = 8 << 20
 			case SpeedBetterCompression:
@@ -231,7 +238,7 @@ func WithEncoderLevel(l EncoderLevel) EOption {
 			}
 		}
 		if !o.customALEntropy {
-			o.allLitEntropy = l > SpeedFastest
+			o.allLitEntropy = l > SpeedDefault
 		}
 
 		return nil
@@ -278,7 +285,7 @@ func WithNoEntropyCompression(b bool) EOption {
 // a decoder is allowed to reject a compressed frame which requests a memory size beyond decoder's authorized range.
 // For broader compatibility, decoders are recommended to support memory sizes of at least 8 MB.
 // This is only a recommendation, each decoder is free to support higher or lower limits, depending on local limitations.
-// If this is not specified, block encodes will automatically choose this based on the input size.
+// If this is not specified, block encodes will automatically choose this based on the input size and the window size.
 // This setting has no effect on streamed encodes.
 func WithSingleSegment(b bool) EOption {
 	return func(o *encoderOptions) error {
@@ -299,7 +306,13 @@ func WithLowerEncoderMem(b bool) EOption {
 }
 
 // WithEncoderDict allows to register a dictionary that will be used for the encode.
+//
+// The slice dict must be in the [dictionary format] produced by
+// "zstd --train" from the Zstandard reference implementation.
+//
 // The encoder *may* choose to use no dictionary instead for certain payloads.
+//
+// [dictionary format]: https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#dictionary-format
 func WithEncoderDict(dict []byte) EOption {
 	return func(o *encoderOptions) error {
 		d, err := loadDict(dict)
@@ -307,6 +320,20 @@ func WithEncoderDict(dict []byte) EOption {
 			return err
 		}
 		o.dict = d
+		return nil
+	}
+}
+
+// WithEncoderDictRaw registers a dictionary that may be used by the encoder.
+//
+// The slice content may contain arbitrary data. It will be used as an initial
+// history.
+func WithEncoderDictRaw(id uint32, content []byte) EOption {
+	return func(o *encoderOptions) error {
+		if bits.UintSize > 32 && uint(len(content)) > dictMaxLength {
+			return fmt.Errorf("dictionary of size %d > 2GiB too large", len(content))
+		}
+		o.dict = &dict{id: id, content: content, offsets: [3]int{1, 4, 8}}
 		return nil
 	}
 }

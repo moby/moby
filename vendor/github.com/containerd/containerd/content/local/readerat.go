@@ -17,9 +17,9 @@
 package local
 
 import (
+	"fmt"
+	"io"
 	"os"
-
-	"github.com/pkg/errors"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
@@ -40,7 +40,7 @@ func OpenReader(p string) (content.ReaderAt, error) {
 			return nil, err
 		}
 
-		return nil, errors.Wrap(errdefs.ErrNotFound, "blob not found")
+		return nil, fmt.Errorf("blob not found: %w", errdefs.ErrNotFound)
 	}
 
 	fp, err := os.Open(p)
@@ -49,7 +49,7 @@ func OpenReader(p string) (content.ReaderAt, error) {
 			return nil, err
 		}
 
-		return nil, errors.Wrap(errdefs.ErrNotFound, "blob not found")
+		return nil, fmt.Errorf("blob not found: %w", errdefs.ErrNotFound)
 	}
 
 	return sizeReaderAt{size: fi.Size(), fp: fp}, nil
@@ -65,4 +65,8 @@ func (ra sizeReaderAt) Size() int64 {
 
 func (ra sizeReaderAt) Close() error {
 	return ra.fp.Close()
+}
+
+func (ra sizeReaderAt) Reader() io.Reader {
+	return io.LimitReader(ra.fp, ra.size)
 }

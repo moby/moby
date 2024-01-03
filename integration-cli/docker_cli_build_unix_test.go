@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package main
 
@@ -24,10 +23,10 @@ import (
 	"gotest.tools/v3/icmd"
 )
 
-func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) {
+func (s *DockerCLIBuildSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) {
 	testRequires(c, cpuCfsQuota)
-	name := "testbuildresourceconstraints"
-	buildLabel := "DockerSuite.TestBuildResourceConstraintsAreUsed"
+	const name = "testbuildresourceconstraints"
+	const buildLabel = "DockerCLIBuildSuite.TestBuildResourceConstraintsAreUsed"
 
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`
 	FROM hello-world:frozen
@@ -84,9 +83,9 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) {
 	assert.Assert(c, c2.Ulimits == nil, "resource leaked from build for Ulimits")
 }
 
-func (s *DockerSuite) TestBuildAddChangeOwnership(c *testing.T) {
+func (s *DockerCLIBuildSuite) TestBuildAddChangeOwnership(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	name := "testbuildaddown"
+	const name = "testbuildaddown"
 
 	ctx := func() *fakecontext.Fake {
 		dockerfile := `
@@ -108,7 +107,7 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *testing.T) {
 			Dir:     tmpDir,
 		}).Assert(c, icmd.Success)
 
-		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0o644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
 		return fakecontext.New(c, tmpDir)
@@ -130,9 +129,9 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *testing.T) {
 // TODO(buildkit): this test needs to be rewritten for buildkit.
 // It has been manually tested positive. Confirmed issue: docker build output parsing.
 // Potential issue: newEventObserver uses docker events, which is not hooked up to buildkit.
-func (s *DockerSuite) TestBuildCancellationKillsSleep(c *testing.T) {
+func (s *DockerCLIBuildSuite) TestBuildCancellationKillsSleep(c *testing.T) {
 	testRequires(c, DaemonIsLinux, TODOBuildkit)
-	name := "testbuildcancellation"
+	const name = "testbuildcancellation"
 
 	observer, err := newEventObserver(c)
 	assert.NilError(c, err)

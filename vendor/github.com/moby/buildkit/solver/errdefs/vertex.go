@@ -1,7 +1,7 @@
 package errdefs
 
 import (
-	"github.com/containerd/typeurl"
+	"github.com/containerd/typeurl/v2"
 	"github.com/moby/buildkit/util/grpcerrors"
 	digest "github.com/opencontainers/go-digest"
 )

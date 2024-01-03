@@ -1,6 +1,7 @@
 package cacheimport
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"time"
@@ -8,7 +9,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/moby/buildkit/solver"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func NewCacheChains() *CacheChains {
@@ -38,7 +39,7 @@ func (c *CacheChains) Visited(v interface{}) bool {
 	return ok
 }
 
-func (c *CacheChains) normalize() error {
+func (c *CacheChains) normalize(ctx context.Context) error {
 	st := &normalizeState{
 		added: map[*item]*item{},
 		links: map[*item]map[nlink]map[digest.Digest]struct{}{},
@@ -65,7 +66,7 @@ func (c *CacheChains) normalize() error {
 		}
 	}
 
-	st.removeLoops()
+	st.removeLoops(ctx)
 
 	items := make([]*item, 0, len(st.byKey))
 	for _, it := range st.byKey {
@@ -75,8 +76,8 @@ func (c *CacheChains) normalize() error {
 	return nil
 }
 
-func (c *CacheChains) Marshal() (*CacheConfig, DescriptorProvider, error) {
-	if err := c.normalize(); err != nil {
+func (c *CacheChains) Marshal(ctx context.Context) (*CacheConfig, DescriptorProvider, error) {
+	if err := c.normalize(ctx); err != nil {
 		return nil, nil, err
 	}
 
@@ -87,7 +88,7 @@ func (c *CacheChains) Marshal() (*CacheConfig, DescriptorProvider, error) {
 	}
 
 	for _, it := range c.items {
-		if err := marshalItem(it, st); err != nil {
+		if err := marshalItem(ctx, it, st); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -104,7 +105,7 @@ func (c *CacheChains) Marshal() (*CacheConfig, DescriptorProvider, error) {
 type DescriptorProvider map[digest.Digest]DescriptorProviderPair
 
 type DescriptorProviderPair struct {
-	Descriptor ocispec.Descriptor
+	Descriptor ocispecs.Descriptor
 	Provider   content.Provider
 }
 
@@ -145,7 +146,7 @@ func (c *item) removeLink(src *item) bool {
 	return found
 }
 
-func (c *item) AddResult(createdAt time.Time, result *solver.Remote) {
+func (c *item) AddResult(_ digest.Digest, _ int, createdAt time.Time, result *solver.Remote) {
 	c.resultTime = createdAt
 	c.result = result
 }
@@ -213,7 +214,7 @@ func (c *item) walkAllResults(fn func(i *item) error, visited map[*item]struct{}
 type nopRecord struct {
 }
 
-func (c *nopRecord) AddResult(createdAt time.Time, result *solver.Remote) {
+func (c *nopRecord) AddResult(_ digest.Digest, _ int, createdAt time.Time, result *solver.Remote) {
 }
 
 func (c *nopRecord) LinkFrom(rec solver.CacheExporterRecord, index int, selector string) {

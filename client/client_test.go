@@ -3,10 +3,10 @@ package client // import "github.com/docker/docker/client"
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -38,7 +38,7 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 			envs: map[string]string{
 				"DOCKER_CERT_PATH": "invalid/path",
 			},
-			expectedError: "Could not load X509 key pair: open invalid/path/cert.pem: no such file or directory",
+			expectedError: "could not load X509 key pair: open invalid/path/cert.pem: no such file or directory",
 		},
 		{
 			doc: "default api version with cert path",
@@ -86,51 +86,100 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 		},
 	}
 
-	defer env.PatchAll(t, nil)()
-	for _, c := range testcases {
-		env.PatchAll(t, c.envs)
-		apiclient, err := NewClientWithOpts(FromEnv)
-		if c.expectedError != "" {
-			assert.Check(t, is.Error(err, c.expectedError), c.doc)
-		} else {
-			assert.Check(t, err, c.doc)
-			version := apiclient.ClientVersion()
-			assert.Check(t, is.Equal(c.expectedVersion, version), c.doc)
-		}
+	env.PatchAll(t, nil)
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			env.PatchAll(t, tc.envs)
+			client, err := NewClientWithOpts(FromEnv)
+			if tc.expectedError != "" {
+				assert.Check(t, is.Error(err, tc.expectedError))
+			} else {
+				assert.Check(t, err)
+				assert.Check(t, is.Equal(client.ClientVersion(), tc.expectedVersion))
+			}
 
-		if c.envs["DOCKER_TLS_VERIFY"] != "" {
-			// pedantic checking that this is handled correctly
-			tr := apiclient.client.Transport.(*http.Transport)
-			assert.Assert(t, tr.TLSClientConfig != nil, c.doc)
-			assert.Check(t, is.Equal(tr.TLSClientConfig.InsecureSkipVerify, false), c.doc)
-		}
+			if tc.envs["DOCKER_TLS_VERIFY"] != "" {
+				// pedantic checking that this is handled correctly
+				tlsConfig := client.tlsConfig()
+				assert.Assert(t, tlsConfig != nil)
+				assert.Check(t, is.Equal(tlsConfig.InsecureSkipVerify, false))
+			}
+		})
 	}
 }
 
 func TestGetAPIPath(t *testing.T) {
-	testcases := []struct {
+	tests := []struct {
 		version  string
 		path     string
 		query    url.Values
 		expected string
 	}{
-		{"", "/containers/json", nil, "/containers/json"},
-		{"", "/containers/json", url.Values{}, "/containers/json"},
-		{"", "/containers/json", url.Values{"s": []string{"c"}}, "/containers/json?s=c"},
-		{"1.22", "/containers/json", nil, "/v1.22/containers/json"},
-		{"1.22", "/containers/json", url.Values{}, "/v1.22/containers/json"},
-		{"1.22", "/containers/json", url.Values{"s": []string{"c"}}, "/v1.22/containers/json?s=c"},
-		{"v1.22", "/containers/json", nil, "/v1.22/containers/json"},
-		{"v1.22", "/containers/json", url.Values{}, "/v1.22/containers/json"},
-		{"v1.22", "/containers/json", url.Values{"s": []string{"c"}}, "/v1.22/containers/json?s=c"},
-		{"v1.22", "/networks/kiwl$%^", nil, "/v1.22/networks/kiwl$%25%5E"},
+		{
+			path:     "/containers/json",
+			expected: "/v" + api.DefaultVersion + "/containers/json",
+		},
+		{
+			path:     "/containers/json",
+			query:    url.Values{},
+			expected: "/v" + api.DefaultVersion + "/containers/json",
+		},
+		{
+			path:     "/containers/json",
+			query:    url.Values{"s": []string{"c"}},
+			expected: "/v" + api.DefaultVersion + "/containers/json?s=c",
+		},
+		{
+			version:  "1.22",
+			path:     "/containers/json",
+			expected: "/v1.22/containers/json",
+		},
+		{
+			version:  "1.22",
+			path:     "/containers/json",
+			query:    url.Values{},
+			expected: "/v1.22/containers/json",
+		},
+		{
+			version:  "1.22",
+			path:     "/containers/json",
+			query:    url.Values{"s": []string{"c"}},
+			expected: "/v1.22/containers/json?s=c",
+		},
+		{
+			version:  "v1.22",
+			path:     "/containers/json",
+			expected: "/v1.22/containers/json",
+		},
+		{
+			version:  "v1.22",
+			path:     "/containers/json",
+			query:    url.Values{},
+			expected: "/v1.22/containers/json",
+		},
+		{
+			version:  "v1.22",
+			path:     "/containers/json",
+			query:    url.Values{"s": []string{"c"}},
+			expected: "/v1.22/containers/json?s=c",
+		},
+		{
+			version:  "v1.22",
+			path:     "/networks/kiwl$%^",
+			expected: "/v1.22/networks/kiwl$%25%5E",
+		},
 	}
 
 	ctx := context.TODO()
-	for _, testcase := range testcases {
-		c := Client{version: testcase.version, basePath: "/"}
-		actual := c.getAPIPath(ctx, testcase.path, testcase.query)
-		assert.Check(t, is.Equal(actual, testcase.expected))
+	for _, tc := range tests {
+		client, err := NewClientWithOpts(
+			WithVersion(tc.version),
+			WithHost("tcp://localhost:2375"),
+		)
+		assert.NilError(t, err)
+		actual := client.getAPIPath(ctx, tc.path, tc.query)
+		assert.Check(t, is.Equal(actual, tc.expected))
 	}
 }
 
@@ -160,6 +209,14 @@ func TestParseHostURL(t *testing.T) {
 			host:     "tcp://localhost:2476/path",
 			expected: &url.URL{Scheme: "tcp", Host: "localhost:2476", Path: "/path"},
 		},
+		{
+			host:     "unix:///var/run/docker.sock",
+			expected: &url.URL{Scheme: "unix", Host: "/var/run/docker.sock"},
+		},
+		{
+			host:     "npipe:////./pipe/docker_engine",
+			expected: &url.URL{Scheme: "npipe", Host: "//./pipe/docker_engine"},
+		},
 	}
 
 	for _, testcase := range testcases {
@@ -167,106 +224,134 @@ func TestParseHostURL(t *testing.T) {
 		if testcase.expectedErr != "" {
 			assert.Check(t, is.ErrorContains(err, testcase.expectedErr))
 		}
-		assert.Check(t, is.DeepEqual(testcase.expected, actual))
+		assert.Check(t, is.DeepEqual(actual, testcase.expected))
 	}
 }
 
 func TestNewClientWithOpsFromEnvSetsDefaultVersion(t *testing.T) {
-	defer env.PatchAll(t, map[string]string{
+	env.PatchAll(t, map[string]string{
 		"DOCKER_HOST":        "",
 		"DOCKER_API_VERSION": "",
 		"DOCKER_TLS_VERIFY":  "",
 		"DOCKER_CERT_PATH":   "",
-	})()
+	})
 
 	client, err := NewClientWithOpts(FromEnv)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Check(t, is.Equal(client.version, api.DefaultVersion))
+	assert.Check(t, is.Equal(client.ClientVersion(), api.DefaultVersion))
 
-	expected := "1.22"
-	os.Setenv("DOCKER_API_VERSION", expected)
+	const expected = "1.22"
+	t.Setenv("DOCKER_API_VERSION", expected)
 	client, err = NewClientWithOpts(FromEnv)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Check(t, is.Equal(expected, client.version))
+	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 }
 
-// TestNegotiateAPIVersionEmpty asserts that client.Client can
-// negotiate a compatible APIVersion when omitted
+// TestNegotiateAPIVersionEmpty asserts that client.Client version negotiation
+// downgrades to the correct API version if the API's ping response does not
+// return an API version.
 func TestNegotiateAPIVersionEmpty(t *testing.T) {
-	defer env.PatchAll(t, map[string]string{"DOCKER_API_VERSION": ""})()
+	t.Setenv("DOCKER_API_VERSION", "")
 
 	client, err := NewClientWithOpts(FromEnv)
 	assert.NilError(t, err)
-
-	ping := types.Ping{
-		APIVersion:   "",
-		OSType:       "linux",
-		Experimental: false,
-	}
 
 	// set our version to something new
 	client.version = "1.25"
 
 	// if no version from server, expect the earliest
 	// version before APIVersion was implemented
-	expected := "1.24"
+	const expected = "1.24"
 
 	// test downgrade
-	client.NegotiateAPIVersionPing(ping)
-	assert.Check(t, is.Equal(expected, client.version))
+	client.NegotiateAPIVersionPing(types.Ping{})
+	assert.Equal(t, client.ClientVersion(), expected)
 }
 
 // TestNegotiateAPIVersion asserts that client.Client can
 // negotiate a compatible APIVersion with the server
 func TestNegotiateAPIVersion(t *testing.T) {
-	client, err := NewClientWithOpts(FromEnv)
-	assert.NilError(t, err)
-
-	expected := "1.21"
-	ping := types.Ping{
-		APIVersion:   expected,
-		OSType:       "linux",
-		Experimental: false,
+	tests := []struct {
+		doc             string
+		clientVersion   string
+		pingVersion     string
+		expectedVersion string
+	}{
+		{
+			// client should downgrade to the version reported by the daemon.
+			doc:             "downgrade from default",
+			pingVersion:     "1.21",
+			expectedVersion: "1.21",
+		},
+		{
+			// client should not downgrade to the version reported by the
+			// daemon if a custom version was set.
+			doc:             "no downgrade from custom version",
+			clientVersion:   "1.25",
+			pingVersion:     "1.21",
+			expectedVersion: "1.25",
+		},
+		{
+			// client should downgrade to the last version before version
+			// negotiation was added (1.24) if the daemon does not report
+			// a version.
+			doc:             "downgrade legacy",
+			pingVersion:     "",
+			expectedVersion: "1.24",
+		},
+		{
+			// client should downgrade to the version reported by the daemon.
+			// version negotiation was added in API 1.25, so this is theoretical,
+			// but it should negotiate to versions before that if the daemon
+			// gives that as a response.
+			doc:             "downgrade old",
+			pingVersion:     "1.19",
+			expectedVersion: "1.19",
+		},
+		{
+			// client should not upgrade to a newer version if a version was set,
+			// even if both the daemon and the client support it.
+			doc:             "no upgrade",
+			clientVersion:   "1.20",
+			pingVersion:     "1.21",
+			expectedVersion: "1.20",
+		},
 	}
 
-	// set our version to something new
-	client.version = "1.22"
-
-	// test downgrade
-	client.NegotiateAPIVersionPing(ping)
-	assert.Check(t, is.Equal(expected, client.version))
-
-	// set the client version to something older, and verify that we keep the
-	// original setting.
-	expected = "1.20"
-	client.version = expected
-	client.NegotiateAPIVersionPing(ping)
-	assert.Check(t, is.Equal(expected, client.version))
-
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			opts := make([]Opt, 0)
+			if tc.clientVersion != "" {
+				// Note that this check is redundant, as WithVersion() considers
+				// an empty version equivalent to "not setting a version", but
+				// doing this just to be explicit we are using the default.
+				opts = append(opts, WithVersion(tc.clientVersion))
+			}
+			client, err := NewClientWithOpts(opts...)
+			assert.NilError(t, err)
+			client.NegotiateAPIVersionPing(types.Ping{APIVersion: tc.pingVersion})
+			assert.Equal(t, tc.expectedVersion, client.ClientVersion())
+		})
+	}
 }
 
-// TestNegotiateAPIVersionOverride asserts that we honor
-// the environment variable DOCKER_API_VERSION when negotiating versions
+// TestNegotiateAPIVersionOverride asserts that we honor the DOCKER_API_VERSION
+// environment variable when negotiating versions.
 func TestNegotiateAPVersionOverride(t *testing.T) {
-	expected := "9.99"
-	defer env.PatchAll(t, map[string]string{"DOCKER_API_VERSION": expected})()
+	const expected = "9.99"
+	t.Setenv("DOCKER_API_VERSION", expected)
 
 	client, err := NewClientWithOpts(FromEnv)
 	assert.NilError(t, err)
 
-	ping := types.Ping{
-		APIVersion:   "1.24",
-		OSType:       "linux",
-		Experimental: false,
-	}
-
 	// test that we honored the env var
-	client.NegotiateAPIVersionPing(ping)
-	assert.Check(t, is.Equal(expected, client.version))
+	client.NegotiateAPIVersionPing(types.Ping{APIVersion: "1.24"})
+	assert.Equal(t, client.ClientVersion(), expected)
 }
 
 func TestNegotiateAPIVersionAutomatic(t *testing.T) {
@@ -278,24 +363,28 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 		return resp, nil
 	})
 
+	ctx := context.Background()
 	client, err := NewClientWithOpts(
 		WithHTTPClient(httpClient),
 		WithAPIVersionNegotiation(),
 	)
 	assert.NilError(t, err)
 
-	ctx := context.Background()
-	assert.Equal(t, client.ClientVersion(), api.DefaultVersion)
+	// Client defaults to use api.DefaultVersion before version-negotiation.
+	expected := api.DefaultVersion
+	assert.Equal(t, client.ClientVersion(), expected)
 
 	// First request should trigger negotiation
 	pingVersion = "1.35"
+	expected = "1.35"
 	_, _ = client.Info(ctx)
-	assert.Equal(t, client.ClientVersion(), "1.35")
+	assert.Equal(t, client.ClientVersion(), expected)
 
 	// Once successfully negotiated, subsequent requests should not re-negotiate
 	pingVersion = "1.25"
+	expected = "1.35"
 	_, _ = client.Info(ctx)
-	assert.Equal(t, client.ClientVersion(), "1.35")
+	assert.Equal(t, client.ClientVersion(), expected)
 }
 
 // TestNegotiateAPIVersionWithEmptyVersion asserts that initializing a client
@@ -304,18 +393,20 @@ func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
 	client, err := NewClientWithOpts(WithVersion(""))
 	assert.NilError(t, err)
 
-	client.NegotiateAPIVersionPing(types.Ping{APIVersion: "1.35"})
-	assert.Equal(t, client.version, "1.35")
+	const expected = "1.35"
+	client.NegotiateAPIVersionPing(types.Ping{APIVersion: expected})
+	assert.Equal(t, client.ClientVersion(), expected)
 }
 
 // TestNegotiateAPIVersionWithFixedVersion asserts that initializing a client
-// with an fixed version disables API-version negotiation
+// with a fixed version disables API-version negotiation
 func TestNegotiateAPIVersionWithFixedVersion(t *testing.T) {
-	client, err := NewClientWithOpts(WithVersion("1.35"))
+	const customVersion = "1.35"
+	client, err := NewClientWithOpts(WithVersion(customVersion))
 	assert.NilError(t, err)
 
 	client.NegotiateAPIVersionPing(types.Ping{APIVersion: "1.31"})
-	assert.Equal(t, client.version, "1.35")
+	assert.Equal(t, client.ClientVersion(), customVersion)
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -337,38 +428,57 @@ func TestClientRedirect(t *testing.T) {
 		CheckRedirect: CheckRedirect,
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			if req.URL.String() == "/bla" {
-				return &http.Response{StatusCode: 404}, nil
+				return &http.Response{StatusCode: http.StatusNotFound}, nil
 			}
 			return &http.Response{
-				StatusCode: 301,
-				Header:     map[string][]string{"Location": {"/bla"}},
+				StatusCode: http.StatusMovedPermanently,
+				Header:     http.Header{"Location": {"/bla"}},
 				Body:       bytesBufferClose{bytes.NewBuffer(nil)},
 			}, nil
 		}),
 	}
 
-	cases := []struct {
+	tests := []struct {
 		httpMethod  string
 		expectedErr *url.Error
 		statusCode  int
 	}{
-		{http.MethodGet, nil, 301},
-		{http.MethodPost, &url.Error{Op: "Post", URL: "/bla", Err: ErrRedirect}, 301},
-		{http.MethodPut, &url.Error{Op: "Put", URL: "/bla", Err: ErrRedirect}, 301},
-		{http.MethodDelete, &url.Error{Op: "Delete", URL: "/bla", Err: ErrRedirect}, 301},
+		{
+			httpMethod: http.MethodGet,
+			statusCode: http.StatusMovedPermanently,
+		},
+		{
+			httpMethod:  http.MethodPost,
+			expectedErr: &url.Error{Op: "Post", URL: "/bla", Err: ErrRedirect},
+			statusCode:  http.StatusMovedPermanently,
+		},
+		{
+			httpMethod:  http.MethodPut,
+			expectedErr: &url.Error{Op: "Put", URL: "/bla", Err: ErrRedirect},
+			statusCode:  http.StatusMovedPermanently,
+		},
+		{
+			httpMethod:  http.MethodDelete,
+			expectedErr: &url.Error{Op: "Delete", URL: "/bla", Err: ErrRedirect},
+			statusCode:  http.StatusMovedPermanently,
+		},
 	}
 
-	for _, tc := range cases {
-		req, err := http.NewRequest(tc.httpMethod, "/redirectme", nil)
-		assert.Check(t, err)
-		resp, err := client.Do(req)
-		assert.Check(t, is.Equal(tc.statusCode, resp.StatusCode))
-		if tc.expectedErr == nil {
-			assert.Check(t, is.Nil(err))
-		} else {
-			urlError, ok := err.(*url.Error)
-			assert.Assert(t, ok, "%T is not *url.Error", err)
-			assert.Check(t, is.Equal(*tc.expectedErr, *urlError))
-		}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.httpMethod, func(t *testing.T) {
+			req, err := http.NewRequest(tc.httpMethod, "/redirectme", nil)
+			assert.Check(t, err)
+			resp, err := client.Do(req)
+			assert.Check(t, is.Equal(resp.StatusCode, tc.statusCode))
+			if tc.expectedErr == nil {
+				assert.Check(t, err)
+			} else {
+				assert.Check(t, is.ErrorType(err, &url.Error{}))
+				var urlError *url.Error
+				assert.Assert(t, errors.As(err, &urlError), "%T is not *url.Error", err)
+				assert.Check(t, is.Equal(*urlError, *tc.expectedErr))
+			}
+		})
 	}
 }

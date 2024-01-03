@@ -1,5 +1,3 @@
-// +build windows
-
 /*
    Copyright The containerd Authors.
 
@@ -20,28 +18,13 @@ package archive
 
 import (
 	"archive/tar"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/containerd/containerd/sys"
-	"github.com/pkg/errors"
+	"github.com/moby/sys/sequential"
 )
-
-// tarName returns platform-specific filepath
-// to canonical posix-style path for tar archival. p is relative
-// path.
-func tarName(p string) (string, error) {
-	// windows: convert windows style relative path with backslashes
-	// into forward slashes. Since windows does not allow '/' or '\'
-	// in file names, it is mostly safe to replace however we must
-	// check just in case
-	if strings.Contains(p, "/") {
-		return "", fmt.Errorf("windows path contains forward slash: %s", p)
-	}
-
-	return strings.Replace(p, string(os.PathSeparator), "/", -1), nil
-}
 
 // chmodTarEntry is used to adjust the file permissions used in tar header based
 // on the platform the archival is done.
@@ -59,15 +42,15 @@ func setHeaderForSpecialDevice(*tar.Header, string, os.FileInfo) error {
 }
 
 func open(p string) (*os.File, error) {
-	// We use sys.OpenSequential to ensure we use sequential file
-	// access on Windows to avoid depleting the standby list.
-	return sys.OpenSequential(p)
+	// We use sequential file access to avoid depleting the standby list on
+	// Windows.
+	return sequential.Open(p)
 }
 
 func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
-	// Source is regular file. We use sys.OpenFileSequential to use sequential
-	// file access to avoid depleting the standby list on Windows.
-	return sys.OpenFileSequential(name, flag, perm)
+	// Source is regular file. We use sequential file access to avoid depleting
+	// the standby list on Windows.
+	return sequential.OpenFile(name, flag, perm)
 }
 
 func mkdir(path string, perm os.FileMode) error {
@@ -114,7 +97,7 @@ func setxattr(path, key, value string) error {
 
 func copyDirInfo(fi os.FileInfo, path string) error {
 	if err := os.Chmod(path, fi.Mode()); err != nil {
-		return errors.Wrapf(err, "failed to chmod %s", path)
+		return fmt.Errorf("failed to chmod %s: %w", path, err)
 	}
 	return nil
 }

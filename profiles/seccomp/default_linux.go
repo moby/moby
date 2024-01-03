@@ -1,6 +1,3 @@
-//go:build seccomp
-// +build seccomp
-
 package seccomp // import "github.com/docker/docker/profiles/seccomp"
 
 import (
@@ -37,6 +34,10 @@ func arches() []Architecture {
 		{
 			Arch:      specs.ArchS390X,
 			SubArches: []specs.Arch{specs.ArchS390},
+		},
+		{
+			Arch:      specs.ArchRISCV64,
+			SubArches: nil,
 		},
 	}
 }
@@ -122,6 +123,7 @@ func DefaultProfile() *Seccomp {
 					"ftruncate64",
 					"futex",
 					"futex_time64",
+					"futex_waitv",
 					"futimesat",
 					"getcpu",
 					"getcwd",
@@ -173,11 +175,11 @@ func DefaultProfile() *Seccomp {
 					"ioprio_set",
 					"io_setup",
 					"io_submit",
-					"io_uring_enter",
-					"io_uring_register",
-					"io_uring_setup",
 					"ipc",
 					"kill",
+					"landlock_add_rule",
+					"landlock_create_ruleset",
+					"landlock_restrict_self",
 					"lchown",
 					"lchown32",
 					"lgetxattr",
@@ -195,6 +197,7 @@ func DefaultProfile() *Seccomp {
 					"madvise",
 					"membarrier",
 					"memfd_create",
+					"memfd_secret",
 					"mincore",
 					"mkdir",
 					"mkdirat",
@@ -223,6 +226,7 @@ func DefaultProfile() *Seccomp {
 					"munlock",
 					"munlockall",
 					"munmap",
+					"name_to_handle_at",
 					"nanosleep",
 					"newfstatat",
 					"_newselect",
@@ -234,6 +238,9 @@ func DefaultProfile() *Seccomp {
 					"pidfd_send_signal",
 					"pipe",
 					"pipe2",
+					"pkey_alloc",
+					"pkey_free",
+					"pkey_mprotect",
 					"poll",
 					"ppoll",
 					"ppoll_time64",
@@ -242,6 +249,7 @@ func DefaultProfile() *Seccomp {
 					"preadv",
 					"preadv2",
 					"prlimit64",
+					"process_mrelease",
 					"pselect6",
 					"pselect6_time64",
 					"pwrite64",
@@ -338,7 +346,6 @@ func DefaultProfile() *Seccomp {
 					"signalfd4",
 					"sigprocmask",
 					"sigreturn",
-					"socket",
 					"socketcall",
 					"socketpair",
 					"splice",
@@ -403,6 +410,19 @@ func DefaultProfile() *Seccomp {
 			},
 			Includes: &Filter{
 				MinKernel: &KernelVersion{4, 8},
+			},
+		},
+		{
+			LinuxSyscall: specs.LinuxSyscall{
+				Names:  []string{"socket"},
+				Action: specs.ActAllow,
+				Args: []specs.LinuxSeccompArg{
+					{
+						Index: 0,
+						Value: unix.AF_VSOCK,
+						Op:    specs.OpNotEqual,
+					},
+				},
 			},
 		},
 		{
@@ -474,6 +494,7 @@ func DefaultProfile() *Seccomp {
 			LinuxSyscall: specs.LinuxSyscall{
 				Names: []string{
 					"sync_file_range2",
+					"swapcontext",
 				},
 				Action: specs.ActAllow,
 			},
@@ -535,6 +556,17 @@ func DefaultProfile() *Seccomp {
 		{
 			LinuxSyscall: specs.LinuxSyscall{
 				Names: []string{
+					"riscv_flush_icache",
+				},
+				Action: specs.ActAllow,
+			},
+			Includes: &Filter{
+				Arches: []string{"riscv64"},
+			},
+		},
+		{
+			LinuxSyscall: specs.LinuxSyscall{
+				Names: []string{
 					"open_by_handle_at",
 				},
 				Action: specs.ActAllow,
@@ -556,11 +588,12 @@ func DefaultProfile() *Seccomp {
 					"fspick",
 					"lookup_dcookie",
 					"mount",
+					"mount_setattr",
 					"move_mount",
-					"name_to_handle_at",
 					"open_tree",
 					"perf_event_open",
 					"quotactl",
+					"quotactl_fd",
 					"setdomainname",
 					"sethostname",
 					"setns",
@@ -710,6 +743,7 @@ func DefaultProfile() *Seccomp {
 					"settimeofday",
 					"stime",
 					"clock_settime",
+					"clock_settime64",
 				},
 				Action: specs.ActAllow,
 			},
@@ -750,6 +784,28 @@ func DefaultProfile() *Seccomp {
 			},
 			Includes: &Filter{
 				Caps: []string{"CAP_SYSLOG"},
+			},
+		},
+		{
+			LinuxSyscall: specs.LinuxSyscall{
+				Names: []string{
+					"bpf",
+				},
+				Action: specs.ActAllow,
+			},
+			Includes: &Filter{
+				Caps: []string{"CAP_BPF"},
+			},
+		},
+		{
+			LinuxSyscall: specs.LinuxSyscall{
+				Names: []string{
+					"perf_event_open",
+				},
+				Action: specs.ActAllow,
+			},
+			Includes: &Filter{
+				Caps: []string{"CAP_PERFMON"},
 			},
 		},
 	}

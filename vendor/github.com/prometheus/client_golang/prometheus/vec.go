@@ -20,12 +20,20 @@ import (
 	"github.com/prometheus/common/model"
 )
 
-// metricVec is a Collector to bundle metrics of the same name that differ in
-// their label values. metricVec is not used directly (and therefore
-// unexported). It is used as a building block for implementations of vectors of
-// a given metric type, like GaugeVec, CounterVec, SummaryVec, and HistogramVec.
-// It also handles label currying.
-type metricVec struct {
+// MetricVec is a Collector to bundle metrics of the same name that differ in
+// their label values. MetricVec is not used directly but as a building block
+// for implementations of vectors of a given metric type, like GaugeVec,
+// CounterVec, SummaryVec, and HistogramVec. It is exported so that it can be
+// used for custom Metric implementations.
+//
+// To create a FooVec for custom Metric Foo, embed a pointer to MetricVec in
+// FooVec and initialize it with NewMetricVec. Implement wrappers for
+// GetMetricWithLabelValues and GetMetricWith that return (Foo, error) rather
+// than (Metric, error). Similarly, create a wrapper for CurryWith that returns
+// (*FooVec, error) rather than (*MetricVec, error). It is recommended to also
+// add the convenience methods WithLabelValues, With, and MustCurryWith, which
+// panic instead of returning errors. See also the MetricVec example.
+type MetricVec struct {
 	*metricMap
 
 	curry []curriedLabelValue
@@ -35,9 +43,9 @@ type metricVec struct {
 	hashAddByte func(h uint64, b byte) uint64
 }
 
-// newMetricVec returns an initialized metricVec.
-func newMetricVec(desc *Desc, newMetric func(lvs ...string) Metric) *metricVec {
-	return &metricVec{
+// NewMetricVec returns an initialized metricVec.
+func NewMetricVec(desc *Desc, newMetric func(lvs ...string) Metric) *MetricVec {
+	return &MetricVec{
 		metricMap: &metricMap{
 			metrics:   map[uint64][]metricWithLabelValues{},
 			desc:      desc,
@@ -63,7 +71,7 @@ func newMetricVec(desc *Desc, newMetric func(lvs ...string) Metric) *metricVec {
 // latter has a much more readable (albeit more verbose) syntax, but it comes
 // with a performance overhead (for creating and processing the Labels map).
 // See also the CounterVec example.
-func (m *metricVec) DeleteLabelValues(lvs ...string) bool {
+func (m *MetricVec) DeleteLabelValues(lvs ...string) bool {
 	h, err := m.hashLabelValues(lvs)
 	if err != nil {
 		return false
@@ -82,7 +90,7 @@ func (m *metricVec) DeleteLabelValues(lvs ...string) bool {
 //
 // This method is used for the same purpose as DeleteLabelValues(...string). See
 // there for pros and cons of the two methods.
-func (m *metricVec) Delete(labels Labels) bool {
+func (m *MetricVec) Delete(labels Labels) bool {
 	h, err := m.hashLabels(labels)
 	if err != nil {
 		return false
@@ -91,19 +99,46 @@ func (m *metricVec) Delete(labels Labels) bool {
 	return m.metricMap.deleteByHashWithLabels(h, labels, m.curry)
 }
 
+// DeletePartialMatch deletes all metrics where the variable labels contain all of those
+// passed in as labels. The order of the labels does not matter.
+// It returns the number of metrics deleted.
+//
+// Note that curried labels will never be matched if deleting from the curried vector.
+// To match curried labels with DeletePartialMatch, it must be called on the base vector.
+func (m *MetricVec) DeletePartialMatch(labels Labels) int {
+	return m.metricMap.deleteByLabels(labels, m.curry)
+}
+
 // Without explicit forwarding of Describe, Collect, Reset, those methods won't
 // show up in GoDoc.
 
 // Describe implements Collector.
-func (m *metricVec) Describe(ch chan<- *Desc) { m.metricMap.Describe(ch) }
+func (m *MetricVec) Describe(ch chan<- *Desc) { m.metricMap.Describe(ch) }
 
 // Collect implements Collector.
-func (m *metricVec) Collect(ch chan<- Metric) { m.metricMap.Collect(ch) }
+func (m *MetricVec) Collect(ch chan<- Metric) { m.metricMap.Collect(ch) }
 
 // Reset deletes all metrics in this vector.
-func (m *metricVec) Reset() { m.metricMap.Reset() }
+func (m *MetricVec) Reset() { m.metricMap.Reset() }
 
-func (m *metricVec) curryWith(labels Labels) (*metricVec, error) {
+// CurryWith returns a vector curried with the provided labels, i.e. the
+// returned vector has those labels pre-set for all labeled operations performed
+// on it. The cardinality of the curried vector is reduced accordingly. The
+// order of the remaining labels stays the same (just with the curried labels
+// taken out of the sequence – which is relevant for the
+// (GetMetric)WithLabelValues methods). It is possible to curry a curried
+// vector, but only with labels not yet used for currying before.
+//
+// The metrics contained in the MetricVec are shared between the curried and
+// uncurried vectors. They are just accessed differently. Curried and uncurried
+// vectors behave identically in terms of collection. Only one must be
+// registered with a given registry (usually the uncurried version). The Reset
+// method deletes all metrics, even if called on a curried vector.
+//
+// Note that CurryWith is usually not called directly but through a wrapper
+// around MetricVec, implementing a vector for a specific Metric
+// implementation, for example GaugeVec.
+func (m *MetricVec) CurryWith(labels Labels) (*MetricVec, error) {
 	var (
 		newCurry []curriedLabelValue
 		oldCurry = m.curry
@@ -128,7 +163,7 @@ func (m *metricVec) curryWith(labels Labels) (*metricVec, error) {
 		return nil, fmt.Errorf("%d unknown label(s) found during currying", l)
 	}
 
-	return &metricVec{
+	return &MetricVec{
 		metricMap:   m.metricMap,
 		curry:       newCurry,
 		hashAdd:     m.hashAdd,
@@ -136,7 +171,34 @@ func (m *metricVec) curryWith(labels Labels) (*metricVec, error) {
 	}, nil
 }
 
-func (m *metricVec) getMetricWithLabelValues(lvs ...string) (Metric, error) {
+// GetMetricWithLabelValues returns the Metric for the given slice of label
+// values (same order as the variable labels in Desc). If that combination of
+// label values is accessed for the first time, a new Metric is created (by
+// calling the newMetric function provided during construction of the
+// MetricVec).
+//
+// It is possible to call this method without using the returned Metric to only
+// create the new Metric but leave it in its initial state.
+//
+// Keeping the Metric for later use is possible (and should be considered if
+// performance is critical), but keep in mind that Reset, DeleteLabelValues and
+// Delete can be used to delete the Metric from the MetricVec. In that case, the
+// Metric will still exist, but it will not be exported anymore, even if a
+// Metric with the same label values is created later.
+//
+// An error is returned if the number of label values is not the same as the
+// number of variable labels in Desc (minus any curried labels).
+//
+// Note that for more than one label value, this method is prone to mistakes
+// caused by an incorrect order of arguments. Consider GetMetricWith(Labels) as
+// an alternative to avoid that type of mistake. For higher label numbers, the
+// latter has a much more readable (albeit more verbose) syntax, but it comes
+// with a performance overhead (for creating and processing the Labels map).
+//
+// Note that GetMetricWithLabelValues is usually not called directly but through
+// a wrapper around MetricVec, implementing a vector for a specific Metric
+// implementation, for example GaugeVec.
+func (m *MetricVec) GetMetricWithLabelValues(lvs ...string) (Metric, error) {
 	h, err := m.hashLabelValues(lvs)
 	if err != nil {
 		return nil, err
@@ -145,7 +207,23 @@ func (m *metricVec) getMetricWithLabelValues(lvs ...string) (Metric, error) {
 	return m.metricMap.getOrCreateMetricWithLabelValues(h, lvs, m.curry), nil
 }
 
-func (m *metricVec) getMetricWith(labels Labels) (Metric, error) {
+// GetMetricWith returns the Metric for the given Labels map (the label names
+// must match those of the variable labels in Desc). If that label map is
+// accessed for the first time, a new Metric is created. Implications of
+// creating a Metric without using it and keeping the Metric for later use
+// are the same as for GetMetricWithLabelValues.
+//
+// An error is returned if the number and names of the Labels are inconsistent
+// with those of the variable labels in Desc (minus any curried labels).
+//
+// This method is used for the same purpose as
+// GetMetricWithLabelValues(...string). See there for pros and cons of the two
+// methods.
+//
+// Note that GetMetricWith is usually not called directly but through a wrapper
+// around MetricVec, implementing a vector for a specific Metric implementation,
+// for example GaugeVec.
+func (m *MetricVec) GetMetricWith(labels Labels) (Metric, error) {
 	h, err := m.hashLabels(labels)
 	if err != nil {
 		return nil, err
@@ -154,7 +232,7 @@ func (m *metricVec) getMetricWith(labels Labels) (Metric, error) {
 	return m.metricMap.getOrCreateMetricWithLabels(h, labels, m.curry), nil
 }
 
-func (m *metricVec) hashLabelValues(vals []string) (uint64, error) {
+func (m *MetricVec) hashLabelValues(vals []string) (uint64, error) {
 	if err := validateLabelValues(vals, len(m.desc.variableLabels)-len(m.curry)); err != nil {
 		return 0, err
 	}
@@ -177,7 +255,7 @@ func (m *metricVec) hashLabelValues(vals []string) (uint64, error) {
 	return h, nil
 }
 
-func (m *metricVec) hashLabels(labels Labels) (uint64, error) {
+func (m *MetricVec) hashLabels(labels Labels) (uint64, error) {
 	if err := validateValuesInLabels(labels, len(m.desc.variableLabels)-len(m.curry)); err != nil {
 		return 0, err
 	}
@@ -276,7 +354,9 @@ func (m *metricMap) deleteByHashWithLabelValues(
 	}
 
 	if len(metrics) > 1 {
+		old := metrics
 		m.metrics[h] = append(metrics[:i], metrics[i+1:]...)
+		old[len(old)-1] = metricWithLabelValues{}
 	} else {
 		delete(m.metrics, h)
 	}
@@ -302,9 +382,87 @@ func (m *metricMap) deleteByHashWithLabels(
 	}
 
 	if len(metrics) > 1 {
+		old := metrics
 		m.metrics[h] = append(metrics[:i], metrics[i+1:]...)
+		old[len(old)-1] = metricWithLabelValues{}
 	} else {
 		delete(m.metrics, h)
+	}
+	return true
+}
+
+// deleteByLabels deletes a metric if the given labels are present in the metric.
+func (m *metricMap) deleteByLabels(labels Labels, curry []curriedLabelValue) int {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	var numDeleted int
+
+	for h, metrics := range m.metrics {
+		i := findMetricWithPartialLabels(m.desc, metrics, labels, curry)
+		if i >= len(metrics) {
+			// Didn't find matching labels in this metric slice.
+			continue
+		}
+		delete(m.metrics, h)
+		numDeleted++
+	}
+
+	return numDeleted
+}
+
+// findMetricWithPartialLabel returns the index of the matching metric or
+// len(metrics) if not found.
+func findMetricWithPartialLabels(
+	desc *Desc, metrics []metricWithLabelValues, labels Labels, curry []curriedLabelValue,
+) int {
+	for i, metric := range metrics {
+		if matchPartialLabels(desc, metric.values, labels, curry) {
+			return i
+		}
+	}
+	return len(metrics)
+}
+
+// indexOf searches the given slice of strings for the target string and returns
+// the index or len(items) as well as a boolean whether the search succeeded.
+func indexOf(target string, items []string) (int, bool) {
+	for i, l := range items {
+		if l == target {
+			return i, true
+		}
+	}
+	return len(items), false
+}
+
+// valueMatchesVariableOrCurriedValue determines if a value was previously curried,
+// and returns whether it matches either the "base" value or the curried value accordingly.
+// It also indicates whether the match is against a curried or uncurried value.
+func valueMatchesVariableOrCurriedValue(targetValue string, index int, values []string, curry []curriedLabelValue) (bool, bool) {
+	for _, curriedValue := range curry {
+		if curriedValue.index == index {
+			// This label was curried. See if the curried value matches our target.
+			return curriedValue.value == targetValue, true
+		}
+	}
+	// This label was not curried. See if the current value matches our target label.
+	return values[index] == targetValue, false
+}
+
+// matchPartialLabels searches the current metric and returns whether all of the target label:value pairs are present.
+func matchPartialLabels(desc *Desc, values []string, labels Labels, curry []curriedLabelValue) bool {
+	for l, v := range labels {
+		// Check if the target label exists in our metrics and get the index.
+		varLabelIndex, validLabel := indexOf(l, desc.variableLabels)
+		if validLabel {
+			// Check the value of that label against the target value.
+			// We don't consider curried values in partial matches.
+			matches, curried := valueMatchesVariableOrCurriedValue(v, varLabelIndex, values, curry)
+			if matches && !curried {
+				continue
+			}
+		}
+		return false
 	}
 	return true
 }
@@ -413,7 +571,7 @@ func findMetricWithLabels(
 	return len(metrics)
 }
 
-func matchLabelValues(values []string, lvs []string, curry []curriedLabelValue) bool {
+func matchLabelValues(values, lvs []string, curry []curriedLabelValue) bool {
 	if len(values) != len(lvs)+len(curry) {
 		return false
 	}

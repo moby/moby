@@ -1,4 +1,4 @@
-// +build !go1.8 windows !amd64 static_build gccgo
+//go:build !go1.8 || windows || !amd64 || static_build || gccgo
 
 /*
    Copyright The containerd Authors.
@@ -18,7 +18,7 @@
 
 package plugin
 
-func loadPlugins(path string) error {
+func loadPlugins(path string) (int, error) {
 	// plugins not supported until 1.8
-	return nil
+	return 0, nil
 }

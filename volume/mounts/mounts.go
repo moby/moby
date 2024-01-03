@@ -1,11 +1,13 @@
 package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
 
+	"github.com/containerd/log"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
@@ -153,7 +155,7 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 
 		// idtools.MkdirAllNewAs() produces an error if m.Source exists and is a file (not a directory)
 		// also, makes sure that if the directory is created, the correct remapped rootUID/rootGID will own it
-		if err := idtools.MkdirAllAndChownNew(m.Source, 0755, rootIDs); err != nil {
+		if err := idtools.MkdirAllAndChownNew(m.Source, 0o755, rootIDs); err != nil {
 			if perr, ok := err.(*os.PathError); ok {
 				if perr.Err != syscall.ENOTDIR {
 					return "", errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
@@ -162,6 +164,32 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 		}
 	}
 	return m.Source, nil
+}
+
+func (m *MountPoint) LiveRestore(ctx context.Context) error {
+	if m.Volume == nil {
+		log.G(ctx).Debug("No volume to restore")
+		return nil
+	}
+
+	lrv, ok := m.Volume.(volume.LiveRestorer)
+	if !ok {
+		log.G(ctx).WithField("volume", m.Volume.Name()).Debugf("Volume does not support live restore: %T", m.Volume)
+		return nil
+	}
+
+	id := m.ID
+	if id == "" {
+		id = stringid.GenerateRandomID()
+	}
+
+	if err := lrv.LiveRestoreVolume(ctx, id); err != nil {
+		return errors.Wrapf(err, "error while restoring volume '%s'", m.Source)
+	}
+
+	m.ID = id
+	m.active++
+	return nil
 }
 
 // Path returns the path of a volume in a mount point.

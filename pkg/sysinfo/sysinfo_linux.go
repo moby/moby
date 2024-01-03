@@ -1,26 +1,68 @@
 package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
 	"strings"
+	"sync"
 
-	cdcgroups "github.com/containerd/cgroups"
-	cdseccomp "github.com/containerd/containerd/pkg/seccomp"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/cgroups/v3"
+	"github.com/containerd/cgroups/v3/cgroup1"
+	"github.com/containerd/containerd/pkg/seccomp"
+	"github.com/containerd/log"
+	"github.com/moby/sys/mountinfo"
 )
 
-func findCgroupMountpoints() (map[string]string, error) {
-	cgMounts, err := cgroups.GetCgroupMounts(false)
+var (
+	readMountinfoOnce sync.Once
+	readMountinfoErr  error
+	cgroupMountinfo   []*mountinfo.Info
+)
+
+// readCgroupMountinfo returns a list of cgroup v1 mounts (i.e. the ones
+// with fstype of "cgroup") for the current running process.
+//
+// The results are cached (to avoid re-reading mountinfo which is relatively
+// expensive), so it is assumed that cgroup mounts are not being changed.
+func readCgroupMountinfo() ([]*mountinfo.Info, error) {
+	readMountinfoOnce.Do(func() {
+		cgroupMountinfo, readMountinfoErr = mountinfo.GetMounts(
+			mountinfo.FSTypeFilter("cgroup"),
+		)
+	})
+
+	return cgroupMountinfo, readMountinfoErr
+}
+
+func findCgroupV1Mountpoints() (map[string]string, error) {
+	mounts, err := readCgroupMountinfo()
+	if err != nil {
+		return nil, err
+	}
+
+	allSubsystems, err := cgroup1.ParseCgroupFile("/proc/self/cgroup")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse cgroup information: %v", err)
 	}
+
+	allMap := make(map[string]bool)
+	for s := range allSubsystems {
+		allMap[s] = false
+	}
+
 	mps := make(map[string]string)
-	for _, m := range cgMounts {
-		for _, ss := range m.Subsystems {
-			mps[ss] = m.Mountpoint
+	for _, mi := range mounts {
+		for _, opt := range strings.Split(mi.VFSOptions, ",") {
+			seen, known := allMap[opt]
+			if known && !seen {
+				allMap[opt] = true
+				mps[strings.TrimPrefix(opt, "name=")] = mi.Mountpoint
+			}
+		}
+		if len(mps) >= len(allMap) {
+			break
 		}
 	}
 	return mps, nil
@@ -45,7 +87,7 @@ func WithCgroup2GroupPath(g string) Opt {
 // New returns a new SysInfo, using the filesystem to detect which features
 // the kernel supports.
 func New(options ...Opt) *SysInfo {
-	if cdcgroups.Mode() == cdcgroups.Unified {
+	if cgroups.Mode() == cgroups.Unified {
 		return newV2(options...)
 	}
 	return newV1()
@@ -64,9 +106,9 @@ func newV1() *SysInfo {
 		applyCgroupNsInfo,
 	}
 
-	sysInfo.cgMounts, err = findCgroupMountpoints()
+	sysInfo.cgMounts, err = findCgroupV1Mountpoints()
 	if err != nil {
-		logrus.Warn(err)
+		log.G(context.TODO()).Warn(err)
 	} else {
 		ops = append(ops,
 			applyMemoryCgroupInfo,
@@ -109,14 +151,15 @@ func applyMemoryCgroupInfo(info *SysInfo) {
 	if !info.MemorySwappiness {
 		info.Warnings = append(info.Warnings, "Your kernel does not support memory swappiness")
 	}
+
+	// Option is deprecated, but still accepted on API < v1.42 with cgroups v1,
+	// so setting the field to allow feature detection.
 	info.KernelMemory = cgroupEnabled(mountPoint, "memory.kmem.limit_in_bytes")
-	if !info.KernelMemory {
-		info.Warnings = append(info.Warnings, "Your kernel does not support kernel memory limit")
-	}
+
+	// Option is deprecated in runc, but still accepted in our API, so setting
+	// the field to allow feature detection, but don't warn if it's missing, to
+	// make the daemon logs a bit less noisy.
 	info.KernelMemoryTCP = cgroupEnabled(mountPoint, "memory.kmem.tcp.limit_in_bytes")
-	if !info.KernelMemoryTCP {
-		info.Warnings = append(info.Warnings, "Your kernel does not support kernel memory TCP limit")
-	}
 }
 
 // applyCPUCgroupInfo adds the cpu cgroup controller information to the info.
@@ -246,7 +289,7 @@ func applyCgroupNsInfo(info *SysInfo) {
 
 // applySeccompInfo checks if Seccomp is supported, via CONFIG_SECCOMP.
 func applySeccompInfo(info *SysInfo) {
-	info.Seccomp = cdseccomp.IsEnabled()
+	info.Seccomp = seccomp.IsEnabled()
 }
 
 func cgroupEnabled(mountPoint, name string) bool {

@@ -47,7 +47,7 @@ const (
 	rxName = `[^\\/:*?"<>|\r\n]+`
 
 	// RXReservedNames are reserved names not possible on Windows
-	rxReservedNames = `(con)|(prn)|(nul)|(aux)|(com[1-9])|(lpt[1-9])`
+	rxReservedNames = `(con|prn|nul|aux|com[1-9]|lpt[1-9])`
 
 	// rxPipe is a named path pipe (starts with `\\.\pipe\`, possibly with / instead of \)
 	rxPipe = `[/\\]{2}.[/\\]pipe[/\\][^:*?"<>|\r\n]+`
@@ -128,7 +128,6 @@ func (p *windowsParser) splitRawSpec(raw string, splitRegexp *regexp.Regexp) ([]
 			exists, isDir, _ := p.fi.fileInfo(matchgroups["destination"])
 			if exists && !isDir {
 				return nil, fmt.Errorf("file '%s' cannot be mapped. Only directories can be mapped on this platform", matchgroups["destination"])
-
 			}
 		}
 	}
@@ -144,7 +143,7 @@ func windowsValidMountMode(mode string) bool {
 }
 
 func windowsValidateNotRoot(p string) error {
-	p = strings.ToLower(strings.Replace(p, `/`, `\`, -1))
+	p = strings.ToLower(strings.ReplaceAll(p, `/`, `\`))
 	if p == "c:" || p == `c:\` {
 		return fmt.Errorf("destination path cannot be `c:` or `c:\\`: %v", p)
 	}
@@ -192,6 +191,7 @@ func (p *windowsParser) ValidateVolumeName(name string) error {
 	}
 	return nil
 }
+
 func (p *windowsParser) ValidateMountConfig(mnt *mount.Mount) error {
 	return p.validateMountConfigReg(mnt, windowsValidators)
 }
@@ -200,8 +200,7 @@ type fileInfoProvider interface {
 	fileInfo(path string) (exist, isDir bool, err error)
 }
 
-type defaultFileInfoProvider struct {
-}
+type defaultFileInfoProvider struct{}
 
 func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err error) {
 	fi, err := os.Stat(path)
@@ -316,18 +315,18 @@ func (p *windowsParser) parseMount(arr []string, raw, volumeDriver string, conve
 			return nil, errInvalidSpec(raw)
 		}
 		// Host Source Path or Name + Destination
-		spec.Source = strings.Replace(arr[0], `/`, `\`, -1)
+		spec.Source = strings.ReplaceAll(arr[0], `/`, `\`)
 		spec.Target = arr[1]
 	case 3:
 		// HostSourcePath+DestinationPath+Mode
-		spec.Source = strings.Replace(arr[0], `/`, `\`, -1)
+		spec.Source = strings.ReplaceAll(arr[0], `/`, `\`)
 		spec.Target = arr[1]
 		mode = arr[2]
 	default:
 		return nil, errInvalidSpec(raw)
 	}
 	if convertTargetToBackslash {
-		spec.Target = strings.Replace(spec.Target, `/`, `\`, -1)
+		spec.Target = strings.ReplaceAll(spec.Target, `/`, `\`)
 	}
 
 	if !windowsValidMountMode(mode) {
@@ -376,7 +375,7 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, convertTargetToBackslash
 		Spec:        cfg,
 	}
 	if convertTargetToBackslash {
-		mp.Destination = strings.Replace(cfg.Target, `/`, `\`, -1)
+		mp.Destination = strings.ReplaceAll(cfg.Target, `/`, `\`)
 	}
 
 	switch cfg.Type {
@@ -397,9 +396,9 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, convertTargetToBackslash
 			}
 		}
 	case mount.TypeBind:
-		mp.Source = strings.Replace(cfg.Source, `/`, `\`, -1)
+		mp.Source = strings.ReplaceAll(cfg.Source, `/`, `\`)
 	case mount.TypeNamedPipe:
-		mp.Source = strings.Replace(cfg.Source, `/`, `\`, -1)
+		mp.Source = strings.ReplaceAll(cfg.Source, `/`, `\`)
 	}
 	// cleanup trailing `\` except for paths like `c:\`
 	if len(mp.Source) > 3 && mp.Source[len(mp.Source)-1] == '\\' {
@@ -416,20 +415,18 @@ func (p *windowsParser) ParseVolumesFrom(spec string) (string, string, error) {
 		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
 	}
 
-	specParts := strings.SplitN(spec, ":", 2)
-	id := specParts[0]
-	mode := "rw"
+	id, mode, _ := strings.Cut(spec, ":")
+	if mode == "" {
+		return id, "rw", nil
+	}
 
-	if len(specParts) == 2 {
-		mode = specParts[1]
-		if !windowsValidMountMode(mode) {
-			return "", "", errInvalidMode(mode)
-		}
+	if !windowsValidMountMode(mode) {
+		return "", "", errInvalidMode(mode)
+	}
 
-		// Do not allow copy modes on volumes-from
-		if _, isSet := getCopyMode(mode, p.DefaultCopyMode()); isSet {
-			return "", "", errInvalidMode(mode)
-		}
+	// Do not allow copy modes on volumes-from
+	if _, isSet := getCopyMode(mode, p.DefaultCopyMode()); isSet {
+		return "", "", errInvalidMode(mode)
 	}
 	return id, mode, nil
 }

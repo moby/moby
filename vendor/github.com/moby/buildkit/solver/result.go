@@ -5,8 +5,9 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/moby/buildkit/util/bklog"
+
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // SharedResult is a result that can be cloned
@@ -48,7 +49,7 @@ type splitResult struct {
 func (r *splitResult) Release(ctx context.Context) error {
 	if atomic.AddInt64(&r.released, 1) > 1 {
 		err := errors.Errorf("releasing already released reference %+v", r.Result.ID())
-		logrus.Error(err)
+		bklog.G(ctx).Error(err)
 		return err
 	}
 	if atomic.AddInt64(r.sem, 1) == 2 {
@@ -106,4 +107,27 @@ func (ccr *clonedCachedResult) CacheKeys() []ExportableCacheKey {
 type SharedCachedResult struct {
 	*SharedResult
 	CachedResult
+}
+
+type splitResultProxy struct {
+	released int64
+	sem      *int64
+	ResultProxy
+}
+
+func (r *splitResultProxy) Release(ctx context.Context) error {
+	if atomic.AddInt64(&r.released, 1) > 1 {
+		err := errors.New("releasing already released reference")
+		bklog.G(ctx).Error(err)
+		return err
+	}
+	if atomic.AddInt64(r.sem, 1) == 2 {
+		return r.ResultProxy.Release(ctx)
+	}
+	return nil
+}
+
+func SplitResultProxy(res ResultProxy) (ResultProxy, ResultProxy) {
+	sem := int64(0)
+	return &splitResultProxy{ResultProxy: res, sem: &sem}, &splitResultProxy{ResultProxy: res, sem: &sem}
 }

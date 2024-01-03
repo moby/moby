@@ -9,28 +9,26 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerResizeError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.ContainerResize(context.Background(), "container_id", types.ResizeOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	err := client.ContainerResize(context.Background(), "container_id", container.ResizeOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerExecResizeError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.ContainerExecResize(context.Background(), "exec_id", types.ResizeOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	err := client.ContainerExecResize(context.Background(), "exec_id", container.ResizeOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerResize(t *testing.T) {
@@ -38,7 +36,7 @@ func TestContainerResize(t *testing.T) {
 		client: newMockClient(resizeTransport("/containers/container_id/resize")),
 	}
 
-	err := client.ContainerResize(context.Background(), "container_id", types.ResizeOptions{
+	err := client.ContainerResize(context.Background(), "container_id", container.ResizeOptions{
 		Height: 500,
 		Width:  600,
 	})
@@ -52,7 +50,7 @@ func TestContainerExecResize(t *testing.T) {
 		client: newMockClient(resizeTransport("/exec/exec_id/resize")),
 	}
 
-	err := client.ContainerExecResize(context.Background(), "exec_id", types.ResizeOptions{
+	err := client.ContainerExecResize(context.Background(), "exec_id", container.ResizeOptions{
 		Height: 500,
 		Width:  600,
 	})

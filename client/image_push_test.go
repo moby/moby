@@ -10,7 +10,10 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImagePushReferenceError(t *testing.T) {
@@ -36,9 +39,7 @@ func TestImagePushAnyError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestImagePushStatusUnauthorizedError(t *testing.T) {
@@ -46,9 +47,7 @@ func TestImagePushStatusUnauthorizedError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{})
-	if !errdefs.IsUnauthorized(err) {
-		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsUnauthorized))
 }
 
 func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
@@ -76,9 +75,7 @@ func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
-	if !errdefs.IsUnauthorized(err) {
-		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsUnauthorized))
 }
 
 func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
@@ -88,7 +85,7 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			auth := req.Header.Get("X-Registry-Auth")
+			auth := req.Header.Get(registry.AuthHeader)
 			if auth == "NotValid" {
 				return &http.Response{
 					StatusCode: http.StatusUnauthorized,
@@ -96,7 +93,7 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 				}, nil
 			}
 			if auth != "IAmValid" {
-				return nil, fmt.Errorf("Invalid auth header : expected %s, got %s", "IAmValid", auth)
+				return nil, fmt.Errorf("invalid auth header: expected %s, got %s", "IAmValid", auth)
 			}
 			query := req.URL.Query()
 			tag := query.Get("tag")

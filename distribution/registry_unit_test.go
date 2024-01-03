@@ -8,11 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/registry"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/registry"
+	registrypkg "github.com/docker/docker/registry"
 )
 
 const secretRegistryToken = "mysecrettoken"
@@ -26,7 +25,7 @@ type tokenPassThruHandler struct {
 func (h *tokenPassThruHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.reached = true
 	if strings.Contains(r.Header.Get("Authorization"), secretRegistryToken) {
-		logrus.Debug("Detected registry token in auth header")
+		log.G(context.TODO()).Debug("Detected registry token in auth header")
 		h.gotToken = true
 	}
 	if h.shouldSend401 == nil || h.shouldSend401(r.RequestURI) {
@@ -41,18 +40,17 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		t.Fatalf("could not parse url from test server: %v", err)
 	}
 
-	endpoint := registry.APIEndpoint{
+	endpoint := registrypkg.APIEndpoint{
 		Mirror:       false,
 		URL:          uri,
-		Version:      2,
 		Official:     false,
 		TrimHostname: false,
 		TLSConfig:    nil,
 	}
 	n, _ := reference.ParseNormalizedNamed("testremotename")
-	repoInfo := &registry.RepositoryInfo{
+	repoInfo := &registrypkg.RepositoryInfo{
 		Name: n,
-		Index: &registrytypes.IndexInfo{
+		Index: &registry.IndexInfo{
 			Name:     "testrepo",
 			Mirrors:  nil,
 			Secure:   false,
@@ -63,27 +61,22 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	imagePullConfig := &ImagePullConfig{
 		Config: Config{
 			MetaHeaders: http.Header{},
-			AuthConfig: &types.AuthConfig{
+			AuthConfig: &registry.AuthConfig{
 				RegistryToken: secretRegistryToken,
 			},
 		},
-		Schema2Types: ImageTypes,
 	}
-	puller, err := newPuller(endpoint, repoInfo, imagePullConfig, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p := puller.(*v2Puller)
+	p := newPuller(endpoint, repoInfo, imagePullConfig, nil)
 	ctx := context.Background()
-	p.repo, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p.repo, err = newRepository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	logrus.Debug("About to pull")
+	log.G(ctx).Debug("About to pull")
 	// We expect it to fail, since we haven't mock'd the full registry exchange in our handler above
 	tag, _ := reference.WithTag(n, "tag_goes_here")
-	_ = p.pullV2Repository(ctx, tag)
+	_ = p.pullRepository(ctx, tag)
 }
 
 func TestTokenPassThru(t *testing.T) {

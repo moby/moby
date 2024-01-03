@@ -3,6 +3,7 @@ package remotecache
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -12,25 +13,26 @@ import (
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/imageutil"
+	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
 // ResolveCacheImporterFunc returns importer and descriptor.
-type ResolveCacheImporterFunc func(ctx context.Context, g session.Group, attrs map[string]string) (Importer, ocispec.Descriptor, error)
+type ResolveCacheImporterFunc func(ctx context.Context, g session.Group, attrs map[string]string) (Importer, ocispecs.Descriptor, error)
 
 type Importer interface {
-	Resolve(ctx context.Context, desc ocispec.Descriptor, id string, w worker.Worker) (solver.CacheManager, error)
+	Resolve(ctx context.Context, desc ocispecs.Descriptor, id string, w worker.Worker) (solver.CacheManager, error)
 }
 
 type DistributionSourceLabelSetter interface {
 	SetDistributionSourceLabel(context.Context, digest.Digest) error
-	SetDistributionSourceAnnotation(desc ocispec.Descriptor) ocispec.Descriptor
+	SetDistributionSourceAnnotation(desc ocispecs.Descriptor) ocispecs.Descriptor
 }
 
 func NewImporter(provider content.Provider) Importer {
@@ -41,30 +43,58 @@ type contentCacheImporter struct {
 	provider content.Provider
 }
 
-func (ci *contentCacheImporter) Resolve(ctx context.Context, desc ocispec.Descriptor, id string, w worker.Worker) (solver.CacheManager, error) {
+func (ci *contentCacheImporter) Resolve(ctx context.Context, desc ocispecs.Descriptor, id string, w worker.Worker) (solver.CacheManager, error) {
 	dt, err := readBlob(ctx, ci.provider, desc)
 	if err != nil {
 		return nil, err
 	}
 
-	var mfst ocispec.Index
-	if err := json.Unmarshal(dt, &mfst); err != nil {
+	manifestType, err := imageutil.DetectManifestBlobMediaType(dt)
+	if err != nil {
 		return nil, err
 	}
 
+	layerDone := progress.OneOff(ctx, fmt.Sprintf("inferred cache manifest type: %s", manifestType))
+	layerDone(nil)
+
 	allLayers := v1.DescriptorProvider{}
+	var configDesc ocispecs.Descriptor
 
-	var configDesc ocispec.Descriptor
+	switch manifestType {
+	case images.MediaTypeDockerSchema2ManifestList, ocispecs.MediaTypeImageIndex:
+		var mfst ocispecs.Index
+		if err := json.Unmarshal(dt, &mfst); err != nil {
+			return nil, err
+		}
 
-	for _, m := range mfst.Manifests {
-		if m.MediaType == v1.CacheConfigMediaTypeV0 {
-			configDesc = m
-			continue
+		for _, m := range mfst.Manifests {
+			if m.MediaType == v1.CacheConfigMediaTypeV0 {
+				configDesc = m
+				continue
+			}
+			allLayers[m.Digest] = v1.DescriptorProviderPair{
+				Descriptor: m,
+				Provider:   ci.provider,
+			}
 		}
-		allLayers[m.Digest] = v1.DescriptorProviderPair{
-			Descriptor: m,
-			Provider:   ci.provider,
+	case images.MediaTypeDockerSchema2Manifest, ocispecs.MediaTypeImageManifest:
+		var mfst ocispecs.Manifest
+		if err := json.Unmarshal(dt, &mfst); err != nil {
+			return nil, err
 		}
+
+		if mfst.Config.MediaType == v1.CacheConfigMediaTypeV0 {
+			configDesc = mfst.Config
+		}
+		for _, m := range mfst.Layers {
+			allLayers[m.Digest] = v1.DescriptorProviderPair{
+				Descriptor: m,
+				Provider:   ci.provider,
+			}
+		}
+	default:
+		err = errors.Wrapf(err, "unsupported or uninferrable manifest type")
+		return nil, err
 	}
 
 	if dsls, ok := ci.provider.(DistributionSourceLabelSetter); ok {
@@ -94,10 +124,10 @@ func (ci *contentCacheImporter) Resolve(ctx context.Context, desc ocispec.Descri
 	if err != nil {
 		return nil, err
 	}
-	return solver.NewCacheManager(id, keysStorage, resultStorage), nil
+	return solver.NewCacheManager(ctx, id, keysStorage, resultStorage), nil
 }
 
-func readBlob(ctx context.Context, provider content.Provider, desc ocispec.Descriptor) ([]byte, error) {
+func readBlob(ctx context.Context, provider content.Provider, desc ocispecs.Descriptor) ([]byte, error) {
 	maxBlobSize := int64(1 << 20)
 	if desc.Size > maxBlobSize {
 		return nil, errors.Errorf("blob %s is too large (%d > %d)", desc.Digest, desc.Size, maxBlobSize)
@@ -132,7 +162,7 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 	for dgst, dt := range m {
 		func(dgst digest.Digest, dt []byte) {
 			eg.Go(func() error {
-				var m ocispec.Manifest
+				var m ocispecs.Manifest
 
 				if err := json.Unmarshal(dt, &m); err != nil {
 					return errors.WithStack(err)
@@ -162,7 +192,7 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 				}
 
 				if len(img.Rootfs.DiffIDs) != len(m.Layers) {
-					logrus.Warnf("invalid image with mismatching manifest and config")
+					bklog.G(ctx).Warnf("invalid image with mismatching manifest and config")
 					return nil
 				}
 
@@ -229,7 +259,7 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 		if err != nil {
 			return nil, err
 		}
-		cms = append(cms, solver.NewCacheManager(id, keysStorage, resultStorage))
+		cms = append(cms, solver.NewCacheManager(ctx, id, keysStorage, resultStorage))
 	}
 
 	return solver.NewCombinedCacheManager(cms, nil), nil
@@ -242,10 +272,10 @@ func (ci *contentCacheImporter) allDistributionManifests(ctx context.Context, dt
 	}
 
 	switch mt {
-	case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
+	case images.MediaTypeDockerSchema2Manifest, ocispecs.MediaTypeImageManifest:
 		m[digest.FromBytes(dt)] = dt
-	case images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
-		var index ocispec.Index
+	case images.MediaTypeDockerSchema2ManifestList, ocispecs.MediaTypeImageIndex:
+		var index ocispecs.Index
 		if err := json.Unmarshal(dt, &index); err != nil {
 			return errors.WithStack(err)
 		}

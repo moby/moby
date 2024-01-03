@@ -1,70 +1,67 @@
 package dbserver
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/cmd/networkdb-test/dummyclient"
 	"github.com/docker/docker/libnetwork/diagnostic"
 	"github.com/docker/docker/libnetwork/networkdb"
-	"github.com/sirupsen/logrus"
 )
 
-var nDB *networkdb.NetworkDB
-var server *diagnostic.Server
-var ipAddr string
+var (
+	nDB    *networkdb.NetworkDB
+	server *diagnostic.Server
+	ipAddr string
+)
 
-var testerPaths2Func = map[string]diagnostic.HTTPHandlerFunc{
-	"/myip": ipaddress,
-}
-
-func ipaddress(ctx interface{}, w http.ResponseWriter, r *http.Request) {
+func ipaddress(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s\n", ipAddr)
 }
 
 // Server starts the server
 func Server(args []string) {
-	logrus.Infof("[SERVER] Starting with arguments %v", args)
+	log.G(context.TODO()).Infof("[SERVER] Starting with arguments %v", args)
 	if len(args) < 1 {
-		log.Fatal("Port number is a mandatory argument, aborting...")
+		log.G(context.TODO()).Fatal("Port number is a mandatory argument, aborting...")
 	}
 	port, _ := strconv.Atoi(args[0])
 	var localNodeName string
 	var ok bool
 	if localNodeName, ok = os.LookupEnv("TASK_ID"); !ok {
-		log.Fatal("TASK_ID environment variable not set, aborting...")
+		log.G(context.TODO()).Fatal("TASK_ID environment variable not set, aborting...")
 	}
-	logrus.Infof("[SERVER] Starting node %s on port %d", localNodeName, port)
+	log.G(context.TODO()).Infof("[SERVER] Starting node %s on port %d", localNodeName, port)
 
 	ip, err := getIPInterface("eth0")
 	if err != nil {
-		logrus.Errorf("%s There was a problem with the IP %s\n", localNodeName, err)
+		log.G(context.TODO()).Errorf("%s There was a problem with the IP %s\n", localNodeName, err)
 		return
 	}
 	ipAddr = ip
-	logrus.Infof("%s uses IP %s\n", localNodeName, ipAddr)
+	log.G(context.TODO()).Infof("%s uses IP %s\n", localNodeName, ipAddr)
 
 	server = diagnostic.New()
-	server.Init()
 	conf := networkdb.DefaultConfig()
 	conf.Hostname = localNodeName
 	conf.AdvertiseAddr = ipAddr
 	conf.BindAddr = ipAddr
 	nDB, err = networkdb.New(conf)
 	if err != nil {
-		logrus.Infof("%s error in the DB init %s\n", localNodeName, err)
+		log.G(context.TODO()).Infof("%s error in the DB init %s\n", localNodeName, err)
 		return
 	}
 
 	// Register network db handlers
-	server.RegisterHandler(nDB, networkdb.NetDbPaths2Func)
-	server.RegisterHandler(nil, testerPaths2Func)
-	server.RegisterHandler(nDB, dummyclient.DummyClientPaths2Func)
+	nDB.RegisterDiagnosticHandlers(server)
+	server.HandleFunc("/myip", ipaddress)
+	dummyclient.RegisterDiagnosticHandlers(server, nDB)
 	server.EnableDiagnostic("", port)
 	// block here
 	select {}

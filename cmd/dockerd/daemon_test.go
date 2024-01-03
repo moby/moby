@@ -3,8 +3,9 @@ package main
 import (
 	"testing"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
-	"github.com/sirupsen/logrus"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -12,16 +13,19 @@ import (
 )
 
 func defaultOptions(t *testing.T, configFile string) *daemonOptions {
-	opts := newDaemonOptions(&config.Config{})
+	cfg, err := config.New()
+	assert.NilError(t, err)
+	opts := newDaemonOptions(cfg)
 	opts.flags = &pflag.FlagSet{}
-	opts.InstallFlags(opts.flags)
-	if err := installConfigFlags(opts.daemonConfig, opts.flags); err != nil {
-		t.Fatal(err)
-	}
+	opts.installFlags(opts.flags)
+	err = installConfigFlags(opts.daemonConfig, opts.flags)
+	assert.NilError(t, err)
 	defaultDaemonConfigFile, err := getDefaultDaemonConfigFile()
 	assert.NilError(t, err)
 	opts.flags.StringVar(&opts.configFile, "config-file", defaultDaemonConfigFile, "")
 	opts.configFile = configFile
+	err = opts.flags.Parse([]string{})
+	assert.NilError(t, err)
 	return opts
 }
 
@@ -45,7 +49,7 @@ func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
-	assert.Check(t, is.Equal("/tmp/ca.pem", loadedConfig.CommonTLSOptions.CAFile))
+	assert.Check(t, is.Equal("/tmp/ca.pem", loadedConfig.TLSOptions.CAFile))
 }
 
 func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
@@ -152,6 +156,26 @@ func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 	assert.Check(t, is.Equal("warn", loadedConfig.LogLevel))
 }
 
+func TestLoadDaemonCliConfigWithLogFormat(t *testing.T) {
+	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"log-format": "json"}`))
+	defer tempFile.Remove()
+
+	opts := defaultOptions(t, tempFile.Path())
+	loadedConfig, err := loadDaemonCliConfig(opts)
+	assert.NilError(t, err)
+	assert.Assert(t, loadedConfig != nil)
+	assert.Check(t, is.Equal(log.JSONFormat, loadedConfig.LogFormat))
+}
+
+func TestLoadDaemonCliConfigWithInvalidLogFormat(t *testing.T) {
+	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"log-format": "foo"}`))
+	defer tempFile.Remove()
+
+	opts := defaultOptions(t, tempFile.Path())
+	_, err := loadDaemonCliConfig(opts)
+	assert.Check(t, is.ErrorContains(err, "invalid log format: foo"))
+}
+
 func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 	content := `{"tlscacert": "/etc/certs/ca.pem", "log-driver": "syslog"}`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
@@ -161,7 +185,7 @@ func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
-	assert.Check(t, is.Equal("/etc/certs/ca.pem", loadedConfig.CommonTLSOptions.CAFile))
+	assert.Check(t, is.Equal("/etc/certs/ca.pem", loadedConfig.TLSOptions.CAFile))
 	assert.Check(t, is.Equal("syslog", loadedConfig.LogConfig.Type))
 }
 
@@ -186,19 +210,84 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 
 func TestConfigureDaemonLogs(t *testing.T) {
 	conf := &config.Config{}
-	err := configureDaemonLogs(conf)
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(logrus.InfoLevel, logrus.GetLevel()))
+	configureDaemonLogs(conf)
+	assert.Check(t, is.Equal(log.InfoLevel, log.GetLevel()))
+
+	// log level should not be changed when passing an invalid value
+	conf.LogLevel = "foobar"
+	configureDaemonLogs(conf)
+	assert.Check(t, is.Equal(log.InfoLevel, log.GetLevel()))
 
 	conf.LogLevel = "warn"
-	err = configureDaemonLogs(conf)
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(logrus.WarnLevel, logrus.GetLevel()))
+	configureDaemonLogs(conf)
+	assert.Check(t, is.Equal(log.WarnLevel, log.GetLevel()))
+}
 
-	conf.LogLevel = "foobar"
-	err = configureDaemonLogs(conf)
-	assert.Error(t, err, "unable to parse logging level: foobar")
+func TestCDISpecDirs(t *testing.T) {
+	testCases := []struct {
+		description         string
+		configContent       string
+		experimental        bool
+		specDirs            []string
+		expectedCDISpecDirs []string
+	}{
+		{
+			description:         "experimental and no spec dirs specified returns default",
+			specDirs:            nil,
+			experimental:        true,
+			expectedCDISpecDirs: []string{"/etc/cdi", "/var/run/cdi"},
+		},
+		{
+			description:         "experimental and specified spec dirs are returned",
+			specDirs:            []string{"/foo/bar", "/baz/qux"},
+			experimental:        true,
+			expectedCDISpecDirs: []string{"/foo/bar", "/baz/qux"},
+		},
+		{
+			description:         "experimental and empty string as spec dir returns empty slice",
+			specDirs:            []string{""},
+			experimental:        true,
+			expectedCDISpecDirs: []string{},
+		},
+		{
+			description:         "experimental and empty config option returns empty slice",
+			configContent:       `{"cdi-spec-dirs": []}`,
+			experimental:        true,
+			expectedCDISpecDirs: []string{},
+		},
+		{
+			description:         "non-experimental and no spec dirs specified returns no cdi spec dirs",
+			specDirs:            nil,
+			experimental:        false,
+			expectedCDISpecDirs: nil,
+		},
+		{
+			description:         "non-experimental and specified spec dirs returns no cdi spec dirs",
+			specDirs:            []string{"/foo/bar", "/baz/qux"},
+			experimental:        false,
+			expectedCDISpecDirs: nil,
+		},
+	}
 
-	// log level should not be changed after a failure
-	assert.Check(t, is.Equal(logrus.WarnLevel, logrus.GetLevel()))
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			tempFile := fs.NewFile(t, "config", fs.WithContent(tc.configContent))
+			defer tempFile.Remove()
+
+			opts := defaultOptions(t, tempFile.Path())
+
+			flags := opts.flags
+			for _, specDir := range tc.specDirs {
+				assert.Check(t, flags.Set("cdi-spec-dir", specDir))
+			}
+			if tc.experimental {
+				assert.Check(t, flags.Set("experimental", "true"))
+			}
+
+			loadedConfig, err := loadDaemonCliConfig(opts)
+			assert.NilError(t, err)
+
+			assert.Check(t, is.DeepEqual(tc.expectedCDISpecDirs, loadedConfig.CDISpecDirs, cmpopts.EquateEmpty()))
+		})
+	}
 }

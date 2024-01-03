@@ -19,16 +19,13 @@ package fs
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 )
 
-var (
-	errTooManyLinks = errors.New("too many links")
-)
+var errTooManyLinks = errors.New("too many links")
 
 type currentPath struct {
 	path     string

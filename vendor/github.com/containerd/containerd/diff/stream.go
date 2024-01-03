@@ -18,14 +18,14 @@ package diff
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/images"
-	"github.com/gogo/protobuf/types"
+	"github.com/containerd/typeurl/v2"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -46,7 +46,7 @@ func RegisterProcessor(handler Handler) {
 }
 
 // GetProcessor returns the processor for a media-type
-func GetProcessor(ctx context.Context, stream StreamProcessor, payloads map[string]*types.Any) (StreamProcessor, error) {
+func GetProcessor(ctx context.Context, stream StreamProcessor, payloads map[string]typeurl.Any) (StreamProcessor, error) {
 	// reverse this list so that user configured handlers come up first
 	for i := len(handlers) - 1; i >= 0; i-- {
 		processor, ok := handlers[i](ctx, stream.MediaType())
@@ -71,7 +71,7 @@ func StaticHandler(expectedMediaType string, fn StreamProcessorInit) Handler {
 }
 
 // StreamProcessorInit returns the initialized stream processor
-type StreamProcessorInit func(ctx context.Context, stream StreamProcessor, payloads map[string]*types.Any) (StreamProcessor, error)
+type StreamProcessorInit func(ctx context.Context, stream StreamProcessor, payloads map[string]typeurl.Any) (StreamProcessor, error)
 
 // RawProcessor provides access to direct fd for processing
 type RawProcessor interface {
@@ -93,7 +93,7 @@ func compressedHandler(ctx context.Context, mediaType string) (StreamProcessorIn
 		return nil, false
 	}
 	if compressed != "" {
-		return func(ctx context.Context, stream StreamProcessor, payloads map[string]*types.Any) (StreamProcessor, error) {
+		return func(ctx context.Context, stream StreamProcessor, payloads map[string]typeurl.Any) (StreamProcessor, error) {
 			ds, err := compression.DecompressStream(stream)
 			if err != nil {
 				return nil, err
@@ -104,7 +104,7 @@ func compressedHandler(ctx context.Context, mediaType string) (StreamProcessorIn
 			}, nil
 		}, true
 	}
-	return func(ctx context.Context, stream StreamProcessor, payloads map[string]*types.Any) (StreamProcessor, error) {
+	return func(ctx context.Context, stream StreamProcessor, payloads map[string]typeurl.Any) (StreamProcessor, error) {
 		return &stdProcessor{
 			rc: stream,
 		}, nil
@@ -179,7 +179,7 @@ func BinaryHandler(id, returnsMediaType string, mediaTypes []string, path string
 	}
 	return func(_ context.Context, mediaType string) (StreamProcessorInit, bool) {
 		if _, ok := set[mediaType]; ok {
-			return func(ctx context.Context, stream StreamProcessor, payloads map[string]*types.Any) (StreamProcessor, error) {
+			return func(ctx context.Context, stream StreamProcessor, payloads map[string]typeurl.Any) (StreamProcessor, error) {
 				payload := payloads[id]
 				return NewBinaryProcessor(ctx, mediaType, returnsMediaType, stream, path, args, env, payload)
 			}, true
