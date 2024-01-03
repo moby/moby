@@ -12,7 +12,9 @@ func (sb *Sandbox) setupResolutionFiles() error {
 	return nil
 }
 
-func (sb *Sandbox) restorePath() {}
+func (sb *Sandbox) restoreHostsPath() {}
+
+func (sb *Sandbox) restoreResolvConfPath() {}
 
 func (sb *Sandbox) updateHostsFile(ifaceIP []string) error {
 	return nil

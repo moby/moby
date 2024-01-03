@@ -1,0 +1,7 @@
+nameserver 1.2.3.4
+search invalid
+options ndots:0
+
+# Based on host file: ''
+# Overrides: []
+# Option ndots from: host

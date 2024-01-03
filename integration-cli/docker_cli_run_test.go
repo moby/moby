@@ -1275,10 +1275,11 @@ func (s *DockerCLIRunSuite) TestRunDNSDefaultOptions(c *testing.T) {
 	}
 
 	actual := cli.DockerCmd(c, "run", "busybox", "cat", "/etc/resolv.conf").Combined()
-	// check that the actual defaults are appended to the commented out
-	// localhost resolver (which should be preserved)
+	actual = regexp.MustCompile("(?m)^#.*$").ReplaceAllString(actual, "")
+	actual = strings.ReplaceAll(strings.Trim(actual, "\r\n"), "\n", " ")
 	// NOTE: if we ever change the defaults from google dns, this will break
-	expected := "#nameserver 127.0.2.1\n\nnameserver 8.8.8.8\nnameserver 8.8.4.4\n"
+	expected := "nameserver 8.8.8.8 nameserver 8.8.4.4"
+
 	if actual != expected {
 		c.Fatalf("expected resolv.conf be: %q, but was: %q", expected, actual)
 	}
@@ -1295,14 +1296,16 @@ func (s *DockerCLIRunSuite) TestRunDNSOptions(c *testing.T) {
 		c.Fatalf("Expected warning on stderr about localhost resolver, but got %q", result.Stderr())
 	}
 
-	actual := strings.ReplaceAll(strings.Trim(result.Stdout(), "\r\n"), "\n", " ")
-	if actual != "search mydomain nameserver 127.0.0.1 options ndots:9" {
-		c.Fatalf("expected 'search mydomain nameserver 127.0.0.1 options ndots:9', but says: %q", actual)
+	actual := regexp.MustCompile("(?m)^#.*$").ReplaceAllString(result.Stdout(), "")
+	actual = strings.ReplaceAll(strings.Trim(actual, "\r\n"), "\n", " ")
+	if actual != "nameserver 127.0.0.1 search mydomain options ndots:9" {
+		c.Fatalf("nameserver 127.0.0.1 expected 'search mydomain options ndots:9', but says: %q", actual)
 	}
 
 	out := cli.DockerCmd(c, "run", "--dns=1.1.1.1", "--dns-search=.", "--dns-opt=ndots:3", "busybox", "cat", "/etc/resolv.conf").Combined()
 
-	actual = strings.ReplaceAll(strings.Trim(strings.Trim(out, "\r\n"), " "), "\n", " ")
+	actual = regexp.MustCompile("(?m)^#.*$").ReplaceAllString(out, "")
+	actual = strings.ReplaceAll(strings.Trim(strings.Trim(actual, "\r\n"), " "), "\n", " ")
 	if actual != "nameserver 1.1.1.1 options ndots:3" {
 		c.Fatalf("expected 'nameserver 1.1.1.1 options ndots:3', but says: %q", actual)
 	}
@@ -1312,9 +1315,10 @@ func (s *DockerCLIRunSuite) TestRunDNSRepeatOptions(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out := cli.DockerCmd(c, "run", "--dns=1.1.1.1", "--dns=2.2.2.2", "--dns-search=mydomain", "--dns-search=mydomain2", "--dns-opt=ndots:9", "--dns-opt=timeout:3", "busybox", "cat", "/etc/resolv.conf").Stdout()
 
-	actual := strings.ReplaceAll(strings.Trim(out, "\r\n"), "\n", " ")
-	if actual != "search mydomain mydomain2 nameserver 1.1.1.1 nameserver 2.2.2.2 options ndots:9 timeout:3" {
-		c.Fatalf("expected 'search mydomain mydomain2 nameserver 1.1.1.1 nameserver 2.2.2.2 options ndots:9 timeout:3', but says: %q", actual)
+	actual := regexp.MustCompile("(?m)^#.*$").ReplaceAllString(out, "")
+	actual = strings.ReplaceAll(strings.Trim(actual, "\r\n"), "\n", " ")
+	if actual != "nameserver 1.1.1.1 nameserver 2.2.2.2 search mydomain mydomain2 options ndots:9 timeout:3" {
+		c.Fatalf("expected 'nameserver 1.1.1.1 nameserver 2.2.2.2 search mydomain mydomain2 options ndots:9 timeout:3', but says: %q", actual)
 	}
 }
 
