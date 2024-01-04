@@ -1595,3 +1595,19 @@ func (i *imageBackend) GetRepository(ctx context.Context, ref reference.Named, a
 		},
 	})
 }
+
+// GetRepositories returns a list of repositories configured for the given
+// reference. Multiple repositories can be returned if the reference is for
+// the default (Docker Hub) registry and a mirror is configured, but it omits
+// registries that were not reachable (pinging the /v2/ endpoint failed).
+//
+// It returns an error if it was unable to reach any of the registries for
+// the given reference, or if the provided reference is invalid.
+func (i *imageBackend) GetRepositories(ctx context.Context, ref reference.Named, authConfig *registrytypes.AuthConfig) ([]dist.Repository, error) {
+	return distribution.GetRepositories(ctx, ref, &distribution.ImagePullConfig{
+		Config: distribution.Config{
+			AuthConfig:      authConfig,
+			RegistryService: i.registryService,
+		},
+	})
+}
