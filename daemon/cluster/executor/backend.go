@@ -77,7 +77,6 @@ type VolumeBackend interface {
 // ImageBackend is used by an executor to perform image operations
 type ImageBackend interface {
 	PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
-	GetRepository(context.Context, reference.Named, *registry.AuthConfig) (distribution.Repository, error)
 	GetRepositories(context.Context, reference.Named, *registry.AuthConfig) ([]distribution.Repository, error)
 	GetImage(ctx context.Context, refOrID string, options opts.GetImageOpts) (*image.Image, error)
 }

@@ -1586,16 +1586,6 @@ type imageBackend struct {
 	registryService *registry.Service
 }
 
-// GetRepository returns a repository from the registry.
-func (i *imageBackend) GetRepository(ctx context.Context, ref reference.Named, authConfig *registrytypes.AuthConfig) (dist.Repository, error) {
-	return distribution.GetRepository(ctx, ref, &distribution.ImagePullConfig{
-		Config: distribution.Config{
-			AuthConfig:      authConfig,
-			RegistryService: i.registryService,
-		},
-	})
-}
-
 // GetRepositories returns a list of repositories configured for the given
 // reference. Multiple repositories can be returned if the reference is for
 // the default (Docker Hub) registry and a mirror is configured, but it omits

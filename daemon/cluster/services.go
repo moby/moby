@@ -25,6 +25,7 @@ import (
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
@@ -635,16 +636,30 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 			return "", errors.Errorf("image reference not tagged: %s", image)
 		}
 
-		repo, err := c.config.ImageBackend.GetRepository(ctx, taggedRef, authConfig)
-		if err != nil {
-			return "", err
-		}
-		dscrptr, err := repo.Tags(ctx).Get(ctx, taggedRef.Tag())
+		// Fetch the image manifest's digest; if a mirror is configured, try the
+		// mirror first, but continue with upstream on failure.
+		repos, err := c.config.ImageBackend.GetRepositories(ctx, taggedRef, authConfig)
 		if err != nil {
 			return "", err
 		}
 
-		namedDigestedRef, err := reference.WithDigest(taggedRef, dscrptr.Digest)
+		var (
+			imgDigest digest.Digest
+			lastErr   error
+		)
+		for _, repo := range repos {
+			dscrptr, err := repo.Tags(ctx).Get(ctx, taggedRef.Tag())
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			imgDigest = dscrptr.Digest
+		}
+		if lastErr != nil {
+			return "", lastErr
+		}
+
+		namedDigestedRef, err := reference.WithDigest(taggedRef, imgDigest)
 		if err != nil {
 			return "", err
 		}
