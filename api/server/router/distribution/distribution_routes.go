@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/distribution/reference"
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
@@ -42,24 +43,50 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	// For a search it is not an error if no auth was given. Ignore invalid
 	// AuthConfig to increase compatibility with the existing API.
 	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
-	distrepo, err := s.backend.GetRepository(ctx, namedRef, authConfig)
+	repos, err := s.backend.GetRepositories(ctx, namedRef, authConfig)
 	if err != nil {
 		return err
 	}
-	blobsrvc := distrepo.Blobs(ctx)
 
+	// Fetch the manifest; if a mirror is configured, try the mirror first,
+	// but continue with upstream on failure.
+	//
+	// FIXME(thaJeztah): construct "repositories" on-demand;
+	// GetRepositories() will attempt to connect to all endpoints (registries),
+	// but we may only need the first one if it contains the manifest we're
+	// looking for, or if the configured mirror is a pull-through mirror.
+	//
+	// Logic for this could be implemented similar to "distribution.Pull()",
+	// which uses the "pullEndpoints" utility to iterate over the list
+	// of endpoints;
+	//
+	// - https://github.com/moby/moby/blob/12c7411b6b7314bef130cd59f1c7384a7db06d0b/distribution/pull.go#L17-L31
+	// - https://github.com/moby/moby/blob/12c7411b6b7314bef130cd59f1c7384a7db06d0b/distribution/pull.go#L76-L152
+	var lastErr error
+	for _, repo := range repos {
+		distributionInspect, err := s.fetchManifest(ctx, repo, namedRef)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		return httputils.WriteJSON(w, http.StatusOK, distributionInspect)
+	}
+	return lastErr
+}
+
+func (s *distributionRouter) fetchManifest(ctx context.Context, distrepo distribution.Repository, namedRef reference.Named) (registry.DistributionInspect, error) {
 	var distributionInspect registry.DistributionInspect
 	if canonicalRef, ok := namedRef.(reference.Canonical); !ok {
 		namedRef = reference.TagNameOnly(namedRef)
 
 		taggedRef, ok := namedRef.(reference.NamedTagged)
 		if !ok {
-			return errdefs.InvalidParameter(errors.Errorf("image reference not tagged: %s", image))
+			return registry.DistributionInspect{}, errdefs.InvalidParameter(errors.Errorf("image reference not tagged: %s", namedRef))
 		}
 
 		descriptor, err := distrepo.Tags(ctx).Get(ctx, taggedRef.Tag())
 		if err != nil {
-			return err
+			return registry.DistributionInspect{}, err
 		}
 		distributionInspect.Descriptor = ocispec.Descriptor{
 			MediaType: descriptor.MediaType,
@@ -76,7 +103,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	// we have a digest, so we can retrieve the manifest
 	mnfstsrvc, err := distrepo.Manifests(ctx)
 	if err != nil {
-		return err
+		return registry.DistributionInspect{}, err
 	}
 	mnfst, err := mnfstsrvc.Get(ctx, distributionInspect.Descriptor.Digest)
 	if err != nil {
@@ -88,14 +115,14 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 			reference.ErrNameEmpty,
 			reference.ErrNameTooLong,
 			reference.ErrNameNotCanonical:
-			return errdefs.InvalidParameter(err)
+			return registry.DistributionInspect{}, errdefs.InvalidParameter(err)
 		}
-		return err
+		return registry.DistributionInspect{}, err
 	}
 
 	mediaType, payload, err := mnfst.Payload()
 	if err != nil {
-		return err
+		return registry.DistributionInspect{}, err
 	}
 	// update MediaType because registry might return something incorrect
 	distributionInspect.Descriptor.MediaType = mediaType
@@ -116,7 +143,8 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 			})
 		}
 	case *schema2.DeserializedManifest:
-		configJSON, err := blobsrvc.Get(ctx, mnfstObj.Config.Digest)
+		blobStore := distrepo.Blobs(ctx)
+		configJSON, err := blobStore.Get(ctx, mnfstObj.Config.Digest)
 		var platform ocispec.Platform
 		if err == nil {
 			err := json.Unmarshal(configJSON, &platform)
@@ -131,6 +159,5 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 		}
 		distributionInspect.Platforms = append(distributionInspect.Platforms, platform)
 	}
-
-	return httputils.WriteJSON(w, http.StatusOK, distributionInspect)
+	return distributionInspect, nil
 }

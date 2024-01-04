@@ -3,6 +3,7 @@ package distribution
 import (
 	"context"
 
+	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/errdefs"
@@ -10,6 +11,25 @@ import (
 
 // GetRepository returns a repository from the registry.
 func GetRepository(ctx context.Context, ref reference.Named, config *ImagePullConfig) (repository distribution.Repository, lastError error) {
+	repos, err := getRepositories(ctx, ref, config, true)
+	if len(repos) == 0 {
+		return nil, err
+	}
+	return repos[0], nil
+}
+
+// GetRepositories returns a list of repositories configured for the given
+// reference. Multiple repositories can be returned if the reference is for
+// the default (Docker Hub) registry and a mirror is configured, but it omits
+// registries that were not reachable (pinging the /v2/ endpoint failed).
+//
+// It returns an error if it was unable to reach any of the registries for
+// the given reference, or if the provided reference is invalid.
+func GetRepositories(ctx context.Context, ref reference.Named, config *ImagePullConfig) ([]distribution.Repository, error) {
+	return getRepositories(ctx, ref, config, false)
+}
+
+func getRepositories(ctx context.Context, ref reference.Named, config *ImagePullConfig, firstOnly bool) ([]distribution.Repository, error) {
 	repoInfo, err := config.RegistryService.ResolveRepository(ref)
 	if err != nil {
 		return nil, errdefs.InvalidParameter(err)
@@ -24,11 +44,24 @@ func GetRepository(ctx context.Context, ref reference.Named, config *ImagePullCo
 		return nil, err
 	}
 
+	var (
+		repositories []distribution.Repository
+		lastError    error
+	)
 	for _, endpoint := range endpoints {
-		repository, lastError = newRepository(ctx, repoInfo, endpoint, nil, config.AuthConfig, "pull")
-		if lastError == nil {
-			break
+		repo, err := newRepository(ctx, repoInfo, endpoint, nil, config.AuthConfig, "pull")
+		if err != nil {
+			log.G(ctx).WithFields(log.Fields{"endpoint": endpoint.URL.String(), "error": err}).Info("endpoint")
+			lastError = err
+			continue
+		}
+		repositories = append(repositories, repo)
+		if firstOnly {
+			return repositories, nil
 		}
 	}
-	return repository, lastError
+	if len(repositories) == 0 {
+		return nil, lastError
+	}
+	return repositories, nil
 }
