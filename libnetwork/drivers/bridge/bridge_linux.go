@@ -42,14 +42,6 @@ const (
 	DefaultGatewayV6AuxKey = "DefaultGatewayIPv6"
 )
 
-type defaultBridgeNetworkConflict struct {
-	ID string
-}
-
-func (d defaultBridgeNetworkConflict) Error() string {
-	return fmt.Sprintf("Stale default bridge network %s", d.ID)
-}
-
 type (
 	iptableCleanFunc   func() error
 	iptablesCleanFuncs []iptableCleanFunc
@@ -674,15 +666,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 
 	// check network conflicts
 	if err = d.checkConflict(config); err != nil {
-		nerr, ok := err.(defaultBridgeNetworkConflict)
-		if !ok {
-			return err
-		}
-		// Got a conflict with a stale default network, clean that up and continue
-		log.G(context.TODO()).Warn(nerr)
-		if err := d.deleteNetwork(nerr.ID); err != nil {
-			log.G(context.TODO()).WithError(err).Debug("Error while cleaning up network on conflict")
-		}
+		return err
 	}
 
 	// there is no conflict, now create the network
@@ -700,15 +684,6 @@ func (d *driver) checkConflict(config *networkConfiguration) error {
 		nwConfig := nw.config
 		nw.Unlock()
 		if err := nwConfig.Conflicts(config); err != nil {
-			if nwConfig.DefaultBridge {
-				// We encountered and identified a stale default network
-				// We must delete it as libnetwork is the source of truth
-				// The default network being created must be the only one
-				// This can happen only from docker 1.12 on ward
-				log.G(context.TODO()).Infof("Found stale default bridge network %s (%s)", nwConfig.ID, nwConfig.BridgeName)
-				return defaultBridgeNetworkConflict{nwConfig.ID}
-			}
-
 			return types.ForbiddenErrorf("cannot create network %s (%s): conflicts with network %s (%s): %s",
 				config.ID, config.BridgeName, nwConfig.ID, nwConfig.BridgeName, err.Error())
 		}
