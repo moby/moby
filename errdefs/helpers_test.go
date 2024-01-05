@@ -2,6 +2,7 @@ package errdefs
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -25,6 +26,11 @@ func TestNotFound(t *testing.T) {
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected not found error to match errTest")
 	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsNotFound(wrapped) {
+		t.Fatalf("expected not found error, got: %T", wrapped)
+	}
 }
 
 func TestConflict(t *testing.T) {
@@ -40,6 +46,11 @@ func TestConflict(t *testing.T) {
 	}
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected conflict error to match errTest")
+	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsConflict(wrapped) {
+		t.Fatalf("expected conflict error, got: %T", wrapped)
 	}
 }
 
@@ -57,6 +68,11 @@ func TestForbidden(t *testing.T) {
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected forbidden error to match errTest")
 	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsForbidden(wrapped) {
+		t.Fatalf("expected forbidden error, got: %T", wrapped)
+	}
 }
 
 func TestInvalidParameter(t *testing.T) {
@@ -72,6 +88,11 @@ func TestInvalidParameter(t *testing.T) {
 	}
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected invalid argument error to match errTest")
+	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsInvalidParameter(wrapped) {
+		t.Fatalf("expected invalid argument error, got: %T", wrapped)
 	}
 }
 
@@ -89,6 +110,11 @@ func TestNotImplemented(t *testing.T) {
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected not implemented error to match errTest")
 	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsNotImplemented(wrapped) {
+		t.Fatalf("expected not implemented error, got: %T", wrapped)
+	}
 }
 
 func TestNotModified(t *testing.T) {
@@ -104,6 +130,11 @@ func TestNotModified(t *testing.T) {
 	}
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected not modified error to match errTest")
+	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsNotModified(wrapped) {
+		t.Fatalf("expected not modified error, got: %T", wrapped)
 	}
 }
 
@@ -121,6 +152,11 @@ func TestUnauthorized(t *testing.T) {
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected unauthorized error to match errTest")
 	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsUnauthorized(wrapped) {
+		t.Fatalf("expected unauthorized error, got: %T", wrapped)
+	}
 }
 
 func TestUnknown(t *testing.T) {
@@ -136,6 +172,11 @@ func TestUnknown(t *testing.T) {
 	}
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected unknown error to match errTest")
+	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsUnknown(wrapped) {
+		t.Fatalf("expected unknown error, got: %T", wrapped)
 	}
 }
 
@@ -153,6 +194,11 @@ func TestCancelled(t *testing.T) {
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected cancelled error to match errTest")
 	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsCancelled(wrapped) {
+		t.Fatalf("expected cancelled error, got: %T", wrapped)
+	}
 }
 
 func TestDeadline(t *testing.T) {
@@ -168,6 +214,11 @@ func TestDeadline(t *testing.T) {
 	}
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected deadline error to match errTest")
+	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsDeadline(wrapped) {
+		t.Fatalf("expected deadline error, got: %T", wrapped)
 	}
 }
 
@@ -185,6 +236,11 @@ func TestDataLoss(t *testing.T) {
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected data loss error to match errTest")
 	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsDataLoss(wrapped) {
+		t.Fatalf("expected data loss error, got: %T", wrapped)
+	}
 }
 
 func TestUnavailable(t *testing.T) {
@@ -201,6 +257,11 @@ func TestUnavailable(t *testing.T) {
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected unavaillable error to match errTest")
 	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsUnavailable(wrapped) {
+		t.Fatalf("expected unavaillable error, got: %T", wrapped)
+	}
 }
 
 func TestSystem(t *testing.T) {
@@ -216,5 +277,10 @@ func TestSystem(t *testing.T) {
 	}
 	if !errors.Is(e, errTest) {
 		t.Fatalf("expected system error to match errTest")
+	}
+
+	wrapped := fmt.Errorf("foo: %w", e)
+	if !IsSystem(wrapped) {
+		t.Fatalf("expected system error, got: %T", wrapped)
 	}
 }
