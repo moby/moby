@@ -454,6 +454,9 @@ func getOomControlValue(mem *specs.LinuxMemory) *int64 {
 	if mem.DisableOOMKiller != nil && *mem.DisableOOMKiller {
 		i := int64(1)
 		return &i
+	} else if mem.DisableOOMKiller != nil && !*mem.DisableOOMKiller {
+		i := int64(0)
+		return &i
 	}
 	return nil
 }
