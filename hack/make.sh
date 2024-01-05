@@ -39,13 +39,12 @@ DEFAULT_BUNDLES=(
 )
 
 VERSION=${VERSION:-dev}
-if [[ $VERSION == refs/tags/* ]]; then
-	VERSION=${VERSION#refs/tags/}
-elif [[ $VERSION == refs/heads/* ]]; then
-	VERSION=$(sed <<< "${VERSION#refs/heads/}" -r 's#/+#-#g')
-elif [[ $VERSION == refs/pull/* ]]; then
-	VERSION=pr-$(grep <<< "$VERSION" -o '[0-9]\+')
-fi
+case "$VERSION" in
+	refs/tags/v*) VERSION=${VERSION#refs/tags/v} ;;
+	refs/tags/*) VERSION=${VERSION#refs/tags/} ;;
+	refs/heads/*) VERSION=$(echo "${VERSION#refs/heads/}" | sed -r 's#/+#-#g') ;;
+	refs/pull/*) VERSION=pr-$(echo "$VERSION" | grep -o '[0-9]\+') ;;
+esac
 
 ! BUILDTIME=$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
 if [ "$DOCKER_GITCOMMIT" ]; then
