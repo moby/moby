@@ -39,7 +39,9 @@ DEFAULT_BUNDLES=(
 )
 
 VERSION=${VERSION:-dev}
-if [[ $VERSION == refs/tags/* ]]; then
+if [[ $VERSION == refs/tags/v* ]]; then
+	VERSION=${VERSION#refs/tags/v}
+else if [[ $VERSION == refs/tags/* ]]; then
 	VERSION=${VERSION#refs/tags/}
 elif [[ $VERSION == refs/heads/* ]]; then
 	VERSION=$(sed <<< "${VERSION#refs/heads/}" -r 's#/+#-#g')
