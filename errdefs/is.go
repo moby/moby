@@ -9,6 +9,10 @@ type causer interface {
 	Cause() error
 }
 
+type wrapErr interface {
+	Unwrap() error
+}
+
 func getImplementer(err error) error {
 	switch e := err.(type) {
 	case
@@ -28,6 +32,8 @@ func getImplementer(err error) error {
 		return err
 	case causer:
 		return getImplementer(e.Cause())
+	case wrapErr:
+		return getImplementer(e.Unwrap())
 	default:
 		return err
 	}
