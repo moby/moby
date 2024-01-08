@@ -78,7 +78,7 @@ func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.Diff
 				parent, _ = s.getGraphDriverID(info.Parent)
 			}
 		}
-		diffID, size, err = s.reg.ChecksumForGraphID(id, parent, "", tarSplitPath)
+		diffID, size, err = s.reg.ChecksumForGraphID(id, parent, tarSplitPath)
 		return err
 	})
 

@@ -45,7 +45,7 @@ type graphIDRegistrar interface {
 }
 
 type checksumCalculator interface {
-	ChecksumForGraphID(id, parent, oldTarDataPath, newTarDataPath string) (diffID layer.DiffID, size int64, err error)
+	ChecksumForGraphID(id, parent, newTarDataPath string) (diffID layer.DiffID, size int64, err error)
 }
 
 type snapshotter struct {
