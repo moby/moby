@@ -14,6 +14,18 @@ message Metrics {
 	MemoryEvents memory_events = 8;
 }
 
+message PSIData {
+	double avg10 = 1;
+	double avg60 = 2;
+	double avg300 = 3;
+	uint64 total = 4;
+}
+
+message PSIStats {
+	PSIData some = 1;
+	PSIData full = 2;
+}
+
 message PidsStat {
 	uint64 current = 1;
 	uint64 limit = 2;
@@ -26,6 +38,7 @@ message CPUStat {
 	uint64 nr_periods = 4;
 	uint64 nr_throttled = 5;
 	uint64 throttled_usec = 6;
+	PSIStats psi = 7;
 }
 
 message MemoryStat {
@@ -64,6 +77,9 @@ message MemoryStat {
 	uint64 usage_limit = 33;
 	uint64 swap_usage = 34;
 	uint64 swap_limit = 35;
+	uint64 max_usage = 36;
+	uint64 swap_max_usage = 37;
+	PSIStats psi = 38;
 }
 
 message MemoryEvents {
@@ -87,6 +103,7 @@ message RdmaEntry {
 
 message IOStat {
 	repeated IOEntry usage = 1;
+	PSIStats psi = 2;
 }
 
 message IOEntry {

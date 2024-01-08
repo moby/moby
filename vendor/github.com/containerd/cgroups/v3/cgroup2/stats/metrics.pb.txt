@@ -61,6 +61,56 @@ file {
     }
   }
   message_type {
+    name: "PSIData"
+    field {
+      name: "avg10"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_DOUBLE
+      json_name: "avg10"
+    }
+    field {
+      name: "avg60"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_DOUBLE
+      json_name: "avg60"
+    }
+    field {
+      name: "avg300"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_DOUBLE
+      json_name: "avg300"
+    }
+    field {
+      name: "total"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "total"
+    }
+  }
+  message_type {
+    name: "PSIStats"
+    field {
+      name: "some"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.PSIData"
+      json_name: "some"
+    }
+    field {
+      name: "full"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.PSIData"
+      json_name: "full"
+    }
+  }
+  message_type {
     name: "PidsStat"
     field {
       name: "current"
@@ -120,6 +170,14 @@ file {
       label: LABEL_OPTIONAL
       type: TYPE_UINT64
       json_name: "throttledUsec"
+    }
+    field {
+      name: "psi"
+      number: 7
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.PSIStats"
+      json_name: "psi"
     }
   }
   message_type {
@@ -369,6 +427,28 @@ file {
       type: TYPE_UINT64
       json_name: "swapLimit"
     }
+    field {
+      name: "max_usage"
+      number: 36
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "maxUsage"
+    }
+    field {
+      name: "swap_max_usage"
+      number: 37
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "swapMaxUsage"
+    }
+    field {
+      name: "psi"
+      number: 38
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.PSIStats"
+      json_name: "psi"
+    }
   }
   message_type {
     name: "MemoryEvents"
@@ -460,6 +540,14 @@ file {
       type: TYPE_MESSAGE
       type_name: ".io.containerd.cgroups.v2.IOEntry"
       json_name: "usage"
+    }
+    field {
+      name: "psi"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.PSIStats"
+      json_name: "psi"
     }
   }
   message_type {

@@ -68,8 +68,9 @@ func remove(path string) error {
 	return fmt.Errorf("cgroups: unable to remove path %q: %w", path, err)
 }
 
-// parseCgroupProcsFile parses /sys/fs/cgroup/$GROUPPATH/cgroup.procs
-func parseCgroupProcsFile(path string) ([]uint64, error) {
+// parseCgroupTasksFile parses /sys/fs/cgroup/$GROUPPATH/cgroup.procs or
+// /sys/fs/cgroup/$GROUPPATH/cgroup.threads
+func parseCgroupTasksFile(path string) ([]uint64, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -176,6 +177,10 @@ func ToResources(spec *specs.LinuxResources) *Resources {
 		resources.Memory = &Memory{}
 		if swap := mem.Swap; swap != nil {
 			resources.Memory.Swap = swap
+			if l := mem.Limit; l != nil {
+				reduce := *swap - *l
+				resources.Memory.Swap = &reduce
+			}
 		}
 		if l := mem.Limit; l != nil {
 			resources.Memory.Max = l
@@ -477,6 +482,74 @@ func getHugePageSizeFromFilenames(fileNames []string) ([]string, error) {
 	}
 
 	return pageSizes, warn
+}
+
+func getStatPSIFromFile(path string) *stats.PSIStats {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	psistats := &stats.PSIStats{}
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		parts := strings.Fields(sc.Text())
+		var pv *stats.PSIData
+		switch parts[0] {
+		case "some":
+			psistats.Some = &stats.PSIData{}
+			pv = psistats.Some
+		case "full":
+			psistats.Full = &stats.PSIData{}
+			pv = psistats.Full
+		}
+		if pv != nil {
+			err = parsePSIData(parts[1:], pv)
+			if err != nil {
+				logrus.Errorf("failed to read file %s: %v", path, err)
+				return nil
+			}
+		}
+	}
+
+	if err := sc.Err(); err != nil {
+		logrus.Errorf("unable to parse PSI data: %v", err)
+		return nil
+	}
+	return psistats
+}
+
+func parsePSIData(psi []string, data *stats.PSIData) error {
+	for _, f := range psi {
+		kv := strings.SplitN(f, "=", 2)
+		if len(kv) != 2 {
+			return fmt.Errorf("invalid PSI data: %q", f)
+		}
+		var pv *float64
+		switch kv[0] {
+		case "avg10":
+			pv = &data.Avg10
+		case "avg60":
+			pv = &data.Avg60
+		case "avg300":
+			pv = &data.Avg300
+		case "total":
+			v, err := strconv.ParseUint(kv[1], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid %s PSI value: %w", kv[0], err)
+			}
+			data.Total = v
+		}
+		if pv != nil {
+			v, err := strconv.ParseFloat(kv[1], 64)
+			if err != nil {
+				return fmt.Errorf("invalid %s PSI value: %w", kv[0], err)
+			}
+			*pv = v
+		}
+	}
+	return nil
 }
 
 func getSubreaper() (int, error) {
