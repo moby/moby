@@ -24,13 +24,6 @@ type Unpacker interface {
 	Next() (*Entry, error)
 }
 
-/* TODO(vbatts) figure out a good model for this
-type PackUnpacker interface {
-	Packer
-	Unpacker
-}
-*/
-
 type jsonUnpacker struct {
 	seen seenNames
 	dec  *json.Decoder
@@ -115,13 +108,3 @@ func NewJSONPacker(w io.Writer) Packer {
 		seen: seenNames{},
 	}
 }
-
-/*
-TODO(vbatts) perhaps have a more compact packer/unpacker, maybe using msgapck
-(https://github.com/ugorji/go)
-
-
-Even though, since our jsonUnpacker and jsonPacker just take
-io.Reader/io.Writer, then we can get away with passing them a
-gzip.Reader/gzip.Writer
-*/
