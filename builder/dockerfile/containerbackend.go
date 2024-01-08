@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	containerpkg "github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 )
@@ -60,9 +61,11 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 	go func() {
 		select {
 		case <-ctx.Done():
-			log.G(ctx).Debugln("Build cancelled, killing and removing container:", cID)
-			c.backend.ContainerKill(cID, "")
-			c.removeContainer(cID, stdout)
+			log.G(ctx).Debugln("Build cancelled, removing container:", cID)
+			err = c.backend.ContainerRm(cID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
+			if err != nil {
+				_, _ = fmt.Fprintf(stdout, "Removing container %s: %v\n", stringid.TruncateID(cID), err)
+			}
 			cancelErrCh <- errCancelled
 		case <-finished:
 			cancelErrCh <- nil
@@ -122,23 +125,12 @@ func (e *statusCodeError) StatusCode() int {
 	return e.code
 }
 
-func (c *containerManager) removeContainer(containerID string, stdout io.Writer) error {
-	rmConfig := &backend.ContainerRmConfig{
-		ForceRemove:  true,
-		RemoveVolume: true,
-	}
-	if err := c.backend.ContainerRm(containerID, rmConfig); err != nil {
-		fmt.Fprintf(stdout, "Error removing intermediate container %s: %v\n", stringid.TruncateID(containerID), err)
-		return err
-	}
-	return nil
-}
-
 // RemoveAll containers managed by this container manager
 func (c *containerManager) RemoveAll(stdout io.Writer) {
 	for containerID := range c.tmpContainers {
-		if err := c.removeContainer(containerID, stdout); err != nil {
-			return
+		if err := c.backend.ContainerRm(containerID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil && !errdefs.IsNotFound(err) {
+			_, _ = fmt.Fprintf(stdout, "Removing intermediate container %s: %v\n", stringid.TruncateID(containerID), err)
+			continue
 		}
 		delete(c.tmpContainers, containerID)
 		_, _ = fmt.Fprintf(stdout, " ---> Removed intermediate container %s\n", stringid.TruncateID(containerID))
