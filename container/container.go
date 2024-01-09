@@ -267,6 +267,32 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 	return &deepCopy, nil
 }
 
+// CommitInMemory makes the Container's current state visible to queries,
+// but does not persist state.
+//
+// Callers must hold a Container lock.
+func (container *Container) CommitInMemory(store *ViewDB) error {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(container); err != nil {
+		return err
+	}
+
+	var deepCopy Container
+	if err := json.NewDecoder(&buf).Decode(&deepCopy); err != nil {
+		return err
+	}
+
+	buf.Reset()
+	if err := json.NewEncoder(&buf).Encode(container.HostConfig); err != nil {
+		return err
+	}
+	if err := json.NewDecoder(&buf).Decode(&deepCopy.HostConfig); err != nil {
+		return err
+	}
+
+	return store.Save(&deepCopy)
+}
+
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
 func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity) error {
 	if container.Config.WorkingDir == "" {
