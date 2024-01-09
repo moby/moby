@@ -351,8 +351,8 @@ FROM tini-${TARGETOS} AS tini
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
 RUN git init . && git remote add origin "https://github.com/rootless-containers/rootlesskit.git"
-# When updating, also update rootlesskit commit in vendor.mod accordingly.
-ARG ROOTLESSKIT_VERSION=v1.1.0
+# When updating, also update vendor.mod and hack/dockerfile/install/rootlesskit.installer accordingly.
+ARG ROOTLESSKIT_VERSION=v1.1.1
 RUN git fetch -q --depth 1 origin "${ROOTLESSKIT_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS rootlesskit-build
