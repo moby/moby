@@ -363,7 +363,7 @@ func imageFamiliarName(img containerdimages.Image) string {
 // targeting the specified digest.
 // If images have different values, an errdefs.Conflict error will be returned.
 func (i *ImageService) getImageLabelByDigest(ctx context.Context, target digest.Digest, labelKey string) (string, error) {
-	imgs, err := i.client.ImageService().List(ctx, "target.digest=="+target.String()+",label."+labelKey)
+	imgs, err := i.client.ImageService().List(ctx, "target.digest=="+target.String()+",labels."+labelKey)
 	if err != nil {
 		return "", errdefs.System(err)
 	}
