@@ -251,13 +251,17 @@ func setPlatformDefaults(cfg *Config) error {
 		var err error
 		cfg.BridgeConfig.UserlandProxyPath, err = exec.LookPath(userlandProxyBinary)
 		if err != nil {
-			// Log a warning, but don't error here. This allows running a daemon
-			// with userland-proxy disabled (which does not require the binary
+			// Log, but don't error here. This allows running a daemon with
+			// userland-proxy disabled (which does not require the binary
 			// to be present).
 			//
 			// An error is still produced by [Config.ValidatePlatformConfig] if
 			// userland-proxy is enabled in the configuration.
-			log.G(context.TODO()).WithError(err).Warn("failed to lookup default userland-proxy binary")
+			//
+			// We log this at "debug" level, as this code is also executed
+			// when running "--version", and we don't want to print logs in
+			// that case..
+			log.G(context.TODO()).WithError(err).Debug("failed to lookup default userland-proxy binary")
 		}
 		cfg.Root = "/var/lib/docker"
 		cfg.ExecRoot = "/var/run/docker"
