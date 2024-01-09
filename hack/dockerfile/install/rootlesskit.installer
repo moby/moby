@@ -1,8 +1,7 @@
 #!/bin/sh
 
-# When updating, also update rootlesskit commit in vendor.mod accordingly
-# v1.1.1
-: "${ROOTLESSKIT_VERSION:=a2c596ff9b3fddc0c2becb38f2ef4004f15765b5}"
+# When updating, also update vendor.mod and Dockerfile accordingly.
+: "${ROOTLESSKIT_VERSION:=v1.1.1}"
 
 install_rootlesskit() {
 	case "$1" in
