@@ -2,7 +2,6 @@ package cache // import "github.com/docker/docker/image/cache"
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -16,8 +15,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+type ImageCacheStore interface {
+	Get(image.ID) (*image.Image, error)
+	SetParent(target, parent image.ID) error
+	GetParent(target image.ID) (image.ID, error)
+	Create(parent *image.Image, image image.Image, extraLayer layer.DiffID) (image.ID, error)
+	IsBuiltLocally(id image.ID) (bool, error)
+	Children(id image.ID) []image.ID
+}
+
 // NewLocal returns a local image cache, based on parent chain
-func NewLocal(store image.Store) *LocalImageCache {
+func NewLocal(store ImageCacheStore) *LocalImageCache {
 	return &LocalImageCache{
 		store: store,
 	}
@@ -25,7 +33,7 @@ func NewLocal(store image.Store) *LocalImageCache {
 
 // LocalImageCache is cache based on parent chain.
 type LocalImageCache struct {
-	store image.Store
+	store ImageCacheStore
 }
 
 // GetCache returns the image id found in the cache
@@ -34,7 +42,7 @@ func (lic *LocalImageCache) GetCache(imgID string, config *containertypes.Config
 }
 
 // New returns an image cache, based on history objects
-func New(store image.Store) *ImageCache {
+func New(store ImageCacheStore) *ImageCache {
 	return &ImageCache{
 		store:           store,
 		localImageCache: NewLocal(store),
@@ -44,7 +52,7 @@ func New(store image.Store) *ImageCache {
 // ImageCache is cache based on history objects. Requires initial set of images.
 type ImageCache struct {
 	sources         []*image.Image
-	store           image.Store
+	store           ImageCacheStore
 	localImageCache *LocalImageCache
 }
 
@@ -113,11 +121,12 @@ func (ic *ImageCache) restoreCachedImage(parent, target *image.Image, cfg *conta
 		lenHistory = len(parent.History)
 	}
 	history = append(history, target.History[lenHistory])
-	if layer := getLayerForHistoryIndex(target, lenHistory); layer != "" {
+	layer := getLayerForHistoryIndex(target, lenHistory)
+	if layer != "" {
 		rootFS.Append(layer)
 	}
 
-	config, err := json.Marshal(&image.Image{
+	restoredImg := image.Image{
 		V1Image: image.V1Image{
 			DockerVersion: dockerversion.Version,
 			Config:        cfg,
@@ -130,21 +139,13 @@ func (ic *ImageCache) restoreCachedImage(parent, target *image.Image, cfg *conta
 		History:    history,
 		OSFeatures: target.OSFeatures,
 		OSVersion:  target.OSVersion,
-	})
-	if err != nil {
-		return "", errors.Wrap(err, "failed to marshal image config")
 	}
 
-	imgID, err := ic.store.Create(config)
+	imgID, err := ic.store.Create(parent, restoredImg, layer)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create cache image")
 	}
 
-	if parent != nil {
-		if err := ic.store.SetParent(imgID, parent.ID()); err != nil {
-			return "", errors.Wrapf(err, "failed to set parent for %v to %v", target.ID(), parent.ID())
-		}
-	}
 	return imgID, nil
 }
 
@@ -218,99 +219,45 @@ func getImageIDAndError(img *image.Image, err error) (string, error) {
 // of the image with imgID, that had the same config when it was
 // created. nil is returned if a child cannot be found. An error is
 // returned if the parent image cannot be found.
-func getLocalCachedImage(imageStore image.Store, imgID image.ID, config *containertypes.Config, platform ocispec.Platform) (*image.Image, error) {
+func getLocalCachedImage(imageStore ImageCacheStore, parentID image.ID, config *containertypes.Config, platform ocispec.Platform) (*image.Image, error) {
 	if config == nil {
 		return nil, nil
 	}
 
-	isBuiltLocally := func(id image.ID) bool {
+	var match *image.Image
+	for _, id := range imageStore.Children(parentID) {
+		img, err := imageStore.Get(id)
+		if err != nil {
+			return nil, fmt.Errorf("unable to find image %q", id)
+		}
+
 		builtLocally, err := imageStore.IsBuiltLocally(id)
 		if err != nil {
 			log.G(context.TODO()).WithFields(log.Fields{
 				"error": err,
 				"id":    id,
 			}).Warn("failed to check if image was built locally")
-			return false
+			continue
 		}
-		return builtLocally
-	}
+		if !builtLocally {
+			continue
+		}
 
-	// Loop on the children of the given image and check the config
-	getMatch := func(siblings []image.ID) (*image.Image, error) {
-		var match *image.Image
-		for _, id := range siblings {
-			img, err := imageStore.Get(id)
-			if err != nil {
-				return nil, fmt.Errorf("unable to find image %q", id)
-			}
+		imgPlatform := img.Platform()
+		// Discard old linux/amd64 images with empty platform.
+		if imgPlatform.OS == "" && imgPlatform.Architecture == "" {
+			continue
+		}
+		if !comparePlatform(platform, imgPlatform) {
+			continue
+		}
 
-			if !isBuiltLocally(id) {
-				continue
-			}
-
-			imgPlatform := img.Platform()
-
-			// Discard old linux/amd64 images with empty platform.
-			if imgPlatform.OS == "" && imgPlatform.Architecture == "" {
-				continue
-			}
-			if !comparePlatform(platform, imgPlatform) {
-				continue
-			}
-
-			if compare(&img.ContainerConfig, config) {
-				// check for the most up to date match
-				if img.Created != nil && (match == nil || match.Created.Before(*img.Created)) {
-					match = img
-				}
+		if compare(&img.ContainerConfig, config) {
+			// check for the most up to date match
+			if img.Created != nil && (match == nil || match.Created.Before(*img.Created)) {
+				match = img
 			}
 		}
-		return match, nil
 	}
-
-	// In this case, this is `FROM scratch`, which isn't an actual image.
-	if imgID == "" {
-		images := imageStore.Map()
-
-		var siblings []image.ID
-		for id, img := range images {
-			if img.Parent != "" {
-				continue
-			}
-
-			if !isBuiltLocally(id) {
-				continue
-			}
-
-			// Do a quick initial filter on the Cmd to avoid adding all
-			// non-local images with empty parent to the siblings slice and
-			// performing a full config compare.
-			//
-			// config.Cmd is set to the current Dockerfile instruction so we
-			// check it against the img.ContainerConfig.Cmd which is the
-			// command of the last layer.
-			if !strSliceEqual(img.ContainerConfig.Cmd, config.Cmd) {
-				continue
-			}
-
-			siblings = append(siblings, id)
-		}
-		return getMatch(siblings)
-	}
-
-	// find match from child images
-	siblings := imageStore.Children(imgID)
-	return getMatch(siblings)
-}
-
-func strSliceEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
+	return match, nil
 }
