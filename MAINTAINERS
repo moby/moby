@@ -75,6 +75,7 @@
 			"olljanat",
 			"programmerq",
 			"ripcurld",
+			"robmry",
 			"sam-thibault",
 			"samwhited",
 			"thajeztah"
@@ -477,6 +478,11 @@
 	Name = "Jeff Anderson"
 	Email = "jeff@docker.com"
 	GitHub = "programmerq"
+
+	[people.robmry]
+	Name = "Rob Murray"
+	Email = "rob.murray@docker.com"
+	GitHub = "robmry"
 
 	[people.ripcurld]
 	Name = "Boaz Shuster"
