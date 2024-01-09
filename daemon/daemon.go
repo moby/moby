@@ -442,7 +442,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 						c.Lock()
 						c.Paused = false
 						daemon.setStateCounter(c)
-						daemon.updateHealthMonitor(c)
+						daemon.initHealthMonitor(c)
 						if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 							baseLogger.WithError(err).Error("failed to update paused container state")
 						}
@@ -451,7 +451,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 				case !c.IsPaused() && alive:
 					logger(c).Debug("restoring healthcheck")
 					c.Lock()
-					daemon.updateHealthMonitor(c)
+					daemon.initHealthMonitor(c)
 					c.Unlock()
 				}
 
