@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
 )
@@ -198,16 +199,32 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	if err != nil {
 		return setExitCodeFromError(container.SetExitCode, err)
 	}
+	defer func() {
+		if retErr != nil {
+			if err := ctr.Delete(compatcontext.WithoutCancel(ctx)); err != nil {
+				log.G(ctx).WithError(err).WithField("container", container.ID).
+					Error("failed to delete failed start container")
+			}
+		}
+	}()
 
 	// TODO(mlaventure): we need to specify checkpoint options here
-	tsk, err := ctr.Start(context.TODO(), // Passing ctx to ctr.Start caused integration tests to be stuck in the cleanup phase
+	tsk, err := ctr.NewTask(context.TODO(), // Passing ctx caused integration tests to be stuck in the cleanup phase
 		checkpointDir, container.StreamConfig.Stdin() != nil || container.Config.Tty,
 		container.InitializeStdio)
 	if err != nil {
-		if err := ctr.Delete(context.Background()); err != nil {
-			log.G(ctx).WithError(err).WithField("container", container.ID).
-				Error("failed to delete failed start container")
+		return setExitCodeFromError(container.SetExitCode, err)
+	}
+	defer func() {
+		if retErr != nil {
+			if err := tsk.ForceDelete(compatcontext.WithoutCancel(ctx)); err != nil {
+				log.G(ctx).WithError(err).WithField("container", container.ID).
+					Error("failed to delete task after fail start")
+			}
 		}
+	}()
+
+	if err := tsk.Start(context.TODO()); err != nil { // passing ctx caused integration tests to be stuck in the cleanup phase
 		return setExitCodeFromError(container.SetExitCode, err)
 	}
 
