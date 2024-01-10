@@ -161,7 +161,7 @@ FROM ${WINDOWS_BASE_IMAGE}:${WINDOWS_BASE_IMAGE_TAG}
 # Use PowerShell as the default shell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ARG GO_VERSION=1.21.5
+ARG GO_VERSION=1.21.6
 ARG GOTESTSUM_VERSION=v1.8.2
 ARG GOWINRES_VERSION=v0.3.1
 ARG CONTAINERD_VERSION=v1.7.11
