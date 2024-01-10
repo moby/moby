@@ -17,7 +17,7 @@ type Volume struct {
 	// Required: true
 	Driver string `json:"Driver"`
 
-	// User-defined key/value metadata.
+	// User-defined key-value metadata.
 	// Required: true
 	Labels map[string]string `json:"Labels"`
 
@@ -41,8 +41,11 @@ type Volume struct {
 	Scope string `json:"Scope"`
 
 	// Low-level details about the volume, provided by the volume driver.
-	// Details are returned as a map with key/value pairs:
-	// `{"key":"value","key2":"value2"}`.
+	// Details are returned as a map with key-value pairs:
+	//
+	// ```
+	// {"key":"value","key2":"value2"}`
+	// ```
 	//
 	// The `Status` field is optional, and is omitted if the volume driver
 	// does not support this feature.
@@ -65,10 +68,10 @@ type UsageData struct {
 	// Required: true
 	RefCount int64 `json:"RefCount"`
 
-	// Amount of disk space used by the volume (in bytes). This information
-	// is only available for volumes created with the `"local"` volume
+	// Amount of disk space used by the volume, in bytes. This information
+	// is only available for volumes created with the `local` volume
 	// driver. For volumes created with other volume drivers, this field
-	// is set to `-1` ("not available")
+	// is set to `-1` ("not available").
 	//
 	// Required: true
 	Size int64 `json:"Size"`

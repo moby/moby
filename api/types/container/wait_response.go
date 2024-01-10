@@ -5,14 +5,14 @@ package container
 
 // WaitResponse ContainerWaitResponse
 //
-// OK response to ContainerWait operation
+// OK response to the ContainerWait operation
 // swagger:model WaitResponse
 type WaitResponse struct {
 
 	// error
 	Error *WaitExitError `json:"Error,omitempty"`
 
-	// Exit code of the container
+	// Exit code of the container.
 	// Required: true
 	StatusCode int64 `json:"StatusCode"`
 }

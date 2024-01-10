@@ -16,7 +16,7 @@ type ContainerTopOKBody struct {
 	// Required: true
 	Processes [][]string `json:"Processes"`
 
-	// The ps column titles
+	// The `ps` column titles.
 	// Required: true
 	Titles []string `json:"Titles"`
 }

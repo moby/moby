@@ -7,6 +7,6 @@ package swarm
 // swagger:model ServiceUpdateResponse
 type ServiceUpdateResponse struct {
 
-	// Optional warning messages
+	// Optional warning message.
 	Warnings []string `json:"Warnings"`
 }

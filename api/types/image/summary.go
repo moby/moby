@@ -17,7 +17,7 @@ type Summary struct {
 	Containers int64 `json:"Containers"`
 
 	// Date and time at which the image was created as a Unix timestamp
-	// (number of seconds sinds EPOCH).
+	// (number of seconds since EPOCH).
 	//
 	// Required: true
 	Created int64 `json:"Created"`
@@ -34,14 +34,14 @@ type Summary struct {
 	// Required: true
 	ID string `json:"Id"`
 
-	// User-defined key/value metadata.
+	// User-defined key-value metadata.
 	// Required: true
 	Labels map[string]string `json:"Labels"`
 
 	// ID of the parent image.
 	//
 	// Depending on how the image was created, this field may be empty and
-	// is only set for images that were built/created locally. This field
+	// is only set for images that were built or created locally. This field
 	// is empty if the image was pulled from an image registry.
 	//
 	// Required: true
@@ -58,12 +58,11 @@ type Summary struct {
 	// Required: true
 	RepoDigests []string `json:"RepoDigests"`
 
-	// List of image names/tags in the local image cache that reference this
-	// image.
+	// List of image tags in the local image cache that reference this image.
 	//
 	// Multiple image tags can refer to the same image, and this list may be
-	// empty if no tags reference the image, in which case the image is
-	// "untagged", in which case it can still be referenced by its ID.
+	// empty if no tags reference the image, in which case the image has no
+	// tag, but is still referrable by its ID.
 	//
 	// Required: true
 	RepoTags []string `json:"RepoTags"`

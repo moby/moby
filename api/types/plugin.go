@@ -22,7 +22,7 @@ type Plugin struct {
 	// Required: true
 	Name string `json:"Name"`
 
-	// plugin remote reference used to push/pull the plugin
+	// Plugin remote reference used to push and pull the plugin.
 	PluginReference string `json:"PluginReference,omitempty"`
 
 	// settings
@@ -42,7 +42,7 @@ type PluginConfig struct {
 	// Required: true
 	Description string `json:"Description"`
 
-	// Docker Version used to create the plugin
+	// Docker version used to create the plugin.
 	DockerVersion string `json:"DockerVersion,omitempty"`
 
 	// documentation
@@ -117,7 +117,7 @@ type PluginConfigArgs struct {
 	Value []string `json:"Value"`
 }
 
-// PluginConfigInterface The interface between Docker and the plugin
+// PluginConfigInterface The interface between Docker and the plugin.
 // swagger:model PluginConfigInterface
 type PluginConfigInterface struct {
 

@@ -6,7 +6,7 @@ package image // import "github.com/docker/docker/api/types/image"
 // See hack/generate-swagger-api.sh
 // ----------------------------------------------------------------------------
 
-// HistoryResponseItem individual image layer information in response to ImageHistory operation
+// HistoryResponseItem Individual image layer information in response to `ImageHistory` operation.
 // swagger:model HistoryResponseItem
 type HistoryResponseItem struct {
 

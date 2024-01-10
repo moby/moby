@@ -5,15 +5,15 @@ package container
 
 // CreateResponse ContainerCreateResponse
 //
-// OK response to ContainerCreate operation
+// OK response to the ContainerCreate operation
 // swagger:model CreateResponse
 type CreateResponse struct {
 
-	// The ID of the created container
+	// The ID of the created container.
 	// Required: true
 	ID string `json:"Id"`
 
-	// Warnings encountered when creating the container
+	// Warnings encountered when creating the container.
 	// Required: true
 	Warnings []string `json:"Warnings"`
 }

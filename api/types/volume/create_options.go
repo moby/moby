@@ -20,7 +20,7 @@ type CreateOptions struct {
 	//
 	DriverOpts map[string]string `json:"DriverOpts,omitempty"`
 
-	// User-defined key/value metadata.
+	// User-defined key-value metadata.
 	Labels map[string]string `json:"Labels,omitempty"`
 
 	// The new volume's name. If not specified, Docker generates a name.

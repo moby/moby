@@ -14,7 +14,5 @@ type ServiceCreateResponse struct {
 
 	// Optional warning message.
 	//
-	// FIXME(thaJeztah): this should have "omitempty" in the generated type.
-	//
 	Warnings []string `json:"Warnings"`
 }
