@@ -1,7 +1,6 @@
 package containerd
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -14,7 +13,6 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/diff"
 	cerrdefs "github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/cleanup"
@@ -27,7 +25,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
-	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -99,41 +96,7 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 		layers = append(layers, *diffLayerDesc)
 	}
 
-	commitManifestDesc, err := writeContentsForImage(ctx, container.Driver, cs, imageConfig, layers)
-	if err != nil {
-		return "", err
-	}
-
-	// image create
-	img := images.Image{
-		Name:      danglingImageName(commitManifestDesc.Digest),
-		Target:    commitManifestDesc,
-		CreatedAt: time.Now(),
-		Labels: map[string]string{
-			imageLabelClassicBuilderParent: cc.ParentImageID,
-		},
-	}
-
-	if _, err := i.client.ImageService().Update(ctx, img); err != nil {
-		if !cerrdefs.IsNotFound(err) {
-			return "", err
-		}
-
-		if _, err := i.client.ImageService().Create(ctx, img); err != nil {
-			return "", fmt.Errorf("failed to create new image: %w", err)
-		}
-	}
-	id := image.ID(img.Target.Digest)
-
-	c8dImg, err := i.NewImageManifest(ctx, img, commitManifestDesc)
-	if err != nil {
-		return id, err
-	}
-	if err := c8dImg.Unpack(ctx, container.Driver); err != nil && !cerrdefs.IsAlreadyExists(err) {
-		return id, fmt.Errorf("failed to unpack image: %w", err)
-	}
-
-	return id, nil
+	return i.createImageOCI(ctx, imageConfig, digest.Digest(cc.ParentImageID), layers)
 }
 
 // generateCommitImageConfig generates an OCI Image config based on the
@@ -183,69 +146,6 @@ func generateCommitImageConfig(baseConfig imagespec.DockerOCIImage, diffID diges
 		},
 		Config: containerConfigToDockerOCIImageConfig(opts.Config),
 	}
-}
-
-// writeContentsForImage will commit oci image config and manifest into containerd's content store.
-func writeContentsForImage(ctx context.Context, snName string, cs content.Store, newConfig imagespec.DockerOCIImage, layers []ocispec.Descriptor) (ocispec.Descriptor, error) {
-	newConfigJSON, err := json.Marshal(newConfig)
-	if err != nil {
-		return ocispec.Descriptor{}, err
-	}
-
-	configDesc := ocispec.Descriptor{
-		MediaType: ocispec.MediaTypeImageConfig,
-		Digest:    digest.FromBytes(newConfigJSON),
-		Size:      int64(len(newConfigJSON)),
-	}
-
-	newMfst := struct {
-		MediaType string `json:"mediaType,omitempty"`
-		ocispec.Manifest
-	}{
-		MediaType: ocispec.MediaTypeImageManifest,
-		Manifest: ocispec.Manifest{
-			Versioned: specs.Versioned{
-				SchemaVersion: 2,
-			},
-			Config: configDesc,
-			Layers: layers,
-		},
-	}
-
-	newMfstJSON, err := json.MarshalIndent(newMfst, "", "    ")
-	if err != nil {
-		return ocispec.Descriptor{}, err
-	}
-
-	newMfstDesc := ocispec.Descriptor{
-		MediaType: ocispec.MediaTypeImageManifest,
-		Digest:    digest.FromBytes(newMfstJSON),
-		Size:      int64(len(newMfstJSON)),
-	}
-
-	// new manifest should reference the layers and config content
-	labels := map[string]string{
-		"containerd.io/gc.ref.content.0": configDesc.Digest.String(),
-	}
-	for i, l := range layers {
-		labels[fmt.Sprintf("containerd.io/gc.ref.content.%d", i+1)] = l.Digest.String()
-	}
-
-	err = content.WriteBlob(ctx, cs, newMfstDesc.Digest.String(), bytes.NewReader(newMfstJSON), newMfstDesc, content.WithLabels(labels))
-	if err != nil {
-		return ocispec.Descriptor{}, err
-	}
-
-	// config should reference to snapshotter
-	labelOpt := content.WithLabels(map[string]string{
-		fmt.Sprintf("containerd.io/gc.ref.snapshot.%s", snName): identity.ChainID(newConfig.RootFS.DiffIDs).String(),
-	})
-	err = content.WriteBlob(ctx, cs, configDesc.Digest.String(), bytes.NewReader(newConfigJSON), configDesc, labelOpt)
-	if err != nil {
-		return ocispec.Descriptor{}, err
-	}
-
-	return newMfstDesc, nil
 }
 
 // createDiff creates a layer diff into containerd's content store.

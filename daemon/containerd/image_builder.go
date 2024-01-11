@@ -1,7 +1,9 @@
 package containerd
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -25,6 +27,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
 	dimage "github.com/docker/docker/image"
+	imagespec "github.com/docker/docker/image/spec/specs-go/v1"
 	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
@@ -34,6 +37,7 @@ import (
 	registrypkg "github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
+	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -442,11 +446,22 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		})
 	}
 
-	// necessary to prevent the contents from being GC'd
+	createdImageId, err := i.createImageOCI(ctx, ociImgToCreate, parentDigest, layers)
+	if err != nil {
+		return nil, err
+	}
+
+	return dimage.Clone(imgToCreate, createdImageId), nil
+}
+
+func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec.DockerOCIImage,
+	parentDigest digest.Digest, layers []ocispec.Descriptor,
+) (dimage.ID, error) {
+	// Necessary to prevent the contents from being GC'd
 	// between writing them here and creating an image
 	ctx, release, err := i.client.WithLease(ctx, leases.WithRandomID(), leases.WithExpiration(1*time.Hour))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer func() {
 		if err := release(compatcontext.WithoutCancel(ctx)); err != nil {
@@ -454,15 +469,14 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		}
 	}()
 
-	commitManifestDesc, err := writeContentsForImage(ctx, i.snapshotter, i.client.ContentStore(), ociImgToCreate, layers)
+	manifestDesc, err := writeContentsForImage(ctx, i.snapshotter, i.client.ContentStore(), imgToCreate, layers)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	// image create
 	img := containerdimages.Image{
-		Name:      danglingImageName(commitManifestDesc.Digest),
-		Target:    commitManifestDesc,
+		Name:      danglingImageName(manifestDesc.Digest),
+		Target:    manifestDesc,
 		CreatedAt: time.Now(),
 		Labels: map[string]string{
 			imageLabelClassicBuilderParent: parentDigest.String(),
@@ -472,18 +486,80 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 	createdImage, err := i.client.ImageService().Update(ctx, img)
 	if err != nil {
 		if !cerrdefs.IsNotFound(err) {
-			return nil, err
+			return "", err
 		}
 
 		if createdImage, err = i.client.ImageService().Create(ctx, img); err != nil {
-			return nil, fmt.Errorf("failed to create new image: %w", err)
+			return "", fmt.Errorf("failed to create new image: %w", err)
 		}
 	}
 
-	if err := i.unpackImage(ctx, i.StorageDriver(), img, commitManifestDesc); err != nil {
-		return nil, err
+	if err := i.unpackImage(ctx, i.StorageDriver(), img, manifestDesc); err != nil {
+		return "", err
 	}
 
-	newImage := dimage.Clone(imgToCreate, dimage.ID(createdImage.Target.Digest))
-	return newImage, nil
+	return dimage.ID(createdImage.Target.Digest), nil
+}
+
+// writeContentsForImage will commit oci image config and manifest into containerd's content store.
+func writeContentsForImage(ctx context.Context, snName string, cs content.Store, newConfig imagespec.DockerOCIImage, layers []ocispec.Descriptor) (ocispec.Descriptor, error) {
+	newConfigJSON, err := json.Marshal(newConfig)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	configDesc := ocispec.Descriptor{
+		MediaType: ocispec.MediaTypeImageConfig,
+		Digest:    digest.FromBytes(newConfigJSON),
+		Size:      int64(len(newConfigJSON)),
+	}
+
+	newMfst := struct {
+		MediaType string `json:"mediaType,omitempty"`
+		ocispec.Manifest
+	}{
+		MediaType: ocispec.MediaTypeImageManifest,
+		Manifest: ocispec.Manifest{
+			Versioned: specs.Versioned{
+				SchemaVersion: 2,
+			},
+			Config: configDesc,
+			Layers: layers,
+		},
+	}
+
+	newMfstJSON, err := json.MarshalIndent(newMfst, "", "    ")
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	newMfstDesc := ocispec.Descriptor{
+		MediaType: ocispec.MediaTypeImageManifest,
+		Digest:    digest.FromBytes(newMfstJSON),
+		Size:      int64(len(newMfstJSON)),
+	}
+
+	// new manifest should reference the layers and config content
+	labels := map[string]string{
+		"containerd.io/gc.ref.content.0": configDesc.Digest.String(),
+	}
+	for i, l := range layers {
+		labels[fmt.Sprintf("containerd.io/gc.ref.content.%d", i+1)] = l.Digest.String()
+	}
+
+	err = content.WriteBlob(ctx, cs, newMfstDesc.Digest.String(), bytes.NewReader(newMfstJSON), newMfstDesc, content.WithLabels(labels))
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	// config should reference to snapshotter
+	labelOpt := content.WithLabels(map[string]string{
+		fmt.Sprintf("containerd.io/gc.ref.snapshot.%s", snName): identity.ChainID(newConfig.RootFS.DiffIDs).String(),
+	})
+	err = content.WriteBlob(ctx, cs, configDesc.Digest.String(), bytes.NewReader(newConfigJSON), configDesc, labelOpt)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	return newMfstDesc, nil
 }
