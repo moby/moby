@@ -345,9 +345,16 @@ func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 		saveCmd = prependEnvOnCmd(d.state.buildArgs, buildArgs, cmdFromArgs)
 	}
 
+	cacheArgsEscaped := argsEscaped
+	// ArgsEscaped is not persisted in the committed image on Windows.
+	// Use the original from previous build steps for cache probing.
+	if d.state.operatingSystem == "windows" {
+		cacheArgsEscaped = stateRunConfig.ArgsEscaped
+	}
+
 	runConfigForCacheProbe := copyRunConfig(stateRunConfig,
 		withCmd(saveCmd),
-		withArgsEscaped(argsEscaped),
+		withArgsEscaped(cacheArgsEscaped),
 		withEntrypointOverride(saveCmd, nil))
 	if hit, err := d.builder.probeCache(d.state, runConfigForCacheProbe); err != nil || hit {
 		return err
