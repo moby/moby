@@ -257,8 +257,6 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 	n.iFaces = append(n.iFaces, i)
 	n.mu.Unlock()
 
-	n.checkLoV6()
-
 	return nil
 }
 
@@ -311,8 +309,6 @@ func (n *Namespace) RemoveInterface(i *Interface) error {
 	}
 	n.mu.Unlock()
 
-	// TODO(aker): This function will disable IPv6 on lo interface if the removed interface was the last one offering IPv6 connectivity. That's a weird behavior, and shouldn't be hiding this deep down in this function.
-	n.checkLoV6()
 	return nil
 }
 

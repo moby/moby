@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"golang.org/x/sync/errgroup"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestBuildDefault(t *testing.T) {
@@ -33,6 +36,26 @@ func TestBuildDefault(t *testing.T) {
 			t.Fatalf("Expected to find '%s' got '%s'", expected, content)
 		}
 	}
+}
+
+func TestBuildNoIPv6(t *testing.T) {
+	d := t.TempDir()
+	filename := filepath.Join(d, "hosts")
+
+	err := BuildNoIPv6(filename, "fdbb:c59c:d015::2", "an.example", "", []Record{
+		{
+			Hosts: "another.example",
+			IP:    "fdbb:c59c:d015::3",
+		},
+		{
+			Hosts: "another.example",
+			IP:    "10.11.12.13",
+		},
+	})
+	assert.NilError(t, err)
+	content, err := os.ReadFile(filename)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(string(content), "127.0.0.1\tlocalhost\n10.11.12.13\tanother.example\n"))
 }
 
 func TestBuildHostnameDomainname(t *testing.T) {
