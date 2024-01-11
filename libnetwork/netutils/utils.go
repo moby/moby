@@ -3,6 +3,7 @@
 package netutils
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -10,7 +11,9 @@ import (
 	"io"
 	"net"
 	"strings"
+	"sync"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -143,4 +146,27 @@ func ReverseIP(IP string) string {
 	}
 
 	return strings.Join(reverseIP, ".")
+}
+
+var (
+	v6ListenableCached bool
+	v6ListenableOnce   sync.Once
+)
+
+// IsV6Listenable returns true when `[::1]:0` is listenable.
+// IsV6Listenable returns false mostly when the kernel was booted with `ipv6.disable=1` option.
+func IsV6Listenable() bool {
+	v6ListenableOnce.Do(func() {
+		ln, err := net.Listen("tcp6", "[::1]:0")
+		if err != nil {
+			// When the kernel was booted with `ipv6.disable=1`,
+			// we get err "listen tcp6 [::1]:0: socket: address family not supported by protocol"
+			// https://github.com/moby/moby/issues/42288
+			log.G(context.TODO()).Debugf("v6Listenable=false (%v)", err)
+		} else {
+			v6ListenableCached = true
+			ln.Close()
+		}
+	})
+	return v6ListenableCached
 }

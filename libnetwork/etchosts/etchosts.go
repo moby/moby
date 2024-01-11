@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"regexp"
 	"strings"
@@ -25,8 +26,10 @@ func (r Record) WriteTo(w io.Writer) (int64, error) {
 
 var (
 	// Default hosts config records slice
-	defaultContent = []Record{
+	defaultContentIPv4 = []Record{
 		{Hosts: "localhost", IP: "127.0.0.1"},
+	}
+	defaultContentIPv6 = []Record{
 		{Hosts: "localhost ip6-localhost ip6-loopback", IP: "::1"},
 		{Hosts: "ip6-localnet", IP: "fe00::0"},
 		{Hosts: "ip6-mcastprefix", IP: "ff00::0"},
@@ -71,9 +74,34 @@ func Drop(path string) {
 // IP, hostname, and domainname set main record leave empty for no master record
 // extraContent is an array of extra host records.
 func Build(path, IP, hostname, domainname string, extraContent []Record) error {
+	return build(path, IP, hostname, domainname, defaultContentIPv4, defaultContentIPv6, extraContent)
+}
+
+// BuildNoIPv6 is the same as Build, but will not include IPv6 entries.
+func BuildNoIPv6(path, IP, hostname, domainname string, extraContent []Record) error {
+	if isIPv6(IP) {
+		IP = ""
+	}
+
+	var ipv4ExtraContent []Record
+	for _, rec := range extraContent {
+		if !isIPv6(rec.IP) {
+			ipv4ExtraContent = append(ipv4ExtraContent, rec)
+		}
+	}
+
+	return build(path, IP, hostname, domainname, defaultContentIPv4, ipv4ExtraContent)
+}
+
+func isIPv6(s string) bool {
+	addr, err := netip.ParseAddr(s)
+	return err == nil && addr.Is6()
+}
+
+func build(path, IP, hostname, domainname string, contents ...[]Record) error {
 	defer pathLock(path)()
 
-	content := bytes.NewBuffer(nil)
+	buf := bytes.NewBuffer(nil)
 	if IP != "" {
 		// set main record
 		var mainRec Record
@@ -89,24 +117,21 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 		if hostName, _, ok := strings.Cut(fqdn, "."); ok {
 			mainRec.Hosts += " " + hostName
 		}
-		if _, err := mainRec.WriteTo(content); err != nil {
-			return err
-		}
-	}
-	// Write defaultContent slice to buffer
-	for _, r := range defaultContent {
-		if _, err := r.WriteTo(content); err != nil {
-			return err
-		}
-	}
-	// Write extra content from function arguments
-	for _, r := range extraContent {
-		if _, err := r.WriteTo(content); err != nil {
+		if _, err := mainRec.WriteTo(buf); err != nil {
 			return err
 		}
 	}
 
-	return os.WriteFile(path, content.Bytes(), 0o644)
+	// Write content from function arguments
+	for _, content := range contents {
+		for _, c := range content {
+			if _, err := c.WriteTo(buf); err != nil {
+				return err
+			}
+		}
+	}
+
+	return os.WriteFile(path, buf.Bytes(), 0o644)
 }
 
 // Add adds an arbitrary number of Records to an already existing /etc/hosts file
