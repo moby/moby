@@ -90,8 +90,16 @@ func (rl *roLayer) Metadata() (map[string]string, error) {
 	return rl.layerStore.driver.GetMetadata(rl.cacheID)
 }
 
+func (rl *roLayer) Descriptor() distribution.Descriptor {
+	return rl.descriptor
+}
+
 type referencedCacheLayer struct {
 	*roLayer
+}
+
+func (rcl *referencedCacheLayer) Descriptor() distribution.Descriptor {
+	return rcl.roLayer.descriptor
 }
 
 func (rl *roLayer) getReference() Layer {
