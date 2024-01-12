@@ -45,6 +45,8 @@ const (
 	CRIAPIV1Alpha2 Warning = Prefix + "cri-api-v1alpha2"
 	// AUFSSnapshotter is a warning for the use of the aufs snapshotter
 	AUFSSnapshotter Warning = Prefix + "aufs-snapshotter"
+	// RestartLogpath is a warning for the containerd.io/restart.logpath label
+	RestartLogpath Warning = Prefix + "restart-logpath"
 	// RuntimeV1 is a warning for the io.containerd.runtime.v1.linux runtime
 	RuntimeV1 Warning = Prefix + "runtime-v1"
 	// RuntimeRuncV1 is a warning for the io.containerd.runc.v1 runtime
@@ -75,6 +77,7 @@ var messages = map[Warning]string{
 		"Use `config_path` instead.",
 	CRIAPIV1Alpha2:  "CRI API v1alpha2 is deprecated since containerd v1.7 and removed in containerd v2.0. Use CRI API v1 instead.",
 	AUFSSnapshotter: "The aufs snapshotter is deprecated since containerd v1.5 and removed in containerd v2.0. Use the overlay snapshotter instead.",
+	RestartLogpath:  "The `containerd.io/restart.logpath` label is deprecated since containerd v1.5 and removed in containerd v2.0. Use `containerd.io/restart.loguri` instead.",
 	RuntimeV1:       "The `io.containerd.runtime.v1.linux` runtime is deprecated since containerd v1.4 and removed in containerd v2.0. Use the `io.containerd.runc.v2` runtime instead.",
 	RuntimeRuncV1:   "The `io.containerd.runc.v1` runtime is deprecated since containerd v1.4 and removed in containerd v2.0. Use the `io.containerd.runc.v2` runtime instead.",
 	CRICRIUPath: "The `CriuPath` property of `[plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.*.options]` is deprecated since containerd v1.7 and will be removed in containerd v2.0. " +

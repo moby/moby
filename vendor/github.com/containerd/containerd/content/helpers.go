@@ -332,3 +332,14 @@ func copyWithBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 	}
 	return
 }
+
+// Exists returns whether an attempt to access the content would not error out
+// with an ErrNotFound error. It will return an encountered error if it was
+// different than ErrNotFound.
+func Exists(ctx context.Context, provider InfoProvider, desc ocispec.Descriptor) (bool, error) {
+	_, err := provider.Info(ctx, desc.Digest)
+	if errdefs.IsNotFound(err) {
+		return false, nil
+	}
+	return err == nil, err
+}

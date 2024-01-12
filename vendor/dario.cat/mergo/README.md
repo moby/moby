@@ -1,17 +1,20 @@
 # Mergo
 
-
-[![GoDoc][3]][4]
 [![GitHub release][5]][6]
 [![GoCard][7]][8]
-[![Build Status][1]][2]
-[![Coverage Status][9]][10]
+[![Test status][1]][2]
+[![OpenSSF Scorecard][21]][22]
+[![OpenSSF Best Practices][19]][20]
+[![Coverage status][9]][10]
 [![Sourcegraph][11]][12]
-[![FOSSA Status][13]][14]
-[![Become my sponsor][15]][16]
+[![FOSSA status][13]][14]
 
-[1]: https://travis-ci.org/imdario/mergo.png
-[2]: https://travis-ci.org/imdario/mergo
+[![GoDoc][3]][4]
+[![Become my sponsor][15]][16]
+[![Tidelift][17]][18]
+
+[1]: https://github.com/imdario/mergo/workflows/tests/badge.svg?branch=master
+[2]: https://github.com/imdario/mergo/actions/workflows/tests.yml
 [3]: https://godoc.org/github.com/imdario/mergo?status.svg
 [4]: https://godoc.org/github.com/imdario/mergo
 [5]: https://img.shields.io/github/release/imdario/mergo.svg
@@ -26,6 +29,12 @@
 [14]: https://app.fossa.io/projects/git%2Bgithub.com%2Fimdario%2Fmergo?ref=badge_shield
 [15]: https://img.shields.io/github/sponsors/imdario
 [16]: https://github.com/sponsors/imdario
+[17]: https://tidelift.com/badges/package/go/github.com%2Fimdario%2Fmergo
+[18]: https://tidelift.com/subscription/pkg/go-github.com-imdario-mergo
+[19]: https://bestpractices.coreinfrastructure.org/projects/7177/badge
+[20]: https://bestpractices.coreinfrastructure.org/projects/7177
+[21]: https://api.securityscorecards.dev/projects/github.com/imdario/mergo/badge
+[22]: https://api.securityscorecards.dev/projects/github.com/imdario/mergo
 
 A helper to merge structs and maps in Golang. Useful for configuration default values, avoiding messy if-statements.
 
@@ -37,13 +46,19 @@ Also a lovely [comune](http://en.wikipedia.org/wiki/Mergo) (municipality) in the
 
 It is ready for production use. [It is used in several projects by Docker, Google, The Linux Foundation, VMWare, Shopify, Microsoft, etc](https://github.com/imdario/mergo#mergo-in-the-wild).
 
-### Important note
+### Important notes
+
+#### 1.0.0
+
+In [1.0.0](//github.com/imdario/mergo/releases/tag/1.0.0) Mergo moves to a vanity URL `dario.cat/mergo`.
+
+#### 0.3.9
 
 Please keep in mind that a problematic PR broke [0.3.9](//github.com/imdario/mergo/releases/tag/0.3.9). I reverted it in [0.3.10](//github.com/imdario/mergo/releases/tag/0.3.10), and I consider it stable but not bug-free. Also, this version adds support for go modules.
 
 Keep in mind that in [0.3.2](//github.com/imdario/mergo/releases/tag/0.3.2), Mergo changed `Merge()`and `Map()` signatures to support [transformers](#transformers). I added an optional/variadic argument so that it won't break the existing code.
 
-If you were using Mergo before April 6th, 2015, please check your project works as intended after updating your local copy with ```go get -u github.com/imdario/mergo```. I apologize for any issue caused by its previous behavior and any future bug that Mergo could cause in existing projects after the change (release 0.2.0).
+If you were using Mergo before April 6th, 2015, please check your project works as intended after updating your local copy with ```go get -u dario.cat/mergo```. I apologize for any issue caused by its previous behavior and any future bug that Mergo could cause in existing projects after the change (release 0.2.0).
 
 ### Donations
 
@@ -55,7 +70,6 @@ If Mergo is useful to you, consider buying me a coffee, a beer, or making a mont
 
 ### Mergo in the wild
 
-- [cli/cli](https://github.com/cli/cli)
 - [moby/moby](https://github.com/moby/moby)
 - [kubernetes/kubernetes](https://github.com/kubernetes/kubernetes)
 - [vmware/dispatch](https://github.com/vmware/dispatch)
@@ -102,11 +116,11 @@ If Mergo is useful to you, consider buying me a coffee, a beer, or making a mont
 
 ## Install
 
-    go get github.com/imdario/mergo
+    go get dario.cat/mergo
 
     // use in your .go code
     import (
-        "github.com/imdario/mergo"
+        "dario.cat/mergo"
     )
 
 ## Usage
@@ -144,7 +158,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 )
 
 type Foo struct {
@@ -180,9 +194,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/imdario/mergo"
-        "reflect"
-        "time"
+	"dario.cat/mergo"
+    "reflect"
+    "time"
 )
 
 type timeTransformer struct {
@@ -230,6 +244,5 @@ Written by [Dario Castañé](http://dario.im).
 ## License
 
 [BSD 3-Clause](http://opensource.org/licenses/BSD-3-Clause) license, as [Go language](http://golang.org/LICENSE).
-
 
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fimdario%2Fmergo.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fimdario%2Fmergo?ref=badge_large)

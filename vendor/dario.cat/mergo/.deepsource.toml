@@ -9,4 +9,4 @@ name = "go"
 enabled = true
 
   [analyzers.meta]
-  import_path = "github.com/imdario/mergo"
+  import_path = "dario.cat/mergo"

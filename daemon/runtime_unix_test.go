@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"dario.cat/mergo"
 	runtimeoptions_v1 "github.com/containerd/containerd/pkg/runtimeoptions/v1"
 	"github.com/containerd/containerd/plugin"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
@@ -15,7 +16,6 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/imdario/mergo"
 	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

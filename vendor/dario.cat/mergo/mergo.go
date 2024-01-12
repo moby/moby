@@ -20,7 +20,7 @@ var (
 	ErrNotSupported                = errors.New("only structs, maps, and slices are supported")
 	ErrExpectedMapAsDestination    = errors.New("dst was expected to be a map")
 	ErrExpectedStructAsDestination = errors.New("dst was expected to be a struct")
-	ErrNonPointerAgument           = errors.New("dst must be a pointer")
+	ErrNonPointerArgument          = errors.New("dst must be a pointer")
 )
 
 // During deepMerge, must keep track of checks that are
@@ -28,13 +28,13 @@ var (
 // checks in progress are true when it reencounters them.
 // Visited are stored in a map indexed by 17 * a1 + a2;
 type visit struct {
-	ptr  uintptr
 	typ  reflect.Type
 	next *visit
+	ptr  uintptr
 }
 
 // From src/pkg/encoding/json/encode.go.
-func isEmptyValue(v reflect.Value) bool {
+func isEmptyValue(v reflect.Value, shouldDereference bool) bool {
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
@@ -50,7 +50,10 @@ func isEmptyValue(v reflect.Value) bool {
 		if v.IsNil() {
 			return true
 		}
-		return isEmptyValue(v.Elem())
+		if shouldDereference {
+			return isEmptyValue(v.Elem(), shouldDereference)
+		}
+		return false
 	case reflect.Func:
 		return v.IsNil()
 	case reflect.Invalid:

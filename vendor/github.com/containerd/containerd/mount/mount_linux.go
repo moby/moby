@@ -20,12 +20,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"runtime"
 	"strings"
 	"time"
 
-	exec "golang.org/x/sys/execabs"
 	"golang.org/x/sys/unix"
 )
 

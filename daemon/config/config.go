@@ -10,12 +10,12 @@ import (
 	"os"
 	"strings"
 
+	"dario.cat/mergo"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
-	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"golang.org/x/text/encoding"
