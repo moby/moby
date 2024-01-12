@@ -159,6 +159,10 @@ func (ld *layerDescriptor) ID() string {
 	return stringid.TruncateID(ld.digest.String())
 }
 
+func (ld *layerDescriptor) Descriptor() distribution.Descriptor {
+	return ld.src
+}
+
 func (ld *layerDescriptor) DiffID() (layer.DiffID, error) {
 	if ld.diffID != "" {
 		return ld.diffID, nil
