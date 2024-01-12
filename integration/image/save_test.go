@@ -15,11 +15,13 @@ import (
 
 	"github.com/cpuguy83/tar2go"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	is "gotest.tools/v3/assert/cmp"
@@ -83,6 +85,40 @@ func TestSaveCheckTimes(t *testing.T) {
 	} else {
 		assert.Check(t, is.Equal(info.ModTime().Format(time.RFC3339), created.Format(time.RFC3339)))
 	}
+}
+
+// Regression test for https://github.com/moby/moby/issues/47065
+func TestSaveCheckManifestLayers(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "OCI layout support was introduced in v25")
+	t.Parallel()
+
+	ctx := setupTest(t)
+	client := testEnv.APIClient()
+
+	const repoName = "busybox:latest"
+	img, _, err := client.ImageInspectWithRaw(ctx, repoName)
+	assert.NilError(t, err)
+
+	rdr, err := client.ImageSave(ctx, []string{repoName})
+	assert.NilError(t, err)
+
+	tarfs := tarIndexFS(t, rdr)
+
+	indexData, err := fs.ReadFile(tarfs, "index.json")
+	assert.NilError(t, err)
+
+	var index ocispec.Index
+	assert.NilError(t, json.Unmarshal(indexData, &index))
+
+	assert.Assert(t, is.Len(index.Manifests, 1))
+
+	manifestData, err := fs.ReadFile(tarfs, "blobs/sha256/"+index.Manifests[0].Digest.Encoded())
+	assert.NilError(t, err)
+
+	var manifest ocispec.Manifest
+	assert.NilError(t, json.Unmarshal(manifestData, &manifest))
+
+	assert.Check(t, is.Len(manifest.Layers, len(img.RootFS.Layers)))
 }
 
 func TestSaveRepoWithMultipleImages(t *testing.T) {

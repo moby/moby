@@ -523,5 +523,13 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 	if fs, ok := l.(distribution.Describable); ok {
 		src = fs.Descriptor()
 	}
+
+	if src.Digest == "" {
+		src = distribution.Descriptor{
+			MediaType: ocispec.MediaTypeImageLayer,
+			Digest:    lDgst,
+			Size:      l.Size(),
+		}
+	}
 	return src, nil
 }
