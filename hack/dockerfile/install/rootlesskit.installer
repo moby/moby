@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # When updating, also update vendor.mod and Dockerfile accordingly.
-: "${ROOTLESSKIT_VERSION:=v1.1.1}"
+: "${ROOTLESSKIT_VERSION:=v2.0.0}"
 
 install_rootlesskit() {
 	case "$1" in
@@ -28,6 +28,6 @@ install_rootlesskit_dynamic() {
 _install_rootlesskit() (
 	echo "Install rootlesskit version ${ROOTLESSKIT_VERSION}"
 	for f in rootlesskit rootlesskit-docker-proxy; do
-		GOBIN="${PREFIX}" GO111MODULE=on go install ${BUILD_MODE} -ldflags="$ROOTLESSKIT_LDFLAGS" "github.com/rootless-containers/rootlesskit/cmd/${f}@${ROOTLESSKIT_VERSION}"
+		GOBIN="${PREFIX}" GO111MODULE=on go install ${BUILD_MODE} -ldflags="$ROOTLESSKIT_LDFLAGS" "github.com/rootless-containers/rootlesskit/v2/cmd/${f}@${ROOTLESSKIT_VERSION}"
 	done
 )
