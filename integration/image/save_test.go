@@ -119,6 +119,14 @@ func TestSaveCheckManifestLayers(t *testing.T) {
 	assert.NilError(t, json.Unmarshal(manifestData, &manifest))
 
 	assert.Check(t, is.Len(manifest.Layers, len(img.RootFS.Layers)))
+	for _, l := range manifest.Layers {
+		stat, err := fs.Stat(tarfs, "blobs/sha256/"+l.Digest.Encoded())
+		if !assert.Check(t, err) {
+			continue
+		}
+
+		assert.Check(t, is.Equal(l.Size, stat.Size()))
+	}
 }
 
 func TestSaveRepoWithMultipleImages(t *testing.T) {

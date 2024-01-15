@@ -38,6 +38,7 @@ type saveSession struct {
 	images      map[image.ID]*imageDescriptor
 	savedLayers map[string]struct{}
 	diffIDPaths map[layer.DiffID]string // cache every diffID blob to avoid duplicates
+	diffIDDescs map[layer.DiffID]distribution.Descriptor
 }
 
 func (l *tarexporter) Save(names []string, outStream io.Writer) error {
@@ -180,6 +181,7 @@ func (l *tarexporter) releaseLayerReferences(imgDescr map[image.ID]*imageDescrip
 func (s *saveSession) save(outStream io.Writer) error {
 	s.savedLayers = make(map[string]struct{})
 	s.diffIDPaths = make(map[layer.DiffID]string)
+	s.diffIDDescs = make(map[layer.DiffID]distribution.Descriptor)
 
 	// get image json
 	tempDir, err := os.MkdirTemp("", "docker-export-")
@@ -502,7 +504,11 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 		}
 		defer arch.Close()
 
-		if _, err := io.Copy(tarFile, arch); err != nil {
+		digester := digest.Canonical.Digester()
+		digestedArch := io.TeeReader(arch, digester.Hash())
+
+		tarSize, err := io.Copy(tarFile, digestedArch)
+		if err != nil {
 			return distribution.Descriptor{}, err
 		}
 
@@ -517,19 +523,21 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 
 		s.diffIDPaths[l.DiffID()] = layerPath
 		s.savedLayers[legacyImg.ID] = struct{}{}
-	}
 
-	var src distribution.Descriptor
-	if fs, ok := l.(distribution.Describable); ok {
-		src = fs.Descriptor()
-	}
-
-	if src.Digest == "" {
-		src = distribution.Descriptor{
-			MediaType: ocispec.MediaTypeImageLayer,
-			Digest:    lDgst,
-			Size:      l.Size(),
+		var desc distribution.Descriptor
+		if fs, ok := l.(distribution.Describable); ok {
+			desc = fs.Descriptor()
 		}
+
+		if desc.Digest == "" {
+			desc.Digest = digester.Digest()
+			desc.Size = tarSize
+		}
+		if desc.MediaType == "" {
+			desc.MediaType = ocispec.MediaTypeImageLayer
+		}
+		s.diffIDDescs[l.DiffID()] = desc
 	}
-	return src, nil
+
+	return s.diffIDDescs[l.DiffID()], nil
 }
