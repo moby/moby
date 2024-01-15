@@ -4,15 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
-	"net"
 	"net/http"
-	"os"
 
-	"github.com/rootless-containers/rootlesskit/pkg/api"
-	"github.com/rootless-containers/rootlesskit/pkg/port"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/httputil"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/port"
 )
 
 type Client interface {
@@ -24,16 +21,9 @@ type Client interface {
 // New creates a client.
 // socketPath is a path to the UNIX socket, without unix:// prefix.
 func New(socketPath string) (Client, error) {
-	if _, err := os.Stat(socketPath); err != nil {
+	hc, err := httputil.NewHTTPClient(socketPath)
+	if err != nil {
 		return nil, err
-	}
-	hc := &http.Client{
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				var d net.Dialer
-				return d.DialContext(ctx, "unix", socketPath)
-			},
-		},
 	}
 	return NewWithHTTPClient(hc), nil
 }
@@ -76,7 +66,7 @@ func (c *client) Info(ctx context.Context) (*api.Info, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if err := successful(resp); err != nil {
+	if err := httputil.Successful(resp); err != nil {
 		return nil, err
 	}
 	var info api.Info
@@ -85,59 +75,6 @@ func (c *client) Info(ctx context.Context) (*api.Info, error) {
 		return nil, err
 	}
 	return &info, nil
-}
-
-func readAtMost(r io.Reader, maxBytes int) ([]byte, error) {
-	lr := &io.LimitedReader{
-		R: r,
-		N: int64(maxBytes),
-	}
-	b, err := io.ReadAll(lr)
-	if err != nil {
-		return b, err
-	}
-	if lr.N == 0 {
-		return b, fmt.Errorf("expected at most %d bytes, got more", maxBytes)
-	}
-	return b, nil
-}
-
-// HTTPStatusErrorBodyMaxLength specifies the maximum length of HTTPStatusError.Body
-const HTTPStatusErrorBodyMaxLength = 64 * 1024
-
-// HTTPStatusError is created from non-2XX HTTP response
-type HTTPStatusError struct {
-	// StatusCode is non-2XX status code
-	StatusCode int
-	// Body is at most HTTPStatusErrorBodyMaxLength
-	Body string
-}
-
-// Error implements error.
-// If e.Body is a marshalled string of api.ErrorJSON, Error returns ErrorJSON.Message .
-// Otherwise Error returns a human-readable string that contains e.StatusCode and e.Body.
-func (e *HTTPStatusError) Error() string {
-	if e.Body != "" && len(e.Body) < HTTPStatusErrorBodyMaxLength {
-		var ej api.ErrorJSON
-		if json.Unmarshal([]byte(e.Body), &ej) == nil {
-			return ej.Message
-		}
-	}
-	return fmt.Sprintf("unexpected HTTP status %s, body=%q", http.StatusText(e.StatusCode), e.Body)
-}
-
-func successful(resp *http.Response) error {
-	if resp == nil {
-		return errors.New("nil response")
-	}
-	if resp.StatusCode/100 != 2 {
-		b, _ := readAtMost(resp.Body, HTTPStatusErrorBodyMaxLength)
-		return &HTTPStatusError{
-			StatusCode: resp.StatusCode,
-			Body:       string(b),
-		}
-	}
-	return nil
 }
 
 type portManager struct {
@@ -161,7 +98,7 @@ func (pm *portManager) AddPort(ctx context.Context, spec port.Spec) (*port.Statu
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if err := successful(resp); err != nil {
+	if err := httputil.Successful(resp); err != nil {
 		return nil, err
 	}
 	dec := json.NewDecoder(resp.Body)
@@ -183,7 +120,7 @@ func (pm *portManager) ListPorts(ctx context.Context) ([]port.Status, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if err := successful(resp); err != nil {
+	if err := httputil.Successful(resp); err != nil {
 		return nil, err
 	}
 	var statuses []port.Status
@@ -205,7 +142,7 @@ func (pm *portManager) RemovePort(ctx context.Context, id int) error {
 		return err
 	}
 	defer resp.Body.Close()
-	if err := successful(resp); err != nil {
+	if err := httputil.Successful(resp); err != nil {
 		return err
 	}
 	return nil

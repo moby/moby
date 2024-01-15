@@ -1002,11 +1002,12 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rootless-containers/rootlesskit v1.1.1
+# github.com/rootless-containers/rootlesskit/v2 v2.0.0
 ## explicit; go 1.19
-github.com/rootless-containers/rootlesskit/pkg/api
-github.com/rootless-containers/rootlesskit/pkg/api/client
-github.com/rootless-containers/rootlesskit/pkg/port
+github.com/rootless-containers/rootlesskit/v2/pkg/api
+github.com/rootless-containers/rootlesskit/v2/pkg/api/client
+github.com/rootless-containers/rootlesskit/v2/pkg/httputil
+github.com/rootless-containers/rootlesskit/v2/pkg/port
 # github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 ## explicit
 github.com/sean-/seed
