@@ -9,12 +9,31 @@
 # * Either one of slirp4netns (>= v0.4.0), VPNKit, lxc-user-nic needs to be installed.
 #
 # Recognized environment variables:
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_NET=(slirp4netns|vpnkit|lxc-user-nic): the rootlesskit network driver. Defaults to "slirp4netns" if slirp4netns (>= v0.4.0) is installed. Otherwise defaults to "vpnkit".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_NET=(slirp4netns|vpnkit|pasta|lxc-user-nic): the rootlesskit network driver. Defaults to "slirp4netns" if slirp4netns (>= v0.4.0) is installed. Otherwise defaults to "vpnkit".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_MTU=NUM: the MTU value for the rootlesskit network driver. Defaults to 65520 for slirp4netns, 1500 for other drivers.
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns): the rootlesskit port driver. Defaults to "builtin".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns|implicit): the rootlesskit port driver. Defaults to "builtin".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX=(auto|true|false): whether to protect slirp4netns with a dedicated mount namespace. Defaults to "auto".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP=(auto|true|false): whether to protect slirp4netns with seccomp. Defaults to "auto".
+
+# To apply an environment variable via systemd, create ~/.config/systemd/user/docker.service.d/override.conf as follows,
+# and run `systemctl --user daemon-reload && systemctl --user restart docker`:
+# --- BEGIN ---
+# [Service]
+# Environment="DOCKERD_ROOTLESS_ROOTLESSKIT_NET=pasta"
+# Environment="DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=implicit"
+# ---  END  ---
+
+# Guide to choose the network driver and the port driver:
 #
+#  Network driver | Port driver    | Net throughput | Port throughput | Src IP | No SUID | Note
+#  ---------------|----------------|----------------|-----------------|--------|---------|---------------------------------------------------------
+#  slirp4netns    | builtin        | Slow           | Fast ✅         | ❌     | ✅      | Default in typical setup
+#  vpnkit         | builtin        | Slow           | Fast ✅         | ❌     | ✅      | Default when slirp4netns is not installed
+#  slirp4netns    | slirp4netns    | Slow           | Slow            | ✅     | ✅      |
+#  pasta          | implicit       | Slow           | Fast ✅         | ✅     | ✅      | Experimental; Needs recent version of pasta (2023_12_04)
+#  lxc-user-nic   | builtin        | Fast ✅        | Slow            | ❌     | ❌      | Experimental
+#  (bypass4netns) | (bypass4netns) | Fast ✅        | Fast ✅         | ✅     | ✅      | (Not integrated to RootlessKit)
+
 # See the documentation for the further information: https://docs.docker.com/go/rootless/
 
 set -e -x
