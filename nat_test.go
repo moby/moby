@@ -697,3 +697,77 @@ func TestParseNetworkOptsSctp(t *testing.T) {
 		}
 	}
 }
+
+func TestStringer(t *testing.T) {
+	tests := []struct {
+		doc      string
+		in       string
+		expected string
+	}{
+		{
+			doc:      "no host mapping",
+			in:       ":8080:6000/tcp",
+			expected: ":8080:6000/tcp",
+		},
+		{
+			doc:      "no proto",
+			in:       "192.168.1.100:8080:6000",
+			expected: "192.168.1.100:8080:6000/tcp",
+		},
+		{
+			doc:      "no host port",
+			in:       "192.168.1.100::6000/udp",
+			expected: "192.168.1.100::6000/udp",
+		},
+		{
+			doc:      "no mapping, port, or proto",
+			in:       "::6000",
+			expected: "::6000/tcp",
+		},
+		{
+			doc:      "ipv4 mapping",
+			in:       "192.168.1.100:8080:6000/udp",
+			expected: "192.168.1.100:8080:6000/udp",
+		},
+		{
+			doc:      "ipv4 mapping without host port",
+			in:       "192.168.1.100::6000/udp",
+			expected: "192.168.1.100::6000/udp",
+		},
+		{
+			doc:      "ipv6 mapping",
+			in:       "[::1]:8080:6000/udp",
+			expected: "[::1]:8080:6000/udp",
+		},
+		{
+			doc:      "ipv6 mapping without host port",
+			in:       "[::1]::6000/udp",
+			expected: "[::1]::6000/udp",
+		},
+		{
+			doc:      "ipv6 legacy mapping",
+			in:       "::1:8080:6000/udp",
+			expected: "[::1]:8080:6000/udp",
+		},
+		{
+			doc:      "ipv6 legacy mapping without host port",
+			in:       "::::6000/udp",
+			expected: "[::]::6000/udp",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			mappings, err := ParsePortSpec(tc.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(mappings) != 1 {
+				// All tests produce a single mapping
+				t.Fatalf("Expected 1 got %d", len(mappings))
+			}
+			if actual := mappings[0].String(); actual != tc.expected {
+				t.Errorf("Expected %s got %s", tc.expected, actual)
+			}
+		})
+	}
+}
