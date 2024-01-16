@@ -270,13 +270,13 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return errors.Wrap(err, "failed to validate authorization plugin")
 	}
 
-	// Note that CDI is not inherrently linux-specific, there are some linux-specific assumptions / implementations in the code that
+	// Note that CDI is not inherently linux-specific, there are some linux-specific assumptions / implementations in the code that
 	// queries the properties of device on the host as wel as performs the injection of device nodes and their access permissions into the OCI spec.
 	//
 	// In order to lift this restriction the following would have to be addressed:
 	// - Support needs to be added to the cdi package for injecting Windows devices: https://tags.cncf.io/container-device-interface/issues/28
 	// - The DeviceRequests API must be extended to non-linux platforms.
-	if runtime.GOOS == "linux" && cli.Config.Experimental {
+	if runtime.GOOS == "linux" && cli.Config.Features["cdi"] {
 		daemon.RegisterCDIDriver(cli.Config.CDISpecDirs...)
 	}
 
@@ -611,8 +611,8 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		// If CDISpecDirs is set to an empty string, we clear it to ensure that CDI is disabled.
 		conf.CDISpecDirs = nil
 	}
-	if !conf.Experimental {
-		// If experimental mode is not set, we clear the CDISpecDirs to ensure that CDI is disabled.
+	if !conf.Features["cdi"] {
+		// If the CDI feature is not enabled, we clear the CDISpecDirs to ensure that CDI is disabled.
 		conf.CDISpecDirs = nil
 	}
 

@@ -27,8 +27,12 @@ func TestCreateWithCDIDevices(t *testing.T) {
 
 	cwd, err := os.Getwd()
 	assert.NilError(t, err)
-	d := daemon.New(t, daemon.WithExperimental())
-	d.StartWithBusybox(ctx, t, "--cdi-spec-dir="+filepath.Join(cwd, "testdata", "cdi"))
+	configPath := filepath.Join(cwd, "daemon.json")
+	err = os.WriteFile(configPath, []byte(`{"features": {"cdi": true}}`), 0o644)
+	defer os.Remove(configPath)
+	assert.NilError(t, err)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--config-file", configPath, "--cdi-spec-dir="+filepath.Join(cwd, "testdata", "cdi"))
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
@@ -72,55 +76,49 @@ func TestCDISpecDirsAreInSystemInfo(t *testing.T) {
 	testCases := []struct {
 		description             string
 		config                  map[string]interface{}
-		experimental            bool
 		specDirs                []string
 		expectedInfoCDISpecDirs []string
 	}{
 		{
-			description:             "experimental no spec dirs specified returns default",
-			experimental:            true,
+			description:             "CDI enabled with no spec dirs specified returns default",
+			config:                  map[string]interface{}{"features": map[string]bool{"cdi": true}},
 			specDirs:                nil,
 			expectedInfoCDISpecDirs: []string{"/etc/cdi", "/var/run/cdi"},
 		},
 		{
-			description:             "experimental specified spec dirs are returned",
-			experimental:            true,
+			description:             "CDI enabled with specified spec dirs are returned",
+			config:                  map[string]interface{}{"features": map[string]bool{"cdi": true}},
 			specDirs:                []string{"/foo/bar", "/baz/qux"},
 			expectedInfoCDISpecDirs: []string{"/foo/bar", "/baz/qux"},
 		},
 		{
-			description:             "experimental empty string as spec dir returns empty slice",
-			experimental:            true,
+			description:             "CDI enabled with empty string as spec dir returns empty slice",
+			config:                  map[string]interface{}{"features": map[string]bool{"cdi": true}},
 			specDirs:                []string{""},
 			expectedInfoCDISpecDirs: []string{},
 		},
 		{
-			description:             "experimental empty config option returns empty slice",
-			experimental:            true,
-			config:                  map[string]interface{}{"cdi-spec-dirs": []string{}},
+			description:             "CDI enabled with empty config option returns empty slice",
+			config:                  map[string]interface{}{"features": map[string]bool{"cdi": true}, "cdi-spec-dirs": []string{}},
 			expectedInfoCDISpecDirs: []string{},
 		},
 		{
-			description:             "non-experimental no spec dirs specified returns empty slice",
-			experimental:            false,
+			description:             "CDI disabled with no spec dirs specified returns empty slice",
 			specDirs:                nil,
 			expectedInfoCDISpecDirs: []string{},
 		},
 		{
-			description:             "non-experimental specified spec dirs returns empty slice",
-			experimental:            false,
+			description:             "CDI disabled with specified spec dirs returns empty slice",
 			specDirs:                []string{"/foo/bar", "/baz/qux"},
 			expectedInfoCDISpecDirs: []string{},
 		},
 		{
-			description:             "non-experimental empty string as spec dir returns empty slice",
-			experimental:            false,
+			description:             "CDI disabled with empty string as spec dir returns empty slice",
 			specDirs:                []string{""},
 			expectedInfoCDISpecDirs: []string{},
 		},
 		{
-			description:             "non-experimental empty config option returns empty slice",
-			experimental:            false,
+			description:             "CDI disabled with empty config option returns empty slice",
 			config:                  map[string]interface{}{"cdi-spec-dirs": []string{}},
 			expectedInfoCDISpecDirs: []string{},
 		},
@@ -129,9 +127,6 @@ func TestCDISpecDirsAreInSystemInfo(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			var opts []daemon.Option
-			if tc.experimental {
-				opts = append(opts, daemon.WithExperimental())
-			}
 			d := daemon.New(t, opts...)
 
 			var args []string
