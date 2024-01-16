@@ -31,7 +31,7 @@
 #  vpnkit         | builtin        | Slow           | Fast ✅         | ❌     | ✅      | Default when slirp4netns is not installed
 #  slirp4netns    | slirp4netns    | Slow           | Slow            | ✅     | ✅      |
 #  pasta          | implicit       | Slow           | Fast ✅         | ✅     | ✅      | Experimental; Needs recent version of pasta (2023_12_04)
-#  lxc-user-nic   | builtin        | Fast ✅        | Slow            | ❌     | ❌      | Experimental
+#  lxc-user-nic   | builtin        | Fast ✅        | Fast ✅         | ❌     | ❌      | Experimental
 #  (bypass4netns) | (bypass4netns) | Fast ✅        | Fast ✅         | ✅     | ✅      | (Not integrated to RootlessKit)
 
 # See the documentation for the further information: https://docs.docker.com/go/rootless/
