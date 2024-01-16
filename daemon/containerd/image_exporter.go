@@ -22,7 +22,6 @@ import (
 	dockerarchive "github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/platforms"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -66,9 +65,9 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 		// Note: This is only applicable if importing this archive into non-containerd Docker.
 		// Importing the same archive into containerd, will not restrict the platforms.
 		archive.WithPlatform(platform),
+		archive.WithSkipMissing(i.content),
 	}
 
-	contentStore := i.client.ContentStore()
 	leasesManager := i.client.LeasesService()
 	lease, err := leasesManager.Create(ctx, leases.WithRandomID())
 	if err != nil {
@@ -81,23 +80,12 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 	}()
 
 	addLease := func(ctx context.Context, target ocispec.Descriptor) error {
-		return leaseContent(ctx, contentStore, leasesManager, lease, target)
+		return leaseContent(ctx, i.content, leasesManager, lease, target)
 	}
 
 	exportImage := func(ctx context.Context, target ocispec.Descriptor, ref reference.Named) error {
 		if err := addLease(ctx, target); err != nil {
 			return err
-		}
-
-		// We may not have locally all the platforms that are specified in the index.
-		// Export only those manifests that we have.
-		// TODO(vvoland): Reconsider this when `--platform` is added.
-		if containerdimages.IsIndexType(target.MediaType) {
-			desc, err := i.getBestDescriptorForExport(ctx, target)
-			if err != nil {
-				return err
-			}
-			target = desc
 		}
 
 		if ref != nil {
@@ -250,6 +238,8 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 		// TODO(vvoland): Allow user to pass platform
 		containerd.WithImportPlatform(cplatforms.All),
 
+		containerd.WithSkipMissing(),
+
 		// Create an additional image with dangling name for imported images...
 		containerd.WithDigestRef(danglingImageName),
 		// ... but only if they don't have a name or it's invalid.
@@ -321,82 +311,4 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 	}
 
 	return nil
-}
-
-// getBestDescriptorForExport returns a descriptor which only references content available locally.
-// The returned descriptor can be:
-// - The same index descriptor - if all content is available
-// - Platform specific manifest - if only one manifest from the whole index is available
-// - Reduced index descriptor - if not all, but more than one manifest is available
-//
-// The reduced index descriptor is stored in the content store and may be garbage collected.
-// It's advised to pass a context with a lease that's long enough to cover usage of the blob.
-func (i *ImageService) getBestDescriptorForExport(ctx context.Context, indexDesc ocispec.Descriptor) (ocispec.Descriptor, error) {
-	none := ocispec.Descriptor{}
-
-	if !containerdimages.IsIndexType(indexDesc.MediaType) {
-		err := fmt.Errorf("index/manifest-list descriptor expected, got: %s", indexDesc.MediaType)
-		return none, errdefs.InvalidParameter(err)
-	}
-	store := i.client.ContentStore()
-	children, err := containerdimages.Children(ctx, store, indexDesc)
-	if err != nil {
-		if cerrdefs.IsNotFound(err) {
-			return none, errdefs.NotFound(err)
-		}
-		return none, errdefs.System(err)
-	}
-
-	// Check which platform manifests have all their blobs available.
-	hasMissingManifests := false
-	var presentManifests []ocispec.Descriptor
-	for _, mfst := range children {
-		if containerdimages.IsManifestType(mfst.MediaType) {
-			available, _, _, missing, err := containerdimages.Check(ctx, store, mfst, nil)
-			if err != nil {
-				hasMissingManifests = true
-				log.G(ctx).WithField("manifest", mfst.Digest).Warn("failed to check manifest's blob availability, won't export")
-				continue
-			}
-
-			if available && len(missing) == 0 {
-				presentManifests = append(presentManifests, mfst)
-				log.G(ctx).WithField("manifest", mfst.Digest).Debug("manifest content present, will export")
-			} else {
-				hasMissingManifests = true
-				log.G(ctx).WithFields(log.Fields{
-					"manifest": mfst.Digest,
-					"missing":  missing,
-				}).Debug("manifest is missing, won't export")
-			}
-		}
-	}
-
-	if !hasMissingManifests || len(children) == 0 {
-		// If we have the full image, or it has no manifests, just export the original index.
-		return indexDesc, nil
-	} else if len(presentManifests) == 1 {
-		// If only one platform is present, export that one manifest.
-		return presentManifests[0], nil
-	} else if len(presentManifests) == 0 {
-		// Return error when none of the image's manifest is present.
-		return none, errdefs.NotFound(fmt.Errorf("none of the manifests is fully present in the content store"))
-	}
-
-	// Create a new index which contains only the manifests we have in store.
-	index := ocispec.Index{
-		Versioned: specs.Versioned{
-			SchemaVersion: 2,
-		},
-		MediaType:   ocispec.MediaTypeImageIndex,
-		Manifests:   presentManifests,
-		Annotations: indexDesc.Annotations,
-	}
-
-	reducedIndexDesc, err := storeJson(ctx, store, index.MediaType, index, nil)
-	if err != nil {
-		return none, err
-	}
-
-	return reducedIndexDesc, nil
 }
