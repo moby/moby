@@ -524,7 +524,7 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 		src = fs.Descriptor()
 	}
 
-	if src.Digest == "" {
+	if false && src.Digest == "" {
 		src = distribution.Descriptor{
 			MediaType: ocispec.MediaTypeImageLayer,
 			Digest:    lDgst,

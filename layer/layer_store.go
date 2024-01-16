@@ -268,6 +268,10 @@ func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
 	return ls.registerWithDescriptor(ts, parent, distribution.Descriptor{})
 }
 
+func (ls *layerStore) RegisterWithDescriptor(ts io.Reader, parent ChainID, descriptor distribution.Descriptor) (Layer, error) {
+	return ls.registerWithDescriptor(ts, parent, descriptor)
+}
+
 func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descriptor distribution.Descriptor) (Layer, error) {
 	// cErr is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned

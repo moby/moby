@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/schema2"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -90,8 +91,16 @@ func (rl *roLayer) Metadata() (map[string]string, error) {
 	return rl.layerStore.driver.GetMetadata(rl.cacheID)
 }
 
+func (rl *roLayer) Descriptor() distribution.Descriptor {
+	return rl.descriptor
+}
+
 type referencedCacheLayer struct {
 	*roLayer
+}
+
+func (rcl *referencedCacheLayer) Descriptor() distribution.Descriptor {
+	return rcl.roLayer.descriptor
 }
 
 func (rl *roLayer) getReference() Layer {
@@ -133,12 +142,19 @@ func storeLayer(tx *fileMetadataTransaction, layer *roLayer) error {
 	if err := tx.SetCacheID(layer.cacheID); err != nil {
 		return err
 	}
-	// Do not store empty descriptors
-	if layer.descriptor.Digest != "" {
-		if err := tx.SetDescriptor(layer.descriptor); err != nil {
-			return err
-		}
+
+	desc := layer.descriptor
+	if desc.Digest == "" {
+		desc.Digest = digest.Digest(layer.diffID)
+		desc.Size = layer.size
 	}
+	if desc.MediaType == "" {
+		desc.MediaType = schema2.MediaTypeUncompressedLayer
+	}
+	if err := tx.SetDescriptor(layer.descriptor); err != nil {
+		return err
+	}
+
 	if layer.parent != nil {
 		if err := tx.SetParent(layer.parent.chainID); err != nil {
 			return err
