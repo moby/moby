@@ -6404,6 +6404,10 @@ paths:
           description: |
             Assign the specified name to the container. Must match
             `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+`.
+
+            If the option is not set, the container name will be automatically
+            generated and `com.docker.container.anonymous` will be added as a
+            container label.
           type: "string"
           pattern: "^/?[a-zA-Z0-9][a-zA-Z0-9_.-]+$"
         - name: "platform"

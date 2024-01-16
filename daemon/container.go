@@ -120,6 +120,10 @@ func (daemon *Daemon) Register(c *container.Container) error {
 	return c.CheckpointTo(daemon.containersReplica)
 }
 
+// AnonymousLabel is the label used to indicate that a container is anonymous
+// This is set automatically on a container when a container is created without a name specified, and as such an id is generated for it.
+const AnonymousLabel = "com.docker.container.anonymous"
+
 func (daemon *Daemon) newContainer(name string, operatingSystem string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
 	var (
 		id  string
@@ -128,6 +132,13 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	id, name, err = daemon.generateIDAndName(name)
 	if err != nil {
 		return nil, err
+	}
+
+	if noExplicitName {
+		if config.Labels == nil {
+			config.Labels = map[string]string{}
+		}
+		config.Labels[AnonymousLabel] = ""
 	}
 
 	if hostConfig.NetworkMode.IsHost() {

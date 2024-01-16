@@ -668,3 +668,43 @@ func TestCreateWithCustomMACs(t *testing.T) {
 		assert.Equal(t, mac, "02:32:1c:23:00:04")
 	}
 }
+
+func TestCreateAnonymousNameLabel(t *testing.T) {
+	ctx := setupTest(t)
+
+	client := testEnv.APIClient()
+
+	const AnonymousLabel string = "com.docker.container.anonymous"
+	const AnonymousValue string = ""
+
+	// Test with non-empty name given
+	ctr, err := client.ContainerCreate(ctx,
+		&container.Config{
+			Image: "busybox",
+		},
+		&container.HostConfig{},
+		&network.NetworkingConfig{},
+		nil,
+		"foo", // This is the container name
+	)
+	assert.Equal(t, err, nil)
+	inspect, err := client.ContainerInspect(ctx, ctr.ID)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, is.Contains(inspect.Config.Labels, AnonymousLabel)().Success(), false)
+
+	// Test with empty name given
+	ctr, err = client.ContainerCreate(ctx,
+		&container.Config{
+			Image: "busybox",
+		},
+		&container.HostConfig{},
+		&network.NetworkingConfig{},
+		nil,
+		"", // This is the container name
+	)
+	assert.Equal(t, err, nil)
+	inspect, err = client.ContainerInspect(ctx, ctr.ID)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, is.Contains(inspect.Config.Labels, AnonymousLabel)().Success(), true)
+	assert.Equal(t, inspect.Config.Labels[AnonymousLabel], AnonymousValue)
+}
