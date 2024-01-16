@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/builder"
@@ -57,17 +56,11 @@ func (ic *localCache) GetCache(parentID string, cfg *container.Config) (imageID 
 
 	// FROM scratch
 	if parentID == "" {
-		imgs, err := ic.imageService.Images(ctx, types.ImageListOptions{
-			All: true,
-		})
+		c, err := ic.imageService.getImagesWithLabel(ctx, imageLabelClassicBuilderFromScratch, "1")
 		if err != nil {
 			return "", err
 		}
-		for _, img := range imgs {
-			if img.ParentID == parentID {
-				children = append(children, image.ID(img.ID))
-			}
-		}
+		children = c
 	} else {
 		c, err := ic.imageService.Children(ctx, image.ID(parentID))
 		if err != nil {

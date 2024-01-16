@@ -10,9 +10,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Children returns a slice of image IDs that are children of the `id` image
-func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, error) {
-	imgs, err := i.images.List(ctx, "labels."+imageLabelClassicBuilderParent+"=="+string(id))
+// getImagesWithLabel returns all images that have the matching label key and value.
+func (i *ImageService) getImagesWithLabel(ctx context.Context, labelKey string, labelValue string) ([]image.ID, error) {
+	imgs, err := i.images.List(ctx, "labels."+labelKey+"=="+labelValue)
+
 	if err != nil {
 		return []image.ID{}, errdefs.System(errors.Wrap(err, "failed to list all images"))
 	}
@@ -23,6 +24,11 @@ func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, e
 	}
 
 	return children, nil
+}
+
+// Children returns a slice of image IDs that are children of the `id` image
+func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, error) {
+	return i.getImagesWithLabel(ctx, imageLabelClassicBuilderParent, string(id))
 }
 
 // parents returns a slice of image IDs that are parents of the `id` image
