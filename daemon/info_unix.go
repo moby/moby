@@ -239,16 +239,27 @@ func (daemon *Daemon) fillRootlessVersion(ctx context.Context, v *types.Version)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve RootlessKit version")
 	}
-	v.Components = append(v.Components, types.ComponentVersion{
+	rlV := types.ComponentVersion{
 		Name:    "rootlesskit",
 		Version: rlInfo.Version,
 		Details: map[string]string{
-			"ApiVersion":    rlInfo.APIVersion,
-			"StateDir":      rlInfo.StateDir,
-			"NetworkDriver": rlInfo.NetworkDriver.Driver,
-			"PortDriver":    rlInfo.PortDriver.Driver,
+			"ApiVersion": rlInfo.APIVersion,
+			"StateDir":   rlInfo.StateDir,
 		},
-	})
+	}
+	if netDriver := rlInfo.NetworkDriver; netDriver != nil {
+		// netDriver is nil for the "host" network driver
+		// (not used for Rootless Docker)
+		rlV.Details["NetworkDriver"] = netDriver.Driver
+	}
+	if portDriver := rlInfo.PortDriver; portDriver != nil {
+		// portDriver is nil for the "implicit" port driver
+		// (used with "pasta" network driver)
+		//
+		// Because the ports are not managed via RootlessKit API in this case.
+		rlV.Details["PortDriver"] = portDriver.Driver
+	}
+	v.Components = append(v.Components, rlV)
 
 	switch rlInfo.NetworkDriver.Driver {
 	case "slirp4netns":
