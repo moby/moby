@@ -5,10 +5,14 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/container"
 	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MakeImageCache creates a stateful image cache.
@@ -71,12 +75,35 @@ func (ic *localCache) GetCache(parentID string, cfg *container.Config) (imageID 
 
 	var match *image.Image
 	for _, child := range children {
-		childImage, err := ic.imageService.GetImage(ctx, child.String(), imagetype.GetImageOpts{})
+		ccDigestStr, err := ic.imageService.getImageLabelByDigest(ctx, child.Digest(), imageLabelClassicBuilderContainerConfig)
 		if err != nil {
 			return "", err
 		}
+		if ccDigestStr == "" {
+			continue
+		}
 
-		if isMatch(&childImage.ContainerConfig, cfg) {
+		dgst, err := digest.Parse(ccDigestStr)
+		if err != nil {
+			log.G(ctx).WithError(err).Warnf("invalid container config digest: %q", ccDigestStr)
+			continue
+		}
+
+		var cc container.Config
+		if err := readConfig(ctx, ic.imageService.content, ocispec.Descriptor{Digest: dgst}, &cc); err != nil {
+			if errdefs.IsNotFound(err) {
+				log.G(ctx).WithError(err).WithField("image", child).Warnf("missing container config: %q", ccDigestStr)
+				continue
+			}
+			return "", err
+		}
+
+		if isMatch(&cc, cfg) {
+			childImage, err := ic.imageService.GetImage(ctx, child.String(), imagetype.GetImageOpts{})
+			if err != nil {
+				return "", err
+			}
+
 			if childImage.Created != nil && (match == nil || match.Created.Before(*childImage.Created)) {
 				match = childImage
 			}
