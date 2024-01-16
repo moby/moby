@@ -29,9 +29,8 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	type testCase struct {
-		desc       string
-		config     *container.Config
-		hostConfig *container.HostConfig
+		desc          string
+		restartPolicy container.RestartPolicy
 
 		xRunning            bool
 		xRunningLiveRestore bool
@@ -42,37 +41,27 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 	for _, tc := range []testCase{
 		{
 			desc:                "container without restart policy",
-			config:              &container.Config{Image: "busybox", Cmd: []string{"top"}},
 			xRunningLiveRestore: true,
 			xStart:              true,
 		},
 		{
 			desc:                "container with restart=always",
-			config:              &container.Config{Image: "busybox", Cmd: []string{"top"}},
-			hostConfig:          &container.HostConfig{RestartPolicy: container.RestartPolicy{Name: "always"}},
+			restartPolicy:       container.RestartPolicy{Name: "always"},
 			xRunning:            true,
 			xRunningLiveRestore: true,
 			xStart:              true,
 		},
 		{
-			desc: "container with restart=always and with healthcheck",
-			config: &container.Config{
-				Image: "busybox", Cmd: []string{"top"},
-				Healthcheck: &container.HealthConfig{
-					Test:     []string{"CMD-SHELL", "sleep 1"},
-					Interval: time.Second,
-				},
-			},
-			hostConfig:          &container.HostConfig{RestartPolicy: container.RestartPolicy{Name: "always"}},
+			desc:                "container with restart=always and with healthcheck",
+			restartPolicy:       container.RestartPolicy{Name: "always"},
 			xRunning:            true,
 			xRunningLiveRestore: true,
 			xStart:              true,
 			xHealthCheck:        true,
 		},
 		{
-			desc:       "container created should not be restarted",
-			config:     &container.Config{Image: "busybox", Cmd: []string{"top"}},
-			hostConfig: &container.HostConfig{RestartPolicy: container.RestartPolicy{Name: "always"}},
+			desc:          "container created should not be restarted",
+			restartPolicy: container.RestartPolicy{Name: "always"},
 		},
 	} {
 		for _, liveRestoreEnabled := range []bool{false, true} {
@@ -104,16 +93,31 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 					d.StartWithBusybox(ctx, t, args...)
 					defer d.Stop(t)
 
-					resp, err := apiClient.ContainerCreate(ctx, tc.config, tc.hostConfig, nil, nil, "")
+					config := container.Config{Image: "busybox", Cmd: []string{"top"}}
+					hostConfig := container.HostConfig{RestartPolicy: tc.restartPolicy}
+					if tc.xHealthCheck {
+						config.Healthcheck = &container.HealthConfig{
+							Test:          []string{"CMD-SHELL", "! test -f /tmp/unhealthy"},
+							StartPeriod:   60 * time.Second,
+							StartInterval: 1 * time.Second,
+							Interval:      60 * time.Second,
+						}
+					}
+					resp, err := apiClient.ContainerCreate(ctx, &config, &hostConfig, nil, nil, "")
 					assert.NilError(t, err)
 					defer apiClient.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
 
 					if tc.xStart {
 						err = apiClient.ContainerStart(ctx, resp.ID, container.StartOptions{})
 						assert.NilError(t, err)
+						if tc.xHealthCheck {
+							poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, resp.ID, types.Healthy), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
+							testContainer.ExecT(ctx, t, apiClient, resp.ID, []string{"touch", "/tmp/unhealthy"}).AssertSuccess(t)
+						}
 					}
 
 					stopDaemon(t, d)
+					startTime := time.Now()
 					d.Start(t, args...)
 
 					expected := tc.xRunning
@@ -121,24 +125,18 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 						expected = tc.xRunningLiveRestore
 					}
 
-					var running bool
-					for i := 0; i < 30; i++ {
-						inspect, err := apiClient.ContainerInspect(ctx, resp.ID)
-						assert.NilError(t, err)
-
-						running = inspect.State.Running
-						if running == expected {
-							break
-						}
-						time.Sleep(2 * time.Second)
-					}
-					assert.Equal(t, expected, running, "got unexpected running state, expected %v, got: %v", expected, running)
+					poll.WaitOn(t, testContainer.RunningStateFlagIs(ctx, apiClient, resp.ID, expected), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
 
 					if tc.xHealthCheck {
-						startTime := time.Now()
-						ctxPoll, cancel := context.WithTimeout(ctx, 30*time.Second)
-						defer cancel()
-						poll.WaitOn(t, pollForNewHealthCheck(ctxPoll, apiClient, startTime, resp.ID), poll.WithDelay(100*time.Millisecond))
+						// We have arranged to have the container's health probes fail until we tell it
+						// to become healthy, which gives us the entire StartPeriod (60s) to assert that
+						// the container's health state is Starting before we have to worry about racing
+						// the health monitor.
+						assert.Equal(t, testContainer.Inspect(ctx, t, apiClient, resp.ID).State.Health.Status, types.Starting)
+						poll.WaitOn(t, pollForNewHealthCheck(ctx, apiClient, startTime, resp.ID), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
+
+						testContainer.ExecT(ctx, t, apiClient, resp.ID, []string{"rm", "/tmp/unhealthy"}).AssertSuccess(t)
+						poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, resp.ID, types.Healthy), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
 					}
 					// TODO(cpuguy83): test pause states... this seems to be rather undefined currently
 				})
