@@ -21,7 +21,7 @@ import (
 	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/pkg/errors"
-	rkclient "github.com/rootless-containers/rootlesskit/pkg/api/client"
+	rkclient "github.com/rootless-containers/rootlesskit/v2/pkg/api/client"
 )
 
 // fillPlatformInfo fills the platform related info.
