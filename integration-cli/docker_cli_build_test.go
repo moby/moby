@@ -17,6 +17,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/archive"
@@ -29,6 +30,7 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
 )
 
 type DockerCLIBuildSuite struct {
@@ -3344,6 +3346,9 @@ RUN echo 123`)).Assert(c, icmd.Expected{
 }
 
 func (s *DockerCLIBuildSuite) TestBuildWithTabs(c *testing.T) {
+	skip.If(c, versions.GreaterThan(testEnv.DaemonAPIVersion(), "1.44"), "ContainerConfig is deprecated")
+	skip.If(c, testEnv.UsingSnapshotter, "ContainerConfig is not filled in c8d")
+
 	const name = "testbuildwithtabs"
 	buildImageSuccessfully(c, name, build.WithDockerfile("FROM busybox\nRUN echo\tone\t\ttwo"))
 	res := inspectFieldJSON(c, name, "ContainerConfig.Cmd")
@@ -5190,6 +5195,9 @@ func (s *DockerCLIBuildSuite) TestBuildWithUTF8BOMDockerignore(c *testing.T) {
 
 // #22489 Shell test to confirm config gets updated correctly
 func (s *DockerCLIBuildSuite) TestBuildShellUpdatesConfig(c *testing.T) {
+	skip.If(c, versions.GreaterThan(testEnv.DaemonAPIVersion(), "1.44"), "ContainerConfig is deprecated")
+	skip.If(c, testEnv.UsingSnapshotter, "ContainerConfig is not filled in c8d")
+
 	const name = "testbuildshellupdatesconfig"
 
 	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM `+minimalBaseImage()+`
