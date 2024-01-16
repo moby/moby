@@ -52,9 +52,9 @@ func tarIndexFS(t *testing.T, rdr io.Reader) fs.FS {
 }
 
 func TestSaveCheckTimes(t *testing.T) {
-	t.Parallel()
-
 	ctx := setupTest(t)
+
+	t.Parallel()
 	client := testEnv.APIClient()
 
 	const repoName = "busybox:latest"
@@ -90,10 +90,11 @@ func TestSaveCheckTimes(t *testing.T) {
 // Regression test for https://github.com/moby/moby/issues/47065
 func TestSaveCheckManifestLayers(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "OCI layout support was introduced in v25")
-	t.Parallel()
 
 	ctx := setupTest(t)
 	client := testEnv.APIClient()
+
+	t.Parallel()
 
 	const repoName = "busybox:latest"
 	img, _, err := client.ImageInspectWithRaw(ctx, repoName)
