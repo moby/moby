@@ -78,11 +78,11 @@ func TestStopContainerWithTimeout(t *testing.T) {
 // if the request is cancelled.
 // See issue https://github.com/moby/moby/issues/45731
 func TestStopContainerWithTimeoutCancel(t *testing.T) {
-	t.Parallel()
-
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 	t.Cleanup(func() { _ = apiClient.Close() })
+
+	t.Parallel()
 
 	id := container.Run(ctx, t, apiClient,
 		container.WithCmd("sh", "-c", "trap 'echo received TERM' TERM; while true; do usleep 10; done"),
