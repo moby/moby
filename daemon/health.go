@@ -231,8 +231,11 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 		// Else we're starting or healthy. Stay in that state.
 	}
 
-	// replicate Health status changes
-	if err := c.CheckpointTo(d.containersReplica); err != nil {
+	// Replicate Health status changes to the API, skipping persistent storage
+	// to avoid unnecessary disk writes. The health state is only best-effort
+	// persisted across of the daemon. It will get written to disk on the next
+	// checkpoint, such as when the container state changes.
+	if err := c.CommitInMemory(d.containersReplica); err != nil {
 		// queries will be inconsistent until the next probe runs or other state mutations
 		// checkpoint the container
 		log.G(context.TODO()).Errorf("Error replicating health state for container %s: %v", c.ID, err)
