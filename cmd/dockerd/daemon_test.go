@@ -227,44 +227,40 @@ func TestCDISpecDirs(t *testing.T) {
 	testCases := []struct {
 		description         string
 		configContent       string
-		experimental        bool
 		specDirs            []string
 		expectedCDISpecDirs []string
 	}{
 		{
-			description:         "experimental and no spec dirs specified returns default",
+			description:         "CDI enabled and no spec dirs specified returns default",
 			specDirs:            nil,
-			experimental:        true,
+			configContent:       `{"features": {"cdi": true}}`,
 			expectedCDISpecDirs: []string{"/etc/cdi", "/var/run/cdi"},
 		},
 		{
-			description:         "experimental and specified spec dirs are returned",
+			description:         "CDI enabled and specified spec dirs are returned",
 			specDirs:            []string{"/foo/bar", "/baz/qux"},
-			experimental:        true,
+			configContent:       `{"features": {"cdi": true}}`,
 			expectedCDISpecDirs: []string{"/foo/bar", "/baz/qux"},
 		},
 		{
-			description:         "experimental and empty string as spec dir returns empty slice",
+			description:         "CDI enabled and empty string as spec dir returns empty slice",
 			specDirs:            []string{""},
-			experimental:        true,
+			configContent:       `{"features": {"cdi": true}}`,
 			expectedCDISpecDirs: []string{},
 		},
 		{
-			description:         "experimental and empty config option returns empty slice",
-			configContent:       `{"cdi-spec-dirs": []}`,
-			experimental:        true,
+			description:         "CDI enabled and empty config option returns empty slice",
+			configContent:       `{"cdi-spec-dirs": [], "features": {"cdi": true}}`,
 			expectedCDISpecDirs: []string{},
 		},
 		{
-			description:         "non-experimental and no spec dirs specified returns no cdi spec dirs",
+			description:         "CDI disabled and no spec dirs specified returns no cdi spec dirs",
 			specDirs:            nil,
-			experimental:        false,
 			expectedCDISpecDirs: nil,
 		},
 		{
-			description:         "non-experimental and specified spec dirs returns no cdi spec dirs",
+			description:         "CDI disabled and specified spec dirs returns no cdi spec dirs",
 			specDirs:            []string{"/foo/bar", "/baz/qux"},
-			experimental:        false,
 			expectedCDISpecDirs: nil,
 		},
 	}
@@ -279,9 +275,6 @@ func TestCDISpecDirs(t *testing.T) {
 			flags := opts.flags
 			for _, specDir := range tc.specDirs {
 				assert.Check(t, flags.Set("cdi-spec-dir", specDir))
-			}
-			if tc.experimental {
-				assert.Check(t, flags.Set("experimental", "true"))
 			}
 
 			loadedConfig, err := loadDaemonCliConfig(opts)
