@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/testutil"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
 )
@@ -38,6 +39,8 @@ func newProtectedElements() protectedElements {
 // volumes, and, on Linux, plugins) from being cleaned up at the end of test
 // runs
 func ProtectAll(ctx context.Context, t testing.TB, testEnv *Execution) {
+	testutil.CheckNotParallel(t)
+
 	t.Helper()
 	ctx, span := otel.Tracer("").Start(ctx, "ProtectAll")
 	defer span.End()
