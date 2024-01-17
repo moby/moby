@@ -11,11 +11,13 @@ import (
 //go:generate go run github.com/Microsoft/go-winio/tools/mkwinsyscall -output zsyscall_windows.go fs.go
 
 // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew
-//sys CreateFile(name string, access AccessMask, mode FileShareMode, sa *syscall.SecurityAttributes, createmode FileCreationDisposition, attrs FileFlagOrAttribute, templatefile windows.Handle) (handle windows.Handle, err error) [failretval==windows.InvalidHandle] = CreateFileW
+//sys CreateFile(name string, access AccessMask, mode FileShareMode, sa *windows.SecurityAttributes, createmode FileCreationDisposition, attrs FileFlagOrAttribute, templatefile windows.Handle) (handle windows.Handle, err error) [failretval==windows.InvalidHandle] = CreateFileW
 
 const NullHandle windows.Handle = 0
 
 // AccessMask defines standard, specific, and generic rights.
+//
+// Used with CreateFile and NtCreateFile (and co.).
 //
 //	Bitmask:
 //	 3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
@@ -46,6 +48,12 @@ const (
 	// For CreateFile: "query certain metadata such as file, directory, or device attributes without accessing that file or device"
 	// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew#parameters
 	FILE_ANY_ACCESS AccessMask = 0
+
+	GENERIC_READ           AccessMask = 0x8000_0000
+	GENERIC_WRITE          AccessMask = 0x4000_0000
+	GENERIC_EXECUTE        AccessMask = 0x2000_0000
+	GENERIC_ALL            AccessMask = 0x1000_0000
+	ACCESS_SYSTEM_SECURITY AccessMask = 0x0100_0000
 
 	// Specific Object Access
 	// from ntioapi.h
@@ -124,14 +132,32 @@ const (
 	TRUNCATE_EXISTING FileCreationDisposition = 0x05
 )
 
+// Create disposition values for NtCreate*
+type NTFileCreationDisposition uint32
+
+//nolint:revive // SNAKE_CASE is not idiomatic in Go, but aligned with Win32 API.
+const (
+	// From ntioapi.h
+
+	FILE_SUPERSEDE           NTFileCreationDisposition = 0x00
+	FILE_OPEN                NTFileCreationDisposition = 0x01
+	FILE_CREATE              NTFileCreationDisposition = 0x02
+	FILE_OPEN_IF             NTFileCreationDisposition = 0x03
+	FILE_OVERWRITE           NTFileCreationDisposition = 0x04
+	FILE_OVERWRITE_IF        NTFileCreationDisposition = 0x05
+	FILE_MAXIMUM_DISPOSITION NTFileCreationDisposition = 0x05
+)
+
 // CreateFile and co. take flags or attributes together as one parameter.
 // Define alias until we can use generics to allow both
-
+//
 // https://learn.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants
 type FileFlagOrAttribute uint32
 
 //nolint:revive // SNAKE_CASE is not idiomatic in Go, but aligned with Win32 API.
-const ( // from winnt.h
+const (
+	// from winnt.h
+
 	FILE_FLAG_WRITE_THROUGH       FileFlagOrAttribute = 0x8000_0000
 	FILE_FLAG_OVERLAPPED          FileFlagOrAttribute = 0x4000_0000
 	FILE_FLAG_NO_BUFFERING        FileFlagOrAttribute = 0x2000_0000
@@ -145,17 +171,51 @@ const ( // from winnt.h
 	FILE_FLAG_FIRST_PIPE_INSTANCE FileFlagOrAttribute = 0x0008_0000
 )
 
+// NtCreate* functions take a dedicated CreateOptions parameter.
+//
+// https://learn.microsoft.com/en-us/windows/win32/api/Winternl/nf-winternl-ntcreatefile
+//
+// https://learn.microsoft.com/en-us/windows/win32/devnotes/nt-create-named-pipe-file
+type NTCreateOptions uint32
+
+//nolint:revive // SNAKE_CASE is not idiomatic in Go, but aligned with Win32 API.
+const (
+	// From ntioapi.h
+
+	FILE_DIRECTORY_FILE            NTCreateOptions = 0x0000_0001
+	FILE_WRITE_THROUGH             NTCreateOptions = 0x0000_0002
+	FILE_SEQUENTIAL_ONLY           NTCreateOptions = 0x0000_0004
+	FILE_NO_INTERMEDIATE_BUFFERING NTCreateOptions = 0x0000_0008
+
+	FILE_SYNCHRONOUS_IO_ALERT    NTCreateOptions = 0x0000_0010
+	FILE_SYNCHRONOUS_IO_NONALERT NTCreateOptions = 0x0000_0020
+	FILE_NON_DIRECTORY_FILE      NTCreateOptions = 0x0000_0040
+	FILE_CREATE_TREE_CONNECTION  NTCreateOptions = 0x0000_0080
+
+	FILE_COMPLETE_IF_OPLOCKED NTCreateOptions = 0x0000_0100
+	FILE_NO_EA_KNOWLEDGE      NTCreateOptions = 0x0000_0200
+	FILE_DISABLE_TUNNELING    NTCreateOptions = 0x0000_0400
+	FILE_RANDOM_ACCESS        NTCreateOptions = 0x0000_0800
+
+	FILE_DELETE_ON_CLOSE        NTCreateOptions = 0x0000_1000
+	FILE_OPEN_BY_FILE_ID        NTCreateOptions = 0x0000_2000
+	FILE_OPEN_FOR_BACKUP_INTENT NTCreateOptions = 0x0000_4000
+	FILE_NO_COMPRESSION         NTCreateOptions = 0x0000_8000
+)
+
 type FileSQSFlag = FileFlagOrAttribute
 
 //nolint:revive // SNAKE_CASE is not idiomatic in Go, but aligned with Win32 API.
-const ( // from winbase.h
+const (
+	// from winbase.h
+
 	SECURITY_ANONYMOUS      FileSQSFlag = FileSQSFlag(SecurityAnonymous << 16)
 	SECURITY_IDENTIFICATION FileSQSFlag = FileSQSFlag(SecurityIdentification << 16)
 	SECURITY_IMPERSONATION  FileSQSFlag = FileSQSFlag(SecurityImpersonation << 16)
 	SECURITY_DELEGATION     FileSQSFlag = FileSQSFlag(SecurityDelegation << 16)
 
-	SECURITY_SQOS_PRESENT     FileSQSFlag = 0x00100000
-	SECURITY_VALID_SQOS_FLAGS FileSQSFlag = 0x001F0000
+	SECURITY_SQOS_PRESENT     FileSQSFlag = 0x0010_0000
+	SECURITY_VALID_SQOS_FLAGS FileSQSFlag = 0x001F_0000
 )
 
 // GetFinalPathNameByHandle flags

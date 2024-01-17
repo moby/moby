@@ -20,6 +20,7 @@ linters:
     - gofmt # files are gofmt'ed
     - gosec # security
     - nilerr # returns nil even with non-nil error
+    - thelper #  test helpers without t.Helper()
     - unparam # unused function params
 
 issues:
