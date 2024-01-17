@@ -20,10 +20,6 @@ source hack/make/.integration-test-helpers
 if [ -n "$TEST_INTEGRATION_USE_SNAPSHOTTER" ]; then
 	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_build_test.py::BuildTest::test_build_squash"
 
-	# TODO(vvoland): re-enable after https://github.com/containerd/containerd/pull/9554 is merged and vendored.
-	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/models_images_test.py::ImageCollectionTest::test_save_and_load"
-	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/models_images_test.py::ImageCollectionTest::test_save_and_load_repo_name"
-
 	# TODO(vvoland): re-enable after https://github.com/docker/docker-py/pull/3203 is merged and in a tagged release.
 	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py::CommitTest::test_commit"
 	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py::CommitTest::test_commit_with_changes"
