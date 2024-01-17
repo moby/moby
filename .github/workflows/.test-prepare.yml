@@ -16,20 +16,6 @@ jobs:
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v3
-      -
-        name: Create matrix
+      - name: Create matrix
         id: set
-        uses: actions/github-script@v6
-        with:
-          script: |
-            let matrix = ['graphdriver'];
-            if ("${{ contains(github.event.pull_request.labels.*.name, 'containerd-integration') || github.event_name != 'pull_request' }}" == "true") {
-              matrix.push('snapshotter');
-            }
-            await core.group(`Set matrix`, async () => {
-              core.info(`matrix: ${JSON.stringify(matrix)}`);
-              core.setOutput('matrix', JSON.stringify(matrix));
-            });
+        run: echo 'matrix=["graphdriver", "snapshotter"]' >> "$GITHUB_OUTPUT"

@@ -217,6 +217,7 @@ jobs:
           teststat -markdown $(find /tmp/artifacts -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
 
   integration-test-prepare:
+    if: inputs.storage != 'snapshotter' || github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'containerd-integration')
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.tests.outputs.matrix }}
@@ -506,7 +507,7 @@ jobs:
   integration-test-report:
     runs-on: ubuntu-latest
     continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
-    if: always()
+    if: always() && (inputs.storage != 'snapshotter' || github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'containerd-integration'))
     needs:
       - integration-test
     strategy:
