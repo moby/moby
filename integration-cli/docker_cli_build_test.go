@@ -5447,46 +5447,13 @@ func (s *DockerCLIBuildSuite) TestBuildCacheFrom(c *testing.T) {
 	assert.Equal(c, strings.Count(result.Combined(), "Using cache"), 0)
 	cli.DockerCmd(c, "rmi", "build2")
 
-	// clear parent images
-	tempDir, err := os.MkdirTemp("", "test-build-cache-from-")
-	if err != nil {
-		c.Fatalf("failed to create temporary directory: %s", tempDir)
-	}
-	defer os.RemoveAll(tempDir)
-	tempFile := filepath.Join(tempDir, "img.tar")
-	cli.DockerCmd(c, "save", "-o", tempFile, "build1")
-	cli.DockerCmd(c, "rmi", "build1")
-	cli.DockerCmd(c, "load", "-i", tempFile)
-	parentID := cli.DockerCmd(c, "inspect", "-f", "{{.Parent}}", "build1").Combined()
-	assert.Equal(c, strings.TrimSpace(parentID), "")
-
-	// cache still applies without parents
-	result = cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
-	id2 = getIDByName(c, "build2")
-	assert.Equal(c, id1, id2)
-	assert.Equal(c, strings.Count(result.Combined(), "Using cache"), 3)
-	history1 := cli.DockerCmd(c, "history", "-q", "build2").Combined()
-
-	// Retry, no new intermediate images
-	result = cli.BuildCmd(c, "build3", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
-	id3 := getIDByName(c, "build3")
-	assert.Equal(c, id1, id3)
-	assert.Equal(c, strings.Count(result.Combined(), "Using cache"), 3)
-	history2 := cli.DockerCmd(c, "history", "-q", "build3").Combined()
-
-	assert.Equal(c, history1, history2)
-	cli.DockerCmd(c, "rmi", "build2")
-	cli.DockerCmd(c, "rmi", "build3")
-	cli.DockerCmd(c, "rmi", "build1")
-	cli.DockerCmd(c, "load", "-i", tempFile)
-
 	// Modify file, everything up to last command and layers are reused
 	dockerfile = `
 		FROM busybox
 		ENV FOO=bar
 		ADD baz /
 		RUN touch newfile`
-	err = os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(dockerfile), 0o644)
+	err := os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(dockerfile), 0o644)
 	assert.NilError(c, err)
 
 	result = cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
@@ -5507,6 +5474,58 @@ func (s *DockerCLIBuildSuite) TestBuildCacheFrom(c *testing.T) {
 		assert.Equal(c, layers1[i], layers2[i])
 	}
 	assert.Assert(c, layers1[len(layers1)-1] != layers2[len(layers1)-1])
+}
+
+func (s *DockerCLIBuildSuite) TestBuildCacheFromLoad(c *testing.T) {
+	skip.If(c, testEnv.UsingSnapshotter, "Parent-child relations are lost when save/load-ing with the containerd image store")
+	testRequires(c, DaemonIsLinux) // All tests that do save are skipped in windows
+	dockerfile := `
+		FROM busybox
+		ENV FOO=bar
+		ADD baz /
+		RUN touch bax`
+	ctx := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFiles(map[string]string{
+			"Dockerfile": dockerfile,
+			"baz":        "baz",
+		}))
+	defer ctx.Close()
+
+	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
+	id1 := getIDByName(c, "build1")
+
+	// clear parent images
+	tempDir, err := os.MkdirTemp("", "test-build-cache-from-")
+	if err != nil {
+		c.Fatalf("failed to create temporary directory: %s", tempDir)
+	}
+	defer os.RemoveAll(tempDir)
+	tempFile := filepath.Join(tempDir, "img.tar")
+	cli.DockerCmd(c, "save", "-o", tempFile, "build1")
+	cli.DockerCmd(c, "rmi", "build1")
+	cli.DockerCmd(c, "load", "-i", tempFile)
+	parentID := cli.DockerCmd(c, "inspect", "-f", "{{.Parent}}", "build1").Combined()
+	assert.Equal(c, strings.TrimSpace(parentID), "")
+
+	// cache still applies without parents
+	result := cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
+	id2 := getIDByName(c, "build2")
+	assert.Equal(c, id1, id2)
+	assert.Equal(c, strings.Count(result.Combined(), "Using cache"), 3)
+	history1 := cli.DockerCmd(c, "history", "-q", "build2").Combined()
+	// Retry, no new intermediate images
+	result = cli.BuildCmd(c, "build3", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
+	id3 := getIDByName(c, "build3")
+	assert.Equal(c, id1, id3)
+	assert.Equal(c, strings.Count(result.Combined(), "Using cache"), 3)
+	history2 := cli.DockerCmd(c, "history", "-q", "build3").Combined()
+
+	assert.Equal(c, history1, history2)
+	cli.DockerCmd(c, "rmi", "build2")
+	cli.DockerCmd(c, "rmi", "build3")
+	cli.DockerCmd(c, "rmi", "build1")
+	cli.DockerCmd(c, "load", "-i", tempFile)
 }
 
 func (s *DockerCLIBuildSuite) TestBuildMultiStageCache(c *testing.T) {

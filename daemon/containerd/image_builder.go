@@ -22,6 +22,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/builder"
@@ -41,8 +42,26 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// Digest of the image which was the base image of the committed container.
-const imageLabelClassicBuilderParent = "org.mobyproject.image.parent"
+const (
+	// Digest of the image which was the base image of the committed container.
+	imageLabelClassicBuilderParent = "org.mobyproject.image.parent"
+
+	// "1" means that the image was created directly from the "FROM scratch".
+	imageLabelClassicBuilderFromScratch = "org.mobyproject.image.fromscratch"
+
+	// digest of the ContainerConfig stored in the content store.
+	imageLabelClassicBuilderContainerConfig = "org.mobyproject.image.containerconfig"
+)
+
+const (
+	// gc.ref label that associates the ContainerConfig content blob with the
+	// corresponding Config content.
+	contentLabelGcRefContainerConfig = "containerd.io/gc.ref.content.moby/container.config"
+
+	// Digest of the image this ContainerConfig blobs describes.
+	// Only ContainerConfig content should be labelled with it.
+	contentLabelClassicBuilderImage = "org.mobyproject.content.image"
+)
 
 // GetImageAndReleasableLayer returns an image and releaseable layer for a
 // reference or ID. Every call to GetImageAndReleasableLayer MUST call
@@ -446,7 +465,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		})
 	}
 
-	createdImageId, err := i.createImageOCI(ctx, ociImgToCreate, parentDigest, layers)
+	createdImageId, err := i.createImageOCI(ctx, ociImgToCreate, parentDigest, layers, imgToCreate.ContainerConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -456,6 +475,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 
 func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec.DockerOCIImage,
 	parentDigest digest.Digest, layers []ocispec.Descriptor,
+	containerConfig container.Config,
 ) (dimage.ID, error) {
 	// Necessary to prevent the contents from being GC'd
 	// between writing them here and creating an image
@@ -469,7 +489,7 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 		}
 	}()
 
-	manifestDesc, err := writeContentsForImage(ctx, i.snapshotter, i.client.ContentStore(), imgToCreate, layers)
+	manifestDesc, ccDesc, err := writeContentsForImage(ctx, i.snapshotter, i.client.ContentStore(), imgToCreate, layers, containerConfig)
 	if err != nil {
 		return "", err
 	}
@@ -479,8 +499,13 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 		Target:    manifestDesc,
 		CreatedAt: time.Now(),
 		Labels: map[string]string{
-			imageLabelClassicBuilderParent: parentDigest.String(),
+			imageLabelClassicBuilderParent:          parentDigest.String(),
+			imageLabelClassicBuilderContainerConfig: ccDesc.Digest.String(),
 		},
+	}
+
+	if parentDigest == "" {
+		img.Labels[imageLabelClassicBuilderFromScratch] = "1"
 	}
 
 	createdImage, err := i.client.ImageService().Update(ctx, img)
@@ -502,10 +527,17 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 }
 
 // writeContentsForImage will commit oci image config and manifest into containerd's content store.
-func writeContentsForImage(ctx context.Context, snName string, cs content.Store, newConfig imagespec.DockerOCIImage, layers []ocispec.Descriptor) (ocispec.Descriptor, error) {
+func writeContentsForImage(ctx context.Context, snName string, cs content.Store,
+	newConfig imagespec.DockerOCIImage, layers []ocispec.Descriptor,
+	containerConfig container.Config,
+) (
+	manifestDesc ocispec.Descriptor,
+	containerConfigDesc ocispec.Descriptor,
+	_ error,
+) {
 	newConfigJSON, err := json.Marshal(newConfig)
 	if err != nil {
-		return ocispec.Descriptor{}, err
+		return ocispec.Descriptor{}, ocispec.Descriptor{}, err
 	}
 
 	configDesc := ocispec.Descriptor{
@@ -530,7 +562,7 @@ func writeContentsForImage(ctx context.Context, snName string, cs content.Store,
 
 	newMfstJSON, err := json.MarshalIndent(newMfst, "", "    ")
 	if err != nil {
-		return ocispec.Descriptor{}, err
+		return ocispec.Descriptor{}, ocispec.Descriptor{}, err
 	}
 
 	newMfstDesc := ocispec.Descriptor{
@@ -549,17 +581,37 @@ func writeContentsForImage(ctx context.Context, snName string, cs content.Store,
 
 	err = content.WriteBlob(ctx, cs, newMfstDesc.Digest.String(), bytes.NewReader(newMfstJSON), newMfstDesc, content.WithLabels(labels))
 	if err != nil {
-		return ocispec.Descriptor{}, err
+		return ocispec.Descriptor{}, ocispec.Descriptor{}, err
 	}
 
-	// config should reference to snapshotter
+	ccDesc, err := saveContainerConfig(ctx, cs, newMfstDesc.Digest, containerConfig)
+	if err != nil {
+		return ocispec.Descriptor{}, ocispec.Descriptor{}, err
+	}
+
+	// config should reference to snapshotter and container config
 	labelOpt := content.WithLabels(map[string]string{
 		fmt.Sprintf("containerd.io/gc.ref.snapshot.%s", snName): identity.ChainID(newConfig.RootFS.DiffIDs).String(),
+		contentLabelGcRefContainerConfig:                        ccDesc.Digest.String(),
 	})
 	err = content.WriteBlob(ctx, cs, configDesc.Digest.String(), bytes.NewReader(newConfigJSON), configDesc, labelOpt)
+	if err != nil {
+		return ocispec.Descriptor{}, ocispec.Descriptor{}, err
+	}
+
+	return newMfstDesc, ccDesc, nil
+}
+
+// saveContainerConfig serializes the given ContainerConfig into a json and
+// stores it in the content store and returns its descriptor.
+func saveContainerConfig(ctx context.Context, content content.Ingester, imgID digest.Digest, containerConfig container.Config) (ocispec.Descriptor, error) {
+	containerConfigDesc, err := storeJson(ctx, content,
+		"application/vnd.docker.container.image.v1+json", containerConfig,
+		map[string]string{contentLabelClassicBuilderImage: imgID.String()},
+	)
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
 
-	return newMfstDesc, nil
+	return containerConfigDesc, nil
 }

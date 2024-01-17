@@ -96,7 +96,7 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 		layers = append(layers, *diffLayerDesc)
 	}
 
-	return i.createImageOCI(ctx, imageConfig, digest.Digest(cc.ParentImageID), layers)
+	return i.createImageOCI(ctx, imageConfig, digest.Digest(cc.ParentImageID), layers, *cc.ContainerConfig)
 }
 
 // generateCommitImageConfig generates an OCI Image config based on the
