@@ -174,7 +174,9 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 		if err := os.Chown(d.execRoot, uid, gid); err != nil {
 			return nil, err
 		}
-		d.rootlessXDGRuntimeDir = filepath.Join(d.Folder, "xdgrun")
+		// $XDG_RUNTIME_DIR mustn't be too long, as ${XDG_RUNTIME_DIR/dockerd-rootless
+		// contains Unix sockets
+		d.rootlessXDGRuntimeDir = filepath.Join(os.TempDir(), "xdgrun-"+id)
 		if err := os.MkdirAll(d.rootlessXDGRuntimeDir, 0o700); err != nil {
 			return nil, err
 		}
