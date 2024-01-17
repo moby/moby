@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Microsoft/hcsshim"
 	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -138,9 +139,9 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 		}
 	}
 	s.Process.User.Username = c.Config.User
-	s.Windows.LayerFolders, err = daemon.imageService.GetLayerFolders(img, c.RWLayer)
+	s.Windows.LayerFolders, err = daemon.imageService.GetLayerFolders(img, c.RWLayer, c.ID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "container %s", c.ID)
+		return nil, errors.Wrapf(err, "GetLayerFolders failed: container %s", c.ID)
 	}
 
 	// Get endpoints for the libnetwork allocated networks to the container
@@ -249,7 +250,24 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 			return errors.New("createSpecWindowsFields: BaseFS of container " + c.ID + " is unexpectedly empty")
 		}
 
-		s.Root.Path = c.BaseFS // This is not set for Hyper-V containers
+		if daemon.UsesSnapshotter() {
+			// daemon.Mount() for the snapshotters actually mounts the filesystem to the host
+			// using containerd/mount.All and BaseFS is the directory where this is mounted.
+			// This is consistent with Linux-based graphdriver implementations.
+			// For the windowsfilter graphdriver, the underlying Get() call does not actually mount
+			// the filesystem to a path, and BaseFS is the Volume GUID of the prepared/activated
+			// filesystem.
+
+			// The spec for Root.Path for Windows specifies that for Process-isolated containers,
+			// it must be in the Volume GUID (\\?\\Volume{GUID} style), not a host-mounted directory.
+			backingDevicePath, err := getBackingDeviceForContainerdMount(c.BaseFS)
+			if err != nil {
+				return errors.Wrapf(err, "createSpecWindowsFields: Failed to get backing device of BaseFS of container %s", c.ID)
+			}
+			s.Root.Path = backingDevicePath
+		} else {
+			s.Root.Path = c.BaseFS // This is not set for Hyper-V containers
+		}
 		if !strings.HasSuffix(s.Root.Path, `\`) {
 			s.Root.Path = s.Root.Path + `\` // Ensure a correctly formatted volume GUID path \\?\Volume{GUID}\
 		}
@@ -273,6 +291,48 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	s.Windows.Devices = append(s.Windows.Devices, devices...)
 
 	return nil
+}
+
+// getBackingDeviceForContainerdMount extracts the backing device or directory mounted at mountPoint
+// by containerd's mount.Mount implementation for Windows.
+func getBackingDeviceForContainerdMount(mountPoint string) (string, error) {
+	// NOTE: This relies on details of the behaviour of containerd's mount implementation for Windows,
+	// and so is somewhat fragile.
+	// TODO: Upstream this into the mount package.
+	// The implementation would be the same, but it'll be better-encapsulated.
+
+	// See containerd/containerd/mount/mount_windows.go
+	// This is mostly just copied from mount.Unmount
+
+	const sourceStreamName = "containerd.io-source"
+
+	mountPoint = filepath.Clean(mountPoint)
+	adsFile := mountPoint + ":" + sourceStreamName
+	var layerPath string
+
+	if _, err := os.Lstat(adsFile); err == nil {
+		layerPathb, err := os.ReadFile(mountPoint + ":" + sourceStreamName)
+		if err != nil {
+			return "", fmt.Errorf("failed to retrieve layer source for mount %s: %w", mountPoint, err)
+		}
+		layerPath = string(layerPathb)
+	}
+
+	if layerPath == "" {
+		return "", fmt.Errorf("no layer source for mount %s", mountPoint)
+	}
+
+	home, layerID := filepath.Split(layerPath)
+	di := hcsshim.DriverInfo{
+		HomeDir: home,
+	}
+
+	backingDevice, err := hcsshim.GetLayerMountPath(di, layerID)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve backing device for layer %s: %w", mountPoint, err)
+	}
+
+	return backingDevice, nil
 }
 
 var errInvalidCredentialSpecSecOpt = errdefs.InvalidParameter(fmt.Errorf("invalid credential spec security option - value must be prefixed by 'file://', 'registry://', or 'raw://' followed by a non-empty value"))

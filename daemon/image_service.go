@@ -65,7 +65,7 @@ type ImageService interface {
 
 	// Windows specific
 
-	GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error)
+	GetLayerFolders(img *image.Image, rwLayer layer.RWLayer, containerID string) ([]string, error)
 
 	// Build
 

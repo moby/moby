@@ -1062,7 +1062,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// be set through an environment variable, a daemon start parameter, or chosen through
 	// initialization of the layerstore through driver priority order for example.
 	driverName := os.Getenv("DOCKER_DRIVER")
-	if isWindows {
+	if isWindows && d.UsesSnapshotter() {
+		// Containerd WCOW snapshotter
+		driverName = "windows"
+	} else if isWindows {
+		// Docker WCOW graphdriver
 		driverName = "windowsfilter"
 	} else if driverName != "" {
 		log.G(ctx).Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)

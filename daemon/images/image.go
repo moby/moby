@@ -47,7 +47,7 @@ type manifest struct {
 }
 
 func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error {
-	// Only makes sense when conatinerd image store is used
+	// Only makes sense when containerd image store is used
 	panic("not implemented")
 }
 

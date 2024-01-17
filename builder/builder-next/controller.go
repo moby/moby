@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	ctd "github.com/containerd/containerd"
@@ -91,6 +92,14 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	nc := netproviders.Opt{
 		Mode: "host",
 	}
+
+	// HACK! Windows doesn't have 'host' mode networking.
+	if runtime.GOOS == "windows" {
+		nc = netproviders.Opt{
+			Mode: "auto",
+		}
+	}
+
 	dns := getDNSConfig(opt.DNSConfig)
 
 	wo, err := containerd.NewWorkerOpt(opt.Root, opt.ContainerdAddress, opt.Snapshotter, opt.ContainerdNamespace,
