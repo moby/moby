@@ -33,9 +33,6 @@ func errnoErr(e syscall.Errno) error {
 	case errnoERROR_IO_PENDING:
 		return errERROR_IO_PENDING
 	}
-	// TODO: add more here, after collecting data on the common
-	// error values see on Windows. (perhaps when running
-	// all.bat?)
 	return e
 }
 
@@ -52,7 +49,7 @@ func bfGetMappings(flags uint32, jobHandle windows.Handle, virtRootPath *uint16,
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procBfGetMappings.Addr(), 6, uintptr(flags), uintptr(jobHandle), uintptr(unsafe.Pointer(virtRootPath)), uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(bufferSize)), uintptr(unsafe.Pointer(outBuffer)))
+	r0, _, _ := syscall.SyscallN(procBfGetMappings.Addr(), uintptr(flags), uintptr(jobHandle), uintptr(unsafe.Pointer(virtRootPath)), uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(bufferSize)), uintptr(unsafe.Pointer(outBuffer)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -76,7 +73,7 @@ func _bfRemoveMapping(jobHandle windows.Handle, virtRootPath *uint16) (hr error)
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procBfRemoveMapping.Addr(), 2, uintptr(jobHandle), uintptr(unsafe.Pointer(virtRootPath)), 0)
+	r0, _, _ := syscall.SyscallN(procBfRemoveMapping.Addr(), uintptr(jobHandle), uintptr(unsafe.Pointer(virtRootPath)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -105,7 +102,7 @@ func _bfSetupFilter(jobHandle windows.Handle, flags uint32, virtRootPath *uint16
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procBfSetupFilter.Addr(), 6, uintptr(jobHandle), uintptr(flags), uintptr(unsafe.Pointer(virtRootPath)), uintptr(unsafe.Pointer(virtTargetPath)), uintptr(unsafe.Pointer(virtExceptions)), uintptr(virtExceptionPathCount))
+	r0, _, _ := syscall.SyscallN(procBfSetupFilter.Addr(), uintptr(jobHandle), uintptr(flags), uintptr(unsafe.Pointer(virtRootPath)), uintptr(unsafe.Pointer(virtTargetPath)), uintptr(unsafe.Pointer(virtExceptions)), uintptr(virtExceptionPathCount))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
