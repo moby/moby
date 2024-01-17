@@ -49,7 +49,7 @@ func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configSto
 	// (implying also on Windows) as the HCS must have exclusive
 	// access to mount the containers filesystem inside the utility
 	// VM.
-	if !containertypes.Isolation.IsHyperV(actualIsolation) {
+	if !daemon.UsesSnapshotter() && !containertypes.Isolation.IsHyperV(actualIsolation) {
 		if err := daemon.Mount(container); err == nil {
 			defer daemon.Unmount(container)
 		}
