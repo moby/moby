@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/rootless"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"go.opentelemetry.io/otel"
@@ -179,7 +180,7 @@ func newDriver(store *datastore.Store) *driver {
 // Register registers a new instance of bridge driver.
 func Register(r driverapi.Registerer, store *datastore.Store, config map[string]interface{}) error {
 	d := newDriver(store)
-	if err := d.configure(config); err != nil {
+	if err := rootless.WithDetachedNetNSIfAny(func() error { return d.configure(config) }); err != nil {
 		return err
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
