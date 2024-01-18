@@ -31,6 +31,7 @@ import (
 	lntypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -279,13 +280,21 @@ func (daemon *Daemon) WaitForDetachment(ctx context.Context, networkName, networ
 
 // CreateManagedNetwork creates an agent network.
 func (daemon *Daemon) CreateManagedNetwork(create clustertypes.NetworkCreateRequest) error {
-	_, err := daemon.createNetwork(&daemon.config().Config, create.CreateRequest, create.ID, true)
-	return err
+	return rootless.WithDetachedNetNSIfAny(func() error {
+		_, err := daemon.createNetwork(&daemon.config().Config, create.CreateRequest, create.ID, true)
+		return err
+	})
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
 func (daemon *Daemon) CreateNetwork(create networktypes.CreateRequest) (*networktypes.CreateResponse, error) {
-	return daemon.createNetwork(&daemon.config().Config, create, "", false)
+	var res *networktypes.CreateResponse
+	err := rootless.WithDetachedNetNSIfAny(func() error {
+		var err error
+		res, err = daemon.createNetwork(&daemon.config().Config, create, "", false)
+		return err
+	})
+	return res, err
 }
 
 func (daemon *Daemon) createNetwork(cfg *config.Config, create networktypes.CreateRequest, id string, agent bool) (*networktypes.CreateResponse, error) {
@@ -544,7 +553,7 @@ func (daemon *Daemon) DeleteManagedNetwork(networkID string) error {
 	if err != nil {
 		return err
 	}
-	return daemon.deleteNetwork(n, true)
+	return rootless.WithDetachedNetNSIfAny(func() error { return daemon.deleteNetwork(n, true) })
 }
 
 // DeleteNetwork destroys a network unless it's one of docker's predefined networks.
@@ -553,7 +562,7 @@ func (daemon *Daemon) DeleteNetwork(networkID string) error {
 	if err != nil {
 		return fmt.Errorf("could not find network by ID: %w", err)
 	}
-	return daemon.deleteNetwork(n, false)
+	return rootless.WithDetachedNetNSIfAny(func() error { return daemon.deleteNetwork(n, false) })
 }
 
 func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error {
