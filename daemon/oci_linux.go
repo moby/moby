@@ -285,10 +285,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 					})
 				}
 			case networkMode.IsHost():
-				setNamespace(s, specs.LinuxNamespace{
-					Type: specs.NetworkNamespace,
-					Path: c.NetworkSettings.SandboxKey,
-				})
+				oci.RemoveNamespace(s, specs.NetworkNamespace)
 			default:
 				setNamespace(s, specs.LinuxNamespace{
 					Type: specs.NetworkNamespace,
