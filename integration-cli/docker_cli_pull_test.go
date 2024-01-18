@@ -207,7 +207,13 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *testing.T) {
 func (s *DockerCLIPullSuite) TestPullLinuxImageFailsOnWindows(c *testing.T) {
 	testRequires(c, DaemonIsWindows, Network)
 	_, _, err := dockerCmdWithError("pull", "ubuntu")
-	assert.ErrorContains(c, err, "no matching manifest for windows")
+
+	errorMessage := "no matching manifest for windows"
+	if testEnv.UsingSnapshotter() {
+		errorMessage = "no match for platform in manifest"
+	}
+
+	assert.ErrorContains(c, err, errorMessage)
 }
 
 // Regression test for https://github.com/docker/docker/issues/28892
