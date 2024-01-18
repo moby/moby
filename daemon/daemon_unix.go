@@ -29,6 +29,7 @@ import (
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/initlayer"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/internal/usergroup"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	nwconfig "github.com/moby/moby/v2/daemon/libnetwork/config"
@@ -837,7 +838,9 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 
 	if len(activeSandboxes) > 0 {
 		log.G(ctx).Info("there are running containers, updated network configuration will not take affect")
-	} else if err := configureNetworking(ctx, daemon.netController, cfg); err != nil {
+	} else if err := rootless.RunInDetachedNetNS(func() error {
+		return configureNetworking(ctx, daemon.netController, cfg)
+	}); err != nil {
 		return err
 	}
 

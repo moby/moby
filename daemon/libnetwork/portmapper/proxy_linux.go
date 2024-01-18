@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
@@ -56,6 +57,18 @@ func StartProxy(pb types.PortBinding,
 	if listenSock != nil {
 		cmd.Args = append(cmd.Args, "-use-listen-fd")
 		cmd.ExtraFiles = append(cmd.ExtraFiles, listenSock)
+	}
+
+	detachedNetNS, err := rootless.DetachedNetNS()
+	if err != nil {
+		return nil, err
+	}
+	if detachedNetNS != "" {
+		cmd.Path, err = exec.LookPath("nsenter")
+		if err != nil {
+			return nil, err
+		}
+		cmd.Args = append([]string{cmd.Path, "-n" + detachedNetNS, "-F", "--"}, cmd.Args...)
 	}
 
 	wait := make(chan error, 1)

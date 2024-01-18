@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"go.opentelemetry.io/otel"
 )
 
@@ -19,7 +20,21 @@ func (t *table) nftApply(ctx context.Context, nftCmd []byte) error {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".nftApply.exec")
 	defer span.End()
 
-	cmd := exec.Command(nftPath, "-f", "-")
+	cmdPath := nftPath
+	cmdArgs := []string{nftPath, "-f", "-"}
+	detachedNetNS, detachedErr := rootless.DetachedNetNS()
+	if detachedErr != nil {
+		return fmt.Errorf("could not check for detached netns: %w", detachedErr)
+	}
+	if detachedNetNS != "" && !rootless.InSandboxNS() {
+		nsenterPath, err := exec.LookPath("nsenter")
+		if err != nil {
+			return fmt.Errorf("nsenter not found: %w", err)
+		}
+		cmdPath = nsenterPath
+		cmdArgs = append([]string{nsenterPath, "-n" + detachedNetNS, "-F", "--"}, cmdArgs...)
+	}
+	cmd := exec.Command(cmdPath, cmdArgs[1:]...)
 	stdinPipe, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("getting stdin pipe for nft: %w", err)
