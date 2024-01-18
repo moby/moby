@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/internal/unshare"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
@@ -115,6 +116,15 @@ func NewSandbox(key string, osCreate, isRestore bool) (*Namespace, error) {
 
 	n := &Namespace{path: key, isDefault: !osCreate}
 
+	detachedNetNS, err := rootless.DetachedNetNS()
+	if err != nil {
+		return nil, err
+	}
+	if detachedNetNS != "" && !osCreate {
+		// n refers to the host netns and we do not have a permission to do the netlink stuff
+		return n, nil
+	}
+
 	sboxNs, err := netns.GetFromPath(n.path)
 	if err != nil {
 		return nil, fmt.Errorf("failed get network namespace %q: %v", n.path, err)
@@ -193,6 +203,7 @@ func createNetworkNamespace(path string, osCreate bool) error {
 	if osCreate {
 		return unshare.Go(unix.CLONE_NEWNET, do, nil)
 	}
+	// use host netns
 	return do()
 }
 
@@ -355,6 +366,7 @@ func (n *Namespace) InvokeFunc(f func()) error {
 		}
 		defer func() {
 			close(done)
+			rootless.UnmarkInSandboxNS()
 			if err := netns.Set(origNS); err != nil {
 				log.G(context.TODO()).WithError(err).Warn("failed to restore thread's network namespace")
 				// Recover from the error by leaving this goroutine locked to
@@ -364,6 +376,7 @@ func (n *Namespace) InvokeFunc(f func()) error {
 				runtime.UnlockOSThread()
 			}
 		}()
+		rootless.MarkInSandboxNS()
 		f()
 	}()
 	return <-done

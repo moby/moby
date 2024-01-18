@@ -364,7 +364,20 @@ func (iptable IPTable) raw(args ...string) ([]byte, error) {
 	log.G(context.TODO()).Debugf("%s, %v", path, args)
 
 	startTime := time.Now()
-	output, err := exec.Command(path, args...).CombinedOutput()
+	cmd := exec.CommandContext(context.TODO(), path, args...)
+	detachedNetNS, err := rootless.DetachedNetNS()
+	if err != nil {
+		return nil, fmt.Errorf("could not check for detached netns: %w", err)
+	}
+	if detachedNetNS != "" && !rootless.InSandboxNS() {
+		nsenterPath, err := exec.LookPath("nsenter")
+		if err != nil {
+			return nil, fmt.Errorf("nsenter not found: %w", err)
+		}
+		cmd.Args = append([]string{nsenterPath, "-n" + detachedNetNS, "-F", "--"}, cmd.Args...)
+		cmd.Path = nsenterPath
+	}
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("iptables failed: %s %v: %s (%s)", commandName, strings.Join(args, " "), output, err)
 	}
