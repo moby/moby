@@ -4,16 +4,7 @@ set -e
 source hack/make/.integration-test-helpers
 
 # The commit or tag to use for testing
-# TODO docker 17.06 cli client used in CI fails to build using a sha;
-# unable to prepare context: unable to 'git clone' to temporary context directory: error fetching: error: no such remote ref ead0bb9e08c13dd3d1712759491eee06bf5a5602
-#: exit status 128
-: "${DOCKER_PY_COMMIT:=5.0.3}"
-
-# The version (and variant) of the python image to use for the tests;
-# see https://github.com/docker/docker-py/blob/5.0.3/tests/Dockerfile#L1C5-L3
-#
-# TODO remove once https://github.com/docker/docker-py/pull/3145 is merged.
-: "${PYTHON_VERSION:=3.7-bullseye}"
+: "${DOCKER_PY_COMMIT:=7.0.0}"
 
 # custom options to pass py.test
 #
@@ -21,9 +12,8 @@ source hack/make/.integration-test-helpers
 # flag) until they are fixed upstream. For example:
 # --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream
 # TODO re-enable test_attach_no_stream after https://github.com/docker/docker-py/issues/2513 is resolved
-# TODO re-enable test_create_with_device_cgroup_rules after https://github.com/docker/docker-py/issues/2939 is resolved
-# TODO re-enable test_prune_volumes after https://github.com/docker/docker-py/pull/3051 is resolved
-: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_device_cgroup_rules --deselect=tests/integration/api_volume_test.py::TestVolumes::test_prune_volumes}"
+# TODO re-enable test_run_container_reading_socket_ws. It's reported in https://github.com/docker/docker-py/issues/1478, and we're getting that error in our tests.
+: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_run_container_reading_socket_ws}"
 (
 	bundle .integration-daemon-start
 
@@ -56,7 +46,7 @@ source hack/make/.integration-test-helpers
 			[ -z "${TESTDEBUG}" ] && build_opts="--quiet"
 			[ -f /.dockerenv ] || build_opts="${build_opts} --network=host"
 			# shellcheck disable=SC2086
-			exec docker build ${build_opts} --build-arg PYTHON_VERSION="${PYTHON_VERSION}" -t "${docker_py_image}" -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
+			exec docker build ${build_opts} -t "${docker_py_image}" -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
 		)
 	fi
 
