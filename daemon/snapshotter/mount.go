@@ -13,9 +13,6 @@ import (
 	"github.com/moby/sys/mountinfo"
 )
 
-// List of known filesystems that can't be re-mounted or have shared layers
-var refCountedFileSystems = []string{"fuse-overlayfs", "overlayfs", "stargz", "zfs"}
-
 // Mounter handles mounting/unmounting things coming in from a snapshotter
 // with optional reference counting if needed by the filesystem
 type Mounter interface {
@@ -27,34 +24,17 @@ type Mounter interface {
 	Mounted(containerID string) (string, error)
 }
 
-// inSlice tests whether a string is contained in a slice of strings or not.
-// Comparison is case sensitive
-func inSlice(slice []string, s string) bool {
-	for _, ss := range slice {
-		if s == ss {
-			return true
-		}
-	}
-	return false
-}
-
 // NewMounter creates a new mounter for the provided snapshotter
-func NewMounter(home string, snapshotter string, idMap idtools.IdentityMapping) Mounter {
-	mnter := mounter{
-		home:        home,
-		snapshotter: snapshotter,
-		idMap:       idMap,
+func NewMounter(home string, snapshotter string, idMap idtools.IdentityMapping) *refCountMounter {
+	return &refCountMounter{
+		base: mounter{
+			home:        home,
+			snapshotter: snapshotter,
+			idMap:       idMap,
+		},
+		rc:     graphdriver.NewRefCounter(checker()),
+		locker: locker.New(),
 	}
-
-	if inSlice(refCountedFileSystems, snapshotter) {
-		return &refCountMounter{
-			base:   mnter,
-			rc:     graphdriver.NewRefCounter(checker()),
-			locker: locker.New(),
-		}
-	}
-
-	return &mnter
 }
 
 type refCountMounter struct {
