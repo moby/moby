@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/pkg/rootless"
 	"github.com/pkg/errors"
 )
 
@@ -155,7 +156,9 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 
-	if err := daemon.initializeNetworking(&daemonCfg.Config, container); err != nil {
+	if err := rootless.WithDetachedNetNSIfAny(func() error {
+		return daemon.initializeNetworking(&daemonCfg.Config, container)
+	}); err != nil {
 		return err
 	}
 

@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
@@ -1041,7 +1042,9 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 
 		n, err := daemon.FindNetwork(idOrName)
 		if err == nil && n != nil {
-			if err := daemon.updateNetworkConfig(container, n, endpointConfig, true); err != nil {
+			if err := rootless.WithDetachedNetNSIfAny(func() error {
+				return daemon.updateNetworkConfig(container, n, endpointConfig, true)
+			}); err != nil {
 				return err
 			}
 		} else {
@@ -1050,7 +1053,9 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 			}
 		}
 	} else {
-		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, endpointConfig, true); err != nil {
+		if err := rootless.WithDetachedNetNSIfAny(func() error {
+			return daemon.connectToNetwork(&daemon.config().Config, container, idOrName, endpointConfig, true)
+		}); err != nil {
 			return err
 		}
 	}
