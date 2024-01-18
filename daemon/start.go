@@ -13,6 +13,7 @@ import (
 	mobyc8dstore "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/pkg/rootless"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -124,7 +125,9 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 
-	if err := daemon.initializeNetworking(ctx, &daemonCfg.Config, container); err != nil {
+	if err := rootless.WithDetachedNetNSIfAny(func() error {
+		return daemon.initializeNetworking(ctx, &daemonCfg.Config, container)
+	}); err != nil {
 		return err
 	}
 
