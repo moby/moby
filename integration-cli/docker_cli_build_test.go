@@ -6044,22 +6044,22 @@ func (s *DockerCLIBuildSuite) TestBuildWindowsEnvCaseInsensitive(c *testing.T) {
 
 // Test case for 29667
 func (s *DockerCLIBuildSuite) TestBuildWorkdirImageCmd(c *testing.T) {
-	image := "testworkdirimagecmd"
-	buildImageSuccessfully(c, image, build.WithDockerfile(`
+	imgName := "testworkdirimagecmd"
+	buildImageSuccessfully(c, imgName, build.WithDockerfile(`
 FROM busybox
 WORKDIR /foo/bar
 `))
-	out := cli.DockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", image).Stdout()
+	out := cli.DockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", imgName).Stdout()
 	assert.Equal(c, strings.TrimSpace(out), `["sh"]`)
 
-	image = "testworkdirlabelimagecmd"
-	buildImageSuccessfully(c, image, build.WithDockerfile(`
+	imgName = "testworkdirlabelimagecmd"
+	buildImageSuccessfully(c, imgName, build.WithDockerfile(`
 FROM busybox
 WORKDIR /foo/bar
 LABEL a=b
 `))
 
-	out = cli.DockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", image).Stdout()
+	out = cli.DockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", imgName).Stdout()
 	assert.Equal(c, strings.TrimSpace(out), `["sh"]`)
 }
 

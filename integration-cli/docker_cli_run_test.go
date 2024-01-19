@@ -145,19 +145,19 @@ func (s *DockerCLIRunSuite) TestRunDetachedContainerIDPrinting(c *testing.T) {
 // the working directory should be set correctly
 func (s *DockerCLIRunSuite) TestRunWorkingDirectory(c *testing.T) {
 	dir := "/root"
-	image := "busybox"
+	const imgName = "busybox"
 	if testEnv.DaemonInfo.OSType == "windows" {
 		dir = `C:/Windows`
 	}
 
 	// First with -w
-	out := cli.DockerCmd(c, "run", "-w", dir, image, "pwd").Stdout()
+	out := cli.DockerCmd(c, "run", "-w", dir, imgName, "pwd").Stdout()
 	if strings.TrimSpace(out) != dir {
 		c.Errorf("-w failed to set working directory")
 	}
 
 	// Then with --workdir
-	out = cli.DockerCmd(c, "run", "--workdir", dir, image, "pwd").Stdout()
+	out = cli.DockerCmd(c, "run", "--workdir", dir, imgName, "pwd").Stdout()
 	if strings.TrimSpace(out) != dir {
 		c.Errorf("--workdir failed to set working directory")
 	}
@@ -166,14 +166,14 @@ func (s *DockerCLIRunSuite) TestRunWorkingDirectory(c *testing.T) {
 // pinging Google's DNS resolver should fail when we disable the networking
 func (s *DockerCLIRunSuite) TestRunWithoutNetworking(c *testing.T) {
 	count := "-c"
-	image := "busybox"
+	imgName := "busybox"
 	if testEnv.DaemonInfo.OSType == "windows" {
 		count = "-n"
-		image = testEnv.PlatformDefaults.BaseImage
+		imgName = testEnv.PlatformDefaults.BaseImage
 	}
 
 	// First using the long form --net
-	out, exitCode, err := dockerCmdWithError("run", "--net=none", image, "ping", count, "1", "8.8.8.8")
+	out, exitCode, err := dockerCmdWithError("run", "--net=none", imgName, "ping", count, "1", "8.8.8.8")
 	if err != nil && exitCode != 1 {
 		c.Fatal(out, err)
 	}
@@ -623,18 +623,18 @@ func (s *DockerCLIRunSuite) TestRunCreateVolumeWithSymlink(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	workingDirectory, err := os.MkdirTemp("", "TestRunCreateVolumeWithSymlink")
 	assert.NilError(c, err)
-	image := "docker-test-createvolumewithsymlink"
+	const imgName = "docker-test-createvolumewithsymlink"
 
-	buildCmd := exec.Command(dockerBinary, "build", "-t", image, "-")
+	buildCmd := exec.Command(dockerBinary, "build", "-t", imgName, "-")
 	buildCmd.Stdin = strings.NewReader(`FROM busybox
 		RUN ln -s home /bar`)
 	buildCmd.Dir = workingDirectory
 	err = buildCmd.Run()
 	if err != nil {
-		c.Fatalf("could not build '%s': %v", image, err)
+		c.Fatalf("could not build '%s': %v", imgName, err)
 	}
 
-	_, exitCode, err := dockerCmdWithError("run", "-v", "/bar/foo", "--name", "test-createvolumewithsymlink", image, "sh", "-c", "mount | grep -q /home/foo")
+	_, exitCode, err := dockerCmdWithError("run", "-v", "/bar/foo", "--name", "test-createvolumewithsymlink", imgName, "sh", "-c", "mount | grep -q /home/foo")
 	if err != nil || exitCode != 0 {
 		c.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
 	}
@@ -1934,9 +1934,9 @@ func (s *DockerCLIRunSuite) TestRunCidFileCleanupIfEmpty(c *testing.T) {
 	tmpCidFile := path.Join(tmpDir, "cid")
 
 	// This must be an image that has no CMD or ENTRYPOINT set
-	image := loadSpecialImage(c, specialimage.EmptyFS)
+	imgRef := loadSpecialImage(c, specialimage.EmptyFS)
 
-	out, _, err := dockerCmdWithError("run", "--cidfile", tmpCidFile, image)
+	out, _, err := dockerCmdWithError("run", "--cidfile", tmpCidFile, imgRef)
 	if err == nil {
 		c.Fatalf("Run without command must fail. out=%s", out)
 	} else if !strings.Contains(out, "no command specified") {

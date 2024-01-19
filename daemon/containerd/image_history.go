@@ -36,11 +36,11 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 		if err != nil {
 			return err
 		}
-		var ociimage ocispec.Image
-		if err := readConfig(ctx, cs, conf, &ociimage); err != nil {
+		var ociImage ocispec.Image
+		if err := readConfig(ctx, cs, conf, &ociImage); err != nil {
 			return err
 		}
-		presentImages = append(presentImages, ociimage)
+		presentImages = append(presentImages, ociImage)
 		return nil
 	})
 	if err != nil {
@@ -53,7 +53,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 	sort.SliceStable(presentImages, func(i, j int) bool {
 		return platform.Less(presentImages[i].Platform, presentImages[j].Platform)
 	})
-	ociimage := presentImages[0]
+	ociImage := presentImages[0]
 
 	var (
 		history []*imagetype.HistoryResponseItem
@@ -61,7 +61,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 	)
 	s := i.client.SnapshotService(i.snapshotter)
 
-	diffIDs := ociimage.RootFS.DiffIDs
+	diffIDs := ociImage.RootFS.DiffIDs
 	for i := range diffIDs {
 		chainID := identity.ChainID(diffIDs[0 : i+1]).String()
 
@@ -73,7 +73,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 		sizes = append(sizes, use.Size)
 	}
 
-	for _, h := range ociimage.History {
+	for _, h := range ociImage.History {
 		size := int64(0)
 		if !h.EmptyLayer {
 			if len(sizes) == 0 {

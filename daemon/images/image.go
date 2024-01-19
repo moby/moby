@@ -52,14 +52,16 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 }
 
 func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.Image, platform ocispec.Platform) (bool, error) {
-	logger := log.G(ctx).WithField("image", img.ID).WithField("desiredPlatform", platforms.Format(platform))
-
 	ls, err := i.leases.ListResources(ctx, leases.Lease{ID: imageKey(img.ID().String())})
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
 			return false, nil
 		}
-		logger.WithError(err).Error("Error looking up image leases")
+		log.G(ctx).WithFields(log.Fields{
+			"error":           err,
+			"image":           img.ID,
+			"desiredPlatform": platforms.Format(platform),
+		}).Error("Error looking up image leases")
 		return false, err
 	}
 
@@ -77,7 +79,12 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 	}
 
 	for _, r := range ls {
-		logger := logger.WithField("resourceID", r.ID).WithField("resourceType", r.Type)
+		logger := log.G(ctx).WithFields(log.Fields{
+			"image":           img.ID,
+			"desiredPlatform": platforms.Format(platform),
+			"resourceID":      r.ID,
+			"resourceType":    r.Type,
+		})
 		logger.Debug("Checking lease resource for platform match")
 		if r.Type != "content" {
 			continue
@@ -241,12 +248,12 @@ func (i *ImageService) getImage(ctx context.Context, refOrID string, options ima
 	if !ok {
 		digested, ok := ref.(reference.Digested)
 		if !ok {
-			return nil, ErrImageDoesNotExist{ref}
+			return nil, ErrImageDoesNotExist{Ref: ref}
 		}
 		if img, err := i.imageStore.Get(image.ID(digested.Digest())); err == nil {
 			return img, nil
 		}
-		return nil, ErrImageDoesNotExist{ref}
+		return nil, ErrImageDoesNotExist{Ref: ref}
 	}
 
 	if dgst, err := i.referenceStore.Get(namedRef); err == nil {
@@ -260,12 +267,12 @@ func (i *ImageService) getImage(ctx context.Context, refOrID string, options ima
 	if id, err := i.imageStore.Search(refOrID); err == nil {
 		img, err := i.imageStore.Get(id)
 		if err != nil {
-			return nil, ErrImageDoesNotExist{ref}
+			return nil, ErrImageDoesNotExist{Ref: ref}
 		}
 		return img, nil
 	}
 
-	return nil, ErrImageDoesNotExist{ref}
+	return nil, ErrImageDoesNotExist{Ref: ref}
 }
 
 // OnlyPlatformWithFallback uses `platforms.Only` with a fallback to handle the case where the platform

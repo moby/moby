@@ -58,7 +58,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 		LayerStore: layerStore,
 	})
 
-	img := "test-garbage-collector"
+	const imgName = "test-garbage-collector"
 
 	// Build a image with multiple layers
 	dockerfile := `FROM busybox
@@ -70,13 +70,13 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
-			Tags:        []string{img},
+			Tags:        []string{imgName},
 		})
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
-	image, _, err := client.ImageInspectWithRaw(ctx, img)
+	image, _, err := client.ImageInspectWithRaw(ctx, imgName)
 	assert.NilError(t, err)
 
 	// Mark latest image layer to immutable
@@ -90,7 +90,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 
 	// Try to remove the image, it should generate error
 	// but marking layer back to mutable before checking errors (so we don't break CI server)
-	_, err = client.ImageRemove(ctx, img, types.ImageRemoveOptions{})
+	_, err = client.ImageRemove(ctx, imgName, types.ImageRemoveOptions{})
 	attr = 0x00000000
 	argp = uintptr(unsafe.Pointer(&attr))
 	_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), fsflags, argp)

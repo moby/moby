@@ -227,8 +227,8 @@ func (s *DockerCLIImagesSuite) TestImagesFilterSpaceTrimCase(c *testing.T) {
 		if idx < 4 && !reflect.DeepEqual(listing, imageListings[idx+1]) {
 			for idx, errListing := range imageListings {
 				fmt.Printf("out %d\n", idx)
-				for _, image := range errListing {
-					fmt.Print(image)
+				for _, img := range errListing {
+					fmt.Print(img)
 				}
 				fmt.Print("")
 			}

@@ -24,10 +24,10 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 
 	w.Header().Set("Content-Type", "application/json")
 
-	image := vars["name"]
+	imgName := vars["name"]
 
 	// TODO why is reference.ParseAnyReference() / reference.ParseNormalizedNamed() not using the reference.ErrTagInvalidFormat (and so on) errors?
-	ref, err := reference.ParseAnyReference(image)
+	ref, err := reference.ParseAnyReference(imgName)
 	if err != nil {
 		return errdefs.InvalidParameter(err)
 	}
@@ -37,7 +37,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 			// full image ID
 			return errors.Errorf("no manifest found for full image ID")
 		}
-		return errdefs.InvalidParameter(errors.Errorf("unknown image reference format: %s", image))
+		return errdefs.InvalidParameter(errors.Errorf("unknown image reference format: %s", imgName))
 	}
 
 	// For a search it is not an error if no auth was given. Ignore invalid

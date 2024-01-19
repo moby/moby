@@ -109,11 +109,11 @@ func TestServiceConvertToGRPCGenericRuntimePlugin(t *testing.T) {
 }
 
 func TestServiceConvertToGRPCContainerRuntime(t *testing.T) {
-	image := "alpine:latest"
+	const imgName = "alpine:latest"
 	s := swarmtypes.ServiceSpec{
 		TaskTemplate: swarmtypes.TaskSpec{
 			ContainerSpec: &swarmtypes.ContainerSpec{
-				Image: image,
+				Image: imgName,
 			},
 		},
 		Mode: swarmtypes.ServiceMode{
@@ -131,8 +131,8 @@ func TestServiceConvertToGRPCContainerRuntime(t *testing.T) {
 		t.Fatal("expected type swarmapi.TaskSpec_Container")
 	}
 
-	if v.Container.Image != image {
-		t.Fatalf("expected image %s; received %s", image, v.Container.Image)
+	if v.Container.Image != imgName {
+		t.Fatalf("expected image %s; received %s", imgName, v.Container.Image)
 	}
 }
 

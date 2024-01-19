@@ -67,9 +67,9 @@ func (s *DockerCLIEventSuite) TestEventsTimestampFormats(c *testing.T) {
 }
 
 func (s *DockerCLIEventSuite) TestEventsUntag(c *testing.T) {
-	image := "busybox"
-	cli.DockerCmd(c, "tag", image, "utest:tag1")
-	cli.DockerCmd(c, "tag", image, "utest:tag2")
+	const imgName = "busybox"
+	cli.DockerCmd(c, "tag", imgName, "utest:tag1")
+	cli.DockerCmd(c, "tag", imgName, "utest:tag2")
 	cli.DockerCmd(c, "rmi", "utest:tag1")
 	cli.DockerCmd(c, "rmi", "utest:tag2")
 
@@ -143,8 +143,8 @@ func (s *DockerCLIEventSuite) TestEventsContainerEventsSinceUnixEpoch(c *testing
 func (s *DockerCLIEventSuite) TestEventsImageTag(c *testing.T) {
 	time.Sleep(1 * time.Second) // because API has seconds granularity
 	since := daemonUnixTime(c)
-	image := "testimageevents:tag"
-	cli.DockerCmd(c, "tag", "busybox", image)
+	const imgName = "testimageevents:tag"
+	cli.DockerCmd(c, "tag", "busybox", imgName)
 
 	out := cli.DockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c)).Stdout()
 
@@ -153,7 +153,7 @@ func (s *DockerCLIEventSuite) TestEventsImageTag(c *testing.T) {
 	event := strings.TrimSpace(events[0])
 
 	matches := eventstestutils.ScanMap(event)
-	assert.Assert(c, matchEventID(matches, image), "matches: %v\nout:\n%s", matches, out)
+	assert.Assert(c, matchEventID(matches, imgName), "matches: %v\nout:\n%s", matches, out)
 	assert.Equal(c, matches["action"], "tag")
 }
 

@@ -195,12 +195,12 @@ func (s *DockerCLICreateSuite) TestCreateLabelFromImage(c *testing.T) {
 }
 
 func (s *DockerCLICreateSuite) TestCreateHostnameWithNumber(c *testing.T) {
-	image := "busybox"
+	imgName := "busybox"
 	// Busybox on Windows does not implement hostname command
 	if testEnv.DaemonInfo.OSType == "windows" {
-		image = testEnv.PlatformDefaults.BaseImage
+		imgName = testEnv.PlatformDefaults.BaseImage
 	}
-	out := cli.DockerCmd(c, "run", "-h", "web.0", image, "hostname").Combined()
+	out := cli.DockerCmd(c, "run", "-h", "web.0", imgName, "hostname").Combined()
 	assert.Equal(c, strings.TrimSpace(out), "web.0", "hostname not set, expected `web.0`, got: %s", out)
 }
 

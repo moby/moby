@@ -23,18 +23,18 @@ type f struct {
 func TestDecodeContainerConfig(t *testing.T) {
 	var (
 		fixtures []f
-		image    string
+		imgName  string
 	)
 
 	if runtime.GOOS != "windows" {
-		image = "ubuntu"
+		imgName = "ubuntu"
 		fixtures = []f{
 			{"fixtures/unix/container_config_1_14.json", strslice.StrSlice{}},
 			{"fixtures/unix/container_config_1_17.json", strslice.StrSlice{"bash"}},
 			{"fixtures/unix/container_config_1_19.json", strslice.StrSlice{"bash"}},
 		}
 	} else {
-		image = "windows"
+		imgName = "windows"
 		fixtures = []f{
 			{"fixtures/windows/container_config_1_19.json", strslice.StrSlice{"cmd"}},
 		}
@@ -53,8 +53,8 @@ func TestDecodeContainerConfig(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if c.Image != image {
-				t.Fatalf("Expected %s image, found %s", image, c.Image)
+			if c.Image != imgName {
+				t.Fatalf("Expected %s image, found %s", imgName, c.Image)
 			}
 
 			if len(c.Entrypoint) != len(f.entrypoint) {

@@ -179,17 +179,17 @@ func (s *DockerCLIRmiSuite) TestRmiTagWithExistingContainers(c *testing.T) {
 }
 
 func (s *DockerCLIRmiSuite) TestRmiForceWithExistingContainers(c *testing.T) {
-	image := "busybox-clone"
+	const imgName = "busybox-clone"
 
 	icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "build", "--no-cache", "-t", image, "-"},
+		Command: []string{dockerBinary, "build", "--no-cache", "-t", imgName, "-"},
 		Stdin: strings.NewReader(`FROM busybox
 MAINTAINER foo`),
 	}).Assert(c, icmd.Success)
 
-	cli.DockerCmd(c, "run", "--name", "test-force-rmi", image, "/bin/true")
+	cli.DockerCmd(c, "run", "--name", "test-force-rmi", imgName, "/bin/true")
 
-	cli.DockerCmd(c, "rmi", "-f", image)
+	cli.DockerCmd(c, "rmi", "-f", imgName)
 }
 
 func (s *DockerCLIRmiSuite) TestRmiWithMultipleRepositories(c *testing.T) {
@@ -260,7 +260,7 @@ func (s *DockerCLIRmiSuite) TestRmiContainerImageNotFound(c *testing.T) {
 
 // #13422
 func (s *DockerCLIRmiSuite) TestRmiUntagHistoryLayer(c *testing.T) {
-	image := "tmp1"
+	const imgName = "tmp1"
 	// Build an image for testing.
 	dockerfile := `FROM busybox
 MAINTAINER foo
@@ -268,8 +268,8 @@ RUN echo 0 #layer0
 RUN echo 1 #layer1
 RUN echo 2 #layer2
 `
-	buildImageSuccessfully(c, image, build.WithoutCache, build.WithDockerfile(dockerfile))
-	out := cli.DockerCmd(c, "history", "-q", image).Stdout()
+	buildImageSuccessfully(c, imgName, build.WithoutCache, build.WithDockerfile(dockerfile))
+	out := cli.DockerCmd(c, "history", "-q", imgName).Stdout()
 	ids := strings.Split(out, "\n")
 	idToTag := ids[2]
 
@@ -277,7 +277,7 @@ RUN echo 2 #layer2
 	newTag := "tmp2"
 	cli.DockerCmd(c, "tag", idToTag, newTag)
 	// Create a container based on "tmp1".
-	cli.DockerCmd(c, "run", "-d", image, "true")
+	cli.DockerCmd(c, "run", "-d", imgName, "true")
 
 	// See if the "tmp2" can be untagged.
 	out = cli.DockerCmd(c, "rmi", newTag).Combined()

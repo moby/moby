@@ -40,8 +40,8 @@ func (s *DockerCLIImportSuite) TestImportDisplay(c *testing.T) {
 
 	assert.Assert(c, strings.Count(out, "\n") == 1, "display is expected 1 '\\n' but didn't")
 
-	image := strings.TrimSpace(out)
-	out = cli.DockerCmd(c, "run", "--rm", image, "true").Combined()
+	imgRef := strings.TrimSpace(out)
+	out = cli.DockerCmd(c, "run", "--rm", imgRef, "true").Combined()
 	assert.Equal(c, out, "", "command output should've been nothing.")
 }
 
@@ -71,9 +71,9 @@ func (s *DockerCLIImportSuite) TestImportFile(c *testing.T) {
 
 	out := cli.DockerCmd(c, "import", temporaryFile.Name()).Combined()
 	assert.Assert(c, strings.Count(out, "\n") == 1, "display is expected 1 '\\n' but didn't")
-	image := strings.TrimSpace(out)
+	imgRef := strings.TrimSpace(out)
 
-	out = cli.DockerCmd(c, "run", "--rm", image, "true").Combined()
+	out = cli.DockerCmd(c, "run", "--rm", imgRef, "true").Combined()
 	assert.Equal(c, out, "", "command output should've been nothing.")
 }
 
@@ -94,9 +94,9 @@ func (s *DockerCLIImportSuite) TestImportGzipped(c *testing.T) {
 	temporaryFile.Close()
 	out := cli.DockerCmd(c, "import", temporaryFile.Name()).Combined()
 	assert.Assert(c, strings.Count(out, "\n") == 1, "display is expected 1 '\\n' but didn't")
-	image := strings.TrimSpace(out)
+	imgRef := strings.TrimSpace(out)
 
-	out = cli.DockerCmd(c, "run", "--rm", image, "true").Combined()
+	out = cli.DockerCmd(c, "run", "--rm", imgRef, "true").Combined()
 	assert.Equal(c, out, "", "command output should've been nothing.")
 }
 
@@ -116,9 +116,9 @@ func (s *DockerCLIImportSuite) TestImportFileWithMessage(c *testing.T) {
 	message := "Testing commit message"
 	out := cli.DockerCmd(c, "import", "-m", message, temporaryFile.Name()).Combined()
 	assert.Assert(c, strings.Count(out, "\n") == 1, "display is expected 1 '\\n' but didn't")
-	image := strings.TrimSpace(out)
+	imgRef := strings.TrimSpace(out)
 
-	out = cli.DockerCmd(c, "history", image).Combined()
+	out = cli.DockerCmd(c, "history", imgRef).Combined()
 	split := strings.Split(out, "\n")
 
 	assert.Equal(c, len(split), 3, "expected 3 lines from image history")
@@ -127,7 +127,7 @@ func (s *DockerCLIImportSuite) TestImportFileWithMessage(c *testing.T) {
 
 	assert.Equal(c, message, split[3], "didn't get expected value in commit message")
 
-	out = cli.DockerCmd(c, "run", "--rm", image, "true").Combined()
+	out = cli.DockerCmd(c, "run", "--rm", imgRef, "true").Combined()
 	assert.Equal(c, out, "", "command output should've been nothing")
 }
 
@@ -147,8 +147,8 @@ func (s *DockerCLIImportSuite) TestImportWithQuotedChanges(c *testing.T) {
 	cli.Docker(cli.Args("export", "test-import"), cli.WithStdout(bufio.NewWriter(temporaryFile))).Assert(c, icmd.Success)
 
 	result := cli.DockerCmd(c, "import", "-c", `ENTRYPOINT ["/bin/sh", "-c"]`, temporaryFile.Name())
-	image := strings.TrimSpace(result.Stdout())
+	imgRef := strings.TrimSpace(result.Stdout())
 
-	result = cli.DockerCmd(c, "run", "--rm", image, "true")
+	result = cli.DockerCmd(c, "run", "--rm", imgRef, "true")
 	result.Assert(c, icmd.Expected{Out: icmd.None})
 }
