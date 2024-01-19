@@ -298,9 +298,6 @@ func (ir *imageRouter) getImageInspect(ctx context.Context, w http.ResponseWrite
 		}
 	}
 
-	// FIXME(thaJeztah): specifying a platform that's not present does not produce an error, and instead uses the "old" default (linux/amd64);
-	//     curl -s --unix-socket /var/run/docker.sock 'http://localhost/v1.44/images/alpine:latest/json?platform=windows/s390x' | jq .Architecture
-	//    "amd64"
 	img, err := ir.backend.GetImage(ctx, vars["name"], opts.GetImageOpts{
 		Platform: platform,
 		Details:  true,

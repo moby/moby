@@ -39,7 +39,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 
 	platform := matchAllWithPreference(platforms.Default())
 	if options.Platform != nil {
-		log.G(ctx).WithField("platform", platforms.Format(*options.Platform)).Info("filtering by platform")
+		log.G(ctx).WithField("platform", platforms.Format(*options.Platform)).Debug("filtering by platform")
 		platform = platforms.OnlyStrict(*options.Platform)
 	}
 
@@ -67,6 +67,12 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 			}
 			return errdefs.System(fmt.Errorf("failed to read config of the manifest %v: %w", img.Target().Digest, err))
 		}
+
+		if options.Platform != nil && !platform.Match(ociimage.Platform) {
+			log.G(ctx).WithField("platform", platforms.Format(ociimage.Platform)).Info("no match")
+			return nil
+		}
+
 		presentImages = append(presentImages, ociimage)
 		return nil
 	})
@@ -75,9 +81,8 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	}
 	if len(presentImages) == 0 {
 		ref, _ := reference.ParseAnyReference(refOrID)
-		return nil, images.ErrImageDoesNotExist{Ref: ref}
+		return nil, images.ErrImageDoesNotExist{Ref: ref, Platform: options.Platform}
 	}
-	log.G(ctx).WithField("images", len(presentImages)).Info("found images")
 
 	sort.SliceStable(presentImages, func(i, j int) bool {
 		return platform.Less(presentImages[i].Platform, presentImages[j].Platform)
