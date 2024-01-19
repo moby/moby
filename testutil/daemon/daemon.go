@@ -338,6 +338,17 @@ func ScanLogsMatchString(contains string) func(string) bool {
 	}
 }
 
+// ScanLogsMatchCount returns a function that can be used to scan the daemon logs until the passed in matcher function matches `count` times
+func ScanLogsMatchCount(f func(string) bool, count int) func(string) bool {
+	matched := 0
+	return func(line string) bool {
+		if f(line) {
+			matched++
+		}
+		return matched == count
+	}
+}
+
 // ScanLogsMatchAll returns a function that can be used to scan the daemon logs until *all* the passed in strings are matched
 func ScanLogsMatchAll(contains ...string) func(string) bool {
 	matched := make(map[string]bool)
