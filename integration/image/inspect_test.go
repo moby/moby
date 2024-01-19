@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -19,7 +20,7 @@ func TestImageInspectEmptyTagsAndDigests(t *testing.T) {
 
 	danglingID := specialimage.Load(ctx, t, client, specialimage.Dangling)
 
-	inspect, raw, err := client.ImageInspectWithRaw(ctx, danglingID)
+	inspect, raw, err := client.ImageInspectWithRaw(ctx, danglingID, image.InspectOptions{})
 	assert.NilError(t, err)
 
 	// Must be a zero length array, not null.

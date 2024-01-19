@@ -39,6 +39,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 
 	platform := matchAllWithPreference(platforms.Default())
 	if options.Platform != nil {
+		log.G(ctx).WithField("platform", platforms.Format(*options.Platform)).Info("filtering by platform")
 		platform = platforms.OnlyStrict(*options.Platform)
 	}
 
@@ -76,6 +77,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		ref, _ := reference.ParseAnyReference(refOrID)
 		return nil, images.ErrImageDoesNotExist{Ref: ref}
 	}
+	log.G(ctx).WithField("images", len(presentImages)).Info("found images")
 
 	sort.SliceStable(presentImages, func(i, j int) bool {
 		return platform.Less(presentImages[i].Platform, presentImages[j].Platform)

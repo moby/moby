@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -73,11 +74,11 @@ func TestImagesFilterUntil(t *testing.T) {
 		imgs[i] = id.ID
 	}
 
-	olderImage, _, err := client.ImageInspectWithRaw(ctx, imgs[2])
+	olderImage, _, err := client.ImageInspectWithRaw(ctx, imgs[2], image.InspectOptions{})
 	assert.NilError(t, err)
 	olderUntil := olderImage.Created
 
-	laterImage, _, err := client.ImageInspectWithRaw(ctx, imgs[3])
+	laterImage, _, err := client.ImageInspectWithRaw(ctx, imgs[3], image.InspectOptions{})
 	assert.NilError(t, err)
 	laterUntil := laterImage.Created
 

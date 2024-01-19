@@ -284,8 +284,27 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 	return httputils.WriteJSON(w, http.StatusOK, list)
 }
 
-func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	img, err := ir.backend.GetImage(ctx, vars["name"], opts.GetImageOpts{Details: true})
+func (ir *imageRouter) getImageInspect(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var platform *ocispec.Platform
+
+	version := httputils.VersionFromContext(ctx)
+	if versions.GreaterThanOrEqualTo(version, "1.44") {
+		if p := r.FormValue("platform"); p != "" {
+			sp, err := platforms.Parse(p)
+			if err != nil {
+				return err
+			}
+			platform = &sp
+		}
+	}
+
+	// FIXME(thaJeztah): specifying a platform that's not present does not produce an error, and instead uses the "old" default (linux/amd64);
+	//     curl -s --unix-socket /var/run/docker.sock 'http://localhost/v1.44/images/alpine:latest/json?platform=windows/s390x' | jq .Architecture
+	//    "amd64"
+	img, err := ir.backend.GetImage(ctx, vars["name"], opts.GetImageOpts{
+		Platform: platform,
+		Details:  true,
+	})
 	if err != nil {
 		return err
 	}
@@ -295,7 +314,6 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
 	if versions.LessThan(version, "1.44") {
 		imageInspect.VirtualSize = imageInspect.Size //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
 	}

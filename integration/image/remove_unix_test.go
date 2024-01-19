@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/layer"
@@ -47,7 +48,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 
 	layerStore, _ := layer.NewStoreFromOptions(layer.StoreOptions{
 		Root:                      d.Root,
-		MetadataStorePathTemplate: filepath.Join(d.RootDir(), "image", "%s", "layerdb"),
+		MetadataStorePathTemplate: filepath.Join(d.RootDir(), "img", "%s", "layerdb"),
 		GraphDriver:               d.StorageDriver(),
 		GraphDriverOptions:        nil,
 		IDMapping:                 idtools.IdentityMapping{},
@@ -76,11 +77,11 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	_, err = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
-	image, _, err := client.ImageInspectWithRaw(ctx, imgName)
+	img, _, err := client.ImageInspectWithRaw(ctx, imgName, image.InspectOptions{})
 	assert.NilError(t, err)
 
 	// Mark latest image layer to immutable
-	data := image.GraphDriver.Data
+	data := img.GraphDriver.Data
 	file, _ := os.Open(data["UpperDir"])
 	attr := 0x00000010
 	fsflags := uintptr(0x40086602)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/cpuguy83/tar2go"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
@@ -58,7 +59,7 @@ func TestSaveCheckTimes(t *testing.T) {
 	client := testEnv.APIClient()
 
 	const repoName = "busybox:latest"
-	img, _, err := client.ImageInspectWithRaw(ctx, repoName)
+	img, _, err := client.ImageInspectWithRaw(ctx, repoName, image.InspectOptions{})
 	assert.NilError(t, err)
 
 	rdr, err := client.ImageSave(ctx, []string{repoName})
@@ -97,7 +98,7 @@ func TestSaveCheckManifestLayers(t *testing.T) {
 	t.Parallel()
 
 	const repoName = "busybox:latest"
-	img, _, err := client.ImageInspectWithRaw(ctx, repoName)
+	img, _, err := client.ImageInspectWithRaw(ctx, repoName, image.InspectOptions{})
 	assert.NilError(t, err)
 
 	rdr, err := client.ImageSave(ctx, []string{repoName})
@@ -149,7 +150,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 		return res.ID
 	}
 
-	busyboxImg, _, err := client.ImageInspectWithRaw(ctx, "busybox:latest")
+	busyboxImg, _, err := client.ImageInspectWithRaw(ctx, "busybox:latest", image.InspectOptions{})
 	assert.NilError(t, err)
 
 	const repoName = "foobar-save-multi-images-test"

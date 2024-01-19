@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/fakegit"
@@ -320,10 +321,10 @@ func (s *DockerAPISuite) TestBuildOnBuildCache(c *testing.T) {
 	// check parentID is correct
 	// Parent is graphdriver-only
 	if !testEnv.UsingSnapshotter() {
-		image, _, err := client.ImageInspectWithRaw(ctx, childID)
+		img, _, err := client.ImageInspectWithRaw(ctx, childID, image.InspectOptions{})
 		assert.NilError(c, err)
 
-		assert.Check(c, is.Equal(parentID, image.Parent))
+		assert.Check(c, is.Equal(parentID, img.Parent))
 	}
 }
 

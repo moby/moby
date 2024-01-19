@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/moby/term"
@@ -85,7 +86,7 @@ func FrozenImagesLinux(ctx context.Context, client client.APIClient, images ...s
 func imageExists(ctx context.Context, client client.APIClient, name string) bool {
 	ctx, span := otel.Tracer("").Start(ctx, "check image exists: "+name)
 	defer span.End()
-	_, _, err := client.ImageInspectWithRaw(ctx, name)
+	_, _, err := client.ImageInspectWithRaw(ctx, name, image.InspectOptions{})
 	if err != nil {
 		span.RecordError(err)
 	}

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	imgtypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -113,7 +114,7 @@ func TestImportWithCustomPlatform(t *testing.T) {
 				types.ImageImportOptions{Platform: tc.platform})
 			assert.NilError(t, err)
 
-			inspect, _, err := client.ImageInspectWithRaw(ctx, reference)
+			inspect, _, err := client.ImageInspectWithRaw(ctx, reference, imgtypes.InspectOptions{})
 			assert.NilError(t, err)
 			assert.Equal(t, inspect.Os, tc.expected.OS)
 			assert.Equal(t, inspect.Architecture, tc.expected.Architecture)
