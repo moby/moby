@@ -138,7 +138,14 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 		container.RWLayer = nil
 	}
 
-	if err := containerfs.EnsureRemoveAll(container.Root); err != nil {
+	// Hold the container lock while deleting the container root directory
+	// so that other goroutines don't attempt to concurrently open files
+	// within it. Having any file open on Windows (without the
+	// FILE_SHARE_DELETE flag) will block it from being deleted.
+	container.Lock()
+	err := containerfs.EnsureRemoveAll(container.Root)
+	container.Unlock()
+	if err != nil {
 		err = errors.Wrapf(err, "unable to remove filesystem for %s", container.ID)
 		container.SetRemovalError(err)
 		return err
