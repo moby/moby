@@ -219,15 +219,15 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 	resp.Body.Close()
 	assert.NilError(t, err)
 
-	image, _, err := apiclient.ImageInspectWithRaw(ctx, imgName)
+	img, _, err := apiclient.ImageInspectWithRaw(ctx, imgName)
 	assert.NilError(t, err)
 
 	expected := "/foo/sub2"
 	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = `C:\foo\sub2`
 	}
-	assert.Check(t, is.Equal(expected, image.Config.WorkingDir))
-	assert.Check(t, is.Contains(image.Config.Env, "WHO=parent"))
+	assert.Check(t, is.Equal(expected, img.Config.WorkingDir))
+	assert.Check(t, is.Contains(img.Config.Env, "WHO=parent"))
 }
 
 // Test cases in #36996
@@ -268,12 +268,12 @@ func TestBuildLabelWithTargets(t *testing.T) {
 	resp.Body.Close()
 	assert.NilError(t, err)
 
-	image, _, err := apiclient.ImageInspectWithRaw(ctx, imgName)
+	img, _, err := apiclient.ImageInspectWithRaw(ctx, imgName)
 	assert.NilError(t, err)
 
 	testLabels["label-a"] = "inline-a"
 	for k, v := range testLabels {
-		x, ok := image.Config.Labels[k]
+		x, ok := img.Config.Labels[k]
 		assert.Assert(t, ok)
 		assert.Assert(t, x == v)
 	}
@@ -295,12 +295,12 @@ func TestBuildLabelWithTargets(t *testing.T) {
 	resp.Body.Close()
 	assert.NilError(t, err)
 
-	image, _, err = apiclient.ImageInspectWithRaw(ctx, imgName)
+	img, _, err = apiclient.ImageInspectWithRaw(ctx, imgName)
 	assert.NilError(t, err)
 
 	testLabels["label-b"] = "inline-b"
 	for k, v := range testLabels {
-		x, ok := image.Config.Labels[k]
+		x, ok := img.Config.Labels[k]
 		assert.Assert(t, ok)
 		assert.Assert(t, x == v)
 	}
@@ -376,9 +376,9 @@ RUN cat somefile`
 	assert.NilError(t, err)
 	assert.Assert(t, is.Equal(3, len(imageIDs)))
 
-	image, _, err := apiclient.ImageInspectWithRaw(ctx, imageIDs[2])
+	img, _, err := apiclient.ImageInspectWithRaw(ctx, imageIDs[2])
 	assert.NilError(t, err)
-	assert.Check(t, is.Contains(image.Config.Env, "bar=baz"))
+	assert.Check(t, is.Contains(img.Config.Env, "bar=baz"))
 }
 
 // #35403 #36122

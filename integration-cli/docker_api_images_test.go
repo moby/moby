@@ -132,8 +132,8 @@ func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
 	images, err := apiclient.ImageList(testutil.GetContext(c), types.ImageListOptions{})
 	assert.NilError(c, err)
 	assert.Assert(c, len(images) != 0)
-	for _, image := range images {
-		assert.Assert(c, image.Size != int64(-1))
+	for _, img := range images {
+		assert.Assert(c, img.Size != int64(-1))
 	}
 
 	apiclient, err = client.NewClientWithOpts(client.FromEnv, client.WithVersion("v1.24"))
@@ -143,7 +143,7 @@ func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
 	v124Images, err := apiclient.ImageList(testutil.GetContext(c), types.ImageListOptions{})
 	assert.NilError(c, err)
 	assert.Assert(c, len(v124Images) != 0)
-	for _, image := range v124Images {
-		assert.Assert(c, image.Size != int64(-1))
+	for _, img := range v124Images {
+		assert.Assert(c, img.Size != int64(-1))
 	}
 }

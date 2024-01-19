@@ -469,13 +469,13 @@ func (s *DockerCLIVolumeSuite) TestVolumeCliInspectWithVolumeOpts(c *testing.T) 
 func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFrom(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
-	const image = "vimage"
-	buildImageSuccessfully(c, image, build.WithDockerfile(`
+	const imgName = "vimage"
+	buildImageSuccessfully(c, imgName, build.WithDockerfile(`
 		FROM busybox
 		VOLUME ["/tmp/data"]`))
 
-	cli.DockerCmd(c, "run", "--name=data1", image, "true")
-	cli.DockerCmd(c, "run", "--name=data2", image, "true")
+	cli.DockerCmd(c, "run", "--name=data1", imgName, "true")
+	cli.DockerCmd(c, "run", "--name=data2", imgName, "true")
 
 	data1 := cli.DockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data1").Stdout()
 	data1 = strings.TrimSpace(data1)
@@ -510,13 +510,13 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFrom(c *testing
 func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
-	const image = "vimage"
-	buildImageSuccessfully(c, image, build.WithDockerfile(`
+	const imgName = "vimage"
+	buildImageSuccessfully(c, imgName, build.WithDockerfile(`
                 FROM busybox
                 VOLUME ["/tmp/data"]`))
 
-	cli.DockerCmd(c, "run", "--name=data1", image, "true")
-	cli.DockerCmd(c, "run", "--name=data2", image, "true")
+	cli.DockerCmd(c, "run", "--name=data1", imgName, "true")
+	cli.DockerCmd(c, "run", "--name=data2", imgName, "true")
 
 	data1 := cli.DockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data1").Stdout()
 	data1 = strings.TrimSpace(data1)
@@ -552,13 +552,13 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *
 func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
-	const image = "vimage"
-	buildImageSuccessfully(c, image, build.WithDockerfile(`
+	const imgName = "vimage"
+	buildImageSuccessfully(c, imgName, build.WithDockerfile(`
                 FROM busybox
                 VOLUME ["/tmp/data"]`))
 
-	cli.DockerCmd(c, "run", "--name=data1", image, "true")
-	cli.DockerCmd(c, "run", "--name=data2", image, "true")
+	cli.DockerCmd(c, "run", "--name=data1", imgName, "true")
+	cli.DockerCmd(c, "run", "--name=data2", imgName, "true")
 
 	data1 := cli.DockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data1").Stdout()
 	data1 = strings.TrimSpace(data1)

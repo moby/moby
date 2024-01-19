@@ -72,9 +72,9 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		// Special case: "pull -a" may send an image name with a
 		// trailing :. This is ugly, but let's not break API
 		// compatibility.
-		image := strings.TrimSuffix(img, ":")
+		imgName := strings.TrimSuffix(img, ":")
 
-		ref, err := reference.ParseNormalizedNamed(image)
+		ref, err := reference.ParseNormalizedNamed(imgName)
 		if err != nil {
 			return errdefs.InvalidParameter(err)
 		}

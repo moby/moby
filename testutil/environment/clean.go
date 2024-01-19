@@ -100,13 +100,13 @@ func deleteAllImages(ctx context.Context, t testing.TB, apiclient client.ImageAP
 	images, err := apiclient.ImageList(ctx, types.ImageListOptions{})
 	assert.Check(t, err, "failed to list images")
 
-	for _, image := range images {
-		tags := tagsFromImageSummary(image)
-		if _, ok := protectedImages[image.ID]; ok {
+	for _, img := range images {
+		tags := tagsFromImageSummary(img)
+		if _, ok := protectedImages[img.ID]; ok {
 			continue
 		}
 		if len(tags) == 0 {
-			removeImage(ctx, t, apiclient, image.ID)
+			removeImage(ctx, t, apiclient, img.ID)
 			continue
 		}
 		for _, tag := range tags {

@@ -65,7 +65,7 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *testing.T) {
 	d2 := s.AddDaemon(ctx, c, true, false)
 
 	// install plugin on d1 and d2
-	pluginName := "aragunathan/global-net-plugin:latest"
+	const pluginName = "aragunathan/global-net-plugin:latest"
 
 	_, err := d1.Cmd("plugin", "install", pluginName, "--grant-all-permissions")
 	assert.NilError(c, err)
@@ -74,12 +74,12 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *testing.T) {
 	assert.NilError(c, err)
 
 	// create network
-	networkName := "globalnet"
+	const networkName = "globalnet"
 	_, err = d1.Cmd("network", "create", "--driver", pluginName, networkName)
 	assert.NilError(c, err)
 
 	// create a global service to ensure that both nodes will have an instance
-	serviceName := "my-service"
+	const serviceName = "my-service"
 	_, err = d1.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "--mode=global", "--network", networkName, "busybox", "top")
 	assert.NilError(c, err)
 
@@ -100,10 +100,10 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *testing.T) {
 
 	time.Sleep(20 * time.Second)
 
-	image := "busybox:latest"
+	const imgName = "busybox:latest"
 	// create a new global service again.
-	_, err = d1.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "--mode=global", "--network", networkName, image, "top")
+	_, err = d1.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "--mode=global", "--network", networkName, imgName, "top")
 	assert.NilError(c, err)
 
-	poll.WaitOn(c, pollCheck(c, d1.CheckRunningTaskImages(ctx), checker.DeepEquals(map[string]int{image: 1})), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d1.CheckRunningTaskImages(ctx), checker.DeepEquals(map[string]int{imgName: 1})), poll.WithTimeout(defaultReconciliationTimeout))
 }

@@ -89,8 +89,8 @@ func getExistingContainers(ctx context.Context, t testing.TB, testEnv *Execution
 // ProtectImage adds the specified image(s) to be protected in case of clean
 func (e *Execution) ProtectImage(t testing.TB, images ...string) {
 	t.Helper()
-	for _, image := range images {
-		e.protectedElements.images[image] = struct{}{}
+	for _, img := range images {
+		e.protectedElements.images[img] = struct{}{}
 	}
 }
 
