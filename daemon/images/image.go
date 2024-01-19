@@ -248,12 +248,12 @@ func (i *ImageService) getImage(ctx context.Context, refOrID string, options ima
 	if !ok {
 		digested, ok := ref.(reference.Digested)
 		if !ok {
-			return nil, ErrImageDoesNotExist{ref}
+			return nil, ErrImageDoesNotExist{Ref: ref}
 		}
 		if img, err := i.imageStore.Get(image.ID(digested.Digest())); err == nil {
 			return img, nil
 		}
-		return nil, ErrImageDoesNotExist{ref}
+		return nil, ErrImageDoesNotExist{Ref: ref}
 	}
 
 	if dgst, err := i.referenceStore.Get(namedRef); err == nil {
@@ -267,12 +267,12 @@ func (i *ImageService) getImage(ctx context.Context, refOrID string, options ima
 	if id, err := i.imageStore.Search(refOrID); err == nil {
 		img, err := i.imageStore.Get(id)
 		if err != nil {
-			return nil, ErrImageDoesNotExist{ref}
+			return nil, ErrImageDoesNotExist{Ref: ref}
 		}
 		return img, nil
 	}
 
-	return nil, ErrImageDoesNotExist{ref}
+	return nil, ErrImageDoesNotExist{Ref: ref}
 }
 
 // OnlyPlatformWithFallback uses `platforms.Only` with a fallback to handle the case where the platform
