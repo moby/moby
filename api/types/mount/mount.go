@@ -96,6 +96,7 @@ type BindOptions struct {
 type VolumeOptions struct {
 	NoCopy       bool              `json:",omitempty"`
 	Labels       map[string]string `json:",omitempty"`
+	Subpath      string            `json:",omitempty"`
 	DriverConfig *Driver           `json:",omitempty"`
 }
 

@@ -17,6 +17,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/internal/mounttree"
 	"github.com/docker/docker/internal/unshare"
 	"github.com/docker/docker/pkg/fileutils"
@@ -54,6 +55,8 @@ type containerFSView struct {
 
 // openContainerFS opens a new view of the container's filesystem.
 func (daemon *Daemon) openContainerFS(container *container.Container) (_ *containerFSView, err error) {
+	ctx := context.TODO()
+
 	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}
@@ -63,13 +66,15 @@ func (daemon *Daemon) openContainerFS(container *container.Container) (_ *contai
 		}
 	}()
 
-	mounts, err := daemon.setupMounts(container)
+	mounts, cleanup, err := daemon.setupMounts(ctx, container)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
+		ctx := compatcontext.WithoutCancel(ctx)
+		cleanup(ctx)
 		if err != nil {
-			_ = container.UnmountVolumes(daemon.LogVolumeEvent)
+			_ = container.UnmountVolumes(ctx, daemon.LogVolumeEvent)
 		}
 	}()
 
@@ -207,7 +212,7 @@ func (vw *containerFSView) Close() error {
 	runtime.SetFinalizer(vw, nil)
 	close(vw.todo)
 	err := multierror.Append(nil, <-vw.done)
-	err = multierror.Append(err, vw.ctr.UnmountVolumes(vw.d.LogVolumeEvent))
+	err = multierror.Append(err, vw.ctr.UnmountVolumes(context.TODO(), vw.d.LogVolumeEvent))
 	err = multierror.Append(err, vw.d.Unmount(vw.ctr))
 	return err.ErrorOrNil()
 }

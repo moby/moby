@@ -99,6 +99,45 @@ func (daemon *Daemon) getPIDContainer(id string) (*container.Container, error) {
 	return ctr, nil
 }
 
+// setupContainerDirs sets up base container directories (root, ipc, tmpfs and secrets).
+func (daemon *Daemon) setupContainerDirs(c *container.Container) (_ []container.Mount, err error) {
+	if err := daemon.setupContainerMountsRoot(c); err != nil {
+		return nil, err
+	}
+
+	if err := daemon.setupIPCDirs(c); err != nil {
+		return nil, err
+	}
+
+	if err := daemon.setupSecretDir(c); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			daemon.cleanupSecretDir(c)
+		}
+	}()
+
+	var ms []container.Mount
+	if !c.HostConfig.IpcMode.IsPrivate() && !c.HostConfig.IpcMode.IsEmpty() {
+		ms = append(ms, c.IpcMounts()...)
+	}
+
+	tmpfsMounts, err := c.TmpfsMounts()
+	if err != nil {
+		return nil, err
+	}
+	ms = append(ms, tmpfsMounts...)
+
+	secretMounts, err := c.SecretMounts()
+	if err != nil {
+		return nil, err
+	}
+	ms = append(ms, secretMounts...)
+
+	return ms, nil
+}
+
 func (daemon *Daemon) setupIPCDirs(c *container.Container) error {
 	ipcMode := c.HostConfig.IpcMode
 

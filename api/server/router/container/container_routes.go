@@ -628,6 +628,14 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 	}
 
+	if versions.LessThan(version, "1.45") {
+		for _, m := range hostConfig.Mounts {
+			if m.VolumeOptions != nil && m.VolumeOptions.Subpath != "" {
+				return errdefs.InvalidParameter(errors.New("VolumeOptions.Subpath needs API v1.45 or newer"))
+			}
+		}
+	}
+
 	var warnings []string
 	if warn, err := handleMACAddressBC(config, hostConfig, networkingConfig, version); err != nil {
 		return err

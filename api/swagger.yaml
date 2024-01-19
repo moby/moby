@@ -423,6 +423,10 @@ definitions:
                 type: "object"
                 additionalProperties:
                   type: "string"
+          Subpath:
+            description: "Source path inside the volume. Must be relative without any back traversals."
+            type: "string"
+            example: "dir-inside-volume/subdirectory"
       TmpfsOptions:
         description: "Optional configuration for the `tmpfs` type."
         type: "object"

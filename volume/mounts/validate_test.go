@@ -29,6 +29,9 @@ func TestValidateMount(t *testing.T) {
 			input: mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath},
 		},
 		{
+			input: mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath, Source: "hello", VolumeOptions: &mount.VolumeOptions{Subpath: "world"}},
+		},
+		{
 			input:    mount.Mount{Type: mount.TypeBind},
 			expected: errMissingField("Target"),
 		},

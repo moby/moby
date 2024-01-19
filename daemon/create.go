@@ -222,7 +222,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 		return nil, err
 	}
 
-	if err := daemon.createContainerOSSpecificSettings(ctr, opts.params.Config, opts.params.HostConfig); err != nil {
+	if err := daemon.createContainerOSSpecificSettings(ctx, ctr, opts.params.Config, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
 
