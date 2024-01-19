@@ -81,9 +81,9 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	sort.SliceStable(presentImages, func(i, j int) bool {
 		return platform.Less(presentImages[i].Platform, presentImages[j].Platform)
 	})
-	ociimage := presentImages[0]
+	ociImage := presentImages[0]
 
-	img := dockerOciImageToDockerImagePartial(image.ID(desc.Target.Digest), ociimage)
+	img := dockerOciImageToDockerImagePartial(image.ID(desc.Target.Digest), ociImage)
 
 	parent, err := i.getImageLabelByDigest(ctx, desc.Target.Digest, imageLabelClassicBuilderParent)
 	if err != nil {
