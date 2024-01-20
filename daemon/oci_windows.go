@@ -11,8 +11,8 @@ import (
 	"github.com/Microsoft/hcsshim"
 	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
-	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
@@ -93,7 +93,7 @@ func (daemon *Daemon) isHyperV(c *container.Container) bool {
 }
 
 func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container, mounts []container.Mount) (*specs.Spec, error) {
-	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), imagetypes.GetImageOpts{})
+	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), backend.GetImageOpts{})
 	if err != nil {
 		return nil, err
 	}

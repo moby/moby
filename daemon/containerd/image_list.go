@@ -15,6 +15,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
 	timetypes "github.com/docker/docker/api/types/time"
@@ -320,13 +321,13 @@ type imageFilterFunc func(image images.Image) bool
 func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) (filterFunc imageFilterFunc, outErr error) {
 	var fltrs []imageFilterFunc
 	err := imageFilters.WalkValues("before", func(value string) error {
-		img, err := i.GetImage(ctx, value, imagetypes.GetImageOpts{})
+		img, err := i.GetImage(ctx, value, backend.GetImageOpts{})
 		if err != nil {
 			return err
 		}
 		if img != nil && img.Created != nil {
 			fltrs = append(fltrs, func(candidate images.Image) bool {
-				cand, err := i.GetImage(ctx, candidate.Name, imagetypes.GetImageOpts{})
+				cand, err := i.GetImage(ctx, candidate.Name, backend.GetImageOpts{})
 				if err != nil {
 					return false
 				}
@@ -340,13 +341,13 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 	}
 
 	err = imageFilters.WalkValues("since", func(value string) error {
-		img, err := i.GetImage(ctx, value, imagetypes.GetImageOpts{})
+		img, err := i.GetImage(ctx, value, backend.GetImageOpts{})
 		if err != nil {
 			return err
 		}
 		if img != nil && img.Created != nil {
 			fltrs = append(fltrs, func(candidate images.Image) bool {
-				cand, err := i.GetImage(ctx, candidate.Name, imagetypes.GetImageOpts{})
+				cand, err := i.GetImage(ctx, candidate.Name, backend.GetImageOpts{})
 				if err != nil {
 					return false
 				}

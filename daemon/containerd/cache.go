@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
-	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -31,7 +31,7 @@ func (i *ImageService) MakeImageCache(ctx context.Context, cacheFrom []string) (
 		}
 		for _, hi := range h {
 			if hi.ID != "<missing>" {
-				im, err := i.GetImage(ctx, hi.ID, imagetype.GetImageOpts{})
+				im, err := i.GetImage(ctx, hi.ID, backend.GetImageOpts{})
 				if err != nil {
 					return nil, err
 				}
@@ -99,7 +99,7 @@ func (ic *localCache) GetCache(parentID string, cfg *container.Config) (imageID 
 		}
 
 		if isMatch(&cc, cfg) {
-			childImage, err := ic.imageService.GetImage(ctx, child.String(), imagetype.GetImageOpts{})
+			childImage, err := ic.imageService.GetImage(ctx, child.String(), backend.GetImageOpts{})
 			if err != nil {
 				return "", err
 			}
@@ -142,7 +142,7 @@ func (ic *imageCache) GetCache(parentID string, cfg *container.Config) (imageID 
 	lenHistory := 0
 
 	if parentID != "" {
-		parent, err = ic.imageService.GetImage(ctx, parentID, imagetype.GetImageOpts{})
+		parent, err = ic.imageService.GetImage(ctx, parentID, backend.GetImageOpts{})
 		if err != nil {
 			return "", err
 		}
@@ -200,7 +200,7 @@ func (ic *imageCache) isParent(ctx context.Context, img *image.Image, parentID i
 		return parent == parentID.String()
 	}
 
-	p, err := ic.imageService.GetImage(ctx, parentID.String(), imagetype.GetImageOpts{})
+	p, err := ic.imageService.GetImage(ctx, parentID.String(), backend.GetImageOpts{})
 	if err != nil {
 		return false
 	}

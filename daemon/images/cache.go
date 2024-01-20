@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/containerd/log"
-	imagetypes "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image/cache"
 	"github.com/pkg/errors"
@@ -19,7 +19,7 @@ func (i *ImageService) MakeImageCache(ctx context.Context, sourceRefs []string) 
 	cache := cache.New(i.imageStore)
 
 	for _, ref := range sourceRefs {
-		img, err := i.GetImage(ctx, ref, imagetypes.GetImageOpts{})
+		img, err := i.GetImage(ctx, ref, backend.GetImageOpts{})
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return nil, err

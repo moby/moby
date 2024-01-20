@@ -3,8 +3,8 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
-	imagetypes "github.com/docker/docker/api/types/image"
 )
 
 // LogImageEvent generates an event related to an image with only the default attributes.
@@ -12,7 +12,7 @@ func (i *ImageService) LogImageEvent(imageID, refName string, action events.Acti
 	ctx := context.TODO()
 	attributes := map[string]string{}
 
-	img, err := i.GetImage(ctx, imageID, imagetypes.GetImageOpts{})
+	img, err := i.GetImage(ctx, imageID, backend.GetImageOpts{})
 	if err == nil && img.Config != nil {
 		// image has not been removed yet.
 		// it could be missing if the event is `delete`.

@@ -15,8 +15,9 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
-	opts "github.com/docker/docker/api/types/image"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/builder/remotecontext"
@@ -285,7 +286,7 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	img, err := ir.backend.GetImage(ctx, vars["name"], opts.GetImageOpts{Details: true})
+	img, err := ir.backend.GetImage(ctx, vars["name"], backend.GetImageOpts{Details: true})
 	if err != nil {
 		return err
 	}
@@ -353,7 +354,7 @@ func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, er
 			Data: img.Details.Metadata,
 		},
 		RootFS: rootFSToAPIType(img.RootFS),
-		Metadata: opts.Metadata{
+		Metadata: imagetypes.Metadata{
 			LastTagTime: img.Details.LastUpdated,
 		},
 	}, nil
@@ -452,7 +453,7 @@ func (ir *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(errors.New("refusing to create an ambiguous tag using digest algorithm as name"))
 	}
 
-	img, err := ir.backend.GetImage(ctx, vars["name"], opts.GetImageOpts{})
+	img, err := ir.backend.GetImage(ctx, vars["name"], backend.GetImageOpts{})
 	if err != nil {
 		return errdefs.NotFound(err)
 	}

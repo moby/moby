@@ -15,7 +15,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	imagetype "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -31,7 +31,7 @@ var truncatedID = regexp.MustCompile(`^(sha256:)?([a-f0-9]{4,64})$`)
 var errInconsistentData error = errors.New("consistency error: data changed during operation, retry")
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
-func (i *ImageService) GetImage(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*image.Image, error) {
+func (i *ImageService) GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*image.Image, error) {
 	desc, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, err
@@ -156,7 +156,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	return img, nil
 }
 
-func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*ocispec.Descriptor, error) {
+func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, options backend.GetImageOpts) (*ocispec.Descriptor, error) {
 	platform := matchAllWithPreference(platforms.Default())
 	if options.Platform != nil {
 		platform = platforms.Only(*options.Platform)
