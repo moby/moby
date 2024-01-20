@@ -1,3 +1,5 @@
+//go:build !no_systemd && !freebsd
+
 package main
 
 import (
