@@ -8,7 +8,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	containerdimages "github.com/containerd/containerd/images"
-	cplatforms "github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/attestation"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -65,7 +65,7 @@ func (i *ImageService) NewImageManifest(ctx context.Context, img containerdimage
 	parent := img.Target
 	img.Target = manifestDesc
 
-	c8dImg := containerd.NewImageWithPlatform(i.client, img, cplatforms.All)
+	c8dImg := containerd.NewImageWithPlatform(i.client, img, platforms.All)
 	return &ImageManifest{
 		Image:      c8dImg,
 		RealTarget: parent,
@@ -122,7 +122,7 @@ func (im *ImageManifest) Manifest(ctx context.Context) (ocispec.Manifest, error)
 
 func (im *ImageManifest) CheckContentAvailable(ctx context.Context) (bool, error) {
 	// The target is already a platform-specific manifest, so no need to match platform.
-	pm := cplatforms.All
+	pm := platforms.All
 
 	available, _, _, missing, err := containerdimages.Check(ctx, im.ContentStore(), im.Target(), pm)
 	if err != nil {
