@@ -289,3 +289,40 @@ func TestMacAddressIsAppliedToMainNetworkWithShortID(t *testing.T) {
 	c := container.Inspect(ctx, t, apiClient, cid)
 	assert.Equal(t, c.NetworkSettings.Networks["testnet"].MacAddress, "02:42:08:26:a9:55")
 }
+
+func TestStaticIPOutsideSubpool(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.43"))
+	assert.NilError(t, err)
+
+	const netname = "subnet-range"
+	n := net.CreateNoError(ctx, t, apiClient, netname, net.WithIPAMRange("10.42.0.0/16", "10.42.128.0/24", "10.42.0.1"))
+	defer net.RemoveNoError(ctx, t, apiClient, n)
+
+	cID := container.Run(ctx, t, apiClient,
+		container.WithImage("busybox:latest"),
+		container.WithCmd("sh", "-c", `ip -4 -oneline addr show eth0`),
+		container.WithNetworkMode(netname),
+		container.WithIPv4(netname, "10.42.1.3"),
+	)
+
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
+
+	out, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{ShowStdout: true})
+	assert.NilError(t, err)
+	defer out.Close()
+
+	var b bytes.Buffer
+	_, err = io.Copy(&b, out)
+	assert.NilError(t, err)
+
+	assert.Check(t, is.Contains(b.String(), "inet 10.42.1.3/16"))
+}
