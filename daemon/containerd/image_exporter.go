@@ -12,7 +12,7 @@ import (
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/images/archive"
 	"github.com/containerd/containerd/leases"
-	cplatforms "github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	dockerarchive "github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/platforms"
 	"github.com/docker/docker/pkg/streamformatter"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -49,7 +48,7 @@ func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Conta
 //
 // TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
 func (i *ImageService) ExportImage(ctx context.Context, names []string, outStream io.Writer) error {
-	platform := platforms.AllPlatformsWithPreference(cplatforms.Default())
+	platform := matchAllWithPreference(platforms.Default())
 	opts := []archive.ExportOpt{
 		archive.WithSkipNonDistributableBlobs(),
 
@@ -236,7 +235,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 
 	opts := []containerd.ImportOpt{
 		// TODO(vvoland): Allow user to pass platform
-		containerd.WithImportPlatform(cplatforms.All),
+		containerd.WithImportPlatform(platforms.All),
 
 		containerd.WithSkipMissing(),
 

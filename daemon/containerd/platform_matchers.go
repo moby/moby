@@ -1,17 +1,17 @@
-package platforms
+package containerd
 
 import (
-	cplatforms "github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type allPlatformsWithPreferenceMatcher struct {
-	preferred cplatforms.MatchComparer
+	preferred platforms.MatchComparer
 }
 
-// AllPlatformsWithPreference will return a platform matcher that matches all
+// matchAllWithPreference will return a platform matcher that matches all
 // platforms but will order platforms matching the preferred matcher first.
-func AllPlatformsWithPreference(preferred cplatforms.MatchComparer) cplatforms.MatchComparer {
+func matchAllWithPreference(preferred platforms.MatchComparer) platforms.MatchComparer {
 	return allPlatformsWithPreferenceMatcher{
 		preferred: preferred,
 	}

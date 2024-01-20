@@ -6,12 +6,11 @@ import (
 
 	"github.com/containerd/containerd/images"
 	containerdimages "github.com/containerd/containerd/images"
-	cplatforms "github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/platforms"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -28,7 +27,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 
 	cs := i.client.ContentStore()
 	// TODO: pass platform in from the CLI
-	platform := platforms.AllPlatformsWithPreference(cplatforms.Default())
+	platform := matchAllWithPreference(platforms.Default())
 
 	var presentImages []ocispec.Image
 	err = i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
