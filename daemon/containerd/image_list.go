@@ -12,11 +12,10 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/platforms"
-	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/snapshots"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
@@ -116,7 +115,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 	}
 
 	// TODO: Allow platform override?
-	platformMatcher := matchAllWithPreference(cplatforms.Default())
+	platformMatcher := matchAllWithPreference(platforms.Default())
 
 	for _, img := range imgs {
 		isDangling := isDanglingImage(img)
