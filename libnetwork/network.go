@@ -83,7 +83,7 @@ type IpamConf struct {
 	// PreferredPool is the master address pool for containers and network interfaces.
 	PreferredPool string
 	// SubPool is a subset of the master pool. If specified,
-	// this becomes the container pool.
+	// this becomes the container pool for automatic address allocations.
 	SubPool string
 	// Gateway is the preferred Network Gateway address (optional).
 	Gateway string
@@ -100,7 +100,7 @@ func (c *IpamConf) Validate() error {
 	return nil
 }
 
-// Contains checks whether the ipamSubnet contains [addr].
+// Contains checks whether the ipam master address pool contains [addr].
 func (c *IpamConf) Contains(addr net.IP) bool {
 	if c == nil {
 		return false
@@ -110,9 +110,6 @@ func (c *IpamConf) Contains(addr net.IP) bool {
 	}
 
 	_, allowedRange, _ := net.ParseCIDR(c.PreferredPool)
-	if c.SubPool != "" {
-		_, allowedRange, _ = net.ParseCIDR(c.SubPool)
-	}
 
 	return allowedRange.Contains(addr)
 }
