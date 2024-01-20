@@ -220,8 +220,10 @@ type driverResponse struct {
 	// lists of multiple drivers, go/packages will fall back to the next driver.
 	NotHandled bool
 
-	// Sizes, if not nil, is the types.Sizes to use when type checking.
-	Sizes *types.StdSizes
+	// Compiler and Arch are the arguments pass of types.SizesFor
+	// to get a types.Sizes to use when type checking.
+	Compiler string
+	Arch     string
 
 	// Roots is the set of package IDs that make up the root packages.
 	// We have to encode this separately because when we encode a single package
@@ -262,7 +264,7 @@ func Load(cfg *Config, patterns ...string) ([]*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	l.sizes = response.Sizes
+	l.sizes = types.SizesFor(response.Compiler, response.Arch)
 	return l.refine(response)
 }
 
@@ -630,7 +632,7 @@ func newLoader(cfg *Config) *loader {
 	return ld
 }
 
-// refine connects the supplied packages into a graph and then adds type and
+// refine connects the supplied packages into a graph and then adds type
 // and syntax information as requested by the LoadMode.
 func (ld *loader) refine(response *driverResponse) ([]*Package, error) {
 	roots := response.Roots
@@ -1042,6 +1044,9 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 
 		Error: appendError,
 		Sizes: ld.sizes,
+	}
+	if lpkg.Module != nil && lpkg.Module.GoVersion != "" {
+		typesinternal.SetGoVersion(tc, "go"+lpkg.Module.GoVersion)
 	}
 	if (ld.Mode & typecheckCgo) != 0 {
 		if !typesinternal.SetUsesCgo(tc) {

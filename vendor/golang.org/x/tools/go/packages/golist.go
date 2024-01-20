@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go/types"
 	"io/ioutil"
 	"log"
 	"os"
@@ -153,10 +152,10 @@ func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
 	if cfg.Mode&NeedTypesSizes != 0 || cfg.Mode&NeedTypes != 0 {
 		sizeswg.Add(1)
 		go func() {
-			var sizes types.Sizes
-			sizes, sizeserr = packagesdriver.GetSizesGolist(ctx, state.cfgInvocation(), cfg.gocmdRunner)
-			// types.SizesFor always returns nil or a *types.StdSizes.
-			response.dr.Sizes, _ = sizes.(*types.StdSizes)
+			compiler, arch, err := packagesdriver.GetSizesForArgsGolist(ctx, state.cfgInvocation(), cfg.gocmdRunner)
+			sizeserr = err
+			response.dr.Compiler = compiler
+			response.dr.Arch = arch
 			sizeswg.Done()
 		}()
 	}
@@ -671,6 +670,9 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 		// Temporary work-around for golang/go#39986. Parse filenames out of
 		// error messages. This happens if there are unrecoverable syntax
 		// errors in the source, so we can't match on a specific error message.
+		//
+		// TODO(rfindley): remove this heuristic, in favor of considering
+		// InvalidGoFiles from the list driver.
 		if err := p.Error; err != nil && state.shouldAddFilenameFromError(p) {
 			addFilenameFromPos := func(pos string) bool {
 				split := strings.Split(pos, ":")
