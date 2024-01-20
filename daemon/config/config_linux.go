@@ -83,7 +83,6 @@ type Config struct {
 	Ulimits              map[string]*units.Ulimit  `json:"default-ulimits,omitempty"`
 	CPURealtimePeriod    int64                     `json:"cpu-rt-period,omitempty"`
 	CPURealtimeRuntime   int64                     `json:"cpu-rt-runtime,omitempty"`
-	OOMScoreAdjust       int                       `json:"oom-score-adjust,omitempty"` // Deprecated: configure the daemon's oom-score-adjust using a process manager instead.
 	Init                 bool                      `json:"init,omitempty"`
 	InitPath             string                    `json:"init-path,omitempty"`
 	SeccompProfile       string                    `json:"seccomp-profile,omitempty"`
@@ -178,10 +177,6 @@ func verifyDefaultCgroupNsMode(mode string) error {
 
 // ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
 func (conf *Config) ValidatePlatformConfig() error {
-	if conf.OOMScoreAdjust != 0 {
-		return errors.New(`DEPRECATED: The "oom-score-adjust" config parameter and the dockerd "--oom-score-adjust" options have been removed.`)
-	}
-
 	if conf.EnableUserlandProxy {
 		if conf.UserlandProxyPath == "" {
 			return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
