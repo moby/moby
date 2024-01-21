@@ -1251,20 +1251,6 @@ func (s *DockerAPISuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *
 	assert.NilError(c, err)
 }
 
-// #14915
-func (s *DockerAPISuite) TestContainerAPICreateNoHostConfig118(c *testing.T) {
-	testRequires(c, DaemonIsLinux) // Windows only support 1.25 or later
-	config := container.Config{
-		Image: "busybox",
-	}
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("v1.18"))
-	assert.NilError(c, err)
-
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
-	assert.NilError(c, err)
-}
-
 // Ensure an error occurs when you have a container read-only rootfs but you
 // extract an archive to a symlink in a writable volume which points to a
 // directory outside of the volume.

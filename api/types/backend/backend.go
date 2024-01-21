@@ -18,7 +18,6 @@ type ContainerCreateConfig struct {
 	HostConfig       *container.HostConfig
 	NetworkingConfig *network.NetworkingConfig
 	Platform         *ocispec.Platform
-	AdjustCPUShares  bool
 }
 
 // ContainerRmConfig holds arguments for the container remove
