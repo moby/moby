@@ -347,7 +347,7 @@ func (c *containerAdapter) start(ctx context.Context) error {
 		return err
 	}
 
-	return c.backend.ContainerStart(ctx, c.container.name(), nil, "", "")
+	return c.backend.ContainerStart(ctx, c.container.name(), "", "")
 }
 
 func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, error) {

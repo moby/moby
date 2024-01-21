@@ -168,14 +168,6 @@ func (s *containerRouter) getContainersExport(ctx context.Context, w http.Respon
 	return s.backend.ContainerExport(ctx, vars["name"], w)
 }
 
-type bodyOnStartError struct{}
-
-func (bodyOnStartError) Error() string {
-	return "starting container with non-empty request body was deprecated since API v1.22 and removed in v1.24"
-}
-
-func (bodyOnStartError) InvalidParameter() {}
-
 func (s *containerRouter) postContainersStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	// If contentLength is -1, we can assumed chunked encoding
 	// or more technically that the length is unknown
@@ -183,33 +175,17 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	// net/http otherwise seems to swallow any headers related to chunked encoding
 	// including r.TransferEncoding
 	// allow a nil body for backwards compatibility
-
-	version := httputils.VersionFromContext(ctx)
-	var hostConfig *container.HostConfig
+	//
 	// A non-nil json object is at least 7 characters.
 	if r.ContentLength > 7 || r.ContentLength == -1 {
-		if versions.GreaterThanOrEqualTo(version, "1.24") {
-			return bodyOnStartError{}
-		}
-
-		if err := httputils.CheckForJSON(r); err != nil {
-			return err
-		}
-
-		c, err := s.decoder.DecodeHostConfig(r.Body)
-		if err != nil {
-			return err
-		}
-		hostConfig = c
+		return errdefs.InvalidParameter(errors.New("starting container with non-empty request body was deprecated since API v1.22 and removed in v1.24"))
 	}
 
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	checkpoint := r.Form.Get("checkpoint")
-	checkpointDir := r.Form.Get("checkpoint-dir")
-	if err := s.backend.ContainerStart(ctx, vars["name"], hostConfig, checkpoint, checkpointDir); err != nil {
+	if err := s.backend.ContainerStart(ctx, vars["name"], r.Form.Get("checkpoint"), r.Form.Get("checkpoint-dir")); err != nil {
 		return err
 	}
 

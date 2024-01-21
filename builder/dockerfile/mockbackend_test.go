@@ -46,7 +46,7 @@ func (m *MockBackend) CommitBuildStep(ctx context.Context, c backend.CommitConfi
 	return "", nil
 }
 
-func (m *MockBackend) ContainerStart(ctx context.Context, containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error {
+func (m *MockBackend) ContainerStart(ctx context.Context, containerID string, checkpoint string, checkpointDir string) error {
 	return nil
 }
 

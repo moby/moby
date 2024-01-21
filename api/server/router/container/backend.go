@@ -38,7 +38,7 @@ type stateBackend interface {
 	ContainerResize(name string, height, width int) error
 	ContainerRestart(ctx context.Context, name string, options container.StopOptions) error
 	ContainerRm(name string, config *backend.ContainerRmConfig) error
-	ContainerStart(ctx context.Context, name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
+	ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error
 	ContainerStop(ctx context.Context, name string, options container.StopOptions) error
 	ContainerUnpause(name string) error
 	ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error)

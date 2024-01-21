@@ -27,11 +27,6 @@ func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *conta
 	return decodeContainerConfig(src, si)
 }
 
-// DecodeHostConfig makes ContainerDecoder to implement httputils.ContainerDecoder
-func (r ContainerDecoder) DecodeHostConfig(src io.Reader) (*container.HostConfig, error) {
-	return decodeHostConfig(src)
-}
-
 // decodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
 // struct and returns both a Config and a HostConfig struct, and performs some
 // validation. Certain parameters need daemon-side validation that cannot be done

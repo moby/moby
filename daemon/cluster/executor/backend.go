@@ -38,7 +38,7 @@ type Backend interface {
 	SetupIngress(clustertypes.NetworkCreateRequest, string) (<-chan struct{}, error)
 	ReleaseIngress() (<-chan struct{}, error)
 	CreateManagedContainer(ctx context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error)
-	ContainerStart(ctx context.Context, name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
+	ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error
 	ContainerStop(ctx context.Context, name string, config container.StopOptions) error
 	ContainerLogs(ctx context.Context, name string, config *container.LogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
