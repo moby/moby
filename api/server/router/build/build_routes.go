@@ -42,6 +42,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		SuppressOutput: httputils.BoolValue(r, "q"),
 		NoCache:        httputils.BoolValue(r, "nocache"),
 		ForceRemove:    httputils.BoolValue(r, "forcerm"),
+		PullParent:     httputils.BoolValue(r, "pull"),
 		MemorySwap:     httputils.Int64ValueOrZero(r, "memswap"),
 		Memory:         httputils.Int64ValueOrZero(r, "memory"),
 		CPUShares:      httputils.Int64ValueOrZero(r, "cpushares"),
@@ -74,9 +75,6 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.Remove = httputils.BoolValue(r, "rm")
 	}
 	version := httputils.VersionFromContext(ctx)
-	if httputils.BoolValue(r, "pull") && versions.GreaterThanOrEqualTo(version, "1.16") {
-		options.PullParent = true
-	}
 	if versions.GreaterThanOrEqualTo(version, "1.32") {
 		options.Platform = r.FormValue("platform")
 	}
