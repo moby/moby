@@ -25,8 +25,6 @@ import (
 // there is an error getting the data.
 func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, size bool, version string) (interface{}, error) {
 	switch {
-	case versions.LessThan(version, "1.20"):
-		return daemon.containerInspectPre120(ctx, name)
 	case versions.Equal(version, "1.20"):
 		return daemon.containerInspect120(name)
 	case versions.LessThan(version, "1.45"):

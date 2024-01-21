@@ -37,7 +37,6 @@ func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
 	} else {
 		cases = []acase{
 			{"v1.20", append(keysBase, "Mounts")},
-			{"v1.19", append(keysBase, "Volumes", "VolumesRW")},
 		}
 	}
 
@@ -65,7 +64,7 @@ func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriverLegacy(c *testing.T)
 	out := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
 	cleanedContainerID := strings.TrimSpace(out)
 
-	cases := []string{"v1.19", "v1.20"}
+	cases := []string{"v1.20"}
 	for _, version := range cases {
 		body := getInspectBody(c, version, cleanedContainerID)
 
@@ -125,7 +124,7 @@ func (s *DockerAPISuite) TestInspectAPIEmptyFieldsInConfigPre121(c *testing.T) {
 	out := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
 	cleanedContainerID := strings.TrimSpace(out)
 
-	cases := []string{"v1.19", "v1.20"}
+	cases := []string{"v1.20"}
 	for _, version := range cases {
 		body := getInspectBody(c, version, cleanedContainerID)
 
