@@ -71,15 +71,6 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
-	if versions.LessThan(version, "1.22") {
-		// API versions before 1.22 did not enforce application/json content-type.
-		// Allow older clients to work by patching the content-type.
-		if r.Header.Get("Content-Type") != "application/json" {
-			r.Header.Set("Content-Type", "application/json")
-		}
-	}
-
 	var (
 		execName                  = vars["name"]
 		stdin, inStream           io.ReadCloser
@@ -96,6 +87,8 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 	}
 
 	if execStartCheck.ConsoleSize != nil {
+		version := httputils.VersionFromContext(ctx)
+
 		// Not supported before 1.42
 		if versions.LessThan(version, "1.42") {
 			execStartCheck.ConsoleSize = nil
