@@ -118,14 +118,11 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 		oneShot = httputils.BoolValueOrDefault(r, "one-shot", false)
 	}
 
-	config := &backend.ContainerStatsConfig{
+	return s.backend.ContainerStats(ctx, vars["name"], &backend.ContainerStatsConfig{
 		Stream:    stream,
 		OneShot:   oneShot,
 		OutStream: w,
-		Version:   httputils.VersionFromContext(ctx),
-	}
-
-	return s.backend.ContainerStats(ctx, vars["name"], config)
+	})
 }
 
 func (s *containerRouter) getContainersLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
