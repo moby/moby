@@ -10,8 +10,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
@@ -20,13 +18,6 @@ import (
 // ContainerStats writes information about the container to the stream
 // given in the config object.
 func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, config *backend.ContainerStatsConfig) error {
-	// Engine API version (used for backwards compatibility)
-	apiVersion := config.Version
-
-	if isWindows && versions.LessThan(apiVersion, "1.21") {
-		return errors.New("API versions pre v1.21 do not support stats on Windows")
-	}
-
 	ctr, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
@@ -87,46 +78,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 				return nil
 			}
 
-			var statsJSON interface{}
-			statsJSONPost120 := getStatJSON(v)
-			if versions.LessThan(apiVersion, "1.21") {
-				var (
-					rxBytes   uint64
-					rxPackets uint64
-					rxErrors  uint64
-					rxDropped uint64
-					txBytes   uint64
-					txPackets uint64
-					txErrors  uint64
-					txDropped uint64
-				)
-				for _, v := range statsJSONPost120.Networks {
-					rxBytes += v.RxBytes
-					rxPackets += v.RxPackets
-					rxErrors += v.RxErrors
-					rxDropped += v.RxDropped
-					txBytes += v.TxBytes
-					txPackets += v.TxPackets
-					txErrors += v.TxErrors
-					txDropped += v.TxDropped
-				}
-				statsJSON = &v1p20.StatsJSON{
-					Stats: statsJSONPost120.Stats,
-					Network: types.NetworkStats{
-						RxBytes:   rxBytes,
-						RxPackets: rxPackets,
-						RxErrors:  rxErrors,
-						RxDropped: rxDropped,
-						TxBytes:   txBytes,
-						TxPackets: txPackets,
-						TxErrors:  txErrors,
-						TxDropped: txDropped,
-					},
-				}
-			} else {
-				statsJSON = statsJSONPost120
-			}
-
+			statsJSON := getStatJSON(v)
 			if !config.Stream && noStreamFirstFrame {
 				// prime the cpu stats so they aren't 0 in the final output
 				noStreamFirstFrame = false
