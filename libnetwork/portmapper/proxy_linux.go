@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/docker/docker/pkg/rootless"
 )
 
 func newProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.IP, containerPort int, proxyPath string) (userlandProxy, error) {
@@ -17,7 +19,7 @@ func newProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 		return nil, fmt.Errorf("no path provided for userland-proxy binary")
 	}
 
-	return &proxyCommand{
+	cmd := &proxyCommand{
 		cmd: &exec.Cmd{
 			Path: proxyPath,
 			Args: []string{
@@ -33,7 +35,19 @@ func newProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 			},
 		},
 		wait: make(chan error, 1),
-	}, nil
+	}
+	detachedNetNS, err := rootless.DetachedNetNS()
+	if err != nil {
+		return nil, err
+	}
+	if detachedNetNS != "" {
+		cmd.cmd.Path, err = exec.LookPath("nsenter")
+		if err != nil {
+			return nil, err
+		}
+		cmd.cmd.Args = append([]string{cmd.cmd.Path, "-n" + detachedNetNS, "-F", "--"}, cmd.cmd.Args...)
+	}
+	return cmd, nil
 }
 
 // proxyCommand wraps an exec.Cmd to run the userland TCP and UDP

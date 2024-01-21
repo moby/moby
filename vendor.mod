@@ -30,6 +30,7 @@ require (
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/typeurl/v2 v2.1.1
+	github.com/containernetworking/plugins v1.4.0
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/cpuguy83/tar2go v0.3.1
 	github.com/creack/pty v1.1.18
@@ -97,9 +98,9 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.19.0
 	go.opentelemetry.io/otel/sdk v1.19.0
 	go.opentelemetry.io/otel/trace v1.19.0
-	golang.org/x/mod v0.11.0
+	golang.org/x/mod v0.13.0
 	golang.org/x/net v0.17.0
-	golang.org/x/sync v0.3.0
+	golang.org/x/sync v0.4.0
 	golang.org/x/sys v0.16.0
 	golang.org/x/text v0.14.0
 	golang.org/x/time v0.3.0
@@ -146,7 +147,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fernet/fernet-go v0.0.0-20211208181803-9f70042a33ee // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/go-logr/logr v1.2.4 // indirect
+	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogo/googleapis v1.4.1 // indirect
@@ -205,7 +206,7 @@ require (
 	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect
 	golang.org/x/oauth2 v0.10.0 // indirect
-	golang.org/x/tools v0.10.0 // indirect
+	golang.org/x/tools v0.14.0 // indirect
 	google.golang.org/api v0.126.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230711160842-782d3b101e98 // indirect
