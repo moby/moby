@@ -13,13 +13,6 @@ const (
 	// default value. On Windows keep this empty so the value is auto-detected
 	// based on other options.
 	StockRuntimeName = ""
-
-	// minAPIVersion represents Minimum REST API version supported
-	// Technically the first daemon API version released on Windows is v1.25 in
-	// engine version 1.13. However, some clients are explicitly using downlevel
-	// APIs (e.g. docker-compose v2.1 file format) and that is just too restrictive.
-	// Hence also allowing 1.24 on Windows.
-	minAPIVersion string = "1.24"
 )
 
 // BridgeConfig is meant to store all the parameters for both the bridge driver and the default bridge network. On
