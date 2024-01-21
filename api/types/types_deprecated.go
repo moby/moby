@@ -3,19 +3,7 @@ package types
 import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/swarm"
 )
-
-// ServiceCreateResponse contains the information returned to a client
-// on the creation of a new service.
-//
-// Deprecated: use [swarm.ServiceCreateResponse].
-type ServiceCreateResponse = swarm.ServiceCreateResponse
-
-// ServiceUpdateResponse service update response.
-//
-// Deprecated: use [swarm.ServiceUpdateResponse].
-type ServiceUpdateResponse = swarm.ServiceUpdateResponse
 
 // ContainerStartOptions holds parameters to start containers.
 //
