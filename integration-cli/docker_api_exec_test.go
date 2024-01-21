@@ -109,20 +109,6 @@ func (s *DockerAPISuite) TestExecAPIStartEnsureHeaders(c *testing.T) {
 	assert.Assert(c, resp.Header.Get("Server") != "")
 }
 
-func (s *DockerAPISuite) TestExecAPIStartBackwardsCompatible(c *testing.T) {
-	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
-	runSleepingContainer(c, "-d", "--name", "test")
-	id := createExec(c, "test")
-
-	resp, body, err := request.Post(testutil.GetContext(c), fmt.Sprintf("/v1.20/exec/%s/start", id), request.RawString(`{"Detach": true}`), request.ContentType("text/plain"))
-	assert.NilError(c, err)
-
-	b, err := request.ReadBody(body)
-	comment := fmt.Sprintf("response body: %s", b)
-	assert.NilError(c, err, comment)
-	assert.Equal(c, resp.StatusCode, http.StatusOK, comment)
-}
-
 // #19362
 func (s *DockerAPISuite) TestExecAPIStartMultipleTimesError(c *testing.T) {
 	runSleepingContainer(c, "-d", "--name", "test")
