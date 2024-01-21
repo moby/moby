@@ -29,7 +29,6 @@ func TestContainerInvalidJSON(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		endpoints = append(
 			endpoints,
-			"/v1.23/containers/foobar/copy",  // deprecated since 1.8 (API v1.20), errors out since 1.12 (API v1.24)
 			"/v1.23/containers/foobar/start", // accepts a body on API < v1.24
 		)
 	}
