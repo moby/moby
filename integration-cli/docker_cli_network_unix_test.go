@@ -1022,15 +1022,16 @@ func (s *DockerCLINetworkSuite) TestInspectAPIMultipleNetworks(c *testing.T) {
 
 	versionedIP := inspect120.NetworkSettings.IPAddress
 
-	body = getInspectBody(c, "v1.21", id)
-	var inspect121 types.ContainerJSON
-	err = json.Unmarshal(body, &inspect121)
+	// Current API version (API v1.21 and up)
+	body = getInspectBody(c, "", id)
+	var inspectCurrent types.ContainerJSON
+	err = json.Unmarshal(body, &inspectCurrent)
 	assert.NilError(c, err)
-	assert.Equal(c, len(inspect121.NetworkSettings.Networks), 3)
+	assert.Equal(c, len(inspectCurrent.NetworkSettings.Networks), 3)
 
-	bridge := inspect121.NetworkSettings.Networks["bridge"]
+	bridge := inspectCurrent.NetworkSettings.Networks["bridge"]
 	assert.Equal(c, bridge.IPAddress, versionedIP)
-	assert.Equal(c, bridge.IPAddress, inspect121.NetworkSettings.IPAddress)
+	assert.Equal(c, bridge.IPAddress, inspectCurrent.NetworkSettings.IPAddress)
 }
 
 func connectContainerToNetworks(c *testing.T, d *daemon.Daemon, cName string, nws []string) {
