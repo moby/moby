@@ -39,13 +39,6 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	// TODO: remove pause arg, and always pause in backend
-	pause := httputils.BoolValue(r, "pause")
-	version := httputils.VersionFromContext(ctx)
-	if r.FormValue("pause") == "" && versions.GreaterThanOrEqualTo(version, "1.13") {
-		pause = true
-	}
-
 	config, _, _, err := s.decoder.DecodeConfig(r.Body)
 	if err != nil && !errors.Is(err, io.EOF) { // Do not fail if body is empty.
 		return err
@@ -57,7 +50,7 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 	}
 
 	imgID, err := s.backend.CreateImageFromContainer(ctx, r.Form.Get("container"), &backend.CreateImageConfig{
-		Pause:   pause,
+		Pause:   httputils.BoolValueOrDefault(r, "pause", true), // TODO(dnephin): remove pause arg, and always pause in backend
 		Tag:     ref,
 		Author:  r.Form.Get("author"),
 		Comment: r.Form.Get("comment"),
