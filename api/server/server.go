@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/server/router/debug"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -57,18 +58,12 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc, operation string) ht
 			if statusCode >= 500 {
 				log.G(ctx).Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
 			}
-			makeErrorHandler(err)(w, r)
+			_ = httputils.WriteJSON(w, statusCode, &types.ErrorResponse{
+				Message: err.Error(),
+			})
 		}
 	}), operation).ServeHTTP
 }
-
-type pageNotFoundError struct{}
-
-func (pageNotFoundError) Error() string {
-	return "page not found"
-}
-
-func (pageNotFoundError) NotFound() {}
 
 // CreateMux returns a new mux with all the routers registered.
 func (s *Server) CreateMux(routers ...router.Router) *mux.Router {
@@ -91,7 +86,12 @@ func (s *Server) CreateMux(routers ...router.Router) *mux.Router {
 		m.Path("/debug" + r.Path()).Handler(f)
 	}
 
-	notFoundHandler := makeErrorHandler(pageNotFoundError{})
+	notFoundHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = httputils.WriteJSON(w, http.StatusNotFound, &types.ErrorResponse{
+			Message: "page not found",
+		})
+	})
+
 	m.HandleFunc(versionMatcher+"/{path:.*}", notFoundHandler)
 	m.NotFoundHandler = notFoundHandler
 	m.MethodNotAllowedHandler = notFoundHandler
