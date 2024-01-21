@@ -248,25 +248,14 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 	return nil
 }
 
-func (s *containerRouter) postContainersKill(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *containerRouter) postContainersKill(_ context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
 	name := vars["name"]
 	if err := s.backend.ContainerKill(name, r.Form.Get("signal")); err != nil {
-		var isStopped bool
-		if errdefs.IsConflict(err) {
-			isStopped = true
-		}
-
-		// Return error that's not caused because the container is stopped.
-		// Return error if the container is not running and the api is >= 1.20
-		// to keep backwards compatibility.
-		version := httputils.VersionFromContext(ctx)
-		if versions.GreaterThanOrEqualTo(version, "1.20") || !isStopped {
-			return errors.Wrapf(err, "Cannot kill container: %s", name)
-		}
+		return errors.Wrapf(err, "cannot kill container: %s", name)
 	}
 
 	w.WriteHeader(http.StatusNoContent)

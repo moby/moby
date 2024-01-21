@@ -6,7 +6,6 @@ import (
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
@@ -131,15 +130,6 @@ func TestKillStoppedContainer(t *testing.T) {
 	err := apiClient.ContainerKill(ctx, id, "SIGKILL")
 	assert.Assert(t, is.ErrorContains(err, ""))
 	assert.Assert(t, is.Contains(err.Error(), "is not running"))
-}
-
-func TestKillStoppedContainerAPIPre120(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows only supports 1.25 or later")
-	ctx := setupTest(t)
-	apiClient := request.NewAPIClient(t, client.WithVersion("1.19"))
-	id := container.Create(ctx, t, apiClient)
-	err := apiClient.ContainerKill(ctx, id, "SIGKILL")
-	assert.NilError(t, err)
 }
 
 func TestKillDifferentUserContainer(t *testing.T) {
