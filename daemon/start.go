@@ -96,7 +96,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 	// Adapt for old containers in case we have updates in this function and
 	// old containers never have chance to call the new function in create stage.
 	if hostConfig != nil {
-		if err := daemon.adaptContainerSettings(&daemonCfg.Config, ctr.HostConfig, false); err != nil {
+		if err := daemon.adaptContainerSettings(&daemonCfg.Config, ctr.HostConfig); err != nil {
 			return errdefs.InvalidParameter(err)
 		}
 	}
