@@ -47,7 +47,7 @@ export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
 
 # Allow testing old API versions
-export DOCKER_MIN_API_VERSION=1.12
+export DOCKER_MIN_API_VERSION=1.24
 
 # example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
 storage_params=""
