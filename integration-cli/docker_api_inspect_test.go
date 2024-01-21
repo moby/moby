@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
@@ -31,12 +30,13 @@ func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
 	var cases []acase
 
 	if testEnv.DaemonInfo.OSType == "windows" {
+		// Windows only supports 1.25 or later
 		cases = []acase{
 			{"v1.25", append(keysBase, "Mounts")},
 		}
 	} else {
 		cases = []acase{
-			{"v1.20", append(keysBase, "Mounts")},
+			{"v1.24", append(keysBase, "Mounts")},
 		}
 	}
 
@@ -55,28 +55,6 @@ func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
 		// Issue #6830: type not properly converted to JSON/back
 		_, ok := inspectJSON["Path"].(bool)
 		assert.Assert(c, !ok, "Path of `true` should not be converted to boolean `true` via JSON marshalling")
-	}
-}
-
-func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriverLegacy(c *testing.T) {
-	// No legacy implications for Windows
-	testRequires(c, DaemonIsLinux)
-	out := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
-	cleanedContainerID := strings.TrimSpace(out)
-
-	cases := []string{"v1.20"}
-	for _, version := range cases {
-		body := getInspectBody(c, version, cleanedContainerID)
-
-		var inspectJSON map[string]interface{}
-		err := json.Unmarshal(body, &inspectJSON)
-		assert.NilError(c, err, "Unable to unmarshal body for version %s", version)
-
-		config, ok := inspectJSON["Config"]
-		assert.Assert(c, ok, "Unable to find 'Config'")
-		cfg := config.(map[string]interface{})
-		_, ok = cfg["VolumeDriver"]
-		assert.Assert(c, ok, "API version %s expected to include VolumeDriver in 'Config'", version)
 	}
 }
 
@@ -115,47 +93,6 @@ func (s *DockerAPISuite) TestInspectAPIImageResponse(c *testing.T) {
 	assert.Check(c, len(imageJSON.RepoTags) == 2)
 	assert.Check(c, is.Contains(imageJSON.RepoTags, "busybox:latest"))
 	assert.Check(c, is.Contains(imageJSON.RepoTags, "busybox:mytag"))
-}
-
-// #17131, #17139, #17173
-func (s *DockerAPISuite) TestInspectAPIEmptyFieldsInConfigPre121(c *testing.T) {
-	// Not relevant on Windows
-	testRequires(c, DaemonIsLinux)
-	out := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
-	cleanedContainerID := strings.TrimSpace(out)
-
-	cases := []string{"v1.20"}
-	for _, version := range cases {
-		body := getInspectBody(c, version, cleanedContainerID)
-
-		var inspectJSON map[string]interface{}
-		err := json.Unmarshal(body, &inspectJSON)
-		assert.NilError(c, err, "Unable to unmarshal body for version %s", version)
-		config, ok := inspectJSON["Config"]
-		assert.Assert(c, ok, "Unable to find 'Config'")
-		cfg := config.(map[string]interface{})
-		for _, f := range []string{"MacAddress", "NetworkDisabled", "ExposedPorts"} {
-			_, ok := cfg[f]
-			assert.Check(c, ok, "API version %s expected to include %s in 'Config'", version, f)
-		}
-	}
-}
-
-func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings120(c *testing.T) {
-	// Not relevant on Windows, and besides it doesn't have any bridge network settings
-	testRequires(c, DaemonIsLinux)
-	out := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
-	containerID := strings.TrimSpace(out)
-	cli.WaitRun(c, containerID)
-
-	body := getInspectBody(c, "v1.20", containerID)
-
-	var inspectJSON v1p20.ContainerJSON
-	err := json.Unmarshal(body, &inspectJSON)
-	assert.NilError(c, err)
-
-	settings := inspectJSON.NetworkSettings
-	assert.Assert(c, len(settings.IPAddress) != 0)
 }
 
 // Inspect for API v1.21 and up; see
