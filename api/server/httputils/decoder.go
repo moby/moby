@@ -12,5 +12,4 @@ import (
 // container configuration.
 type ContainerDecoder interface {
 	DecodeConfig(src io.Reader) (*container.Config, *container.HostConfig, *network.NetworkingConfig, error)
-	DecodeHostConfig(src io.Reader) (*container.HostConfig, error)
 }
