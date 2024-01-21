@@ -6,21 +6,6 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 )
 
-// ImageDeleteResponseItem image delete response item.
-//
-// Deprecated: use [image.DeleteResponse].
-type ImageDeleteResponseItem = image.DeleteResponse
-
-// ImageSummary image summary.
-//
-// Deprecated: use [image.Summary].
-type ImageSummary = image.Summary
-
-// ImageMetadata contains engine-local data about the image.
-//
-// Deprecated: use [image.Metadata].
-type ImageMetadata = image.Metadata
-
 // ServiceCreateResponse contains the information returned to a client
 // on the creation of a new service.
 //
