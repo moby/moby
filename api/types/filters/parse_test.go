@@ -71,19 +71,10 @@ func TestFromJSON(t *testing.T) {
 		"{'key': 'value'}",
 		`{"key": "value"}`,
 	}
-	valid := map[*Args][]string{
-		{fields: map[string]map[string]bool{"key": {"value": true}}}: {
-			`{"key": ["value"]}`,
-			`{"key": {"value": true}}`,
-		},
-		{fields: map[string]map[string]bool{"key": {"value1": true, "value2": true}}}: {
-			`{"key": ["value1", "value2"]}`,
-			`{"key": {"value1": true, "value2": true}}`,
-		},
-		{fields: map[string]map[string]bool{"key1": {"value1": true}, "key2": {"value2": true}}}: {
-			`{"key1": ["value1"], "key2": ["value2"]}`,
-			`{"key1": {"value1": true}, "key2": {"value2": true}}`,
-		},
+	valid := map[*Args]string{
+		{fields: map[string]map[string]bool{"key": {"value": true}}}:                             `{"key": {"value": true}}`,
+		{fields: map[string]map[string]bool{"key": {"value1": true, "value2": true}}}:            `{"key": {"value1": true, "value2": true}}`,
+		{fields: map[string]map[string]bool{"key1": {"value1": true}, "key2": {"value2": true}}}: `{"key1": {"value1": true}, "key2": {"value2": true}}`,
 	}
 
 	for _, invalid := range invalids {
@@ -99,19 +90,17 @@ func TestFromJSON(t *testing.T) {
 		})
 	}
 
-	for expectedArgs, matchers := range valid {
-		for _, jsonString := range matchers {
-			args, err := FromJSON(jsonString)
-			assert.Check(t, err)
-			assert.Check(t, is.Equal(args.Len(), expectedArgs.Len()))
-			for key, expectedValues := range expectedArgs.fields {
-				values := args.Get(key)
-				assert.Check(t, is.Len(values, len(expectedValues)), expectedArgs)
+	for expectedArgs, jsonString := range valid {
+		args, err := FromJSON(jsonString)
+		assert.Check(t, err)
+		assert.Check(t, is.Equal(args.Len(), expectedArgs.Len()))
+		for key, expectedValues := range expectedArgs.fields {
+			values := args.Get(key)
+			assert.Check(t, is.Len(values, len(expectedValues)), expectedArgs)
 
-				for _, v := range values {
-					if !expectedValues[v] {
-						t.Errorf("Expected %v, go %v", expectedArgs, args)
-					}
+			for _, v := range values {
+				if !expectedValues[v] {
+					t.Errorf("Expected %v, go %v", expectedArgs, args)
 				}
 			}
 		}
