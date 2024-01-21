@@ -66,14 +66,14 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		return nil, invalidParam{errors.New("security options are not supported on " + runtime.GOOS)}
 	}
 
-	version := httputils.VersionFromContext(ctx)
-	if httputils.BoolValue(r, "forcerm") && versions.GreaterThanOrEqualTo(version, "1.12") {
+	if httputils.BoolValue(r, "forcerm") {
 		options.Remove = true
-	} else if r.FormValue("rm") == "" && versions.GreaterThanOrEqualTo(version, "1.12") {
+	} else if r.FormValue("rm") == "" {
 		options.Remove = true
 	} else {
 		options.Remove = httputils.BoolValue(r, "rm")
 	}
+	version := httputils.VersionFromContext(ctx)
 	if httputils.BoolValue(r, "pull") && versions.GreaterThanOrEqualTo(version, "1.16") {
 		options.PullParent = true
 	}
