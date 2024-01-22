@@ -15,8 +15,11 @@ import (
 func TestMiddlewares(t *testing.T) {
 	srv := &Server{}
 
-	const apiMinVersion = "1.12"
-	srv.UseMiddleware(middleware.NewVersionMiddleware("0.1omega2", api.DefaultVersion, apiMinVersion))
+	m, err := middleware.NewVersionMiddleware("0.1omega2", api.DefaultVersion, api.MinSupportedAPIVersion)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.UseMiddleware(*m)
 
 	req, _ := http.NewRequest(http.MethodGet, "/containers/json", nil)
 	resp := httptest.NewRecorder()
