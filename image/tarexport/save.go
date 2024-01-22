@@ -29,7 +29,7 @@ import (
 
 type imageDescriptor struct {
 	refs     []reference.NamedTagged
-	layers   []digest.Digest
+	layers   []layer.DiffID
 	image    *image.Image
 	layerRef layer.Layer
 }
@@ -210,7 +210,9 @@ func (s *saveSession) save(outStream io.Writer) error {
 			foreign  = make([]ocispec.Descriptor, 0, len(foreignSrcs))
 		)
 
-		for _, desc := range foreignSrcs {
+		// Layers in manifest must follow the actual layer order from config.
+		for _, l := range imageDescr.layers {
+			desc := foreignSrcs[l]
 			foreign = append(foreign, ocispec.Descriptor{
 				MediaType:   desc.MediaType,
 				Digest:      desc.Digest,
@@ -263,7 +265,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 			if _, ok := reposLegacy[familiarName]; !ok {
 				reposLegacy[familiarName] = make(map[string]string)
 			}
-			reposLegacy[familiarName][ref.Tag()] = imageDescr.layers[len(imageDescr.layers)-1].Encoded()
+			reposLegacy[familiarName][ref.Tag()] = digest.Digest(imageDescr.layers[len(imageDescr.layers)-1]).Encoded()
 			repoTags = append(repoTags, reference.FamiliarString(ref))
 
 			manifestDescriptors = append(manifestDescriptors, ocispec.Descriptor{
@@ -281,7 +283,8 @@ func (s *saveSession) save(outStream io.Writer) error {
 		for _, l := range imageDescr.layers {
 			// IMPORTANT: We use path, not filepath here to ensure the layers
 			// in the manifest use Unix-style forward-slashes.
-			layers = append(layers, path.Join(ocispec.ImageBlobsDir, l.Algorithm().String(), l.Encoded()))
+			lDgst := digest.Digest(l)
+			layers = append(layers, path.Join(ocispec.ImageBlobsDir, lDgst.Algorithm().String(), lDgst.Encoded()))
 		}
 
 		manifest = append(manifest, manifestItem{
@@ -380,7 +383,7 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 	}
 
 	var parent digest.Digest
-	var layers []digest.Digest
+	var layers []layer.DiffID
 	var foreignSrcs map[layer.DiffID]distribution.Descriptor
 	for i, diffID := range img.RootFS.DiffIDs {
 		v1ImgCreated := time.Unix(0, 0)
@@ -410,7 +413,7 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 			return nil, err
 		}
 
-		layers = append(layers, digest.Digest(diffID))
+		layers = append(layers, diffID)
 		parent = v1ID
 		if src.Digest != "" {
 			if foreignSrcs == nil {
