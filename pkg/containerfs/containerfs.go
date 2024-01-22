@@ -1,10 +1,6 @@
 package containerfs // import "github.com/docker/docker/pkg/containerfs"
 
-import (
-	"path/filepath"
-
-	"github.com/moby/sys/symlink"
-)
+import "path/filepath"
 
 // CleanScopedPath prepares the given path to be combined with a mount path or
 // a drive-letter. On Windows, it removes any existing driveletter (e.g. "C:").
@@ -16,12 +12,4 @@ func CleanScopedPath(path string) string {
 		}
 	}
 	return filepath.Join(string(filepath.Separator), path)
-}
-
-// ResolveScopedPath evaluates the given path scoped to the root.
-// For example, if root=/a, and path=/b/c, then this function would return /a/b/c.
-//
-// Deprecated: use [symlink.FollowSymlinkInScope].
-func ResolveScopedPath(root, path string) (string, error) {
-	return symlink.FollowSymlinkInScope(filepath.Join(root, path), root)
 }
