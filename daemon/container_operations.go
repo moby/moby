@@ -645,7 +645,7 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *lib
 	}
 
 	if err := validateEndpointSettings(n, n.Name(), endpointConfig); err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 
 	if updateSettings {
