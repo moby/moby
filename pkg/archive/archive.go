@@ -1275,7 +1275,7 @@ func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decomp
 
 // TarUntar is a convenience function which calls Tar and Untar, with the output of one piped into the other.
 // If either Tar or Untar fails, TarUntar aborts and returns the error.
-func (archiver *Archiver) TarUntar(src, dst string) error {
+func (archiver *Archiver) TarUntar(src, dst string, opts ...func(*TarOptions)) error {
 	archive, err := TarWithOptions(src, &TarOptions{Compression: Uncompressed})
 	if err != nil {
 		return err
@@ -1284,11 +1284,14 @@ func (archiver *Archiver) TarUntar(src, dst string) error {
 	options := &TarOptions{
 		IDMap: archiver.IDMapping,
 	}
+	for _, o := range opts {
+		o(options)
+	}
 	return archiver.Untar(archive, dst, options)
 }
 
 // UntarPath untar a file from path to a destination, src is the source tar file path.
-func (archiver *Archiver) UntarPath(src, dst string) error {
+func (archiver *Archiver) UntarPath(src, dst string, opts ...func(*TarOptions)) error {
 	archive, err := os.Open(src)
 	if err != nil {
 		return err
@@ -1297,6 +1300,9 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 	options := &TarOptions{
 		IDMap: archiver.IDMapping,
 	}
+	for _, o := range opts {
+		o(options)
+	}
 	return archiver.Untar(archive, dst, options)
 }
 
@@ -1304,13 +1310,13 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 // unpacks it at filesystem path `dst`.
 // The archive is streamed directly with fixed buffering and no
 // intermediary disk IO.
-func (archiver *Archiver) CopyWithTar(src, dst string) error {
+func (archiver *Archiver) CopyWithTar(src, dst string, opts ...func(*TarOptions)) error {
 	srcSt, err := os.Stat(src)
 	if err != nil {
 		return err
 	}
 	if !srcSt.IsDir() {
-		return archiver.CopyFileWithTar(src, dst)
+		return archiver.CopyFileWithTar(src, dst, opts...)
 	}
 
 	// if this Archiver is set up with ID mapping we need to create
@@ -1321,13 +1327,13 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	if err := idtools.MkdirAllAndChownNew(dst, 0o755, rootIDs); err != nil {
 		return err
 	}
-	return archiver.TarUntar(src, dst)
+	return archiver.TarUntar(src, dst, opts...)
 }
 
 // CopyFileWithTar emulates the behavior of the 'cp' command-line
 // for a single file. It copies a regular file from path `src` to
 // path `dst`, and preserves all its metadata.
-func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
+func (archiver *Archiver) CopyFileWithTar(src, dst string, opts ...func(*TarOptions)) (err error) {
 	srcSt, err := os.Stat(src)
 	if err != nil {
 		return err
@@ -1394,7 +1400,11 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		}
 	}()
 
-	err = archiver.Untar(r, filepath.Dir(dst), nil)
+	var options TarOptions
+	for _, o := range opts {
+		o(&options)
+	}
+	err = archiver.Untar(r, filepath.Dir(dst), &options)
 	if err != nil {
 		r.CloseWithError(err)
 	}
@@ -1404,6 +1414,13 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 // IdentityMapping returns the IdentityMapping of the archiver.
 func (archiver *Archiver) IdentityMapping() idtools.IdentityMapping {
 	return archiver.IDMapping
+}
+
+// WithBestEffortXattrs sets the BestEffortXattrs option for the Archiver operation.
+func WithBestEffortXattrs(v bool) func(*TarOptions) {
+	return func(opts *TarOptions) {
+		opts.BestEffortXattrs = v
+	}
 }
 
 func remapIDs(idMapping idtools.IdentityMapping, hdr *tar.Header) error {
