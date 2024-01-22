@@ -13,18 +13,30 @@ import (
 // VersionMiddleware is a middleware that
 // validates the client and server versions.
 type VersionMiddleware struct {
-	serverVersion  string
-	defaultVersion string
-	minVersion     string
+	serverVersion string
+
+	// defaultAPIVersion is the default API version provided by the API server,
+	// specified as "major.minor". It is usually configured to the latest API
+	// version [github.com/docker/docker/api.DefaultVersion].
+	//
+	// API requests for API versions greater than this version are rejected by
+	// the server and produce a [versionUnsupportedError].
+	defaultAPIVersion string
+
+	// minAPIVersion is the minimum API version provided by the API server,
+	// specified as "major.minor".
+	//
+	// API requests for API versions lower than this version are rejected by
+	// the server and produce a [versionUnsupportedError].
+	minAPIVersion string
 }
 
-// NewVersionMiddleware creates a new VersionMiddleware
-// with the default versions.
-func NewVersionMiddleware(s, d, m string) VersionMiddleware {
+// NewVersionMiddleware creates a VersionMiddleware with the given versions.
+func NewVersionMiddleware(serverVersion, defaultAPIVersion, minAPIVersion string) VersionMiddleware {
 	return VersionMiddleware{
-		serverVersion:  s,
-		defaultVersion: d,
-		minVersion:     m,
+		serverVersion:     serverVersion,
+		defaultAPIVersion: defaultAPIVersion,
+		minAPIVersion:     minAPIVersion,
 	}
 }
 
@@ -45,18 +57,18 @@ func (e versionUnsupportedError) InvalidParameter() {}
 func (v VersionMiddleware) WrapHandler(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		w.Header().Set("Server", fmt.Sprintf("Docker/%s (%s)", v.serverVersion, runtime.GOOS))
-		w.Header().Set("API-Version", v.defaultVersion)
+		w.Header().Set("API-Version", v.defaultAPIVersion)
 		w.Header().Set("OSType", runtime.GOOS)
 
 		apiVersion := vars["version"]
 		if apiVersion == "" {
-			apiVersion = v.defaultVersion
+			apiVersion = v.defaultAPIVersion
 		}
-		if versions.LessThan(apiVersion, v.minVersion) {
-			return versionUnsupportedError{version: apiVersion, minVersion: v.minVersion}
+		if versions.LessThan(apiVersion, v.minAPIVersion) {
+			return versionUnsupportedError{version: apiVersion, minVersion: v.minAPIVersion}
 		}
-		if versions.GreaterThan(apiVersion, v.defaultVersion) {
-			return versionUnsupportedError{version: apiVersion, maxVersion: v.defaultVersion}
+		if versions.GreaterThan(apiVersion, v.defaultAPIVersion) {
+			return versionUnsupportedError{version: apiVersion, maxVersion: v.defaultAPIVersion}
 		}
 		ctx = context.WithValue(ctx, httputils.APIVersionKey{}, apiVersion)
 		return handler(ctx, w, r, vars)
