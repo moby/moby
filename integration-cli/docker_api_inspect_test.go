@@ -20,26 +20,15 @@ func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
 	keysBase := []string{
 		"Id", "State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings",
 		"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "MountLabel", "ProcessLabel", "GraphDriver",
+		"Mounts",
 	}
 
-	type acase struct {
+	cases := []struct {
 		version string
 		keys    []string
+	}{
+		{version: "v1.24", keys: keysBase},
 	}
-
-	var cases []acase
-
-	if testEnv.DaemonInfo.OSType == "windows" {
-		// Windows only supports 1.25 or later
-		cases = []acase{
-			{"v1.25", append(keysBase, "Mounts")},
-		}
-	} else {
-		cases = []acase{
-			{"v1.24", append(keysBase, "Mounts")},
-		}
-	}
-
 	for _, cs := range cases {
 		body := getInspectBody(c, cs.version, cleanedContainerID)
 

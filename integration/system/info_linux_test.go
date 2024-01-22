@@ -31,7 +31,6 @@ func TestInfoBinaryCommits(t *testing.T) {
 
 func TestInfoAPIVersioned(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
-	// Windows only supports 1.25 or later
 
 	res, body, err := req.Get(ctx, "/v1.24/info")
 	assert.NilError(t, err)
