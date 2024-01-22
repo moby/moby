@@ -33,6 +33,8 @@ type Settings struct {
 type EndpointSettings struct {
 	*networktypes.EndpointSettings
 	IPAMOperational bool
+	// MACOperational is false if EndpointSettings.MacAddress is a user-configured value.
+	MACOperational bool
 }
 
 // AttachmentStore stores the load balancer IP address for a network id.

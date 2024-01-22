@@ -637,6 +637,9 @@ func cleanOperationalData(es *network.EndpointSettings) {
 	if es.IPAMOperational {
 		es.IPAMConfig = nil
 	}
+	if es.MACOperational {
+		es.MacAddress = ""
+	}
 }
 
 func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings, updateSettings bool) error {
@@ -708,6 +711,7 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 	}
 
 	var operIPAM bool
+	operMAC := true
 	if nwCfg != nil {
 		if epConfig, ok := nwCfg.EndpointsConfig[nwName]; ok {
 			if endpointConfig.IPAMConfig == nil || (endpointConfig.IPAMConfig.IPv4Address == "" && endpointConfig.IPAMConfig.IPv6Address == "" && len(endpointConfig.IPAMConfig.LinkLocalIPs) == 0) {
@@ -717,6 +721,11 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 			// copy IPAMConfig and NetworkID from epConfig via AttachNetwork
 			endpointConfig.IPAMConfig = epConfig.IPAMConfig
 			endpointConfig.NetworkID = epConfig.NetworkID
+
+			// Work out whether the MAC address is user-configured.
+			operMAC = endpointConfig.MacAddress == ""
+			// Copy the configured MAC address (which may be empty).
+			endpointConfig.MacAddress = epConfig.MacAddress
 		}
 	}
 
@@ -746,6 +755,7 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 	container.NetworkSettings.Networks[nwName] = &network.EndpointSettings{
 		EndpointSettings: endpointConfig,
 		IPAMOperational:  operIPAM,
+		MACOperational:   operMAC,
 	}
 
 	delete(container.NetworkSettings.Networks, n.ID())
