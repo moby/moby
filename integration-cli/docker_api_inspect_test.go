@@ -159,6 +159,11 @@ func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings120(c *testing.T) {
 	assert.Assert(c, len(settings.IPAddress) != 0)
 }
 
+// Inspect for API v1.21 and up; see
+//
+// - https://github.com/moby/moby/issues/17131
+// - https://github.com/moby/moby/issues/17139
+// - https://github.com/moby/moby/issues/17173
 func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings121(c *testing.T) {
 	// Windows doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
@@ -166,7 +171,7 @@ func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings121(c *testing.T) {
 	containerID := strings.TrimSpace(out)
 	cli.WaitRun(c, containerID)
 
-	body := getInspectBody(c, "v1.21", containerID)
+	body := getInspectBody(c, "", containerID)
 
 	var inspectJSON types.ContainerJSON
 	err := json.Unmarshal(body, &inspectJSON)
