@@ -216,7 +216,7 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 		})
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
 	img, _, err := apiclient.ImageInspectWithRaw(ctx, imgName)
@@ -265,7 +265,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 		})
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
 	img, _, err := apiclient.ImageInspectWithRaw(ctx, imgName)
@@ -292,7 +292,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 		})
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
 	img, _, err = apiclient.ImageInspectWithRaw(ctx, imgName)
@@ -301,18 +301,18 @@ func TestBuildLabelWithTargets(t *testing.T) {
 	testLabels["label-b"] = "inline-b"
 	for k, v := range testLabels {
 		x, ok := img.Config.Labels[k]
-		assert.Assert(t, ok)
-		assert.Assert(t, x == v)
+		assert.Check(t, ok)
+		assert.Check(t, x == v)
 	}
 }
 
 func TestBuildWithEmptyLayers(t *testing.T) {
-	dockerfile := `
-		FROM    busybox
-		COPY    1/ /target/
-		COPY    2/ /target/
-		COPY    3/ /target/
-	`
+	const dockerfile = `
+FROM    busybox
+COPY    1/ /target/
+COPY    2/ /target/
+COPY    3/ /target/
+`
 	ctx := setupTest(t)
 	source := fakecontext.New(t, "",
 		fakecontext.WithDockerfile(dockerfile),
@@ -330,7 +330,7 @@ func TestBuildWithEmptyLayers(t *testing.T) {
 		})
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 }
 
@@ -341,7 +341,8 @@ func TestBuildMultiStageOnBuild(t *testing.T) {
 	ctx := setupTest(t)
 
 	// test both metadata and layer based commands as they may be implemented differently
-	dockerfile := `FROM busybox AS stage1
+	const dockerfile = `
+FROM busybox AS stage1
 ONBUILD RUN echo 'foo' >somefile
 ONBUILD ENV bar=baz
 
@@ -367,7 +368,7 @@ RUN cat somefile`
 	out := bytes.NewBuffer(nil)
 	assert.NilError(t, err)
 	_, err = io.Copy(out, resp.Body)
-	resp.Body.Close()
+	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Contains(out.String(), "Successfully built"))
@@ -387,10 +388,12 @@ func TestBuildUncleanTarFilenames(t *testing.T) {
 
 	ctx := setupTest(t)
 
-	dockerfile := `FROM scratch
+	const dockerfile = `
+FROM scratch
 COPY foo /
 FROM scratch
-COPY bar /`
+COPY bar /
+`
 
 	buf := bytes.NewBuffer(nil)
 	w := tar.NewWriter(buf)
@@ -411,7 +414,7 @@ COPY bar /`
 	out := bytes.NewBuffer(nil)
 	assert.NilError(t, err)
 	_, err = io.Copy(out, resp.Body)
-	resp.Body.Close()
+	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
 	// repeat with changed data should not cause cache hits
@@ -434,7 +437,7 @@ COPY bar /`
 	out = bytes.NewBuffer(nil)
 	assert.NilError(t, err)
 	_, err = io.Copy(out, resp.Body)
-	resp.Body.Close()
+	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 	assert.Assert(t, !strings.Contains(out.String(), "Using cache"))
 }
@@ -445,7 +448,8 @@ func TestBuildMultiStageLayerLeak(t *testing.T) {
 	ctx := setupTest(t)
 
 	// all commands need to match until COPY
-	dockerfile := `FROM busybox
+	const dockerfile = `
+FROM busybox
 WORKDIR /foo
 COPY foo .
 FROM busybox
@@ -461,8 +465,8 @@ RUN [ ! -f foo ]
 		fakecontext.WithDockerfile(dockerfile))
 	defer source.Close()
 
-	apiclient := testEnv.APIClient()
-	resp, err := apiclient.ImageBuild(ctx,
+	apiClient := testEnv.APIClient()
+	resp, err := apiClient.ImageBuild(ctx,
 		source.AsTarReader(t),
 		types.ImageBuildOptions{
 			Remove:      true,
@@ -472,7 +476,7 @@ RUN [ ! -f foo ]
 	out := bytes.NewBuffer(nil)
 	assert.NilError(t, err)
 	_, err = io.Copy(out, resp.Body)
-	resp.Body.Close()
+	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Contains(out.String(), "Successfully built"))
@@ -483,16 +487,22 @@ RUN [ ! -f foo ]
 func TestBuildWithHugeFile(t *testing.T) {
 	ctx := setupTest(t)
 
-	dockerfile := `FROM busybox
-`
-
+	var dockerfile string
 	if testEnv.DaemonInfo.OSType == "windows" {
-		dockerfile += `# create a file with size of 8GB
-RUN powershell "fsutil.exe file createnew bigfile.txt 8589934592 ; dir bigfile.txt"`
+		dockerfile = `
+FROM busybox
+
+# create a file with size of 8GB
+RUN powershell "fsutil.exe file createnew bigfile.txt 8589934592 ; dir bigfile.txt"
+`
 	} else {
-		dockerfile += `# create a sparse file with size over 8GB
-RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024*1024*g)) status=none; done && \
-    ls -la rnd && du -sk rnd`
+		dockerfile = `
+FROM busybox
+
+# create a sparse file with size over 8GB
+RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024*1024*g)) status=none; done \
+ && ls -la rnd && du -sk rnd
+`
 	}
 
 	buf := bytes.NewBuffer(nil)
@@ -501,8 +511,8 @@ RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024
 	err := w.Close()
 	assert.NilError(t, err)
 
-	apiclient := testEnv.APIClient()
-	resp, err := apiclient.ImageBuild(ctx,
+	apiClient := testEnv.APIClient()
+	resp, err := apiClient.ImageBuild(ctx,
 		buf,
 		types.ImageBuildOptions{
 			Remove:      true,
@@ -512,7 +522,7 @@ RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024
 	out := bytes.NewBuffer(nil)
 	assert.NilError(t, err)
 	_, err = io.Copy(out, resp.Body)
-	resp.Body.Close()
+	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(out.String(), "Successfully built"))
 }
@@ -522,7 +532,8 @@ func TestBuildWCOWSandboxSize(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "windows", "only Windows has sandbox size control")
 	ctx := setupTest(t)
 
-	dockerfile := `FROM busybox AS intermediate
+	const dockerfile = `
+FROM busybox AS intermediate
 WORKDIR C:\\stuff
 # Create and delete a 21GB file
 RUN fsutil file createnew C:\\stuff\\bigfile_0.txt 22548578304 && del bigfile_0.txt
@@ -541,8 +552,8 @@ COPY --from=intermediate C:\\stuff C:\\stuff
 	err := w.Close()
 	assert.NilError(t, err)
 
-	apiclient := testEnv.APIClient()
-	resp, err := apiclient.ImageBuild(ctx,
+	apiClient := testEnv.APIClient()
+	resp, err := apiClient.ImageBuild(ctx,
 		buf,
 		types.ImageBuildOptions{
 			Remove:      true,
@@ -552,7 +563,7 @@ COPY --from=intermediate C:\\stuff C:\\stuff
 	out := bytes.NewBuffer(nil)
 	assert.NilError(t, err)
 	_, err = io.Copy(out, resp.Body)
-	resp.Body.Close()
+	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 	// The test passes if either:
 	// - the image build succeeded; or
@@ -595,7 +606,7 @@ func TestBuildWithEmptyDockerfile(t *testing.T) {
 		},
 	}
 
-	apiclient := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	for _, tc := range tests {
 		tc := tc
@@ -608,7 +619,7 @@ func TestBuildWithEmptyDockerfile(t *testing.T) {
 			err := w.Close()
 			assert.NilError(t, err)
 
-			_, err = apiclient.ImageBuild(ctx,
+			_, err = apiClient.ImageBuild(ctx,
 				buf,
 				types.ImageBuildOptions{
 					Remove:      true,
@@ -631,13 +642,13 @@ func TestBuildPreserveOwnership(t *testing.T) {
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(string(dockerfile)))
 	defer source.Close()
 
-	apiclient := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	for _, target := range []string{"copy_from", "copy_from_chowned"} {
 		t.Run(target, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 
-			resp, err := apiclient.ImageBuild(
+			resp, err := apiClient.ImageBuild(
 				ctx,
 				source.AsTarReader(t),
 				types.ImageBuildOptions{
@@ -662,27 +673,20 @@ func TestBuildPreserveOwnership(t *testing.T) {
 func TestBuildPlatformInvalid(t *testing.T) {
 	ctx := setupTest(t)
 
-	dockerfile := `FROM busybox
-`
-
 	buf := bytes.NewBuffer(nil)
 	w := tar.NewWriter(buf)
-	writeTarRecord(t, w, "Dockerfile", dockerfile)
+	writeTarRecord(t, w, "Dockerfile", `FROM busybox`)
 	err := w.Close()
 	assert.NilError(t, err)
 
-	apiclient := testEnv.APIClient()
-	_, err = apiclient.ImageBuild(ctx,
-		buf,
-		types.ImageBuildOptions{
-			Remove:      true,
-			ForceRemove: true,
-			Platform:    "foobar",
-		})
+	_, err = testEnv.APIClient().ImageBuild(ctx, buf, types.ImageBuildOptions{
+		Remove:      true,
+		ForceRemove: true,
+		Platform:    "foobar",
+	})
 
-	assert.Assert(t, err != nil)
-	assert.ErrorContains(t, err, "unknown operating system or architecture")
-	assert.Assert(t, errdefs.IsInvalidParameter(err))
+	assert.Check(t, is.ErrorContains(err, "unknown operating system or architecture"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 }
 
 func writeTarRecord(t *testing.T, w *tar.Writer, fn, contents string) {
