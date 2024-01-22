@@ -210,7 +210,9 @@ func (s *saveSession) save(outStream io.Writer) error {
 			foreign  = make([]ocispec.Descriptor, 0, len(foreignSrcs))
 		)
 
-		for _, desc := range foreignSrcs {
+		// Layers in manifest must follow the actual layer order from config.
+		for _, l := range imageDescr.layers {
+			desc := foreignSrcs[l]
 			foreign = append(foreign, ocispec.Descriptor{
 				MediaType:   desc.MediaType,
 				Digest:      desc.Digest,
