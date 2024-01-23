@@ -151,7 +151,11 @@ func getMountOptions(opts *optsConfig, resolveIP func(string, string) (*net.IPAd
 				return "", "", errors.Wrap(err, "error resolving passed in network volume address")
 			}
 			deviceURL.Host = ipAddr.String()
-			mountDevice = deviceURL.String()
+			dev, err := url.QueryUnescape(deviceURL.String())
+			if err != nil {
+				return "", "", fmt.Errorf("failed to unescape device URL: %q", deviceURL)
+			}
+			mountDevice = dev
 		}
 	}
 
