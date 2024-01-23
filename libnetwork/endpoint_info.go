@@ -194,7 +194,7 @@ func (ep *Endpoint) Info() EndpointInfo {
 		return ep
 	}
 
-	return sb.getEndpoint(ep.ID())
+	return sb.GetEndpoint(ep.ID())
 }
 
 // Iface returns information about the interface which was assigned to

@@ -334,7 +334,7 @@ func (sb *Sandbox) removeEndpointRaw(ep *Endpoint) {
 	}
 }
 
-func (sb *Sandbox) getEndpoint(id string) *Endpoint {
+func (sb *Sandbox) GetEndpoint(id string) *Endpoint {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
 
@@ -554,7 +554,7 @@ func (sb *Sandbox) DisableService() (err error) {
 }
 
 func (sb *Sandbox) clearNetworkResources(origEp *Endpoint) error {
-	ep := sb.getEndpoint(origEp.id)
+	ep := sb.GetEndpoint(origEp.id)
 	if ep == nil {
 		return fmt.Errorf("could not find the sandbox endpoint data for endpoint %s",
 			origEp.id)
