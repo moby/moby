@@ -779,14 +779,14 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (daemon *Daemon, err error) {
+func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (daemon *Daemon, err error) {
 	// Verify platform-specific requirements.
 	// TODO(thaJeztah): this should be called before we try to create the daemon; perhaps together with the config validation.
 	if err := checkSystem(); err != nil {
 		return nil, err
 	}
 
-	registryService, err := registry.NewService(config.ServiceOptions)
+	registryService, err := registry.NewService(cfg.ServiceOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -797,17 +797,17 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	// Ensure we have compatible and valid configuration options
-	if err := verifyDaemonSettings(config); err != nil {
+	if err := verifyDaemonSettings(cfg); err != nil {
 		return nil, err
 	}
 
 	// Do we have a disabled network?
-	config.DisableBridge = isBridgeNetworkDisabled(config)
+	cfg.DisableBridge = isBridgeNetworkDisabled(cfg)
 
 	// Setup the resolv.conf
-	setupResolvConf(config)
+	setupResolvConf(cfg)
 
-	idMapping, err := setupRemappedRoot(config)
+	idMapping, err := setupRemappedRoot(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -817,9 +817,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	// set up the tmpDir to use a canonical path
-	tmp, err := prepareTempDir(config.Root)
+	tmp, err := prepareTempDir(cfg.Root)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get the TempDir under %s: %s", config.Root, err)
+		return nil, fmt.Errorf("Unable to get the TempDir under %s: %s", cfg.Root, err)
 	}
 	realTmp, err := fileutils.ReadSymlinkedDirectory(tmp)
 	if err != nil {
@@ -835,10 +835,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		os.Setenv("TMPDIR", realTmp)
 	}
 
-	if err := initRuntimesDir(config); err != nil {
+	if err := initRuntimesDir(cfg); err != nil {
 		return nil, err
 	}
-	rts, err := setupRuntimes(config)
+	rts, err := setupRuntimes(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -848,7 +848,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		startupDone: make(chan struct{}),
 	}
 	cfgStore := &configStore{
-		Config:   *config,
+		Config:   *cfg,
 		Runtimes: rts,
 	}
 	d.configStore.Store(cfgStore)
@@ -857,7 +857,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
 		d.usesSnapshotter = true
 	} else {
-		d.usesSnapshotter = config.Features["containerd-snapshotter"]
+		d.usesSnapshotter = cfg.Features["containerd-snapshotter"]
 	}
 
 	// Ensure the daemon is properly shutdown if there is a failure during
@@ -1098,7 +1098,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			Registry:        d.registryService,
 			EventsService:   d.EventsService,
 			IDMapping:       idMapping,
-			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idMapping),
+			RefCountMounter: snapshotter.NewMounter(cfg.Root, driverName, idMapping),
 		})
 	} else {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
@@ -1159,12 +1159,12 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			EventsService:             d.EventsService,
 			ImageStore:                imageStore,
 			LayerStore:                layerStore,
-			MaxConcurrentDownloads:    config.MaxConcurrentDownloads,
-			MaxConcurrentUploads:      config.MaxConcurrentUploads,
-			MaxDownloadAttempts:       config.MaxDownloadAttempts,
+			MaxConcurrentDownloads:    cfg.MaxConcurrentDownloads,
+			MaxConcurrentUploads:      cfg.MaxConcurrentUploads,
+			MaxDownloadAttempts:       cfg.MaxDownloadAttempts,
 			ReferenceStore:            rs,
 			RegistryService:           registryService,
-			ContentNamespace:          config.ContainerdNamespace,
+			ContentNamespace:          cfg.ContainerdNamespace,
 		}
 
 		// containerd is not currently supported with Windows.
@@ -1174,7 +1174,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			imgSvcConfig.Leases = d.containerdClient.LeasesService()
 			imgSvcConfig.ContentStore = d.containerdClient.ContentStore()
 		} else {
-			imgSvcConfig.ContentStore, imgSvcConfig.Leases, err = d.configureLocalContentStore(config.ContainerdNamespace)
+			imgSvcConfig.ContentStore, imgSvcConfig.Leases, err = d.configureLocalContentStore(cfg.ContainerdNamespace)
 			if err != nil {
 				return nil, err
 			}
