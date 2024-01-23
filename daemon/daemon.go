@@ -180,6 +180,11 @@ func (daemon *Daemon) config() *configStore {
 	return cfg
 }
 
+// Config returns daemon's config.
+func (daemon *Daemon) Config() config.Config {
+	return daemon.config().Config
+}
+
 // HasExperimental returns whether the experimental features of the daemon are enabled or not
 func (daemon *Daemon) HasExperimental() bool {
 	return daemon.config().Experimental
