@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/longpath"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/moby/sys/symlink"
 	"github.com/pkg/errors"
@@ -24,9 +25,11 @@ func (c *archiveContext) Close() error {
 }
 
 func convertPathError(err error, cleanpath string) error {
-	if err, ok := err.(*os.PathError); ok {
+	switch err := err.(type) {
+	case *os.PathError:
 		err.Path = cleanpath
-		return err
+	case *system.XattrError:
+		err.Path = cleanpath
 	}
 	return err
 }
