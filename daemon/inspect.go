@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/api/types/versions/v1p20"
@@ -36,8 +37,10 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, size bo
 		}
 
 		shortCID := stringid.TruncateID(ctr.ID)
-		for _, ep := range ctr.NetworkSettings.Networks {
-			ep.Aliases = sliceutil.Dedup(append(ep.Aliases, shortCID, ctr.Config.Hostname))
+		for nwName, ep := range ctr.NetworkSettings.Networks {
+			if containertypes.NetworkMode(nwName).IsUserDefined() {
+				ep.Aliases = sliceutil.Dedup(append(ep.Aliases, shortCID, ctr.Config.Hostname))
+			}
 		}
 
 		return ctr, nil
