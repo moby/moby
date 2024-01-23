@@ -192,3 +192,25 @@ func TestRenameContainerWithLinkedContainer(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(db1ID, inspect.ID))
 }
+
+// Regression test for https://github.com/moby/moby/issues/47186
+func TestRenameContainerTwice(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	ctrName := "c0"
+	container.Run(ctx, t, apiClient, container.WithName("c0"))
+	defer func() {
+		container.Remove(ctx, t, apiClient, ctrName, containertypes.RemoveOptions{
+			Force: true,
+		})
+	}()
+
+	err := apiClient.ContainerRename(ctx, "c0", "c1")
+	assert.NilError(t, err)
+	ctrName = "c1"
+
+	err = apiClient.ContainerRename(ctx, "c1", "c2")
+	assert.NilError(t, err)
+	ctrName = "c2"
+}

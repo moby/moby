@@ -57,7 +57,7 @@ func (n *Network) findLBEndpointSandbox() (*Endpoint, *Sandbox, error) {
 	if !ok {
 		return nil, nil, fmt.Errorf("Unable to get sandbox for %s(%s) in for %s", ep.Name(), ep.ID(), n.ID())
 	}
-	sep := sb.getEndpoint(ep.ID())
+	sep := sb.GetEndpoint(ep.ID())
 	if sep == nil {
 		return nil, nil, fmt.Errorf("Load balancing endpoint %s(%s) removed from %s", ep.Name(), ep.ID(), n.ID())
 	}
