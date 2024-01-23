@@ -24,7 +24,8 @@ import (
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.
 type ErrImageDoesNotExist struct {
-	Ref reference.Reference
+	Ref      reference.Reference
+	Platform *ocispec.Platform
 }
 
 func (e ErrImageDoesNotExist) Error() string {
@@ -32,7 +33,10 @@ func (e ErrImageDoesNotExist) Error() string {
 	if named, ok := ref.(reference.Named); ok {
 		ref = reference.TagNameOnly(named)
 	}
-	return fmt.Sprintf("No such image: %s", reference.FamiliarString(ref))
+	if e.Platform == nil {
+		return fmt.Sprintf("No such image: %s", reference.FamiliarString(ref))
+	}
+	return fmt.Sprintf("No such image: %s for platform: %s", reference.FamiliarString(ref), platforms.Format(*e.Platform))
 }
 
 // NotFound implements the NotFound interface

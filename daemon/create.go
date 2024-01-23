@@ -83,6 +83,14 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	}
 
 	if opts.params.Platform == nil && opts.params.Config.Image != "" {
+		// FIXME(thaJeztah); we checked that "opts.params.Platform" is nil, whhy are we passing it to daemon.imageService.GetImage ?
+		// code was added in https://github.com/moby/moby/commit/300c11c7c9143ca077890050deb83917e67fe250
+		// but that was a refactor, combining multiple branches, so before that we already passed it unconditionally.
+		//
+		// Should we;
+		//
+		// - always lookup the image?
+		// - should `GetImage` use OnlyPlatformWithFallback as default (if no platform is specified)?
 		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, imagetypes.GetImageOpts{Platform: opts.params.Platform})
 		if err != nil {
 			return containertypes.CreateResponse{}, err
