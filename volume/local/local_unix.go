@@ -134,6 +134,7 @@ func (v *localVolume) mount() error {
 				return errors.Wrap(err, "error resolving passed in network volume address")
 			}
 			mountOpts = strings.Replace(mountOpts, "addr="+addrValue, "addr="+ipAddr.String(), 1)
+			break
 		}
 
 		if v.opts.MountType != "cifs" {
