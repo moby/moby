@@ -127,16 +127,20 @@ func (v *localVolume) mount() error {
 	mountDevice := v.opts.MountDevice
 
 	switch v.opts.MountType {
-	case "nfs":
+	case "nfs", "cifs":
 		if addrValue := getAddress(v.opts.MountOpts); addrValue != "" && net.ParseIP(addrValue).To4() == nil {
 			ipAddr, err := net.ResolveIPAddr("ip", addrValue)
 			if err != nil {
-				return errors.Wrapf(err, "error resolving passed in network volume address")
+				return errors.Wrap(err, "error resolving passed in network volume address")
 			}
 			mountOpts = strings.Replace(mountOpts, "addr="+addrValue, "addr="+ipAddr.String(), 1)
 		}
-	case "cifs":
-		deviceURL, err := url.Parse(v.opts.MountDevice)
+
+		if v.opts.MountType != "cifs" {
+			break
+		}
+
+		deviceURL, err := url.Parse(mountDevice)
 		if err != nil {
 			return errors.Wrapf(err, "error parsing mount device url")
 		}
