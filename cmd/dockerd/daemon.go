@@ -301,7 +301,13 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	routerCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	routerOptions, err := newRouterOptions(routerCtx, cli.Config, d)
+	// Get a the current daemon config, because the daemon sets up config
+	// during initialization. We cannot user the cli.Config for that reason,
+	// as that only holds the config that was set by the user.
+	//
+	// FIXME(thaJeztah): better separate runtime and config data?
+	daemonCfg := d.Config()
+	routerOptions, err := newRouterOptions(routerCtx, &daemonCfg, d)
 	if err != nil {
 		return err
 	}
