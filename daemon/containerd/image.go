@@ -12,7 +12,7 @@ import (
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
-	cplatforms "github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	imagespec "github.com/docker/docker/image/spec/specs-go/v1"
-	"github.com/docker/docker/pkg/platforms"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -38,9 +37,9 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		return nil, err
 	}
 
-	platform := platforms.AllPlatformsWithPreference(cplatforms.Default())
+	platform := matchAllWithPreference(platforms.Default())
 	if options.Platform != nil {
-		platform = cplatforms.OnlyStrict(*options.Platform)
+		platform = platforms.OnlyStrict(*options.Platform)
 	}
 
 	var presentImages []imagespec.DockerOCIImage
@@ -158,9 +157,9 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 }
 
 func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*ocispec.Descriptor, error) {
-	platform := platforms.AllPlatformsWithPreference(cplatforms.Default())
+	platform := matchAllWithPreference(platforms.Default())
 	if options.Platform != nil {
-		platform = cplatforms.Only(*options.Platform)
+		platform = platforms.Only(*options.Platform)
 	}
 
 	cs := i.client.ContentStore()
@@ -188,9 +187,9 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 
 		if options.Platform != nil {
 			if plat == nil {
-				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: nil", refOrID, cplatforms.Format(*options.Platform)))
+				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: nil", refOrID, platforms.Format(*options.Platform)))
 			} else if !platform.Match(*plat) {
-				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, cplatforms.Format(*options.Platform), cplatforms.Format(*plat)))
+				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(*options.Platform), platforms.Format(*plat)))
 			}
 		}
 
@@ -219,7 +218,7 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 }
 
 // size returns the total size of the image's packed resources.
-func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platform cplatforms.MatchComparer) (int64, error) {
+func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platform platforms.MatchComparer) (int64, error) {
 	var size int64
 
 	cs := i.client.ContentStore()
