@@ -779,16 +779,16 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (daemon *Daemon, err error) {
+func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (daemon *Daemon, retCfg config.Config, err error) {
 	// Verify platform-specific requirements.
 	// TODO(thaJeztah): this should be called before we try to create the daemon; perhaps together with the config validation.
 	if err := checkSystem(); err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 
 	registryService, err := registry.NewService(cfg.ServiceOptions)
 	if err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 
 	// Ensure that we have a correct root key limit for launching containers.
@@ -798,7 +798,7 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 
 	// Ensure we have compatible and valid configuration options
 	if err := verifyDaemonSettings(cfg); err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 
 	// Do we have a disabled network?
@@ -809,7 +809,7 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 
 	idMapping, err := setupRemappedRoot(cfg)
 	if err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 	rootIDs := idMapping.RootPair()
 	if err := setMayDetachMounts(); err != nil {
@@ -819,15 +819,15 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 	// set up the tmpDir to use a canonical path
 	tmp, err := prepareTempDir(cfg.Root)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get the TempDir under %s: %s", cfg.Root, err)
+		return nil, config.Config{}, fmt.Errorf("Unable to get the TempDir under %s: %s", cfg.Root, err)
 	}
 	realTmp, err := fileutils.ReadSymlinkedDirectory(tmp)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
+		return nil, config.Config{}, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
 	if isWindows {
 		if err := system.MkdirAll(realTmp, 0); err != nil {
-			return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
+			return nil, config.Config{}, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
 		}
 		os.Setenv("TEMP", realTmp)
 		os.Setenv("TMP", realTmp)
@@ -836,11 +836,11 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 	}
 
 	if err := initRuntimesDir(cfg); err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 	rts, err := setupRuntimes(cfg)
 	if err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 
 	d := &Daemon{
@@ -872,7 +872,7 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 	}()
 
 	if err := d.setGenericResources(&cfgStore.Config); err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 	// set up SIGUSR1 handler on Unix-like systems, or a Win32 global event
 	// on Windows to dump Go routine stacks
@@ -883,12 +883,12 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 	d.setupDumpStackTrap(stackDumpDir)
 
 	if err := d.setupSeccompProfile(&cfgStore.Config); err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 
 	// Set the default isolation mode (only applicable on Windows)
 	if err := d.setDefaultIsolation(&cfgStore.Config); err != nil {
-		return nil, fmt.Errorf("error setting default isolation mode: %v", err)
+		return nil, config.Config{}, fmt.Errorf("error setting default isolation mode: %v", err)
 	}
 
 	if err := configureMaxThreads(&cfgStore.Config); err != nil {
@@ -905,7 +905,7 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 		UID: idtools.CurrentIdentity().UID,
 		GID: rootIDs.GID,
 	}); err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 
 	if isWindows {
@@ -913,7 +913,7 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 		// show intent only. We could consider using idtools.MkdirAndChown here
 		// to apply an ACL.
 		if err = os.Mkdir(filepath.Join(cfgStore.Root, "credentialspecs"), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-			return nil, err
+			return nil, config.Config{}, err
 		}
 	}
 
@@ -922,7 +922,7 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 
 	metricsSockPath, err := d.listenMetricsSock(&cfgStore.Config)
 	if err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 	registerMetricsPluginCallback(d.PluginStore, metricsSockPath)
 
@@ -969,7 +969,7 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 			containerd.WithTimeout(60*time.Second),
 		)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
+			return nil, config.Config{}, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
 		}
 	}
 
@@ -1013,18 +1013,18 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 		AuthzMiddleware:    authzMiddleware,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't create plugin manager")
+		return nil, config.Config{}, errors.Wrap(err, "couldn't create plugin manager")
 	}
 
 	d.defaultLogConfig, err = defaultLogConfig(&cfgStore.Config)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to set log opts")
+		return nil, config.Config{}, errors.Wrap(err, "failed to set log opts")
 	}
 	log.G(ctx).Debugf("Using default logging driver %s", d.defaultLogConfig.Type)
 
 	d.volumes, err = volumesservice.NewVolumeService(cfgStore.Root, d.PluginStore, rootIDs, d)
 	if err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
@@ -1036,17 +1036,17 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 	//
 	// TODO(thaJeztah) add a utility to only collect the CgroupDevicesEnabled information
 	if runtime.GOOS == "linux" && !userns.RunningInUserNS() && !getSysInfo(&cfgStore.Config).CgroupDevicesEnabled {
-		return nil, errors.New("Devices cgroup isn't mounted")
+		return nil, config.Config{}, errors.New("Devices cgroup isn't mounted")
 	}
 
 	d.id, err = LoadOrCreateID(cfgStore.Root)
 	if err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 	d.repository = daemonRepo
 	d.containers = container.NewMemoryStore()
 	if d.containersReplica, err = container.NewViewDB(); err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 	d.execCommands = container.NewExecStore()
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
@@ -1088,7 +1088,7 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
 		if err := configureKernelSecuritySupport(&cfgStore.Config, driverName); err != nil {
-			return nil, err
+			return nil, config.Config{}, err
 		}
 		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
 			Client:          d.containerdClient,
@@ -1111,19 +1111,19 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 			ExperimentalEnabled:       cfgStore.Experimental,
 		})
 		if err != nil {
-			return nil, err
+			return nil, config.Config{}, err
 		}
 
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
 		if err := configureKernelSecuritySupport(&cfgStore.Config, layerStore.DriverName()); err != nil {
-			return nil, err
+			return nil, config.Config{}, err
 		}
 
 		imageRoot := filepath.Join(cfgStore.Root, "image", layerStore.DriverName())
 		ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
 		if err != nil {
-			return nil, err
+			return nil, config.Config{}, err
 		}
 
 		// We have a single tag/reference store for the daemon globally. However, it's
@@ -1139,18 +1139,18 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 		refStoreLocation := filepath.Join(imageRoot, `repositories.json`)
 		rs, err := refstore.NewReferenceStore(refStoreLocation)
 		if err != nil {
-			return nil, fmt.Errorf("Couldn't create reference store repository: %s", err)
+			return nil, config.Config{}, fmt.Errorf("Couldn't create reference store repository: %s", err)
 		}
 		d.ReferenceStore = rs
 
 		imageStore, err := image.NewImageStore(ifs, layerStore)
 		if err != nil {
-			return nil, err
+			return nil, config.Config{}, err
 		}
 
 		distributionMetadataStore, err := dmetadata.NewFSMetadataStore(filepath.Join(imageRoot, "distribution"))
 		if err != nil {
-			return nil, err
+			return nil, config.Config{}, err
 		}
 
 		imgSvcConfig := images.ImageServiceConfig{
@@ -1176,7 +1176,7 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 		} else {
 			imgSvcConfig.ContentStore, imgSvcConfig.Leases, err = d.configureLocalContentStore(cfg.ContainerdNamespace)
 			if err != nil {
-				return nil, err
+				return nil, config.Config{}, err
 			}
 		}
 
@@ -1193,17 +1193,17 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 	go d.execCommandGC()
 
 	if err := d.initLibcontainerd(ctx, &cfgStore.Config); err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 
 	if err := d.restore(cfgStore); err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 	close(d.startupDone)
 
 	info, err := d.SystemInfo(ctx)
 	if err != nil {
-		return nil, err
+		return nil, config.Config{}, err
 	}
 	for _, w := range info.Warnings {
 		log.G(ctx).Warn(w)
@@ -1230,7 +1230,7 @@ func NewDaemon(ctx context.Context, cfg *config.Config, pluginStore *plugin.Stor
 		"containerd-snapshotter": d.UsesSnapshotter(),
 	}).Info("Docker daemon")
 
-	return d, nil
+	return d, d.config().Config, nil
 }
 
 // DistributionServices returns services controlling daemon storage

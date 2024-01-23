@@ -258,7 +258,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	var apiServer apiserver.Server
 	cli.authzMiddleware = initMiddlewares(&apiServer, cli.Config, pluginStore)
 
-	d, err := daemon.NewDaemon(ctx, cli.Config, pluginStore, cli.authzMiddleware)
+	d, cfg, err := daemon.NewDaemon(ctx, cli.Config, pluginStore, cli.authzMiddleware)
 	if err != nil {
 		return errors.Wrap(err, "failed to start daemon")
 	}
@@ -266,7 +266,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	d.StoreHosts(hosts)
 
 	// validate after NewDaemon has restored enabled plugins. Don't change order.
-	if err := validateAuthzPlugins(cli.Config.AuthorizationPlugins, pluginStore); err != nil {
+	if err := validateAuthzPlugins(cfg.AuthorizationPlugins, pluginStore); err != nil {
 		return errors.Wrap(err, "failed to validate authorization plugin")
 	}
 
@@ -276,13 +276,13 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// In order to lift this restriction the following would have to be addressed:
 	// - Support needs to be added to the cdi package for injecting Windows devices: https://tags.cncf.io/container-device-interface/issues/28
 	// - The DeviceRequests API must be extended to non-linux platforms.
-	if runtime.GOOS == "linux" && cli.Config.Features["cdi"] {
-		daemon.RegisterCDIDriver(cli.Config.CDISpecDirs...)
+	if runtime.GOOS == "linux" && cfg.Features["cdi"] {
+		daemon.RegisterCDIDriver(cfg.CDISpecDirs...)
 	}
 
 	cli.d = d
 
-	if err := startMetricsServer(cli.Config.MetricsAddress); err != nil {
+	if err := startMetricsServer(cfg.MetricsAddress); err != nil {
 		return errors.Wrap(err, "failed to start metrics server")
 	}
 
@@ -301,7 +301,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	routerCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	routerOptions, err := newRouterOptions(routerCtx, cli.Config, d)
+	routerOptions, err := newRouterOptions(routerCtx, &cfg, d)
 	if err != nil {
 		return err
 	}
