@@ -3,6 +3,7 @@
 package local // import "github.com/docker/docker/volume/local"
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -243,6 +244,87 @@ func TestVolCreateValidation(t *testing.T) {
 				assert.Check(t, errdefs.IsInvalidParameter(err), "got: %T", err)
 				assert.ErrorContains(t, err, tc.expectedErr)
 			}
+		})
+	}
+}
+
+func TestVolMountOpts(t *testing.T) {
+	tests := []struct {
+		name                         string
+		opts                         optsConfig
+		expectedErr                  string
+		expectedDevice, expectedOpts string
+	}{
+		{
+			name: "cifs url with space",
+			opts: optsConfig{
+				MountType:   "cifs",
+				MountDevice: "//1.2.3.4/Program Files",
+			},
+			expectedDevice: "//1.2.3.4/Program Files",
+			expectedOpts:   "",
+		},
+		{
+			name: "cifs resolve addr",
+			opts: optsConfig{
+				MountType:   "cifs",
+				MountDevice: "//example.com/Program Files",
+				MountOpts:   "addr=example.com",
+			},
+			expectedDevice: "//example.com/Program Files",
+			expectedOpts:   "addr=1.2.3.4",
+		},
+		{
+			name: "cifs resolve device",
+			opts: optsConfig{
+				MountType:   "cifs",
+				MountDevice: "//example.com/Program Files",
+			},
+			expectedDevice: "//1.2.3.4/Program Files",
+		},
+		{
+			name: "nfs dont resolve device",
+			opts: optsConfig{
+				MountType:   "nfs",
+				MountDevice: "//example.com/Program Files",
+			},
+			expectedDevice: "//example.com/Program Files",
+		},
+		{
+			name: "nfs resolve addr",
+			opts: optsConfig{
+				MountType:   "nfs",
+				MountDevice: "//example.com/Program Files",
+				MountOpts:   "addr=example.com",
+			},
+			expectedDevice: "//example.com/Program Files",
+			expectedOpts:   "addr=1.2.3.4",
+		},
+	}
+
+	ip1234 := net.ParseIP("1.2.3.4")
+	resolveIP := func(network, addr string) (*net.IPAddr, error) {
+		switch addr {
+		case "example.com":
+			return &net.IPAddr{IP: ip1234}, nil
+		}
+
+		return nil, &net.DNSError{Err: "no such host", Name: addr, IsNotFound: true}
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			dev, opts, err := getMountOptions(&tc.opts, resolveIP)
+
+			if tc.expectedErr != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expectedErr))
+			} else {
+				assert.Check(t, err)
+			}
+
+			assert.Check(t, is.Equal(dev, tc.expectedDevice))
+			assert.Check(t, is.Equal(opts, tc.expectedOpts))
 		})
 	}
 }

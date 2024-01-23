@@ -118,41 +118,56 @@ func (v *localVolume) needsMount() bool {
 	return false
 }
 
-func (v *localVolume) mount() error {
-	if v.opts.MountDevice == "" {
-		return fmt.Errorf("missing device in volume options")
+func getMountOptions(opts *optsConfig, resolveIP func(string, string) (*net.IPAddr, error)) (mountDevice string, mountOpts string, _ error) {
+	if opts.MountDevice == "" {
+		return "", "", fmt.Errorf("missing device in volume options")
 	}
 
-	mountOpts := v.opts.MountOpts
-	mountDevice := v.opts.MountDevice
+	mountOpts = opts.MountOpts
+	mountDevice = opts.MountDevice
 
-	switch v.opts.MountType {
+	switch opts.MountType {
 	case "nfs", "cifs":
-		if addrValue := getAddress(v.opts.MountOpts); addrValue != "" && net.ParseIP(addrValue).To4() == nil {
-			ipAddr, err := net.ResolveIPAddr("ip", addrValue)
+		if addrValue := getAddress(opts.MountOpts); addrValue != "" && net.ParseIP(addrValue).To4() == nil {
+			ipAddr, err := resolveIP("ip", addrValue)
 			if err != nil {
-				return errors.Wrap(err, "error resolving passed in network volume address")
+				return "", "", errors.Wrap(err, "error resolving passed in network volume address")
 			}
 			mountOpts = strings.Replace(mountOpts, "addr="+addrValue, "addr="+ipAddr.String(), 1)
+			break
 		}
 
-		if v.opts.MountType != "cifs" {
+		if opts.MountType != "cifs" {
 			break
 		}
 
 		deviceURL, err := url.Parse(mountDevice)
 		if err != nil {
-			return errors.Wrapf(err, "error parsing mount device url")
+			return "", "", errors.Wrap(err, "error parsing mount device url")
 		}
 		if deviceURL.Host != "" && net.ParseIP(deviceURL.Host) == nil {
-			ipAddr, err := net.ResolveIPAddr("ip", deviceURL.Host)
+			ipAddr, err := resolveIP("ip", deviceURL.Host)
 			if err != nil {
-				return errors.Wrapf(err, "error resolving passed in network volume address")
+				return "", "", errors.Wrap(err, "error resolving passed in network volume address")
 			}
 			deviceURL.Host = ipAddr.String()
-			mountDevice = deviceURL.String()
+			dev, err := url.QueryUnescape(deviceURL.String())
+			if err != nil {
+				return "", "", fmt.Errorf("failed to unescape device URL: %q", deviceURL)
+			}
+			mountDevice = dev
 		}
 	}
+
+	return mountDevice, mountOpts, nil
+}
+
+func (v *localVolume) mount() error {
+	mountDevice, mountOpts, err := getMountOptions(v.opts, net.ResolveIPAddr)
+	if err != nil {
+		return err
+	}
+
 	if err := mount.Mount(mountDevice, v.path, v.opts.MountType, mountOpts); err != nil {
 		if password := getPassword(v.opts.MountOpts); password != "" {
 			err = errors.New(strings.Replace(err.Error(), "password="+password, "password=********", 1))
