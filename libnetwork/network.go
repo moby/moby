@@ -1276,8 +1276,8 @@ func (n *Network) EndpointByName(name string) (*Endpoint, error) {
 	return e, nil
 }
 
-// EndpointByID returns the Endpoint which has the passed id. If not found,
-// the error ErrNoSuchEndpoint is returned.
+// EndpointByID should *never* be called as it's going to create a 2nd instance of an Endpoint. The first one lives in
+// the Sandbox the endpoint is attached to. Instead, the endpoint should be retrieved by calling [Sandbox.Endpoints()].
 func (n *Network) EndpointByID(id string) (*Endpoint, error) {
 	if id == "" {
 		return nil, ErrInvalidID(id)
