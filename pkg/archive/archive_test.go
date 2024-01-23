@@ -291,8 +291,15 @@ func TestUntarPathWithInvalidDest(t *testing.T) {
 	// Create a src file
 	srcFile := filepath.Join(tempFolder, "src")
 	tarFile := filepath.Join(tempFolder, "src.tar")
-	os.Create(srcFile)
-	os.Create(invalidDestFolder) // being a file (not dir) should cause an error
+	f, err := os.Create(srcFile)
+	if assert.Check(t, err) {
+		_ = f.Close()
+	}
+
+	d, err := os.Create(invalidDestFolder) // being a file (not dir) should cause an error
+	if assert.Check(t, err) {
+		_ = d.Close()
+	}
 
 	// Translate back to Unix semantics as next exec.Command is run under sh
 	srcFileU := srcFile
@@ -331,7 +338,10 @@ func TestUntarPath(t *testing.T) {
 	defer os.RemoveAll(tmpFolder)
 	srcFile := filepath.Join(tmpFolder, "src")
 	tarFile := filepath.Join(tmpFolder, "src.tar")
-	os.Create(filepath.Join(tmpFolder, "src"))
+	f, err := os.Create(filepath.Join(tmpFolder, "src"))
+	if assert.Check(t, err) {
+		_ = f.Close()
+	}
 
 	destFolder := filepath.Join(tmpFolder, "dest")
 	err = os.MkdirAll(destFolder, 0o740)
@@ -370,7 +380,10 @@ func TestUntarPathWithDestinationFile(t *testing.T) {
 	defer os.RemoveAll(tmpFolder)
 	srcFile := filepath.Join(tmpFolder, "src")
 	tarFile := filepath.Join(tmpFolder, "src.tar")
-	os.Create(filepath.Join(tmpFolder, "src"))
+	f, err := os.Create(filepath.Join(tmpFolder, "src"))
+	if assert.Check(t, err) {
+		_ = f.Close()
+	}
 
 	// Translate back to Unix semantics as next exec.Command is run under sh
 	srcFileU := srcFile
@@ -385,9 +398,9 @@ func TestUntarPathWithDestinationFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	destFile := filepath.Join(tmpFolder, "dest")
-	_, err = os.Create(destFile)
-	if err != nil {
-		t.Fatalf("Fail to create the destination file")
+	f, err = os.Create(destFile)
+	if assert.Check(t, err) {
+		_ = f.Close()
 	}
 	err = defaultUntarPath(tarFile, destFile)
 	if err == nil {
@@ -406,7 +419,10 @@ func TestUntarPathWithDestinationSrcFileAsFolder(t *testing.T) {
 	defer os.RemoveAll(tmpFolder)
 	srcFile := filepath.Join(tmpFolder, "src")
 	tarFile := filepath.Join(tmpFolder, "src.tar")
-	os.Create(srcFile)
+	f, err := os.Create(srcFile)
+	if assert.Check(t, err) {
+		_ = f.Close()
+	}
 
 	// Translate back to Unix semantics as next exec.Command is run under sh
 	srcFileU := srcFile
@@ -562,9 +578,9 @@ func TestCopyFileWithTarInexistentDestWillCreateIt(t *testing.T) {
 	defer os.RemoveAll(tempFolder)
 	srcFile := filepath.Join(tempFolder, "src")
 	inexistentDestFolder := filepath.Join(tempFolder, "doesnotexists")
-	_, err = os.Create(srcFile)
-	if err != nil {
-		t.Fatal(err)
+	f, err := os.Create(srcFile)
+	if assert.Check(t, err) {
+		_ = f.Close()
 	}
 	err = defaultCopyFileWithTar(srcFile, inexistentDestFolder)
 	if err != nil {
@@ -800,21 +816,24 @@ func TestTarWithOptionsChownOptsAlwaysOverridesIdPair(t *testing.T) {
 		{&TarOptions{ChownOpts: &idtools.Identity{UID: 1, GID: 1}, NoLchown: true}, 1, 1},
 		{&TarOptions{ChownOpts: &idtools.Identity{UID: 1000, GID: 1000}, NoLchown: true}, 1000, 1000},
 	}
-	for _, testCase := range cases {
-		reader, err := TarWithOptions(filePath, testCase.opts)
-		assert.NilError(t, err)
-		tr := tar.NewReader(reader)
-		defer reader.Close()
-		for {
-			hdr, err := tr.Next()
-			if err == io.EOF {
-				// end of tar archive
-				break
-			}
+	for _, tc := range cases {
+		tc := tc
+		t.Run("", func(t *testing.T) {
+			reader, err := TarWithOptions(filePath, tc.opts)
 			assert.NilError(t, err)
-			assert.Check(t, is.Equal(hdr.Uid, testCase.expectedUID), "Uid equals expected value")
-			assert.Check(t, is.Equal(hdr.Gid, testCase.expectedGID), "Gid equals expected value")
-		}
+			tr := tar.NewReader(reader)
+			defer reader.Close()
+			for {
+				hdr, err := tr.Next()
+				if err == io.EOF {
+					// end of tar archive
+					break
+				}
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal(hdr.Uid, tc.expectedUID), "Uid equals expected value")
+				assert.Check(t, is.Equal(hdr.Gid, tc.expectedGID), "Gid equals expected value")
+			}
+		})
 	}
 }
 

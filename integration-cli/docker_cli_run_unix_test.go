@@ -70,6 +70,7 @@ func (s *DockerCLIRunSuite) TestRunWithVolumesIsRecursive(c *testing.T) {
 	tmpfsDir := filepath.Join(tmpDir, "tmpfs")
 	assert.Assert(c, os.MkdirAll(tmpfsDir, 0o777) == nil, "failed to mkdir at %s", tmpfsDir)
 	assert.Assert(c, mount.Mount("tmpfs", tmpfsDir, "tmpfs", "") == nil, "failed to create a tmpfs mount at %s", tmpfsDir)
+	defer mount.Unmount(tmpfsDir)
 
 	f, err := os.CreateTemp(tmpfsDir, "touch-me")
 	assert.NilError(c, err)

@@ -968,8 +968,10 @@ func (s *DockerCLIBuildSuite) TestBuildAddBadLinks(c *testing.T) {
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer tarOut.Close()
 
 	tarWriter := tar.NewWriter(tarOut)
+	defer tarWriter.Close()
 
 	header := &tar.Header{
 		Name:     "symlink",
@@ -985,16 +987,8 @@ func (s *DockerCLIBuildSuite) TestBuildAddBadLinks(c *testing.T) {
 		c.Fatal(err)
 	}
 
-	tarWriter.Close()
-	tarOut.Close()
-
-	foo, err := os.Create(fooPath)
+	err = os.WriteFile(fooPath, []byte("test"), 0666)
 	if err != nil {
-		c.Fatal(err)
-	}
-	defer foo.Close()
-
-	if _, err := foo.WriteString("test"); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1028,13 +1022,8 @@ func (s *DockerCLIBuildSuite) TestBuildAddBadLinksVolume(c *testing.T) {
 	defer ctx.Close()
 	fooPath := filepath.Join(ctx.Dir, targetFile)
 
-	foo, err := os.Create(fooPath)
+	err = os.WriteFile(fooPath, []byte("test"), 0666)
 	if err != nil {
-		c.Fatal(err)
-	}
-	defer foo.Close()
-
-	if _, err := foo.WriteString("test"); err != nil {
 		c.Fatal(err)
 	}
 

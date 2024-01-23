@@ -44,9 +44,11 @@ func newKey(t *testing.T) (string, error) {
 	}
 
 	name = filepath.Join("/tmp", name)
-	if _, err := os.Create(name); err != nil {
+	f, err := os.Create(name)
+	if err != nil {
 		return "", err
 	}
+	_ = f.Close()
 
 	// Set the rpmCleanupPeriod to be low to make the test run quicker
 	gpmLock.Lock()

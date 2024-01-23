@@ -73,7 +73,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T
 	assert.Check(c, is.Equal(text, strings.TrimSpace(string(b))))
 }
 
-func mountWrapper(device, target, mType, options string) error {
+func mountWrapper(t *testing.T, device, target, mType, options string) error {
 	// This should never be called.
 	return errors.Errorf("there is no implementation of Mount on this platform")
 }
