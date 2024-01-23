@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -63,7 +64,7 @@ func TestBuildSquashParent(t *testing.T) {
 	resp.Body.Close()
 	assert.NilError(t, err)
 
-	inspect, _, err := client.ImageInspectWithRaw(ctx, name)
+	inspect, _, err := client.ImageInspectWithRaw(ctx, name, image.InspectOptions{})
 	assert.NilError(t, err)
 	origID := inspect.ID
 
@@ -110,7 +111,7 @@ func TestBuildSquashParent(t *testing.T) {
 	testHistory, err := client.ImageHistory(ctx, name)
 	assert.NilError(t, err)
 
-	inspect, _, err = client.ImageInspectWithRaw(ctx, name)
+	inspect, _, err = client.ImageInspectWithRaw(ctx, name, image.InspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(testHistory, len(origHistory)+1))
 	assert.Check(t, is.Len(inspect.RootFS.Layers, 2))

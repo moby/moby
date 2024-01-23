@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -28,7 +29,7 @@ func TestCommitInheritsEnv(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	image1, _, err := client.ImageInspectWithRaw(ctx, commitResp1.ID)
+	image1, _, err := client.ImageInspectWithRaw(ctx, commitResp1.ID, image.InspectOptions{})
 	assert.NilError(t, err)
 
 	expectedEnv1 := []string{"PATH=/bin"}
@@ -42,7 +43,7 @@ func TestCommitInheritsEnv(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	image2, _, err := client.ImageInspectWithRaw(ctx, commitResp2.ID)
+	image2, _, err := client.ImageInspectWithRaw(ctx, commitResp2.ID, image.InspectOptions{})
 	assert.NilError(t, err)
 	expectedEnv2 := []string{"PATH=/usr/bin:/bin"}
 	assert.Check(t, is.DeepEqual(expectedEnv2, image2.Config.Env))

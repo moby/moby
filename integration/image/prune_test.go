@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil/daemon"
@@ -28,7 +29,7 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 
 	danglingID := specialimage.Load(ctx, t, client, specialimage.Dangling)
 
-	_, _, err := client.ImageInspectWithRaw(ctx, danglingID)
+	_, _, err := client.ImageInspectWithRaw(ctx, danglingID, image.InspectOptions{})
 	assert.NilError(t, err, "Test dangling image doesn't exist")
 
 	container.Create(ctx, t, client,
@@ -44,6 +45,6 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 		}
 	}
 
-	_, _, err = client.ImageInspectWithRaw(ctx, danglingID)
+	_, _, err = client.ImageInspectWithRaw(ctx, danglingID, image.InspectOptions{})
 	assert.NilError(t, err, "Test dangling image should still exist")
 }

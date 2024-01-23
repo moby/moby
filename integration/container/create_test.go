@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
@@ -479,7 +480,7 @@ func TestCreateDifferentPlatform(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	img, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
+	img, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:latest", image.InspectOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, img.Architecture != "")
 

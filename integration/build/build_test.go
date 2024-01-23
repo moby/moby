@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil"
@@ -178,7 +179,7 @@ func TestBuildMultiStageCopy(t *testing.T) {
 			assert.NilError(t, err)
 
 			// verify the image was successfully built
-			_, _, err = apiclient.ImageInspectWithRaw(ctx, imgName)
+			_, _, err = apiclient.ImageInspectWithRaw(ctx, imgName, image.InspectOptions{})
 			if err != nil {
 				t.Log(out)
 			}
@@ -219,7 +220,7 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
-	img, _, err := apiclient.ImageInspectWithRaw(ctx, imgName)
+	img, _, err := apiclient.ImageInspectWithRaw(ctx, imgName, image.InspectOptions{})
 	assert.NilError(t, err)
 
 	expected := "/foo/sub2"
@@ -268,7 +269,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
-	img, _, err := apiclient.ImageInspectWithRaw(ctx, imgName)
+	img, _, err := apiclient.ImageInspectWithRaw(ctx, imgName, image.InspectOptions{})
 	assert.NilError(t, err)
 
 	testLabels["label-a"] = "inline-a"
@@ -295,7 +296,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
-	img, _, err = apiclient.ImageInspectWithRaw(ctx, imgName)
+	img, _, err = apiclient.ImageInspectWithRaw(ctx, imgName, image.InspectOptions{})
 	assert.NilError(t, err)
 
 	testLabels["label-b"] = "inline-b"
@@ -377,7 +378,7 @@ RUN cat somefile`
 	assert.NilError(t, err)
 	assert.Assert(t, is.Equal(3, len(imageIDs)))
 
-	img, _, err := apiclient.ImageInspectWithRaw(ctx, imageIDs[2])
+	img, _, err := apiclient.ImageInspectWithRaw(ctx, imageIDs[2], image.InspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(img.Config.Env, "bar=baz"))
 }

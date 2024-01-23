@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
@@ -23,7 +24,7 @@ func TestImageInspectError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, _, err := client.ImageInspectWithRaw(context.Background(), "nothing")
+	_, _, err := client.ImageInspectWithRaw(context.Background(), "nothing", image.InspectOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -32,7 +33,7 @@ func TestImageInspectImageNotFound(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
-	_, _, err := client.ImageInspectWithRaw(context.Background(), "unknown")
+	_, _, err := client.ImageInspectWithRaw(context.Background(), "unknown", image.InspectOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
@@ -42,7 +43,7 @@ func TestImageInspectWithEmptyID(t *testing.T) {
 			return nil, errors.New("should not make request")
 		}),
 	}
-	_, _, err := client.ImageInspectWithRaw(context.Background(), "")
+	_, _, err := client.ImageInspectWithRaw(context.Background(), "", image.InspectOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
@@ -68,7 +69,7 @@ func TestImageInspect(t *testing.T) {
 		}),
 	}
 
-	imageInspect, _, err := client.ImageInspectWithRaw(context.Background(), "image_id")
+	imageInspect, _, err := client.ImageInspectWithRaw(context.Background(), "image_id", image.InspectOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
