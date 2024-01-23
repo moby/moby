@@ -9,9 +9,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -294,7 +294,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
 		err := psFilters.WalkValues("ancestor", func(ancestor string) error {
-			img, err := daemon.imageService.GetImage(ctx, ancestor, imagetypes.GetImageOpts{})
+			img, err := daemon.imageService.GetImage(ctx, ancestor, backend.GetImageOpts{})
 			if err != nil {
 				log.G(ctx).Warnf("Error while looking up for image %v", ancestor)
 				return nil
@@ -594,7 +594,7 @@ func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot) (
 	}
 
 	// Check if the image reference still resolves to the same digest.
-	img, err := daemon.imageService.GetImage(ctx, s.Image, imagetypes.GetImageOpts{})
+	img, err := daemon.imageService.GetImage(ctx, s.Image, backend.GetImageOpts{})
 	// If the image is no longer found or can't be resolved for some other
 	// reason. Update the Image to the specific ID of the original image it
 	// resolved to when the container was created.

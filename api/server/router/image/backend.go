@@ -6,6 +6,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
@@ -25,7 +26,7 @@ type imageBackend interface {
 	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]image.DeleteResponse, error)
 	ImageHistory(ctx context.Context, imageName string) ([]*image.HistoryResponseItem, error)
 	Images(ctx context.Context, opts types.ImageListOptions) ([]*image.Summary, error)
-	GetImage(ctx context.Context, refOrID string, options image.GetImageOpts) (*dockerimage.Image, error)
+	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*dockerimage.Image, error)
 	TagImage(ctx context.Context, id dockerimage.ID, newRef reference.Named) error
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
 }

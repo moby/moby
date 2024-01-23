@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	imagetypes "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -164,7 +164,7 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
-func (i *ImageService) GetImage(ctx context.Context, refOrID string, options imagetypes.GetImageOpts) (*image.Image, error) {
+func (i *ImageService) GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*image.Image, error) {
 	img, err := i.getImage(ctx, refOrID, options)
 	if err != nil {
 		return nil, err
@@ -201,11 +201,11 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	return img, nil
 }
 
-func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, options imagetypes.GetImageOpts) (*ocispec.Descriptor, error) {
+func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, options backend.GetImageOpts) (*ocispec.Descriptor, error) {
 	panic("not implemented")
 }
 
-func (i *ImageService) getImage(ctx context.Context, refOrID string, options imagetypes.GetImageOpts) (retImg *image.Image, retErr error) {
+func (i *ImageService) getImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (retImg *image.Image, retErr error) {
 	defer func() {
 		if retErr != nil || retImg == nil || options.Platform == nil {
 			return

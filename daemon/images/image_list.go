@@ -9,6 +9,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	imagetypes "github.com/docker/docker/api/types/image"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
@@ -46,7 +47,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 
 	var beforeFilter, sinceFilter time.Time
 	err = opts.Filters.WalkValues("before", func(value string) error {
-		img, err := i.GetImage(ctx, value, imagetypes.GetImageOpts{})
+		img, err := i.GetImage(ctx, value, backend.GetImageOpts{})
 		if err != nil {
 			return err
 		}
@@ -81,7 +82,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	}
 
 	err = opts.Filters.WalkValues("since", func(value string) error {
-		img, err := i.GetImage(ctx, value, imagetypes.GetImageOpts{})
+		img, err := i.GetImage(ctx, value, backend.GetImageOpts{})
 		if err != nil {
 			return err
 		}
