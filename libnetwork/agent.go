@@ -623,7 +623,7 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 	// In case the deleteServiceInfoToCluster arrives first, this one is happening after the endpoint is
 	// removed from the list, in this situation the delete will bail out not finding any data to cleanup
 	// and the add will bail out not finding the endpoint on the sandbox.
-	if err := sb.getEndpoint(ep.ID()); err == nil {
+	if err := sb.GetEndpoint(ep.ID()); err == nil {
 		log.G(context.TODO()).Warnf("addServiceInfoToCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
 		return nil
 	}
@@ -692,7 +692,7 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 	// get caught in disableServceInNetworkDB, but we check here to make the
 	// nature of the condition more clear.
 	// See comment in addServiceInfoToCluster()
-	if err := sb.getEndpoint(ep.ID()); err == nil {
+	if err := sb.GetEndpoint(ep.ID()); err == nil {
 		log.G(context.TODO()).Warnf("deleteServiceInfoFromCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
 		return nil
 	}

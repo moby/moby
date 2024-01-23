@@ -2,6 +2,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/containerd/log"
@@ -127,9 +128,9 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 				return err
 			}
 
-			ep, err := nw.EndpointByID(epConfig.EndpointID)
-			if err != nil {
-				return err
+			ep := sb.GetEndpoint(epConfig.EndpointID)
+			if ep == nil {
+				return fmt.Errorf("no endpoint attached to network %s found", nw.Name())
 			}
 
 			oldDNSNames := make([]string, len(epConfig.DNSNames))
