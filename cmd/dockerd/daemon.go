@@ -307,14 +307,12 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	//
 	// FIXME(thaJeztah): better separate runtime and config data?
 	daemonCfg := d.Config()
-	routerOptions, err := newRouterOptions(routerCtx, &daemonCfg, d)
+	routerOpts, err := newRouterOptions(routerCtx, &daemonCfg, d, c)
 	if err != nil {
 		return err
 	}
 
-	routerOptions.cluster = c
-
-	httpServer.Handler = apiServer.CreateMux(routerOptions.Build()...)
+	httpServer.Handler = apiServer.CreateMux(routerOpts.Build()...)
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
@@ -356,7 +354,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	notifyStopping()
 	shutdownDaemon(ctx, d)
 
-	if err := routerOptions.buildkit.Close(); err != nil {
+	if err := routerOpts.buildkit.Close(); err != nil {
 		log.G(ctx).WithError(err).Error("Failed to close buildkit")
 	}
 
@@ -397,23 +395,17 @@ type routerOptions struct {
 	cluster        *cluster.Cluster
 }
 
-func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daemon) (routerOptions, error) {
-	opts := routerOptions{}
+func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daemon, c *cluster.Cluster) (routerOptions, error) {
 	sm, err := session.NewManager()
 	if err != nil {
-		return opts, errors.Wrap(err, "failed to create sessionmanager")
+		return routerOptions{}, errors.Wrap(err, "failed to create sessionmanager")
 	}
 
 	manager, err := dockerfile.NewBuildManager(d.BuilderBackend(), d.IdentityMapping())
 	if err != nil {
-		return opts, err
+		return routerOptions{}, err
 	}
 	cgroupParent := newCgroupParent(config)
-	ro := routerOptions{
-		sessionManager: sm,
-		features:       d.Features,
-		daemon:         d,
-	}
 
 	bk, err := buildkit.New(ctx, buildkit.Opt{
 		SessionManager:      sm,
@@ -435,18 +427,22 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 		ContainerdNamespace: config.ContainerdNamespace,
 	})
 	if err != nil {
-		return opts, err
+		return routerOptions{}, err
 	}
 
 	bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
 	if err != nil {
-		return opts, errors.Wrap(err, "failed to create buildmanager")
+		return routerOptions{}, errors.Wrap(err, "failed to create buildmanager")
 	}
 
-	ro.buildBackend = bb
-	ro.buildkit = bk
-
-	return ro, nil
+	return routerOptions{
+		sessionManager: sm,
+		buildBackend:   bb,
+		features:       d.Features,
+		buildkit:       bk,
+		daemon:         d,
+		cluster:        c,
+	}, nil
 }
 
 func (cli *DaemonCli) reloadConfig() {
