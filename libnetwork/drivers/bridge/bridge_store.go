@@ -119,18 +119,7 @@ func (d *driver) storeDelete(kvObject datastore.KVObject) error {
 		return nil
 	}
 
-retry:
-	if err := d.store.DeleteObjectAtomic(kvObject); err != nil {
-		if err == datastore.ErrKeyModified {
-			if err := d.store.GetObject(datastore.Key(kvObject.Key()...), kvObject); err != nil {
-				return fmt.Errorf("could not update the kvobject to latest when trying to delete: %v", err)
-			}
-			goto retry
-		}
-		return err
-	}
-
-	return nil
+	return d.store.DeleteObjectAtomic(kvObject)
 }
 
 func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
