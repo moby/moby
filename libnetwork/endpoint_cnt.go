@@ -116,7 +116,7 @@ func (ec *endpointCnt) updateStore() error {
 		if err := ec.n.getController().updateToStore(ec); err == nil || err != datastore.ErrKeyModified {
 			return err
 		}
-		if err := store.GetObject(datastore.Key(ec.Key()...), ec); err != nil {
+		if err := store.GetObject(ec); err != nil {
 			return fmt.Errorf("could not update the kvobject to latest on endpoint count update: %v", err)
 		}
 		ec.Lock()
@@ -140,7 +140,7 @@ func (ec *endpointCnt) atomicIncDecEpCnt(inc bool) error {
 	}
 
 	tmp := &endpointCnt{n: ec.n}
-	if err := store.GetObject(datastore.Key(ec.Key()...), tmp); err != nil {
+	if err := store.GetObject(tmp); err != nil {
 		return err
 	}
 retry:
@@ -156,7 +156,7 @@ retry:
 
 	if err := ec.n.getController().updateToStore(ec); err != nil {
 		if err == datastore.ErrKeyModified {
-			if err := store.GetObject(datastore.Key(ec.Key()...), ec); err != nil {
+			if err := store.GetObject(ec); err != nil {
 				return fmt.Errorf("could not update the kvobject to latest when trying to atomic add endpoint count: %v", err)
 			}
 

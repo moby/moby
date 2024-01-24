@@ -216,7 +216,7 @@ func (ds *Store) PutObjectAtomic(kvObject KVObject) error {
 }
 
 // GetObject gets data from the store and unmarshals to the specified object.
-func (ds *Store) GetObject(key string, o KVObject) error {
+func (ds *Store) GetObject(o KVObject) error {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 

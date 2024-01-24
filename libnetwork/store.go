@@ -61,7 +61,7 @@ func (c *Controller) getNetworks() ([]*Network, error) {
 		n.ctrlr = c
 
 		ec := &endpointCnt{n: n}
-		err = store.GetObject(datastore.Key(ec.Key()...), ec)
+		err = store.GetObject(ec)
 		if err != nil && !n.inDelete {
 			log.G(context.TODO()).Warnf("Could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
 			continue
@@ -118,7 +118,7 @@ func (c *Controller) getNetworksFromStore(ctx context.Context) []*Network { // F
 func (n *Network) getEndpointFromStore(eid string) (*Endpoint, error) {
 	store := n.ctrlr.getStore()
 	ep := &Endpoint{id: eid, network: n}
-	err := store.GetObject(datastore.Key(ep.Key()...), ep)
+	err := store.GetObject(ep)
 	if err != nil {
 		return nil, fmt.Errorf("could not find endpoint %s: %w", eid, err)
 	}
@@ -172,7 +172,7 @@ func (c *Controller) deleteFromStore(kvObject datastore.KVObject) error {
 retry:
 	if err := cs.DeleteObjectAtomic(kvObject); err != nil {
 		if err == datastore.ErrKeyModified {
-			if err := cs.GetObject(datastore.Key(kvObject.Key()...), kvObject); err != nil {
+			if err := cs.GetObject(kvObject); err != nil {
 				return fmt.Errorf("could not update the kvobject to latest when trying to delete: %v", err)
 			}
 			log.G(context.TODO()).Warnf("Error (%v) deleting object %v, retrying....", err, kvObject.Key())

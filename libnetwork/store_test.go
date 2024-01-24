@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/config"
-	"github.com/docker/docker/libnetwork/datastore"
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
@@ -36,9 +35,9 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	// FIXME(thaJeztah): GetObject uses the given key for lookups if no cache-store is present, but the KvObject's Key() to look up in cache....
+
 	nwKVObject := &Network{id: nw.ID()}
-	err = testController.getStore().GetObject(datastore.Key(datastore.NetworkKeyPrefix, nw.ID()), nwKVObject)
+	err = testController.getStore().GetObject(nwKVObject)
 	if err != nil {
 		t.Errorf("Error when retrieving network key from store: %v", err)
 	}
@@ -47,7 +46,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	}
 
 	epKVObject := &Endpoint{network: nw, id: ep.ID()}
-	err = testController.getStore().GetObject(datastore.Key(datastore.EndpointKeyPrefix, nw.ID(), ep.ID()), epKVObject)
+	err = testController.getStore().GetObject(epKVObject)
 	if err != nil {
 		t.Errorf("Error when retrieving Endpoint key from store: %v", err)
 	}
