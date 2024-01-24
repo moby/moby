@@ -50,8 +50,7 @@ func (c *Controller) getNetworks() ([]*Network, error) {
 		return nil, nil
 	}
 
-	kvol, err := store.List(datastore.Key(datastore.NetworkKeyPrefix),
-		&Network{ctrlr: c})
+	kvol, err := store.List(&Network{ctrlr: c})
 	if err != nil && err != datastore.ErrKeyNotFound {
 		return nil, fmt.Errorf("failed to get networks: %w", err)
 	}
@@ -81,7 +80,7 @@ func (c *Controller) getNetworksFromStore(ctx context.Context) []*Network { // F
 	var nl []*Network
 
 	store := c.getStore()
-	kvol, err := store.List(datastore.Key(datastore.NetworkKeyPrefix), &Network{ctrlr: c})
+	kvol, err := store.List(&Network{ctrlr: c})
 	if err != nil {
 		if err != datastore.ErrKeyNotFound {
 			log.G(ctx).Debugf("failed to get networks from store: %v", err)
@@ -128,9 +127,8 @@ func (n *Network) getEndpointFromStore(eid string) (*Endpoint, error) {
 func (n *Network) getEndpointsFromStore() ([]*Endpoint, error) {
 	var epl []*Endpoint
 
-	tmp := Endpoint{network: n}
 	store := n.getController().getStore()
-	kvol, err := store.List(datastore.Key(tmp.KeyPrefix()...), &Endpoint{network: n})
+	kvol, err := store.List(&Endpoint{network: n})
 	if err != nil {
 		if err != datastore.ErrKeyNotFound {
 			return nil, fmt.Errorf("failed to get endpoints for network %s: %w",

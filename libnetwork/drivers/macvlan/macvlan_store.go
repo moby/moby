@@ -68,7 +68,7 @@ func (d *driver) initStore(option map[string]interface{}) error {
 
 // populateNetworks is invoked at driver init to recreate persistently stored networks
 func (d *driver) populateNetworks() error {
-	kvol, err := d.store.List(datastore.Key(macvlanPrefix), &configuration{})
+	kvol, err := d.store.List(&configuration{})
 	if err != nil && err != datastore.ErrKeyNotFound {
 		return fmt.Errorf("failed to get macvlan network configurations from store: %v", err)
 	}
@@ -87,7 +87,7 @@ func (d *driver) populateNetworks() error {
 }
 
 func (d *driver) populateEndpoints() error {
-	kvol, err := d.store.List(datastore.Key(macvlanEndpointPrefix), &endpoint{})
+	kvol, err := d.store.List(&endpoint{})
 	if err != nil && err != datastore.ErrKeyNotFound {
 		return fmt.Errorf("failed to get macvlan endpoints from store: %v", err)
 	}

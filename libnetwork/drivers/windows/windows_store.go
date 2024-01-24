@@ -47,7 +47,7 @@ func (d *driver) initStore(option map[string]interface{}) error {
 }
 
 func (d *driver) populateNetworks() error {
-	kvol, err := d.store.List(datastore.Key(windowsPrefix), &networkConfiguration{Type: d.name})
+	kvol, err := d.store.List(&networkConfiguration{Type: d.name})
 	if err != nil && err != datastore.ErrKeyNotFound {
 		return fmt.Errorf("failed to get windows network configurations from store: %v", err)
 	}
@@ -70,7 +70,7 @@ func (d *driver) populateNetworks() error {
 }
 
 func (d *driver) populateEndpoints() error {
-	kvol, err := d.store.List(datastore.Key(windowsEndpointPrefix), &hnsEndpoint{Type: d.name})
+	kvol, err := d.store.List(&hnsEndpoint{Type: d.name})
 	if err != nil && err != datastore.ErrKeyNotFound {
 		return fmt.Errorf("failed to get endpoints from store: %v", err)
 	}

@@ -69,7 +69,7 @@ func (d *driver) initStore(option map[string]interface{}) error {
 
 // populateNetworks is invoked at driver init to recreate persistently stored networks
 func (d *driver) populateNetworks() error {
-	kvol, err := d.store.List(datastore.Key(ipvlanNetworkPrefix), &configuration{})
+	kvol, err := d.store.List(&configuration{})
 	if err != nil && err != datastore.ErrKeyNotFound {
 		return fmt.Errorf("failed to get ipvlan network configurations from store: %v", err)
 	}
@@ -88,7 +88,7 @@ func (d *driver) populateNetworks() error {
 }
 
 func (d *driver) populateEndpoints() error {
-	kvol, err := d.store.List(datastore.Key(ipvlanEndpointPrefix), &endpoint{})
+	kvol, err := d.store.List(&endpoint{})
 	if err != nil && err != datastore.ErrKeyNotFound {
 		return fmt.Errorf("failed to get ipvlan endpoints from store: %v", err)
 	}
