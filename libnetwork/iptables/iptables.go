@@ -363,7 +363,7 @@ func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr 
 	if proto == "sctp" {
 		// Linux kernel v4.9 and below enables NETIF_F_SCTP_CRC for veth by
 		// the following commit.
-		// This introduces a problem when conbined with a physical NIC without
+		// This introduces a problem when combined with a physical NIC without
 		// NETIF_F_SCTP_CRC. As for a workaround, here we add an iptables entry
 		// to fill the checksum.
 		//
