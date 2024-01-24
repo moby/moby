@@ -15,7 +15,7 @@ import (
 	"github.com/containerd/containerd/content/local"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/testutil/registry"
 	"github.com/opencontainers/go-digest"
@@ -31,7 +31,7 @@ func TestImagePullPlatformInvalid(t *testing.T) {
 
 	client := testEnv.APIClient()
 
-	_, err := client.ImagePull(ctx, "docker.io/library/hello-world:latest", types.ImagePullOptions{Platform: "foobar"})
+	_, err := client.ImagePull(ctx, "docker.io/library/hello-world:latest", image.PullOptions{Platform: "foobar"})
 	assert.Assert(t, err != nil)
 	assert.Check(t, is.ErrorContains(err, "unknown operating system or architecture"))
 	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
@@ -143,14 +143,14 @@ func TestImagePullStoredDigestForOtherRepo(t *testing.T) {
 	assert.NilError(t, err)
 
 	client := testEnv.APIClient()
-	rdr, err := client.ImagePull(ctx, remote, types.ImagePullOptions{})
+	rdr, err := client.ImagePull(ctx, remote, image.PullOptions{})
 	assert.NilError(t, err)
 	defer rdr.Close()
 	_, err = io.Copy(io.Discard, rdr)
 	assert.Check(t, err)
 
 	// Now, pull a totally different repo with a the same digest
-	rdr, err = client.ImagePull(ctx, path.Join(registry.DefaultURL, "other:image@"+desc.Digest.String()), types.ImagePullOptions{})
+	rdr, err = client.ImagePull(ctx, path.Join(registry.DefaultURL, "other:image@"+desc.Digest.String()), image.PullOptions{})
 	if rdr != nil {
 		assert.Check(t, rdr.Close())
 	}
@@ -178,7 +178,7 @@ func TestImagePullNonExisting(t *testing.T) {
 			t.Parallel()
 
 			client := testEnv.APIClient()
-			rdr, err := client.ImagePull(ctx, ref, types.ImagePullOptions{
+			rdr, err := client.ImagePull(ctx, ref, image.PullOptions{
 				All: all,
 			})
 			if err == nil {

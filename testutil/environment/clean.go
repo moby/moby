@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
@@ -97,7 +98,7 @@ func getAllContainers(ctx context.Context, t testing.TB, client client.Container
 
 func deleteAllImages(ctx context.Context, t testing.TB, apiclient client.ImageAPIClient, protectedImages map[string]struct{}) {
 	t.Helper()
-	images, err := apiclient.ImageList(ctx, types.ImageListOptions{})
+	images, err := apiclient.ImageList(ctx, image.ListOptions{})
 	assert.Check(t, err, "failed to list images")
 
 	for _, img := range images {
@@ -119,7 +120,7 @@ func deleteAllImages(ctx context.Context, t testing.TB, apiclient client.ImageAP
 
 func removeImage(ctx context.Context, t testing.TB, apiclient client.ImageAPIClient, ref string) {
 	t.Helper()
-	_, err := apiclient.ImageRemove(ctx, ref, types.ImageRemoveOptions{
+	_, err := apiclient.ImageRemove(ctx, ref, image.RemoveOptions{
 		Force: true,
 	})
 	if errdefs.IsNotFound(err) {

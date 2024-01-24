@@ -14,7 +14,6 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -61,7 +60,7 @@ func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 // TODO(thaJeztah): implement opts.ContainerCount (used for docker system df); see https://github.com/moby/moby/issues/43853
 // TODO(thaJeztah): verify behavior of `RepoDigests` and `RepoTags` for images without (untagged) or multiple tags; see https://github.com/moby/moby/issues/43861
 // TODO(thaJeztah): verify "Size" vs "VirtualSize" in images; see https://github.com/moby/moby/issues/43862
-func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*imagetypes.Summary, error) {
+func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) ([]*imagetypes.Summary, error) {
 	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
@@ -212,7 +211,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	return summaries, nil
 }
 
-func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest, opts types.ImageListOptions, allContainers []*container.Container) (*imagetypes.Summary, []digest.Digest, error) {
+func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest, opts imagetypes.ListOptions, allContainers []*container.Container) (*imagetypes.Summary, []digest.Digest, error) {
 	diffIDs, err := imageManifest.RootFS(ctx)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to get rootfs of image %s", imageManifest.Name())

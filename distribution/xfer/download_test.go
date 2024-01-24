@@ -316,8 +316,8 @@ func TestSuccessfulDownload(t *testing.T) {
 			if receivedProgress[d.ID()].Action != "Already exists" {
 				t.Fatalf("did not get 'Already exists' message for %v", d.ID())
 			}
-		} else if receivedProgress[d.ID()].Action != "Pull complete" {
-			t.Fatalf("did not get 'Pull complete' message for %v", d.ID())
+		} else if receivedProgress[d.ID()].Action != "PullOptions complete" {
+			t.Fatalf("did not get 'PullOptions complete' message for %v", d.ID())
 		}
 
 		if rootFS.DiffIDs[i] != descriptor.expectedDiffID {

@@ -25,7 +25,7 @@ type Backend interface {
 type imageBackend interface {
 	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]image.DeleteResponse, error)
 	ImageHistory(ctx context.Context, imageName string) ([]*image.HistoryResponseItem, error)
-	Images(ctx context.Context, opts types.ImageListOptions) ([]*image.Summary, error)
+	Images(ctx context.Context, opts image.ListOptions) ([]*image.Summary, error)
 	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*dockerimage.Image, error)
 	TagImage(ctx context.Context, id dockerimage.ID, newRef reference.Named) error
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)

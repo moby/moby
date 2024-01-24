@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	eventtypes "github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/archive"
@@ -460,7 +461,7 @@ func imageImport(ctx context.Context, client client.APIClient, path string) erro
 		return err
 	}
 	defer file.Close()
-	options := types.ImageImportOptions{}
+	options := image.ImportOptions{}
 	ref := ""
 	source := types.ImageImportSource{
 		Source:     file,

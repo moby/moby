@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil/fixtures/load"
@@ -198,7 +199,7 @@ func (e *Execution) UsingSnapshotter() bool {
 // Note that this is done by filtering and then checking whether there were any
 // results -- so ambiguous references might result in false-positives.
 func (e *Execution) HasExistingImage(t testing.TB, reference string) bool {
-	imageList, err := e.APIClient().ImageList(context.Background(), types.ImageListOptions{
+	imageList, err := e.APIClient().ImageList(context.Background(), image.ListOptions{
 		All: true,
 		Filters: filters.NewArgs(
 			filters.Arg("dangling", "false"),

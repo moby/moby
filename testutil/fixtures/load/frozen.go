@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/moby/term"
@@ -74,7 +74,7 @@ func FrozenImagesLinux(ctx context.Context, client client.APIClient, images ...s
 			if err := client.ImageTag(ctx, img.srcName, img.destName); err != nil {
 				return errors.Wrapf(err, "failed to tag %s as %s", img.srcName, img.destName)
 			}
-			if _, err := client.ImageRemove(ctx, img.srcName, types.ImageRemoveOptions{}); err != nil {
+			if _, err := client.ImageRemove(ctx, img.srcName, image.RemoveOptions{}); err != nil {
 				return errors.Wrapf(err, "failed to remove %s", img.srcName)
 			}
 		}
@@ -162,7 +162,7 @@ func pullTagAndRemove(ctx context.Context, client client.APIClient, ref string, 
 		span.End()
 	}()
 
-	resp, err := client.ImagePull(ctx, ref, types.ImagePullOptions{})
+	resp, err := client.ImagePull(ctx, ref, image.PullOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to pull %s", ref)
 	}
@@ -175,7 +175,7 @@ func pullTagAndRemove(ctx context.Context, client client.APIClient, ref string, 
 	if err := client.ImageTag(ctx, ref, tag); err != nil {
 		return errors.Wrapf(err, "failed to tag %s as %s", ref, tag)
 	}
-	_, err = client.ImageRemove(ctx, ref, types.ImageRemoveOptions{})
+	_, err = client.ImageRemove(ctx, ref, image.RemoveOptions{})
 	return errors.Wrapf(err, "failed to remove %s", ref)
 }
 

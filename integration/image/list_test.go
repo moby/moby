@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -39,7 +39,7 @@ func TestImagesFilterMultiReference(t *testing.T) {
 	filter.Add("reference", repoTags[0])
 	filter.Add("reference", repoTags[1])
 	filter.Add("reference", repoTags[2])
-	options := types.ImageListOptions{
+	options := image.ListOptions{
 		Filters: filter,
 	}
 	images, err := client.ImageList(ctx, options)
@@ -87,7 +87,7 @@ func TestImagesFilterUntil(t *testing.T) {
 		filters.Arg("until", laterUntil),
 		filters.Arg("before", imgs[len(imgs)-1]),
 	)
-	list, err := client.ImageList(ctx, types.ImageListOptions{Filters: filter})
+	list, err := client.ImageList(ctx, image.ListOptions{Filters: filter})
 	assert.NilError(t, err)
 
 	var listedIDs []string
@@ -121,7 +121,7 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 		filters.Arg("since", imgs[0]),
 		filters.Arg("before", imgs[len(imgs)-1]),
 	)
-	list, err := client.ImageList(ctx, types.ImageListOptions{Filters: filter})
+	list, err := client.ImageList(ctx, image.ListOptions{Filters: filter})
 	assert.NilError(t, err)
 
 	var listedIDs []string
@@ -183,7 +183,7 @@ func TestAPIImagesFilters(t *testing.T) {
 			t.Parallel()
 
 			ctx := testutil.StartSpan(ctx, t)
-			images, err := client.ImageList(ctx, types.ImageListOptions{
+			images, err := client.ImageList(ctx, image.ListOptions{
 				Filters: filters.NewArgs(tc.filters...),
 			})
 			assert.Check(t, err)

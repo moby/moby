@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil/fakecontext"
@@ -22,7 +23,7 @@ func Do(ctx context.Context, t *testing.T, client client.APIClient, buildCtx *fa
 	assert.NilError(t, err)
 	img := GetImageIDFromBody(t, resp.Body)
 	t.Cleanup(func() {
-		client.ImageRemove(ctx, img, types.ImageRemoveOptions{Force: true})
+		client.ImageRemove(ctx, img, image.RemoveOptions{Force: true})
 	})
 	return img
 }

@@ -109,7 +109,7 @@ func ProtectImages(ctx context.Context, t testing.TB, testEnv *Execution) {
 func getExistingImages(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	client := testEnv.APIClient()
-	imageList, err := client.ImageList(ctx, types.ImageListOptions{
+	imageList, err := client.ImageList(ctx, image.ListOptions{
 		All:     true,
 		Filters: filters.NewArgs(filters.Arg("dangling", "false")),
 	})

@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/vfs"
@@ -398,7 +399,7 @@ func testGraphDriverPull(ctx context.Context, c client.APIClient, d *daemon.Daem
 		d.Start(t)
 		defer d.Stop(t)
 
-		r, err := c.ImagePull(ctx, "busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209", types.ImagePullOptions{})
+		r, err := c.ImagePull(ctx, "busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209", image.PullOptions{})
 		assert.NilError(t, err)
 		_, err = io.Copy(io.Discard, r)
 		assert.NilError(t, err)

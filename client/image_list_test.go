@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
@@ -24,7 +23,7 @@ func TestImageListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.ImageList(context.Background(), types.ImageListOptions{})
+	_, err := client.ImageList(context.Background(), image.ListOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -32,11 +31,11 @@ func TestImageList(t *testing.T) {
 	const expectedURL = "/images/json"
 
 	listCases := []struct {
-		options             types.ImageListOptions
+		options             image.ListOptions
 		expectedQueryParams map[string]string
 	}{
 		{
-			options: types.ImageListOptions{},
+			options: image.ListOptions{},
 			expectedQueryParams: map[string]string{
 				"all":     "",
 				"filter":  "",
@@ -44,7 +43,7 @@ func TestImageList(t *testing.T) {
 			},
 		},
 		{
-			options: types.ImageListOptions{
+			options: image.ListOptions{
 				Filters: filters.NewArgs(
 					filters.Arg("label", "label1"),
 					filters.Arg("label", "label2"),
@@ -58,7 +57,7 @@ func TestImageList(t *testing.T) {
 			},
 		},
 		{
-			options: types.ImageListOptions{
+			options: image.ListOptions{
 				Filters: filters.NewArgs(filters.Arg("dangling", "false")),
 			},
 			expectedQueryParams: map[string]string{
@@ -141,7 +140,7 @@ func TestImageListApiBefore125(t *testing.T) {
 		version: "1.24",
 	}
 
-	options := types.ImageListOptions{
+	options := image.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("reference", "image:tag")),
 	}
 
@@ -162,12 +161,12 @@ func TestImageListWithSharedSize(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
 		version    string
-		options    types.ImageListOptions
+		options    image.ListOptions
 		sharedSize string // expected value for the shared-size query param, or empty if it should not be set.
 	}{
 		{name: "unset after 1.42, no options set", version: "1.42"},
-		{name: "set after 1.42, if requested", version: "1.42", options: types.ImageListOptions{SharedSize: true}, sharedSize: "1"},
-		{name: "unset before 1.42, even if requested", version: "1.41", options: types.ImageListOptions{SharedSize: true}},
+		{name: "set after 1.42, if requested", version: "1.42", options: image.ListOptions{SharedSize: true}, sharedSize: "1"},
+		{name: "unset before 1.42, even if requested", version: "1.41", options: image.ListOptions{SharedSize: true}},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
