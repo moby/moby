@@ -105,25 +105,7 @@ func (ec *endpointCnt) EndpointCnt() uint64 {
 }
 
 func (ec *endpointCnt) updateStore() error {
-	store := ec.n.getController().getStore()
-	if store == nil {
-		return fmt.Errorf("store not found on endpoint count update")
-	}
-	// make a copy of count and n to avoid being overwritten by store.GetObject
-	count := ec.EndpointCnt()
-	n := ec.n
-	for {
-		if err := ec.n.getController().updateToStore(ec); err == nil || err != datastore.ErrKeyModified {
-			return err
-		}
-		if err := store.GetObject(datastore.Key(ec.Key()...), ec); err != nil {
-			return fmt.Errorf("could not update the kvobject to latest on endpoint count update: %v", err)
-		}
-		ec.Lock()
-		ec.Count = count
-		ec.n = n
-		ec.Unlock()
-	}
+	return ec.n.getController().updateToStore(ec)
 }
 
 func (ec *endpointCnt) setCnt(cnt uint64) error {
