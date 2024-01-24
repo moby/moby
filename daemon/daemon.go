@@ -1520,6 +1520,34 @@ func CreateDaemonRoot(config *config.Config) error {
 	return setupDaemonRoot(config, realRoot, idMapping.RootPair())
 }
 
+// RemapContainerdNamespaces returns the right containerd namespaces to use:
+// - if they are not already set in the config file
+// -  and the daemon is running with user namespace remapping enabled
+// Then it will return new namespace names, otherwise it will return the existing
+// namespaces
+func RemapContainerdNamespaces(config *config.Config) (ns string, pluginNs string, err error) {
+	idMapping, err := setupRemappedRoot(config)
+	if err != nil {
+		return "", "", err
+	}
+	if idMapping.Empty() {
+		return config.ContainerdNamespace, config.ContainerdPluginNamespace, nil
+	}
+	root := idMapping.RootPair()
+
+	ns = config.ContainerdNamespace
+	if _, ok := config.ValuesSet["containerd-namespace"]; !ok {
+		ns = fmt.Sprintf("%s-%d.%d", config.ContainerdNamespace, root.UID, root.GID)
+	}
+
+	pluginNs = config.ContainerdPluginNamespace
+	if _, ok := config.ValuesSet["containerd-plugin-namespace"]; !ok {
+		pluginNs = fmt.Sprintf("%s-%d.%d", config.ContainerdPluginNamespace, root.UID, root.GID)
+	}
+
+	return
+}
+
 // checkpointAndSave grabs a container lock to safely call container.CheckpointTo
 func (daemon *Daemon) checkpointAndSave(container *container.Container) error {
 	container.Lock()

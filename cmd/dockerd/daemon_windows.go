@@ -16,6 +16,12 @@ func getDefaultDaemonConfigFile() (string, error) {
 	return "", nil
 }
 
+// loadCLIPlatformConfig loads the platform specific CLI configuration
+// there is none on windows, so this is a no-op
+func loadCLIPlatformConfig(conf *config.Config) error {
+	return nil
+}
+
 // setDefaultUmask doesn't do anything on windows
 func setDefaultUmask() error {
 	return nil
