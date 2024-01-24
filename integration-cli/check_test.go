@@ -576,6 +576,9 @@ func (s *DockerSwarmSuite) TearDownTest(c *testing.T) {
 	s.daemonsLock.Lock()
 	for _, d := range s.daemons {
 		if d != nil {
+			if c.Failed() {
+				d.TailLogsT(c, 100)
+			}
 			d.Stop(c)
 			d.Cleanup(c)
 		}

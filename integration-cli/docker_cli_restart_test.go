@@ -92,7 +92,7 @@ func (s *DockerCLIRestartSuite) TestRestartWithVolumes(c *testing.T) {
 }
 
 func (s *DockerCLIRestartSuite) TestRestartDisconnectedContainer(c *testing.T) {
-	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon, NotUserNamespace)
 
 	// Run a container on the default bridge network
 	out, _ := dockerCmd(c, "run", "-d", "--name", "c0", "busybox", "top")
@@ -213,7 +213,7 @@ func (s *DockerCLIRestartSuite) TestRestartContainerSuccess(c *testing.T) {
 
 func (s *DockerCLIRestartSuite) TestRestartWithPolicyUserDefinedNetwork(c *testing.T) {
 	// TODO Windows. This may be portable following HNS integration post TP5.
-	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon, NotUserNamespace)
 	dockerCmd(c, "network", "create", "-d", "bridge", "udNet")
 
 	dockerCmd(c, "run", "-d", "--net=udNet", "--name=first", "busybox", "top")

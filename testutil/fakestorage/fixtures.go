@@ -39,7 +39,7 @@ func ensureHTTPServerImage(t testing.TB) {
 	if goos == "" {
 		goos = "linux"
 	}
-	goarch := os.Getenv("DOCKER_ENGINE_GOARCH")
+	goarch := testEnv.DaemonVersion.Arch
 	if goarch == "" {
 		goarch = "amd64"
 	}
