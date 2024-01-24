@@ -28,13 +28,6 @@ func (id ID) Digest() digest.Digest {
 	return digest.Digest(id)
 }
 
-// IDFromDigest creates an ID from a digest
-//
-// Deprecated: cast to an ID using ID(digest).
-func IDFromDigest(digest digest.Digest) ID {
-	return ID(digest)
-}
-
 // V1Image stores the V1 image configuration.
 type V1Image struct {
 	// ID is a unique 64 character identifier of the image
