@@ -18,8 +18,8 @@ cloud.google.com/go/logging/internal
 cloud.google.com/go/longrunning
 cloud.google.com/go/longrunning/autogen
 cloud.google.com/go/longrunning/autogen/longrunningpb
-# code.cloudfoundry.org/clock v1.0.0
-## explicit
+# code.cloudfoundry.org/clock v1.1.0
+## explicit; go 1.20
 code.cloudfoundry.org/clock
 # dario.cat/mergo v1.0.0
 ## explicit; go 1.13
@@ -846,7 +846,7 @@ github.com/moby/patternmatcher/ignorefile
 # github.com/moby/pubsub v1.0.0
 ## explicit; go 1.19
 github.com/moby/pubsub
-# github.com/moby/swarmkit/v2 v2.0.0-20230911190601-f082dd7a0cee
+# github.com/moby/swarmkit/v2 v2.0.0-20240125134710-dcda100a8261
 ## explicit; go 1.18
 github.com/moby/swarmkit/v2/agent
 github.com/moby/swarmkit/v2/agent/configs
