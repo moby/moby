@@ -174,7 +174,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 		return fmt.Errorf("could not find local scope store")
 	}
 
-	sandboxStates, err := store.List(datastore.Key(sandboxPrefix), &sbState{c: c})
+	sandboxStates, err := store.List(&sbState{c: c})
 	if err != nil {
 		if err == datastore.ErrKeyNotFound {
 			// It's normal for no sandboxes to be found. Just bail out.

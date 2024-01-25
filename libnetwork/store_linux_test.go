@@ -50,9 +50,8 @@ func TestNoPersist(t *testing.T) {
 	}
 	defer testController.Stop()
 
-	// FIXME(thaJeztah): GetObject uses the given key for lookups if no cache-store is present, but the KvObject's Key() to look up in cache....
 	nwKVObject := &Network{id: nw.ID()}
-	err = testController.getStore().GetObject(datastore.Key(datastore.NetworkKeyPrefix, nw.ID()), nwKVObject)
+	err = testController.getStore().GetObject(nwKVObject)
 	if !errors.Is(err, store.ErrKeyNotFound) {
 		t.Errorf("Expected %q error when retrieving network from store, got: %q", store.ErrKeyNotFound, err)
 	}
@@ -61,7 +60,7 @@ func TestNoPersist(t *testing.T) {
 	}
 
 	epKVObject := &Endpoint{network: nw, id: ep.ID()}
-	err = testController.getStore().GetObject(datastore.Key(datastore.EndpointKeyPrefix, nw.ID(), ep.ID()), epKVObject)
+	err = testController.getStore().GetObject(epKVObject)
 	if !errors.Is(err, store.ErrKeyNotFound) {
 		t.Errorf("Expected %v error when retrieving endpoint from store, got: %v", store.ErrKeyNotFound, err)
 	}

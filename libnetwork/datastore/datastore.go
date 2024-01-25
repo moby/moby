@@ -216,7 +216,7 @@ func (ds *Store) PutObjectAtomic(kvObject KVObject) error {
 }
 
 // GetObject gets data from the store and unmarshals to the specified object.
-func (ds *Store) GetObject(key string, o KVObject) error {
+func (ds *Store) GetObject(o KVObject) error {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 
@@ -236,7 +236,7 @@ func (ds *Store) ensureParent(parent string) error {
 
 // List returns of a list of KVObjects belonging to the parent key. The caller
 // must pass a KVObject of the same type as the objects that need to be listed.
-func (ds *Store) List(key string, kvObject KVObject) ([]KVObject, error) {
+func (ds *Store) List(kvObject KVObject) ([]KVObject, error) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 

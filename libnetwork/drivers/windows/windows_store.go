@@ -47,7 +47,7 @@ func (d *driver) initStore(option map[string]interface{}) error {
 }
 
 func (d *driver) populateNetworks() error {
-	kvol, err := d.store.List(datastore.Key(windowsPrefix), &networkConfiguration{Type: d.name})
+	kvol, err := d.store.List(&networkConfiguration{Type: d.name})
 	if err != nil && err != datastore.ErrKeyNotFound {
 		return fmt.Errorf("failed to get windows network configurations from store: %v", err)
 	}
@@ -70,7 +70,7 @@ func (d *driver) populateNetworks() error {
 }
 
 func (d *driver) populateEndpoints() error {
-	kvol, err := d.store.List(datastore.Key(windowsEndpointPrefix), &hnsEndpoint{Type: d.name})
+	kvol, err := d.store.List(&hnsEndpoint{Type: d.name})
 	if err != nil && err != datastore.ErrKeyNotFound {
 		return fmt.Errorf("failed to get endpoints from store: %v", err)
 	}
@@ -122,7 +122,7 @@ func (d *driver) storeDelete(kvObject datastore.KVObject) error {
 retry:
 	if err := d.store.DeleteObjectAtomic(kvObject); err != nil {
 		if err == datastore.ErrKeyModified {
-			if err := d.store.GetObject(datastore.Key(kvObject.Key()...), kvObject); err != nil {
+			if err := d.store.GetObject(kvObject); err != nil {
 				return fmt.Errorf("could not update the kvobject to latest when trying to delete: %v", err)
 			}
 			goto retry
