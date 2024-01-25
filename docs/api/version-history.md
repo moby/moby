@@ -674,8 +674,6 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.23 API changes
 
-[Docker Engine API v1.23](v1.23.md) documentation
-
 * `GET /containers/json` returns the state of the container, one of `created`, `restarting`, `running`, `paused`, `exited` or `dead`.
 * `GET /containers/json` returns the mount points for the container.
 * `GET /networks/(name)` now returns an `Internal` field showing whether the network is internal or not.
@@ -695,8 +693,6 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /images/load` now returns progress information as a JSON stream, and has a `quiet` query parameter to suppress progress details.
 
 ## v1.22 API changes
-
-[Docker Engine API v1.22](v1.22.md) documentation
 
 * The `HostConfig.LxcConf` field has been removed, and is no longer available on
   `POST /containers/create` and `GET /containers/(id)/json`.
@@ -732,8 +728,6 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.21 API changes
 
-[Docker Engine API v1.21](v1.21.md) documentation
-
 * `GET /volumes` lists volumes from all volume drivers.
 * `POST /volumes/create` to create a volume.
 * `GET /volumes/(name)` get low-level information about a volume.
@@ -767,8 +761,6 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.20 API changes
 
-[Docker Engine API v1.20](v1.20.md) documentation
-
 * `GET /containers/(id)/archive` get an archive of filesystem content from a container.
 * `PUT /containers/(id)/archive` upload an archive of content to be extracted to
 an existing directory inside a container's filesystem.
@@ -778,8 +770,6 @@ endpoint which can be used to download files and directories from a container.
 list of additional groups that the container process will run as.
 
 ## v1.19 API changes
-
-[Docker Engine API v1.19](v1.19.md) documentation
 
 * When the daemon detects a version mismatch with the client, usually when
 the client is newer than the daemon, an HTTP 400 is now returned instead
@@ -794,8 +784,6 @@ end point now returns the new boolean fields `CpuCfsPeriod`, `CpuCfsQuota`, and
 * `POST /build` accepts `cpuperiod` and `cpuquota` options
 
 ## v1.18 API changes
-
-[Docker Engine API v1.18](v1.18.md) documentation
 
 * `GET /version` now returns `Os`, `Arch` and `KernelVersion`.
 * `POST /containers/create` and `POST /containers/(id)/start`allow you to  set ulimit settings for use in the container.
