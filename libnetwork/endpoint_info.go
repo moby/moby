@@ -9,32 +9,6 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
-// EndpointInfo provides an interface to retrieve network resources bound to the endpoint.
-type EndpointInfo interface {
-	// Iface returns information about the interface which was assigned to
-	// the endpoint by the driver. This can be used after the
-	// endpoint has been created.
-	Iface() *EndpointInterface
-
-	// Gateway returns the IPv4 gateway assigned by the driver.
-	// This will only return a valid value if a container has joined the endpoint.
-	Gateway() net.IP
-
-	// GatewayIPv6 returns the IPv6 gateway assigned by the driver.
-	// This will only return a valid value if a container has joined the endpoint.
-	GatewayIPv6() net.IP
-
-	// StaticRoutes returns the list of static routes configured by the network
-	// driver when the container joins a network
-	StaticRoutes() []*types.StaticRoute
-
-	// Sandbox returns the attached sandbox if there, nil otherwise.
-	Sandbox() *Sandbox
-
-	// LoadBalancer returns whether the endpoint is the load balancer endpoint for the network.
-	LoadBalancer() bool
-}
-
 // EndpointInterface holds interface addresses bound to the endpoint.
 type EndpointInterface struct {
 	mac       net.HardwareAddr
@@ -167,34 +141,6 @@ type tableEntry struct {
 	tableName string
 	key       string
 	value     []byte
-}
-
-// Info hydrates the endpoint and returns certain operational data belonging
-// to this endpoint.
-//
-// TODO(thaJeztah): make sure that Endpoint is always fully hydrated, and remove the EndpointInfo interface, and use Endpoint directly.
-func (ep *Endpoint) Info() EndpointInfo {
-	if ep.sandboxID != "" {
-		return ep
-	}
-	n, err := ep.getNetworkFromStore()
-	if err != nil {
-		return nil
-	}
-
-	ep, err = n.getEndpointFromStore(ep.ID())
-	if err != nil {
-		return nil
-	}
-
-	sb, ok := ep.getSandbox()
-	if !ok {
-		// endpoint hasn't joined any sandbox.
-		// Just return the endpoint
-		return ep
-	}
-
-	return sb.GetEndpoint(ep.ID())
 }
 
 // Iface returns information about the interface which was assigned to
