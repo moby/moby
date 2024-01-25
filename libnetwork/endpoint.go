@@ -469,11 +469,6 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 		return fmt.Errorf("failed to get network from store during join: %v", err)
 	}
 
-	ep, err = n.getEndpointFromStore(ep.ID())
-	if err != nil {
-		return fmt.Errorf("failed to get endpoint from store during join: %v", err)
-	}
-
 	ep.mu.Lock()
 	if ep.sandboxID != "" {
 		ep.mu.Unlock()
@@ -695,11 +690,6 @@ func (ep *Endpoint) sbLeave(sb *Sandbox, force bool, options ...EndpointOption) 
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return fmt.Errorf("failed to get network from store during leave: %v", err)
-	}
-
-	ep, err = n.getEndpointFromStore(ep.ID())
-	if err != nil {
-		return fmt.Errorf("failed to get endpoint from store during leave: %v", err)
 	}
 
 	ep.mu.Lock()
