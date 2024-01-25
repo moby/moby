@@ -11,3 +11,21 @@ func Dedup[T comparable](slice []T) []T {
 	}
 	return out
 }
+
+func Map[S ~[]In, In, Out any](s S, fn func(In) Out) []Out {
+	res := make([]Out, len(s))
+	for i, v := range s {
+		res[i] = fn(v)
+	}
+	return res
+}
+
+func Mapper[In, Out any](fn func(In) Out) func([]In) []Out {
+	return func(s []In) []Out {
+		res := make([]Out, len(s))
+		for i, v := range s {
+			res[i] = fn(v)
+		}
+		return res
+	}
+}
