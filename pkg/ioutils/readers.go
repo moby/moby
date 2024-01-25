@@ -3,11 +3,15 @@ package ioutils // import "github.com/docker/docker/pkg/ioutils"
 import (
 	"context"
 	"io"
+	"runtime/debug"
+	"sync/atomic"
 
 	// make sure crypto.SHA256, crypto.sha512 and crypto.SHA384 are registered
 	// TODO remove once https://github.com/opencontainers/go-digest/pull/64 is merged.
 	_ "crypto/sha256"
 	_ "crypto/sha512"
+
+	"github.com/sirupsen/logrus"
 )
 
 // ReadCloserWrapper wraps an io.Reader, and implements an io.ReadCloser
@@ -16,10 +20,15 @@ import (
 type ReadCloserWrapper struct {
 	io.Reader
 	closer func() error
+	closed atomic.Bool
 }
 
 // Close calls back the passed closer function
 func (r *ReadCloserWrapper) Close() error {
+	if !r.closed.CompareAndSwap(false, true) {
+		subsequentCloseWarn("ReadCloserWrapper")
+		return nil
+	}
 	return r.closer()
 }
 
@@ -87,6 +96,7 @@ type cancelReadCloser struct {
 	cancel func()
 	pR     *io.PipeReader // Stream to read from
 	pW     *io.PipeWriter
+	closed atomic.Bool
 }
 
 // NewCancelReadCloser creates a wrapper that closes the ReadCloser when the
@@ -146,6 +156,17 @@ func (p *cancelReadCloser) closeWithError(err error) {
 // Close closes the wrapper its underlying reader. It will cause
 // future calls to Read to return io.EOF.
 func (p *cancelReadCloser) Close() error {
+	if !p.closed.CompareAndSwap(false, true) {
+		subsequentCloseWarn("cancelReadCloser")
+		return nil
+	}
 	p.closeWithError(io.EOF)
 	return nil
+}
+
+func subsequentCloseWarn(name string) {
+	logrus.Error("subsequent attempt to close " + name)
+	if logrus.GetLevel() >= logrus.DebugLevel {
+		logrus.Errorf("stack trace: %s", string(debug.Stack()))
+	}
 }
