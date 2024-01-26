@@ -260,6 +260,12 @@ func (s *saveSession) save(outStream io.Writer) error {
 		}
 		size := int64(len(data))
 
+		untaggedMfstDesc := ocispec.Descriptor{
+			MediaType: ocispec.MediaTypeImageManifest,
+			Digest:    dgst,
+			Size:      size,
+			Platform:  m.Config.Platform,
+		}
 		for _, ref := range imageDescr.refs {
 			familiarName := reference.FamiliarName(ref)
 			if _, ok := reposLegacy[familiarName]; !ok {
@@ -268,16 +274,17 @@ func (s *saveSession) save(outStream io.Writer) error {
 			reposLegacy[familiarName][ref.Tag()] = digest.Digest(imageDescr.layers[len(imageDescr.layers)-1]).Encoded()
 			repoTags = append(repoTags, reference.FamiliarString(ref))
 
-			manifestDescriptors = append(manifestDescriptors, ocispec.Descriptor{
-				MediaType: ocispec.MediaTypeImageManifest,
-				Digest:    dgst,
-				Size:      size,
-				Platform:  m.Config.Platform,
-				Annotations: map[string]string{
-					images.AnnotationImageName: ref.String(),
-					ocispec.AnnotationRefName:  ref.Tag(),
-				},
-			})
+			taggedManifest := untaggedMfstDesc
+			taggedManifest.Annotations = map[string]string{
+				images.AnnotationImageName: ref.String(),
+				ocispec.AnnotationRefName:  ref.Tag(),
+			}
+			manifestDescriptors = append(manifestDescriptors, taggedManifest)
+		}
+
+		// If no ref was assigned, make sure still add the image is still included in index.json.
+		if len(manifestDescriptors) == 0 {
+			manifestDescriptors = append(manifestDescriptors, untaggedMfstDesc)
 		}
 
 		for _, l := range imageDescr.layers {
