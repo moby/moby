@@ -788,7 +788,7 @@ func (daemon *Daemon) clearAttachableNetworks() {
 }
 
 // buildCreateEndpointOptions builds endpoint options from a given network.
-func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, epConfig *network.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
+func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, epConfig *internalnetwork.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
 	var createOptions []libnetwork.EndpointOption
 	var genericOptions = make(options.Generic)
 
@@ -824,8 +824,8 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
 		}
 
-		if epConfig.MacAddress != "" {
-			mac, err := net.ParseMAC(epConfig.MacAddress)
+		if epConfig.DesiredMacAddress != "" {
+			mac, err := net.ParseMAC(epConfig.DesiredMacAddress)
 			if err != nil {
 				return nil, err
 			}
