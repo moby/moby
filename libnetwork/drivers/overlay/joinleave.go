@@ -107,7 +107,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		}
 	}
 
-	d.peerAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, d.advertiseAddress, false, false, true)
+	d.peerAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, d.advertiseAddress, true)
 
 	if err = d.checkEncryption(nid, nil, true, true); err != nil {
 		log.G(context.TODO()).Warn(err)
@@ -189,7 +189,7 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 		return
 	}
 
-	d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, false, false, false)
+	d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, false)
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
