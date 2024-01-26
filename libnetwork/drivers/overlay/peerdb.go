@@ -262,10 +262,10 @@ func (d *driver) peerInitOp(nid string) error {
 	})
 }
 
-func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask, peerMac net.HardwareAddr, vtep net.IP, l2Miss, l3Miss, localPeer bool) {
+func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask, peerMac net.HardwareAddr, vtep net.IP, localPeer bool) {
 	d.peerOpMu.Lock()
 	defer d.peerOpMu.Unlock()
-	err := d.peerAddOp(nid, eid, peerIP, peerIPMask, peerMac, vtep, l2Miss, l3Miss, true, localPeer)
+	err := d.peerAddOp(nid, eid, peerIP, peerIPMask, peerMac, vtep, false, false, true, localPeer)
 	if err != nil {
 		log.G(context.TODO()).WithError(err).Warn("Peer add operation failed")
 	}
