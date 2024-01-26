@@ -70,6 +70,7 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 		if epConf.EndpointSettings != nil {
 			// We must make a copy of this pointer object otherwise it can race with other operations
 			apiNetworks[nwName] = epConf.EndpointSettings.Copy()
+			apiNetworks[nwName].DesiredMacAddress = ""
 		}
 	}
 

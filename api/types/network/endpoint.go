@@ -14,6 +14,9 @@ type EndpointSettings struct {
 	IPAMConfig *EndpointIPAMConfig
 	Links      []string
 	Aliases    []string // Aliases holds the list of extra, user-specified DNS names for this endpoint.
+	// MacAddress may be used to specify a MAC address when the container is created.
+	// Once the container is running, it becomes operational data (it may contain a
+	// generated address).
 	MacAddress string
 	// Operational data
 	NetworkID           string
