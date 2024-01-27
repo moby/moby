@@ -78,15 +78,10 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 
 	mountPoints := ctr.GetMountPoints()
 	networkSettings := &types.NetworkSettings{
-		NetworkSettingsBase: types.NetworkSettingsBase{
-			Bridge:                 ctr.NetworkSettings.Bridge,
-			SandboxID:              ctr.NetworkSettings.SandboxID,
-			SandboxKey:             ctr.NetworkSettings.SandboxKey,
-			HairpinMode:            ctr.NetworkSettings.HairpinMode,
-			LinkLocalIPv6Address:   ctr.NetworkSettings.LinkLocalIPv6Address,
-			LinkLocalIPv6PrefixLen: ctr.NetworkSettings.LinkLocalIPv6PrefixLen,
-			SecondaryIPAddresses:   ctr.NetworkSettings.SecondaryIPAddresses,
-			SecondaryIPv6Addresses: ctr.NetworkSettings.SecondaryIPv6Addresses,
+		NetworkSettingsBase: types.NetworkSettingsBase{ //nolint:staticcheck // ignore SA1019: NetworkSettingsBase is deprecated since v26.0.
+			Bridge:     ctr.NetworkSettings.Bridge,
+			SandboxID:  ctr.NetworkSettings.SandboxID,
+			SandboxKey: ctr.NetworkSettings.SandboxKey,
 		},
 		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(ctr.NetworkSettings.Networks),
 		Networks:               apiNetworks,
@@ -281,16 +276,11 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 
 func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Settings) *v1p20.NetworkSettings {
 	result := &v1p20.NetworkSettings{
-		NetworkSettingsBase: types.NetworkSettingsBase{
-			Bridge:                 settings.Bridge,
-			SandboxID:              settings.SandboxID,
-			SandboxKey:             settings.SandboxKey,
-			HairpinMode:            settings.HairpinMode,
-			LinkLocalIPv6Address:   settings.LinkLocalIPv6Address,
-			LinkLocalIPv6PrefixLen: settings.LinkLocalIPv6PrefixLen,
-			Ports:                  settings.Ports,
-			SecondaryIPAddresses:   settings.SecondaryIPAddresses,
-			SecondaryIPv6Addresses: settings.SecondaryIPv6Addresses,
+		NetworkSettingsBase: types.NetworkSettingsBase{ //nolint:staticcheck // ignore SA1019: NetworkSettingsBase is deprecated since v26.0.
+			Bridge:     settings.Bridge,
+			SandboxID:  settings.SandboxID,
+			SandboxKey: settings.SandboxKey,
+			Ports:      settings.Ports,
 		},
 		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(settings.Networks),
 	}
@@ -298,10 +288,10 @@ func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Se
 	return result
 }
 
-// getDefaultNetworkSettings creates the deprecated structure that holds the information
-// about the bridge network for a container.
-func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings {
-	var settings types.DefaultNetworkSettings
+// getDefaultNetworkSettings creates the struct that holds the networking state of the default bridge when inspecting a
+// container.
+func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings { //nolint:staticcheck // ignore SA1019: struct is deprecated since API v1.21.
+	var settings types.DefaultNetworkSettings //nolint:staticcheck // ignore SA1019: struct is deprecated since API v1.21.
 
 	if defaultNetwork, ok := networks[networktypes.NetworkBridge]; ok && defaultNetwork.EndpointSettings != nil {
 		settings.EndpointID = defaultNetwork.EndpointID

@@ -318,7 +318,7 @@ type ContainerJSONBase struct {
 	SizeRootFs      *int64 `json:",omitempty"`
 }
 
-// ContainerJSON is newly used struct along with MountPoint
+// ContainerJSON represents the state and settings of a container when inspecting it.
 type ContainerJSON struct {
 	*ContainerJSONBase
 	Mounts          []MountPoint
@@ -326,11 +326,11 @@ type ContainerJSON struct {
 	NetworkSettings *NetworkSettings
 }
 
-// NetworkSettings exposes the network settings in the api
+// NetworkSettings holds the networking state of a specific container when inspecting it.
 type NetworkSettings struct {
-	NetworkSettingsBase
-	DefaultNetworkSettings
-	Networks map[string]*network.EndpointSettings
+	NetworkSettingsBase    // Deprecated: NetworkSettingsBase is deprecated since API v1.21 and will be removed in a future release.
+	DefaultNetworkSettings // Deprecated: DefaultNetworkSettings is deprecated since API v1.21 and will be removed in a future release.
+	Networks               map[string]*network.EndpointSettings
 }
 
 // SummaryNetworkSettings provides a summary of container's networks
@@ -339,7 +339,9 @@ type SummaryNetworkSettings struct {
 	Networks map[string]*network.EndpointSettings
 }
 
-// NetworkSettingsBase holds networking state for a container when inspecting it.
+// NetworkSettingsBase holds the networking state of a specific container when inspecting it.
+//
+// Deprecated: this struct mostly contains deprecated fields and will be removed in v26.0.
 type NetworkSettingsBase struct {
 	Bridge     string      // Bridge contains the name of the default bridge interface iff it was set through the daemon --bridge flag.
 	SandboxID  string      // SandboxID uniquely represents a container's network stack
@@ -362,9 +364,10 @@ type NetworkSettingsBase struct {
 	SecondaryIPv6Addresses []network.Address // Deprecated: This field is never set and will be removed in a future release.
 }
 
-// DefaultNetworkSettings holds network information
-// during the 2 release deprecation period.
-// It will be removed in Docker 1.11.
+// DefaultNetworkSettings holds the networking state of the default bridge when inspecting a container.
+//
+// Deprecated: this struct is deprecated since API v1.21 and will be removed in a future release. You should look for
+// the default network in NetworkSettings.Networks instead.
 type DefaultNetworkSettings struct {
 	EndpointID          string // EndpointID uniquely represents a service endpoint in a Sandbox
 	Gateway             string // Gateway holds the gateway address for the network

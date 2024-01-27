@@ -10,21 +10,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Settings stores configuration details about the daemon network config
-// TODO Windows. Many of these fields can be factored out.,
+// Settings stores networking configuration and state for a specific container.
+// TODO Windows. Many of these fields can be factored out.
 type Settings struct {
-	Bridge                 string
-	SandboxID              string
-	SandboxKey             string
-	HairpinMode            bool
-	LinkLocalIPv6Address   string
-	LinkLocalIPv6PrefixLen int
-	Networks               map[string]*EndpointSettings
-	Service                *clustertypes.ServiceConfig
-	Ports                  nat.PortMap
-	SecondaryIPAddresses   []networktypes.Address
-	SecondaryIPv6Addresses []networktypes.Address
-	HasSwarmEndpoint       bool
+	Bridge           string // Bridge contains the name of the default bridge interface iff it was set through the daemon --bridge flag.
+	SandboxID        string
+	SandboxKey       string
+	Networks         map[string]*EndpointSettings
+	Service          *clustertypes.ServiceConfig
+	Ports            nat.PortMap
+	HasSwarmEndpoint bool
+
+	HairpinMode            bool                   // Deprecated: this field is never set and will be removed in a future release.
+	LinkLocalIPv6Address   string                 // Deprecated: this field is never set and will be removed in a future release.
+	LinkLocalIPv6PrefixLen int                    // Deprecated: this field is never set and will be removed in a future release.
+	SecondaryIPAddresses   []networktypes.Address // Deprecated: this field has no practical use and will be removed in a future release.
+	SecondaryIPv6Addresses []networktypes.Address // Deprecated: this field has no practical use and will be removed in a future release.
 }
 
 // EndpointSettings is a package local wrapper for
