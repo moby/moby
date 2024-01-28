@@ -22,6 +22,7 @@ import (
 
 	"code.cloudfoundry.org/clock"
 	"github.com/coreos/go-systemd/v22/journal"
+	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 
 	"github.com/docker/docker/daemon/logger/journald/internal/export"
@@ -67,6 +68,10 @@ type Sender struct {
 	// timestamp in zero time after the SYSLOG_TIMESTAMP value was set,
 	// which is higly unrealistic in practice.
 	AssignEventTimestampFromSyslogTimestamp bool
+	// Boot ID for journal entries. Required by systemd-journal-remote as of
+	// https://github.com/systemd/systemd/commit/1eede158519e4e5ed22738c90cb57a91dbecb7f2
+	// (systemd 255).
+	BootID uuid.UUID
 }
 
 // New constructs a new Sender which will write journal entries to outpath. The
@@ -82,6 +87,7 @@ func New(outpath string) (*Sender, error) {
 		CmdName:    p,
 		OutputPath: outpath,
 		Clock:      clock.NewClock(),
+		BootID:     uuid.New(), // UUIDv4, like systemd itself generates for sd_id128 values.
 	}
 	return sender, nil
 }
@@ -119,6 +125,9 @@ func (s *Sender) Send(message string, priority journal.Priority, vars map[string
 		ts = s.Clock.Now()
 	}
 	if err := export.WriteField(&buf, "__REALTIME_TIMESTAMP", strconv.FormatInt(ts.UnixMicro(), 10)); err != nil {
+		return fmt.Errorf("fake: error writing entry to systemd-journal-remote: %w", err)
+	}
+	if err := export.WriteField(&buf, "_BOOT_ID", fmt.Sprintf("%x", [16]byte(s.BootID))); err != nil {
 		return fmt.Errorf("fake: error writing entry to systemd-journal-remote: %w", err)
 	}
 	if err := export.WriteField(&buf, "MESSAGE", message); err != nil {
