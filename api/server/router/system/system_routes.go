@@ -97,6 +97,10 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 				info.Runtimes[k] = system.RuntimeWithStatus{Runtime: rt.Runtime}
 			}
 		}
+		if versions.LessThan(version, "1.46") {
+			// Containerd field introduced in API v1.46.
+			info.Containerd = nil
+		}
 		if versions.GreaterThanOrEqualTo(version, "1.42") {
 			info.KernelMemory = false
 		}
