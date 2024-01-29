@@ -92,6 +92,10 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if _, ok := d.networks[id]; ok {
+		return nil, fmt.Errorf("network %s already exists", id)
+	}
+
 	for i, ipd := range ipV4Data {
 		s := &subnet{
 			subnetIP: ipd.Pool,
@@ -125,12 +129,7 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 	}
 	opts[netlabel.OverlayVxlanIDList] = val
 
-	if _, ok := d.networks[id]; ok {
-		n.releaseVxlanID()
-		return nil, fmt.Errorf("network %s already exists", id)
-	}
 	d.networks[id] = n
-
 	return opts, nil
 }
 
