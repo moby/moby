@@ -3,7 +3,6 @@ package ovmanager
 import (
 	"context"
 	"fmt"
-	"net"
 	"strconv"
 	"sync"
 
@@ -34,9 +33,7 @@ type driver struct {
 }
 
 type subnet struct {
-	subnetIP *net.IPNet
-	gwIP     *net.IPNet
-	vni      uint32
+	vni uint32
 }
 
 type network struct {
@@ -95,10 +92,7 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 	}
 
 	for i, ipd := range ipV4Data {
-		s := &subnet{
-			subnetIP: ipd.Pool,
-			gwIP:     ipd.Gateway,
-		}
+		s := &subnet{}
 
 		if len(vxlanIDList) > i { // The VNI for this subnet was specified in the network options.
 			s.vni = vxlanIDList[i]
@@ -106,14 +100,14 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 			if err != nil {
 				// The VNI is already in use by another subnet/network.
 				d.releaseVXLANIDs(n)
-				return nil, fmt.Errorf("could not assign vxlan id %v to pool %s: %v", s.vni, s.subnetIP, err)
+				return nil, fmt.Errorf("could not assign vxlan id %v to pool %s: %v", s.vni, ipd.Pool, err)
 			}
 		} else {
 			// Allocate an available VNI for the subnet, outside the range of 802.1Q VLAN IDs.
 			vni, err := d.vxlanIdm.SetAnyInRange(vxlanIDStart, vxlanIDEnd, true)
 			if err != nil {
 				d.releaseVXLANIDs(n)
-				return nil, fmt.Errorf("could not obtain vxlan id for pool %s: %v", s.subnetIP, err)
+				return nil, fmt.Errorf("could not obtain vxlan id for pool %s: %v", ipd.Pool, err)
 			}
 			s.vni = uint32(vni)
 		}
