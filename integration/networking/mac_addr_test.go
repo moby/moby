@@ -4,9 +4,11 @@ import (
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -134,4 +136,98 @@ func TestCfgdMACAddrOnRestart(t *testing.T) {
 	assert.Assert(t, is.Nil(err))
 	d.Restart(t)
 	startAndCheck()
+}
+
+// Regression test for https://github.com/moby/moby/issues/47228 - check that a
+// generated MAC address is not included in the Config section of 'inspect'
+// output, but a configured address is.
+func TestInspectCfgdMAC(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	testcases := []struct {
+		name       string
+		desiredMAC string
+		netName    string
+		ctrWide    bool
+	}{
+		{
+			name:    "generated address default bridge",
+			netName: "bridge",
+		},
+		{
+			name:       "configured address default bridge",
+			desiredMAC: "02:42:ac:11:00:42",
+			netName:    "bridge",
+		},
+		{
+			name:    "generated address custom bridge",
+			netName: "testnet",
+		},
+		{
+			name:       "configured address custom bridge",
+			desiredMAC: "02:42:ac:11:00:42",
+			netName:    "testnet",
+		},
+		{
+			name:       "ctr-wide address default bridge",
+			desiredMAC: "02:42:ac:11:00:42",
+			netName:    "bridge",
+			ctrWide:    true,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			var copts []client.Opt
+			if tc.ctrWide {
+				copts = append(copts, client.WithVersion("1.43"))
+			}
+			c := d.NewClientT(t, copts...)
+			defer c.Close()
+
+			if tc.netName != "bridge" {
+				const netName = "inspectcfgmac"
+				network.CreateNoError(ctx, t, c, netName,
+					network.WithDriver("bridge"),
+					network.WithOption(bridge.BridgeName, netName))
+				defer network.RemoveNoError(ctx, t, c, netName)
+			}
+
+			const ctrName = "ctr"
+			opts := []func(*container.TestContainerConfig){
+				container.WithName(ctrName),
+				container.WithCmd("top"),
+				container.WithImage("busybox:latest"),
+			}
+			// Don't specify the network name for the bridge network, because that
+			// exercises a different code path (the network name isn't set until the
+			// container starts, until then it's "default").
+			if tc.netName != "bridge" {
+				opts = append(opts, container.WithNetworkMode(tc.netName))
+			}
+			if tc.desiredMAC != "" {
+				if tc.ctrWide {
+					opts = append(opts, container.WithContainerWideMacAddress(tc.desiredMAC))
+				} else {
+					opts = append(opts, container.WithMacAddress(tc.netName, tc.desiredMAC))
+				}
+			}
+			id := container.Create(ctx, t, c, opts...)
+			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{
+				Force: true,
+			})
+
+			inspect := container.Inspect(ctx, t, c, ctrName)
+			configMAC := inspect.Config.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+			assert.Check(t, is.DeepEqual(configMAC, tc.desiredMAC))
+		})
+	}
 }

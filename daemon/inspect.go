@@ -70,7 +70,6 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 		if epConf.EndpointSettings != nil {
 			// We must make a copy of this pointer object otherwise it can race with other operations
 			apiNetworks[nwName] = epConf.EndpointSettings.Copy()
-			apiNetworks[nwName].DesiredMacAddress = ""
 		}
 	}
 
@@ -163,8 +162,12 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 	// unversioned API endpoints.
 	if container.Config != nil && container.Config.MacAddress == "" { //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 		if nwm := hostConfig.NetworkMode; nwm.IsDefault() || nwm.IsBridge() || nwm.IsUserDefined() {
-			if epConf, ok := container.NetworkSettings.Networks[nwm.NetworkName()]; ok {
-				container.Config.MacAddress = epConf.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+			name := nwm.NetworkName()
+			if nwm.IsDefault() {
+				name = daemon.netController.Config().DefaultNetwork
+			}
+			if epConf, ok := container.NetworkSettings.Networks[name]; ok {
+				container.Config.MacAddress = epConf.DesiredMacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 			}
 		}
 	}
