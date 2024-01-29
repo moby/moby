@@ -18,6 +18,8 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/internal/testutils"
+	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/opencontainers/go-digest"
@@ -88,45 +90,126 @@ func TestSaveCheckTimes(t *testing.T) {
 }
 
 // Regression test for https://github.com/moby/moby/issues/47065
-func TestSaveCheckManifestLayers(t *testing.T) {
+func TestSaveOCI(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "OCI layout support was introduced in v25")
 
 	ctx := setupTest(t)
 	client := testEnv.APIClient()
 
-	t.Parallel()
-
-	const repoName = "busybox:latest"
-	img, _, err := client.ImageInspectWithRaw(ctx, repoName)
+	const busybox = "busybox:latest"
+	inspectBusybox, _, err := client.ImageInspectWithRaw(ctx, busybox)
 	assert.NilError(t, err)
 
-	rdr, err := client.ImageSave(ctx, []string{repoName})
-	assert.NilError(t, err)
+	type testCase struct {
+		image                 string
+		expectedOCIRef        string
+		expectedContainerdRef string
+	}
 
-	tarfs := tarIndexFS(t, rdr)
+	testCases := []testCase{
+		// Busybox by tagged name
+		testCase{image: busybox, expectedContainerdRef: "docker.io/library/busybox:latest", expectedOCIRef: "latest"},
 
-	indexData, err := fs.ReadFile(tarfs, "index.json")
-	assert.NilError(t, err)
+		// Busybox by ID
+		testCase{image: inspectBusybox.ID},
+	}
 
-	var index ocispec.Index
-	assert.NilError(t, json.Unmarshal(indexData, &index))
+	if testEnv.DaemonInfo.OSType != "windows" {
+		multiLayerImage := specialimage.Load(ctx, t, client, specialimage.MultiLayer)
+		// Multi-layer image
+		testCases = append(testCases, testCase{image: multiLayerImage, expectedContainerdRef: "docker.io/library/multilayer:latest", expectedOCIRef: "latest"})
 
-	assert.Assert(t, is.Len(index.Manifests, 1))
+	}
 
-	manifestData, err := fs.ReadFile(tarfs, "blobs/sha256/"+index.Manifests[0].Digest.Encoded())
-	assert.NilError(t, err)
+	// Busybox frozen image will have empty RepoDigests when loaded into the
+	// graphdriver image store so we can't use it.
+	// This will work with the containerd image store though.
+	if len(inspectBusybox.RepoDigests) > 0 {
+		// Digested reference
+		testCases = append(testCases, testCase{
+			image: inspectBusybox.RepoDigests[0],
+		})
+	}
 
-	var manifest ocispec.Manifest
-	assert.NilError(t, json.Unmarshal(manifestData, &manifest))
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.image, func(t *testing.T) {
+			// Get information about the original image.
+			inspect, _, err := client.ImageInspectWithRaw(ctx, tc.image)
+			assert.NilError(t, err)
 
-	assert.Check(t, is.Len(manifest.Layers, len(img.RootFS.Layers)))
-	for _, l := range manifest.Layers {
-		stat, err := fs.Stat(tarfs, "blobs/sha256/"+l.Digest.Encoded())
-		if !assert.Check(t, err) {
-			continue
-		}
+			rdr, err := client.ImageSave(ctx, []string{tc.image})
+			assert.NilError(t, err)
+			defer rdr.Close()
 
-		assert.Check(t, is.Equal(l.Size, stat.Size()))
+			tarfs := tarIndexFS(t, rdr)
+
+			indexData, err := fs.ReadFile(tarfs, "index.json")
+			assert.NilError(t, err, "failed to read index.json")
+
+			var index ocispec.Index
+			assert.NilError(t, json.Unmarshal(indexData, &index), "failed to unmarshal index.json")
+
+			// All test images are single-platform, so they should have only one manifest.
+			assert.Assert(t, is.Len(index.Manifests, 1))
+
+			manifestData, err := fs.ReadFile(tarfs, "blobs/sha256/"+index.Manifests[0].Digest.Encoded())
+			assert.NilError(t, err)
+
+			var manifest ocispec.Manifest
+			assert.NilError(t, json.Unmarshal(manifestData, &manifest))
+
+			t.Run("Manifest", func(t *testing.T) {
+				assert.Check(t, is.Len(manifest.Layers, len(inspect.RootFS.Layers)))
+
+				var digests []string
+				// Check if layers referenced by the manifest exist in the archive
+				// and match the layers from the original image.
+				for _, l := range manifest.Layers {
+					layerPath := "blobs/sha256/" + l.Digest.Encoded()
+					stat, err := fs.Stat(tarfs, layerPath)
+					assert.NilError(t, err)
+
+					assert.Check(t, is.Equal(l.Size, stat.Size()))
+
+					f, err := tarfs.Open(layerPath)
+					assert.NilError(t, err)
+
+					layerDigest, err := testutils.UncompressedTarDigest(f)
+					f.Close()
+
+					assert.NilError(t, err)
+
+					digests = append(digests, layerDigest.String())
+				}
+
+				assert.Check(t, is.DeepEqual(digests, inspect.RootFS.Layers))
+			})
+
+			t.Run("Config", func(t *testing.T) {
+				configData, err := fs.ReadFile(tarfs, "blobs/sha256/"+manifest.Config.Digest.Encoded())
+				assert.NilError(t, err)
+
+				var config ocispec.Image
+				assert.NilError(t, json.Unmarshal(configData, &config))
+
+				var diffIDs []string
+				for _, l := range config.RootFS.DiffIDs {
+					diffIDs = append(diffIDs, l.String())
+				}
+
+				assert.Check(t, is.DeepEqual(diffIDs, inspect.RootFS.Layers))
+			})
+
+			t.Run("Containerd image name", func(t *testing.T) {
+				assert.Check(t, is.Equal(index.Manifests[0].Annotations["io.containerd.image.name"], tc.expectedContainerdRef))
+			})
+
+			t.Run("OCI reference tag", func(t *testing.T) {
+				assert.Check(t, is.Equal(index.Manifests[0].Annotations["org.opencontainers.image.ref.name"], tc.expectedOCIRef))
+			})
+
+		})
 	}
 }
 
