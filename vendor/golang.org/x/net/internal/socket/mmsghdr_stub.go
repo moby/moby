@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !aix && !linux && !netbsd
-// +build !aix,!linux,!netbsd
 
 package socket
 

@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (arm64 || amd64 || loong64 || ppc64 || ppc64le || mips64 || mips64le || riscv64 || s390x) && linux
-// +build arm64 amd64 loong64 ppc64 ppc64le mips64 mips64le riscv64 s390x
-// +build linux
 
 package socket
 
