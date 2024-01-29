@@ -32,13 +32,9 @@ type driver struct {
 	vxlanIdm *bitmap.Bitmap
 }
 
-type subnet struct {
-	vni uint32
-}
-
 type network struct {
-	id      string
-	subnets []*subnet
+	id   string
+	vnis []uint32
 }
 
 // Register registers a new instance of the overlay driver.
@@ -65,11 +61,6 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 		return nil, fmt.Errorf("empty ipv4 data passed during overlay network creation")
 	}
 
-	n := &network{
-		id:      id,
-		subnets: []*subnet{},
-	}
-
 	opts := make(map[string]string)
 	vxlanIDList := make([]uint32, 0, len(ipV4Data))
 	for key, val := range option {
@@ -91,33 +82,34 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 		return nil, fmt.Errorf("network %s already exists", id)
 	}
 
+	n := &network{id: id}
 	for i, ipd := range ipV4Data {
-		s := &subnet{}
+		var vni uint32
 
 		if len(vxlanIDList) > i { // The VNI for this subnet was specified in the network options.
-			s.vni = vxlanIDList[i]
-			err := d.vxlanIdm.Set(uint64(s.vni)) // Mark VNI as in-use.
+			vni = vxlanIDList[i]
+			err := d.vxlanIdm.Set(uint64(vni)) // Mark VNI as in-use.
 			if err != nil {
 				// The VNI is already in use by another subnet/network.
 				d.releaseVXLANIDs(n)
-				return nil, fmt.Errorf("could not assign vxlan id %v to pool %s: %v", s.vni, ipd.Pool, err)
+				return nil, fmt.Errorf("could not assign vxlan id %v to pool %s: %v", vni, ipd.Pool, err)
 			}
 		} else {
 			// Allocate an available VNI for the subnet, outside the range of 802.1Q VLAN IDs.
-			vni, err := d.vxlanIdm.SetAnyInRange(vxlanIDStart, vxlanIDEnd, true)
+			v, err := d.vxlanIdm.SetAnyInRange(vxlanIDStart, vxlanIDEnd, true)
 			if err != nil {
 				d.releaseVXLANIDs(n)
 				return nil, fmt.Errorf("could not obtain vxlan id for pool %s: %v", ipd.Pool, err)
 			}
-			s.vni = uint32(vni)
+			vni = uint32(v)
 		}
 
-		n.subnets = append(n.subnets, s)
+		n.vnis = append(n.vnis, vni)
 	}
 
-	val := strconv.FormatUint(uint64(n.subnets[0].vni), 10)
-	for _, s := range n.subnets[1:] {
-		val = val + "," + strconv.FormatUint(uint64(s.vni), 10)
+	val := strconv.FormatUint(uint64(n.vnis[0]), 10)
+	for _, vni := range n.vnis[1:] {
+		val = val + "," + strconv.FormatUint(uint64(vni), 10)
 	}
 	opts[netlabel.OverlayVxlanIDList] = val
 
@@ -147,10 +139,10 @@ func (d *driver) NetworkFree(id string) error {
 }
 
 func (d *driver) releaseVXLANIDs(n *network) {
-	for i, s := range n.subnets {
-		d.vxlanIdm.Unset(uint64(s.vni))
-		n.subnets[i].vni = 0
+	for _, vni := range n.vnis {
+		d.vxlanIdm.Unset(uint64(vni))
 	}
+	n.vnis = nil
 }
 
 func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
