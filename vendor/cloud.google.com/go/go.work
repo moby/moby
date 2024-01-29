@@ -5,6 +5,7 @@ use (
 	./accessapproval
 	./accesscontextmanager
 	./advisorynotifications
+	./ai
 	./aiplatform
 	./alloydb
 	./analytics
@@ -30,6 +31,7 @@ use (
 	./cloudbuild
 	./clouddms
 	./cloudtasks
+	./commerce
 	./compute
 	./compute/metadata
 	./confidentialcomputing
@@ -59,7 +61,6 @@ use (
 	./filestore
 	./firestore
 	./functions
-	./gaming
 	./gkebackup
 	./gkeconnect
 	./gkehub
@@ -90,7 +91,9 @@ use (
 	./mediatranslation
 	./memcache
 	./metastore
+	./migrationcenter
 	./monitoring
+	./netapp
 	./networkconnectivity
 	./networkmanagement
 	./networksecurity
@@ -101,6 +104,7 @@ use (
 	./osconfig
 	./oslogin
 	./phishingprotection
+	./policysimulator
 	./policytroubleshooter
 	./privatecatalog
 	./profiler

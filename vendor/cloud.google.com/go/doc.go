@@ -14,27 +14,25 @@
 
 /*
 Package cloud is the root of the packages used to access Google Cloud
-Services. See https://godoc.org/cloud.google.com/go for a full list
-of sub-packages.
+Services. See https://pkg.go.dev/cloud.google.com/go for a full list
+of sub-modules.
 
 # Client Options
 
-All clients in sub-packages are configurable via client options. These options are
-described here: https://godoc.org/google.golang.org/api/option.
+All clients in sub-packages are configurable via client options. These options
+are described here: https://pkg.go.dev/google.golang.org/api/option.
 
-## Endpoint Override
+# Endpoint Override
 
 Endpoint configuration is used to specify the URL to which requests are
-sent. It is used for services that support or require regional endpoints, as well
-as for other use cases such as [testing against fake
-servers](https://github.com/googleapis/google-cloud-go/blob/main/testing.md#testing-grpc-services-using-fakes).
+sent. It is used for services that support or require regional endpoints, as
+well as for other use cases such as [testing against fake servers].
 
-For example, the Vertex AI service recommends that you configure the endpoint to the
-location with the features you want that is closest to your physical location or the
-location of your users. There is no global endpoint for Vertex AI. See
-[Vertex AI - Locations](https://cloud.google.com/vertex-ai/docs/general/locations)
-for more details. The following example demonstrates configuring a Vertex AI client
-with a regional endpoint:
+For example, the Vertex AI service recommends that you configure the endpoint to
+the location with the features you want that is closest to your physical
+location or the location of your users. There is no global endpoint for Vertex
+AI. See [Vertex AI - Locations] for more details. The following example
+demonstrates configuring a Vertex AI client with a regional endpoint:
 
 	ctx := context.Background()
 	endpoint := "us-central1-aiplatform.googleapis.com:443"
@@ -42,15 +40,16 @@ with a regional endpoint:
 
 # Authentication and Authorization
 
-All the clients in sub-packages support authentication via Google Application Default
-Credentials (see https://cloud.google.com/docs/authentication/production), or
-by providing a JSON key file for a Service Account. See examples below.
+All of the clients support authentication via [Google Application Default Credentials],
+or by providing a JSON key file for a Service Account. See examples below.
 
 Google Application Default Credentials (ADC) is the recommended way to authorize
 and authenticate clients. For information on how to create and obtain
 Application Default Credentials, see
-https://cloud.google.com/docs/authentication/production. Here is an example
-of a client using ADC to authenticate:
+https://cloud.google.com/docs/authentication/production. If you have your
+environment configured correctly you will not need to pass any extra information
+to the client libraries. Here is an example of a client using ADC to
+authenticate:
 
 	client, err := secretmanager.NewClient(context.Background())
 	if err != nil {
@@ -58,12 +57,11 @@ of a client using ADC to authenticate:
 	}
 	_ = client // Use the client.
 
-You can use a file with credentials to authenticate and authorize, such as a JSON
-key file associated with a Google service account. Service Account keys can be
-created and downloaded from
-https://console.cloud.google.com/iam-admin/serviceaccounts. This example uses
-the Secret Manger client, but the same steps apply to the other client libraries
-underneath this package. Example:
+You can use a file with credentials to authenticate and authorize, such as a
+JSON key file associated with a Google service account. Service Account keys can
+be created and downloaded from https://console.cloud.google.com/iam-admin/serviceaccounts.
+This example uses the Secret Manger client, but the same steps apply to the
+all other client libraries this package as well. Example:
 
 	client, err := secretmanager.NewClient(context.Background(),
 		option.WithCredentialsFile("/path/to/service-account-key.json"))
@@ -74,14 +72,14 @@ underneath this package. Example:
 
 In some cases (for instance, you don't want to store secrets on disk), you can
 create credentials from in-memory JSON and use the WithCredentials option.
-The google package in this example is at golang.org/x/oauth2/google.
 This example uses the Secret Manager client, but the same steps apply to
-the other client libraries underneath this package. Note that scopes can be
+all other client libraries as well. Note that scopes can be
 found at https://developers.google.com/identity/protocols/oauth2/scopes, and
 are also provided in all auto-generated libraries: for example,
 cloud.google.com/go/secretmanager/apiv1 provides DefaultAuthScopes. Example:
 
 	ctx := context.Background()
+	// https://pkg.go.dev/golang.org/x/oauth2/google
 	creds, err := google.CredentialsFromJSON(ctx, []byte("JSON creds"), secretmanager.DefaultAuthScopes()...)
 	if err != nil {
 		// TODO: handle error.
@@ -97,10 +95,11 @@ cloud.google.com/go/secretmanager/apiv1 provides DefaultAuthScopes. Example:
 By default, non-streaming methods, like Create or Get, will have a default
 deadline applied to the context provided at call time, unless a context deadline
 is already set. Streaming methods have no default deadline and will run
-indefinitely. To set timeouts or arrange for cancellation, use contexts.
-Transient errors will be retried when correctness allows.
+indefinitely. To set timeouts or arrange for cancellation, use
+[context]. Transient errors will be retried when correctness allows.
 
-Here is an example of setting a timeout for an RPC using context.WithTimeout:
+Here is an example of setting a timeout for an RPC using
+[context.WithTimeout]:
 
 	ctx := context.Background()
 	// Do not set a timeout on the context passed to NewClient: dialing happens
@@ -119,7 +118,8 @@ Here is an example of setting a timeout for an RPC using context.WithTimeout:
 		// TODO: handle error.
 	}
 
-Here is an example of setting a timeout for an RPC using gax.WithTimeout:
+Here is an example of setting a timeout for an RPC using
+[github.com/googleapis/gax-go/v2.WithTimeout]:
 
 	ctx := context.Background()
 	// Do not set a timeout on the context passed to NewClient: dialing happens
@@ -136,7 +136,8 @@ Here is an example of setting a timeout for an RPC using gax.WithTimeout:
 		// TODO: handle error.
 	}
 
-Here is an example of how to arrange for an RPC to be canceled, use context.WithCancel:
+Here is an example of how to arrange for an RPC to be canceled, use
+[context.WithCancel]:
 
 	ctx := context.Background()
 	// Do not cancel the context passed to NewClient: dialing happens asynchronously,
@@ -155,10 +156,10 @@ Here is an example of how to arrange for an RPC to be canceled, use context.With
 		// TODO: handle error.
 	}
 
-Do not attempt to control the initial connection (dialing) of a service by setting a
-timeout on the context passed to NewClient. Dialing is non-blocking, so timeouts
-would be ineffective and would only interfere with credential refreshing, which uses
-the same context.
+Do not attempt to control the initial connection (dialing) of a service by
+setting a timeout on the context passed to NewClient. Dialing is non-blocking,
+so timeouts would be ineffective and would only interfere with credential
+refreshing, which uses the same context.
 
 # Connection Pooling
 
@@ -166,42 +167,42 @@ Connection pooling differs in clients based on their transport. Cloud
 clients either rely on HTTP or gRPC transports to communicate
 with Google Cloud.
 
-Cloud clients that use HTTP (bigquery, compute, storage, and translate) rely on the
-underlying HTTP transport to cache connections for later re-use. These are cached to
-the default http.MaxIdleConns and http.MaxIdleConnsPerHost settings in
-http.DefaultTransport.
+Cloud clients that use HTTP rely on the underlying HTTP transport to cache
+connections for later re-use. These are cached to the http.MaxIdleConns
+and http.MaxIdleConnsPerHost settings in http.DefaultTransport by default.
 
-For gRPC clients (all others in this repo), connection pooling is configurable. Users
-of cloud client libraries may specify option.WithGRPCConnectionPool(n) as a client
-option to NewClient calls. This configures the underlying gRPC connections to be
-pooled and addressed in a round robin fashion.
+For gRPC clients, connection pooling is configurable. Users of Cloud Client
+Libraries may specify option.WithGRPCConnectionPool(n) as a client option to
+NewClient calls. This configures the underlying gRPC connections to be pooled
+and accessed in a round robin fashion.
 
-# Using the Libraries with Docker
+# Using the Libraries in Container environments(Docker)
 
-Minimal docker images like Alpine lack CA certificates. This causes RPCs to appear to
-hang, because gRPC retries indefinitely. See https://github.com/googleapis/google-cloud-go/issues/928
-for more information.
+Minimal container images like Alpine lack CA certificates. This causes RPCs to
+appear to hang, because gRPC retries indefinitely. See
+https://github.com/googleapis/google-cloud-go/issues/928 for more information.
 
 # Debugging
 
-To see gRPC logs, set the environment variable GRPC_GO_LOG_SEVERITY_LEVEL. See
-https://godoc.org/google.golang.org/grpc/grpclog for more information.
+For tips on how to write tests against code that calls into our libraries check
+out our [Debugging Guide].
 
-For HTTP logging, set the GODEBUG environment variable to "http2debug=1" or "http2debug=2".
+# Testing
+
+For tips on how to write tests against code that calls into our libraries check
+out our [Testing Guide].
 
 # Inspecting errors
 
 Most of the errors returned by the generated clients are wrapped in an
 [github.com/googleapis/gax-go/v2/apierror.APIError] and can be further unwrapped
 into a [google.golang.org/grpc/status.Status] or
-[google.golang.org/api/googleapi.Error] depending
-on the transport used to make the call (gRPC or REST). Converting your errors to
-these types can be a useful way to get more information about what went wrong
-while debugging.
+[google.golang.org/api/googleapi.Error] depending on the transport used to make
+the call (gRPC or REST). Converting your errors to these types can be a useful
+way to get more information about what went wrong while debugging.
 
-[github.com/googleapis/gax-go/v2/apierror.APIError] gives access to specific
-details in the error. The transport-specific errors can still be unwrapped using
-the [github.com/googleapis/gax-go/v2/apierror.APIError].
+APIError gives access to specific details in the error. The transport-specific
+errors can still be unwrapped using the APIError.
 
 	if err != nil {
 	   var ae *apierror.APIError
@@ -223,36 +224,33 @@ still be parsed using the [google.golang.org/grpc/status.FromError] function.
 	   }
 	}
 
-If the REST transport was used, the [google.golang.org/api/googleapi.Error] can
-be parsed in a similar way, allowing access to details such as the HTTP response
-code.
-
-	if err != nil {
-	   var gerr *googleapi.Error
-	   if errors.As(err, &gerr) {
-	      log.Println(gerr.Message)
-	   }
-	}
-
 # Client Stability
 
-Clients in this repository are considered alpha or beta unless otherwise
-marked as stable in the README.md. Semver is not used to communicate stability
-of clients.
+Semver is used to communicate stability of the sub-modules of this package.
+Note, some stable sub-modules do contain packages, and sometimes features, that
+are considered unstable. If something is unstable it will be explicitly labeled
+as such. Example of package does in an unstable package:
 
-Alpha and beta clients may change or go away without notice.
+	NOTE: This package is in beta. It is not stable, and may be subject to changes.
+
+Clients that contain alpha and beta in their import path may change or go away
+without notice.
 
 Clients marked stable will maintain compatibility with future versions for as
 long as we can reasonably sustain. Incompatible changes might be made in some
 situations, including:
 
-- Security bugs may prompt backwards-incompatible changes.
+  - Security bugs may prompt backwards-incompatible changes.
+  - Situations in which components are no longer feasible to maintain without
+    making breaking changes, including removal.
+  - Parts of the client surface may be outright unstable and subject to change.
+    These parts of the surface will be labeled with the note, "It is EXPERIMENTAL
+    and subject to change or removal without notice."
 
-- Situations in which components are no longer feasible to maintain without
-making breaking changes, including removal.
-
-- Parts of the client surface may be outright unstable and subject to change.
-These parts of the surface will be labeled with the note, "It is EXPERIMENTAL
-and subject to change or removal without notice."
+[testing against fake servers]: https://github.com/googleapis/google-cloud-go/blob/main/testing.md#testing-grpc-services-using-fakes
+[Vertex AI - Locations]: https://cloud.google.com/vertex-ai/docs/general/locations
+[Google Application Default Credentials]: https://cloud.google.com/docs/authentication/external/set-up-adc
+[Debugging Guide]: https://github.com/googleapis/google-cloud-go/blob/main/debug.md
+[Testing Guide]: https://github.com/googleapis/google-cloud-go/blob/main/testing.md
 */
 package cloud // import "cloud.google.com/go"

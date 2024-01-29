@@ -12,6 +12,9 @@
         "advisorynotifications": {
             "component": "advisorynotifications"
         },
+        "ai": {
+            "component": "ai"
+        },
         "aiplatform": {
             "component": "aiplatform"
         },
@@ -80,6 +83,9 @@
         },
         "cloudtasks": {
             "component": "cloudtasks"
+        },
+        "commerce": {
+            "component": "commerce"
         },
         "compute": {
             "component": "compute"
@@ -159,9 +165,6 @@
         "functions": {
             "component": "functions"
         },
-        "gaming": {
-            "component": "gaming"
-        },
         "gkebackup": {
             "component": "gkebackup"
         },
@@ -225,6 +228,9 @@
         "monitoring": {
             "component": "monitoring"
         },
+        "netapp": {
+            "component": "netapp"
+        },
         "networkconnectivity": {
             "component": "networkconnectivity"
         },
@@ -254,6 +260,9 @@
         },
         "phishingprotection": {
             "component": "phishingprotection"
+        },
+        "policysimulator": {
+            "component": "policysimulator"
         },
         "policytroubleshooter": {
             "component": "policytroubleshooter"
