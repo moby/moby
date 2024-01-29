@@ -21,7 +21,7 @@ func TestBuildDefault(t *testing.T) {
 
 	// check that /etc/hosts has consistent ordering
 	for i := 0; i <= 5; i++ {
-		err = Build(file.Name(), "", "", "", nil)
+		err = Build(file.Name(), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -42,7 +42,7 @@ func TestBuildNoIPv6(t *testing.T) {
 	d := t.TempDir()
 	filename := filepath.Join(d, "hosts")
 
-	err := BuildNoIPv6(filename, "fdbb:c59c:d015::2", "an.example", "", []Record{
+	err := BuildNoIPv6(filename, []Record{
 		{
 			Hosts: "another.example",
 			IP:    "fdbb:c59c:d015::3",
@@ -58,94 +58,6 @@ func TestBuildNoIPv6(t *testing.T) {
 	assert.Check(t, is.DeepEqual(string(content), "127.0.0.1\tlocalhost\n10.11.12.13\tanother.example\n"))
 }
 
-func TestBuildHostnameDomainname(t *testing.T) {
-	file, err := os.CreateTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(file.Name())
-
-	err = Build(file.Name(), "10.11.12.13", "testhostname", "testdomainname", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	content, err := os.ReadFile(file.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if expected := "10.11.12.13\ttesthostname.testdomainname testhostname\n"; !bytes.Contains(content, []byte(expected)) {
-		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
-	}
-}
-
-func TestBuildHostname(t *testing.T) {
-	file, err := os.CreateTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(file.Name())
-
-	err = Build(file.Name(), "10.11.12.13", "testhostname", "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	content, err := os.ReadFile(file.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if expected := "10.11.12.13\ttesthostname\n"; !bytes.Contains(content, []byte(expected)) {
-		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
-	}
-}
-
-func TestBuildHostnameFQDN(t *testing.T) {
-	file, err := os.CreateTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(file.Name())
-
-	err = Build(file.Name(), "10.11.12.13", "testhostname.testdomainname.com", "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	content, err := os.ReadFile(file.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if expected := "10.11.12.13\ttesthostname.testdomainname.com testhostname\n"; !bytes.Contains(content, []byte(expected)) {
-		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
-	}
-}
-
-func TestBuildNoIP(t *testing.T) {
-	file, err := os.CreateTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(file.Name())
-
-	err = Build(file.Name(), "", "testhostname", "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	content, err := os.ReadFile(file.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if expected := ""; !bytes.Contains(content, []byte(expected)) {
-		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
-	}
-}
-
 func TestUpdate(t *testing.T) {
 	file, err := os.CreateTemp("", "")
 	if err != nil {
@@ -153,7 +65,12 @@ func TestUpdate(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	if err := Build(file.Name(), "10.11.12.13", "testhostname", "testdomainname", nil); err != nil {
+	if err := Build(file.Name(), []Record{
+		{
+			"testhostname.testdomainname testhostname",
+			"10.11.12.13",
+		},
+	}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -194,7 +111,7 @@ func TestUpdateIgnoresPrefixedHostname(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	if err := Build(file.Name(), "10.11.12.13", "testhostname", "testdomainname", []Record{
+	if err := Build(file.Name(), []Record{
 		{
 			Hosts: "prefix",
 			IP:    "2.2.2.2",
@@ -245,7 +162,7 @@ func TestDeleteIgnoresPrefixedHostname(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	err = Build(file.Name(), "", "", "", nil)
+	err = Build(file.Name(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +210,7 @@ func TestAddEmpty(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	err = Build(file.Name(), "", "", "", nil)
+	err = Build(file.Name(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +227,7 @@ func TestAdd(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	err = Build(file.Name(), "", "", "", nil)
+	err = Build(file.Name(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -341,7 +258,7 @@ func TestDeleteEmpty(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	err = Build(file.Name(), "", "", "", nil)
+	err = Build(file.Name(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -381,7 +298,7 @@ func TestDelete(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	err = Build(file.Name(), "", "", "", nil)
+	err = Build(file.Name(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -437,7 +354,7 @@ func TestConcurrentWrites(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	err = Build(file.Name(), "", "", "", nil)
+	err = Build(file.Name(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -502,7 +419,7 @@ func benchDelete(b *testing.B) {
 		b.StartTimer()
 	}()
 
-	err = Build(file.Name(), "", "", "", nil)
+	err = Build(file.Name(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}

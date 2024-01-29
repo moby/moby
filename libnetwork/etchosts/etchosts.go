@@ -8,7 +8,6 @@ import (
 	"net/netip"
 	"os"
 	"regexp"
-	"strings"
 	"sync"
 )
 
@@ -71,56 +70,27 @@ func Drop(path string) {
 
 // Build function
 // path is path to host file string required
-// IP, hostname, and domainname set main record leave empty for no master record
 // extraContent is an array of extra host records.
-func Build(path, IP, hostname, domainname string, extraContent []Record) error {
-	return build(path, IP, hostname, domainname, defaultContentIPv4, defaultContentIPv6, extraContent)
+func Build(path string, extraContent []Record) error {
+	return build(path, defaultContentIPv4, defaultContentIPv6, extraContent)
 }
 
 // BuildNoIPv6 is the same as Build, but will not include IPv6 entries.
-func BuildNoIPv6(path, IP, hostname, domainname string, extraContent []Record) error {
-	if isIPv6(IP) {
-		IP = ""
-	}
-
+func BuildNoIPv6(path string, extraContent []Record) error {
 	var ipv4ExtraContent []Record
 	for _, rec := range extraContent {
-		if !isIPv6(rec.IP) {
+		addr, err := netip.ParseAddr(rec.IP)
+		if err != nil || !addr.Is6() {
 			ipv4ExtraContent = append(ipv4ExtraContent, rec)
 		}
 	}
-
-	return build(path, IP, hostname, domainname, defaultContentIPv4, ipv4ExtraContent)
+	return build(path, defaultContentIPv4, ipv4ExtraContent)
 }
 
-func isIPv6(s string) bool {
-	addr, err := netip.ParseAddr(s)
-	return err == nil && addr.Is6()
-}
-
-func build(path, IP, hostname, domainname string, contents ...[]Record) error {
+func build(path string, contents ...[]Record) error {
 	defer pathLock(path)()
 
 	buf := bytes.NewBuffer(nil)
-	if IP != "" {
-		// set main record
-		var mainRec Record
-		mainRec.IP = IP
-		// User might have provided a FQDN in hostname or split it across hostname
-		// and domainname.  We want the FQDN and the bare hostname.
-		fqdn := hostname
-		if domainname != "" {
-			fqdn += "." + domainname
-		}
-		mainRec.Hosts = fqdn
-
-		if hostName, _, ok := strings.Cut(fqdn, "."); ok {
-			mainRec.Hosts += " " + hostName
-		}
-		if _, err := mainRec.WriteTo(buf); err != nil {
-			return err
-		}
-	}
 
 	// Write content from function arguments
 	for _, content := range contents {
