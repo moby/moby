@@ -41,7 +41,6 @@ type subnet struct {
 
 type network struct {
 	id      string
-	driver  *driver
 	subnets []*subnet
 }
 
@@ -71,7 +70,6 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 
 	n := &network{
 		id:      id,
-		driver:  d,
 		subnets: []*subnet{},
 	}
 
@@ -107,14 +105,14 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 			err := d.vxlanIdm.Set(uint64(s.vni)) // Mark VNI as in-use.
 			if err != nil {
 				// The VNI is already in use by another subnet/network.
-				n.releaseVxlanID()
+				d.releaseVXLANIDs(n)
 				return nil, fmt.Errorf("could not assign vxlan id %v to pool %s: %v", s.vni, s.subnetIP, err)
 			}
 		} else {
 			// Allocate an available VNI for the subnet, outside the range of 802.1Q VLAN IDs.
 			vni, err := d.vxlanIdm.SetAnyInRange(vxlanIDStart, vxlanIDEnd, true)
 			if err != nil {
-				n.releaseVxlanID()
+				d.releaseVXLANIDs(n)
 				return nil, fmt.Errorf("could not obtain vxlan id for pool %s: %v", s.subnetIP, err)
 			}
 			s.vni = uint32(vni)
@@ -147,17 +145,17 @@ func (d *driver) NetworkFree(id string) error {
 	}
 
 	// Release all vxlan IDs in one shot.
-	n.releaseVxlanID()
+	d.releaseVXLANIDs(n)
 
 	delete(d.networks, id)
 
 	return nil
 }
 
-func (n *network) releaseVxlanID() {
-	for _, s := range n.subnets {
-		n.driver.vxlanIdm.Unset(uint64(s.vni))
-		s.vni = 0
+func (d *driver) releaseVXLANIDs(n *network) {
+	for i, s := range n.subnets {
+		d.vxlanIdm.Unset(uint64(s.vni))
+		n.subnets[i].vni = 0
 	}
 }
 
