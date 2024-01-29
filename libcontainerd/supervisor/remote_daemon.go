@@ -302,8 +302,8 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				r.GRPC.Address,
 				containerd.WithTimeout(60*time.Second),
 				containerd.WithDialOpts([]grpc.DialOption{
-					grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-					grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+					grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),   //nolint:staticcheck // TODO(thaJeztah): ignore SA1019 for deprecated options: see https://github.com/moby/moby/issues/47437
+					grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()), //nolint:staticcheck // TODO(thaJeztah): ignore SA1019 for deprecated options: see https://github.com/moby/moby/issues/47437
 					grpc.WithTransportCredentials(insecure.NewCredentials()),
 					grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
 					grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),

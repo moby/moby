@@ -21,7 +21,7 @@ type grpcRouter struct {
 // NewRouter initializes a new grpc http router
 func NewRouter(backends ...Backend) router.Router {
 	unary := grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptor(), grpcerrors.UnaryServerInterceptor))
-	stream := grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(otelgrpc.StreamServerInterceptor(), grpcerrors.StreamServerInterceptor))
+	stream := grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(otelgrpc.StreamServerInterceptor(), grpcerrors.StreamServerInterceptor)) //nolint:staticcheck // TODO(thaJeztah): ignore SA1019 for deprecated options: see https://github.com/moby/moby/issues/47437
 
 	r := &grpcRouter{
 		h2Server:   &http2.Server{},
@@ -46,7 +46,7 @@ func (gr *grpcRouter) initRoutes() {
 }
 
 func unaryInterceptor() grpc.UnaryServerInterceptor {
-	withTrace := otelgrpc.UnaryServerInterceptor()
+	withTrace := otelgrpc.UnaryServerInterceptor() //nolint:staticcheck // TODO(thaJeztah): ignore SA1019 for deprecated options: see https://github.com/moby/moby/issues/47437
 
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		// This method is used by the clients to send their traces to buildkit so they can be included

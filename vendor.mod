@@ -91,12 +91,12 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.4
 	go.etcd.io/bbolt v1.3.7
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.45.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.45.0
-	go.opentelemetry.io/otel v1.19.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.19.0
-	go.opentelemetry.io/otel/sdk v1.19.0
-	go.opentelemetry.io/otel/trace v1.19.0
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.46.1
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.46.1
+	go.opentelemetry.io/otel v1.21.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.21.0
+	go.opentelemetry.io/otel/sdk v1.21.0
+	go.opentelemetry.io/otel/trace v1.21.0
 	golang.org/x/mod v0.13.0
 	golang.org/x/net v0.23.0
 	golang.org/x/sync v0.5.0
@@ -148,7 +148,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fernet/fernet-go v0.0.0-20211208181803-9f70042a33ee // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/go-logr/logr v1.2.4 // indirect
+	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogo/googleapis v1.4.1 // indirect
@@ -196,10 +196,10 @@ require (
 	go.etcd.io/etcd/raft/v3 v3.5.6 // indirect
 	go.etcd.io/etcd/server/v3 v3.5.6 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.45.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.19.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.19.0 // indirect
-	go.opentelemetry.io/otel/metric v1.19.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.46.1 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.21.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.21.0 // indirect
+	go.opentelemetry.io/otel/metric v1.21.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect

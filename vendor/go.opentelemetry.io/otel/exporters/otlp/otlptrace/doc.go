@@ -12,17 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otelhttptrace // import "go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
-
-// Version is the current release version of the httptrace instrumentation.
-func Version() string {
-	return "0.46.1"
-	// This string is updated by the pre_release.sh script during release
-}
-
-// SemVersion is the semantic version to be supplied to tracer/meter creation.
-//
-// Deprecated: Use [Version] instead.
-func SemVersion() string {
-	return Version()
-}
+/*
+Package otlptrace contains abstractions for OTLP span exporters.
+See the official OTLP span exporter implementations:
+  - [go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc],
+  - [go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp].
+*/
+package otlptrace // import "go.opentelemetry.io/otel/exporters/otlp/otlptrace"
