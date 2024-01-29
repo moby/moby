@@ -8,8 +8,11 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "daily"
     groups:
       github-actions:
         patterns:
           - "*"
+    labels:
+      - "dependencies"
+      - "bot"
