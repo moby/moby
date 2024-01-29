@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"path"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/etchosts"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
@@ -26,6 +28,21 @@ const (
 
 	resolverIPSandbox = "127.0.0.11"
 )
+
+// finishInitDNS is to be called after the container namespace has been created,
+// before it the user process is started. The container's support for IPv6 can be
+// determined at this point.
+func (sb *Sandbox) finishInitDNS() error {
+	if err := sb.buildHostsFile(); err != nil {
+		return errdefs.System(err)
+	}
+	for _, ep := range sb.Endpoints() {
+		if err := sb.updateHostsFile(ep.getEtcHostsAddrs()); err != nil {
+			return errdefs.System(err)
+		}
+	}
+	return nil
+}
 
 func (sb *Sandbox) startResolver(restore bool) {
 	sb.resolverOnce.Do(func() {
@@ -65,11 +82,17 @@ func (sb *Sandbox) startResolver(restore bool) {
 }
 
 func (sb *Sandbox) setupResolutionFiles() error {
-	if err := sb.buildHostsFile(); err != nil {
+	// Create a hosts file that can be mounted during container setup. For most
+	// networking modes (not host networking) it will be re-created before the
+	// container start, once its support for IPv6 is known.
+	if sb.config.hostsPath == "" {
+		sb.config.hostsPath = defaultPrefix + "/" + sb.id + "/hosts"
+	}
+	dir, _ := filepath.Split(sb.config.hostsPath)
+	if err := createBasePath(dir); err != nil {
 		return err
 	}
-
-	if err := sb.updateParentHosts(); err != nil {
+	if err := sb.buildHostsFile(); err != nil {
 		return err
 	}
 
@@ -77,15 +100,6 @@ func (sb *Sandbox) setupResolutionFiles() error {
 }
 
 func (sb *Sandbox) buildHostsFile() error {
-	if sb.config.hostsPath == "" {
-		sb.config.hostsPath = defaultPrefix + "/" + sb.id + "/hosts"
-	}
-
-	dir, _ := filepath.Split(sb.config.hostsPath)
-	if err := createBasePath(dir); err != nil {
-		return err
-	}
-
 	// This is for the host mode networking
 	if sb.config.useDefaultSandBox && len(sb.config.extraHosts) == 0 {
 		// We are working under the assumption that the origin file option had been properly expressed by the upper layer
@@ -101,7 +115,16 @@ func (sb *Sandbox) buildHostsFile() error {
 		extraContent = append(extraContent, etchosts.Record{Hosts: extraHost.name, IP: extraHost.IP})
 	}
 
-	return etchosts.Build(sb.config.hostsPath, "", sb.config.hostName, sb.config.domainName, extraContent)
+	// Assume IPv6 support, unless it's definitely disabled.
+	buildf := etchosts.Build
+	if en, ok := sb.ipv6Enabled(); ok && !en {
+		buildf = etchosts.BuildNoIPv6
+	}
+	if err := buildf(sb.config.hostsPath, "", sb.config.hostName, sb.config.domainName, extraContent); err != nil {
+		return err
+	}
+
+	return sb.updateParentHosts()
 }
 
 func (sb *Sandbox) updateHostsFile(ifaceIPs []string) error {
@@ -135,6 +158,16 @@ func (sb *Sandbox) updateHostsFile(ifaceIPs []string) error {
 }
 
 func (sb *Sandbox) addHostsEntries(recs []etchosts.Record) {
+	// Assume IPv6 support, unless it's definitely disabled.
+	if en, ok := sb.ipv6Enabled(); ok && !en {
+		var filtered []etchosts.Record
+		for _, rec := range recs {
+			if addr, err := netip.ParseAddr(rec.IP); err == nil && !addr.Is6() {
+				filtered = append(filtered, rec)
+			}
+		}
+		recs = filtered
+	}
 	if err := etchosts.Add(sb.config.hostsPath, recs); err != nil {
 		log.G(context.TODO()).Warnf("Failed adding service host entries to the running container: %v", err)
 	}
@@ -157,6 +190,16 @@ func (sb *Sandbox) updateParentHosts() error {
 		if pSb == nil {
 			continue
 		}
+		// TODO(robmry) - filter out IPv6 addresses here if !sb.ipv6Enabled() but...
+		// - this is part of the implementation of '--link', which will be removed along
+		//   with the rest of legacy networking.
+		// - IPv6 addresses shouldn't be allocated if IPv6 is not available in a container,
+		//   and that change will come along later.
+		// - I think this may be dead code, it's not possible to start a parent container with
+		//   '--link child' unless the child has already started ("Error response from daemon:
+		//   Cannot link to a non running container"). So, when the child starts and this method
+		//   is called with updates for parents, the parents aren't running and GetSandbox()
+		//   returns nil.)
 		if err := etchosts.Update(pSb.config.hostsPath, update.ip, update.name); err != nil {
 			return err
 		}

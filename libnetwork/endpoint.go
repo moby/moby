@@ -522,18 +522,8 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 		}
 	}
 
-	// Do not update hosts file with internal networks endpoint IP
-	if !n.ingress && n.Name() != libnGWNetwork {
-		var addresses []string
-		if ip := ep.getFirstInterfaceIPv4Address(); ip != nil {
-			addresses = append(addresses, ip.String())
-		}
-		if ip := ep.getFirstInterfaceIPv6Address(); ip != nil {
-			addresses = append(addresses, ip.String())
-		}
-		if err = sb.updateHostsFile(addresses); err != nil {
-			return err
-		}
+	if err := sb.updateHostsFile(ep.getEtcHostsAddrs()); err != nil {
+		return err
 	}
 	if err = sb.updateDNS(n.enableIPv6); err != nil {
 		return err
@@ -904,26 +894,24 @@ func (ep *Endpoint) getSandbox() (*Sandbox, bool) {
 	return ps, ok
 }
 
-func (ep *Endpoint) getFirstInterfaceIPv4Address() net.IP {
+// Return a list of this endpoint's addresses to add to '/etc/hosts'.
+func (ep *Endpoint) getEtcHostsAddrs() []string {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
+	// Do not update hosts file with internal network's endpoint IP
+	if n := ep.network; n == nil || n.ingress || n.Name() == libnGWNetwork {
+		return nil
+	}
+
+	var addresses []string
 	if ep.iface.addr != nil {
-		return ep.iface.addr.IP
+		addresses = append(addresses, ep.iface.addr.IP.String())
 	}
-
-	return nil
-}
-
-func (ep *Endpoint) getFirstInterfaceIPv6Address() net.IP {
-	ep.mu.Lock()
-	defer ep.mu.Unlock()
-
 	if ep.iface.addrv6 != nil {
-		return ep.iface.addrv6.IP
+		addresses = append(addresses, ep.iface.addrv6.IP.String())
 	}
-
-	return nil
+	return addresses
 }
 
 // EndpointOptionGeneric function returns an option setter for a Generic option defined

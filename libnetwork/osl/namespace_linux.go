@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/libnetwork/osl/kernel"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
@@ -206,16 +207,6 @@ func NewSandbox(key string, osCreate, isRestore bool) (*Namespace, error) {
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to set the timeout on the sandbox netlink handle sockets: %v", err)
 	}
-	// In live-restore mode, IPV6 entries are getting cleaned up due to below code
-	// We should retain IPV6 configurations in live-restore mode when Docker Daemon
-	// comes back. It should work as it is on other cases
-	// As starting point, disable IPv6 on all interfaces
-	if !isRestore && !n.isDefault {
-		err = setIPv6(n.path, "all", false)
-		if err != nil {
-			log.G(context.TODO()).Warnf("Failed to disable IPv6 on all interfaces on network namespace %q: %v", n.path, err)
-		}
-	}
 
 	if err = n.loopbackUp(); err != nil {
 		n.nlHandle.Close()
@@ -226,7 +217,11 @@ func NewSandbox(key string, osCreate, isRestore bool) (*Namespace, error) {
 }
 
 func mountNetworkNamespace(basePath string, lnPath string) error {
-	return syscall.Mount(basePath, lnPath, "bind", syscall.MS_BIND, "")
+	err := syscall.Mount(basePath, lnPath, "bind", syscall.MS_BIND, "")
+	if err != nil {
+		return fmt.Errorf("bind-mount %s -> %s: %w", basePath, lnPath, err)
+	}
+	return nil
 }
 
 // GetSandboxForExternalKey returns sandbox object for the supplied path
@@ -254,12 +249,6 @@ func GetSandboxForExternalKey(basePath string, key string) (*Namespace, error) {
 	err = n.nlHandle.SetSocketTimeout(ns.NetlinkSocketsTimeout)
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to set the timeout on the sandbox netlink handle sockets: %v", err)
-	}
-
-	// As starting point, disable IPv6 on all interfaces
-	err = setIPv6(n.path, "all", false)
-	if err != nil {
-		log.G(context.TODO()).Warnf("Failed to disable IPv6 on all interfaces on network namespace %q: %v", n.path, err)
 	}
 
 	if err = n.loopbackUp(); err != nil {
@@ -321,17 +310,18 @@ func createNamespaceFile(path string) error {
 // or sets the gateway etc. It holds a list of Interfaces, routes etc., and more
 // can be added dynamically.
 type Namespace struct {
-	path         string
-	iFaces       []*Interface
-	gw           net.IP
-	gwv6         net.IP
-	staticRoutes []*types.StaticRoute
-	neighbors    []*neigh
-	nextIfIndex  map[string]int
-	isDefault    bool
-	nlHandle     *netlink.Handle
-	loV6Enabled  bool
-	mu           sync.Mutex
+	path                string
+	iFaces              []*Interface
+	gw                  net.IP
+	gwv6                net.IP
+	staticRoutes        []*types.StaticRoute
+	neighbors           []*neigh
+	nextIfIndex         map[string]int
+	isDefault           bool
+	ipv6LoEnabledOnce   sync.Once
+	ipv6LoEnabledCached bool
+	nlHandle            *netlink.Handle
+	mu                  sync.Mutex
 }
 
 // Interfaces returns the collection of Interface previously added with the AddInterface
@@ -555,32 +545,24 @@ func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.
 	return nil
 }
 
-// Checks whether IPv6 needs to be enabled/disabled on the loopback interface
-func (n *Namespace) checkLoV6() {
-	var (
-		enable = false
-		action = "disable"
-	)
-
-	n.mu.Lock()
-	for _, iface := range n.iFaces {
-		if iface.AddressIPv6() != nil {
-			enable = true
-			action = "enable"
-			break
+// IPv6LoEnabled checks whether the loopback interface has an IPv6 address ('::1'
+// is assigned by the kernel if IPv6 is enabled).
+func (n *Namespace) IPv6LoEnabled() bool {
+	n.ipv6LoEnabledOnce.Do(func() {
+		// If anything goes wrong, assume no-IPv6.
+		iface, err := n.nlHandle.LinkByName("lo")
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Warn("Unable to find 'lo' to determine IPv6 support")
+			return
 		}
-	}
-	n.mu.Unlock()
-
-	if n.loV6Enabled == enable {
-		return
-	}
-
-	if err := setIPv6(n.path, "lo", enable); err != nil {
-		log.G(context.TODO()).Warnf("Failed to %s IPv6 on loopback interface on network namespace %q: %v", action, n.path, err)
-	}
-
-	n.loV6Enabled = enable
+		addrs, err := n.nlHandle.AddrList(iface, nl.FAMILY_V6)
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Warn("Unable to get 'lo' addresses to determine IPv6 support")
+			return
+		}
+		n.ipv6LoEnabledCached = len(addrs) > 0
+	})
+	return n.ipv6LoEnabledCached
 }
 
 // ApplyOSTweaks applies operating system specific knobs on the sandbox.

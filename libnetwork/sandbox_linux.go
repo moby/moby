@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 )
@@ -157,12 +158,37 @@ func (sb *Sandbox) SetKey(basePath string) error {
 		}
 	}
 
+	if err := sb.finishInitDNS(); err != nil {
+		return err
+	}
+
 	for _, ep := range sb.Endpoints() {
 		if err = sb.populateNetworkResources(ep); err != nil {
 			return err
 		}
 	}
+
 	return nil
+}
+
+// IPv6 support can always be determined for host networking. For other network
+// types it can only be determined once there's a container namespace to probe,
+// return ok=false in that case.
+func (sb *Sandbox) ipv6Enabled() (enabled, ok bool) {
+	// For host networking, IPv6 support depends on the host.
+	if sb.config.useDefaultSandBox {
+		return netutils.IsV6Listenable(), true
+	}
+
+	// For other network types, look at whether the container's loopback interface has an IPv6 address.
+	sb.mu.Lock()
+	osSbox := sb.osSbox
+	sb.mu.Unlock()
+
+	if osSbox == nil {
+		return false, false
+	}
+	return osSbox.IPv6LoEnabled(), true
 }
 
 func (sb *Sandbox) releaseOSSbox() error {

@@ -236,6 +236,10 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		}
 	}()
 
+	if err := daemon.initializeCreatedTask(ctx, tsk, container, spec); err != nil {
+		return err
+	}
+
 	if err := tsk.Start(context.TODO()); err != nil { // passing ctx caused integration tests to be stuck in the cleanup phase
 		return setExitCodeFromError(container.SetExitCode, err)
 	}

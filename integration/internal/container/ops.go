@@ -1,6 +1,7 @@
 package container
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
@@ -43,6 +44,13 @@ func WithCmd(cmds ...string) func(*TestContainerConfig) {
 func WithNetworkMode(mode string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		c.HostConfig.NetworkMode = container.NetworkMode(mode)
+	}
+}
+
+// WithSysctls sets sysctl options for the container
+func WithSysctls(sysctls map[string]string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.Sysctls = maps.Clone(sysctls)
 	}
 }
 
