@@ -9,10 +9,6 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-    groups:
-      github-actions:
-        patterns:
-          - "*"
     labels:
       - "dependencies"
       - "bot"
