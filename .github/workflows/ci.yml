@@ -40,7 +40,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       -
         name: Build
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v4
         with:
           targets: ${{ matrix.target }}
       -
@@ -106,7 +106,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       -
         name: Build
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v4
         with:
           targets: all
           set: |
