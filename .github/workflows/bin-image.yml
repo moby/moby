@@ -38,7 +38,7 @@ jobs:
       -
         name: Docker meta
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: |
             ${{ env.MOBYBIN_REPO_SLUG }}
@@ -61,8 +61,10 @@ jobs:
             type=sha
       -
         name: Rename meta bake definition file
+        # see https://github.com/docker/metadata-action/issues/381#issuecomment-1918607161
         run: |
-          mv "${{ steps.meta.outputs.bake-file }}" "/tmp/bake-meta.json"
+          bakeFile="${{ steps.meta.outputs.bake-file }}"
+          mv "${bakeFile#cwd://}" "/tmp/bake-meta.json"
       -
         name: Upload meta bake definition
         uses: actions/upload-artifact@v3
