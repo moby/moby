@@ -60,7 +60,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/containerd/containerd/pkg/userns"
+	"github.com/containerd/containerd/v2/pkg/userns"
 	"github.com/containerd/log"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"

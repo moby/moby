@@ -243,7 +243,7 @@ func RemoveRelative(path string, root *os.File) error {
 	if err == nil {
 		defer f.Close()
 		err = deleteOnClose(f)
-		if err == syscall.ERROR_ACCESS_DENIED {
+		if err == syscall.ERROR_ACCESS_DENIED { //nolint:errorlint
 			// Maybe the file is marked readonly. Clear the bit and retry.
 			_ = clearReadOnly(f)
 			err = deleteOnClose(f)
@@ -276,7 +276,7 @@ func RemoveAllRelative(path string, root *os.File) error {
 	}
 
 	// It is necessary to use os.Open as Readdirnames does not work with
-	// OpenRelative. This is safe because the above lstatrelative fails
+	// OpenRelative. This is safe because the above LstatRelative fails
 	// if the target is outside the root, and we know this is not a
 	// symlink from the above FILE_ATTRIBUTE_REPARSE_POINT check.
 	fd, err := os.Open(filepath.Join(root.Name(), path))
@@ -293,12 +293,12 @@ func RemoveAllRelative(path string, root *os.File) error {
 	for {
 		names, err1 := fd.Readdirnames(100)
 		for _, name := range names {
-			err1 := RemoveAllRelative(path+string(os.PathSeparator)+name, root)
-			if err == nil {
-				err = err1
+			if err2 := RemoveAllRelative(path+string(os.PathSeparator)+name, root); err == nil {
+				err = err2
 			}
 		}
 		if err1 == io.EOF {
+			// Readdirnames has no more files to return
 			break
 		}
 		// If Readdirnames returned an error, use it.

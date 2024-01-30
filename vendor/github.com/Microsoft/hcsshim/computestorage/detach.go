@@ -4,7 +4,9 @@ package computestorage
 
 import (
 	"context"
+	"encoding/json"
 
+	hcsschema "github.com/Microsoft/hcsshim/internal/hcs/schema2"
 	"github.com/Microsoft/hcsshim/internal/oc"
 	"github.com/pkg/errors"
 	"go.opencensus.io/trace"
@@ -23,6 +25,30 @@ func DetachLayerStorageFilter(ctx context.Context, layerPath string) (err error)
 	err = hcsDetachLayerStorageFilter(layerPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to detach layer storage filter")
+	}
+	return nil
+}
+
+// DetachOverlayFilter detaches the filter on a writable container layer.
+//
+// `volumePath` is a path to writable container volume.
+func DetachOverlayFilter(ctx context.Context, volumePath string, filterType hcsschema.FileSystemFilterType) (err error) {
+	title := "hcsshim::DetachOverlayFilter"
+	ctx, span := oc.StartSpan(ctx, title) //nolint:ineffassign,staticcheck
+	defer span.End()
+	defer func() { oc.SetSpanStatus(span, err) }()
+	span.AddAttributes(trace.StringAttribute("volumePath", volumePath))
+
+	layerData := LayerData{}
+	layerData.FilterType = filterType
+	bytes, err := json.Marshal(layerData)
+	if err != nil {
+		return err
+	}
+
+	err = hcsDetachOverlayFilter(volumePath, string(bytes))
+	if err != nil {
+		return errors.Wrap(err, "failed to detach overlay filter")
 	}
 	return nil
 }

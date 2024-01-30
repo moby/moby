@@ -126,7 +126,7 @@ func (pa *PoolAllocator) Allocate(size uint64) (MappedRegion, error) {
 	// this means that there are no more regions for the current class, try expanding
 	if nextCls != memCls {
 		if err := pa.split(memCls); err != nil {
-			if err == ErrInvalidMemoryClass {
+			if errors.Is(err, ErrInvalidMemoryClass) {
 				return nil, ErrNotEnoughSpace
 			}
 			return nil, err
@@ -147,7 +147,7 @@ func (pa *PoolAllocator) Allocate(size uint64) (MappedRegion, error) {
 }
 
 // Release marks a memory region of class `memCls` and offset `offset` as free and tries to merge smaller regions into
-// a bigger one
+// a bigger one.
 func (pa *PoolAllocator) Release(reg MappedRegion) error {
 	mp := pa.pools[reg.Type()]
 	if mp == nil {
@@ -164,7 +164,7 @@ func (pa *PoolAllocator) Release(reg MappedRegion) error {
 		return ErrNotAllocated
 	}
 	if err := pa.merge(n.parent); err != nil {
-		if err != ErrEarlyMerge {
+		if !errors.Is(err, ErrEarlyMerge) {
 			return err
 		}
 	}

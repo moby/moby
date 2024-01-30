@@ -2,9 +2,9 @@ package shimopts
 
 import (
 	runhcsoptions "github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options"
-	runtimeoptions "github.com/containerd/containerd/pkg/runtimeoptions/v1"
-	"github.com/containerd/containerd/plugin"
-	runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
+	runcoptions "github.com/containerd/containerd/v2/core/runtime/v2/runc/options"
+	runtimeoptions "github.com/containerd/containerd/v2/pkg/runtimeoptions/v1"
+	"github.com/containerd/containerd/v2/plugins"
 	"github.com/pelletier/go-toml"
 )
 
@@ -17,7 +17,7 @@ func Generate(runtimeType string, opts map[string]interface{}) (interface{}, err
 	// options in the same way.
 	var out interface{}
 	switch runtimeType {
-	case plugin.RuntimeRuncV1, plugin.RuntimeRuncV2:
+	case plugins.RuntimeRuncV2:
 		out = &runcoptions.Options{}
 	case "io.containerd.runhcs.v1":
 		out = &runhcsoptions.Options{}

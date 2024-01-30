@@ -3,7 +3,7 @@
 package snapshotter
 
 import (
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/docker/docker/daemon/graphdriver"
 	"golang.org/x/sys/unix"
 )

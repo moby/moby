@@ -1,6 +1,6 @@
 package snapshotter
 
-import "github.com/containerd/containerd/mount"
+import "github.com/containerd/containerd/v2/core/mount"
 
 type winChecker struct{}
 

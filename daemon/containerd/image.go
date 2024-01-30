@@ -10,10 +10,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	cerrdefs "github.com/containerd/containerd/errdefs"
-	containerdimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/platforms"
+	containerdimages "github.com/containerd/containerd/v2/core/images"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/images"

@@ -8,6 +8,10 @@ import (
 	"net"
 	"reflect"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // TimeFormat is [time.RFC3339Nano] with nanoseconds padded using
@@ -61,25 +65,49 @@ func formatAddr(a net.Addr) string {
 func Format(ctx context.Context, v interface{}) string {
 	b, err := encode(v)
 	if err != nil {
-		G(ctx).WithError(err).Warning("could not format value")
+		// logging errors aren't really warning worthy, and can potentially spam a lot of logs out
+		G(ctx).WithFields(logrus.Fields{
+			logrus.ErrorKey: err,
+			"type":          fmt.Sprintf("%T", v),
+		}).Debug("could not format value")
 		return ""
 	}
 
 	return string(b)
 }
 
-func encode(v interface{}) ([]byte, error) {
-	return encodeBuffer(&bytes.Buffer{}, v)
-}
+func encode(v interface{}) (_ []byte, err error) {
+	if m, ok := v.(proto.Message); ok {
+		// use canonical JSON encoding for protobufs (instead of [encoding/json])
+		// https://protobuf.dev/programming-guides/proto3/#json
+		var b []byte
+		b, err = protojson.MarshalOptions{
+			AllowPartial: true,
+			// protobuf defaults to camel case for JSON encoding; use proto field name instead (snake case)
+			UseProtoNames: true,
+		}.Marshal(m)
+		if err == nil {
+			// the protojson marshaller tries to unmarshal anypb.Any fields, which can
+			// fail for types encoded with "github.com/containerd/typeurl/v2"
+			// we can try creating a dedicated protoregistry.MessageTypeResolver that uses typeurl, but, its
+			// more robust to fall back on json marshalling for errors in general
+			return b, nil
+		}
 
-func encodeBuffer(buf *bytes.Buffer, v interface{}) ([]byte, error) {
+	}
+
+	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "")
 
-	if err := enc.Encode(v); err != nil {
-		err = fmt.Errorf("could not marshall %T to JSON for logging: %w", v, err)
-		return nil, err
+	if jErr := enc.Encode(v); jErr != nil {
+		if err != nil {
+			// TODO (go1.20): use multierror via fmt.Errorf("...: %w; ...: %w", ...)
+			//nolint:errorlint // non-wrapping format verb for fmt.Errorf
+			return nil, fmt.Errorf("protojson encoding: %v; json encoding: %w", err, jErr)
+		}
+		return nil, fmt.Errorf("json encoding: %w", jErr)
 	}
 
 	// encoder.Encode appends a newline to the end

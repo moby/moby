@@ -3,9 +3,9 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 
-	"github.com/containerd/containerd"
-	coci "github.com/containerd/containerd/oci"
-	"github.com/containerd/containerd/pkg/apparmor"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/pkg/apparmor"
+	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/oci/caps"

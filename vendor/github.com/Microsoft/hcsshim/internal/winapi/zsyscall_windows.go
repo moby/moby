@@ -43,6 +43,7 @@ var (
 	modadvapi32   = windows.NewLazySystemDLL("advapi32.dll")
 	modbindfltapi = windows.NewLazySystemDLL("bindfltapi.dll")
 	modcfgmgr32   = windows.NewLazySystemDLL("cfgmgr32.dll")
+	modcimfs      = windows.NewLazySystemDLL("cimfs.dll")
 	modiphlpapi   = windows.NewLazySystemDLL("iphlpapi.dll")
 	modkernel32   = windows.NewLazySystemDLL("kernel32.dll")
 	modnetapi32   = windows.NewLazySystemDLL("netapi32.dll")
@@ -55,6 +56,17 @@ var (
 	procCM_Get_Device_ID_ListA                 = modcfgmgr32.NewProc("CM_Get_Device_ID_ListA")
 	procCM_Get_Device_ID_List_SizeA            = modcfgmgr32.NewProc("CM_Get_Device_ID_List_SizeA")
 	procCM_Locate_DevNodeW                     = modcfgmgr32.NewProc("CM_Locate_DevNodeW")
+	procCimCloseImage                          = modcimfs.NewProc("CimCloseImage")
+	procCimCloseStream                         = modcimfs.NewProc("CimCloseStream")
+	procCimCommitImage                         = modcimfs.NewProc("CimCommitImage")
+	procCimCreateAlternateStream               = modcimfs.NewProc("CimCreateAlternateStream")
+	procCimCreateFile                          = modcimfs.NewProc("CimCreateFile")
+	procCimCreateHardLink                      = modcimfs.NewProc("CimCreateHardLink")
+	procCimCreateImage                         = modcimfs.NewProc("CimCreateImage")
+	procCimDeletePath                          = modcimfs.NewProc("CimDeletePath")
+	procCimDismountImage                       = modcimfs.NewProc("CimDismountImage")
+	procCimMountImage                          = modcimfs.NewProc("CimMountImage")
+	procCimWriteStream                         = modcimfs.NewProc("CimWriteStream")
 	procSetJobCompartmentId                    = modiphlpapi.NewProc("SetJobCompartmentId")
 	procClosePseudoConsole                     = modkernel32.NewProc("ClosePseudoConsole")
 	procCopyFileW                              = modkernel32.NewProc("CopyFileW")
@@ -84,8 +96,16 @@ var (
 	procNtSetInformationFile                   = modntdll.NewProc("NtSetInformationFile")
 	procRtlNtStatusToDosError                  = modntdll.NewProc("RtlNtStatusToDosError")
 	procORCloseHive                            = modoffreg.NewProc("ORCloseHive")
+	procORCloseKey                             = modoffreg.NewProc("ORCloseKey")
 	procORCreateHive                           = modoffreg.NewProc("ORCreateHive")
+	procORCreateKey                            = modoffreg.NewProc("ORCreateKey")
+	procORDeleteKey                            = modoffreg.NewProc("ORDeleteKey")
+	procORGetValue                             = modoffreg.NewProc("ORGetValue")
+	procORMergeHives                           = modoffreg.NewProc("ORMergeHives")
+	procOROpenHive                             = modoffreg.NewProc("OROpenHive")
+	procOROpenKey                              = modoffreg.NewProc("OROpenKey")
 	procORSaveHive                             = modoffreg.NewProc("ORSaveHive")
+	procORSetValue                             = modoffreg.NewProc("ORSetValue")
 )
 
 func LogonUser(username *uint16, domain *uint16, password *uint16, logonType uint32, logonProvider uint32, token *windows.Token) (err error) {
@@ -155,6 +175,229 @@ func CMLocateDevNode(pdnDevInst *uint32, pDeviceID string, uFlags uint32) (hr er
 
 func _CMLocateDevNode(pdnDevInst *uint32, pDeviceID *uint16, uFlags uint32) (hr error) {
 	r0, _, _ := syscall.Syscall(procCM_Locate_DevNodeW.Addr(), 3, uintptr(unsafe.Pointer(pdnDevInst)), uintptr(unsafe.Pointer(pDeviceID)), uintptr(uFlags))
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func CimCloseImage(cimFSHandle FsHandle) (err error) {
+	err = procCimCloseImage.Find()
+	if err != nil {
+		return
+	}
+	syscall.Syscall(procCimCloseImage.Addr(), 1, uintptr(cimFSHandle), 0, 0)
+	return
+}
+
+func CimCloseStream(cimStreamHandle StreamHandle) (hr error) {
+	hr = procCimCloseStream.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procCimCloseStream.Addr(), 1, uintptr(cimStreamHandle), 0, 0)
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func CimCommitImage(cimFSHandle FsHandle) (hr error) {
+	hr = procCimCommitImage.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procCimCommitImage.Addr(), 1, uintptr(cimFSHandle), 0, 0)
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func CimCreateAlternateStream(cimFSHandle FsHandle, path string, size uint64, cimStreamHandle *StreamHandle) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(path)
+	if hr != nil {
+		return
+	}
+	return _CimCreateAlternateStream(cimFSHandle, _p0, size, cimStreamHandle)
+}
+
+func _CimCreateAlternateStream(cimFSHandle FsHandle, path *uint16, size uint64, cimStreamHandle *StreamHandle) (hr error) {
+	hr = procCimCreateAlternateStream.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall6(procCimCreateAlternateStream.Addr(), 4, uintptr(cimFSHandle), uintptr(unsafe.Pointer(path)), uintptr(size), uintptr(unsafe.Pointer(cimStreamHandle)), 0, 0)
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func CimCreateFile(cimFSHandle FsHandle, path string, file *CimFsFileMetadata, cimStreamHandle *StreamHandle) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(path)
+	if hr != nil {
+		return
+	}
+	return _CimCreateFile(cimFSHandle, _p0, file, cimStreamHandle)
+}
+
+func _CimCreateFile(cimFSHandle FsHandle, path *uint16, file *CimFsFileMetadata, cimStreamHandle *StreamHandle) (hr error) {
+	hr = procCimCreateFile.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall6(procCimCreateFile.Addr(), 4, uintptr(cimFSHandle), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(file)), uintptr(unsafe.Pointer(cimStreamHandle)), 0, 0)
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func CimCreateHardLink(cimFSHandle FsHandle, newPath string, oldPath string) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(newPath)
+	if hr != nil {
+		return
+	}
+	var _p1 *uint16
+	_p1, hr = syscall.UTF16PtrFromString(oldPath)
+	if hr != nil {
+		return
+	}
+	return _CimCreateHardLink(cimFSHandle, _p0, _p1)
+}
+
+func _CimCreateHardLink(cimFSHandle FsHandle, newPath *uint16, oldPath *uint16) (hr error) {
+	hr = procCimCreateHardLink.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procCimCreateHardLink.Addr(), 3, uintptr(cimFSHandle), uintptr(unsafe.Pointer(newPath)), uintptr(unsafe.Pointer(oldPath)))
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func CimCreateImage(imagePath string, oldFSName *uint16, newFSName *uint16, cimFSHandle *FsHandle) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(imagePath)
+	if hr != nil {
+		return
+	}
+	return _CimCreateImage(_p0, oldFSName, newFSName, cimFSHandle)
+}
+
+func _CimCreateImage(imagePath *uint16, oldFSName *uint16, newFSName *uint16, cimFSHandle *FsHandle) (hr error) {
+	hr = procCimCreateImage.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall6(procCimCreateImage.Addr(), 4, uintptr(unsafe.Pointer(imagePath)), uintptr(unsafe.Pointer(oldFSName)), uintptr(unsafe.Pointer(newFSName)), uintptr(unsafe.Pointer(cimFSHandle)), 0, 0)
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func CimDeletePath(cimFSHandle FsHandle, path string) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(path)
+	if hr != nil {
+		return
+	}
+	return _CimDeletePath(cimFSHandle, _p0)
+}
+
+func _CimDeletePath(cimFSHandle FsHandle, path *uint16) (hr error) {
+	hr = procCimDeletePath.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procCimDeletePath.Addr(), 2, uintptr(cimFSHandle), uintptr(unsafe.Pointer(path)), 0)
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func CimDismountImage(volumeID *g) (hr error) {
+	hr = procCimDismountImage.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procCimDismountImage.Addr(), 1, uintptr(unsafe.Pointer(volumeID)), 0, 0)
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func CimMountImage(imagePath string, fsName string, flags uint32, volumeID *g) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(imagePath)
+	if hr != nil {
+		return
+	}
+	var _p1 *uint16
+	_p1, hr = syscall.UTF16PtrFromString(fsName)
+	if hr != nil {
+		return
+	}
+	return _CimMountImage(_p0, _p1, flags, volumeID)
+}
+
+func _CimMountImage(imagePath *uint16, fsName *uint16, flags uint32, volumeID *g) (hr error) {
+	hr = procCimMountImage.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall6(procCimMountImage.Addr(), 4, uintptr(unsafe.Pointer(imagePath)), uintptr(unsafe.Pointer(fsName)), uintptr(flags), uintptr(unsafe.Pointer(volumeID)), 0, 0)
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func CimWriteStream(cimStreamHandle StreamHandle, buffer uintptr, bufferSize uint32) (hr error) {
+	hr = procCimWriteStream.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procCimWriteStream.Addr(), 3, uintptr(cimStreamHandle), uintptr(buffer), uintptr(bufferSize))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -381,35 +624,162 @@ func RtlNtStatusToDosError(status uint32) (winerr error) {
 	return
 }
 
-func ORCloseHive(key syscall.Handle) (regerrno error) {
-	r0, _, _ := syscall.Syscall(procORCloseHive.Addr(), 1, uintptr(key), 0, 0)
+func ORCloseHive(handle ORHKey) (win32err error) {
+	r0, _, _ := syscall.Syscall(procORCloseHive.Addr(), 1, uintptr(handle), 0, 0)
 	if r0 != 0 {
-		regerrno = syscall.Errno(r0)
+		win32err = syscall.Errno(r0)
 	}
 	return
 }
 
-func ORCreateHive(key *syscall.Handle) (regerrno error) {
+func ORCloseKey(handle ORHKey) (win32err error) {
+	r0, _, _ := syscall.Syscall(procORCloseKey.Addr(), 1, uintptr(handle), 0, 0)
+	if r0 != 0 {
+		win32err = syscall.Errno(r0)
+	}
+	return
+}
+
+func ORCreateHive(key *ORHKey) (win32err error) {
 	r0, _, _ := syscall.Syscall(procORCreateHive.Addr(), 1, uintptr(unsafe.Pointer(key)), 0, 0)
 	if r0 != 0 {
-		regerrno = syscall.Errno(r0)
+		win32err = syscall.Errno(r0)
 	}
 	return
 }
 
-func ORSaveHive(key syscall.Handle, file string, OsMajorVersion uint32, OsMinorVersion uint32) (regerrno error) {
+func ORCreateKey(handle ORHKey, subKey string, class uintptr, options uint32, securityDescriptor uintptr, result *ORHKey, disposition *uint32) (win32err error) {
 	var _p0 *uint16
-	_p0, regerrno = syscall.UTF16PtrFromString(file)
-	if regerrno != nil {
+	_p0, win32err = syscall.UTF16PtrFromString(subKey)
+	if win32err != nil {
 		return
 	}
-	return _ORSaveHive(key, _p0, OsMajorVersion, OsMinorVersion)
+	return _ORCreateKey(handle, _p0, class, options, securityDescriptor, result, disposition)
 }
 
-func _ORSaveHive(key syscall.Handle, file *uint16, OsMajorVersion uint32, OsMinorVersion uint32) (regerrno error) {
-	r0, _, _ := syscall.Syscall6(procORSaveHive.Addr(), 4, uintptr(key), uintptr(unsafe.Pointer(file)), uintptr(OsMajorVersion), uintptr(OsMinorVersion), 0, 0)
+func _ORCreateKey(handle ORHKey, subKey *uint16, class uintptr, options uint32, securityDescriptor uintptr, result *ORHKey, disposition *uint32) (win32err error) {
+	r0, _, _ := syscall.Syscall9(procORCreateKey.Addr(), 7, uintptr(handle), uintptr(unsafe.Pointer(subKey)), uintptr(class), uintptr(options), uintptr(securityDescriptor), uintptr(unsafe.Pointer(result)), uintptr(unsafe.Pointer(disposition)), 0, 0)
 	if r0 != 0 {
-		regerrno = syscall.Errno(r0)
+		win32err = syscall.Errno(r0)
+	}
+	return
+}
+
+func ORDeleteKey(handle ORHKey, subKey string) (win32err error) {
+	var _p0 *uint16
+	_p0, win32err = syscall.UTF16PtrFromString(subKey)
+	if win32err != nil {
+		return
+	}
+	return _ORDeleteKey(handle, _p0)
+}
+
+func _ORDeleteKey(handle ORHKey, subKey *uint16) (win32err error) {
+	r0, _, _ := syscall.Syscall(procORDeleteKey.Addr(), 2, uintptr(handle), uintptr(unsafe.Pointer(subKey)), 0)
+	if r0 != 0 {
+		win32err = syscall.Errno(r0)
+	}
+	return
+}
+
+func ORGetValue(handle ORHKey, subKey string, value string, valueType *uint32, data *byte, dataLen *uint32) (win32err error) {
+	var _p0 *uint16
+	_p0, win32err = syscall.UTF16PtrFromString(subKey)
+	if win32err != nil {
+		return
+	}
+	var _p1 *uint16
+	_p1, win32err = syscall.UTF16PtrFromString(value)
+	if win32err != nil {
+		return
+	}
+	return _ORGetValue(handle, _p0, _p1, valueType, data, dataLen)
+}
+
+func _ORGetValue(handle ORHKey, subKey *uint16, value *uint16, valueType *uint32, data *byte, dataLen *uint32) (win32err error) {
+	r0, _, _ := syscall.Syscall6(procORGetValue.Addr(), 6, uintptr(handle), uintptr(unsafe.Pointer(subKey)), uintptr(unsafe.Pointer(value)), uintptr(unsafe.Pointer(valueType)), uintptr(unsafe.Pointer(data)), uintptr(unsafe.Pointer(dataLen)))
+	if r0 != 0 {
+		win32err = syscall.Errno(r0)
+	}
+	return
+}
+
+func ORMergeHives(hiveHandles []ORHKey, result *ORHKey) (win32err error) {
+	var _p0 *ORHKey
+	if len(hiveHandles) > 0 {
+		_p0 = &hiveHandles[0]
+	}
+	r0, _, _ := syscall.Syscall(procORMergeHives.Addr(), 3, uintptr(unsafe.Pointer(_p0)), uintptr(len(hiveHandles)), uintptr(unsafe.Pointer(result)))
+	if r0 != 0 {
+		win32err = syscall.Errno(r0)
+	}
+	return
+}
+
+func OROpenHive(hivePath string, result *ORHKey) (win32err error) {
+	var _p0 *uint16
+	_p0, win32err = syscall.UTF16PtrFromString(hivePath)
+	if win32err != nil {
+		return
+	}
+	return _OROpenHive(_p0, result)
+}
+
+func _OROpenHive(hivePath *uint16, result *ORHKey) (win32err error) {
+	r0, _, _ := syscall.Syscall(procOROpenHive.Addr(), 2, uintptr(unsafe.Pointer(hivePath)), uintptr(unsafe.Pointer(result)), 0)
+	if r0 != 0 {
+		win32err = syscall.Errno(r0)
+	}
+	return
+}
+
+func OROpenKey(handle ORHKey, subKey string, result *ORHKey) (win32err error) {
+	var _p0 *uint16
+	_p0, win32err = syscall.UTF16PtrFromString(subKey)
+	if win32err != nil {
+		return
+	}
+	return _OROpenKey(handle, _p0, result)
+}
+
+func _OROpenKey(handle ORHKey, subKey *uint16, result *ORHKey) (win32err error) {
+	r0, _, _ := syscall.Syscall(procOROpenKey.Addr(), 3, uintptr(handle), uintptr(unsafe.Pointer(subKey)), uintptr(unsafe.Pointer(result)))
+	if r0 != 0 {
+		win32err = syscall.Errno(r0)
+	}
+	return
+}
+
+func ORSaveHive(handle ORHKey, hivePath string, osMajorVersion uint32, osMinorVersion uint32) (win32err error) {
+	var _p0 *uint16
+	_p0, win32err = syscall.UTF16PtrFromString(hivePath)
+	if win32err != nil {
+		return
+	}
+	return _ORSaveHive(handle, _p0, osMajorVersion, osMinorVersion)
+}
+
+func _ORSaveHive(handle ORHKey, hivePath *uint16, osMajorVersion uint32, osMinorVersion uint32) (win32err error) {
+	r0, _, _ := syscall.Syscall6(procORSaveHive.Addr(), 4, uintptr(handle), uintptr(unsafe.Pointer(hivePath)), uintptr(osMajorVersion), uintptr(osMinorVersion), 0, 0)
+	if r0 != 0 {
+		win32err = syscall.Errno(r0)
+	}
+	return
+}
+
+func ORSetValue(handle ORHKey, valueName string, valueType uint32, data *byte, dataLen uint32) (win32err error) {
+	var _p0 *uint16
+	_p0, win32err = syscall.UTF16PtrFromString(valueName)
+	if win32err != nil {
+		return
+	}
+	return _ORSetValue(handle, _p0, valueType, data, dataLen)
+}
+
+func _ORSetValue(handle ORHKey, valueName *uint16, valueType uint32, data *byte, dataLen uint32) (win32err error) {
+	r0, _, _ := syscall.Syscall6(procORSetValue.Addr(), 5, uintptr(handle), uintptr(unsafe.Pointer(valueName)), uintptr(valueType), uintptr(unsafe.Pointer(data)), uintptr(dataLen), 0)
+	if r0 != 0 {
+		win32err = syscall.Errno(r0)
 	}
 	return
 }

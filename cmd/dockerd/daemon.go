@@ -14,8 +14,10 @@ import (
 	"sync"
 	"time"
 
-	containerddefaults "github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/tracing"
+	dockerv1 "github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	containerddefaults "github.com/containerd/containerd/v2/defaults"
+	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
@@ -415,7 +417,7 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 		ImageTagger:         d.ImageService(),
 		NetworkController:   d.NetworkController(),
 		DefaultCgroupParent: cgroupParent,
-		RegistryHosts:       d.RegistryHosts,
+		RegistryHosts:       convertDockerHosts(d.RegistryHosts),
 		BuilderConfig:       config.Builder,
 		Rootless:            daemon.Rootless(config),
 		IdentityMapping:     d.IdentityMapping(),
@@ -443,6 +445,26 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 		daemon:         d,
 		cluster:        c,
 	}, nil
+}
+
+func convertDockerHosts(fn docker.RegistryHosts) dockerv1.RegistryHosts {
+	return func(host string) ([]dockerv1.RegistryHost, error) {
+		hosts, err := fn(host)
+		if err != nil {
+			return nil, err
+		}
+		v1hosts := make([]dockerv1.RegistryHost, len(hosts))
+		for i := range hosts {
+			v1hosts[i].Client = hosts[i].Client
+			v1hosts[i].Authorizer = hosts[i].Authorizer
+			v1hosts[i].Host = hosts[i].Host
+			v1hosts[i].Scheme = hosts[i].Scheme
+			v1hosts[i].Path = hosts[i].Path
+			v1hosts[i].Capabilities = dockerv1.HostCapabilities(hosts[i].Capabilities)
+			v1hosts[i].Header = hosts[i].Header
+		}
+		return v1hosts, nil
+	}
 }
 
 func (cli *DaemonCli) reloadConfig() {

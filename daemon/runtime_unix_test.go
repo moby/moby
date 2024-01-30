@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"dario.cat/mergo"
-	runtimeoptions_v1 "github.com/containerd/containerd/pkg/runtimeoptions/v1"
-	"github.com/containerd/containerd/plugin"
-	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
+	v2runcoptions "github.com/containerd/containerd/v2/core/runtime/v2/runc/options"
+	runtimeoptions_v1 "github.com/containerd/containerd/v2/pkg/runtimeoptions/v1"
+	"github.com/containerd/containerd/v2/plugins"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
@@ -203,7 +203,7 @@ func TestGetRuntime(t *testing.T) {
 
 	const shimWithOptsName = "shimwithopts"
 	shimWithOpts := system.Runtime{
-		Type:    plugin.RuntimeRuncV2,
+		Type:    plugins.RuntimeRuncV2,
 		Options: map[string]interface{}{"IoUid": 42},
 	}
 
