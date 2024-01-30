@@ -142,14 +142,14 @@ Run the following from a Windows PowerShell prompt (elevation is not required):
 To run unit tests, ensure you have created the nativebuildimage above.
 Then run one of the following from an (elevated) Windows PowerShell prompt:
 
-    docker run --rm nativebuildimage hack\make.ps1 -TestUnit
-    docker run --rm -m 2GB nativebuildimage hack\make.ps1 -TestUnit  # (if using Hyper-V containers)
+    docker run --rm -e DOCKER_GITCOMMIT=$DOCKER_GITCOMMIT nativebuildimage hack\make.ps1 -TestUnit
+    docker run --rm -m 2GB -e DOCKER_GITCOMMIT=$DOCKER_GITCOMMIT nativebuildimage hack\make.ps1 -TestUnit  # (if using Hyper-V containers)
 
 To run unit tests and binary build, ensure you have created the nativebuildimage above.
 Then run one of the following from an (elevated) Windows PowerShell prompt:
 
-    docker run nativebuildimage hack\make.ps1 -All
-    docker run -m 2GB nativebuildimage hack\make.ps1 -All  # (if using Hyper-V containers)
+    docker run -e DOCKER_GITCOMMIT=$DOCKER_GITCOMMIT nativebuildimage hack\make.ps1 -All
+    docker run -m 2GB -e DOCKER_GITCOMMIT=$DOCKER_GITCOMMIT nativebuildimage hack\make.ps1 -All  # (if using Hyper-V containers)
 
 ## Windows limitations
 
