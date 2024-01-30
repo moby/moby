@@ -78,7 +78,7 @@ jobs:
       # https://github.com/moby/buildkit/blob/567a99433ca23402d5e9b9f9124005d2e59b8861/client/client_test.go#L5407-L5411
       -
         name: Expose GitHub Runtime
-        uses: crazy-max/ghaction-github-runtime@v2
+        uses: crazy-max/ghaction-github-runtime@v3
       -
         name: Checkout
         uses: actions/checkout@v4
