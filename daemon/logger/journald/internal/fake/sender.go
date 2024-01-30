@@ -72,6 +72,10 @@ type Sender struct {
 	// https://github.com/systemd/systemd/commit/1eede158519e4e5ed22738c90cb57a91dbecb7f2
 	// (systemd 255).
 	BootID uuid.UUID
+
+	// When set, Send will act as a test helper and redirect
+	// systemd-journal-remote command output to the test log.
+	TB testing.TB
 }
 
 // New constructs a new Sender which will write journal entries to outpath. The
@@ -101,6 +105,7 @@ func NewT(t *testing.T, outpath string) *Sender {
 		t.Skip(err)
 	}
 	assert.NilError(t, err)
+	s.TB = t
 	return s
 }
 
@@ -109,6 +114,9 @@ var validVarName = regexp.MustCompile("^[A-Z0-9][A-Z0-9_]*$")
 // Send is a drop-in replacement for
 // github.com/coreos/go-systemd/v22/journal.Send.
 func (s *Sender) Send(message string, priority journal.Priority, vars map[string]string) error {
+	if s.TB != nil {
+		s.TB.Helper()
+	}
 	var buf bytes.Buffer
 	// https://systemd.io/JOURNAL_EXPORT_FORMATS/ says "if you are
 	// generating this format you shouldn’t care about these special
@@ -152,6 +160,16 @@ func (s *Sender) Send(message string, priority journal.Priority, vars map[string
 	// has been flushed to disk when Send returns.
 	cmd := exec.Command(s.CmdName, "--output", s.OutputPath, "-")
 	cmd.Stdin = &buf
+
+	if s.TB != nil {
+		out, err := cmd.CombinedOutput()
+		s.TB.Logf("[systemd-journal-remote] %s", out)
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			s.TB.Logf("systemd-journal-remote exit status: %d", exitErr.ExitCode())
+		}
+		return err
+	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
