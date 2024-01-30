@@ -46,7 +46,7 @@ jobs:
         uses: actions/checkout@v4
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
         uses: docker/bake-action@v2
@@ -99,7 +99,7 @@ jobs:
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
         uses: docker/bake-action@v2
@@ -126,7 +126,7 @@ jobs:
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
         uses: docker/bake-action@v2
@@ -203,7 +203,7 @@ jobs:
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
         uses: docker/bake-action@v2
@@ -251,7 +251,7 @@ jobs:
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
         uses: docker/bake-action@v2
@@ -303,7 +303,7 @@ jobs:
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
         uses: docker/bake-action@v2
@@ -433,7 +433,7 @@ jobs:
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
         uses: docker/bake-action@v2
@@ -550,7 +550,7 @@ jobs:
         uses: docker/setup-qemu-action@v2
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Test
         uses: docker/bake-action@v2
