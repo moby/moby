@@ -117,3 +117,8 @@ func (l *syncLogger) Sync() error {
 	<-notify
 	return nil
 }
+
+func (l *syncLogger) Close() error {
+	_ = l.Sync()
+	return l.journald.Close()
+}
