@@ -216,6 +216,9 @@ func (r *reader) wait() (bool, error) {
 			return false, nil
 		case <-r.s.closed:
 			// Container is gone; don't wait indefinitely for journal entries that will never arrive.
+			if r.maxOrdinal >= atomic.LoadUint64(&r.s.ordinal) {
+				return false, nil
+			}
 			if r.drainDeadline.IsZero() {
 				r.drainDeadline = time.Now().Add(closedDrainTimeout)
 			}
@@ -241,10 +244,10 @@ func (r *reader) nextWait() (bool, error) {
 // current read pointer, until the end of the journal or a terminal stopping
 // condition is reached.
 //
-// It returns false when a terminal stopping condition has been reached: the
-// watch consumer is gone, a log entry is read which has a timestamp after until
-// (if until is nonzero), or the log driver is closed and the last message
-// logged has been sent from the journal.
+// It returns false when a terminal stopping condition has been reached:
+//   - the watch consumer is gone, or
+//   - (if until is nonzero) a log entry is read which has a timestamp after
+//     until
 func (r *reader) drainJournal() (bool, error) {
 	for i := 0; ; i++ {
 		// Read the entry's timestamp.
