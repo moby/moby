@@ -902,8 +902,8 @@ github.com/mitchellh/reflectwalk v1.0.2 h1:G2LzWKi524PWgd3mLHV8Y5k7s6XUvT0Gef6zx
 github.com/mitchellh/reflectwalk v1.0.2/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
 github.com/mndrix/tap-go v0.0.0-20171203230836-629fa407e90b/go.mod h1:pzzDgJWZ34fGzaAZGFW22KVZDfyrYW+QABMrWnJBnSs=
 github.com/moby/buildkit v0.8.1/go.mod h1:/kyU1hKy/aYCuP39GZA9MaKioovHku57N6cqlKZIaiQ=
-github.com/moby/buildkit v0.12.5-0.20231208203051-3b6880d2a00f h1:nYPkpfWrlQznHPLNrXxXIQMaTlmnsSBiiRTgnQ5hrZ0=
-github.com/moby/buildkit v0.12.5-0.20231208203051-3b6880d2a00f/go.mod h1:XG74uz06nPWQpnxYwgCryrVidvor0+ElUxGosbZPQG4=
+github.com/moby/buildkit v0.12.5-0.20240125174425-369b8505c8e5 h1:TwoRUv+9bmzyTU9u5GuHztgrrfdiVu0ujxDF4cPBmGE=
+github.com/moby/buildkit v0.12.5-0.20240125174425-369b8505c8e5/go.mod h1:YGwjA2loqyiYfZeEo8FtI7z4x5XponAaIWsWcSjWwso=
 github.com/moby/ipvs v1.1.0 h1:ONN4pGaZQgAx+1Scz5RvWV4Q7Gb+mvfRh3NsPS+1XQQ=
 github.com/moby/ipvs v1.1.0/go.mod h1:4VJMWuf098bsUMmZEiD4Tjk/O7mOn3l1PTD3s4OoYAs=
 github.com/moby/locker v1.0.1 h1:fOXqR41zeveg4fFODix+1Ch4mj/gT0NE1XJbp/epuBg=
