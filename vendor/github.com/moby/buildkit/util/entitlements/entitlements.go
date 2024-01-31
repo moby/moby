@@ -58,3 +58,23 @@ func (s Set) Allowed(e Entitlement) bool {
 	_, ok := s[e]
 	return ok
 }
+
+func (s Set) Check(v Values) error {
+	if v.NetworkHost {
+		if !s.Allowed(EntitlementNetworkHost) {
+			return errors.Errorf("%s is not allowed", EntitlementNetworkHost)
+		}
+	}
+
+	if v.SecurityInsecure {
+		if !s.Allowed(EntitlementSecurityInsecure) {
+			return errors.Errorf("%s is not allowed", EntitlementSecurityInsecure)
+		}
+	}
+	return nil
+}
+
+type Values struct {
+	NetworkHost      bool
+	SecurityInsecure bool
+}

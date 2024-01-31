@@ -12,7 +12,6 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/pkg/userns"
-	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/moby/buildkit/executor"
@@ -215,6 +214,7 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 type mountRef struct {
 	mount   mount.Mount
 	unmount func() error
+	subRefs map[string]mountRef
 }
 
 type submounts struct {
@@ -230,12 +230,19 @@ func (s *submounts) subMount(m mount.Mount, subPath string) (mount.Mount, error)
 	}
 	h, err := hashstructure.Hash(m, hashstructure.FormatV2, nil)
 	if err != nil {
-		return mount.Mount{}, nil
+		return mount.Mount{}, err
 	}
 	if mr, ok := s.m[h]; ok {
-		sm, err := sub(mr.mount, subPath)
+		if sm, ok := mr.subRefs[subPath]; ok {
+			return sm.mount, nil
+		}
+		sm, unmount, err := sub(mr.mount, subPath)
 		if err != nil {
-			return mount.Mount{}, nil
+			return mount.Mount{}, err
+		}
+		mr.subRefs[subPath] = mountRef{
+			mount:   sm,
+			unmount: unmount,
 		}
 		return sm, nil
 	}
@@ -261,11 +268,16 @@ func (s *submounts) subMount(m mount.Mount, subPath string) (mount.Mount, error)
 			Options: opts,
 		},
 		unmount: lm.Unmount,
+		subRefs: map[string]mountRef{},
 	}
 
-	sm, err := sub(s.m[h].mount, subPath)
+	sm, unmount, err := sub(s.m[h].mount, subPath)
 	if err != nil {
 		return mount.Mount{}, err
+	}
+	s.m[h].subRefs[subPath] = mountRef{
+		mount:   sm,
+		unmount: unmount,
 	}
 	return sm, nil
 }
@@ -276,21 +288,15 @@ func (s *submounts) cleanup() {
 	for _, m := range s.m {
 		func(m mountRef) {
 			go func() {
+				for _, sm := range m.subRefs {
+					sm.unmount()
+				}
 				m.unmount()
 				wg.Done()
 			}()
 		}(m)
 	}
 	wg.Wait()
-}
-
-func sub(m mount.Mount, subPath string) (mount.Mount, error) {
-	src, err := fs.RootPath(m.Source, subPath)
-	if err != nil {
-		return mount.Mount{}, err
-	}
-	m.Source = src
-	return m, nil
 }
 
 func specMapping(s []idtools.IDMap) []specs.LinuxIDMapping {

@@ -142,8 +142,8 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, err
 	}
 	frontends := map[string]frontend.Frontend{
-		"dockerfile.v0": forwarder.NewGatewayForwarder(wc, dockerfile.Build),
-		"gateway.v0":    gateway.NewGatewayFrontend(wc),
+		"dockerfile.v0": forwarder.NewGatewayForwarder(wc.Infos(), dockerfile.Build),
+		"gateway.v0":    gateway.NewGatewayFrontend(wc.Infos()),
 	}
 
 	return control.NewController(control.Opt{
@@ -364,8 +364,8 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wc.Add(w)
 
 	frontends := map[string]frontend.Frontend{
-		"dockerfile.v0": forwarder.NewGatewayForwarder(wc, dockerfile.Build),
-		"gateway.v0":    gateway.NewGatewayFrontend(wc),
+		"dockerfile.v0": forwarder.NewGatewayForwarder(wc.Infos(), dockerfile.Build),
+		"gateway.v0":    gateway.NewGatewayFrontend(wc.Infos()),
 	}
 
 	return control.NewController(control.Opt{
