@@ -569,9 +569,25 @@ func parseHistoryFromConfig(dt []byte) ([]ocispecs.History, error) {
 }
 
 func patchImageConfig(dt []byte, descs []ocispecs.Descriptor, history []ocispecs.History, cache []byte, epoch *time.Time) ([]byte, error) {
+	var img ocispecs.Image
+	if err := json.Unmarshal(dt, &img); err != nil {
+		return nil, errors.Wrap(err, "invalid image config for export")
+	}
+
 	m := map[string]json.RawMessage{}
 	if err := json.Unmarshal(dt, &m); err != nil {
 		return nil, errors.Wrap(err, "failed to parse image config for patch")
+	}
+
+	if m == nil {
+		return nil, errors.Errorf("invalid null image config for export")
+	}
+
+	if img.OS == "" {
+		return nil, errors.Errorf("invalid image config for export: missing os")
+	}
+	if img.Architecture == "" {
+		return nil, errors.Errorf("invalid image config for export: missing architecture")
 	}
 
 	var rootFS ocispecs.RootFS

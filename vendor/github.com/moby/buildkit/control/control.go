@@ -405,6 +405,9 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 
 	var cacheImports []frontend.CacheOptionsEntry
 	for _, im := range req.Cache.Imports {
+		if im == nil {
+			continue
+		}
 		cacheImports = append(cacheImports, frontend.CacheOptionsEntry{
 			Type:  im.Type,
 			Attrs: im.Attrs,

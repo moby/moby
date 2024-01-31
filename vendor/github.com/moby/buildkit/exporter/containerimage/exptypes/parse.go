@@ -17,6 +17,18 @@ func ParsePlatforms(meta map[string][]byte) (Platforms, error) {
 				return Platforms{}, errors.Wrapf(err, "failed to parse platforms passed to provenance processor")
 			}
 		}
+		if len(ps.Platforms) == 0 {
+			return Platforms{}, errors.Errorf("invalid empty platforms index for exporter")
+		}
+		for i, p := range ps.Platforms {
+			if p.ID == "" {
+				return Platforms{}, errors.Errorf("invalid empty platform key for exporter")
+			}
+			if p.Platform.OS == "" || p.Platform.Architecture == "" {
+				return Platforms{}, errors.Errorf("invalid platform value %v for exporter", p.Platform)
+			}
+			ps.Platforms[i].Platform = platforms.Normalize(p.Platform)
+		}
 		return ps, nil
 	}
 
@@ -36,6 +48,8 @@ func ParsePlatforms(meta map[string][]byte) (Platforms, error) {
 				OSFeatures:   img.OSFeatures,
 				Variant:      img.Variant,
 			}
+		} else if img.OS != "" || img.Architecture != "" {
+			return Platforms{}, errors.Errorf("invalid image config: os and architecture must be specified together")
 		}
 	}
 	p = platforms.Normalize(p)
