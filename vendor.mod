@@ -37,9 +37,9 @@ require (
 	github.com/godbus/dbus/v5 v5.0.6
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/gddo v0.0.0-20190904175337-72a348e765d2
-	github.com/google/go-cmp v0.5.9
-	github.com/google/uuid v1.3.0
-	github.com/gorilla/mux v1.8.0
+	github.com/google/go-cmp v0.6.0
+	github.com/google/uuid v1.5.0
+	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/go-immutable-radix v1.3.1
 	github.com/hashicorp/go-memdb v1.3.2
 	github.com/hashicorp/go-multierror v1.1.1
@@ -57,7 +57,7 @@ require (
 	github.com/moby/pubsub v1.0.0
 	github.com/moby/swarmkit/v2 v2.0.0-20230315203717-e28e8ba9bc83
 	github.com/moby/sys/mount v0.3.3
-	github.com/moby/sys/mountinfo v0.6.2
+	github.com/moby/sys/mountinfo v0.7.1
 	github.com/moby/sys/sequential v0.5.0
 	github.com/moby/sys/signal v0.7.0
 	github.com/moby/sys/symlink v0.2.0
@@ -71,8 +71,8 @@ require (
 	github.com/pelletier/go-toml v1.9.5
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0
-	github.com/rootless-containers/rootlesskit v1.1.0
-	github.com/sirupsen/logrus v1.9.0
+	github.com/rootless-containers/rootlesskit/v2 v2.0.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
 	github.com/tchap/go-patricia v2.3.0+incompatible
@@ -84,12 +84,12 @@ require (
 	go.etcd.io/bbolt v1.3.7
 	golang.org/x/net v0.17.0
 	golang.org/x/sync v0.1.0
-	golang.org/x/sys v0.13.0
+	golang.org/x/sys v0.16.0
 	golang.org/x/text v0.13.0
 	golang.org/x/time v0.1.0
 	google.golang.org/genproto v0.0.0-20220706185917-7780775163c4
 	google.golang.org/grpc v1.50.1
-	gotest.tools/v3 v3.5.0
+	gotest.tools/v3 v3.5.1
 )
 
 require (

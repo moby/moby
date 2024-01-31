@@ -14,9 +14,9 @@ import (
 
 const defaultFileMode = 0644
 
-// PathOp is a function which accepts a Path and performs an operation on that
-// path. When called with real filesystem objects (File or Dir) a PathOp modifies
-// the filesystem at the path. When used with a Manifest object a PathOp updates
+// PathOp is a function which accepts a [Path] and performs an operation on that
+// path. When called with real filesystem objects ([File] or [Dir]) a PathOp modifies
+// the filesystem at the path. When used with a [Manifest] object a PathOp updates
 // the manifest to expect a value.
 type PathOp func(path Path) error
 
@@ -38,7 +38,7 @@ type manifestDirectory interface {
 	AddDirectory(path string, ops ...PathOp) error
 }
 
-// WithContent writes content to a file at Path
+// WithContent writes content to a file at [Path]
 func WithContent(content string) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestFile); ok {
@@ -49,7 +49,7 @@ func WithContent(content string) PathOp {
 	}
 }
 
-// WithBytes write bytes to a file at Path
+// WithBytes write bytes to a file at [Path]
 func WithBytes(raw []byte) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestFile); ok {
@@ -60,7 +60,7 @@ func WithBytes(raw []byte) PathOp {
 	}
 }
 
-// WithReaderContent copies the reader contents to the file at Path
+// WithReaderContent copies the reader contents to the file at [Path]
 func WithReaderContent(r io.Reader) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestFile); ok {
@@ -77,7 +77,7 @@ func WithReaderContent(r io.Reader) PathOp {
 	}
 }
 
-// AsUser changes ownership of the file system object at Path
+// AsUser changes ownership of the file system object at [Path]
 func AsUser(uid, gid int) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestResource); ok {
@@ -132,7 +132,7 @@ func WithFiles(files map[string]string) PathOp {
 	}
 }
 
-// FromDir copies the directory tree from the source path into the new Dir
+// FromDir copies the directory tree from the source path into the new [Dir]
 func FromDir(source string) PathOp {
 	return func(path Path) error {
 		if _, ok := path.(manifestDirectory); ok {
@@ -142,7 +142,7 @@ func FromDir(source string) PathOp {
 	}
 }
 
-// WithDir creates a subdirectory in the directory at path. Additional PathOp
+// WithDir creates a subdirectory in the directory at path. Additional [PathOp]
 // can be used to modify the subdirectory
 func WithDir(name string, ops ...PathOp) PathOp {
 	const defaultMode = 0755
@@ -161,7 +161,7 @@ func WithDir(name string, ops ...PathOp) PathOp {
 	}
 }
 
-// Apply the PathOps to the File
+// Apply the PathOps to the [File]
 func Apply(t assert.TestingT, path Path, ops ...PathOp) {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
@@ -178,7 +178,7 @@ func applyPathOps(path Path, ops []PathOp) error {
 	return nil
 }
 
-// WithMode sets the file mode on the directory or file at path
+// WithMode sets the file mode on the directory or file at [Path]
 func WithMode(mode os.FileMode) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestResource); ok {
@@ -241,7 +241,7 @@ func copyFile(source, dest string) error {
 // WithSymlink creates a symlink in the directory which links to target.
 // Target must be a path relative to the directory.
 //
-// Note: the argument order is the inverse of os.Symlink to be consistent with
+// Note: the argument order is the inverse of [os.Symlink] to be consistent with
 // the other functions in this package.
 func WithSymlink(path, target string) PathOp {
 	return func(root Path) error {
@@ -255,7 +255,7 @@ func WithSymlink(path, target string) PathOp {
 // WithHardlink creates a link in the directory which links to target.
 // Target must be a path relative to the directory.
 //
-// Note: the argument order is the inverse of os.Link to be consistent with
+// Note: the argument order is the inverse of [os.Link] to be consistent with
 // the other functions in this package.
 func WithHardlink(path, target string) PathOp {
 	return func(root Path) error {

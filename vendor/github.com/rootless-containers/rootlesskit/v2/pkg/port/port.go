@@ -4,7 +4,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/rootless-containers/rootlesskit/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
 )
 
 type Spec struct {
@@ -35,8 +35,6 @@ type Manager interface {
 
 // ChildContext is used for RunParentDriver
 type ChildContext struct {
-	// PID of the child, can be used for ns-entering to the child namespaces.
-	PID int
 	// IP of the tap device
 	IP net.IP
 }
@@ -57,5 +55,6 @@ type ParentDriver interface {
 }
 
 type ChildDriver interface {
-	RunChildDriver(opaque map[string]string, quit <-chan struct{}) error
+	// RunChildDriver is executed in the child's namespaces, excluding detached-netns.
+	RunChildDriver(opaque map[string]string, quit <-chan struct{}, detachedNetNSPath string) error
 }
