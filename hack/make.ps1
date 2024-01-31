@@ -348,7 +348,7 @@ Function Run-UnitTests() {
 Function Run-IntegrationTests() {
     $escRoot = [Regex]::Escape($root)
     $env:DOCKER_INTEGRATION_DAEMON_DEST = $bundlesDir + "\tmp"
-    $dirs = go list -test -f '{{- if ne .ForTest `"`" -}}{{- .Dir -}}{{- end -}}' .\integration\...
+    $dirs = go list -test -f '{{- if ne .ForTest "" -}}{{- .Dir -}}{{- end -}}' .\integration\...
     ForEach($dir in $dirs) {
         # Normalize directory name for using in the test results files.
         $normDir = $dir.Trim()
