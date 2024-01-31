@@ -274,7 +274,7 @@ github.com/coreos/go-systemd/v22/journal
 # github.com/creack/pty v1.1.11
 ## explicit; go 1.13
 github.com/creack/pty
-# github.com/cyphar/filepath-securejoin v0.2.3
+# github.com/cyphar/filepath-securejoin v0.2.4
 ## explicit; go 1.13
 github.com/cyphar/filepath-securejoin
 # github.com/deckarep/golang-set v0.0.0-20141123011944-ef32fa3046d9
