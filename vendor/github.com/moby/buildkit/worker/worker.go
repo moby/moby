@@ -43,6 +43,6 @@ type Worker interface {
 }
 
 type Infos interface {
-	GetDefault() (Worker, error)
+	DefaultCacheManager() (cache.Manager, error)
 	WorkerInfos() []client.WorkerInfo
 }

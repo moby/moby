@@ -10,6 +10,9 @@ import (
 
 func match(ctx context.Context, src *selectorCache, ref string, attrs map[string]string) (bool, error) {
 	for _, c := range src.Constraints {
+		if c == nil {
+			return false, errors.Errorf("invalid nil constraint for %v", src)
+		}
 		switch c.Condition {
 		case spb.AttrMatch_EQUAL:
 			if attrs[c.Key] != c.Value {
