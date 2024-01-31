@@ -6,8 +6,9 @@ import (
 	"net"
 	"syscall"
 
+	"github.com/containerd/containerd/mount"
+	"github.com/docker/docker/pkg/idtools"
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
-	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
 )
 
@@ -28,8 +29,13 @@ type Meta struct {
 	RemoveMountStubsRecursive bool
 }
 
+type MountableRef interface {
+	Mount() ([]mount.Mount, func() error, error)
+	IdentityMapping() *idtools.IdentityMapping
+}
+
 type Mountable interface {
-	Mount(ctx context.Context, readonly bool) (snapshot.Mountable, error)
+	Mount(ctx context.Context, readonly bool) (MountableRef, error)
 }
 
 type Mount struct {

@@ -101,16 +101,12 @@ func ValidateEntitlements(ent entitlements.Set) LoadOpt {
 	return func(op *pb.Op, _ *pb.OpMetadata, opt *solver.VertexOptions) error {
 		switch op := op.Op.(type) {
 		case *pb.Op_Exec:
-			if op.Exec.Network == pb.NetMode_HOST {
-				if !ent.Allowed(entitlements.EntitlementNetworkHost) {
-					return errors.Errorf("%s is not allowed", entitlements.EntitlementNetworkHost)
-				}
+			v := entitlements.Values{
+				NetworkHost:      op.Exec.Network == pb.NetMode_HOST,
+				SecurityInsecure: op.Exec.Security == pb.SecurityMode_INSECURE,
 			}
-
-			if op.Exec.Security == pb.SecurityMode_INSECURE {
-				if !ent.Allowed(entitlements.EntitlementSecurityInsecure) {
-					return errors.Errorf("%s is not allowed", entitlements.EntitlementSecurityInsecure)
-				}
+			if err := ent.Check(v); err != nil {
+				return err
 			}
 		}
 		return nil

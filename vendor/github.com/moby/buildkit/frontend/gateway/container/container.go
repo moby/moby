@@ -47,7 +47,7 @@ type Mount struct {
 	WorkerRef *worker.WorkerRef
 }
 
-func NewContainer(ctx context.Context, w worker.Worker, sm *session.Manager, g session.Group, req NewContainerRequest) (client.Container, error) {
+func NewContainer(ctx context.Context, cm cache.Manager, exec executor.Executor, sm *session.Manager, g session.Group, req NewContainerRequest) (client.Container, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	eg, ctx := errgroup.WithContext(ctx)
 	platform := opspb.Platform{
@@ -63,7 +63,7 @@ func NewContainer(ctx context.Context, w worker.Worker, sm *session.Manager, g s
 		hostname:   req.Hostname,
 		extraHosts: req.ExtraHosts,
 		platform:   platform,
-		executor:   w.Executor(),
+		executor:   exec,
 		sm:         sm,
 		group:      g,
 		errGroup:   eg,
@@ -86,9 +86,8 @@ func NewContainer(ctx context.Context, w worker.Worker, sm *session.Manager, g s
 	}
 
 	name := fmt.Sprintf("container %s", req.ContainerID)
-	mm := mounts.NewMountManager(name, w.CacheManager(), sm)
-	p, err := PrepareMounts(ctx, mm, w.CacheManager(), g, "", mnts, refs, func(m *opspb.Mount, ref cache.ImmutableRef) (cache.MutableRef, error) {
-		cm := w.CacheManager()
+	mm := mounts.NewMountManager(name, cm, sm)
+	p, err := PrepareMounts(ctx, mm, cm, g, "", mnts, refs, func(m *opspb.Mount, ref cache.ImmutableRef) (cache.MutableRef, error) {
 		if m.Input != opspb.Empty {
 			cm = refs[m.Input].Worker.CacheManager()
 		}
