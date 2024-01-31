@@ -77,8 +77,8 @@ func (p *directoryPath) AddDirectory(path string, ops ...PathOp) error {
 	return applyPathOps(exp, ops)
 }
 
-// Expected returns a Manifest with a directory structured created by ops. The
-// PathOp operations are applied to the manifest as expectations of the
+// Expected returns a [Manifest] with a directory structured created by ops. The
+// [PathOp] operations are applied to the manifest as expectations of the
 // filesystem structure and properties.
 func Expected(t assert.TestingT, ops ...PathOp) Manifest {
 	if ht, ok := t.(helperT); ok {
@@ -125,7 +125,7 @@ func normalizeID(id int) uint32 {
 
 var anyFileContent = io.NopCloser(bytes.NewReader(nil))
 
-// MatchAnyFileContent is a PathOp that updates a Manifest so that the file
+// MatchAnyFileContent is a [PathOp] that updates a [Manifest] so that the file
 // at path may contain any content.
 func MatchAnyFileContent(path Path) error {
 	if m, ok := path.(*filePath); ok {
@@ -134,7 +134,7 @@ func MatchAnyFileContent(path Path) error {
 	return nil
 }
 
-// MatchContentIgnoreCarriageReturn is a PathOp that ignores cariage return
+// MatchContentIgnoreCarriageReturn is a [PathOp] that ignores cariage return
 // discrepancies.
 func MatchContentIgnoreCarriageReturn(path Path) error {
 	if m, ok := path.(*filePath); ok {
@@ -145,7 +145,7 @@ func MatchContentIgnoreCarriageReturn(path Path) error {
 
 const anyFile = "*"
 
-// MatchExtraFiles is a PathOp that updates a Manifest to allow a directory
+// MatchExtraFiles is a [PathOp] that updates a [Manifest] to allow a directory
 // to contain unspecified files.
 func MatchExtraFiles(path Path) error {
 	if m, ok := path.(*directoryPath); ok {
@@ -156,14 +156,14 @@ func MatchExtraFiles(path Path) error {
 
 // CompareResult is the result of comparison.
 //
-// See gotest.tools/assert/cmp.StringResult for a convenient implementation of
+// See [gotest.tools/v3/assert/cmp.StringResult] for a convenient implementation of
 // this interface.
 type CompareResult interface {
 	Success() bool
 	FailureMessage() string
 }
 
-// MatchFileContent is a PathOp that updates a Manifest to use the provided
+// MatchFileContent is a [PathOp] that updates a [Manifest] to use the provided
 // function to determine if a file's content matches the expectation.
 func MatchFileContent(f func([]byte) CompareResult) PathOp {
 	return func(path Path) error {
@@ -174,7 +174,7 @@ func MatchFileContent(f func([]byte) CompareResult) PathOp {
 	}
 }
 
-// MatchFilesWithGlob is a PathOp that updates a Manifest to match files using
+// MatchFilesWithGlob is a [PathOp] that updates a [Manifest] to match files using
 // glob pattern, and check them using the ops.
 func MatchFilesWithGlob(glob string, ops ...PathOp) PathOp {
 	return func(path Path) error {
@@ -188,7 +188,7 @@ func MatchFilesWithGlob(glob string, ops ...PathOp) PathOp {
 // anyFileMode is represented by uint32_max
 const anyFileMode os.FileMode = 4294967295
 
-// MatchAnyFileMode is a PathOp that updates a Manifest so that the resource at path
+// MatchAnyFileMode is a [PathOp] that updates a [Manifest] so that the resource at path
 // will match any file mode.
 func MatchAnyFileMode(path Path) error {
 	if m, ok := path.(manifestResource); ok {

@@ -14,12 +14,32 @@ import (
 	"strings"
 )
 
-// Update is set by the -update flag. It indicates the user running the tests
-// would like to update any golden values.
+// IsUpdate is returns true if the -update flag is set. It indicates the user
+// running the tests would like to update any golden values.
+func IsUpdate() bool {
+	if Update {
+		return true
+	}
+	return flag.Lookup("update").Value.(flag.Getter).Get().(bool)
+}
+
+// Update is a shim for testing, and for compatibility with the old -update-golden
+// flag.
 var Update bool
 
 func init() {
-	flag.BoolVar(&Update, "update", false, "update golden values")
+	if f := flag.Lookup("update"); f != nil {
+		getter, ok := f.Value.(flag.Getter)
+		msg := "some other package defined an incompatible -update flag, expected a flag.Bool"
+		if !ok {
+			panic(msg)
+		}
+		if _, ok := getter.Get().(bool); !ok {
+			panic(msg)
+		}
+		return
+	}
+	flag.Bool("update", false, "update golden values")
 }
 
 // ErrNotFound indicates that UpdateExpectedValue failed to find the

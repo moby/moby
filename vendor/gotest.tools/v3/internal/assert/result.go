@@ -26,7 +26,7 @@ func RunComparison(
 		return true
 	}
 
-	if source.Update {
+	if source.IsUpdate() {
 		if updater, ok := result.(updateExpected); ok {
 			const stackIndex = 3 // Assert/Check, assert, RunComparison
 			err := updater.UpdatedExpected(stackIndex)
