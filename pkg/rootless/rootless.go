@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"github.com/rootless-containers/rootlesskit/pkg/api/client"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/api/client"
 )
 
 // RootlessKitDockerProxyBinary is the binary name of rootlesskit-docker-proxy

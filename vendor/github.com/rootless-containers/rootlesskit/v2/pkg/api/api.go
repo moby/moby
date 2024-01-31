@@ -8,11 +8,6 @@ const (
 	Version = "1.1.1"
 )
 
-// ErrorJSON is returned with "application/json" content type and non-2XX status code
-type ErrorJSON struct {
-	Message string `json:"message"`
-}
-
 // Info is the structure returned by `GET /info`
 type Info struct {
 	APIVersion    string             `json:"apiVersion"` // REST API version
