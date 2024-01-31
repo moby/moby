@@ -62,7 +62,7 @@ jobs:
           }
       -
         name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~\AppData\Local\go-build
@@ -142,7 +142,7 @@ jobs:
           }
       -
         name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~\AppData\Local\go-build
