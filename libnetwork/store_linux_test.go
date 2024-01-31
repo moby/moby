@@ -2,18 +2,13 @@ package libnetwork
 
 import (
 	"errors"
-	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/config"
-	"github.com/docker/docker/libnetwork/datastore"
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 )
 
 func TestBoltdbBackend(t *testing.T) {
-	defer os.Remove(datastore.DefaultScope("").Client.Address)
-	testLocalBackend(t, "", "", nil)
 	tmpPath := filepath.Join(t.TempDir(), "boltdb.db")
 	testLocalBackend(t, "boltdb", tmpPath, &store.Config{
 		Bucket: "testBackend",
@@ -21,12 +16,7 @@ func TestBoltdbBackend(t *testing.T) {
 }
 
 func TestNoPersist(t *testing.T) {
-	dbFile := filepath.Join(t.TempDir(), "bolt.db")
-	configOption := func(c *config.Config) {
-		c.Scope.Client.Provider = "boltdb"
-		c.Scope.Client.Address = dbFile
-		c.Scope.Client.Config = &store.Config{Bucket: "testBackend"}
-	}
+	configOption := OptionBoltdbWithRandomDBFile(t)
 	testController, err := New(configOption)
 	if err != nil {
 		t.Fatalf("Error creating new controller: %v", err)

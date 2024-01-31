@@ -360,7 +360,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 		},
 	}
 
-	netOptions, err := daemon.networkOptions(&config.Config{}, nil, nil)
+	netOptions, err := daemon.networkOptions(&config.Config{CommonConfig: config.CommonConfig{Root: t.TempDir()}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

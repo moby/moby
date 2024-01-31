@@ -10,7 +10,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
 )
@@ -44,17 +43,13 @@ type ipSubnet struct {
 // initStore drivers are responsible for caching their own persistent state
 func (d *driver) initStore(option map[string]interface{}) error {
 	if data, ok := option[netlabel.LocalKVClient]; ok {
-		var err error
-		dsc, ok := data.(discoverapi.DatastoreConfigData)
+		var ok bool
+		d.store, ok = data.(*datastore.Store)
 		if !ok {
 			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
 		}
-		d.store, err = datastore.FromConfig(dsc)
-		if err != nil {
-			return types.InternalErrorf("ipvlan driver failed to initialize data store: %v", err)
-		}
 
-		err = d.populateNetworks()
+		err := d.populateNetworks()
 		if err != nil {
 			return err
 		}

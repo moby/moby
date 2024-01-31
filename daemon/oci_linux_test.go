@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libnetwork"
+	nwconfig "github.com/docker/docker/libnetwork/config"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
@@ -27,7 +28,7 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	err := os.MkdirAll(rootfs, 0o755)
 	assert.NilError(t, err)
 
-	netController, err := libnetwork.New()
+	netController, err := libnetwork.New(nwconfig.OptionDataDir(t.TempDir()))
 	assert.NilError(t, err)
 
 	d := &Daemon{

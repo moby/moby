@@ -12,7 +12,7 @@ import (
 
 func TestCleanupServiceDiscovery(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	c, err := New()
+	c, err := New(OptionBoltdbWithRandomDBFile(t))
 	assert.NilError(t, err)
 	defer c.Stop()
 

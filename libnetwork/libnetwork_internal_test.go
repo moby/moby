@@ -314,7 +314,7 @@ func compareNwLists(a, b []*net.IPNet) bool {
 func TestAuxAddresses(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New()
+	c, err := New(OptionBoltdbWithRandomDBFile(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -353,7 +353,7 @@ func TestSRVServiceQuery(t *testing.T) {
 
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New()
+	c, err := New(OptionBoltdbWithRandomDBFile(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -451,7 +451,7 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New()
+	c, err := New(OptionBoltdbWithRandomDBFile(t))
 	if err != nil {
 		t.Fatal(err)
 	}

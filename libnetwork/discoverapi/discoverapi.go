@@ -30,6 +30,8 @@ type NodeDiscoveryData struct {
 }
 
 // DatastoreConfigData is the data for the datastore update event message
+//
+// Deprecated: no longer used.
 type DatastoreConfigData struct {
 	Scope    string
 	Provider string
