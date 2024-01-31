@@ -38,13 +38,13 @@ jobs:
           fi
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v4
         with:
           targets: dev
           set: |
@@ -75,7 +75,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Create matrix
         id: scripts
@@ -100,7 +100,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       -
@@ -108,10 +108,10 @@ jobs:
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v4
         with:
           targets: dev
           set: |
@@ -130,7 +130,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Create matrix
         id: platforms
@@ -153,7 +153,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Prepare
         run: |
@@ -161,13 +161,13 @@ jobs:
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
       -
         name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Test
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v4
         with:
           targets: binary-smoketest
           set: |

@@ -28,16 +28,16 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v4
         with:
           targets: dev
           set: |
@@ -80,7 +80,7 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       -
@@ -105,7 +105,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -114,10 +114,10 @@ jobs:
         uses: ./.github/actions/setup-tracing
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v4
         with:
           targets: dev
           set: |
@@ -157,16 +157,16 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v4
         with:
           targets: dev
           set: |
@@ -196,7 +196,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -217,10 +217,10 @@ jobs:
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v4
         with:
           targets: dev
           set: |
@@ -277,7 +277,7 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       -
@@ -303,10 +303,10 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       -
@@ -343,7 +343,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -352,10 +352,10 @@ jobs:
         uses: ./.github/actions/setup-tracing
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v4
         with:
           targets: dev
           set: |
@@ -411,7 +411,7 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       -
