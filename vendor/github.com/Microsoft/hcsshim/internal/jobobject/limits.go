@@ -143,6 +143,13 @@ func (job *JobObject) SetCPUAffinity(affinityBitMask uint64) error {
 		return err
 	}
 	info.BasicLimitInformation.LimitFlags |= uint32(windows.JOB_OBJECT_LIMIT_AFFINITY)
+
+	// We really, really shouldn't be running on 32 bit, but just in case (and to satisfy CodeQL) ...
+	const maxUintptr = ^uintptr(0)
+	if affinityBitMask > uint64(maxUintptr) {
+		return fmt.Errorf("affinity bitmask (%d) exceeds max allowable value (%d)", affinityBitMask, maxUintptr)
+	}
+
 	info.BasicLimitInformation.Affinity = uintptr(affinityBitMask)
 	return job.setExtendedInformation(info)
 }

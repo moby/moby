@@ -10,6 +10,11 @@
         "grpc": {
           "libraryClient": "ConfigClient",
           "rpcs": {
+            "CancelOperation": {
+              "methods": [
+                "CancelOperation"
+              ]
+            },
             "CopyLogEntries": {
               "methods": [
                 "CopyLogEntries"
@@ -20,9 +25,19 @@
                 "CreateBucket"
               ]
             },
+            "CreateBucketAsync": {
+              "methods": [
+                "CreateBucketAsync"
+              ]
+            },
             "CreateExclusion": {
               "methods": [
                 "CreateExclusion"
+              ]
+            },
+            "CreateLink": {
+              "methods": [
+                "CreateLink"
               ]
             },
             "CreateSink": {
@@ -43,6 +58,11 @@
             "DeleteExclusion": {
               "methods": [
                 "DeleteExclusion"
+              ]
+            },
+            "DeleteLink": {
+              "methods": [
+                "DeleteLink"
               ]
             },
             "DeleteSink": {
@@ -70,6 +90,16 @@
                 "GetExclusion"
               ]
             },
+            "GetLink": {
+              "methods": [
+                "GetLink"
+              ]
+            },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
+              ]
+            },
             "GetSettings": {
               "methods": [
                 "GetSettings"
@@ -95,6 +125,16 @@
                 "ListExclusions"
               ]
             },
+            "ListLinks": {
+              "methods": [
+                "ListLinks"
+              ]
+            },
+            "ListOperations": {
+              "methods": [
+                "ListOperations"
+              ]
+            },
             "ListSinks": {
               "methods": [
                 "ListSinks"
@@ -113,6 +153,11 @@
             "UpdateBucket": {
               "methods": [
                 "UpdateBucket"
+              ]
+            },
+            "UpdateBucketAsync": {
+              "methods": [
+                "UpdateBucketAsync"
               ]
             },
             "UpdateCmekSettings": {
@@ -149,9 +194,19 @@
         "grpc": {
           "libraryClient": "Client",
           "rpcs": {
+            "CancelOperation": {
+              "methods": [
+                "CancelOperation"
+              ]
+            },
             "DeleteLog": {
               "methods": [
                 "DeleteLog"
+              ]
+            },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
               ]
             },
             "ListLogEntries": {
@@ -167,6 +222,11 @@
             "ListMonitoredResourceDescriptors": {
               "methods": [
                 "ListMonitoredResourceDescriptors"
+              ]
+            },
+            "ListOperations": {
+              "methods": [
+                "ListOperations"
               ]
             },
             "TailLogEntries": {
@@ -188,6 +248,11 @@
         "grpc": {
           "libraryClient": "MetricsClient",
           "rpcs": {
+            "CancelOperation": {
+              "methods": [
+                "CancelOperation"
+              ]
+            },
             "CreateLogMetric": {
               "methods": [
                 "CreateLogMetric"
@@ -203,9 +268,19 @@
                 "GetLogMetric"
               ]
             },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
+              ]
+            },
             "ListLogMetrics": {
               "methods": [
                 "ListLogMetrics"
+              ]
+            },
+            "ListOperations": {
+              "methods": [
+                "ListOperations"
               ]
             },
             "UpdateLogMetric": {

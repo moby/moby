@@ -6,6 +6,7 @@ import (
 	"archive/tar"
 	"bufio"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path"
@@ -17,7 +18,7 @@ import (
 	"github.com/Microsoft/hcsshim/internal/wclayer"
 )
 
-const whiteoutPrefix = ".wh."
+const WhiteoutPrefix = ".wh."
 
 var (
 	// mutatedFiles is a list of files that are mutated by the import process
@@ -71,8 +72,8 @@ func writeLayerFromTar(ctx context.Context, r io.Reader, w wclayer.LayerWriter, 
 		}
 
 		base := path.Base(hdr.Name)
-		if strings.HasPrefix(base, whiteoutPrefix) {
-			name := path.Join(path.Dir(hdr.Name), base[len(whiteoutPrefix):])
+		if strings.HasPrefix(base, WhiteoutPrefix) {
+			name := path.Join(path.Dir(hdr.Name), base[len(WhiteoutPrefix):])
 			err = w.Remove(filepath.FromSlash(name))
 			if err != nil {
 				return 0, err
@@ -102,7 +103,7 @@ func writeLayerFromTar(ctx context.Context, r io.Reader, w wclayer.LayerWriter, 
 			totalSize += size
 		}
 	}
-	if err != io.EOF {
+	if !errors.Is(err, io.EOF) {
 		return 0, err
 	}
 	return totalSize, nil

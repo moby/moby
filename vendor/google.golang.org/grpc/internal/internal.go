@@ -73,6 +73,11 @@ var (
 	// xDS-enabled server invokes this method on a grpc.Server when a particular
 	// listener moves to "not-serving" mode.
 	DrainServerTransports any // func(*grpc.Server, string)
+	// IsRegisteredMethod returns whether the passed in method is registered as
+	// a method on the server.
+	IsRegisteredMethod any // func(*grpc.Server, string) bool
+	// ServerFromContext returns the server from the context.
+	ServerFromContext any // func(context.Context) *grpc.Server
 	// AddGlobalServerOptions adds an array of ServerOption that will be
 	// effective globally for newly created servers. The priority will be: 1.
 	// user-provided; 2. this method; 3. default values.
@@ -175,6 +180,14 @@ var (
 	// GRPCResolverSchemeExtraMetadata determines when gRPC will add extra
 	// metadata to RPCs.
 	GRPCResolverSchemeExtraMetadata string = "xds"
+
+	// EnterIdleModeForTesting gets the ClientConn to enter IDLE mode.
+	EnterIdleModeForTesting any // func(*grpc.ClientConn)
+
+	// ExitIdleModeForTesting gets the ClientConn to exit IDLE mode.
+	ExitIdleModeForTesting any // func(*grpc.ClientConn) error
+
+	ChannelzTurnOffForTesting func()
 )
 
 // HealthChecker defines the signature of the client-side LB channel health checking function.

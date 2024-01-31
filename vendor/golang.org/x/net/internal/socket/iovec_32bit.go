@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (arm || mips || mipsle || 386 || ppc) && (darwin || dragonfly || freebsd || linux || netbsd || openbsd)
-// +build arm mips mipsle 386 ppc
-// +build darwin dragonfly freebsd linux netbsd openbsd
 
 package socket
 

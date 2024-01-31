@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
+	v2runcoptions "github.com/containerd/containerd/v2/core/runtime/v2/runc/options"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"

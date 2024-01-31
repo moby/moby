@@ -90,6 +90,10 @@ git push <YOUR_FORK> <YOUR_BRANCH_NAME>
 Open a pull request against the main `opentelemetry-go` repo. Be sure to add the pull
 request ID to the entry you added to `CHANGELOG.md`.
 
+Avoid rebasing and force-pushing to your branch to facilitate reviewing the pull request.
+Rewriting Git history makes it difficult to keep track of iterations during code review.
+All pull requests are squashed to a single commit upon merge to `main`.
+
 ### How to Receive Comments
 
 * If the PR is not ready for review, please put `[WIP]` in the title,

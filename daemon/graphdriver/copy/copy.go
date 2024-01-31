@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/pkg/userns"
+	"github.com/containerd/containerd/v2/pkg/userns"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	"golang.org/x/sys/unix"

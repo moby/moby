@@ -312,6 +312,18 @@ func NestedIpSetSupported() error {
 	return platformDoesNotSupportError("NestedIpSet")
 }
 
+// DisableHostPortSupported returns an error if the HCN version does not support DisableHostPort flag
+func DisableHostPortSupported() error {
+	supported, err := GetCachedSupportedFeatures()
+	if err != nil {
+		return err
+	}
+	if supported.DisableHostPort {
+		return nil
+	}
+	return platformDoesNotSupportError("DisableHostPort")
+}
+
 // RequestType are the different operations performed to settings.
 // Used to update the settings of Endpoint/Namespace objects.
 type RequestType string

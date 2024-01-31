@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/containerd/containerd/containers"
-	coci "github.com/containerd/containerd/oci"
+	"github.com/containerd/containerd/v2/core/containers"
+	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/log"
 	"github.com/docker/docker/container"
 	dconfig "github.com/docker/docker/daemon/config"

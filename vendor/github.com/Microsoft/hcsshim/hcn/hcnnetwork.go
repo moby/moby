@@ -72,6 +72,7 @@ type NetworkFlags uint32
 const (
 	None                NetworkFlags = 0
 	EnableNonPersistent NetworkFlags = 8
+	DisableHostPort     NetworkFlags = 1024
 )
 
 // HostComputeNetwork represents a network

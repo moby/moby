@@ -43,8 +43,10 @@ var (
 	modcomputestorage = windows.NewLazySystemDLL("computestorage.dll")
 
 	procHcsAttachLayerStorageFilter = modcomputestorage.NewProc("HcsAttachLayerStorageFilter")
-	procHcsDestoryLayer             = modcomputestorage.NewProc("HcsDestoryLayer")
+	procHcsAttachOverlayFilter      = modcomputestorage.NewProc("HcsAttachOverlayFilter")
+	procHcsDestroyLayer             = modcomputestorage.NewProc("HcsDestroyLayer")
 	procHcsDetachLayerStorageFilter = modcomputestorage.NewProc("HcsDetachLayerStorageFilter")
+	procHcsDetachOverlayFilter      = modcomputestorage.NewProc("HcsDetachOverlayFilter")
 	procHcsExportLayer              = modcomputestorage.NewProc("HcsExportLayer")
 	procHcsFormatWritableLayerVhd   = modcomputestorage.NewProc("HcsFormatWritableLayerVhd")
 	procHcsGetLayerVhdMountPath     = modcomputestorage.NewProc("HcsGetLayerVhdMountPath")
@@ -83,6 +85,35 @@ func _hcsAttachLayerStorageFilter(layerPath *uint16, layerData *uint16) (hr erro
 	return
 }
 
+func hcsAttachOverlayFilter(volumePath string, layerData string) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(volumePath)
+	if hr != nil {
+		return
+	}
+	var _p1 *uint16
+	_p1, hr = syscall.UTF16PtrFromString(layerData)
+	if hr != nil {
+		return
+	}
+	return _hcsAttachOverlayFilter(_p0, _p1)
+}
+
+func _hcsAttachOverlayFilter(volumePath *uint16, layerData *uint16) (hr error) {
+	hr = procHcsAttachOverlayFilter.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procHcsAttachOverlayFilter.Addr(), 2, uintptr(unsafe.Pointer(volumePath)), uintptr(unsafe.Pointer(layerData)), 0)
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
 func hcsDestroyLayer(layerPath string) (hr error) {
 	var _p0 *uint16
 	_p0, hr = syscall.UTF16PtrFromString(layerPath)
@@ -93,11 +124,11 @@ func hcsDestroyLayer(layerPath string) (hr error) {
 }
 
 func _hcsDestroyLayer(layerPath *uint16) (hr error) {
-	hr = procHcsDestoryLayer.Find()
+	hr = procHcsDestroyLayer.Find()
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcsDestoryLayer.Addr(), 1, uintptr(unsafe.Pointer(layerPath)), 0, 0)
+	r0, _, _ := syscall.Syscall(procHcsDestroyLayer.Addr(), 1, uintptr(unsafe.Pointer(layerPath)), 0, 0)
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -122,6 +153,35 @@ func _hcsDetachLayerStorageFilter(layerPath *uint16) (hr error) {
 		return
 	}
 	r0, _, _ := syscall.Syscall(procHcsDetachLayerStorageFilter.Addr(), 1, uintptr(unsafe.Pointer(layerPath)), 0, 0)
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func hcsDetachOverlayFilter(volumePath string, layerData string) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(volumePath)
+	if hr != nil {
+		return
+	}
+	var _p1 *uint16
+	_p1, hr = syscall.UTF16PtrFromString(layerData)
+	if hr != nil {
+		return
+	}
+	return _hcsDetachOverlayFilter(_p0, _p1)
+}
+
+func _hcsDetachOverlayFilter(volumePath *uint16, layerData *uint16) (hr error) {
+	hr = procHcsDetachOverlayFilter.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procHcsDetachOverlayFilter.Addr(), 2, uintptr(unsafe.Pointer(volumePath)), uintptr(unsafe.Pointer(layerData)), 0)
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff

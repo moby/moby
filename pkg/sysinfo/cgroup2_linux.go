@@ -8,7 +8,7 @@ import (
 
 	"github.com/containerd/cgroups/v3"
 	cgroupsV2 "github.com/containerd/cgroups/v3/cgroup2"
-	"github.com/containerd/containerd/pkg/userns"
+	"github.com/containerd/containerd/v2/pkg/userns"
 	"github.com/containerd/log"
 )
 

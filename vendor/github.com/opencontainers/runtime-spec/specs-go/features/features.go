@@ -36,11 +36,12 @@ type Linux struct {
 	// Nil value means "unknown", not "no support for any capability".
 	Capabilities []string `json:"capabilities,omitempty"`
 
-	Cgroup   *Cgroup   `json:"cgroup,omitempty"`
-	Seccomp  *Seccomp  `json:"seccomp,omitempty"`
-	Apparmor *Apparmor `json:"apparmor,omitempty"`
-	Selinux  *Selinux  `json:"selinux,omitempty"`
-	IntelRdt *IntelRdt `json:"intelRdt,omitempty"`
+	Cgroup          *Cgroup          `json:"cgroup,omitempty"`
+	Seccomp         *Seccomp         `json:"seccomp,omitempty"`
+	Apparmor        *Apparmor        `json:"apparmor,omitempty"`
+	Selinux         *Selinux         `json:"selinux,omitempty"`
+	IntelRdt        *IntelRdt        `json:"intelRdt,omitempty"`
+	MountExtensions *MountExtensions `json:"mountExtensions,omitempty"`
 }
 
 // Cgroup represents the "cgroup" field.
@@ -120,6 +121,19 @@ type Selinux struct {
 type IntelRdt struct {
 	// Enabled is true if Intel RDT support is compiled in.
 	// Unrelated to whether the host supports Intel RDT or not.
+	// Nil value means "unknown", not "false".
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// MountExtensions represents the "mountExtensions" field.
+type MountExtensions struct {
+	// IDMap represents the status of idmap mounts support.
+	IDMap *IDMap `json:"idmap,omitempty"`
+}
+
+type IDMap struct {
+	// Enabled represents whether idmap mounts supports is compiled in.
+	// Unrelated to whether the host supports it or not.
 	// Nil value means "unknown", not "false".
 	Enabled *bool `json:"enabled,omitempty"`
 }

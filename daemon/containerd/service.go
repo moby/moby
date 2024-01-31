@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/content"
-	cerrdefs "github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/plugin"
-	"github.com/containerd/containerd/remotes/docker"
-	"github.com/containerd/containerd/snapshots"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/plugins"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/container"
@@ -102,7 +102,7 @@ func (i *ImageService) CreateLayer(container *container.Container, initFunc laye
 func (i *ImageService) LayerStoreStatus() [][2]string {
 	// TODO(thaJeztah) do we want to add more details about the driver here?
 	return [][2]string{
-		{"driver-type", string(plugin.SnapshotPlugin)},
+		{"driver-type", string(plugins.SnapshotPlugin)},
 	}
 }
 

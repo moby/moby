@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build netbsd || openbsd
-// +build netbsd openbsd
 
 package ipv4
 

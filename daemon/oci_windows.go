@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/Microsoft/hcsshim"
-	coci "github.com/containerd/containerd/oci"
+	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"

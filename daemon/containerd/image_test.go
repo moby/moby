@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/metadata"
-	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/metadata"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
 	"github.com/distribution/reference"
 	dockerimages "github.com/docker/docker/daemon/images"

@@ -153,14 +153,16 @@ func Join(mds ...MD) MD {
 type mdIncomingKey struct{}
 type mdOutgoingKey struct{}
 
-// NewIncomingContext creates a new context with incoming md attached.
+// NewIncomingContext creates a new context with incoming md attached. md must
+// not be modified after calling this function.
 func NewIncomingContext(ctx context.Context, md MD) context.Context {
 	return context.WithValue(ctx, mdIncomingKey{}, md)
 }
 
 // NewOutgoingContext creates a new context with outgoing md attached. If used
 // in conjunction with AppendToOutgoingContext, NewOutgoingContext will
-// overwrite any previously-appended metadata.
+// overwrite any previously-appended metadata. md must not be modified after
+// calling this function.
 func NewOutgoingContext(ctx context.Context, md MD) context.Context {
 	return context.WithValue(ctx, mdOutgoingKey{}, rawMD{md: md})
 }
@@ -203,7 +205,8 @@ func FromIncomingContext(ctx context.Context) (MD, bool) {
 }
 
 // ValueFromIncomingContext returns the metadata value corresponding to the metadata
-// key from the incoming metadata if it exists. Key must be lower-case.
+// key from the incoming metadata if it exists. Keys are matched in a case insensitive
+// manner.
 //
 // # Experimental
 //
@@ -219,17 +222,16 @@ func ValueFromIncomingContext(ctx context.Context, key string) []string {
 		return copyOf(v)
 	}
 	for k, v := range md {
-		// We need to manually convert all keys to lower case, because MD is a
-		// map, and there's no guarantee that the MD attached to the context is
-		// created using our helper functions.
-		if strings.ToLower(k) == key {
+		// Case insenitive comparison: MD is a map, and there's no guarantee
+		// that the MD attached to the context is created using our helper
+		// functions.
+		if strings.EqualFold(k, key) {
 			return copyOf(v)
 		}
 	}
 	return nil
 }
 
-// the returned slice must not be modified in place
 func copyOf(v []string) []string {
 	vals := make([]string, len(v))
 	copy(vals, v)

@@ -12,19 +12,23 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/pkg/dialer"
-	"github.com/containerd/containerd/pkg/userns"
-	"github.com/containerd/containerd/remotes/docker"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	hostconfig "github.com/containerd/containerd/v2/core/remotes/docker/config"
+	"github.com/containerd/containerd/v2/defaults"
+	"github.com/containerd/containerd/v2/pkg/dialer"
+	"github.com/containerd/containerd/v2/pkg/userns"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	dist "github.com/docker/distribution"
@@ -71,8 +75,6 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	volumesservice "github.com/docker/docker/volume/service"
-	"github.com/moby/buildkit/util/resolver"
-	resolverconfig "github.com/moby/buildkit/util/resolver/config"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
 	"go.etcd.io/bbolt"
@@ -203,43 +205,117 @@ func (daemon *Daemon) UsesSnapshotter() bool {
 // RegistryHosts returns the registry hosts configuration for the host component
 // of a distribution image reference.
 func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) {
-	m := map[string]resolverconfig.RegistryConfig{
-		"docker.io": {Mirrors: daemon.registryService.ServiceConfig().Mirrors},
-	}
-	conf := daemon.registryService.ServiceConfig().IndexConfigs
-	for k, v := range conf {
-		c := m[k]
-		if !v.Secure {
-			t := true
-			c.PlainHTTP = &t
-			c.Insecure = &t
-		}
-		m[k] = c
-	}
-	if c, ok := m[host]; !ok && daemon.registryService.IsInsecureRegistry(host) {
-		t := true
-		c.PlainHTTP = &t
-		c.Insecure = &t
-		m[host] = c
+	hosts, err := hostconfig.ConfigureHosts(context.Background(), hostconfig.HostOptions{
+		HostDir: hostconfig.HostDirFromRoot(registry.CertsDir()), // TODO: Also check containerd path
+	})(host)
+	if err != nil {
+		return nil, err
 	}
 
-	for k, v := range m {
-		v.TLSConfigDir = []string{registry.HostCertsDir(k)}
-		m[k] = v
+	// Merge in legacy configuration if provided and only a single configuration
+	if sc := daemon.registryService.ServiceConfig(); len(hosts) == 1 && sc != nil {
+		hosts = daemon.mergeLegacyConfig(host, hosts)
 	}
 
-	certsDir := registry.CertsDir()
-	if fis, err := os.ReadDir(certsDir); err == nil {
-		for _, fi := range fis {
-			if _, ok := m[fi.Name()]; !ok {
-				m[fi.Name()] = resolverconfig.RegistryConfig{
-					TLSConfigDir: []string{filepath.Join(certsDir, fi.Name())},
+	return hosts, nil
+
+}
+
+func (daemon *Daemon) mergeLegacyConfig(host string, hosts []docker.RegistryHost) []docker.RegistryHost {
+	if len(hosts) == 0 {
+		return hosts
+	}
+	sc := daemon.registryService.ServiceConfig()
+	if host == "docker.io" && len(sc.Mirrors) > 0 {
+		var mirrorHosts []docker.RegistryHost
+		for _, mirror := range sc.Mirrors {
+			h := hosts[0]
+			h.Capabilities = docker.HostCapabilityPull | docker.HostCapabilityResolve
+
+			u, err := url.Parse(mirror)
+			if err != nil || u.Host == "" {
+				u, err = url.Parse(fmt.Sprintf("//%s", mirror))
+			}
+			if err == nil && u.Host != "" {
+				h.Host = u.Host
+				h.Path = strings.TrimRight(u.Path, "/")
+				if !strings.HasSuffix(h.Path, "/v2") {
+					h.Path = path.Join("/v2", h.Path)
 				}
+			} else {
+				h.Host = mirror
+				h.Path = "/v2"
+			}
+
+			mirrorHosts = append(mirrorHosts, h)
+		}
+		hosts = append(mirrorHosts, hosts[0])
+	}
+	for i := range hosts {
+		if daemon.registryService.IsInsecureRegistry(hosts[i].Host) {
+			t, ok := hosts[i].Client.Transport.(*http.Transport)
+			if !ok {
+				continue
+			}
+			// Is TLS configured?
+			// Make insecure...
+			if t.TLSClientConfig != nil {
+				isLocalhost, err := docker.MatchLocalhost(hosts[i].Host)
+				if err != nil {
+					continue
+				}
+				if isLocalhost {
+					hosts[i].Client.Transport = docker.HTTPFallback{RoundTripper: hosts[i].Client.Transport}
+				}
+				t.TLSClientConfig.InsecureSkipVerify = true
+			} else {
+				hosts[i].Scheme = "http"
 			}
 		}
 	}
+	return hosts
+	/*
+		m := map[string]resolverconfig.RegistryConfig{
+			"docker.io": {Mirrors: daemon.registryService.ServiceConfig().Mirrors},
+		}
+		conf := daemon.registryService.ServiceConfig().IndexConfigs
+		for k, v := range conf {
+			c := m[k]
+			if !v.Secure {
+				t := true
+				c.PlainHTTP = &t
+				c.Insecure = &t
+			}
+			m[k] = c
+		}
+		if c, ok := m[host]; !ok && daemon.registryService.IsInsecureRegistry(host) {
+			t := true
+			c.PlainHTTP = &t
+			c.Insecure = &t
+			m[host] = c
+		}
 
-	return resolver.NewRegistryConfig(m)(host)
+		/*
+			for k, v := range m {
+				v.TLSConfigDir = []string{registry.HostCertsDir(k)}
+				m[k] = v
+			}
+
+			certsDir := registry.CertsDir()
+			if fis, err := os.ReadDir(certsDir); err == nil {
+				for _, fi := range fis {
+					if _, ok := m[fi.Name()]; !ok {
+						m[fi.Name()] = resolverconfig.RegistryConfig{
+							TLSConfigDir: []string{filepath.Join(certsDir, fi.Name())},
+						}
+					}
+				}
+			}
+
+			return nil, nil
+			// TODO: Local version
+			//return resolver.NewRegistryConfig(m)(host)
+	*/
 }
 
 // layerAccessor may be implemented by ImageService
@@ -1087,7 +1163,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		// FIXME(thaJeztah): implement automatic snapshotter-selection similar to graph-driver selection; see https://github.com/moby/moby/issues/44076
 		if driverName == "" {
-			driverName = containerd.DefaultSnapshotter
+			driverName = defaults.DefaultSnapshotter
 		}
 
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD

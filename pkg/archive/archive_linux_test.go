@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/containerd/containerd/pkg/userns"
+	"github.com/containerd/containerd/v2/pkg/userns"
 	"github.com/docker/docker/pkg/system"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/sys/unix"

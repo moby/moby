@@ -3,9 +3,9 @@ package containerd
 import (
 	"context"
 
-	"github.com/containerd/containerd/content"
-	cerrdefs "github.com/containerd/containerd/errdefs"
-	containerdimages "github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/v2/core/content"
+	containerdimages "github.com/containerd/containerd/v2/core/images"
+	cerrdefs "github.com/containerd/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

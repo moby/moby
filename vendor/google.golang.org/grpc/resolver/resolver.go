@@ -240,11 +240,6 @@ type ClientConn interface {
 	//
 	// Deprecated: Use UpdateState instead.
 	NewAddress(addresses []Address)
-	// NewServiceConfig is called by resolver to notify ClientConn a new
-	// service config. The service config should be provided as a json string.
-	//
-	// Deprecated: Use UpdateState instead.
-	NewServiceConfig(serviceConfig string)
 	// ParseServiceConfig parses the provided service config and returns an
 	// object that provides the parsed config.
 	ParseServiceConfig(serviceConfigJSON string) *serviceconfig.ParseResult
@@ -284,6 +279,11 @@ func (t Target) Endpoint() string {
 	// own the "unix" resolver, we can workaround in the unix resolver by using
 	// the `URL` field.
 	return strings.TrimPrefix(endpoint, "/")
+}
+
+// String returns a string representation of Target.
+func (t Target) String() string {
+	return t.URL.String()
 }
 
 // Builder creates a resolver that will be used to watch name resolution updates.
