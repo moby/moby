@@ -125,6 +125,7 @@ variables:
 bamboo-shift-455) for the general project.
 - `GCLOUD_TESTS_GOLANG_KEY`: The path to the JSON key file of the general
 project's service account.
+- `GCLOUD_TESTS_GOLANG_DATASTORE_DATABASES`: Comma separated list of developer's Datastore databases. If not provided, default database i.e. empty string is used.
 - `GCLOUD_TESTS_GOLANG_FIRESTORE_PROJECT_ID`: Developers Console project's ID
 (e.g. doorway-cliff-677) for the Firestore project.
 - `GCLOUD_TESTS_GOLANG_FIRESTORE_KEY`: The path to the JSON key file of the
@@ -153,8 +154,9 @@ $ gcloud config set project $GCLOUD_TESTS_GOLANG_PROJECT_ID
 # Authenticates the gcloud tool with your account.
 $ gcloud auth login
 
-# Create the indexes used in the datastore integration tests.
-$ gcloud datastore indexes create datastore/testdata/index.yaml
+# Create the indexes for all the databases you want to use in the datastore integration tests. 
+# Use empty string as databaseID or skip database flag for default database.
+$ gcloud alpha datastore indexes create --database=your-databaseID-1 --project=$GCLOUD_TESTS_GOLANG_PROJECT_ID testdata/index.yaml
 
 # Creates a Google Cloud storage bucket with the same name as your test project,
 # and with the Cloud Logging service account as owner, for the sink
@@ -218,6 +220,10 @@ export GCLOUD_TESTS_GOLANG_PROJECT_ID=your-project
 
 # The path to the JSON key file of the general project's service account.
 export GCLOUD_TESTS_GOLANG_KEY=~/directory/your-project-abcd1234.json
+
+# Comma separated list of developer's Datastore databases. If not provided, 
+# default database i.e. empty string is used.
+export GCLOUD_TESTS_GOLANG_DATASTORE_DATABASES=your-database-1,your-database-2
 
 # Developers Console project's ID (e.g. doorway-cliff-677) for the Firestore project.
 export GCLOUD_TESTS_GOLANG_FIRESTORE_PROJECT_ID=your-firestore-project
