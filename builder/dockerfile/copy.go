@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -74,7 +73,7 @@ type copier struct {
 	source      builder.Source
 	pathCache   pathCache
 	download    sourceDownloader
-	platform    *ocispec.Platform
+	platform    ocispec.Platform
 	// for cleanup. TODO: having copier.cleanup() is error prone and hard to
 	// follow. Code calling performCopy should manage the lifecycle of its params.
 	// Copier should take override source as input, not imageMount.
@@ -83,19 +82,7 @@ type copier struct {
 }
 
 func copierFromDispatchRequest(req dispatchRequest, download sourceDownloader, imageSource *imageMount) copier {
-	platform := req.builder.platform
-	if platform == nil {
-		// May be nil if not explicitly set in API/dockerfile
-		platform = &ocispec.Platform{}
-	}
-	if platform.OS == "" {
-		// Default to the dispatch requests operating system if not explicit in API/dockerfile
-		platform.OS = req.state.operatingSystem
-	}
-	if platform.OS == "" {
-		// This is a failsafe just in case. Shouldn't be hit.
-		platform.OS = runtime.GOOS
-	}
+	platform := req.builder.getPlatform(req.state)
 
 	return copier{
 		source:      req.source,

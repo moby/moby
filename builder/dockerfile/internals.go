@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -328,7 +329,7 @@ func getShell(c *container.Config, os string) []string {
 }
 
 func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.Config) (bool, error) {
-	cachedID, err := b.imageProber.Probe(dispatchState.imageID, runConfig)
+	cachedID, err := b.imageProber.Probe(dispatchState.imageID, runConfig, b.getPlatform(dispatchState))
 	if cachedID == "" || err != nil {
 		return false, err
 	}
@@ -387,4 +388,18 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		ExtraHosts: options.ExtraHosts,
 	}
 	return hc
+}
+
+func (b *Builder) getPlatform(state *dispatchState) ocispec.Platform {
+	// May be nil if not explicitly set in API/dockerfile
+	out := platforms.DefaultSpec()
+	if b.platform != nil {
+		out = *b.platform
+	}
+
+	if state.operatingSystem != "" {
+		out.OS = state.operatingSystem
+	}
+
+	return out
 }
