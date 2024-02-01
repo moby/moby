@@ -3,6 +3,7 @@ package image // import "github.com/docker/docker/image"
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -24,6 +25,8 @@ type Store interface {
 	GetParent(id ID) (ID, error)
 	SetLastUpdated(id ID) error
 	GetLastUpdated(id ID) (time.Time, error)
+	SetBuiltLocally(id ID) error
+	IsBuiltLocally(id ID) (bool, error)
 	Children(id ID) []ID
 	Map() map[ID]*Image
 	Heads() map[ID]*Image
@@ -293,6 +296,23 @@ func (is *store) GetLastUpdated(id ID) (time.Time, error) {
 		return time.Time{}, nil
 	}
 	return time.Parse(time.RFC3339Nano, string(bytes))
+}
+
+// SetBuiltLocally sets whether image can be used as a builder cache
+func (is *store) SetBuiltLocally(id ID) error {
+	return is.fs.SetMetadata(id.Digest(), "builtLocally", []byte{1})
+}
+
+// IsBuiltLocally returns whether image can be used as a builder cache
+func (is *store) IsBuiltLocally(id ID) (bool, error) {
+	bytes, err := is.fs.GetMetadata(id.Digest(), "builtLocally")
+	if err != nil || len(bytes) == 0 {
+		if errors.Is(err, os.ErrNotExist) {
+			err = nil
+		}
+		return false, err
+	}
+	return bytes[0] == 1, nil
 }
 
 func (is *store) Children(id ID) []ID {
