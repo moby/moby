@@ -190,12 +190,13 @@ func (r *remote) startContainerd() error {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		err := cmd.Start()
-		startedCh <- err
 		if err != nil {
+			startedCh <- err
 			return
 		}
-
 		r.daemonWaitCh = make(chan struct{})
+		startedCh <- nil
+
 		// Reap our child when needed
 		if err := cmd.Wait(); err != nil {
 			r.logger.WithError(err).Errorf("containerd did not exit successfully")
