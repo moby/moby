@@ -8327,6 +8327,16 @@ paths:
           description: "BuildKit output configuration"
           type: "string"
           default: ""
+        - name: "version"
+          in: "query"
+          type: "string"
+          default: "1"
+          enum: ["1", "2"]
+          description: |
+            Version of the builder backend to use.
+
+            - `1` is the first generation classic (deprecated) builder in the Docker daemon (default)
+            - `2` is [BuildKit](https://github.com/moby/buildkit)
       responses:
         200:
           description: "no error"
