@@ -57,7 +57,7 @@ jobs:
           tree -nh /tmp/reports
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           directory: ./bundles
           env_vars: RUNNER_OS
@@ -65,9 +65,9 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.storage }}-unit-reports
+          name: test-reports-unit-${{ inputs.storage }}
           path: /tmp/reports/*
 
   unit-report:
@@ -85,9 +85,9 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
       -
         name: Download reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.storage }}-unit-reports
+          name: test-reports-unit-${{ inputs.storage }}
           path: /tmp/reports
       -
         name: Install teststat
@@ -145,9 +145,9 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.storage }}-docker-py-reports
+          name: test-reports-docker-py-${{ inputs.storage }}
           path: /tmp/reports/*
 
   integration-flaky:
@@ -236,10 +236,13 @@ jobs:
         name: Prepare reports
         if: always()
         run: |
-          reportsPath="/tmp/reports/${{ matrix.os }}"
+          reportsName=${{ matrix.os }}
           if [ -n "${{ matrix.mode }}" ]; then
-            reportsPath="$reportsPath-${{ matrix.mode }}"
+            reportsName="$reportsName-${{ matrix.mode }}"
           fi
+          reportsPath="/tmp/reports/$reportsName"
+          echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
+          
           mkdir -p bundles $reportsPath
           find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
@@ -249,7 +252,7 @@ jobs:
           curl -sSLf localhost:16686/api/traces?service=integration-test-client > $reportsPath/jaeger-trace.json
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -262,9 +265,9 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.storage }}-integration-reports
+          name: test-reports-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
 
   integration-report:
@@ -282,10 +285,11 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
       -
         name: Download reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.storage }}-integration-reports
           path: /tmp/reports
+          pattern: test-reports-integration-${{ inputs.storage }}-*
+          merge-multiple: true
       -
         name: Install teststat
         run: |
@@ -372,7 +376,10 @@ jobs:
         name: Prepare reports
         if: always()
         run: |
-          reportsPath=/tmp/reports/$(echo -n "${{ matrix.test }}" | sha256sum | cut -d " " -f 1)
+          reportsName=$(echo -n "${{ matrix.test }}" | sha256sum | cut -d " " -f 1)
+          reportsPath=/tmp/reports/$reportsName
+          echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
+          
           mkdir -p bundles $reportsPath
           echo "${{ matrix.test }}" | tr -s '|' '\n' | tee -a "$reportsPath/tests.txt"
           find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
@@ -383,7 +390,7 @@ jobs:
           curl -sSLf localhost:16686/api/traces?service=integration-test-client > $reportsPath/jaeger-trace.json
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -396,9 +403,9 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.storage }}-integration-cli-reports
+          name: test-reports-integration-cli-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
 
   integration-cli-report:
@@ -416,10 +423,11 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
       -
         name: Download reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.storage }}-integration-cli-reports
           path: /tmp/reports
+          pattern: test-reports-integration-cli-${{ inputs.storage }}-*
+          merge-multiple: true
       -
         name: Install teststat
         run: |

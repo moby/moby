@@ -62,7 +62,7 @@ jobs:
           }
       -
         name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~\AppData\Local\go-build
@@ -103,7 +103,7 @@ jobs:
           docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd-shim-runhcs-v1.exe" ${{ env.BIN_OUT }}\
       -
         name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-${{ inputs.storage }}-${{ inputs.os }}
           path: ${{ env.BIN_OUT }}/*
@@ -142,7 +142,7 @@ jobs:
           }
       -
         name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~\AppData\Local\go-build
@@ -176,7 +176,7 @@ jobs:
       -
         name: Send to Codecov
         if: inputs.send_coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
           directory: bundles
@@ -185,7 +185,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
@@ -203,7 +203,7 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
       -
         name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: /tmp/artifacts
@@ -282,6 +282,7 @@ jobs:
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
+        name: Set up Jaeger
         run: |
           # Jaeger is set up on Linux through the setup-tracing action. If you update Jaeger here, don't forget to
           # update the version set in .github/actions/setup-tracing/action.yml.
@@ -296,7 +297,7 @@ jobs:
           Get-ChildItem Env: | Out-String
       -
         name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-${{ inputs.storage }}-${{ inputs.os }}
           path: ${{ env.BIN_OUT }}
@@ -310,6 +311,9 @@ jobs:
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
           Write-Output "${{ env.BIN_OUT }}" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          
+          $testName = ([System.BitConverter]::ToString((New-Object System.Security.Cryptography.SHA256Managed).ComputeHash([System.Text.Encoding]::UTF8.GetBytes("${{ matrix.test }}"))) -replace '-').ToLower()
+          echo "TESTREPORTS_NAME=$testName" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
       -
         # removes docker service that is currently installed on the runner. we
         # could use Uninstall-Package but not yet available on Windows runners.
@@ -445,7 +449,7 @@ jobs:
       -
         name: Send to Codecov
         if: inputs.send_coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
           directory: bundles
@@ -498,9 +502,9 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}
+          name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
 
   integration-test-report:
@@ -527,11 +531,12 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       -
-        name: Download artifacts
-        uses: actions/download-artifact@v3
+        name: Download reports
+        uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}
-          path: /tmp/artifacts
+          path: /tmp/reports
+          pattern: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-*
+          merge-multiple: true
       -
         name: Install teststat
         run: |
@@ -539,4 +544,4 @@ jobs:
       -
         name: Create summary
         run: |
-          teststat -markdown $(find /tmp/artifacts -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
+          teststat -markdown $(find /tmp/reports -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
