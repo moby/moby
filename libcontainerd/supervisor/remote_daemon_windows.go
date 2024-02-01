@@ -20,27 +20,27 @@ func (r *remote) setDefaults() {
 	}
 }
 
-func (r *remote) stopDaemon() {
-	p, err := os.FindProcess(r.daemonPid)
+func (r *remote) stopDaemon(pid int) {
+	p, err := os.FindProcess(pid)
 	if err != nil {
-		r.logger.WithField("pid", r.daemonPid).Warn("could not find daemon process")
+		r.logger.WithField("pid", pid).Warn("could not find daemon process")
 		return
 	}
 
 	if err = p.Kill(); err != nil {
-		r.logger.WithError(err).WithField("pid", r.daemonPid).Warn("could not kill daemon process")
+		r.logger.WithError(err).WithField("pid", pid).Warn("could not kill daemon process")
 		return
 	}
 
 	_, err = p.Wait()
 	if err != nil {
-		r.logger.WithError(err).WithField("pid", r.daemonPid).Warn("wait for daemon process")
+		r.logger.WithError(err).WithField("pid", pid).Warn("wait for daemon process")
 		return
 	}
 }
 
-func (r *remote) killDaemon() {
-	_ = process.Kill(r.daemonPid)
+func (r *remote) killDaemon(pid int) {
+	_ = process.Kill(pid)
 }
 
 func (r *remote) platformCleanup() {

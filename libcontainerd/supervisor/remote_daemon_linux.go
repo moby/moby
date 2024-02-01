@@ -30,28 +30,28 @@ func (r *remote) setDefaults() {
 	}
 }
 
-func (r *remote) stopDaemon() {
+func (r *remote) stopDaemon(pid int) {
 	// Ask the daemon to quit
-	syscall.Kill(r.daemonPid, syscall.SIGTERM)
+	syscall.Kill(pid, syscall.SIGTERM)
 	// Wait up to 15secs for it to stop
 	for i := time.Duration(0); i < shutdownTimeout; i += time.Second {
-		if !process.Alive(r.daemonPid) {
+		if !process.Alive(pid) {
 			break
 		}
 		time.Sleep(time.Second)
 	}
 
-	if process.Alive(r.daemonPid) {
-		r.logger.WithField("pid", r.daemonPid).Warn("daemon didn't stop within 15 secs, killing it")
-		syscall.Kill(r.daemonPid, syscall.SIGKILL)
+	if process.Alive(pid) {
+		r.logger.WithField("pid", pid).Warn("daemon didn't stop within 15 secs, killing it")
+		syscall.Kill(pid, syscall.SIGKILL)
 	}
 }
 
-func (r *remote) killDaemon() {
+func (r *remote) killDaemon(pid int) {
 	// Try to get a stack trace
-	_ = syscall.Kill(r.daemonPid, syscall.SIGUSR1)
+	_ = syscall.Kill(pid, syscall.SIGUSR1)
 	<-time.After(100 * time.Millisecond)
-	_ = process.Kill(r.daemonPid)
+	_ = process.Kill(pid)
 }
 
 func (r *remote) platformCleanup() {
