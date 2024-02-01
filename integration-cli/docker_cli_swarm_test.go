@@ -27,6 +27,7 @@ import (
 	remoteipam "github.com/docker/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/testutil"
+	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/moby/swarmkit/v2/ca/keyutils"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
@@ -1260,6 +1261,8 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 	poll.WaitOn(c, pollCheck(c, d3.CheckLocalNodeState(ctx), checker.Equals(swarm.LocalNodeStateActive)), poll.WithTimeout(time.Second))
 }
 
+const swarmIsEncryptedMsg = "Swarm is encrypted and needs to be unlocked"
+
 func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	d := s.AddDaemon(ctx, c, true, true)
@@ -1280,12 +1283,16 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *testing.T) {
 		d.RestartNode(c)
 		assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateLocked)
 
-		outs, _ = d.Cmd("node", "ls")
-		assert.Assert(c, strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"), outs)
-		cmd := d.Command("swarm", "unlock")
-		cmd.Stdin = bytes.NewBufferString(unlockKey)
-		result := icmd.RunCmd(cmd)
+		unlock := func(d *daemon.Daemon, key string) *icmd.Result {
+			cmd := d.Command("swarm", "unlock")
+			cmd.Stdin = strings.NewReader(key)
+			return icmd.RunCmd(cmd)
+		}
 
+		outs, _ = d.Cmd("node", "ls")
+		assert.Assert(c, strings.Contains(outs, swarmIsEncryptedMsg), outs)
+
+		result := unlock(d, unlockKey)
 		if result.Error == nil {
 			// On occasion, the daemon may not have finished
 			// rotating the KEK before restarting. The test is
@@ -1295,13 +1302,16 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *testing.T) {
 			// restart again, the new key should be required this
 			// time.
 
-			time.Sleep(3 * time.Second)
+			// Wait for the rotation to happen
+			// Since there are multiple rotations, we need to wait until for the number of rotations we are currently on to be reflected in the logs
+			// This is a little janky... its depending on specific log messages AND these are debug logs... but it is the best we can do for now.
+			matcher := testdaemon.ScanLogsMatchCount(testdaemon.ScanLogsMatchString("successfully rotated KEK"), i+1)
+			poll.WaitOn(c, d.PollCheckLogs(ctx, matcher), poll.WithDelay(3*time.Second), poll.WithTimeout(time.Minute))
+			d.Restart(c)
 
 			d.RestartNode(c)
 
-			cmd = d.Command("swarm", "unlock")
-			cmd.Stdin = bytes.NewBufferString(unlockKey)
-			result = icmd.RunCmd(cmd)
+			result = unlock(d, unlockKey)
 		}
 		result.Assert(c, icmd.Expected{
 			ExitCode: 1,
@@ -1309,28 +1319,20 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *testing.T) {
 		})
 
 		outs, _ = d.Cmd("node", "ls")
-		assert.Assert(c, strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"), outs)
-		cmd = d.Command("swarm", "unlock")
-		cmd.Stdin = bytes.NewBufferString(newUnlockKey)
-		icmd.RunCmd(cmd).Assert(c, icmd.Success)
+		assert.Assert(c, strings.Contains(outs, swarmIsEncryptedMsg), outs)
+		unlock(d, newUnlockKey).Assert(c, icmd.Success)
 
 		assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateActive)
 
-		retry := 0
-		for {
+		checkNodeLs := func(t poll.LogT) poll.Result {
 			// an issue sometimes prevents leader to be available right away
-			outs, err = d.Cmd("node", "ls")
-			if err != nil && retry < 5 {
-				if strings.Contains(outs, "swarm does not have a leader") {
-					retry++
-					time.Sleep(3 * time.Second)
-					continue
-				}
+			out, err := d.Cmd("node", "ls")
+			if err != nil {
+				return poll.Continue("error running node ls: %v: %s", err, out)
 			}
-			assert.NilError(c, err)
-			assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"), outs)
-			break
+			return poll.Success()
 		}
+		poll.WaitOn(c, checkNodeLs, poll.WithDelay(3*time.Second), poll.WithTimeout(time.Minute))
 
 		unlockKey = newUnlockKey
 	}
@@ -1368,15 +1370,23 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 		d2.RestartNode(c)
 		d3.RestartNode(c)
 
+		unlock := func(d *daemon.Daemon, key string) *icmd.Result {
+			cmd := d.Command("swarm", "unlock")
+			cmd.Stdin = strings.NewReader(key)
+			return icmd.RunCmd(cmd)
+		}
+
+		const swarmIsEncryptedMsg = "Swarm is encrypted and needs to be unlocked"
+
 		for _, d := range []*daemon.Daemon{d2, d3} {
 			assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateLocked)
 
 			outs, _ := d.Cmd("node", "ls")
-			assert.Assert(c, strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"), outs)
-			cmd := d.Command("swarm", "unlock")
-			cmd.Stdin = bytes.NewBufferString(unlockKey)
-			result := icmd.RunCmd(cmd)
+			assert.Assert(c, strings.Contains(outs, swarmIsEncryptedMsg), outs)
 
+			// unlock with the original key should fail
+			// Use poll here because the daemon may not have finished
+			result := unlock(d, unlockKey)
 			if result.Error == nil {
 				// On occasion, the daemon may not have finished
 				// rotating the KEK before restarting. The test is
@@ -1386,13 +1396,14 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 				// restart again, the new key should be required this
 				// time.
 
-				time.Sleep(3 * time.Second)
+				// Wait for the rotation to happen
+				// Since there are multiple rotations, we need to wait until for the number of rotations we are currently on to be reflected in the logs
+				// This is a little janky... its depending on specific log messages AND these are debug logs... but it is the best we can do for now.
+				matcher := testdaemon.ScanLogsMatchCount(testdaemon.ScanLogsMatchString("successfully rotated KEK"), i+1)
+				poll.WaitOn(c, d.PollCheckLogs(ctx, matcher), poll.WithDelay(3*time.Second), poll.WithTimeout(time.Minute))
+				d.Restart(c)
 
-				d.RestartNode(c)
-
-				cmd = d.Command("swarm", "unlock")
-				cmd.Stdin = bytes.NewBufferString(unlockKey)
-				result = icmd.RunCmd(cmd)
+				result = unlock(d, unlockKey)
 			}
 			result.Assert(c, icmd.Expected{
 				ExitCode: 1,
@@ -1400,31 +1411,21 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 			})
 
 			outs, _ = d.Cmd("node", "ls")
-			assert.Assert(c, strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"), outs)
-			cmd = d.Command("swarm", "unlock")
-			cmd.Stdin = bytes.NewBufferString(newUnlockKey)
-			icmd.RunCmd(cmd).Assert(c, icmd.Success)
+			assert.Assert(c, strings.Contains(outs, swarmIsEncryptedMsg), outs)
 
+			// now unlock with the rotated key, this should succeed
+			unlock(d, newUnlockKey).Assert(c, icmd.Success)
 			assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateActive)
 
-			retry := 0
-			for {
+			checkNodeLs := func(t poll.LogT) poll.Result {
 				// an issue sometimes prevents leader to be available right away
-				outs, err = d.Cmd("node", "ls")
-				if err != nil && retry < 5 {
-					if strings.Contains(outs, "swarm does not have a leader") {
-						retry++
-						c.Logf("[%s] got 'swarm does not have a leader'. retrying (attempt %d/5)", d.ID(), retry)
-						time.Sleep(3 * time.Second)
-						continue
-					} else {
-						c.Logf("[%s] gave error: '%v'. retrying (attempt %d/5): %s", d.ID(), err, retry, outs)
-					}
+				out, err := d.Cmd("node", "ls")
+				if err != nil {
+					return poll.Continue("error running node ls: %v: %s", err, out)
 				}
-				assert.NilError(c, err, "[%s] failed after %d retries: %v (%s)", d.ID(), retry, err, outs)
-				assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"), outs)
-				break
+				return poll.Success()
 			}
+			poll.WaitOn(c, checkNodeLs, poll.WithDelay(3*time.Second), poll.WithTimeout(time.Minute))
 		}
 
 		unlockKey = newUnlockKey
