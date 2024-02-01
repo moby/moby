@@ -129,8 +129,7 @@ func newClient(kv string, addr string, config *store.Config) (*Store, error) {
 		config = &store.Config{}
 	}
 
-	// Parse file path
-	s, err := boltdb.New(strings.Split(addr, ","), config)
+	s, err := boltdb.New(addr, config)
 	if err != nil {
 		return nil, err
 	}
