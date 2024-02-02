@@ -30,30 +30,9 @@ const (
 	ip6 ipFamily = "IPv6"
 )
 
-// HasIPv6Subnets checks whether there's any IPv6 subnets in the ipam parameter. It ignores any invalid Subnet and nil
-// ipam.
-func HasIPv6Subnets(ipam *IPAM) bool {
-	if ipam == nil {
-		return false
-	}
-
-	for _, cfg := range ipam.Config {
-		subnet, err := netip.ParsePrefix(cfg.Subnet)
-		if err != nil {
-			continue
-		}
-
-		if subnet.Addr().Is6() {
-			return true
-		}
-	}
-
-	return false
-}
-
 // ValidateIPAM checks whether the network's IPAM passed as argument is valid. It returns a joinError of the list of
 // errors found.
-func ValidateIPAM(ipam *IPAM) error {
+func ValidateIPAM(ipam *IPAM, enableIPv6 bool) error {
 	if ipam == nil {
 		return nil
 	}
@@ -72,6 +51,10 @@ func ValidateIPAM(ipam *IPAM) error {
 
 		if subnet != subnet.Masked() {
 			errs = append(errs, fmt.Errorf("invalid subnet %s: it should be %s", subnet, subnet.Masked()))
+		}
+
+		if !enableIPv6 && subnetFamily == ip6 {
+			errs = append(errs, fmt.Errorf("invalid subnet %s: IPv6 has not been enabled for this network", subnet))
 		}
 
 		if ipRangeErrs := validateIPRange(cfg.IPRange, subnet, subnetFamily); len(ipRangeErrs) > 0 {
