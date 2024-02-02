@@ -445,6 +445,11 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 		for name, epConfig := range endpointsConfig {
 			container.NetworkSettings.Networks[name] = &network.EndpointSettings{
 				EndpointSettings: epConfig,
+				// At this point, during container creation, epConfig.MacAddress is the
+				// configured value from the API. If there is no configured value, the
+				// same field will later be used to store a generated MAC address. So,
+				// remember the requested address now.
+				DesiredMacAddress: epConfig.MacAddress,
 			}
 		}
 	}
@@ -511,7 +516,7 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
 	if nConf, ok := container.NetworkSettings.Networks[defaultNetName]; ok {
 		cleanOperationalData(nConf)
-		if err := daemon.connectToNetwork(cfg, container, defaultNetName, nConf.EndpointSettings, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(cfg, container, defaultNetName, nConf, updateSettings); err != nil {
 			return err
 		}
 	}
@@ -528,7 +533,7 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 
 	for netName, epConf := range networks {
 		cleanOperationalData(epConf)
-		if err := daemon.connectToNetwork(cfg, container, netName, epConf.EndpointSettings, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(cfg, container, netName, epConf, updateSettings); err != nil {
 			return err
 		}
 	}
@@ -637,11 +642,9 @@ func cleanOperationalData(es *network.EndpointSettings) {
 	es.IPv6Gateway = ""
 	es.GlobalIPv6Address = ""
 	es.GlobalIPv6PrefixLen = 0
+	es.MacAddress = ""
 	if es.IPAMOperational {
 		es.IPAMConfig = nil
-	}
-	if es.MACOperational {
-		es.MacAddress = ""
 	}
 }
 
@@ -685,7 +688,7 @@ func buildEndpointDNSNames(ctr *container.Container, aliases []string) []string 
 	return sliceutil.Dedup(dnsNames)
 }
 
-func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool) (retErr error) {
+func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.Container, idOrName string, endpointConfig *network.EndpointSettings, updateSettings bool) (retErr error) {
 	start := time.Now()
 	if container.HostConfig.NetworkMode.IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
@@ -695,10 +698,12 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 		return nil
 	}
 	if endpointConfig == nil {
-		endpointConfig = &networktypes.EndpointSettings{}
+		endpointConfig = &network.EndpointSettings{
+			EndpointSettings: &networktypes.EndpointSettings{},
+		}
 	}
 
-	n, nwCfg, err := daemon.findAndAttachNetwork(container, idOrName, endpointConfig)
+	n, nwCfg, err := daemon.findAndAttachNetwork(container, idOrName, endpointConfig.EndpointSettings)
 	if err != nil {
 		return err
 	}
@@ -713,26 +718,20 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 		}
 	}
 
-	var operIPAM bool
-	operMAC := true
+	endpointConfig.IPAMOperational = false
 	if nwCfg != nil {
 		if epConfig, ok := nwCfg.EndpointsConfig[nwName]; ok {
 			if endpointConfig.IPAMConfig == nil || (endpointConfig.IPAMConfig.IPv4Address == "" && endpointConfig.IPAMConfig.IPv6Address == "" && len(endpointConfig.IPAMConfig.LinkLocalIPs) == 0) {
-				operIPAM = true
+				endpointConfig.IPAMOperational = true
 			}
 
 			// copy IPAMConfig and NetworkID from epConfig via AttachNetwork
 			endpointConfig.IPAMConfig = epConfig.IPAMConfig
 			endpointConfig.NetworkID = epConfig.NetworkID
-
-			// Work out whether the MAC address is user-configured.
-			operMAC = endpointConfig.MacAddress == ""
-			// Copy the configured MAC address (which may be empty).
-			endpointConfig.MacAddress = epConfig.MacAddress
 		}
 	}
 
-	if err := daemon.updateNetworkConfig(container, n, endpointConfig, updateSettings); err != nil {
+	if err := daemon.updateNetworkConfig(container, n, endpointConfig.EndpointSettings, updateSettings); err != nil {
 		return err
 	}
 
@@ -755,11 +754,7 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 			}
 		}
 	}()
-	container.NetworkSettings.Networks[nwName] = &network.EndpointSettings{
-		EndpointSettings: endpointConfig,
-		IPAMOperational:  operIPAM,
-		MACOperational:   operMAC,
-	}
+	container.NetworkSettings.Networks[nwName] = endpointConfig
 
 	delete(container.NetworkSettings.Networks, n.ID())
 
@@ -1063,7 +1058,10 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 			}
 		}
 	} else {
-		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, endpointConfig, true); err != nil {
+		epc := &network.EndpointSettings{
+			EndpointSettings: endpointConfig,
+		}
+		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, epc, true); err != nil {
 			return err
 		}
 	}
