@@ -31,6 +31,12 @@ func TestNetworkWithInvalidIPAM(t *testing.T) {
 			},
 		},
 		{
+			// Regression test for https://github.com/moby/moby/issues/47202
+			name: "IPv6 subnet is discarded with no error when IPv6 is disabled",
+			ipam: IPAM{Config: []IPAMConfig{{Subnet: "2001:db8::/32"}}},
+			ipv6: false,
+		},
+		{
 			name: "Invalid data - Subnet",
 			ipam: IPAM{Config: []IPAMConfig{{Subnet: "foobar"}}},
 			expectedErrors: []string{
@@ -122,7 +128,7 @@ func TestNetworkWithInvalidIPAM(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			errs := ValidateIPAM(&tc.ipam)
+			errs := ValidateIPAM(&tc.ipam, tc.ipv6)
 			if tc.expectedErrors == nil {
 				assert.NilError(t, errs)
 				return
