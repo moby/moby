@@ -80,18 +80,3 @@ func OptionBoltdbWithRandomDBFile(t *testing.T) config.Option {
 		c.Scope.Client.Config = &store.Config{Bucket: "testBackend"}
 	}
 }
-
-func TestMultipleControllersWithSameStore(t *testing.T) {
-	cfgOptions := OptionBoltdbWithRandomDBFile(t)
-	ctrl1, err := New(cfgOptions)
-	if err != nil {
-		t.Fatalf("Error new controller: %v", err)
-	}
-	defer ctrl1.Stop()
-	// Use the same boltdb file without closing the previous controller
-	ctrl2, err := New(cfgOptions)
-	if err != nil {
-		t.Fatalf("Local store must support concurrent controllers")
-	}
-	ctrl2.Stop()
-}
