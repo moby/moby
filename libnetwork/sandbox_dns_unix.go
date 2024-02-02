@@ -120,7 +120,7 @@ func (sb *Sandbox) buildHostsFile() error {
 	if en, ok := sb.ipv6Enabled(); ok && !en {
 		buildf = etchosts.BuildNoIPv6
 	}
-	if err := buildf(sb.config.hostsPath, "", sb.config.hostName, sb.config.domainName, extraContent); err != nil {
+	if err := buildf(sb.config.hostsPath, extraContent); err != nil {
 		return err
 	}
 
