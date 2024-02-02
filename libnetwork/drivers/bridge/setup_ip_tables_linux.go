@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
@@ -407,6 +408,17 @@ func removeIPChains(version iptables.IPVersion) {
 func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert bool) error {
 	var version iptables.IPVersion
 	var inDropRule, outDropRule iptRule
+
+	// Either add or remove the interface from the firewalld zone, if firewalld is running.
+	if insert {
+		if err := iptables.AddInterfaceFirewalld(bridgeIface); err != nil {
+			return err
+		}
+	} else {
+		if err := iptables.DelInterfaceFirewalld(bridgeIface); err != nil && !errdefs.IsNotFound(err) {
+			return err
+		}
+	}
 
 	if addr.IP.To4() != nil {
 		version = iptables.IPv4
