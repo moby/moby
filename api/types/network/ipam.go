@@ -49,12 +49,12 @@ func ValidateIPAM(ipam *IPAM, enableIPv6 bool) error {
 			subnetFamily = ip6
 		}
 
-		if subnet != subnet.Masked() {
-			errs = append(errs, fmt.Errorf("invalid subnet %s: it should be %s", subnet, subnet.Masked()))
+		if !enableIPv6 && subnetFamily == ip6 {
+			continue
 		}
 
-		if !enableIPv6 && subnetFamily == ip6 {
-			errs = append(errs, fmt.Errorf("invalid subnet %s: IPv6 has not been enabled for this network", subnet))
+		if subnet != subnet.Masked() {
+			errs = append(errs, fmt.Errorf("invalid subnet %s: it should be %s", subnet, subnet.Masked()))
 		}
 
 		if ipRangeErrs := validateIPRange(cfg.IPRange, subnet, subnetFamily); len(ipRangeErrs) > 0 {

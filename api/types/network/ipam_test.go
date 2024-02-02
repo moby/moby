@@ -31,10 +31,10 @@ func TestNetworkWithInvalidIPAM(t *testing.T) {
 			},
 		},
 		{
-			name:           "IPv6 subnet is discarded when IPv6 is disabled",
-			ipam:           IPAM{Config: []IPAMConfig{{Subnet: "2001:db8::/32"}}},
-			ipv6:           false,
-			expectedErrors: []string{"invalid subnet 2001:db8::/32: IPv6 has not been enabled for this network"},
+			// Regression test for https://github.com/moby/moby/issues/47202
+			name: "IPv6 subnet is discarded with no error when IPv6 is disabled",
+			ipam: IPAM{Config: []IPAMConfig{{Subnet: "2001:db8::/32"}}},
+			ipv6: false,
 		},
 		{
 			name: "Invalid data - Subnet",
