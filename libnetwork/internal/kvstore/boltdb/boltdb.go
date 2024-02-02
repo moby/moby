@@ -69,21 +69,12 @@ func New(endpoint string, options *store.Config) (store.Store, error) {
 	return b, nil
 }
 
-func (b *BoltDB) getDBhandle() (*bolt.DB, error) {
-	return b.client, nil
-}
-
 // Put the key, value pair. index number metadata is prepended to the value
 func (b *BoltDB) Put(key string, value []byte) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	db, err := b.getDBhandle()
-	if err != nil {
-		return err
-	}
-
-	return db.Update(func(tx *bolt.Tx) error {
+	return b.client.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists(b.boltBucket)
 		if err != nil {
 			return err
@@ -103,13 +94,8 @@ func (b *BoltDB) Exists(key string) (bool, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	db, err := b.getDBhandle()
-	if err != nil {
-		return false, err
-	}
-
 	var exists bool
-	err = db.View(func(tx *bolt.Tx) error {
+	err := b.client.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
 			return store.ErrKeyNotFound
@@ -132,13 +118,8 @@ func (b *BoltDB) List(keyPrefix string) ([]*store.KVPair, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	db, err := b.getDBhandle()
-	if err != nil {
-		return nil, err
-	}
-
 	var kv []*store.KVPair
-	err = db.View(func(tx *bolt.Tx) error {
+	err := b.client.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
 			return store.ErrKeyNotFound
@@ -180,12 +161,8 @@ func (b *BoltDB) AtomicDelete(key string, previous *store.KVPair) error {
 	if previous == nil {
 		return store.ErrPreviousNotSpecified
 	}
-	db, err := b.getDBhandle()
-	if err != nil {
-		return err
-	}
 
-	return db.Update(func(tx *bolt.Tx) error {
+	return b.client.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
 			return store.ErrKeyNotFound
@@ -209,14 +186,9 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair) (*s
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	db, err := b.getDBhandle()
-	if err != nil {
-		return nil, err
-	}
-
 	var dbIndex uint64
 	dbval := make([]byte, libkvmetadatalen)
-	err = db.Update(func(tx *bolt.Tx) error {
+	err := b.client.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
 			if previous != nil {
