@@ -15,9 +15,6 @@ import (
 )
 
 var (
-	// ErrMultipleEndpointsUnsupported is thrown when multiple endpoints specified for
-	// BoltDB. Endpoint has to be a local file path
-	ErrMultipleEndpointsUnsupported = errors.New("boltdb supports one endpoint and should be a file path")
 	// ErrBoltBucketOptionMissing is thrown when boltBcuket config option is missing
 	ErrBoltBucketOptionMissing = errors.New("boltBucket config option missing")
 )
@@ -46,16 +43,12 @@ const (
 )
 
 // New opens a new BoltDB connection to the specified path and bucket
-func New(endpoints []string, options *store.Config) (store.Store, error) {
-	if len(endpoints) > 1 {
-		return nil, ErrMultipleEndpointsUnsupported
-	}
-
+func New(endpoint string, options *store.Config) (store.Store, error) {
 	if (options == nil) || (len(options.Bucket) == 0) {
 		return nil, ErrBoltBucketOptionMissing
 	}
 
-	dir, _ := filepath.Split(endpoints[0])
+	dir, _ := filepath.Split(endpoint)
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
 	}
@@ -63,7 +56,7 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 	var db *bolt.DB
 	if options.PersistConnection {
 		var err error
-		db, err = bolt.Open(endpoints[0], filePerm, &bolt.Options{
+		db, err = bolt.Open(endpoint, filePerm, &bolt.Options{
 			Timeout: options.ConnectionTimeout,
 		})
 		if err != nil {
@@ -78,7 +71,7 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 
 	b := &BoltDB{
 		client:            db,
-		path:              endpoints[0],
+		path:              endpoint,
 		boltBucket:        []byte(options.Bucket),
 		timeout:           timeout,
 		PersistConnection: options.PersistConnection,

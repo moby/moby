@@ -13,7 +13,7 @@ import (
 // test only works on linux
 func TestDNSIPQuery(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	c, err := New()
+	c, err := New(OptionBoltdbWithRandomDBFile(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestDNSProxyServFail(t *testing.T) {
 	osctx := netnsutils.SetupTestOSContextEx(t)
 	defer osctx.Cleanup(t)
 
-	c, err := New()
+	c, err := New(OptionBoltdbWithRandomDBFile(t))
 	if err != nil {
 		t.Fatal(err)
 	}

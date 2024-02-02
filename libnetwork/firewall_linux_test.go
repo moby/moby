@@ -54,12 +54,14 @@ func TestUserChain(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
 			defer resetIptables(t)
 
-			c, err := New(config.OptionDriverConfig("bridge", map[string]any{
-				netlabel.GenericData: options.Generic{
-					"EnableIPTables":  tc.iptables,
-					"EnableIP6Tables": tc.iptables,
-				},
-			}))
+			c, err := New(
+				OptionBoltdbWithRandomDBFile(t),
+				config.OptionDriverConfig("bridge", map[string]any{
+					netlabel.GenericData: options.Generic{
+						"EnableIPTables":  tc.iptables,
+						"EnableIP6Tables": tc.iptables,
+					},
+				}))
 			assert.NilError(t, err)
 			defer c.Stop()
 

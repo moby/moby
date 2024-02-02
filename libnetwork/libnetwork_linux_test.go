@@ -1197,7 +1197,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctrlr, err := libnetwork.New()
+	ctrlr, err := libnetwork.New(libnetwork.OptionBoltdbWithRandomDBFile(t))
 	if err != nil {
 		t.Fatal(err)
 	}

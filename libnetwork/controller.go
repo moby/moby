@@ -344,14 +344,7 @@ func (c *Controller) makeDriverConfig(ntype string) map[string]interface{} {
 	}
 
 	if c.cfg.Scope.IsValid() {
-		// FIXME: every driver instance constructs a new DataStore
-		// instance against the same database. Yikes!
-		cfg[netlabel.LocalKVClient] = discoverapi.DatastoreConfigData{
-			Scope:    scope.Local,
-			Provider: c.cfg.Scope.Client.Provider,
-			Address:  c.cfg.Scope.Client.Address,
-			Config:   c.cfg.Scope.Client.Config,
-		}
+		cfg[netlabel.LocalKVClient] = c.store
 	}
 
 	return cfg

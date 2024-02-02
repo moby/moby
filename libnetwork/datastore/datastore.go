@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/libnetwork/discoverapi"
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
 	"github.com/docker/docker/libnetwork/types"
@@ -93,6 +92,7 @@ func DefaultScope(dataDir string) ScopeCfg {
 			Config: &store.Config{
 				Bucket:            "libnetwork",
 				ConnectionTimeout: time.Minute,
+				PersistConnection: true,
 			},
 		},
 	}
@@ -129,8 +129,7 @@ func newClient(kv string, addr string, config *store.Config) (*Store, error) {
 		config = &store.Config{}
 	}
 
-	// Parse file path
-	s, err := boltdb.New(strings.Split(addr, ","), config)
+	s, err := boltdb.New(addr, config)
 	if err != nil {
 		return nil, err
 	}
@@ -145,32 +144,6 @@ func New(cfg ScopeCfg) (*Store, error) {
 	}
 
 	return newClient(cfg.Client.Provider, cfg.Client.Address, cfg.Client.Config)
-}
-
-// FromConfig creates a new instance of LibKV data store starting from the datastore config data.
-func FromConfig(dsc discoverapi.DatastoreConfigData) (*Store, error) {
-	var (
-		ok    bool
-		sCfgP *store.Config
-	)
-
-	sCfgP, ok = dsc.Config.(*store.Config)
-	if !ok && dsc.Config != nil {
-		return nil, fmt.Errorf("cannot parse store configuration: %v", dsc.Config)
-	}
-
-	ds, err := New(ScopeCfg{
-		Client: ScopeClientCfg{
-			Address:  dsc.Address,
-			Provider: dsc.Provider,
-			Config:   sCfgP,
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to construct datastore client from datastore configuration %v: %v", dsc, err)
-	}
-
-	return ds, err
 }
 
 // Close closes the data store.

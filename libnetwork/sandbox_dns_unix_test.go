@@ -15,7 +15,7 @@ import (
 func TestDNSOptions(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
-	c, err := New()
+	c, err := New(OptionBoltdbWithRandomDBFile(t))
 	assert.NilError(t, err)
 
 	sb, err := c.NewSandbox("cnt1", nil)
