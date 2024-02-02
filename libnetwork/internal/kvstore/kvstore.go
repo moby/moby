@@ -28,7 +28,6 @@ var (
 type Config struct {
 	ConnectionTimeout time.Duration
 	Bucket            string
-	PersistConnection bool
 }
 
 // Store represents the backend K/V storage

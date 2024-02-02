@@ -92,7 +92,6 @@ func DefaultScope(dataDir string) ScopeCfg {
 			Config: &store.Config{
 				Bucket:            "libnetwork",
 				ConnectionTimeout: time.Minute,
-				PersistConnection: true,
 			},
 		},
 	}
