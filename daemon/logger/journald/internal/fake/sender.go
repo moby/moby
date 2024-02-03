@@ -22,6 +22,7 @@ import (
 
 	"code.cloudfoundry.org/clock"
 	"github.com/coreos/go-systemd/v22/journal"
+	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 
 	"github.com/docker/docker/daemon/logger/journald/internal/export"
@@ -67,6 +68,14 @@ type Sender struct {
 	// timestamp in zero time after the SYSLOG_TIMESTAMP value was set,
 	// which is higly unrealistic in practice.
 	AssignEventTimestampFromSyslogTimestamp bool
+	// Boot ID for journal entries. Required by systemd-journal-remote as of
+	// https://github.com/systemd/systemd/commit/1eede158519e4e5ed22738c90cb57a91dbecb7f2
+	// (systemd 255).
+	BootID uuid.UUID
+
+	// When set, Send will act as a test helper and redirect
+	// systemd-journal-remote command output to the test log.
+	TB testing.TB
 }
 
 // New constructs a new Sender which will write journal entries to outpath. The
@@ -82,6 +91,7 @@ func New(outpath string) (*Sender, error) {
 		CmdName:    p,
 		OutputPath: outpath,
 		Clock:      clock.NewClock(),
+		BootID:     uuid.New(), // UUIDv4, like systemd itself generates for sd_id128 values.
 	}
 	return sender, nil
 }
@@ -95,6 +105,7 @@ func NewT(t *testing.T, outpath string) *Sender {
 		t.Skip(err)
 	}
 	assert.NilError(t, err)
+	s.TB = t
 	return s
 }
 
@@ -103,6 +114,9 @@ var validVarName = regexp.MustCompile("^[A-Z0-9][A-Z0-9_]*$")
 // Send is a drop-in replacement for
 // github.com/coreos/go-systemd/v22/journal.Send.
 func (s *Sender) Send(message string, priority journal.Priority, vars map[string]string) error {
+	if s.TB != nil {
+		s.TB.Helper()
+	}
 	var buf bytes.Buffer
 	// https://systemd.io/JOURNAL_EXPORT_FORMATS/ says "if you are
 	// generating this format you shouldn’t care about these special
@@ -119,6 +133,9 @@ func (s *Sender) Send(message string, priority journal.Priority, vars map[string
 		ts = s.Clock.Now()
 	}
 	if err := export.WriteField(&buf, "__REALTIME_TIMESTAMP", strconv.FormatInt(ts.UnixMicro(), 10)); err != nil {
+		return fmt.Errorf("fake: error writing entry to systemd-journal-remote: %w", err)
+	}
+	if err := export.WriteField(&buf, "_BOOT_ID", fmt.Sprintf("%x", [16]byte(s.BootID))); err != nil {
 		return fmt.Errorf("fake: error writing entry to systemd-journal-remote: %w", err)
 	}
 	if err := export.WriteField(&buf, "MESSAGE", message); err != nil {
@@ -143,6 +160,16 @@ func (s *Sender) Send(message string, priority journal.Priority, vars map[string
 	// has been flushed to disk when Send returns.
 	cmd := exec.Command(s.CmdName, "--output", s.OutputPath, "-")
 	cmd.Stdin = &buf
+
+	if s.TB != nil {
+		out, err := cmd.CombinedOutput()
+		s.TB.Logf("[systemd-journal-remote] %s", out)
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			s.TB.Logf("systemd-journal-remote exit status: %d", exitErr.ExitCode())
+		}
+		return err
+	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

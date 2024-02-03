@@ -1,6 +1,7 @@
 package loggertest // import "github.com/docker/docker/daemon/logger/loggertest"
 
 import (
+	"fmt"
 	"runtime"
 	"strings"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/assert/opt"
 
 	"github.com/docker/docker/api/types/backend"
@@ -194,28 +196,31 @@ func (tr Reader) testTailEmptyLogs(t *testing.T, live bool) {
 func (tr Reader) TestFollow(t *testing.T) {
 	// Reader sends all logs and closes after logger is closed
 	// - Starting from empty log (like run)
-	t.Run("FromEmptyLog", func(t *testing.T) {
-		t.Parallel()
-		l := tr.Factory(t, logger.Info{
-			ContainerID:   "followstart0",
-			ContainerName: "logloglog",
-		})(t)
-		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: -1, Follow: true})
-		defer lw.ConsumerGone()
+	for i, tail := range []int{-1, 0, 1, 42} {
+		i, tail := i, tail
+		t.Run(fmt.Sprintf("FromEmptyLog/Tail=%d", tail), func(t *testing.T) {
+			t.Parallel()
+			l := tr.Factory(t, logger.Info{
+				ContainerID:   fmt.Sprintf("followstart%d", i),
+				ContainerName: fmt.Sprintf("logloglog%d", i),
+			})(t)
+			lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: tail, Follow: true})
+			defer lw.ConsumerGone()
 
-		doneReading := make(chan struct{})
-		var logs []*logger.Message
-		go func() {
-			defer close(doneReading)
-			logs = readAll(t, lw)
-		}()
+			doneReading := make(chan struct{})
+			var logs []*logger.Message
+			go func() {
+				defer close(doneReading)
+				logs = readAll(t, lw)
+			}()
 
-		mm := makeTestMessages()
-		expected := logMessages(t, l, mm)
-		assert.NilError(t, l.Close())
-		<-doneReading
-		assert.DeepEqual(t, logs, expected, compareLog)
-	})
+			mm := makeTestMessages()
+			expected := logMessages(t, l, mm)
+			assert.NilError(t, l.Close())
+			<-doneReading
+			assert.DeepEqual(t, logs, expected, compareLog)
+		})
+	}
 
 	t.Run("AttachMidStream", func(t *testing.T) {
 		t.Parallel()
@@ -433,7 +438,7 @@ func (tr Reader) TestConcurrent(t *testing.T) {
 	logAll := func(msgs []*logger.Message) {
 		defer wg.Done()
 		for _, m := range msgs {
-			l.Log(copyLogMessage(m))
+			assert.Check(t, l.Log(copyLogMessage(m)), "failed to log message %+v", m)
 		}
 	}
 
@@ -445,6 +450,15 @@ func (tr Reader) TestConcurrent(t *testing.T) {
 		defer close(closed)
 		defer l.Close()
 		wg.Wait()
+	}()
+	defer func() {
+		// Make sure log gets closed before we return
+		// so the temporary dir can be deleted
+		select {
+		case <-time.After(10 * time.Second):
+			t.Fatal("timed out waiting for logger to close")
+		case <-closed:
+		}
 	}()
 
 	// Check if the message count, order and content is equal to what was logged
@@ -469,12 +483,8 @@ func (tr Reader) TestConcurrent(t *testing.T) {
 		*messages = (*messages)[1:]
 	}
 
-	assert.Equal(t, len(stdoutMessages), 0)
-	assert.Equal(t, len(stderrMessages), 0)
-
-	// Make sure log gets closed before we return
-	// so the temporary dir can be deleted
-	<-closed
+	assert.Check(t, is.Len(stdoutMessages, 0), "expected stdout messages were not read")
+	assert.Check(t, is.Len(stderrMessages, 0), "expected stderr messages were not read")
 }
 
 // logMessages logs messages to l and returns a slice of messages as would be
