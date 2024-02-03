@@ -3,11 +3,13 @@ package bridge
 import (
 	"bytes"
 	"net"
+	"syscall"
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/vishvananda/netlink"
+	"gotest.tools/v3/assert"
 )
 
 func TestSetupNewBridge(t *testing.T) {
@@ -91,4 +93,36 @@ func TestGenerateRandomMAC(t *testing.T) {
 	if bytes.Equal(mac1, mac2) {
 		t.Fatalf("Generated twice the same MAC address %v", mac1)
 	}
+}
+
+func TestMTUBiggerThan1500(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	nh, err := netlink.NewHandle()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nh.Close()
+
+	config := &networkConfiguration{BridgeName: DefaultBridgeName, Mtu: 9000}
+	br := &bridgeInterface{nlh: nh}
+
+	assert.NilError(t, setupDevice(config, br))
+	assert.NilError(t, setupMTU(config, br))
+}
+
+func TestMTUBiggerThan64K(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	nh, err := netlink.NewHandle()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nh.Close()
+
+	config := &networkConfiguration{BridgeName: DefaultBridgeName, Mtu: 65536}
+	br := &bridgeInterface{nlh: nh}
+
+	assert.NilError(t, setupDevice(config, br))
+	assert.ErrorIs(t, setupMTU(config, br), syscall.EINVAL)
 }
