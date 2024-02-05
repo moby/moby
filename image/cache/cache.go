@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/containerd/containerd/platforms"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
@@ -255,11 +254,12 @@ func getLocalCachedImage(imageStore image.Store, imgID image.ID, config *contain
 				OSFeatures:   img.OSFeatures,
 				Variant:      img.Variant,
 			}
+
 			// Discard old linux/amd64 images with empty platform.
 			if imgPlatform.OS == "" && imgPlatform.Architecture == "" {
 				continue
 			}
-			if !platforms.OnlyStrict(platform).Match(imgPlatform) {
+			if !comparePlatform(platform, imgPlatform) {
 				continue
 			}
 
