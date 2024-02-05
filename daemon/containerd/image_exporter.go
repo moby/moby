@@ -168,6 +168,12 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 
 		ref, refErr := reference.ParseNormalizedNamed(name)
 
+		if refErr == nil {
+			if _, ok := ref.(reference.Digested); ok {
+				specificDigestResolved = true
+			}
+		}
+
 		if resolveErr != nil || !specificDigestResolved {
 			// Name didn't resolve to anything, or name wasn't explicitly referencing a digest
 			if refErr == nil && reference.IsNameOnly(ref) {

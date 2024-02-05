@@ -1,6 +1,7 @@
 package specialimage
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -41,7 +42,10 @@ func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFu
 		t.Fatalf("Failed load: %s", string(respBody))
 	}
 
-	decoder := json.NewDecoder(resp.Body)
+	all, err := io.ReadAll(resp.Body)
+	assert.NilError(t, err)
+
+	decoder := json.NewDecoder(bytes.NewReader(all))
 	for {
 		var msg jsonmessage.JSONMessage
 		err := decoder.Decode(&msg)
@@ -61,6 +65,6 @@ func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFu
 		}
 	}
 
-	t.Fatal("failed to read image ID")
+	t.Fatalf("failed to read image ID\n%s", string(all))
 	return ""
 }
