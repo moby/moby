@@ -124,6 +124,49 @@ func TestPluginInstall(t *testing.T) {
 		assert.NilError(t, err)
 	})
 
+	t.Run("with digest", func(t *testing.T) {
+		ctx := setupTest(t)
+
+		reg := registry.NewV2(t)
+		defer reg.Close()
+
+		name := "test-" + strings.ToLower(t.Name())
+		repo := path.Join(registry.DefaultURL, name+":latest")
+		err := plugin.Create(ctx, client, repo)
+		assert.NilError(t, err)
+
+		rdr, err := client.PluginPush(ctx, repo, "")
+		assert.NilError(t, err)
+		defer rdr.Close()
+
+		buf := &strings.Builder{}
+		assert.NilError(t, err)
+		var digest string
+		assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(rdr, buf, 0, false, func(j jsonmessage.JSONMessage) {
+			if j.Aux != nil {
+				var r types.PushResult
+				assert.NilError(t, json.Unmarshal(*j.Aux, &r))
+				digest = r.Digest
+			}
+		}), buf)
+
+		err = client.PluginRemove(ctx, repo, types.PluginRemoveOptions{Force: true})
+		assert.NilError(t, err)
+
+		rdr, err = client.PluginInstall(ctx, repo, types.PluginInstallOptions{
+			Disabled:  true,
+			RemoteRef: repo + "@" + digest,
+		})
+		assert.NilError(t, err)
+		defer rdr.Close()
+
+		_, err = io.Copy(io.Discard, rdr)
+		assert.NilError(t, err)
+
+		_, _, err = client.PluginInspectWithRaw(ctx, repo)
+		assert.NilError(t, err)
+	})
+
 	t.Run("with htpasswd", func(t *testing.T) {
 		ctx := setupTest(t)
 

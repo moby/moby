@@ -200,8 +200,13 @@ func withFetchProgress(cs content.Store, out progress.Output, ref reference.Name
 		switch desc.MediaType {
 		case ocispec.MediaTypeImageManifest, images.MediaTypeDockerSchema2Manifest:
 			tn := reference.TagNameOnly(ref)
-			tagged := tn.(reference.Tagged)
-			progress.Messagef(out, tagged.Tag(), "Pulling from %s", reference.FamiliarName(ref))
+			var tagOrDigest string
+			if tagged, ok := tn.(reference.Tagged); ok {
+				tagOrDigest = tagged.Tag()
+			} else {
+				tagOrDigest = tn.String()
+			}
+			progress.Messagef(out, tagOrDigest, "Pulling from %s", reference.FamiliarName(ref))
 			progress.Messagef(out, "", "Digest: %s", desc.Digest.String())
 			return nil, nil
 		case
