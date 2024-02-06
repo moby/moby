@@ -780,7 +780,8 @@
 			"names": [
 				"get_mempolicy",
 				"mbind",
-				"set_mempolicy"
+				"set_mempolicy",
+				"set_mempolicy_home_node"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"includes": {
