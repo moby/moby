@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.0](https://github.com/google/uuid/compare/v1.5.0...v1.6.0) (2024-01-16)
+
+
+### Features
+
+* add Max UUID constant ([#149](https://github.com/google/uuid/issues/149)) ([c58770e](https://github.com/google/uuid/commit/c58770eb495f55fe2ced6284f93c5158a62e53e3))
+
+
+### Bug Fixes
+
+* fix typo in version 7 uuid documentation ([#153](https://github.com/google/uuid/issues/153)) ([016b199](https://github.com/google/uuid/commit/016b199544692f745ffc8867b914129ecb47ef06))
+* Monotonicity in UUIDv7 ([#150](https://github.com/google/uuid/issues/150)) ([a2b2b32](https://github.com/google/uuid/commit/a2b2b32373ff0b1a312b7fdf6d38a977099698a6))
+
 ## [1.5.0](https://github.com/google/uuid/compare/v1.4.0...v1.5.0) (2023-12-12)
 
 
