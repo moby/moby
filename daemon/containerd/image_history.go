@@ -2,18 +2,14 @@ package containerd
 
 import (
 	"context"
-	"sort"
 
-	"github.com/containerd/containerd/images"
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -25,33 +21,13 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 		return nil, err
 	}
 
-	cs := i.client.ContentStore()
 	// TODO: pass platform in from the CLI
 	platform := matchAllWithPreference(platforms.Default())
 
-	var presentImages []ocispec.Image
-	err = i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
-		conf, err := img.Config(ctx)
-		if err != nil {
-			return err
-		}
-		var ociImage ocispec.Image
-		if err := readConfig(ctx, cs, conf, &ociImage); err != nil {
-			return err
-		}
-		presentImages = append(presentImages, ociImage)
-		return nil
-	})
+	presentImages, err := i.presentImages(ctx, img, name, platform)
 	if err != nil {
 		return nil, err
 	}
-	if len(presentImages) == 0 {
-		return nil, errdefs.NotFound(errors.New("failed to find image manifest"))
-	}
-
-	sort.SliceStable(presentImages, func(i, j int) bool {
-		return platform.Less(presentImages[i].Platform, presentImages[j].Platform)
-	})
 	ociImage := presentImages[0]
 
 	var (
@@ -96,7 +72,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 		}}, history...)
 	}
 
-	findParents := func(img images.Image) []images.Image {
+	findParents := func(img containerdimages.Image) []containerdimages.Image {
 		imgs, err := i.getParentsByBuilderLabel(ctx, img)
 		if err != nil {
 			log.G(ctx).WithFields(log.Fields{
@@ -141,7 +117,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 	return history, nil
 }
 
-func getImageTags(ctx context.Context, imgs []images.Image) []string {
+func getImageTags(ctx context.Context, imgs []containerdimages.Image) []string {
 	var tags []string
 	for _, img := range imgs {
 		if isDanglingImage(img) {
