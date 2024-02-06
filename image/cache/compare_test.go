@@ -4,10 +4,10 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -132,63 +132,63 @@ func TestCompare(t *testing.T) {
 func TestPlatformCompare(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
-		builder  platforms.Platform
-		image    platforms.Platform
+		builder  ocispec.Platform
+		image    ocispec.Platform
 		expected bool
 	}{
 		{
 			name:     "same os and arch",
-			builder:  platforms.Platform{Architecture: "amd64", OS: runtime.GOOS},
-			image:    platforms.Platform{Architecture: "amd64", OS: runtime.GOOS},
+			builder:  ocispec.Platform{Architecture: "amd64", OS: runtime.GOOS},
+			image:    ocispec.Platform{Architecture: "amd64", OS: runtime.GOOS},
 			expected: true,
 		},
 		{
 			name:     "same os different arch",
-			builder:  platforms.Platform{Architecture: "amd64", OS: runtime.GOOS},
-			image:    platforms.Platform{Architecture: "arm64", OS: runtime.GOOS},
+			builder:  ocispec.Platform{Architecture: "amd64", OS: runtime.GOOS},
+			image:    ocispec.Platform{Architecture: "arm64", OS: runtime.GOOS},
 			expected: false,
 		},
 		{
 			name:     "same os smaller host variant",
-			builder:  platforms.Platform{Variant: "v7", Architecture: "arm", OS: runtime.GOOS},
-			image:    platforms.Platform{Variant: "v8", Architecture: "arm", OS: runtime.GOOS},
+			builder:  ocispec.Platform{Variant: "v7", Architecture: "arm", OS: runtime.GOOS},
+			image:    ocispec.Platform{Variant: "v8", Architecture: "arm", OS: runtime.GOOS},
 			expected: false,
 		},
 		{
 			name:     "same os higher host variant",
-			builder:  platforms.Platform{Variant: "v8", Architecture: "arm", OS: runtime.GOOS},
-			image:    platforms.Platform{Variant: "v7", Architecture: "arm", OS: runtime.GOOS},
+			builder:  ocispec.Platform{Variant: "v8", Architecture: "arm", OS: runtime.GOOS},
+			image:    ocispec.Platform{Variant: "v7", Architecture: "arm", OS: runtime.GOOS},
 			expected: true,
 		},
 		{
 			// Test for https://github.com/moby/moby/issues/47307
 			name:     "different build and revision",
-			builder:  platforms.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.22621"},
-			image:    platforms.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
+			builder:  ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.22621"},
+			image:    ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
 			expected: true,
 		},
 		{
 			name:     "different revision",
-			builder:  platforms.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.1234"},
-			image:    platforms.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
+			builder:  ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.1234"},
+			image:    ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
 			expected: true,
 		},
 		{
 			name:     "different major",
-			builder:  platforms.Platform{Architecture: "amd64", OS: "windows", OSVersion: "11.0.17763.5329"},
-			image:    platforms.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
+			builder:  ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "11.0.17763.5329"},
+			image:    ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
 			expected: false,
 		},
 		{
 			name:     "different minor same osver",
-			builder:  platforms.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
-			image:    platforms.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.1.17763.5329"},
+			builder:  ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
+			image:    ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.1.17763.5329"},
 			expected: false,
 		},
 		{
 			name:     "different arch same osver",
-			builder:  platforms.Platform{Architecture: "arm64", OS: "windows", OSVersion: "10.0.17763.5329"},
-			image:    platforms.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
+			builder:  ocispec.Platform{Architecture: "arm64", OS: "windows", OSVersion: "10.0.17763.5329"},
+			image:    ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
 			expected: false,
 		},
 	} {
