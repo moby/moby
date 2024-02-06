@@ -1,11 +1,15 @@
 package cache // import "github.com/docker/docker/image/cache"
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // Just to make life easier
@@ -122,5 +126,81 @@ func TestCompare(t *testing.T) {
 		if compare(config1, config2) {
 			t.Fatalf("Compare should be false for [%v] and [%v]", config1, config2)
 		}
+	}
+}
+
+func TestPlatformCompare(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		builder  ocispec.Platform
+		image    ocispec.Platform
+		expected bool
+	}{
+		{
+			name:     "same os and arch",
+			builder:  ocispec.Platform{Architecture: "amd64", OS: runtime.GOOS},
+			image:    ocispec.Platform{Architecture: "amd64", OS: runtime.GOOS},
+			expected: true,
+		},
+		{
+			name:     "same os different arch",
+			builder:  ocispec.Platform{Architecture: "amd64", OS: runtime.GOOS},
+			image:    ocispec.Platform{Architecture: "arm64", OS: runtime.GOOS},
+			expected: false,
+		},
+		{
+			name:     "same os smaller host variant",
+			builder:  ocispec.Platform{Variant: "v7", Architecture: "arm", OS: runtime.GOOS},
+			image:    ocispec.Platform{Variant: "v8", Architecture: "arm", OS: runtime.GOOS},
+			expected: false,
+		},
+		{
+			name:     "same os higher host variant",
+			builder:  ocispec.Platform{Variant: "v8", Architecture: "arm", OS: runtime.GOOS},
+			image:    ocispec.Platform{Variant: "v7", Architecture: "arm", OS: runtime.GOOS},
+			expected: true,
+		},
+		{
+			// Test for https://github.com/moby/moby/issues/47307
+			name:     "different build and revision",
+			builder:  ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.22621"},
+			image:    ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
+			expected: true,
+		},
+		{
+			name:     "different revision",
+			builder:  ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.1234"},
+			image:    ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
+			expected: true,
+		},
+		{
+			name:     "different major",
+			builder:  ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "11.0.17763.5329"},
+			image:    ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
+			expected: false,
+		},
+		{
+			name:     "different minor same osver",
+			builder:  ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
+			image:    ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.1.17763.5329"},
+			expected: false,
+		},
+		{
+			name:     "different arch same osver",
+			builder:  ocispec.Platform{Architecture: "arm64", OS: "windows", OSVersion: "10.0.17763.5329"},
+			image:    ocispec.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.17763.5329"},
+			expected: false,
+		},
+	} {
+		tc := tc
+		// OSVersion comparison is only performed by containerd platform
+		// matcher if built on Windows.
+		if (tc.image.OSVersion != "" || tc.builder.OSVersion != "") && runtime.GOOS != "windows" {
+			continue
+		}
+
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Check(t, is.Equal(comparePlatform(tc.builder, tc.image), tc.expected))
+		})
 	}
 }
