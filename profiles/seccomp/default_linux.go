@@ -124,6 +124,7 @@ func DefaultProfile() *Seccomp {
 					"ftruncate",
 					"ftruncate64",
 					"futex",
+					"futex_requeue", // kernel v6.7, libseccomp v2.5.5
 					"futex_time64",
 					"futex_waitv",
 					"futimesat",
