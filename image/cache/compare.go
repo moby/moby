@@ -1,13 +1,40 @@
 package cache // import "github.com/docker/docker/image/cache"
 
 import (
+	"strings"
+
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types/container"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // TODO: Remove once containerd image service directly uses the ImageCache and
 // LocalImageCache structs.
 func CompareConfig(a, b *container.Config) bool {
 	return compare(a, b)
+}
+
+func comparePlatform(builderPlatform, imagePlatform ocispec.Platform) bool {
+	// On Windows, only check the Major and Minor versions.
+	// The Build and Revision compatibility depends on whether `process` or
+	// `hyperv` isolation used.
+	//
+	// Fixes https://github.com/moby/moby/issues/47307
+	if builderPlatform.OS == "windows" && imagePlatform.OS == builderPlatform.OS {
+		// OSVersion format is:
+		// Major.Minor.Build.Revision
+		builderParts := strings.Split(builderPlatform.OSVersion, ".")
+		imageParts := strings.Split(imagePlatform.OSVersion, ".")
+
+		if len(builderParts) >= 3 && len(imageParts) >= 3 {
+			// Keep only Major & Minor.
+			builderParts[0] = imageParts[0]
+			builderParts[1] = imageParts[1]
+			imagePlatform.OSVersion = strings.Join(builderParts, ".")
+		}
+	}
+
+	return platforms.Only(builderPlatform).Match(imagePlatform)
 }
 
 // compare two Config struct. Do not container-specific fields:
