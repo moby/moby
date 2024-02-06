@@ -64,6 +64,7 @@
 				"alarm",
 				"bind",
 				"brk",
+				"cachestat",
 				"capget",
 				"capset",
 				"chdir",
@@ -109,6 +110,7 @@
 				"fchdir",
 				"fchmod",
 				"fchmodat",
+				"fchmodat2",
 				"fchown",
 				"fchown32",
 				"fchownat",
@@ -130,8 +132,11 @@
 				"ftruncate",
 				"ftruncate64",
 				"futex",
+				"futex_requeue",
 				"futex_time64",
+				"futex_wait",
 				"futex_waitv",
+				"futex_wake",
 				"futimesat",
 				"getcpu",
 				"getcwd",
@@ -203,6 +208,7 @@
 				"lstat",
 				"lstat64",
 				"madvise",
+				"map_shadow_stack",
 				"membarrier",
 				"memfd_create",
 				"memfd_secret",
@@ -780,7 +786,8 @@
 			"names": [
 				"get_mempolicy",
 				"mbind",
-				"set_mempolicy"
+				"set_mempolicy",
+				"set_mempolicy_home_node"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"includes": {

@@ -56,6 +56,7 @@ func DefaultProfile() *Seccomp {
 					"alarm",
 					"bind",
 					"brk",
+					"cachestat", // kernel v6.5, libseccomp v2.5.5
 					"capget",
 					"capset",
 					"chdir",
@@ -101,6 +102,7 @@ func DefaultProfile() *Seccomp {
 					"fchdir",
 					"fchmod",
 					"fchmodat",
+					"fchmodat2", // kernel v6.6, libseccomp v2.5.5
 					"fchown",
 					"fchown32",
 					"fchownat",
@@ -122,8 +124,11 @@ func DefaultProfile() *Seccomp {
 					"ftruncate",
 					"ftruncate64",
 					"futex",
+					"futex_requeue", // kernel v6.7, libseccomp v2.5.5
 					"futex_time64",
+					"futex_wait", // kernel v6.7, libseccomp v2.5.5
 					"futex_waitv",
+					"futex_wake", // kernel v6.7, libseccomp v2.5.5
 					"futimesat",
 					"getcpu",
 					"getcwd",
@@ -195,6 +200,7 @@ func DefaultProfile() *Seccomp {
 					"lstat",
 					"lstat64",
 					"madvise",
+					"map_shadow_stack", // kernel v6.6, libseccomp v2.5.5
 					"membarrier",
 					"memfd_create",
 					"memfd_secret",
@@ -768,6 +774,7 @@ func DefaultProfile() *Seccomp {
 					"get_mempolicy",
 					"mbind",
 					"set_mempolicy",
+					"set_mempolicy_home_node", // kernel v5.17, libseccomp v2.5.4
 				},
 				Action: specs.ActAllow,
 			},
