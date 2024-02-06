@@ -768,6 +768,7 @@ func DefaultProfile() *Seccomp {
 					"get_mempolicy",
 					"mbind",
 					"set_mempolicy",
+					"set_mempolicy_home_node", // kernel v5.17, libseccomp v2.5.4
 				},
 				Action: specs.ActAllow,
 			},
