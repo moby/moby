@@ -26,6 +26,13 @@ func comparePlatform(builderPlatform, imagePlatform ocispec.Platform) bool {
 		builderParts := strings.Split(builderPlatform.OSVersion, ".")
 		imageParts := strings.Split(imagePlatform.OSVersion, ".")
 
+		// Major and minor must match.
+		for i := 0; i < 2; i++ {
+			if len(builderParts) > i && len(imageParts) > i && builderParts[i] != imageParts[i] {
+				return false
+			}
+		}
+
 		if len(builderParts) >= 3 && len(imageParts) >= 3 {
 			// Keep only Major & Minor.
 			builderParts[0] = imageParts[0]
