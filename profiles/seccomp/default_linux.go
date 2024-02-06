@@ -102,6 +102,7 @@ func DefaultProfile() *Seccomp {
 					"fchdir",
 					"fchmod",
 					"fchmodat",
+					"fchmodat2", // kernel v6.6, libseccomp v2.5.5
 					"fchown",
 					"fchown32",
 					"fchownat",
