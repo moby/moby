@@ -208,6 +208,7 @@
 				"lstat",
 				"lstat64",
 				"madvise",
+				"map_shadow_stack",
 				"membarrier",
 				"memfd_create",
 				"memfd_secret",

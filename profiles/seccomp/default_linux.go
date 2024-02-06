@@ -200,6 +200,7 @@ func DefaultProfile() *Seccomp {
 					"lstat",
 					"lstat64",
 					"madvise",
+					"map_shadow_stack", // kernel v6.6, libseccomp v2.5.5
 					"membarrier",
 					"memfd_create",
 					"memfd_secret",
