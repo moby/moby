@@ -134,6 +134,7 @@
 				"futex",
 				"futex_requeue",
 				"futex_time64",
+				"futex_wait",
 				"futex_waitv",
 				"futimesat",
 				"getcpu",
