@@ -64,6 +64,7 @@
 				"alarm",
 				"bind",
 				"brk",
+				"cachestat",
 				"capget",
 				"capset",
 				"chdir",
