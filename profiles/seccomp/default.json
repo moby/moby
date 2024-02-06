@@ -132,6 +132,7 @@
 				"ftruncate",
 				"ftruncate64",
 				"futex",
+				"futex_requeue",
 				"futex_time64",
 				"futex_waitv",
 				"futimesat",
