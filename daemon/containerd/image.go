@@ -42,44 +42,10 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 		platform = platforms.OnlyStrict(*options.Platform)
 	}
 
-	var presentImages []imagespec.DockerOCIImage
-	err = i.walkImageManifests(ctx, desc, func(img *ImageManifest) error {
-		conf, err := img.Config(ctx)
-		if err != nil {
-			if cerrdefs.IsNotFound(err) {
-				log.G(ctx).WithFields(log.Fields{
-					"manifestDescriptor": img.Target(),
-				}).Debug("manifest was present, but accessing its config failed, ignoring")
-				return nil
-			}
-			return errdefs.System(fmt.Errorf("failed to get config descriptor: %w", err))
-		}
-
-		var ociimage imagespec.DockerOCIImage
-		if err := readConfig(ctx, i.content, conf, &ociimage); err != nil {
-			if cerrdefs.IsNotFound(err) {
-				log.G(ctx).WithFields(log.Fields{
-					"manifestDescriptor": img.Target(),
-					"configDescriptor":   conf,
-				}).Debug("manifest present, but its config is missing, ignoring")
-				return nil
-			}
-			return errdefs.System(fmt.Errorf("failed to read config of the manifest %v: %w", img.Target().Digest, err))
-		}
-		presentImages = append(presentImages, ociimage)
-		return nil
-	})
+	presentImages, err := i.presentImages(ctx, desc, refOrID, platform)
 	if err != nil {
 		return nil, err
 	}
-	if len(presentImages) == 0 {
-		ref, _ := reference.ParseAnyReference(refOrID)
-		return nil, images.ErrImageDoesNotExist{Ref: ref}
-	}
-
-	sort.SliceStable(presentImages, func(i, j int) bool {
-		return platform.Less(presentImages[i].Platform, presentImages[j].Platform)
-	})
 	ociImage := presentImages[0]
 
 	img := dockerOciImageToDockerImagePartial(image.ID(desc.Target.Digest), ociImage)
@@ -154,6 +120,56 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 	}
 
 	return img, nil
+}
+
+// presentImages returns the images that are present in the content store,
+// manifests without a config are ignored.
+// The images are filtered and sorted by platform preference.
+func (i *ImageService) presentImages(ctx context.Context, desc containerdimages.Image, refOrID string, platform platforms.MatchComparer) ([]imagespec.DockerOCIImage, error) {
+	var presentImages []imagespec.DockerOCIImage
+	err := i.walkImageManifests(ctx, desc, func(img *ImageManifest) error {
+		conf, err := img.Config(ctx)
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				log.G(ctx).WithFields(log.Fields{
+					"manifestDescriptor": img.Target(),
+				}).Debug("manifest was present, but accessing its config failed, ignoring")
+				return nil
+			}
+			return errdefs.System(fmt.Errorf("failed to get config descriptor: %w", err))
+		}
+
+		var ociimage imagespec.DockerOCIImage
+		if err := readConfig(ctx, i.content, conf, &ociimage); err != nil {
+			if errdefs.IsNotFound(err) {
+				log.G(ctx).WithFields(log.Fields{
+					"manifestDescriptor": img.Target(),
+					"configDescriptor":   conf,
+				}).Debug("manifest present, but its config is missing, ignoring")
+				return nil
+			}
+			return errdefs.System(fmt.Errorf("failed to read config of the manifest %v: %w", img.Target().Digest, err))
+		}
+
+		if platform.Match(ociimage.Platform) {
+			presentImages = append(presentImages, ociimage)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(presentImages) == 0 {
+		ref, _ := reference.ParseAnyReference(refOrID)
+		return nil, images.ErrImageDoesNotExist{Ref: ref}
+	}
+
+	sort.SliceStable(presentImages, func(i, j int) bool {
+		return platform.Less(presentImages[i].Platform, presentImages[j].Platform)
+	})
+
+	return presentImages, nil
 }
 
 func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, options backend.GetImageOpts) (*ocispec.Descriptor, error) {
