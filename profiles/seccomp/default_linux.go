@@ -128,6 +128,7 @@ func DefaultProfile() *Seccomp {
 					"futex_time64",
 					"futex_wait", // kernel v6.7, libseccomp v2.5.5
 					"futex_waitv",
+					"futex_wake", // kernel v6.7, libseccomp v2.5.5
 					"futimesat",
 					"getcpu",
 					"getcwd",

@@ -136,6 +136,7 @@
 				"futex_time64",
 				"futex_wait",
 				"futex_waitv",
+				"futex_wake",
 				"futimesat",
 				"getcpu",
 				"getcwd",
