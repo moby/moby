@@ -56,6 +56,7 @@ func DefaultProfile() *Seccomp {
 					"alarm",
 					"bind",
 					"brk",
+					"cachestat", // kernel v6.5, libseccomp v2.5.5
 					"capget",
 					"capset",
 					"chdir",
