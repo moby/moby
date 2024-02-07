@@ -20,12 +20,12 @@ func setupVerifyAndReconcileIPv4(config *networkConfiguration, i *bridgeInterfac
 	addrv4, _ := selectIPv4Address(addrsv4, config.AddressIPv4)
 
 	// Verify that the bridge has an IPv4 address.
-	if !config.Internal && addrv4.IPNet == nil {
+	if addrv4.IPNet == nil {
 		return &ErrNoIPAddr{}
 	}
 
 	// Verify that the bridge IPv4 address matches the requested configuration.
-	if config.AddressIPv4 != nil && addrv4.IPNet != nil && !addrv4.IP.Equal(config.AddressIPv4.IP) {
+	if config.AddressIPv4 != nil && !addrv4.IP.Equal(config.AddressIPv4.IP) {
 		return &IPv4AddrNoMatchError{IP: addrv4.IP, CfgIP: config.AddressIPv4.IP}
 	}
 

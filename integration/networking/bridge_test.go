@@ -477,3 +477,60 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 		})
 	}
 }
+
+// Test that a container on an 'internal' network has IP connectivity with
+// the host (on its own subnet, because the n/w bridge has an address on that
+// subnet, and it's in the host's namespace).
+// Regression test for https://github.com/moby/moby/issues/47329
+func TestInternalNwConnectivity(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "-D", "--experimental", "--ip6tables")
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const bridgeName = "intnw"
+	const gw4 = "172.30.0.1"
+	const gw6 = "fda9:4130:4715::1234"
+	network.CreateNoError(ctx, t, c, bridgeName,
+		network.WithInternal(),
+		network.WithIPv6(),
+		network.WithIPAM("172.30.0.0/24", gw4),
+		network.WithIPAM("fda9:4130:4715::/64", gw6),
+		network.WithDriver("bridge"),
+		network.WithOption("com.docker.network.bridge.name", bridgeName),
+	)
+	defer network.RemoveNoError(ctx, t, c, bridgeName)
+
+	const ctrName = "intctr"
+	id := container.Run(ctx, t, c,
+		container.WithName(ctrName),
+		container.WithImage("busybox:latest"),
+		container.WithCmd("top"),
+		container.WithNetworkMode(bridgeName),
+	)
+	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+	execCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+
+	res := container.ExecT(execCtx, t, c, id, []string{"ping", "-c1", "-W3", gw4})
+	assert.Check(t, is.Equal(res.ExitCode, 0))
+	assert.Check(t, is.Equal(res.Stderr(), ""))
+	assert.Check(t, is.Contains(res.Stdout(), "1 packets transmitted, 1 packets received"))
+
+	res = container.ExecT(execCtx, t, c, id, []string{"ping6", "-c1", "-W3", gw6})
+	assert.Check(t, is.Equal(res.ExitCode, 0))
+	assert.Check(t, is.Equal(res.Stderr(), ""))
+	assert.Check(t, is.Contains(res.Stdout(), "1 packets transmitted, 1 packets received"))
+
+	// Addresses outside the internal subnet must not be accessible.
+	res = container.ExecT(execCtx, t, c, id, []string{"ping", "-c1", "-W3", "8.8.8.8"})
+	assert.Check(t, is.Equal(res.ExitCode, 1))
+	assert.Check(t, is.Contains(res.Stderr(), "Network is unreachable"))
+}
