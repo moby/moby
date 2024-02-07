@@ -3,50 +3,11 @@
 package runconfig // import "github.com/docker/docker/runconfig"
 
 import (
-	"bytes"
-	"fmt"
-	"os"
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/sysinfo"
-	"gotest.tools/v3/assert"
 )
-
-func TestDecodeHostConfig(t *testing.T) {
-	fixtures := []struct {
-		file string
-	}{
-		{"fixtures/unix/container_hostconfig_1_14.json"},
-		{"fixtures/unix/container_hostconfig_1_19.json"},
-	}
-
-	for _, f := range fixtures {
-		b, err := os.ReadFile(f.file)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		c, err := decodeHostConfig(bytes.NewReader(b))
-		if err != nil {
-			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
-		}
-
-		assert.Check(t, !c.Privileged)
-
-		if l := len(c.Binds); l != 1 {
-			t.Fatalf("Expected 1 bind, found %d\n", l)
-		}
-
-		if len(c.CapAdd) != 1 && c.CapAdd[0] != "NET_ADMIN" {
-			t.Fatalf("Expected CapAdd NET_ADMIN, got %v", c.CapAdd)
-		}
-
-		if len(c.CapDrop) != 1 && c.CapDrop[0] != "NET_ADMIN" {
-			t.Fatalf("Expected CapDrop NET_ADMIN, got %v", c.CapDrop)
-		}
-	}
-}
 
 func TestValidateResources(t *testing.T) {
 	type resourceTest struct {

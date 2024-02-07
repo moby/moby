@@ -18,7 +18,6 @@ type ContainerCreateConfig struct {
 	HostConfig       *container.HostConfig
 	NetworkingConfig *network.NetworkingConfig
 	Platform         *ocispec.Platform
-	AdjustCPUShares  bool
 }
 
 // ContainerRmConfig holds arguments for the container remove
@@ -90,7 +89,6 @@ type ContainerStatsConfig struct {
 	Stream    bool
 	OneShot   bool
 	OutStream io.Writer
-	Version   string
 }
 
 // ExecInspect holds information about a running process started

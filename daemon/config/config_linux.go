@@ -33,9 +33,6 @@ const (
 	// OCI runtime being shipped with the docker daemon package.
 	StockRuntimeName = "runc"
 
-	// minAPIVersion represents Minimum REST API version supported
-	minAPIVersion = "1.12"
-
 	// userlandProxyBinary is the name of the userland-proxy binary.
 	// In rootless-mode, [rootless.RootlessKitDockerProxyBinary] is used instead.
 	userlandProxyBinary = "docker-proxy"

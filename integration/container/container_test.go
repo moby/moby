@@ -2,7 +2,6 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"net/http"
-	"runtime"
 	"testing"
 
 	"github.com/docker/docker/testutil"
@@ -23,15 +22,6 @@ func TestContainerInvalidJSON(t *testing.T) {
 		"/containers/foobar/exec",
 		"/containers/foobar/update",
 		"/exec/foobar/start",
-	}
-
-	// windows doesnt support API < v1.24
-	if runtime.GOOS != "windows" {
-		endpoints = append(
-			endpoints,
-			"/v1.23/containers/foobar/copy",  // deprecated since 1.8 (API v1.20), errors out since 1.12 (API v1.24)
-			"/v1.23/containers/foobar/start", // accepts a body on API < v1.24
-		)
 	}
 
 	for _, ep := range endpoints {

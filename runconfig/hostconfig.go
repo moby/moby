@@ -1,22 +1,11 @@
 package runconfig // import "github.com/docker/docker/runconfig"
 
 import (
-	"io"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 )
-
-// DecodeHostConfig creates a HostConfig based on the specified Reader.
-// It assumes the content of the reader will be JSON, and decodes it.
-func decodeHostConfig(src io.Reader) (*container.HostConfig, error) {
-	var w ContainerConfigWrapper
-	if err := loadJSON(src, &w); err != nil {
-		return nil, err
-	}
-	return w.getHostConfig(), nil
-}
 
 // SetDefaultNetModeIfBlank changes the NetworkMode in a HostConfig structure
 // to default if it is not populated. This ensures backwards compatibility after

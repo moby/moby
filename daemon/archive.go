@@ -8,25 +8,6 @@ import (
 	"github.com/docker/docker/errdefs"
 )
 
-// ContainerCopy performs a deprecated operation of archiving the resource at
-// the specified path in the container identified by the given name.
-func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, error) {
-	ctr, err := daemon.GetContainer(name)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := daemon.containerCopy(ctr, res)
-	if err == nil {
-		return data, nil
-	}
-
-	if os.IsNotExist(err) {
-		return nil, containerFileNotFound{res, name}
-	}
-	return nil, errdefs.System(err)
-}
-
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
 func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {

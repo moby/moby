@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -62,9 +61,9 @@ func (s *DockerAPISuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
 	defer body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusBadRequest)
 	expected := fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", version, testEnv.DaemonVersion.MinAPIVersion)
-	content, err := io.ReadAll(body)
+	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Equal(c, strings.TrimSpace(string(content)), expected)
+	assert.Equal(c, getErrorMessage(c, b), expected)
 }
 
 func (s *DockerAPISuite) TestAPIErrorJSON(c *testing.T) {
@@ -77,19 +76,6 @@ func (s *DockerAPISuite) TestAPIErrorJSON(c *testing.T) {
 	assert.Equal(c, getErrorMessage(c, b), runconfig.ErrEmptyConfig.Error())
 }
 
-func (s *DockerAPISuite) TestAPIErrorPlainText(c *testing.T) {
-	// Windows requires API 1.25 or later. This test is validating a behaviour which was present
-	// in v1.23, but changed in 1.24, hence not applicable on Windows. See apiVersionSupportsJSONErrors
-	testRequires(c, DaemonIsLinux)
-	httpResp, body, err := request.Post(testutil.GetContext(c), "/v1.23/containers/create", request.JSONBody(struct{}{}))
-	assert.NilError(c, err)
-	assert.Equal(c, httpResp.StatusCode, http.StatusBadRequest)
-	assert.Assert(c, strings.Contains(httpResp.Header.Get("Content-Type"), "text/plain"))
-	b, err := request.ReadBody(body)
-	assert.NilError(c, err)
-	assert.Equal(c, strings.TrimSpace(string(b)), runconfig.ErrEmptyConfig.Error())
-}
-
 func (s *DockerAPISuite) TestAPIErrorNotFoundJSON(c *testing.T) {
 	// 404 is a different code path to normal errors, so test separately
 	httpResp, body, err := request.Get(testutil.GetContext(c), "/notfound", request.JSON)
@@ -99,14 +85,4 @@ func (s *DockerAPISuite) TestAPIErrorNotFoundJSON(c *testing.T) {
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
 	assert.Equal(c, getErrorMessage(c, b), "page not found")
-}
-
-func (s *DockerAPISuite) TestAPIErrorNotFoundPlainText(c *testing.T) {
-	httpResp, body, err := request.Get(testutil.GetContext(c), "/v1.23/notfound", request.JSON)
-	assert.NilError(c, err)
-	assert.Equal(c, httpResp.StatusCode, http.StatusNotFound)
-	assert.Assert(c, strings.Contains(httpResp.Header.Get("Content-Type"), "text/plain"))
-	b, err := request.ReadBody(body)
-	assert.NilError(c, err)
-	assert.Equal(c, strings.TrimSpace(string(b)), "page not found")
 }

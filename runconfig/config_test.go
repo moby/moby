@@ -26,11 +26,10 @@ func TestDecodeContainerConfig(t *testing.T) {
 		imgName  string
 	)
 
+	// FIXME (thaJeztah): update fixtures for more current versions.
 	if runtime.GOOS != "windows" {
 		imgName = "ubuntu"
 		fixtures = []f{
-			{"fixtures/unix/container_config_1_14.json", strslice.StrSlice{}},
-			{"fixtures/unix/container_config_1_17.json", strslice.StrSlice{"bash"}},
 			{"fixtures/unix/container_config_1_19.json", strslice.StrSlice{"bash"}},
 		}
 	} else {

@@ -56,9 +56,9 @@ const (
 	DefaultPluginNamespace = "plugins.moby"
 	// defaultMinAPIVersion is the minimum API version supported by the API.
 	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
-	// environment variable. The minimum allowed version is determined
-	// by [minAPIVersion].
-	defaultMinAPIVersion = "1.24"
+	// environment variable. It currently defaults to the minimum API version
+	// supported by the API server.
+	defaultMinAPIVersion = api.MinSupportedAPIVersion
 	// SeccompProfileDefault is the built-in default seccomp profile.
 	SeccompProfileDefault = "builtin"
 	// SeccompProfileUnconfined is a special profile name for seccomp to use an
@@ -610,8 +610,8 @@ func ValidateMinAPIVersion(ver string) error {
 	if strings.EqualFold(ver[0:1], "v") {
 		return errors.New(`API version must be provided without "v" prefix`)
 	}
-	if versions.LessThan(ver, minAPIVersion) {
-		return errors.Errorf(`minimum supported API version is %s: %s`, minAPIVersion, ver)
+	if versions.LessThan(ver, defaultMinAPIVersion) {
+		return errors.Errorf(`minimum supported API version is %s: %s`, defaultMinAPIVersion, ver)
 	}
 	if versions.GreaterThan(ver, api.DefaultVersion) {
 		return errors.Errorf(`maximum supported API version is %s: %s`, api.DefaultVersion, ver)

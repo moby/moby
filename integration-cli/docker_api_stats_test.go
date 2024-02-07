@@ -8,13 +8,11 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/system"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
@@ -166,27 +164,13 @@ func (s *DockerAPISuite) TestAPIStatsNetworkStats(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestAPIStatsNetworkStatsVersioning(c *testing.T) {
-	// Windows doesn't support API versions less than 1.25, so no point testing 1.17 .. 1.21
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	id := runSleepingContainer(c)
 	cli.WaitRun(c, id)
-	wg := sync.WaitGroup{}
 
-	for i := 17; i <= 21; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			apiVersion := fmt.Sprintf("v1.%d", i)
-			statsJSONBlob := getVersionedStats(c, id, apiVersion)
-			if versions.LessThan(apiVersion, "v1.21") {
-				assert.Assert(c, jsonBlobHasLTv121NetworkStats(statsJSONBlob), "Stats JSON blob from API %s %#v does not look like a <v1.21 API stats structure", apiVersion, statsJSONBlob)
-			} else {
-				assert.Assert(c, jsonBlobHasGTE121NetworkStats(statsJSONBlob), "Stats JSON blob from API %s %#v does not look like a >=v1.21 API stats structure", apiVersion, statsJSONBlob)
-			}
-		}(i)
-	}
-	wg.Wait()
+	statsJSONBlob := getStats(c, id)
+	assert.Assert(c, jsonBlobHasGTE121NetworkStats(statsJSONBlob), "Stats JSON blob from API does not look like a >=v1.21 API stats structure", statsJSONBlob)
 }
 
 func getNetworkStats(c *testing.T, id string) map[string]types.NetworkStats {
@@ -202,14 +186,15 @@ func getNetworkStats(c *testing.T, id string) map[string]types.NetworkStats {
 	return st.Networks
 }
 
-// getVersionedStats returns stats result for the
+// getStats returns stats result for the
 // container with id using an API call with version apiVersion. Since the
 // stats result type differs between API versions, we simply return
 // map[string]interface{}.
-func getVersionedStats(c *testing.T, id string, apiVersion string) map[string]interface{} {
+func getStats(c *testing.T, id string) map[string]interface{} {
+	c.Helper()
 	stats := make(map[string]interface{})
 
-	_, body, err := request.Get(testutil.GetContext(c), "/"+apiVersion+"/containers/"+id+"/stats?stream=false")
+	_, body, err := request.Get(testutil.GetContext(c), "/containers/"+id+"/stats?stream=false")
 	assert.NilError(c, err)
 	defer body.Close()
 
@@ -217,23 +202,6 @@ func getVersionedStats(c *testing.T, id string, apiVersion string) map[string]in
 	assert.NilError(c, err, "failed to decode stat: %s", err)
 
 	return stats
-}
-
-func jsonBlobHasLTv121NetworkStats(blob map[string]interface{}) bool {
-	networkStatsIntfc, ok := blob["network"]
-	if !ok {
-		return false
-	}
-	networkStats, ok := networkStatsIntfc.(map[string]interface{})
-	if !ok {
-		return false
-	}
-	for _, expectedKey := range expectedNetworkInterfaceStats {
-		if _, ok := networkStats[expectedKey]; !ok {
-			return false
-		}
-	}
-	return true
 }
 
 func jsonBlobHasGTE121NetworkStats(blob map[string]interface{}) bool {

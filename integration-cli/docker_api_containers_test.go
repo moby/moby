@@ -958,81 +958,6 @@ func (s *DockerAPISuite) TestContainerAPICopyNotExistsAnyMore(c *testing.T) {
 	assert.Equal(c, res.StatusCode, http.StatusNotFound)
 }
 
-func (s *DockerAPISuite) TestContainerAPICopyPre124(c *testing.T) {
-	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
-	const name = "test-container-api-copy"
-	cli.DockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
-
-	postData := types.CopyConfig{
-		Resource: "/test.txt",
-	}
-
-	res, body, err := request.Post(testutil.GetContext(c), "/v1.23/containers/"+name+"/copy", request.JSONBody(postData))
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusOK)
-
-	found := false
-	for tarReader := tar.NewReader(body); ; {
-		h, err := tarReader.Next()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			c.Fatal(err)
-		}
-		if h.Name == "test.txt" {
-			found = true
-			break
-		}
-	}
-	assert.Assert(c, found)
-}
-
-func (s *DockerAPISuite) TestContainerAPICopyResourcePathEmptyPre124(c *testing.T) {
-	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
-	const name = "test-container-api-copy-resource-empty"
-	cli.DockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
-
-	postData := types.CopyConfig{
-		Resource: "",
-	}
-
-	res, body, err := request.Post(testutil.GetContext(c), "/v1.23/containers/"+name+"/copy", request.JSONBody(postData))
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	b, err := request.ReadBody(body)
-	assert.NilError(c, err)
-	assert.Assert(c, is.Regexp("^Path cannot be empty\n$", string(b)))
-}
-
-func (s *DockerAPISuite) TestContainerAPICopyResourcePathNotFoundPre124(c *testing.T) {
-	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
-	const name = "test-container-api-copy-resource-not-found"
-	cli.DockerCmd(c, "run", "--name", name, "busybox")
-
-	postData := types.CopyConfig{
-		Resource: "/notexist",
-	}
-
-	res, body, err := request.Post(testutil.GetContext(c), "/v1.23/containers/"+name+"/copy", request.JSONBody(postData))
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusNotFound)
-	b, err := request.ReadBody(body)
-	assert.NilError(c, err)
-	assert.Assert(c, is.Regexp("^Could not find the file /notexist in container "+name+"\n$", string(b)))
-}
-
-func (s *DockerAPISuite) TestContainerAPICopyContainerNotFoundPr124(c *testing.T) {
-	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
-	postData := types.CopyConfig{
-		Resource: "/something",
-	}
-
-	res, _, err := request.Post(testutil.GetContext(c), "/v1.23/containers/notexists/copy", request.JSONBody(postData))
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusNotFound)
-}
-
 func (s *DockerAPISuite) TestContainerAPIDelete(c *testing.T) {
 	id := runSleepingContainer(c)
 	cli.WaitRun(c, id)
@@ -1248,20 +1173,6 @@ func (s *DockerAPISuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *
 	defer apiClient.Close()
 
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config2, &hostConfig, &network.NetworkingConfig{}, nil, "capaddtest1")
-	assert.NilError(c, err)
-}
-
-// #14915
-func (s *DockerAPISuite) TestContainerAPICreateNoHostConfig118(c *testing.T) {
-	testRequires(c, DaemonIsLinux) // Windows only support 1.25 or later
-	config := container.Config{
-		Image: "busybox",
-	}
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("v1.18"))
-	assert.NilError(c, err)
-
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 }
 

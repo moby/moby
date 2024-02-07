@@ -14,7 +14,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
@@ -29,10 +28,6 @@ import (
 // there is an error getting the data.
 func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, size bool, version string) (interface{}, error) {
 	switch {
-	case versions.LessThan(version, "1.20"):
-		return daemon.containerInspectPre120(ctx, name)
-	case versions.Equal(version, "1.20"):
-		return daemon.containerInspect120(name)
 	case versions.LessThan(version, "1.45"):
 		ctr, err := daemon.ContainerInspectCurrent(ctx, name, size)
 		if err != nil {
@@ -114,35 +109,6 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 		Mounts:            mountPoints,
 		Config:            ctr.Config,
 		NetworkSettings:   networkSettings,
-	}, nil
-}
-
-// containerInspect120 serializes the master version of a container into a json type.
-func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, error) {
-	ctr, err := daemon.GetContainer(name)
-	if err != nil {
-		return nil, err
-	}
-
-	ctr.Lock()
-	defer ctr.Unlock()
-
-	base, err := daemon.getInspectData(&daemon.config().Config, ctr)
-	if err != nil {
-		return nil, err
-	}
-
-	return &v1p20.ContainerJSON{
-		ContainerJSONBase: base,
-		Mounts:            ctr.GetMountPoints(),
-		Config: &v1p20.ContainerConfig{
-			Config:          ctr.Config,
-			MacAddress:      ctr.Config.MacAddress, //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-			NetworkDisabled: ctr.Config.NetworkDisabled,
-			ExposedPorts:    ctr.Config.ExposedPorts,
-			VolumeDriver:    ctr.HostConfig.VolumeDriver,
-		},
-		NetworkSettings: daemon.getBackwardsCompatibleNetworkSettings(ctr.NetworkSettings),
 	}, nil
 }
 
@@ -281,25 +247,6 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 		DetachKeys:    e.DetachKeys,
 		Pid:           pid,
 	}, nil
-}
-
-func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Settings) *v1p20.NetworkSettings {
-	result := &v1p20.NetworkSettings{
-		NetworkSettingsBase: types.NetworkSettingsBase{
-			Bridge:                 settings.Bridge,
-			SandboxID:              settings.SandboxID,
-			SandboxKey:             settings.SandboxKey,
-			HairpinMode:            settings.HairpinMode,
-			LinkLocalIPv6Address:   settings.LinkLocalIPv6Address,
-			LinkLocalIPv6PrefixLen: settings.LinkLocalIPv6PrefixLen,
-			Ports:                  settings.Ports,
-			SecondaryIPAddresses:   settings.SecondaryIPAddresses,
-			SecondaryIPv6Addresses: settings.SecondaryIPv6Addresses,
-		},
-		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(settings.Networks),
-	}
-
-	return result
 }
 
 // getDefaultNetworkSettings creates the deprecated structure that holds the information

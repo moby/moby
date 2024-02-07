@@ -2,12 +2,10 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"runtime"
 	"time"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
@@ -41,7 +39,7 @@ func validateState(ctr *container.Container) error {
 }
 
 // ContainerStart starts a container.
-func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfig *containertypes.HostConfig, checkpoint string, checkpointDir string) error {
+func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error {
 	daemonCfg := daemon.config()
 	if checkpoint != "" && !daemonCfg.Experimental {
 		return errdefs.InvalidParameter(errors.New("checkpoint is only supported in experimental mode"))
@@ -55,51 +53,12 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 		return err
 	}
 
-	// Windows does not have the backwards compatibility issue here.
-	if runtime.GOOS != "windows" {
-		// This is kept for backward compatibility - hostconfig should be passed when
-		// creating a container, not during start.
-		if hostConfig != nil {
-			log.G(ctx).Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and has been removed in Docker 1.12")
-			oldNetworkMode := ctr.HostConfig.NetworkMode
-			if err := daemon.setSecurityOptions(&daemonCfg.Config, ctr, hostConfig); err != nil {
-				return errdefs.InvalidParameter(err)
-			}
-			if err := daemon.mergeAndVerifyLogConfig(&hostConfig.LogConfig); err != nil {
-				return errdefs.InvalidParameter(err)
-			}
-			if err := daemon.setHostConfig(ctr, hostConfig); err != nil {
-				return errdefs.InvalidParameter(err)
-			}
-			newNetworkMode := ctr.HostConfig.NetworkMode
-			if string(oldNetworkMode) != string(newNetworkMode) {
-				// if user has change the network mode on starting, clean up the
-				// old networks. It is a deprecated feature and has been removed in Docker 1.12
-				ctr.NetworkSettings.Networks = nil
-			}
-			if err := ctr.CheckpointTo(daemon.containersReplica); err != nil {
-				return errdefs.System(err)
-			}
-			ctr.InitDNSHostConfig()
-		}
-	} else {
-		if hostConfig != nil {
-			return errdefs.InvalidParameter(errors.New("Supplying a hostconfig on start is not supported. It should be supplied on create"))
-		}
-	}
-
 	// check if hostConfig is in line with the current system settings.
-	// It may happen cgroups are umounted or the like.
+	// It may happen cgroups are unmounted or the like.
 	if _, err = daemon.verifyContainerSettings(daemonCfg, ctr.HostConfig, nil, false); err != nil {
 		return errdefs.InvalidParameter(err)
 	}
-	// Adapt for old containers in case we have updates in this function and
-	// old containers never have chance to call the new function in create stage.
-	if hostConfig != nil {
-		if err := daemon.adaptContainerSettings(&daemonCfg.Config, ctr.HostConfig, false); err != nil {
-			return errdefs.InvalidParameter(err)
-		}
-	}
+
 	return daemon.containerStart(ctx, daemonCfg, ctr, checkpoint, checkpointDir, true)
 }
 
