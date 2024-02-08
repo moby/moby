@@ -62,4 +62,3 @@ Changes:
 * [Open Containers Initiative (OCI) Image Format Specification v1.0.0](https://github.com/opencontainers/image-spec/tree/v1.0.0)
 * [Docker Image Manifest Version 2, Schema 2](https://github.com/distribution/distribution/blob/main/docs/content/spec/manifest-v2-2.md)
 * [Docker Image Manifest Version 2, Schema 1](https://github.com/distribution/distribution/blob/main/docs/content/spec/deprecated-schema-v1.md) (*DEPRECATED*)
-* [Docker Registry HTTP API V2](https://docs.docker.com/registry/spec/api/)
