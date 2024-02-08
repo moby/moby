@@ -25,7 +25,7 @@ require (
 	github.com/aws/smithy-go v1.13.5
 	github.com/cloudflare/cfssl v1.6.4
 	github.com/containerd/cgroups/v3 v3.0.3
-	github.com/containerd/containerd v1.7.12
+	github.com/containerd/containerd v1.7.13
 	github.com/containerd/continuity v0.4.2
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0

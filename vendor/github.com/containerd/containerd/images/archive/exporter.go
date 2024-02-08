@@ -148,7 +148,7 @@ func WithSkipNonDistributableBlobs() ExportOpt {
 // The manifest itself is excluded only if it's not present locally.
 // This allows to export multi-platform images if not all platforms are present
 // while still persisting the multi-platform index.
-func WithSkipMissing(store ContentProvider) ExportOpt {
+func WithSkipMissing(store content.InfoReaderProvider) ExportOpt {
 	return func(ctx context.Context, o *exportOptions) error {
 		o.blobRecordOptions.childrenHandler = images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, err error) {
 			children, err := images.Children(ctx, store, desc)
@@ -209,12 +209,6 @@ func copySourceLabels(ctx context.Context, infoProvider content.InfoProvider, de
 		}
 	}
 	return desc, nil
-}
-
-// ContentProvider provides both content and info about content
-type ContentProvider interface {
-	content.Provider
-	content.InfoProvider
 }
 
 // Export implements Exporter.
