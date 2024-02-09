@@ -2,7 +2,6 @@ package mobyexporter
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -89,7 +88,7 @@ func (e *imageExporterInstance) Config() *exporter.Config {
 	return exporter.NewConfig()
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source, sessionID string) (map[string]string, exporter.DescriptorReference, error) {
+func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source, inlineCache exptypes.InlineCache, sessionID string) (map[string]string, exporter.DescriptorReference, error) {
 	if len(inp.Refs) > 1 {
 		return nil, nil, fmt.Errorf("exporting multiple references to image store is currently unsupported")
 	}
@@ -109,18 +108,14 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	case 0:
 		config = inp.Metadata[exptypes.ExporterImageConfigKey]
 	case 1:
-		platformsBytes, ok := inp.Metadata[exptypes.ExporterPlatformsKey]
-		if !ok {
-			return nil, nil, fmt.Errorf("cannot export image, missing platforms mapping")
+		ps, err := exptypes.ParsePlatforms(inp.Metadata)
+		if err != nil {
+			return nil, nil, fmt.Errorf("cannot export image, failed to parse platforms: %w", err)
 		}
-		var p exptypes.Platforms
-		if err := json.Unmarshal(platformsBytes, &p); err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to parse platforms passed to exporter")
+		if len(ps.Platforms) != len(inp.Refs) {
+			return nil, nil, errors.Errorf("number of platforms does not match references %d %d", len(ps.Platforms), len(inp.Refs))
 		}
-		if len(p.Platforms) != len(inp.Refs) {
-			return nil, nil, errors.Errorf("number of platforms does not match references %d %d", len(p.Platforms), len(inp.Refs))
-		}
-		config = inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, p.Platforms[0].ID)]
+		config = inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, ps.Platforms[0].ID)]
 	}
 
 	var diffs []digest.Digest
@@ -163,7 +158,21 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 
 	diffs, history = normalizeLayersAndHistory(diffs, history, ref)
 
-	config, err = patchImageConfig(config, diffs, history, inp.Metadata[exptypes.ExporterInlineCache])
+	var inlineCacheEntry *exptypes.InlineCacheEntry
+	if inlineCache != nil {
+		inlineCacheResult, err := inlineCache(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		if inlineCacheResult != nil {
+			if ref != nil {
+				inlineCacheEntry, _ = inlineCacheResult.FindRef(ref.ID())
+			} else {
+				inlineCacheEntry = inlineCacheResult.Ref
+			}
+		}
+	}
+	config, err = patchImageConfig(config, diffs, history, inlineCacheEntry)
 	if err != nil {
 		return nil, nil, err
 	}
