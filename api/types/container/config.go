@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/strslice"
-	dockerspec "github.com/docker/docker/image/spec/specs-go/v1"
 	"github.com/docker/go-connections/nat"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 )
 
 // MinimumDuration puts a minimum on user configured duration.
