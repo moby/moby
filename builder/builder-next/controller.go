@@ -105,7 +105,8 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo, err := containerd.NewWorkerOpt(opt.Root, opt.ContainerdAddress, opt.Snapshotter, opt.ContainerdNamespace,
 		opt.Rootless, map[string]string{
 			label.Snapshotter: opt.Snapshotter,
-		}, dns, nc, opt.ApparmorProfile, false, nil, "", ctd.WithTimeout(60*time.Second))
+		}, dns, nc, opt.ApparmorProfile, false, nil, "", nil, ctd.WithTimeout(60*time.Second),
+	)
 	if err != nil {
 		return nil, err
 	}
