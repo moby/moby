@@ -67,11 +67,11 @@ func newController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control
 }
 
 func getTraceExporter(ctx context.Context) trace.SpanExporter {
-	exp, err := detect.Exporter()
+	span, _, err := detect.Exporter()
 	if err != nil {
 		log.G(ctx).WithError(err).Error("Failed to detect trace exporter for buildkit controller")
 	}
-	return exp
+	return span
 }
 
 func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {

@@ -242,7 +242,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	// Override BuildKit's default Resource so that it matches the semconv
 	// version that is used in our code.
-	detect.Resource = resource.Default()
+	detect.OverrideResource(resource.Default())
 	detect.Recorder = detect.NewTraceRecorder()
 
 	tp, err := detect.TracerProvider()
