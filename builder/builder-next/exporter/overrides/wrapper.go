@@ -19,7 +19,7 @@ func NewExporterWrapper(exp exporter.Exporter) (exporter.Exporter, error) {
 }
 
 // Resolve applies moby specific attributes to the request.
-func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, exporterAttrs map[string]string) (exporter.ExporterInstance, error) {
+func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, id int, exporterAttrs map[string]string) (exporter.ExporterInstance, error) {
 	if exporterAttrs == nil {
 		exporterAttrs = make(map[string]string)
 	}
@@ -33,5 +33,5 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, exporterAttrs ma
 		exporterAttrs[string(exptypes.OptKeyDanglingPrefix)] = "moby-dangling"
 	}
 
-	return e.exp.Resolve(ctx, exporterAttrs)
+	return e.exp.Resolve(ctx, id, exporterAttrs)
 }
