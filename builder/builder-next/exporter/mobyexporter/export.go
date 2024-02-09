@@ -14,10 +14,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	keyImageName = "name"
-)
-
 // Differ can make a moby layer from a snapshot
 type Differ interface {
 	EnsureLayer(ctx context.Context, key string) ([]layer.DiffID, error)
@@ -50,8 +46,8 @@ func (e *imageExporter) Resolve(ctx context.Context, id int, opt map[string]stri
 		id:            id,
 	}
 	for k, v := range opt {
-		switch k {
-		case keyImageName:
+		switch exptypes.ImageExporterOptKey(k) {
+		case exptypes.OptKeyName:
 			for _, v := range strings.Split(v, ",") {
 				ref, err := distref.ParseNormalizedNamed(v)
 				if err != nil {
