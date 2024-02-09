@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,11 +35,13 @@ import (
 	pkgprogress "github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
 	"github.com/moby/buildkit/cache"
+	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
+	"github.com/moby/buildkit/source/containerimage"
 	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/sourcepolicy"
 	policy "github.com/moby/buildkit/sourcepolicy/pb"
@@ -80,9 +83,77 @@ func NewSource(opt SourceOpt) (*Source, error) {
 	return &Source{SourceOpt: opt}, nil
 }
 
-// ID returns image scheme identifier
-func (is *Source) ID() string {
-	return srctypes.DockerImageScheme
+// Schemes returns a list of SourceOp identifier schemes that this source
+// should match.
+func (is *Source) Schemes() []string {
+	return []string{srctypes.DockerImageScheme}
+}
+
+// Identifier constructs an Identifier from the given scheme, ref, and attrs,
+// all of which come from a SourceOp.
+func (is *Source) Identifier(scheme, ref string, attrs map[string]string, platform *pb.Platform) (source.Identifier, error) {
+	return is.registryIdentifier(ref, attrs, platform)
+}
+
+// Copied from github.com/moby/buildkit/source/containerimage/source.go
+func (is *Source) registryIdentifier(ref string, attrs map[string]string, platform *pb.Platform) (source.Identifier, error) {
+	id, err := containerimage.NewImageIdentifier(ref)
+	if err != nil {
+		return nil, err
+	}
+
+	if platform != nil {
+		id.Platform = &ocispec.Platform{
+			OS:           platform.OS,
+			Architecture: platform.Architecture,
+			Variant:      platform.Variant,
+			OSVersion:    platform.OSVersion,
+		}
+		if platform.OSFeatures != nil {
+			id.Platform.OSFeatures = append([]string{}, platform.OSFeatures...)
+		}
+	}
+
+	for k, v := range attrs {
+		switch k {
+		case pb.AttrImageResolveMode:
+			rm, err := resolver.ParseImageResolveMode(v)
+			if err != nil {
+				return nil, err
+			}
+			id.ResolveMode = rm
+		case pb.AttrImageRecordType:
+			rt, err := parseImageRecordType(v)
+			if err != nil {
+				return nil, err
+			}
+			id.RecordType = rt
+		case pb.AttrImageLayerLimit:
+			l, err := strconv.Atoi(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid layer limit %s", v)
+			}
+			if l <= 0 {
+				return nil, errors.Errorf("invalid layer limit %s", v)
+			}
+			id.LayerLimit = &l
+		}
+	}
+
+	return id, nil
+}
+
+func parseImageRecordType(v string) (client.UsageRecordType, error) {
+	switch client.UsageRecordType(v) {
+	case "", client.UsageRecordTypeRegular:
+		return client.UsageRecordTypeRegular, nil
+	case client.UsageRecordTypeInternal:
+		return client.UsageRecordTypeInternal, nil
+	case client.UsageRecordTypeFrontend:
+		return client.UsageRecordTypeFrontend, nil
+	default:
+		return "", errors.Errorf("invalid record type %s", v)
+	}
 }
 
 func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
@@ -134,12 +205,12 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 	if err != nil {
 		return "", "", nil, err
 	}
-	resolveMode, err := source.ParseImageResolveMode(opt.ResolveMode)
+	resolveMode, err := resolver.ParseImageResolveMode(opt.ResolveMode)
 	if err != nil {
 		return ref, "", nil, err
 	}
 	switch resolveMode {
-	case source.ResolveModeForcePull:
+	case resolver.ResolveModeForcePull:
 		ref, dgst, dt, err := is.resolveRemote(ctx, ref, opt.Platform, sm, g)
 		// TODO: pull should fallback to local in case of failure to allow offline behavior
 		// the fallback doesn't work currently
@@ -153,10 +224,10 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 			return "", dt, err
 		*/
 
-	case source.ResolveModeDefault:
+	case resolver.ResolveModeDefault:
 		// default == prefer local, but in the future could be smarter
 		fallthrough
-	case source.ResolveModePreferLocal:
+	case resolver.ResolveModePreferLocal:
 		img, err := is.resolveLocal(ref)
 		if err == nil {
 			if opt.Platform != nil && !platformMatches(img, opt.Platform) {
@@ -177,7 +248,7 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 
 // Resolve returns access to pulling for an identifier
 func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, vtx solver.Vertex) (source.SourceInstance, error) {
-	imageIdentifier, ok := id.(*source.ImageIdentifier)
+	imageIdentifier, ok := id.(*containerimage.ImageIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid image identifier %v", id)
 	}
@@ -201,7 +272,7 @@ type puller struct {
 	is               *Source
 	resolveLocalOnce sync.Once
 	g                flightcontrol.Group[struct{}]
-	src              *source.ImageIdentifier
+	src              *containerimage.ImageIdentifier
 	desc             ocispec.Descriptor
 	ref              string
 	config           []byte
@@ -253,7 +324,7 @@ func (p *puller) resolveLocal() {
 			}
 		}
 
-		if p.src.ResolveMode == source.ResolveModeDefault || p.src.ResolveMode == source.ResolveModePreferLocal {
+		if p.src.ResolveMode == resolver.ResolveModeDefault || p.src.ResolveMode == resolver.ResolveModePreferLocal {
 			ref := p.src.Reference.String()
 			img, err := p.is.resolveLocal(ref)
 			if err == nil {
