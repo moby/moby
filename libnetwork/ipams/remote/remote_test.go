@@ -18,15 +18,10 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func decodeToMap(r *http.Request) (map[string]interface{}, error) {
-	var res map[string]interface{}
-	err := json.NewDecoder(r.Body).Decode(&res)
-	return res, err
-}
-
 func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]interface{}) interface{}) {
 	mux.HandleFunc(fmt.Sprintf("/%s.%s", ipamapi.PluginEndpointType, method), func(w http.ResponseWriter, r *http.Request) {
-		ask, err := decodeToMap(r)
+		var ask map[string]interface{}
+		err := json.NewDecoder(r.Body).Decode(&ask)
 		if err != nil && err != io.EOF {
 			t.Fatal(err)
 		}
