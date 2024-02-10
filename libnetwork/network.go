@@ -1508,7 +1508,7 @@ func (n *Network) ipamAllocate() error {
 	return err
 }
 
-func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, err error) {
+func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, _ error) {
 	var tmpPoolLeases []string
 	defer func() {
 		// Prevent repeated lock/unlock in the loop.
@@ -1522,6 +1522,7 @@ func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPo
 	}()
 
 	for {
+		var err error
 		poolID, pool, meta, err = ipam.RequestPool(addressSpace, requestedPool, requestedSubPool, options, v6)
 		if err != nil {
 			return "", nil, nil, err
