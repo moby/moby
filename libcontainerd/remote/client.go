@@ -92,18 +92,19 @@ func (c *container) newTask(t containerd.Task) *task {
 	return &task{Task: t, ctr: c}
 }
 
-func (c *container) AttachTask(ctx context.Context, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Task, err error) {
+func (c *container) AttachTask(ctx context.Context, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Task, retErr error) {
 	var dio *cio.DirectIO
 	defer func() {
-		if err != nil && dio != nil {
+		if retErr != nil && dio != nil {
 			dio.Cancel()
-			dio.Close()
+			_ = dio.Close()
 		}
 	}()
 
 	attachIO := func(fifos *cio.FIFOSet) (cio.IO, error) {
 		// dio must be assigned to the previously defined dio for the defer above
 		// to handle cleanup
+		var err error
 		dio, err = c.client.newDirectIO(ctx, fifos)
 		if err != nil {
 			return nil, err

@@ -41,7 +41,7 @@ func (dc *delayedConnection) unblockConnectionWaiters() {
 }
 
 func (dc *delayedConnection) Close() error {
-	dc.l.Close()
+	_ = dc.l.Close()
 	if dc.con != nil {
 		return dc.con.Close()
 	}
@@ -56,7 +56,7 @@ type stdioPipes struct {
 }
 
 // newStdioPipes creates actual fifos for stdio.
-func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
+func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, retErr error) {
 	p := &stdioPipes{}
 	if fifos.Stdin != "" {
 		c.logger.WithField("stdin", fifos.Stdin).Debug("listen")
@@ -69,8 +69,8 @@ func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
 		}
 		dc.wg.Add(1)
 		defer func() {
-			if err != nil {
-				dc.Close()
+			if retErr != nil {
+				_ = dc.Close()
 			}
 		}()
 		p.stdin = dc
@@ -79,7 +79,7 @@ func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
 			c.logger.WithField("stdin", fifos.Stdin).Debug("accept")
 			conn, err := l.Accept()
 			if err != nil {
-				dc.Close()
+				_ = dc.Close()
 				if err != winio.ErrPipeListenerClosed {
 					c.logger.WithError(err).Errorf("failed to accept stdin connection on %s", fifos.Stdin)
 				}
@@ -102,8 +102,8 @@ func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
 		}
 		dc.wg.Add(1)
 		defer func() {
-			if err != nil {
-				dc.Close()
+			if retErr != nil {
+				_ = dc.Close()
 			}
 		}()
 		p.stdout = dc
@@ -112,7 +112,7 @@ func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
 			c.logger.WithField("stdout", fifos.Stdout).Debug("accept")
 			conn, err := l.Accept()
 			if err != nil {
-				dc.Close()
+				_ = dc.Close()
 				if err != winio.ErrPipeListenerClosed {
 					c.logger.WithFields(log.Fields{"error": err, "stdout": fifos.Stdout}).Error("failed to accept stdout connection")
 				}
@@ -135,8 +135,8 @@ func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
 		}
 		dc.wg.Add(1)
 		defer func() {
-			if err != nil {
-				dc.Close()
+			if retErr != nil {
+				_ = dc.Close()
 			}
 		}()
 		p.stderr = dc
@@ -145,7 +145,7 @@ func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
 			c.logger.WithField("stderr", fifos.Stderr).Debug("accept")
 			conn, err := l.Accept()
 			if err != nil {
-				dc.Close()
+				_ = dc.Close()
 				if err != winio.ErrPipeListenerClosed {
 					c.logger.WithError(err).Errorf("failed to accept stderr connection on %s", fifos.Stderr)
 				}
