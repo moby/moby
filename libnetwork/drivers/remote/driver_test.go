@@ -22,14 +22,10 @@ import (
 	"github.com/docker/docker/pkg/plugins"
 )
 
-func decodeToMap(r *http.Request) (res map[string]interface{}, err error) {
-	err = json.NewDecoder(r.Body).Decode(&res)
-	return
-}
-
 func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]interface{}) interface{}) {
 	mux.HandleFunc(fmt.Sprintf("/%s.%s", driverapi.NetworkPluginEndpointType, method), func(w http.ResponseWriter, r *http.Request) {
-		ask, err := decodeToMap(r)
+		var ask map[string]interface{}
+		err := json.NewDecoder(r.Body).Decode(&ask)
 		if err != nil && err != io.EOF {
 			t.Fatal(err)
 		}
