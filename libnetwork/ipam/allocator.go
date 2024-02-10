@@ -68,7 +68,7 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 // If requestedPool is the empty string then the default predefined pool for addressSpace will be used, otherwise pool must be a valid IP address and length in CIDR notation.
 // If requestedSubPool is not empty, it must be a valid IP address and length in CIDR notation which is a sub-range of requestedPool.
 // requestedSubPool must be empty if requestedPool is empty.
-func (a *Allocator) RequestPool(addressSpace, requestedPool, requestedSubPool string, _ map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, err error) {
+func (a *Allocator) RequestPool(addressSpace, requestedPool, requestedSubPool string, _ map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, _ error) {
 	log.G(context.TODO()).Debugf("RequestPool(%s, %s, %s, _, %t)", addressSpace, requestedPool, requestedSubPool, v6)
 
 	parseErr := func(err error) error {
@@ -95,7 +95,8 @@ func (a *Allocator) RequestPool(addressSpace, requestedPool, requestedSubPool st
 		return k.String(), netiputil.ToIPNet(k.Subnet), nil, nil
 	}
 
-	if k.Subnet, err = netip.ParsePrefix(requestedPool); err != nil {
+	k.Subnet, err = netip.ParsePrefix(requestedPool)
+	if err != nil {
 		return "", nil, nil, parseErr(ipamapi.ErrInvalidPool)
 	}
 
