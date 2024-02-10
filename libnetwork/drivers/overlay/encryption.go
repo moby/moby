@@ -304,7 +304,7 @@ func (d *driver) programInput(vni uint32, add bool) error {
 	return nil
 }
 
-func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (fSA *netlink.XfrmState, rSA *netlink.XfrmState, err error) {
+func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (fSA *netlink.XfrmState, rSA *netlink.XfrmState, _ error) {
 	var (
 		action      = "Removing"
 		xfrmProgram = ns.NlHandle().XfrmStateDel
@@ -367,7 +367,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 		}
 	}
 
-	return
+	return fSA, rSA, nil
 }
 
 // getMinimalIP returns the address in its shortest form
