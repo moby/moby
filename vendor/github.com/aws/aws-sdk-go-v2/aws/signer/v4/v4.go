@@ -68,6 +68,9 @@ import (
 const (
 	signingAlgorithm    = "AWS4-HMAC-SHA256"
 	authorizationHeader = "Authorization"
+
+	// Version of signing v4
+	Version = "SigV4"
 )
 
 // HTTPSigner is an interface to a SigV4 signer that can sign HTTP requests
@@ -103,6 +106,11 @@ type SignerOptions struct {
 	// This will enable logging of the canonical request, the string to sign, and for presigning the subsequent
 	// presigned URL.
 	LogSigning bool
+
+	// Disables setting the session token on the request as part of signing
+	// through X-Amz-Security-Token. This is needed for variations of v4 that
+	// present the token elsewhere.
+	DisableSessionToken bool
 }
 
 // Signer applies AWS v4 signing to given request. Use this to sign requests
@@ -136,6 +144,7 @@ type httpSigner struct {
 
 	DisableHeaderHoisting  bool
 	DisableURIPathEscaping bool
+	DisableSessionToken    bool
 }
 
 func (s *httpSigner) Build() (signedRequest, error) {
@@ -284,6 +293,7 @@ func (s Signer) SignHTTP(ctx context.Context, credentials aws.Credentials, r *ht
 		Time:                   v4Internal.NewSigningTime(signingTime.UTC()),
 		DisableHeaderHoisting:  options.DisableHeaderHoisting,
 		DisableURIPathEscaping: options.DisableURIPathEscaping,
+		DisableSessionToken:    options.DisableSessionToken,
 		KeyDerivator:           s.keyDerivator,
 	}
 
@@ -335,7 +345,7 @@ func (s Signer) SignHTTP(ctx context.Context, credentials aws.Credentials, r *ht
 //
 //	expires := 20 * time.Minute
 //	query := req.URL.Query()
-//	query.Set("X-Amz-Expires", strconv.FormatInt(int64(expires/time.Second), 10)
+//	query.Set("X-Amz-Expires", strconv.FormatInt(int64(expires/time.Second), 10))
 //	req.URL.RawQuery = query.Encode()
 //
 // This method does not modify the provided request.
@@ -360,6 +370,7 @@ func (s *Signer) PresignHTTP(
 		IsPreSign:              true,
 		DisableHeaderHoisting:  options.DisableHeaderHoisting,
 		DisableURIPathEscaping: options.DisableURIPathEscaping,
+		DisableSessionToken:    options.DisableSessionToken,
 		KeyDerivator:           s.keyDerivator,
 	}
 
@@ -502,7 +513,8 @@ func (s *httpSigner) setRequiredSigningFields(headers http.Header, query url.Val
 
 	if s.IsPreSign {
 		query.Set(v4Internal.AmzAlgorithmKey, signingAlgorithm)
-		if sessionToken := s.Credentials.SessionToken; len(sessionToken) > 0 {
+		sessionToken := s.Credentials.SessionToken
+		if !s.DisableSessionToken && len(sessionToken) > 0 {
 			query.Set("X-Amz-Security-Token", sessionToken)
 		}
 
@@ -512,7 +524,7 @@ func (s *httpSigner) setRequiredSigningFields(headers http.Header, query url.Val
 
 	headers[v4Internal.AmzDateKey] = append(headers[v4Internal.AmzDateKey][:0], amzDate)
 
-	if len(s.Credentials.SessionToken) > 0 {
+	if !s.DisableSessionToken && len(s.Credentials.SessionToken) > 0 {
 		headers[v4Internal.AmzSecurityTokenKey] = append(headers[v4Internal.AmzSecurityTokenKey][:0], s.Credentials.SessionToken)
 	}
 }

@@ -58,6 +58,10 @@ type EndpointResolver interface {
 	GetEC2IMDSEndpoint() (string, bool, error)
 }
 
+type v1FallbackDisabledResolver interface {
+	GetEC2IMDSV1FallbackDisabled() (bool, bool)
+}
+
 // ResolveClientEnableState resolves the ClientEnableState from a list of configuration sources.
 func ResolveClientEnableState(sources []interface{}) (value ClientEnableState, found bool, err error) {
 	for _, source := range sources {
@@ -95,4 +99,16 @@ func ResolveEndpointConfig(sources []interface{}) (value string, found bool, err
 		}
 	}
 	return value, found, err
+}
+
+// ResolveV1FallbackDisabled ...
+func ResolveV1FallbackDisabled(sources []interface{}) (bool, bool) {
+	for _, source := range sources {
+		if resolver, ok := source.(v1FallbackDisabledResolver); ok {
+			if v, found := resolver.GetEC2IMDSV1FallbackDisabled(); found {
+				return v, true
+			}
+		}
+	}
+	return false, false
 }

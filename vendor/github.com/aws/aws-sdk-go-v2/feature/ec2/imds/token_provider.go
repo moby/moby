@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/smithy-go"
+	"github.com/aws/smithy-go/logging"
 	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
@@ -68,7 +70,7 @@ func (t *tokenProvider) HandleFinalize(
 ) (
 	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
-	if !t.enabled() {
+	if t.fallbackEnabled() && !t.enabled() {
 		// short-circuits to insecure data flow if token provider is disabled.
 		return next.HandleFinalize(ctx, input)
 	}
@@ -115,23 +117,15 @@ func (t *tokenProvider) HandleDeserialize(
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized { // unauthorized
-		err = &retryableError{Err: err}
 		t.enable()
+		err = &retryableError{Err: err, isRetryable: true}
 	}
 
 	return out, metadata, err
 }
 
-type retryableError struct {
-	Err error
-}
-
-func (*retryableError) RetryableError() bool { return true }
-
-func (e *retryableError) Error() string { return e.Err.Error() }
-
 func (t *tokenProvider) getToken(ctx context.Context) (tok *apiToken, err error) {
-	if !t.enabled() {
+	if t.fallbackEnabled() && !t.enabled() {
 		return nil, &bypassTokenRetrievalError{
 			Err: fmt.Errorf("cannot get API token, provider disabled"),
 		}
@@ -147,7 +141,7 @@ func (t *tokenProvider) getToken(ctx context.Context) (tok *apiToken, err error)
 
 	tok, err = t.updateToken(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get API token, %w", err)
+		return nil, err
 	}
 
 	return tok, nil
@@ -167,17 +161,19 @@ func (t *tokenProvider) updateToken(ctx context.Context) (*apiToken, error) {
 		TokenTTL: t.tokenTTL,
 	})
 	if err != nil {
-		// change the disabled flag on token provider to true, when error is request timeout error.
 		var statusErr interface{ HTTPStatusCode() int }
 		if errors.As(err, &statusErr) {
 			switch statusErr.HTTPStatusCode() {
-
-			// Disable get token if failed because of 403, 404, or 405
+			// Disable future get token if failed because of 403, 404, or 405
 			case http.StatusForbidden,
 				http.StatusNotFound,
 				http.StatusMethodNotAllowed:
 
-				t.disable()
+				if t.fallbackEnabled() {
+					logger := middleware.GetLogger(ctx)
+					logger.Logf(logging.Warn, "falling back to IMDSv1: %v", err)
+					t.disable()
+				}
 
 			// 400 errors are terminal, and need to be upstreamed
 			case http.StatusBadRequest:
@@ -192,8 +188,17 @@ func (t *tokenProvider) updateToken(ctx context.Context) (*apiToken, error) {
 			atomic.StoreUint32(&t.disabled, 1)
 		}
 
-		// Token couldn't be retrieved, but bypass this, and allow the
-		// request to continue.
+		if !t.fallbackEnabled() {
+			// NOTE: getToken() is an implementation detail of some outer operation
+			// (e.g. GetMetadata). It has its own retries that have already been exhausted.
+			// Mark the underlying error as a terminal error.
+			err = &retryableError{Err: err, isRetryable: false}
+			return nil, err
+		}
+
+		// Token couldn't be retrieved, fallback to IMDSv1 insecure flow for this request
+		// and allow the request to proceed. Future requests _may_ re-attempt fetching a
+		// token if not disabled.
 		return nil, &bypassTokenRetrievalError{Err: err}
 	}
 
@@ -206,19 +211,19 @@ func (t *tokenProvider) updateToken(ctx context.Context) (*apiToken, error) {
 	return tok, nil
 }
 
-type bypassTokenRetrievalError struct {
-	Err error
-}
-
-func (e *bypassTokenRetrievalError) Error() string {
-	return fmt.Sprintf("bypass token retrieval, %v", e.Err)
-}
-
-func (e *bypassTokenRetrievalError) Unwrap() error { return e.Err }
-
 // enabled returns if the token provider is current enabled or not.
 func (t *tokenProvider) enabled() bool {
 	return atomic.LoadUint32(&t.disabled) == 0
+}
+
+// fallbackEnabled returns false if EnableFallback is [aws.FalseTernary], true otherwise
+func (t *tokenProvider) fallbackEnabled() bool {
+	switch t.client.options.EnableFallback {
+	case aws.FalseTernary:
+		return false
+	default:
+		return true
+	}
 }
 
 // disable disables the token provider and it will no longer attempt to inject
@@ -235,3 +240,22 @@ func (t *tokenProvider) enable() {
 	t.tokenMux.Unlock()
 	atomic.StoreUint32(&t.disabled, 0)
 }
+
+type bypassTokenRetrievalError struct {
+	Err error
+}
+
+func (e *bypassTokenRetrievalError) Error() string {
+	return fmt.Sprintf("bypass token retrieval, %v", e.Err)
+}
+
+func (e *bypassTokenRetrievalError) Unwrap() error { return e.Err }
+
+type retryableError struct {
+	Err         error
+	isRetryable bool
+}
+
+func (e *retryableError) RetryableError() bool { return e.isRetryable }
+
+func (e *retryableError) Error() string { return e.Err.Error() }

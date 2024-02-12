@@ -56,6 +56,7 @@ type GetDynamicDataOutput struct {
 func addGetDynamicDataMiddleware(stack *middleware.Stack, options Options) error {
 	return addAPIRequestMiddleware(stack,
 		options,
+		"GetDynamicData",
 		buildGetDynamicDataPath,
 		buildGetDynamicDataOutput)
 }

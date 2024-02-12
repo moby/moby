@@ -49,6 +49,7 @@ func addGetTokenMiddleware(stack *middleware.Stack, options Options) error {
 	err := addRequestMiddleware(stack,
 		options,
 		"PUT",
+		"GetToken",
 		buildGetTokenPath,
 		buildGetTokenOutput)
 	if err != nil {
