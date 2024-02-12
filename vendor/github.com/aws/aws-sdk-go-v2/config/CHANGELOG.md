@@ -1,3 +1,251 @@
+# v1.26.6 (2024-01-22)
+
+* **Bug Fix**: Remove invalid escaping of shared config values. All values in the shared config file will now be interpreted literally, save for fully-quoted strings which are unwrapped for legacy reasons.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.5 (2024-01-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.4 (2024-01-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.3 (2024-01-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.2 (2023-12-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.1 (2023-12-08)
+
+* **Bug Fix**: Correct loading of [services *] sections into shared config.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.0 (2023-12-07)
+
+* **Feature**: Support modeled request compression. The only algorithm supported at this time is `gzip`.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.12 (2023-12-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.11 (2023-12-01)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.10 (2023-11-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.9 (2023-11-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.8 (2023-11-28.3)
+
+* **Bug Fix**: Correct resolution of S3Express auth disable toggle.
+
+# v1.25.7 (2023-11-28.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.6 (2023-11-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.5 (2023-11-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.4 (2023-11-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.3 (2023-11-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.2 (2023-11-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.1 (2023-11-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.0 (2023-11-14)
+
+* **Feature**: Add support for dynamic auth token from file and EKS container host in absolute/relative URIs in the HTTP credential provider.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.24.0 (2023-11-13)
+
+* **Feature**: Replace the legacy config parser with a modern, less-strict implementation. Parsing failures within a section will now simply ignore the invalid line rather than silently drop the entire section.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.23.0 (2023-11-09.2)
+
+* **Feature**: BREAKFIX: In order to support subproperty parsing, invalid property definitions must not be ignored
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.3 (2023-11-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.2 (2023-11-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.1 (2023-11-06)
+
+* No change notes available for this release.
+
+# v1.22.0 (2023-11-02)
+
+* **Feature**: Add env and shared config settings for disabling IMDSv1 fallback.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.21.0 (2023-11-01)
+
+* **Feature**: Adds support for configured endpoints via environment variables and the AWS shared configuration file.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.0 (2023-10-31)
+
+* **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.1 (2023-10-24)
+
+* No change notes available for this release.
+
+# v1.19.0 (2023-10-16)
+
+* **Feature**: Modify logic of retrieving user agent appID from env config
+
+# v1.18.45 (2023-10-12)
+
+* **Bug Fix**: Fail to load config if an explicitly provided profile doesn't exist.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.44 (2023-10-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.43 (2023-10-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.42 (2023-09-22)
+
+* **Bug Fix**: Fixed a bug where merging `max_attempts` or `duration_seconds` fields across shared config files with invalid values would silently default them to 0.
+* **Bug Fix**: Move type assertion of config values out of the parsing stage, which resolves an issue where the contents of a profile would silently be dropped with certain numeric formats.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.41 (2023-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.40 (2023-09-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.39 (2023-09-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.38 (2023-08-31)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.37 (2023-08-23)
+
+* No change notes available for this release.
+
+# v1.18.36 (2023-08-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.35 (2023-08-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.34 (2023-08-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.33 (2023-08-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.32 (2023-08-01)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.31 (2023-07-31)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.30 (2023-07-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.29 (2023-07-25)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.28 (2023-07-13)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.27 (2023-06-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.26 (2023-06-13)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.25 (2023-05-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.24 (2023-05-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.23 (2023-05-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.22 (2023-04-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.21 (2023-04-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.20 (2023-04-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.19 (2023-03-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.18 (2023-03-16)
+
+* **Bug Fix**: Allow RoleARN to be set as functional option on STS WebIdentityRoleOptions. Fixes aws/aws-sdk-go-v2#2015.
+
+# v1.18.17 (2023-03-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.18.16 (2023-03-10)
 
 * **Dependency Update**: Updated to the latest SDK module versions

@@ -53,6 +53,7 @@ type GetIAMInfoOutput struct {
 func addGetIAMInfoMiddleware(stack *middleware.Stack, options Options) error {
 	return addAPIRequestMiddleware(stack,
 		options,
+		"GetIAMInfo",
 		buildGetIAMInfoPath,
 		buildGetIAMInfoOutput,
 	)

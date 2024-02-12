@@ -4,6 +4,7 @@ package sts
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/smithy-go/middleware"
@@ -22,27 +23,17 @@ import (
 // encoded because the details of the authorization status can contain privileged
 // information that the user who requested the operation should not see. To decode
 // an authorization status message, a user must be granted permissions through an
-// IAM policy
-// (https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html) to
-// request the DecodeAuthorizationMessage (sts:DecodeAuthorizationMessage) action.
-// The decoded message includes the following type of information:
-//
-// * Whether the
-// request was denied due to an explicit deny or due to the absence of an explicit
-// allow. For more information, see Determining Whether a Request is Allowed or
-// Denied
-// (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html#policy-eval-denyallow)
-// in the IAM User Guide.
-//
-// * The principal who made the request.
-//
-// * The requested
-// action.
-//
-// * The requested resource.
-//
-// * The values of condition keys in the
-// context of the user's request.
+// IAM policy (https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html)
+// to request the DecodeAuthorizationMessage ( sts:DecodeAuthorizationMessage )
+// action. The decoded message includes the following type of information:
+//   - Whether the request was denied due to an explicit deny or due to the
+//     absence of an explicit allow. For more information, see Determining Whether a
+//     Request is Allowed or Denied (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html#policy-eval-denyallow)
+//     in the IAM User Guide.
+//   - The principal who made the request.
+//   - The requested action.
+//   - The requested resource.
+//   - The values of condition keys in the context of the user's request.
 func (c *Client) DecodeAuthorizationMessage(ctx context.Context, params *DecodeAuthorizationMessageInput, optFns ...func(*Options)) (*DecodeAuthorizationMessageOutput, error) {
 	if params == nil {
 		params = &DecodeAuthorizationMessageInput{}
@@ -83,12 +74,22 @@ type DecodeAuthorizationMessageOutput struct {
 }
 
 func (c *Client) addOperationDecodeAuthorizationMessageMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpDecodeAuthorizationMessage{}, middleware.After)
 	if err != nil {
 		return err
 	}
 	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpDecodeAuthorizationMessage{}, middleware.After)
 	if err != nil {
+		return err
+	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "DecodeAuthorizationMessage"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
 		return err
 	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
@@ -109,16 +110,13 @@ func (c *Client) addOperationDecodeAuthorizationMessageMiddlewares(stack *middle
 	if err = addRetryMiddlewares(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
-		return err
-	}
 	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
 		return err
 	}
 	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -127,10 +125,16 @@ func (c *Client) addOperationDecodeAuthorizationMessageMiddlewares(stack *middle
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
 	if err = addOpDecodeAuthorizationMessageValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDecodeAuthorizationMessage(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -142,6 +146,9 @@ func (c *Client) addOperationDecodeAuthorizationMessageMiddlewares(stack *middle
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -149,7 +156,6 @@ func newServiceMetadataMiddleware_opDecodeAuthorizationMessage(region string) *a
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "sts",
 		OperationName: "DecodeAuthorizationMessage",
 	}
 }
