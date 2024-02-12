@@ -649,7 +649,10 @@ func cleanOperationalData(es *network.EndpointSettings) {
 }
 
 func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings, updateSettings bool) error {
-	if containertypes.NetworkMode(n.Name()).IsUserDefined() {
+	// Set up DNS names for a user defined network, and for the default 'nat'
+	// network on Windows (IsBridge() returns true for nat).
+	if containertypes.NetworkMode(n.Name()).IsUserDefined() ||
+		(serviceDiscoveryOnDefaultNetwork() && containertypes.NetworkMode(n.Name()).IsBridge()) {
 		endpointConfig.DNSNames = buildEndpointDNSNames(container, endpointConfig.Aliases)
 	}
 
