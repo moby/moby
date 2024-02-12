@@ -1,4 +1,4 @@
-go 1.18
+go 1.19
 
 use (
 	.
@@ -18,6 +18,7 @@ use (
 	./artifactregistry
 	./asset
 	./assuredworkloads
+	./auth
 	./automl
 	./baremetalsolution
 	./batch
@@ -35,6 +36,7 @@ use (
 	./compute
 	./compute/metadata
 	./confidentialcomputing
+	./config
 	./contactcenterinsights
 	./container
 	./containeranalysis
