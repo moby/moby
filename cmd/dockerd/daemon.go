@@ -322,7 +322,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	cli.setupConfigReloadTrap()
 
 	// after the daemon is done setting up we can notify systemd api
-	notifyReady()
+	go notifyReady()
 
 	// Daemon is fully initialized. Start handling API traffic
 	// and wait for serve API to complete.
@@ -354,7 +354,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	c.Cleanup()
 
 	// notify systemd that we're shutting down
-	notifyStopping()
+	go notifyStopping()
 	shutdownDaemon(ctx, d)
 
 	if err := routerOpts.buildkit.Close(); err != nil {
