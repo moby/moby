@@ -459,7 +459,16 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 		return copyDirectory(archiver, srcPath, destPath, options.identity)
 	}
 	if options.decompress && archive.IsArchivePath(srcPath) && !source.noDecompress {
-		return archiver.UntarPath(srcPath, destPath)
+		f, err := os.Open(srcPath)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		options := &archive.TarOptions{
+			IDMap:            archiver.IDMapping,
+			BestEffortXattrs: true,
+		}
+		return archiver.Untar(f, destPath, options)
 	}
 
 	destExistsAsDir, err := isExistingDirectory(destPath)
