@@ -137,7 +137,7 @@ require (
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/go-cni v1.1.9 // indirect
 	github.com/containerd/go-runc v1.1.0 // indirect
-	github.com/containerd/nydus-snapshotter v0.8.2 // indirect
+	github.com/containerd/nydus-snapshotter v0.13.7 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3 // indirect
 	github.com/containerd/ttrpc v1.2.2 // indirect
 	github.com/containernetworking/cni v1.1.2 // indirect
