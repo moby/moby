@@ -47,10 +47,13 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	structpb "github.com/golang/protobuf/ptypes/struct"
+	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/api/support/bundler"
 	mrpb "google.golang.org/genproto/googleapis/api/monitoredres"
 	logtypepb "google.golang.org/genproto/googleapis/logging/type"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -88,6 +91,9 @@ const (
 	// timeout is to allow clients to degrade gracefully if underlying logging
 	// service is temporarily impaired for some reason.
 	defaultWriteTimeout = 10 * time.Minute
+
+	// Part of the error message when the payload contains invalid UTF-8 characters.
+	utfErrorString = "string field contains invalid UTF-8"
 )
 
 var (
@@ -255,6 +261,37 @@ type Logger struct {
 	populateSourceLocation int
 	partialSuccess         bool
 	redirectOutputWriter   io.Writer
+}
+
+type loggerRetryer struct {
+	defaultRetryer gax.Retryer
+}
+
+func newLoggerRetryer() gax.Retryer {
+	// Copied from CallOptions.WriteLogEntries in apiv2/logging_client.go.
+	d := gax.OnCodes([]codes.Code{
+		codes.DeadlineExceeded,
+		codes.Internal,
+		codes.Unavailable,
+	}, gax.Backoff{
+		Initial:    100 * time.Millisecond,
+		Max:        60000 * time.Millisecond,
+		Multiplier: 1.30,
+	})
+
+	r := &loggerRetryer{defaultRetryer: d}
+	return r
+}
+
+func (r *loggerRetryer) Retry(err error) (pause time.Duration, shouldRetry bool) {
+	s, ok := status.FromError(err)
+	if !ok {
+		return r.defaultRetryer.Retry(err)
+	}
+	if strings.Contains(s.Message(), utfErrorString) {
+		return 0, false
+	}
+	return r.defaultRetryer.Retry(err)
 }
 
 // Logger returns a Logger that will write entries with the given log ID, such as
@@ -715,7 +752,8 @@ func (l *Logger) writeLogEntries(entries []*logpb.LogEntry) {
 	ctx, afterCall := l.ctxFunc()
 	ctx, cancel := context.WithTimeout(ctx, defaultWriteTimeout)
 	defer cancel()
-	_, err := l.client.client.WriteLogEntries(ctx, req)
+
+	_, err := l.client.client.WriteLogEntries(ctx, req, gax.WithRetry(newLoggerRetryer))
 	if err != nil {
 		l.client.error(err)
 	}
