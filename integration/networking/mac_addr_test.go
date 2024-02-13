@@ -1,6 +1,7 @@
 package networking
 
 import (
+	"runtime"
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -24,6 +25,8 @@ import (
 //     (The bug was that it kept its original MAC address, now already in-use.)
 //   - Check that the two containers have different MAC addresses.
 func TestMACAddrOnRestart(t *testing.T) {
+	// Not applicable to Windows, where generated MAC addresses are random rather than
+	// based on the IP address.
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	ctx := setupTest(t)
@@ -84,8 +87,6 @@ func TestMACAddrOnRestart(t *testing.T) {
 // Check that a configured MAC address is restored after a container restart,
 // and after a daemon restart.
 func TestCfgdMACAddrOnRestart(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
@@ -95,18 +96,19 @@ func TestCfgdMACAddrOnRestart(t *testing.T) {
 	c := d.NewClientT(t)
 	defer c.Close()
 
+	builtinNetName := "bridge"
+	if runtime.GOOS == "windows" {
+		builtinNetName = "nat"
+	}
+
 	const netName = "testcfgmacaddr"
-	network.CreateNoError(ctx, t, c, netName,
-		network.WithDriver("bridge"),
-		network.WithOption(bridge.BridgeName, netName))
+	network.CreateNoError(ctx, t, c, netName, network.WithDriver(builtinNetName))
 	defer network.RemoveNoError(ctx, t, c, netName)
 
 	const wantMAC = "02:42:ac:11:00:42"
 	const ctr1Name = "ctr1"
 	id1 := container.Run(ctx, t, c,
 		container.WithName(ctr1Name),
-		container.WithImage("busybox:latest"),
-		container.WithCmd("top"),
 		container.WithNetworkMode(netName),
 		container.WithMacAddress(netName, wantMAC))
 	defer c.ContainerRemove(ctx, id1, containertypes.RemoveOptions{
@@ -142,13 +144,16 @@ func TestCfgdMACAddrOnRestart(t *testing.T) {
 // generated MAC address is not included in the Config section of 'inspect'
 // output, but a configured address is.
 func TestInspectCfgdMAC(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
+
+	builtinNetName := "bridge"
+	if runtime.GOOS == "windows" {
+		builtinNetName = "nat"
+	}
 
 	testcases := []struct {
 		name       string
@@ -157,27 +162,27 @@ func TestInspectCfgdMAC(t *testing.T) {
 		ctrWide    bool
 	}{
 		{
-			name:    "generated address default bridge",
-			netName: "bridge",
+			name:    "generated address default net",
+			netName: builtinNetName,
 		},
 		{
-			name:       "configured address default bridge",
+			name:       "configured address default net",
 			desiredMAC: "02:42:ac:11:00:42",
-			netName:    "bridge",
+			netName:    builtinNetName,
 		},
 		{
-			name:    "generated address custom bridge",
+			name:    "generated address custom net",
 			netName: "testnet",
 		},
 		{
-			name:       "configured address custom bridge",
+			name:       "configured address custom net",
 			desiredMAC: "02:42:ac:11:00:42",
 			netName:    "testnet",
 		},
 		{
-			name:       "ctr-wide address default bridge",
+			name:       "ctr-wide address default net",
 			desiredMAC: "02:42:ac:11:00:42",
-			netName:    "bridge",
+			netName:    builtinNetName,
 			ctrWide:    true,
 		},
 	}
@@ -193,10 +198,10 @@ func TestInspectCfgdMAC(t *testing.T) {
 			c := d.NewClientT(t, copts...)
 			defer c.Close()
 
-			if tc.netName != "bridge" {
+			if tc.netName != builtinNetName {
 				const netName = "inspectcfgmac"
 				network.CreateNoError(ctx, t, c, netName,
-					network.WithDriver("bridge"),
+					network.WithDriver(builtinNetName),
 					network.WithOption(bridge.BridgeName, netName))
 				defer network.RemoveNoError(ctx, t, c, netName)
 			}
@@ -204,13 +209,11 @@ func TestInspectCfgdMAC(t *testing.T) {
 			const ctrName = "ctr"
 			opts := []func(*container.TestContainerConfig){
 				container.WithName(ctrName),
-				container.WithCmd("top"),
-				container.WithImage("busybox:latest"),
 			}
-			// Don't specify the network name for the bridge network, because that
+			// Don't specify the network name for the built-in network, because that
 			// exercises a different code path (the network name isn't set until the
 			// container starts, until then it's "default").
-			if tc.netName != "bridge" {
+			if tc.netName != builtinNetName {
 				opts = append(opts, container.WithNetworkMode(tc.netName))
 			}
 			if tc.desiredMAC != "" {
