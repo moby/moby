@@ -2,8 +2,6 @@ package containerd
 
 import (
 	"context"
-	"crypto/tls"
-	"errors"
 	"net/http"
 
 	"github.com/containerd/containerd/remotes"
@@ -33,10 +31,11 @@ func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig
 }
 
 func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig, ref reference.Named, regService registryResolver) docker.RegistryHosts {
-	var authorizer docker.Authorizer
-	if optAuthConfig != nil {
-		authorizer = authorizerFromAuthConfig(*optAuthConfig, ref)
+	if optAuthConfig == nil {
+		return hostsFn
 	}
+
+	authorizer := authorizerFromAuthConfig(*optAuthConfig, ref)
 
 	return func(n string) ([]docker.RegistryHost, error) {
 		hosts, err := hostsFn(n)
@@ -45,13 +44,7 @@ func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.Aut
 		}
 
 		for i := range hosts {
-			if hosts[i].Authorizer == nil {
-				hosts[i].Authorizer = authorizer
-				isInsecure := regService.IsInsecureRegistry(hosts[i].Host)
-				if hosts[i].Client.Transport != nil && isInsecure {
-					hosts[i].Client.Transport = httpFallback{super: hosts[i].Client.Transport}
-				}
-			}
+			hosts[i].Authorizer = authorizer
 		}
 		return hosts, nil
 	}
@@ -110,25 +103,4 @@ func (a *bearerAuthorizer) Authorize(ctx context.Context, req *http.Request) err
 func (a *bearerAuthorizer) AddResponses(context.Context, []*http.Response) error {
 	// Return not implemented to prevent retry of the request when bearer did not succeed
 	return cerrdefs.ErrNotImplemented
-}
-
-type httpFallback struct {
-	super http.RoundTripper
-}
-
-func (f httpFallback) RoundTrip(r *http.Request) (*http.Response, error) {
-	resp, err := f.super.RoundTrip(r)
-	var tlsErr tls.RecordHeaderError
-	if errors.As(err, &tlsErr) && string(tlsErr.RecordHeader[:]) == "HTTP/" {
-		// server gave HTTP response to HTTPS client
-		plainHttpUrl := *r.URL
-		plainHttpUrl.Scheme = "http"
-
-		plainHttpRequest := *r
-		plainHttpRequest.URL = &plainHttpUrl
-
-		return http.DefaultTransport.RoundTrip(&plainHttpRequest)
-	}
-
-	return resp, err
 }
