@@ -182,8 +182,10 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	}
 	_ = configDone(nil)
 
-	if e.opt.ImageTagger != nil {
-		for _, targetName := range e.targetNames {
+	var names []string
+	for _, targetName := range e.targetNames {
+		names = append(names, targetName.String())
+		if e.opt.ImageTagger != nil {
 			tagDone := oneOffProgress(ctx, "naming to "+targetName.String())
 			if err := e.opt.ImageTagger.TagImage(ctx, image.ID(digest.Digest(id)), targetName); err != nil {
 				return nil, nil, tagDone(err)
@@ -192,8 +194,13 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 		}
 	}
 
-	return map[string]string{
+	resp := map[string]string{
 		exptypes.ExporterImageConfigDigestKey: configDigest.String(),
 		exptypes.ExporterImageDigestKey:       id.String(),
-	}, nil, nil
+	}
+	if len(names) > 0 {
+		resp["image.name"] = strings.Join(names, ",")
+	}
+
+	return resp, nil, nil
 }
