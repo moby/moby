@@ -563,7 +563,7 @@ func (daemon *Daemon) initLibcontainerd(ctx context.Context, cfg *config.Config)
 
 	rt := cfg.DefaultRuntime
 	if rt == "" {
-		if daemon.configStore.ContainerdAddr == "" {
+		if cfg.ContainerdAddr == "" {
 			rt = config.WindowsV1RuntimeName
 		} else {
 			rt = config.WindowsV2RuntimeName
@@ -580,7 +580,7 @@ func (daemon *Daemon) initLibcontainerd(ctx context.Context, cfg *config.Config)
 			daemon,
 		)
 	case config.WindowsV2RuntimeName:
-		if daemon.configStore.ContainerdAddr == "" {
+		if cfg.ContainerdAddr == "" {
 			return fmt.Errorf("cannot use the specified runtime %q without containerd", rt)
 		}
 		daemon.containerd, err = remote.NewClient(

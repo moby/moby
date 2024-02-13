@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
