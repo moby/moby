@@ -1,10 +1,10 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,13 +12,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/containerd/containerd/remotes/docker"
+	hostconfig "github.com/containerd/containerd/remotes/docker/config"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/registry"
-	"github.com/moby/buildkit/util/resolver/config"
-	resolverconfig "github.com/moby/buildkit/util/resolver/config"
-	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 )
 
@@ -29,159 +27,120 @@ const (
 // RegistryHosts returns the registry hosts configuration for the host component
 // of a distribution image reference.
 func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) {
-	m := map[string]resolverconfig.RegistryConfig{
-		"docker.io": {Mirrors: daemon.registryService.ServiceConfig().Mirrors},
-	}
-	conf := daemon.registryService.ServiceConfig().IndexConfigs
-	for k, v := range conf {
-		c := m[k]
-		if !v.Secure {
-			t := true
-			c.PlainHTTP = &t
-			c.Insecure = &t
-		}
-		m[k] = c
-	}
-	if c, ok := m[host]; !ok && daemon.registryService.IsInsecureRegistry(host) {
-		t := true
-		c.PlainHTTP = &t
-		c.Insecure = &t
-		m[host] = c
-	}
-
-	for k, v := range m {
-		v.TLSConfigDir = []string{registry.HostCertsDir(k)}
-		m[k] = v
-	}
-
-	certsDir := registry.CertsDir()
-	if fis, err := os.ReadDir(certsDir); err == nil {
-		for _, fi := range fis {
-			if _, ok := m[fi.Name()]; !ok {
-				m[fi.Name()] = resolverconfig.RegistryConfig{
-					TLSConfigDir: []string{filepath.Join(certsDir, fi.Name())},
-				}
-			}
-		}
-	}
-
-	return newRegistryConfig(m)(host)
-}
-
-// newRegistryConfig converts registry config to docker.RegistryHosts callback
-func newRegistryConfig(m map[string]resolverconfig.RegistryConfig) docker.RegistryHosts {
-	return docker.Registries(
-		func(host string) ([]docker.RegistryHost, error) {
-			c, ok := m[host]
-			if !ok {
-				return nil, nil
-			}
-
-			var out []docker.RegistryHost
-
-			for _, rawMirror := range c.Mirrors {
-				h := newMirrorRegistryHost(rawMirror)
-				mirrorHost := h.Host
-				host, err := fillInsecureOpts(mirrorHost, m[mirrorHost], h)
-				if err != nil {
-					return nil, err
-				}
-
-				out = append(out, *host)
-			}
-
-			if host == "docker.io" {
-				host = "registry-1.docker.io"
-			}
-
-			h := docker.RegistryHost{
-				Scheme:       "https",
-				Client:       newDefaultClient(),
-				Host:         host,
-				Path:         "/v2",
-				Capabilities: docker.HostCapabilityPush | docker.HostCapabilityPull | docker.HostCapabilityResolve,
-			}
-
-			hosts, err := fillInsecureOpts(host, c, h)
-			if err != nil {
-				return nil, err
-			}
-
-			out = append(out, *hosts)
-
-			return out, nil
-		},
-		docker.ConfigureDefaultRegistries(
-			docker.WithClient(newDefaultClient()),
-			docker.WithPlainHTTP(docker.MatchLocalhost),
-		),
-	)
-}
-
-func fillInsecureOpts(host string, c config.RegistryConfig, h docker.RegistryHost) (*docker.RegistryHost, error) {
-	tc, err := loadTLSConfig(c)
+	hosts, err := hostconfig.ConfigureHosts(context.Background(), hostconfig.HostOptions{
+		// TODO: Also check containerd path when updating containerd to use multiple host directories
+		HostDir: hostconfig.HostDirFromRoot(registry.CertsDir()),
+	})(host)
 	if err != nil {
 		return nil, err
 	}
-	var isHTTP bool
 
-	if c.PlainHTTP != nil && *c.PlainHTTP {
-		isHTTP = true
-	}
-	if c.PlainHTTP == nil {
-		if ok, _ := docker.MatchLocalhost(host); ok {
-			isHTTP = true
+	// Merge in legacy configuration if provided and only a single configuration
+	if sc := daemon.registryService.ServiceConfig(); len(hosts) == 1 && sc != nil {
+		hosts, err = daemon.mergeLegacyConfig(host, hosts)
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	httpsTransport := newDefaultTransport()
-	httpsTransport.TLSClientConfig = tc
-
-	if c.Insecure != nil && *c.Insecure {
-		h2 := h
-
-		var transport http.RoundTripper = httpsTransport
-		if isHTTP {
-			transport = &httpFallback{super: transport}
-		}
-		h2.Client = &http.Client{
-			Transport: tracing.NewTransport(transport),
-		}
-		tc.InsecureSkipVerify = true
-		return &h2, nil
-	} else if isHTTP {
-		h2 := h
-		h2.Scheme = "http"
-		return &h2, nil
-	}
-
-	h.Client = &http.Client{
-		Transport: tracing.NewTransport(httpsTransport),
-	}
-	return &h, nil
+	return hosts, nil
 }
 
-func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
-	for _, d := range c.TLSConfigDir {
-		fs, err := os.ReadDir(d)
-		if err != nil && !errors.Is(err, os.ErrNotExist) && !errors.Is(err, os.ErrPermission) {
-			return nil, errors.WithStack(err)
-		}
-		for _, f := range fs {
-			if strings.HasSuffix(f.Name(), ".crt") {
-				c.RootCAs = append(c.RootCAs, filepath.Join(d, f.Name()))
+func (daemon *Daemon) mergeLegacyConfig(host string, hosts []docker.RegistryHost) ([]docker.RegistryHost, error) {
+	if len(hosts) == 0 {
+		return hosts, nil
+	}
+	sc := daemon.registryService.ServiceConfig()
+	if host == "docker.io" && len(sc.Mirrors) > 0 {
+		var mirrorHosts []docker.RegistryHost
+		for _, mirror := range sc.Mirrors {
+			h := hosts[0]
+			h.Capabilities = docker.HostCapabilityPull | docker.HostCapabilityResolve
+
+			u, err := url.Parse(mirror)
+			if err != nil || u.Host == "" {
+				u, err = url.Parse(fmt.Sprintf("//%s", mirror))
 			}
-			if strings.HasSuffix(f.Name(), ".cert") {
-				c.KeyPairs = append(c.KeyPairs, config.TLSKeyPair{
-					Certificate: filepath.Join(d, f.Name()),
-					Key:         filepath.Join(d, strings.TrimSuffix(f.Name(), ".cert")+".key"),
-				})
+			if err == nil && u.Host != "" {
+				h.Host = u.Host
+				h.Path = strings.TrimRight(u.Path, "/")
+				if !strings.HasSuffix(h.Path, defaultPath) {
+					h.Path = path.Join(defaultPath, h.Path)
+				}
+			} else {
+				h.Host = mirror
+				h.Path = defaultPath
+			}
+
+			mirrorHosts = append(mirrorHosts, h)
+		}
+		hosts = append(mirrorHosts, hosts[0])
+	}
+	hostDir := hostconfig.HostDirFromRoot(registry.CertsDir())
+	for i := range hosts {
+		t, ok := hosts[i].Client.Transport.(*http.Transport)
+		if !ok {
+			continue
+		}
+		if t.TLSClientConfig == nil {
+			certsDir, err := hostDir(host)
+			if err != nil && !cerrdefs.IsNotFound(err) {
+				return nil, err
+			} else if err == nil {
+				c, err := loadTLSConfig(certsDir)
+				if err != nil {
+					return nil, err
+				}
+				t.TLSClientConfig = c
+			}
+		}
+		if daemon.registryService.IsInsecureRegistry(hosts[i].Host) {
+			if t.TLSClientConfig != nil {
+				isLocalhost, err := docker.MatchLocalhost(hosts[i].Host)
+				if err != nil {
+					continue
+				}
+				if isLocalhost {
+					hosts[i].Client.Transport = docker.NewHTTPFallback(hosts[i].Client.Transport)
+				}
+				t.TLSClientConfig.InsecureSkipVerify = true
+			} else {
+				hosts[i].Scheme = "http"
 			}
 		}
 	}
+	return hosts, nil
+}
 
-	tc := &tls.Config{}
-	if len(c.RootCAs) > 0 {
+func loadTLSConfig(d string) (*tls.Config, error) {
+	fs, err := os.ReadDir(d)
+	if err != nil && !errors.Is(err, os.ErrNotExist) && !errors.Is(err, os.ErrPermission) {
+		return nil, errors.WithStack(err)
+	}
+	type keyPair struct {
+		Certificate string
+		Key         string
+	}
+	var (
+		rootCAs  []string
+		keyPairs []keyPair
+	)
+	for _, f := range fs {
+		if strings.HasSuffix(f.Name(), ".crt") {
+			rootCAs = append(rootCAs, filepath.Join(d, f.Name()))
+		}
+		if strings.HasSuffix(f.Name(), ".cert") {
+			keyPairs = append(keyPairs, keyPair{
+				Certificate: filepath.Join(d, f.Name()),
+				Key:         filepath.Join(d, strings.TrimSuffix(f.Name(), ".cert")+".key"),
+			})
+		}
+	}
+
+	tc := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+	}
+	if len(rootCAs) > 0 {
 		systemPool, err := x509.SystemCertPool()
 		if err != nil {
 			if runtime.GOOS == "windows" {
@@ -193,7 +152,7 @@ func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
 		tc.RootCAs = systemPool
 	}
 
-	for _, p := range c.RootCAs {
+	for _, p := range rootCAs {
 		dt, err := os.ReadFile(p)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to read %s", p)
@@ -201,7 +160,7 @@ func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
 		tc.RootCAs.AppendCertsFromPEM(dt)
 	}
 
-	for _, kp := range c.KeyPairs {
+	for _, kp := range keyPairs {
 		cert, err := tls.LoadX509KeyPair(kp.Certificate, kp.Key)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to load keypair for %s", kp.Certificate)
@@ -209,88 +168,4 @@ func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
 		tc.Certificates = append(tc.Certificates, cert)
 	}
 	return tc, nil
-}
-
-func newMirrorRegistryHost(mirror string) docker.RegistryHost {
-	mirrorHost, mirrorPath := extractMirrorHostAndPath(mirror)
-	path := path.Join(defaultPath, mirrorPath)
-	h := docker.RegistryHost{
-		Scheme:       "https",
-		Client:       newDefaultClient(),
-		Host:         mirrorHost,
-		Path:         path,
-		Capabilities: docker.HostCapabilityPull | docker.HostCapabilityResolve,
-	}
-
-	return h
-}
-
-func newDefaultClient() *http.Client {
-	return &http.Client{
-		Transport: tracing.NewTransport(newDefaultTransport()),
-	}
-}
-
-// newDefaultTransport is for pull or push client
-//
-// NOTE: For push, there must disable http2 for https because the flow control
-// will limit data transfer. The net/http package doesn't provide http2 tunable
-// settings which limits push performance.
-//
-// REF: https://github.com/golang/go/issues/14077
-func newDefaultTransport() *http.Transport {
-	return &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 60 * time.Second,
-		}).DialContext,
-		MaxIdleConns:          30,
-		IdleConnTimeout:       120 * time.Second,
-		MaxIdleConnsPerHost:   4,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 5 * time.Second,
-		TLSNextProto:          make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
-	}
-}
-
-type httpFallback struct {
-	super http.RoundTripper
-	host  string
-}
-
-func (f *httpFallback) RoundTrip(r *http.Request) (*http.Response, error) {
-	// only fall back if the same host had previously fell back
-	if f.host == r.URL.Host {
-		resp, err := f.super.RoundTrip(r)
-		var tlsErr tls.RecordHeaderError
-		if errors.As(err, &tlsErr) && string(tlsErr.RecordHeader[:]) == "HTTP/" {
-			f.host = r.URL.Host
-		} else {
-			return resp, err
-		}
-	}
-
-	plainHTTPUrl := *r.URL
-	plainHTTPUrl.Scheme = "http"
-
-	plainHTTPRequest := *r
-	plainHTTPRequest.URL = &plainHTTPUrl
-
-	return f.super.RoundTrip(&plainHTTPRequest)
-}
-
-func extractMirrorHostAndPath(mirror string) (string, string) {
-	var path string
-	host := mirror
-
-	u, err := url.Parse(mirror)
-	if err != nil || u.Host == "" {
-		u, err = url.Parse(fmt.Sprintf("//%s", mirror))
-	}
-	if err != nil || u.Host == "" {
-		return host, path
-	}
-
-	return u.Host, strings.TrimRight(u.Path, "/")
 }
