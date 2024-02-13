@@ -1,55 +1,31 @@
 package build // import "github.com/docker/docker/api/server/backend/build"
 
 import (
+	"context"
 	"fmt"
 	"io"
 
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/image"
 	"github.com/pkg/errors"
 )
 
-// Tagger is responsible for tagging an image created by a builder
-type Tagger struct {
-	imageComponent ImageComponent
-	stdout         io.Writer
-	repoAndTags    []reference.Named
-}
-
-// NewTagger returns a new Tagger for tagging the images of a build.
-// If any of the names are invalid tags an error is returned.
-func NewTagger(backend ImageComponent, stdout io.Writer, names []string) (*Tagger, error) {
-	reposAndTags, err := sanitizeRepoAndTags(names)
-	if err != nil {
-		return nil, err
-	}
-	return &Tagger{
-		imageComponent: backend,
-		stdout:         stdout,
-		repoAndTags:    reposAndTags,
-	}, nil
-}
-
-// TagImages creates image tags for the imageID
-func (bt *Tagger) TagImages(imageID image.ID) error {
-	for _, rt := range bt.repoAndTags {
-		if err := bt.imageComponent.TagImageWithReference(imageID, rt); err != nil {
+// tagImages creates image tags for the imageID.
+func tagImages(ctx context.Context, ic ImageComponent, stdout io.Writer, imageID image.ID, repoAndTags []reference.Named) error {
+	for _, rt := range repoAndTags {
+		if err := ic.TagImage(ctx, imageID, rt); err != nil {
 			return err
 		}
-		fmt.Fprintf(bt.stdout, "Successfully tagged %s\n", reference.FamiliarString(rt))
+		_, _ = fmt.Fprintln(stdout, "Successfully tagged", reference.FamiliarString(rt))
 	}
 	return nil
 }
 
 // sanitizeRepoAndTags parses the raw "t" parameter received from the client
-// to a slice of repoAndTag.
-// It also validates each repoName and tag.
-func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
-	var (
-		repoAndTags []reference.Named
-		// This map is used for deduplicating the "-t" parameter.
-		uniqNames = make(map[string]struct{})
-	)
+// to a slice of repoAndTag. It removes duplicates, and validates each name
+// to not contain a digest.
+func sanitizeRepoAndTags(names []string) (repoAndTags []reference.Named, err error) {
+	uniqNames := map[string]struct{}{}
 	for _, repo := range names {
 		if repo == "" {
 			continue
@@ -60,14 +36,12 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 			return nil, err
 		}
 
-		if _, isCanonical := ref.(reference.Canonical); isCanonical {
+		if _, ok := ref.(reference.Digested); ok {
 			return nil, errors.New("build tag cannot contain a digest")
 		}
 
 		ref = reference.TagNameOnly(ref)
-
 		nameWithTag := ref.String()
-
 		if _, exists := uniqNames[nameWithTag]; !exists {
 			uniqNames[nameWithTag] = struct{}{}
 			repoAndTags = append(repoAndTags, ref)

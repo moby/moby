@@ -6,8 +6,7 @@ func newMockProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP 
 	return &mockProxyCommand{}, nil
 }
 
-type mockProxyCommand struct {
-}
+type mockProxyCommand struct{}
 
 func (p *mockProxyCommand) Start() error {
 	return nil

@@ -20,13 +20,6 @@
 package googlecloud
 
 import (
-	"errors"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -35,43 +28,9 @@ import (
 	internalgrpclog "google.golang.org/grpc/internal/grpclog"
 )
 
-const (
-	linuxProductNameFile     = "/sys/class/dmi/id/product_name"
-	windowsCheckCommand      = "powershell.exe"
-	windowsCheckCommandArgs  = "Get-WmiObject -Class Win32_BIOS"
-	powershellOutputFilter   = "Manufacturer"
-	windowsManufacturerRegex = ":(.*)"
-
-	logPrefix = "[googlecloud]"
-)
+const logPrefix = "[googlecloud]"
 
 var (
-	// The following two variables will be reassigned in tests.
-	runningOS          = runtime.GOOS
-	manufacturerReader = func() (io.Reader, error) {
-		switch runningOS {
-		case "linux":
-			return os.Open(linuxProductNameFile)
-		case "windows":
-			cmd := exec.Command(windowsCheckCommand, windowsCheckCommandArgs)
-			out, err := cmd.Output()
-			if err != nil {
-				return nil, err
-			}
-			for _, line := range strings.Split(strings.TrimSuffix(string(out), "\n"), "\n") {
-				if strings.HasPrefix(line, powershellOutputFilter) {
-					re := regexp.MustCompile(windowsManufacturerRegex)
-					name := re.FindString(line)
-					name = strings.TrimLeft(name, ":")
-					return strings.NewReader(name), nil
-				}
-			}
-			return nil, errors.New("cannot determine the machine's manufacturer")
-		default:
-			return nil, fmt.Errorf("%s is not supported", runningOS)
-		}
-	}
-
 	vmOnGCEOnce sync.Once
 	vmOnGCE     bool
 
@@ -84,21 +43,21 @@ var (
 // package. We keep this to avoid depending on the cloud library module.
 func OnGCE() bool {
 	vmOnGCEOnce.Do(func() {
-		vmOnGCE = isRunningOnGCE()
+		mf, err := manufacturer()
+		if err != nil {
+			logger.Infof("failed to read manufacturer, setting onGCE=false: %v")
+			return
+		}
+		vmOnGCE = isRunningOnGCE(mf, runtime.GOOS)
 	})
 	return vmOnGCE
 }
 
-// isRunningOnGCE checks whether the local system, without doing a network request is
+// isRunningOnGCE checks whether the local system, without doing a network request, is
 // running on GCP.
-func isRunningOnGCE() bool {
-	manufacturer, err := readManufacturer()
-	if err != nil {
-		logger.Infof("failed to read manufacturer %v, returning OnGCE=false", err)
-		return false
-	}
+func isRunningOnGCE(manufacturer []byte, goos string) bool {
 	name := string(manufacturer)
-	switch runningOS {
+	switch goos {
 	case "linux":
 		name = strings.TrimSpace(name)
 		return name == "Google" || name == "Google Compute Engine"
@@ -110,19 +69,4 @@ func isRunningOnGCE() bool {
 	default:
 		return false
 	}
-}
-
-func readManufacturer() ([]byte, error) {
-	reader, err := manufacturerReader()
-	if err != nil {
-		return nil, err
-	}
-	if reader == nil {
-		return nil, errors.New("got nil reader")
-	}
-	manufacturer, err := ioutil.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed reading %v: %v", linuxProductNameFile, err)
-	}
-	return manufacturer, nil
 }

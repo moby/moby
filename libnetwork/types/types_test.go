@@ -8,22 +8,11 @@ import (
 func TestErrorConstructors(t *testing.T) {
 	var err error
 
-	err = BadRequestErrorf("Io ho %d uccello", 1)
+	err = InvalidParameterErrorf("Io ho %d uccello", 1)
 	if err.Error() != "Io ho 1 uccello" {
 		t.Fatal(err)
 	}
-	if _, ok := err.(BadRequestError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
-
-	err = RetryErrorf("Incy wincy %s went up the spout again", "spider")
-	if err.Error() != "Incy wincy spider went up the spout again" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(RetryError); !ok {
+	if _, ok := err.(InvalidParameterError); !ok {
 		t.Fatal(err)
 	}
 	if _, ok := err.(MaskableError); ok {
@@ -63,22 +52,11 @@ func TestErrorConstructors(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = TimeoutErrorf("Process %s timed out", "abc")
-	if err.Error() != "Process abc timed out" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(TimeoutError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
-
-	err = NoServiceErrorf("Driver %s is not available", "mh")
+	err = UnavailableErrorf("Driver %s is not available", "mh")
 	if err.Error() != "Driver mh is not available" {
 		t.Fatal(err)
 	}
-	if _, ok := err.(NoServiceError); !ok {
+	if _, ok := err.(UnavailableError); !ok {
 		t.Fatal(err)
 	}
 	if _, ok := err.(MaskableError); ok {

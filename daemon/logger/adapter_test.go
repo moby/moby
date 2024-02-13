@@ -47,7 +47,6 @@ func (l *mockLoggingPlugin) StartLogging(file string, info Info) error {
 
 				l.c.Broadcast()
 				return
-
 			}
 
 			l.c.L.Lock()
@@ -55,7 +54,6 @@ func (l *mockLoggingPlugin) StartLogging(file string, info Info) error {
 			l.c.L.Unlock()
 			l.c.Broadcast()
 		}
-
 	}()
 	return nil
 }
@@ -172,7 +170,6 @@ func TestAdapterReadLogs(t *testing.T) {
 		assert.Check(t, !ok, "expected message channel to be closed")
 	case <-time.After(10 * time.Second):
 		t.Fatal("timeout waiting for message channel to close")
-
 	}
 	lw.ConsumerGone()
 

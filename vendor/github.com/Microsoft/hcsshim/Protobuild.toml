@@ -1,4 +1,4 @@
-version = "unstable"
+version = "1"
 generator = "gogoctrd"
 plugins = ["grpc", "fieldpath"]
 
@@ -9,15 +9,14 @@ plugins = ["grpc", "fieldpath"]
   # treat the root of the project as an include, but this may not be necessary.
   before = ["./protobuf"]
 
+  # defaults are "/usr/local/include" and "/usr/include", which don't exist on Windows.
+  # override defaults to supress errors about non-existant directories.
+  after = []
+
   # Paths that should be treated as include roots in relation to the vendor
   # directory. These will be calculated with the vendor directory nearest the
   # target package.
   packages = ["github.com/gogo/protobuf"]
-
-  # Paths that will be added untouched to the end of the includes. We use
-  # `/usr/local/include` to pickup the common install location of protobuf.
-  # This is the default.
-  after = ["/usr/local/include"]
 
 # This section maps protobuf imports to Go packages. These will become
 # `-M` directives in the call to the go protobuf generator.
@@ -34,6 +33,10 @@ plugins = ["grpc", "fieldpath"]
 
 [[overrides]]
 prefixes = ["github.com/Microsoft/hcsshim/internal/shimdiag"]
+plugins = ["ttrpc"]
+
+[[overrides]]
+prefixes = ["github.com/Microsoft/hcsshim/internal/extendedtask"]
 plugins = ["ttrpc"]
 
 [[overrides]]

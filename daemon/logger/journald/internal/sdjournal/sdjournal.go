@@ -1,5 +1,4 @@
 //go:build linux && cgo && !static_build && journald
-// +build linux,cgo,!static_build,journald
 
 package sdjournal // import "github.com/docker/docker/daemon/logger/journald/internal/sdjournal"
 
@@ -11,6 +10,7 @@ package sdjournal // import "github.com/docker/docker/daemon/logger/journald/int
 // 	return sd_journal_add_match(j, _GoStringPtr(s), _GoStringLen(s));
 // }
 import "C"
+
 import (
 	"fmt"
 	"runtime"
@@ -39,7 +39,7 @@ const (
 // Journal is a handle to an open journald journal.
 type Journal struct {
 	j      *C.sd_journal
-	noCopy noCopy //nolint:structcheck,unused // Exists only to mark values uncopyable for `go vet`.
+	noCopy noCopy //nolint:unused // Exists only to mark values uncopyable for `go vet`.
 }
 
 // Open opens the log journal for reading.
@@ -234,8 +234,8 @@ func (j *Journal) Data() (map[string]string, error) {
 			return m, fmt.Errorf("journald: error enumerating entry data: %w", syscall.Errno(-rc))
 		}
 
-		kv := strings.SplitN(C.GoStringN((*C.char)(data), C.int(len)), "=", 2)
-		m[kv[0]] = kv[1]
+		k, v, _ := strings.Cut(C.GoStringN((*C.char)(data), C.int(len)), "=")
+		m[k] = v
 	}
 }
 

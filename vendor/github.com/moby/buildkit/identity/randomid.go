@@ -2,9 +2,10 @@ package identity
 
 import (
 	cryptorand "crypto/rand"
-	"fmt"
 	"io"
 	"math/big"
+
+	"github.com/pkg/errors"
 )
 
 var (
@@ -45,7 +46,7 @@ func NewID() string {
 	var p [randomIDEntropyBytes]byte
 
 	if _, err := io.ReadFull(idReader, p[:]); err != nil {
-		panic(fmt.Errorf("failed to read random bytes: %v", err))
+		panic(errors.Wrap(err, "failed to read random bytes: %v"))
 	}
 
 	p[0] |= 0x80 // set high bit to avoid the need for padding

@@ -13,6 +13,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/internal/csi/capability"
 	"github.com/moby/swarmkit/v2/log"
 )
 
@@ -208,10 +209,9 @@ func (np *nodePlugin) NodeStageVolume(ctx context.Context, req *api.VolumeAssign
 	}
 
 	stagingTarget := stagePath(req)
-
-	// Check arguments
-	if len(req.VolumeID) == 0 {
-		return status.Error(codes.InvalidArgument, "VolumeID missing in request")
+	err := capability.CheckArguments(req)
+	if err != nil {
+		return err
 	}
 
 	c, err := np.Client(ctx)
@@ -223,7 +223,7 @@ func (np *nodePlugin) NodeStageVolume(ctx context.Context, req *api.VolumeAssign
 		VolumeId:          req.VolumeID,
 		StagingTargetPath: stagingTarget,
 		Secrets:           np.makeSecrets(req),
-		VolumeCapability:  makeCapability(req.AccessMode),
+		VolumeCapability:  capability.MakeCapability(req.AccessMode),
 		VolumeContext:     req.VolumeContext,
 		PublishContext:    req.PublishContext,
 	})
@@ -286,9 +286,9 @@ func (np *nodePlugin) NodeUnstageVolume(ctx context.Context, req *api.VolumeAssi
 }
 
 func (np *nodePlugin) NodePublishVolume(ctx context.Context, req *api.VolumeAssignment) error {
-	// Check arguments
-	if len(req.VolumeID) == 0 {
-		return status.Error(codes.InvalidArgument, "Volume ID missing in request")
+	err := capability.CheckArguments(req)
+	if err != nil {
+		return err
 	}
 
 	np.mu.Lock()
@@ -296,14 +296,15 @@ func (np *nodePlugin) NodePublishVolume(ctx context.Context, req *api.VolumeAssi
 
 	publishTarget := publishPath(req)
 
-	// some volumes do not require staging. we can check this by checkign the
-	// staging variable, or we can just see if there is a staging path in the
-	// map.
+	// Some volumes plugins require staging; we track this with a boolean, which
+	// also implies a staging path in the path map. If the plugin is marked as
+	// requiring staging but does not have a staging path in the map, that is an
+	// error.
 	var stagingPath string
 	if vs, ok := np.volumeMap[req.ID]; ok {
 		stagingPath = vs.stagingPath
-	} else {
-		return status.Error(codes.FailedPrecondition, "volume not staged")
+	} else if np.staging {
+		return status.Error(codes.FailedPrecondition, "volume requires staging but was not staged")
 	}
 
 	c, err := np.Client(ctx)
@@ -315,7 +316,7 @@ func (np *nodePlugin) NodePublishVolume(ctx context.Context, req *api.VolumeAssi
 		VolumeId:          req.VolumeID,
 		TargetPath:        publishTarget,
 		StagingTargetPath: stagingPath,
-		VolumeCapability:  makeCapability(req.AccessMode),
+		VolumeCapability:  capability.MakeCapability(req.AccessMode),
 		Secrets:           np.makeSecrets(req),
 		VolumeContext:     req.VolumeContext,
 		PublishContext:    req.PublishContext,
@@ -397,51 +398,6 @@ func makeNodeInfo(csiNodeInfo *csi.NodeGetInfoResponse) *api.NodeCSIInfo {
 		NodeID:            csiNodeInfo.NodeId,
 		MaxVolumesPerNode: csiNodeInfo.MaxVolumesPerNode,
 	}
-}
-
-func makeCapability(am *api.VolumeAccessMode) *csi.VolumeCapability {
-	var mode csi.VolumeCapability_AccessMode_Mode
-	switch am.Scope {
-	case api.VolumeScopeSingleNode:
-		switch am.Sharing {
-		case api.VolumeSharingNone, api.VolumeSharingOneWriter, api.VolumeSharingAll:
-			mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER
-		case api.VolumeSharingReadOnly:
-			mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY
-		}
-	case api.VolumeScopeMultiNode:
-		switch am.Sharing {
-		case api.VolumeSharingReadOnly:
-			mode = csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY
-		case api.VolumeSharingOneWriter:
-			mode = csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER
-		case api.VolumeSharingAll:
-			mode = csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER
-		}
-	}
-
-	capability := &csi.VolumeCapability{
-		AccessMode: &csi.VolumeCapability_AccessMode{
-			Mode: mode,
-		},
-	}
-
-	if block := am.GetBlock(); block != nil {
-		capability.AccessType = &csi.VolumeCapability_Block{
-			// Block type is empty.
-			Block: &csi.VolumeCapability_BlockVolume{},
-		}
-	}
-
-	if mount := am.GetMount(); mount != nil {
-		capability.AccessType = &csi.VolumeCapability_Mount{
-			Mount: &csi.VolumeCapability_MountVolume{
-				FsType:     mount.FsType,
-				MountFlags: mount.MountFlags,
-			},
-		}
-	}
-	return capability
 }
 
 // stagePath returns the staging path for a given volume assignment

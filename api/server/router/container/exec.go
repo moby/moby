@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/sirupsen/logrus"
 )
 
 func (s *containerRouter) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -56,7 +56,7 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 	// Register an instance of Exec in container.
 	id, err := s.backend.ContainerExecCreate(vars["name"], execConfig)
 	if err != nil {
-		logrus.Errorf("Error setting up exec command in container %s: %v", vars["name"], err)
+		log.G(ctx).Errorf("Error setting up exec command in container %s: %v", vars["name"], err)
 		return err
 	}
 
@@ -69,15 +69,6 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
-	}
-
-	version := httputils.VersionFromContext(ctx)
-	if versions.LessThan(version, "1.22") {
-		// API versions before 1.22 did not enforce application/json content-type.
-		// Allow older clients to work by patching the content-type.
-		if r.Header.Get("Content-Type") != "application/json" {
-			r.Header.Set("Content-Type", "application/json")
-		}
 	}
 
 	var (
@@ -96,6 +87,8 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 	}
 
 	if execStartCheck.ConsoleSize != nil {
+		version := httputils.VersionFromContext(ctx)
+
 		// Not supported before 1.42
 		if versions.LessThan(version, "1.42") {
 			execStartCheck.ConsoleSize = nil
@@ -154,7 +147,7 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 			return err
 		}
 		stdout.Write([]byte(err.Error() + "\r\n"))
-		logrus.Errorf("Error running exec %s in container: %v", execName, err)
+		log.G(ctx).Errorf("Error running exec %s in container: %v", execName, err)
 	}
 	return nil
 }

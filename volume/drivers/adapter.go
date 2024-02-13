@@ -1,17 +1,16 @@
 package drivers // import "github.com/docker/docker/volume/drivers"
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/volume"
-	"github.com/sirupsen/logrus"
 )
 
-var (
-	errNoSuchVolume = errors.New("no such volume")
-)
+var errNoSuchVolume = errors.New("no such volume")
 
 type volumeDriverAdapter struct {
 	name         string
@@ -94,7 +93,7 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 	if err != nil {
 		// `GetCapabilities` is a not a required endpoint.
 		// On error assume it's a local-only driver
-		logrus.WithError(err).WithField("driver", a.name).Debug("Volume driver returned an error while trying to query its capabilities, using default capabilities")
+		log.G(context.TODO()).WithError(err).WithField("driver", a.name).Debug("Volume driver returned an error while trying to query its capabilities, using default capabilities")
 		return volume.Capability{Scope: volume.LocalScope}
 	}
 
@@ -105,7 +104,7 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 
 	cap.Scope = strings.ToLower(cap.Scope)
 	if cap.Scope != volume.LocalScope && cap.Scope != volume.GlobalScope {
-		logrus.WithField("driver", a.Name()).WithField("scope", a.Scope).Warn("Volume driver returned an invalid scope")
+		log.G(context.TODO()).WithField("driver", a.Name()).WithField("scope", a.Scope).Warn("Volume driver returned an invalid scope")
 		cap.Scope = volume.LocalScope
 	}
 
@@ -167,6 +166,7 @@ func (a *volumeAdapter) Unmount(id string) error {
 func (a *volumeAdapter) CreatedAt() (time.Time, error) {
 	return a.createdAt, nil
 }
+
 func (a *volumeAdapter) Status() map[string]interface{} {
 	out := make(map[string]interface{}, len(a.status))
 	for k, v := range a.status {

@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,17 +11,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 )
 
 func (s *DockerAPISuite) TestLogsAPIWithStdout(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "-t", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 1; done")
+	out := cli.DockerCmd(c, "run", "-d", "-t", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 1; done").Stdout()
 	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	cli.WaitRun(c, id)
 
 	type logOut struct {
 		out string
@@ -30,7 +31,7 @@ func (s *DockerAPISuite) TestLogsAPIWithStdout(c *testing.T) {
 	}
 
 	chLog := make(chan logOut, 1)
-	res, body, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id))
+	res, body, err := request.Get(testutil.GetContext(c), fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id))
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusOK)
 
@@ -56,23 +57,23 @@ func (s *DockerAPISuite) TestLogsAPIWithStdout(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestLogsAPINoStdoutNorStderr(c *testing.T) {
-	name := "logs_test"
-	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	const name = "logs_test"
+	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
-	_, err = cli.ContainerLogs(context.Background(), name, types.ContainerLogsOptions{})
+	_, err = apiClient.ContainerLogs(testutil.GetContext(c), name, container.LogsOptions{})
 	assert.ErrorContains(c, err, "Bad parameters: you must choose at least one stream")
 }
 
 // Regression test for #12704
 func (s *DockerAPISuite) TestLogsAPIFollowEmptyOutput(c *testing.T) {
-	name := "logs_test"
+	const name = "logs_test"
 	t0 := time.Now()
-	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
+	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
 
-	_, body, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
+	_, body, err := request.Get(testutil.GetContext(c), fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
 	t1 := time.Now()
 	assert.NilError(c, err)
 	body.Close()
@@ -84,29 +85,33 @@ func (s *DockerAPISuite) TestLogsAPIFollowEmptyOutput(c *testing.T) {
 
 func (s *DockerAPISuite) TestLogsAPIContainerNotFound(c *testing.T) {
 	name := "nonExistentContainer"
-	resp, _, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
+	resp, _, err := request.Get(testutil.GetContext(c), fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
 	assert.NilError(c, err)
 	assert.Equal(c, resp.StatusCode, http.StatusNotFound)
 }
 
 func (s *DockerAPISuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	name := "logsuntilfuturefollow"
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", "while true; do date +%s; sleep 1; done")
-	assert.NilError(c, waitRun(name))
+	const name = "logsuntilfuturefollow"
+	cli.DockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", "while true; do date +%s; sleep 1; done")
+	cli.WaitRun(c, name)
 
 	untilSecs := 5
 	untilDur, err := time.ParseDuration(fmt.Sprintf("%ds", untilSecs))
 	assert.NilError(c, err)
 	until := daemonTime(c).Add(untilDur)
 
-	client, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	cfg := types.ContainerLogsOptions{Until: until.Format(time.RFC3339Nano), Follow: true, ShowStdout: true, Timestamps: true}
-	reader, err := client.ContainerLogs(context.Background(), name, cfg)
+	reader, err := apiClient.ContainerLogs(testutil.GetContext(c), name, container.LogsOptions{
+		Until:      until.Format(time.RFC3339Nano),
+		Follow:     true,
+		ShowStdout: true,
+		Timestamps: true,
+	})
 	assert.NilError(c, err)
 
 	type logOut struct {
@@ -158,17 +163,16 @@ func (s *DockerAPISuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
-	testRequires(c, MinimumAPIVersion("1.34"))
-	name := "logsuntil"
-	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; sleep 1; done")
+	const name = "logsuntil"
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; sleep 1; done")
 
-	client, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	extractBody := func(c *testing.T, cfg types.ContainerLogsOptions) []string {
-		reader, err := client.ContainerLogs(context.Background(), name, cfg)
+	extractBody := func(c *testing.T, cfg container.LogsOptions) []string {
+		reader, err := apiClient.ContainerLogs(testutil.GetContext(c), name, cfg)
 		assert.NilError(c, err)
 
 		actualStdout := new(bytes.Buffer)
@@ -180,7 +184,7 @@ func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
 	}
 
 	// Get timestamp of second log line
-	allLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true})
+	allLogs := extractBody(c, container.LogsOptions{Timestamps: true, ShowStdout: true})
 	assert.Assert(c, len(allLogs) >= 3)
 
 	t, err := time.Parse(time.RFC3339Nano, strings.Split(allLogs[1], " ")[0])
@@ -188,7 +192,7 @@ func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
 	until := t.Format(time.RFC3339Nano)
 
 	// Get logs until the timestamp of second line, i.e. first two lines
-	logs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true, Until: until})
+	logs := extractBody(c, container.LogsOptions{Timestamps: true, ShowStdout: true, Until: until})
 
 	// Ensure log lines after cut-off are excluded
 	logsString := strings.Join(logs, "\n")
@@ -196,16 +200,16 @@ func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
-	name := "logsuntildefaultval"
-	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; done")
+	const name = "logsuntildefaultval"
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; done")
 
-	client, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	extractBody := func(c *testing.T, cfg types.ContainerLogsOptions) []string {
-		reader, err := client.ContainerLogs(context.Background(), name, cfg)
+	extractBody := func(c *testing.T, cfg container.LogsOptions) []string {
+		reader, err := apiClient.ContainerLogs(testutil.GetContext(c), name, cfg)
 		assert.NilError(c, err)
 
 		actualStdout := new(bytes.Buffer)
@@ -217,9 +221,9 @@ func (s *DockerAPISuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
 	}
 
 	// Get timestamp of second log line
-	allLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true})
+	allLogs := extractBody(c, container.LogsOptions{Timestamps: true, ShowStdout: true})
 
 	// Test with default value specified and parameter omitted
-	defaultLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true, Until: "0"})
+	defaultLogs := extractBody(c, container.LogsOptions{Timestamps: true, ShowStdout: true, Until: "0"})
 	assert.DeepEqual(c, defaultLogs, allLogs)
 }

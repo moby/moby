@@ -130,11 +130,13 @@ can take over 15 minutes to complete.
    ```none
    Successfully built 3d872560918e
    Successfully tagged docker-dev:dry-run-test
-   docker run --rm -i --privileged -e BUILDFLAGS -e KEEPBUNDLE -e DOCKER_BUILD_GOGC -e DOCKER_BUILD_PKGS -e DOCKER_CLIENTONLY -e DOCKER_DEBUG -e DOCKER_EXPERIMENTAL -e DOCKER_GITCOMMIT -e DOCKER_GRAPHDRIVER=devicemapper -e DOCKER_REMAP_ROOT -e DOCKER_STORAGE_OPTS -e DOCKER_USERLANDPROXY -e TESTDIRS -e TESTFLAGS -e TIMEOUT -v "home/ubuntu/repos/docker/bundles:/go/src/github.com/docker/docker/bundles" -t "docker-dev:dry-run-test" bash
+   docker run --rm -i --privileged -e BUILDFLAGS -e KEEPBUNDLE -e DOCKER_BUILD_GOGC -e DOCKER_BUILD_PKGS -e DOCKER_CLIENTONLY -e DOCKER_DEBUG -e DOCKER_EXPERIMENTAL -e DOCKER_GITCOMMIT -e DOCKER_GRAPHDRIVER=vfs -e DOCKER_REMAP_ROOT -e DOCKER_STORAGE_OPTS -e DOCKER_USERLANDPROXY -e TESTDIRS -e TESTFLAGS -e TIMEOUT -v "home/ubuntu/repos/docker/bundles:/go/src/github.com/docker/docker/bundles" -t "docker-dev:dry-run-test" bash
    #
    ```
 
    At this point, your prompt reflects the container's BASH shell.
+
+   Alternatively you can use the provided devcontainer in an IDE that supports them (VSCode, Goland, etc.)
 
 5. List the contents of the current directory (`/go/src/github.com/docker/docker`).
 
@@ -150,10 +152,10 @@ can take over 15 minutes to complete.
    Removing bundles/
 
    ---> Making bundle: binary (in bundles/binary)
-   Building: bundles/binary-daemon/dockerd-17.06.0-dev
-   Created binary: bundles/binary-daemon/dockerd-17.06.0-dev
-   Copying nested executables into bundles/binary-daemon
-
+   Building bundles/binary-daemon/dockerd (linux/amd64)...
+   Created binary: bundles/binary-daemon/dockerd
+   Building bundles/binary-daemon/docker-proxy (linux/amd64)...
+   Created binary:bundles/binary-daemon/docker-proxy
    ```
 
 7. Run `make install`, which copies the binary to the container's

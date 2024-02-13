@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
+# This script was developed for use in Moby's CI, and as such the use cases and
+# usability are (intentionally) limited. You may find this script useful for
+# educational purposes, for example, to learn how pulling images works "under
+# the hood", and you may be able to use it for other purposes, but it should not
+# be considered a "general purpose" tool for pulling images.
+#
+# The project maintainers accept contributions to this script within its intended
+# scope, but may not accept contributions beyond that.
+#
+# For users who have a similar need but require more flexibility/functionality,
+# refer the the discussion on GitHub, which mentions various alternatives that
+# are more suitable for other uses: https://github.com/moby/moby/issues/40857
+
 # hello-world                      latest              ef872312fe1b        3 months ago        910 B
 # hello-world                      latest              ef872312fe1bbc5e05aae626791a47ee9b032efa8f3bda39cc0be7b56bfe59b9   3 months ago        910 B
 
@@ -261,6 +274,10 @@ get_target_arch() {
 	echo amd64
 }
 
+get_target_variant() {
+	echo "${TARGETVARIANT:-}"
+}
+
 while [ $# -gt 0 ]; do
 	imageTag="$1"
 	shift
@@ -311,11 +328,13 @@ while [ $# -gt 0 ]; do
 
 					found=""
 					targetArch="$(get_target_arch)"
+					targetVariant="$(get_target_variant)"
 					# parse first level multi-arch manifest
 					for i in "${!layers[@]}"; do
 						layerMeta="${layers[$i]}"
 						maniArch="$(echo "$layerMeta" | jq --raw-output '.platform.architecture')"
-						if [ "$maniArch" = "${targetArch}" ]; then
+						maniVariant="$(echo "$layerMeta" | jq --raw-output '.platform.variant')"
+						if [[ "$maniArch" = "${targetArch}" ]] && [[ -z "${targetVariant}" || "$maniVariant" = "${targetVariant}" ]]; then
 							digest="$(echo "$layerMeta" | jq --raw-output '.digest')"
 							# get second level single manifest
 							submanifestJson="$(
@@ -332,7 +351,7 @@ while [ $# -gt 0 ]; do
 						fi
 					done
 					if [ -z "$found" ]; then
-						echo >&2 "error: manifest for $maniArch is not found"
+						echo >&2 "error: manifest for ${targetArch}${targetVariant:+/${targetVariant}} is not found"
 						exit 1
 					fi
 					;;

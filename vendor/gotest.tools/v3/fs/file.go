@@ -1,10 +1,10 @@
-/*Package fs provides tools for creating temporary files, and testing the
+/*
+Package fs provides tools for creating temporary files, and testing the
 contents and structure of a directory.
 */
 package fs // import "gotest.tools/v3/fs"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -45,7 +45,7 @@ func NewFile(t assert.TestingT, prefix string, ops ...PathOp) *File {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
 	}
-	tempfile, err := ioutil.TempFile("", cleanPrefix(prefix)+"-")
+	tempfile, err := os.CreateTemp("", cleanPrefix(prefix)+"-")
 	assert.NilError(t, err)
 
 	file := &File{path: tempfile.Name()}
@@ -71,8 +71,7 @@ func (f *File) Path() string {
 
 // Remove the file
 func (f *File) Remove() {
-	// nolint: errcheck
-	os.Remove(f.path)
+	_ = os.Remove(f.path)
 }
 
 // Dir is a temporary directory
@@ -89,7 +88,7 @@ func NewDir(t assert.TestingT, prefix string, ops ...PathOp) *Dir {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
 	}
-	path, err := ioutil.TempDir("", cleanPrefix(prefix)+"-")
+	path, err := os.MkdirTemp("", cleanPrefix(prefix)+"-")
 	assert.NilError(t, err)
 	dir := &Dir{path: path}
 	cleanup.Cleanup(t, dir.Remove)
@@ -105,8 +104,7 @@ func (d *Dir) Path() string {
 
 // Remove the directory
 func (d *Dir) Remove() {
-	// nolint: errcheck
-	os.RemoveAll(d.path)
+	_ = os.RemoveAll(d.path)
 }
 
 // Join returns a new path with this directory as the base of the path

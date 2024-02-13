@@ -25,7 +25,7 @@ outside the developer's machine and is not recommended.
 
 ## Running Docker daemon with debugger attached
 
-1. Run development container with build optimizations disabled and Delve enabled:
+1. Run development container with build optimizations disabled (ie. `DOCKER_DEBUG=1`) and Delve enabled:
    ```bash
    $ make BIND_DIR=. DOCKER_DEBUG=1 DELVE_PORT=127.0.0.1:2345:2345 shell
    ```
@@ -45,7 +45,27 @@ outside the developer's machine and is not recommended.
       The execution will stop and wait for the IDE or Delve CLI to attach
       to the port, specified with the `DELVE_PORT` variable.
       Once the IDE or Delve CLI is attached, the execution will continue.
-   
+
+## Running integration tests with debugger attached
+
+1. Run development container with build optimizations disabled (ie. `DOCKER_DEBUG=1`) and Delve enabled:
+
+   ```bash
+   $ make BIND_DIR=. DOCKER_DEBUG=1 DELVE_PORT=127.0.0.1:2345:2345 shell
+   ```
+
+2. Inside the development container, run the integration test you want through the `make.sh` script:
+
+   ```bash
+   $ TEST_INTEGRATION_DIR=./integration/networking \
+       TESTFLAGS='-test.run TestBridgeICC' \
+       ./hack/make.sh dynbinary test-integration
+   ```
+
+   The execution will pause and wait for the IDE or Delve CLI to attach
+   to the port, specified with the `DELVE_PORT` variable.
+   Once the IDE or Delve CLI is attached, the test execution will start.
+
 ## Debugging from IDE (on example of GoLand 2021.3)
 
 1. Open the project in GoLand

@@ -12,10 +12,12 @@ type Spec struct {
 	Root *Root `json:"root,omitempty"`
 	// Hostname configures the container's hostname.
 	Hostname string `json:"hostname,omitempty"`
+	// Domainname configures the container's domainname.
+	Domainname string `json:"domainname,omitempty"`
 	// Mounts configures additional mounts (on top of Root).
 	Mounts []Mount `json:"mounts,omitempty"`
 	// Hooks configures callbacks for container lifecycle events.
-	Hooks *Hooks `json:"hooks,omitempty" platform:"linux,solaris"`
+	Hooks *Hooks `json:"hooks,omitempty" platform:"linux,solaris,zos"`
 	// Annotations contains arbitrary metadata for the container.
 	Annotations map[string]string `json:"annotations,omitempty"`
 
@@ -27,6 +29,36 @@ type Spec struct {
 	Windows *Windows `json:"windows,omitempty" platform:"windows"`
 	// VM specifies configuration for virtual-machine-based containers.
 	VM *VM `json:"vm,omitempty" platform:"vm"`
+	// ZOS is platform-specific configuration for z/OS based containers.
+	ZOS *ZOS `json:"zos,omitempty" platform:"zos"`
+}
+
+// Scheduler represents the scheduling attributes for a process. It is based on
+// the Linux sched_setattr(2) syscall.
+type Scheduler struct {
+	// Policy represents the scheduling policy (e.g., SCHED_FIFO, SCHED_RR, SCHED_OTHER).
+	Policy LinuxSchedulerPolicy `json:"policy"`
+
+	// Nice is the nice value for the process, which affects its priority.
+	Nice int32 `json:"nice,omitempty"`
+
+	// Priority represents the static priority of the process.
+	Priority int32 `json:"priority,omitempty"`
+
+	// Flags is an array of scheduling flags.
+	Flags []LinuxSchedulerFlag `json:"flags,omitempty"`
+
+	// The following ones are used by the DEADLINE scheduler.
+
+	// Runtime is the amount of time in nanoseconds during which the process
+	// is allowed to run in a given period.
+	Runtime uint64 `json:"runtime,omitempty"`
+
+	// Deadline is the absolute deadline for the process to complete its execution.
+	Deadline uint64 `json:"deadline,omitempty"`
+
+	// Period is the length of the period in nanoseconds used for determining the process runtime.
+	Period uint64 `json:"period,omitempty"`
 }
 
 // Process contains information to start a specific application inside the container.
@@ -49,15 +81,19 @@ type Process struct {
 	// Capabilities are Linux capabilities that are kept for the process.
 	Capabilities *LinuxCapabilities `json:"capabilities,omitempty" platform:"linux"`
 	// Rlimits specifies rlimit options to apply to the process.
-	Rlimits []POSIXRlimit `json:"rlimits,omitempty" platform:"linux,solaris"`
+	Rlimits []POSIXRlimit `json:"rlimits,omitempty" platform:"linux,solaris,zos"`
 	// NoNewPrivileges controls whether additional privileges could be gained by processes in the container.
 	NoNewPrivileges bool `json:"noNewPrivileges,omitempty" platform:"linux"`
 	// ApparmorProfile specifies the apparmor profile for the container.
 	ApparmorProfile string `json:"apparmorProfile,omitempty" platform:"linux"`
 	// Specify an oom_score_adj for the container.
 	OOMScoreAdj *int `json:"oomScoreAdj,omitempty" platform:"linux"`
+	// Scheduler specifies the scheduling attributes for a process
+	Scheduler *Scheduler `json:"scheduler,omitempty" platform:"linux"`
 	// SelinuxLabel specifies the selinux context that the container process is run as.
 	SelinuxLabel string `json:"selinuxLabel,omitempty" platform:"linux"`
+	// IOPriority contains the I/O priority settings for the cgroup.
+	IOPriority *LinuxIOPriority `json:"ioPriority,omitempty" platform:"linux"`
 }
 
 // LinuxCapabilities specifies the list of allowed capabilities that are kept for a process.
@@ -75,6 +111,22 @@ type LinuxCapabilities struct {
 	Ambient []string `json:"ambient,omitempty" platform:"linux"`
 }
 
+// IOPriority represents I/O priority settings for the container's processes within the process group.
+type LinuxIOPriority struct {
+	Class    IOPriorityClass `json:"class"`
+	Priority int             `json:"priority"`
+}
+
+// IOPriorityClass represents an I/O scheduling class.
+type IOPriorityClass string
+
+// Possible values for IOPriorityClass.
+const (
+	IOPRIO_CLASS_RT   IOPriorityClass = "IOPRIO_CLASS_RT"
+	IOPRIO_CLASS_BE   IOPriorityClass = "IOPRIO_CLASS_BE"
+	IOPRIO_CLASS_IDLE IOPriorityClass = "IOPRIO_CLASS_IDLE"
+)
+
 // Box specifies dimensions of a rectangle. Used for specifying the size of a console.
 type Box struct {
 	// Height is the vertical dimension of a box.
@@ -86,11 +138,11 @@ type Box struct {
 // User specifies specific user (and group) information for the container process.
 type User struct {
 	// UID is the user id.
-	UID uint32 `json:"uid" platform:"linux,solaris"`
+	UID uint32 `json:"uid" platform:"linux,solaris,zos"`
 	// GID is the group id.
-	GID uint32 `json:"gid" platform:"linux,solaris"`
+	GID uint32 `json:"gid" platform:"linux,solaris,zos"`
 	// Umask is the umask for the init process.
-	Umask *uint32 `json:"umask,omitempty" platform:"linux,solaris"`
+	Umask *uint32 `json:"umask,omitempty" platform:"linux,solaris,zos"`
 	// AdditionalGids are additional group ids set for the container's process.
 	AdditionalGids []uint32 `json:"additionalGids,omitempty" platform:"linux,solaris"`
 	// Username is the user name.
@@ -110,11 +162,16 @@ type Mount struct {
 	// Destination is the absolute path where the mount will be placed in the container.
 	Destination string `json:"destination"`
 	// Type specifies the mount kind.
-	Type string `json:"type,omitempty" platform:"linux,solaris"`
+	Type string `json:"type,omitempty" platform:"linux,solaris,zos"`
 	// Source specifies the source path of the mount.
 	Source string `json:"source,omitempty"`
 	// Options are fstab style mount options.
 	Options []string `json:"options,omitempty"`
+
+	// UID/GID mappings used for changing file owners w/o calling chown, fs should support it.
+	// Every mount point could have its own mapping.
+	UIDMappings []LinuxIDMapping `json:"uidMappings,omitempty" platform:"linux"`
+	GIDMappings []LinuxIDMapping `json:"gidMappings,omitempty" platform:"linux"`
 }
 
 // Hook specifies a command that is run at a particular event in the lifecycle of a container
@@ -178,10 +235,12 @@ type Linux struct {
 	// MountLabel specifies the selinux context for the mounts in the container.
 	MountLabel string `json:"mountLabel,omitempty"`
 	// IntelRdt contains Intel Resource Director Technology (RDT) information for
-	// handling resource constraints (e.g., L3 cache, memory bandwidth) for the container
+	// handling resource constraints and monitoring metrics (e.g., L3 cache, memory bandwidth) for the container
 	IntelRdt *LinuxIntelRdt `json:"intelRdt,omitempty"`
 	// Personality contains configuration for the Linux personality syscall
 	Personality *LinuxPersonality `json:"personality,omitempty"`
+	// TimeOffsets specifies the offset for supporting time namespaces.
+	TimeOffsets map[string]LinuxTimeOffset `json:"timeOffsets,omitempty"`
 }
 
 // LinuxNamespace is the configuration for a Linux namespace
@@ -211,6 +270,8 @@ const (
 	UserNamespace LinuxNamespaceType = "user"
 	// CgroupNamespace for isolating cgroup hierarchies
 	CgroupNamespace LinuxNamespaceType = "cgroup"
+	// TimeNamespace for isolating the clocks
+	TimeNamespace LinuxNamespaceType = "time"
 )
 
 // LinuxIDMapping specifies UID/GID mappings
@@ -223,6 +284,14 @@ type LinuxIDMapping struct {
 	Size uint32 `json:"size"`
 }
 
+// LinuxTimeOffset specifies the offset for Time Namespace
+type LinuxTimeOffset struct {
+	// Secs is the offset of clock (in secs) in the container
+	Secs int64 `json:"secs,omitempty"`
+	// Nanosecs is the additional offset for Secs (in nanosecs)
+	Nanosecs uint32 `json:"nanosecs,omitempty"`
+}
+
 // POSIXRlimit type and restrictions
 type POSIXRlimit struct {
 	// Type of the rlimit to set
@@ -233,12 +302,13 @@ type POSIXRlimit struct {
 	Soft uint64 `json:"soft"`
 }
 
-// LinuxHugepageLimit structure corresponds to limiting kernel hugepages
+// LinuxHugepageLimit structure corresponds to limiting kernel hugepages.
+// Default to reservation limits if supported. Otherwise fallback to page fault limits.
 type LinuxHugepageLimit struct {
-	// Pagesize is the hugepage size
-	// Format: "<size><unit-prefix>B' (e.g. 64KB, 2MB, 1GB, etc.)
+	// Pagesize is the hugepage size.
+	// Format: "<size><unit-prefix>B' (e.g. 64KB, 2MB, 1GB, etc.).
 	Pagesize string `json:"pageSize"`
-	// Limit is the limit of "hugepagesize" hugetlb usage
+	// Limit is the limit of "hugepagesize" hugetlb reservations (if supported) or usage.
 	Limit uint64 `json:"limit"`
 }
 
@@ -250,8 +320,8 @@ type LinuxInterfacePriority struct {
 	Priority uint32 `json:"priority"`
 }
 
-// linuxBlockIODevice holds major:minor format supported in blkio cgroup
-type linuxBlockIODevice struct {
+// LinuxBlockIODevice holds major:minor format supported in blkio cgroup
+type LinuxBlockIODevice struct {
 	// Major is the device's major number.
 	Major int64 `json:"major"`
 	// Minor is the device's minor number.
@@ -260,7 +330,7 @@ type linuxBlockIODevice struct {
 
 // LinuxWeightDevice struct holds a `major:minor weight` pair for weightDevice
 type LinuxWeightDevice struct {
-	linuxBlockIODevice
+	LinuxBlockIODevice
 	// Weight is the bandwidth rate for the device.
 	Weight *uint16 `json:"weight,omitempty"`
 	// LeafWeight is the bandwidth rate for the device while competing with the cgroup's child cgroups, CFQ scheduler only
@@ -269,7 +339,7 @@ type LinuxWeightDevice struct {
 
 // LinuxThrottleDevice struct holds a `major:minor rate_per_second` pair
 type LinuxThrottleDevice struct {
-	linuxBlockIODevice
+	LinuxBlockIODevice
 	// Rate is the IO rate limit per cgroup per device
 	Rate uint64 `json:"rate"`
 }
@@ -310,6 +380,10 @@ type LinuxMemory struct {
 	DisableOOMKiller *bool `json:"disableOOMKiller,omitempty"`
 	// Enables hierarchical memory accounting
 	UseHierarchy *bool `json:"useHierarchy,omitempty"`
+	// CheckBeforeUpdate enables checking if a new memory limit is lower
+	// than the current usage during update, and if so, rejecting the new
+	// limit.
+	CheckBeforeUpdate *bool `json:"checkBeforeUpdate,omitempty"`
 }
 
 // LinuxCPU for Linux cgroup 'cpu' resource management
@@ -318,6 +392,9 @@ type LinuxCPU struct {
 	Shares *uint64 `json:"shares,omitempty"`
 	// CPU hardcap limit (in usecs). Allowed cpu time in a given period.
 	Quota *int64 `json:"quota,omitempty"`
+	// CPU hardcap burst limit (in usecs). Allowed accumulated cpu time additionally for burst in a
+	// given period.
+	Burst *uint64 `json:"burst,omitempty"`
 	// CPU period to be used for hardcapping (in usecs).
 	Period *uint64 `json:"period,omitempty"`
 	// How much time realtime scheduling may use (in usecs).
@@ -328,6 +405,8 @@ type LinuxCPU struct {
 	Cpus string `json:"cpus,omitempty"`
 	// List of memory nodes in the cpuset. Default is to use any available memory node.
 	Mems string `json:"mems,omitempty"`
+	// cgroups are configured with minimum weight, 0: default behavior, 1: SCHED_IDLE.
+	Idle *int64 `json:"idle,omitempty"`
 }
 
 // LinuxPids for Linux cgroup 'pids' resource management (Linux 4.3)
@@ -364,7 +443,7 @@ type LinuxResources struct {
 	Pids *LinuxPids `json:"pids,omitempty"`
 	// BlockIO restriction configuration
 	BlockIO *LinuxBlockIO `json:"blockIO,omitempty"`
-	// Hugetlb limit (in bytes)
+	// Hugetlb limits (in bytes). Default to reservation limits if supported.
 	HugepageLimits []LinuxHugepageLimit `json:"hugepageLimits,omitempty"`
 	// Network restriction configuration
 	Network *LinuxNetwork `json:"network,omitempty"`
@@ -522,11 +601,21 @@ type WindowsMemoryResources struct {
 
 // WindowsCPUResources contains CPU resource management settings.
 type WindowsCPUResources struct {
-	// Number of CPUs available to the container.
+	// Count is the number of CPUs available to the container. It represents the
+	// fraction of the configured processor `count` in a container in relation
+	// to the processors available in the host. The fraction ultimately
+	// determines the portion of processor cycles that the threads in a
+	// container can use during each scheduling interval, as the number of
+	// cycles per 10,000 cycles.
 	Count *uint64 `json:"count,omitempty"`
-	// CPU shares (relative weight to other containers with cpu shares).
+	// Shares limits the share of processor time given to the container relative
+	// to other workloads on the processor. The processor `shares` (`weight` at
+	// the platform level) is a value between 0 and 10000.
 	Shares *uint16 `json:"shares,omitempty"`
-	// Specifies the portion of processor cycles that this container can use as a percentage times 100.
+	// Maximum determines the portion of processor cycles that the threads in a
+	// container can use during each scheduling interval, as the number of
+	// cycles per 10,000 cycles. Set processor `maximum` to a percentage times
+	// 100.
 	Maximum *uint16 `json:"maximum,omitempty"`
 }
 
@@ -613,6 +702,23 @@ type Arch string
 // LinuxSeccompFlag is a flag to pass to seccomp(2).
 type LinuxSeccompFlag string
 
+const (
+	// LinuxSeccompFlagLog is a seccomp flag to request all returned
+	// actions except SECCOMP_RET_ALLOW to be logged. An administrator may
+	// override this filter flag by preventing specific actions from being
+	// logged via the /proc/sys/kernel/seccomp/actions_logged file. (since
+	// Linux 4.14)
+	LinuxSeccompFlagLog LinuxSeccompFlag = "SECCOMP_FILTER_FLAG_LOG"
+
+	// LinuxSeccompFlagSpecAllow can be used to disable Speculative Store
+	// Bypass mitigation. (since Linux 4.17)
+	LinuxSeccompFlagSpecAllow LinuxSeccompFlag = "SECCOMP_FILTER_FLAG_SPEC_ALLOW"
+
+	// LinuxSeccompFlagWaitKillableRecv can be used to switch to the wait
+	// killable semantics. (since Linux 5.19)
+	LinuxSeccompFlagWaitKillableRecv LinuxSeccompFlag = "SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV"
+)
+
 // Additional architectures permitted to be used for system calls
 // By default only the native architecture of the kernel is permitted
 const (
@@ -683,8 +789,9 @@ type LinuxSyscall struct {
 	Args     []LinuxSeccompArg  `json:"args,omitempty"`
 }
 
-// LinuxIntelRdt has container runtime resource constraints for Intel RDT
-// CAT and MBA features which introduced in Linux 4.10 and 4.12 kernel
+// LinuxIntelRdt has container runtime resource constraints for Intel RDT CAT and MBA
+// features and flags enabling Intel RDT CMT and MBM features.
+// Intel RDT features are available in Linux 4.14 and newer kernel versions.
 type LinuxIntelRdt struct {
 	// The identity for RDT Class of Service
 	ClosID string `json:"closID,omitempty"`
@@ -697,4 +804,76 @@ type LinuxIntelRdt struct {
 	// The unit of memory bandwidth is specified in "percentages" by
 	// default, and in "MBps" if MBA Software Controller is enabled.
 	MemBwSchema string `json:"memBwSchema,omitempty"`
+
+	// EnableCMT is the flag to indicate if the Intel RDT CMT is enabled. CMT (Cache Monitoring Technology) supports monitoring of
+	// the last-level cache (LLC) occupancy for the container.
+	EnableCMT bool `json:"enableCMT,omitempty"`
+
+	// EnableMBM is the flag to indicate if the Intel RDT MBM is enabled. MBM (Memory Bandwidth Monitoring) supports monitoring of
+	// total and local memory bandwidth for the container.
+	EnableMBM bool `json:"enableMBM,omitempty"`
 }
+
+// ZOS contains platform-specific configuration for z/OS based containers.
+type ZOS struct {
+	// Devices are a list of device nodes that are created for the container
+	Devices []ZOSDevice `json:"devices,omitempty"`
+}
+
+// ZOSDevice represents the mknod information for a z/OS special device file
+type ZOSDevice struct {
+	// Path to the device.
+	Path string `json:"path"`
+	// Device type, block, char, etc.
+	Type string `json:"type"`
+	// Major is the device's major number.
+	Major int64 `json:"major"`
+	// Minor is the device's minor number.
+	Minor int64 `json:"minor"`
+	// FileMode permission bits for the device.
+	FileMode *os.FileMode `json:"fileMode,omitempty"`
+	// UID of the device.
+	UID *uint32 `json:"uid,omitempty"`
+	// Gid of the device.
+	GID *uint32 `json:"gid,omitempty"`
+}
+
+// LinuxSchedulerPolicy represents different scheduling policies used with the Linux Scheduler
+type LinuxSchedulerPolicy string
+
+const (
+	// SchedOther is the default scheduling policy
+	SchedOther LinuxSchedulerPolicy = "SCHED_OTHER"
+	// SchedFIFO is the First-In-First-Out scheduling policy
+	SchedFIFO LinuxSchedulerPolicy = "SCHED_FIFO"
+	// SchedRR is the Round-Robin scheduling policy
+	SchedRR LinuxSchedulerPolicy = "SCHED_RR"
+	// SchedBatch is the Batch scheduling policy
+	SchedBatch LinuxSchedulerPolicy = "SCHED_BATCH"
+	// SchedISO is the Isolation scheduling policy
+	SchedISO LinuxSchedulerPolicy = "SCHED_ISO"
+	// SchedIdle is the Idle scheduling policy
+	SchedIdle LinuxSchedulerPolicy = "SCHED_IDLE"
+	// SchedDeadline is the Deadline scheduling policy
+	SchedDeadline LinuxSchedulerPolicy = "SCHED_DEADLINE"
+)
+
+// LinuxSchedulerFlag represents the flags used by the Linux Scheduler.
+type LinuxSchedulerFlag string
+
+const (
+	// SchedFlagResetOnFork represents the reset on fork scheduling flag
+	SchedFlagResetOnFork LinuxSchedulerFlag = "SCHED_FLAG_RESET_ON_FORK"
+	// SchedFlagReclaim represents the reclaim scheduling flag
+	SchedFlagReclaim LinuxSchedulerFlag = "SCHED_FLAG_RECLAIM"
+	// SchedFlagDLOverrun represents the deadline overrun scheduling flag
+	SchedFlagDLOverrun LinuxSchedulerFlag = "SCHED_FLAG_DL_OVERRUN"
+	// SchedFlagKeepPolicy represents the keep policy scheduling flag
+	SchedFlagKeepPolicy LinuxSchedulerFlag = "SCHED_FLAG_KEEP_POLICY"
+	// SchedFlagKeepParams represents the keep parameters scheduling flag
+	SchedFlagKeepParams LinuxSchedulerFlag = "SCHED_FLAG_KEEP_PARAMS"
+	// SchedFlagUtilClampMin represents the utilization clamp minimum scheduling flag
+	SchedFlagUtilClampMin LinuxSchedulerFlag = "SCHED_FLAG_UTIL_CLAMP_MIN"
+	// SchedFlagUtilClampMin represents the utilization clamp maximum scheduling flag
+	SchedFlagUtilClampMax LinuxSchedulerFlag = "SCHED_FLAG_UTIL_CLAMP_MAX"
+)

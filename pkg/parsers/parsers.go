@@ -9,13 +9,14 @@ import (
 	"strings"
 )
 
-// ParseKeyValueOpt parses and validates the specified string as a key/value pair (key=value)
-func ParseKeyValueOpt(opt string) (string, string, error) {
-	parts := strings.SplitN(opt, "=", 2)
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("Unable to parse key/value option: %s", opt)
+// ParseKeyValueOpt parses and validates the specified string as a key/value
+// pair (key=value).
+func ParseKeyValueOpt(opt string) (key string, value string, err error) {
+	k, v, ok := strings.Cut(opt, "=")
+	if !ok {
+		return "", "", fmt.Errorf("unable to parse key/value option: %s", opt)
 	}
-	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
+	return strings.TrimSpace(k), strings.TrimSpace(v), nil
 }
 
 // ParseUintListMaximum parses and validates the specified string as the value
@@ -75,12 +76,12 @@ func parseUintList(val string, maximum int) (map[int]bool, error) {
 			}
 			availableInts[v] = true
 		} else {
-			split := strings.SplitN(r, "-", 2)
-			min, err := strconv.Atoi(split[0])
+			minS, maxS, _ := strings.Cut(r, "-")
+			min, err := strconv.Atoi(minS)
 			if err != nil {
 				return nil, errInvalidFormat
 			}
-			max, err := strconv.Atoi(split[1])
+			max, err := strconv.Atoi(maxS)
 			if err != nil {
 				return nil, errInvalidFormat
 			}

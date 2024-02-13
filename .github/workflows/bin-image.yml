@@ -1,0 +1,191 @@
+name: bin-image
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]+'
+    tags:
+      - 'v*'
+  pull_request:
+
+env:
+  MOBYBIN_REPO_SLUG: moby/moby-bin
+  DOCKER_GITCOMMIT: ${{ github.sha }}
+  VERSION: ${{ github.ref }}
+  PLATFORM: Moby Engine - Nightly
+  PRODUCT: moby-bin
+  PACKAGER_NAME: The Moby Project
+
+jobs:
+  validate-dco:
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+    uses: ./.github/workflows/.dco.yml
+
+  prepare:
+    runs-on: ubuntu-20.04
+    outputs:
+      platforms: ${{ steps.platforms.outputs.matrix }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+      -
+        name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.MOBYBIN_REPO_SLUG }}
+          ### versioning strategy
+          ## push semver tag v23.0.0
+          # moby/moby-bin:23.0.0
+          # moby/moby-bin:latest
+          ## push semver prelease tag v23.0.0-beta.1
+          # moby/moby-bin:23.0.0-beta.1
+          ## push on master
+          # moby/moby-bin:master
+          ## push on 23.0 branch
+          # moby/moby-bin:23.0
+          ## any push
+          # moby/moby-bin:sha-ad132f5
+          tags: |
+            type=semver,pattern={{version}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+      -
+        name: Rename meta bake definition file
+        # see https://github.com/docker/metadata-action/issues/381#issuecomment-1918607161
+        run: |
+          bakeFile="${{ steps.meta.outputs.bake-file }}"
+          mv "${bakeFile#cwd://}" "/tmp/bake-meta.json"
+      -
+        name: Upload meta bake definition
+        uses: actions/upload-artifact@v4
+        with:
+          name: bake-meta
+          path: /tmp/bake-meta.json
+          if-no-files-found: error
+          retention-days: 1
+      -
+        name: Create platforms matrix
+        id: platforms
+        run: |
+          echo "matrix=$(docker buildx bake bin-image-cross --print | jq -cr '.target."bin-image-cross".platforms')" >>${GITHUB_OUTPUT}
+
+  build:
+    runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
+      - prepare
+    if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.prepare.outputs.platforms) }}
+    steps:
+      -
+        name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      -
+        name: Download meta bake definition
+        uses: actions/download-artifact@v4
+        with:
+          name: bake-meta
+          path: /tmp
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      -
+        name: Login to Docker Hub
+        if: github.event_name != 'pull_request' && github.repository == 'moby/moby'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_MOBYBIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_MOBYBIN_TOKEN }}
+      -
+        name: Build
+        id: bake
+        uses: docker/bake-action@v4
+        with:
+          files: |
+            ./docker-bake.hcl
+            /tmp/bake-meta.json
+          targets: bin-image
+          set: |
+            *.platform=${{ matrix.platform }}
+            *.output=type=image,name=${{ env.MOBYBIN_REPO_SLUG }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' && github.repository == 'moby/moby' }}
+            *.tags=
+      -
+        name: Export digest
+        if: github.event_name != 'pull_request' && github.repository == 'moby/moby'
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ fromJSON(steps.bake.outputs.metadata)['bin-image']['containerimage.digest'] }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      -
+        name: Upload digest
+        if: github.event_name != 'pull_request' && github.repository == 'moby/moby'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    runs-on: ubuntu-20.04
+    needs:
+      - build
+    if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && github.event_name != 'pull_request' && github.repository == 'moby/moby'
+    steps:
+      -
+        name: Download meta bake definition
+        uses: actions/download-artifact@v4
+        with:
+          name: bake-meta
+          path: /tmp
+      -
+        name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_MOBYBIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_MOBYBIN_TOKEN }}
+      -
+        name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          set -x
+          docker buildx imagetools create $(jq -cr '.target."docker-metadata-action".tags | map("-t " + .) | join(" ")' /tmp/bake-meta.json) \
+            $(printf '${{ env.MOBYBIN_REPO_SLUG }}@sha256:%s ' *)
+      -
+        name: Inspect image
+        run: |
+          set -x
+          docker buildx imagetools inspect ${{ env.MOBYBIN_REPO_SLUG }}:$(jq -cr '.target."docker-metadata-action".args.DOCKER_META_VERSION' /tmp/bake-meta.json)

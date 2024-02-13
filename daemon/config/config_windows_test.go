@@ -1,7 +1,6 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
-	"os"
 	"testing"
 
 	"github.com/docker/docker/opts"
@@ -11,17 +10,10 @@ import (
 )
 
 func TestDaemonConfigurationMerge(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
-
-	configFile := f.Name()
-
-	f.Write([]byte(`
+	configFile := makeConfigFile(t, `
 		{
 			"debug": true
-		}`))
-
-	f.Close()
+		}`)
 
 	conf, err := New()
 	assert.NilError(t, err)

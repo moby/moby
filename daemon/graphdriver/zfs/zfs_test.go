@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package zfs // import "github.com/docker/docker/daemon/graphdriver/zfs"
 

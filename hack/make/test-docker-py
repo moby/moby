@@ -4,10 +4,7 @@ set -e
 source hack/make/.integration-test-helpers
 
 # The commit or tag to use for testing
-# TODO docker 17.06 cli client used in CI fails to build using a sha;
-# unable to prepare context: unable to 'git clone' to temporary context directory: error fetching: error: no such remote ref ead0bb9e08c13dd3d1712759491eee06bf5a5602
-#: exit status 128
-: "${DOCKER_PY_COMMIT:=5.0.3}"
+: "${DOCKER_PY_COMMIT:=7.0.0}"
 
 # custom options to pass py.test
 #
@@ -15,8 +12,18 @@ source hack/make/.integration-test-helpers
 # flag) until they are fixed upstream. For example:
 # --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream
 # TODO re-enable test_attach_no_stream after https://github.com/docker/docker-py/issues/2513 is resolved
-# TODO re-enable test_create_with_device_cgroup_rules after https://github.com/docker/docker-py/issues/2939 is resolved
-: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_device_cgroup_rules}"
+# TODO re-enable test_run_container_reading_socket_ws. It's reported in https://github.com/docker/docker-py/issues/1478, and we're getting that error in our tests.
+# TODO re-enable test_run_with_networking_config once this issue is fixed: https://github.com/moby/moby/pull/46853#issuecomment-1864679942.
+: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_run_container_reading_socket_ws --deselect=tests/integration/models_containers_test.py::ContainerCollectionTest::test_run_with_networking_config}"
+
+# build --squash is not supported with containerd integration.
+if [ -n "$TEST_INTEGRATION_USE_SNAPSHOTTER" ]; then
+	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_build_test.py::BuildTest::test_build_squash"
+
+	# TODO(vvoland): re-enable after https://github.com/docker/docker-py/pull/3203 is merged and in a tagged release.
+	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py::CommitTest::test_commit"
+	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py::CommitTest::test_commit_with_changes"
+fi
 (
 	bundle .integration-daemon-start
 
@@ -60,4 +67,4 @@ source hack/make/.integration-test-helpers
 		exec docker run --rm ${run_opts} --mount type=bind,"src=${ABS_DEST}","dst=/src/${DEST}" "${docker_py_image}" pytest ${PY_TEST_OPTIONS} tests/integration
 	)
 	bundle .integration-daemon-stop
-) 2>&1 | tee -a "$DEST/test.log"
+) &> >(tee -a "$DEST/test.log")

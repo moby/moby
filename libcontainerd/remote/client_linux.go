@@ -10,10 +10,10 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/containers"
+	"github.com/containerd/log"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/idtools"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sirupsen/logrus"
 )
 
 func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
@@ -21,9 +21,7 @@ func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
 }
 
 func (t *task) UpdateResources(ctx context.Context, resources *libcontainerdtypes.Resources) error {
-	// go doesn't like the alias in 1.8, this means this need to be
-	// platform specific
-	return t.Update(ctx, containerd.WithResources((*specs.LinuxResources)(resources)))
+	return t.Update(ctx, containerd.WithResources(resources))
 }
 
 func hostIDFromMap(id uint32, mp []specs.LinuxIDMapping) int {
@@ -61,7 +59,7 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 		uid, gid := getSpecUser(ociSpec)
 		if uid == 0 && gid == 0 {
 			c.Labels[DockerContainerBundlePath] = bundleDir
-			return idtools.MkdirAllAndChownNew(bundleDir, 0755, idtools.Identity{UID: 0, GID: 0})
+			return idtools.MkdirAllAndChownNew(bundleDir, 0o755, idtools.Identity{UID: 0, GID: 0})
 		}
 
 		p := string(filepath.Separator)
@@ -74,7 +72,7 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 			}
 			if os.IsNotExist(err) || fi.Mode()&1 == 0 {
 				p = fmt.Sprintf("%s.%d.%d", p, uid, gid)
-				if err := idtools.MkdirAndChown(p, 0700, idtools.Identity{UID: uid, GID: gid}); err != nil && !os.IsExist(err) {
+				if err := idtools.MkdirAndChown(p, 0o700, idtools.Identity{UID: uid, GID: gid}); err != nil && !os.IsExist(err) {
 					return err
 				}
 			}
@@ -87,7 +85,7 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 	}
 }
 
-func withLogLevel(_ logrus.Level) containerd.NewTaskOpts {
+func withLogLevel(_ log.Level) containerd.NewTaskOpts {
 	panic("Not implemented")
 }
 
@@ -109,7 +107,7 @@ func newFIFOSet(bundleDir, processID string, withStdin, withTerminal bool) *cio.
 	closer := func() error {
 		for _, path := range paths {
 			if err := os.RemoveAll(path); err != nil {
-				logrus.Warnf("libcontainerd: failed to remove fifo %v: %v", path, err)
+				log.G(context.TODO()).Warnf("libcontainerd: failed to remove fifo %v: %v", path, err)
 			}
 		}
 		return nil

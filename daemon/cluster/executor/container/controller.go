@@ -254,7 +254,7 @@ func (r *controller) Start(ctx context.Context) error {
 			}
 
 			switch event.Action {
-			case "die": // exit on terminal events
+			case events.ActionDie: // exit on terminal events
 				ctnr, err := r.adapter.inspect(ctx)
 				if err != nil {
 					return errors.Wrap(err, "die event received")
@@ -263,18 +263,18 @@ func (r *controller) Start(ctx context.Context) error {
 				}
 
 				return nil
-			case "destroy":
+			case events.ActionDestroy:
 				// If we get here, something has gone wrong but we want to exit
 				// and report anyways.
 				return ErrContainerDestroyed
-			case "health_status: unhealthy":
+			case events.ActionHealthStatusUnhealthy:
 				// in this case, we stop the container and report unhealthy status
 				if err := r.Shutdown(ctx); err != nil {
 					return errors.Wrap(err, "unhealthy container shutdown failed")
 				}
 				// set health check error, and wait for container to fully exit ("die" event)
 				healthErr = ErrContainerUnhealthy
-			case "health_status: healthy":
+			case events.ActionHealthStatusHealthy:
 				if err := r.adapter.activateServiceBinding(); err != nil {
 					log.G(ctx).WithError(err).Errorf("failed to activate service binding for container %s after healthy event", r.adapter.container.name())
 					return err
@@ -637,18 +637,18 @@ func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
 	exposedPorts := make([]*api.PortConfig, 0, len(portMap))
 
 	for portProtocol, mapping := range portMap {
-		parts := strings.SplitN(string(portProtocol), "/", 2)
-		if len(parts) != 2 {
+		p, proto, ok := strings.Cut(string(portProtocol), "/")
+		if !ok {
 			return nil, fmt.Errorf("invalid port mapping: %s", portProtocol)
 		}
 
-		port, err := strconv.ParseUint(parts[0], 10, 16)
+		port, err := strconv.ParseUint(p, 10, 16)
 		if err != nil {
 			return nil, err
 		}
 
 		var protocol api.PortConfig_Protocol
-		switch strings.ToLower(parts[1]) {
+		switch strings.ToLower(proto) {
 		case "tcp":
 			protocol = api.ProtocolTCP
 		case "udp":
@@ -656,7 +656,7 @@ func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
 		case "sctp":
 			protocol = api.ProtocolSCTP
 		default:
-			return nil, fmt.Errorf("invalid protocol: %s", parts[1])
+			return nil, fmt.Errorf("invalid protocol: %s", proto)
 		}
 
 		for _, binding := range mapping {
@@ -716,7 +716,7 @@ func (r *controller) checkHealth(ctx context.Context) error {
 			}
 
 			switch event.Action {
-			case "health_status: unhealthy":
+			case events.ActionHealthStatusUnhealthy:
 				return ErrContainerUnhealthy
 			}
 		}

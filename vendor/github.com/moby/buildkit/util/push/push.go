@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
@@ -15,7 +14,10 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/distribution/reference"
+	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/progress"
@@ -27,7 +29,6 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type pusher struct {
@@ -46,6 +47,7 @@ func Pusher(ctx context.Context, resolver remotes.Resolver, ref string) (remotes
 }
 
 func Push(ctx context.Context, sm *session.Manager, sid string, provider content.Provider, manager content.Manager, dgst digest.Digest, ref string, insecure bool, hosts docker.RegistryHosts, byDigest bool, annotations map[digest.Digest]map[string]string) error {
+	ctx = contentutil.RegisterContentPayloadTypes(ctx)
 	desc := ocispecs.Descriptor{
 		Digest: dgst,
 	}
@@ -126,7 +128,7 @@ func Push(ctx context.Context, sm *session.Manager, sid string, provider content
 		return err
 	}
 
-	layersDone := oneOffProgress(ctx, "pushing layers")
+	layersDone := progress.OneOff(ctx, "pushing layers")
 	err = images.Dispatch(ctx, skipNonDistributableBlobs(images.Handlers(handlers...)), nil, ocispecs.Descriptor{
 		Digest:    dgst,
 		Size:      ra.Size(),
@@ -136,7 +138,7 @@ func Push(ctx context.Context, sm *session.Manager, sid string, provider content
 		return err
 	}
 
-	mfstDone := oneOffProgress(ctx, fmt.Sprintf("pushing manifest for %s", ref))
+	mfstDone := progress.OneOff(ctx, fmt.Sprintf("pushing manifest for %s", ref))
 	for i := len(manifestStack) - 1; i >= 0; i-- {
 		if _, err := pushHandler(ctx, manifestStack[i]); err != nil {
 			return mfstDone(err)
@@ -212,23 +214,6 @@ func annotateDistributionSourceHandler(manager content.Manager, annotations map[
 	}
 }
 
-func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.NewFromContext(ctx)
-	now := time.Now()
-	st := progress.Status{
-		Started: &now,
-	}
-	pw.Write(id, st)
-	return func(err error) error {
-		// TODO: set error on status
-		now := time.Now()
-		st.Completed = &now
-		pw.Write(id, st)
-		pw.Close()
-		return err
-	}
-}
-
 func childrenHandler(provider content.Provider) images.HandlerFunc {
 	return func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
 		var descs []ocispecs.Descriptor
@@ -266,11 +251,12 @@ func childrenHandler(provider content.Provider) images.HandlerFunc {
 			}
 		case images.MediaTypeDockerSchema2Layer, images.MediaTypeDockerSchema2LayerGzip,
 			images.MediaTypeDockerSchema2Config, ocispecs.MediaTypeImageConfig,
-			ocispecs.MediaTypeImageLayer, ocispecs.MediaTypeImageLayerGzip:
+			ocispecs.MediaTypeImageLayer, ocispecs.MediaTypeImageLayerGzip,
+			intoto.PayloadType:
 			// childless data types.
 			return nil, nil
 		default:
-			logrus.Warnf("encountered unknown type %v; children may not be fetched", desc.MediaType)
+			bklog.G(ctx).Warnf("encountered unknown type %v; children may not be fetched", desc.MediaType)
 		}
 
 		return descs, nil
@@ -305,7 +291,7 @@ func updateDistributionSourceHandler(manager content.Manager, pushF images.Handl
 		// update distribution source to layer
 		if islayer {
 			if _, err := updateF(ctx, desc); err != nil {
-				logrus.Warnf("failed to update distribution source for layer %v: %v", desc.Digest, err)
+				bklog.G(ctx).Warnf("failed to update distribution source for layer %v: %v", desc.Digest, err)
 			}
 		}
 		return children, nil
@@ -313,12 +299,12 @@ func updateDistributionSourceHandler(manager content.Manager, pushF images.Handl
 }
 
 func dedupeHandler(h images.HandlerFunc) images.HandlerFunc {
-	var g flightcontrol.Group
+	var g flightcontrol.Group[[]ocispecs.Descriptor]
 	res := map[digest.Digest][]ocispecs.Descriptor{}
 	var mu sync.Mutex
 
 	return images.HandlerFunc(func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
-		res, err := g.Do(ctx, desc.Digest.String(), func(ctx context.Context) (interface{}, error) {
+		return g.Do(ctx, desc.Digest.String(), func(ctx context.Context) ([]ocispecs.Descriptor, error) {
 			mu.Lock()
 			if r, ok := res[desc.Digest]; ok {
 				mu.Unlock()
@@ -336,12 +322,5 @@ func dedupeHandler(h images.HandlerFunc) images.HandlerFunc {
 			mu.Unlock()
 			return children, nil
 		})
-		if err != nil {
-			return nil, err
-		}
-		if res == nil {
-			return nil, nil
-		}
-		return res.([]ocispecs.Descriptor), nil
 	})
 }

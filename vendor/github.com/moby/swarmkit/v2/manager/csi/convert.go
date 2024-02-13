@@ -45,52 +45,6 @@ func makeTopology(t *api.Topology) *csi.Topology {
 	}
 }
 
-func makeCapability(am *api.VolumeAccessMode) *csi.VolumeCapability {
-	var mode csi.VolumeCapability_AccessMode_Mode
-	switch am.Scope {
-	case api.VolumeScopeSingleNode:
-		switch am.Sharing {
-		case api.VolumeSharingNone, api.VolumeSharingOneWriter, api.VolumeSharingAll:
-			mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER
-		case api.VolumeSharingReadOnly:
-			mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY
-		}
-	case api.VolumeScopeMultiNode:
-		switch am.Sharing {
-		case api.VolumeSharingReadOnly:
-			mode = csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY
-		case api.VolumeSharingOneWriter:
-			mode = csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER
-		case api.VolumeSharingAll:
-			mode = csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER
-		}
-	}
-
-	capability := &csi.VolumeCapability{
-		AccessMode: &csi.VolumeCapability_AccessMode{
-			Mode: mode,
-		},
-	}
-
-	if block := am.GetBlock(); block != nil {
-		capability.AccessType = &csi.VolumeCapability_Block{
-			// Block type is empty.
-			Block: &csi.VolumeCapability_BlockVolume{},
-		}
-	}
-
-	if mount := am.GetMount(); mount != nil {
-		capability.AccessType = &csi.VolumeCapability_Mount{
-			Mount: &csi.VolumeCapability_MountVolume{
-				FsType:     mount.FsType,
-				MountFlags: mount.MountFlags,
-			},
-		}
-	}
-
-	return capability
-}
-
 // makeCapcityRange converts the swarmkit CapacityRange object to the
 // equivalent CSI object
 func makeCapacityRange(cr *api.CapacityRange) *csi.CapacityRange {

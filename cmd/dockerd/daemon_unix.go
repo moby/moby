@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package main
 
@@ -12,13 +11,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -47,28 +46,13 @@ func getDefaultDaemonConfigFile() (string, error) {
 // setDefaultUmask sets the umask to 0022 to avoid problems
 // caused by custom umask
 func setDefaultUmask() error {
-	desiredUmask := 0022
+	desiredUmask := 0o022
 	unix.Umask(desiredUmask)
 	if umask := unix.Umask(desiredUmask); umask != desiredUmask {
 		return errors.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)
 	}
 
 	return nil
-}
-
-func getDaemonConfDir(_ string) (string, error) {
-	return getDefaultDaemonConfigDir()
-}
-
-func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
-	opts := []supervisor.DaemonOpt{
-		// TODO(thaJeztah) change this to use /proc/self/oom_score_adj instead,
-		// which would allow us to set the correct score even if dockerd's score
-		// was set through other means (such as systemd or "manually").
-		supervisor.WithOOMScore(cli.Config.OOMScoreAdjust),
-	}
-
-	return opts, nil
 }
 
 // setupConfigReloadTrap configures the SIGHUP signal to reload the configuration.
@@ -148,7 +132,7 @@ func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) e
 		return nil, nil
 	}
 
-	logrus.Info("containerd not running, starting managed containerd")
+	log.G(ctx).Info("containerd not running, starting managed containerd")
 	opts, err := cli.getContainerdDaemonOpts()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate containerd options")

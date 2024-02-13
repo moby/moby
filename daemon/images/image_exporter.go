@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/containerd/log"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/image/tarexport"
 )
 
@@ -15,6 +17,28 @@ import (
 func (i *ImageService) ExportImage(ctx context.Context, names []string, outStream io.Writer) error {
 	imageExporter := tarexport.NewTarExporter(i.imageStore, i.layerStore, i.referenceStore, i)
 	return imageExporter.Save(names, outStream)
+}
+
+func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Container, fn func(root string) error) error {
+	rwlayer, err := i.layerStore.GetRWLayer(c.ID)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			err2 := i.ReleaseLayer(rwlayer)
+			if err2 != nil {
+				log.G(ctx).WithError(err2).WithField("container", c.ID).Warn("Failed to release layer")
+			}
+		}
+	}()
+
+	basefs, err := rwlayer.Mount(c.GetMountLabel())
+	if err != nil {
+		return err
+	}
+
+	return fn(basefs)
 }
 
 // LoadImage uploads a set of images into the repository. This is the

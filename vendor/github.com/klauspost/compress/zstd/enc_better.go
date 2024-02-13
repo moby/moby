@@ -62,14 +62,10 @@ func (e *betterFastEncoder) Encode(blk *blockEnc, src []byte) {
 	)
 
 	// Protect against e.cur wraparound.
-	for e.cur >= bufferReset {
+	for e.cur >= e.bufferReset-int32(len(e.hist)) {
 		if len(e.hist) == 0 {
-			for i := range e.table[:] {
-				e.table[i] = tableEntry{}
-			}
-			for i := range e.longTable[:] {
-				e.longTable[i] = prevEntry{}
-			}
+			e.table = [betterShortTableSize]tableEntry{}
+			e.longTable = [betterLongTableSize]prevEntry{}
 			e.cur = e.maxMatchOff
 			break
 		}
@@ -149,7 +145,7 @@ encodeLoop:
 		var t int32
 		// We allow the encoder to optionally turn off repeat offsets across blocks
 		canRepeat := len(blk.sequences) > 2
-		var matched int32
+		var matched, index0 int32
 
 		for {
 			if debugAsserts && canRepeat && offset1 == 0 {
@@ -166,6 +162,7 @@ encodeLoop:
 			off := s + e.cur
 			e.longTable[nextHashL] = prevEntry{offset: off, prev: candidateL.offset}
 			e.table[nextHashS] = tableEntry{offset: off, val: uint32(cv)}
+			index0 = s + 1
 
 			if canRepeat {
 				if repIndex >= 0 && load3232(src, repIndex) == uint32(cv>>(repOff*8)) {
@@ -262,7 +259,6 @@ encodeLoop:
 					}
 					blk.sequences = append(blk.sequences, seq)
 
-					index0 := s + repOff2
 					s += lenght + repOff2
 					nextEmit = s
 					if s >= sLimit {
@@ -416,15 +412,23 @@ encodeLoop:
 
 		// Try to find a better match by searching for a long match at the end of the current best match
 		if s+matched < sLimit {
+			// Allow some bytes at the beginning to mismatch.
+			// Sweet spot is around 3 bytes, but depends on input.
+			// The skipped bytes are tested in Extend backwards,
+			// and still picked up as part of the match if they do.
+			const skipBeginning = 3
+
 			nextHashL := hashLen(load6432(src, s+matched), betterLongTableBits, betterLongLen)
-			cv := load3232(src, s)
+			s2 := s + skipBeginning
+			cv := load3232(src, s2)
 			candidateL := e.longTable[nextHashL]
-			coffsetL := candidateL.offset - e.cur - matched
-			if coffsetL >= 0 && coffsetL < s && s-coffsetL < e.maxMatchOff && cv == load3232(src, coffsetL) {
+			coffsetL := candidateL.offset - e.cur - matched + skipBeginning
+			if coffsetL >= 0 && coffsetL < s2 && s2-coffsetL < e.maxMatchOff && cv == load3232(src, coffsetL) {
 				// Found a long match, at least 4 bytes.
-				matchedNext := e.matchlen(s+4, coffsetL+4, src) + 4
+				matchedNext := e.matchlen(s2+4, coffsetL+4, src) + 4
 				if matchedNext > matched {
 					t = coffsetL
+					s = s2
 					matched = matchedNext
 					if debugMatches {
 						println("long match at end-of-match")
@@ -434,12 +438,13 @@ encodeLoop:
 
 			// Check prev long...
 			if true {
-				coffsetL = candidateL.prev - e.cur - matched
-				if coffsetL >= 0 && coffsetL < s && s-coffsetL < e.maxMatchOff && cv == load3232(src, coffsetL) {
+				coffsetL = candidateL.prev - e.cur - matched + skipBeginning
+				if coffsetL >= 0 && coffsetL < s2 && s2-coffsetL < e.maxMatchOff && cv == load3232(src, coffsetL) {
 					// Found a long match, at least 4 bytes.
-					matchedNext := e.matchlen(s+4, coffsetL+4, src) + 4
+					matchedNext := e.matchlen(s2+4, coffsetL+4, src) + 4
 					if matchedNext > matched {
 						t = coffsetL
+						s = s2
 						matched = matchedNext
 						if debugMatches {
 							println("prev long match at end-of-match")
@@ -493,15 +498,15 @@ encodeLoop:
 		}
 
 		// Index match start+1 (long) -> s - 1
-		index0 := s - l + 1
+		off := index0 + e.cur
 		for index0 < s-1 {
 			cv0 := load6432(src, index0)
 			cv1 := cv0 >> 8
 			h0 := hashLen(cv0, betterLongTableBits, betterLongLen)
-			off := index0 + e.cur
 			e.longTable[h0] = prevEntry{offset: off, prev: e.longTable[h0].offset}
 			e.table[hashLen(cv1, betterShortTableBits, betterShortLen)] = tableEntry{offset: off + 1, val: uint32(cv1)}
 			index0 += 2
+			off += 2
 		}
 
 		cv = load6432(src, s)
@@ -578,7 +583,7 @@ func (e *betterFastEncoderDict) Encode(blk *blockEnc, src []byte) {
 	)
 
 	// Protect against e.cur wraparound.
-	for e.cur >= bufferReset {
+	for e.cur >= e.bufferReset-int32(len(e.hist)) {
 		if len(e.hist) == 0 {
 			for i := range e.table[:] {
 				e.table[i] = tableEntry{}
@@ -667,7 +672,7 @@ encodeLoop:
 		var t int32
 		// We allow the encoder to optionally turn off repeat offsets across blocks
 		canRepeat := len(blk.sequences) > 2
-		var matched int32
+		var matched, index0 int32
 
 		for {
 			if debugAsserts && canRepeat && offset1 == 0 {
@@ -686,6 +691,7 @@ encodeLoop:
 			e.markLongShardDirty(nextHashL)
 			e.table[nextHashS] = tableEntry{offset: off, val: uint32(cv)}
 			e.markShortShardDirty(nextHashS)
+			index0 = s + 1
 
 			if canRepeat {
 				if repIndex >= 0 && load3232(src, repIndex) == uint32(cv>>(repOff*8)) {
@@ -721,7 +727,6 @@ encodeLoop:
 					blk.sequences = append(blk.sequences, seq)
 
 					// Index match start+1 (long) -> s - 1
-					index0 := s + repOff
 					s += lenght + repOff
 
 					nextEmit = s
@@ -785,7 +790,6 @@ encodeLoop:
 					}
 					blk.sequences = append(blk.sequences, seq)
 
-					index0 := s + repOff2
 					s += lenght + repOff2
 					nextEmit = s
 					if s >= sLimit {
@@ -1019,18 +1023,18 @@ encodeLoop:
 		}
 
 		// Index match start+1 (long) -> s - 1
-		index0 := s - l + 1
+		off := index0 + e.cur
 		for index0 < s-1 {
 			cv0 := load6432(src, index0)
 			cv1 := cv0 >> 8
 			h0 := hashLen(cv0, betterLongTableBits, betterLongLen)
-			off := index0 + e.cur
 			e.longTable[h0] = prevEntry{offset: off, prev: e.longTable[h0].offset}
 			e.markLongShardDirty(h0)
 			h1 := hashLen(cv1, betterShortTableBits, betterShortLen)
 			e.table[h1] = tableEntry{offset: off + 1, val: uint32(cv1)}
 			e.markShortShardDirty(h1)
 			index0 += 2
+			off += 2
 		}
 
 		cv = load6432(src, s)

@@ -23,9 +23,7 @@ func TestConfigInspectNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "unknown")
-	if err == nil || !IsErrNotFound(err) {
-		t.Fatalf("expected a NotFoundError error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestConfigInspectWithEmptyID(t *testing.T) {
@@ -35,9 +33,7 @@ func TestConfigInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "")
-	if !IsErrNotFound(err) {
-		t.Fatalf("Expected NotFoundError, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestConfigInspectUnsupported(t *testing.T) {
@@ -56,9 +52,7 @@ func TestConfigInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "nothing")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestConfigInspectConfigNotFound(t *testing.T) {
@@ -68,9 +62,7 @@ func TestConfigInspectConfigNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "unknown")
-	if err == nil || !IsErrNotFound(err) {
-		t.Fatalf("expected a configNotFoundError error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestConfigInspect(t *testing.T) {

@@ -276,7 +276,7 @@ func (cs *cacheResultStorage) LoadRemotes(ctx context.Context, res solver.CacheR
 		// Any of blobs in the remote must meet the specified compression option.
 		match := false
 		for _, desc := range r.result.Descriptors {
-			m := compressionopts.Type.IsMediaType(desc.MediaType)
+			m := compression.IsMediaType(compressionopts.Type, desc.MediaType)
 			match = match || m
 			if compressionopts.Force && !m {
 				match = false
@@ -291,7 +291,7 @@ func (cs *cacheResultStorage) LoadRemotes(ctx context.Context, res solver.CacheR
 	return nil, errors.WithStack(solver.ErrNotFound)
 }
 
-func (cs *cacheResultStorage) Exists(id string) bool {
+func (cs *cacheResultStorage) Exists(ctx context.Context, id string) bool {
 	return cs.byResultID(id) != nil
 }
 

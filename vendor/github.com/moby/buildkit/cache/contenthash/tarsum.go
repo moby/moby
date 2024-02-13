@@ -37,10 +37,10 @@ func v0TarHeaderSelect(h *tar.Header) (orderedHeaders [][2]string) {
 
 func v1TarHeaderSelect(h *tar.Header) (orderedHeaders [][2]string) {
 	pax := h.PAXRecords
-	if len(h.Xattrs) > 0 { //nolint deprecated
+	if len(h.Xattrs) > 0 { //nolint:staticcheck // field deprecated in stdlib
 		if pax == nil {
 			pax = map[string]string{}
-			for k, v := range h.Xattrs { //nolint deprecated
+			for k, v := range h.Xattrs { //nolint:staticcheck // field deprecated in stdlib
 				pax["SCHILY.xattr."+k] = v
 			}
 		}

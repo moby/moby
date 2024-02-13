@@ -6,7 +6,6 @@ var (
 	GitCommit             = "library-import"
 	Version               = "library-import"
 	BuildTime             = "library-import"
-	IAmStatic             = "library-import"
 	PlatformName          = ""
 	ProductName           = ""
 	DefaultProductLicense = ""

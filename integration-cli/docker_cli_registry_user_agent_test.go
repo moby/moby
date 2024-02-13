@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"regexp"
 	"testing"
 
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/registry"
 	"gotest.tools/v3/assert"
 )
@@ -71,6 +71,7 @@ func registerUserAgentHandler(reg *registry.Mock, result *string) {
 // a registry, the registry should see a User-Agent string of the form
 // [docker engine UA] UpstreamClientSTREAM-CLIENT([client UA])
 func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *testing.T) {
+	ctx := testutil.GetContext(c)
 	var ua string
 
 	reg, err := registry.NewMock(c)
@@ -78,15 +79,15 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *testing.T) {
 	defer reg.Close()
 
 	registerUserAgentHandler(reg, &ua)
-	repoName := fmt.Sprintf("%s/busybox", reg.URL())
+	imgRepo := reg.URL() + "/busybox"
 
-	s.d.StartWithBusybox(c, "--insecure-registry", reg.URL())
+	s.d.StartWithBusybox(ctx, c, "--insecure-registry", reg.URL())
 
 	tmp, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmp)
 
-	dockerfile, err := makefile(tmp, fmt.Sprintf("FROM %s", repoName))
+	dockerfile, err := makefile(tmp, "FROM "+imgRepo)
 	assert.NilError(c, err, "Unable to create test dockerfile")
 
 	s.d.Cmd("build", "--file", dockerfile, tmp)
@@ -95,10 +96,10 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *testing.T) {
 	s.d.Cmd("login", "-u", "richard", "-p", "testtest", reg.URL())
 	regexpCheckUA(c, ua)
 
-	s.d.Cmd("pull", repoName)
+	s.d.Cmd("pull", imgRepo)
 	regexpCheckUA(c, ua)
 
-	s.d.Cmd("tag", "busybox", repoName)
-	s.d.Cmd("push", repoName)
+	s.d.Cmd("tag", "busybox", imgRepo)
+	s.d.Cmd("push", imgRepo)
 	regexpCheckUA(c, ua)
 }

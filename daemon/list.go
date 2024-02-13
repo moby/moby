@@ -7,16 +7,16 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var acceptedPsFilterTags = map[string]bool{
@@ -40,21 +40,14 @@ var acceptedPsFilterTags = map[string]bool{
 // iterationAction represents possible outcomes happening during the container iteration.
 type iterationAction int
 
-// containerReducer represents a reducer for a container.
-// Returns the object to serialize by the api.
-type containerReducer func(*container.Snapshot, *listContext) (*types.Container, error)
-
 const (
-	// includeContainer is the action to include a container in the reducer.
+	// includeContainer is the action to include a container.
 	includeContainer iterationAction = iota
-	// excludeContainer is the action to exclude a container in the reducer.
+	// excludeContainer is the action to exclude a container.
 	excludeContainer
 	// stopIteration is the action to stop iterating over the list of containers.
 	stopIteration
 )
-
-// errStopIteration makes the iterator to stop without returning an error.
-var errStopIteration = errors.New("container list iteration stopped")
 
 // List returns an array of all containers registered in the daemon.
 func (daemon *Daemon) List() []*container.Container {
@@ -62,7 +55,7 @@ func (daemon *Daemon) List() []*container.Container {
 }
 
 // listContext is the daemon generated filtering to iterate over containers.
-// This is created based on the user specification from types.ContainerListOptions.
+// This is created based on the user specification from [containertypes.ListOptions].
 type listContext struct {
 	// idx is the container iteration index for this context
 	idx int
@@ -92,8 +85,8 @@ type listContext struct {
 	// expose is a list of exposed ports to filter with
 	expose map[nat.Port]bool
 
-	// ContainerListOptions is the filters set by the user
-	*types.ContainerListOptions
+	// ListOptions is the filters set by the user
+	*containertypes.ListOptions
 }
 
 // byCreatedDescending is a temporary type used to sort a list of containers by creation time.
@@ -106,8 +99,60 @@ func (r byCreatedDescending) Less(i, j int) bool {
 }
 
 // Containers returns the list of containers to show given the user's filtering.
-func (daemon *Daemon) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
-	return daemon.reduceContainers(config, daemon.refreshImage)
+func (daemon *Daemon) Containers(ctx context.Context, config *containertypes.ListOptions) ([]*types.Container, error) {
+	if err := config.Filters.Validate(acceptedPsFilterTags); err != nil {
+		return nil, err
+	}
+
+	var (
+		view       = daemon.containersReplica.Snapshot()
+		containers = []*types.Container{}
+	)
+
+	filter, err := daemon.foldFilter(ctx, view, config)
+	if err != nil {
+		return nil, err
+	}
+
+	// fastpath to only look at a subset of containers if specific name
+	// or ID matches were provided by the user--otherwise we potentially
+	// end up querying many more containers than intended
+	containerList, err := daemon.filterByNameIDMatches(view, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range containerList {
+		currentContainer := &containerList[i]
+		switch includeContainerInList(currentContainer, filter) {
+		case excludeContainer:
+			continue
+		case stopIteration:
+			return containers, nil
+		}
+
+		// transform internal container struct into api structs
+		newC, err := daemon.refreshImage(ctx, currentContainer)
+		if err != nil {
+			return nil, err
+		}
+
+		// release lock because size calculation is slow
+		if filter.Size {
+			sizeRw, sizeRootFs, err := daemon.imageService.GetContainerLayerSize(ctx, newC.ID)
+			if err != nil {
+				return nil, err
+			}
+			newC.SizeRw = sizeRw
+			newC.SizeRootFs = sizeRootFs
+		}
+		if newC != nil {
+			containers = append(containers, newC)
+			filter.idx++
+		}
+	}
+
+	return containers, nil
 }
 
 func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listContext) ([]container.Snapshot, error) {
@@ -119,8 +164,11 @@ func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listCo
 		// standard behavior of walking the entire container
 		// list from the daemon's in-memory store
 		all, err := view.All()
+		if err != nil {
+			return nil, err
+		}
 		sort.Sort(byCreatedDescending(all))
-		return all, err
+		return all, nil
 	}
 
 	// idSearch will determine if we limit name matching to the IDs
@@ -159,14 +207,14 @@ func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listCo
 	cntrs := make([]container.Snapshot, 0, len(matches))
 	for id := range matches {
 		c, err := view.Get(id)
-		switch err.(type) {
-		case nil:
-			cntrs = append(cntrs, *c)
-		case container.NoSuchContainerError:
-			// ignore error
-		default:
+		if err != nil {
+			if errdefs.IsNotFound(err) {
+				// ignore error
+				continue
+			}
 			return nil, err
 		}
+		cntrs = append(cntrs, *c)
 	}
 
 	// Restore sort-order after filtering
@@ -176,75 +224,8 @@ func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listCo
 	return cntrs, nil
 }
 
-// reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
-func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
-	if err := config.Filters.Validate(acceptedPsFilterTags); err != nil {
-		return nil, err
-	}
-
-	var (
-		view       = daemon.containersReplica.Snapshot()
-		containers = []*types.Container{}
-	)
-
-	filter, err := daemon.foldFilter(view, config)
-	if err != nil {
-		return nil, err
-	}
-
-	// fastpath to only look at a subset of containers if specific name
-	// or ID matches were provided by the user--otherwise we potentially
-	// end up querying many more containers than intended
-	containerList, err := daemon.filterByNameIDMatches(view, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range containerList {
-		t, err := daemon.reducePsContainer(&containerList[i], filter, reducer)
-		if err != nil {
-			if err != errStopIteration {
-				return nil, err
-			}
-			break
-		}
-		if t != nil {
-			containers = append(containers, t)
-			filter.idx++
-		}
-	}
-
-	return containers, nil
-}
-
-// reducePsContainer is the basic representation for a container as expected by the ps command.
-func (daemon *Daemon) reducePsContainer(container *container.Snapshot, filter *listContext, reducer containerReducer) (*types.Container, error) {
-	// filter containers to return
-	switch includeContainerInList(container, filter) {
-	case excludeContainer:
-		return nil, nil
-	case stopIteration:
-		return nil, errStopIteration
-	}
-
-	// transform internal container struct into api structs
-	newC, err := reducer(container, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	// release lock because size calculation is slow
-	if filter.Size {
-		sizeRw, sizeRootFs := daemon.imageService.GetContainerLayerSize(newC.ID)
-		newC.SizeRw = sizeRw
-		newC.SizeRootFs = sizeRootFs
-	}
-	return newC, nil
-}
-
 // foldFilter generates the container filter based on the user's filtering options.
-func (daemon *Daemon) foldFilter(view *container.View, config *types.ContainerListOptions) (*listContext, error) {
-	ctx := context.TODO()
+func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, config *containertypes.ListOptions) (*listContext, error) {
 	psFilters := config.Filters
 
 	var filtExited []int
@@ -252,7 +233,7 @@ func (daemon *Daemon) foldFilter(view *container.View, config *types.ContainerLi
 	err := psFilters.WalkValues("exited", func(value string) error {
 		code, err := strconv.Atoi(value)
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(errors.Wrapf(err, "invalid filter 'exited=%s'", value))
 		}
 		filtExited = append(filtExited, code)
 		return nil
@@ -263,7 +244,7 @@ func (daemon *Daemon) foldFilter(view *container.View, config *types.ContainerLi
 
 	err = psFilters.WalkValues("status", func(value string) error {
 		if !container.IsValidStateString(value) {
-			return invalidFilter{"status", value}
+			return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'status=%s'", value))
 		}
 
 		config.All = true
@@ -273,22 +254,15 @@ func (daemon *Daemon) foldFilter(view *container.View, config *types.ContainerLi
 		return nil, err
 	}
 
-	var taskFilter, isTask bool
-	if psFilters.Contains("is-task") {
-		if psFilters.ExactMatch("is-task", "true") {
-			taskFilter = true
-			isTask = true
-		} else if psFilters.ExactMatch("is-task", "false") {
-			taskFilter = true
-			isTask = false
-		} else {
-			return nil, invalidFilter{"is-task", psFilters.Get("is-task")}
-		}
+	taskFilter := psFilters.Contains("is-task")
+	isTask, err := psFilters.GetBoolOrDefault("is-task", false)
+	if err != nil {
+		return nil, err
 	}
 
 	err = psFilters.WalkValues("health", func(value string) error {
 		if !container.IsValidHealthString(value) {
-			return errdefs.InvalidParameter(errors.Errorf("Unrecognised filter value for health: %s", value))
+			return errdefs.InvalidParameter(fmt.Errorf("unrecognized filter value for health: %s", value))
 		}
 
 		return nil
@@ -319,10 +293,10 @@ func (daemon *Daemon) foldFilter(view *container.View, config *types.ContainerLi
 	var ancestorFilter bool
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
-		psFilters.WalkValues("ancestor", func(ancestor string) error {
-			img, err := daemon.imageService.GetImage(ctx, ancestor, imagetypes.GetImageOpts{})
+		err := psFilters.WalkValues("ancestor", func(ancestor string) error {
+			img, err := daemon.imageService.GetImage(ctx, ancestor, backend.GetImageOpts{})
 			if err != nil {
-				logrus.Warnf("Error while looking up for image %v", ancestor)
+				log.G(ctx).Warnf("Error while looking up for image %v", ancestor)
 				return nil
 			}
 			if imagesFilter[img.ID()] {
@@ -330,9 +304,11 @@ func (daemon *Daemon) foldFilter(view *container.View, config *types.ContainerLi
 				return nil
 			}
 			// Then walk down the graph and put the imageIds in imagesFilter
-			populateImageFilterByParents(imagesFilter, img.ID(), daemon.imageService.Children)
-			return nil
+			return populateImageFilterByParents(ctx, imagesFilter, img.ID(), daemon.imageService.Children)
 		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	publishFilter := map[nat.Port]bool{}
@@ -348,25 +324,24 @@ func (daemon *Daemon) foldFilter(view *container.View, config *types.ContainerLi
 	}
 
 	return &listContext{
-		filters:              psFilters,
-		ancestorFilter:       ancestorFilter,
-		images:               imagesFilter,
-		exitAllowed:          filtExited,
-		beforeFilter:         beforeContFilter,
-		sinceFilter:          sinceContFilter,
-		taskFilter:           taskFilter,
-		isTask:               isTask,
-		publish:              publishFilter,
-		expose:               exposeFilter,
-		ContainerListOptions: config,
-		names:                view.GetAllNames(),
+		filters:        psFilters,
+		ancestorFilter: ancestorFilter,
+		images:         imagesFilter,
+		exitAllowed:    filtExited,
+		beforeFilter:   beforeContFilter,
+		sinceFilter:    sinceContFilter,
+		taskFilter:     taskFilter,
+		isTask:         isTask,
+		publish:        publishFilter,
+		expose:         exposeFilter,
+		ListOptions:    config,
+		names:          view.GetAllNames(),
 	}, nil
 }
 
 func idOrNameFilter(view *container.View, value string) (*container.Snapshot, error) {
 	filter, err := view.Get(value)
-	switch err.(type) {
-	case container.NoSuchContainerError:
+	if err != nil && errdefs.IsNotFound(err) {
 		// Try name search instead
 		found := ""
 		for id, idNames := range view.GetAllNames() {
@@ -579,30 +554,84 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 	return includeContainer
 }
 
-// refreshImage checks if the Image ref still points to the correct ID, and updates the ref to the actual ID when it doesn't
-func (daemon *Daemon) refreshImage(s *container.Snapshot, filter *listContext) (*types.Container, error) {
-	ctx := context.TODO()
+// refreshImage checks if the Image ref still points to the correct ID, and
+// updates the ref to the actual ID when it doesn't.
+// This happens when the image with a reference that was used to create
+// container was deleted or updated and now resolves to a different ID.
+//
+// For example:
+// $ docker run -d busybox:latest
+// $ docker ps -a
+// CONTAINER ID   IMAGE     COMMAND   CREATED         STATUS                     PORTS     NAMES
+// b0318bca5aef   busybox   "sh"      4 seconds ago   Exited (0) 3 seconds ago             ecstatic_beaver
+//
+// After some time, busybox image got updated on the Docker Hub:
+// $ docker pull busybox:latest
+//
+// So now busybox:latest points to a different digest, but that doesn't impact
+// the ecstatic_beaver container which was still created under an older
+// version. In this case, it should still point to the original image ID it was
+// created from.
+//
+// $ docker ps -a
+// CONTAINER ID   IMAGE          COMMAND   CREATED       STATUS                  PORTS     NAMES
+// b0318bca5aef   3fbc63216742   "sh"      3 years ago   Exited (0) 3 years ago            ecstatic_beaver
+func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot) (*types.Container, error) {
 	c := s.Container
-	tmpImage := s.Image // keep the original ref if still valid (hasn't changed)
-	if tmpImage != s.ImageID {
-		img, err := daemon.imageService.GetImage(ctx, tmpImage, imagetypes.GetImageOpts{})
-		if _, isDNE := err.(images.ErrImageDoesNotExist); err != nil && !isDNE {
-			return nil, err
-		}
-		if err != nil || img.ImageID() != s.ImageID {
-			// ref changed, we need to use original ID
-			tmpImage = s.ImageID
-		}
+
+	// s.Image is the image reference passed by the user to create an image
+	//         can be a:
+	//         - name (like nginx, ubuntu:latest, docker.io/library/busybox:latest),
+	//         - truncated ID (abcdef),
+	//         - full digest (sha256:abcdef...)
+	//
+	// s.ImageID is the ID of the image that s.Image resolved to at the time
+	// of the container creation. It's always a full digest.
+
+	// If these match, there's nothing to refresh.
+	if s.Image == s.ImageID {
+		return &c, nil
 	}
-	c.Image = tmpImage
+
+	// Check if the image reference still resolves to the same digest.
+	img, err := daemon.imageService.GetImage(ctx, s.Image, backend.GetImageOpts{})
+	// If the image is no longer found or can't be resolved for some other
+	// reason. Update the Image to the specific ID of the original image it
+	// resolved to when the container was created.
+	if err != nil {
+		if !errdefs.IsNotFound(err) {
+			log.G(ctx).WithFields(log.Fields{
+				"error":       err,
+				"containerID": c.ID,
+				"image":       s.Image,
+				"imageID":     s.ImageID,
+			}).Warn("failed to resolve container image")
+		}
+		c.Image = s.ImageID
+		return &c, nil
+	}
+
+	// Also update the image to the specific image ID, if the Image now
+	// resolves to a different ID.
+	if img.ImageID() != s.ImageID {
+		c.Image = s.ImageID
+	}
+
 	return &c, nil
 }
 
-func populateImageFilterByParents(ancestorMap map[image.ID]bool, imageID image.ID, getChildren func(image.ID) []image.ID) {
+func populateImageFilterByParents(ctx context.Context, ancestorMap map[image.ID]bool, imageID image.ID, getChildren func(context.Context, image.ID) ([]image.ID, error)) error {
 	if !ancestorMap[imageID] {
-		for _, id := range getChildren(imageID) {
-			populateImageFilterByParents(ancestorMap, id, getChildren)
+		children, err := getChildren(ctx, imageID)
+		if err != nil {
+			return err
+		}
+		for _, id := range children {
+			if err := populateImageFilterByParents(ctx, ancestorMap, id, getChildren); err != nil {
+				return err
+			}
 		}
 		ancestorMap[imageID] = true
 	}
+	return nil
 }

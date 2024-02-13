@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/docker/docker/pkg/containerfs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
@@ -16,7 +15,7 @@ func TestIsExistingDirectory(t *testing.T) {
 	tmpdir := fs.NewDir(t, "dir-exists-test")
 	defer tmpdir.Remove()
 
-	var testcases = []struct {
+	testcases := []struct {
 		doc      string
 		path     string
 		expected bool
@@ -39,7 +38,7 @@ func TestIsExistingDirectory(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		result, err := isExistingDirectory(&copyEndpoint{driver: containerfs.NewLocalDriver(), path: testcase.path})
+		result, err := isExistingDirectory(testcase.path)
 		if !assert.Check(t, err) {
 			continue
 		}
@@ -48,37 +47,37 @@ func TestIsExistingDirectory(t *testing.T) {
 }
 
 func TestGetFilenameForDownload(t *testing.T) {
-	var testcases = []struct {
+	testcases := []struct {
 		path        string
 		disposition string
 		expected    string
 	}{
 		{
-			path:     "http://www.example.com/",
+			path:     "https://www.example.com/",
 			expected: "",
 		},
 		{
-			path:     "http://www.example.com/xyz",
+			path:     "https://www.example.com/xyz",
 			expected: "xyz",
 		},
 		{
-			path:     "http://www.example.com/xyz.html",
+			path:     "https://www.example.com/xyz.html",
 			expected: "xyz.html",
 		},
 		{
-			path:     "http://www.example.com/xyz/",
+			path:     "https://www.example.com/xyz/",
 			expected: "",
 		},
 		{
-			path:     "http://www.example.com/xyz/uvw",
+			path:     "https://www.example.com/xyz/uvw",
 			expected: "uvw",
 		},
 		{
-			path:     "http://www.example.com/xyz/uvw.html",
+			path:     "https://www.example.com/xyz/uvw.html",
 			expected: "uvw.html",
 		},
 		{
-			path:     "http://www.example.com/xyz/uvw/",
+			path:     "https://www.example.com/xyz/uvw/",
 			expected: "",
 		},
 		{
@@ -115,23 +114,23 @@ func TestGetFilenameForDownload(t *testing.T) {
 			expected:    "xyz.html",
 		},
 		{
-			disposition: "attachment; filename=\"xyz\"",
+			disposition: `attachment; filename="xyz"`,
 			expected:    "xyz",
 		},
 		{
-			disposition: "attachment; filename=\"xyz.html\"",
+			disposition: `attachment; filename="xyz.html"`,
 			expected:    "xyz.html",
 		},
 		{
-			disposition: "attachment; filename=\"/xyz.html\"",
+			disposition: `attachment; filename="/xyz.html"`,
 			expected:    "xyz.html",
 		},
 		{
-			disposition: "attachment; filename=\"/xyz/uvw\"",
+			disposition: `attachment; filename="/xyz/uvw"`,
 			expected:    "uvw",
 		},
 		{
-			disposition: "attachment; filename=\"Naïve file.txt\"",
+			disposition: `attachment; filename="Naïve file.txt"`,
 			expected:    "Naïve file.txt",
 		},
 	}

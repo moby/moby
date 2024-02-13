@@ -1,9 +1,10 @@
+//go:build windows
 // +build windows
 
 package etw
 
 import (
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // not used for secure application
 	"encoding/binary"
 	"strings"
 	"unicode/utf16"
@@ -27,7 +28,7 @@ type Provider struct {
 	keywordAll uint64
 }
 
-// String returns the `provider`.ID as a string
+// String returns the `provider`.ID as a string.
 func (provider *Provider) String() string {
 	if provider == nil {
 		return "<nil>"
@@ -54,6 +55,7 @@ const (
 
 type eventInfoClass uint32
 
+//nolint:deadcode,varcheck // keep unused constants for potential future use
 const (
 	eventInfoClassProviderBinaryTrackInfo eventInfoClass = iota
 	eventInfoClassProviderSetReserved1
@@ -65,10 +67,19 @@ const (
 // enable/disable notifications from ETW.
 type EnableCallback func(guid.GUID, ProviderState, Level, uint64, uint64, uintptr)
 
-func providerCallback(sourceID guid.GUID, state ProviderState, level Level, matchAnyKeyword uint64, matchAllKeyword uint64, filterData uintptr, i uintptr) {
+func providerCallback(
+	sourceID guid.GUID,
+	state ProviderState,
+	level Level,
+	matchAnyKeyword uint64,
+	matchAllKeyword uint64,
+	filterData uintptr,
+	i uintptr,
+) {
 	provider := providers.getProvider(uint(i))
 
 	switch state {
+	case ProviderStateCaptureState:
 	case ProviderStateDisable:
 		provider.enabled = false
 	case ProviderStateEnable:
@@ -90,17 +101,22 @@ func providerCallback(sourceID guid.GUID, state ProviderState, level Level, matc
 //
 // The algorithm is roughly the RFC 4122 algorithm for a V5 UUID, but differs in
 // the following ways:
-// - The input name is first upper-cased, UTF16-encoded, and converted to
-//   big-endian.
-// - No variant is set on the result UUID.
-// - The result UUID is treated as being in little-endian format, rather than
-//   big-endian.
+//   - The input name is first upper-cased, UTF16-encoded, and converted to
+//     big-endian.
+//   - No variant is set on the result UUID.
+//   - The result UUID is treated as being in little-endian format, rather than
+//     big-endian.
 func providerIDFromName(name string) guid.GUID {
-	buffer := sha1.New()
-	namespace := guid.GUID{0x482C2DB2, 0xC390, 0x47C8, [8]byte{0x87, 0xF8, 0x1A, 0x15, 0xBF, 0xC1, 0x30, 0xFB}}
+	buffer := sha1.New() //nolint:gosec // not used for secure application
+	namespace := guid.GUID{
+		Data1: 0x482C2DB2,
+		Data2: 0xC390,
+		Data3: 0x47C8,
+		Data4: [8]byte{0x87, 0xF8, 0x1A, 0x15, 0xBF, 0xC1, 0x30, 0xFB},
+	}
 	namespaceBytes := namespace.ToArray()
 	buffer.Write(namespaceBytes[:])
-	binary.Write(buffer, binary.BigEndian, utf16.Encode([]rune(strings.ToUpper(name))))
+	_ = binary.Write(buffer, binary.BigEndian, utf16.Encode([]rune(strings.ToUpper(name))))
 
 	sum := buffer.Sum(nil)
 	sum[7] = (sum[7] & 0xf) | 0x50
@@ -117,25 +133,24 @@ type providerOpts struct {
 }
 
 // ProviderOpt allows the caller to specify provider options to
-// NewProviderWithOptions
+// NewProviderWithOptions.
 type ProviderOpt func(*providerOpts)
 
-// WithCallback is used to provide a callback option to NewProviderWithOptions
+// WithCallback is used to provide a callback option to NewProviderWithOptions.
 func WithCallback(callback EnableCallback) ProviderOpt {
 	return func(opts *providerOpts) {
 		opts.callback = callback
 	}
 }
 
-// WithID is used to provide a provider ID option to NewProviderWithOptions
+// WithID is used to provide a provider ID option to NewProviderWithOptions.
 func WithID(id guid.GUID) ProviderOpt {
 	return func(opts *providerOpts) {
 		opts.id = id
 	}
 }
 
-// WithGroup is used to provide a provider group option to
-// NewProviderWithOptions
+// WithGroup is used to provide a provider group option to NewProviderWithOptions.
 func WithGroup(group guid.GUID) ProviderOpt {
 	return func(opts *providerOpts) {
 		opts.group = group
@@ -237,11 +252,17 @@ func (provider *Provider) WriteEvent(name string, eventOpts []EventOpt, fieldOpt
 	// event metadata (e.g. for the name) so we don't need to do this check for
 	// the metadata.
 	dataBlobs := [][]byte{}
-	if len(ed.bytes()) > 0 {
-		dataBlobs = [][]byte{ed.bytes()}
+	if len(ed.toBytes()) > 0 {
+		dataBlobs = [][]byte{ed.toBytes()}
 	}
 
-	return provider.writeEventRaw(options.descriptor, options.activityID, options.relatedActivityID, [][]byte{em.bytes()}, dataBlobs)
+	return provider.writeEventRaw(
+		options.descriptor,
+		options.activityID,
+		options.relatedActivityID,
+		[][]byte{em.toBytes()},
+		dataBlobs,
+	)
 }
 
 // writeEventRaw writes a single ETW event from the provider. This function is
@@ -257,17 +278,24 @@ func (provider *Provider) writeEventRaw(
 	relatedActivityID guid.GUID,
 	metadataBlobs [][]byte,
 	dataBlobs [][]byte) error {
-
 	dataDescriptorCount := uint32(1 + len(metadataBlobs) + len(dataBlobs))
 	dataDescriptors := make([]eventDataDescriptor, 0, dataDescriptorCount)
 
-	dataDescriptors = append(dataDescriptors, newEventDataDescriptor(eventDataDescriptorTypeProviderMetadata, provider.metadata))
+	dataDescriptors = append(dataDescriptors,
+		newEventDataDescriptor(eventDataDescriptorTypeProviderMetadata, provider.metadata))
 	for _, blob := range metadataBlobs {
-		dataDescriptors = append(dataDescriptors, newEventDataDescriptor(eventDataDescriptorTypeEventMetadata, blob))
+		dataDescriptors = append(dataDescriptors,
+			newEventDataDescriptor(eventDataDescriptorTypeEventMetadata, blob))
 	}
 	for _, blob := range dataBlobs {
-		dataDescriptors = append(dataDescriptors, newEventDataDescriptor(eventDataDescriptorTypeUserData, blob))
+		dataDescriptors = append(dataDescriptors,
+			newEventDataDescriptor(eventDataDescriptorTypeUserData, blob))
 	}
 
-	return eventWriteTransfer(provider.handle, descriptor, (*windows.GUID)(&activityID), (*windows.GUID)(&relatedActivityID), dataDescriptorCount, &dataDescriptors[0])
+	return eventWriteTransfer(provider.handle,
+		descriptor,
+		(*windows.GUID)(&activityID),
+		(*windows.GUID)(&relatedActivityID),
+		dataDescriptorCount,
+		&dataDescriptors[0])
 }

@@ -1,5 +1,4 @@
 //go:build !freebsd && !windows
-// +build !freebsd,!windows
 
 package system // import "github.com/docker/docker/pkg/system"
 

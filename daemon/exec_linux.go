@@ -3,20 +3,61 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 
+	"github.com/containerd/containerd"
+	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/pkg/apparmor"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/oci/caps"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, ec *container.ExecConfig, p *specs.Process) error {
-	if len(ec.User) > 0 {
-		var err error
-		p.User, err = getUser(ec.Container, ec.User)
-		if err != nil {
-			return err
+func getUserFromContainerd(ctx context.Context, containerdCli *containerd.Client, ec *container.ExecConfig) (specs.User, error) {
+	ctr, err := containerdCli.LoadContainer(ctx, ec.Container.ID)
+	if err != nil {
+		return specs.User{}, err
+	}
+
+	cinfo, err := ctr.Info(ctx)
+	if err != nil {
+		return specs.User{}, err
+	}
+
+	spec, err := ctr.Spec(ctx)
+	if err != nil {
+		return specs.User{}, err
+	}
+
+	opts := []coci.SpecOpts{
+		coci.WithUser(ec.User),
+		coci.WithAdditionalGIDs(ec.User),
+		coci.WithAppendAdditionalGroups(ec.Container.HostConfig.GroupAdd...),
+	}
+	for _, opt := range opts {
+		if err := opt(ctx, containerdCli, &cinfo, spec); err != nil {
+			return specs.User{}, err
 		}
 	}
+
+	return spec.Process.User, nil
+}
+
+func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, daemonCfg *config.Config, ec *container.ExecConfig, p *specs.Process) error {
+	if len(ec.User) > 0 {
+		var err error
+		if daemon.UsesSnapshotter() {
+			p.User, err = getUserFromContainerd(ctx, daemon.containerdClient, ec)
+			if err != nil {
+				return err
+			}
+		} else {
+			p.User, err = getUser(ec.Container, ec.User)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	if ec.Privileged {
 		p.Capabilities = &specs.LinuxCapabilities{
 			Bounding:  caps.GetAllCapabilities(),
@@ -24,6 +65,7 @@ func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, ec *container.Exec
 			Effective: caps.GetAllCapabilities(),
 		}
 	}
+
 	if apparmor.HostSupports() {
 		var appArmorProfile string
 		if ec.Container.AppArmorProfile != "" {
@@ -50,5 +92,5 @@ func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, ec *container.Exec
 		p.ApparmorProfile = appArmorProfile
 	}
 	s := &specs.Spec{Process: p}
-	return WithRlimits(daemon, ec.Container)(ctx, nil, nil, s)
+	return withRlimits(daemon, daemonCfg, ec.Container)(ctx, nil, nil, s)
 }

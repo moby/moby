@@ -8,21 +8,29 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	cerrdefs "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/leases"
+	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ContainerRm removes the container id from the filesystem. An error
 // is returned if the container is not found, or if the remove
 // fails. If the remove succeeds, the container name is released, and
 // network links are removed.
-func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) error {
+func (daemon *Daemon) ContainerRm(name string, config *backend.ContainerRmConfig) error {
+	return daemon.containerRm(&daemon.config().Config, name, config)
+}
+
+func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *backend.ContainerRmConfig) error {
 	start := time.Now()
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
@@ -41,17 +49,17 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 		return nil
 	}
 
-	if config.RemoveLink {
-		return daemon.rmLink(ctr, name)
+	if opts.RemoveLink {
+		return daemon.rmLink(cfg, ctr, name)
 	}
 
-	err = daemon.cleanupContainer(ctr, *config)
+	err = daemon.cleanupContainer(ctr, *opts)
 	containerActions.WithValues("delete").UpdateSince(start)
 
 	return err
 }
 
-func (daemon *Daemon) rmLink(container *container.Container, name string) error {
+func (daemon *Daemon) rmLink(cfg *config.Config, container *container.Container, name string) error {
 	if name[0] != '/' {
 		name = "/" + name
 	}
@@ -70,8 +78,8 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 	parentContainer, _ := daemon.GetContainer(pe)
 	if parentContainer != nil {
 		daemon.linkIndex.unlink(name, container, parentContainer)
-		if err := daemon.updateNetwork(parentContainer); err != nil {
-			logrus.Debugf("Could not update network to remove link %s: %v", n, err)
+		if err := daemon.updateNetwork(cfg, parentContainer); err != nil {
+			log.G(context.TODO()).Debugf("Could not update network to remove link %s: %v", n, err)
 		}
 	}
 	return nil
@@ -79,19 +87,17 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 
 // cleanupContainer unregisters a container from the daemon, stops stats
 // collection and cleanly removes contents and metadata from the filesystem.
-func (daemon *Daemon) cleanupContainer(container *container.Container, config types.ContainerRmConfig) error {
+func (daemon *Daemon) cleanupContainer(container *container.Container, config backend.ContainerRmConfig) error {
 	if container.IsRunning() {
 		if !config.ForceRemove {
-			state := container.StateString()
-			procedure := "Stop the container before attempting removal or force remove"
-			if state == "paused" {
-				procedure = "Unpause and then " + strings.ToLower(procedure)
+			if state := container.StateString(); state == "paused" {
+				return errdefs.Conflict(fmt.Errorf("cannot remove container %q: container is %s and must be unpaused first", container.Name, state))
+			} else {
+				return errdefs.Conflict(fmt.Errorf("cannot remove container %q: container is %s: stop the container before removing or force remove", container.Name, state))
 			}
-			err := fmt.Errorf("You cannot remove a %s container %s. %s", state, container.ID, procedure)
-			return errdefs.Conflict(err)
 		}
-		if err := daemon.Kill(container); err != nil {
-			return fmt.Errorf("Could not kill running container %s, cannot remove - %v", container.ID, err)
+		if err := daemon.Kill(container); err != nil && !isNotRunning(err) {
+			return fmt.Errorf("cannot remove container %q: could not kill: %w", container.Name, err)
 		}
 	}
 
@@ -110,7 +116,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	//
 	// If you arrived here and know the answer, you earned yourself a picture
 	// of a cute animal of your own choosing.
-	var stopTimeout = 3
+	stopTimeout := 3
 	if err := daemon.containerStop(context.TODO(), container, containertypes.StopOptions{Timeout: &stopTimeout}); err != nil {
 		return err
 	}
@@ -123,7 +129,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	// container meta file got removed from disk, then a restart of
 	// docker should not make a dead container alive.
 	if err := container.CheckpointTo(daemon.containersReplica); err != nil && !os.IsNotExist(err) {
-		logrus.Errorf("Error saving dying container to disk: %v", err)
+		log.G(context.TODO()).Errorf("Error saving dying container to disk: %v", err)
 	}
 	container.Unlock()
 
@@ -136,6 +142,19 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 			return err
 		}
 		container.RWLayer = nil
+	} else {
+		if daemon.UsesSnapshotter() {
+			ls := daemon.containerdClient.LeasesService()
+			lease := leases.Lease{
+				ID: container.ID,
+			}
+			if err := ls.Delete(context.Background(), lease, leases.SynchronousDelete); err != nil {
+				if !cerrdefs.IsNotFound(err) {
+					container.SetRemovalError(err)
+					return err
+				}
+			}
+		}
 	}
 
 	// Hold the container lock while deleting the container root directory
@@ -156,7 +175,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	daemon.containers.Delete(container.ID)
 	daemon.containersReplica.Delete(container)
 	if err := daemon.removeMountPoints(container, config.RemoveVolume); err != nil {
-		logrus.Error(err)
+		log.G(context.TODO()).Error(err)
 	}
 	for _, name := range linkNames {
 		daemon.releaseName(name)
@@ -164,6 +183,6 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	container.SetRemoved()
 	stateCtr.del(container.ID)
 
-	daemon.LogContainerEvent(container, "destroy")
+	daemon.LogContainerEvent(container, events.ActionDestroy)
 	return nil
 }

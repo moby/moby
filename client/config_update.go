@@ -9,7 +9,7 @@ import (
 
 // ConfigUpdate attempts to update a config
 func (cli *Client) ConfigUpdate(ctx context.Context, id string, version swarm.Version, config swarm.ConfigSpec) error {
-	if err := cli.NewVersionError("1.30", "config update"); err != nil {
+	if err := cli.NewVersionError(ctx, "1.30", "config update"); err != nil {
 		return err
 	}
 	query := url.Values{}

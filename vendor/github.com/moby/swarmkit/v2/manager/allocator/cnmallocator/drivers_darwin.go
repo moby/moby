@@ -1,14 +1,13 @@
 package cnmallocator
 
 import (
+	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/overlay/ovmanager"
-	"github.com/docker/docker/libnetwork/drivers/remote"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 )
 
-var initializers = []initializer{
-	{remote.Init, "remote"},
-	{ovmanager.Init, "overlay"},
+var initializers = map[string]func(driverapi.Registerer) error{
+	"overlay": ovmanager.Register,
 }
 
 // PredefinedNetworks returns the list of predefined network structures

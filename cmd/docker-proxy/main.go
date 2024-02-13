@@ -9,12 +9,13 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/docker/docker/dockerversion"
 	"github.com/ishidawataru/sctp"
 )
 
 func main() {
 	f := os.NewFile(3, "signal-parent")
-	host, container := parseHostContainerAddrs()
+	host, container := parseFlags()
 
 	p, err := NewProxy(host, container)
 	if err != nil {
@@ -30,18 +31,25 @@ func main() {
 	p.Run()
 }
 
-// parseHostContainerAddrs parses the flags passed on reexec to create the TCP/UDP/SCTP
-// net.Addrs to map the host and container ports
-func parseHostContainerAddrs() (host net.Addr, container net.Addr) {
+// parseFlags parses the flags passed on reexec to create the TCP/UDP/SCTP
+// net.Addrs to map the host and container ports.
+func parseFlags() (host net.Addr, container net.Addr) {
 	var (
 		proto         = flag.String("proto", "tcp", "proxy protocol")
 		hostIP        = flag.String("host-ip", "", "host ip")
 		hostPort      = flag.Int("host-port", -1, "host port")
 		containerIP   = flag.String("container-ip", "", "container ip")
 		containerPort = flag.Int("container-port", -1, "container port")
+		printVer      = flag.Bool("v", false, "print version information and quit")
+		printVersion  = flag.Bool("version", false, "print version information and quit")
 	)
 
 	flag.Parse()
+
+	if *printVer || *printVersion {
+		fmt.Printf("docker-proxy (commit %s) version %s\n", dockerversion.GitCommit, dockerversion.Version)
+		os.Exit(0)
+	}
 
 	switch *proto {
 	case "tcp":

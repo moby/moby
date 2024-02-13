@@ -1,24 +1,24 @@
 //go:build windows
-// +build windows
 
 package libnetwork
 
 import (
+	"context"
 	"runtime"
 	"time"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/drivers/windows"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipams/windowsipam"
-	"github.com/sirupsen/logrus"
 )
 
 func executeInCompartment(compartmentID uint32, x func()) {
 	runtime.LockOSThread()
 
 	if err := hcsshim.SetCurrentThreadCompartmentId(compartmentID); err != nil {
-		logrus.Error(err)
+		log.G(context.TODO()).Error(err)
 	}
 	defer func() {
 		hcsshim.SetCurrentThreadCompartmentId(0)
@@ -28,37 +28,35 @@ func executeInCompartment(compartmentID uint32, x func()) {
 	x()
 }
 
-func (n *network) startResolver() {
+func (n *Network) startResolver() {
 	if n.networkType == "ics" {
 		return
 	}
 	n.resolverOnce.Do(func() {
-		logrus.Debugf("Launching DNS server for network %q", n.Name())
-		options := n.Info().DriverOptions()
-		hnsid := options[windows.HNSID]
-
+		log.G(context.TODO()).Debugf("Launching DNS server for network %q", n.Name())
+		hnsid := n.DriverOptions()[windows.HNSID]
 		if hnsid == "" {
 			return
 		}
 
 		hnsresponse, err := hcsshim.HNSNetworkRequest("GET", hnsid, "")
 		if err != nil {
-			logrus.Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
+			log.G(context.TODO()).Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
 			return
 		}
 
 		for _, subnet := range hnsresponse.Subnets {
 			if subnet.GatewayAddress != "" {
 				for i := 0; i < 3; i++ {
-					resolver := NewResolver(subnet.GatewayAddress, false, "", n)
-					logrus.Debugf("Binding a resolver on network %s gateway %s", n.Name(), subnet.GatewayAddress)
+					resolver := NewResolver(subnet.GatewayAddress, false, n)
+					log.G(context.TODO()).Debugf("Binding a resolver on network %s gateway %s", n.Name(), subnet.GatewayAddress)
 					executeInCompartment(hnsresponse.DNSServerCompartment, resolver.SetupFunc(53))
 
 					if err = resolver.Start(); err != nil {
-						logrus.Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
+						log.G(context.TODO()).Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
 						time.Sleep(1 * time.Second)
 					} else {
-						logrus.Debugf("Resolver bound successfully for network %s", n.Name())
+						log.G(context.TODO()).Debugf("Resolver bound successfully for network %s", n.Name())
 						n.resolver = append(n.resolver, resolver)
 						break
 					}

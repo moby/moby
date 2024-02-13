@@ -16,7 +16,7 @@ type Source interface {
 }
 
 type SourceInstance interface {
-	CacheKey(ctx context.Context, g session.Group, index int) (string, string, solver.CacheOpts, bool, error)
+	CacheKey(ctx context.Context, g session.Group, index int) (key, pin string, opts solver.CacheOpts, done bool, err error)
 	Snapshot(ctx context.Context, g session.Group) (cache.ImmutableRef, error)
 }
 

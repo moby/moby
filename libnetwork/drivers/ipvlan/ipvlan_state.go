@@ -1,13 +1,13 @@
 //go:build linux
-// +build linux
 
 package ipvlan
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 func (d *driver) network(nid string) *network {
@@ -15,7 +15,7 @@ func (d *driver) network(nid string) *network {
 	n, ok := d.networks[nid]
 	d.Unlock()
 	if !ok {
-		logrus.Errorf("network id %s not found", nid)
+		log.G(context.TODO()).Errorf("network id %s not found", nid)
 	}
 
 	return n
@@ -93,7 +93,7 @@ func (d *driver) getNetwork(id string) (*network, error) {
 	d.Lock()
 	defer d.Unlock()
 	if id == "" {
-		return nil, types.BadRequestErrorf("invalid network id: %s", id)
+		return nil, types.InvalidParameterErrorf("invalid network id: %s", id)
 	}
 
 	if nw, ok := d.networks[id]; ok {

@@ -14,6 +14,7 @@ source "${MAKEDIR}/.go-autogen"
 
 # Set defaults
 : "${TEST_REPEAT:=1}"
+: "${TIMEOUT:=5m}"
 : "${TESTFLAGS:=}"
 : "${TESTDEBUG:=}"
 : "${TESTCOVERAGE:=}"
@@ -25,23 +26,23 @@ setup_integration_test_filter() {
 	fi
 
 	local dirs
-	dirs=$(grep -rIlE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/ | xargs -I file dirname file | uniq)
+	local files
+	if files=$(grep -rIlE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/); then
+		dirs=$(echo "$files" | xargs -I file dirname file | uniq)
+	fi
+
 	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
 		: "${TEST_INTEGRATION_DIR:=$(echo "$dirs" | grep -v '^\./integration-cli$')}"
 		if [ -z "${TEST_INTEGRATION_DIR}" ]; then
 			echo "Skipping integration tests since the supplied filter \"${TEST_FILTER}\" omits all integration tests"
 			TEST_SKIP_INTEGRATION=1
-		else
-			TESTFLAGS+=" -test.run ${TEST_FILTER}"
 		fi
 	fi
 
 	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
-		if echo "$dirs" | grep -vq '^./integration-cli$'; then
+		if ! echo "$dirs" | grep -q '^./integration-cli$'; then
 			TEST_SKIP_INTEGRATION_CLI=1
 			echo "Skipping integration-cli tests since the supplied filter \"${TEST_FILTER}\" omits all integration-cli tests"
-		else
-			TESTFLAGS+=" -test.run /${TEST_FILTER}"
 		fi
 	fi
 }
@@ -54,18 +55,38 @@ else
 fi
 
 run_test_integration() {
-	set_platform_timeout
+	set_repeat_timeout
+	local failed=0
 	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
-		run_test_integration_suites "${integration_api_dirs}"
+		if ! run_test_integration_suites "${integration_api_dirs}"; then
+			if [ -n "${TEST_INTEGRATION_FAIL_FAST}" ]; then
+				return 1
+			fi
+			failed=1
+		fi
 	fi
 	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
-		TIMEOUT=360m run_test_integration_suites integration-cli
+		if ! TIMEOUT=360m run_test_integration_suites integration-cli; then
+			return 1
+		fi
+	fi
+
+	if [ $failed -eq 1 ]; then
+		return 1
 	fi
 }
 
 run_test_integration_suites() {
-	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
 	local dirs="$1"
+	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS "
+	if [ -n "${TEST_FILTER}" ]; then
+		if [ "$dirs" == "integration-cli" ]; then
+			flags+=" -test.run /${TEST_FILTER}"
+		else
+			flags+=" -test.run ${TEST_FILTER}"
+		fi
+	fi
+	local failed=0
 	for dir in ${dirs}; do
 		if ! (
 			cd "$dir"
@@ -89,15 +110,36 @@ run_test_integration_suites() {
 
 			echo "Running $PWD (${pkgname}) flags=${pkgtestflags}"
 			[ -n "$TESTDEBUG" ] && set -x
-			# shellcheck disable=SC2086
-			test_env gotestsum \
-				--format=standard-verbose \
-				--jsonfile="${ABS_DEST}/${pkgname//./-}-go-test-report.json" \
-				--junitfile="${ABS_DEST}/${pkgname//./-}-junit-report.xml" \
-				--raw-command \
-				-- go tool test2json -p "${pkgname}" -t ./test.main ${pkgtestflags}
-		); then exit 1; fi
+
+			if [ -n "$DELVE_PORT" ]; then
+				delve_listen_port="${DELVE_PORT##*:}"
+				test_env dlv --listen="0.0.0.0:${delve_listen_port}" \
+					--headless=true \
+					--log \
+					--api-version=2 \
+					--only-same-user=false \
+					--check-go-version=false \
+					--accept-multiclient \
+					test ./ -- ${pkgtestflags}
+			else
+				# shellcheck disable=SC2086
+				test_env gotestsum \
+					--format=standard-verbose \
+					--jsonfile="${ABS_DEST}/${pkgname//./-}-go-test-report.json" \
+					--junitfile="${ABS_DEST}/${pkgname//./-}-junit-report.xml" \
+					--raw-command \
+					-- go tool test2json -p "${pkgname}" -t ./test.main ${pkgtestflags}
+			fi
+		); then
+			if [ -n "${TEST_INTEGRATION_FAIL_FAST}" ]; then
+				return 1
+			fi
+			failed=1
+		fi
 	done
+	if [ $failed -eq 1 ]; then
+		return 1
+	fi
 }
 
 build_test_suite_binaries() {
@@ -153,15 +195,14 @@ test_env() {
 			DOCKER_INTEGRATION_DAEMON_DEST="$DOCKER_INTEGRATION_DAEMON_DEST" \
 			DOCKER_TLS_VERIFY="$DOCKER_TEST_TLS_VERIFY" \
 			DOCKER_CERT_PATH="$DOCKER_TEST_CERT_PATH" \
-			DOCKER_ENGINE_GOARCH="$DOCKER_ENGINE_GOARCH" \
 			DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
 			DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
 			DOCKER_HOST="$DOCKER_HOST" \
 			DOCKER_REMAP_ROOT="$DOCKER_REMAP_ROOT" \
 			DOCKER_REMOTE_DAEMON="$DOCKER_REMOTE_DAEMON" \
 			DOCKER_ROOTLESS="$DOCKER_ROOTLESS" \
-			DOCKERFILE="$DOCKERFILE" \
 			GITHUB_ACTIONS="$GITHUB_ACTIONS" \
+			GO111MODULE="$GO111MODULE" \
 			GOCACHE="$GOCACHE" \
 			GOPATH="$GOPATH" \
 			GOTRACEBACK=all \
@@ -169,20 +210,14 @@ test_env() {
 			PATH="$PATH" \
 			TEMP="$TEMP" \
 			TEST_CLIENT_BINARY="$TEST_CLIENT_BINARY" \
+			TEST_INTEGRATION_USE_SNAPSHOTTER="$TEST_INTEGRATION_USE_SNAPSHOTTER" \
+			OTEL_EXPORTER_OTLP_ENDPOINT="$OTEL_EXPORTER_OTLP_ENDPOINT" \
+			OTEL_SERVICE_NAME="$OTEL_SERVICE_NAME" \
 			"$@"
 	)
 }
 
-set_platform_timeout() {
-	# Test timeout.
-	if [ "${DOCKER_ENGINE_GOARCH}" = "arm64" ] || [ "${DOCKER_ENGINE_GOARCH}" = "arm" ]; then
-		: "${TIMEOUT:=10m}"
-	elif [ "${DOCKER_ENGINE_GOARCH}" = "windows" ]; then
-		: "${TIMEOUT:=8m}"
-	else
-		: "${TIMEOUT:=5m}"
-	fi
-
+set_repeat_timeout() {
 	if [ "${TEST_REPEAT}" -gt 1 ]; then
 		# TIMEOUT needs to take TEST_REPEAT into account, or a premature time out may happen.
 		# The following ugliness will:

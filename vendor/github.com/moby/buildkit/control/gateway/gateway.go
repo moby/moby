@@ -111,6 +111,14 @@ func (gwf *GatewayForwarder) ReadFile(ctx context.Context, req *gwapi.ReadFileRe
 	return fwd.ReadFile(ctx, req)
 }
 
+func (gwf *GatewayForwarder) Evaluate(ctx context.Context, req *gwapi.EvaluateRequest) (*gwapi.EvaluateResponse, error) {
+	fwd, err := gwf.lookupForwarder(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "forwarding Evaluate")
+	}
+	return fwd.Evaluate(ctx, req)
+}
+
 func (gwf *GatewayForwarder) Ping(ctx context.Context, req *gwapi.PingRequest) (*gwapi.PongResponse, error) {
 	fwd, err := gwf.lookupForwarder(ctx)
 	if err != nil {

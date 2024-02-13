@@ -1,8 +1,9 @@
 package daemon // import "github.com/docker/docker/integration/daemon"
 
 import (
-	"context"
+	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,70 +14,47 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/integration/internal/process"
+	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
-
-const (
-	libtrustKey   = `{"crv":"P-256","d":"dm28PH4Z4EbyUN8L0bPonAciAQa1QJmmyYd876mnypY","kid":"WTJ3:YSIP:CE2E:G6KJ:PSBD:YX2Y:WEYD:M64G:NU2V:XPZV:H2CR:VLUB","kty":"EC","x":"Mh5-JINSjaa_EZdXDttri255Z5fbCEOTQIZjAcScFTk","y":"eUyuAjfxevb07hCCpvi4Zi334Dy4GDWQvEToGEX4exQ"}`
-	libtrustKeyID = "WTJ3:YSIP:CE2E:G6KJ:PSBD:YX2Y:WEYD:M64G:NU2V:XPZV:H2CR:VLUB"
-)
-
-func TestConfigDaemonLibtrustID(t *testing.T) {
-	skip.If(t, runtime.GOOS == "windows")
-
-	d := daemon.New(t)
-	defer d.Stop(t)
-
-	trustKey := filepath.Join(d.RootDir(), "key.json")
-	err := os.WriteFile(trustKey, []byte(libtrustKey), 0644)
-	assert.NilError(t, err)
-
-	cfg := filepath.Join(d.RootDir(), "daemon.json")
-	err = os.WriteFile(cfg, []byte(`{"deprecated-key-path": "`+trustKey+`"}`), 0644)
-	assert.NilError(t, err)
-
-	d.Start(t, "--config-file", cfg)
-	info := d.Info(t)
-	assert.Equal(t, info.ID, libtrustKeyID)
-}
 
 func TestConfigDaemonID(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
 
+	_ = testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
 	defer d.Stop(t)
 
-	trustKey := filepath.Join(d.RootDir(), "key.json")
-	err := os.WriteFile(trustKey, []byte(libtrustKey), 0644)
-	assert.NilError(t, err)
-
-	cfg := filepath.Join(d.RootDir(), "daemon.json")
-	err = os.WriteFile(cfg, []byte(`{"deprecated-key-path": "`+trustKey+`"}`), 0644)
-	assert.NilError(t, err)
-
-	// Verify that on an installation with a trust-key present, the ID matches
-	// the trust-key ID, and that the ID has been migrated to the engine-id file.
-	d.Start(t, "--config-file", cfg, "--iptables=false")
+	d.Start(t, "--iptables=false")
 	info := d.Info(t)
-	assert.Equal(t, info.ID, libtrustKeyID)
-
-	idFile := filepath.Join(d.RootDir(), "engine-id")
-	id, err := os.ReadFile(idFile)
-	assert.NilError(t, err)
-	assert.Equal(t, string(id), libtrustKeyID)
+	assert.Check(t, info.ID != "")
 	d.Stop(t)
 
 	// Verify that (if present) the engine-id file takes precedence
 	const engineID = "this-is-the-engine-id"
-	err = os.WriteFile(idFile, []byte(engineID), 0600)
+	idFile := filepath.Join(d.RootDir(), "engine-id")
+	assert.Check(t, os.Remove(idFile))
+	// Using 0644 to allow rootless daemons to read the file (ideally
+	// we'd chown the file to have the remapped user as owner).
+	err := os.WriteFile(idFile, []byte(engineID), 0o644)
 	assert.NilError(t, err)
 
-	d.Start(t, "--config-file", cfg, "--iptables=false")
+	d.Start(t, "--iptables=false")
 	info = d.Info(t)
 	assert.Equal(t, info.ID, engineID)
 	d.Stop(t)
@@ -84,6 +62,7 @@ func TestConfigDaemonID(t *testing.T) {
 
 func TestDaemonConfigValidation(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
+	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
 	dockerBinary, err := d.BinaryPath()
@@ -136,6 +115,7 @@ func TestDaemonConfigValidation(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			_ = testutil.StartSpan(ctx, t)
 			cmd := exec.Command(dockerBinary, tc.args...)
 			out, err := cmd.CombinedOutput()
 			assert.Check(t, is.Contains(string(out), tc.expectedOut))
@@ -150,6 +130,7 @@ func TestDaemonConfigValidation(t *testing.T) {
 
 func TestConfigDaemonSeccompProfiles(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
+	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
 	defer d.Stop(t)
@@ -179,13 +160,15 @@ func TestConfigDaemonSeccompProfiles(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
+			_ = testutil.StartSpan(ctx, t)
+
 			d.Start(t, "--seccomp-profile="+tc.profile)
 			info := d.Info(t)
 			assert.Assert(t, is.Contains(info.SecurityOptions, "name=seccomp,profile="+tc.expectedProfile))
 			d.Stop(t)
 
 			cfg := filepath.Join(d.RootDir(), "daemon.json")
-			err := os.WriteFile(cfg, []byte(`{"seccomp-profile": "`+tc.profile+`"}`), 0644)
+			err := os.WriteFile(cfg, []byte(`{"seccomp-profile": "`+tc.profile+`"}`), 0o644)
 			assert.NilError(t, err)
 
 			d.Start(t, "--config-file", cfg)
@@ -199,133 +182,157 @@ func TestConfigDaemonSeccompProfiles(t *testing.T) {
 func TestDaemonProxy(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "cannot start multiple daemons on windows")
 	skip.If(t, os.Getenv("DOCKER_ROOTLESS") != "", "cannot connect to localhost proxy in rootless environment")
+	ctx := testutil.StartSpan(baseContext, t)
 
-	var received string
-	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		received = r.Host
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte("OK"))
-	}))
-	defer proxyServer.Close()
+	newProxy := func(rcvd *string, t *testing.T) *httptest.Server {
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			*rcvd = r.Host
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte("OK"))
+		}))
+		t.Cleanup(s.Close)
+		return s
+	}
 
 	const userPass = "myuser:mypassword@"
 
 	// Configure proxy through env-vars
 	t.Run("environment variables", func(t *testing.T) {
-		t.Setenv("HTTP_PROXY", proxyServer.URL)
-		t.Setenv("HTTPS_PROXY", proxyServer.URL)
-		t.Setenv("NO_PROXY", "example.com")
+		t.Parallel()
 
-		d := daemon.New(t)
+		ctx := testutil.StartSpan(ctx, t)
+		var received string
+		proxyServer := newProxy(&received, t)
+
+		d := daemon.New(t, daemon.WithEnvVars(
+			"HTTP_PROXY="+proxyServer.URL,
+			"HTTPS_PROXY="+proxyServer.URL,
+			"NO_PROXY=example.com",
+		))
 		c := d.NewClientT(t)
-		defer func() { _ = c.Close() }()
-		ctx := context.Background()
-		d.Start(t)
 
-		_, err := c.ImagePull(ctx, "example.org:5000/some/image:latest", types.ImagePullOptions{})
+		d.Start(t, "--iptables=false")
+		defer d.Stop(t)
+
+		info := d.Info(t)
+		assert.Check(t, is.Equal(info.HTTPProxy, proxyServer.URL))
+		assert.Check(t, is.Equal(info.HTTPSProxy, proxyServer.URL))
+		assert.Check(t, is.Equal(info.NoProxy, "example.com"))
+
+		_, err := c.ImagePull(ctx, "example.org:5000/some/image:latest", image.PullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5000")
 
 		// Test NoProxy: example.com should not hit the proxy, and "received" variable should not be changed.
-		_, err = c.ImagePull(ctx, "example.com/some/image:latest", types.ImagePullOptions{})
+		_, err = c.ImagePull(ctx, "example.com/some/image:latest", image.PullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5000", "should not have used proxy")
-
-		info := d.Info(t)
-		assert.Equal(t, info.HTTPProxy, proxyServer.URL)
-		assert.Equal(t, info.HTTPSProxy, proxyServer.URL)
-		assert.Equal(t, info.NoProxy, "example.com")
-		d.Stop(t)
 	})
 
 	// Configure proxy through command-line flags
 	t.Run("command-line options", func(t *testing.T) {
-		t.Setenv("HTTP_PROXY", "http://"+userPass+"from-env-http.invalid")
-		t.Setenv("http_proxy", "http://"+userPass+"from-env-http.invalid")
-		t.Setenv("HTTPS_PROXY", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")
-		t.Setenv("https_proxy", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")
-		t.Setenv("NO_PROXY", "ignore.invalid")
-		t.Setenv("no_proxy", "ignore.invalid")
+		t.Parallel()
 
-		d := daemon.New(t)
-		d.Start(t, "--http-proxy", proxyServer.URL, "--https-proxy", proxyServer.URL, "--no-proxy", "example.com")
+		ctx := testutil.StartSpan(ctx, t)
 
-		logs, err := d.ReadLogFile()
-		assert.NilError(t, err)
-		assert.Assert(t, is.Contains(string(logs), "overriding existing proxy variable with value from configuration"))
-		for _, v := range []string{"http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "no_proxy", "NO_PROXY"} {
-			assert.Assert(t, is.Contains(string(logs), "name="+v))
-			assert.Assert(t, !strings.Contains(string(logs), userPass), "logs should not contain the non-sanitized proxy URL: %s", string(logs))
-		}
+		var received string
+		proxyServer := newProxy(&received, t)
+
+		d := daemon.New(t, daemon.WithEnvVars(
+			"HTTP_PROXY="+"http://"+userPass+"from-env-http.invalid",
+			"http_proxy="+"http://"+userPass+"from-env-http.invalid",
+			"HTTPS_PROXY="+"https://"+userPass+"myuser:mypassword@from-env-https-invalid",
+			"https_proxy="+"https://"+userPass+"myuser:mypassword@from-env-https-invalid",
+			"NO_PROXY=ignore.invalid",
+			"no_proxy=ignore.invalid",
+		))
+		d.Start(t, "--iptables=false", "--http-proxy", proxyServer.URL, "--https-proxy", proxyServer.URL, "--no-proxy", "example.com")
+		defer d.Stop(t)
 
 		c := d.NewClientT(t)
-		defer func() { _ = c.Close() }()
-		ctx := context.Background()
 
-		_, err = c.ImagePull(ctx, "example.org:5001/some/image:latest", types.ImagePullOptions{})
+		info := d.Info(t)
+		assert.Check(t, is.Equal(info.HTTPProxy, proxyServer.URL))
+		assert.Check(t, is.Equal(info.HTTPSProxy, proxyServer.URL))
+		assert.Check(t, is.Equal(info.NoProxy, "example.com"))
+
+		ok, _ := d.ScanLogsT(ctx, t, daemon.ScanLogsMatchAll(
+			"overriding existing proxy variable with value from configuration",
+			"http_proxy",
+			"HTTP_PROXY",
+			"https_proxy",
+			"HTTPS_PROXY",
+			"no_proxy",
+			"NO_PROXY",
+		))
+		assert.Assert(t, ok)
+
+		ok, logs := d.ScanLogsT(ctx, t, daemon.ScanLogsMatchString(userPass))
+		assert.Assert(t, !ok, "logs should not contain the non-sanitized proxy URL: %s", logs)
+
+		_, err := c.ImagePull(ctx, "example.org:5001/some/image:latest", image.PullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5001")
 
 		// Test NoProxy: example.com should not hit the proxy, and "received" variable should not be changed.
-		_, err = c.ImagePull(ctx, "example.com/some/image:latest", types.ImagePullOptions{})
+		_, err = c.ImagePull(ctx, "example.com/some/image:latest", image.PullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5001", "should not have used proxy")
-
-		info := d.Info(t)
-		assert.Equal(t, info.HTTPProxy, proxyServer.URL)
-		assert.Equal(t, info.HTTPSProxy, proxyServer.URL)
-		assert.Equal(t, info.NoProxy, "example.com")
-
-		d.Stop(t)
 	})
 
 	// Configure proxy through configuration file
 	t.Run("configuration file", func(t *testing.T) {
-		t.Setenv("HTTP_PROXY", "http://"+userPass+"from-env-http.invalid")
-		t.Setenv("http_proxy", "http://"+userPass+"from-env-http.invalid")
-		t.Setenv("HTTPS_PROXY", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")
-		t.Setenv("https_proxy", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")
-		t.Setenv("NO_PROXY", "ignore.invalid")
-		t.Setenv("no_proxy", "ignore.invalid")
+		t.Parallel()
+		ctx := testutil.StartSpan(ctx, t)
 
-		d := daemon.New(t)
+		var received string
+		proxyServer := newProxy(&received, t)
+
+		d := daemon.New(t, daemon.WithEnvVars(
+			"HTTP_PROXY="+"http://"+userPass+"from-env-http.invalid",
+			"http_proxy="+"http://"+userPass+"from-env-http.invalid",
+			"HTTPS_PROXY="+"https://"+userPass+"myuser:mypassword@from-env-https-invalid",
+			"https_proxy="+"https://"+userPass+"myuser:mypassword@from-env-https-invalid",
+			"NO_PROXY=ignore.invalid",
+			"no_proxy=ignore.invalid",
+		))
 		c := d.NewClientT(t)
-		defer func() { _ = c.Close() }()
-		ctx := context.Background()
 
 		configFile := filepath.Join(d.RootDir(), "daemon.json")
 		configJSON := fmt.Sprintf(`{"proxies":{"http-proxy":%[1]q, "https-proxy": %[1]q, "no-proxy": "example.com"}}`, proxyServer.URL)
-		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0644))
+		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0o644))
 
-		d.Start(t, "--config-file", configFile)
+		d.Start(t, "--iptables=false", "--config-file", configFile)
+		defer d.Stop(t)
 
-		logs, err := d.ReadLogFile()
-		assert.NilError(t, err)
-		assert.Assert(t, is.Contains(string(logs), "overriding existing proxy variable with value from configuration"))
-		for _, v := range []string{"http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "no_proxy", "NO_PROXY"} {
-			assert.Assert(t, is.Contains(string(logs), "name="+v))
-			assert.Assert(t, !strings.Contains(string(logs), userPass), "logs should not contain the non-sanitized proxy URL: %s", string(logs))
-		}
+		info := d.Info(t)
+		assert.Check(t, is.Equal(info.HTTPProxy, proxyServer.URL))
+		assert.Check(t, is.Equal(info.HTTPSProxy, proxyServer.URL))
+		assert.Check(t, is.Equal(info.NoProxy, "example.com"))
 
-		_, err = c.ImagePull(ctx, "example.org:5002/some/image:latest", types.ImagePullOptions{})
+		d.ScanLogsT(ctx, t, daemon.ScanLogsMatchAll(
+			"overriding existing proxy variable with value from configuration",
+			"http_proxy",
+			"HTTP_PROXY",
+			"https_proxy",
+			"HTTPS_PROXY",
+			"no_proxy",
+			"NO_PROXY",
+		))
+
+		_, err := c.ImagePull(ctx, "example.org:5002/some/image:latest", image.PullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5002")
 
 		// Test NoProxy: example.com should not hit the proxy, and "received" variable should not be changed.
-		_, err = c.ImagePull(ctx, "example.com/some/image:latest", types.ImagePullOptions{})
+		_, err = c.ImagePull(ctx, "example.com/some/image:latest", image.PullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5002", "should not have used proxy")
-
-		info := d.Info(t)
-		assert.Equal(t, info.HTTPProxy, proxyServer.URL)
-		assert.Equal(t, info.HTTPSProxy, proxyServer.URL)
-		assert.Equal(t, info.NoProxy, "example.com")
-
-		d.Stop(t)
 	})
 
 	// Conflicting options (passed both through command-line options and config file)
 	t.Run("conflicting options", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		const (
 			proxyRawURL = "https://" + userPass + "example.org"
 			proxyURL    = "https://xxxxx:xxxxx@example.org"
@@ -335,46 +342,290 @@ func TestDaemonProxy(t *testing.T) {
 
 		configFile := filepath.Join(d.RootDir(), "daemon.json")
 		configJSON := fmt.Sprintf(`{"proxies":{"http-proxy":%[1]q, "https-proxy": %[1]q, "no-proxy": "example.com"}}`, proxyRawURL)
-		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0644))
+		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0o644))
 
 		err := d.StartWithError("--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com", "--config-file", configFile, "--validate")
 		assert.ErrorContains(t, err, "daemon exited during startup")
-		logs, err := d.ReadLogFile()
-		assert.NilError(t, err)
+
 		expected := fmt.Sprintf(
 			`the following directives are specified both as a flag and in the configuration file: http-proxy: (from flag: %[1]s, from file: %[1]s), https-proxy: (from flag: %[1]s, from file: %[1]s), no-proxy: (from flag: example.com, from file: example.com)`,
 			proxyURL,
 		)
-		assert.Assert(t, is.Contains(string(logs), expected))
+		poll.WaitOn(t, d.PollCheckLogs(ctx, daemon.ScanLogsMatchString(expected)))
 	})
 
 	// Make sure values are sanitized when reloading the daemon-config
 	t.Run("reload sanitized", func(t *testing.T) {
+		t.Parallel()
+		ctx := testutil.StartSpan(ctx, t)
+
 		const (
 			proxyRawURL = "https://" + userPass + "example.org"
 			proxyURL    = "https://xxxxx:xxxxx@example.org"
 		)
 
 		d := daemon.New(t)
-		d.Start(t, "--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com")
+		d.Start(t, "--iptables=false", "--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com")
 		defer d.Stop(t)
 		err := d.Signal(syscall.SIGHUP)
 		assert.NilError(t, err)
 
-		logs, err := d.ReadLogFile()
-		assert.NilError(t, err)
+		poll.WaitOn(t, d.PollCheckLogs(ctx, daemon.ScanLogsMatchAll("Reloaded configuration:", proxyURL)))
 
-		// FIXME: there appears to ba a race condition, which causes ReadLogFile
-		//        to not contain the full logs after signaling the daemon to reload,
-		//        causing the test to fail here. As a workaround, check if we
-		//        received the "reloaded" message after signaling, and only then
-		//        check that it's sanitized properly. For more details on this
-		//        issue, see https://github.com/moby/moby/pull/42835/files#r713120315
-		if !strings.Contains(string(logs), "Reloaded configuration:") {
-			t.Skip("Skipping test, because we did not find 'Reloaded configuration' in the logs")
+		ok, logs := d.ScanLogsT(ctx, t, daemon.ScanLogsMatchString(userPass))
+		assert.Assert(t, !ok, "logs should not contain the non-sanitized proxy URL: %s", logs)
+	})
+}
+
+func TestLiveRestore(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "cannot start multiple daemons on windows")
+	_ = testutil.StartSpan(baseContext, t)
+
+	t.Run("volume references", testLiveRestoreVolumeReferences)
+	t.Run("autoremove", testLiveRestoreAutoRemove)
+}
+
+func testLiveRestoreAutoRemove(t *testing.T) {
+	skip.If(t, testEnv.IsRootless(), "restarted rootless daemon will have a new process namespace")
+
+	t.Parallel()
+	ctx := testutil.StartSpan(baseContext, t)
+
+	run := func(t *testing.T) (*daemon.Daemon, func(), string) {
+		d := daemon.New(t)
+		d.StartWithBusybox(ctx, t, "--live-restore", "--iptables=false")
+		t.Cleanup(func() {
+			d.Stop(t)
+			d.Cleanup(t)
+		})
+
+		tmpDir := t.TempDir()
+
+		apiClient := d.NewClientT(t)
+
+		cID := container.Run(ctx, t, apiClient,
+			container.WithBind(tmpDir, "/v"),
+			// Run until a 'stop' file is created.
+			container.WithCmd("sh", "-c", "while [ ! -f /v/stop ]; do sleep 0.1; done"),
+			container.WithAutoRemove)
+		t.Cleanup(func() { apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true}) })
+		finishContainer := func() {
+			file, err := os.Create(filepath.Join(tmpDir, "stop"))
+			assert.NilError(t, err, "Failed to create 'stop' file")
+			file.Close()
+		}
+		return d, finishContainer, cID
+	}
+
+	t.Run("engine restart shouldnt kill alive containers", func(t *testing.T) {
+		d, finishContainer, cID := run(t)
+
+		d.Restart(t, "--live-restore", "--iptables=false")
+
+		apiClient := d.NewClientT(t)
+		_, err := apiClient.ContainerInspect(ctx, cID)
+		assert.NilError(t, err, "Container shouldn't be removed after engine restart")
+
+		finishContainer()
+
+		poll.WaitOn(t, container.IsRemoved(ctx, apiClient, cID))
+	})
+	t.Run("engine restart should remove containers that exited", func(t *testing.T) {
+		d, finishContainer, cID := run(t)
+
+		apiClient := d.NewClientT(t)
+
+		// Get PID of the container process.
+		inspect, err := apiClient.ContainerInspect(ctx, cID)
+		assert.NilError(t, err)
+		pid := inspect.State.Pid
+
+		d.Stop(t)
+
+		finishContainer()
+		poll.WaitOn(t, process.NotAlive(pid))
+
+		d.Start(t, "--live-restore", "--iptables=false")
+
+		poll.WaitOn(t, container.IsRemoved(ctx, apiClient, cID))
+	})
+}
+
+func testLiveRestoreVolumeReferences(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.StartSpan(baseContext, t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--live-restore", "--iptables=false")
+	defer func() {
+		d.Stop(t)
+		d.Cleanup(t)
+	}()
+
+	c := d.NewClientT(t)
+
+	runTest := func(t *testing.T, policy containertypes.RestartPolicyMode) {
+		t.Run(string(policy), func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+			volName := "test-live-restore-volume-references-" + string(policy)
+			_, err := c.VolumeCreate(ctx, volume.CreateOptions{Name: volName})
+			assert.NilError(t, err)
+
+			// Create a container that uses the volume
+			m := mount.Mount{
+				Type:   mount.TypeVolume,
+				Source: volName,
+				Target: "/foo",
+			}
+			cID := container.Run(ctx, t, c, container.WithMount(m), container.WithCmd("top"), container.WithRestartPolicy(policy))
+			defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+
+			// Stop the daemon
+			d.Restart(t, "--live-restore", "--iptables=false")
+
+			// Try to remove the volume
+			err = c.VolumeRemove(ctx, volName, false)
+			assert.ErrorContains(t, err, "volume is in use")
+
+			_, err = c.VolumeInspect(ctx, volName)
+			assert.NilError(t, err)
+		})
+	}
+
+	t.Run("restartPolicy", func(t *testing.T) {
+		runTest(t, containertypes.RestartPolicyAlways)
+		runTest(t, containertypes.RestartPolicyUnlessStopped)
+		runTest(t, containertypes.RestartPolicyOnFailure)
+		runTest(t, containertypes.RestartPolicyDisabled)
+	})
+
+	// Make sure that the local volume driver's mount ref count is restored
+	// Addresses https://github.com/moby/moby/issues/44422
+	t.Run("local volume with mount options", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		v, err := c.VolumeCreate(ctx, volume.CreateOptions{
+			Driver: "local",
+			Name:   "test-live-restore-volume-references-local",
+			DriverOpts: map[string]string{
+				"type":   "tmpfs",
+				"device": "tmpfs",
+			},
+		})
+		assert.NilError(t, err)
+		m := mount.Mount{
+			Type:   mount.TypeVolume,
+			Source: v.Name,
+			Target: "/foo",
 		}
 
-		assert.Assert(t, is.Contains(string(logs), proxyURL))
-		assert.Assert(t, !strings.Contains(string(logs), userPass), "logs should not contain the non-sanitized proxy URL: %s", string(logs))
+		const testContent = "hello"
+		cID := container.Run(ctx, t, c, container.WithMount(m), container.WithCmd("sh", "-c", "echo "+testContent+">>/foo/test.txt; sleep infinity"))
+		defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+
+		// Wait until container creates a file in the volume.
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			stat, err := c.ContainerStatPath(ctx, cID, "/foo/test.txt")
+			if err != nil {
+				if errdefs.IsNotFound(err) {
+					return poll.Continue("file doesn't yet exist")
+				}
+				return poll.Error(err)
+			}
+
+			if int(stat.Size) != len(testContent)+1 {
+				return poll.Error(fmt.Errorf("unexpected test file size: %d", stat.Size))
+			}
+
+			return poll.Success()
+		})
+
+		d.Restart(t, "--live-restore", "--iptables=false")
+
+		// Try to remove the volume
+		// This should fail since its used by a container
+		err = c.VolumeRemove(ctx, v.Name, false)
+		assert.ErrorContains(t, err, "volume is in use")
+
+		t.Run("volume still mounted", func(t *testing.T) {
+			skip.If(t, testEnv.IsRootless(), "restarted rootless daemon has a new mount namespace and it won't have the previous mounts")
+
+			// Check if a new container with the same volume has access to the previous content.
+			// This fails if the volume gets unmounted at startup.
+			cID2 := container.Run(ctx, t, c, container.WithMount(m), container.WithCmd("cat", "/foo/test.txt"))
+			defer c.ContainerRemove(ctx, cID2, containertypes.RemoveOptions{Force: true})
+
+			poll.WaitOn(t, container.IsStopped(ctx, c, cID2))
+
+			inspect, err := c.ContainerInspect(ctx, cID2)
+			if assert.Check(t, err) {
+				assert.Check(t, is.Equal(inspect.State.ExitCode, 0), "volume doesn't have the same file")
+			}
+
+			logs, err := c.ContainerLogs(ctx, cID2, containertypes.LogsOptions{ShowStdout: true})
+			assert.NilError(t, err)
+			defer logs.Close()
+
+			var stdoutBuf bytes.Buffer
+			_, err = stdcopy.StdCopy(&stdoutBuf, io.Discard, logs)
+			assert.NilError(t, err)
+
+			assert.Check(t, is.Equal(strings.TrimSpace(stdoutBuf.String()), testContent))
+		})
+
+		// Remove that container which should free the references in the volume
+		err = c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+		assert.NilError(t, err)
+
+		// Now we should be able to remove the volume
+		err = c.VolumeRemove(ctx, v.Name, false)
+		assert.NilError(t, err)
 	})
+
+	// Make sure that we don't panic if the container has bind-mounts
+	// (which should not be "restored")
+	// Regression test for https://github.com/moby/moby/issues/45898
+	t.Run("container with bind-mounts", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		m := mount.Mount{
+			Type:   mount.TypeBind,
+			Source: os.TempDir(),
+			Target: "/foo",
+		}
+		cID := container.Run(ctx, t, c, container.WithMount(m), container.WithCmd("top"))
+		defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+
+		d.Restart(t, "--live-restore", "--iptables=false")
+
+		err := c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+		assert.NilError(t, err)
+	})
+}
+
+func TestDaemonDefaultBridgeWithFixedCidrButNoBip(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows")
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	bridgeName := "ext-bridge1"
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_CREATE_DEFAULT_BRIDGE="+bridgeName))
+	defer func() {
+		d.Stop(t)
+		d.Cleanup(t)
+	}()
+
+	defer func() {
+		// No need to clean up when running this test in rootless mode, as the
+		// interface is deleted when the daemon is stopped and the netns
+		// reclaimed by the kernel.
+		if !testEnv.IsRootless() {
+			deleteInterface(t, bridgeName)
+		}
+	}()
+	d.StartWithBusybox(ctx, t, "--bridge", bridgeName, "--fixed-cidr", "192.168.130.0/24")
+}
+
+func deleteInterface(t *testing.T, ifName string) {
+	icmd.RunCommand("ip", "link", "delete", ifName).Assert(t, icmd.Success)
+	icmd.RunCommand("iptables", "-t", "nat", "--flush").Assert(t, icmd.Success)
+	icmd.RunCommand("iptables", "--flush").Assert(t, icmd.Success)
 }

@@ -1,50 +1,61 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestAttachWithTTY(t *testing.T) {
-	testAttach(t, true, types.MediaTypeRawStream)
-}
+func TestAttach(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
 
-func TestAttachWithoutTTy(t *testing.T) {
-	testAttach(t, false, types.MediaTypeMultiplexedStream)
-}
-
-func testAttach(t *testing.T, tty bool, expected string) {
-	defer setupTest(t)()
-	client := testEnv.APIClient()
-
-	resp, err := client.ContainerCreate(context.Background(),
-		&container.Config{
-			Image: "busybox",
-			Cmd:   []string{"echo", "hello"},
-			Tty:   tty,
+	tests := []struct {
+		doc               string
+		tty               bool
+		expectedMediaType string
+	}{
+		{
+			doc:               "without TTY",
+			expectedMediaType: types.MediaTypeMultiplexedStream,
 		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{},
-		nil,
-		"",
-	)
-	assert.NilError(t, err)
-	container := resp.ID
-	defer client.ContainerRemove(context.Background(), container, types.ContainerRemoveOptions{
-		Force: true,
-	})
+		{
+			doc:               "with TTY",
+			tty:               true,
+			expectedMediaType: types.MediaTypeRawStream,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
 
-	attach, err := client.ContainerAttach(context.Background(), container, types.ContainerAttachOptions{
-		Stdout: true,
-		Stderr: true,
-	})
-	assert.NilError(t, err)
-	mediaType, ok := attach.MediaType()
-	assert.Check(t, ok)
-	assert.Check(t, mediaType == expected)
+			ctx := testutil.StartSpan(ctx, t)
+			resp, err := apiClient.ContainerCreate(ctx,
+				&container.Config{
+					Image: "busybox",
+					Cmd:   []string{"echo", "hello"},
+					Tty:   tc.tty,
+				},
+				&container.HostConfig{},
+				&network.NetworkingConfig{},
+				nil,
+				"",
+			)
+			assert.NilError(t, err)
+			attach, err := apiClient.ContainerAttach(ctx, resp.ID, container.AttachOptions{
+				Stdout: true,
+				Stderr: true,
+			})
+			assert.NilError(t, err)
+			mediaType, ok := attach.MediaType()
+			assert.Check(t, ok)
+			assert.Check(t, is.Equal(mediaType, tc.expectedMediaType))
+		})
+	}
 }

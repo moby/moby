@@ -1,16 +1,20 @@
 package tarexport // import "github.com/docker/docker/image/tarexport"
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/image"
 	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
@@ -19,11 +23,9 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/sequential"
 	"github.com/moby/sys/symlink"
 	"github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 )
 
 func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
@@ -82,7 +84,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		if err != nil {
 			return err
 		}
-		if !system.IsOSSupported(img.OperatingSystem()) {
+		if err := image.CheckOS(img.OperatingSystem()); err != nil {
 			return fmt.Errorf("cannot load %s image on %s", img.OperatingSystem(), runtime.GOOS)
 		}
 		rootFS := *img.RootFS
@@ -135,7 +137,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		}
 
 		parentLinks = append(parentLinks, parentLink{imgID, m.Parent})
-		l.loggerImgEvent.LogImageEvent(imgID.String(), imgID.String(), "load")
+		l.loggerImgEvent.LogImageEvent(imgID.String(), imgID.String(), events.ActionLoad)
 	}
 
 	for _, p := range validatedParentLinks(parentLinks) {
@@ -173,7 +175,7 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string,
 	// On Linux, this equates to a regular os.Open.
 	rawTar, err := sequential.Open(filename)
 	if err != nil {
-		logrus.Debugf("Error reading embedded tar: %v", err)
+		log.G(context.TODO()).Debugf("Error reading embedded tar: %v", err)
 		return nil, err
 	}
 	defer rawTar.Close()
@@ -182,7 +184,7 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string,
 	if progressOutput != nil {
 		fileInfo, err := rawTar.Stat()
 		if err != nil {
-			logrus.Debugf("Error statting file: %v", err)
+			log.G(context.TODO()).Debugf("Error statting file: %v", err)
 			return nil, err
 		}
 
@@ -279,7 +281,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	}
 	imageJSON, err := os.ReadFile(configPath)
 	if err != nil {
-		logrus.Debugf("Error reading json: %v", err)
+		log.G(context.TODO()).Debugf("Error reading json: %v", err)
 		return err
 	}
 
@@ -294,7 +296,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	if img.OS == "" {
 		img.OS = runtime.GOOS
 	}
-	if !system.IsOSSupported(img.OS) {
+	if err := image.CheckOS(img.OS); err != nil {
 		return fmt.Errorf("cannot load %s image on %s", img.OS, runtime.GOOS)
 	}
 
@@ -396,8 +398,16 @@ func checkValidParent(img, parent *image.Image) bool {
 	if len(img.History)-len(parent.History) != 1 {
 		return false
 	}
-	for i, h := range parent.History {
-		if !h.Equal(img.History[i]) {
+	for i, hP := range parent.History {
+		hC := img.History[i]
+		if (hP.Created == nil) != (hC.Created == nil) {
+			return false
+		}
+		if hP.Created != nil && !hP.Created.Equal(*hC.Created) {
+			return false
+		}
+		hC.Created = hP.Created
+		if !reflect.DeepEqual(hP, hC) {
 			return false
 		}
 	}

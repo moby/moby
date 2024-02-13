@@ -49,7 +49,7 @@ func WithTempMount(ctx context.Context, mounts []Mount, f func(root string) erro
 
 	// We should do defer first, if not we will not do Unmount when only a part of Mounts are failed.
 	defer func() {
-		if uerr = UnmountAll(root, 0); uerr != nil {
+		if uerr = UnmountMounts(mounts, root, 0); uerr != nil {
 			uerr = fmt.Errorf("failed to unmount %s: %w", root, uerr)
 			if err == nil {
 				err = uerr
@@ -65,6 +65,13 @@ func WithTempMount(ctx context.Context, mounts []Mount, f func(root string) erro
 		return fmt.Errorf("mount callback failed on %s: %w", root, err)
 	}
 	return nil
+}
+
+// WithReadonlyTempMount mounts the provided mounts to a temp dir as readonly,
+// and pass the temp dir to f. The mounts are valid during the call to the f.
+// Finally we will unmount and remove the temp dir regardless of the result of f.
+func WithReadonlyTempMount(ctx context.Context, mounts []Mount, f func(root string) error) (err error) {
+	return WithTempMount(ctx, readonlyMounts(mounts), f)
 }
 
 func getTempDir() string {

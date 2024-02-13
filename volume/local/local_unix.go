@@ -1,5 +1,4 @@
 //go:build linux || freebsd
-// +build linux freebsd
 
 // Package local provides the default implementation for volumes. It
 // is used to mount data volume containers and directories local to
@@ -9,6 +8,7 @@ package local // import "github.com/docker/docker/volume/local"
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strings"
 	"syscall"
@@ -56,6 +56,15 @@ func (r *Root) validateOpts(opts map[string]string) error {
 			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
 		}
 	}
+	if typeOpt, deviceOpt := opts["type"], opts["device"]; typeOpt == "cifs" && deviceOpt != "" {
+		deviceURL, err := url.Parse(deviceOpt)
+		if err != nil {
+			return errdefs.InvalidParameter(errors.Wrapf(err, "error parsing mount device url"))
+		}
+		if deviceURL.Port() != "" {
+			return errdefs.InvalidParameter(errors.New("port not allowed in CIFS device URL, include 'port' in 'o='"))
+		}
+	}
 	if val, ok := opts["size"]; ok {
 		size, err := units.RAMInBytes(val)
 		if err != nil {
@@ -99,10 +108,6 @@ func (v *localVolume) setOpts(opts map[string]string) error {
 	return v.saveOpts()
 }
 
-func unmount(path string) {
-	_ = mount.Unmount(path)
-}
-
 func (v *localVolume) needsMount() bool {
 	if v.opts == nil {
 		return false
@@ -113,22 +118,57 @@ func (v *localVolume) needsMount() bool {
 	return false
 }
 
-func (v *localVolume) mount() error {
-	if v.opts.MountDevice == "" {
-		return fmt.Errorf("missing device in volume options")
+func getMountOptions(opts *optsConfig, resolveIP func(string, string) (*net.IPAddr, error)) (mountDevice string, mountOpts string, _ error) {
+	if opts.MountDevice == "" {
+		return "", "", fmt.Errorf("missing device in volume options")
 	}
-	mountOpts := v.opts.MountOpts
-	switch v.opts.MountType {
+
+	mountOpts = opts.MountOpts
+	mountDevice = opts.MountDevice
+
+	switch opts.MountType {
 	case "nfs", "cifs":
-		if addrValue := getAddress(v.opts.MountOpts); addrValue != "" && net.ParseIP(addrValue).To4() == nil {
-			ipAddr, err := net.ResolveIPAddr("ip", addrValue)
+		if addrValue := getAddress(opts.MountOpts); addrValue != "" && net.ParseIP(addrValue).To4() == nil {
+			ipAddr, err := resolveIP("ip", addrValue)
 			if err != nil {
-				return errors.Wrapf(err, "error resolving passed in network volume address")
+				return "", "", errors.Wrap(err, "error resolving passed in network volume address")
 			}
 			mountOpts = strings.Replace(mountOpts, "addr="+addrValue, "addr="+ipAddr.String(), 1)
+			break
+		}
+
+		if opts.MountType != "cifs" {
+			break
+		}
+
+		deviceURL, err := url.Parse(mountDevice)
+		if err != nil {
+			return "", "", errors.Wrap(err, "error parsing mount device url")
+		}
+		if deviceURL.Host != "" && net.ParseIP(deviceURL.Host) == nil {
+			ipAddr, err := resolveIP("ip", deviceURL.Host)
+			if err != nil {
+				return "", "", errors.Wrap(err, "error resolving passed in network volume address")
+			}
+			deviceURL.Host = ipAddr.String()
+			dev, err := url.QueryUnescape(deviceURL.String())
+			if err != nil {
+				return "", "", fmt.Errorf("failed to unescape device URL: %q", deviceURL)
+			}
+			mountDevice = dev
 		}
 	}
-	if err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts); err != nil {
+
+	return mountDevice, mountOpts, nil
+}
+
+func (v *localVolume) mount() error {
+	mountDevice, mountOpts, err := getMountOptions(v.opts, net.ResolveIPAddr)
+	if err != nil {
+		return err
+	}
+
+	if err := mount.Mount(mountDevice, v.path, v.opts.MountType, mountOpts); err != nil {
 		if password := getPassword(v.opts.MountOpts); password != "" {
 			err = errors.New(strings.Replace(err.Error(), "password="+password, "password=********", 1))
 		}
@@ -143,10 +183,7 @@ func (v *localVolume) postMount() error {
 	}
 	if v.opts.Quota.Size > 0 {
 		if v.quotaCtl != nil {
-			err := v.quotaCtl.SetQuota(v.path, v.opts.Quota)
-			if err != nil {
-				return err
-			}
+			return v.quotaCtl.SetQuota(v.path, v.opts.Quota)
 		} else {
 			return errors.New("size quota requested for volume but no quota support")
 		}
@@ -166,8 +203,31 @@ func (v *localVolume) unmount() error {
 	return nil
 }
 
+// restoreIfMounted restores the mounted status if the _data directory is already mounted.
+func (v *localVolume) restoreIfMounted() error {
+	if v.needsMount() {
+		// Check if the _data directory is already mounted.
+		mounted, err := mountinfo.Mounted(v.path)
+		if err != nil {
+			return fmt.Errorf("failed to determine if volume _data path is already mounted: %w", err)
+		}
+
+		if mounted {
+			// Mark volume as mounted, but don't increment active count. If
+			// any container needs this, the refcount will be incremented
+			// by the live-restore (if enabled).
+			// In other case, refcount will be zero but the volume will
+			// already be considered as mounted when Mount is called, and
+			// only the refcount will be incremented.
+			v.active.mounted = true
+		}
+	}
+
+	return nil
+}
+
 func (v *localVolume) CreatedAt() (time.Time, error) {
-	fileInfo, err := os.Stat(v.path)
+	fileInfo, err := os.Stat(v.rootPath)
 	if err != nil {
 		return time.Time{}, err
 	}

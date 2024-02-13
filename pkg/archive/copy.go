@@ -2,14 +2,15 @@ package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
 	"archive/tar"
+	"context"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/system"
-	"github.com/sirupsen/logrus"
 )
 
 // Errors used or returned by this file.
@@ -26,23 +27,23 @@ var (
 // path (from before being processed by utility functions from the path or
 // filepath stdlib packages) ends with a trailing `/.` or `/`. If the cleaned
 // path already ends in a `.` path segment, then another is not added. If the
-// clean path already ends in the separator, then another is not added.
-func PreserveTrailingDotOrSeparator(cleanedPath string, originalPath string, sep byte) string {
+// clean path already ends in a path separator, then another is not added.
+func PreserveTrailingDotOrSeparator(cleanedPath string, originalPath string) string {
 	// Ensure paths are in platform semantics
-	cleanedPath = strings.ReplaceAll(cleanedPath, "/", string(sep))
-	originalPath = strings.ReplaceAll(originalPath, "/", string(sep))
+	cleanedPath = normalizePath(cleanedPath)
+	originalPath = normalizePath(originalPath)
 
 	if !specifiesCurrentDir(cleanedPath) && specifiesCurrentDir(originalPath) {
-		if !hasTrailingPathSeparator(cleanedPath, sep) {
+		if !hasTrailingPathSeparator(cleanedPath) {
 			// Add a separator if it doesn't already end with one (a cleaned
 			// path would only end in a separator if it is the root).
-			cleanedPath += string(sep)
+			cleanedPath += string(filepath.Separator)
 		}
 		cleanedPath += "."
 	}
 
-	if !hasTrailingPathSeparator(cleanedPath, sep) && hasTrailingPathSeparator(originalPath, sep) {
-		cleanedPath += string(sep)
+	if !hasTrailingPathSeparator(cleanedPath) && hasTrailingPathSeparator(originalPath) {
+		cleanedPath += string(filepath.Separator)
 	}
 
 	return cleanedPath
@@ -51,14 +52,14 @@ func PreserveTrailingDotOrSeparator(cleanedPath string, originalPath string, sep
 // assertsDirectory returns whether the given path is
 // asserted to be a directory, i.e., the path ends with
 // a trailing '/' or `/.`, assuming a path separator of `/`.
-func assertsDirectory(path string, sep byte) bool {
-	return hasTrailingPathSeparator(path, sep) || specifiesCurrentDir(path)
+func assertsDirectory(path string) bool {
+	return hasTrailingPathSeparator(path) || specifiesCurrentDir(path)
 }
 
 // hasTrailingPathSeparator returns whether the given
 // path ends with the system's path separator character.
-func hasTrailingPathSeparator(path string, sep byte) bool {
-	return len(path) > 0 && path[len(path)-1] == sep
+func hasTrailingPathSeparator(path string) bool {
+	return len(path) > 0 && path[len(path)-1] == filepath.Separator
 }
 
 // specifiesCurrentDir returns whether the given path specifies
@@ -107,7 +108,7 @@ func TarResourceRebase(sourcePath, rebaseName string) (content io.ReadCloser, er
 	sourceDir, sourceBase := SplitPathDirEntry(sourcePath)
 	opts := TarResourceRebaseOpts(sourceBase, rebaseName)
 
-	logrus.Debugf("copying %q from %q", sourceBase, sourceDir)
+	log.G(context.TODO()).Debugf("copying %q from %q", sourceBase, sourceDir)
 	return TarWithOptions(sourceDir, opts)
 }
 
@@ -285,7 +286,7 @@ func PrepareArchiveCopy(srcContent io.Reader, srcInfo, dstInfo CopyInfo) (dstDir
 			srcBase = srcInfo.RebaseName
 		}
 		return dstDir, RebaseArchiveEntries(srcContent, srcBase, dstBase), nil
-	case assertsDirectory(dstInfo.Path, os.PathSeparator):
+	case assertsDirectory(dstInfo.Path):
 		// The destination does not exist and is asserted to be created as a
 		// directory, but the source content is not a directory. This is an
 		// error condition since you cannot create a directory from a file
@@ -303,7 +304,6 @@ func PrepareArchiveCopy(srcContent io.Reader, srcInfo, dstInfo CopyInfo) (dstDir
 		}
 		return dstDir, RebaseArchiveEntries(srcContent, srcBase, dstBase), nil
 	}
-
 }
 
 // RebaseArchiveEntries rewrites the given srcContent archive replacing
@@ -387,8 +387,8 @@ func CopyResource(srcPath, dstPath string, followLink bool) error {
 	dstPath = normalizePath(dstPath)
 
 	// Clean the source and destination paths.
-	srcPath = PreserveTrailingDotOrSeparator(filepath.Clean(srcPath), srcPath, os.PathSeparator)
-	dstPath = PreserveTrailingDotOrSeparator(filepath.Clean(dstPath), dstPath, os.PathSeparator)
+	srcPath = PreserveTrailingDotOrSeparator(filepath.Clean(srcPath), srcPath)
+	dstPath = PreserveTrailingDotOrSeparator(filepath.Clean(dstPath), dstPath)
 
 	if srcInfo, err = CopyInfoSourcePath(srcPath, followLink); err != nil {
 		return err
@@ -451,7 +451,7 @@ func ResolveHostSourcePath(path string, followLink bool) (resolvedPath, rebaseNa
 		// resolvedDirPath will have been cleaned (no trailing path separators) so
 		// we can manually join it with the base path element.
 		resolvedPath = resolvedDirPath + string(filepath.Separator) + basePath
-		if hasTrailingPathSeparator(path, os.PathSeparator) &&
+		if hasTrailingPathSeparator(path) &&
 			filepath.Base(path) != filepath.Base(resolvedPath) {
 			rebaseName = filepath.Base(path)
 		}
@@ -470,8 +470,8 @@ func GetRebaseName(path, resolvedPath string) (string, string) {
 		resolvedPath += string(filepath.Separator) + "."
 	}
 
-	if hasTrailingPathSeparator(path, os.PathSeparator) &&
-		!hasTrailingPathSeparator(resolvedPath, os.PathSeparator) {
+	if hasTrailingPathSeparator(path) &&
+		!hasTrailingPathSeparator(resolvedPath) {
 		resolvedPath += string(filepath.Separator)
 	}
 

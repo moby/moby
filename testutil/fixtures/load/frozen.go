@@ -10,11 +10,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/moby/term"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const frozenImgDir = "/docker-frozen-images"
@@ -24,10 +28,13 @@ const frozenImgDir = "/docker-frozen-images"
 // TODO: This loads whatever is in the frozen image dir, regardless of what
 // images were passed in. If the images need to be downloaded, then it will respect
 // the passed in images
-func FrozenImagesLinux(client client.APIClient, images ...string) error {
+func FrozenImagesLinux(ctx context.Context, client client.APIClient, images ...string) error {
+	ctx, span := otel.Tracer("").Start(ctx, "LoadFrozenImages")
+	defer span.End()
+
 	var loadImages []struct{ srcName, destName string }
 	for _, img := range images {
-		if !imageExists(client, img) {
+		if !imageExists(ctx, client, img) {
 			srcName := img
 			// hello-world:latest gets re-tagged as hello-world:frozen
 			// there are some tests that use hello-world:latest specifically so it pulls
@@ -47,7 +54,6 @@ func FrozenImagesLinux(client client.APIClient, images ...string) error {
 		return nil
 	}
 
-	ctx := context.Background()
 	fi, err := os.Stat(frozenImgDir)
 	if err != nil || !fi.IsDir() {
 		srcImages := make([]string, 0, len(loadImages))
@@ -68,7 +74,7 @@ func FrozenImagesLinux(client client.APIClient, images ...string) error {
 			if err := client.ImageTag(ctx, img.srcName, img.destName); err != nil {
 				return errors.Wrapf(err, "failed to tag %s as %s", img.srcName, img.destName)
 			}
-			if _, err := client.ImageRemove(ctx, img.srcName, types.ImageRemoveOptions{}); err != nil {
+			if _, err := client.ImageRemove(ctx, img.srcName, image.RemoveOptions{}); err != nil {
 				return errors.Wrapf(err, "failed to remove %s", img.srcName)
 			}
 		}
@@ -76,12 +82,20 @@ func FrozenImagesLinux(client client.APIClient, images ...string) error {
 	return nil
 }
 
-func imageExists(client client.APIClient, name string) bool {
-	_, _, err := client.ImageInspectWithRaw(context.Background(), name)
+func imageExists(ctx context.Context, client client.APIClient, name string) bool {
+	ctx, span := otel.Tracer("").Start(ctx, "check image exists: "+name)
+	defer span.End()
+	_, _, err := client.ImageInspectWithRaw(ctx, name)
+	if err != nil {
+		span.RecordError(err)
+	}
 	return err == nil
 }
 
 func loadFrozenImages(ctx context.Context, client client.APIClient) error {
+	ctx, span := otel.Tracer("").Start(ctx, "load frozen images")
+	defer span.End()
+
 	tar, err := exec.LookPath("tar")
 	if err != nil {
 		return errors.Wrap(err, "could not find tar binary")
@@ -116,7 +130,7 @@ func pullImages(ctx context.Context, client client.APIClient, images []string) e
 		dockerfile = "Dockerfile"
 	}
 	dockerfilePath := filepath.Join(filepath.Dir(filepath.Clean(cwd)), dockerfile)
-	pullRefs, err := readFrozenImageList(dockerfilePath, images)
+	pullRefs, err := readFrozenImageList(ctx, dockerfilePath, images)
 	if err != nil {
 		return errors.Wrap(err, "error reading frozen image list")
 	}
@@ -138,8 +152,17 @@ func pullImages(ctx context.Context, client client.APIClient, images []string) e
 	return <-chErr
 }
 
-func pullTagAndRemove(ctx context.Context, client client.APIClient, ref string, tag string) error {
-	resp, err := client.ImagePull(ctx, ref, types.ImagePullOptions{})
+func pullTagAndRemove(ctx context.Context, client client.APIClient, ref string, tag string) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "pull image: "+ref+" with tag: "+tag)
+	defer func() {
+		if retErr != nil {
+			// An error here is a real error for the span, so set the span status
+			span.SetStatus(codes.Error, retErr.Error())
+		}
+		span.End()
+	}()
+
+	resp, err := client.ImagePull(ctx, ref, image.PullOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to pull %s", ref)
 	}
@@ -152,18 +175,19 @@ func pullTagAndRemove(ctx context.Context, client client.APIClient, ref string, 
 	if err := client.ImageTag(ctx, ref, tag); err != nil {
 		return errors.Wrapf(err, "failed to tag %s as %s", ref, tag)
 	}
-	_, err = client.ImageRemove(ctx, ref, types.ImageRemoveOptions{})
+	_, err = client.ImageRemove(ctx, ref, image.RemoveOptions{})
 	return errors.Wrapf(err, "failed to remove %s", ref)
-
 }
 
-func readFrozenImageList(dockerfilePath string, images []string) (map[string]string, error) {
+func readFrozenImageList(ctx context.Context, dockerfilePath string, images []string) (map[string]string, error) {
 	f, err := os.Open(dockerfilePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "error reading dockerfile")
 	}
 	defer f.Close()
 	ls := make(map[string]string)
+
+	span := trace.SpanFromContext(ctx)
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -187,6 +211,9 @@ func readFrozenImageList(dockerfilePath string, images []string) (map[string]str
 			for _, i := range images {
 				if split[0] == i {
 					ls[i] = img
+					if span.IsRecording() {
+						span.AddEvent("found frozen image", trace.WithAttributes(attribute.String("image", i)))
+					}
 					break
 				}
 			}

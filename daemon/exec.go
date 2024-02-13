@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
@@ -21,7 +23,6 @@ import (
 	"github.com/moby/term"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func (daemon *Daemon) registerExecCommand(container *container.Container, config *container.ExecConfig) {
@@ -137,11 +138,9 @@ func (daemon *Daemon) ContainerExecCreate(name string, config *types.ExecConfig)
 	}
 
 	daemon.registerExecCommand(cntr, execConfig)
-
-	attributes := map[string]string{
+	daemon.LogContainerEventWithAttributes(cntr, events.Action(string(events.ActionExecCreate)+": "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " ")), map[string]string{
 		"execID": execConfig.ID,
-	}
-	daemon.LogContainerEventWithAttributes(cntr, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "), attributes)
+	})
 
 	return execConfig.ID, nil
 }
@@ -174,11 +173,10 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	ec.Running = true
 	ec.Unlock()
 
-	logrus.Debugf("starting exec command %s in container %s", ec.ID, ec.Container.ID)
-	attributes := map[string]string{
+	log.G(ctx).Debugf("starting exec command %s in container %s", ec.ID, ec.Container.ID)
+	daemon.LogContainerEventWithAttributes(ec.Container, events.Action(string(events.ActionExecStart)+": "+ec.Entrypoint+" "+strings.Join(ec.Args, " ")), map[string]string{
 		"execID": ec.ID,
-	}
-	daemon.LogContainerEventWithAttributes(ec.Container, "exec_start: "+ec.Entrypoint+" "+strings.Join(ec.Args, " "), attributes)
+	})
 
 	defer func() {
 		if err != nil {
@@ -188,7 +186,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 			exitCode := 126
 			ec.ExitCode = &exitCode
 			if err := ec.CloseStreams(); err != nil {
-				logrus.Errorf("failed to cleanup exec %s streams: %s", ec.Container.ID, err)
+				log.G(ctx).Errorf("failed to cleanup exec %s streams: %s", ec.Container.ID, err)
 			}
 			ec.Unlock()
 		}
@@ -198,7 +196,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		r, w := io.Pipe()
 		go func() {
 			defer w.Close()
-			defer logrus.Debug("Closing buffered stdin pipe")
+			defer log.G(ctx).Debug("Closing buffered stdin pipe")
 			pools.Copy(w, options.Stdin)
 		}()
 		cStdin = r
@@ -218,7 +216,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 
 	p := &specs.Process{}
 	if runtime.GOOS != "windows" {
-		ctr, err := daemon.containerdCli.LoadContainer(ctx, ec.Container.ID)
+		ctr, err := daemon.containerdClient.LoadContainer(ctx, ec.Container.ID)
 		if err != nil {
 			return err
 		}
@@ -252,7 +250,8 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		p.Cwd = "/"
 	}
 
-	if err := daemon.execSetPlatformOpt(ctx, ec, p); err != nil {
+	daemonCfg := &daemon.config().Config
+	if err := daemon.execSetPlatformOpt(ctx, daemonCfg, ec, p); err != nil {
 		return err
 	}
 
@@ -288,13 +287,13 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	close(ec.Started)
 	if err != nil {
 		defer ec.Unlock()
-		return translateContainerdStartErr(ec.Entrypoint, ec.SetExitCode, err)
+		return setExitCodeFromError(ec.SetExitCode, err)
 	}
 	ec.Unlock()
 
 	select {
 	case <-ctx.Done():
-		log := logrus.
+		log := log.G(ctx).
 			WithField("container", ec.Container.ID).
 			WithField("exec", ec.ID)
 		log.Debug("Sending KILL signal to container process")
@@ -310,10 +309,9 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 			if _, ok := err.(term.EscapeError); !ok {
 				return errdefs.System(errors.Wrap(err, "exec attach failed"))
 			}
-			attributes := map[string]string{
+			daemon.LogContainerEventWithAttributes(ec.Container, events.ActionExecDetach, map[string]string{
 				"execID": ec.ID,
-			}
-			daemon.LogContainerEventWithAttributes(ec.Container, "exec_detach", attributes)
+			})
 		}
 	}
 	return nil
@@ -338,7 +336,7 @@ func (daemon *Daemon) execCommandGC() {
 			}
 		}
 		if cleaned > 0 {
-			logrus.Debugf("clean %d unused exec commands", cleaned)
+			log.G(context.TODO()).Debugf("clean %d unused exec commands", cleaned)
 		}
 	}
 }

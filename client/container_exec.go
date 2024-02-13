@@ -3,6 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
@@ -12,7 +13,14 @@ import (
 func (cli *Client) ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error) {
 	var response types.IDResponse
 
-	if err := cli.NewVersionError("1.25", "env"); len(config.Env) != 0 && err != nil {
+	// Make sure we negotiated (if the client is configured to do so),
+	// as code below contains API-version specific handling of options.
+	//
+	// Normally, version-negotiation (if enabled) would not happen until
+	// the API request is made.
+	cli.checkVersion(ctx)
+
+	if err := cli.NewVersionError(ctx, "1.25", "env"); len(config.Env) != 0 && err != nil {
 		return response, err
 	}
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
@@ -46,10 +54,9 @@ func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, confi
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
 		config.ConsoleSize = nil
 	}
-	headers := map[string][]string{
+	return cli.postHijacked(ctx, "/exec/"+execID+"/start", nil, config, http.Header{
 		"Content-Type": {"application/json"},
-	}
-	return cli.postHijacked(ctx, "/exec/"+execID+"/start", nil, config, headers)
+	})
 }
 
 // ContainerExecInspect returns information about a specific exec process on the docker host.

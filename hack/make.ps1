@@ -256,12 +256,6 @@ Function Validate-PkgImports($headCommit, $upstreamCommit) {
     $files=@(); $files = Invoke-Expression "git diff $upstreamCommit...$headCommit --diff-filter=ACMR --name-only -- `'pkg\*.go`'"
     $badFiles=@(); $files | ForEach-Object{
         $file=$_
-        if ($file -eq "pkg\urlutil\deprecated.go") {
-            # pkg/urlutil is deprecated, but has a temporary alias to help migration,
-            # see https://github.com/moby/moby/pull/43477
-            # TODO(thaJeztah) remove this exception once pkg/urlutil aliases are removed
-            return
-        }
         # For the current changed file, get its list of dependencies, sorted and uniqued.
         $imports = Invoke-Expression "go list -e -f `'{{ .Deps }}`' $file"
         if ($LASTEXITCODE -ne 0) { Throw "Failed go list for dependencies on $file" }
@@ -269,6 +263,7 @@ Function Validate-PkgImports($headCommit, $upstreamCommit) {
         # Filter out what we are looking for
         $imports = @() + $imports -NotMatch "^github.com/docker/docker/pkg/" `
                                   -NotMatch "^github.com/docker/docker/vendor" `
+                                  -NotMatch "^github.com/docker/docker/internal" `
                                   -Match "^github.com/docker/docker" `
                                   -Replace "`n", ""
         $imports | ForEach-Object{ $badFiles+="$file imports $_`n" }
@@ -353,7 +348,7 @@ Function Run-UnitTests() {
 Function Run-IntegrationTests() {
     $escRoot = [Regex]::Escape($root)
     $env:DOCKER_INTEGRATION_DAEMON_DEST = $bundlesDir + "\tmp"
-    $dirs = go list -test -f '{{- if ne .ForTest `"`" -}}{{- .Dir -}}{{- end -}}' .\integration\...
+    $dirs = go list -test -f '{{- if ne .ForTest "" -}}{{- .Dir -}}{{- end -}}' .\integration\...
     ForEach($dir in $dirs) {
         # Normalize directory name for using in the test results files.
         $normDir = $dir.Trim()
@@ -464,7 +459,7 @@ Try {
     if (-not $inContainer) { Verify-GoVersion }
 
     # Verify GOPATH is set
-    if ($env:GOPATH.Length -eq 0) { Throw "Missing GOPATH environment variable. See https://golang.org/doc/code.html#GOPATH" }
+    if ($env:GOPATH.Length -eq 0) { Throw "Missing GOPATH environment variable. See https://pkg.go.dev/cmd/go#hdr-GOPATH_environment_variable" }
 
     # Run autogen if building daemon.
     if ($Daemon) {

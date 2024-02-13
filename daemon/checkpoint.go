@@ -6,7 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/checkpoint"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/names"
 )
 
@@ -31,7 +32,7 @@ func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir s
 		case err == nil && stat.IsDir():
 			err2 = fmt.Errorf("checkpoint with name %s already exists for container %s", checkpointID, ctrName)
 		case err != nil && os.IsNotExist(err):
-			err2 = os.MkdirAll(checkpointAbsDir, 0700)
+			err2 = os.MkdirAll(checkpointAbsDir, 0o700)
 		case err != nil:
 			err2 = err
 		default:
@@ -51,7 +52,7 @@ func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir s
 }
 
 // CheckpointCreate checkpoints the process running in a container with CRIU
-func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreateOptions) error {
+func (daemon *Daemon) CheckpointCreate(name string, config checkpoint.CreateOptions) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -79,13 +80,13 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 		return fmt.Errorf("Cannot checkpoint container %s: %s", name, err)
 	}
 
-	daemon.LogContainerEvent(container, "checkpoint")
+	daemon.LogContainerEvent(container, events.ActionCheckpoint)
 
 	return nil
 }
 
 // CheckpointDelete deletes the specified checkpoint
-func (daemon *Daemon) CheckpointDelete(name string, config types.CheckpointDeleteOptions) error {
+func (daemon *Daemon) CheckpointDelete(name string, config checkpoint.DeleteOptions) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -98,8 +99,8 @@ func (daemon *Daemon) CheckpointDelete(name string, config types.CheckpointDelet
 }
 
 // CheckpointList lists all checkpoints of the specified container
-func (daemon *Daemon) CheckpointList(name string, config types.CheckpointListOptions) ([]types.Checkpoint, error) {
-	var out []types.Checkpoint
+func (daemon *Daemon) CheckpointList(name string, config checkpoint.ListOptions) ([]checkpoint.Summary, error) {
+	var out []checkpoint.Summary
 
 	container, err := daemon.GetContainer(name)
 	if err != nil {
@@ -111,7 +112,7 @@ func (daemon *Daemon) CheckpointList(name string, config types.CheckpointListOpt
 		return nil, err
 	}
 
-	if err := os.MkdirAll(checkpointDir, 0755); err != nil {
+	if err := os.MkdirAll(checkpointDir, 0o755); err != nil {
 		return nil, err
 	}
 
@@ -124,7 +125,7 @@ func (daemon *Daemon) CheckpointList(name string, config types.CheckpointListOpt
 		if !d.IsDir() {
 			continue
 		}
-		cpt := types.Checkpoint{Name: d.Name()}
+		cpt := checkpoint.Summary{Name: d.Name()}
 		out = append(out, cpt)
 	}
 

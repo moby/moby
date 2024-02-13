@@ -1,17 +1,17 @@
-/*Package golden provides tools for comparing large mutli-line strings.
+/*
+Package golden provides tools for comparing large mutli-line strings.
 
 Golden files are files in the ./testdata/ subdirectory of the package under test.
 Golden files can be automatically updated to match new values by running
 `go test pkgname -update`. To ensure the update is correct
 compare the diff of the old expected value to the new expected value.
 */
-package golden // import "gotest.tools/v3/golden"
+package golden
 
 import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -40,11 +40,19 @@ type helperT interface {
 // in the environment before running tests.
 //
 // The default value may change in a future major release.
+//
+// This does not affect the contents of the golden files themselves. And depending on the
+// git settings on your system (or in github action platform default like windows), the
+// golden files may contain CRLF line endings.  You can avoid this by setting the
+// .gitattributes file in your repo to use LF line endings for all files, or just the golden
+// files, by adding the following line to your .gitattributes file:
+//
+// * text=auto eol=lf
 var NormalizeCRLFToLF = os.Getenv("GOTESTTOOLS_GOLDEN_NormalizeCRLFToLF") != "false"
 
 // FlagUpdate returns true when the -update flag has been set.
 func FlagUpdate() bool {
-	return source.Update
+	return source.IsUpdate()
 }
 
 // Open opens the file in ./testdata
@@ -62,7 +70,7 @@ func Get(t assert.TestingT, filename string) []byte {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
 	}
-	expected, err := ioutil.ReadFile(Path(filename))
+	expected, err := os.ReadFile(Path(filename))
 	assert.NilError(t, err)
 	return expected
 }
@@ -167,7 +175,7 @@ func compare(actual []byte, filename string) (cmp.Result, []byte) {
 	if err := update(filename, actual); err != nil {
 		return cmp.ResultFromError(err), nil
 	}
-	expected, err := ioutil.ReadFile(Path(filename))
+	expected, err := os.ReadFile(Path(filename))
 	if err != nil {
 		return cmp.ResultFromError(err), nil
 	}
@@ -178,7 +186,7 @@ func compare(actual []byte, filename string) (cmp.Result, []byte) {
 }
 
 func update(filename string, actual []byte) error {
-	if !source.Update {
+	if !source.IsUpdate() {
 		return nil
 	}
 	if dir := filepath.Dir(Path(filename)); dir != "." {
@@ -186,5 +194,5 @@ func update(filename string, actual []byte) error {
 			return err
 		}
 	}
-	return ioutil.WriteFile(Path(filename), actual, 0644)
+	return os.WriteFile(Path(filename), actual, 0644)
 }

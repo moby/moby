@@ -85,6 +85,8 @@ func TestParseDockerDaemonHost(t *testing.T) {
 		"[0:0:0:0:0:0:0:1]:5555/path":   "invalid bind address ([0:0:0:0:0:0:0:1]:5555/path): should not contain a path element",
 		"tcp://:5555/path":              "invalid bind address (tcp://:5555/path): should not contain a path element",
 		"localhost:5555/path":           "invalid bind address (localhost:5555/path): should not contain a path element",
+		"unix://tcp://127.0.0.1":        "invalid bind address (unix://tcp://127.0.0.1): invalid unix address: tcp://127.0.0.1",
+		"unix://unix://tcp://127.0.0.1": "invalid bind address (unix://unix://tcp://127.0.0.1): invalid unix address: unix://tcp://127.0.0.1",
 	}
 	valids := map[string]string{
 		":":                       DefaultTCPHost,
@@ -130,16 +132,14 @@ func TestParseDockerDaemonHost(t *testing.T) {
 				t.Errorf(`unexpected error: "%v"`, err)
 			}
 			if addr != expectedAddr {
-				t.Errorf(`expected "%s", got "%s""`, expectedAddr, addr)
+				t.Errorf(`expected "%s", got "%s"`, expectedAddr, addr)
 			}
 		})
 	}
 }
 
 func TestParseTCP(t *testing.T) {
-	var (
-		defaultHTTPHost = "tcp://127.0.0.1:8888"
-	)
+	defaultHTTPHost := "tcp://127.0.0.1:8888"
 	invalids := map[string]string{
 		"tcp:a.b.c.d":                 `invalid bind address (tcp:a.b.c.d): parse "tcp://tcp:a.b.c.d": invalid port ":a.b.c.d" after host`,
 		"tcp:a.b.c.d/path":            `invalid bind address (tcp:a.b.c.d/path): parse "tcp://tcp:a.b.c.d/path": invalid port ":a.b.c.d" after host`,
@@ -207,18 +207,6 @@ func TestParseTCP(t *testing.T) {
 				t.Errorf(`expected "%s", got "%s""`, expectedAddr, addr)
 			}
 		})
-	}
-}
-
-func TestParseInvalidUnixAddrInvalid(t *testing.T) {
-	if _, err := parseSimpleProtoAddr("unix", "tcp://127.0.0.1", "unix:///var/run/docker.sock"); err == nil || err.Error() != "invalid proto, expected unix: tcp://127.0.0.1" {
-		t.Fatalf("Expected an error, got %v", err)
-	}
-	if _, err := parseSimpleProtoAddr("unix", "unix://tcp://127.0.0.1", "/var/run/docker.sock"); err == nil || err.Error() != "invalid proto, expected unix: tcp://127.0.0.1" {
-		t.Fatalf("Expected an error, got %v", err)
-	}
-	if v, err := parseSimpleProtoAddr("unix", "", "/var/run/docker.sock"); err != nil || v != "unix:///var/run/docker.sock" {
-		t.Fatalf("Expected an %v, got %v", v, "unix:///var/run/docker.sock")
 	}
 }
 

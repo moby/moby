@@ -17,8 +17,11 @@ const (
 	contents = "contents test"
 )
 
-func init() {
-	reexec.Init()
+func TestMain(m *testing.M) {
+	if reexec.Init() {
+		return
+	}
+	os.Exit(m.Run())
 }
 
 func TestCloseRootDirectory(t *testing.T) {
@@ -35,7 +38,7 @@ func TestCloseRootDirectory(t *testing.T) {
 		t.Fatalf("Error while executing Close: %s", err)
 	}
 
-	_, err = os.Stat(src.Root().Path())
+	_, err = os.Stat(src.Root())
 
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("Directory should not exist at this point")
@@ -46,12 +49,11 @@ func TestHashFile(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
 	defer cleanup()
 
-	createTestTempFile(t, contextDir, filename, contents, 0755)
+	createTestTempFile(t, contextDir, filename, contents, 0o755)
 
 	tarSum := makeTestArchiveContext(t, contextDir)
 
 	sum, err := tarSum.Hash(filename)
-
 	if err != nil {
 		t.Fatalf("Error when executing Stat: %s", err)
 	}
@@ -72,23 +74,21 @@ func TestHashSubdir(t *testing.T) {
 	defer cleanup()
 
 	contextSubdir := filepath.Join(contextDir, "builder-tarsum-test-subdir")
-	err := os.Mkdir(contextSubdir, 0755)
+	err := os.Mkdir(contextSubdir, 0o755)
 	if err != nil {
 		t.Fatalf("Failed to make directory: %s", contextSubdir)
 	}
 
-	testFilename := createTestTempFile(t, contextSubdir, filename, contents, 0755)
+	testFilename := createTestTempFile(t, contextSubdir, filename, contents, 0o755)
 
 	tarSum := makeTestArchiveContext(t, contextDir)
 
 	relativePath, err := filepath.Rel(contextDir, testFilename)
-
 	if err != nil {
 		t.Fatalf("Error when getting relative path: %s", err)
 	}
 
 	sum, err := tarSum.Hash(relativePath)
-
 	if err != nil {
 		t.Fatalf("Error when executing Stat: %s", err)
 	}
@@ -111,14 +111,13 @@ func TestRemoveDirectory(t *testing.T) {
 	contextSubdir := createTestTempSubdir(t, contextDir, "builder-tarsum-test-subdir")
 
 	relativePath, err := filepath.Rel(contextDir, contextSubdir)
-
 	if err != nil {
 		t.Fatalf("Error when getting relative path: %s", err)
 	}
 
 	src := makeTestArchiveContext(t, contextDir)
 
-	_, err = src.Root().Stat(src.Root().Join(src.Root().Path(), relativePath))
+	_, err = os.Stat(filepath.Join(src.Root(), relativePath))
 	if err != nil {
 		t.Fatalf("Statting %s shouldn't fail: %+v", relativePath, err)
 	}
@@ -129,7 +128,7 @@ func TestRemoveDirectory(t *testing.T) {
 		t.Fatalf("Error when executing Remove: %s", err)
 	}
 
-	_, err = src.Root().Stat(src.Root().Join(src.Root().Path(), relativePath))
+	_, err = os.Stat(filepath.Join(src.Root(), relativePath))
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("Directory should not exist at this point: %+v ", err)
 	}

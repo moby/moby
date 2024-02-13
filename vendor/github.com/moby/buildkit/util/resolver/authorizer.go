@@ -33,7 +33,7 @@ type authHandlerNS struct {
 	hosts      map[string][]docker.RegistryHost
 	muHosts    sync.Mutex
 	sm         *session.Manager
-	g          flightcontrol.Group
+	g          flightcontrol.Group[[]docker.RegistryHost]
 }
 
 func newAuthHandlerNS(sm *session.Manager) *authHandlerNS {
@@ -230,7 +230,7 @@ type authResult struct {
 
 // authHandler is used to handle auth request per registry server.
 type authHandler struct {
-	g flightcontrol.Group
+	g flightcontrol.Group[*authResult]
 
 	client *http.Client
 
@@ -279,7 +279,7 @@ func (ah *authHandler) doBasicAuth(ctx context.Context) (string, error) {
 	username, secret := ah.common.Username, ah.common.Secret
 
 	if username == "" || secret == "" {
-		return "", fmt.Errorf("failed to handle basic auth because missing username or secret")
+		return "", errors.New("failed to handle basic auth because missing username or secret")
 	}
 
 	auth := base64.StdEncoding.EncodeToString([]byte(username + ":" + secret))
@@ -295,7 +295,7 @@ func (ah *authHandler) doBearerAuth(ctx context.Context, sm *session.Manager, g 
 	// Docs: https://docs.docker.com/registry/spec/auth/scope
 	scoped := strings.Join(to.Scopes, " ")
 
-	res, err := ah.g.Do(ctx, scoped, func(ctx context.Context) (interface{}, error) {
+	res, err := ah.g.Do(ctx, scoped, func(ctx context.Context) (*authResult, error) {
 		ah.scopedTokensMu.Lock()
 		r, exist := ah.scopedTokens[scoped]
 		ah.scopedTokensMu.Unlock()
@@ -313,15 +313,10 @@ func (ah *authHandler) doBearerAuth(ctx context.Context, sm *session.Manager, g 
 		ah.scopedTokensMu.Unlock()
 		return r, nil
 	})
-
 	if err != nil || res == nil {
 		return "", err
 	}
-	r := res.(*authResult)
-	if r == nil {
-		return "", nil
-	}
-	return r.token, nil
+	return res.token, nil
 }
 
 func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g session.Group, to auth.TokenOptions) (r *authResult, err error) {
@@ -356,7 +351,15 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 		if resp.ExpiresIn == 0 {
 			resp.ExpiresIn = defaultExpiration
 		}
-		issuedAt, expires = time.Unix(resp.IssuedAt, 0), int(resp.ExpiresIn)
+		expires = int(resp.ExpiresIn)
+		// We later check issuedAt.isZero, which would return
+		// false if converted from zero Unix time. Therefore,
+		// zero time value in response is handled separately
+		if resp.IssuedAt == 0 {
+			issuedAt = time.Time{}
+		} else {
+			issuedAt = time.Unix(resp.IssuedAt, 0)
+		}
 		token = resp.Token
 		return nil, nil
 	}

@@ -174,16 +174,21 @@ loop:
 				removeTasks[t.ID] = t
 				continue
 			}
+
+			available.MemoryBytes -= t.Spec.Resources.Reservations.MemoryBytes
+			available.NanoCPUs -= t.Spec.Resources.Reservations.NanoCPUs
+		}
+
+		// Ensure that the task assigned to the node
+		// still satisfies the available generic resources
+		if t.AssignedGenericResources != nil {
 			for _, ta := range t.AssignedGenericResources {
 				// Type change or no longer available
-				if genericresource.HasResource(ta, available.Generic) {
+				if !genericresource.HasResource(ta, available.Generic) {
 					removeTasks[t.ID] = t
 					break loop
 				}
 			}
-
-			available.MemoryBytes -= t.Spec.Resources.Reservations.MemoryBytes
-			available.NanoCPUs -= t.Spec.Resources.Reservations.NanoCPUs
 
 			genericresource.ClaimResources(&available.Generic,
 				&fakeStore, t.AssignedGenericResources)

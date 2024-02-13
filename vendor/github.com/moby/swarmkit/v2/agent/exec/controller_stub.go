@@ -21,7 +21,6 @@ type StubController struct {
 	RemoveFn    func(ctx context.Context) error
 	CloseFn     func() error
 	calls       map[string]int
-	cstatus     *api.ContainerStatus
 }
 
 // NewStubController returns an initialized StubController
@@ -38,7 +37,7 @@ func (sc *StubController) called() {
 	if !ok {
 		panic("Failed to find caller of function")
 	}
-	// longName looks like 'github.com/docker/swarmkit/agent/exec.(*StubController).Prepare:1'
+	// longName looks like 'github.com/moby/swarmkit/agent/exec.(*StubController).Prepare:1'
 	longName := runtime.FuncForPC(pc).Name()
 	parts := strings.Split(longName, ".")
 	tail := strings.Split(parts[len(parts)-1], ":")

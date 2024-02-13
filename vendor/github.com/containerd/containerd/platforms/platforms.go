@@ -27,40 +27,40 @@
 // The vast majority of use cases should simply use the match function with
 // user input. The first step is to parse a specifier into a matcher:
 //
-//   m, err := Parse("linux")
-//   if err != nil { ... }
+//	m, err := Parse("linux")
+//	if err != nil { ... }
 //
 // Once you have a matcher, use it to match against the platform declared by a
 // component, typically from an image or runtime. Since extracting an images
 // platform is a little more involved, we'll use an example against the
 // platform default:
 //
-//   if ok := m.Match(Default()); !ok { /* doesn't match */ }
+//	if ok := m.Match(Default()); !ok { /* doesn't match */ }
 //
 // This can be composed in loops for resolving runtimes or used as a filter for
 // fetch and select images.
 //
 // More details of the specifier syntax and platform spec follow.
 //
-// Declaring Platform Support
+// # Declaring Platform Support
 //
 // Components that have strict platform requirements should use the OCI
 // platform specification to declare their support. Typically, this will be
 // images and runtimes that should make these declaring which platform they
 // support specifically. This looks roughly as follows:
 //
-//   type Platform struct {
-//	   Architecture string
-//	   OS           string
-//	   Variant      string
-//   }
+//	  type Platform struct {
+//		   Architecture string
+//		   OS           string
+//		   Variant      string
+//	  }
 //
 // Most images and runtimes should at least set Architecture and OS, according
 // to their GOARCH and GOOS values, respectively (follow the OCI image
 // specification when in doubt). ARM should set variant under certain
 // discussions, which are outlined below.
 //
-// Platform Specifiers
+// # Platform Specifiers
 //
 // While the OCI platform specifications provide a tool for components to
 // specify structured information, user input typically doesn't need the full
@@ -77,7 +77,7 @@
 // where the architecture may be known but a runtime may support images from
 // different operating systems.
 //
-// Normalization
+// # Normalization
 //
 // Because not all users are familiar with the way the Go runtime represents
 // platforms, several normalizations have been provided to make this package
@@ -85,17 +85,17 @@
 //
 // The following are performed for architectures:
 //
-//   Value    Normalized
-//   aarch64  arm64
-//   armhf    arm
-//   armel    arm/v6
-//   i386     386
-//   x86_64   amd64
-//   x86-64   amd64
+//	Value    Normalized
+//	aarch64  arm64
+//	armhf    arm
+//	armel    arm/v6
+//	i386     386
+//	x86_64   amd64
+//	x86-64   amd64
 //
 // We also normalize the operating system `macos` to `darwin`.
 //
-// ARM Support
+// # ARM Support
 //
 // To qualify ARM architecture, the Variant field is used to qualify the arm
 // version. The most common arm version, v7, is represented without the variant
@@ -114,13 +114,17 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/containerd/containerd/errdefs"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/containerd/containerd/errdefs"
 )
 
 var (
 	specifierRe = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 )
+
+// Platform is a type alias for convenience, so there is no need to import image-spec package everywhere.
+type Platform = specs.Platform
 
 // Matcher matches platforms specifications, provided by an image or runtime.
 type Matcher interface {
@@ -136,9 +140,7 @@ type Matcher interface {
 //
 // Applications should opt to use `Match` over directly parsing specifiers.
 func NewMatcher(platform specs.Platform) Matcher {
-	return &matcher{
-		Platform: Normalize(platform),
-	}
+	return newDefaultMatcher(platform)
 }
 
 type matcher struct {
@@ -194,6 +196,10 @@ func Parse(specifier string) (specs.Platform, error) {
 				p.Variant = cpuVariant()
 			}
 
+			if p.OS == "windows" {
+				p.OSVersion = GetWindowsOsVersion()
+			}
+
 			return p, nil
 		}
 
@@ -216,6 +222,10 @@ func Parse(specifier string) (specs.Platform, error) {
 			p.Variant = ""
 		}
 
+		if p.OS == "windows" {
+			p.OSVersion = GetWindowsOsVersion()
+		}
+
 		return p, nil
 	case 3:
 		// we have a fully specified variant, this is rare
@@ -223,6 +233,10 @@ func Parse(specifier string) (specs.Platform, error) {
 		p.Architecture, p.Variant = normalizeArch(parts[1], parts[2])
 		if p.Architecture == "arm64" && p.Variant == "" {
 			p.Variant = "v8"
+		}
+
+		if p.OS == "windows" {
+			p.OSVersion = GetWindowsOsVersion()
 		}
 
 		return p, nil
@@ -257,5 +271,6 @@ func Format(platform specs.Platform) string {
 func Normalize(platform specs.Platform) specs.Platform {
 	platform.OS = normalizeOS(platform.OS)
 	platform.Architecture, platform.Variant = normalizeArch(platform.Architecture, platform.Variant)
+
 	return platform
 }

@@ -1,5 +1,4 @@
 //go:build linux || freebsd
-// +build linux freebsd
 
 package daemon // import "github.com/docker/docker/daemon"
 

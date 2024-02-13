@@ -1,9 +1,9 @@
 //go:build linux
-// +build linux
 
 package local // import "github.com/docker/docker/volume/local"
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -16,8 +16,10 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-const quotaSize = 1024 * 1024
-const quotaSizeLiteral = "1M"
+const (
+	quotaSize        = 1024 * 1024
+	quotaSizeLiteral = "1M"
+)
 
 func TestQuota(t *testing.T) {
 	if msg, ok := quota.CanTestQuota(); !ok {
@@ -60,11 +62,11 @@ func testVolWithQuota(t *testing.T, mountPoint, backingFsDev, testDir string) {
 	testfile := filepath.Join(dir, "testfile")
 
 	// test writing file smaller than quota
-	assert.NilError(t, os.WriteFile(testfile, make([]byte, quotaSize/2), 0644))
+	assert.NilError(t, os.WriteFile(testfile, make([]byte, quotaSize/2), 0o644))
 	assert.NilError(t, os.Remove(testfile))
 
 	// test writing fiel larger than quota
-	err = os.WriteFile(testfile, make([]byte, quotaSize+1), 0644)
+	err = os.WriteFile(testfile, make([]byte, quotaSize+1), 0o644)
 	assert.ErrorContains(t, err, "")
 	if _, err := os.Stat(testfile); err == nil {
 		assert.NilError(t, os.Remove(testfile))
@@ -198,6 +200,32 @@ func TestVolCreateValidation(t *testing.T) {
 				"o":      "foo",
 			},
 		},
+		{
+			doc: "cifs",
+			opts: map[string]string{
+				"type":   "cifs",
+				"device": "//some.example.com/thepath",
+				"o":      "foo",
+			},
+		},
+		{
+			doc: "cifs with port in url",
+			opts: map[string]string{
+				"type":   "cifs",
+				"device": "//some.example.com:2345/thepath",
+				"o":      "foo",
+			},
+			expectedErr: "port not allowed in CIFS device URL, include 'port' in 'o='",
+		},
+		{
+			doc: "cifs with bad url",
+			opts: map[string]string{
+				"type":   "cifs",
+				"device": ":::",
+				"o":      "foo",
+			},
+			expectedErr: `error parsing mount device url: parse ":::": missing protocol scheme`,
+		},
 	}
 
 	for i, tc := range tests {
@@ -216,6 +244,87 @@ func TestVolCreateValidation(t *testing.T) {
 				assert.Check(t, errdefs.IsInvalidParameter(err), "got: %T", err)
 				assert.ErrorContains(t, err, tc.expectedErr)
 			}
+		})
+	}
+}
+
+func TestVolMountOpts(t *testing.T) {
+	tests := []struct {
+		name                         string
+		opts                         optsConfig
+		expectedErr                  string
+		expectedDevice, expectedOpts string
+	}{
+		{
+			name: "cifs url with space",
+			opts: optsConfig{
+				MountType:   "cifs",
+				MountDevice: "//1.2.3.4/Program Files",
+			},
+			expectedDevice: "//1.2.3.4/Program Files",
+			expectedOpts:   "",
+		},
+		{
+			name: "cifs resolve addr",
+			opts: optsConfig{
+				MountType:   "cifs",
+				MountDevice: "//example.com/Program Files",
+				MountOpts:   "addr=example.com",
+			},
+			expectedDevice: "//example.com/Program Files",
+			expectedOpts:   "addr=1.2.3.4",
+		},
+		{
+			name: "cifs resolve device",
+			opts: optsConfig{
+				MountType:   "cifs",
+				MountDevice: "//example.com/Program Files",
+			},
+			expectedDevice: "//1.2.3.4/Program Files",
+		},
+		{
+			name: "nfs dont resolve device",
+			opts: optsConfig{
+				MountType:   "nfs",
+				MountDevice: "//example.com/Program Files",
+			},
+			expectedDevice: "//example.com/Program Files",
+		},
+		{
+			name: "nfs resolve addr",
+			opts: optsConfig{
+				MountType:   "nfs",
+				MountDevice: "//example.com/Program Files",
+				MountOpts:   "addr=example.com",
+			},
+			expectedDevice: "//example.com/Program Files",
+			expectedOpts:   "addr=1.2.3.4",
+		},
+	}
+
+	ip1234 := net.ParseIP("1.2.3.4")
+	resolveIP := func(network, addr string) (*net.IPAddr, error) {
+		switch addr {
+		case "example.com":
+			return &net.IPAddr{IP: ip1234}, nil
+		}
+
+		return nil, &net.DNSError{Err: "no such host", Name: addr, IsNotFound: true}
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			dev, opts, err := getMountOptions(&tc.opts, resolveIP)
+
+			if tc.expectedErr != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expectedErr))
+			} else {
+				assert.Check(t, err)
+			}
+
+			assert.Check(t, is.Equal(dev, tc.expectedDevice))
+			assert.Check(t, is.Equal(opts, tc.expectedOpts))
 		})
 	}
 }

@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package main
 
@@ -26,8 +25,8 @@ import (
 
 func (s *DockerCLIBuildSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) {
 	testRequires(c, cpuCfsQuota)
-	name := "testbuildresourceconstraints"
-	buildLabel := "DockerCLIBuildSuite.TestBuildResourceConstraintsAreUsed"
+	const name = "testbuildresourceconstraints"
+	const buildLabel = "DockerCLIBuildSuite.TestBuildResourceConstraintsAreUsed"
 
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`
 	FROM hello-world:frozen
@@ -86,7 +85,7 @@ func (s *DockerCLIBuildSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) 
 
 func (s *DockerCLIBuildSuite) TestBuildAddChangeOwnership(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	name := "testbuildaddown"
+	const name = "testbuildaddown"
 
 	ctx := func() *fakecontext.Fake {
 		dockerfile := `
@@ -108,7 +107,7 @@ func (s *DockerCLIBuildSuite) TestBuildAddChangeOwnership(c *testing.T) {
 			Dir:     tmpDir,
 		}).Assert(c, icmd.Success)
 
-		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0o644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
 		return fakecontext.New(c, tmpDir)
@@ -132,7 +131,7 @@ func (s *DockerCLIBuildSuite) TestBuildAddChangeOwnership(c *testing.T) {
 // Potential issue: newEventObserver uses docker events, which is not hooked up to buildkit.
 func (s *DockerCLIBuildSuite) TestBuildCancellationKillsSleep(c *testing.T) {
 	testRequires(c, DaemonIsLinux, TODOBuildkit)
-	name := "testbuildcancellation"
+	const name = "testbuildcancellation"
 
 	observer, err := newEventObserver(c)
 	assert.NilError(c, err)

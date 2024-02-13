@@ -1,15 +1,18 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"time"
 
+	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -22,7 +25,6 @@ import (
 	"github.com/moby/sys/signal"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // GetContainer looks for a container using the provided information, which could be
@@ -48,25 +50,22 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 		return containerByName, nil
 	}
 
-	containerID, indexError := daemon.containersReplica.GetByPrefix(prefixOrName)
-	if indexError != nil {
-		// When truncindex defines an error type, use that instead
-		if indexError == container.ErrNotExist {
-			return nil, containerNotFound(prefixOrName)
-		}
-		return nil, errdefs.System(indexError)
+	containerID, err := daemon.containersReplica.GetByPrefix(prefixOrName)
+	if err != nil {
+		return nil, err
 	}
-	return daemon.containers.Get(containerID), nil
-}
-
-// checkContainer make sure the specified container validates the specified conditions
-func (daemon *Daemon) checkContainer(container *container.Container, conditions ...func(*container.Container) error) error {
-	for _, condition := range conditions {
-		if err := condition(container); err != nil {
-			return err
-		}
+	ctr := daemon.containers.Get(containerID)
+	if ctr == nil {
+		// Updates to the daemon.containersReplica ViewDB are not atomic
+		// or consistent w.r.t. the live daemon.containers Store so
+		// while reaching this code path may be indicative of a bug,
+		// it is not _necessarily_ the case.
+		log.G(context.TODO()).WithField("prefixOrName", prefixOrName).
+			WithField("id", containerID).
+			Debugf("daemon.GetContainer: container is known to daemon.containersReplica but not daemon.containers")
+		return nil, containerNotFound(prefixOrName)
 	}
-	return nil
+	return ctr, nil
 }
 
 // Exists returns a true if a container of the specified ID or name exists,
@@ -123,9 +122,8 @@ func (daemon *Daemon) Register(c *container.Container) error {
 
 func (daemon *Daemon) newContainer(name string, operatingSystem string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
 	var (
-		id             string
-		err            error
-		noExplicitName = name == ""
+		id  string
+		err error
 	)
 	id, name, err = daemon.generateIDAndName(name)
 	if err != nil {
@@ -152,7 +150,7 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	base.Config = config
 	base.HostConfig = &containertypes.HostConfig{}
 	base.ImageID = imgID
-	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
+	base.NetworkSettings = &network.Settings{}
 	base.Name = name
 	base.Driver = daemon.imageService.StorageDriver()
 	base.OS = operatingSystem
@@ -199,10 +197,10 @@ func (daemon *Daemon) generateHostname(id string, config *containertypes.Config)
 	}
 }
 
-func (daemon *Daemon) setSecurityOptions(container *container.Container, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) setSecurityOptions(cfg *config.Config, container *container.Container, hostConfig *containertypes.HostConfig) error {
 	container.Lock()
 	defer container.Unlock()
-	return daemon.parseSecurityOpt(container, hostConfig)
+	return daemon.parseSecurityOpt(cfg, &container.SecurityOptions, hostConfig)
 }
 
 func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *containertypes.HostConfig) error {
@@ -222,12 +220,12 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 	runconfig.SetDefaultNetModeIfBlank(hostConfig)
 	container.HostConfig = hostConfig
-	return container.CheckpointTo(daemon.containersReplica)
+	return nil
 }
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
+func (daemon *Daemon) verifyContainerSettings(daemonCfg *configStore, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
 	// First perform verification of settings common across all platforms.
 	if err = validateContainerConfig(config); err != nil {
 		return warnings, err
@@ -237,9 +235,9 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 	}
 
 	// Now do platform-specific verification
-	warnings, err = verifyPlatformContainerSettings(daemon, hostConfig, update)
+	warnings, err = verifyPlatformContainerSettings(daemon, daemonCfg, hostConfig, update)
 	for _, w := range warnings {
-		logrus.Warn(w)
+		log.G(context.TODO()).Warn(w)
 	}
 	return warnings, err
 }
@@ -289,7 +287,7 @@ func validateHostConfig(hostConfig *containertypes.HostConfig) error {
 	if err := validatePortBindings(hostConfig.PortBindings); err != nil {
 		return err
 	}
-	if err := validateRestartPolicy(hostConfig.RestartPolicy); err != nil {
+	if err := containertypes.ValidateRestartPolicy(hostConfig.RestartPolicy); err != nil {
 		return err
 	}
 	if err := validateCapabilities(hostConfig); err != nil {
@@ -297,6 +295,11 @@ func validateHostConfig(hostConfig *containertypes.HostConfig) error {
 	}
 	if !hostConfig.Isolation.IsValid() {
 		return errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
+	}
+	for k := range hostConfig.Annotations {
+		if k == "" {
+			return errors.Errorf("invalid Annotations: the empty string is not permitted as an annotation key")
+		}
 	}
 	return nil
 }
@@ -329,6 +332,9 @@ func validateHealthCheck(healthConfig *containertypes.HealthConfig) error {
 	if healthConfig.StartPeriod != 0 && healthConfig.StartPeriod < containertypes.MinimumDuration {
 		return errors.Errorf("StartPeriod in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
 	}
+	if healthConfig.StartInterval != 0 && healthConfig.StartInterval < containertypes.MinimumDuration {
+		return errors.Errorf("StartInterval in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+	}
 	return nil
 }
 
@@ -344,25 +350,6 @@ func validatePortBindings(ports nat.PortMap) error {
 				return errors.Errorf("invalid port specification: %q", pb.HostPort)
 			}
 		}
-	}
-	return nil
-}
-
-func validateRestartPolicy(policy containertypes.RestartPolicy) error {
-	switch policy.Name {
-	case "always", "unless-stopped", "no":
-		if policy.MaximumRetryCount != 0 {
-			return errors.Errorf("maximum retry count cannot be used with restart policy '%s'", policy.Name)
-		}
-	case "on-failure":
-		if policy.MaximumRetryCount < 0 {
-			return errors.Errorf("maximum retry count cannot be negative")
-		}
-	case "":
-		// do nothing
-		return nil
-	default:
-		return errors.Errorf("invalid restart policy '%s'", policy.Name)
 	}
 	return nil
 }

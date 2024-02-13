@@ -1,6 +1,7 @@
 package layer // import "github.com/docker/docker/layer"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/idtools"
@@ -15,7 +17,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/locker"
 	"github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -62,9 +63,12 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 		ExperimentalEnabled: options.ExperimentalEnabled,
 	})
 	if err != nil {
+		if options.GraphDriver != "" {
+			return nil, fmt.Errorf("error initializing graphdriver: %v: %s", err, options.GraphDriver)
+		}
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
-	logrus.Debugf("Initialized graph driver %s", driver)
+	log.G(context.TODO()).Debugf("Initialized graph driver %s", driver)
 
 	root := fmt.Sprintf(options.MetadataStorePathTemplate, driver)
 
@@ -102,7 +106,7 @@ func newStoreFromGraphDriver(root string, driver graphdriver.Driver) (Store, err
 	for _, id := range ids {
 		l, err := ls.loadLayer(id)
 		if err != nil {
-			logrus.Debugf("Failed to load layer %s: %s", id, err)
+			log.G(context.TODO()).Debugf("Failed to load layer %s: %s", id, err)
 			continue
 		}
 		if l.parent != nil {
@@ -112,7 +116,7 @@ func newStoreFromGraphDriver(root string, driver graphdriver.Driver) (Store, err
 
 	for _, mount := range mounts {
 		if err := ls.loadMount(mount); err != nil {
-			logrus.Debugf("Failed to load mount %s: %s", mount, err)
+			log.G(context.TODO()).Debugf("Failed to load mount %s: %s", mount, err)
 		}
 	}
 
@@ -255,7 +259,7 @@ func (ls *layerStore) applyTar(tx *fileMetadataTransaction, ts io.Reader, parent
 	layer.size = applySize
 	layer.diffID = DiffID(digester.Digest())
 
-	logrus.Debugf("Applied tar %s to %s, size: %d", layer.diffID, layer.cacheID, applySize)
+	log.G(context.TODO()).Debugf("Applied tar %s to %s, size: %d", layer.diffID, layer.cacheID, applySize)
 
 	return nil
 }
@@ -265,10 +269,10 @@ func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
 }
 
 func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descriptor distribution.Descriptor) (Layer, error) {
-	// err is used to hold the error which will always trigger
+	// cErr is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
-	var err error
+	var cErr error
 	var pid string
 	var p *roLayer
 
@@ -282,15 +286,15 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		pid = p.cacheID
 		// Release parent chain if error
 		defer func() {
-			if err != nil {
+			if cErr != nil {
 				ls.layerL.Lock()
 				ls.releaseLayer(p)
 				ls.layerL.Unlock()
 			}
 		}()
 		if p.depth() >= maxLayerDepth {
-			err = ErrMaxDepthExceeded
-			return nil, err
+			cErr = ErrMaxDepthExceeded
+			return nil, cErr
 		}
 	}
 
@@ -304,29 +308,29 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		descriptor:     descriptor,
 	}
 
-	if err = ls.driver.Create(layer.cacheID, pid, nil); err != nil {
-		return nil, err
+	if cErr = ls.driver.Create(layer.cacheID, pid, nil); cErr != nil {
+		return nil, cErr
 	}
 
-	tx, err := ls.store.StartTransaction()
-	if err != nil {
-		return nil, err
+	tx, cErr := ls.store.StartTransaction()
+	if cErr != nil {
+		return nil, cErr
 	}
 
 	defer func() {
-		if err != nil {
-			logrus.Debugf("Cleaning up layer %s: %v", layer.cacheID, err)
+		if cErr != nil {
+			log.G(context.TODO()).Debugf("Cleaning up layer %s: %v", layer.cacheID, cErr)
 			if err := ls.driver.Remove(layer.cacheID); err != nil {
-				logrus.Errorf("Error cleaning up cache layer %s: %v", layer.cacheID, err)
+				log.G(context.TODO()).Errorf("Error cleaning up cache layer %s: %v", layer.cacheID, err)
 			}
 			if err := tx.Cancel(); err != nil {
-				logrus.Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
+				log.G(context.TODO()).Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
 			}
 		}
 	}()
 
-	if err = ls.applyTar(tx, ts, pid, layer); err != nil {
-		return nil, err
+	if cErr = ls.applyTar(tx, ts, pid, layer); cErr != nil {
+		return nil, cErr
 	}
 
 	if layer.parent == nil {
@@ -335,8 +339,8 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		layer.chainID = createChainIDFromParent(layer.parent.chainID, layer.diffID)
 	}
 
-	if err = storeLayer(tx, layer); err != nil {
-		return nil, err
+	if cErr = storeLayer(tx, layer); cErr != nil {
+		return nil, cErr
 	}
 
 	ls.layerL.Lock()
@@ -344,12 +348,12 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 
 	if existingLayer := ls.get(layer.chainID); existingLayer != nil {
 		// Set error for cleanup, but do not return the error
-		err = errors.New("layer already exists")
+		cErr = errors.New("layer already exists")
 		return existingLayer.getReference(), nil
 	}
 
-	if err = tx.Commit(layer.chainID); err != nil {
-		return nil, err
+	if cErr = tx.Commit(layer.chainID); cErr != nil {
+		return nil, cErr
 	}
 
 	ls.layerMap[layer.chainID] = layer
@@ -397,7 +401,7 @@ func (ls *layerStore) deleteLayer(layer *roLayer, metadata *Metadata) error {
 	var dir string
 	for {
 		dgst := digest.Digest(layer.chainID)
-		tmpID := fmt.Sprintf("%s-%s-removing", dgst.Hex(), stringid.GenerateRandomID())
+		tmpID := fmt.Sprintf("%s-%s-removing", dgst.Encoded(), stringid.GenerateRandomID())
 		dir = filepath.Join(ls.store.root, string(dgst.Algorithm()), tmpID)
 		err := os.Rename(ls.store.getLayerDirectory(layer.chainID), dir)
 		if os.IsExist(err) {
@@ -573,7 +577,7 @@ func (ls *layerStore) GetMountID(id string) (string, error) {
 	if mount == nil {
 		return "", ErrMountDoesNotExist
 	}
-	logrus.Debugf("GetMountID id: %s -> mountID: %s", id, mount.mountID)
+	log.G(context.TODO()).Debugf("GetMountID id: %s -> mountID: %s", id, mount.mountID)
 
 	return mount.mountID, nil
 }
@@ -599,21 +603,21 @@ func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
 	}
 
 	if err := ls.driver.Remove(m.mountID); err != nil {
-		logrus.Errorf("Error removing mounted layer %s: %s", m.name, err)
+		log.G(context.TODO()).Errorf("Error removing mounted layer %s: %s", m.name, err)
 		m.retakeReference(l)
 		return nil, err
 	}
 
 	if m.initID != "" {
 		if err := ls.driver.Remove(m.initID); err != nil {
-			logrus.Errorf("Error removing init layer %s: %s", m.name, err)
+			log.G(context.TODO()).Errorf("Error removing init layer %s: %s", m.name, err)
 			m.retakeReference(l)
 			return nil, err
 		}
 	}
 
 	if err := ls.store.RemoveMount(m.name); err != nil {
-		logrus.Errorf("Error removing mount metadata: %s: %s", m.name, err)
+		log.G(context.TODO()).Errorf("Error removing mount metadata: %s: %s", m.name, err)
 		m.retakeReference(l)
 		return nil, err
 	}
@@ -732,28 +736,28 @@ func (ls *layerStore) assembleTarTo(graphID string, metadata io.ReadCloser, size
 
 	metaUnpacker := storage.NewJSONUnpacker(metadata)
 	upackerCounter := &unpackSizeCounter{metaUnpacker, size}
-	logrus.Debugf("Assembling tar data for %s", graphID)
+	log.G(context.TODO()).Debugf("Assembling tar data for %s", graphID)
 	return asm.WriteOutputTarStream(fileGetCloser, upackerCounter, w)
 }
 
 func (ls *layerStore) Cleanup() error {
 	orphanLayers, err := ls.store.getOrphan()
 	if err != nil {
-		logrus.WithError(err).Error("cannot get orphan layers")
+		log.G(context.TODO()).WithError(err).Error("cannot get orphan layers")
 	}
 	if len(orphanLayers) > 0 {
-		logrus.Debugf("found %v orphan layers", len(orphanLayers))
+		log.G(context.TODO()).Debugf("found %v orphan layers", len(orphanLayers))
 	}
 	for _, orphan := range orphanLayers {
-		logrus.WithField("cache-id", orphan.cacheID).Debugf("removing orphan layer, chain ID: %v", orphan.chainID)
+		log.G(context.TODO()).WithField("cache-id", orphan.cacheID).Debugf("removing orphan layer, chain ID: %v", orphan.chainID)
 		err = ls.driver.Remove(orphan.cacheID)
 		if err != nil && !os.IsNotExist(err) {
-			logrus.WithError(err).WithField("cache-id", orphan.cacheID).Error("cannot remove orphan layer")
+			log.G(context.TODO()).WithError(err).WithField("cache-id", orphan.cacheID).Error("cannot remove orphan layer")
 			continue
 		}
 		err = ls.store.Remove(orphan.chainID, orphan.cacheID)
 		if err != nil {
-			logrus.WithError(err).WithField("chain-id", orphan.chainID).Error("cannot remove orphan layer metadata")
+			log.G(context.TODO()).WithError(err).WithField("chain-id", orphan.chainID).Error("cannot remove orphan layer metadata")
 		}
 	}
 	return ls.driver.Cleanup()
@@ -786,5 +790,5 @@ func (n *naiveDiffPathDriver) DiffGetter(id string) (graphdriver.FileGetCloser, 
 	if err != nil {
 		return nil, err
 	}
-	return &fileGetPutter{storage.NewPathFileGetter(p.Path()), n.Driver, id}, nil
+	return &fileGetPutter{storage.NewPathFileGetter(p), n.Driver, id}, nil
 }

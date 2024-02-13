@@ -14,9 +14,9 @@ import (
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/containerd/snapshots/overlay/overlayutils"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
-	"github.com/containerd/stargz-snapshotter/snapshot/overlayutils"
 	"github.com/hashicorp/go-multierror"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/util/bklog"
@@ -167,8 +167,7 @@ func applierFor(dest Mountable, tryCrossSnapshotLink, userxattr bool) (_ *applie
 	}
 	mnt := mnts[0]
 
-	switch mnt.Type {
-	case "overlay":
+	if overlay.IsOverlayMountType(mnt) {
 		for _, opt := range mnt.Options {
 			if strings.HasPrefix(opt, "upperdir=") {
 				a.root = strings.TrimPrefix(opt, "upperdir=")
@@ -183,9 +182,9 @@ func applierFor(dest Mountable, tryCrossSnapshotLink, userxattr bool) (_ *applie
 			return nil, errors.Errorf("could not find lowerdir in mount options %v", mnt.Options)
 		}
 		a.createWhiteoutDelete = true
-	case "bind", "rbind":
+	} else if mnt.Type == "bind" || mnt.Type == "rbind" {
 		a.root = mnt.Source
-	default:
+	} else {
 		mnter := LocalMounter(dest)
 		root, err := mnter.Mount()
 		if err != nil {
@@ -379,6 +378,18 @@ func (a *applier) applyCopy(ctx context.Context, ca *changeApply) error {
 		return errors.Errorf("unhandled file type %d during merge at path %q", ca.srcStat.Mode&unix.S_IFMT, ca.srcPath)
 	}
 
+	// NOTE: it's important that chown happens before setting xattrs due to the fact that chown will
+	// reset the security.capabilities xattr which results in file capabilities being lost.
+	if err := os.Lchown(ca.dstPath, int(ca.srcStat.Uid), int(ca.srcStat.Gid)); err != nil {
+		return errors.Wrap(err, "failed to chown during apply")
+	}
+
+	if ca.srcStat.Mode&unix.S_IFMT != unix.S_IFLNK {
+		if err := unix.Chmod(ca.dstPath, ca.srcStat.Mode); err != nil {
+			return errors.Wrapf(err, "failed to chmod path %q during apply", ca.dstPath)
+		}
+	}
+
 	if ca.srcPath != "" {
 		xattrs, err := sysx.LListxattr(ca.srcPath)
 		if err != nil {
@@ -407,16 +418,6 @@ func (a *applier) applyCopy(ctx context.Context, ca *changeApply) error {
 		xattr := opaqueXattr(a.userxattr)
 		if err := sysx.LSetxattr(ca.dstPath, xattr, []byte{'y'}, 0); err != nil {
 			return errors.Wrapf(err, "failed to set opaque xattr %q of path %s", xattr, ca.dstPath)
-		}
-	}
-
-	if err := os.Lchown(ca.dstPath, int(ca.srcStat.Uid), int(ca.srcStat.Gid)); err != nil {
-		return errors.Wrap(err, "failed to chown during apply")
-	}
-
-	if ca.srcStat.Mode&unix.S_IFMT != unix.S_IFLNK {
-		if err := unix.Chmod(ca.dstPath, ca.srcStat.Mode); err != nil {
-			return errors.Wrapf(err, "failed to chmod path %q during apply", ca.dstPath)
 		}
 	}
 
@@ -568,10 +569,9 @@ func differFor(lowerMntable, upperMntable Mountable) (_ *differ, rerr error) {
 	}
 
 	if len(upperMnts) == 1 {
-		switch upperMnts[0].Type {
-		case "bind", "rbind":
+		if upperMnts[0].Type == "bind" || upperMnts[0].Type == "rbind" {
 			d.upperBindSource = upperMnts[0].Source
-		case "overlay":
+		} else if overlay.IsOverlayMountType(upperMnts[0]) {
 			overlayDirs, err := overlay.GetOverlayLayers(upperMnts[0])
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get overlay layers from mount %+v", upperMnts[0])

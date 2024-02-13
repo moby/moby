@@ -4,15 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"reflect"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ID is the content-addressable ID of an image.
@@ -25,11 +26,6 @@ func (id ID) String() string {
 // Digest converts ID into a digest
 func (id ID) Digest() digest.Digest {
 	return digest.Digest(id)
-}
-
-// IDFromDigest creates an ID from a digest
-func IDFromDigest(digest digest.Digest) ID {
-	return ID(digest)
 }
 
 // V1Image stores the V1 image configuration.
@@ -49,7 +45,7 @@ type V1Image struct {
 	Comment string `json:"comment,omitempty"`
 
 	// Created is the timestamp at which the image was created
-	Created time.Time `json:"created"`
+	Created *time.Time `json:"created"`
 
 	// Container is the ID of the container that was used to create the image.
 	//
@@ -112,6 +108,18 @@ type Image struct {
 	// computedID is the ID computed from the hash of the image config.
 	// Not to be confused with the legacy V1 ID in V1Image.
 	computedID ID
+
+	// Details holds additional details about image
+	Details *Details `json:"-"`
+}
+
+// Details provides additional image data
+type Details struct {
+	References  []reference.Named
+	Size        int64
+	Metadata    map[string]string
+	Driver      string
+	LastUpdated time.Time
 }
 
 // RawJSON returns the immutable JSON associated with the image.
@@ -159,6 +167,17 @@ func (img *Image) OperatingSystem() string {
 	return os
 }
 
+// Platform generates an OCI platform from the image
+func (img *Image) Platform() ocispec.Platform {
+	return ocispec.Platform{
+		Architecture: img.Architecture,
+		OS:           img.OS,
+		OSVersion:    img.OSVersion,
+		OSFeatures:   img.OSFeatures,
+		Variant:      img.Variant,
+	}
+}
+
 // MarshalJSON serializes the image to JSON. It sorts the top-level keys so
 // that JSON that's been manipulated by a push/pull cycle with a legacy
 // registry won't end up with a different key order.
@@ -186,6 +205,13 @@ type ChildConfig struct {
 	DiffID          layer.DiffID
 	ContainerConfig *container.Config
 	Config          *container.Config
+}
+
+// NewImage creates a new image with the given ID
+func NewImage(id ID) *Image {
+	return &Image{
+		computedID: id,
+	}
 }
 
 // NewChildImage creates a new Image as a child of this image.
@@ -226,43 +252,29 @@ func NewChildImage(img *Image, child ChildConfig, os string) *Image {
 	}
 }
 
-// History stores build commands that were used to create an image
-type History struct {
-	// Created is the timestamp at which the image was created
-	Created time.Time `json:"created"`
-	// Author is the name of the author that was specified when committing the
-	// image, or as specified through MAINTAINER (deprecated) in the Dockerfile.
-	Author string `json:"author,omitempty"`
-	// CreatedBy keeps the Dockerfile command used while building the image
-	CreatedBy string `json:"created_by,omitempty"`
-	// Comment is the commit message that was set when committing the image
-	Comment string `json:"comment,omitempty"`
-	// EmptyLayer is set to true if this history item did not generate a
-	// layer. Otherwise, the history item is associated with the next
-	// layer in the RootFS section.
-	EmptyLayer bool `json:"empty_layer,omitempty"`
+// Clone clones an image and changes ID.
+func Clone(base *Image, id ID) *Image {
+	img := *base
+	img.RootFS = img.RootFS.Clone()
+	img.V1Image.ID = id.String()
+	img.computedID = id
+	return &img
 }
+
+// History stores build commands that were used to create an image
+type History = ocispec.History
 
 // NewHistory creates a new history struct from arguments, and sets the created
 // time to the current time in UTC
 func NewHistory(author, comment, createdBy string, isEmptyLayer bool) History {
+	now := time.Now().UTC()
 	return History{
 		Author:     author,
-		Created:    time.Now().UTC(),
+		Created:    &now,
 		CreatedBy:  createdBy,
 		Comment:    comment,
 		EmptyLayer: isEmptyLayer,
 	}
-}
-
-// Equal compares two history structs for equality
-func (h History) Equal(i History) bool {
-	if !h.Created.Equal(i.Created) {
-		return false
-	}
-	i.Created = h.Created
-
-	return reflect.DeepEqual(h, i)
 }
 
 // Exporter provides interface for loading and saving images

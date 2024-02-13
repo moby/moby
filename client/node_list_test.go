@@ -14,6 +14,8 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNodeListError(t *testing.T) {
@@ -22,17 +24,11 @@ func TestNodeListError(t *testing.T) {
 	}
 
 	_, err := client.NodeList(context.Background(), types.NodeListOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestNodeList(t *testing.T) {
-	expectedURL := "/nodes"
-
-	filters := filters.NewArgs()
-	filters.Add("label", "label1")
-	filters.Add("label", "label2")
+	const expectedURL = "/nodes"
 
 	listCases := []struct {
 		options             types.NodeListOptions
@@ -46,7 +42,10 @@ func TestNodeList(t *testing.T) {
 		},
 		{
 			options: types.NodeListOptions{
-				Filters: filters,
+				Filters: filters.NewArgs(
+					filters.Arg("label", "label1"),
+					filters.Arg("label", "label2"),
+				),
 			},
 			expectedQueryParams: map[string]string{
 				"filters": `{"label":{"label1":true,"label2":true}}`,

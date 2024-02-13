@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package runconfig // import "github.com/docker/docker/runconfig"
 
@@ -8,13 +7,14 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
 // DefaultDaemonNetworkMode returns the default network stack the daemon should
 // use.
 func DefaultDaemonNetworkMode() container.NetworkMode {
-	return "bridge"
+	return network.NetworkBridge
 }
 
 // IsPreDefinedNetwork indicates if a network is predefined by the daemon

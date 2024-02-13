@@ -7,7 +7,9 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 )
 
-func (s *defaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
+func (s *Service) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
+	ana := s.config.allowNondistributableArtifacts(hostname)
+
 	if hostname == DefaultNamespace || hostname == IndexHostname {
 		for _, mirror := range s.config.Mirrors {
 			if !strings.HasPrefix(mirror, "http://") && !strings.HasPrefix(mirror, "https://") {
@@ -23,7 +25,7 @@ func (s *defaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 			}
 			endpoints = append(endpoints, APIEndpoint{
 				URL:          mirrorURL,
-				Version:      APIVersion2,
+				Version:      APIVersion2, //nolint:staticcheck // ignore SA1019 (Version is deprecated) to allow potential consumers to transition.
 				Mirror:       true,
 				TrimHostname: true,
 				TLSConfig:    mirrorTLSConfig,
@@ -31,10 +33,12 @@ func (s *defaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 		}
 		endpoints = append(endpoints, APIEndpoint{
 			URL:          DefaultV2Registry,
-			Version:      APIVersion2,
+			Version:      APIVersion2, //nolint:staticcheck // ignore SA1019 (Version is deprecated) to allow potential consumers to transition.
 			Official:     true,
 			TrimHostname: true,
 			TLSConfig:    tlsconfig.ServerDefault(),
+
+			AllowNondistributableArtifacts: ana,
 		})
 
 		return endpoints, nil
@@ -45,14 +49,13 @@ func (s *defaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 		return nil, err
 	}
 
-	ana := s.config.allowNondistributableArtifacts(hostname)
 	endpoints = []APIEndpoint{
 		{
 			URL: &url.URL{
 				Scheme: "https",
 				Host:   hostname,
 			},
-			Version:                        APIVersion2,
+			Version:                        APIVersion2, //nolint:staticcheck // ignore SA1019 (Version is deprecated) to allow potential consumers to transition.
 			AllowNondistributableArtifacts: ana,
 			TrimHostname:                   true,
 			TLSConfig:                      tlsConfig,
@@ -65,7 +68,7 @@ func (s *defaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 				Scheme: "http",
 				Host:   hostname,
 			},
-			Version:                        APIVersion2,
+			Version:                        APIVersion2, //nolint:staticcheck // ignore SA1019 (Version is deprecated) to allow potential consumers to transition.
 			AllowNondistributableArtifacts: ana,
 			TrimHostname:                   true,
 			// used to check if supposed to be secure via InsecureSkipVerify

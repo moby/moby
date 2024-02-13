@@ -1,16 +1,15 @@
 package environment // import "github.com/docker/docker/integration-cli/environment"
 
 import (
+	"context"
 	"os"
 	"os/exec"
 
 	"github.com/docker/docker/testutil/environment"
 )
 
-var (
-	// DefaultClientBinary is the name of the docker binary
-	DefaultClientBinary = os.Getenv("TEST_CLIENT_BINARY")
-)
+// DefaultClientBinary is the name of the docker binary
+var DefaultClientBinary = os.Getenv("TEST_CLIENT_BINARY")
 
 func init() {
 	if DefaultClientBinary == "" {
@@ -31,8 +30,8 @@ func (e *Execution) DockerBinary() string {
 }
 
 // New returns details about the testing environment
-func New() (*Execution, error) {
-	env, err := environment.New()
+func New(ctx context.Context) (*Execution, error) {
+	env, err := environment.New(ctx)
 	if err != nil {
 		return nil, err
 	}

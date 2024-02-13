@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -21,9 +20,9 @@ func GetHostsFile(ctx context.Context, stateDir string, extraHosts []executor.Ho
 		return makeHostsFile(stateDir, extraHosts, idmap, hostname)
 	}
 
-	_, err := g.Do(ctx, stateDir, func(ctx context.Context) (interface{}, error) {
+	_, err := g.Do(ctx, stateDir, func(ctx context.Context) (struct{}, error) {
 		_, _, err := makeHostsFile(stateDir, nil, idmap, hostname)
-		return nil, err
+		return struct{}{}, err
 	})
 	if err != nil {
 		return "", nil, err
@@ -56,7 +55,7 @@ func makeHostsFile(stateDir string, extraHosts []executor.HostIP, idmap *idtools
 	}
 
 	tmpPath := p + ".tmp"
-	if err := ioutil.WriteFile(tmpPath, b.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(tmpPath, b.Bytes(), 0644); err != nil {
 		return "", nil, err
 	}
 

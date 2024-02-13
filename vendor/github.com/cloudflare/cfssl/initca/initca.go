@@ -69,6 +69,10 @@ func New(req *csr.CertificateRequest) (cert, csrPEM, key []byte, err error) {
 		}
 	}
 
+	if req.CRL != "" {
+		policy.Default.CRL = req.CRL
+	}
+
 	g := &csr.Generator{Validator: validator}
 	csrPEM, key, err = g.ProcessRequest(req)
 	if err != nil {

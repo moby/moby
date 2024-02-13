@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package daemon // import "github.com/docker/docker/daemon"
 
@@ -8,17 +7,17 @@ import (
 )
 
 // getLibcontainerdCreateOptions callers must hold a lock on the container
-func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Container) (string, interface{}, error) {
+func (daemon *Daemon) getLibcontainerdCreateOptions(daemonCfg *configStore, container *container.Container) (string, interface{}, error) {
 	// Ensure a runtime has been assigned to this container
 	if container.HostConfig.Runtime == "" {
-		container.HostConfig.Runtime = daemon.configStore.GetDefaultRuntimeName()
+		container.HostConfig.Runtime = daemonCfg.Runtimes.Default
 		container.CheckpointTo(daemon.containersReplica)
 	}
 
-	rt, err := daemon.getRuntime(container.HostConfig.Runtime)
+	shim, opts, err := daemonCfg.Runtimes.Get(container.HostConfig.Runtime)
 	if err != nil {
-		return "", nil, translateContainerdStartErr(container.Path, container.SetExitCode, err)
+		return "", nil, setExitCodeFromError(container.SetExitCode, err)
 	}
 
-	return rt.Shim.Binary, rt.Shim.Opts, nil
+	return shim, opts, nil
 }

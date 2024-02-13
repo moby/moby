@@ -1,48 +1,50 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestPsFilter(t *testing.T) {
-	defer setupTest(t)()
-	client := testEnv.APIClient()
-	ctx := context.Background()
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
 
-	prev := container.Create(ctx, t, client)
-	top := container.Create(ctx, t, client)
-	next := container.Create(ctx, t, client)
+	prev := container.Create(ctx, t, apiClient)
+	top := container.Create(ctx, t, apiClient)
+	next := container.Create(ctx, t, apiClient)
 
 	containerIDs := func(containers []types.Container) []string {
 		var entries []string
-		for _, container := range containers {
-			entries = append(entries, container.ID)
+		for _, c := range containers {
+			entries = append(entries, c.ID)
 		}
 		return entries
 	}
 
-	f1 := filters.NewArgs()
-	f1.Add("since", top)
-	q1, err := client.ContainerList(ctx, types.ContainerListOptions{
-		All:     true,
-		Filters: f1,
+	t.Run("since", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		results, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
+			All:     true,
+			Filters: filters.NewArgs(filters.Arg("since", top)),
+		})
+		assert.NilError(t, err)
+		assert.Check(t, is.Contains(containerIDs(results), next))
 	})
-	assert.NilError(t, err)
-	assert.Check(t, is.Contains(containerIDs(q1), next))
 
-	f2 := filters.NewArgs()
-	f2.Add("before", top)
-	q2, err := client.ContainerList(ctx, types.ContainerListOptions{
-		All:     true,
-		Filters: f2,
+	t.Run("before", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		results, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
+			All:     true,
+			Filters: filters.NewArgs(filters.Arg("before", top)),
+		})
+		assert.NilError(t, err)
+		assert.Check(t, is.Contains(containerIDs(results), prev))
 	})
-	assert.NilError(t, err)
-	assert.Check(t, is.Contains(containerIDs(q2), prev))
 }

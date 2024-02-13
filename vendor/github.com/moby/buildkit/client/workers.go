@@ -13,10 +13,11 @@ import (
 
 // WorkerInfo contains information about a worker
 type WorkerInfo struct {
-	ID        string              `json:"id"`
-	Labels    map[string]string   `json:"labels"`
-	Platforms []ocispecs.Platform `json:"platforms"`
-	GCPolicy  []PruneInfo         `json:"gcPolicy"`
+	ID              string              `json:"id"`
+	Labels          map[string]string   `json:"labels"`
+	Platforms       []ocispecs.Platform `json:"platforms"`
+	GCPolicy        []PruneInfo         `json:"gcPolicy"`
+	BuildkitVersion BuildkitVersion     `json:"buildkitVersion"`
 }
 
 // ListWorkers lists all active workers
@@ -27,7 +28,7 @@ func (c *Client) ListWorkers(ctx context.Context, opts ...ListWorkersOption) ([]
 	}
 
 	req := &controlapi.ListWorkersRequest{Filter: info.Filter}
-	resp, err := c.controlClient().ListWorkers(ctx, req)
+	resp, err := c.ControlClient().ListWorkers(ctx, req)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list workers")
 	}
@@ -36,10 +37,11 @@ func (c *Client) ListWorkers(ctx context.Context, opts ...ListWorkersOption) ([]
 
 	for _, w := range resp.Record {
 		wi = append(wi, &WorkerInfo{
-			ID:        w.ID,
-			Labels:    w.Labels,
-			Platforms: pb.ToSpecPlatforms(w.Platforms),
-			GCPolicy:  fromAPIGCPolicy(w.GCPolicy),
+			ID:              w.ID,
+			Labels:          w.Labels,
+			Platforms:       pb.ToSpecPlatforms(w.Platforms),
+			GCPolicy:        fromAPIGCPolicy(w.GCPolicy),
+			BuildkitVersion: fromAPIBuildkitVersion(w.BuildkitVersion),
 		})
 	}
 

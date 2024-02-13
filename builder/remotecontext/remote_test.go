@@ -189,14 +189,14 @@ func TestDownloadRemote(t *testing.T) {
 	contentType, content, err := downloadRemote(remoteURL)
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Equal(mimeTypes.TextPlain, contentType))
+	assert.Check(t, is.Equal(mimeTypeTextPlain, contentType))
 	raw, err := io.ReadAll(content)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(dockerfileContents, string(raw)))
 }
 
 func TestGetWithStatusError(t *testing.T) {
-	var testcases = []struct {
+	testcases := []struct {
 		err          error
 		statusCode   int
 		expectedErr  string

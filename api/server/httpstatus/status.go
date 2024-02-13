@@ -1,13 +1,14 @@
 package httpstatus // import "github.com/docker/docker/api/server/httpstatus"
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
-	containerderrors "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/errdefs"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -19,7 +20,7 @@ type causer interface {
 // FromError retrieves status code from error message.
 func FromError(err error) int {
 	if err == nil {
-		logrus.WithFields(logrus.Fields{"error": err}).Error("unexpected HTTP error handling")
+		log.G(context.TODO()).WithError(err).Error("unexpected HTTP error handling")
 		return http.StatusInternalServerError
 	}
 
@@ -65,10 +66,11 @@ func FromError(err error) int {
 			return FromError(e.Cause())
 		}
 
-		logrus.WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(log.Fields{
 			"module":     "api",
+			"error":      err,
 			"error_type": fmt.Sprintf("%T", err),
-		}).Debugf("FIXME: Got an API for which error does not match any expected type!!!: %+v", err)
+		}).Debug("FIXME: Got an API for which error does not match any expected type!!!")
 	}
 
 	if statusCode == 0 {
@@ -132,17 +134,17 @@ func statusCodeFromDistributionError(err error) int {
 // consumed directly (not through gRPC)
 func statusCodeFromContainerdError(err error) int {
 	switch {
-	case containerderrors.IsInvalidArgument(err):
+	case cerrdefs.IsInvalidArgument(err):
 		return http.StatusBadRequest
-	case containerderrors.IsNotFound(err):
+	case cerrdefs.IsNotFound(err):
 		return http.StatusNotFound
-	case containerderrors.IsAlreadyExists(err):
+	case cerrdefs.IsAlreadyExists(err):
 		return http.StatusConflict
-	case containerderrors.IsFailedPrecondition(err):
+	case cerrdefs.IsFailedPrecondition(err):
 		return http.StatusPreconditionFailed
-	case containerderrors.IsUnavailable(err):
+	case cerrdefs.IsUnavailable(err):
 		return http.StatusServiceUnavailable
-	case containerderrors.IsNotImplemented(err):
+	case cerrdefs.IsNotImplemented(err):
 		return http.StatusNotImplemented
 	default:
 		return http.StatusInternalServerError

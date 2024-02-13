@@ -33,6 +33,7 @@ var TypeToRR = map[uint16]func() RR{
 	TypeGPOS:       func() RR { return new(GPOS) },
 	TypeHINFO:      func() RR { return new(HINFO) },
 	TypeHIP:        func() RR { return new(HIP) },
+	TypeHTTPS:      func() RR { return new(HTTPS) },
 	TypeKEY:        func() RR { return new(KEY) },
 	TypeKX:         func() RR { return new(KX) },
 	TypeL32:        func() RR { return new(L32) },
@@ -70,6 +71,7 @@ var TypeToRR = map[uint16]func() RR{
 	TypeSPF:        func() RR { return new(SPF) },
 	TypeSRV:        func() RR { return new(SRV) },
 	TypeSSHFP:      func() RR { return new(SSHFP) },
+	TypeSVCB:       func() RR { return new(SVCB) },
 	TypeTA:         func() RR { return new(TA) },
 	TypeTALINK:     func() RR { return new(TALINK) },
 	TypeTKEY:       func() RR { return new(TKEY) },
@@ -80,6 +82,7 @@ var TypeToRR = map[uint16]func() RR{
 	TypeUINFO:      func() RR { return new(UINFO) },
 	TypeURI:        func() RR { return new(URI) },
 	TypeX25:        func() RR { return new(X25) },
+	TypeZONEMD:     func() RR { return new(ZONEMD) },
 }
 
 // TypeToString is a map of strings for each RR type.
@@ -110,6 +113,7 @@ var TypeToString = map[uint16]string{
 	TypeGPOS:       "GPOS",
 	TypeHINFO:      "HINFO",
 	TypeHIP:        "HIP",
+	TypeHTTPS:      "HTTPS",
 	TypeISDN:       "ISDN",
 	TypeIXFR:       "IXFR",
 	TypeKEY:        "KEY",
@@ -153,6 +157,7 @@ var TypeToString = map[uint16]string{
 	TypeSPF:        "SPF",
 	TypeSRV:        "SRV",
 	TypeSSHFP:      "SSHFP",
+	TypeSVCB:       "SVCB",
 	TypeTA:         "TA",
 	TypeTALINK:     "TALINK",
 	TypeTKEY:       "TKEY",
@@ -164,6 +169,7 @@ var TypeToString = map[uint16]string{
 	TypeUNSPEC:     "UNSPEC",
 	TypeURI:        "URI",
 	TypeX25:        "X25",
+	TypeZONEMD:     "ZONEMD",
 	TypeNSAPPTR:    "NSAP-PTR",
 }
 
@@ -191,6 +197,7 @@ func (rr *GID) Header() *RR_Header        { return &rr.Hdr }
 func (rr *GPOS) Header() *RR_Header       { return &rr.Hdr }
 func (rr *HINFO) Header() *RR_Header      { return &rr.Hdr }
 func (rr *HIP) Header() *RR_Header        { return &rr.Hdr }
+func (rr *HTTPS) Header() *RR_Header      { return &rr.Hdr }
 func (rr *KEY) Header() *RR_Header        { return &rr.Hdr }
 func (rr *KX) Header() *RR_Header         { return &rr.Hdr }
 func (rr *L32) Header() *RR_Header        { return &rr.Hdr }
@@ -229,6 +236,7 @@ func (rr *SOA) Header() *RR_Header        { return &rr.Hdr }
 func (rr *SPF) Header() *RR_Header        { return &rr.Hdr }
 func (rr *SRV) Header() *RR_Header        { return &rr.Hdr }
 func (rr *SSHFP) Header() *RR_Header      { return &rr.Hdr }
+func (rr *SVCB) Header() *RR_Header       { return &rr.Hdr }
 func (rr *TA) Header() *RR_Header         { return &rr.Hdr }
 func (rr *TALINK) Header() *RR_Header     { return &rr.Hdr }
 func (rr *TKEY) Header() *RR_Header       { return &rr.Hdr }
@@ -239,6 +247,7 @@ func (rr *UID) Header() *RR_Header        { return &rr.Hdr }
 func (rr *UINFO) Header() *RR_Header      { return &rr.Hdr }
 func (rr *URI) Header() *RR_Header        { return &rr.Hdr }
 func (rr *X25) Header() *RR_Header        { return &rr.Hdr }
+func (rr *ZONEMD) Header() *RR_Header     { return &rr.Hdr }
 
 // len() functions
 func (rr *A) len(off int, compression map[string]struct{}) int {
@@ -592,6 +601,15 @@ func (rr *SSHFP) len(off int, compression map[string]struct{}) int {
 	l += len(rr.FingerPrint) / 2
 	return l
 }
+func (rr *SVCB) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += 2 // Priority
+	l += domainNameLen(rr.Target, off+l, compression, false)
+	for _, x := range rr.Value {
+		l += 4 + int(x.len())
+	}
+	return l
+}
 func (rr *TA) len(off int, compression map[string]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // KeyTag
@@ -669,6 +687,14 @@ func (rr *X25) len(off int, compression map[string]struct{}) int {
 	l += len(rr.PSDNAddress) + 1
 	return l
 }
+func (rr *ZONEMD) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += 4 // Serial
+	l++    // Scheme
+	l++    // Hash
+	l += len(rr.Digest) / 2
+	return l
+}
 
 // copy() functions
 func (rr *A) copy() RR {
@@ -685,8 +711,8 @@ func (rr *ANY) copy() RR {
 }
 func (rr *APL) copy() RR {
 	Prefixes := make([]APLPrefix, len(rr.Prefixes))
-	for i := range rr.Prefixes {
-		Prefixes[i] = rr.Prefixes[i].copy()
+	for i, e := range rr.Prefixes {
+		Prefixes[i] = e.copy()
 	}
 	return &APL{rr.Hdr, Prefixes}
 }
@@ -697,6 +723,12 @@ func (rr *AVC) copy() RR {
 }
 func (rr *CAA) copy() RR {
 	return &CAA{rr.Hdr, rr.Flag, rr.Tag, rr.Value}
+}
+func (rr *CDNSKEY) copy() RR {
+	return &CDNSKEY{*rr.DNSKEY.copy().(*DNSKEY)}
+}
+func (rr *CDS) copy() RR {
+	return &CDS{*rr.DS.copy().(*DS)}
 }
 func (rr *CERT) copy() RR {
 	return &CERT{rr.Hdr, rr.Type, rr.KeyTag, rr.Algorithm, rr.Certificate}
@@ -711,6 +743,9 @@ func (rr *CSYNC) copy() RR {
 }
 func (rr *DHCID) copy() RR {
 	return &DHCID{rr.Hdr, rr.Digest}
+}
+func (rr *DLV) copy() RR {
+	return &DLV{*rr.DS.copy().(*DS)}
 }
 func (rr *DNAME) copy() RR {
 	return &DNAME{rr.Hdr, rr.Target}
@@ -743,6 +778,12 @@ func (rr *HIP) copy() RR {
 	RendezvousServers := make([]string, len(rr.RendezvousServers))
 	copy(RendezvousServers, rr.RendezvousServers)
 	return &HIP{rr.Hdr, rr.HitLength, rr.PublicKeyAlgorithm, rr.PublicKeyLength, rr.Hit, rr.PublicKey, RendezvousServers}
+}
+func (rr *HTTPS) copy() RR {
+	return &HTTPS{*rr.SVCB.copy().(*SVCB)}
+}
+func (rr *KEY) copy() RR {
+	return &KEY{*rr.DNSKEY.copy().(*DNSKEY)}
 }
 func (rr *KX) copy() RR {
 	return &KX{rr.Hdr, rr.Preference, rr.Exchanger}
@@ -847,6 +888,9 @@ func (rr *RRSIG) copy() RR {
 func (rr *RT) copy() RR {
 	return &RT{rr.Hdr, rr.Preference, rr.Host}
 }
+func (rr *SIG) copy() RR {
+	return &SIG{*rr.RRSIG.copy().(*RRSIG)}
+}
 func (rr *SMIMEA) copy() RR {
 	return &SMIMEA{rr.Hdr, rr.Usage, rr.Selector, rr.MatchingType, rr.Certificate}
 }
@@ -863,6 +907,13 @@ func (rr *SRV) copy() RR {
 }
 func (rr *SSHFP) copy() RR {
 	return &SSHFP{rr.Hdr, rr.Algorithm, rr.Type, rr.FingerPrint}
+}
+func (rr *SVCB) copy() RR {
+	Value := make([]SVCBKeyValue, len(rr.Value))
+	for i, e := range rr.Value {
+		Value[i] = e.copy()
+	}
+	return &SVCB{rr.Hdr, rr.Priority, rr.Target, Value}
 }
 func (rr *TA) copy() RR {
 	return &TA{rr.Hdr, rr.KeyTag, rr.Algorithm, rr.DigestType, rr.Digest}
@@ -895,4 +946,7 @@ func (rr *URI) copy() RR {
 }
 func (rr *X25) copy() RR {
 	return &X25{rr.Hdr, rr.PSDNAddress}
+}
+func (rr *ZONEMD) copy() RR {
+	return &ZONEMD{rr.Hdr, rr.Serial, rr.Scheme, rr.Hash, rr.Digest}
 }

@@ -16,6 +16,7 @@ type fastBase struct {
 	cur int32
 	// maximum offset. Should be at least 2x block size.
 	maxMatchOff int32
+	bufferReset int32
 	hist        []byte
 	crc         *xxhash.Digest
 	tmp         [8]byte
@@ -56,8 +57,8 @@ func (e *fastBase) Block() *blockEnc {
 }
 
 func (e *fastBase) addBlock(src []byte) int32 {
-	if debugAsserts && e.cur > bufferReset {
-		panic(fmt.Sprintf("ecur (%d) > buffer reset (%d)", e.cur, bufferReset))
+	if debugAsserts && e.cur > e.bufferReset {
+		panic(fmt.Sprintf("ecur (%d) > buffer reset (%d)", e.cur, e.bufferReset))
 	}
 	// check if we have space already
 	if len(e.hist)+len(src) > cap(e.hist) {
@@ -126,24 +127,7 @@ func (e *fastBase) matchlen(s, t int32, src []byte) int32 {
 			panic(fmt.Sprintf("len(src)-s (%d) > maxCompressedBlockSize (%d)", len(src)-int(s), maxCompressedBlockSize))
 		}
 	}
-	a := src[s:]
-	b := src[t:]
-	b = b[:len(a)]
-	end := int32((len(a) >> 3) << 3)
-	for i := int32(0); i < end; i += 8 {
-		if diff := load6432(a, i) ^ load6432(b, i); diff != 0 {
-			return i + int32(bits.TrailingZeros64(diff)>>3)
-		}
-	}
-
-	a = a[end:]
-	b = b[end:]
-	for i := range a {
-		if a[i] != b[i] {
-			return int32(i) + end
-		}
-	}
-	return int32(len(a)) + end
+	return int32(matchLen(src[s:], src[t:]))
 }
 
 // Reset the encoding table.
@@ -160,18 +144,19 @@ func (e *fastBase) resetBase(d *dict, singleBlock bool) {
 	} else {
 		e.crc.Reset()
 	}
+	e.blk.dictLitEnc = nil
 	if d != nil {
 		low := e.lowMem
 		if singleBlock {
 			e.lowMem = true
 		}
-		e.ensureHist(d.DictContentSize() + maxCompressedBlockSize)
+		e.ensureHist(d.ContentSize() + maxCompressedBlockSize)
 		e.lowMem = low
 	}
 
 	// We offset current position so everything will be out of reach.
 	// If above reset line, history will be purged.
-	if e.cur < bufferReset {
+	if e.cur < e.bufferReset {
 		e.cur += e.maxMatchOff + int32(len(e.hist))
 	}
 	e.hist = e.hist[:0]

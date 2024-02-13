@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"io"
 	"net"
 	"net/http"
@@ -12,8 +11,11 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/sockets"
 	"github.com/pkg/errors"
@@ -23,14 +25,14 @@ import (
 )
 
 func (s *DockerAPISuite) TestGetContainersAttachWebsocket(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-di", "busybox", "cat")
+	cid := cli.DockerCmd(c, "run", "-di", "busybox", "cat").Stdout()
+	cid = strings.TrimSpace(cid)
 
 	rwc, err := request.SockConn(10*time.Second, request.DaemonHost())
 	assert.NilError(c, err)
 
-	cleanedContainerID := strings.TrimSpace(out)
 	config, err := websocket.NewConfig(
-		"/containers/"+cleanedContainerID+"/attach/ws?stream=1&stdin=1&stdout=1&stderr=1",
+		"/containers/"+cid+"/attach/ws?stream=1&stdin=1&stdout=1&stderr=1",
 		"http://localhost",
 	)
 	assert.NilError(c, err)
@@ -75,7 +77,8 @@ func (s *DockerAPISuite) TestGetContainersAttachWebsocket(c *testing.T) {
 
 // regression gh14320
 func (s *DockerAPISuite) TestPostContainersAttachContainerNotFound(c *testing.T) {
-	resp, _, err := request.Post("/containers/doesnotexist/attach")
+	ctx := testutil.GetContext(c)
+	resp, _, err := request.Post(ctx, "/containers/doesnotexist/attach")
 	assert.NilError(c, err)
 	// connection will shutdown, err should be "persistent connection closed"
 	assert.Equal(c, resp.StatusCode, http.StatusNotFound)
@@ -86,7 +89,8 @@ func (s *DockerAPISuite) TestPostContainersAttachContainerNotFound(c *testing.T)
 }
 
 func (s *DockerAPISuite) TestGetContainersWsAttachContainerNotFound(c *testing.T) {
-	res, body, err := request.Get("/containers/doesnotexist/attach/ws")
+	ctx := testutil.GetContext(c)
+	res, body, err := request.Get(ctx, "/containers/doesnotexist/attach/ws")
 	assert.Equal(c, res.StatusCode, http.StatusNotFound)
 	assert.NilError(c, err)
 	b, err := request.ReadBody(body)
@@ -133,7 +137,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 	}
 
 	// Create a container that only emits stdout.
-	cid, _ := dockerCmd(c, "run", "-di", "busybox", "cat")
+	cid := cli.DockerCmd(c, "run", "-di", "busybox", "cat").Stdout()
 	cid = strings.TrimSpace(cid)
 
 	// Attach to the container's stdout stream.
@@ -149,7 +153,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 	expectTimeout(wc, br, "stdout")
 
 	// Test the similar functions of the stderr stream.
-	cid, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "cat >&2")
+	cid = cli.DockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "cat >&2").Stdout()
 	cid = strings.TrimSpace(cid)
 	wc, br, err = requestHijack(http.MethodPost, "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain", request.DaemonHost())
 	assert.NilError(c, err)
@@ -159,7 +163,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 	expectTimeout(wc, br, "stderr")
 
 	// Test with tty.
-	cid, _ = dockerCmd(c, "run", "-dit", "busybox", "/bin/sh", "-c", "cat >&2")
+	cid = cli.DockerCmd(c, "run", "-dit", "busybox", "/bin/sh", "-c", "cat >&2").Stdout()
 	cid = strings.TrimSpace(cid)
 	// Attach to stdout only.
 	wc, br, err = requestHijack(http.MethodPost, "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain", request.DaemonHost())
@@ -174,15 +178,15 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 	expectTimeout(wc, br, "stdout")
 
 	// Test the client API
-	client, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer client.Close()
+	defer apiClient.Close()
 
-	cid, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "echo hello; cat")
+	cid = cli.DockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "echo hello; cat").Stdout()
 	cid = strings.TrimSpace(cid)
 
 	// Make sure we don't see "hello" if Logs is false
-	attachOpts := types.ContainerAttachOptions{
+	attachOpts := container.AttachOptions{
 		Stream: true,
 		Stdin:  true,
 		Stdout: true,
@@ -190,7 +194,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 		Logs:   false,
 	}
 
-	resp, err := client.ContainerAttach(context.Background(), cid, attachOpts)
+	resp, err := apiClient.ContainerAttach(testutil.GetContext(c), cid, attachOpts)
 	assert.NilError(c, err)
 	mediaType, b := resp.MediaType()
 	assert.Check(c, b)
@@ -199,7 +203,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 
 	// Make sure we do see "hello" if Logs is true
 	attachOpts.Logs = true
-	resp, err = client.ContainerAttach(context.Background(), cid, attachOpts)
+	resp, err = apiClient.ContainerAttach(testutil.GetContext(c), cid, attachOpts)
 	assert.NilError(c, err)
 
 	defer resp.Conn.Close()
@@ -224,7 +228,6 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 // , contenttype, …), if receive a successful "101 Switching Protocols" response return
 // a `io.WriteCloser` and `bufio.Reader`
 func requestHijack(method, endpoint string, data io.Reader, ct, daemon string, modifiers ...func(*http.Request)) (io.WriteCloser, *bufio.Reader, error) {
-
 	hostURL, err := client.ParseHostURL(daemon)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "parse daemon host error")
@@ -236,6 +239,11 @@ func requestHijack(method, endpoint string, data io.Reader, ct, daemon string, m
 	}
 	req.URL.Scheme = "http"
 	req.URL.Host = hostURL.Host
+
+	if hostURL.Scheme == "unix" || hostURL.Scheme == "npipe" {
+		// Override host header for non-tcp connections.
+		req.Host = client.DummyHost
+	}
 
 	for _, opt := range modifiers {
 		opt(req)
@@ -257,11 +265,11 @@ func requestHijack(method, endpoint string, data io.Reader, ct, daemon string, m
 		return nil, nil, errors.Wrap(err, "configure Transport error")
 	}
 
-	client := http.Client{
+	c := http.Client{
 		Transport: transport,
 	}
 
-	resp, err := client.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "client.Do")
 	}

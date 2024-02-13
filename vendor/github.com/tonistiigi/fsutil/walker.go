@@ -2,13 +2,14 @@ package fsutil
 
 import (
 	"context"
+	gofs "io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/fileutils"
+	"github.com/moby/patternmatcher"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil/types"
 )
@@ -19,26 +20,46 @@ type WalkOpt struct {
 	// FollowPaths contains symlinks that are resolved into include patterns
 	// before performing the fs walk
 	FollowPaths []string
-	Map         FilterFunc
+	Map         MapFunc
 }
+
+type MapFunc func(string, *types.Stat) MapResult
+
+// The result of the walk function controls
+// both how WalkDir continues and whether the path is kept.
+type MapResult int
+
+const (
+	// Keep the current path and continue.
+	MapResultKeep MapResult = iota
+
+	// Exclude the current path and continue.
+	MapResultExclude
+
+	// Exclude the current path, and skip the rest of the dir.
+	// If path is a dir, skip the current directory.
+	// If path is a file, skip the rest of the parent directory.
+	// (This matches the semantics of fs.SkipDir.)
+	MapResultSkipDir
+)
 
 func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) error {
 	root, err := filepath.EvalSymlinks(p)
 	if err != nil {
 		return errors.WithStack(&os.PathError{Op: "resolve", Path: root, Err: err})
 	}
-	fi, err := os.Stat(root)
+	rootFI, err := os.Stat(root)
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	if !fi.IsDir() {
+	if !rootFI.IsDir() {
 		return errors.WithStack(&os.PathError{Op: "walk", Path: root, Err: syscall.ENOTDIR})
 	}
 
 	var (
 		includePatterns []string
-		includeMatcher  *fileutils.PatternMatcher
-		excludeMatcher  *fileutils.PatternMatcher
+		includeMatcher  *patternmatcher.PatternMatcher
+		excludeMatcher  *patternmatcher.PatternMatcher
 	)
 
 	if opt != nil && opt.IncludePatterns != nil {
@@ -63,7 +84,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 
 	onlyPrefixIncludes := true
 	if len(includePatterns) != 0 {
-		includeMatcher, err = fileutils.NewPatternMatcher(includePatterns)
+		includeMatcher, err = patternmatcher.New(includePatterns)
 		if err != nil {
 			return errors.Wrapf(err, "invalid includepatterns: %s", opt.IncludePatterns)
 		}
@@ -79,7 +100,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 
 	onlyPrefixExcludeExceptions := true
 	if opt != nil && opt.ExcludePatterns != nil {
-		excludeMatcher, err = fileutils.NewPatternMatcher(opt.ExcludePatterns)
+		excludeMatcher, err = patternmatcher.New(opt.ExcludePatterns)
 		if err != nil {
 			return errors.Wrapf(err, "invalid excludepatterns: %s", opt.ExcludePatterns)
 		}
@@ -97,8 +118,8 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 		path             string
 		origpath         string
 		pathWithSep      string
-		includeMatchInfo fileutils.MatchInfo
-		excludeMatchInfo fileutils.MatchInfo
+		includeMatchInfo patternmatcher.MatchInfo
+		excludeMatchInfo patternmatcher.MatchInfo
 		calledFn         bool
 	}
 
@@ -106,7 +127,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 	var parentDirs []visitedDir
 
 	seenFiles := make(map[uint64]string)
-	return filepath.Walk(root, func(path string, fi os.FileInfo, walkErr error) (retErr error) {
+	return filepath.WalkDir(root, func(path string, dirEntry gofs.DirEntry, walkErr error) (retErr error) {
 		defer func() {
 			if retErr != nil && isNotExist(retErr) {
 				retErr = filepath.SkipDir
@@ -123,7 +144,14 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 			return nil
 		}
 
-		var dir visitedDir
+		var (
+			dir   visitedDir
+			isDir bool
+			fi    gofs.FileInfo
+		)
+		if dirEntry != nil {
+			isDir = dirEntry.IsDir()
+		}
 
 		if includeMatcher != nil || excludeMatcher != nil {
 			for len(parentDirs) != 0 {
@@ -134,7 +162,12 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 				parentDirs = parentDirs[:len(parentDirs)-1]
 			}
 
-			if fi.IsDir() {
+			if isDir {
+				fi, err = dirEntry.Info()
+				if err != nil {
+					return err
+				}
+
 				dir = visitedDir{
 					fi:          fi,
 					path:        path,
@@ -147,7 +180,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 		skip := false
 
 		if includeMatcher != nil {
-			var parentIncludeMatchInfo fileutils.MatchInfo
+			var parentIncludeMatchInfo patternmatcher.MatchInfo
 			if len(parentDirs) != 0 {
 				parentIncludeMatchInfo = parentDirs[len(parentDirs)-1].includeMatchInfo
 			}
@@ -156,12 +189,12 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 				return errors.Wrap(err, "failed to match includepatterns")
 			}
 
-			if fi.IsDir() {
+			if isDir {
 				dir.includeMatchInfo = matchInfo
 			}
 
 			if !m {
-				if fi.IsDir() && onlyPrefixIncludes {
+				if isDir && onlyPrefixIncludes {
 					// Optimization: we can skip walking this dir if no include
 					// patterns could match anything inside it.
 					dirSlash := path + string(filepath.Separator)
@@ -182,7 +215,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 		}
 
 		if excludeMatcher != nil {
-			var parentExcludeMatchInfo fileutils.MatchInfo
+			var parentExcludeMatchInfo patternmatcher.MatchInfo
 			if len(parentDirs) != 0 {
 				parentExcludeMatchInfo = parentDirs[len(parentDirs)-1].excludeMatchInfo
 			}
@@ -191,12 +224,12 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 				return errors.Wrap(err, "failed to match excludepatterns")
 			}
 
-			if fi.IsDir() {
+			if isDir {
 				dir.excludeMatchInfo = matchInfo
 			}
 
 			if m {
-				if fi.IsDir() && onlyPrefixExcludeExceptions {
+				if isDir && onlyPrefixExcludeExceptions {
 					// Optimization: we can skip walking this dir if no
 					// exceptions to exclude patterns could match anything
 					// inside it.
@@ -230,7 +263,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 
 		if includeMatcher != nil || excludeMatcher != nil {
 			defer func() {
-				if fi.IsDir() {
+				if isDir {
 					parentDirs = append(parentDirs, dir)
 				}
 			}()
@@ -242,6 +275,14 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 
 		dir.calledFn = true
 
+		// The FileInfo might have already been read further up.
+		if fi == nil {
+			fi, err = dirEntry.Info()
+			if err != nil {
+				return err
+			}
+		}
+
 		stat, err := mkstat(origpath, path, fi, seenFiles)
 		if err != nil {
 			return err
@@ -252,7 +293,10 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 			return ctx.Err()
 		default:
 			if opt != nil && opt.Map != nil {
-				if allowed := opt.Map(stat.Path, stat); !allowed {
+				result := opt.Map(stat.Path, stat)
+				if result == MapResultSkipDir {
+					return filepath.SkipDir
+				} else if result == MapResultExclude {
 					return nil
 				}
 			}
@@ -271,7 +315,8 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 				default:
 				}
 				if opt != nil && opt.Map != nil {
-					if allowed := opt.Map(parentStat.Path, parentStat); !allowed {
+					result := opt.Map(parentStat.Path, parentStat)
+					if result == MapResultSkipDir || result == MapResultExclude {
 						continue
 					}
 				}
@@ -289,11 +334,11 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 	})
 }
 
-func patternWithoutTrailingGlob(p *fileutils.Pattern) string {
+func patternWithoutTrailingGlob(p *patternmatcher.Pattern) string {
 	patStr := p.String()
-	// We use filepath.Separator here because fileutils.Pattern patterns
+	// We use filepath.Separator here because patternmatcher.Pattern patterns
 	// get transformed to use the native path separator:
-	// https://github.com/moby/moby/blob/79651b7a979b40e26af353ad283ca7ea5d67a855/pkg/fileutils/fileutils.go#L54
+	// https://github.com/moby/patternmatcher/blob/130b41bafc16209dc1b52a103fdac1decad04f1a/patternmatcher.go#L52
 	patStr = strings.TrimSuffix(patStr, string(filepath.Separator)+"**")
 	patStr = strings.TrimSuffix(patStr, string(filepath.Separator)+"*")
 	return patStr

@@ -108,3 +108,26 @@ type SharedCachedResult struct {
 	*SharedResult
 	CachedResult
 }
+
+type splitResultProxy struct {
+	released int64
+	sem      *int64
+	ResultProxy
+}
+
+func (r *splitResultProxy) Release(ctx context.Context) error {
+	if atomic.AddInt64(&r.released, 1) > 1 {
+		err := errors.New("releasing already released reference")
+		bklog.G(ctx).Error(err)
+		return err
+	}
+	if atomic.AddInt64(r.sem, 1) == 2 {
+		return r.ResultProxy.Release(ctx)
+	}
+	return nil
+}
+
+func SplitResultProxy(res ResultProxy) (ResultProxy, ResultProxy) {
+	sem := int64(0)
+	return &splitResultProxy{ResultProxy: res, sem: &sem}, &splitResultProxy{ResultProxy: res, sem: &sem}
+}

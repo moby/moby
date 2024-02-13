@@ -2,8 +2,12 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"strconv"
 	"time"
+
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/errdefs"
 )
 
 // ContainerResize changes the size of the TTY of the process running
@@ -22,11 +26,10 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 	}
 
 	if err = tsk.Resize(context.Background(), uint32(width), uint32(height)); err == nil {
-		attributes := map[string]string{
-			"height": fmt.Sprintf("%d", height),
-			"width":  fmt.Sprintf("%d", width),
-		}
-		daemon.LogContainerEventWithAttributes(container, "resize", attributes)
+		daemon.LogContainerEventWithAttributes(container, events.ActionResize, map[string]string{
+			"height": strconv.Itoa(height),
+			"width":  strconv.Itoa(width),
+		})
 	}
 	return err
 }
@@ -47,8 +50,12 @@ func (daemon *Daemon) ContainerExecResize(name string, height, width int) error 
 
 	select {
 	case <-ec.Started:
+		// An error may have occurred, so ec.Process may be nil.
+		if ec.Process == nil {
+			return errdefs.InvalidParameter(errors.New("exec process is not started"))
+		}
 		return ec.Process.Resize(context.Background(), uint32(width), uint32(height))
 	case <-timeout.C:
-		return fmt.Errorf("timeout waiting for exec session ready")
+		return errors.New("timeout waiting for exec session ready")
 	}
 }

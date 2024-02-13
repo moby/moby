@@ -6,5 +6,6 @@
  * (Optional) [Configure project for IDE](set-up-ide.md)
  * [Configure Git for contributing](set-up-git.md)
  * [Work with a development container](set-up-dev-env.md)
+ * [Containerized build and cross compilation](ctn-build.md)
  * [Run tests and test documentation](test.md)
  * [Debugging the daemon](debug.md)

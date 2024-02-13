@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	mounttypes "github.com/docker/docker/api/types/mount"
@@ -18,14 +19,9 @@ import (
 	"github.com/docker/docker/volume/service"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
-var (
-	// ErrVolumeReadonly is used to signal an error when trying to copy data into
-	// a volume mount that is not writable.
-	ErrVolumeReadonly = errors.New("mounted volume is marked read-only")
-)
+var _ volume.LiveRestorer = (*volumeWrapper)(nil)
 
 type mounts []container.Mount
 
@@ -78,7 +74,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 
 	dereferenceIfExists := func(destination string) {
 		if v, ok := mountPoints[destination]; ok {
-			logrus.Debugf("Duplicate mount point '%s'", destination)
+			log.G(ctx).Debugf("Duplicate mount point '%s'", destination)
 			if v.Volume != nil {
 				daemon.volumes.Release(ctx, v.Volume.Name(), container.ID)
 			}
@@ -263,6 +259,7 @@ func (daemon *Daemon) VolumesService() *service.VolumesService {
 type volumeMounter interface {
 	Mount(ctx context.Context, v *volumetypes.Volume, ref string) (string, error)
 	Unmount(ctx context.Context, v *volumetypes.Volume, ref string) error
+	LiveRestoreVolume(ctx context.Context, v *volumetypes.Volume, ref string) error
 }
 
 type volumeWrapper struct {
@@ -296,4 +293,8 @@ func (v *volumeWrapper) CreatedAt() (time.Time, error) {
 
 func (v *volumeWrapper) Status() map[string]interface{} {
 	return v.v.Status
+}
+
+func (v *volumeWrapper) LiveRestoreVolume(ctx context.Context, ref string) error {
+	return v.s.LiveRestoreVolume(ctx, v.v, ref)
 }

@@ -5,16 +5,16 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/logger"
 	logcache "github.com/docker/docker/daemon/logger/loggerutils/cache"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ContainerLogs copies the container's log channel to the channel provided in
@@ -23,8 +23,8 @@ import (
 //
 // if it returns nil, the config channel will be active and return log
 // messages until it runs out or the context is canceled.
-func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *types.ContainerLogsOptions) (messages <-chan *backend.LogMessage, isTTY bool, retErr error) {
-	lg := logrus.WithFields(logrus.Fields{
+func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *containertypes.LogsOptions) (messages <-chan *backend.LogMessage, isTTY bool, retErr error) {
+	lg := log.G(ctx).WithFields(log.Fields{
 		"module":    "daemon",
 		"method":    "(*Daemon).ContainerLogs",
 		"container": containerName,
@@ -54,7 +54,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		defer func() {
 			if retErr != nil {
 				if err = cLog.Close(); err != nil {
-					logrus.Errorf("Error closing logger: %v", err)
+					log.G(ctx).Errorf("Error closing logger: %v", err)
 				}
 			}
 		}()
@@ -107,7 +107,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		if cLogCreated {
 			defer func() {
 				if err = cLog.Close(); err != nil {
-					logrus.Errorf("Error closing logger: %v", err)
+					log.G(ctx).Errorf("Error closing logger: %v", err)
 				}
 			}()
 		}
@@ -173,7 +173,7 @@ func (daemon *Daemon) getLogger(container *container.Container) (l logger.Logger
 	return
 }
 
-// mergeLogConfig merges the daemon log config to the container's log config if the container's log driver is not specified.
+// mergeAndVerifyLogConfig merges the daemon log config to the container's log config if the container's log driver is not specified.
 func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) error {
 	if cfg.Type == "" {
 		cfg.Type = daemon.defaultLogConfig.Type
@@ -196,18 +196,14 @@ func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) err
 	return logger.ValidateLogOpts(cfg.Type, cfg.Config)
 }
 
-func (daemon *Daemon) setupDefaultLogConfig() error {
-	config := daemon.configStore
-	if len(config.LogConfig.Config) > 0 {
-		if err := logger.ValidateLogOpts(config.LogConfig.Type, config.LogConfig.Config); err != nil {
-			return errors.Wrap(err, "failed to set log opts")
+func defaultLogConfig(cfg *config.Config) (containertypes.LogConfig, error) {
+	if len(cfg.LogConfig.Config) > 0 {
+		if err := logger.ValidateLogOpts(cfg.LogConfig.Type, cfg.LogConfig.Config); err != nil {
+			return containertypes.LogConfig{}, errors.Wrap(err, "failed to set log opts")
 		}
 	}
-	daemon.defaultLogConfig = containertypes.LogConfig{
-		Type:   config.LogConfig.Type,
-		Config: config.LogConfig.Config,
-	}
-
-	logrus.Debugf("Using default logging driver %s", daemon.defaultLogConfig.Type)
-	return nil
+	return containertypes.LogConfig{
+		Type:   cfg.LogConfig.Type,
+		Config: cfg.LogConfig.Config,
+	}, nil
 }

@@ -11,8 +11,8 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
 	"github.com/docker/distribution/reference"
+	"github.com/moby/buildkit/util/bklog"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -119,7 +119,7 @@ func (f *fetcher) Fetch(ctx context.Context, desc ocispecs.Descriptor) (io.ReadC
 	rcw := &readCloser{ReadCloser: rc}
 	closer := func() {
 		if !rcw.closed {
-			logrus.Warnf("fetcher not closed cleanly: %s", desc.Digest)
+			bklog.G(ctx).Warnf("fetcher not closed cleanly: %s", desc.Digest)
 		}
 		release()
 	}

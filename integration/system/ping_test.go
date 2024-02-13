@@ -1,7 +1,6 @@
 package system // import "github.com/docker/docker/integration/system"
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,7 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -19,10 +18,9 @@ import (
 )
 
 func TestPingCacheHeaders(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "skip test from new feature")
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	res, _, err := request.Get("/_ping")
+	res, _, err := request.Get(ctx, "/_ping")
 	assert.NilError(t, err)
 	assert.Equal(t, res.StatusCode, http.StatusOK)
 
@@ -31,9 +29,9 @@ func TestPingCacheHeaders(t *testing.T) {
 }
 
 func TestPingGet(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	res, body, err := request.Get("/_ping")
+	res, body, err := request.Get(ctx, "/_ping")
 	assert.NilError(t, err)
 
 	b, err := request.ReadBody(body)
@@ -44,10 +42,9 @@ func TestPingGet(t *testing.T) {
 }
 
 func TestPingHead(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "skip test from new feature")
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	res, body, err := request.Head("/_ping")
+	res, body, err := request.Head(ctx, "/_ping")
 	assert.NilError(t, err)
 
 	b, err := request.ReadBody(body)
@@ -61,15 +58,15 @@ func TestPingSwarmHeader(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	d := daemon.New(t)
 	d.Start(t)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
 	defer client.Close()
-	ctx := context.TODO()
 
 	t.Run("before swarm init", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		p, err := client.Ping(ctx)
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateInactive)
@@ -80,6 +77,7 @@ func TestPingSwarmHeader(t *testing.T) {
 	assert.NilError(t, err)
 
 	t.Run("after swarm init", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		p, err := client.Ping(ctx)
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateActive)
@@ -90,6 +88,7 @@ func TestPingSwarmHeader(t *testing.T) {
 	assert.NilError(t, err)
 
 	t.Run("after swarm leave", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		p, err := client.Ping(ctx)
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateInactive)
@@ -101,17 +100,17 @@ func TestPingBuilderHeader(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot spin up additional daemons on windows")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	d := daemon.New(t)
 	client := d.NewClientT(t)
 	defer client.Close()
-	ctx := context.TODO()
 
 	t.Run("default config", func(t *testing.T) {
+		testutil.StartSpan(ctx, t)
 		d.Start(t)
 		defer d.Stop(t)
 
-		var expected = types.BuilderBuildKit
+		expected := types.BuilderBuildKit
 		if runtime.GOOS == "windows" {
 			expected = types.BuilderV1
 		}
@@ -122,13 +121,14 @@ func TestPingBuilderHeader(t *testing.T) {
 	})
 
 	t.Run("buildkit disabled", func(t *testing.T) {
+		testutil.StartSpan(ctx, t)
 		cfg := filepath.Join(d.RootDir(), "daemon.json")
-		err := os.WriteFile(cfg, []byte(`{"features": { "buildkit": false }}`), 0644)
+		err := os.WriteFile(cfg, []byte(`{"features": { "buildkit": false }}`), 0o644)
 		assert.NilError(t, err)
 		d.Start(t, "--config-file", cfg)
 		defer d.Stop(t)
 
-		var expected = types.BuilderV1
+		expected := types.BuilderV1
 		p, err := client.Ping(ctx)
 		assert.NilError(t, err)
 		assert.Equal(t, p.BuilderVersion, expected)

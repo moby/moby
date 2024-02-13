@@ -10,14 +10,11 @@ import (
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/buildkit/executor"
 	"github.com/pkg/errors"
 )
 
-type Mountable interface {
-	// ID() string
-	Mount() ([]mount.Mount, func() error, error)
-	IdentityMapping() *idtools.IdentityMapping
-}
+type Mountable = executor.MountableRef
 
 // Snapshotter defines interface that any snapshot implementation should satisfy
 type Snapshotter interface {
@@ -167,6 +164,8 @@ func setRedirectDir(mounts []mount.Mount, redirectDirOption string) (ret []mount
 		return mounts
 	}
 	for _, m := range mounts {
+		// Replace redirect_dir options, but only for overlay.
+		// redirect_dir is not supported by fuse-overlayfs.
 		if m.Type == "overlay" {
 			var opts []string
 			for _, o := range m.Options {

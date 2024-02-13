@@ -85,8 +85,9 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		r        CacheExporterRecord
 		selector digest.Digest
 	}
+	k := e.k.clone() // protect against *CacheKey internal ids mutation from other exports
 
-	recKey := rootKey(e.k.Digest(), e.k.Output())
+	recKey := rootKey(k.Digest(), k.Output())
 	rec := t.Add(recKey)
 	allRec := []CacheExporterRecord{rec}
 
@@ -96,12 +97,17 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		addRecord = *e.override
 	}
 
-	if e.record == nil && len(e.k.Deps()) > 0 {
+	exportRecord := opt.ExportRoots
+	if len(deps) > 0 {
+		exportRecord = true
+	}
+
+	if e.record == nil && exportRecord {
 		e.record = getBestResult(e.records)
 	}
 
 	var remote *Remote
-	if v := e.record; v != nil && len(e.k.Deps()) > 0 && addRecord {
+	if v := e.record; v != nil && exportRecord && addRecord {
 		var variants []CacheExporterRecord
 
 		cm := v.cacheManager
@@ -121,7 +127,7 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		if opt.CompressionOpt != nil {
 			for _, r := range remotes { // record all remaining remotes as well
 				rec := t.Add(recKey)
-				rec.AddResult(v.CreatedAt, r)
+				rec.AddResult(k.vtx, int(k.output), v.CreatedAt, r)
 				variants = append(variants, rec)
 			}
 		}
@@ -142,7 +148,7 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 			if opt.CompressionOpt != nil {
 				for _, r := range remotes { // record all remaining remotes as well
 					rec := t.Add(recKey)
-					rec.AddResult(v.CreatedAt, r)
+					rec.AddResult(k.vtx, int(k.output), v.CreatedAt, r)
 					variants = append(variants, rec)
 				}
 			}
@@ -150,7 +156,7 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 
 		if remote != nil {
 			for _, rec := range allRec {
-				rec.AddResult(v.CreatedAt, remote)
+				rec.AddResult(k.vtx, int(k.output), v.CreatedAt, remote)
 			}
 		}
 		allRec = append(allRec, variants...)
@@ -193,7 +199,7 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 			}
 		}
 
-		for cm, id := range e.k.ids {
+		for cm, id := range k.ids {
 			if _, err := addBacklinks(t, rec, cm, id, bkm); err != nil {
 				return nil, err
 			}

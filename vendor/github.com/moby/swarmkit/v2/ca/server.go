@@ -15,7 +15,6 @@ import (
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/state/store"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -65,7 +64,6 @@ type Server struct {
 	signingMu sync.Mutex
 
 	// lets us monitor and finish root rotations
-	rootReconciler                  *rootRotationReconciler
 	rootReconciliationRetryInterval time.Duration
 }
 
@@ -183,7 +181,7 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 		return nil, status.Errorf(codes.NotFound, codes.NotFound.String())
 	}
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"node.id": node.ID,
 		"status":  node.Certificate.Status,
 		"method":  "NodeCertificateStatus",
@@ -197,7 +195,7 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 		}, nil
 	}
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"node.id": node.ID,
 		"status":  node.Certificate.Status,
 		"method":  "NodeCertificateStatus",
@@ -327,7 +325,7 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 			return store.CreateNode(tx, node)
 		})
 		if err == nil {
-			log.G(ctx).WithFields(logrus.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"node.id":   nodeID,
 				"node.role": role,
 				"method":    "IssueNodeCertificate",
@@ -340,7 +338,7 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 		if i == maxRetries {
 			return nil, err
 		}
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"node.id":   nodeID,
 			"node.role": role,
 			"method":    "IssueNodeCertificate",
@@ -364,7 +362,7 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 		// Attempt to retrieve the node with nodeID
 		node = store.GetNode(tx, nodeID)
 		if node == nil {
-			log.G(ctx).WithFields(logrus.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"node.id": nodeID,
 				"method":  "issueRenewCertificate",
 			}).Warnf("node does not exist")
@@ -389,7 +387,7 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 		return nil, err
 	}
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"cert.cn":   cert.CN,
 		"cert.role": cert.Role,
 		"method":    "issueRenewCertificate",
@@ -405,7 +403,7 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 // the root of trust for the swarm. Clients should be using the CA hash to verify if they weren't target to
 // a MiTM. If they fail to do so, node bootstrap works with TOFU semantics.
 func (s *Server) GetRootCACertificate(ctx context.Context, request *api.GetRootCACertificateRequest) (*api.GetRootCACertificateResponse, error) {
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"method": "GetRootCACertificate",
 	})
 
@@ -478,7 +476,7 @@ func (s *Server) Run(ctx context.Context) error {
 	s.mu.Unlock()
 
 	if err != nil {
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"method": "(*Server).Run",
 		}).WithError(err).Errorf("snapshot store view failed")
 		return err
@@ -490,7 +488,7 @@ func (s *Server) Run(ctx context.Context) error {
 	if err := s.reconcileNodeCertificates(ctx, nodes); err != nil {
 		// We don't return here because that means the Run loop would
 		// never run. Log an error instead.
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"method": "(*Server).Run",
 		}).WithError(err).Errorf("error attempting to reconcile certificates")
 	}
@@ -669,7 +667,7 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster, reconci
 	firstSeenCluster := s.lastSeenClusterRootCA == nil && s.lastSeenExternalCAs == nil
 	rootCAChanged := len(rCA.CACert) != 0 && !equality.RootCAEqualStable(s.lastSeenClusterRootCA, rCA)
 	externalCAChanged := !equality.ExternalCAsEqualStable(s.lastSeenExternalCAs, cluster.Spec.CAConfig.ExternalCAs)
-	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(logrus.Fields{
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
 		"cluster.id": cluster.ID,
 		"method":     "(*Server).UpdateRootCA",
 	}))
@@ -695,7 +693,7 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster, reconci
 			log.G(ctx).Warn("no certificate expiration specified, using default")
 		}
 		// Attempt to update our local RootCA with the new parameters
-		updatedRootCA, err := RootCAFromAPI(ctx, rCA, expiry)
+		updatedRootCA, err := RootCAFromAPI(rCA, expiry)
 		if err != nil {
 			return errors.Wrap(err, "invalid Root CA object in cluster")
 		}
@@ -774,7 +772,7 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 	// Convert the role from proto format
 	role, err := ParseRole(node.Certificate.Role)
 	if err != nil {
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"node.id": node.ID,
 			"method":  "(*Server).signNodeCert",
 		}).WithError(err).Errorf("failed to parse role")
@@ -799,7 +797,7 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 	}
 
 	if err != nil {
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"node.id": node.ID,
 			"method":  "(*Server).signNodeCert",
 		}).WithError(err).Errorf("failed to sign CSR")
@@ -831,7 +829,7 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 			return store.UpdateNode(tx, node)
 		})
 		if err != nil {
-			log.G(ctx).WithFields(logrus.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"node.id": nodeID,
 				"method":  "(*Server).signNodeCert",
 			}).WithError(err).Errorf("transaction failed when setting state to FAILED")
@@ -859,7 +857,7 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 			return err
 		})
 		if err == nil {
-			log.G(ctx).WithFields(logrus.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"node.id":   node.ID,
 				"node.role": node.Certificate.Role,
 				"method":    "(*Server).signNodeCert",
@@ -871,7 +869,7 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 			continue
 		}
 
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"node.id": nodeID,
 			"method":  "(*Server).signNodeCert",
 		}).WithError(err).Errorf("transaction failed")
@@ -901,7 +899,7 @@ func isFinalState(status api.IssuanceStatus) bool {
 }
 
 // RootCAFromAPI creates a RootCA object from an api.RootCA object
-func RootCAFromAPI(ctx context.Context, apiRootCA *api.RootCA, expiry time.Duration) (RootCA, error) {
+func RootCAFromAPI(apiRootCA *api.RootCA, expiry time.Duration) (RootCA, error) {
 	var intermediates []byte
 	signingCert := apiRootCA.CACert
 	signingKey := apiRootCA.CAKey

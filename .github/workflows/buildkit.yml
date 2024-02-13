@@ -9,11 +9,12 @@ on:
   push:
     branches:
       - 'master'
-      - '[0-9]+.[0-9]{2}'
+      - '[0-9]+.[0-9]+'
   pull_request:
 
 env:
-  BUNDLES_OUTPUT: ./bundles
+  GO_VERSION: "1.21.6"
+  DESTDIR: ./build
 
 jobs:
   validate-dco:
@@ -26,79 +27,91 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v4
         with:
           targets: binary
       -
         name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: binary
-          path: ${{ env.BUNDLES_OUTPUT }}
+          path: ${{ env.DESTDIR }}
           if-no-files-found: error
           retention-days: 1
 
   test:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 120
     needs:
       - build
-    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
+        worker:
+          - dockerd
+          - dockerd-containerd
         pkg:
-          - ./client
-          - ./cmd/buildctl
-          - ./solver
-          - ./frontend
-          - ./frontend/dockerfile
+          - client
+          - cmd/buildctl
+          - solver
+          - frontend
+          - frontend/dockerfile
         typ:
           - integration
-        include:
-          - pkg: ./...
-            skip-integration-tests: 1
     steps:
       -
+        name: Prepare
+        run: |
+          disabledFeatures="cache_backend_azblob,cache_backend_s3"
+          if [ "${{ matrix.worker }}" = "dockerd" ]; then
+            disabledFeatures="${disabledFeatures},merge_diff"
+          fi
+          echo "BUILDKIT_TEST_DISABLE_FEATURES=${disabledFeatures}" >> $GITHUB_ENV
+      # Expose `ACTIONS_RUNTIME_TOKEN` and `ACTIONS_CACHE_URL`, which is used
+      # in BuildKit's test suite to skip/unskip cache exporters:
+      # https://github.com/moby/buildkit/blob/567a99433ca23402d5e9b9f9124005d2e59b8861/client/client_test.go#L5407-L5411
+      -
+        name: Expose GitHub Runtime
+        uses: crazy-max/ghaction-github-runtime@v3
+      -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: moby
       -
         name: BuildKit ref
         run: |
-          ./hack/go-mod-prepare.sh
-          # FIXME(thaJeztah) temporarily overriding version to use for tests; see https://github.com/moby/moby/pull/44028#issuecomment-1225964929
-          # echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
-          echo "BUILDKIT_REF=8e2d9b9006caadb74c1745608889a37ba139acc1" >> $GITHUB_ENV
+          echo "$(./hack/buildkit-ref)" >> $GITHUB_ENV
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          repository: "moby/buildkit"
+          repository: ${{ env.BUILDKIT_REPO }}
           ref: ${{ env.BUILDKIT_REF }}
           path: buildkit
       -
         name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Download binary artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: binary
           path: ./buildkit/build/moby/
       -
         name: Update daemon.json
         run: |
-          sudo rm /etc/docker/daemon.json
+          sudo rm -f /etc/docker/daemon.json
           sudo service docker restart
           docker version
           docker info
@@ -109,8 +122,7 @@ jobs:
         env:
           CONTEXT: "."
           TEST_DOCKERD: "1"
-          TEST_DOCKERD_BINARY: "./build/moby/binary-daemon/dockerd"
-          TESTPKGS: "${{ matrix.pkg }}"
-          TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=dockerd$"
-          SKIP_INTEGRATION_TESTS: "${{ matrix.skip-integration-tests }}"
+          TEST_DOCKERD_BINARY: "./build/moby/dockerd"
+          TESTPKGS: "./${{ matrix.pkg }}"
+          TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=${{ matrix.worker }}$"
         working-directory: buildkit

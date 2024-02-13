@@ -108,7 +108,6 @@ func normalizeWorkdirWindows(current string, requested string) (string, error) {
 //
 // The commands when this function is called are RUN, ENTRYPOINT and CMD.
 func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container.Config, os, command, original string) ([]string, bool) {
-
 	// Make sure we return an empty array if there is no cmd.CmdLine
 	if len(cmd.CmdLine) == 0 {
 		return []string{}, runConfig.ArgsEscaped

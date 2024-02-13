@@ -56,6 +56,7 @@ func DefaultProfile() *Seccomp {
 					"alarm",
 					"bind",
 					"brk",
+					"cachestat", // kernel v6.5, libseccomp v2.5.5
 					"capget",
 					"capset",
 					"chdir",
@@ -101,6 +102,7 @@ func DefaultProfile() *Seccomp {
 					"fchdir",
 					"fchmod",
 					"fchmodat",
+					"fchmodat2", // kernel v6.6, libseccomp v2.5.5
 					"fchown",
 					"fchown32",
 					"fchownat",
@@ -122,8 +124,11 @@ func DefaultProfile() *Seccomp {
 					"ftruncate",
 					"ftruncate64",
 					"futex",
+					"futex_requeue", // kernel v6.7, libseccomp v2.5.5
 					"futex_time64",
+					"futex_wait", // kernel v6.7, libseccomp v2.5.5
 					"futex_waitv",
+					"futex_wake", // kernel v6.7, libseccomp v2.5.5
 					"futimesat",
 					"getcpu",
 					"getcwd",
@@ -175,9 +180,6 @@ func DefaultProfile() *Seccomp {
 					"ioprio_set",
 					"io_setup",
 					"io_submit",
-					"io_uring_enter",
-					"io_uring_register",
-					"io_uring_setup",
 					"ipc",
 					"kill",
 					"landlock_add_rule",
@@ -198,6 +200,7 @@ func DefaultProfile() *Seccomp {
 					"lstat",
 					"lstat64",
 					"madvise",
+					"map_shadow_stack", // kernel v6.6, libseccomp v2.5.5
 					"membarrier",
 					"memfd_create",
 					"memfd_secret",
@@ -229,6 +232,7 @@ func DefaultProfile() *Seccomp {
 					"munlock",
 					"munlockall",
 					"munmap",
+					"name_to_handle_at",
 					"nanosleep",
 					"newfstatat",
 					"_newselect",
@@ -348,7 +352,6 @@ func DefaultProfile() *Seccomp {
 					"signalfd4",
 					"sigprocmask",
 					"sigreturn",
-					"socket",
 					"socketcall",
 					"socketpair",
 					"splice",
@@ -413,6 +416,19 @@ func DefaultProfile() *Seccomp {
 			},
 			Includes: &Filter{
 				MinKernel: &KernelVersion{4, 8},
+			},
+		},
+		{
+			LinuxSyscall: specs.LinuxSyscall{
+				Names:  []string{"socket"},
+				Action: specs.ActAllow,
+				Args: []specs.LinuxSeccompArg{
+					{
+						Index: 0,
+						Value: unix.AF_VSOCK,
+						Op:    specs.OpNotEqual,
+					},
+				},
 			},
 		},
 		{
@@ -580,7 +596,6 @@ func DefaultProfile() *Seccomp {
 					"mount",
 					"mount_setattr",
 					"move_mount",
-					"name_to_handle_at",
 					"open_tree",
 					"perf_event_open",
 					"quotactl",
@@ -759,6 +774,7 @@ func DefaultProfile() *Seccomp {
 					"get_mempolicy",
 					"mbind",
 					"set_mempolicy",
+					"set_mempolicy_home_node", // kernel v5.17, libseccomp v2.5.4
 				},
 				Action: specs.ActAllow,
 			},

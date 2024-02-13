@@ -3,10 +3,10 @@ package local
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -111,7 +111,7 @@ func BenchmarkLogWrite(b *testing.B) {
 		bytes.Repeat([]byte("a long string"), 100),
 		bytes.Repeat([]byte("a really long string"), 10000),
 	} {
-		b.Run(fmt.Sprintf("%d", len(data)), func(b *testing.B) {
+		b.Run(strconv.Itoa(len(data)), func(b *testing.B) {
 			entry := &logdriver.LogEntry{Line: data, Source: "stdout", TimeNano: t.UnixNano()}
 			b.SetBytes(int64(entry.Size() + encodeBinaryLen + encodeBinaryLen))
 			b.ResetTimer()

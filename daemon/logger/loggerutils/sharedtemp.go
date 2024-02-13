@@ -138,7 +138,6 @@ func (c *sharedTempFileConverter) openExisting(st stfcState, id stfID, v sharedT
 
 	res := <-wait
 	return res.fr, res.err
-
 }
 
 func (c *sharedTempFileConverter) convert(f *os.File) (converted *os.File, size int64, err error) {

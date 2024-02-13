@@ -3,80 +3,92 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
-	"net"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/containerd/containerd/platforms"
-	"github.com/docker/docker/api/types"
+	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
-	imagetypes "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/events"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/runconfig"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	archvariant "github.com/tonistiigi/go-archvariant"
 )
 
 type createOpts struct {
-	params                  types.ContainerCreateConfig
+	params                  backend.ContainerCreateConfig
 	managed                 bool
 	ignoreImagesArgsEscaped bool
 }
 
 // CreateManagedContainer creates a container that is managed by a Service
-func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
-	return daemon.containerCreate(createOpts{
-		params:                  params,
-		managed:                 true,
-		ignoreImagesArgsEscaped: false})
+func (daemon *Daemon) CreateManagedContainer(ctx context.Context, params backend.ContainerCreateConfig) (containertypes.CreateResponse, error) {
+	return daemon.containerCreate(ctx, daemon.config(), createOpts{
+		params:  params,
+		managed: true,
+	})
 }
 
 // ContainerCreate creates a regular container
-func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
-	return daemon.containerCreate(createOpts{
-		params:                  params,
-		managed:                 false,
-		ignoreImagesArgsEscaped: false})
+func (daemon *Daemon) ContainerCreate(ctx context.Context, params backend.ContainerCreateConfig) (containertypes.CreateResponse, error) {
+	return daemon.containerCreate(ctx, daemon.config(), createOpts{
+		params: params,
+	})
 }
 
 // ContainerCreateIgnoreImagesArgsEscaped creates a regular container. This is called from the builder RUN case
 // and ensures that we do not take the images ArgsEscaped
-func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
-	return daemon.containerCreate(createOpts{
+func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, params backend.ContainerCreateConfig) (containertypes.CreateResponse, error) {
+	return daemon.containerCreate(ctx, daemon.config(), createOpts{
 		params:                  params,
-		managed:                 false,
-		ignoreImagesArgsEscaped: true})
+		ignoreImagesArgsEscaped: true,
+	})
 }
 
-func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateResponse, error) {
-	ctx := context.TODO()
+func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStore, opts createOpts) (containertypes.CreateResponse, error) {
 	start := time.Now()
 	if opts.params.Config == nil {
-		return containertypes.CreateResponse{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
+		return containertypes.CreateResponse{}, errdefs.InvalidParameter(runconfig.ErrEmptyConfig)
+	}
+	// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
+	if opts.params.HostConfig != nil && opts.params.HostConfig.LogConfig.Type == "logentries" {
+		return containertypes.CreateResponse{}, errdefs.InvalidParameter(fmt.Errorf("the logentries logging driver has been deprecated and removed"))
 	}
 
-	warnings, err := daemon.verifyContainerSettings(opts.params.HostConfig, opts.params.Config, false)
+	// Normalize some defaults. Doing this "ad-hoc" here for now, as there's
+	// only one field to migrate, but we should consider having a better
+	// location for this (and decide where in the flow would be most appropriate).
+	//
+	// TODO(thaJeztah): we should have a more visible, more canonical location for this.
+	if opts.params.HostConfig != nil && opts.params.HostConfig.RestartPolicy.Name == "" {
+		// Set the default restart-policy ("none") if no restart-policy was set.
+		opts.params.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
+	}
+
+	warnings, err := daemon.verifyContainerSettings(daemonCfg, opts.params.HostConfig, opts.params.Config, false)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
 	if opts.params.Platform == nil && opts.params.Config.Image != "" {
-		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, imagetypes.GetImageOpts{Platform: opts.params.Platform})
+		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{Platform: opts.params.Platform})
 		if err != nil {
 			return containertypes.CreateResponse{}, err
 		}
 		if img != nil {
 			p := maximumSpec()
-			imgPlat := v1.Platform{
+			imgPlat := ocispec.Platform{
 				OS:           img.OS,
 				Architecture: img.Architecture,
 				Variant:      img.Variant,
@@ -88,7 +100,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateRes
 		}
 	}
 
-	err = verifyNetworkingConfig(opts.params.NetworkingConfig)
+	err = daemon.validateNetworkingConfig(opts.params.NetworkingConfig)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
@@ -96,12 +108,12 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateRes
 	if opts.params.HostConfig == nil {
 		opts.params.HostConfig = &containertypes.HostConfig{}
 	}
-	err = daemon.adaptContainerSettings(opts.params.HostConfig, opts.params.AdjustCPUShares)
+	err = daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	ctr, err := daemon.create(opts)
+	ctr, err := daemon.create(ctx, &daemonCfg.Config, opts)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, err
 	}
@@ -115,20 +127,30 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateRes
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr error) {
-	ctx := context.TODO()
+func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts createOpts) (retC *container.Container, retErr error) {
 	var (
-		ctr   *container.Container
-		img   *image.Image
-		imgID image.ID
-		err   error
-		os    = runtime.GOOS
+		ctr         *container.Container
+		img         *image.Image
+		imgManifest *ocispec.Descriptor
+		imgID       image.ID
+		err         error
+		os          = runtime.GOOS
 	)
 
 	if opts.params.Config.Image != "" {
-		img, err = daemon.imageService.GetImage(ctx, opts.params.Config.Image, imagetypes.GetImageOpts{Platform: opts.params.Platform})
+		img, err = daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{Platform: opts.params.Platform})
 		if err != nil {
 			return nil, err
+		}
+		// when using the containerd store, we need to get the actual
+		// image manifest so we can store it and later deterministically
+		// resolve the specific image the container is running
+		if daemon.UsesSnapshotter() {
+			imgManifest, err = daemon.imageService.GetImageManifest(ctx, opts.params.Config.Image, backend.GetImageOpts{Platform: opts.params.Platform})
+			if err != nil {
+				log.G(ctx).WithError(err).Error("failed to find image manifest")
+				return nil, err
+			}
 		}
 		os = img.OperatingSystem()
 		imgID = img.ID()
@@ -157,34 +179,41 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	}
 	defer func() {
 		if retErr != nil {
-			err = daemon.cleanupContainer(ctr, types.ContainerRmConfig{
+			err = daemon.cleanupContainer(ctr, backend.ContainerRmConfig{
 				ForceRemove:  true,
 				RemoveVolume: true,
 			})
 			if err != nil {
-				logrus.WithError(err).Error("failed to cleanup container on create error")
+				log.G(ctx).WithError(err).Error("failed to cleanup container on create error")
 			}
 		}
 	}()
 
-	if err := daemon.setSecurityOptions(ctr, opts.params.HostConfig); err != nil {
+	if err := daemon.setSecurityOptions(daemonCfg, ctr, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
 
 	ctr.HostConfig.StorageOpt = opts.params.HostConfig.StorageOpt
+	ctr.ImageManifest = imgManifest
 
-	// Set RWLayer for container after mount labels have been set
-	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
-	if err != nil {
-		return nil, errdefs.System(err)
+	if daemon.UsesSnapshotter() {
+		if err := daemon.imageService.PrepareSnapshot(ctx, ctr.ID, opts.params.Config.Image, opts.params.Platform, setupInitLayer(daemon.idMapping)); err != nil {
+			return nil, err
+		}
+	} else {
+		// Set RWLayer for container after mount labels have been set
+		rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
+		if err != nil {
+			return nil, errdefs.System(err)
+		}
+		ctr.RWLayer = rwLayer
 	}
-	ctr.RWLayer = rwLayer
 
 	current := idtools.CurrentIdentity()
-	if err := idtools.MkdirAndChown(ctr.Root, 0710, idtools.Identity{UID: current.UID, GID: daemon.IdentityMapping().RootPair().GID}); err != nil {
+	if err := idtools.MkdirAndChown(ctr.Root, 0o710, idtools.Identity{UID: current.UID, GID: daemon.IdentityMapping().RootPair().GID}); err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAndChown(ctr.CheckpointDir(), 0700, current); err != nil {
+	if err := idtools.MkdirAndChown(ctr.CheckpointDir(), 0o700, current); err != nil {
 		return nil, err
 	}
 
@@ -192,7 +221,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 		return nil, err
 	}
 
-	if err := daemon.createContainerOSSpecificSettings(ctr, opts.params.Config, opts.params.HostConfig); err != nil {
+	if err := daemon.createContainerOSSpecificSettings(ctx, ctr, opts.params.Config, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
 
@@ -209,7 +238,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 		return nil, err
 	}
 	stateCtr.set(ctr.ID, "stopped")
-	daemon.LogContainerEvent(ctr, "create")
+	daemon.LogContainerEvent(ctr, events.ActionCreate)
 	return ctr, nil
 }
 
@@ -289,48 +318,40 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 		config.Entrypoint = nil
 	}
 	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
-		return fmt.Errorf("No command specified")
+		return fmt.Errorf("no command specified")
 	}
 	return nil
 }
 
-// Checks if the client set configurations for more than one network while creating a container
-// Also checks if the IPAMConfig is valid
-func verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
-	if nwConfig == nil || len(nwConfig.EndpointsConfig) == 0 {
+// validateNetworkingConfig checks whether a container's NetworkingConfig is valid.
+func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
+	if nwConfig == nil {
 		return nil
 	}
-	if len(nwConfig.EndpointsConfig) > 1 {
-		l := make([]string, 0, len(nwConfig.EndpointsConfig))
-		for k := range nwConfig.EndpointsConfig {
-			l = append(l, k)
-		}
-		return errors.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
-	}
 
+	var errs []error
 	for k, v := range nwConfig.EndpointsConfig {
 		if v == nil {
-			return errdefs.InvalidParameter(errors.Errorf("no EndpointSettings for %s", k))
+			errs = append(errs, fmt.Errorf("invalid config for network %s: EndpointsConfig is nil", k))
+			continue
 		}
-		if v.IPAMConfig != nil {
-			if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
-				return errors.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address)
-			}
-			if v.IPAMConfig.IPv6Address != "" {
-				n := net.ParseIP(v.IPAMConfig.IPv6Address)
-				// if the address is an invalid network address (ParseIP == nil) or if it is
-				// an IPv4 address (To4() != nil), then it is an invalid IPv6 address
-				if n == nil || n.To4() != nil {
-					return errors.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address)
-				}
-			}
+
+		// The referenced network k might not exist when the container is created, so just ignore the error in that case.
+		nw, _ := daemon.FindNetwork(k)
+		if err := validateEndpointSettings(nw, k, v); err != nil {
+			errs = append(errs, fmt.Errorf("invalid config for network %s: %w", k, err))
 		}
 	}
+
+	if len(errs) > 0 {
+		return errdefs.InvalidParameter(multierror.Join(errs...))
+	}
+
 	return nil
 }
 
 // maximumSpec returns the distribution platform with maximum compatibility for the current node.
-func maximumSpec() v1.Platform {
+func maximumSpec() ocispec.Platform {
 	p := platforms.DefaultSpec()
 	if p.Architecture == "amd64" {
 		p.Variant = archvariant.AMD64Variant()

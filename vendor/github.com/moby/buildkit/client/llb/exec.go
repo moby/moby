@@ -192,12 +192,13 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 	}
 
 	meta := &pb.Meta{
-		Args:         args,
-		Env:          env.ToArray(),
-		Cwd:          cwd,
-		User:         user,
-		Hostname:     hostname,
-		CgroupParent: cgrpParent,
+		Args:                      args,
+		Env:                       env.ToArray(),
+		Cwd:                       cwd,
+		User:                      user,
+		Hostname:                  hostname,
+		CgroupParent:              cgrpParent,
+		RemoveMountStubsRecursive: true,
 	}
 
 	extraHosts, err := getExtraHosts(e.base)(ctx, c)
@@ -338,7 +339,7 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 			inputIndex = pb.Empty
 		}
 
-		outputIndex := pb.OutputIndex(-1)
+		outputIndex := pb.SkipOutput
 		if !m.noOutput && !m.readonly && m.cacheID == "" && !m.tmpfs {
 			outputIndex = pb.OutputIndex(outIndex)
 			outIndex++
@@ -648,6 +649,7 @@ type SSHInfo struct {
 	Optional bool
 }
 
+// AddSecret is a RunOption that adds a secret to the exec.
 func AddSecret(dest string, opts ...SecretOption) RunOption {
 	return runOptionFunc(func(ei *ExecInfo) {
 		s := &SecretInfo{ID: dest, Target: dest, Mode: 0400}
@@ -695,6 +697,7 @@ func SecretAsEnv(v bool) SecretOption {
 	})
 }
 
+// SecretFileOpt sets the secret's target file uid, gid and permissions.
 func SecretFileOpt(uid, gid, mode int) SecretOption {
 	return secretOptionFunc(func(si *SecretInfo) {
 		si.UID = uid
@@ -703,12 +706,15 @@ func SecretFileOpt(uid, gid, mode int) SecretOption {
 	})
 }
 
+// ReadonlyRootFS sets the execs's root filesystem to be read-only.
 func ReadonlyRootFS() RunOption {
 	return runOptionFunc(func(ei *ExecInfo) {
 		ei.ReadonlyRootFS = true
 	})
 }
 
+// WithProxy is a RunOption that sets the proxy environment variables in the resulting exec.
+// For example `HTTP_PROXY` is a standard environment variable for unix systems that programs may read.
 func WithProxy(ps ProxyEnv) RunOption {
 	return runOptionFunc(func(ei *ExecInfo) {
 		ei.ProxyEnv = &ps

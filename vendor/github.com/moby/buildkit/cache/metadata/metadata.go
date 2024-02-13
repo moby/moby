@@ -2,12 +2,13 @@ package metadata
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"strings"
 	"sync"
 
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -80,7 +81,7 @@ func (s *Store) Probe(index string) (bool, error) {
 	return exists, errors.WithStack(err)
 }
 
-func (s *Store) Search(index string) ([]*StorageItem, error) {
+func (s *Store) Search(ctx context.Context, index string) ([]*StorageItem, error) {
 	var out []*StorageItem
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(indexBucket))
@@ -100,7 +101,7 @@ func (s *Store) Search(index string) ([]*StorageItem, error) {
 				k, _ = c.Next()
 				b := main.Bucket([]byte(itemID))
 				if b == nil {
-					logrus.Errorf("index pointing to missing record %s", itemID)
+					bklog.G(ctx).Errorf("index pointing to missing record %s", itemID)
 					continue
 				}
 				si, err := newStorageItem(itemID, b, s)
@@ -317,6 +318,9 @@ func (s *StorageItem) Queue(fn func(b *bolt.Bucket) error) {
 func (s *StorageItem) Commit() error {
 	s.qmu.Lock()
 	defer s.qmu.Unlock()
+	if len(s.queue) == 0 {
+		return nil
+	}
 	return errors.WithStack(s.Update(func(b *bolt.Bucket) error {
 		for _, fn := range s.queue {
 			if err := fn(b); err != nil {

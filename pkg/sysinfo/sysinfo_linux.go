@@ -1,16 +1,18 @@
 package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
 	"strings"
 	"sync"
 
-	"github.com/containerd/cgroups"
+	"github.com/containerd/cgroups/v3"
+	"github.com/containerd/cgroups/v3/cgroup1"
 	"github.com/containerd/containerd/pkg/seccomp"
+	"github.com/containerd/log"
 	"github.com/moby/sys/mountinfo"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -40,7 +42,7 @@ func findCgroupV1Mountpoints() (map[string]string, error) {
 		return nil, err
 	}
 
-	allSubsystems, err := cgroups.ParseCgroupFile("/proc/self/cgroup")
+	allSubsystems, err := cgroup1.ParseCgroupFile("/proc/self/cgroup")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse cgroup information: %v", err)
 	}
@@ -106,7 +108,7 @@ func newV1() *SysInfo {
 
 	sysInfo.cgMounts, err = findCgroupV1Mountpoints()
 	if err != nil {
-		logrus.Warn(err)
+		log.G(context.TODO()).Warn(err)
 	} else {
 		ops = append(ops,
 			applyMemoryCgroupInfo,

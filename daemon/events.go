@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
@@ -13,81 +14,61 @@ import (
 	"github.com/docker/docker/libnetwork"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
-	"github.com/sirupsen/logrus"
-)
-
-var (
-	clusterEventAction = map[swarmapi.WatchActionKind]string{
-		swarmapi.WatchActionKindCreate: "create",
-		swarmapi.WatchActionKindUpdate: "update",
-		swarmapi.WatchActionKindRemove: "remove",
-	}
 )
 
 // LogContainerEvent generates an event related to a container with only the default attributes.
-func (daemon *Daemon) LogContainerEvent(container *container.Container, action string) {
+func (daemon *Daemon) LogContainerEvent(container *container.Container, action events.Action) {
 	daemon.LogContainerEventWithAttributes(container, action, map[string]string{})
 }
 
 // LogContainerEventWithAttributes generates an event related to a container with specific given attributes.
-func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Container, action string, attributes map[string]string) {
+func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Container, action events.Action, attributes map[string]string) {
 	copyAttributes(attributes, container.Config.Labels)
 	if container.Config.Image != "" {
 		attributes["image"] = container.Config.Image
 	}
 	attributes["name"] = strings.TrimLeft(container.Name, "/")
-
-	actor := events.Actor{
+	daemon.EventsService.Log(action, events.ContainerEventType, events.Actor{
 		ID:         container.ID,
 		Attributes: attributes,
-	}
-	daemon.EventsService.Log(action, events.ContainerEventType, actor)
+	})
 }
 
 // LogPluginEvent generates an event related to a plugin with only the default attributes.
-func (daemon *Daemon) LogPluginEvent(pluginID, refName, action string) {
-	daemon.LogPluginEventWithAttributes(pluginID, refName, action, map[string]string{})
-}
-
-// LogPluginEventWithAttributes generates an event related to a plugin with specific given attributes.
-func (daemon *Daemon) LogPluginEventWithAttributes(pluginID, refName, action string, attributes map[string]string) {
-	attributes["name"] = refName
-	actor := events.Actor{
+func (daemon *Daemon) LogPluginEvent(pluginID, refName string, action events.Action) {
+	daemon.EventsService.Log(action, events.PluginEventType, events.Actor{
 		ID:         pluginID,
-		Attributes: attributes,
-	}
-	daemon.EventsService.Log(action, events.PluginEventType, actor)
+		Attributes: map[string]string{"name": refName},
+	})
 }
 
 // LogVolumeEvent generates an event related to a volume.
-func (daemon *Daemon) LogVolumeEvent(volumeID, action string, attributes map[string]string) {
-	actor := events.Actor{
+func (daemon *Daemon) LogVolumeEvent(volumeID string, action events.Action, attributes map[string]string) {
+	daemon.EventsService.Log(action, events.VolumeEventType, events.Actor{
 		ID:         volumeID,
 		Attributes: attributes,
-	}
-	daemon.EventsService.Log(action, events.VolumeEventType, actor)
+	})
 }
 
 // LogNetworkEvent generates an event related to a network with only the default attributes.
-func (daemon *Daemon) LogNetworkEvent(nw libnetwork.Network, action string) {
+func (daemon *Daemon) LogNetworkEvent(nw *libnetwork.Network, action events.Action) {
 	daemon.LogNetworkEventWithAttributes(nw, action, map[string]string{})
 }
 
 // LogNetworkEventWithAttributes generates an event related to a network with specific given attributes.
-func (daemon *Daemon) LogNetworkEventWithAttributes(nw libnetwork.Network, action string, attributes map[string]string) {
+func (daemon *Daemon) LogNetworkEventWithAttributes(nw *libnetwork.Network, action events.Action, attributes map[string]string) {
 	attributes["name"] = nw.Name()
 	attributes["type"] = nw.Type()
-	actor := events.Actor{
+	daemon.EventsService.Log(action, events.NetworkEventType, events.Actor{
 		ID:         nw.ID(),
 		Attributes: attributes,
-	}
-	daemon.EventsService.Log(action, events.NetworkEventType, actor)
+	})
 }
 
 // LogDaemonEventWithAttributes generates an event related to the daemon itself with specific given attributes.
-func (daemon *Daemon) LogDaemonEventWithAttributes(action string, attributes map[string]string) {
+func (daemon *Daemon) LogDaemonEventWithAttributes(action events.Action, attributes map[string]string) {
 	if daemon.EventsService != nil {
-		if name := hostName(); name != "" {
+		if name := hostName(context.TODO()); name != "" {
 			attributes["name"] = name
 		}
 		daemon.EventsService.Log(action, events.DaemonEventType, events.Actor{
@@ -99,8 +80,7 @@ func (daemon *Daemon) LogDaemonEventWithAttributes(action string, attributes map
 
 // SubscribeToEvents returns the currently record of events, a channel to stream new events from, and a function to cancel the stream of events.
 func (daemon *Daemon) SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{}) {
-	ef := daemonevents.NewFilter(filter)
-	return daemon.EventsService.SubscribeTopic(since, until, ef)
+	return daemon.EventsService.SubscribeTopic(since, until, daemonevents.NewFilter(filter))
 }
 
 // UnsubscribeFromEvents stops the event subscription for a client by closing the
@@ -127,7 +107,7 @@ func (daemon *Daemon) ProcessClusterNotifications(ctx context.Context, watchStre
 			return
 		case message, ok := <-watchStream:
 			if !ok {
-				logrus.Debug("cluster event channel has stopped")
+				log.G(ctx).Debug("cluster event channel has stopped")
 				return
 			}
 			daemon.generateClusterEvent(message)
@@ -138,7 +118,7 @@ func (daemon *Daemon) ProcessClusterNotifications(ctx context.Context, watchStre
 func (daemon *Daemon) generateClusterEvent(msg *swarmapi.WatchMessage) {
 	for _, event := range msg.Events {
 		if event.Object == nil {
-			logrus.Errorf("event without object: %v", event)
+			log.G(context.TODO()).Errorf("event without object: %v", event)
 			continue
 		}
 		switch v := event.Object.GetObject().(type) {
@@ -147,39 +127,33 @@ func (daemon *Daemon) generateClusterEvent(msg *swarmapi.WatchMessage) {
 		case *swarmapi.Object_Service:
 			daemon.logServiceEvent(event.Action, v.Service, event.OldObject.GetService())
 		case *swarmapi.Object_Network:
-			daemon.logNetworkEvent(event.Action, v.Network, event.OldObject.GetNetwork())
+			daemon.logNetworkEvent(event.Action, v.Network)
 		case *swarmapi.Object_Secret:
-			daemon.logSecretEvent(event.Action, v.Secret, event.OldObject.GetSecret())
+			daemon.logSecretEvent(event.Action, v.Secret)
 		case *swarmapi.Object_Config:
-			daemon.logConfigEvent(event.Action, v.Config, event.OldObject.GetConfig())
+			daemon.logConfigEvent(event.Action, v.Config)
 		default:
-			logrus.Warnf("unrecognized event: %v", event)
+			log.G(context.TODO()).Warnf("unrecognized event: %v", event)
 		}
 	}
 }
 
-func (daemon *Daemon) logNetworkEvent(action swarmapi.WatchActionKind, net *swarmapi.Network, oldNet *swarmapi.Network) {
-	attributes := map[string]string{
+func (daemon *Daemon) logNetworkEvent(action swarmapi.WatchActionKind, net *swarmapi.Network) {
+	daemon.logClusterEvent(action, net.ID, events.NetworkEventType, eventTimestamp(net.Meta, action), map[string]string{
 		"name": net.Spec.Annotations.Name,
-	}
-	eventTime := eventTimestamp(net.Meta, action)
-	daemon.logClusterEvent(action, net.ID, "network", attributes, eventTime)
+	})
 }
 
-func (daemon *Daemon) logSecretEvent(action swarmapi.WatchActionKind, secret *swarmapi.Secret, oldSecret *swarmapi.Secret) {
-	attributes := map[string]string{
+func (daemon *Daemon) logSecretEvent(action swarmapi.WatchActionKind, secret *swarmapi.Secret) {
+	daemon.logClusterEvent(action, secret.ID, events.SecretEventType, eventTimestamp(secret.Meta, action), map[string]string{
 		"name": secret.Spec.Annotations.Name,
-	}
-	eventTime := eventTimestamp(secret.Meta, action)
-	daemon.logClusterEvent(action, secret.ID, "secret", attributes, eventTime)
+	})
 }
 
-func (daemon *Daemon) logConfigEvent(action swarmapi.WatchActionKind, config *swarmapi.Config, oldConfig *swarmapi.Config) {
-	attributes := map[string]string{
+func (daemon *Daemon) logConfigEvent(action swarmapi.WatchActionKind, config *swarmapi.Config) {
+	daemon.logClusterEvent(action, config.ID, events.ConfigEventType, eventTimestamp(config.Meta, action), map[string]string{
 		"name": config.Spec.Annotations.Name,
-	}
-	eventTime := eventTimestamp(config.Meta, action)
-	daemon.logClusterEvent(action, config.ID, "config", attributes, eventTime)
+	})
 }
 
 func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node *swarmapi.Node, oldNode *swarmapi.Node) {
@@ -224,7 +198,7 @@ func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node *swarma
 		}
 	}
 
-	daemon.logClusterEvent(action, node.ID, "node", attributes, eventTime)
+	daemon.logClusterEvent(action, node.ID, events.NodeEventType, eventTime, attributes)
 }
 
 func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *swarmapi.Service, oldService *swarmapi.Service) {
@@ -245,7 +219,7 @@ func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *
 				}
 			} else {
 				// This should not happen.
-				logrus.Errorf("service %s runtime changed from %T to %T", service.Spec.Annotations.Name, oldService.Spec.Task.GetRuntime(), service.Spec.Task.GetRuntime())
+				log.G(context.TODO()).Errorf("service %s runtime changed from %T to %T", service.Spec.Annotations.Name, oldService.Spec.Task.GetRuntime(), service.Spec.Task.GetRuntime())
 			}
 		}
 		// check replicated count change
@@ -259,7 +233,7 @@ func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *
 				}
 			} else {
 				// This should not happen.
-				logrus.Errorf("service %s mode changed from %T to %T", service.Spec.Annotations.Name, oldService.Spec.GetMode(), service.Spec.GetMode())
+				log.G(context.TODO()).Errorf("service %s mode changed from %T to %T", service.Spec.Annotations.Name, oldService.Spec.GetMode(), service.Spec.GetMode())
 			}
 		}
 		if service.UpdateStatus != nil {
@@ -271,24 +245,27 @@ func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *
 			}
 		}
 	}
-	daemon.logClusterEvent(action, service.ID, "service", attributes, eventTime)
+	daemon.logClusterEvent(action, service.ID, events.ServiceEventType, eventTime, attributes)
 }
 
-func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id, eventType string, attributes map[string]string, eventTime time.Time) {
-	actor := events.Actor{
-		ID:         id,
-		Attributes: attributes,
-	}
+var clusterEventAction = map[swarmapi.WatchActionKind]events.Action{
+	swarmapi.WatchActionKindCreate: events.ActionCreate,
+	swarmapi.WatchActionKindUpdate: events.ActionUpdate,
+	swarmapi.WatchActionKindRemove: events.ActionRemove,
+}
 
-	jm := events.Message{
-		Action:   clusterEventAction[action],
-		Type:     eventType,
-		Actor:    actor,
+func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id string, eventType events.Type, eventTime time.Time, attributes map[string]string) {
+	daemon.EventsService.PublishMessage(events.Message{
+		Action: clusterEventAction[action],
+		Type:   eventType,
+		Actor: events.Actor{
+			ID:         id,
+			Attributes: attributes,
+		},
 		Scope:    "swarm",
 		Time:     eventTime.UTC().Unix(),
 		TimeNano: eventTime.UTC().UnixNano(),
-	}
-	daemon.EventsService.PublishMessage(jm)
+	})
 }
 
 func eventTimestamp(meta swarmapi.Meta, action swarmapi.WatchActionKind) time.Time {

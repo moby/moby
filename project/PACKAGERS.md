@@ -89,19 +89,14 @@ To disable btrfs:
 export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs'
 ```
 
-To disable devicemapper:
+To disable zfs:
 ```bash
-export DOCKER_BUILDTAGS='exclude_graphdriver_devicemapper'
-```
-
-To disable aufs:
-```bash
-export DOCKER_BUILDTAGS='exclude_graphdriver_aufs'
+export DOCKER_BUILDTAGS='exclude_graphdriver_zfs'
 ```
 
 NOTE: if you need to set more than one build tag, space separate them:
 ```bash
-export DOCKER_BUILDTAGS='exclude_graphdriver_aufs exclude_graphdriver_btrfs'
+export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs exclude_graphdriver_zfs'
 ```
 
 ## System Dependencies
@@ -111,6 +106,8 @@ export DOCKER_BUILDTAGS='exclude_graphdriver_aufs exclude_graphdriver_btrfs'
 To function properly, the Docker daemon needs the following software to be
 installed and available at runtime:
 
+* containerd version 1.6.22 or later
+  * containerd versions 1.7.0 through 1.7.2 are incompatible
 * iptables version 1.4 or later
 * procps (or similar provider of a "ps" executable)
 * e2fsprogs version 1.4.12 or later (in use: mkfs.ext4, tune2fs)
@@ -137,9 +134,7 @@ the client will even run on alternative platforms such as Mac OS X / Darwin.
 Some of Docker's features are activated by using optional command-line flags or
 by having support for them in the kernel or userspace. A few examples include:
 
-* AUFS graph driver (requires AUFS patches/support enabled in the kernel, and at
-  least the "auplink" utility from aufs-tools)
-* BTRFS graph driver (requires BTRFS support enabled in the kernel)
+* BTRFS graph driver (requires suitable kernel headers: `linux/btrfs.h` and `linux/btrfs_tree.h`, present in 4.12+; and BTRFS support enabled in the kernel)
 * ZFS graph driver (requires userspace zfs-utils and a corresponding kernel module)
 * Libseccomp to allow running seccomp profiles with containers
 

@@ -186,6 +186,7 @@ type Solve struct {
 	MountIDs []string `protobuf:"bytes,2,rep,name=mountIDs,proto3" json:"mountIDs,omitempty"`
 	Op       *pb.Op   `protobuf:"bytes,3,opt,name=op,proto3" json:"op,omitempty"`
 	// Types that are valid to be assigned to Subject:
+	//
 	//	*Solve_File
 	//	*Solve_Cache
 	Subject              isSolve_Subject `protobuf_oneof:"subject"`

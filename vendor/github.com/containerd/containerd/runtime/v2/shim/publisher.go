@@ -25,8 +25,8 @@ import (
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/ttrpcutil"
+	"github.com/containerd/containerd/protobuf"
 	"github.com/containerd/ttrpc"
-	"github.com/containerd/typeurl"
 	"github.com/sirupsen/logrus"
 )
 
@@ -110,13 +110,13 @@ func (l *RemoteEventsPublisher) Publish(ctx context.Context, topic string, event
 	if err != nil {
 		return err
 	}
-	any, err := typeurl.MarshalAny(event)
+	any, err := protobuf.MarshalAnyToProto(event)
 	if err != nil {
 		return err
 	}
 	i := &item{
 		ev: &v1.Envelope{
-			Timestamp: time.Now(),
+			Timestamp: protobuf.ToTimestamp(time.Now()),
 			Namespace: ns,
 			Topic:     topic,
 			Event:     any,

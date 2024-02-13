@@ -57,16 +57,16 @@ func Scan(text string) (*events.Message, error) {
 	}
 
 	attrs := make(map[string]string)
-	for _, a := range strings.SplitN(md["attributes"], ", ", -1) {
-		kv := strings.SplitN(a, "=", 2)
-		attrs[kv[0]] = kv[1]
+	for _, a := range strings.Split(md["attributes"], ", ") {
+		k, v, _ := strings.Cut(a, "=")
+		attrs[k] = v
 	}
 
 	return &events.Message{
 		Time:     t,
 		TimeNano: time.Unix(t, tn).UnixNano(),
-		Type:     md["eventType"],
-		Action:   md["action"],
+		Type:     events.Type(md["eventType"]),
+		Action:   events.Action(md["action"]),
 		Actor: events.Actor{
 			ID:         md["id"],
 			Attributes: attrs,

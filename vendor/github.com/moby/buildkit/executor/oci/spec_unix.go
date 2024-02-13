@@ -6,7 +6,9 @@ package oci
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/oci"
@@ -16,7 +18,18 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/entitlements/security"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	selinux "github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+)
+
+var (
+	cgroupNSOnce     sync.Once
+	supportsCgroupNS bool
+)
+
+const (
+	tracingSocketPath = "/dev/otel-grpc.sock"
 )
 
 func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
@@ -30,7 +43,10 @@ func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
 }
 
 // generateSecurityOpts may affect mounts, so must be called after generateMountOpts
-func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string) (opts []oci.SpecOpts, _ error) {
+func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string, selinuxB bool) (opts []oci.SpecOpts, _ error) {
+	if selinuxB && !selinux.GetEnabled() {
+		return nil, errors.New("selinux is not available")
+	}
 	switch mode {
 	case pb.SecurityMode_INSECURE:
 		return []oci.SpecOpts{
@@ -39,7 +55,9 @@ func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string) (opts []
 			oci.WithWriteableSysfs,
 			func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
 				var err error
-				s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels([]string{"disable"})
+				if selinuxB {
+					s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels([]string{"disable"})
+				}
 				return err
 			},
 		}, nil
@@ -52,7 +70,9 @@ func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string) (opts []
 		}
 		opts = append(opts, func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
 			var err error
-			s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels(nil)
+			if selinuxB {
+				s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels(nil)
+			}
 			return err
 		})
 		return opts, nil
@@ -112,4 +132,34 @@ func withDefaultProfile() oci.SpecOpts {
 		s.Linux.Seccomp, err = seccomp.GetDefaultProfile(s)
 		return err
 	}
+}
+
+func getTracingSocketMount(socket string) specs.Mount {
+	return specs.Mount{
+		Destination: tracingSocketPath,
+		Type:        "bind",
+		Source:      socket,
+		Options:     []string{"ro", "rbind"},
+	}
+}
+
+func getTracingSocket() string {
+	return fmt.Sprintf("unix://%s", tracingSocketPath)
+}
+
+func cgroupV2NamespaceSupported() bool {
+	// Check if cgroups v2 namespaces are supported.  Trying to do cgroup
+	// namespaces with cgroups v1 results in EINVAL when we encounter a
+	// non-standard hierarchy.
+	// See https://github.com/moby/buildkit/issues/4108
+	cgroupNSOnce.Do(func() {
+		if _, err := os.Stat("/proc/self/ns/cgroup"); os.IsNotExist(err) {
+			return
+		}
+		if _, err := os.Stat("/sys/fs/cgroup/cgroup.subtree_control"); os.IsNotExist(err) {
+			return
+		}
+		supportsCgroupNS = true
+	})
+	return supportsCgroupNS
 }

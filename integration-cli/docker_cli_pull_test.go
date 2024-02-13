@@ -1,24 +1,24 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 type DockerCLIPullSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIPullSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIPullSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIPullSuite) OnTimeout(c *testing.T) {
@@ -48,79 +48,6 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *testing.T) {
 	assert.Equal(c, len(splitImg), 2)
 	match, _ := regexp.MatchString(`hello-world\s+latest.*?`, splitImg[1])
 	assert.Assert(c, match, "invalid output for `docker images` (expected image and tag name)")
-}
-
-// TestPullNonExistingImage pulls non-existing images from the central registry, with different
-// combinations of implicit tag and library prefix.
-func (s *DockerHubPullSuite) TestPullNonExistingImage(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-
-	type entry struct {
-		repo  string
-		alias string
-		tag   string
-	}
-
-	entries := []entry{
-		{"asdfasdf", "asdfasdf", "foobar"},
-		{"asdfasdf", "library/asdfasdf", "foobar"},
-		{"asdfasdf", "asdfasdf", ""},
-		{"asdfasdf", "asdfasdf", "latest"},
-		{"asdfasdf", "library/asdfasdf", ""},
-		{"asdfasdf", "library/asdfasdf", "latest"},
-	}
-
-	// The option field indicates "-a" or not.
-	type record struct {
-		e      entry
-		option string
-		out    string
-		err    error
-	}
-
-	// Execute 'docker pull' in parallel, pass results (out, err) and
-	// necessary information ("-a" or not, and the image name) to channel.
-	var group sync.WaitGroup
-	recordChan := make(chan record, len(entries)*2)
-	for _, e := range entries {
-		group.Add(1)
-		go func(e entry) {
-			defer group.Done()
-			repoName := e.alias
-			if e.tag != "" {
-				repoName += ":" + e.tag
-			}
-			out, err := s.CmdWithError("pull", repoName)
-			recordChan <- record{e, "", out, err}
-		}(e)
-		if e.tag == "" {
-			// pull -a on a nonexistent registry should fall back as well
-			group.Add(1)
-			go func(e entry) {
-				defer group.Done()
-				out, err := s.CmdWithError("pull", "-a", e.alias)
-				recordChan <- record{e, "-a", out, err}
-			}(e)
-		}
-	}
-
-	// Wait for completion
-	group.Wait()
-	close(recordChan)
-
-	// Process the results (out, err).
-	for record := range recordChan {
-		if len(record.option) == 0 {
-			assert.ErrorContains(c, record.err, "", "expected non-zero exit status when pulling non-existing image: %s", record.out)
-			assert.Assert(c, strings.Contains(record.out, fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", record.e.repo)), "expected image not found error messages")
-		} else {
-			// pull -a on a nonexistent registry should fall back as well
-			assert.ErrorContains(c, record.err, "", "expected non-zero exit status when pulling non-existing image: %s", record.out)
-			assert.Assert(c, strings.Contains(record.out, fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", record.e.repo)), "expected image not found error messages")
-			assert.Assert(c, !strings.Contains(record.out, "unauthorized"), `message should not contain "unauthorized"`)
-		}
-	}
-
 }
 
 // TestPullFromCentralRegistryImplicitRefParts pulls an image from the central registry and verifies
@@ -207,6 +134,8 @@ func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *testing.T) {
 // TestPullAllTagsFromCentralRegistry pulls using `all-tags` for a given image and verifies that it
 // results in more images than a naked pull.
 func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *testing.T) {
+	// See https://github.com/moby/moby/issues/46632
+	skip.If(c, testEnv.UsingSnapshotter, "The image dockercore/engine-pull-all-test-fixture is a hand-made image that contains an error in the manifest, the size is reported as 424 but its real size is 524, containerd fails to pull it because it checks that the sizes reported are right")
 	testRequires(c, DaemonIsLinux)
 	s.Cmd(c, "pull", "dockercore/engine-pull-all-test-fixture")
 	outImageCmd := s.Cmd(c, "images", "dockercore/engine-pull-all-test-fixture")
@@ -252,9 +181,9 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *testing.T) {
 // Ref: docker/docker#15589
 func (s *DockerHubPullSuite) TestPullClientDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	repoName := "hello-world:latest"
+	const imgRepo = "hello-world:latest"
 
-	pullCmd := s.MakeCmd("pull", repoName)
+	pullCmd := s.MakeCmd("pull", imgRepo)
 	stdout, err := pullCmd.StdoutPipe()
 	assert.NilError(c, err)
 	err = pullCmd.Start()
@@ -270,7 +199,7 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *testing.T) {
 	assert.NilError(c, err)
 
 	time.Sleep(2 * time.Second)
-	_, err = s.CmdWithError("inspect", repoName)
+	_, err = s.CmdWithError("inspect", imgRepo)
 	assert.ErrorContains(c, err, "", "image was pulled after client disconnected")
 }
 
@@ -278,12 +207,24 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *testing.T) {
 func (s *DockerCLIPullSuite) TestPullLinuxImageFailsOnWindows(c *testing.T) {
 	testRequires(c, DaemonIsWindows, Network)
 	_, _, err := dockerCmdWithError("pull", "ubuntu")
-	assert.ErrorContains(c, err, "no matching manifest for windows")
+
+	errorMessage := "no matching manifest for windows"
+	if testEnv.UsingSnapshotter() {
+		errorMessage = "no match for platform in manifest"
+	}
+
+	assert.ErrorContains(c, err, errorMessage)
 }
 
 // Regression test for https://github.com/docker/docker/issues/28892
 func (s *DockerCLIPullSuite) TestPullWindowsImageFailsOnLinux(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network)
 	_, _, err := dockerCmdWithError("pull", "mcr.microsoft.com/windows/servercore:ltsc2022")
-	assert.ErrorContains(c, err, "no matching manifest for linux")
+
+	errorMessage := "no matching manifest for linux"
+	if testEnv.UsingSnapshotter() {
+		errorMessage = "no match for platform in manifest"
+	}
+
+	assert.ErrorContains(c, err, errorMessage)
 }

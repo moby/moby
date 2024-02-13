@@ -293,42 +293,41 @@ func (p *tomlParser) parseRvalue() interface{} {
 		return math.NaN()
 	case tokenInteger:
 		cleanedVal := cleanupNumberToken(tok.val)
-		var err error
-		var val int64
+		base := 10
+		s := cleanedVal
+		checkInvalidUnderscore := numberContainsInvalidUnderscore
 		if len(cleanedVal) >= 3 && cleanedVal[0] == '0' {
 			switch cleanedVal[1] {
 			case 'x':
-				err = hexNumberContainsInvalidUnderscore(tok.val)
-				if err != nil {
-					p.raiseError(tok, "%s", err)
-				}
-				val, err = strconv.ParseInt(cleanedVal[2:], 16, 64)
+				checkInvalidUnderscore = hexNumberContainsInvalidUnderscore
+				base = 16
 			case 'o':
-				err = numberContainsInvalidUnderscore(tok.val)
-				if err != nil {
-					p.raiseError(tok, "%s", err)
-				}
-				val, err = strconv.ParseInt(cleanedVal[2:], 8, 64)
+				base = 8
 			case 'b':
-				err = numberContainsInvalidUnderscore(tok.val)
-				if err != nil {
-					p.raiseError(tok, "%s", err)
-				}
-				val, err = strconv.ParseInt(cleanedVal[2:], 2, 64)
+				base = 2
 			default:
 				panic("invalid base") // the lexer should catch this first
 			}
-		} else {
-			err = numberContainsInvalidUnderscore(tok.val)
-			if err != nil {
-				p.raiseError(tok, "%s", err)
-			}
-			val, err = strconv.ParseInt(cleanedVal, 10, 64)
+			s = cleanedVal[2:]
 		}
+
+		err := checkInvalidUnderscore(tok.val)
 		if err != nil {
 			p.raiseError(tok, "%s", err)
 		}
-		return val
+
+		var val interface{}
+		val, err = strconv.ParseInt(s, base, 64)
+		if err == nil {
+			return val
+		}
+
+		if s[0] != '-' {
+			if val, err = strconv.ParseUint(s, base, 64); err == nil {
+				return val
+			}
+		}
+		p.raiseError(tok, "%s", err)
 	case tokenFloat:
 		err := numberContainsInvalidUnderscore(tok.val)
 		if err != nil {

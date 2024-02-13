@@ -21,8 +21,10 @@ func (cli *Client) ContainerStats(ctx context.Context, containerID string, strea
 		return types.ContainerStats{}, err
 	}
 
-	osType := getDockerOS(resp.header.Get("Server"))
-	return types.ContainerStats{Body: resp.body, OSType: osType}, err
+	return types.ContainerStats{
+		Body:   resp.body,
+		OSType: getDockerOS(resp.header.Get("Server")),
+	}, nil
 }
 
 // ContainerStatsOneShot gets a single stat entry from a container.
@@ -37,6 +39,8 @@ func (cli *Client) ContainerStatsOneShot(ctx context.Context, containerID string
 		return types.ContainerStats{}, err
 	}
 
-	osType := getDockerOS(resp.header.Get("Server"))
-	return types.ContainerStats{Body: resp.body, OSType: osType}, err
+	return types.ContainerStats{
+		Body:   resp.body,
+		OSType: getDockerOS(resp.header.Get("Server")),
+	}, nil
 }

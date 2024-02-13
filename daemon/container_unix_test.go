@@ -1,12 +1,10 @@
 //go:build linux || freebsd
-// +build linux freebsd
 
 package daemon
 
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/go-connections/nat"
@@ -25,7 +23,7 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 			"8080": []nat.PortBinding{{HostPort: "8989"}},
 		}, warnings: []string{"Published ports are discarded when using host network mode"}},
 	}
-	muteLogs()
+	muteLogs(t)
 
 	for _, tc := range testCases {
 		hostConfig := &containertypes.HostConfig{
@@ -33,11 +31,13 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 			NetworkMode:  "host",
 			PortBindings: tc.ports,
 		}
-		cs := &config.Config{
-			Runtimes: map[string]types.Runtime{"runc": {}},
-		}
-		d := &Daemon{configStore: cs}
-		wrns, err := d.verifyContainerSettings(hostConfig, &containertypes.Config{}, false)
+		d := &Daemon{}
+		cfg, err := config.New()
+		assert.NilError(t, err)
+		runtimes, err := setupRuntimes(cfg)
+		assert.NilError(t, err)
+		daemonCfg := &configStore{Config: *cfg, Runtimes: runtimes}
+		wrns, err := d.verifyContainerSettings(daemonCfg, hostConfig, &containertypes.Config{}, false)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, tc.warnings, wrns)
 	}

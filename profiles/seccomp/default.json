@@ -64,6 +64,7 @@
 				"alarm",
 				"bind",
 				"brk",
+				"cachestat",
 				"capget",
 				"capset",
 				"chdir",
@@ -109,6 +110,7 @@
 				"fchdir",
 				"fchmod",
 				"fchmodat",
+				"fchmodat2",
 				"fchown",
 				"fchown32",
 				"fchownat",
@@ -130,8 +132,11 @@
 				"ftruncate",
 				"ftruncate64",
 				"futex",
+				"futex_requeue",
 				"futex_time64",
+				"futex_wait",
 				"futex_waitv",
+				"futex_wake",
 				"futimesat",
 				"getcpu",
 				"getcwd",
@@ -183,9 +188,6 @@
 				"ioprio_set",
 				"io_setup",
 				"io_submit",
-				"io_uring_enter",
-				"io_uring_register",
-				"io_uring_setup",
 				"ipc",
 				"kill",
 				"landlock_add_rule",
@@ -206,6 +208,7 @@
 				"lstat",
 				"lstat64",
 				"madvise",
+				"map_shadow_stack",
 				"membarrier",
 				"memfd_create",
 				"memfd_secret",
@@ -237,6 +240,7 @@
 				"munlock",
 				"munlockall",
 				"munmap",
+				"name_to_handle_at",
 				"nanosleep",
 				"newfstatat",
 				"_newselect",
@@ -356,7 +360,6 @@
 				"signalfd4",
 				"sigprocmask",
 				"sigreturn",
-				"socket",
 				"socketcall",
 				"socketpair",
 				"splice",
@@ -419,6 +422,19 @@
 			"includes": {
 				"minKernel": "4.8"
 			}
+		},
+		{
+			"names": [
+				"socket"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"args": [
+				{
+					"index": 0,
+					"value": 40,
+					"op": "SCMP_CMP_NE"
+				}
+			]
 		},
 		{
 			"names": [
@@ -589,7 +605,6 @@
 				"mount",
 				"mount_setattr",
 				"move_mount",
-				"name_to_handle_at",
 				"open_tree",
 				"perf_event_open",
 				"quotactl",
@@ -771,7 +786,8 @@
 			"names": [
 				"get_mempolicy",
 				"mbind",
-				"set_mempolicy"
+				"set_mempolicy",
+				"set_mempolicy_home_node"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"includes": {

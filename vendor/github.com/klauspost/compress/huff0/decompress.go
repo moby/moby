@@ -61,7 +61,7 @@ func ReadTable(in []byte, s *Scratch) (s2 *Scratch, remain []byte, err error) {
 		b, err := fse.Decompress(in[:iSize], s.fse)
 		s.fse.Out = nil
 		if err != nil {
-			return s, nil, err
+			return s, nil, fmt.Errorf("fse decompress returned: %w", err)
 		}
 		if len(b) > 255 {
 			return s, nil, errors.New("corrupt input: output table too large")
@@ -253,7 +253,7 @@ func (d *Decoder) decompress1X8Bit(dst, src []byte) ([]byte, error) {
 
 	switch d.actualTableLog {
 	case 8:
-		const shift = 8 - 8
+		const shift = 0
 		for br.off >= 4 {
 			br.fillFast()
 			v := dt[uint8(br.value>>(56+shift))]
@@ -763,17 +763,20 @@ func (d *Decoder) decompress4X8bit(dst, src []byte) ([]byte, error) {
 				d.bufs.Put(buf)
 				return nil, errors.New("corruption detected: stream overrun 1")
 			}
-			copy(out, buf[0][:])
-			copy(out[dstEvery:], buf[1][:])
-			copy(out[dstEvery*2:], buf[2][:])
-			copy(out[dstEvery*3:], buf[3][:])
-			out = out[bufoff:]
-			decoded += bufoff * 4
 			// There must at least be 3 buffers left.
-			if len(out) < dstEvery*3 {
+			if len(out)-bufoff < dstEvery*3 {
 				d.bufs.Put(buf)
 				return nil, errors.New("corruption detected: stream overrun 2")
 			}
+			//copy(out, buf[0][:])
+			//copy(out[dstEvery:], buf[1][:])
+			//copy(out[dstEvery*2:], buf[2][:])
+			*(*[bufoff]byte)(out) = buf[0]
+			*(*[bufoff]byte)(out[dstEvery:]) = buf[1]
+			*(*[bufoff]byte)(out[dstEvery*2:]) = buf[2]
+			*(*[bufoff]byte)(out[dstEvery*3:]) = buf[3]
+			out = out[bufoff:]
+			decoded += bufoff * 4
 		}
 	}
 	if off > 0 {
@@ -997,17 +1000,22 @@ func (d *Decoder) decompress4X8bitExactly(dst, src []byte) ([]byte, error) {
 				d.bufs.Put(buf)
 				return nil, errors.New("corruption detected: stream overrun 1")
 			}
-			copy(out, buf[0][:])
-			copy(out[dstEvery:], buf[1][:])
-			copy(out[dstEvery*2:], buf[2][:])
-			copy(out[dstEvery*3:], buf[3][:])
-			out = out[bufoff:]
-			decoded += bufoff * 4
 			// There must at least be 3 buffers left.
-			if len(out) < dstEvery*3 {
+			if len(out)-bufoff < dstEvery*3 {
 				d.bufs.Put(buf)
 				return nil, errors.New("corruption detected: stream overrun 2")
 			}
+
+			//copy(out, buf[0][:])
+			//copy(out[dstEvery:], buf[1][:])
+			//copy(out[dstEvery*2:], buf[2][:])
+			// copy(out[dstEvery*3:], buf[3][:])
+			*(*[bufoff]byte)(out) = buf[0]
+			*(*[bufoff]byte)(out[dstEvery:]) = buf[1]
+			*(*[bufoff]byte)(out[dstEvery*2:]) = buf[2]
+			*(*[bufoff]byte)(out[dstEvery*3:]) = buf[3]
+			out = out[bufoff:]
+			decoded += bufoff * 4
 		}
 	}
 	if off > 0 {

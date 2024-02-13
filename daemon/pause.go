@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
-	"github.com/sirupsen/logrus"
 )
 
 // ContainerPause pauses a container
@@ -46,10 +47,10 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 	container.Paused = true
 	daemon.setStateCounter(container)
 	daemon.updateHealthMonitor(container)
-	daemon.LogContainerEvent(container, "pause")
+	daemon.LogContainerEvent(container, events.ActionPause)
 
 	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
-		logrus.WithError(err).Warn("could not save container to disk")
+		log.G(context.TODO()).WithError(err).Warn("could not save container to disk")
 	}
 
 	return nil

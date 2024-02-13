@@ -6,8 +6,6 @@ import (
 	"crypto/x509/pkix"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/log"
 	"google.golang.org/grpc/codes"
@@ -43,7 +41,7 @@ func LogTLSState(ctx context.Context, tlsState *tls.ConnectionState) {
 		verifiedChain = append(verifiedChain, strings.Join(subjects, ","))
 	}
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"peer.peerCert": peerCerts,
 		// "peer.verifiedChain": verifiedChain},
 	}).Debugf("")

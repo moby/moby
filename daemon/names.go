@@ -1,16 +1,17 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/names"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -26,11 +27,12 @@ func (daemon *Daemon) registerName(container *container.Container) error {
 		return err
 	}
 	if container.Name == "" {
-		name, err := daemon.generateNewName(container.ID)
+		name, err := daemon.generateAndReserveName(container.ID)
 		if err != nil {
 			return err
 		}
 		container.Name = name
+		return nil
 	}
 	return daemon.containersReplica.ReserveName(container.Name, container.ID)
 }
@@ -42,7 +44,7 @@ func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
 	)
 
 	if name == "" {
-		if name, err = daemon.generateNewName(id); err != nil {
+		if name, err = daemon.generateAndReserveName(id); err != nil {
 			return "", "", err
 		}
 		return id, name, nil
@@ -64,10 +66,10 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 	}
 
 	if err := daemon.containersReplica.ReserveName(name, id); err != nil {
-		if err == container.ErrNameReserved {
+		if errors.Is(err, container.ErrNameReserved) {
 			id, err := daemon.containersReplica.Snapshot().GetID(name)
 			if err != nil {
-				logrus.Errorf("got unexpected error while looking up reserved name: %v", err)
+				log.G(context.TODO()).Errorf("got unexpected error while looking up reserved name: %v", err)
 				return "", err
 			}
 			return "", nameConflictError{id: id, name: name}
@@ -81,7 +83,7 @@ func (daemon *Daemon) releaseName(name string) {
 	daemon.containersReplica.ReleaseName(name)
 }
 
-func (daemon *Daemon) generateNewName(id string) (string, error) {
+func (daemon *Daemon) generateAndReserveName(id string) (string, error) {
 	var name string
 	for i := 0; i < 6; i++ {
 		name = namesgenerator.GetRandomName(i)
@@ -90,7 +92,7 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 		}
 
 		if err := daemon.containersReplica.ReserveName(name, id); err != nil {
-			if err == container.ErrNameReserved {
+			if errors.Is(err, container.ErrNameReserved) {
 				continue
 			}
 			return "", err

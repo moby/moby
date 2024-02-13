@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package main
 
@@ -11,11 +10,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // user namespaces test: run daemon with remapped root setting
@@ -24,7 +25,12 @@ import (
 func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 	testRequires(c, UserNamespaceInKernel)
 
-	s.d.StartWithBusybox(c, "--userns-remap", "default")
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c, "--userns-remap", "default")
+
+	out, err := s.d.Cmd("run", "busybox", "stat", "-c", "%u:%g", "/bin/cat")
+	assert.Check(c, err)
+	assert.Assert(c, is.Equal(strings.TrimSpace(out), "0:0"))
 
 	tmpDir, err := os.MkdirTemp("", "userns")
 	assert.NilError(c, err)
@@ -46,17 +52,18 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 	// writable by the remapped root UID/GID pair
 	assert.NilError(c, os.Chown(tmpDir, uid, gid))
 
-	out, err := s.d.Cmd("run", "-d", "--name", "userns", "-v", tmpDir+":/goofy", "-v", tmpDirNotExists+":/donald", "busybox", "sh", "-c", "touch /goofy/testfile; exec top")
+	out, err = s.d.Cmd("run", "-d", "--name", "userns", "-v", tmpDir+":/goofy", "-v", tmpDirNotExists+":/donald", "busybox", "sh", "-c", "touch /goofy/testfile; exec top")
 	assert.NilError(c, err, "Output: %s", out)
 
 	user := s.findUser(c, "userns")
 	assert.Equal(c, uidgid[0], user)
 
 	// check that the created directory is owned by remapped uid:gid
-	statNotExists, err := system.Stat(tmpDirNotExists)
+	statNotExists, err := os.Stat(tmpDirNotExists)
 	assert.NilError(c, err)
-	assert.Equal(c, statNotExists.UID(), uint32(uid), "Created directory not owned by remapped root UID")
-	assert.Equal(c, statNotExists.GID(), uint32(gid), "Created directory not owned by remapped root GID")
+	fi := statNotExists.Sys().(*syscall.Stat_t)
+	assert.Equal(c, fi.Uid, uint32(uid), "Created directory not owned by remapped root UID")
+	assert.Equal(c, fi.Gid, uint32(gid), "Created directory not owned by remapped root GID")
 
 	pid, err := s.d.Cmd("inspect", "--format={{.State.Pid}}", "userns")
 	assert.Assert(c, err == nil, "Could not inspect running container: out: %q", pid)
@@ -73,10 +80,11 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 	assert.NilError(c, err)
 
 	// check that the touched file is owned by remapped uid:gid
-	stat, err := system.Stat(filepath.Join(tmpDir, "testfile"))
+	stat, err := os.Stat(filepath.Join(tmpDir, "testfile"))
 	assert.NilError(c, err)
-	assert.Equal(c, stat.UID(), uint32(uid), "Touched file not owned by remapped root UID")
-	assert.Equal(c, stat.GID(), uint32(gid), "Touched file not owned by remapped root GID")
+	fi = stat.Sys().(*syscall.Stat_t)
+	assert.Equal(c, fi.Uid, uint32(uid), "Touched file not owned by remapped root UID")
+	assert.Equal(c, fi.Gid, uint32(gid), "Touched file not owned by remapped root GID")
 
 	// use host usernamespace
 	out, err = s.d.Cmd("run", "-d", "--name", "userns_skip", "--userns", "host", "busybox", "sh", "-c", "touch /goofy/testfile; exec top")

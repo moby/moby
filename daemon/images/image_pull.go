@@ -3,55 +3,29 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/namespaces"
-	dist "github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
-	imagetypes "github.com/docker/docker/api/types/image"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func (i *ImageService) PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
 	start := time.Now()
-	// Special case: "pull -a" may send an image name with a
-	// trailing :. This is ugly, but let's not break API
-	// compatibility.
-	image = strings.TrimSuffix(image, ":")
 
-	ref, err := reference.ParseNormalizedNamed(image)
-	if err != nil {
-		return errdefs.InvalidParameter(err)
-	}
-
-	if tag != "" {
-		// The "tag" could actually be a digest.
-		var dgst digest.Digest
-		dgst, err = digest.Parse(tag)
-		if err == nil {
-			ref, err = reference.WithDigest(reference.TrimNamed(ref), dgst)
-		} else {
-			ref, err = reference.WithTag(ref, tag)
-		}
-		if err != nil {
-			return errdefs.InvalidParameter(err)
-		}
-	}
-
-	err = i.pullImageWithReference(ctx, ref, platform, metaHeaders, authConfig, outStream)
+	err := i.pullImageWithReference(ctx, ref, platform, metaHeaders, authConfig, outStream)
 	imageActions.WithValues("pull").UpdateSince(start)
 	if err != nil {
 		return err
@@ -64,14 +38,14 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 		// we allow the image to have a non-matching architecture. The code
 		// below checks for this situation, and returns a warning to the client,
 		// as well as logging it to the daemon logs.
-		img, err := i.GetImage(ctx, image, imagetypes.GetImageOpts{Platform: platform})
+		img, err := i.GetImage(ctx, ref.String(), backend.GetImageOpts{Platform: platform})
 
 		// Note that this is a special case where GetImage returns both an image
 		// and an error: https://github.com/docker/docker/blob/v20.10.7/daemon/images/image.go#L175-L183
 		if errdefs.IsNotFound(err) && img != nil {
 			po := streamformatter.NewJSONProgressOutput(outStream, false)
 			progress.Messagef(po, "", `WARNING: %s`, err.Error())
-			logrus.WithError(err).WithField("image", image).Warn("ignoring platform mismatch on single-arch image")
+			log.G(ctx).WithError(err).WithField("image", reference.FamiliarName(ref)).Warn("ignoring platform mismatch on single-arch image")
 		} else if err != nil {
 			return err
 		}
@@ -80,7 +54,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 	return nil
 }
 
-func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference.Named, platform *specs.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
@@ -132,16 +106,6 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	close(progressChan)
 	<-writesDone
 	return err
-}
-
-// GetRepository returns a repository from the registry.
-func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, authConfig *registry.AuthConfig) (dist.Repository, error) {
-	return distribution.GetRepository(ctx, ref, &distribution.ImagePullConfig{
-		Config: distribution.Config{
-			AuthConfig:      authConfig,
-			RegistryService: i.registryService,
-		},
-	})
 }
 
 func tempLease(ctx context.Context, mgr leases.Manager) (context.Context, func(context.Context) error, error) {

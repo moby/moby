@@ -78,7 +78,7 @@ http:
 		username = "testuser"
 		password = "testpassword"
 		email = "test@test.org"
-		err := os.WriteFile(htpasswdPath, []byte(userpasswd), os.FileMode(0644))
+		err := os.WriteFile(htpasswdPath, []byte(userpasswd), os.FileMode(0o644))
 		assert.NilError(t, err)
 		authTemplate = fmt.Sprintf(`auth:
     htpasswd:
@@ -107,10 +107,12 @@ http:
 	}
 
 	binary := V2binary
+	args := []string{"serve", confPath}
 	if c.schema1 {
 		binary = V2binarySchema1
+		args = []string{confPath}
 	}
-	cmd := exec.Command(binary, confPath)
+	cmd := exec.Command(binary, args...)
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 	if err := cmd.Start(); err != nil {
@@ -171,7 +173,7 @@ func (r *V2) Close() {
 
 func (r *V2) getBlobFilename(blobDigest digest.Digest) string {
 	// Split the digest into its algorithm and hex components.
-	dgstAlg, dgstHex := blobDigest.Algorithm(), blobDigest.Hex()
+	dgstAlg, dgstHex := blobDigest.Algorithm(), blobDigest.Encoded()
 
 	// The path to the target blob data looks something like:
 	//   baseDir + "docker/registry/v2/blobs/sha256/a3/a3ed...46d4/data"
@@ -190,7 +192,7 @@ func (r *V2) ReadBlobContents(t testing.TB, blobDigest digest.Digest) []byte {
 // WriteBlobContents write the file corresponding to the specified digest with the given content
 func (r *V2) WriteBlobContents(t testing.TB, blobDigest digest.Digest, data []byte) {
 	t.Helper()
-	err := os.WriteFile(r.getBlobFilename(blobDigest), data, os.FileMode(0644))
+	err := os.WriteFile(r.getBlobFilename(blobDigest), data, os.FileMode(0o644))
 	assert.NilError(t, err, "unable to write malicious data blob")
 }
 

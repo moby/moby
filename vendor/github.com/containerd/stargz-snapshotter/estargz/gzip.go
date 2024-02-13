@@ -60,7 +60,7 @@ type GzipCompressor struct {
 	compressionLevel int
 }
 
-func (gc *GzipCompressor) Writer(w io.Writer) (io.WriteCloser, error) {
+func (gc *GzipCompressor) Writer(w io.Writer) (WriteFlushCloser, error) {
 	return gzip.NewWriterLevel(w, gc.compressionLevel)
 }
 

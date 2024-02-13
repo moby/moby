@@ -1,18 +1,17 @@
 //go:build linux
-// +build linux
 
 package bridge
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -25,17 +24,13 @@ const (
 
 func (d *driver) initStore(option map[string]interface{}) error {
 	if data, ok := option[netlabel.LocalKVClient]; ok {
-		var err error
-		dsc, ok := data.(discoverapi.DatastoreConfigData)
+		var ok bool
+		d.store, ok = data.(*datastore.Store)
 		if !ok {
 			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
 		}
-		d.store, err = datastore.NewDataStoreFromConfig(dsc)
-		if err != nil {
-			return types.InternalErrorf("bridge driver failed to initialize data store: %v", err)
-		}
 
-		err = d.populateNetworks()
+		err := d.populateNetworks()
 		if err != nil {
 			return err
 		}
@@ -50,7 +45,7 @@ func (d *driver) initStore(option map[string]interface{}) error {
 }
 
 func (d *driver) populateNetworks() error {
-	kvol, err := d.store.List(datastore.Key(bridgePrefix), &networkConfiguration{})
+	kvol, err := d.store.List(&networkConfiguration{})
 	if err != nil && err != datastore.ErrKeyNotFound {
 		return fmt.Errorf("failed to get bridge network configurations from store: %v", err)
 	}
@@ -63,16 +58,16 @@ func (d *driver) populateNetworks() error {
 	for _, kvo := range kvol {
 		ncfg := kvo.(*networkConfiguration)
 		if err = d.createNetwork(ncfg); err != nil {
-			logrus.Warnf("could not create bridge network for id %s bridge name %s while booting up from persistent state: %v", ncfg.ID, ncfg.BridgeName, err)
+			log.G(context.TODO()).Warnf("could not create bridge network for id %s bridge name %s while booting up from persistent state: %v", ncfg.ID, ncfg.BridgeName, err)
 		}
-		logrus.Debugf("Network (%.7s) restored", ncfg.ID)
+		log.G(context.TODO()).Debugf("Network (%.7s) restored", ncfg.ID)
 	}
 
 	return nil
 }
 
 func (d *driver) populateEndpoints() error {
-	kvol, err := d.store.List(datastore.Key(bridgeEndpointPrefix), &bridgeEndpoint{})
+	kvol, err := d.store.List(&bridgeEndpoint{})
 	if err != nil && err != datastore.ErrKeyNotFound {
 		return fmt.Errorf("failed to get bridge endpoints from store: %v", err)
 	}
@@ -85,16 +80,16 @@ func (d *driver) populateEndpoints() error {
 		ep := kvo.(*bridgeEndpoint)
 		n, ok := d.networks[ep.nid]
 		if !ok {
-			logrus.Debugf("Network (%.7s) not found for restored bridge endpoint (%.7s)", ep.nid, ep.id)
-			logrus.Debugf("Deleting stale bridge endpoint (%.7s) from store", ep.id)
+			log.G(context.TODO()).Debugf("Network (%.7s) not found for restored bridge endpoint (%.7s)", ep.nid, ep.id)
+			log.G(context.TODO()).Debugf("Deleting stale bridge endpoint (%.7s) from store", ep.id)
 			if err := d.storeDelete(ep); err != nil {
-				logrus.Debugf("Failed to delete stale bridge endpoint (%.7s) from store", ep.id)
+				log.G(context.TODO()).Debugf("Failed to delete stale bridge endpoint (%.7s) from store", ep.id)
 			}
 			continue
 		}
 		n.endpoints[ep.id] = ep
 		n.restorePortAllocations(ep)
-		logrus.Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
+		log.G(context.TODO()).Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
 	}
 
 	return nil
@@ -102,7 +97,7 @@ func (d *driver) populateEndpoints() error {
 
 func (d *driver) storeUpdate(kvObject datastore.KVObject) error {
 	if d.store == nil {
-		logrus.Warnf("bridge store not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
+		log.G(context.TODO()).Warnf("bridge store not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
 		return nil
 	}
 
@@ -115,14 +110,14 @@ func (d *driver) storeUpdate(kvObject datastore.KVObject) error {
 
 func (d *driver) storeDelete(kvObject datastore.KVObject) error {
 	if d.store == nil {
-		logrus.Debugf("bridge store not initialized. kv object %s is not deleted from store", datastore.Key(kvObject.Key()...))
+		log.G(context.TODO()).Debugf("bridge store not initialized. kv object %s is not deleted from store", datastore.Key(kvObject.Key()...))
 		return nil
 	}
 
 retry:
 	if err := d.store.DeleteObjectAtomic(kvObject); err != nil {
 		if err == datastore.ErrKeyModified {
-			if err := d.store.GetObject(datastore.Key(kvObject.Key()...), kvObject); err != nil {
+			if err := d.store.GetObject(kvObject); err != nil {
 				return fmt.Errorf("could not update the kvobject to latest when trying to delete: %v", err)
 			}
 			goto retry
@@ -145,7 +140,9 @@ func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
 	nMap["Internal"] = ncfg.Internal
 	nMap["DefaultBridge"] = ncfg.DefaultBridge
 	nMap["DefaultBindingIP"] = ncfg.DefaultBindingIP.String()
-	nMap["HostIP"] = ncfg.HostIP.String()
+	// This key is "HostIP" instead of "HostIPv4" to preserve compatibility with the on-disk format.
+	nMap["HostIP"] = ncfg.HostIPv4.String()
+	nMap["HostIPv6"] = ncfg.HostIPv6.String()
 	nMap["DefaultGatewayIPv4"] = ncfg.DefaultGatewayIPv4.String()
 	nMap["DefaultGatewayIPv6"] = ncfg.DefaultGatewayIPv6.String()
 	nMap["ContainerIfacePrefix"] = ncfg.ContainerIfacePrefix
@@ -188,8 +185,12 @@ func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 		ncfg.ContainerIfacePrefix = v.(string)
 	}
 
+	// This key is "HostIP" instead of "HostIPv4" to preserve compatibility with the on-disk format.
 	if v, ok := nMap["HostIP"]; ok {
-		ncfg.HostIP = net.ParseIP(v.(string))
+		ncfg.HostIPv4 = net.ParseIP(v.(string))
+	}
+	if v, ok := nMap["HostIPv6"]; ok {
+		ncfg.HostIPv6 = net.ParseIP(v.(string))
 	}
 
 	ncfg.DefaultBridge = nMap["DefaultBridge"].(bool)
@@ -264,10 +265,6 @@ func (ncfg *networkConfiguration) CopyTo(o datastore.KVObject) error {
 	return nil
 }
 
-func (ncfg *networkConfiguration) DataScope() string {
-	return datastore.LocalScope
-}
-
 func (ep *bridgeEndpoint) MarshalJSON() ([]byte, error) {
 	epMap := make(map[string]interface{})
 	epMap["id"] = ep.id
@@ -316,19 +313,19 @@ func (ep *bridgeEndpoint) UnmarshalJSON(b []byte) error {
 	ep.srcName = epMap["SrcName"].(string)
 	d, _ := json.Marshal(epMap["Config"])
 	if err := json.Unmarshal(d, &ep.config); err != nil {
-		logrus.Warnf("Failed to decode endpoint config %v", err)
+		log.G(context.TODO()).Warnf("Failed to decode endpoint config %v", err)
 	}
 	d, _ = json.Marshal(epMap["ContainerConfig"])
 	if err := json.Unmarshal(d, &ep.containerConfig); err != nil {
-		logrus.Warnf("Failed to decode endpoint container config %v", err)
+		log.G(context.TODO()).Warnf("Failed to decode endpoint container config %v", err)
 	}
 	d, _ = json.Marshal(epMap["ExternalConnConfig"])
 	if err := json.Unmarshal(d, &ep.extConnConfig); err != nil {
-		logrus.Warnf("Failed to decode endpoint external connectivity configuration %v", err)
+		log.G(context.TODO()).Warnf("Failed to decode endpoint external connectivity configuration %v", err)
 	}
 	d, _ = json.Marshal(epMap["PortMapping"])
 	if err := json.Unmarshal(d, &ep.portMapping); err != nil {
-		logrus.Warnf("Failed to decode endpoint port mapping %v", err)
+		log.G(context.TODO()).Warnf("Failed to decode endpoint port mapping %v", err)
 	}
 
 	return nil
@@ -381,10 +378,6 @@ func (ep *bridgeEndpoint) CopyTo(o datastore.KVObject) error {
 	return nil
 }
 
-func (ep *bridgeEndpoint) DataScope() string {
-	return datastore.LocalScope
-}
-
 func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	if ep.extConnConfig == nil ||
 		ep.extConnConfig.ExposedPorts == nil ||
@@ -395,7 +388,7 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	ep.extConnConfig.PortBindings = ep.portMapping
 	_, err := n.allocatePorts(ep, n.config.DefaultBindingIP, n.driver.config.EnableUserlandProxy)
 	if err != nil {
-		logrus.Warnf("Failed to reserve existing port mapping for endpoint %.7s:%v", ep.id, err)
+		log.G(context.TODO()).Warnf("Failed to reserve existing port mapping for endpoint %.7s:%v", ep.id, err)
 	}
 	ep.extConnConfig.PortBindings = tmp
 }

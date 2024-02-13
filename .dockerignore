@@ -1,7 +1,4 @@
 .git
-.go-pkg-cache
-.gopath
-bundles
+bundles/
 cli/winresources/**/winres.json
 cli/winresources/**/*.syso
-vendor/pkg

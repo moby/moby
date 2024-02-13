@@ -27,7 +27,7 @@ func main() {
 			return
 		}
 
-		f, err := os.OpenFile(startReq.File, os.O_RDONLY, 0600)
+		f, err := os.OpenFile(startReq.File, os.O_RDONLY, 0o600)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

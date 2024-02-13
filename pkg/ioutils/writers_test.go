@@ -27,7 +27,6 @@ func TestNopWriteCloser(t *testing.T) {
 	if err := wrapper.Close(); err != nil {
 		t.Fatal("NopWriteCloser always return nil on Close.")
 	}
-
 }
 
 func TestNopWriter(t *testing.T) {
@@ -52,8 +51,8 @@ func TestWriteCounter(t *testing.T) {
 	var buffer bytes.Buffer
 	wc := NewWriteCounter(&buffer)
 
-	reader1.WriteTo(wc)
-	reader2.WriteTo(wc)
+	_, _ = reader1.WriteTo(wc)
+	_, _ = reader2.WriteTo(wc)
 
 	if wc.Count != totalLength {
 		t.Errorf("Wrong count: %d vs. %d", wc.Count, totalLength)

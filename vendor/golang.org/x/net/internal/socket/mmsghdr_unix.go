@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || linux || netbsd
-// +build aix linux netbsd
 
 package socket
 
@@ -172,7 +171,23 @@ type mmsgTmpsPool struct {
 }
 
 func (p *mmsgTmpsPool) Get() *mmsgTmps {
-	return p.p.Get().(*mmsgTmps)
+	m := p.p.Get().(*mmsgTmps)
+	// Clear fields up to the len (not the cap) of the slice,
+	// assuming that the previous caller only used that many elements.
+	for i := range m.packer.sockaddrs {
+		m.packer.sockaddrs[i] = 0
+	}
+	m.packer.sockaddrs = m.packer.sockaddrs[:0]
+	for i := range m.packer.vs {
+		m.packer.vs[i] = iovec{}
+	}
+	m.packer.vs = m.packer.vs[:0]
+	for i := range m.packer.hs {
+		m.packer.hs[i].Len = 0
+		m.packer.hs[i].Hdr = msghdr{}
+	}
+	m.packer.hs = m.packer.hs[:0]
+	return m
 }
 
 func (p *mmsgTmpsPool) Put(tmps *mmsgTmps) {

@@ -7,10 +7,11 @@ import (
 )
 
 // NewCacheKey creates a new cache key for a specific output index
-func NewCacheKey(dgst digest.Digest, output Index) *CacheKey {
+func NewCacheKey(dgst, vtx digest.Digest, output Index) *CacheKey {
 	return &CacheKey{
 		ID:     rootKey(dgst, output).String(),
 		digest: dgst,
+		vtx:    vtx,
 		output: output,
 		ids:    map[*cacheManager]string{},
 	}
@@ -29,6 +30,7 @@ type CacheKey struct {
 	ID     string
 	deps   [][]CacheKeyWithSelector // only [][]*inMemoryCacheKey
 	digest digest.Digest
+	vtx    digest.Digest
 	output Index
 	ids    map[*cacheManager]string
 
@@ -53,14 +55,17 @@ func (ck *CacheKey) Output() Index {
 }
 
 func (ck *CacheKey) clone() *CacheKey {
+	ck.mu.RLock()
 	nk := &CacheKey{
 		ID:     ck.ID,
 		digest: ck.digest,
+		vtx:    ck.vtx,
 		output: ck.output,
-		ids:    map[*cacheManager]string{},
+		ids:    make(map[*cacheManager]string, len(ck.ids)),
 	}
 	for cm, id := range ck.ids {
 		nk.ids[cm] = id
 	}
+	ck.mu.RUnlock()
 	return nk
 }

@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package authz // import "github.com/docker/docker/integration/plugin/authz"
 
@@ -7,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -29,31 +27,28 @@ var (
 	nonexistentAuthzPluginName = "riyaz/nonexistent-authz-plugin"
 )
 
-func setupTestV2(t *testing.T) func() {
+func setupTestV2(t *testing.T) context.Context {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, !requirement.HasHubConnectivity(t))
 
-	teardown := setupTest(t)
-
+	ctx := setupTest(t)
 	d.Start(t)
-
-	return teardown
+	return ctx
 }
 
 func TestAuthZPluginV2AllowNonVolumeRequest(t *testing.T) {
-	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
-	defer setupTestV2(t)()
+	skip.If(t, testEnv.NotAmd64)
+	ctx := setupTestV2(t)
 
 	c := d.NewClientT(t)
-	ctx := context.Background()
 
 	// Install authz plugin
-	err := pluginInstallGrantAllPermissions(c, authzPluginNameWithTag)
+	err := pluginInstallGrantAllPermissions(ctx, c, authzPluginNameWithTag)
 	assert.NilError(t, err)
 	// start the daemon with the plugin and load busybox, --net=none build fails otherwise
 	// because it needs to pull busybox
 	d.Restart(t, "--authorization-plugin="+authzPluginNameWithTag)
-	d.LoadBusybox(t)
+	d.LoadBusybox(ctx, t)
 
 	// Ensure docker run command and accompanying docker ps are successful
 	cID := container.Run(ctx, t, c)
@@ -63,74 +58,74 @@ func TestAuthZPluginV2AllowNonVolumeRequest(t *testing.T) {
 }
 
 func TestAuthZPluginV2Disable(t *testing.T) {
-	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
-	defer setupTestV2(t)()
+	skip.If(t, testEnv.NotAmd64)
+	ctx := setupTestV2(t)
 
 	c := d.NewClientT(t)
 
 	// Install authz plugin
-	err := pluginInstallGrantAllPermissions(c, authzPluginNameWithTag)
+	err := pluginInstallGrantAllPermissions(ctx, c, authzPluginNameWithTag)
 	assert.NilError(t, err)
 
 	d.Restart(t, "--authorization-plugin="+authzPluginNameWithTag)
-	d.LoadBusybox(t)
+	d.LoadBusybox(ctx, t)
 
-	_, err = c.VolumeCreate(context.Background(), volume.CreateOptions{Driver: "local"})
+	_, err = c.VolumeCreate(ctx, volume.CreateOptions{Driver: "local"})
 	assert.Assert(t, err != nil)
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
 	// disable the plugin
-	err = c.PluginDisable(context.Background(), authzPluginNameWithTag, types.PluginDisableOptions{})
+	err = c.PluginDisable(ctx, authzPluginNameWithTag, types.PluginDisableOptions{})
 	assert.NilError(t, err)
 
 	// now test to see if the docker api works.
-	_, err = c.VolumeCreate(context.Background(), volume.CreateOptions{Driver: "local"})
+	_, err = c.VolumeCreate(ctx, volume.CreateOptions{Driver: "local"})
 	assert.NilError(t, err)
 }
 
 func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
-	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
-	defer setupTestV2(t)()
+	skip.If(t, testEnv.NotAmd64)
+	ctx := setupTestV2(t)
 
 	c := d.NewClientT(t)
 
 	// Install authz plugin
-	err := pluginInstallGrantAllPermissions(c, authzPluginNameWithTag)
+	err := pluginInstallGrantAllPermissions(ctx, c, authzPluginNameWithTag)
 	assert.NilError(t, err)
 
 	// restart the daemon with the plugin
 	d.Restart(t, "--authorization-plugin="+authzPluginNameWithTag)
 
-	_, err = c.VolumeCreate(context.Background(), volume.CreateOptions{Driver: "local"})
+	_, err = c.VolumeCreate(ctx, volume.CreateOptions{Driver: "local"})
 	assert.Assert(t, err != nil)
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
-	_, err = c.VolumeList(context.Background(), volume.ListOptions{})
+	_, err = c.VolumeList(ctx, volume.ListOptions{})
 	assert.Assert(t, err != nil)
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
 	// The plugin will block the command before it can determine the volume does not exist
-	err = c.VolumeRemove(context.Background(), "test", false)
+	err = c.VolumeRemove(ctx, "test", false)
 	assert.Assert(t, err != nil)
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
-	_, err = c.VolumeInspect(context.Background(), "test")
+	_, err = c.VolumeInspect(ctx, "test")
 	assert.Assert(t, err != nil)
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
-	_, err = c.VolumesPrune(context.Background(), filters.Args{})
+	_, err = c.VolumesPrune(ctx, filters.Args{})
 	assert.Assert(t, err != nil)
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 }
 
 func TestAuthZPluginV2BadManifestFailsDaemonStart(t *testing.T) {
-	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
-	defer setupTestV2(t)()
+	skip.If(t, testEnv.NotAmd64)
+	ctx := setupTestV2(t)
 
 	c := d.NewClientT(t)
 
 	// Install authz plugin with bad manifest
-	err := pluginInstallGrantAllPermissions(c, authzPluginBadManifestName)
+	err := pluginInstallGrantAllPermissions(ctx, c, authzPluginBadManifestName)
 	assert.NilError(t, err)
 
 	// start the daemon with the plugin, it will error
@@ -142,7 +137,7 @@ func TestAuthZPluginV2BadManifestFailsDaemonStart(t *testing.T) {
 }
 
 func TestAuthZPluginV2NonexistentFailsDaemonStart(t *testing.T) {
-	defer setupTestV2(t)()
+	_ = setupTestV2(t)
 
 	// start the daemon with a non-existent authz plugin, it will error
 	err := d.RestartWithError("--authorization-plugin=" + nonexistentAuthzPluginName)
@@ -152,8 +147,7 @@ func TestAuthZPluginV2NonexistentFailsDaemonStart(t *testing.T) {
 	d.Start(t)
 }
 
-func pluginInstallGrantAllPermissions(client client.APIClient, name string) error {
-	ctx := context.Background()
+func pluginInstallGrantAllPermissions(ctx context.Context, client client.APIClient, name string) error {
 	options := types.PluginInstallOptions{
 		RemoteRef:            name,
 		AcceptAllPermissions: true,

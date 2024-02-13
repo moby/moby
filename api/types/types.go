@@ -1,18 +1,15 @@
 package types // import "github.com/docker/docker/api/types"
 
 import (
-	"errors"
-	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/go-connections/nat"
@@ -80,6 +77,8 @@ type ImageInspect struct {
 	// Container is the ID of the container that was used to create the image.
 	//
 	// Depending on how the image was created, this field may be empty.
+	//
+	// Deprecated: this field is omitted in API v1.45, but kept for backward compatibility.
 	Container string
 
 	// ContainerConfig is an optional field containing the configuration of the
@@ -87,6 +86,8 @@ type ImageInspect struct {
 	//
 	// Previous versions of Docker builder used this field to store build cache,
 	// and it is not in active use anymore.
+	//
+	// Deprecated: this field is omitted in API v1.45, but kept for backward compatibility.
 	ContainerConfig *container.Config
 
 	// DockerVersion is the version of Docker that was used to build the image.
@@ -118,14 +119,8 @@ type ImageInspect struct {
 	// VirtualSize is the total size of the image including all layers it is
 	// composed of.
 	//
-	// In versions of Docker before v1.10, this field was calculated from
-	// the image itself and all of its parent images. Docker v1.10 and up
-	// store images self-contained, and no longer use a parent-chain, making
-	// this field an equivalent of the Size field.
-	//
-	// This field is kept for backward compatibility, but may be removed in
-	// a future version of the API.
-	VirtualSize int64 // TODO(thaJeztah): deprecate this field
+	// Deprecated: this field is omitted in API v1.44, but kept for backward compatibility. Use Size instead.
+	VirtualSize int64 `json:"VirtualSize,omitempty"`
 
 	// GraphDriver holds information about the storage driver used to store the
 	// container's and image's filesystem.
@@ -138,13 +133,7 @@ type ImageInspect struct {
 	// Metadata of the image in the local cache.
 	//
 	// This information is local to the daemon, and not part of the image itself.
-	Metadata ImageMetadata
-}
-
-// ImageMetadata contains engine-local data about the image
-type ImageMetadata struct {
-	// LastTagTime is the date and time at which the image was last tagged.
-	LastTagTime time.Time `json:",omitempty"`
+	Metadata image.Metadata
 }
 
 // Container contains response of Engine API:
@@ -236,149 +225,6 @@ type Version struct {
 	KernelVersion string `json:",omitempty"`
 	Experimental  bool   `json:",omitempty"`
 	BuildTime     string `json:",omitempty"`
-}
-
-// Commit holds the Git-commit (SHA1) that a binary was built from, as reported
-// in the version-string of external tools, such as containerd, or runC.
-type Commit struct {
-	ID       string // ID is the actual commit ID of external tool.
-	Expected string // Expected is the commit ID of external tool expected by dockerd as set at build time.
-}
-
-// Info contains response of Engine API:
-// GET "/info"
-type Info struct {
-	ID                 string
-	Containers         int
-	ContainersRunning  int
-	ContainersPaused   int
-	ContainersStopped  int
-	Images             int
-	Driver             string
-	DriverStatus       [][2]string
-	SystemStatus       [][2]string `json:",omitempty"` // SystemStatus is only propagated by the Swarm standalone API
-	Plugins            PluginsInfo
-	MemoryLimit        bool
-	SwapLimit          bool
-	KernelMemory       bool `json:",omitempty"` // Deprecated: kernel 5.4 deprecated kmem.limit_in_bytes
-	KernelMemoryTCP    bool `json:",omitempty"` // KernelMemoryTCP is not supported on cgroups v2.
-	CPUCfsPeriod       bool `json:"CpuCfsPeriod"`
-	CPUCfsQuota        bool `json:"CpuCfsQuota"`
-	CPUShares          bool
-	CPUSet             bool
-	PidsLimit          bool
-	IPv4Forwarding     bool
-	BridgeNfIptables   bool
-	BridgeNfIP6tables  bool `json:"BridgeNfIp6tables"`
-	Debug              bool
-	NFd                int
-	OomKillDisable     bool
-	NGoroutines        int
-	SystemTime         string
-	LoggingDriver      string
-	CgroupDriver       string
-	CgroupVersion      string `json:",omitempty"`
-	NEventsListener    int
-	KernelVersion      string
-	OperatingSystem    string
-	OSVersion          string
-	OSType             string
-	Architecture       string
-	IndexServerAddress string
-	RegistryConfig     *registry.ServiceConfig
-	NCPU               int
-	MemTotal           int64
-	GenericResources   []swarm.GenericResource
-	DockerRootDir      string
-	HTTPProxy          string `json:"HttpProxy"`
-	HTTPSProxy         string `json:"HttpsProxy"`
-	NoProxy            string
-	Name               string
-	Labels             []string
-	ExperimentalBuild  bool
-	ServerVersion      string
-	Runtimes           map[string]Runtime
-	DefaultRuntime     string
-	Swarm              swarm.Info
-	// LiveRestoreEnabled determines whether containers should be kept
-	// running when the daemon is shutdown or upon daemon start if
-	// running containers are detected
-	LiveRestoreEnabled  bool
-	Isolation           container.Isolation
-	InitBinary          string
-	ContainerdCommit    Commit
-	RuncCommit          Commit
-	InitCommit          Commit
-	SecurityOptions     []string
-	ProductLicense      string               `json:",omitempty"`
-	DefaultAddressPools []NetworkAddressPool `json:",omitempty"`
-
-	// Warnings contains a slice of warnings that occurred  while collecting
-	// system information. These warnings are intended to be informational
-	// messages for the user, and are not intended to be parsed / used for
-	// other purposes, as they do not have a fixed format.
-	Warnings []string
-}
-
-// KeyValue holds a key/value pair
-type KeyValue struct {
-	Key, Value string
-}
-
-// NetworkAddressPool is a temp struct used by Info struct
-type NetworkAddressPool struct {
-	Base string
-	Size int
-}
-
-// SecurityOpt contains the name and options of a security option
-type SecurityOpt struct {
-	Name    string
-	Options []KeyValue
-}
-
-// DecodeSecurityOptions decodes a security options string slice to a type safe
-// SecurityOpt
-func DecodeSecurityOptions(opts []string) ([]SecurityOpt, error) {
-	so := []SecurityOpt{}
-	for _, opt := range opts {
-		// support output from a < 1.13 docker daemon
-		if !strings.Contains(opt, "=") {
-			so = append(so, SecurityOpt{Name: opt})
-			continue
-		}
-		secopt := SecurityOpt{}
-		split := strings.Split(opt, ",")
-		for _, s := range split {
-			kv := strings.SplitN(s, "=", 2)
-			if len(kv) != 2 {
-				return nil, fmt.Errorf("invalid security option %q", s)
-			}
-			if kv[0] == "" || kv[1] == "" {
-				return nil, errors.New("invalid empty security option")
-			}
-			if kv[0] == "name" {
-				secopt.Name = kv[1]
-				continue
-			}
-			secopt.Options = append(secopt.Options, KeyValue{Key: kv[0], Value: kv[1]})
-		}
-		so = append(so, secopt)
-	}
-	return so, nil
-}
-
-// PluginsInfo is a temp struct holding Plugins name
-// registered with docker daemon. It is used by Info struct
-type PluginsInfo struct {
-	// List of Volume plugins registered
-	Volume []string
-	// List of Network plugins registered
-	Network []string
-	// List of Authorization plugins registered
-	Authorization []string
-	// List of Log plugins registered
-	Log []string
 }
 
 // ExecStartCheck is a temp struct used by execStart
@@ -493,17 +339,27 @@ type SummaryNetworkSettings struct {
 	Networks map[string]*network.EndpointSettings
 }
 
-// NetworkSettingsBase holds basic information about networks
+// NetworkSettingsBase holds networking state for a container when inspecting it.
 type NetworkSettingsBase struct {
-	Bridge                 string      // Bridge is the Bridge name the network uses(e.g. `docker0`)
-	SandboxID              string      // SandboxID uniquely represents a container's network stack
-	HairpinMode            bool        // HairpinMode specifies if hairpin NAT should be enabled on the virtual interface
-	LinkLocalIPv6Address   string      // LinkLocalIPv6Address is an IPv6 unicast address using the link-local prefix
-	LinkLocalIPv6PrefixLen int         // LinkLocalIPv6PrefixLen is the prefix length of an IPv6 unicast address
-	Ports                  nat.PortMap // Ports is a collection of PortBinding indexed by Port
-	SandboxKey             string      // SandboxKey identifies the sandbox
-	SecondaryIPAddresses   []network.Address
-	SecondaryIPv6Addresses []network.Address
+	Bridge     string      // Bridge contains the name of the default bridge interface iff it was set through the daemon --bridge flag.
+	SandboxID  string      // SandboxID uniquely represents a container's network stack
+	SandboxKey string      // SandboxKey identifies the sandbox
+	Ports      nat.PortMap // Ports is a collection of PortBinding indexed by Port
+
+	// HairpinMode specifies if hairpin NAT should be enabled on the virtual interface
+	//
+	// Deprecated: This field is never set and will be removed in a future release.
+	HairpinMode bool
+	// LinkLocalIPv6Address is an IPv6 unicast address using the link-local prefix
+	//
+	// Deprecated: This field is never set and will be removed in a future release.
+	LinkLocalIPv6Address string
+	// LinkLocalIPv6PrefixLen is the prefix length of an IPv6 unicast address
+	//
+	// Deprecated: This field is never set and will be removed in a future release.
+	LinkLocalIPv6PrefixLen int
+	SecondaryIPAddresses   []network.Address // Deprecated: This field is never set and will be removed in a future release.
+	SecondaryIPv6Addresses []network.Address // Deprecated: This field is never set and will be removed in a future release.
 }
 
 // DefaultNetworkSettings holds network information
@@ -596,14 +452,9 @@ type EndpointResource struct {
 
 // NetworkCreate is the expected body of the "create network" http request message
 type NetworkCreate struct {
-	// Check for networks with duplicate names.
-	// Network is primarily keyed based on a random ID and not on the name.
-	// Network name is strictly a user-friendly alias to the network
-	// which is uniquely identified using ID.
-	// And there is no guaranteed way to check for duplicates.
-	// Option CheckDuplicate is there to provide a best effort checking of any networks
-	// which has the same name but it is not guaranteed to catch all name collisions.
-	CheckDuplicate bool
+	// Deprecated: CheckDuplicate is deprecated since API v1.44, but it defaults to true when sent by the client
+	// package to older daemons.
+	CheckDuplicate bool `json:",omitempty"`
 	Driver         string
 	Scope          string
 	EnableIPv6     bool
@@ -647,27 +498,6 @@ type NetworkInspectOptions struct {
 	Verbose bool
 }
 
-// Checkpoint represents the details of a checkpoint
-type Checkpoint struct {
-	Name string // Name is the name of the checkpoint
-}
-
-// Runtime describes an OCI runtime
-type Runtime struct {
-	Path string   `json:"path"`
-	Args []string `json:"runtimeArgs,omitempty"`
-
-	// This is exposed here only for internal use
-	// It is not currently supported to specify custom shim configs
-	Shim *ShimConfig `json:"-"`
-}
-
-// ShimConfig is used by runtime to configure containerd shims
-type ShimConfig struct {
-	Binary string
-	Opts   interface{}
-}
-
 // DiskUsageObject represents an object type used for disk usage query filtering.
 type DiskUsageObject string
 
@@ -693,7 +523,7 @@ type DiskUsageOptions struct {
 // GET "/system/df"
 type DiskUsage struct {
 	LayersSize  int64
-	Images      []*ImageSummary
+	Images      []*image.Summary
 	Containers  []*Container
 	Volumes     []*volume.Volume
 	BuildCache  []*BuildCache
@@ -717,7 +547,7 @@ type VolumesPruneReport struct {
 // ImagesPruneReport contains the response for Engine API:
 // POST "/images/prune"
 type ImagesPruneReport struct {
-	ImagesDeleted  []ImageDeleteResponseItem
+	ImagesDeleted  []image.DeleteResponse
 	SpaceReclaimed uint64
 }
 

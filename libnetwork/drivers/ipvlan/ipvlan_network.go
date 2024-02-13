@@ -1,25 +1,23 @@
 //go:build linux
-// +build linux
 
 package ipvlan
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/options"
-	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/sirupsen/logrus"
 )
 
 // CreateNetwork the network for the specified driver type
 func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
-	defer osl.InitOSContext()()
 	kv, err := kernel.GetKernelVersion()
 	if err != nil {
 		return fmt.Errorf("failed to check kernel version for ipvlan driver support: %v", err)
@@ -57,7 +55,7 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	err = d.storeUpdate(config)
 	if err != nil {
 		d.deleteNetwork(config.ID)
-		logrus.Debugf("encountered an error rolling back a network create for %s : %v", config.ID, err)
+		log.G(context.TODO()).Debugf("encountered an error rolling back a network create for %s : %v", config.ID, err)
 		return err
 	}
 
@@ -74,7 +72,7 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 				return false, fmt.Errorf("network %s is already using parent interface %s",
 					getDummyName(stringid.TruncateID(nw.config.ID)), config.Parent)
 			}
-			logrus.Debugf("Create Network for the same ID %s\n", config.ID)
+			log.G(context.TODO()).Debugf("Create Network for the same ID %s\n", config.ID)
 			foundExisting = true
 			break
 		}
@@ -89,7 +87,7 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 			config.CreatedSlaveLink = true
 
 			// notify the user in logs that they have limited communications
-			logrus.Debugf("Empty -o parent= flags limit communications to other containers inside of network: %s",
+			log.G(context.TODO()).Debugf("Empty -o parent= flags limit communications to other containers inside of network: %s",
 				config.Parent)
 		} else {
 			// if the subinterface parent_iface.vlan_id checks do not pass, return err.
@@ -118,7 +116,6 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 
 // DeleteNetwork deletes the network for the specified driver type
 func (d *driver) DeleteNetwork(nid string) error {
-	defer osl.InitOSContext()()
 	n := d.network(nid)
 	if n == nil {
 		return fmt.Errorf("network id %s not found", nid)
@@ -131,14 +128,14 @@ func (d *driver) DeleteNetwork(nid string) error {
 			if n.config.Parent == getDummyName(stringid.TruncateID(nid)) {
 				err := delDummyLink(n.config.Parent)
 				if err != nil {
-					logrus.Debugf("link %s was not deleted, continuing the delete network operation: %v",
+					log.G(context.TODO()).Debugf("link %s was not deleted, continuing the delete network operation: %v",
 						n.config.Parent, err)
 				}
 			} else {
 				// only delete the link if it matches iface.vlan naming
 				err := delVlanLink(n.config.Parent)
 				if err != nil {
-					logrus.Debugf("link %s was not deleted, continuing the delete network operation: %v",
+					log.G(context.TODO()).Debugf("link %s was not deleted, continuing the delete network operation: %v",
 						n.config.Parent, err)
 				}
 			}
@@ -147,12 +144,12 @@ func (d *driver) DeleteNetwork(nid string) error {
 	for _, ep := range n.endpoints {
 		if link, err := ns.NlHandle().LinkByName(ep.srcName); err == nil {
 			if err := ns.NlHandle().LinkDel(link); err != nil {
-				logrus.WithError(err).Warnf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
+				log.G(context.TODO()).WithError(err).Warnf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
 			}
 		}
 
 		if err := d.storeDelete(ep); err != nil {
-			logrus.Warnf("Failed to remove ipvlan endpoint %.7s from store: %v", ep.id, err)
+			log.G(context.TODO()).Warnf("Failed to remove ipvlan endpoint %.7s from store: %v", ep.id, err)
 		}
 	}
 	// delete the *network
@@ -229,7 +226,7 @@ func parseNetworkGenericOptions(data interface{}) (*configuration, error) {
 		}
 		return opaqueConfig.(*configuration), nil
 	default:
-		return nil, types.BadRequestErrorf("unrecognized network configuration format: %v", opt)
+		return nil, types.InvalidParameterErrorf("unrecognized network configuration format: %v", opt)
 	}
 }
 

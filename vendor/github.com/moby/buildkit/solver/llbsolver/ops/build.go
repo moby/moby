@@ -11,7 +11,7 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver"
-	"github.com/moby/buildkit/solver/llbsolver"
+	"github.com/moby/buildkit/solver/llbsolver/ops/opsutils"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
@@ -20,24 +20,26 @@ import (
 
 const buildCacheType = "buildkit.build.v0"
 
-type buildOp struct {
+type BuildOp struct {
 	op *pb.BuildOp
 	b  frontend.FrontendLLBBridge
 	v  solver.Vertex
 }
 
-func NewBuildOp(v solver.Vertex, op *pb.Op_Build, b frontend.FrontendLLBBridge, _ worker.Worker) (solver.Op, error) {
-	if err := llbsolver.ValidateOp(&pb.Op{Op: op}); err != nil {
+var _ solver.Op = &BuildOp{}
+
+func NewBuildOp(v solver.Vertex, op *pb.Op_Build, b frontend.FrontendLLBBridge, _ worker.Worker) (*BuildOp, error) {
+	if err := opsutils.Validate(&pb.Op{Op: op}); err != nil {
 		return nil, err
 	}
-	return &buildOp{
+	return &BuildOp{
 		op: op.Build,
 		b:  b,
 		v:  v,
 	}, nil
 }
 
-func (b *buildOp) CacheMap(ctx context.Context, g session.Group, index int) (*solver.CacheMap, bool, error) {
+func (b *BuildOp) CacheMap(ctx context.Context, g session.Group, index int) (*solver.CacheMap, bool, error) {
 	dt, err := json.Marshal(struct {
 		Type string
 		Exec *pb.BuildOp
@@ -59,7 +61,7 @@ func (b *buildOp) CacheMap(ctx context.Context, g session.Group, index int) (*so
 	}, true, nil
 }
 
-func (b *buildOp) Exec(ctx context.Context, g session.Group, inputs []solver.Result) (outputs []solver.Result, retErr error) {
+func (b *BuildOp) Exec(ctx context.Context, g session.Group, inputs []solver.Result) (outputs []solver.Result, retErr error) {
 	if b.op.Builder != pb.LLBBuilder {
 		return nil, errors.Errorf("only LLB builder is currently allowed")
 	}
@@ -130,9 +132,12 @@ func (b *buildOp) Exec(ctx context.Context, g session.Group, inputs []solver.Res
 		return nil, err
 	}
 
-	for _, r := range newRes.Refs {
-		r.Release(context.TODO())
-	}
+	newRes.EachRef(func(ref solver.ResultProxy) error {
+		if ref == newRes.Ref {
+			return nil
+		}
+		return ref.Release(context.TODO())
+	})
 
 	r, err := newRes.Ref.Result(ctx)
 	if err != nil {
@@ -142,7 +147,9 @@ func (b *buildOp) Exec(ctx context.Context, g session.Group, inputs []solver.Res
 	return []solver.Result{r}, err
 }
 
-func (b *buildOp) Acquire(ctx context.Context) (solver.ReleaseFunc, error) {
+func (b *BuildOp) Acquire(ctx context.Context) (solver.ReleaseFunc, error) {
 	// buildOp itself does not count towards parallelism budget.
 	return func() {}, nil
 }
+
+func (b *BuildOp) IsProvenanceProvider() {}

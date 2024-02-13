@@ -206,7 +206,7 @@ func rwFloat32(dst jsWriter, src *Reader) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	src.scratch = strconv.AppendFloat(src.scratch[:0], float64(f), 'f', -1, 64)
+	src.scratch = strconv.AppendFloat(src.scratch[:0], float64(f), 'f', -1, 32)
 	return dst.Write(src.scratch)
 }
 
@@ -215,7 +215,7 @@ func rwFloat64(dst jsWriter, src *Reader) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	src.scratch = strconv.AppendFloat(src.scratch[:0], f, 'f', -1, 32)
+	src.scratch = strconv.AppendFloat(src.scratch[:0], f, 'f', -1, 64)
 	return dst.Write(src.scratch)
 }
 
@@ -466,7 +466,23 @@ func rwquoted(dst jsWriter, s []byte) (n int, err error) {
 					return
 				}
 				n++
+			case '\t':
+				err = dst.WriteByte('\\')
+				if err != nil {
+					return
+				}
+				n++
+				err = dst.WriteByte('t')
+				if err != nil {
+					return
+				}
+				n++
 			default:
+				// This encodes bytes < 0x20 except for \t, \n and \r.
+				// It also escapes <, >, and &
+				// because they can lead to security holes when
+				// user-controlled strings are rendered into JSON
+				// and served to some browsers.
 				nn, err = dst.WriteString(`\u00`)
 				n += nn
 				if err != nil {
@@ -495,16 +511,23 @@ func rwquoted(dst jsWriter, s []byte) (n int, err error) {
 				if err != nil {
 					return
 				}
-				nn, err = dst.WriteString(`\ufffd`)
-				n += nn
-				if err != nil {
-					return
-				}
-				i += size
-				start = i
-				continue
 			}
+			nn, err = dst.WriteString(`\ufffd`)
+			n += nn
+			if err != nil {
+				return
+			}
+			i += size
+			start = i
+			continue
 		}
+		// U+2028 is LINE SEPARATOR.
+		// U+2029 is PARAGRAPH SEPARATOR.
+		// They are both technically valid characters in JSON strings,
+		// but don't work in JSONP, which has to be evaluated as JavaScript,
+		// and can lead to security holes there. It is valid JSON to
+		// escape them, so we do so unconditionally.
+		// See http://timelessrepo.com/json-isnt-a-javascript-subset for discussion.
 		if c == '\u2028' || c == '\u2029' {
 			if start < i {
 				nn, err = dst.Write(s[start:i])
@@ -512,17 +535,20 @@ func rwquoted(dst jsWriter, s []byte) (n int, err error) {
 				if err != nil {
 					return
 				}
-				nn, err = dst.WriteString(`\u202`)
-				n += nn
-				if err != nil {
-					return
-				}
-				err = dst.WriteByte(hex[c&0xF])
-				if err != nil {
-					return
-				}
-				n++
 			}
+			nn, err = dst.WriteString(`\u202`)
+			n += nn
+			if err != nil {
+				return
+			}
+			err = dst.WriteByte(hex[c&0xF])
+			if err != nil {
+				return
+			}
+			n++
+			i += size
+			start = i
+			continue
 		}
 		i += size
 	}

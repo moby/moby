@@ -10,6 +10,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil/fixtures/load"
 	"github.com/pkg/errors"
@@ -20,8 +22,8 @@ import (
 // under test
 type Execution struct {
 	client            client.APIClient
-	DaemonInfo        types.Info
-	OSType            string
+	DaemonInfo        system.Info
+	DaemonVersion     types.Version
 	PlatformDefaults  PlatformDefaults
 	protectedElements protectedElements
 }
@@ -35,46 +37,39 @@ type PlatformDefaults struct {
 
 // New creates a new Execution struct
 // This is configured using the env client (see client.FromEnv)
-func New() (*Execution, error) {
+func New(ctx context.Context) (*Execution, error) {
 	c, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create client")
 	}
-	return FromClient(c)
+	return FromClient(ctx, c)
 }
 
 // FromClient creates a new Execution environment from the passed in client
-func FromClient(c *client.Client) (*Execution, error) {
-	info, err := c.Info(context.Background())
+func FromClient(ctx context.Context, c *client.Client) (*Execution, error) {
+	info, err := c.Info(ctx)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get info from daemon")
 	}
-
-	osType := getOSType(info)
+	v, err := c.ServerVersion(context.Background())
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get version info from daemon")
+	}
 
 	return &Execution{
 		client:            c,
 		DaemonInfo:        info,
-		OSType:            osType,
-		PlatformDefaults:  getPlatformDefaults(info, osType),
+		DaemonVersion:     v,
+		PlatformDefaults:  getPlatformDefaults(info),
 		protectedElements: newProtectedElements(),
 	}, nil
 }
 
-func getOSType(info types.Info) string {
-	// Docker EE does not set the OSType so allow the user to override this value.
-	userOsType := os.Getenv("TEST_OSTYPE")
-	if userOsType != "" {
-		return userOsType
-	}
-	return info.OSType
-}
-
-func getPlatformDefaults(info types.Info, osType string) PlatformDefaults {
+func getPlatformDefaults(info system.Info) PlatformDefaults {
 	volumesPath := filepath.Join(info.DockerRootDir, "volumes")
 	containersPath := filepath.Join(info.DockerRootDir, "containers")
 
-	switch osType {
+	switch info.OSType {
 	case "linux":
 		return PlatformDefaults{
 			BaseImage:            "scratch",
@@ -82,7 +77,7 @@ func getPlatformDefaults(info types.Info, osType string) PlatformDefaults {
 			ContainerStoragePath: toSlash(containersPath),
 		}
 	case "windows":
-		baseImage := "microsoft/windowsservercore"
+		baseImage := "mcr.microsoft.com/windows/servercore:ltsc2022"
 		if overrideBaseImage := os.Getenv("WINDOWS_BASE_IMAGE"); overrideBaseImage != "" {
 			baseImage = overrideBaseImage
 			if overrideBaseImageTag := os.Getenv("WINDOWS_BASE_IMAGE_TAG"); overrideBaseImageTag != "" {
@@ -96,12 +91,12 @@ func getPlatformDefaults(info types.Info, osType string) PlatformDefaults {
 			ContainerStoragePath: filepath.FromSlash(containersPath),
 		}
 	default:
-		panic(fmt.Sprintf("unknown OSType for daemon: %s", osType))
+		panic(fmt.Sprintf("unknown OSType for daemon: %s", info.OSType))
 	}
 }
 
 // Make sure in context of daemon, not the local platform. Note we can't
-// use filepath.FromSlash or ToSlash here as they are a no-op on Unix.
+// use filepath.ToSlash here as that is a no-op on Unix.
 func toSlash(path string) string {
 	return strings.ReplaceAll(path, `\`, `/`)
 }
@@ -193,17 +188,23 @@ func (e *Execution) IsUserNamespaceInKernel() bool {
 	return true
 }
 
+// UsingSnapshotter returns whether containerd snapshotters are used for the
+// tests by checking if the "TEST_INTEGRATION_USE_SNAPSHOTTER" is set to a
+// non-empty value.
+func (e *Execution) UsingSnapshotter() bool {
+	return os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != ""
+}
+
 // HasExistingImage checks whether there is an image with the given reference.
 // Note that this is done by filtering and then checking whether there were any
 // results -- so ambiguous references might result in false-positives.
 func (e *Execution) HasExistingImage(t testing.TB, reference string) bool {
-	client := e.APIClient()
-	filter := filters.NewArgs()
-	filter.Add("dangling", "false")
-	filter.Add("reference", reference)
-	imageList, err := client.ImageList(context.Background(), types.ImageListOptions{
-		All:     true,
-		Filters: filter,
+	imageList, err := e.APIClient().ImageList(context.Background(), image.ListOptions{
+		All: true,
+		Filters: filters.NewArgs(
+			filters.Arg("dangling", "false"),
+			filters.Arg("reference", reference),
+		),
 	})
 	assert.NilError(t, err, "failed to list images")
 
@@ -212,9 +213,9 @@ func (e *Execution) HasExistingImage(t testing.TB, reference string) bool {
 
 // EnsureFrozenImagesLinux loads frozen test images into the daemon
 // if they aren't already loaded
-func EnsureFrozenImagesLinux(testEnv *Execution) error {
-	if testEnv.OSType == "linux" {
-		err := load.FrozenImagesLinux(testEnv.APIClient(), frozenImages...)
+func EnsureFrozenImagesLinux(ctx context.Context, testEnv *Execution) error {
+	if testEnv.DaemonInfo.OSType == "linux" {
+		err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), frozenImages...)
 		if err != nil {
 			return errors.Wrap(err, "error loading frozen images")
 		}
@@ -225,4 +226,9 @@ func EnsureFrozenImagesLinux(testEnv *Execution) error {
 // GitHubActions is true if test is executed on a GitHub Runner.
 func (e *Execution) GitHubActions() bool {
 	return os.Getenv("GITHUB_ACTIONS") != ""
+}
+
+// NotAmd64 returns true if the daemon's architecture is not amd64
+func (e *Execution) NotAmd64() bool {
+	return e.DaemonVersion.Arch != "amd64"
 }

@@ -39,7 +39,7 @@ func (c *CacheChains) Visited(v interface{}) bool {
 	return ok
 }
 
-func (c *CacheChains) normalize() error {
+func (c *CacheChains) normalize(ctx context.Context) error {
 	st := &normalizeState{
 		added: map[*item]*item{},
 		links: map[*item]map[nlink]map[digest.Digest]struct{}{},
@@ -66,7 +66,7 @@ func (c *CacheChains) normalize() error {
 		}
 	}
 
-	st.removeLoops()
+	st.removeLoops(ctx)
 
 	items := make([]*item, 0, len(st.byKey))
 	for _, it := range st.byKey {
@@ -77,7 +77,7 @@ func (c *CacheChains) normalize() error {
 }
 
 func (c *CacheChains) Marshal(ctx context.Context) (*CacheConfig, DescriptorProvider, error) {
-	if err := c.normalize(); err != nil {
+	if err := c.normalize(ctx); err != nil {
 		return nil, nil, err
 	}
 
@@ -146,7 +146,7 @@ func (c *item) removeLink(src *item) bool {
 	return found
 }
 
-func (c *item) AddResult(createdAt time.Time, result *solver.Remote) {
+func (c *item) AddResult(_ digest.Digest, _ int, createdAt time.Time, result *solver.Remote) {
 	c.resultTime = createdAt
 	c.result = result
 }
@@ -214,7 +214,7 @@ func (c *item) walkAllResults(fn func(i *item) error, visited map[*item]struct{}
 type nopRecord struct {
 }
 
-func (c *nopRecord) AddResult(createdAt time.Time, result *solver.Remote) {
+func (c *nopRecord) AddResult(_ digest.Digest, _ int, createdAt time.Time, result *solver.Remote) {
 }
 
 func (c *nopRecord) LinkFrom(rec solver.CacheExporterRecord, index int, selector string) {

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/Microsoft/go-winio/pkg/etwlogrus"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 )
 
 func runDaemon(opts *daemonOptions) error {
@@ -24,11 +24,7 @@ func runDaemon(opts *daemonOptions) error {
 
 	// Windows specific settings as these are not defaulted.
 	if opts.configFile == "" {
-		configDir, err := getDaemonConfDir(opts.daemonConfig.Root)
-		if err != nil {
-			return err
-		}
-		opts.configFile = filepath.Join(configDir, "daemon.json")
+		opts.configFile = filepath.Join(opts.daemonConfig.Root, "config", "daemon.json")
 	}
 	if runAsService {
 		// If Windows SCM manages the service - no need for PID files
@@ -45,13 +41,13 @@ func runDaemon(opts *daemonOptions) error {
 func initLogging(stdout, _ io.Writer) {
 	// Maybe there is a historic reason why on non-Windows, stderr is used
 	// for output. However, on Windows it makes no sense and there is no need.
-	logrus.SetOutput(stdout)
+	log.L.Logger.SetOutput(stdout)
 
 	// Provider ID: {6996f090-c5de-5082-a81e-5841acc3a635}
 	// Hook isn't closed explicitly, as it will exist until process exit.
 	// GUID is generated based on name - see Microsoft/go-winio/tools/etw-provider-gen.
 	if hook, err := etwlogrus.NewHook("Moby"); err == nil {
-		logrus.AddHook(hook)
+		log.L.Logger.AddHook(hook)
 	}
 	return
 }

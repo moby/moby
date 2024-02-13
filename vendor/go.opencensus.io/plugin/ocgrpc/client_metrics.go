@@ -28,6 +28,7 @@ var (
 	ClientReceivedMessagesPerRPC = stats.Int64("grpc.io/client/received_messages_per_rpc", "Number of response messages received per RPC (always 1 for non-streaming RPCs).", stats.UnitDimensionless)
 	ClientReceivedBytesPerRPC    = stats.Int64("grpc.io/client/received_bytes_per_rpc", "Total bytes received across all response messages per RPC.", stats.UnitBytes)
 	ClientRoundtripLatency       = stats.Float64("grpc.io/client/roundtrip_latency", "Time between first byte of request sent to last byte of response received, or terminal error.", stats.UnitMilliseconds)
+	ClientStartedRPCs            = stats.Int64("grpc.io/client/started_rpcs", "Number of started client RPCs.", stats.UnitDimensionless)
 	ClientServerLatency          = stats.Float64("grpc.io/client/server_latency", `Propagated from the server and should have the same value as "grpc.io/server/latency".`, stats.UnitMilliseconds)
 )
 
@@ -67,6 +68,14 @@ var (
 		Name:        "grpc.io/client/completed_rpcs",
 		Description: "Count of RPCs by method and status.",
 		TagKeys:     []tag.Key{KeyClientMethod, KeyClientStatus},
+		Aggregation: view.Count(),
+	}
+
+	ClientStartedRPCsView = &view.View{
+		Measure:     ClientStartedRPCs,
+		Name:        "grpc.io/client/started_rpcs",
+		Description: "Number of started client RPCs.",
+		TagKeys:     []tag.Key{KeyClientMethod},
 		Aggregation: view.Count(),
 	}
 

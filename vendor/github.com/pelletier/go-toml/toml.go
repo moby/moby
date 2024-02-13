@@ -471,7 +471,7 @@ func LoadBytes(b []byte) (tree *Tree, err error) {
 			if _, ok := r.(runtime.Error); ok {
 				panic(r)
 			}
-			err = errors.New(r.(string))
+			err = fmt.Errorf("%s", r)
 		}
 	}()
 

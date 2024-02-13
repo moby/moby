@@ -31,8 +31,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"math/rand"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -44,20 +45,26 @@ import (
 	digest "github.com/opencontainers/go-digest"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 // TestingController is Compression with some helper methods necessary for testing.
 type TestingController interface {
 	Compression
-	CountStreams(*testing.T, []byte) int
+	TestStreams(t *testing.T, b []byte, streams []int64)
 	DiffIDOf(*testing.T, []byte) string
 	String() string
 }
 
 // CompressionTestSuite tests this pkg with controllers can build valid eStargz blobs and parse them.
-func CompressionTestSuite(t *testing.T, controllers ...TestingController) {
+func CompressionTestSuite(t *testing.T, controllers ...TestingControllerFactory) {
 	t.Run("testBuild", func(t *testing.T) { t.Parallel(); testBuild(t, controllers...) })
 	t.Run("testDigestAndVerify", func(t *testing.T) { t.Parallel(); testDigestAndVerify(t, controllers...) })
 	t.Run("testWriteAndOpen", func(t *testing.T) { t.Parallel(); testWriteAndOpen(t, controllers...) })
 }
+
+type TestingControllerFactory func() TestingController
 
 const (
 	uncompressedType int = iota
@@ -75,11 +82,12 @@ var allowedPrefix = [4]string{"", "./", "/", "../"}
 
 // testBuild tests the resulting stargz blob built by this pkg has the same
 // contents as the normal stargz blob.
-func testBuild(t *testing.T, controllers ...TestingController) {
+func testBuild(t *testing.T, controllers ...TestingControllerFactory) {
 	tests := []struct {
-		name      string
-		chunkSize int
-		in        []tarEntry
+		name         string
+		chunkSize    int
+		minChunkSize []int
+		in           []tarEntry
 	}{
 		{
 			name:      "regfiles and directories",
@@ -108,11 +116,14 @@ func testBuild(t *testing.T, controllers ...TestingController) {
 			),
 		},
 		{
-			name:      "various files",
-			chunkSize: 4,
+			name:         "various files",
+			chunkSize:    4,
+			minChunkSize: []int{0, 64000},
 			in: tarOf(
 				file("baz.txt", "bazbazbazbazbazbazbaz"),
-				file("foo.txt", "a"),
+				file("foo1.txt", "a"),
+				file("bar/foo2.txt", "b"),
+				file("foo3.txt", "c"),
 				symlink("barlink", "test/bar.txt"),
 				dir("test/"),
 				dir("dev/"),
@@ -144,99 +155,112 @@ func testBuild(t *testing.T, controllers ...TestingController) {
 		},
 	}
 	for _, tt := range tests {
+		if len(tt.minChunkSize) == 0 {
+			tt.minChunkSize = []int{0}
+		}
 		for _, srcCompression := range srcCompressions {
 			srcCompression := srcCompression
-			for _, cl := range controllers {
-				cl := cl
+			for _, newCL := range controllers {
+				newCL := newCL
 				for _, srcTarFormat := range []tar.Format{tar.FormatUSTAR, tar.FormatPAX, tar.FormatGNU} {
 					srcTarFormat := srcTarFormat
 					for _, prefix := range allowedPrefix {
 						prefix := prefix
-						t.Run(tt.name+"-"+fmt.Sprintf("compression=%v,prefix=%q,src=%d,format=%s", cl, prefix, srcCompression, srcTarFormat), func(t *testing.T) {
-							tarBlob := buildTar(t, tt.in, prefix, srcTarFormat)
-							// Test divideEntries()
-							entries, err := sortEntries(tarBlob, nil, nil) // identical order
-							if err != nil {
-								t.Fatalf("failed to parse tar: %v", err)
-							}
-							var merged []*entry
-							for _, part := range divideEntries(entries, 4) {
-								merged = append(merged, part...)
-							}
-							if !reflect.DeepEqual(entries, merged) {
-								for _, e := range entries {
-									t.Logf("Original: %v", e.header)
+						for _, minChunkSize := range tt.minChunkSize {
+							minChunkSize := minChunkSize
+							t.Run(tt.name+"-"+fmt.Sprintf("compression=%v,prefix=%q,src=%d,format=%s,minChunkSize=%d", newCL(), prefix, srcCompression, srcTarFormat, minChunkSize), func(t *testing.T) {
+								tarBlob := buildTar(t, tt.in, prefix, srcTarFormat)
+								// Test divideEntries()
+								entries, err := sortEntries(tarBlob, nil, nil) // identical order
+								if err != nil {
+									t.Fatalf("failed to parse tar: %v", err)
 								}
-								for _, e := range merged {
-									t.Logf("Merged: %v", e.header)
+								var merged []*entry
+								for _, part := range divideEntries(entries, 4) {
+									merged = append(merged, part...)
 								}
-								t.Errorf("divided entries couldn't be merged")
-								return
-							}
+								if !reflect.DeepEqual(entries, merged) {
+									for _, e := range entries {
+										t.Logf("Original: %v", e.header)
+									}
+									for _, e := range merged {
+										t.Logf("Merged: %v", e.header)
+									}
+									t.Errorf("divided entries couldn't be merged")
+									return
+								}
 
-							// Prepare sample data
-							wantBuf := new(bytes.Buffer)
-							sw := NewWriterWithCompressor(wantBuf, cl)
-							sw.ChunkSize = tt.chunkSize
-							if err := sw.AppendTar(tarBlob); err != nil {
-								t.Fatalf("failed to append tar to want stargz: %v", err)
-							}
-							if _, err := sw.Close(); err != nil {
-								t.Fatalf("failed to prepare want stargz: %v", err)
-							}
-							wantData := wantBuf.Bytes()
-							want, err := Open(io.NewSectionReader(
-								bytes.NewReader(wantData), 0, int64(len(wantData))),
-								WithDecompressors(cl),
-							)
-							if err != nil {
-								t.Fatalf("failed to parse the want stargz: %v", err)
-							}
+								// Prepare sample data
+								cl1 := newCL()
+								wantBuf := new(bytes.Buffer)
+								sw := NewWriterWithCompressor(wantBuf, cl1)
+								sw.MinChunkSize = minChunkSize
+								sw.ChunkSize = tt.chunkSize
+								if err := sw.AppendTar(tarBlob); err != nil {
+									t.Fatalf("failed to append tar to want stargz: %v", err)
+								}
+								if _, err := sw.Close(); err != nil {
+									t.Fatalf("failed to prepare want stargz: %v", err)
+								}
+								wantData := wantBuf.Bytes()
+								want, err := Open(io.NewSectionReader(
+									bytes.NewReader(wantData), 0, int64(len(wantData))),
+									WithDecompressors(cl1),
+								)
+								if err != nil {
+									t.Fatalf("failed to parse the want stargz: %v", err)
+								}
 
-							// Prepare testing data
-							rc, err := Build(compressBlob(t, tarBlob, srcCompression),
-								WithChunkSize(tt.chunkSize), WithCompression(cl))
-							if err != nil {
-								t.Fatalf("failed to build stargz: %v", err)
-							}
-							defer rc.Close()
-							gotBuf := new(bytes.Buffer)
-							if _, err := io.Copy(gotBuf, rc); err != nil {
-								t.Fatalf("failed to copy built stargz blob: %v", err)
-							}
-							gotData := gotBuf.Bytes()
-							got, err := Open(io.NewSectionReader(
-								bytes.NewReader(gotBuf.Bytes()), 0, int64(len(gotData))),
-								WithDecompressors(cl),
-							)
-							if err != nil {
-								t.Fatalf("failed to parse the got stargz: %v", err)
-							}
+								// Prepare testing data
+								var opts []Option
+								if minChunkSize > 0 {
+									opts = append(opts, WithMinChunkSize(minChunkSize))
+								}
+								cl2 := newCL()
+								rc, err := Build(compressBlob(t, tarBlob, srcCompression),
+									append(opts, WithChunkSize(tt.chunkSize), WithCompression(cl2))...)
+								if err != nil {
+									t.Fatalf("failed to build stargz: %v", err)
+								}
+								defer rc.Close()
+								gotBuf := new(bytes.Buffer)
+								if _, err := io.Copy(gotBuf, rc); err != nil {
+									t.Fatalf("failed to copy built stargz blob: %v", err)
+								}
+								gotData := gotBuf.Bytes()
+								got, err := Open(io.NewSectionReader(
+									bytes.NewReader(gotBuf.Bytes()), 0, int64(len(gotData))),
+									WithDecompressors(cl2),
+								)
+								if err != nil {
+									t.Fatalf("failed to parse the got stargz: %v", err)
+								}
 
-							// Check DiffID is properly calculated
-							rc.Close()
-							diffID := rc.DiffID()
-							wantDiffID := cl.DiffIDOf(t, gotData)
-							if diffID.String() != wantDiffID {
-								t.Errorf("DiffID = %q; want %q", diffID, wantDiffID)
-							}
+								// Check DiffID is properly calculated
+								rc.Close()
+								diffID := rc.DiffID()
+								wantDiffID := cl2.DiffIDOf(t, gotData)
+								if diffID.String() != wantDiffID {
+									t.Errorf("DiffID = %q; want %q", diffID, wantDiffID)
+								}
 
-							// Compare as stargz
-							if !isSameVersion(t, cl, wantData, gotData) {
-								t.Errorf("built stargz hasn't same json")
-								return
-							}
-							if !isSameEntries(t, want, got) {
-								t.Errorf("built stargz isn't same as the original")
-								return
-							}
+								// Compare as stargz
+								if !isSameVersion(t, cl1, wantData, cl2, gotData) {
+									t.Errorf("built stargz hasn't same json")
+									return
+								}
+								if !isSameEntries(t, want, got) {
+									t.Errorf("built stargz isn't same as the original")
+									return
+								}
 
-							// Compare as tar.gz
-							if !isSameTarGz(t, cl, wantData, gotData) {
-								t.Errorf("built stargz isn't same tar.gz")
-								return
-							}
-						})
+								// Compare as tar.gz
+								if !isSameTarGz(t, cl1, wantData, cl2, gotData) {
+									t.Errorf("built stargz isn't same tar.gz")
+									return
+								}
+							})
+						}
 					}
 				}
 			}
@@ -244,13 +268,13 @@ func testBuild(t *testing.T, controllers ...TestingController) {
 	}
 }
 
-func isSameTarGz(t *testing.T, controller TestingController, a, b []byte) bool {
-	aGz, err := controller.Reader(bytes.NewReader(a))
+func isSameTarGz(t *testing.T, cla TestingController, a []byte, clb TestingController, b []byte) bool {
+	aGz, err := cla.Reader(bytes.NewReader(a))
 	if err != nil {
 		t.Fatalf("failed to read A")
 	}
 	defer aGz.Close()
-	bGz, err := controller.Reader(bytes.NewReader(b))
+	bGz, err := clb.Reader(bytes.NewReader(b))
 	if err != nil {
 		t.Fatalf("failed to read B")
 	}
@@ -287,11 +311,11 @@ func isSameTarGz(t *testing.T, controller TestingController, a, b []byte) bool {
 			return false
 
 		}
-		aFile, err := ioutil.ReadAll(aTar)
+		aFile, err := io.ReadAll(aTar)
 		if err != nil {
 			t.Fatal("failed to read tar payload of A")
 		}
-		bFile, err := ioutil.ReadAll(bTar)
+		bFile, err := io.ReadAll(bTar)
 		if err != nil {
 			t.Fatal("failed to read tar payload of B")
 		}
@@ -304,12 +328,12 @@ func isSameTarGz(t *testing.T, controller TestingController, a, b []byte) bool {
 	return true
 }
 
-func isSameVersion(t *testing.T, controller TestingController, a, b []byte) bool {
-	aJTOC, _, err := parseStargz(io.NewSectionReader(bytes.NewReader(a), 0, int64(len(a))), controller)
+func isSameVersion(t *testing.T, cla TestingController, a []byte, clb TestingController, b []byte) bool {
+	aJTOC, _, err := parseStargz(io.NewSectionReader(bytes.NewReader(a), 0, int64(len(a))), cla)
 	if err != nil {
 		t.Fatalf("failed to parse A: %v", err)
 	}
-	bJTOC, _, err := parseStargz(io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b))), controller)
+	bJTOC, _, err := parseStargz(io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b))), clb)
 	if err != nil {
 		t.Fatalf("failed to parse B: %v", err)
 	}
@@ -463,7 +487,7 @@ func equalEntry(a, b *TOCEntry) bool {
 		a.GID == b.GID &&
 		a.Uname == b.Uname &&
 		a.Gname == b.Gname &&
-		(a.Offset > 0) == (b.Offset > 0) &&
+		(a.Offset >= 0) == (b.Offset >= 0) &&
 		(a.NextOffset() > 0) == (b.NextOffset() > 0) &&
 		a.DevMajor == b.DevMajor &&
 		a.DevMinor == b.DevMinor &&
@@ -510,14 +534,15 @@ func dumpTOCJSON(t *testing.T, tocJSON *JTOC) string {
 const chunkSize = 3
 
 // type check func(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, compressionLevel int)
-type check func(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, controller TestingController)
+type check func(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, controller TestingController, newController TestingControllerFactory)
 
 // testDigestAndVerify runs specified checks against sample stargz blobs.
-func testDigestAndVerify(t *testing.T, controllers ...TestingController) {
+func testDigestAndVerify(t *testing.T, controllers ...TestingControllerFactory) {
 	tests := []struct {
-		name    string
-		tarInit func(t *testing.T, dgstMap map[string]digest.Digest) (blob []tarEntry)
-		checks  []check
+		name         string
+		tarInit      func(t *testing.T, dgstMap map[string]digest.Digest) (blob []tarEntry)
+		checks       []check
+		minChunkSize []int
 	}{
 		{
 			name: "no-regfile",
@@ -544,6 +569,7 @@ func testDigestAndVerify(t *testing.T, controllers ...TestingController) {
 					regDigest(t, "test/bar.txt", "bbb", dgstMap),
 				)
 			},
+			minChunkSize: []int{0, 64000},
 			checks: []check{
 				checkStargzTOC,
 				checkVerifyTOC,
@@ -581,11 +607,14 @@ func testDigestAndVerify(t *testing.T, controllers ...TestingController) {
 			},
 		},
 		{
-			name: "with-non-regfiles",
+			name:         "with-non-regfiles",
+			minChunkSize: []int{0, 64000},
 			tarInit: func(t *testing.T, dgstMap map[string]digest.Digest) (blob []tarEntry) {
 				return tarOf(
 					regDigest(t, "baz.txt", "bazbazbazbazbazbazbaz", dgstMap),
 					regDigest(t, "foo.txt", "a", dgstMap),
+					regDigest(t, "bar/foo2.txt", "b", dgstMap),
+					regDigest(t, "foo3.txt", "c", dgstMap),
 					symlink("barlink", "test/bar.txt"),
 					dir("test/"),
 					regDigest(t, "test/bar.txt", "testbartestbar", dgstMap),
@@ -599,6 +628,8 @@ func testDigestAndVerify(t *testing.T, controllers ...TestingController) {
 				checkVerifyInvalidStargzFail(buildTar(t, tarOf(
 					file("baz.txt", "bazbazbazbazbazbazbaz"),
 					file("foo.txt", "a"),
+					file("bar/foo2.txt", "b"),
+					file("foo3.txt", "c"),
 					symlink("barlink", "test/bar.txt"),
 					dir("test/"),
 					file("test/bar.txt", "testbartestbar"),
@@ -612,38 +643,45 @@ func testDigestAndVerify(t *testing.T, controllers ...TestingController) {
 	}
 
 	for _, tt := range tests {
+		if len(tt.minChunkSize) == 0 {
+			tt.minChunkSize = []int{0}
+		}
 		for _, srcCompression := range srcCompressions {
 			srcCompression := srcCompression
-			for _, cl := range controllers {
-				cl := cl
+			for _, newCL := range controllers {
+				newCL := newCL
 				for _, prefix := range allowedPrefix {
 					prefix := prefix
 					for _, srcTarFormat := range []tar.Format{tar.FormatUSTAR, tar.FormatPAX, tar.FormatGNU} {
 						srcTarFormat := srcTarFormat
-						t.Run(tt.name+"-"+fmt.Sprintf("compression=%v,prefix=%q,format=%s", cl, prefix, srcTarFormat), func(t *testing.T) {
-							// Get original tar file and chunk digests
-							dgstMap := make(map[string]digest.Digest)
-							tarBlob := buildTar(t, tt.tarInit(t, dgstMap), prefix, srcTarFormat)
+						for _, minChunkSize := range tt.minChunkSize {
+							minChunkSize := minChunkSize
+							t.Run(tt.name+"-"+fmt.Sprintf("compression=%v,prefix=%q,format=%s,minChunkSize=%d", newCL(), prefix, srcTarFormat, minChunkSize), func(t *testing.T) {
+								// Get original tar file and chunk digests
+								dgstMap := make(map[string]digest.Digest)
+								tarBlob := buildTar(t, tt.tarInit(t, dgstMap), prefix, srcTarFormat)
 
-							rc, err := Build(compressBlob(t, tarBlob, srcCompression),
-								WithChunkSize(chunkSize), WithCompression(cl))
-							if err != nil {
-								t.Fatalf("failed to convert stargz: %v", err)
-							}
-							tocDigest := rc.TOCDigest()
-							defer rc.Close()
-							buf := new(bytes.Buffer)
-							if _, err := io.Copy(buf, rc); err != nil {
-								t.Fatalf("failed to copy built stargz blob: %v", err)
-							}
-							newStargz := buf.Bytes()
-							// NoPrefetchLandmark is added during `Bulid`, which is expected behaviour.
-							dgstMap[chunkID(NoPrefetchLandmark, 0, int64(len([]byte{landmarkContents})))] = digest.FromBytes([]byte{landmarkContents})
+								cl := newCL()
+								rc, err := Build(compressBlob(t, tarBlob, srcCompression),
+									WithChunkSize(chunkSize), WithCompression(cl))
+								if err != nil {
+									t.Fatalf("failed to convert stargz: %v", err)
+								}
+								tocDigest := rc.TOCDigest()
+								defer rc.Close()
+								buf := new(bytes.Buffer)
+								if _, err := io.Copy(buf, rc); err != nil {
+									t.Fatalf("failed to copy built stargz blob: %v", err)
+								}
+								newStargz := buf.Bytes()
+								// NoPrefetchLandmark is added during `Bulid`, which is expected behaviour.
+								dgstMap[chunkID(NoPrefetchLandmark, 0, int64(len([]byte{landmarkContents})))] = digest.FromBytes([]byte{landmarkContents})
 
-							for _, check := range tt.checks {
-								check(t, newStargz, tocDigest, dgstMap, cl)
-							}
-						})
+								for _, check := range tt.checks {
+									check(t, newStargz, tocDigest, dgstMap, cl, newCL)
+								}
+							})
+						}
 					}
 				}
 			}
@@ -654,7 +692,7 @@ func testDigestAndVerify(t *testing.T, controllers ...TestingController) {
 // checkStargzTOC checks the TOC JSON of the passed stargz has the expected
 // digest and contains valid chunks. It walks all entries in the stargz and
 // checks all chunk digests stored to the TOC JSON match the actual contents.
-func checkStargzTOC(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, controller TestingController) {
+func checkStargzTOC(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, controller TestingController, newController TestingControllerFactory) {
 	sgz, err := Open(
 		io.NewSectionReader(bytes.NewReader(sgzData), 0, int64(len(sgzData))),
 		WithDecompressors(controller),
@@ -765,7 +803,7 @@ func checkStargzTOC(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstM
 // checkVerifyTOC checks the verification works for the TOC JSON of the passed
 // stargz. It walks all entries in the stargz and checks the verifications for
 // all chunks work.
-func checkVerifyTOC(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, controller TestingController) {
+func checkVerifyTOC(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, controller TestingController, newController TestingControllerFactory) {
 	sgz, err := Open(
 		io.NewSectionReader(bytes.NewReader(sgzData), 0, int64(len(sgzData))),
 		WithDecompressors(controller),
@@ -846,7 +884,7 @@ func checkVerifyTOC(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstM
 // checkVerifyInvalidTOCEntryFail checks if misconfigured TOC JSON can be
 // detected during the verification and the verification returns an error.
 func checkVerifyInvalidTOCEntryFail(filename string) check {
-	return func(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, controller TestingController) {
+	return func(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, controller TestingController, newController TestingControllerFactory) {
 		funcs := map[string]rewriteFunc{
 			"lost digest in a entry": func(t *testing.T, toc *JTOC, sgz *io.SectionReader) {
 				var found bool
@@ -920,8 +958,9 @@ func checkVerifyInvalidTOCEntryFail(filename string) check {
 // checkVerifyInvalidStargzFail checks if the verification detects that the
 // given stargz file doesn't match to the expected digest and returns error.
 func checkVerifyInvalidStargzFail(invalid *io.SectionReader) check {
-	return func(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, controller TestingController) {
-		rc, err := Build(invalid, WithChunkSize(chunkSize), WithCompression(controller))
+	return func(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, controller TestingController, newController TestingControllerFactory) {
+		cl := newController()
+		rc, err := Build(invalid, WithChunkSize(chunkSize), WithCompression(cl))
 		if err != nil {
 			t.Fatalf("failed to convert stargz: %v", err)
 		}
@@ -934,7 +973,7 @@ func checkVerifyInvalidStargzFail(invalid *io.SectionReader) check {
 
 		sgz, err := Open(
 			io.NewSectionReader(bytes.NewReader(mStargz), 0, int64(len(mStargz))),
-			WithDecompressors(controller),
+			WithDecompressors(cl),
 		)
 		if err != nil {
 			t.Fatalf("failed to parse converted stargz: %v", err)
@@ -951,7 +990,7 @@ func checkVerifyInvalidStargzFail(invalid *io.SectionReader) check {
 // checkVerifyBrokenContentFail checks if the verifier detects broken contents
 // that doesn't match to the expected digest and returns error.
 func checkVerifyBrokenContentFail(filename string) check {
-	return func(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, controller TestingController) {
+	return func(t *testing.T, sgzData []byte, tocDigest digest.Digest, dgstMap map[string]digest.Digest, controller TestingController, newController TestingControllerFactory) {
 		// Parse stargz file
 		sgz, err := Open(
 			io.NewSectionReader(bytes.NewReader(sgzData), 0, int64(len(sgzData))),
@@ -1070,7 +1109,10 @@ func parseStargz(sgz *io.SectionReader, controller TestingController) (decodedJT
 	}
 
 	// Decode the TOC JSON
-	tocReader := io.NewSectionReader(sgz, tocOffset, sgz.Size()-tocOffset-fSize)
+	var tocReader io.Reader
+	if tocOffset >= 0 {
+		tocReader = io.NewSectionReader(sgz, tocOffset, sgz.Size()-tocOffset-fSize)
+	}
 	decodedJTOC, _, err = controller.ParseTOC(tocReader)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to parse TOC: %w", err)
@@ -1078,28 +1120,31 @@ func parseStargz(sgz *io.SectionReader, controller TestingController) (decodedJT
 	return decodedJTOC, tocOffset, nil
 }
 
-func testWriteAndOpen(t *testing.T, controllers ...TestingController) {
+func testWriteAndOpen(t *testing.T, controllers ...TestingControllerFactory) {
 	const content = "Some contents"
 	invalidUtf8 := "\xff\xfe\xfd"
 
 	xAttrFile := xAttr{"foo": "bar", "invalid-utf8": invalidUtf8}
 	sampleOwner := owner{uid: 50, gid: 100}
 
+	data64KB := randomContents(64000)
+
 	tests := []struct {
-		name      string
-		chunkSize int
-		in        []tarEntry
-		want      []stargzCheck
-		wantNumGz int // expected number of streams
+		name         string
+		chunkSize    int
+		minChunkSize int
+		in           []tarEntry
+		want         []stargzCheck
+		wantNumGz    int // expected number of streams
 
 		wantNumGzLossLess  int // expected number of streams (> 0) in lossless mode if it's different from wantNumGz
 		wantFailOnLossLess bool
+		wantTOCVersion     int // default = 1
 	}{
 		{
-			name:              "empty",
-			in:                tarOf(),
-			wantNumGz:         2, // empty tar + TOC + footer
-			wantNumGzLossLess: 3, // empty tar + TOC + footer
+			name:      "empty",
+			in:        tarOf(),
+			wantNumGz: 2, // (empty tar) + TOC + footer
 			want: checks(
 				numTOCEntries(0),
 			),
@@ -1195,7 +1240,7 @@ func testWriteAndOpen(t *testing.T, controllers ...TestingController) {
 				dir("foo/"),
 				file("foo/big.txt", "This "+"is s"+"uch "+"a bi"+"g fi"+"le"),
 			),
-			wantNumGz: 9,
+			wantNumGz: 9, // dir + big.txt(6 chunks) + TOC + footer
 			want: checks(
 				numTOCEntries(7), // 1 for foo dir, 6 for the foo/big.txt file
 				hasDir("foo/"),
@@ -1314,23 +1359,120 @@ func testWriteAndOpen(t *testing.T, controllers ...TestingController) {
 			),
 			wantFailOnLossLess: true,
 		},
+		{
+			name: "hardlink should be replaced to the destination entry",
+			in: tarOf(
+				dir("foo/"),
+				file("foo/foo1", "test"),
+				link("foolink", "foo/foo1"),
+			),
+			wantNumGz: 4, // dir, foo1 + link, TOC, footer
+			want: checks(
+				mustSameEntry("foo/foo1", "foolink"),
+			),
+		},
+		{
+			name:         "several_files_in_chunk",
+			minChunkSize: 8000,
+			in: tarOf(
+				dir("foo/"),
+				file("foo/foo1", data64KB),
+				file("foo2", "bb"),
+				file("foo22", "ccc"),
+				dir("bar/"),
+				file("bar/bar.txt", "aaa"),
+				file("foo3", data64KB),
+			),
+			// NOTE: we assume that the compressed "data64KB" is still larger than 8KB
+			wantNumGz: 4, // dir+foo1, foo2+foo22+dir+bar.txt+foo3, TOC, footer
+			want: checks(
+				numTOCEntries(7), // dir, foo1, foo2, foo22, dir, bar.txt, foo3
+				hasDir("foo/"),
+				hasDir("bar/"),
+				hasFileLen("foo/foo1", len(data64KB)),
+				hasFileLen("foo2", len("bb")),
+				hasFileLen("foo22", len("ccc")),
+				hasFileLen("bar/bar.txt", len("aaa")),
+				hasFileLen("foo3", len(data64KB)),
+				hasFileDigest("foo/foo1", digestFor(data64KB)),
+				hasFileDigest("foo2", digestFor("bb")),
+				hasFileDigest("foo22", digestFor("ccc")),
+				hasFileDigest("bar/bar.txt", digestFor("aaa")),
+				hasFileDigest("foo3", digestFor(data64KB)),
+				hasFileContentsWithPreRead("foo22", 0, "ccc", chunkInfo{"foo2", "bb"}, chunkInfo{"bar/bar.txt", "aaa"}, chunkInfo{"foo3", data64KB}),
+				hasFileContentsRange("foo/foo1", 0, data64KB),
+				hasFileContentsRange("foo2", 0, "bb"),
+				hasFileContentsRange("foo2", 1, "b"),
+				hasFileContentsRange("foo22", 0, "ccc"),
+				hasFileContentsRange("foo22", 1, "cc"),
+				hasFileContentsRange("foo22", 2, "c"),
+				hasFileContentsRange("bar/bar.txt", 0, "aaa"),
+				hasFileContentsRange("bar/bar.txt", 1, "aa"),
+				hasFileContentsRange("bar/bar.txt", 2, "a"),
+				hasFileContentsRange("foo3", 0, data64KB),
+				hasFileContentsRange("foo3", 1, data64KB[1:]),
+				hasFileContentsRange("foo3", 2, data64KB[2:]),
+				hasFileContentsRange("foo3", len(data64KB)/2, data64KB[len(data64KB)/2:]),
+				hasFileContentsRange("foo3", len(data64KB)-1, data64KB[len(data64KB)-1:]),
+			),
+		},
+		{
+			name:         "several_files_in_chunk_chunked",
+			minChunkSize: 8000,
+			chunkSize:    32000,
+			in: tarOf(
+				dir("foo/"),
+				file("foo/foo1", data64KB),
+				file("foo2", "bb"),
+				dir("bar/"),
+				file("foo3", data64KB),
+			),
+			// NOTE: we assume that the compressed chunk of "data64KB" is still larger than 8KB
+			wantNumGz: 6, // dir+foo1(1), foo1(2), foo2+dir+foo3(1), foo3(2), TOC, footer
+			want: checks(
+				numTOCEntries(7), // dir, foo1(2 chunks), foo2, dir, foo3(2 chunks)
+				hasDir("foo/"),
+				hasDir("bar/"),
+				hasFileLen("foo/foo1", len(data64KB)),
+				hasFileLen("foo2", len("bb")),
+				hasFileLen("foo3", len(data64KB)),
+				hasFileDigest("foo/foo1", digestFor(data64KB)),
+				hasFileDigest("foo2", digestFor("bb")),
+				hasFileDigest("foo3", digestFor(data64KB)),
+				hasFileContentsWithPreRead("foo2", 0, "bb", chunkInfo{"foo3", data64KB[:32000]}),
+				hasFileContentsRange("foo/foo1", 0, data64KB),
+				hasFileContentsRange("foo/foo1", 1, data64KB[1:]),
+				hasFileContentsRange("foo/foo1", 2, data64KB[2:]),
+				hasFileContentsRange("foo/foo1", len(data64KB)/2, data64KB[len(data64KB)/2:]),
+				hasFileContentsRange("foo/foo1", len(data64KB)-1, data64KB[len(data64KB)-1:]),
+				hasFileContentsRange("foo2", 0, "bb"),
+				hasFileContentsRange("foo2", 1, "b"),
+				hasFileContentsRange("foo3", 0, data64KB),
+				hasFileContentsRange("foo3", 1, data64KB[1:]),
+				hasFileContentsRange("foo3", 2, data64KB[2:]),
+				hasFileContentsRange("foo3", len(data64KB)/2, data64KB[len(data64KB)/2:]),
+				hasFileContentsRange("foo3", len(data64KB)-1, data64KB[len(data64KB)-1:]),
+			),
+		},
 	}
 
 	for _, tt := range tests {
-		for _, cl := range controllers {
-			cl := cl
+		for _, newCL := range controllers {
+			newCL := newCL
 			for _, prefix := range allowedPrefix {
 				prefix := prefix
 				for _, srcTarFormat := range []tar.Format{tar.FormatUSTAR, tar.FormatPAX, tar.FormatGNU} {
 					srcTarFormat := srcTarFormat
 					for _, lossless := range []bool{true, false} {
-						t.Run(tt.name+"-"+fmt.Sprintf("compression=%v,prefix=%q,lossless=%v,format=%s", cl, prefix, lossless, srcTarFormat), func(t *testing.T) {
+						t.Run(tt.name+"-"+fmt.Sprintf("compression=%v,prefix=%q,lossless=%v,format=%s", newCL(), prefix, lossless, srcTarFormat), func(t *testing.T) {
 							var tr io.Reader = buildTar(t, tt.in, prefix, srcTarFormat)
 							origTarDgstr := digest.Canonical.Digester()
 							tr = io.TeeReader(tr, origTarDgstr.Hash())
 							var stargzBuf bytes.Buffer
-							w := NewWriterWithCompressor(&stargzBuf, cl)
+							cl1 := newCL()
+							w := NewWriterWithCompressor(&stargzBuf, cl1)
 							w.ChunkSize = tt.chunkSize
+							w.MinChunkSize = tt.minChunkSize
 							if lossless {
 								err := w.AppendTarLossLess(tr)
 								if tt.wantFailOnLossLess {
@@ -1354,7 +1496,7 @@ func testWriteAndOpen(t *testing.T, controllers ...TestingController) {
 
 							if lossless {
 								// Check if the result blob reserves original tar metadata
-								rc, err := Unpack(io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b))), cl)
+								rc, err := Unpack(io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b))), cl1)
 								if err != nil {
 									t.Errorf("failed to decompress blob: %v", err)
 									return
@@ -1373,32 +1515,71 @@ func testWriteAndOpen(t *testing.T, controllers ...TestingController) {
 							}
 
 							diffID := w.DiffID()
-							wantDiffID := cl.DiffIDOf(t, b)
+							wantDiffID := cl1.DiffIDOf(t, b)
 							if diffID != wantDiffID {
 								t.Errorf("DiffID = %q; want %q", diffID, wantDiffID)
 							}
 
-							got := cl.CountStreams(t, b)
-							wantNumGz := tt.wantNumGz
-							if lossless && tt.wantNumGzLossLess > 0 {
-								wantNumGz = tt.wantNumGzLossLess
-							}
-							if got != wantNumGz {
-								t.Errorf("number of streams = %d; want %d", got, wantNumGz)
-							}
-
 							telemetry, checkCalled := newCalledTelemetry()
+							sr := io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b)))
 							r, err := Open(
-								io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b))),
-								WithDecompressors(cl),
+								sr,
+								WithDecompressors(cl1),
 								WithTelemetry(telemetry),
 							)
 							if err != nil {
 								t.Fatalf("stargz.Open: %v", err)
 							}
-							if err := checkCalled(); err != nil {
+							wantTOCVersion := 1
+							if tt.wantTOCVersion > 0 {
+								wantTOCVersion = tt.wantTOCVersion
+							}
+							if r.toc.Version != wantTOCVersion {
+								t.Fatalf("invalid TOC Version %d; wanted %d", r.toc.Version, wantTOCVersion)
+							}
+
+							footerSize := cl1.FooterSize()
+							footerOffset := sr.Size() - footerSize
+							footer := make([]byte, footerSize)
+							if _, err := sr.ReadAt(footer, footerOffset); err != nil {
+								t.Errorf("failed to read footer: %v", err)
+							}
+							_, tocOffset, _, err := cl1.ParseFooter(footer)
+							if err != nil {
+								t.Errorf("failed to parse footer: %v", err)
+							}
+							if err := checkCalled(tocOffset >= 0); err != nil {
 								t.Errorf("telemetry failure: %v", err)
 							}
+
+							wantNumGz := tt.wantNumGz
+							if lossless && tt.wantNumGzLossLess > 0 {
+								wantNumGz = tt.wantNumGzLossLess
+							}
+							streamOffsets := []int64{0}
+							prevOffset := int64(-1)
+							streams := 0
+							for _, e := range r.toc.Entries {
+								if e.Offset > prevOffset {
+									streamOffsets = append(streamOffsets, e.Offset)
+									prevOffset = e.Offset
+									streams++
+								}
+							}
+							streams++ // TOC
+							if tocOffset >= 0 {
+								// toc is in the blob
+								streamOffsets = append(streamOffsets, tocOffset)
+							}
+							streams++ // footer
+							streamOffsets = append(streamOffsets, footerOffset)
+							if streams != wantNumGz {
+								t.Errorf("number of streams in TOC = %d; want %d", streams, wantNumGz)
+							}
+
+							t.Logf("testing streams: %+v", streamOffsets)
+							cl1.TestStreams(t, b, streamOffsets)
+
 							for _, want := range tt.want {
 								want.check(t, r)
 							}
@@ -1410,7 +1591,12 @@ func testWriteAndOpen(t *testing.T, controllers ...TestingController) {
 	}
 }
 
-func newCalledTelemetry() (telemetry *Telemetry, check func() error) {
+type chunkInfo struct {
+	name string
+	data string
+}
+
+func newCalledTelemetry() (telemetry *Telemetry, check func(needsGetTOC bool) error) {
 	var getFooterLatencyCalled bool
 	var getTocLatencyCalled bool
 	var deserializeTocLatencyCalled bool
@@ -1418,13 +1604,15 @@ func newCalledTelemetry() (telemetry *Telemetry, check func() error) {
 			func(time.Time) { getFooterLatencyCalled = true },
 			func(time.Time) { getTocLatencyCalled = true },
 			func(time.Time) { deserializeTocLatencyCalled = true },
-		}, func() error {
+		}, func(needsGetTOC bool) error {
 			var allErr []error
 			if !getFooterLatencyCalled {
 				allErr = append(allErr, fmt.Errorf("metrics GetFooterLatency isn't called"))
 			}
-			if !getTocLatencyCalled {
-				allErr = append(allErr, fmt.Errorf("metrics GetTocLatency isn't called"))
+			if needsGetTOC {
+				if !getTocLatencyCalled {
+					allErr = append(allErr, fmt.Errorf("metrics GetTocLatency isn't called"))
+				}
 			}
 			if !deserializeTocLatencyCalled {
 				allErr = append(allErr, fmt.Errorf("metrics DeserializeTocLatency isn't called"))
@@ -1561,6 +1749,53 @@ func hasFileDigest(file string, digest string) stargzCheck {
 	})
 }
 
+func hasFileContentsWithPreRead(file string, offset int, want string, extra ...chunkInfo) stargzCheck {
+	return stargzCheckFn(func(t *testing.T, r *Reader) {
+		extraMap := make(map[string]chunkInfo)
+		for _, e := range extra {
+			extraMap[e.name] = e
+		}
+		var extraNames []string
+		for n := range extraMap {
+			extraNames = append(extraNames, n)
+		}
+		f, err := r.OpenFileWithPreReader(file, func(e *TOCEntry, cr io.Reader) error {
+			t.Logf("On %q: got preread of %q", file, e.Name)
+			ex, ok := extraMap[e.Name]
+			if !ok {
+				t.Fatalf("fail on %q: unexpected entry %q: %+v, %+v", file, e.Name, e, extraNames)
+			}
+			got, err := io.ReadAll(cr)
+			if err != nil {
+				t.Fatalf("fail on %q: failed to read %q: %v", file, e.Name, err)
+			}
+			if ex.data != string(got) {
+				t.Fatalf("fail on %q: unexpected contents of %q: len=%d; want=%d", file, e.Name, len(got), len(ex.data))
+			}
+			delete(extraMap, e.Name)
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := make([]byte, len(want))
+		n, err := f.ReadAt(got, int64(offset))
+		if err != nil {
+			t.Fatalf("ReadAt(len %d, offset %d, size %d) = %v, %v", len(got), offset, f.Size(), n, err)
+		}
+		if string(got) != want {
+			t.Fatalf("ReadAt(len %d, offset %d) = %q, want %q", len(got), offset, viewContent(got), viewContent([]byte(want)))
+		}
+		if len(extraMap) != 0 {
+			var exNames []string
+			for _, ex := range extraMap {
+				exNames = append(exNames, ex.name)
+			}
+			t.Fatalf("fail on %q: some entries aren't read: %+v", file, exNames)
+		}
+	})
+}
+
 func hasFileContentsRange(file string, offset int, want string) stargzCheck {
 	return stargzCheckFn(func(t *testing.T, r *Reader) {
 		f, err := r.OpenFile(file)
@@ -1573,7 +1808,7 @@ func hasFileContentsRange(file string, offset int, want string) stargzCheck {
 			t.Fatalf("ReadAt(len %d, offset %d) = %v, %v", len(got), offset, n, err)
 		}
 		if string(got) != want {
-			t.Fatalf("ReadAt(len %d, offset %d) = %q, want %q", len(got), offset, got, want)
+			t.Fatalf("ReadAt(len %d, offset %d) = %q, want %q", len(got), offset, viewContent(got), viewContent([]byte(want)))
 		}
 	})
 }
@@ -1729,6 +1964,67 @@ func hasEntryOwner(entry string, owner owner) stargzCheck {
 			return
 		}
 	})
+}
+
+func mustSameEntry(files ...string) stargzCheck {
+	return stargzCheckFn(func(t *testing.T, r *Reader) {
+		var first *TOCEntry
+		for _, f := range files {
+			if first == nil {
+				var ok bool
+				first, ok = r.Lookup(f)
+				if !ok {
+					t.Errorf("unknown first file on Lookup: %q", f)
+					return
+				}
+			}
+
+			// Test Lookup
+			e, ok := r.Lookup(f)
+			if !ok {
+				t.Errorf("unknown file on Lookup: %q", f)
+				return
+			}
+			if e != first {
+				t.Errorf("Lookup: %+v(%p) != %+v(%p)", e, e, first, first)
+				return
+			}
+
+			// Test LookupChild
+			pe, ok := r.Lookup(filepath.Dir(filepath.Clean(f)))
+			if !ok {
+				t.Errorf("failed to get parent of %q", f)
+				return
+			}
+			e, ok = pe.LookupChild(filepath.Base(filepath.Clean(f)))
+			if !ok {
+				t.Errorf("failed to get %q as the child of %+v", f, pe)
+				return
+			}
+			if e != first {
+				t.Errorf("LookupChild: %+v(%p) != %+v(%p)", e, e, first, first)
+				return
+			}
+
+			// Test ForeachChild
+			pe.ForeachChild(func(baseName string, e *TOCEntry) bool {
+				if baseName == filepath.Base(filepath.Clean(f)) {
+					if e != first {
+						t.Errorf("ForeachChild: %+v(%p) != %+v(%p)", e, e, first, first)
+						return false
+					}
+				}
+				return true
+			})
+		}
+	})
+}
+
+func viewContent(c []byte) string {
+	if len(c) < 100 {
+		return string(c)
+	}
+	return string(c[:50]) + "...(omit)..." + string(c[50:100])
 }
 
 func tarOf(s ...tarEntry) []tarEntry { return s }
@@ -1990,6 +2286,16 @@ func regDigest(t *testing.T, name string, contentStr string, digestMap map[strin
 	})
 }
 
+var runes = []rune("1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func randomContents(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = runes[rand.Intn(len(runes))]
+	}
+	return string(b)
+}
+
 func fileModeToTarMode(mode os.FileMode) (int64, error) {
 	h, err := tar.FileInfoHeader(fileInfoOnlyMode(mode), "")
 	if err != nil {
@@ -2007,3 +2313,54 @@ func (f fileInfoOnlyMode) Mode() os.FileMode  { return os.FileMode(f) }
 func (f fileInfoOnlyMode) ModTime() time.Time { return time.Now() }
 func (f fileInfoOnlyMode) IsDir() bool        { return os.FileMode(f).IsDir() }
 func (f fileInfoOnlyMode) Sys() interface{}   { return nil }
+
+func CheckGzipHasStreams(t *testing.T, b []byte, streams []int64) {
+	if len(streams) == 0 {
+		return // nop
+	}
+
+	wants := map[int64]struct{}{}
+	for _, s := range streams {
+		wants[s] = struct{}{}
+	}
+
+	len0 := len(b)
+	br := bytes.NewReader(b)
+	zr := new(gzip.Reader)
+	t.Logf("got gzip streams:")
+	numStreams := 0
+	for {
+		zoff := len0 - br.Len()
+		if err := zr.Reset(br); err != nil {
+			if err == io.EOF {
+				return
+			}
+			t.Fatalf("countStreams(gzip), Reset: %v", err)
+		}
+		zr.Multistream(false)
+		n, err := io.Copy(io.Discard, zr)
+		if err != nil {
+			t.Fatalf("countStreams(gzip), Copy: %v", err)
+		}
+		var extra string
+		if len(zr.Header.Extra) > 0 {
+			extra = fmt.Sprintf("; extra=%q", zr.Header.Extra)
+		}
+		t.Logf("  [%d] at %d in stargz, uncompressed length %d%s", numStreams, zoff, n, extra)
+		delete(wants, int64(zoff))
+		numStreams++
+	}
+}
+
+func GzipDiffIDOf(t *testing.T, b []byte) string {
+	h := sha256.New()
+	zr, err := gzip.NewReader(bytes.NewReader(b))
+	if err != nil {
+		t.Fatalf("diffIDOf(gzip): %v", err)
+	}
+	defer zr.Close()
+	if _, err := io.Copy(h, zr); err != nil {
+		t.Fatalf("diffIDOf(gzip).Copy: %v", err)
+	}
+	return fmt.Sprintf("sha256:%x", h.Sum(nil))
+}

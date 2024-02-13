@@ -1,30 +1,25 @@
 //go:build linux
-// +build linux
 
 // Network utility functions.
 
 package netutils
 
 import (
-	"fmt"
 	"net"
-	"strings"
+	"os"
 
-	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 )
 
-var (
-	networkGetRoutesFct func(netlink.Link, int) ([]netlink.Route, error)
-)
+var networkGetRoutesFct func(netlink.Link, int) ([]netlink.Route, error)
 
 // CheckRouteOverlaps checks whether the passed network overlaps with any existing routes
 func CheckRouteOverlaps(toCheck *net.IPNet) error {
+	networkGetRoutesFct := networkGetRoutesFct
 	if networkGetRoutesFct == nil {
 		networkGetRoutesFct = ns.NlHandle().RouteList
 	}
@@ -51,59 +46,17 @@ func GenerateIfaceName(nlh *netlink.Handle, prefix string, len int) (string, err
 	for i := 0; i < 3; i++ {
 		name, err := GenerateRandomName(prefix, len)
 		if err != nil {
-			continue
+			return "", err
 		}
 		_, err = linkByName(name)
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
+			if errors.As(err, &netlink.LinkNotFoundError{}) {
 				return name, nil
 			}
 			return "", err
 		}
 	}
 	return "", types.InternalErrorf("could not generate interface name")
-}
-
-// ElectInterfaceAddresses looks for an interface on the OS with the
-// specified name and returns returns all its IPv4 and IPv6 addresses in CIDR notation.
-// If a failure in retrieving the addresses or no IPv4 address is found, an error is returned.
-// If the interface does not exist, it chooses from a predefined
-// list the first IPv4 address which does not conflict with other
-// interfaces on the system.
-func ElectInterfaceAddresses(name string) ([]*net.IPNet, []*net.IPNet, error) {
-	var v4Nets, v6Nets []*net.IPNet
-
-	defer osl.InitOSContext()()
-
-	link, _ := ns.NlHandle().LinkByName(name)
-	if link != nil {
-		v4addr, err := ns.NlHandle().AddrList(link, netlink.FAMILY_V4)
-		if err != nil {
-			return nil, nil, err
-		}
-		v6addr, err := ns.NlHandle().AddrList(link, netlink.FAMILY_V6)
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, nlAddr := range v4addr {
-			v4Nets = append(v4Nets, nlAddr.IPNet)
-		}
-		for _, nlAddr := range v6addr {
-			v6Nets = append(v6Nets, nlAddr.IPNet)
-		}
-	}
-
-	if link == nil || len(v4Nets) == 0 {
-		// Choose from predefined local scope networks
-		v4Net, err := FindAvailableNetwork(ipamutils.PredefinedLocalScopeDefaultNetworks)
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "PredefinedLocalScopeDefaultNetworks List: %+v",
-				ipamutils.PredefinedLocalScopeDefaultNetworks)
-		}
-		v4Nets = append(v4Nets, v4Net)
-	}
-
-	return v4Nets, v6Nets, nil
 }
 
 // FindAvailableNetwork returns a network from the passed list which does not
@@ -113,8 +66,8 @@ func FindAvailableNetwork(list []*net.IPNet) (*net.IPNet, error) {
 	// can't read /etc/resolv.conf. So instead we skip the append if resolvConf
 	// is nil. It either doesn't exist, or we can't read it for some reason.
 	var nameservers []string
-	if rc, err := resolvconf.Get(); err == nil {
-		nameservers = resolvconf.GetNameserversAsCIDR(rc.Content)
+	if rc, err := os.ReadFile(resolvconf.Path()); err == nil {
+		nameservers = resolvconf.GetNameserversAsCIDR(rc)
 	}
 	for _, nw := range list {
 		if err := CheckNameserverOverlaps(nameservers, nw); err == nil {
@@ -123,5 +76,5 @@ func FindAvailableNetwork(list []*net.IPNet) (*net.IPNet, error) {
 			}
 		}
 	}
-	return nil, fmt.Errorf("no available network")
+	return nil, errors.New("no available network")
 }

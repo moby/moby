@@ -1,22 +1,34 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
+	"encoding/json"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
+	"dario.cat/mergo"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/opts"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/imdario/mergo"
 	"github.com/spf13/pflag"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/unicode"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
 	"gotest.tools/v3/skip"
 )
+
+func makeConfigFile(t *testing.T, content string) string {
+	t.Helper()
+	name := filepath.Join(t.TempDir(), "daemon.json")
+	err := os.WriteFile(name, []byte(content), 0o666)
+	assert.NilError(t, err)
+	return name
+}
 
 func TestDaemonConfigurationNotFound(t *testing.T) {
 	_, err := MergeDaemonConfigurations(&Config{}, nil, "/tmp/foo-bar-baz-docker")
@@ -24,15 +36,59 @@ func TestDaemonConfigurationNotFound(t *testing.T) {
 }
 
 func TestDaemonBrokenConfiguration(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
+	configFile := makeConfigFile(t, `{"Debug": tru`)
 
-	configFile := f.Name()
-	f.Write([]byte(`{"Debug": tru`))
-	f.Close()
-
-	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 	assert.ErrorContains(t, err, `invalid character ' ' in literal true`)
+}
+
+// TestDaemonConfigurationUnicodeVariations feeds various variations of Unicode into the JSON parser, ensuring that we
+// respect a BOM and otherwise default to UTF-8.
+func TestDaemonConfigurationUnicodeVariations(t *testing.T) {
+	jsonData := `{"debug": true}`
+
+	testCases := []struct {
+		name     string
+		encoding encoding.Encoding
+	}{
+		{
+			name:     "UTF-8",
+			encoding: unicode.UTF8,
+		},
+		{
+			name:     "UTF-8 (with BOM)",
+			encoding: unicode.UTF8BOM,
+		},
+		{
+			name:     "UTF-16 (BE with BOM)",
+			encoding: unicode.UTF16(unicode.BigEndian, unicode.UseBOM),
+		},
+		{
+			name:     "UTF-16 (LE with BOM)",
+			encoding: unicode.UTF16(unicode.LittleEndian, unicode.UseBOM),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			encodedJson, err := tc.encoding.NewEncoder().String(jsonData)
+			assert.NilError(t, err)
+			configFile := makeConfigFile(t, encodedJson)
+			_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+			assert.NilError(t, err)
+		})
+	}
+}
+
+// TestDaemonConfigurationInvalidUnicode ensures that the JSON parser returns a useful error message if malformed UTF-8
+// is provided.
+func TestDaemonConfigurationInvalidUnicode(t *testing.T) {
+	configFileBOM := makeConfigFile(t, "\xef\xbb\xbf{\"debug\": true}\xff")
+	_, err := MergeDaemonConfigurations(&Config{}, nil, configFileBOM)
+	assert.ErrorIs(t, err, encoding.ErrInvalidUTF8)
+
+	configFileNoBOM := makeConfigFile(t, "{\"debug\": true}\xff")
+	_, err = MergeDaemonConfigurations(&Config{}, nil, configFileNoBOM)
+	assert.ErrorIs(t, err, encoding.ErrInvalidUTF8)
 }
 
 func TestFindConfigurationConflicts(t *testing.T) {
@@ -56,18 +112,13 @@ func TestFindConfigurationConflictsWithNamedOptions(t *testing.T) {
 }
 
 func TestDaemonConfigurationMergeConflicts(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
-
-	configFile := f.Name()
-	f.Write([]byte(`{"debug": true}`))
-	f.Close()
+	configFile := makeConfigFile(t, `{"debug": true}`)
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.Bool("debug", false, "")
 	assert.Check(t, flags.Set("debug", "false"))
 
-	_, err = MergeDaemonConfigurations(&Config{}, flags, configFile)
+	_, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -77,82 +128,65 @@ func TestDaemonConfigurationMergeConflicts(t *testing.T) {
 }
 
 func TestDaemonConfigurationMergeConcurrent(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
+	configFile := makeConfigFile(t, `{"max-concurrent-downloads": 1}`)
 
-	configFile := f.Name()
-	f.Write([]byte(`{"max-concurrent-downloads": 1}`))
-	f.Close()
-
-	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 	assert.NilError(t, err)
 }
 
 func TestDaemonConfigurationMergeConcurrentError(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
+	configFile := makeConfigFile(t, `{"max-concurrent-downloads": -1}`)
 
-	configFile := f.Name()
-	f.Write([]byte(`{"max-concurrent-downloads": -1}`))
-	f.Close()
-
-	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 	assert.ErrorContains(t, err, `invalid max concurrent downloads: -1`)
 }
 
 func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
-
-	configFile := f.Name()
-	f.Write([]byte(`{"tlscacert": "/etc/certificates/ca.pem"}`))
-	f.Close()
+	configFile := makeConfigFile(t, `{"tlscacert": "/etc/certificates/ca.pem"}`)
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("tlscacert", "", "")
 	assert.Check(t, flags.Set("tlscacert", "~/.docker/ca.pem"))
 
-	_, err = MergeDaemonConfigurations(&Config{}, flags, configFile)
+	_, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
 	assert.ErrorContains(t, err, `the following directives are specified both as a flag and in the configuration file: tlscacert`)
 }
 
-// Test for #40711
+// TestDaemonConfigurationMergeDefaultAddressPools is a regression test for #40711.
 func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
-	emptyConfigFile := fs.NewFile(t, "config", fs.WithContent(`{}`))
-	defer emptyConfigFile.Remove()
-	configFile := fs.NewFile(t, "config", fs.WithContent(`{"default-address-pools":[{"base": "10.123.0.0/16", "size": 24 }]}`))
-	defer configFile.Remove()
+	emptyConfigFile := makeConfigFile(t, `{}`)
+	configFile := makeConfigFile(t, `{"default-address-pools":[{"base": "10.123.0.0/16", "size": 24 }]}`)
 
 	expected := []*ipamutils.NetworkToSplit{{Base: "10.123.0.0/16", Size: 24}}
 
 	t.Run("empty config file", func(t *testing.T) {
-		var conf = Config{}
+		conf := Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
 		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
 
-		config, err := MergeDaemonConfigurations(&conf, flags, emptyConfigFile.Path())
+		config, err := MergeDaemonConfigurations(&conf, flags, emptyConfigFile)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected)
 	})
 
 	t.Run("config file", func(t *testing.T) {
-		var conf = Config{}
+		conf := Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
 
-		config, err := MergeDaemonConfigurations(&conf, flags, configFile.Path())
+		config, err := MergeDaemonConfigurations(&conf, flags, configFile)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected)
 	})
 
 	t.Run("with conflicting options", func(t *testing.T) {
-		var conf = Config{}
+		conf := Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
 		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
 
-		_, err := MergeDaemonConfigurations(&conf, flags, configFile.Path())
+		_, err := MergeDaemonConfigurations(&conf, flags, configFile)
 		assert.ErrorContains(t, err, "the following directives are specified both as a flag and in the configuration file")
 		assert.ErrorContains(t, err, "default-address-pools")
 	})
@@ -207,28 +241,6 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			expectedErr: "bad attribute format: one",
 		},
 		{
-			name: "single DNS, invalid IP-address",
-			config: &Config{
-				CommonConfig: CommonConfig{
-					DNSConfig: DNSConfig{
-						DNS: []string{"1.1.1.1o"},
-					},
-				},
-			},
-			expectedErr: "1.1.1.1o is not an ip address",
-		},
-		{
-			name: "multiple DNS, invalid IP-address",
-			config: &Config{
-				CommonConfig: CommonConfig{
-					DNSConfig: DNSConfig{
-						DNS: []string{"2.2.2.2", "1.1.1.1o"},
-					},
-				},
-			},
-			expectedErr: "1.1.1.1o is not an ip address",
-		},
-		{
 			name: "single DNSSearch",
 			config: &Config{
 				CommonConfig: CommonConfig{
@@ -254,7 +266,11 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			name: "negative MTU",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					Mtu: -10,
+					BridgeConfig: BridgeConfig{
+						DefaultBridgeConfig: DefaultBridgeConfig{
+							MTU: -10,
+						},
+					},
 				},
 			},
 			expectedErr: "invalid default MTU: -10",
@@ -385,17 +401,6 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name:  "with dns",
-			field: "DNSConfig",
-			config: &Config{
-				CommonConfig: CommonConfig{
-					DNSConfig: DNSConfig{
-						DNS: []string{"1.1.1.1"},
-					},
-				},
-			},
-		},
-		{
 			name:  "with dns-search",
 			field: "DNSConfig",
 			config: &Config{
@@ -408,10 +413,14 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 		{
 			name:  "with mtu",
-			field: "Mtu",
+			field: "MTU",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					Mtu: 1234,
+					BridgeConfig: BridgeConfig{
+						DefaultBridgeConfig: DefaultBridgeConfig{
+							MTU: 1234,
+						},
+					},
 				},
 			},
 		},
@@ -494,6 +503,90 @@ func TestValidateConfiguration(t *testing.T) {
 	}
 }
 
+func TestValidateMinAPIVersion(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		doc         string
+		input       string
+		expectedErr string
+	}{
+		{
+			doc:         "empty",
+			expectedErr: "value is empty",
+		},
+		{
+			doc:         "with prefix",
+			input:       "v1.43",
+			expectedErr: `API version must be provided without "v" prefix`,
+		},
+		{
+			doc:         "major only",
+			input:       "1",
+			expectedErr: `minimum supported API version is`,
+		},
+		{
+			doc:         "too low",
+			input:       "1.0",
+			expectedErr: `minimum supported API version is`,
+		},
+		{
+			doc:         "minor too high",
+			input:       "1.99",
+			expectedErr: `maximum supported API version is`,
+		},
+		{
+			doc:         "major too high",
+			input:       "9.0",
+			expectedErr: `maximum supported API version is`,
+		},
+		{
+			doc:   "current version",
+			input: api.DefaultVersion,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			err := ValidateMinAPIVersion(tc.input)
+			if tc.expectedErr != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expectedErr))
+			} else {
+				assert.Check(t, err)
+			}
+		})
+	}
+
+}
+
+func TestConfigInvalidDNS(t *testing.T) {
+	tests := []struct {
+		doc         string
+		input       string
+		expectedErr string
+	}{
+		{
+			doc:         "single DNS, invalid IP-address",
+			input:       `{"dns": ["1.1.1.1o"]}`,
+			expectedErr: `invalid IP address: 1.1.1.1o`,
+		},
+		{
+			doc:         "multiple DNS, invalid IP-address",
+			input:       `{"dns": ["2.2.2.2", "1.1.1.1o"]}`,
+			expectedErr: `invalid IP address: 1.1.1.1o`,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			var cfg Config
+			err := json.Unmarshal([]byte(tc.input), &cfg)
+			assert.Check(t, is.Error(err, tc.expectedErr))
+		})
+	}
+}
+
 func field(field string) cmp.Option {
 	tmp := reflect.TypeOf(Config{})
 	ignoreFields := make([]string, 0, tmp.NumField())
@@ -505,8 +598,8 @@ func field(field string) cmp.Option {
 	return cmpopts.IgnoreFields(Config{}, ignoreFields...)
 }
 
-// TestReloadSetConfigFileNotExist tests that when `--config-file` is set
-// and it doesn't exist the `Reload` function returns an error.
+// TestReloadSetConfigFileNotExist tests that when `--config-file` is set, and it doesn't exist the `Reload` function
+// returns an error.
 func TestReloadSetConfigFileNotExist(t *testing.T) {
 	configFile := "/tmp/blabla/not/exists/config.json"
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
@@ -517,8 +610,8 @@ func TestReloadSetConfigFileNotExist(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
 }
 
-// TestReloadDefaultConfigNotExist tests that if the default configuration file
-// doesn't exist the daemon still will be reloaded.
+// TestReloadDefaultConfigNotExist tests that if the default configuration file doesn't exist the daemon still will
+// still be reloaded.
 func TestReloadDefaultConfigNotExist(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	defaultConfigFile := "/tmp/blabla/not/exists/daemon.json"
@@ -532,20 +625,15 @@ func TestReloadDefaultConfigNotExist(t *testing.T) {
 	assert.Check(t, reloaded)
 }
 
-// TestReloadBadDefaultConfig tests that when `--config-file` is not set
-// and the default configuration file exists and is bad return an error
+// TestReloadBadDefaultConfig tests that when `--config-file` is not set and the default configuration file exists and
+// is bad, an error is returned.
 func TestReloadBadDefaultConfig(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
-
-	configFile := f.Name()
-	f.Write([]byte(`{wrong: "configuration"}`))
-	f.Close()
+	configFile := makeConfigFile(t, `{wrong: "configuration"}`)
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", configFile, "")
 	reloaded := false
-	err = Reload(configFile, flags, func(c *Config) {
+	err := Reload(configFile, flags, func(c *Config) {
 		reloaded = true
 	})
 	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
@@ -553,9 +641,7 @@ func TestReloadBadDefaultConfig(t *testing.T) {
 }
 
 func TestReloadWithConflictingLabels(t *testing.T) {
-	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"labels":["foo=bar","foo=baz"]}`))
-	defer tempFile.Remove()
-	configFile := tempFile.Path()
+	configFile := makeConfigFile(t, `{"labels": ["foo=bar", "foo=baz"]}`)
 
 	var lbls []string
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
@@ -570,9 +656,7 @@ func TestReloadWithConflictingLabels(t *testing.T) {
 }
 
 func TestReloadWithDuplicateLabels(t *testing.T) {
-	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"labels":["foo=the-same","foo=the-same"]}`))
-	defer tempFile.Remove()
-	configFile := tempFile.Path()
+	configFile := makeConfigFile(t, `{"labels": ["foo=the-same", "foo=the-same"]}`)
 
 	var lbls []string
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)

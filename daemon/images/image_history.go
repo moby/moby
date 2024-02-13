@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/layer"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
 // name by walking the image lineage.
-func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, error) {
-	ctx := context.TODO()
+func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*image.HistoryResponseItem, error) {
 	start := time.Now()
-	img, err := i.GetImage(ctx, name, image.GetImageOpts{})
+	img, err := i.GetImage(ctx, name, backend.GetImageOpts{})
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, 
 		if id == "" {
 			break
 		}
-		histImg, err = i.GetImage(ctx, id.String(), image.GetImageOpts{})
+		histImg, err = i.GetImage(ctx, id.String(), backend.GetImageOpts{})
 		if err != nil {
 			break
 		}

@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"net"
+	"sort"
 	"strings"
 )
 
@@ -423,86 +424,12 @@ Option:
 	if off+int(optlen) > len(msg) {
 		return nil, len(msg), &Error{err: "overflow unpacking opt"}
 	}
-	switch code {
-	case EDNS0NSID:
-		e := new(EDNS0_NSID)
-		if err := e.unpack(msg[off : off+int(optlen)]); err != nil {
-			return nil, len(msg), err
-		}
-		edns = append(edns, e)
-		off += int(optlen)
-	case EDNS0SUBNET:
-		e := new(EDNS0_SUBNET)
-		if err := e.unpack(msg[off : off+int(optlen)]); err != nil {
-			return nil, len(msg), err
-		}
-		edns = append(edns, e)
-		off += int(optlen)
-	case EDNS0COOKIE:
-		e := new(EDNS0_COOKIE)
-		if err := e.unpack(msg[off : off+int(optlen)]); err != nil {
-			return nil, len(msg), err
-		}
-		edns = append(edns, e)
-		off += int(optlen)
-	case EDNS0EXPIRE:
-		e := new(EDNS0_EXPIRE)
-		if err := e.unpack(msg[off : off+int(optlen)]); err != nil {
-			return nil, len(msg), err
-		}
-		edns = append(edns, e)
-		off += int(optlen)
-	case EDNS0UL:
-		e := new(EDNS0_UL)
-		if err := e.unpack(msg[off : off+int(optlen)]); err != nil {
-			return nil, len(msg), err
-		}
-		edns = append(edns, e)
-		off += int(optlen)
-	case EDNS0LLQ:
-		e := new(EDNS0_LLQ)
-		if err := e.unpack(msg[off : off+int(optlen)]); err != nil {
-			return nil, len(msg), err
-		}
-		edns = append(edns, e)
-		off += int(optlen)
-	case EDNS0DAU:
-		e := new(EDNS0_DAU)
-		if err := e.unpack(msg[off : off+int(optlen)]); err != nil {
-			return nil, len(msg), err
-		}
-		edns = append(edns, e)
-		off += int(optlen)
-	case EDNS0DHU:
-		e := new(EDNS0_DHU)
-		if err := e.unpack(msg[off : off+int(optlen)]); err != nil {
-			return nil, len(msg), err
-		}
-		edns = append(edns, e)
-		off += int(optlen)
-	case EDNS0N3U:
-		e := new(EDNS0_N3U)
-		if err := e.unpack(msg[off : off+int(optlen)]); err != nil {
-			return nil, len(msg), err
-		}
-		edns = append(edns, e)
-		off += int(optlen)
-	case EDNS0PADDING:
-		e := new(EDNS0_PADDING)
-		if err := e.unpack(msg[off : off+int(optlen)]); err != nil {
-			return nil, len(msg), err
-		}
-		edns = append(edns, e)
-		off += int(optlen)
-	default:
-		e := new(EDNS0_LOCAL)
-		e.Code = code
-		if err := e.unpack(msg[off : off+int(optlen)]); err != nil {
-			return nil, len(msg), err
-		}
-		edns = append(edns, e)
-		off += int(optlen)
+	e := makeDataOpt(code)
+	if err := e.unpack(msg[off : off+int(optlen)]); err != nil {
+		return nil, len(msg), err
 	}
+	edns = append(edns, e)
+	off += int(optlen)
 
 	if off < len(msg) {
 		goto Option
@@ -521,9 +448,7 @@ func packDataOpt(options []EDNS0, msg []byte, off int) (int, error) {
 		binary.BigEndian.PutUint16(msg[off+2:], uint16(len(b))) // Length
 		off += 4
 		if off+len(b) > len(msg) {
-			copy(msg[off:], b)
-			off = len(msg)
-			continue
+			return len(msg), &Error{err: "overflow packing opt"}
 		}
 		// Actual data
 		copy(msg[off:off+len(b)], b)
@@ -659,6 +584,65 @@ func packDataNsec(bitmap []uint16, msg []byte, off int) (int, error) {
 	return off, nil
 }
 
+func unpackDataSVCB(msg []byte, off int) ([]SVCBKeyValue, int, error) {
+	var xs []SVCBKeyValue
+	var code uint16
+	var length uint16
+	var err error
+	for off < len(msg) {
+		code, off, err = unpackUint16(msg, off)
+		if err != nil {
+			return nil, len(msg), &Error{err: "overflow unpacking SVCB"}
+		}
+		length, off, err = unpackUint16(msg, off)
+		if err != nil || off+int(length) > len(msg) {
+			return nil, len(msg), &Error{err: "overflow unpacking SVCB"}
+		}
+		e := makeSVCBKeyValue(SVCBKey(code))
+		if e == nil {
+			return nil, len(msg), &Error{err: "bad SVCB key"}
+		}
+		if err := e.unpack(msg[off : off+int(length)]); err != nil {
+			return nil, len(msg), err
+		}
+		if len(xs) > 0 && e.Key() <= xs[len(xs)-1].Key() {
+			return nil, len(msg), &Error{err: "SVCB keys not in strictly increasing order"}
+		}
+		xs = append(xs, e)
+		off += int(length)
+	}
+	return xs, off, nil
+}
+
+func packDataSVCB(pairs []SVCBKeyValue, msg []byte, off int) (int, error) {
+	pairs = append([]SVCBKeyValue(nil), pairs...)
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].Key() < pairs[j].Key()
+	})
+	prev := svcb_RESERVED
+	for _, el := range pairs {
+		if el.Key() == prev {
+			return len(msg), &Error{err: "repeated SVCB keys are not allowed"}
+		}
+		prev = el.Key()
+		packed, err := el.pack()
+		if err != nil {
+			return len(msg), err
+		}
+		off, err = packUint16(uint16(el.Key()), msg, off)
+		if err != nil {
+			return len(msg), &Error{err: "overflow packing SVCB"}
+		}
+		off, err = packUint16(uint16(len(packed)), msg, off)
+		if err != nil || off+len(packed) > len(msg) {
+			return len(msg), &Error{err: "overflow packing SVCB"}
+		}
+		copy(msg[off:off+len(packed)], packed)
+		off += len(packed)
+	}
+	return off, nil
+}
+
 func unpackDataDomainNames(msg []byte, off, end int) ([]string, int, error) {
 	var (
 		servers []string
@@ -730,6 +714,13 @@ func packDataAplPrefix(p *APLPrefix, msg []byte, off int) (int, error) {
 	if p.Negation {
 		n = 0x80
 	}
+
+	// trim trailing zero bytes as specified in RFC3123 Sections 4.1 and 4.2.
+	i := len(addr) - 1
+	for ; i >= 0 && addr[i] == 0; i-- {
+	}
+	addr = addr[:i+1]
+
 	adflen := uint8(len(addr)) & 0x7f
 	off, err = packUint8(n|adflen, msg, off)
 	if err != nil {
@@ -783,28 +774,31 @@ func unpackDataAplPrefix(msg []byte, off int) (APLPrefix, int, error) {
 	if int(prefix) > 8*len(ip) {
 		return APLPrefix{}, len(msg), &Error{err: "APL prefix too long"}
 	}
-
 	afdlen := int(nlen & 0x7f)
-	if (int(prefix)+7)/8 != afdlen {
-		return APLPrefix{}, len(msg), &Error{err: "invalid APL address length"}
+	if afdlen > len(ip) {
+		return APLPrefix{}, len(msg), &Error{err: "APL length too long"}
 	}
 	if off+afdlen > len(msg) {
 		return APLPrefix{}, len(msg), &Error{err: "overflow unpacking APL address"}
 	}
 	off += copy(ip, msg[off:off+afdlen])
-	if prefix%8 > 0 {
+	if afdlen > 0 {
 		last := ip[afdlen-1]
-		zero := uint8(0xff) >> (prefix % 8)
-		if last&zero > 0 {
+		if last == 0 {
 			return APLPrefix{}, len(msg), &Error{err: "extra APL address bits"}
 		}
+	}
+	ipnet := net.IPNet{
+		IP:   ip,
+		Mask: net.CIDRMask(int(prefix), 8*len(ip)),
+	}
+	network := ipnet.IP.Mask(ipnet.Mask)
+	if !network.Equal(ipnet.IP) {
+		return APLPrefix{}, len(msg), &Error{err: "invalid APL address length"}
 	}
 
 	return APLPrefix{
 		Negation: (nlen & 0x80) != 0,
-		Network: net.IPNet{
-			IP:   ip,
-			Mask: net.CIDRMask(int(prefix), 8*len(ip)),
-		},
+		Network:  ipnet,
 	}, off, nil
 }

@@ -2,14 +2,17 @@ package netutils
 
 import (
 	"bytes"
+	"fmt"
 	"net"
-	"sort"
+	"strings"
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/ipamutils"
-	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNonOverlappingNameservers(t *testing.T) {
@@ -104,21 +107,21 @@ func AssertNoOverlap(CIDRx string, CIDRy string, t *testing.T) {
 }
 
 func TestNetworkOverlaps(t *testing.T) {
-	//netY starts at same IP and ends within netX
+	// netY starts at same IP and ends within netX
 	AssertOverlap("172.16.0.1/24", "172.16.0.1/25", t)
-	//netY starts within netX and ends at same IP
+	// netY starts within netX and ends at same IP
 	AssertOverlap("172.16.0.1/24", "172.16.0.128/25", t)
-	//netY starts and ends within netX
+	// netY starts and ends within netX
 	AssertOverlap("172.16.0.1/24", "172.16.0.64/25", t)
-	//netY starts at same IP and ends outside of netX
+	// netY starts at same IP and ends outside of netX
 	AssertOverlap("172.16.0.1/24", "172.16.0.1/23", t)
-	//netY starts before and ends at same IP of netX
+	// netY starts before and ends at same IP of netX
 	AssertOverlap("172.16.1.1/24", "172.16.0.1/23", t)
-	//netY starts before and ends outside of netX
+	// netY starts before and ends outside of netX
 	AssertOverlap("172.16.1.1/24", "172.16.0.1/22", t)
-	//netY starts and ends before netX
+	// netY starts and ends before netX
 	AssertNoOverlap("172.16.1.1/25", "172.16.0.1/24", t)
-	//netX starts and ends before netY
+	// netX starts and ends before netY
 	AssertNoOverlap("172.16.1.1/25", "172.16.2.1/24", t)
 }
 
@@ -186,21 +189,46 @@ func TestNetworkRange(t *testing.T) {
 
 // Test veth name generation "veth"+rand (e.g.veth0f60e2c)
 func TestGenerateRandomName(t *testing.T) {
-	name1, err := GenerateRandomName("veth", 7)
-	if err != nil {
-		t.Fatal(err)
+	const vethPrefix = "veth"
+	const vethLen = len(vethPrefix) + 7
+
+	testCases := []struct {
+		prefix string
+		length int
+		error  bool
+	}{
+		{vethPrefix, -1, true},
+		{vethPrefix, 0, true},
+		{vethPrefix, len(vethPrefix) - 1, true},
+		{vethPrefix, len(vethPrefix), true},
+		{vethPrefix, len(vethPrefix) + 1, false},
+		{vethPrefix, 255, false},
 	}
-	// veth plus generated append equals a len of 11
-	if len(name1) != 11 {
-		t.Fatalf("Expected 11 characters, instead received %d characters", len(name1))
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("prefix=%s/length=%d", tc.prefix, tc.length), func(t *testing.T) {
+			name, err := GenerateRandomName(tc.prefix, tc.length)
+			if tc.error {
+				assert.Check(t, is.ErrorContains(err, "invalid length"))
+			} else {
+				assert.NilError(t, err)
+				assert.Check(t, strings.HasPrefix(name, tc.prefix), "Expected name to start with %s", tc.prefix)
+				assert.Check(t, is.Equal(len(name), tc.length), "Expected %d characters, instead received %d characters", tc.length, len(name))
+			}
+		})
 	}
-	name2, err := GenerateRandomName("veth", 7)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Fail if the random generated names equal one another
-	if name1 == name2 {
-		t.Fatalf("Expected differing values but received %s and %s", name1, name2)
+
+	var randomNames [16]string
+	for i := range randomNames {
+		randomName, err := GenerateRandomName(vethPrefix, vethLen)
+		assert.NilError(t, err)
+
+		for _, oldName := range randomNames {
+			if randomName == oldName {
+				t.Fatalf("Duplicate random name generated: %s", randomName)
+			}
+		}
+
+		randomNames[i] = randomName
 	}
 }
 
@@ -219,15 +247,15 @@ func TestUtilGenerateRandomMAC(t *testing.T) {
 }
 
 func TestNetworkRequest(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
-	nw, err := FindAvailableNetwork(ipamutils.PredefinedLocalScopeDefaultNetworks)
+	nw, err := FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var found bool
-	for _, exp := range ipamutils.PredefinedLocalScopeDefaultNetworks {
+	for _, exp := range ipamutils.GetLocalScopeDefaultNetworks() {
 		if types.CompareIPNet(exp, nw) {
 			found = true
 			break
@@ -238,13 +266,13 @@ func TestNetworkRequest(t *testing.T) {
 		t.Fatalf("Found unexpected broad network %s", nw)
 	}
 
-	nw, err = FindAvailableNetwork(ipamutils.PredefinedGlobalScopeDefaultNetworks)
+	nw, err = FindAvailableNetwork(ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	found = false
-	for _, exp := range ipamutils.PredefinedGlobalScopeDefaultNetworks {
+	for _, exp := range ipamutils.GetGlobalScopeDefaultNetworks() {
 		if types.CompareIPNet(exp, nw) {
 			found = true
 			break
@@ -262,72 +290,12 @@ func TestNetworkRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nw, err = FindAvailableNetwork(ipamutils.PredefinedLocalScopeDefaultNetworks)
+	nw, err = FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(exp, nw) {
 		t.Fatalf("expected %s. got %s", exp, nw)
-	}
-}
-
-func TestElectInterfaceAddressMultipleAddresses(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
-
-	nws := []string{"172.101.202.254/16", "172.102.202.254/16"}
-	createInterface(t, "test", nws...)
-
-	ipv4NwList, ipv6NwList, err := ElectInterfaceAddresses("test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(ipv4NwList) == 0 {
-		t.Fatal("unexpected empty ipv4 network addresses")
-	}
-
-	if len(ipv6NwList) == 0 {
-		t.Fatal("unexpected empty ipv6 network addresses")
-	}
-
-	nwList := []string{}
-	for _, ipv4Nw := range ipv4NwList {
-		nwList = append(nwList, ipv4Nw.String())
-	}
-	sort.Strings(nws)
-	sort.Strings(nwList)
-
-	if len(nws) != len(nwList) {
-		t.Fatalf("expected %v. got %v", nws, nwList)
-	}
-	for i, nw := range nws {
-		if nw != nwList[i] {
-			t.Fatalf("expected %v. got %v", nw, nwList[i])
-		}
-	}
-}
-
-func TestElectInterfaceAddress(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
-
-	nws := "172.101.202.254/16"
-	createInterface(t, "test", nws)
-
-	ipv4Nw, ipv6Nw, err := ElectInterfaceAddresses("test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(ipv4Nw) == 0 {
-		t.Fatal("unexpected empty ipv4 network addresses")
-	}
-
-	if len(ipv6Nw) == 0 {
-		t.Fatal("unexpected empty ipv6 network addresses")
-	}
-
-	if nws != ipv4Nw[0].String() {
-		t.Fatalf("expected %s. got %s", nws, ipv4Nw[0])
 	}
 }
 

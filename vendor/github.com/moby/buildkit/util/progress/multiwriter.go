@@ -36,9 +36,7 @@ func (ps *MultiWriter) Add(pw Writer) {
 	}
 	ps.mu.Lock()
 	plist := make([]*Progress, 0, len(ps.items))
-	for _, p := range ps.items {
-		plist = append(plist, p)
-	}
+	plist = append(plist, ps.items...)
 	sort.Slice(plist, func(i, j int) bool {
 		return plist[i].Timestamp.Before(plist[j].Timestamp)
 	})
@@ -67,7 +65,7 @@ func (ps *MultiWriter) Write(id string, v interface{}) error {
 		Sys:       v,
 		meta:      ps.meta,
 	}
-	return ps.WriteRawProgress(p)
+	return ps.writeRawProgress(p)
 }
 
 func (ps *MultiWriter) WriteRawProgress(p *Progress) error {

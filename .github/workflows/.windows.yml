@@ -9,14 +9,18 @@ on:
       os:
         required: true
         type: string
+      storage:
+        required: true
+        type: string
+        default: "graphdriver"
       send_coverage:
         required: false
         type: boolean
         default: false
 
 env:
-  GO_VERSION: 1.19.1
-  GOTESTLIST_VERSION: v0.2.0
+  GO_VERSION: "1.21.6"
+  GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.3
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
   WINDOWS_BASE_TAG_2019: ltsc2019
@@ -39,7 +43,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
@@ -58,7 +62,7 @@ jobs:
           }
       -
         name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~\AppData\Local\go-build
@@ -75,9 +79,12 @@ jobs:
       -
         name: Build base image
         run: |
-          docker pull ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }}
-          docker tag ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }} microsoft/windowsservercore
-          docker build --build-arg GO_VERSION -t ${{ env.TEST_IMAGE_NAME }} -f Dockerfile.windows .
+          & docker build `
+            --build-arg WINDOWS_BASE_IMAGE `
+            --build-arg WINDOWS_BASE_IMAGE_TAG `
+            --build-arg GO_VERSION `
+            -t ${{ env.TEST_IMAGE_NAME }} `
+            -f Dockerfile.windows .
       -
         name: Build binaries
         run: |
@@ -96,15 +103,16 @@ jobs:
           docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd-shim-runhcs-v1.exe" ${{ env.BIN_OUT }}\
       -
         name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: build-${{ inputs.os }}
+          name: build-${{ inputs.storage }}-${{ inputs.os }}
           path: ${{ env.BIN_OUT }}/*
           if-no-files-found: error
           retention-days: 2
 
   unit-test:
     runs-on: ${{ inputs.os }}
+    timeout-minutes: 120
     env:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
@@ -114,7 +122,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
@@ -134,7 +142,7 @@ jobs:
           }
       -
         name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~\AppData\Local\go-build
@@ -151,9 +159,12 @@ jobs:
       -
         name: Build base image
         run: |
-          docker pull ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }}
-          docker tag ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }} microsoft/windowsservercore
-          docker build --build-arg GO_VERSION -t ${{ env.TEST_IMAGE_NAME }} -f Dockerfile.windows .
+          & docker build `
+            --build-arg WINDOWS_BASE_IMAGE `
+            --build-arg WINDOWS_BASE_IMAGE_TAG `
+            --build-arg GO_VERSION `
+            -t ${{ env.TEST_IMAGE_NAME }} `
+            -f Dockerfile.windows .
       -
         name: Test
         run: |
@@ -165,7 +176,7 @@ jobs:
       -
         name: Send to Codecov
         if: inputs.send_coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
           directory: bundles
@@ -174,9 +185,9 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.os }}-unit-reports
+          name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
 
   unit-test-report:
@@ -187,14 +198,14 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       -
         name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.os }}-unit-reports
+          name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: /tmp/artifacts
       -
         name: Install teststat
@@ -212,10 +223,10 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       -
@@ -227,11 +238,12 @@ jobs:
         id: tests
         working-directory: ./integration-cli
         run: |
-          # Distribute integration-cli tests for the matrix in integration-test job.
-          # Also prepend ./... to the matrix. This is a special case to run "Test integration" step exclusively.
-          matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} ./...)"
-          matrix="$(echo "$matrix" | jq -c '. |= ["./..."] + .')"
-          echo "::set-output name=matrix::$matrix"
+          # This step creates a matrix for integration-cli tests. Tests suites
+          # are distributed in integration-test job through a matrix. There is
+          # also an override being added to the matrix like "./..." to run
+          # "Test integration" step exclusively.
+          matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} -o "./..." ./...)"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
       -
         name: Show matrix
         run: |
@@ -239,16 +251,23 @@ jobs:
 
   integration-test:
     runs-on: ${{ inputs.os }}
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
+    timeout-minutes: 120
     needs:
       - build
       - integration-test-prepare
     strategy:
       fail-fast: false
       matrix:
+        storage:
+          - ${{ inputs.storage }}
         runtime:
           - builtin
           - containerd
         test: ${{ fromJson(needs.integration-test-prepare.outputs.matrix) }}
+        exclude:
+          - storage: snapshotter
+            runtime: builtin
     env:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
@@ -259,18 +278,28 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
+      -
+        name: Set up Jaeger
+        run: |
+          # Jaeger is set up on Linux through the setup-tracing action. If you update Jaeger here, don't forget to
+          # update the version set in .github/actions/setup-tracing/action.yml.
+          Invoke-WebRequest -Uri "https://github.com/jaegertracing/jaeger/releases/download/v1.46.0/jaeger-1.46.0-windows-amd64.tar.gz" -OutFile ".\jaeger-1.46.0-windows-amd64.tar.gz"
+          tar -zxvf ".\jaeger-1.46.0-windows-amd64.tar.gz"
+          Start-Process '.\jaeger-1.46.0-windows-amd64\jaeger-all-in-one.exe'
+          echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+        shell: pwsh
       -
         name: Env
         run: |
           Get-ChildItem Env: | Out-String
       -
         name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: build-${{ inputs.os }}
+          name: build-${{ inputs.storage }}-${{ inputs.os }}
           path: ${{ env.BIN_OUT }}
       -
         name: Init
@@ -282,6 +311,9 @@ jobs:
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
           Write-Output "${{ env.BIN_OUT }}" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          
+          $testName = ([System.BitConverter]::ToString((New-Object System.Security.Cryptography.SHA256Managed).ComputeHash([System.Text.Encoding]::UTF8.GetBytes("${{ matrix.test }}"))) -replace '-').ToLower()
+          echo "TESTREPORTS_NAME=$testName" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
       -
         # removes docker service that is currently installed on the runner. we
         # could use Uninstall-Package but not yet available on Windows runners.
@@ -343,6 +375,11 @@ jobs:
               "--exec-root=$env:TEMP\moby-exec", `
               "--pidfile=$env:TEMP\docker.pid", `
               "--register-service"
+          If ("${{ inputs.storage }}" -eq "snapshotter") {
+            # Make the env-var visible to the service-managed dockerd, as there's no CLI flag for this option.
+            & reg add "HKLM\SYSTEM\CurrentControlSet\Services\docker" /v Environment /t REG_MULTI_SZ /s '@' /d TEST_INTEGRATION_USE_SNAPSHOTTER=1 
+            echo "TEST_INTEGRATION_USE_SNAPSHOTTER=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          }
           Write-Host "Starting service"
           Start-Service -Name docker
           Write-Host "Service started successfully!"
@@ -396,7 +433,7 @@ jobs:
           DOCKER_HOST: npipe:////./pipe/docker_engine
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       -
@@ -421,7 +458,7 @@ jobs:
       -
         name: Send to Codecov
         if: inputs.send_coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
           directory: bundles
@@ -465,36 +502,50 @@ jobs:
               ForEach-Object {"$($_.TimeCreated.ToUniversalTime().ToString("o")) [$($_.LevelDisplayName)] $($_.Message)"} |
               Tee-Object -file ".\bundles\daemon.log"
       -
+        name: Download Jaeger traces
+        if: always()
+        run: |
+          Invoke-WebRequest `
+            -Uri "http://127.0.0.1:16686/api/traces?service=integration-test-client" `
+            -OutFile ".\bundles\jaeger-trace.json"
+      -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.os }}-integration-reports-${{ matrix.runtime }}
+          name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
 
   integration-test-report:
     runs-on: ubuntu-latest
+    continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     if: always()
     needs:
       - integration-test
     strategy:
       fail-fast: false
       matrix:
+        storage:
+          - ${{ inputs.storage }}
         runtime:
           - builtin
           - containerd
+        exclude:
+          - storage: snapshotter
+            runtime: builtin
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       -
-        name: Download artifacts
-        uses: actions/download-artifact@v3
+        name: Download reports
+        uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.os }}-integration-reports-${{ matrix.runtime }}
-          path: /tmp/artifacts
+          path: /tmp/reports
+          pattern: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-*
+          merge-multiple: true
       -
         name: Install teststat
         run: |
@@ -502,4 +553,4 @@ jobs:
       -
         name: Create summary
         run: |
-          teststat -markdown $(find /tmp/artifacts -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
+          teststat -markdown $(find /tmp/reports -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY

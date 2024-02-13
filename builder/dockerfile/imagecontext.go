@@ -5,15 +5,15 @@ import (
 	"runtime"
 
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	dockerimage "github.com/docker/docker/image"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
-type getAndMountFunc func(string, bool, *specs.Platform) (builder.Image, builder.ROLayer, error)
+type getAndMountFunc func(context.Context, string, bool, *ocispec.Platform) (builder.Image, builder.ROLayer, error)
 
 // imageSources mounts images and provides a cache for mounted images. It tracks
 // all images so they can be unmounted at the end of the build.
@@ -23,8 +23,8 @@ type imageSources struct {
 	getImage  getAndMountFunc
 }
 
-func newImageSources(ctx context.Context, options builderOptions) *imageSources {
-	getAndMount := func(idOrRef string, localOnly bool, platform *specs.Platform) (builder.Image, builder.ROLayer, error) {
+func newImageSources(options builderOptions) *imageSources {
+	getAndMount := func(ctx context.Context, idOrRef string, localOnly bool, platform *ocispec.Platform) (builder.Image, builder.ROLayer, error) {
 		pullOption := backend.PullOptionNoPull
 		if !localOnly {
 			if options.Options.PullParent {
@@ -47,12 +47,12 @@ func newImageSources(ctx context.Context, options builderOptions) *imageSources 
 	}
 }
 
-func (m *imageSources) Get(idOrRef string, localOnly bool, platform *specs.Platform) (*imageMount, error) {
+func (m *imageSources) Get(ctx context.Context, idOrRef string, localOnly bool, platform *ocispec.Platform) (*imageMount, error) {
 	if im, ok := m.byImageID[idOrRef]; ok {
 		return im, nil
 	}
 
-	image, layer, err := m.getImage(idOrRef, localOnly, platform)
+	image, layer, err := m.getImage(ctx, idOrRef, localOnly, platform)
 	if err != nil {
 		return nil, err
 	}
@@ -64,14 +64,14 @@ func (m *imageSources) Get(idOrRef string, localOnly bool, platform *specs.Platf
 func (m *imageSources) Unmount() (retErr error) {
 	for _, im := range m.mounts {
 		if err := im.unmount(); err != nil {
-			logrus.Error(err)
+			log.G(context.TODO()).Error(err)
 			retErr = err
 		}
 	}
 	return
 }
 
-func (m *imageSources) Add(im *imageMount, platform *specs.Platform) {
+func (m *imageSources) Add(im *imageMount, platform *ocispec.Platform) {
 	switch im.image {
 	case nil:
 		// Set the platform for scratch images

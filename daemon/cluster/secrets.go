@@ -41,7 +41,9 @@ func (c *Cluster) GetSecrets(options apitypes.SecretListOptions) ([]types.Secret
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := c.getRequestContext()
+
+	ctx := context.TODO()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	r, err := state.controlClient.ListSecrets(ctx,

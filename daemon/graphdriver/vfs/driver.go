@@ -16,10 +16,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	// CopyDir defines the copy method to use.
-	CopyDir = dirCopy
+const (
+	xattrsStorageOpt         = "vfs.xattrs"
+	bestEffortXattrsOptValue = "i_want_broken_containers"
 )
+
+// CopyDir defines the copy method to use.
+var CopyDir = dirCopy
 
 func init() {
 	graphdriver.Register("vfs", Init)
@@ -41,7 +44,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		UID: idtools.CurrentIdentity().UID,
 		GID: d.idMapping.RootPair().GID,
 	}
-	if err := idtools.MkdirAllAndChown(home, 0710, dirID); err != nil {
+	if err := idtools.MkdirAllAndChown(home, 0o710, dirID); err != nil {
 		return nil, err
 	}
 
@@ -51,7 +54,11 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, quota.ErrQuotaNotSupported
 	}
 
-	return graphdriver.NewNaiveDiffDriver(d, d.idMapping), nil
+	return &graphdriver.NaiveDiffDriver{
+		ProtoDriver:      d,
+		IDMap:            d.idMapping,
+		BestEffortXattrs: d.bestEffortXattrs,
+	}, nil
 }
 
 // Driver holds information about the driver, home directory of the driver.
@@ -60,16 +67,24 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 // Driver must be wrapped in NaiveDiffDriver to be used as a graphdriver.Driver
 type Driver struct {
 	driverQuota
-	home      string
-	idMapping idtools.IdentityMapping
+	home             string
+	idMapping        idtools.IdentityMapping
+	bestEffortXattrs bool
 }
 
 func (d *Driver) String() string {
 	return "vfs"
 }
 
-// Status is used for implementing the graphdriver.ProtoDriver interface. VFS does not currently have any status information.
+// Status is used for implementing the graphdriver.ProtoDriver interface.
 func (d *Driver) Status() [][2]string {
+	if d.bestEffortXattrs {
+		return [][2]string{
+			// These strings are looked for in daemon/info_unix.go:fillDriverWarnings()
+			// because plumbing is hard and temporary is forever. Forgive me.
+			{"Extended file attributes", "best-effort"},
+		}
+	}
 	return nil
 }
 
@@ -98,6 +113,11 @@ func (d *Driver) parseOptions(options []string) error {
 			if err = d.setQuotaOpt(uint64(size)); err != nil {
 				return errdefs.InvalidParameter(errors.Wrap(err, "failed to set option size for vfs"))
 			}
+		case xattrsStorageOpt:
+			if val != bestEffortXattrsOptValue {
+				return errdefs.InvalidParameter(errors.Errorf("do not set the " + xattrsStorageOpt + " option unless you are willing to accept the consequences"))
+			}
+			d.bestEffortXattrs = true
 		default:
 			return errdefs.InvalidParameter(errors.Errorf("unknown option %s for vfs", key))
 		}
@@ -148,10 +168,10 @@ func (d *Driver) create(id, parent string, size uint64) error {
 		UID: idtools.CurrentIdentity().UID,
 		GID: rootIDs.GID,
 	}
-	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0710, dirID); err != nil {
+	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0o710, dirID); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAndChown(dir, 0755, rootIDs); err != nil {
+	if err := idtools.MkdirAndChown(dir, 0o755, rootIDs); err != nil {
 		return err
 	}
 
@@ -172,7 +192,7 @@ func (d *Driver) create(id, parent string, size uint64) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	return CopyDir(parentDir.Path(), dir)
+	return CopyDir(parentDir, dir)
 }
 
 func (d *Driver) dir(id string) string {
@@ -185,14 +205,14 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get returns the directory for the given id.
-func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
+func (d *Driver) Get(id, mountLabel string) (string, error) {
 	dir := d.dir(id)
 	if st, err := os.Stat(dir); err != nil {
-		return nil, err
+		return "", err
 	} else if !st.IsDir() {
-		return nil, fmt.Errorf("%s: not a directory", dir)
+		return "", fmt.Errorf("%s: not a directory", dir)
 	}
-	return containerfs.NewLocalContainerFS(dir), nil
+	return dir, nil
 }
 
 // Put is a noop for vfs that return nil for the error, since this driver has no runtime resources to clean up.

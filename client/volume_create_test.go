@@ -12,6 +12,8 @@ import (
 
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestVolumeCreateError(t *testing.T) {
@@ -20,9 +22,7 @@ func TestVolumeCreateError(t *testing.T) {
 	}
 
 	_, err := client.VolumeCreate(context.Background(), volume.CreateOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestVolumeCreate(t *testing.T) {

@@ -2,33 +2,35 @@ package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 
-	"github.com/containerd/containerd/runtime/v2/shim"
+	"dario.cat/mergo"
+	"github.com/containerd/log"
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/registry"
-	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
 )
 
 const (
 	// DefaultMaxConcurrentDownloads is the default value for
 	// maximum number of downloads that
-	// may take place at a time for each pull.
+	// may take place at a time.
 	DefaultMaxConcurrentDownloads = 3
 	// DefaultMaxConcurrentUploads is the default value for
 	// maximum number of uploads that
-	// may take place at a time for each push.
+	// may take place at a time.
 	DefaultMaxConcurrentUploads = 5
 	// DefaultDownloadAttempts is the default value for
 	// maximum number of attempts that
@@ -52,10 +54,11 @@ const (
 	DefaultContainersNamespace = "moby"
 	// DefaultPluginNamespace is the name of the default containerd namespace used for plugins.
 	DefaultPluginNamespace = "plugins.moby"
-
-	// LinuxV2RuntimeName is the runtime used to specify the containerd v2 runc shim
-	LinuxV2RuntimeName = "io.containerd.runc.v2"
-
+	// defaultMinAPIVersion is the minimum API version supported by the API.
+	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
+	// environment variable. It currently defaults to the minimum API version
+	// supported by the API server.
+	defaultMinAPIVersion = api.MinSupportedAPIVersion
 	// SeccompProfileDefault is the built-in default seccomp profile.
 	SeccompProfileDefault = "builtin"
 	// SeccompProfileUnconfined is a special profile name for seccomp to use an
@@ -66,14 +69,15 @@ const (
 // flatOptions contains configuration keys
 // that MUST NOT be parsed as deep structures.
 // Use this to differentiate these options
-// with others like the ones in CommonTLSOptions.
+// with others like the ones in TLSOptions.
 var flatOptions = map[string]bool{
-	"cluster-store-opts": true,
-	"log-opts":           true,
-	"runtimes":           true,
-	"default-ulimits":    true,
-	"features":           true,
-	"builder":            true,
+	"cluster-store-opts":   true,
+	"default-network-opts": true,
+	"log-opts":             true,
+	"runtimes":             true,
+	"default-ulimits":      true,
+	"features":             true,
+	"builder":              true,
 }
 
 // skipValidateOptions contains configuration keys
@@ -117,12 +121,14 @@ type NetworkConfig struct {
 	DefaultAddressPools opts.PoolsOpt `json:"default-address-pools,omitempty"`
 	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
 	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
+	// Default options for newly created networks
+	DefaultNetworkOpts map[string]map[string]string `json:"default-network-opts,omitempty"`
 }
 
-// CommonTLSOptions defines TLS configuration for the daemon server.
+// TLSOptions defines TLS configuration for the daemon server.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
-type CommonTLSOptions struct {
+type TLSOptions struct {
 	CAFile   string `json:"tlscacert,omitempty"`
 	CertFile string `json:"tlscert,omitempty"`
 	KeyFile  string `json:"tlskey,omitempty"`
@@ -130,7 +136,7 @@ type CommonTLSOptions struct {
 
 // DNSConfig defines the DNS configurations.
 type DNSConfig struct {
-	DNS           []string `json:"dns,omitempty"`
+	DNS           []net.IP `json:"dns,omitempty"`
 	DNSOptions    []string `json:"dns-opts,omitempty"`
 	DNSSearch     []string `json:"dns-search,omitempty"`
 	HostGatewayIP net.IP   `json:"host-gateway-ip,omitempty"`
@@ -141,33 +147,23 @@ type DNSConfig struct {
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
 type CommonConfig struct {
-	AuthzMiddleware       *authorization.Middleware `json:"-"`
-	AuthorizationPlugins  []string                  `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
-	AutoRestart           bool                      `json:"-"`
-	Context               map[string][]string       `json:"-"`
-	DisableBridge         bool                      `json:"-"`
-	ExecOptions           []string                  `json:"exec-opts,omitempty"`
-	GraphDriver           string                    `json:"storage-driver,omitempty"`
-	GraphOptions          []string                  `json:"storage-opts,omitempty"`
-	Labels                []string                  `json:"labels,omitempty"`
-	Mtu                   int                       `json:"mtu,omitempty"`
-	NetworkDiagnosticPort int                       `json:"network-diagnostic-port,omitempty"`
-	Pidfile               string                    `json:"pidfile,omitempty"`
-	RawLogs               bool                      `json:"raw-logs,omitempty"`
-	RootDeprecated        string                    `json:"graph,omitempty"` // Deprecated: use Root instead. TODO(thaJeztah): remove in next release.
-	Root                  string                    `json:"data-root,omitempty"`
-	ExecRoot              string                    `json:"exec-root,omitempty"`
-	SocketGroup           string                    `json:"group,omitempty"`
-	CorsHeaders           string                    `json:"api-cors-header,omitempty"`
+	AuthorizationPlugins  []string `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
+	AutoRestart           bool     `json:"-"`
+	DisableBridge         bool     `json:"-"`
+	ExecOptions           []string `json:"exec-opts,omitempty"`
+	GraphDriver           string   `json:"storage-driver,omitempty"`
+	GraphOptions          []string `json:"storage-opts,omitempty"`
+	Labels                []string `json:"labels,omitempty"`
+	NetworkDiagnosticPort int      `json:"network-diagnostic-port,omitempty"`
+	Pidfile               string   `json:"pidfile,omitempty"`
+	RawLogs               bool     `json:"raw-logs,omitempty"`
+	Root                  string   `json:"data-root,omitempty"`
+	ExecRoot              string   `json:"exec-root,omitempty"`
+	SocketGroup           string   `json:"group,omitempty"`
+	CorsHeaders           string   `json:"api-cors-header,omitempty"`
 
 	// Proxies holds the proxies that are configured for the daemon.
 	Proxies `json:"proxies"`
-
-	// TrustKeyPath is used to generate the daemon ID and for signing schema 1 manifests
-	// when pushing to a registry which does not support schema 2. This field is marked as
-	// deprecated because schema 1 manifests are deprecated in favor of schema 2 and the
-	// daemon ID will use a dedicated identifier not shared with exported signatures.
-	TrustKeyPath string `json:"deprecated-key-path,omitempty"`
 
 	// LiveRestoreEnabled determines whether we should keep containers
 	// alive upon daemon shutdown/start
@@ -189,15 +185,16 @@ type CommonConfig struct {
 	// to stop when daemon is being shutdown
 	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`
 
-	Debug     bool     `json:"debug,omitempty"`
-	Hosts     []string `json:"hosts,omitempty"`
-	LogLevel  string   `json:"log-level,omitempty"`
-	TLS       *bool    `json:"tls,omitempty"`
-	TLSVerify *bool    `json:"tlsverify,omitempty"`
+	Debug     bool             `json:"debug,omitempty"`
+	Hosts     []string         `json:"hosts,omitempty"`
+	LogLevel  string           `json:"log-level,omitempty"`
+	LogFormat log.OutputFormat `json:"log-format,omitempty"`
+	TLS       *bool            `json:"tls,omitempty"`
+	TLSVerify *bool            `json:"tlsverify,omitempty"`
 
 	// Embedded structs that allow config
 	// deserialization without the full struct.
-	CommonTLSOptions
+	TLSOptions
 
 	// SwarmDefaultAdvertiseAddr is the default host/IP or network interface
 	// to use if a wildcard address is specified in the ListenAddr value
@@ -219,11 +216,10 @@ type CommonConfig struct {
 
 	DNSConfig
 	LogConfig
-	BridgeConfig // bridgeConfig holds bridge network specific configuration.
+	BridgeConfig // BridgeConfig holds bridge network specific configuration.
 	NetworkConfig
 	registry.ServiceOptions
 
-	sync.Mutex
 	// FIXME(vdemeester) This part is not that clear and is mainly dependent on cli flags
 	// It should probably be handled outside this package.
 	ValuesSet map[string]interface{} `json:"-"`
@@ -253,6 +249,20 @@ type CommonConfig struct {
 	ContainerdPluginNamespace string `json:"containerd-plugin-namespace,omitempty"`
 
 	DefaultRuntime string `json:"default-runtime,omitempty"`
+
+	// CDISpecDirs is a list of directories in which CDI specifications can be found.
+	CDISpecDirs []string `json:"cdi-spec-dirs,omitempty"`
+
+	// The minimum API version provided by the daemon. Defaults to [defaultMinAPIVersion].
+	//
+	// The DOCKER_MIN_API_VERSION allows overriding the minimum API version within
+	// constraints of the minimum and maximum (current) supported API versions.
+	//
+	// API versions older than [defaultMinAPIVersion] are deprecated and
+	// to be removed in a future release. The "DOCKER_MIN_API_VERSION" env
+	// var should only be used for exceptional cases, and the MinAPIVersion
+	// field is therefore not included in the JSON representation.
+	MinAPIVersion string `json:"-"`
 }
 
 // Proxies holds the proxies that are configured for the daemon.
@@ -284,13 +294,19 @@ func New() (*Config, error) {
 			MaxConcurrentDownloads: DefaultMaxConcurrentDownloads,
 			MaxConcurrentUploads:   DefaultMaxConcurrentUploads,
 			MaxDownloadAttempts:    DefaultDownloadAttempts,
-			Mtu:                    DefaultNetworkMtu,
+			BridgeConfig: BridgeConfig{
+				DefaultBridgeConfig: DefaultBridgeConfig{
+					MTU: DefaultNetworkMtu,
+				},
+			},
 			NetworkConfig: NetworkConfig{
 				NetworkControlPlaneMTU: DefaultNetworkMtu,
+				DefaultNetworkOpts:     make(map[string]map[string]string),
 			},
 			ContainerdNamespace:       DefaultContainersNamespace,
 			ContainerdPluginNamespace: DefaultPluginNamespace,
 			DefaultRuntime:            StockRuntimeName,
+			MinAPIVersion:             defaultMinAPIVersion,
 		},
 	}
 
@@ -308,26 +324,26 @@ func New() (*Config, error) {
 func GetConflictFreeLabels(labels []string) ([]string, error) {
 	labelMap := map[string]string{}
 	for _, label := range labels {
-		stringSlice := strings.SplitN(label, "=", 2)
-		if len(stringSlice) > 1 {
+		key, val, ok := strings.Cut(label, "=")
+		if ok {
 			// If there is a conflict we will return an error
-			if v, ok := labelMap[stringSlice[0]]; ok && v != stringSlice[1] {
-				return nil, fmt.Errorf("conflict labels for %s=%s and %s=%s", stringSlice[0], stringSlice[1], stringSlice[0], v)
+			if v, ok := labelMap[key]; ok && v != val {
+				return nil, errors.Errorf("conflict labels for %s=%s and %s=%s", key, val, key, v)
 			}
-			labelMap[stringSlice[0]] = stringSlice[1]
+			labelMap[key] = val
 		}
 	}
 
 	newLabels := []string{}
 	for k, v := range labelMap {
-		newLabels = append(newLabels, fmt.Sprintf("%s=%s", k, v))
+		newLabels = append(newLabels, k+"="+v)
 	}
 	return newLabels, nil
 }
 
 // Reload reads the configuration in the host and reloads the daemon and server.
 func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error {
-	logrus.Infof("Got signal to reload configuration, reloading from: %s", configFile)
+	log.G(context.TODO()).Infof("Got signal to reload configuration, reloading from: %s", configFile)
 	newConfig, err := getConflictFreeConfiguration(configFile, flags)
 	if err != nil {
 		if flags.Changed("config-file") || !os.IsNotExist(err) {
@@ -412,12 +428,41 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		return nil, err
 	}
 
-	var config Config
-
+	// Decode the contents of the JSON file using a [byte order mark] if present, instead of assuming UTF-8 without BOM.
+	// The BOM, if present, will be used to determine the encoding. If no BOM is present, we will assume the default
+	// and preferred encoding for JSON as defined by [RFC 8259], UTF-8 without BOM.
+	//
+	// While JSON is normatively UTF-8 with no BOM, there are a couple of reasons to decode here:
+	//   * UTF-8 with BOM is something that new implementations should avoid producing; however, [RFC 8259 Section 8.1]
+	//     allows implementations to ignore the UTF-8 BOM when present for interoperability. Older versions of Notepad,
+	//     the only text editor available out of the box on Windows Server, writes UTF-8 with a BOM by default.
+	//   * The default encoding for [Windows PowerShell] is UTF-16 LE with BOM. While encodings in PowerShell can be a
+	//     bit idiosyncratic, BOMs are still generally written. There is no support for selecting UTF-8 without a BOM as
+	//     the encoding in Windows PowerShell, though some Cmdlets only write UTF-8 with no BOM. PowerShell Core
+	//     introduces `utf8NoBOM` and makes it the default, but PowerShell Core is unlikely to be the implementation for
+	//     a majority of Windows Server + PowerShell users.
+	//   * While [RFC 8259 Section 8.1] asserts that software that is not part of a closed ecosystem or that crosses a
+	//     network boundary should only support UTF-8, and should never write a BOM, it does acknowledge older versions
+	//     of the standard, such as [RFC 7159 Section 8.1]. In the interest of pragmatism and easing pain for Windows
+	//     users, we consider Windows tools such as Windows PowerShell and Notepad part of our ecosystem, and support
+	//     the two most common encodings: UTF-16 LE with BOM, and UTF-8 with BOM, in addition to the standard UTF-8
+	//     without BOM.
+	//
+	// [byte order mark]: https://www.unicode.org/faq/utf_bom.html#BOM
+	// [RFC 8259]: https://www.rfc-editor.org/rfc/rfc8259
+	// [RFC 8259 Section 8.1]: https://www.rfc-editor.org/rfc/rfc8259#section-8.1
+	// [RFC 7159 Section 8.1]: https://www.rfc-editor.org/rfc/rfc7159#section-8.1
+	// [Windows PowerShell]: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_character_encoding?view=powershell-5.1
+	b, n, err := transform.Bytes(transform.Chain(unicode.BOMOverride(transform.Nop), encoding.UTF8Validator), b)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to decode configuration JSON at offset %d", n)
+	}
+	// Trim whitespace so that an empty config can be detected for an early return.
 	b = bytes.TrimSpace(b)
+
+	var config Config
 	if len(b) == 0 {
-		// empty config file
-		return &config, nil
+		return &config, nil // early return on empty config
 	}
 
 	if flags != nil {
@@ -516,7 +561,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 		for key := range unknownKeys {
 			unknown = append(unknown, key)
 		}
-		return fmt.Errorf("the following directives don't match any configuration option: %s", strings.Join(unknown, ", "))
+		return errors.Errorf("the following directives don't match any configuration option: %s", strings.Join(unknown, ", "))
 	}
 
 	var conflicts []string
@@ -550,7 +595,26 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 	flags.Visit(duplicatedConflicts)
 
 	if len(conflicts) > 0 {
-		return fmt.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", "))
+		return errors.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", "))
+	}
+	return nil
+}
+
+// ValidateMinAPIVersion verifies if the given API version is within the
+// range supported by the daemon. It is used to validate a custom minimum
+// API version set through DOCKER_MIN_API_VERSION.
+func ValidateMinAPIVersion(ver string) error {
+	if ver == "" {
+		return errors.New(`value is empty`)
+	}
+	if strings.EqualFold(ver[0:1], "v") {
+		return errors.New(`API version must be provided without "v" prefix`)
+	}
+	if versions.LessThan(ver, defaultMinAPIVersion) {
+		return errors.Errorf(`minimum supported API version is %s: %s`, defaultMinAPIVersion, ver)
+	}
+	if versions.GreaterThan(ver, api.DefaultVersion) {
+		return errors.Errorf(`maximum supported API version is %s: %s`, api.DefaultVersion, ver)
 	}
 	return nil
 }
@@ -559,22 +623,25 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 // such as config.DNS, config.Labels, config.DNSSearch,
 // as well as config.MaxConcurrentDownloads, config.MaxConcurrentUploads and config.MaxDownloadAttempts.
 func Validate(config *Config) error {
-	//nolint:staticcheck // TODO(thaJeztah): remove in next release.
-	if config.RootDeprecated != "" {
-		return errors.New(`the "graph" config file option is deprecated; use "data-root" instead`)
-	}
-
 	// validate log-level
 	if config.LogLevel != "" {
-		if _, err := logrus.ParseLevel(config.LogLevel); err != nil {
-			return fmt.Errorf("invalid logging level: %s", config.LogLevel)
+		// FIXME(thaJeztah): find a better way for this; this depends on knowledge of containerd's log package internals.
+		// Alternatively: try  log.SetLevel(config.LogLevel), and restore the original level, but this also requires internal knowledge.
+		switch strings.ToLower(config.LogLevel) {
+		case "panic", "fatal", "error", "warn", "info", "debug", "trace":
+			// These are valid. See [log.SetLevel] for a list of accepted levels.
+		default:
+			return errors.Errorf("invalid logging level: %s", config.LogLevel)
 		}
 	}
 
-	// validate DNS
-	for _, dns := range config.DNS {
-		if _, err := opts.ValidateIPAddress(dns); err != nil {
-			return err
+	// validate log-format
+	if logFormat := config.LogFormat; logFormat != "" {
+		switch logFormat {
+		case log.TextFormat, log.JSONFormat:
+			// These are valid
+		default:
+			return errors.Errorf("invalid log format: %s", logFormat)
 		}
 	}
 
@@ -593,37 +660,21 @@ func Validate(config *Config) error {
 	}
 
 	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
-	if config.Mtu < 0 {
-		return fmt.Errorf("invalid default MTU: %d", config.Mtu)
+	if config.MTU < 0 {
+		return errors.Errorf("invalid default MTU: %d", config.MTU)
 	}
 	if config.MaxConcurrentDownloads < 0 {
-		return fmt.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
+		return errors.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
 	}
 	if config.MaxConcurrentUploads < 0 {
-		return fmt.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
+		return errors.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
 	}
 	if config.MaxDownloadAttempts < 0 {
-		return fmt.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
-	}
-
-	// validate that "default" runtime is not reset
-	if runtimes := config.GetAllRuntimes(); len(runtimes) > 0 {
-		if _, ok := runtimes[StockRuntimeName]; ok {
-			return fmt.Errorf("runtime name '%s' is reserved", StockRuntimeName)
-		}
+		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
 
 	if _, err := ParseGenericResources(config.NodeGenericResources); err != nil {
 		return err
-	}
-
-	if defaultRuntime := config.GetDefaultRuntimeName(); defaultRuntime != "" {
-		if !builtinRuntimes[defaultRuntime] {
-			runtimes := config.GetAllRuntimes()
-			if _, ok := runtimes[defaultRuntime]; !ok && !IsPermissibleC8dRuntimeName(defaultRuntime) {
-				return fmt.Errorf("specified default runtime '%s' does not exist", defaultRuntime)
-			}
-		}
 	}
 
 	for _, h := range config.Hosts {
@@ -636,15 +687,6 @@ func Validate(config *Config) error {
 	return config.ValidatePlatformConfig()
 }
 
-// GetDefaultRuntimeName returns the current default runtime
-func (conf *Config) GetDefaultRuntimeName() string {
-	conf.Lock()
-	rt := conf.DefaultRuntime
-	conf.Unlock()
-
-	return rt
-}
-
 // MaskCredentials masks credentials that are in an URL.
 func MaskCredentials(rawURL string) string {
 	parsedURL, err := url.Parse(rawURL)
@@ -653,38 +695,4 @@ func MaskCredentials(rawURL string) string {
 	}
 	parsedURL.User = url.UserPassword("xxxxx", "xxxxx")
 	return parsedURL.String()
-}
-
-// IsPermissibleC8dRuntimeName tests whether name is safe to pass into
-// containerd as a runtime name, and whether the name is well-formed.
-// It does not check if the runtime is installed.
-//
-// A runtime name containing slash characters is interpreted by containerd as
-// the path to a runtime binary. If we allowed this, anyone with Engine API
-// access could get containerd to execute an arbitrary binary as root. Although
-// Engine API access is already equivalent to root on the host, the runtime name
-// has not historically been a vector to run arbitrary code as root so users are
-// not expecting it to become one.
-//
-// This restriction is not configurable. There are viable workarounds for
-// legitimate use cases: administrators and runtime developers can make runtimes
-// available for use with Docker by installing them onto PATH following the
-// [binary naming convention] for containerd Runtime v2.
-//
-// [binary naming convention]: https://github.com/containerd/containerd/blob/main/runtime/v2/README.md#binary-naming
-func IsPermissibleC8dRuntimeName(name string) bool {
-	// containerd uses a rather permissive test to validate runtime names:
-	//
-	//   - Any name for which filepath.IsAbs(name) is interpreted as the absolute
-	//     path to a shim binary. We want to block this behaviour.
-	//   - Any name which contains at least one '.' character and no '/' characters
-	//     and does not begin with a '.' character is a valid runtime name. The shim
-	//     binary name is derived from the final two components of the name and
-	//     searched for on the PATH. The name "a.." is technically valid per
-	//     containerd's implementation: it would resolve to a binary named
-	//     "containerd-shim---".
-	//
-	// https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/manager.go#L297-L317
-	// https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/shim/util.go#L83-L93
-	return !filepath.IsAbs(name) && !strings.ContainsRune(name, '/') && shim.BinaryName(name) != ""
 }

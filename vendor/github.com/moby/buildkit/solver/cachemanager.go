@@ -25,7 +25,7 @@ func NewCacheManager(ctx context.Context, id string, storage CacheKeyStorage, re
 		results: results,
 	}
 
-	if err := cm.ReleaseUnreferenced(); err != nil {
+	if err := cm.ReleaseUnreferenced(ctx); err != nil {
 		bklog.G(ctx).Errorf("failed to release unreferenced cache metadata: %+v", err)
 	}
 
@@ -40,10 +40,10 @@ type cacheManager struct {
 	results CacheResultStorage
 }
 
-func (c *cacheManager) ReleaseUnreferenced() error {
+func (c *cacheManager) ReleaseUnreferenced(ctx context.Context) error {
 	return c.backend.Walk(func(id string) error {
 		return c.backend.WalkResults(id, func(cr CacheResult) error {
-			if !c.results.Exists(cr.ID) {
+			if !c.results.Exists(ctx, cr.ID) {
 				c.backend.Release(cr.ID)
 			}
 			return nil
@@ -112,10 +112,10 @@ func (c *cacheManager) Query(deps []CacheKeyWithSelector, input Index, dgst dige
 	return keys, nil
 }
 
-func (c *cacheManager) Records(ck *CacheKey) ([]*CacheRecord, error) {
+func (c *cacheManager) Records(ctx context.Context, ck *CacheKey) ([]*CacheRecord, error) {
 	outs := make([]*CacheRecord, 0)
 	if err := c.backend.WalkResults(c.getID(ck), func(r CacheResult) error {
-		if c.results.Exists(r.ID) {
+		if c.results.Exists(ctx, r.ID) {
 			outs = append(outs, &CacheRecord{
 				ID:           r.ID,
 				cacheManager: c,
@@ -216,6 +216,11 @@ func (c *cacheManager) LoadWithParents(ctx context.Context, rec *CacheRecord) ([
 		for _, r := range m {
 			r.Release(context.TODO())
 		}
+	}
+	for _, r := range m {
+		// refs added to results are deleted from m by filterResults
+		// so release any leftovers
+		r.Release(context.TODO())
 	}
 
 	return results, nil

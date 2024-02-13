@@ -146,6 +146,83 @@ func (o *NamedListOpts) Name() string {
 	return o.name
 }
 
+// NamedMapMapOpts is a MapMapOpts with a configuration name.
+// This struct is useful to keep reference to the assigned
+// field name in the internal configuration struct.
+type NamedMapMapOpts struct {
+	name string
+	MapMapOpts
+}
+
+// NewNamedMapMapOpts creates a reference to a new NamedMapOpts struct.
+func NewNamedMapMapOpts(name string, values map[string]map[string]string, validator ValidatorFctType) *NamedMapMapOpts {
+	return &NamedMapMapOpts{
+		name:       name,
+		MapMapOpts: *NewMapMapOpts(values, validator),
+	}
+}
+
+// Name returns the name of the NamedListOpts in the configuration.
+func (o *NamedMapMapOpts) Name() string {
+	return o.name
+}
+
+// MapMapOpts holds a map of maps of values and a validation function.
+type MapMapOpts struct {
+	values    map[string]map[string]string
+	validator ValidatorFctType
+}
+
+// Set validates if needed the input value and add it to the
+// internal map, by splitting on '='.
+func (opts *MapMapOpts) Set(value string) error {
+	if opts.validator != nil {
+		v, err := opts.validator(value)
+		if err != nil {
+			return err
+		}
+		value = v
+	}
+	rk, rv, found := strings.Cut(value, "=")
+	if !found {
+		return fmt.Errorf("invalid value %q for map option, should be root-key=key=value", value)
+	}
+	k, v, found := strings.Cut(rv, "=")
+	if !found {
+		return fmt.Errorf("invalid value %q for map option, should be root-key=key=value", value)
+	}
+	if _, ok := opts.values[rk]; !ok {
+		opts.values[rk] = make(map[string]string)
+	}
+	opts.values[rk][k] = v
+	return nil
+}
+
+// GetAll returns the values of MapOpts as a map.
+func (opts *MapMapOpts) GetAll() map[string]map[string]string {
+	return opts.values
+}
+
+func (opts *MapMapOpts) String() string {
+	return fmt.Sprintf("%v", opts.values)
+}
+
+// Type returns a string name for this Option type
+func (opts *MapMapOpts) Type() string {
+	return "mapmap"
+}
+
+// NewMapMapOpts creates a new MapMapOpts with the specified map of values and a validator.
+func NewMapMapOpts(values map[string]map[string]string, validator ValidatorFctType) *MapMapOpts {
+	if values == nil {
+		values = make(map[string]map[string]string)
+	}
+	return &MapMapOpts{
+		values:    values,
+		validator: validator,
+	}
+}
+
 // MapOpts holds a map of values and a validation function.
 type MapOpts struct {
 	values    map[string]string
@@ -162,12 +239,8 @@ func (opts *MapOpts) Set(value string) error {
 		}
 		value = v
 	}
-	vals := strings.SplitN(value, "=", 2)
-	if len(vals) == 1 {
-		(opts.values)[vals[0]] = ""
-	} else {
-		(opts.values)[vals[0]] = vals[1]
-	}
+	k, v, _ := strings.Cut(value, "=")
+	(opts.values)[k] = v
 	return nil
 }
 
@@ -225,13 +298,18 @@ type ValidatorFctType func(val string) (string, error)
 // ValidatorFctListType defines a validator function that returns a validated list of string and/or an error
 type ValidatorFctListType func(val string) ([]string, error)
 
-// ValidateIPAddress validates an Ip address.
+// ValidateIPAddress validates if the given value is a correctly formatted
+// IP address, and returns the value in normalized form. Leading and trailing
+// whitespace is allowed, but it does not allow IPv6 addresses surrounded by
+// square brackets ("[::1]").
+//
+// Refer to [net.ParseIP] for accepted formats.
 func ValidateIPAddress(val string) (string, error) {
-	var ip = net.ParseIP(strings.TrimSpace(val))
+	ip := net.ParseIP(strings.TrimSpace(val))
 	if ip != nil {
 		return ip.String(), nil
 	}
-	return "", fmt.Errorf("%s is not an ip address", val)
+	return "", fmt.Errorf("IP address is not correctly formatted: %s", val)
 }
 
 // ValidateDNSSearch validates domain for resolvconf search configuration.

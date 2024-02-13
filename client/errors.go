@@ -1,6 +1,7 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/docker/docker/api/types/versions"
@@ -31,20 +32,10 @@ func ErrorConnectionFailed(host string) error {
 	return errConnectionFailed{host: host}
 }
 
-// Deprecated: use the errdefs.NotFound() interface instead. Kept for backward compatibility
-type notFound interface {
-	error
-	NotFound() bool
-}
-
 // IsErrNotFound returns true if the error is a NotFound error, which is returned
-// by the API when some object is not found.
+// by the API when some object is not found. It is an alias for [errdefs.IsNotFound].
 func IsErrNotFound(err error) bool {
-	if errdefs.IsNotFound(err) {
-		return true
-	}
-	var e notFound
-	return errors.As(err, &e)
+	return errdefs.IsNotFound(err)
 }
 
 type objectNotFoundError struct {
@@ -58,9 +49,18 @@ func (e objectNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such %s: %s", e.object, e.id)
 }
 
-// NewVersionError returns an error if the APIVersion required
-// if less than the current supported version
-func (cli *Client) NewVersionError(APIrequired, feature string) error {
+// NewVersionError returns an error if the APIVersion required is less than the
+// current supported version.
+//
+// It performs API-version negotiation if the Client is configured with this
+// option, otherwise it assumes the latest API version is used.
+func (cli *Client) NewVersionError(ctx context.Context, APIrequired, feature string) error {
+	// Make sure we negotiated (if the client is configured to do so),
+	// as code below contains API-version specific handling of options.
+	//
+	// Normally, version-negotiation (if enabled) would not happen until
+	// the API request is made.
+	cli.checkVersion(ctx)
 	if cli.version != "" && versions.LessThan(cli.version, APIrequired) {
 		return fmt.Errorf("%q requires API version %s, but the Docker daemon API version is %s", feature, APIrequired, cli.version)
 	}

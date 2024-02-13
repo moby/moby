@@ -6,6 +6,7 @@
 package internaloption
 
 import (
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/internal"
 	"google.golang.org/api/option"
 )
@@ -66,6 +67,36 @@ func (e enableDirectPath) Apply(o *internal.DialSettings) {
 	o.EnableDirectPath = bool(e)
 }
 
+// EnableDirectPathXds returns a ClientOption that overrides the default
+// DirectPath type. It is only valid when DirectPath is enabled.
+//
+// It should only be used internally by generated clients.
+// This is an EXPERIMENTAL API and may be changed or removed in the future.
+func EnableDirectPathXds() option.ClientOption {
+	return enableDirectPathXds(true)
+}
+
+type enableDirectPathXds bool
+
+func (x enableDirectPathXds) Apply(o *internal.DialSettings) {
+	o.EnableDirectPathXds = bool(x)
+}
+
+// AllowNonDefaultServiceAccount returns a ClientOption that overrides the default
+// requirement for using the default service account for DirectPath.
+//
+// It should only be used internally by generated clients.
+// This is an EXPERIMENTAL API and may be changed or removed in the future.
+func AllowNonDefaultServiceAccount(nd bool) option.ClientOption {
+	return allowNonDefaultServiceAccount(nd)
+}
+
+type allowNonDefaultServiceAccount bool
+
+func (a allowNonDefaultServiceAccount) Apply(o *internal.DialSettings) {
+	o.AllowNonDefaultServiceAccount = bool(a)
+}
+
 // WithDefaultAudience returns a ClientOption that specifies a default audience
 // to be used as the audience field ("aud") for the JWT token authentication.
 //
@@ -106,3 +137,22 @@ type enableJwtWithScope bool
 func (w enableJwtWithScope) Apply(o *internal.DialSettings) {
 	o.EnableJwtWithScope = bool(w)
 }
+
+// WithCredentials returns a client option to specify credentials which will be used to authenticate API calls.
+// This credential takes precedence over all other credential options.
+func WithCredentials(creds *google.Credentials) option.ClientOption {
+	return (*withCreds)(creds)
+}
+
+type withCreds google.Credentials
+
+func (w *withCreds) Apply(o *internal.DialSettings) {
+	o.InternalCredentials = (*google.Credentials)(w)
+}
+
+// EmbeddableAdapter is a no-op option.ClientOption that allow libraries to
+// create their own client options by embedding this type into their own
+// client-specific option wrapper. See example for usage.
+type EmbeddableAdapter struct{}
+
+func (*EmbeddableAdapter) Apply(_ *internal.DialSettings) {}

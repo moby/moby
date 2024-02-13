@@ -19,12 +19,12 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.43"
+basePath: "/v1.45"
 info:
   title: "Docker Engine API"
-  version: "1.43"
+  version: "1.45"
   x-logo:
-    url: "https://docs.docker.com/images/logo-docker-main.png"
+    url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |
     The Engine API is an HTTP API served by Docker Engine. It is the API the
     Docker client uses to communicate with the Engine, so everything the Docker
@@ -55,8 +55,8 @@ info:
     the URL is not supported by the daemon, a HTTP `400 Bad Request` error message
     is returned.
 
-    If you omit the version-prefix, the current version of the API (v1.43) is used.
-    For example, calling `/info` is the same as calling `/v1.43/info`. Using the
+    If you omit the version-prefix, the current version of the API (v1.45) is used.
+    For example, calling `/info` is the same as calling `/v1.45/info`. Using the
     API without a version-prefix is deprecated and will be removed in a future release.
 
     Engine releases in the near future should support this version of the API,
@@ -388,6 +388,16 @@ definitions:
             description: "Create mount point on host if missing"
             type: "boolean"
             default: false
+          ReadOnlyNonRecursive:
+            description: |
+               Make the mount non-recursively read-only, but still leave the mount recursive
+               (unless NonRecursive is set to true in conjunction).
+            type: "boolean"
+            default: false
+          ReadOnlyForceRecursive:
+            description: "Raise an error if the mount cannot be made recursively read-only."
+            type: "boolean"
+            default: false
       VolumeOptions:
         description: "Optional configuration for the `volume` type."
         type: "object"
@@ -413,6 +423,10 @@ definitions:
                 type: "object"
                 additionalProperties:
                   type: "string"
+          Subpath:
+            description: "Source path inside the volume. Must be relative without any back traversals."
+            type: "string"
+            example: "dir-inside-volume/subdirectory"
       TmpfsOptions:
         description: "Optional configuration for the `tmpfs` type."
         type: "object"
@@ -794,6 +808,12 @@ definitions:
           1000000 (1 ms). 0 means inherit.
         type: "integer"
         format: "int64"
+      StartInterval:
+        description: |
+          The time to wait between checks in nanoseconds during the start period.
+          It should be 0 or at least 1000000 (1 ms). 0 means inherit.
+        type: "integer"
+        format: "int64"
 
   Health:
     description: |
@@ -976,6 +996,13 @@ definitions:
             items:
               type: "integer"
               minimum: 0
+          Annotations:
+            type: "object"
+            description: |
+              Arbitrary non-identifying metadata attached to container and
+              provided to the runtime when the container is started.
+            additionalProperties:
+              type: "string"
 
           # Applicable to UNIX platforms
           CapAdd:
@@ -1122,6 +1149,7 @@ definitions:
               remapping option is enabled.
           ShmSize:
             type: "integer"
+            format: "int64"
             description: |
               Size of `/dev/shm` in bytes. If omitted, the system uses 64MB.
             minimum: 0
@@ -1289,7 +1317,10 @@ definitions:
         type: "boolean"
         x-nullable: true
       MacAddress:
-        description: "MAC address of the container."
+        description: |
+          MAC address of the container.
+
+          Deprecated: this field is deprecated in API v1.44 and up. Use EndpointSettings.MacAddress instead.
         type: "string"
         x-nullable: true
       OnBuild:
@@ -1339,16 +1370,16 @@ definitions:
       EndpointsConfig:
         description: |
           A mapping of network name to endpoint configuration for that network.
+          The endpoint configuration can be left empty to connect to that
+          network with no particular endpoint configuration.
         type: "object"
         additionalProperties:
           $ref: "#/definitions/EndpointSettings"
     example:
       # putting an example here, instead of using the example values from
-      # /definitions/EndpointSettings, because containers/create currently
-      # does not support attaching to multiple networks, so the example request
-      # would be confusing if it showed that multiple networks can be contained
-      # in the EndpointsConfig.
-      # TODO remove once we support multiple networks on container create (see https://github.com/moby/moby/blob/07e6b843594e061f82baa5fa23c2ff7d536c2a05/daemon/create.go#L323)
+      # /definitions/EndpointSettings, because EndpointSettings contains
+      # operational data returned when inspecting a container that we don't
+      # accept here.
       EndpointsConfig:
         isolated_nw:
           IPAMConfig:
@@ -1357,19 +1388,22 @@ definitions:
             LinkLocalIPs:
               - "169.254.34.68"
               - "fe80::3468"
+          MacAddress: "02:42:ac:12:05:02"
           Links:
             - "container_1"
             - "container_2"
           Aliases:
             - "server_x"
             - "server_y"
+        database_nw: {}
 
   NetworkSettings:
     description: "NetworkSettings exposes the network settings in the API"
     type: "object"
     properties:
       Bridge:
-        description: Name of the network's bridge (for example, `docker0`).
+        description: |
+          Name of the default bridge interface when dockerd's --bridge flag is set.
         type: "string"
         example: "docker0"
       SandboxID:
@@ -1379,34 +1413,40 @@ definitions:
       HairpinMode:
         description: |
           Indicates if hairpin NAT should be enabled on the virtual interface.
+
+          Deprecated: This field is never set and will be removed in a future release.
         type: "boolean"
         example: false
       LinkLocalIPv6Address:
-        description: IPv6 unicast address using the link-local prefix.
+        description: |
+          IPv6 unicast address using the link-local prefix.
+
+          Deprecated: This field is never set and will be removed in a future release.
         type: "string"
-        example: "fe80::42:acff:fe11:1"
+        example: ""
       LinkLocalIPv6PrefixLen:
-        description: Prefix length of the IPv6 unicast address.
+        description: |
+          Prefix length of the IPv6 unicast address.
+
+          Deprecated: This field is never set and will be removed in a future release.
         type: "integer"
-        example: "64"
+        example: ""
       Ports:
         $ref: "#/definitions/PortMap"
       SandboxKey:
-        description: SandboxKey identifies the sandbox
+        description: SandboxKey is the full path of the netns handle
         type: "string"
         example: "/var/run/docker/netns/8ab54b426c38"
 
-      # TODO is SecondaryIPAddresses actually used?
       SecondaryIPAddresses:
-        description: ""
+        description: "Deprecated: This field is never set and will be removed in a future release."
         type: "array"
         items:
           $ref: "#/definitions/Address"
         x-nullable: true
 
-      # TODO is SecondaryIPv6Addresses actually used?
       SecondaryIPv6Addresses:
-        description: ""
+        description: "Deprecated: This field is never set and will be removed in a future release."
         type: "array"
         items:
           $ref: "#/definitions/Address"
@@ -1610,6 +1650,34 @@ definitions:
           "WorkDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/work"
         }
 
+  FilesystemChange:
+    description: |
+      Change in the container's filesystem.
+    type: "object"
+    required: [Path, Kind]
+    properties:
+      Path:
+        description: |
+          Path to file or directory that has changed.
+        type: "string"
+        x-nullable: false
+      Kind:
+        $ref: "#/definitions/ChangeType"
+
+  ChangeType:
+    description: |
+      Kind of change
+
+      Can be one of:
+
+      - `0`: Modified ("C")
+      - `1`: Added ("A")
+      - `2`: Deleted ("D")
+    type: "integer"
+    format: "uint8"
+    enum: [0, 1, 2]
+    x-nullable: false
+
   ImageInspect:
     description: |
       Information about an image in the local image cache.
@@ -1687,10 +1755,15 @@ definitions:
           The ID of the container that was used to create the image.
 
           Depending on how the image was created, this field may be empty.
+
+          **Deprecated**: this field is kept for backward compatibility, but
+          will be removed in API v1.45.
         type: "string"
-        x-nullable: false
         example: "65974bc86f1770ae4bff79f651ebdbce166ae9aada632ee3fa9af3a264911735"
       ContainerConfig:
+        description: |
+          **Deprecated**: this field is kept for backward compatibility, but
+          will be removed in API v1.45.
         $ref: "#/definitions/ContainerConfig"
       DockerVersion:
         description: |
@@ -1745,16 +1818,9 @@ definitions:
         description: |
           Total size of the image including all layers it is composed of.
 
-          In versions of Docker before v1.10, this field was calculated from
-          the image itself and all of its parent images. Docker v1.10 and up
-          store images self-contained, and no longer use a parent-chain, making
-          this field an equivalent of the Size field.
-
-          This field is kept for backward compatibility, but may be removed in
-          a future version of the API.
+          Deprecated: this field is omitted in API v1.44, but kept for backward compatibility. Use Size instead.
         type: "integer"
         format: "int64"
-        x-nullable: false
         example: 1239828
       GraphDriver:
         $ref: "#/definitions/GraphDriverData"
@@ -1794,6 +1860,7 @@ definitions:
             x-nullable: true
   ImageSummary:
     type: "object"
+    x-go-name: "Summary"
     required:
       - Id
       - ParentId
@@ -1802,7 +1869,6 @@ definitions:
       - Created
       - Size
       - SharedSize
-      - VirtualSize
       - Labels
       - Containers
     properties:
@@ -1888,19 +1954,12 @@ definitions:
         x-nullable: false
         example: 1239828
       VirtualSize:
-        description: |
+        description: |-
           Total size of the image including all layers it is composed of.
 
-          In versions of Docker before v1.10, this field was calculated from
-          the image itself and all of its parent images. Docker v1.10 and up
-          store images self-contained, and no longer use a parent-chain, making
-          this field an equivalent of the Size field.
-
-          This field is kept for backward compatibility, but may be removed in
-          a future version of the API.
+          Deprecated: this field is omitted in API v1.44, but kept for backward compatibility. Use Size instead.
         type: "integer"
         format: "int64"
-        x-nullable: false
         example: 172064416
       Labels:
         description: "User-defined key/value metadata."
@@ -2343,6 +2402,8 @@ definitions:
         type: "string"
       error:
         type: "string"
+      errorDetail:
+        $ref: "#/definitions/ErrorDetail"
       status:
         type: "string"
       progress:
@@ -2414,6 +2475,11 @@ definitions:
         example:
           - "container_1"
           - "container_2"
+      MacAddress:
+        description: |
+          MAC address for the endpoint on this network. The network driver might ignore this parameter.
+        type: "string"
+        example: "02:42:ac:11:00:04"
       Aliases:
         type: "array"
         items:
@@ -2464,11 +2530,6 @@ definitions:
         type: "integer"
         format: "int64"
         example: 64
-      MacAddress:
-        description: |
-          MAC address for the endpoint on this network.
-        type: "string"
-        example: "02:42:ac:11:00:04"
       DriverOpts:
         description: |
           DriverOpts is a mapping of driver options and values. These options
@@ -2480,6 +2541,21 @@ definitions:
         example:
           com.example.some-label: "some-value"
           com.example.some-other-label: "some-other-value"
+      DNSNames:
+        description: |
+          List of all DNS names an endpoint has on a specific network. This
+          list is based on the container name, network aliases, container short
+          ID, and hostname.
+
+          These DNS names are non-fully qualified but can contain several dots.
+          You can get fully qualified DNS names by appending `.<network-name>`.
+          For instance, if container name is `my.ctr` and the network is named
+          `testnet`, `DNSNames` will contain `my.ctr` and the FQDN will be
+          `my.ctr.testnet`.
+        type: array
+        items:
+          type: string
+        example: ["foobar", "server_x", "server_y", "my.ctr"]
 
   EndpointIPAMConfig:
     description: |
@@ -2977,8 +3053,6 @@ definitions:
             Name: "journald"
           - Type: "Log"
             Name: "json-file"
-          - Type: "Log"
-            Name: "logentries"
           - Type: "Log"
             Name: "splunk"
           - Type: "Log"
@@ -3513,6 +3587,32 @@ definitions:
                   Level:
                     type: "string"
                     description: "SELinux level label"
+              Seccomp:
+                type: "object"
+                description: "Options for configuring seccomp on the container"
+                properties:
+                  Mode:
+                    type: "string"
+                    enum:
+                      - "default"
+                      - "unconfined"
+                      - "custom"
+                  Profile:
+                    description: "The custom seccomp profile as a json object"
+                    type: "string"
+              AppArmor:
+                type: "object"
+                description: "Options for configuring AppArmor on the container"
+                properties:
+                  Mode:
+                    type: "string"
+                    enum:
+                      - "default"
+                      - "disabled"
+              NoNewPrivileges:
+                type: "boolean"
+                description: "Configuration of the no_new_privs bit in the container"
+
           TTY:
             description: "Whether a pseudo-TTY should be allocated."
             type: "boolean"
@@ -3907,6 +4007,44 @@ definitions:
       - "remove"
       - "orphaned"
 
+  ContainerStatus:
+    type: "object"
+    description: "represents the status of a container."
+    properties:
+      ContainerID:
+        type: "string"
+      PID:
+        type: "integer"
+      ExitCode:
+        type: "integer"
+
+  PortStatus:
+    type: "object"
+    description: "represents the port status of a task's host ports whose service has published host ports"
+    properties:
+      Ports:
+        type: "array"
+        items:
+          $ref: "#/definitions/EndpointPortConfig"
+
+  TaskStatus:
+    type: "object"
+    description: "represents the status of a task."
+    properties:
+      Timestamp:
+        type: "string"
+        format: "dateTime"
+      State:
+        $ref: "#/definitions/TaskState"
+      Message:
+        type: "string"
+      Err:
+        type: "string"
+      ContainerStatus:
+        $ref: "#/definitions/ContainerStatus"
+      PortStatus:
+        $ref: "#/definitions/PortStatus"
+
   Task:
     type: "object"
     properties:
@@ -3942,26 +4080,7 @@ definitions:
       AssignedGenericResources:
         $ref: "#/definitions/GenericResources"
       Status:
-        type: "object"
-        properties:
-          Timestamp:
-            type: "string"
-            format: "dateTime"
-          State:
-            $ref: "#/definitions/TaskState"
-          Message:
-            type: "string"
-          Err:
-            type: "string"
-          ContainerStatus:
-            type: "object"
-            properties:
-              ContainerID:
-                type: "string"
-              PID:
-                type: "integer"
-              ExitCode:
-                type: "integer"
+        $ref: "#/definitions/TaskStatus"
       DesiredState:
         $ref: "#/definitions/TaskState"
       JobIteration:
@@ -4177,7 +4296,10 @@ definitions:
               - "stop-first"
               - "start-first"
       Networks:
-        description: "Specifies which networks the service should attach to."
+        description: |
+          Specifies which networks the service should attach to.
+
+          Deprecated: This field is deprecated since v1.44. The Networks field in TaskSpec should be used instead.
         type: "array"
         items:
           $ref: "#/definitions/NetworkAttachmentConfig"
@@ -4411,6 +4533,7 @@ definitions:
 
   ImageDeleteResponseItem:
     type: "object"
+    x-go-name: "DeleteResponse"
     properties:
       Untagged:
         description: "The image ID of an image that was untagged"
@@ -4418,6 +4541,29 @@ definitions:
       Deleted:
         description: "The image ID of an image that was deleted"
         type: "string"
+
+  ServiceCreateResponse:
+    type: "object"
+    description: |
+      contains the information returned to a client on the
+      creation of a new service.
+    properties:
+      ID:
+        description: "The ID of the created service."
+        type: "string"
+        x-nullable: false
+        example: "ak7w3gjqoa3kuz8xcpnyy0pvl"
+      Warnings:
+        description: |
+          Optional warning message.
+
+          FIXME(thaJeztah): this should have "omitempty" in the generated type.
+        type: "array"
+        x-nullable: true
+        items:
+          type: "string"
+        example:
+          - "unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"
 
   ServiceUpdateResponse:
     type: "object"
@@ -4428,7 +4574,8 @@ definitions:
         items:
           type: "string"
     example:
-      Warning: "unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"
+      Warnings:
+        - "unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"
 
   ContainerSummary:
     type: "object"
@@ -5034,7 +5181,7 @@ definitions:
           Go runtime (`GOOS`).
 
           Currently returned values are "linux" and "windows". A full list of
-          possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+          possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "linux"
       Architecture:
@@ -5042,7 +5189,7 @@ definitions:
           Hardware architecture of the host, as returned by the Go runtime
           (`GOARCH`).
 
-          A full list of possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+          A full list of possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "x86_64"
       NCPU:
@@ -5128,42 +5275,8 @@ definitions:
       ServerVersion:
         description: |
           Version string of the daemon.
-
-          > **Note**: the [standalone Swarm API](https://docs.docker.com/swarm/swarm-api/)
-          > returns the Swarm version instead of the daemon  version, for example
-          > `swarm/1.2.8`.
         type: "string"
-        example: "17.06.0-ce"
-      ClusterStore:
-        description: |
-          URL of the distributed storage backend.
-
-
-          The storage backend is used for multihost networking (to store
-          network and endpoint information) and by the node discovery mechanism.
-
-          <p><br /></p>
-
-          > **Deprecated**: This field is only propagated when using standalone Swarm
-          > mode, and overlay networking using an external k/v store. Overlay
-          > networks with Swarm mode enabled use the built-in raft store, and
-          > this field will be empty.
-        type: "string"
-        example: "consul://consul.corp.example.com:8600/some/path"
-      ClusterAdvertise:
-        description: |
-          The network endpoint that the Engine advertises for the purpose of
-          node discovery. ClusterAdvertise is a `host:port` combination on which
-          the daemon is reachable by other hosts.
-
-          <p><br /></p>
-
-          > **Deprecated**: This field is only propagated when using standalone Swarm
-          > mode, and overlay networking using an external k/v store. Overlay
-          > networks with Swarm mode enabled use the built-in raft store, and
-          > this field will be empty.
-        type: "string"
-        example: "node5.corp.example.com:8000"
+        example: "24.0.2"
       Runtimes:
         description: |
           List of [OCI compliant](https://github.com/opencontainers/runtime-spec)
@@ -5241,7 +5354,8 @@ definitions:
       SecurityOptions:
         description: |
           List of security features that are enabled on the daemon, such as
-          apparmor, seccomp, SELinux, user-namespaces (userns), and rootless.
+          apparmor, seccomp, SELinux, user-namespaces (userns), rootless and
+          no-new-privileges.
 
           Additional configuration options for each security feature may
           be present, and are included as a comma-separated list of key/value
@@ -5295,7 +5409,25 @@ definitions:
           - "WARNING: No memory limit support"
           - "WARNING: bridge-nf-call-iptables is disabled"
           - "WARNING: bridge-nf-call-ip6tables is disabled"
+      CDISpecDirs:
+        description: |
+          List of directories where (Container Device Interface) CDI
+          specifications are located.
 
+          These specifications define vendor-specific modifications to an OCI
+          runtime specification for a container being created.
+
+          An empty list indicates that CDI device injection is disabled.
+
+          Note that since using CDI device injection requires the daemon to have
+          experimental enabled. For non-experimental daemons an empty list will
+          always be returned.
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "/etc/cdi"
+          - "/var/run/cdi"
 
   # PluginsInfo is a temp struct holding Plugins name
   # registered with docker daemon. It is used by Info struct
@@ -5333,7 +5465,7 @@ definitions:
         type: "array"
         items:
           type: "string"
-        example: ["awslogs", "fluentd", "gcplogs", "gelf", "journald", "json-file", "logentries", "splunk", "syslog"]
+        example: ["awslogs", "fluentd", "gcplogs", "gelf", "journald", "json-file", "splunk", "syslog"]
 
 
   RegistryServiceConfig:
@@ -5531,6 +5663,28 @@ definitions:
         items:
           type: "string"
         example: ["--debug", "--systemd-cgroup=false"]
+      status:
+        description: |
+          Information specific to the runtime.
+
+          While this API specification does not define data provided by runtimes,
+          the following well-known properties may be provided by runtimes:
+
+          `org.opencontainers.runtime-spec.features`: features structure as defined
+          in the [OCI Runtime Specification](https://github.com/opencontainers/runtime-spec/blob/main/features.md),
+          in a JSON string representation.
+
+          <p><br /></p>
+
+          > **Note**: The information returned in this field, including the
+          > formatting of values and labels, should not be considered stable,
+          > and may change without notice.
+        type: "object"
+        x-nullable: true
+        additionalProperties:
+          type: "string"
+        example:
+          "org.opencontainers.runtime-spec.features": "{\"ociVersionMin\":\"1.0.0\",\"ociVersionMax\":\"1.1.0\",\"...\":\"...\"}"
 
   Commit:
     description: |
@@ -6415,6 +6569,7 @@ paths:
                     Aliases:
                       - "server_x"
                       - "server_y"
+                  database_nw: {}
 
           required: true
       responses:
@@ -6562,7 +6717,7 @@ paths:
                 StopSignal: "SIGTERM"
                 StopTimeout: 10
               Created: "2015-01-06T15:47:31.485331387Z"
-              Driver: "devicemapper"
+              Driver: "overlay2"
               ExecIDs:
                 - "b35395de42bc8abd327f9dd65d913b9ba28c74d2f0734eeeae84fa1c616a0fca"
                 - "3fc1232e5cd20c8de182ed81178503dc6437f4e7ef12b52cc5e8de020652f1c4"
@@ -6874,9 +7029,9 @@ paths:
         Returns which files in a container's filesystem have been added, deleted,
         or modified. The `Kind` of modification can be one of:
 
-        - `0`: Modified
-        - `1`: Added
-        - `2`: Deleted
+        - `0`: Modified ("C")
+        - `1`: Added ("A")
+        - `2`: Deleted ("D")
       operationId: "ContainerChanges"
       produces: ["application/json"]
       responses:
@@ -6885,22 +7040,7 @@ paths:
           schema:
             type: "array"
             items:
-              type: "object"
-              x-go-name: "ContainerChangeResponseItem"
-              title: "ContainerChangeResponseItem"
-              description: "change item in response to ContainerChanges operation"
-              required: [Path, Kind]
-              properties:
-                Path:
-                  description: "Path to file that has changed"
-                  type: "string"
-                  x-nullable: false
-                Kind:
-                  description: "Kind of change"
-                  type: "integer"
-                  format: "uint8"
-                  enum: [0, 1, 2]
-                  x-nullable: false
+              $ref: "#/definitions/FilesystemChange"
           examples:
             application/json:
               - Path: "/dev"
@@ -8008,6 +8148,7 @@ paths:
             - `label=key` or `label="key=value"` of an image label
             - `reference`=(`<image-name>[:<tag>]`)
             - `since`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
+            - `until=<timestamp>`
           type: "string"
         - name: "shared-size"
           in: "query"
@@ -8190,6 +8331,16 @@ paths:
           description: "BuildKit output configuration"
           type: "string"
           default: ""
+        - name: "version"
+          in: "query"
+          type: "string"
+          default: "1"
+          enum: ["1", "2"]
+          description: |
+            Version of the builder backend to use.
+
+            - `1` is the first generation classic (deprecated) builder in the Docker daemon (default)
+            - `2` is [BuildKit](https://github.com/moby/buildkit)
       responses:
         200:
           description: "no error"
@@ -8227,7 +8378,7 @@ paths:
 
             Available filters:
 
-            - `until=<duration>`: duration relative to daemon's time, during which build cache was not used, in Go's duration format (e.g., '24h')
+            - `until=<timestamp>` remove cache older than `<timestamp>`. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon's local time.
             - `id=<id>`
             - `parent=<id>`
             - `type=<string>`
@@ -8259,7 +8410,7 @@ paths:
   /images/create:
     post:
       summary: "Create an image"
-      description: "Create an image by either pulling it from a registry or importing it."
+      description: "Pull or import an image."
       operationId: "ImageCreate"
       consumes:
         - "text/plain"
@@ -8610,28 +8761,36 @@ paths:
                 is_official:
                   type: "boolean"
                 is_automated:
+                  description: |
+                    Whether this repository has automated builds enabled.
+
+                    <p><br /></p>
+
+                    > **Deprecated**: This field is deprecated and will always
+                    > be "false" in future.
                   type: "boolean"
+                  example: false
                 name:
                   type: "string"
                 star_count:
                   type: "integer"
           examples:
             application/json:
-              - description: ""
-                is_official: false
+              - description: "A minimal Docker image based on Alpine Linux with a complete package index and only 5 MB in size!"
+                is_official: true
                 is_automated: false
-                name: "wma55/u1210sshd"
-                star_count: 0
-              - description: ""
-                is_official: false
+                name: "alpine"
+                star_count: 10093
+              - description: "Busybox base image."
+                is_official: true
                 is_automated: false
-                name: "jdswinbank/sshd"
-                star_count: 0
-              - description: ""
-                is_official: false
+                name: "Busybox base image."
+                star_count: 3037
+              - description: "The PostgreSQL object-relational database system provides reliability and data integrity."
+                is_official: true
                 is_automated: false
-                name: "vgauthier/sshd"
-                star_count: 0
+                name: "postgres"
+                star_count: 12408
         500:
           description: "Server error"
           schema:
@@ -8651,9 +8810,13 @@ paths:
           description: |
             A JSON encoded value of the filters (a `map[string][]string`) to process on the images list. Available filters:
 
-            - `is-automated=(true|false)`
+            - `is-automated=(true|false)` (deprecated, see below)
             - `is-official=(true|false)`
             - `stars=<number>` Matches images that has at least 'number' stars.
+
+            The `is-automated` filter is deprecated. The `is_automated` field has
+            been deprecated by Docker Hub's search API. Consequently, searching
+            for `is-automated=true` will yield no results.
           type: "string"
       tags: ["Image"]
   /images/prune:
@@ -8726,6 +8889,10 @@ paths:
               IdentityToken: "9cbaf023786cd7..."
         204:
           description: "No error"
+        401:
+          description: "Auth error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "Server error"
           schema:
@@ -9042,7 +9209,6 @@ paths:
                   Created: 1466724217
                   Size: 1092588
                   SharedSize: 0
-                  VirtualSize: 1092588
                   Labels: {}
                   Containers: 1
               Containers:
@@ -9700,6 +9866,7 @@ paths:
 
             Available filters:
             - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune volumes with (or without, in case `label!=...` is used) the specified labels.
+            - `all` (`all=true`) - Consider all (local) volumes for pruning and not just anonymous volumes.
           type: "string"
       responses:
         200:
@@ -9904,8 +10071,14 @@ paths:
             example:
               Id: "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30"
               Warning: ""
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         403:
-          description: "operation not supported for pre-defined networks"
+          description: |
+            Forbidden operation. This happens when trying to create a network named after a pre-defined network,
+            or when trying to create an overlay network on a daemon which is not part of a Swarm cluster.
           schema:
             $ref: "#/definitions/ErrorResponse"
         404:
@@ -9931,13 +10104,7 @@ paths:
                 type: "string"
               CheckDuplicate:
                 description: |
-                  Check for networks with duplicate names. Since Network is
-                  primarily keyed based on a random ID and not on the name, and
-                  network name is strictly a user-friendly alias to the network
-                  which is uniquely identified using ID, there is no guaranteed
-                  way to check for duplicates. CheckDuplicate is there to provide
-                  a best effort checking of any networks which has the same name
-                  but it is not guaranteed to catch all name collisions.
+                  Deprecated: CheckDuplicate is now always enabled.
                 type: "boolean"
               Driver:
                 description: "Name of the network driver plugin to use."
@@ -10005,14 +10172,19 @@ paths:
   /networks/{id}/connect:
     post:
       summary: "Connect a container to a network"
+      description: "The network must be either a local-scoped network or a swarm-scoped network with the `attachable` option set. A network cannot be re-attached to a running container"
       operationId: "NetworkConnect"
       consumes:
         - "application/json"
       responses:
         200:
           description: "No error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         403:
-          description: "Operation not supported for swarm scoped networks"
+          description: "Operation forbidden"
           schema:
             $ref: "#/definitions/ErrorResponse"
         404:
@@ -10047,6 +10219,7 @@ paths:
                 IPAMConfig:
                   IPv4Address: "172.24.56.89"
                   IPv6Address: "2001:db8::5689"
+                MacAddress: "02:42:ac:12:05:02"
       tags: ["Network"]
 
   /networks/{id}/disconnect:
@@ -10368,6 +10541,12 @@ paths:
             default if omitted.
           required: true
           type: "string"
+        - name: "force"
+          in: "query"
+          description: |
+            Force disable a plugin even if still in use.
+          required: false
+          type: "boolean"
       tags: ["Plugin"]
   /plugins/{name}/upgrade:
     post:
@@ -11034,18 +11213,7 @@ paths:
         201:
           description: "no error"
           schema:
-            type: "object"
-            title: "ServiceCreateResponse"
-            properties:
-              ID:
-                description: "The ID of the created service."
-                type: "string"
-              Warning:
-                description: "Optional warning message"
-                type: "string"
-            example:
-              ID: "ak7w3gjqoa3kuz8xcpnyy0pvl"
-              Warning: "unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"
+            $ref: "#/definitions/ServiceCreateResponse"
         400:
           description: "bad parameter"
           schema:

@@ -11,44 +11,6 @@ import (
 	units "github.com/docker/go-units"
 )
 
-// CheckpointCreateOptions holds parameters to create a checkpoint from a container
-type CheckpointCreateOptions struct {
-	CheckpointID  string
-	CheckpointDir string
-	Exit          bool
-}
-
-// CheckpointListOptions holds parameters to list checkpoints for a container
-type CheckpointListOptions struct {
-	CheckpointDir string
-}
-
-// CheckpointDeleteOptions holds parameters to delete a checkpoint from a container
-type CheckpointDeleteOptions struct {
-	CheckpointID  string
-	CheckpointDir string
-}
-
-// ContainerAttachOptions holds parameters to attach to a container.
-type ContainerAttachOptions struct {
-	Stream     bool
-	Stdin      bool
-	Stdout     bool
-	Stderr     bool
-	DetachKeys string
-	Logs       bool
-}
-
-// ContainerCommitOptions holds parameters to commit changes into a container.
-type ContainerCommitOptions struct {
-	Reference string
-	Comment   string
-	Author    string
-	Changes   []string
-	Pause     bool
-	Config    *container.Config
-}
-
 // ContainerExecInspect holds information returned by exec inspect.
 type ContainerExecInspect struct {
 	ExecID      string `json:"ID"`
@@ -56,42 +18,6 @@ type ContainerExecInspect struct {
 	Running     bool
 	ExitCode    int
 	Pid         int
-}
-
-// ContainerListOptions holds parameters to list containers with.
-type ContainerListOptions struct {
-	Size    bool
-	All     bool
-	Latest  bool
-	Since   string
-	Before  string
-	Limit   int
-	Filters filters.Args
-}
-
-// ContainerLogsOptions holds parameters to filter logs with.
-type ContainerLogsOptions struct {
-	ShowStdout bool
-	ShowStderr bool
-	Since      string
-	Until      string
-	Timestamps bool
-	Follow     bool
-	Tail       string
-	Details    bool
-}
-
-// ContainerRemoveOptions holds parameters to remove containers.
-type ContainerRemoveOptions struct {
-	RemoveVolumes bool
-	RemoveLinks   bool
-	Force         bool
-}
-
-// ContainerStartOptions holds parameters to start containers.
-type ContainerStartOptions struct {
-	CheckpointID  string
-	CheckpointDir string
 }
 
 // CopyToContainerOptions holds information
@@ -231,40 +157,10 @@ type ImageBuildResponse struct {
 	OSType string
 }
 
-// ImageCreateOptions holds information to create images.
-type ImageCreateOptions struct {
-	RegistryAuth string // RegistryAuth is the base64 encoded credentials for the registry.
-	Platform     string // Platform is the target platform of the image if it needs to be pulled from the registry.
-}
-
 // ImageImportSource holds source information for ImageImport
 type ImageImportSource struct {
 	Source     io.Reader // Source is the data to send to the server to create this image from. You must set SourceName to "-" to leverage this.
 	SourceName string    // SourceName is the name of the image to pull. Set to "-" to leverage the Source attribute.
-}
-
-// ImageImportOptions holds information to import images from the client host.
-type ImageImportOptions struct {
-	Tag      string   // Tag is the name to tag this image with. This attribute is deprecated.
-	Message  string   // Message is the message to tag the image with
-	Changes  []string // Changes are the raw changes to apply to this image
-	Platform string   // Platform is the target platform of the image
-}
-
-// ImageListOptions holds parameters to list images with.
-type ImageListOptions struct {
-	// All controls whether all images in the graph are filtered, or just
-	// the heads.
-	All bool
-
-	// Filters is a JSON-encoded set of filter arguments.
-	Filters filters.Args
-
-	// SharedSize indicates whether the shared size of images should be computed.
-	SharedSize bool
-
-	// ContainerCount indicates whether container count should be computed.
-	ContainerCount bool
 }
 
 // ImageLoadResponse returns information to the client about a load process.
@@ -272,14 +168,6 @@ type ImageLoadResponse struct {
 	// Body must be closed to avoid a resource leak
 	Body io.ReadCloser
 	JSON bool
-}
-
-// ImagePullOptions holds information to pull images.
-type ImagePullOptions struct {
-	All           bool
-	RegistryAuth  string // RegistryAuth is the base64 encoded credentials for the registry
-	PrivilegeFunc RequestPrivilegeFunc
-	Platform      string
 }
 
 // RequestPrivilegeFunc is a function interface that
@@ -290,29 +178,12 @@ type ImagePullOptions struct {
 // if the privilege request fails.
 type RequestPrivilegeFunc func() (string, error)
 
-// ImagePushOptions holds information to push images.
-type ImagePushOptions ImagePullOptions
-
-// ImageRemoveOptions holds parameters to remove images.
-type ImageRemoveOptions struct {
-	Force         bool
-	PruneChildren bool
-}
-
 // ImageSearchOptions holds parameters to search images with.
 type ImageSearchOptions struct {
 	RegistryAuth  string
 	PrivilegeFunc RequestPrivilegeFunc
 	Filters       filters.Args
 	Limit         int
-}
-
-// ResizeOptions holds parameters to resize a tty.
-// It can be used to resize container ttys and
-// exec process ttys too.
-type ResizeOptions struct {
-	Height uint
-	Width  uint
 }
 
 // NodeListOptions holds parameters to list nodes with.
@@ -338,15 +209,6 @@ type ServiceCreateOptions struct {
 	// the image digest and manifest, which in turn can be used to update
 	// platform or other information about the service.
 	QueryRegistry bool
-}
-
-// ServiceCreateResponse contains the information returned to a client
-// on the creation of a new service.
-type ServiceCreateResponse struct {
-	// ID is the ID of the created service.
-	ID string
-	// Warnings is a set of non-fatal warning messages to pass on to the user.
-	Warnings []string `json:",omitempty"`
 }
 
 // Values for RegistryAuthFrom in ServiceUpdateOptions

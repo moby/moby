@@ -6,6 +6,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/moby/buildkit/session"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -89,4 +90,24 @@ func (mp *MultiProvider) Add(dgst digest.Digest, p content.Provider) {
 	mp.mu.Lock()
 	defer mp.mu.Unlock()
 	mp.sub[dgst] = p
+}
+
+func (mp *MultiProvider) UnlazySession(desc ocispecs.Descriptor) session.Group {
+	type unlazySession interface {
+		UnlazySession(ocispecs.Descriptor) session.Group
+	}
+
+	mp.mu.RLock()
+	if p, ok := mp.sub[desc.Digest]; ok {
+		mp.mu.RUnlock()
+		if cd, ok := p.(unlazySession); ok {
+			return cd.UnlazySession(desc)
+		}
+	} else {
+		mp.mu.RUnlock()
+	}
+	if cd, ok := mp.base.(unlazySession); ok {
+		return cd.UnlazySession(desc)
+	}
+	return nil
 }

@@ -11,12 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/distribution/reference"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
-	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
@@ -27,10 +27,9 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
-	"github.com/moby/swarmkit/v2/log"
+	swarmlog "github.com/moby/swarmkit/v2/log"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 )
 
@@ -76,7 +75,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	named, err := reference.ParseNormalizedNamed(spec.Image)
 	if err == nil {
 		if _, ok := named.(reference.Canonical); ok {
-			_, err := c.imageBackend.GetImage(ctx, spec.Image, imagetypes.GetImageOpts{})
+			_, err := c.imageBackend.GetImage(ctx, spec.Image, backend.GetImageOpts{})
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return err
 			}
@@ -95,7 +94,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	authConfig := &registry.AuthConfig{}
 	if encodedAuthConfig != "" {
 		if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuthConfig))).Decode(authConfig); err != nil {
-			logrus.Warnf("invalid authconfig: %v", err)
+			swarmlog.G(ctx).Warnf("invalid authconfig: %v", err)
 		}
 	}
 
@@ -104,7 +103,10 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	go func() {
 		// TODO LCOW Support: This will need revisiting as
 		// the stack is built up to include LCOW support for swarm.
-		err := c.imageBackend.PullImage(ctx, c.container.image(), "", nil, metaHeaders, authConfig, pw)
+
+		// Make sure the image has a tag, otherwise it will pull all tags.
+		ref := reference.TagNameOnly(named)
+		err := c.imageBackend.PullImage(ctx, ref, nil, metaHeaders, authConfig, pw)
 		pw.CloseWithError(err)
 	}()
 
@@ -121,19 +123,19 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 			}
 			return err
 		}
-		l := log.G(ctx)
+		l := swarmlog.G(ctx)
 		// limit pull progress logs unless the status changes
 		if spamLimiter.Allow() || lastStatus != m["status"] {
 			// if we have progress details, we have everything we need
 			if progress, ok := m["progressDetail"].(map[string]interface{}); ok {
 				// first, log the image and status
-				l = l.WithFields(logrus.Fields{
+				l = l.WithFields(log.Fields{
 					"image":  c.container.image(),
 					"status": m["status"],
 				})
 				// then, if we have progress, log the progress
 				if progress["current"] != nil && progress["total"] != nil {
-					l = l.WithFields(logrus.Fields{
+					l = l.WithFields(log.Fields{
 						"current": progress["current"],
 						"total":   progress["total"],
 					})
@@ -240,7 +242,7 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 			case errors.As(err, &errNoSuchNetwork):
 				continue
 			default:
-				log.G(ctx).Errorf("network %s remove failed: %v", name, err)
+				swarmlog.G(ctx).Errorf("network %s remove failed: %v", name, err)
 				return err
 			}
 		}
@@ -290,7 +292,7 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 func (c *containerAdapter) create(ctx context.Context) error {
 	var cr containertypes.CreateResponse
 	var err error
-	if cr, err = c.backend.CreateManagedContainer(types.ContainerCreateConfig{
+	if cr, err = c.backend.CreateManagedContainer(ctx, backend.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
 		HostConfig: c.container.hostConfig(c.dependencies.Volumes()),
@@ -298,18 +300,6 @@ func (c *containerAdapter) create(ctx context.Context) error {
 		NetworkingConfig: c.container.createNetworkingConfig(c.backend),
 	}); err != nil {
 		return err
-	}
-
-	// Docker daemon currently doesn't support multiple networks in container create
-	// Connect to all other networks
-	nc := c.container.connectNetworkingConfig(c.backend)
-
-	if nc != nil {
-		for n, ep := range nc.EndpointsConfig {
-			if err := c.backend.ConnectContainerToNetwork(cr.ID, n, ep); err != nil {
-				return err
-			}
-		}
 	}
 
 	container := c.container.task.Spec.GetContainer()
@@ -357,11 +347,11 @@ func (c *containerAdapter) start(ctx context.Context) error {
 		return err
 	}
 
-	return c.backend.ContainerStart(c.container.name(), nil, "", "")
+	return c.backend.ContainerStart(ctx, c.container.name(), "", "")
 }
 
 func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, error) {
-	cs, err := c.backend.ContainerInspectCurrent(c.container.name(), false)
+	cs, err := c.backend.ContainerInspectCurrent(ctx, c.container.name(), false)
 	if ctx.Err() != nil {
 		return types.ContainerJSON{}, ctx.Err()
 	}
@@ -374,7 +364,7 @@ func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, er
 // events issues a call to the events API and returns a channel with all
 // events. The stream of events can be shutdown by cancelling the context.
 func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
-	log.G(ctx).Debugf("waiting on events")
+	swarmlog.G(ctx).Debugf("waiting on events")
 	buffer, l := c.backend.SubscribeToEvents(time.Time{}, time.Time{}, c.container.eventFilter())
 	eventsq := make(chan events.Message, len(buffer))
 
@@ -390,7 +380,7 @@ func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
 			case ev := <-l:
 				jev, ok := ev.(events.Message)
 				if !ok {
-					log.G(ctx).Warnf("unexpected event message: %q", ev)
+					swarmlog.G(ctx).Warnf("unexpected event message: %q", ev)
 					continue
 				}
 				select {
@@ -412,7 +402,7 @@ func (c *containerAdapter) wait(ctx context.Context) (<-chan containerpkg.StateS
 }
 
 func (c *containerAdapter) shutdown(ctx context.Context) error {
-	var options = containertypes.StopOptions{}
+	options := containertypes.StopOptions{}
 	// Default stop grace period to nil (daemon will use the stopTimeout of the container)
 	if spec := c.container.spec(); spec.StopGracePeriod != nil {
 		timeout := int(spec.StopGracePeriod.Seconds)
@@ -426,7 +416,7 @@ func (c *containerAdapter) terminate(ctx context.Context) error {
 }
 
 func (c *containerAdapter) remove(ctx context.Context) error {
-	return c.backend.ContainerRm(c.container.name(), &types.ContainerRmConfig{
+	return c.backend.ContainerRm(c.container.name(), &backend.ContainerRmConfig{
 		RemoveVolume: true,
 		ForceRemove:  true,
 	})
@@ -460,7 +450,6 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 			// It returns an error if the driver name is different - that is a valid error
 			return err
 		}
-
 	}
 
 	return nil
@@ -486,7 +475,7 @@ func (c *containerAdapter) waitClusterVolumes(ctx context.Context) error {
 			}
 		}
 	}
-	log.G(ctx).Debug("volumes ready")
+	swarmlog.G(ctx).Debug("volumes ready")
 	return nil
 }
 
@@ -499,7 +488,7 @@ func (c *containerAdapter) deactivateServiceBinding() error {
 }
 
 func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (<-chan *backend.LogMessage, error) {
-	apiOptions := &types.ContainerLogsOptions{
+	apiOptions := &containertypes.LogsOptions{
 		Follow: options.Follow,
 
 		// Always say yes to Timestamps and Details. we make the decision

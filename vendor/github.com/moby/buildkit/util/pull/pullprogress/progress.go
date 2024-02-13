@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/progress"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -33,13 +34,14 @@ func (p *ProviderWithProgress) ReaderAt(ctx context.Context, desc ocispecs.Descr
 	ctx, cancel := context.WithCancel(ctx)
 	doneCh := make(chan struct{})
 	go trackProgress(ctx, desc, p.Manager, doneCh)
-	return readerAtWithCancel{ReaderAt: ra, cancel: cancel, doneCh: doneCh}, nil
+	return readerAtWithCancel{ReaderAt: ra, cancel: cancel, doneCh: doneCh, logger: bklog.G(ctx)}, nil
 }
 
 type readerAtWithCancel struct {
 	content.ReaderAt
 	cancel func()
 	doneCh <-chan struct{}
+	logger *logrus.Entry
 }
 
 func (ra readerAtWithCancel) Close() error {
@@ -47,7 +49,7 @@ func (ra readerAtWithCancel) Close() error {
 	select {
 	case <-ra.doneCh:
 	case <-time.After(time.Second):
-		logrus.Warn("timeout waiting for pull progress to complete")
+		ra.logger.Warn("timeout waiting for pull progress to complete")
 	}
 	return ra.ReaderAt.Close()
 }
@@ -66,13 +68,14 @@ func (f *FetcherWithProgress) Fetch(ctx context.Context, desc ocispecs.Descripto
 	ctx, cancel := context.WithCancel(ctx)
 	doneCh := make(chan struct{})
 	go trackProgress(ctx, desc, f.Manager, doneCh)
-	return readerWithCancel{ReadCloser: rc, cancel: cancel, doneCh: doneCh}, nil
+	return readerWithCancel{ReadCloser: rc, cancel: cancel, doneCh: doneCh, logger: bklog.G(ctx)}, nil
 }
 
 type readerWithCancel struct {
 	io.ReadCloser
 	cancel func()
 	doneCh <-chan struct{}
+	logger *logrus.Entry
 }
 
 func (r readerWithCancel) Close() error {
@@ -80,7 +83,7 @@ func (r readerWithCancel) Close() error {
 	select {
 	case <-r.doneCh:
 	case <-time.After(time.Second):
-		logrus.Warn("timeout waiting for pull progress to complete")
+		r.logger.Warn("timeout waiting for pull progress to complete")
 	}
 	return r.ReadCloser.Close()
 }
@@ -90,10 +93,10 @@ func trackProgress(ctx context.Context, desc ocispecs.Descriptor, manager PullMa
 
 	ticker := time.NewTicker(150 * time.Millisecond)
 	defer ticker.Stop()
-	go func() {
+	go func(ctx context.Context) {
 		<-ctx.Done()
 		ticker.Stop()
-	}()
+	}(ctx)
 
 	pw, _, _ := progress.NewFromContext(ctx)
 	defer pw.Close()
@@ -106,6 +109,8 @@ func trackProgress(ctx context.Context, desc ocispecs.Descriptor, manager PullMa
 		select {
 		case <-ctx.Done():
 			onFinalStatus = true
+			// we need a context for the manager.Status() calls to pass once. after that this function will exit
+			ctx = context.TODO()
 		case <-ticker.C:
 		}
 
@@ -118,12 +123,16 @@ func trackProgress(ctx context.Context, desc ocispecs.Descriptor, manager PullMa
 			})
 			continue
 		} else if !errors.Is(err, errdefs.ErrNotFound) {
-			logrus.Errorf("unexpected error getting ingest status of %q: %v", ingestRef, err)
+			bklog.G(ctx).Errorf("unexpected error getting ingest status of %q: %v", ingestRef, err)
 			return
 		}
 
 		info, err := manager.Info(ctx, desc.Digest)
 		if err == nil {
+			// info.CreatedAt could be before started if parallel pull just completed
+			if info.CreatedAt.Before(started) {
+				started = info.CreatedAt
+			}
 			pw.Write(desc.Digest.String(), progress.Status{
 				Current:   int(info.Size),
 				Total:     int(info.Size),

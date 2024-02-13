@@ -31,7 +31,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -151,10 +150,10 @@ func Open(sr *io.SectionReader, opt ...OpenOption) (*Reader, error) {
 			allErr = append(allErr, err)
 			continue
 		}
-		if tocSize <= 0 {
+		if tocOffset >= 0 && tocSize <= 0 {
 			tocSize = sr.Size() - tocOffset - fSize
 		}
-		if tocSize < int64(len(maybeTocBytes)) {
+		if tocOffset >= 0 && tocSize < int64(len(maybeTocBytes)) {
 			maybeTocBytes = maybeTocBytes[:tocSize]
 		}
 		r, err = parseTOC(d, sr, tocOffset, tocSize, maybeTocBytes, opts)
@@ -208,8 +207,16 @@ func (r *Reader) initFields() error {
 	uname := map[int]string{}
 	gname := map[int]string{}
 	var lastRegEnt *TOCEntry
-	for _, ent := range r.toc.Entries {
+	var chunkTopIndex int
+	for i, ent := range r.toc.Entries {
 		ent.Name = cleanEntryName(ent.Name)
+		switch ent.Type {
+		case "reg", "chunk":
+			if ent.Offset != r.toc.Entries[chunkTopIndex].Offset {
+				chunkTopIndex = i
+			}
+			ent.chunkTopIndex = chunkTopIndex
+		}
 		if ent.Type == "reg" {
 			lastRegEnt = ent
 		}
@@ -295,7 +302,7 @@ func (r *Reader) initFields() error {
 		if e.isDataType() {
 			e.nextOffset = lastOffset
 		}
-		if e.Offset != 0 {
+		if e.Offset != 0 && e.InnerOffset == 0 {
 			lastOffset = e.Offset
 		}
 	}
@@ -489,6 +496,14 @@ func (r *Reader) Lookup(path string) (e *TOCEntry, ok bool) {
 //
 // Name must be absolute path or one that is relative to root.
 func (r *Reader) OpenFile(name string) (*io.SectionReader, error) {
+	fr, err := r.newFileReader(name)
+	if err != nil {
+		return nil, err
+	}
+	return io.NewSectionReader(fr, 0, fr.size), nil
+}
+
+func (r *Reader) newFileReader(name string) (*fileReader, error) {
 	name = cleanEntryName(name)
 	ent, ok := r.Lookup(name)
 	if !ok {
@@ -506,11 +521,19 @@ func (r *Reader) OpenFile(name string) (*io.SectionReader, error) {
 			Err:  errors.New("not a regular file"),
 		}
 	}
-	fr := &fileReader{
+	return &fileReader{
 		r:    r,
 		size: ent.Size,
 		ents: r.getChunks(ent),
+	}, nil
+}
+
+func (r *Reader) OpenFileWithPreReader(name string, preRead func(*TOCEntry, io.Reader) error) (*io.SectionReader, error) {
+	fr, err := r.newFileReader(name)
+	if err != nil {
+		return nil, err
 	}
+	fr.preRead = preRead
 	return io.NewSectionReader(fr, 0, fr.size), nil
 }
 
@@ -522,9 +545,10 @@ func (r *Reader) getChunks(ent *TOCEntry) []*TOCEntry {
 }
 
 type fileReader struct {
-	r    *Reader
-	size int64
-	ents []*TOCEntry // 1 or more reg/chunk entries
+	r       *Reader
+	size    int64
+	ents    []*TOCEntry // 1 or more reg/chunk entries
+	preRead func(*TOCEntry, io.Reader) error
 }
 
 func (fr *fileReader) ReadAt(p []byte, off int64) (n int, err error) {
@@ -579,10 +603,48 @@ func (fr *fileReader) ReadAt(p []byte, off int64) (n int, err error) {
 		return 0, fmt.Errorf("fileReader.ReadAt.decompressor.Reader: %v", err)
 	}
 	defer dr.Close()
-	if n, err := io.CopyN(ioutil.Discard, dr, off); n != off || err != nil {
-		return 0, fmt.Errorf("discard of %d bytes = %v, %v", off, n, err)
+
+	if fr.preRead == nil {
+		if n, err := io.CopyN(io.Discard, dr, ent.InnerOffset+off); n != ent.InnerOffset+off || err != nil {
+			return 0, fmt.Errorf("discard of %d bytes != %v, %v", ent.InnerOffset+off, n, err)
+		}
+		return io.ReadFull(dr, p)
 	}
-	return io.ReadFull(dr, p)
+
+	var retN int
+	var retErr error
+	var found bool
+	var nr int64
+	for _, e := range fr.r.toc.Entries[ent.chunkTopIndex:] {
+		if !e.isDataType() {
+			continue
+		}
+		if e.Offset != fr.r.toc.Entries[ent.chunkTopIndex].Offset {
+			break
+		}
+		if in, err := io.CopyN(io.Discard, dr, e.InnerOffset-nr); err != nil || in != e.InnerOffset-nr {
+			return 0, fmt.Errorf("discard of remaining %d bytes != %v, %v", e.InnerOffset-nr, in, err)
+		}
+		nr = e.InnerOffset
+		if e == ent {
+			found = true
+			if n, err := io.CopyN(io.Discard, dr, off); n != off || err != nil {
+				return 0, fmt.Errorf("discard of offset %d bytes != %v, %v", off, n, err)
+			}
+			retN, retErr = io.ReadFull(dr, p)
+			nr += off + int64(retN)
+			continue
+		}
+		cr := &countReader{r: io.LimitReader(dr, e.ChunkSize)}
+		if err := fr.preRead(e, cr); err != nil {
+			return 0, fmt.Errorf("failed to pre read: %w", err)
+		}
+		nr += cr.n
+	}
+	if !found {
+		return 0, fmt.Errorf("fileReader.ReadAt: target entry not found")
+	}
+	return retN, retErr
 }
 
 // A Writer writes stargz files.
@@ -600,11 +662,20 @@ type Writer struct {
 	lastGroupname map[int]string
 	compressor    Compressor
 
+	uncompressedCounter *countWriteFlusher
+
 	// ChunkSize optionally controls the maximum number of bytes
 	// of data of a regular file that can be written in one gzip
 	// stream before a new gzip stream is started.
 	// Zero means to use a default, currently 4 MiB.
 	ChunkSize int
+
+	// MinChunkSize optionally controls the minimum number of bytes
+	// of data must be written in one gzip stream before a new gzip
+	// NOTE: This adds a TOC property that stargz snapshotter < v0.13.0 doesn't understand.
+	MinChunkSize int
+
+	needsOpenGzEntries map[string]struct{}
 }
 
 // currentCompressionWriter writes to the current w.gz field, which can
@@ -647,6 +718,9 @@ func Unpack(sr *io.SectionReader, c Decompressor) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse footer: %w", err)
 	}
+	if blobPayloadSize < 0 {
+		blobPayloadSize = sr.Size()
+	}
 	return c.Reader(io.LimitReader(sr, blobPayloadSize))
 }
 
@@ -673,11 +747,12 @@ func NewWriterWithCompressor(w io.Writer, c Compressor) *Writer {
 	bw := bufio.NewWriter(w)
 	cw := &countWriter{w: bw}
 	return &Writer{
-		bw:         bw,
-		cw:         cw,
-		toc:        &JTOC{Version: 1},
-		diffHash:   sha256.New(),
-		compressor: c,
+		bw:                  bw,
+		cw:                  cw,
+		toc:                 &JTOC{Version: 1},
+		diffHash:            sha256.New(),
+		compressor:          c,
+		uncompressedCounter: &countWriteFlusher{},
 	}
 }
 
@@ -718,6 +793,20 @@ func (w *Writer) closeGz() error {
 	return nil
 }
 
+func (w *Writer) flushGz() error {
+	if w.closed {
+		return errors.New("flush on closed Writer")
+	}
+	if w.gz != nil {
+		if f, ok := w.gz.(interface {
+			Flush() error
+		}); ok {
+			return f.Flush()
+		}
+	}
+	return nil
+}
+
 // nameIfChanged returns name, unless it was the already the value of (*mp)[id],
 // in which case it returns the empty string.
 func (w *Writer) nameIfChanged(mp *map[int]string, id int, name string) string {
@@ -737,6 +826,9 @@ func (w *Writer) nameIfChanged(mp *map[int]string, id int, name string) string {
 func (w *Writer) condOpenGz() (err error) {
 	if w.gz == nil {
 		w.gz, err = w.compressor.Writer(w.cw)
+		if w.gz != nil {
+			w.gz = w.uncompressedCounter.register(w.gz)
+		}
 	}
 	return
 }
@@ -785,6 +877,8 @@ func (w *Writer) appendTar(r io.Reader, lossless bool) error {
 	if lossless {
 		tr.RawAccounting = true
 	}
+	prevOffset := w.cw.n
+	var prevOffsetUncompressed int64
 	for {
 		h, err := tr.Next()
 		if err == io.EOF {
@@ -884,10 +978,6 @@ func (w *Writer) appendTar(r io.Reader, lossless bool) error {
 			totalSize := ent.Size // save it before we destroy ent
 			tee := io.TeeReader(tr, payloadDigest.Hash())
 			for written < totalSize {
-				if err := w.closeGz(); err != nil {
-					return err
-				}
-
 				chunkSize := int64(w.chunkSize())
 				remain := totalSize - written
 				if remain < chunkSize {
@@ -895,7 +985,23 @@ func (w *Writer) appendTar(r io.Reader, lossless bool) error {
 				} else {
 					ent.ChunkSize = chunkSize
 				}
-				ent.Offset = w.cw.n
+
+				// We flush the underlying compression writer here to correctly calculate "w.cw.n".
+				if err := w.flushGz(); err != nil {
+					return err
+				}
+				if w.needsOpenGz(ent) || w.cw.n-prevOffset >= int64(w.MinChunkSize) {
+					if err := w.closeGz(); err != nil {
+						return err
+					}
+					ent.Offset = w.cw.n
+					prevOffset = ent.Offset
+					prevOffsetUncompressed = w.uncompressedCounter.n
+				} else {
+					ent.Offset = prevOffset
+					ent.InnerOffset = w.uncompressedCounter.n - prevOffsetUncompressed
+				}
+
 				ent.ChunkOffset = written
 				chunkDigest := digest.Canonical.Digester()
 
@@ -933,12 +1039,23 @@ func (w *Writer) appendTar(r io.Reader, lossless bool) error {
 			}
 		}
 	}
-	remainDest := ioutil.Discard
+	remainDest := io.Discard
 	if lossless {
 		remainDest = dst // Preserve the remaining bytes in lossless mode
 	}
 	_, err := io.Copy(remainDest, src)
 	return err
+}
+
+func (w *Writer) needsOpenGz(ent *TOCEntry) bool {
+	if ent.Type != "reg" {
+		return false
+	}
+	if w.needsOpenGzEntries == nil {
+		return false
+	}
+	_, ok := w.needsOpenGzEntries[ent.Name]
+	return ok
 }
 
 // DiffID returns the SHA-256 of the uncompressed tar bytes.
@@ -957,6 +1074,28 @@ func maxFooterSize(blobSize int64, decompressors ...Decompressor) (res int64) {
 }
 
 func parseTOC(d Decompressor, sr *io.SectionReader, tocOff, tocSize int64, tocBytes []byte, opts openOpts) (*Reader, error) {
+	if tocOff < 0 {
+		// This means that TOC isn't contained in the blob.
+		// We pass nil reader to ParseTOC and expect that ParseTOC acquire TOC from
+		// the external location.
+		start := time.Now()
+		toc, tocDgst, err := d.ParseTOC(nil)
+		if err != nil {
+			return nil, err
+		}
+		if opts.telemetry != nil && opts.telemetry.GetTocLatency != nil {
+			opts.telemetry.GetTocLatency(start)
+		}
+		if opts.telemetry != nil && opts.telemetry.DeserializeTocLatency != nil {
+			opts.telemetry.DeserializeTocLatency(start)
+		}
+		return &Reader{
+			sr:           sr,
+			toc:          toc,
+			tocDigest:    tocDgst,
+			decompressor: d,
+		}, nil
+	}
 	if len(tocBytes) > 0 {
 		start := time.Now()
 		toc, tocDgst, err := d.ParseTOC(bytes.NewReader(tocBytes))
@@ -1022,6 +1161,37 @@ func (cw *countWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
+type countWriteFlusher struct {
+	io.WriteCloser
+	n int64
+}
+
+func (wc *countWriteFlusher) register(w io.WriteCloser) io.WriteCloser {
+	wc.WriteCloser = w
+	return wc
+}
+
+func (wc *countWriteFlusher) Write(p []byte) (n int, err error) {
+	n, err = wc.WriteCloser.Write(p)
+	wc.n += int64(n)
+	return
+}
+
+func (wc *countWriteFlusher) Flush() error {
+	if f, ok := wc.WriteCloser.(interface {
+		Flush() error
+	}); ok {
+		return f.Flush()
+	}
+	return nil
+}
+
+func (wc *countWriteFlusher) Close() error {
+	err := wc.WriteCloser.Close()
+	wc.WriteCloser = nil
+	return err
+}
+
 // isGzip reports whether br is positioned right before an upcoming gzip stream.
 // It does not consume any bytes from br.
 func isGzip(br *bufio.Reader) bool {
@@ -1039,4 +1209,15 @@ func positive(n int64) int64 {
 		return 0
 	}
 	return n
+}
+
+type countReader struct {
+	r io.Reader
+	n int64
+}
+
+func (cr *countReader) Read(p []byte) (n int, err error) {
+	n, err = cr.r.Read(p)
+	cr.n += int64(n)
+	return
 }

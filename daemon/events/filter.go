@@ -1,7 +1,7 @@
 package events // import "github.com/docker/docker/daemon/events"
 
 import (
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 )
@@ -19,7 +19,7 @@ func NewFilter(filter filters.Args) *Filter {
 // Include returns true when the event ev is included by the filters
 func (ef *Filter) Include(ev events.Message) bool {
 	return ef.matchEvent(ev) &&
-		ef.filter.ExactMatch("type", ev.Type) &&
+		ef.filter.ExactMatch("type", string(ev.Type)) &&
 		ef.matchScope(ev.Scope) &&
 		ef.matchDaemon(ev) &&
 		ef.matchContainer(ev) &&
@@ -38,9 +38,9 @@ func (ef *Filter) matchEvent(ev events.Message) bool {
 	// #25798 if an event filter contains either health_status, exec_create or exec_start without a colon
 	// Let's to a FuzzyMatch instead of an ExactMatch.
 	if ef.filterContains("event", map[string]struct{}{"health_status": {}, "exec_create": {}, "exec_start": {}}) {
-		return ef.filter.FuzzyMatch("event", ev.Action)
+		return ef.filter.FuzzyMatch("event", string(ev.Action))
 	}
-	return ef.filter.ExactMatch("event", ev.Action)
+	return ef.filter.ExactMatch("event", string(ev.Action))
 }
 
 func (ef *Filter) filterContains(field string, values map[string]struct{}) bool {
@@ -103,8 +103,7 @@ func (ef *Filter) matchConfig(ev events.Message) bool {
 }
 
 func (ef *Filter) fuzzyMatchName(ev events.Message, eventType events.Type) bool {
-	return ef.filter.FuzzyMatch(eventType, ev.Actor.ID) ||
-		ef.filter.FuzzyMatch(eventType, ev.Actor.Attributes["name"])
+	return ef.filter.FuzzyMatch(string(eventType), ev.Actor.ID) || ef.filter.FuzzyMatch(string(eventType), ev.Actor.Attributes["name"])
 }
 
 // matchImage matches against both event.Actor.ID (for image events)

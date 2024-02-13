@@ -1,12 +1,13 @@
 package portallocator
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"sync"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 )
 
 type ipMapping map[string]protoMap
@@ -83,15 +84,16 @@ func Get() *PortAllocator {
 	// When this happens singleton behavior will be removed. Clients do not
 	// need to worry about this, they will not see a change in behavior.
 	once.Do(func() {
-		instance = newInstance()
+		instance = NewInstance()
 	})
 	return instance
 }
 
-func newInstance() *PortAllocator {
+// NewInstance is meant for use by libnetwork tests. It is not meant to be called directly.
+func NewInstance() *PortAllocator {
 	start, end, err := getDynamicPortRange()
 	if err != nil {
-		logrus.WithError(err).Infof("falling back to default port range %d-%d", defaultPortRangeStart, defaultPortRangeEnd)
+		log.G(context.TODO()).WithError(err).Infof("falling back to default port range %d-%d", defaultPortRangeStart, defaultPortRangeEnd)
 		start, end = defaultPortRangeStart, defaultPortRangeEnd
 	}
 	return &PortAllocator{
@@ -152,7 +154,7 @@ func (p *PortAllocator) RequestPortInRange(ip net.IP, proto string, portStart, p
 }
 
 // ReleasePort releases port from global ports pool for specified ip and proto.
-func (p *PortAllocator) ReleasePort(ip net.IP, proto string, port int) error {
+func (p *PortAllocator) ReleasePort(ip net.IP, proto string, port int) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -161,10 +163,9 @@ func (p *PortAllocator) ReleasePort(ip net.IP, proto string, port int) error {
 	}
 	protomap, ok := p.ipMap[ip.String()]
 	if !ok {
-		return nil
+		return
 	}
 	delete(protomap[proto].p, port)
-	return nil
 }
 
 func (p *PortAllocator) newPortMap() *portMap {

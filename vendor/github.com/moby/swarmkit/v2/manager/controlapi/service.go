@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/defaults"
@@ -219,6 +219,16 @@ func validateHealthCheck(hc *api.HealthConfig) error {
 		}
 		if sp != 0 && sp < minimumDuration {
 			return status.Errorf(codes.InvalidArgument, "ContainerSpec: StartPeriod in HealthConfig cannot be less than %s", minimumDuration)
+		}
+	}
+
+	if hc.StartInterval != nil {
+		interval, err := gogotypes.DurationFromProto(hc.StartInterval)
+		if err != nil {
+			return err
+		}
+		if interval != 0 && interval < minimumDuration {
+			return status.Errorf(codes.InvalidArgument, "ContainerSpec: StartInterval in HealthConfig cannot be less than %s", minimumDuration)
 		}
 	}
 

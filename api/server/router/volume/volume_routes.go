@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
@@ -13,7 +14,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -116,10 +116,10 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 	// Instead, we will allow creating a volume with a duplicate name, which
 	// should not break anything.
 	if req.ClusterVolumeSpec != nil && versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) {
-		logrus.Debug("using cluster volume")
+		log.G(ctx).Debug("using cluster volume")
 		vol, err = v.cluster.CreateVolume(req)
 	} else {
-		logrus.Debug("using regular volume")
+		log.G(ctx).Debug("using regular volume")
 		vol, err = v.backend.Create(ctx, req.Name, req.Driver, opts.WithCreateOptions(req.DriverOpts), opts.WithCreateLabels(req.Labels))
 	}
 
@@ -159,20 +159,29 @@ func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter,
 	}
 	force := httputils.BoolValue(r, "force")
 
-	version := httputils.VersionFromContext(ctx)
-
+	// First we try deleting local volume. The volume may not be found as a
+	// local volume, but could be a cluster volume, so we ignore "not found"
+	// errors at this stage. Note that no "not found" error is produced if
+	// "force" is enabled.
 	err := v.backend.Remove(ctx, vars["name"], opts.WithPurgeOnError(force))
-	if err != nil {
-		if errdefs.IsNotFound(err) && versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
-			err := v.cluster.RemoveVolume(vars["name"], force)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
+	if err != nil && !errdefs.IsNotFound(err) {
+		return err
+	}
+
+	// If no volume was found, the volume may be a cluster volume. If force
+	// is enabled, the volume backend won't return an error for non-existing
+	// volumes, so we don't know if removal succeeded (or not volume existed).
+	// In that case we always try to delete cluster volumes as well.
+	if errdefs.IsNotFound(err) || force {
+		version := httputils.VersionFromContext(ctx)
+		if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
+			err = v.cluster.RemoveVolume(vars["name"], force)
 		}
 	}
 
+	if err != nil {
+		return err
+	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
@@ -185,6 +194,12 @@ func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWrit
 	pruneFilters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
+	}
+
+	// API version 1.42 changes behavior where prune should only prune anonymous volumes.
+	// To keep older API behavior working, we need to add this filter option to consider all (local) volumes for pruning, not just anonymous ones.
+	if versions.LessThan(httputils.VersionFromContext(ctx), "1.42") {
+		pruneFilters.Add("all", "true")
 	}
 
 	pruneReport, err := v.backend.Prune(ctx, pruneFilters)

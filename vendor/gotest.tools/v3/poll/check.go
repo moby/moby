@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-// Check is a function which will be used as check for the WaitOn method.
+// Check is a function which will be used as check for the [WaitOn] method.
 type Check func(t LogT) Result
 
 // FileExists looks on filesystem and check that path exists.
@@ -29,7 +29,7 @@ func FileExists(path string) Check {
 }
 
 // Connection try to open a connection to the address on the
-// named network. See net.Dial for a description of the network and
+// named network. See [net.Dial] for a description of the network and
 // address parameters.
 func Connection(network, address string) Check {
 	return func(t LogT) Result {

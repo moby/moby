@@ -2,15 +2,16 @@ package build
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
 	"gotest.tools/v3/assert"
@@ -20,13 +21,16 @@ import (
 
 func TestBuildSquashParent(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.UsingSnapshotter(), "squash is not implemented for containerd image store")
+
+	ctx := testutil.StartSpan(baseContext, t)
 
 	var client dclient.APIClient
 	if !testEnv.DaemonInfo.ExperimentalBuild {
 		skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 
 		d := daemon.New(t, daemon.WithExperimental())
-		d.StartWithBusybox(t)
+		d.StartWithBusybox(ctx, t)
 		defer d.Stop(t)
 		client = d.NewClientT(t)
 	} else {
@@ -43,7 +47,6 @@ func TestBuildSquashParent(t *testing.T) {
 		`
 
 	// build and get the ID that we can use later for history comparison
-	ctx := context.Background()
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
 	defer source.Close()
 
@@ -82,7 +85,7 @@ func TestBuildSquashParent(t *testing.T) {
 		container.WithImage(name),
 		container.WithCmd("/bin/sh", "-c", "cat /hello"),
 	)
-	reader, err := client.ContainerLogs(ctx, cid, types.ContainerLogsOptions{
+	reader, err := client.ContainerLogs(ctx, cid, containertypes.LogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)

@@ -24,7 +24,7 @@ info:
   title: "Docker Engine API"
   version: "1.42"
   x-logo:
-    url: "https://docs.docker.com/images/logo-docker-main.png"
+    url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |
     The Engine API is an HTTP API served by Docker Engine. It is the API the
     Docker client uses to communicate with the Engine, so everything the Docker
@@ -1122,6 +1122,7 @@ definitions:
               remapping option is enabled.
           ShmSize:
             type: "integer"
+            format: "int64"
             description: |
               Size of `/dev/shm` in bytes. If omitted, the system uses 64MB.
             minimum: 0
@@ -2343,6 +2344,8 @@ definitions:
         type: "string"
       error:
         type: "string"
+      errorDetail:
+        $ref: "#/definitions/ErrorDetail"
       status:
         type: "string"
       progress:
@@ -2977,8 +2980,6 @@ definitions:
             Name: "journald"
           - Type: "Log"
             Name: "json-file"
-          - Type: "Log"
-            Name: "logentries"
           - Type: "Log"
             Name: "splunk"
           - Type: "Log"
@@ -5033,7 +5034,7 @@ definitions:
           Go runtime (`GOOS`).
 
           Currently returned values are "linux" and "windows". A full list of
-          possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+          possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "linux"
       Architecture:
@@ -5041,7 +5042,7 @@ definitions:
           Hardware architecture of the host, as returned by the Go runtime
           (`GOARCH`).
 
-          A full list of possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+          A full list of possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "x86_64"
       NCPU:
@@ -5127,42 +5128,8 @@ definitions:
       ServerVersion:
         description: |
           Version string of the daemon.
-
-          > **Note**: the [standalone Swarm API](https://docs.docker.com/swarm/swarm-api/)
-          > returns the Swarm version instead of the daemon  version, for example
-          > `swarm/1.2.8`.
         type: "string"
-        example: "17.06.0-ce"
-      ClusterStore:
-        description: |
-          URL of the distributed storage backend.
-
-
-          The storage backend is used for multihost networking (to store
-          network and endpoint information) and by the node discovery mechanism.
-
-          <p><br /></p>
-
-          > **Deprecated**: This field is only propagated when using standalone Swarm
-          > mode, and overlay networking using an external k/v store. Overlay
-          > networks with Swarm mode enabled use the built-in raft store, and
-          > this field will be empty.
-        type: "string"
-        example: "consul://consul.corp.example.com:8600/some/path"
-      ClusterAdvertise:
-        description: |
-          The network endpoint that the Engine advertises for the purpose of
-          node discovery. ClusterAdvertise is a `host:port` combination on which
-          the daemon is reachable by other hosts.
-
-          <p><br /></p>
-
-          > **Deprecated**: This field is only propagated when using standalone Swarm
-          > mode, and overlay networking using an external k/v store. Overlay
-          > networks with Swarm mode enabled use the built-in raft store, and
-          > this field will be empty.
-        type: "string"
-        example: "node5.corp.example.com:8000"
+        example: "23.0.0"
       Runtimes:
         description: |
           List of [OCI compliant](https://github.com/opencontainers/runtime-spec)
@@ -5332,7 +5299,7 @@ definitions:
         type: "array"
         items:
           type: "string"
-        example: ["awslogs", "fluentd", "gcplogs", "gelf", "journald", "json-file", "logentries", "splunk", "syslog"]
+        example: ["awslogs", "fluentd", "gcplogs", "gelf", "journald", "json-file", "splunk", "syslog"]
 
 
   RegistryServiceConfig:
@@ -8189,6 +8156,16 @@ paths:
           description: "BuildKit output configuration"
           type: "string"
           default: ""
+        - name: "version"
+          in: "query"
+          type: "string"
+          default: "1"
+          enum: ["1", "2"]
+          description: |
+            Version of the builder backend to use.
+
+            - `1` is the first generation classic (deprecated) builder in the Docker daemon (default)
+            - `2` is [BuildKit](https://github.com/moby/buildkit)
       responses:
         200:
           description: "no error"
@@ -8725,6 +8702,10 @@ paths:
               IdentityToken: "9cbaf023786cd7..."
         204:
           description: "No error"
+        401:
+          description: "Auth error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "Server error"
           schema:
@@ -8786,7 +8767,17 @@ paths:
               description: "Max API Version the server supports"
             Builder-Version:
               type: "string"
-              description: "Default version of docker image builder"
+              description: |
+                Default version of docker image builder
+
+                The default on Linux is version "2" (BuildKit), but the daemon
+                can be configured to recommend version "1" (classic Builder).
+                Windows does not yet support BuildKit for native Windows images,
+                and uses "1" (classic builder) as a default.
+
+                This value is a recommendation as advertised by the daemon, and
+                it is up to the client to choose which builder to use.
+              default: "2"
             Docker-Experimental:
               type: "boolean"
               description: "If the server is running with experimental mode enabled"
@@ -9689,6 +9680,7 @@ paths:
 
             Available filters:
             - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune volumes with (or without, in case `label!=...` is used) the specified labels.
+            - `all` (`all=true`) - Consider all (local) volumes for pruning and not just anonymous volumes.
           type: "string"
       responses:
         200:
@@ -9893,6 +9885,10 @@ paths:
             example:
               Id: "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30"
               Warning: ""
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         403:
           description: "operation not supported for pre-defined networks"
           schema:
@@ -10357,6 +10353,12 @@ paths:
             default if omitted.
           required: true
           type: "string"
+        - name: "force"
+          in: "query"
+          description: |
+            Force disable a plugin even if still in use.
+          required: false
+          type: "boolean"
       tags: ["Plugin"]
   /plugins/{name}/upgrade:
     post:

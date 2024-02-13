@@ -8,16 +8,20 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Microsoft/hcsshim"
+	coci "github.com/containerd/containerd/oci"
+	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
-	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -26,52 +30,17 @@ const (
 	credentialSpecFileLocation     = "CredentialSpecs"
 )
 
-func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
-	ctx := context.TODO()
-	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), imagetypes.GetImageOpts{})
-	if err != nil {
-		return nil, err
-	}
-	if !system.IsOSSupported(img.OperatingSystem()) {
-		return nil, system.ErrNotSupportedOperatingSystem
-	}
-
-	s := oci.DefaultSpec()
-
-	linkedEnv, err := daemon.setupLinkedContainers(c)
-	if err != nil {
-		return nil, err
-	}
-
+// setupContainerDirs sets up base container directories (root, ipc, tmpfs and secrets).
+func (daemon *Daemon) setupContainerDirs(c *container.Container) ([]container.Mount, error) {
 	// Note, unlike Unix, we do NOT call into SetupWorkingDirectory as
 	// this is done in VMCompute. Further, we couldn't do it for Hyper-V
 	// containers anyway.
-
 	if err := daemon.setupSecretDir(c); err != nil {
 		return nil, err
 	}
 
 	if err := daemon.setupConfigDir(c); err != nil {
 		return nil, err
-	}
-
-	// In s.Mounts
-	mounts, err := daemon.setupMounts(c)
-	if err != nil {
-		return nil, err
-	}
-
-	var isHyperV bool
-	if c.HostConfig.Isolation.IsDefault() {
-		// Container using default isolation, so take the default from the daemon configuration
-		isHyperV = daemon.defaultIsolation.IsHyperV()
-	} else {
-		// Container may be requesting an explicit isolation mode.
-		isHyperV = c.HostConfig.Isolation.IsHyperV()
-	}
-
-	if isHyperV {
-		s.Windows.HyperV = &specs.WindowsHyperV{}
 	}
 
 	// If the container has not been started, and has configs or secrets
@@ -83,7 +52,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	if !c.HasBeenStartedBefore && (len(c.SecretReferences) > 0 || len(c.ConfigReferences) > 0) {
 		// The container file system is mounted before this function is called,
 		// except for Hyper-V containers, so mount it here in that case.
-		if isHyperV {
+		if daemon.isHyperV(c) {
 			if err := daemon.Mount(c); err != nil {
 				return nil, err
 			}
@@ -101,13 +70,41 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	var mounts []container.Mount
 	if secretMounts != nil {
 		mounts = append(mounts, secretMounts...)
 	}
 
-	configMounts := c.ConfigMounts()
-	if configMounts != nil {
+	if configMounts := c.ConfigMounts(); configMounts != nil {
 		mounts = append(mounts, configMounts...)
+	}
+
+	return mounts, nil
+}
+
+func (daemon *Daemon) isHyperV(c *container.Container) bool {
+	if c.HostConfig.Isolation.IsDefault() {
+		// Container using default isolation, so take the default from the daemon configuration
+		return daemon.defaultIsolation.IsHyperV()
+	}
+	// Container may be requesting an explicit isolation mode.
+	return c.HostConfig.Isolation.IsHyperV()
+}
+
+func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container, mounts []container.Mount) (*specs.Spec, error) {
+	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), backend.GetImageOpts{})
+	if err != nil {
+		return nil, err
+	}
+	if err := image.CheckOS(img.OperatingSystem()); err != nil {
+		return nil, err
+	}
+
+	s := oci.DefaultSpec()
+
+	if err := coci.WithAnnotations(c.HostConfig.Annotations)(ctx, nil, nil, &s); err != nil {
+		return nil, err
 	}
 
 	for _, mount := range mounts {
@@ -119,6 +116,16 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 			m.Options = append(m.Options, "ro")
 		}
 		s.Mounts = append(s.Mounts, m)
+	}
+
+	linkedEnv, err := daemon.setupLinkedContainers(c)
+	if err != nil {
+		return nil, err
+	}
+
+	isHyperV := daemon.isHyperV(c)
+	if isHyperV {
+		s.Windows.HyperV = &specs.WindowsHyperV{}
 	}
 
 	// In s.Process
@@ -133,12 +140,10 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		}
 	}
 	s.Process.User.Username = c.Config.User
-	s.Windows.LayerFolders, err = daemon.imageService.GetLayerFolders(img, c.RWLayer)
+	s.Windows.LayerFolders, err = daemon.imageService.GetLayerFolders(img, c.RWLayer, c.ID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "container %s", c.ID)
+		return nil, errors.Wrapf(err, "GetLayerFolders failed: container %s", c.ID)
 	}
-
-	dnsSearch := daemon.getDNSSearchSettings(c)
 
 	// Get endpoints for the libnetwork allocated networks to the container
 	var epList []string
@@ -190,6 +195,13 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		epList = append(epList, gwHNSID)
 	}
 
+	var dnsSearch []string
+	if len(c.HostConfig.DNSSearch) > 0 {
+		dnsSearch = c.HostConfig.DNSSearch
+	} else if len(daemonCfg.DNSSearch) > 0 {
+		dnsSearch = daemonCfg.DNSSearch
+	}
+
 	s.Windows.Network = &specs.WindowsNetwork{
 		AllowUnqualifiedDNSQuery:   AllowUnqualifiedDNSQuery,
 		DNSSearchList:              dnsSearch,
@@ -201,9 +213,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		return nil, err
 	}
 
-	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+	if log.G(ctx).Level >= log.DebugLevel {
 		if b, err := json.Marshal(&s); err == nil {
-			logrus.Debugf("Generated spec: %s", string(b))
+			log.G(ctx).Debugf("Generated spec: %s", string(b))
 		}
 	}
 
@@ -212,7 +224,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 
 // Sets the Windows-specific fields of the OCI spec
 func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.Spec, isHyperV bool) error {
-
 	s.Hostname = c.FullHostname()
 
 	if len(s.Process.Cwd) == 0 {
@@ -236,11 +247,28 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	}
 	s.Root.Readonly = false // Windows does not support a read-only root filesystem
 	if !isHyperV {
-		if c.BaseFS == nil {
-			return errors.New("createSpecWindowsFields: BaseFS of container " + c.ID + " is unexpectedly nil")
+		if c.BaseFS == "" {
+			return errors.New("createSpecWindowsFields: BaseFS of container " + c.ID + " is unexpectedly empty")
 		}
 
-		s.Root.Path = c.BaseFS.Path() // This is not set for Hyper-V containers
+		if daemon.UsesSnapshotter() {
+			// daemon.Mount() for the snapshotters actually mounts the filesystem to the host
+			// using containerd/mount.All and BaseFS is the directory where this is mounted.
+			// This is consistent with Linux-based graphdriver implementations.
+			// For the windowsfilter graphdriver, the underlying Get() call does not actually mount
+			// the filesystem to a path, and BaseFS is the Volume GUID of the prepared/activated
+			// filesystem.
+
+			// The spec for Root.Path for Windows specifies that for Process-isolated containers,
+			// it must be in the Volume GUID (\\?\\Volume{GUID} style), not a host-mounted directory.
+			backingDevicePath, err := getBackingDeviceForContainerdMount(c.BaseFS)
+			if err != nil {
+				return errors.Wrapf(err, "createSpecWindowsFields: Failed to get backing device of BaseFS of container %s", c.ID)
+			}
+			s.Root.Path = backingDevicePath
+		} else {
+			s.Root.Path = c.BaseFS // This is not set for Hyper-V containers
+		}
 		if !strings.HasSuffix(s.Root.Path, `\`) {
 			s.Root.Path = s.Root.Path + `\` // Ensure a correctly formatted volume GUID path \\?\Volume{GUID}\
 		}
@@ -266,6 +294,48 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	return nil
 }
 
+// getBackingDeviceForContainerdMount extracts the backing device or directory mounted at mountPoint
+// by containerd's mount.Mount implementation for Windows.
+func getBackingDeviceForContainerdMount(mountPoint string) (string, error) {
+	// NOTE: This relies on details of the behaviour of containerd's mount implementation for Windows,
+	// and so is somewhat fragile.
+	// TODO: Upstream this into the mount package.
+	// The implementation would be the same, but it'll be better-encapsulated.
+
+	// See containerd/containerd/mount/mount_windows.go
+	// This is mostly just copied from mount.Unmount
+
+	const sourceStreamName = "containerd.io-source"
+
+	mountPoint = filepath.Clean(mountPoint)
+	adsFile := mountPoint + ":" + sourceStreamName
+	var layerPath string
+
+	if _, err := os.Lstat(adsFile); err == nil {
+		layerPathb, err := os.ReadFile(mountPoint + ":" + sourceStreamName)
+		if err != nil {
+			return "", fmt.Errorf("failed to retrieve layer source for mount %s: %w", mountPoint, err)
+		}
+		layerPath = string(layerPathb)
+	}
+
+	if layerPath == "" {
+		return "", fmt.Errorf("no layer source for mount %s", mountPoint)
+	}
+
+	home, layerID := filepath.Split(layerPath)
+	di := hcsshim.DriverInfo{
+		HomeDir: home,
+	}
+
+	backingDevice, err := hcsshim.GetLayerMountPath(di, layerID)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve backing device for layer %s: %w", mountPoint, err)
+	}
+
+	return backingDevice, nil
+}
+
 var errInvalidCredentialSpecSecOpt = errdefs.InvalidParameter(fmt.Errorf("invalid credential spec security option - value must be prefixed by 'file://', 'registry://', or 'raw://' followed by a non-empty value"))
 
 // setWindowsCredentialSpec sets the spec's `Windows.CredentialSpec`
@@ -280,29 +350,31 @@ func (daemon *Daemon) setWindowsCredentialSpec(c *container.Container, s *specs.
 	// this doesn't seem like a great idea?
 	credentialSpec := ""
 
+	// TODO(thaJeztah): extract validating and parsing SecurityOpt to a reusable function.
 	for _, secOpt := range c.HostConfig.SecurityOpt {
-		optSplits := strings.SplitN(secOpt, "=", 2)
-		if len(optSplits) != 2 {
+		k, v, ok := strings.Cut(secOpt, "=")
+		if !ok {
 			return errdefs.InvalidParameter(fmt.Errorf("invalid security option: no equals sign in supplied value %s", secOpt))
 		}
-		if !strings.EqualFold(optSplits[0], "credentialspec") {
-			return errdefs.InvalidParameter(fmt.Errorf("security option not supported: %s", optSplits[0]))
+		// FIXME(thaJeztah): options should not be case-insensitive
+		if !strings.EqualFold(k, "credentialspec") {
+			return errdefs.InvalidParameter(fmt.Errorf("security option not supported: %s", k))
 		}
 
-		credSpecSplits := strings.SplitN(optSplits[1], "://", 2)
-		if len(credSpecSplits) != 2 || credSpecSplits[1] == "" {
+		scheme, value, ok := strings.Cut(v, "://")
+		if !ok || value == "" {
 			return errInvalidCredentialSpecSecOpt
 		}
-		value := credSpecSplits[1]
-
 		var err error
-		switch strings.ToLower(credSpecSplits[0]) {
+		switch strings.ToLower(scheme) {
 		case "file":
-			if credentialSpec, err = readCredentialSpecFile(c.ID, daemon.root, filepath.Clean(value)); err != nil {
+			credentialSpec, err = readCredentialSpecFile(c.ID, daemon.root, filepath.Clean(value))
+			if err != nil {
 				return errdefs.InvalidParameter(err)
 			}
 		case "registry":
-			if credentialSpec, err = readCredentialSpecRegistry(c.ID, value); err != nil {
+			credentialSpec, err = readCredentialSpecRegistry(c.ID, value)
+			if err != nil {
 				return errdefs.InvalidParameter(err)
 			}
 		case "config":
@@ -398,7 +470,7 @@ func setResourcesInSpec(c *container.Container, s *specs.Spec, isHyperV bool) {
 
 // mergeUlimits merge the Ulimits from HostConfig with daemon defaults, and update HostConfig
 // It will do nothing on non-Linux platform
-func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
+func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig, daemonCfg *config.Config) {
 	return
 }
 
@@ -440,44 +512,41 @@ func readCredentialSpecRegistry(id, name string) (string, error) {
 // This allows for staging on machines which do not have the necessary components.
 func readCredentialSpecFile(id, root, location string) (string, error) {
 	if filepath.IsAbs(location) {
-		return "", fmt.Errorf("invalid credential spec - file:// path cannot be absolute")
+		return "", fmt.Errorf("invalid credential spec: file:// path cannot be absolute")
 	}
 	base := filepath.Join(root, credentialSpecFileLocation)
 	full := filepath.Join(base, location)
 	if !strings.HasPrefix(full, base) {
-		return "", fmt.Errorf("invalid credential spec - file:// path must be under %s", base)
+		return "", fmt.Errorf("invalid credential spec: file:// path must be under %s", base)
 	}
 	bcontents, err := os.ReadFile(full)
 	if err != nil {
-		return "", errors.Wrapf(err, "credential spec for container %s could not be read from file %q", id, full)
+		return "", errors.Wrapf(err, "failed to load credential spec for container %s", id)
 	}
 	return string(bcontents[:]), nil
 }
 
 func setupWindowsDevices(devices []containertypes.DeviceMapping) (specDevices []specs.WindowsDevice, err error) {
-	if len(devices) == 0 {
-		return
-	}
-
 	for _, deviceMapping := range devices {
-		devicePath := deviceMapping.PathOnHost
-		if strings.HasPrefix(devicePath, "class/") {
-			devicePath = strings.Replace(devicePath, "class/", "class://", 1)
+		if strings.HasPrefix(deviceMapping.PathOnHost, "class/") {
+			specDevices = append(specDevices, specs.WindowsDevice{
+				ID:     strings.TrimPrefix(deviceMapping.PathOnHost, "class/"),
+				IDType: "class",
+			})
+		} else {
+			idType, id, ok := strings.Cut(deviceMapping.PathOnHost, "://")
+			if !ok {
+				return nil, errors.Errorf("invalid device assignment path: '%s', must be 'class/ID' or 'IDType://ID'", deviceMapping.PathOnHost)
+			}
+			if idType == "" {
+				return nil, errors.Errorf("invalid device assignment path: '%s', IDType cannot be empty", deviceMapping.PathOnHost)
+			}
+			specDevices = append(specDevices, specs.WindowsDevice{
+				ID:     id,
+				IDType: idType,
+			})
 		}
-
-		srcParts := strings.SplitN(devicePath, "://", 2)
-		if len(srcParts) != 2 {
-			return nil, errors.Errorf("invalid device assignment path: '%s', must be 'class/ID' or 'IDType://ID'", deviceMapping.PathOnHost)
-		}
-		if srcParts[0] == "" {
-			return nil, errors.Errorf("invalid device assignment path: '%s', IDType cannot be empty", deviceMapping.PathOnHost)
-		}
-		wd := specs.WindowsDevice{
-			ID:     srcParts[1],
-			IDType: srcParts[0],
-		}
-		specDevices = append(specDevices, wd)
 	}
 
-	return
+	return specDevices, nil
 }

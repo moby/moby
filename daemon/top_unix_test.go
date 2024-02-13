@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package daemon // import "github.com/docker/docker/daemon"
 
@@ -12,8 +11,8 @@ import (
 func TestContainerTopValidatePSArgs(t *testing.T) {
 	tests := map[string]bool{
 		"ae -o uid=PID":             true,
-		"ae -o \"uid= PID\"":        true,  // ascii space (0x20)
-		"ae -o \"uid= PID\"":        false, // unicode space (U+2003, 0xe2 0x80 0x83)
+		`ae -o "uid= PID"`:          true,  // ascii space (0x20)
+		`ae -o "uid= PID"`:          false, // unicode space (U+2003, 0xe2 0x80 0x83)
 		"ae o uid=PID":              true,
 		"aeo uid=PID":               true,
 		"ae -O uid=PID":             true,

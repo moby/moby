@@ -9,13 +9,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/distribution/reference"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm/runtime"
-	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/docker/plugin"
 	v2 "github.com/docker/docker/plugin/v2"
+	"github.com/moby/pubsub"
 	"github.com/sirupsen/logrus"
 )
 
@@ -321,7 +323,7 @@ func TestRemove(t *testing.T) {
 
 func newTestController(b Backend, disabled bool) *Controller {
 	return &Controller{
-		logger:  &logrus.Entry{Logger: &logrus.Logger{Out: io.Discard}},
+		logger:  &log.Entry{Logger: &logrus.Logger{Out: io.Discard}},
 		backend: b,
 		spec: runtime.PluginSpec{
 			Name:     pluginTestName,
@@ -342,19 +344,19 @@ type mockBackend struct {
 	pub *pubsub.Publisher
 }
 
-func (m *mockBackend) Disable(name string, config *types.PluginDisableConfig) error {
+func (m *mockBackend) Disable(name string, config *backend.PluginDisableConfig) error {
 	m.p.PluginObj.Enabled = false
 	m.pub.Publish(plugin.EventDisable{})
 	return nil
 }
 
-func (m *mockBackend) Enable(name string, config *types.PluginEnableConfig) error {
+func (m *mockBackend) Enable(name string, config *backend.PluginEnableConfig) error {
 	m.p.PluginObj.Enabled = true
 	m.pub.Publish(plugin.EventEnable{})
 	return nil
 }
 
-func (m *mockBackend) Remove(name string, config *types.PluginRmConfig) error {
+func (m *mockBackend) Remove(name string, config *backend.PluginRmConfig) error {
 	m.p = nil
 	m.pub.Publish(plugin.EventRemove{})
 	return nil

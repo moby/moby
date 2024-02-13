@@ -15,10 +15,3 @@ func TestGet(t *testing.T) {
 		t.Fatalf("returned path is not absolute: %s", home)
 	}
 }
-
-func TestGetShortcutString(t *testing.T) {
-	shortcut := GetShortcutString()
-	if shortcut == "" {
-		t.Fatal("returned shortcut string is empty")
-	}
-}

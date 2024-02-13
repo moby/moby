@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package iptables
 
@@ -7,27 +6,38 @@ import (
 	"net"
 	"strconv"
 	"testing"
+
+	"github.com/godbus/dbus/v5"
 )
 
-func TestFirewalldInit(t *testing.T) {
-	if !checkRunning() {
-		t.Skip("firewalld is not running")
+func skipIfNoFirewalld(t *testing.T) {
+	t.Helper()
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		t.Skipf("cannot connect to D-bus system bus: %v", err)
 	}
-	if err := FirewalldInit(); err != nil {
+	defer conn.Close()
+
+	var zone string
+	err = conn.Object(dbusInterface, dbusPath).Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
+	if err != nil {
+		t.Skipf("firewalld is not running: %v", err)
+	}
+}
+
+func TestFirewalldInit(t *testing.T) {
+	skipIfNoFirewalld(t)
+	if err := firewalldInit(); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestReloaded(t *testing.T) {
-	var err error
-	var fwdChain *ChainInfo
-
 	iptable := GetIptable(IPv4)
-	fwdChain, err = iptable.NewChain("FWD", Filter, false)
+	fwdChain, err := iptable.NewChain("FWD", Filter, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	bridgeName := "lo"
 
 	err = iptable.ProgramChain(fwdChain, bridgeName, false, true)
 	if err != nil {
@@ -38,8 +48,8 @@ func TestReloaded(t *testing.T) {
 	// copy-pasted from iptables_test:TestLink
 	ip1 := net.ParseIP("192.168.1.1")
 	ip2 := net.ParseIP("192.168.1.2")
-	port := 1234
-	proto := "tcp"
+	const port = 1234
+	const proto = "tcp"
 
 	err = fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName)
 	if err != nil {
@@ -56,7 +66,8 @@ func TestReloaded(t *testing.T) {
 		"-s", ip1.String(),
 		"-d", ip2.String(),
 		"--dport", strconv.Itoa(port),
-		"-j", "ACCEPT"}
+		"-j", "ACCEPT",
+	}
 
 	if !iptable.Exists(fwdChain.Table, fwdChain.Name, rule1...) {
 		t.Fatal("rule1 does not exist")
@@ -74,21 +85,19 @@ func TestReloaded(t *testing.T) {
 }
 
 func TestPassthrough(t *testing.T) {
+	skipIfNoFirewalld(t)
 	rule1 := []string{
 		"-i", "lo",
 		"-p", "udp",
 		"--dport", "123",
-		"-j", "ACCEPT"}
-
-	iptable := GetIptable(IPv4)
-	if firewalldRunning {
-		_, err := Passthrough(Iptables, append([]string{"-A"}, rule1...)...)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !iptable.Exists(Filter, "INPUT", rule1...) {
-			t.Fatal("rule1 does not exist")
-		}
+		"-j", "ACCEPT",
 	}
 
+	_, err := Passthrough(Iptables, append([]string{"-A"}, rule1...)...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !GetIptable(IPv4).Exists(Filter, "INPUT", rule1...) {
+		t.Fatal("rule1 does not exist")
+	}
 }

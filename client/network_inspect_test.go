@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNetworkInspect(t *testing.T) {
@@ -69,7 +70,7 @@ func TestNetworkInspect(t *testing.T) {
 	t.Run("empty ID", func(t *testing.T) {
 		// verify that the client does not create a request if the network-ID/name is empty.
 		_, err := client.NetworkInspect(context.Background(), "", types.NetworkInspectOptions{})
-		assert.Check(t, IsErrNotFound(err))
+		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	})
 	t.Run("no options", func(t *testing.T) {
 		r, err := client.NetworkInspect(context.Background(), "network_id", types.NetworkInspectOptions{})
@@ -87,17 +88,17 @@ func TestNetworkInspect(t *testing.T) {
 	})
 	t.Run("global scope", func(t *testing.T) {
 		_, err := client.NetworkInspect(context.Background(), "network_id", types.NetworkInspectOptions{Scope: "global"})
-		assert.ErrorContains(t, err, "Error: No such network: network_id")
-		assert.Check(t, IsErrNotFound(err))
+		assert.Check(t, is.ErrorContains(err, "Error: No such network: network_id"))
+		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	})
 	t.Run("unknown network", func(t *testing.T) {
 		_, err := client.NetworkInspect(context.Background(), "unknown", types.NetworkInspectOptions{})
-		assert.ErrorContains(t, err, "Error: No such network: unknown")
-		assert.Check(t, IsErrNotFound(err))
+		assert.Check(t, is.ErrorContains(err, "Error: No such network: unknown"))
+		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	})
 	t.Run("server error", func(t *testing.T) {
 		// Just testing that an internal server error is converted correctly by the client
 		_, err := client.NetworkInspect(context.Background(), "test-500-response", types.NetworkInspectOptions{})
-		assert.Check(t, errdefs.IsSystem(err))
+		assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 	})
 }

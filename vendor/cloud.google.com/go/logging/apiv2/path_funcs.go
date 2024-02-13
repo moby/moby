@@ -17,7 +17,9 @@ package logging
 // ConfigProjectPath returns the path for the project resource.
 //
 // Deprecated: Use
-//   fmt.Sprintf("projects/%s", project)
+//
+//	fmt.Sprintf("projects/%s", project)
+//
 // instead.
 func ConfigProjectPath(project string) string {
 	return "" +
@@ -29,7 +31,9 @@ func ConfigProjectPath(project string) string {
 // ConfigSinkPath returns the path for the sink resource.
 //
 // Deprecated: Use
-//   fmt.Sprintf("projects/%s/sinks/%s", project, sink)
+//
+//	fmt.Sprintf("projects/%s/sinks/%s", project, sink)
+//
 // instead.
 func ConfigSinkPath(project, sink string) string {
 	return "" +
@@ -43,7 +47,9 @@ func ConfigSinkPath(project, sink string) string {
 // ConfigExclusionPath returns the path for the exclusion resource.
 //
 // Deprecated: Use
-//   fmt.Sprintf("projects/%s/exclusions/%s", project, exclusion)
+//
+//	fmt.Sprintf("projects/%s/exclusions/%s", project, exclusion)
+//
 // instead.
 func ConfigExclusionPath(project, exclusion string) string {
 	return "" +
@@ -57,7 +63,9 @@ func ConfigExclusionPath(project, exclusion string) string {
 // ProjectPath returns the path for the project resource.
 //
 // Deprecated: Use
-//   fmt.Sprintf("projects/%s", project)
+//
+//	fmt.Sprintf("projects/%s", project)
+//
 // instead.
 func ProjectPath(project string) string {
 	return "" +
@@ -69,7 +77,9 @@ func ProjectPath(project string) string {
 // LogPath returns the path for the log resource.
 //
 // Deprecated: Use
-//   fmt.Sprintf("projects/%s/logs/%s", project, log)
+//
+//	fmt.Sprintf("projects/%s/logs/%s", project, log)
+//
 // instead.
 func LogPath(project, log string) string {
 	return "" +
@@ -83,7 +93,9 @@ func LogPath(project, log string) string {
 // MetricsProjectPath returns the path for the project resource.
 //
 // Deprecated: Use
-//   fmt.Sprintf("projects/%s", project)
+//
+//	fmt.Sprintf("projects/%s", project)
+//
 // instead.
 func MetricsProjectPath(project string) string {
 	return "" +
@@ -95,7 +107,9 @@ func MetricsProjectPath(project string) string {
 // MetricsMetricPath returns the path for the metric resource.
 //
 // Deprecated: Use
-//   fmt.Sprintf("projects/%s/metrics/%s", project, metric)
+//
+//	fmt.Sprintf("projects/%s/metrics/%s", project, metric)
+//
 // instead.
 func MetricsMetricPath(project, metric string) string {
 	return "" +

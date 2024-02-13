@@ -9,12 +9,32 @@
 # * Either one of slirp4netns (>= v0.4.0), VPNKit, lxc-user-nic needs to be installed.
 #
 # Recognized environment variables:
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_NET=(slirp4netns|vpnkit|lxc-user-nic): the rootlesskit network driver. Defaults to "slirp4netns" if slirp4netns (>= v0.4.0) is installed. Otherwise defaults to "vpnkit".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR=DIR: the rootlesskit state dir. Defaults to "$XDG_RUNTIME_DIR/dockerd-rootless".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_NET=(slirp4netns|vpnkit|pasta|lxc-user-nic): the rootlesskit network driver. Defaults to "slirp4netns" if slirp4netns (>= v0.4.0) is installed. Otherwise defaults to "vpnkit".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_MTU=NUM: the MTU value for the rootlesskit network driver. Defaults to 65520 for slirp4netns, 1500 for other drivers.
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns): the rootlesskit port driver. Defaults to "builtin".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns|implicit): the rootlesskit port driver. Defaults to "builtin".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX=(auto|true|false): whether to protect slirp4netns with a dedicated mount namespace. Defaults to "auto".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP=(auto|true|false): whether to protect slirp4netns with seccomp. Defaults to "auto".
+
+# To apply an environment variable via systemd, create ~/.config/systemd/user/docker.service.d/override.conf as follows,
+# and run `systemctl --user daemon-reload && systemctl --user restart docker`:
+# --- BEGIN ---
+# [Service]
+# Environment="DOCKERD_ROOTLESS_ROOTLESSKIT_NET=pasta"
+# Environment="DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=implicit"
+# ---  END  ---
+
+# Guide to choose the network driver and the port driver:
 #
+#  Network driver | Port driver    | Net throughput | Port throughput | Src IP | No SUID | Note
+#  ---------------|----------------|----------------|-----------------|--------|---------|---------------------------------------------------------
+#  slirp4netns    | builtin        | Slow           | Fast ✅         | ❌     | ✅      | Default in typical setup
+#  vpnkit         | builtin        | Slow           | Fast ✅         | ❌     | ✅      | Default when slirp4netns is not installed
+#  slirp4netns    | slirp4netns    | Slow           | Slow            | ✅     | ✅      |
+#  pasta          | implicit       | Slow           | Fast ✅         | ✅     | ✅      | Experimental; Needs recent version of pasta (2023_12_04)
+#  lxc-user-nic   | builtin        | Fast ✅        | Fast ✅         | ❌     | ❌      | Experimental
+#  (bypass4netns) | (bypass4netns) | Fast ✅        | Fast ✅         | ✅     | ✅      | (Not integrated to RootlessKit)
+
 # See the documentation for the further information: https://docs.docker.com/go/rootless/
 
 set -e -x
@@ -45,6 +65,7 @@ if [ -z "$rootlesskit" ]; then
 	exit 1
 fi
 
+: "${DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR:=$XDG_RUNTIME_DIR/dockerd-rootless}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_NET:=}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_MTU:=}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER:=builtin}"
@@ -100,6 +121,7 @@ if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
 	#         (by either systemd-networkd or NetworkManager)
 	# * /run: copy-up is required so that we can create /run/docker (hardcoded for plugins) in our namespace
 	exec $rootlesskit \
+		--state-dir=$DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR \
 		--net=$net --mtu=$mtu \
 		--slirp4netns-sandbox=$DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX \
 		--slirp4netns-seccomp=$DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP \
@@ -107,7 +129,7 @@ if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
 		--copy-up=/etc --copy-up=/run \
 		--propagation=rslave \
 		$DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS \
-		$0 $@
+		"$0" "$@"
 else
 	[ "$_DOCKERD_ROOTLESS_CHILD" = 1 ]
 	# remove the symlinks for the existing files in the parent namespace if any,
@@ -130,6 +152,5 @@ else
 		mount --rbind ${realpath_etc_ssl} /etc/ssl
 	fi
 
-	# shellcheck disable=SC2086
-	exec $dockerd "$@"
+	exec "$dockerd" "$@"
 fi

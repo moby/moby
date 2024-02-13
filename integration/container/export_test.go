@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -9,8 +8,10 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -22,20 +23,19 @@ import (
 func TestExportContainerAndImportImage(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	defer setupTest(t)()
-	client := testEnv.APIClient()
-	ctx := context.Background()
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, client, container.WithCmd("true"))
-	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"))
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
 
 	reference := "repo/" + strings.ToLower(t.Name()) + ":v1"
-	exportResp, err := client.ContainerExport(ctx, cID)
+	exportResp, err := apiClient.ContainerExport(ctx, cID)
 	assert.NilError(t, err)
-	importResp, err := client.ImageImport(ctx, types.ImageImportSource{
+	importResp, err := apiClient.ImageImport(ctx, types.ImageImportSource{
 		Source:     exportResp,
 		SourceName: "-",
-	}, reference, types.ImageImportOptions{})
+	}, reference, image.ImportOptions{})
 	assert.NilError(t, err)
 
 	// If the import is successfully, then the message output should contain
@@ -46,7 +46,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	err = dec.Decode(&jm)
 	assert.NilError(t, err)
 
-	images, err := client.ImageList(ctx, types.ImageListOptions{
+	images, err := apiClient.ImageList(ctx, image.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("reference", reference)),
 	})
 	assert.NilError(t, err)
@@ -61,13 +61,14 @@ func TestExportContainerAfterDaemonRestart(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
 	c := d.NewClientT(t)
 
-	d.StartWithBusybox(t)
+	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	ctx := context.Background()
 	ctrID := container.Create(ctx, t, c)
 
 	d.Restart(t)

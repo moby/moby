@@ -2,33 +2,36 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"runtime"
 
 	"github.com/containerd/containerd/platforms"
-	"github.com/docker/distribution/reference"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
-	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	registrypkg "github.com/docker/docker/registry"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type roLayer struct {
 	released   bool
 	layerStore layer.Store
 	roLayer    layer.Layer
+}
+
+func (l *roLayer) ContentStoreDigest() digest.Digest {
+	return ""
 }
 
 func (l *roLayer) DiffID() layer.DiffID {
@@ -83,10 +86,10 @@ type rwLayer struct {
 	released   bool
 	layerStore layer.Store
 	rwLayer    layer.RWLayer
-	fs         containerfs.ContainerFS
+	fs         string
 }
 
-func (l *rwLayer) Root() containerfs.ContainerFS {
+func (l *rwLayer) Root() string {
 	return l.fs
 }
 
@@ -115,11 +118,11 @@ func (l *rwLayer) Release() error {
 		return nil
 	}
 
-	if l.fs != nil {
+	if l.fs != "" {
 		if err := l.rwLayer.Unmount(); err != nil {
 			return errors.Wrap(err, "failed to unmount RWLayer")
 		}
-		l.fs = nil
+		l.fs = ""
 	}
 
 	metadata, err := l.layerStore.ReleaseRWLayer(l.rwLayer)
@@ -145,7 +148,7 @@ func newROLayerForImage(img *image.Image, layerStore layer.Store) (builder.ROLay
 }
 
 // TODO: could this use the regular daemon PullImage ?
-func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]registry.AuthConfig, output io.Writer, platform *specs.Platform) (*image.Image, error) {
+func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]registry.AuthConfig, output io.Writer, platform *ocispec.Platform) (*image.Image, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
@@ -168,9 +171,9 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 		return nil, err
 	}
 
-	img, err := i.GetImage(ctx, name, imagetypes.GetImageOpts{Platform: platform})
+	img, err := i.GetImage(ctx, name, backend.GetImageOpts{Platform: platform})
 	if errdefs.IsNotFound(err) && img != nil && platform != nil {
-		imgPlat := specs.Platform{
+		imgPlat := ocispec.Platform{
 			OS:           img.OS,
 			Architecture: img.BaseImgArch(),
 			Variant:      img.BaseImgVariant(),
@@ -185,7 +188,7 @@ This is most likely caused by a bug in the build system that created the fetched
 Please notify the image author to correct the configuration.`,
 				platforms.Format(p), platforms.Format(imgPlat), name,
 			)
-			logrus.WithError(err).WithField("image", name).Warn("Ignoring error about platform mismatch where the manifest list points to an image whose configuration does not match the platform in the manifest.")
+			log.G(ctx).WithError(err).WithField("image", name).Warn("Ignoring error about platform mismatch where the manifest list points to an image whose configuration does not match the platform in the manifest.")
 			err = nil
 		}
 	}
@@ -196,23 +199,21 @@ Please notify the image author to correct the configuration.`,
 // Every call to GetImageAndReleasableLayer MUST call releasableLayer.Release() to prevent
 // leaking of layers.
 func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
-	if refOrID == "" { // ie FROM scratch
-		os := runtime.GOOS
+	if refOrID == "" { // FROM scratch
 		if runtime.GOOS == "windows" {
-			os = "linux"
+			return nil, nil, fmt.Errorf(`"FROM scratch" is not supported on Windows`)
 		}
 		if opts.Platform != nil {
-			os = opts.Platform.OS
-		}
-		if !system.IsOSSupported(os) {
-			return nil, nil, system.ErrNotSupportedOperatingSystem
+			if err := image.CheckOS(opts.Platform.OS); err != nil {
+				return nil, nil, err
+			}
 		}
 		lyr, err := newROLayerForImage(nil, i.layerStore)
 		return nil, lyr, err
 	}
 
 	if opts.PullOption != backend.PullOptionForcePull {
-		img, err := i.GetImage(ctx, refOrID, imagetypes.GetImageOpts{Platform: opts.Platform})
+		img, err := i.GetImage(ctx, refOrID, backend.GetImageOpts{Platform: opts.Platform})
 		if err != nil && opts.PullOption == backend.PullOptionNoPull {
 			return nil, nil, err
 		}
@@ -220,8 +221,8 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 			return nil, nil, err
 		}
 		if img != nil {
-			if !system.IsOSSupported(img.OperatingSystem()) {
-				return nil, nil, system.ErrNotSupportedOperatingSystem
+			if err := image.CheckOS(img.OperatingSystem()); err != nil {
+				return nil, nil, err
 			}
 			lyr, err := newROLayerForImage(img, i.layerStore)
 			return img, lyr, err
@@ -232,8 +233,8 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 	if err != nil {
 		return nil, nil, err
 	}
-	if !system.IsOSSupported(img.OperatingSystem()) {
-		return nil, nil, system.ErrNotSupportedOperatingSystem
+	if err := image.CheckOS(img.OperatingSystem()); err != nil {
+		return nil, nil, err
 	}
 	lyr, err := newROLayerForImage(img, i.layerStore)
 	return img, lyr, err
@@ -242,7 +243,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 // CreateImage creates a new image by adding a config and ID to the image store.
 // This is similar to LoadImage() except that it receives JSON encoded bytes of
 // an image instead of a tar archive.
-func (i *ImageService) CreateImage(config []byte, parent string) (builder.Image, error) {
+func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent string, _ digest.Digest) (builder.Image, error) {
 	id, err := i.imageStore.Create(config)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create image")
@@ -252,6 +253,9 @@ func (i *ImageService) CreateImage(config []byte, parent string) (builder.Image,
 		if err := i.imageStore.SetParent(id, image.ID(parent)); err != nil {
 			return nil, errors.Wrapf(err, "failed to set parent %s", parent)
 		}
+	}
+	if err := i.imageStore.SetBuiltLocally(id); err != nil {
+		return nil, errors.Wrapf(err, "failed to mark image %s as built locally", id)
 	}
 
 	return i.imageStore.Get(id)

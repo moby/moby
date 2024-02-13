@@ -14,6 +14,8 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestEventsErrorInOptions(t *testing.T) {
@@ -52,17 +54,13 @@ func TestEventsErrorFromServer(t *testing.T) {
 	}
 	_, errs := client.Events(context.Background(), types.EventsOptions{})
 	err := <-errs
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestEvents(t *testing.T) {
+	const expectedURL = "/events"
 
-	expectedURL := "/events"
-
-	filters := filters.NewArgs()
-	filters.Add("type", events.ContainerEventType)
+	fltrs := filters.NewArgs(filters.Arg("type", string(events.ContainerEventType)))
 	expectedFiltersJSON := fmt.Sprintf(`{"type":{"%s":true}}`, events.ContainerEventType)
 
 	eventsCases := []struct {
@@ -73,7 +71,7 @@ func TestEvents(t *testing.T) {
 	}{
 		{
 			options: types.EventsOptions{
-				Filters: filters,
+				Filters: fltrs,
 			},
 			expectedQueryParams: map[string]string{
 				"filters": expectedFiltersJSON,
@@ -83,7 +81,7 @@ func TestEvents(t *testing.T) {
 		},
 		{
 			options: types.EventsOptions{
-				Filters: filters,
+				Filters: fltrs,
 			},
 			expectedQueryParams: map[string]string{
 				"filters": expectedFiltersJSON,
@@ -91,18 +89,18 @@ func TestEvents(t *testing.T) {
 			events: []events.Message{
 				{
 					Type:   events.BuilderEventType,
-					ID:     "1",
-					Action: "create",
+					Actor:  events.Actor{ID: "1"},
+					Action: events.ActionCreate,
 				},
 				{
 					Type:   events.BuilderEventType,
-					ID:     "2",
-					Action: "die",
+					Actor:  events.Actor{ID: "1"},
+					Action: events.ActionDie,
 				},
 				{
 					Type:   events.BuilderEventType,
-					ID:     "3",
-					Action: "create",
+					Actor:  events.Actor{ID: "1"},
+					Action: events.ActionCreate,
 				},
 			},
 			expectedEvents: map[string]bool{
@@ -154,9 +152,9 @@ func TestEvents(t *testing.T) {
 
 				break loop
 			case e := <-messages:
-				_, ok := eventsCase.expectedEvents[e.ID]
+				_, ok := eventsCase.expectedEvents[e.Actor.ID]
 				if !ok {
-					t.Fatalf("event received not expected with action %s & id %s", e.Action, e.ID)
+					t.Fatalf("event received not expected with action %s & id %s", e.Action, e.Actor.ID)
 				}
 			}
 		}

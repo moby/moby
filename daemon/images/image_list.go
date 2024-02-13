@@ -2,16 +2,18 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
+	"time"
 
-	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/backend"
 	imagetypes "github.com/docker/docker/api/types/image"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/system"
 )
 
 var acceptedImageFilterTags = map[string]bool{
@@ -20,46 +22,75 @@ var acceptedImageFilterTags = map[string]bool{
 	"before":    true,
 	"since":     true,
 	"reference": true,
+	"until":     true,
 }
 
 // byCreated is a temporary type used to sort a list of images by creation
 // time.
-type byCreated []*types.ImageSummary
+type byCreated []*imagetypes.Summary
 
 func (r byCreated) Len() int           { return len(r) }
 func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 // Images returns a filtered list of images.
-func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
+func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) ([]*imagetypes.Summary, error) {
 	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
 
-	var danglingOnly bool
-	if opts.Filters.Contains("dangling") {
-		if opts.Filters.ExactMatch("dangling", "true") {
-			danglingOnly = true
-		} else if !opts.Filters.ExactMatch("dangling", "false") {
-			return nil, invalidFilter{"dangling", opts.Filters.Get("dangling")}
-		}
+	danglingOnly, err := opts.Filters.GetBoolOrDefault("dangling", false)
+	if err != nil {
+		return nil, err
 	}
 
-	var (
-		beforeFilter, sinceFilter *image.Image
-		err                       error
-	)
+	var beforeFilter, sinceFilter time.Time
 	err = opts.Filters.WalkValues("before", func(value string) error {
-		beforeFilter, err = i.GetImage(ctx, value, imagetypes.GetImageOpts{})
-		return err
+		img, err := i.GetImage(ctx, value, backend.GetImageOpts{})
+		if err != nil {
+			return err
+		}
+		// Resolve multiple values to the oldest image,
+		// equivalent to ANDing all the values together.
+		if img.Created != nil && (beforeFilter.IsZero() || beforeFilter.After(*img.Created)) {
+			beforeFilter = *img.Created
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	err = opts.Filters.WalkValues("until", func(value string) error {
+		ts, err := timetypes.GetTimestamp(value, time.Now())
+		if err != nil {
+			return err
+		}
+		seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+		if err != nil {
+			return err
+		}
+		timestamp := time.Unix(seconds, nanoseconds)
+		if beforeFilter.IsZero() || beforeFilter.After(timestamp) {
+			beforeFilter = timestamp
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	err = opts.Filters.WalkValues("since", func(value string) error {
-		sinceFilter, err = i.GetImage(ctx, value, imagetypes.GetImageOpts{})
-		return err
+		img, err := i.GetImage(ctx, value, backend.GetImageOpts{})
+		if err != nil {
+			return err
+		}
+		// Resolve multiple values to the newest image,
+		// equivalent to ANDing all the values together.
+		if img.Created != nil && sinceFilter.Before(*img.Created) {
+			sinceFilter = *img.Created
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -73,21 +104,22 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	}
 
 	var (
-		summaries     = make([]*types.ImageSummary, 0, len(selectedImages))
-		summaryMap    map[*image.Image]*types.ImageSummary
+		summaries     = make([]*imagetypes.Summary, 0, len(selectedImages))
+		summaryMap    map[*image.Image]*imagetypes.Summary
 		allContainers []*container.Container
 	)
 	for id, img := range selectedImages {
-		if beforeFilter != nil {
-			if img.Created.Equal(beforeFilter.Created) || img.Created.After(beforeFilter.Created) {
-				continue
-			}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
 		}
 
-		if sinceFilter != nil {
-			if img.Created.Equal(sinceFilter.Created) || img.Created.Before(sinceFilter.Created) {
-				continue
-			}
+		if !beforeFilter.IsZero() && (img.Created == nil || !img.Created.Before(beforeFilter)) {
+			continue
+		}
+		if !sinceFilter.IsZero() && (img.Created == nil || !img.Created.After(sinceFilter)) {
+			continue
 		}
 
 		if opts.Filters.Contains("label") {
@@ -104,7 +136,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		// Skip any images with an unsupported operating system to avoid a potential
 		// panic when indexing through the layerstore. Don't error as we want to list
 		// the other images. This should never happen, but here as a safety precaution.
-		if !system.IsOSSupported(img.OperatingSystem()) {
+		if err := image.CheckOS(img.OperatingSystem()); err != nil {
 			continue
 		}
 
@@ -114,7 +146,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 			if err != nil {
 				// The layer may have been deleted between the call to `Map()` or
 				// `Heads()` and the call to `Get()`, so we just ignore this error
-				if err == layer.ErrLayerDoesNotExist {
+				if errors.Is(err, layer.ErrLayerDoesNotExist) {
 					continue
 				}
 				return nil, err
@@ -152,7 +184,6 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		}
 		if summary.RepoDigests == nil && summary.RepoTags == nil {
 			if opts.All || len(i.imageStore.Children(id)) == 0 {
-
 				if opts.Filters.Contains("dangling") && !danglingOnly {
 					// dangling=false case, so dangling image is not needed
 					continue
@@ -160,8 +191,6 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 				if opts.Filters.Contains("reference") { // skip images with no references if filtering by reference
 					continue
 				}
-				summary.RepoDigests = []string{"<none>@<none>"}
-				summary.RepoTags = []string{"<none>:<none>"}
 			} else {
 				continue
 			}
@@ -189,7 +218,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		if opts.ContainerCount || opts.SharedSize {
 			// Lazily init summaryMap.
 			if summaryMap == nil {
-				summaryMap = make(map[*image.Image]*types.ImageSummary, len(selectedImages))
+				summaryMap = make(map[*image.Image]*imagetypes.Summary, len(selectedImages))
 			}
 			summaryMap[img] = summary
 		}
@@ -244,13 +273,16 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	return summaries, nil
 }
 
-func newImageSummary(image *image.Image, size int64) *types.ImageSummary {
-	summary := &types.ImageSummary{
-		ParentID:    image.Parent.String(),
-		ID:          image.ID().String(),
-		Created:     image.Created.Unix(),
-		Size:        size,
-		VirtualSize: size,
+func newImageSummary(image *image.Image, size int64) *imagetypes.Summary {
+	var created int64
+	if image.Created != nil {
+		created = image.Created.Unix()
+	}
+	summary := &imagetypes.Summary{
+		ParentID: image.Parent.String(),
+		ID:       image.ID().String(),
+		Created:  created,
+		Size:     size,
 		// -1 indicates that the value has not been set (avoids ambiguity
 		// between 0 (default) and "not set". We cannot use a pointer (nil)
 		// for this, as the JSON representation uses "omitempty", which would

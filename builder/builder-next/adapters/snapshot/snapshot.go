@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
@@ -16,16 +16,19 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
+	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
 
-var keyParent = []byte("parent")
-var keyCommitted = []byte("committed")
-var keyIsCommitted = []byte("iscommitted")
-var keyChainID = []byte("chainid")
-var keySize = []byte("size")
+var (
+	keyParent      = []byte("parent")
+	keyCommitted   = []byte("committed")
+	keyIsCommitted = []byte("iscommitted")
+	keyChainID     = []byte("chainid")
+	keySize        = []byte("size")
+)
 
 // Opt defines options for creating the snapshotter
 type Opt struct {
@@ -42,7 +45,7 @@ type graphIDRegistrar interface {
 }
 
 type checksumCalculator interface {
-	ChecksumForGraphID(id, parent, oldTarDataPath, newTarDataPath string) (diffID layer.DiffID, size int64, err error)
+	ChecksumForGraphID(id, parent, newTarDataPath string) (diffID layer.DiffID, size int64, err error)
 }
 
 type snapshotter struct {
@@ -55,9 +58,9 @@ type snapshotter struct {
 }
 
 // NewSnapshotter creates a new snapshotter
-func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, leases.Manager, error) {
+func NewSnapshotter(opt Opt, prevLM leases.Manager, ns string) (snapshot.Snapshotter, *leaseutil.Manager, error) {
 	dbPath := filepath.Join(opt.Root, "snapshots.db")
-	db, err := bolt.Open(dbPath, 0600, nil)
+	db, err := bolt.Open(dbPath, 0o600, nil)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to open database file %s", dbPath)
 	}
@@ -74,7 +77,8 @@ func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, lease
 		reg:  reg,
 	}
 
-	lm := newLeaseManager(s, prevLM)
+	slm := newLeaseManager(s, prevLM)
+	lm := leaseutil.WithNamespace(slm, ns)
 
 	ll, err := lm.List(context.TODO())
 	if err != nil {
@@ -87,7 +91,7 @@ func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, lease
 		}
 		for _, r := range rr {
 			if r.Type == "snapshots/default" {
-				lm.addRef(l.ID, r.ID)
+				slm.addRef(l.ID, r.ID)
 			}
 		}
 	}
@@ -204,7 +208,7 @@ func (s *snapshotter) getGraphDriverID(key string) (string, bool) {
 	if err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(key))
 		if b == nil {
-			return errors.Wrapf(errdefs.ErrNotFound, "key %s", key)
+			return errors.Wrapf(cerrdefs.ErrNotFound, "key %s", key)
 		}
 		v := b.Get(keyCommitted)
 		if v != nil {
@@ -248,7 +252,7 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 	if err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(id))
 		if b == nil && l == nil {
-			return errors.Wrapf(errdefs.ErrNotFound, "snapshot %s", id)
+			return errors.Wrapf(cerrdefs.ErrNotFound, "snapshot %s", id)
 		}
 		inf.Name = key
 		if b != nil {
@@ -291,7 +295,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 					return nil, nil, err
 				}
 				return []mount.Mount{{
-						Source:  rootfs.Path(),
+						Source:  rootfs,
 						Type:    "bind",
 						Options: []string{"rbind"},
 					}}, func() error {
@@ -312,7 +316,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 				return nil, nil, err
 			}
 			return []mount.Mount{{
-					Source:  rootfs.Path(),
+					Source:  rootfs,
 					Type:    "bind",
 					Options: []string{"rbind"},
 				}}, func() error {

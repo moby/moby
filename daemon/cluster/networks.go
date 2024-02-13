@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/containerd/log"
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
@@ -11,10 +12,10 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	internalnetwork "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/runconfig"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // GetNetworks returns all current cluster managed networks.
@@ -68,7 +69,8 @@ func (c *Cluster) getNetworks(filters *swarmapi.ListNetworksRequest_Filters) ([]
 		return nil, c.errNoManager(state)
 	}
 
-	ctx, cancel := c.getRequestContext()
+	ctx := context.TODO()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	r, err := state.controlClient.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: filters})
@@ -127,7 +129,7 @@ func (c *Cluster) UpdateAttachment(target, containerID string, config *network.N
 		return fmt.Errorf("could not find attacher for container %s to network %s", containerID, target)
 	}
 	if attacher.inProgress {
-		logrus.Debugf("Discarding redundant notice of resource allocation on network %s for task id %s", target, attacher.taskID)
+		log.G(context.TODO()).Debugf("Discarding redundant notice of resource allocation on network %s for task id %s", target, attacher.taskID)
 		c.mu.Unlock()
 		return nil
 	}
@@ -203,7 +205,8 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 	}
 	c.mu.Unlock()
 
-	ctx, cancel := c.getRequestContext()
+	ctx := context.TODO()
+	ctx, cancel := c.getRequestContext(ctx)
 	defer cancel()
 
 	taskID, err := agent.ResourceAllocator().AttachNetwork(ctx, containerID, target, addresses)
@@ -219,13 +222,14 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 	close(attachCompleteCh)
 	c.mu.Unlock()
 
-	logrus.Debugf("Successfully attached to network %s with task id %s", target, taskID)
+	log.G(ctx).Debugf("Successfully attached to network %s with task id %s", target, taskID)
 
 	release := func() {
-		ctx, cancel := c.getRequestContext()
+		ctx := compatcontext.WithoutCancel(ctx)
+		ctx, cancel := c.getRequestContext(ctx)
 		defer cancel()
 		if err := agent.ResourceAllocator().DetachNetwork(ctx, taskID); err != nil {
-			logrus.Errorf("Failed remove network attachment %s to network %s on allocation failure: %v",
+			log.G(ctx).Errorf("Failed remove network attachment %s to network %s on allocation failure: %v",
 				taskID, target, err)
 		}
 	}
@@ -242,7 +246,7 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 	c.attachers[aKey].config = config
 	c.mu.Unlock()
 
-	logrus.Debugf("Successfully allocated resources on network %s for task id %s", target, taskID)
+	log.G(ctx).Debugf("Successfully allocated resources on network %s for task id %s", target, taskID)
 
 	return config, nil
 }
@@ -306,7 +310,7 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 	// but fallback to service spec for backward compatibility
 	networks := s.TaskTemplate.Networks
 	if len(networks) == 0 {
-		networks = s.Networks
+		networks = s.Networks //nolint:staticcheck // ignore SA1019: field is deprecated.
 	}
 	for i, n := range networks {
 		apiNetwork, err := getNetwork(ctx, client, n.Target)
@@ -321,7 +325,7 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 				}
 				goto setid
 			}
-			if ln != nil && !ln.Info().Dynamic() {
+			if ln != nil && !ln.Dynamic() {
 				errMsg := fmt.Sprintf("The network %s cannot be used with services. Only networks scoped to the swarm can be used, such as those created with the overlay driver.", ln.Name())
 				return errors.WithStack(notAllowedError(errMsg))
 			}

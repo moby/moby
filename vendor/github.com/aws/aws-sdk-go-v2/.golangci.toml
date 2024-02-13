@@ -1,0 +1,27 @@
+[run]
+concurrency = 4
+timeout = "1m"
+issues-exit-code = 0
+modules-download-mode = "readonly"
+allow-parallel-runners = true
+skip-dirs = ["internal/repotools"]
+skip-dirs-use-default = true
+skip-files = ["service/transcribestreaming/eventstream_test.go"]
+[output]
+format = "github-actions"
+
+[linters-settings.cyclop]
+skip-tests = false
+
+[linters-settings.errcheck]
+check-blank = true
+
+[linters]
+disable-all = true
+enable = ["errcheck"]
+fast = false
+
+[issues]
+exclude-use-default = false
+
+# Refer config definitions at https://golangci-lint.run/usage/configuration/#config-file

@@ -3,7 +3,6 @@ package fsutil
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -103,7 +102,7 @@ func (fs *subDirFS) Walk(ctx context.Context, fn filepath.WalkFunc) error {
 func (fs *subDirFS) Open(p string) (io.ReadCloser, error) {
 	parts := strings.SplitN(filepath.Clean(p), string(filepath.Separator), 2)
 	if len(parts) == 0 {
-		return ioutil.NopCloser(&emptyReader{}), nil
+		return io.NopCloser(&emptyReader{}), nil
 	}
 	d, ok := fs.m[parts[0]]
 	if !ok {

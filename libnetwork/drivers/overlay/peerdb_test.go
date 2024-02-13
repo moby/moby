@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package overlay
 
@@ -10,10 +9,12 @@ import (
 
 func TestPeerMarshal(t *testing.T) {
 	_, ipNet, _ := net.ParseCIDR("192.168.0.1/24")
-	p := &peerEntry{eid: "eid",
+	p := &peerEntry{
+		eid:        "eid",
 		isLocal:    true,
 		peerIPMask: ipNet.Mask,
-		vtep:       ipNet.IP}
+		vtep:       ipNet.IP,
+	}
 	entryDB := p.MarshalDB()
 	x := entryDB.UnMarshalDB()
 	if x.eid != p.eid {

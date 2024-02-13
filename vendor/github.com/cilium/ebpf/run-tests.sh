@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Test the current package under a different kernel.
 # Requires virtme and qemu to be installed.
 # Examples:
@@ -6,6 +6,8 @@
 #     $ ./run-tests.sh 5.4
 #     Run a subset of tests:
 #     $ ./run-tests.sh 5.4 ./link
+#     Run using a local kernel image
+#     $ ./run-tests.sh /path/to/bzImage
 
 set -euo pipefail
 
@@ -48,21 +50,31 @@ if [[ "${1:-}" = "--exec-vm" ]]; then
     rm "${output}/fake-stdin"
   fi
 
-  if ! $sudo virtme-run --kimg "${input}/bzImage" --memory 768M --pwd \
-    --rwdir="${testdir}=${testdir}" \
-    --rodir=/run/input="${input}" \
-    --rwdir=/run/output="${output}" \
-    --script-sh "PATH=\"$PATH\" \"$script\" --exec-test $cmd" \
-    --kopt possible_cpus=2; then # need at least two CPUs for some tests
-    exit 23
-  fi
+  for ((i = 0; i < 3; i++)); do
+    if ! $sudo virtme-run --kimg "${input}/bzImage" --memory 768M --pwd \
+      --rwdir="${testdir}=${testdir}" \
+      --rodir=/run/input="${input}" \
+      --rwdir=/run/output="${output}" \
+      --script-sh "PATH=\"$PATH\" CI_MAX_KERNEL_VERSION="${CI_MAX_KERNEL_VERSION:-}" \"$script\" --exec-test $cmd" \
+      --kopt possible_cpus=2; then # need at least two CPUs for some tests
+      exit 23
+    fi
 
-  if [[ ! -e "${output}/success" ]]; then
+    if [[ -e "${output}/status" ]]; then
+      break
+    fi
+
+    if [[ -v CI ]]; then
+      echo "Retrying test run due to qemu crash"
+      continue
+    fi
+
     exit 42
-  fi
+  done
 
+  rc=$(<"${output}/status")
   $sudo rm -r "$output"
-  exit 0
+  exit $rc
 elif [[ "${1:-}" = "--exec-test" ]]; then
   shift
 
@@ -73,42 +85,57 @@ elif [[ "${1:-}" = "--exec-test" ]]; then
     export KERNEL_SELFTESTS="/run/input/bpf"
   fi
 
-  dmesg -C
-  if ! "$@"; then
-    dmesg
-    exit 1 # this return code is "swallowed" by qemu
+  if [[ -f "/run/input/bpf/bpf_testmod/bpf_testmod.ko" ]]; then
+    insmod "/run/input/bpf/bpf_testmod/bpf_testmod.ko"
   fi
-  touch "/run/output/success"
-  exit 0
+
+  dmesg --clear
+  rc=0
+  "$@" || rc=$?
+  dmesg
+  echo $rc > "/run/output/status"
+  exit $rc # this return code is "swallowed" by qemu
 fi
 
-readonly kernel_version="${1:-}"
-if [[ -z "${kernel_version}" ]]; then
-  echo "Expecting kernel version as first argument"
+if [[ -z "${1:-}" ]]; then
+  echo "Expecting kernel version or path as first argument"
   exit 1
 fi
-shift
 
-readonly kernel="linux-${kernel_version}.bz"
-readonly selftests="linux-${kernel_version}-selftests-bpf.bz"
 readonly input="$(mktemp -d)"
 readonly tmp_dir="${TMPDIR:-/tmp}"
-readonly branch="${BRANCH:-master}"
 
 fetch() {
     echo Fetching "${1}"
-    wget -nv -N -P "${tmp_dir}" "https://github.com/cilium/ci-kernels/raw/${branch}/${1}"
+    pushd "${tmp_dir}" > /dev/null
+    curl --no-progress-meter -L -O --fail --etag-compare "${1}.etag" --etag-save "${1}.etag" "https://github.com/cilium/ci-kernels/raw/${BRANCH:-master}/${1}"
+    local ret=$?
+    popd > /dev/null
+    return $ret
 }
 
-fetch "${kernel}"
-cp "${tmp_dir}/${kernel}" "${input}/bzImage"
-
-if fetch "${selftests}"; then
-  mkdir "${input}/bpf"
-  tar --strip-components=4 -xjf "${tmp_dir}/${selftests}" -C "${input}/bpf"
+if [[ -f "${1}" ]]; then
+  readonly kernel="${1}"
+  cp "${1}" "${input}/bzImage"
 else
-  echo "No selftests found, disabling"
+# LINUX_VERSION_CODE test compares this to discovered value.
+  export KERNEL_VERSION="${1}"
+
+  readonly kernel="linux-${1}.bz"
+  readonly selftests="linux-${1}-selftests-bpf.tgz"
+
+  fetch "${kernel}"
+  cp "${tmp_dir}/${kernel}" "${input}/bzImage"
+
+  if fetch "${selftests}"; then
+    echo "Decompressing selftests"
+    mkdir "${input}/bpf"
+    tar --strip-components=4 -xf "${tmp_dir}/${selftests}" -C "${input}/bpf"
+  else
+    echo "No selftests found, disabling"
+  fi
 fi
+shift
 
 args=(-short -coverpkg=./... -coverprofile=coverage.out -count 1 ./...)
 if (( $# > 0 )); then
@@ -118,8 +145,8 @@ fi
 export GOFLAGS=-mod=readonly
 export CGO_ENABLED=0
 
-echo Testing on "${kernel_version}"
+echo Testing on "${kernel}"
 go test -exec "$script --exec-vm $input" "${args[@]}"
-echo "Test successful on ${kernel_version}"
+echo "Test successful on ${kernel}"
 
 rm -r "${input}"

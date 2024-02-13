@@ -4,12 +4,14 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 // non-contiguous functionality. Please read the comments.
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -17,62 +19,17 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/nat"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
-// Archiver defines an interface for copying files from one destination to
-// another using Tar/Untar.
-type Archiver interface {
-	TarUntar(src, dst string) error
-	UntarPath(src, dst string) error
-	CopyWithTar(src, dst string) error
-	CopyFileWithTar(src, dst string) error
-	IdentityMapping() idtools.IdentityMapping
+func (b *Builder) getArchiver() *archive.Archiver {
+	return chrootarchive.NewArchiver(b.idMapping)
 }
 
-// The builder will use the following interfaces if the container fs implements
-// these for optimized copies to and from the container.
-type extractor interface {
-	ExtractArchive(src io.Reader, dst string, opts *archive.TarOptions) error
-}
-
-type archiver interface {
-	ArchivePath(src string, opts *archive.TarOptions) (io.ReadCloser, error)
-}
-
-// helper functions to get tar/untar func
-func untarFunc(i interface{}) containerfs.UntarFunc {
-	if ea, ok := i.(extractor); ok {
-		return ea.ExtractArchive
-	}
-	return chrootarchive.Untar
-}
-
-func tarFunc(i interface{}) containerfs.TarFunc {
-	if ap, ok := i.(archiver); ok {
-		return ap.ArchivePath
-	}
-	return archive.TarWithOptions
-}
-
-func (b *Builder) getArchiver(src, dst containerfs.Driver) Archiver {
-	t, u := tarFunc(src), untarFunc(dst)
-	return &containerfs.Archiver{
-		SrcDriver: src,
-		DstDriver: dst,
-		Tar:       t,
-		Untar:     u,
-		IDMapping: b.idMapping,
-	}
-}
-
-func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
+func (b *Builder) commit(ctx context.Context, dispatchState *dispatchState, comment string) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -81,15 +38,15 @@ func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
 	}
 
 	runConfigWithCommentCmd := copyRunConfig(dispatchState.runConfig, withCmdComment(comment, dispatchState.operatingSystem))
-	id, err := b.probeAndCreate(dispatchState, runConfigWithCommentCmd)
+	id, err := b.probeAndCreate(ctx, dispatchState, runConfigWithCommentCmd)
 	if err != nil || id == "" {
 		return err
 	}
 
-	return b.commitContainer(dispatchState, id, runConfigWithCommentCmd)
+	return b.commitContainer(ctx, dispatchState, id, runConfigWithCommentCmd)
 }
 
-func (b *Builder) commitContainer(dispatchState *dispatchState, id string, containerConfig *container.Config) error {
+func (b *Builder) commitContainer(ctx context.Context, dispatchState *dispatchState, id string, containerConfig *container.Config) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -102,12 +59,12 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 		ContainerID:     id,
 	}
 
-	imageID, err := b.docker.CommitBuildStep(commitCfg)
+	imageID, err := b.docker.CommitBuildStep(ctx, commitCfg)
 	dispatchState.imageID = string(imageID)
 	return err
 }
 
-func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
+func (b *Builder) exportImage(ctx context.Context, state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
 	newLayer, err := layer.Commit()
 	if err != nil {
 		return err
@@ -118,7 +75,7 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 		return errors.Errorf("unexpected image type")
 	}
 
-	platform := &specs.Platform{
+	platform := &ocispec.Platform{
 		OS:           parentImage.OS,
 		Architecture: parentImage.Architecture,
 		Variant:      parentImage.Variant,
@@ -142,7 +99,15 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 		return errors.Wrap(err, "failed to encode image config")
 	}
 
-	exportedImage, err := b.docker.CreateImage(config, state.imageID)
+	// when writing the new image's manifest, we now need to pass in the new layer's digest.
+	// before the containerd store work this was unnecessary since we get the layer id
+	// from the image's RootFS ChainID -- see:
+	// https://github.com/moby/moby/blob/8cf66ed7322fa885ef99c4c044fa23e1727301dc/image/store.go#L162
+	// however, with the containerd store we can't do this. An alternative implementation here
+	// without changing the signature would be to get the layer digest by walking the content store
+	// and filtering the objects to find the layer with the DiffID we want, but that has performance
+	// implications that should be called out/investigated
+	exportedImage, err := b.docker.CreateImage(ctx, config, state.imageID, newLayer.ContentStoreDigest())
 	if err != nil {
 		return errors.Wrapf(err, "failed to export image")
 	}
@@ -152,13 +117,13 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 	return nil
 }
 
-func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
+func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst copyInstruction) error {
 	state := req.state
 	srcHash := getSourceHashFromInfos(inst.infos)
 
 	var chownComment string
 	if inst.chownStr != "" {
-		chownComment = fmt.Sprintf("--chown=%s", inst.chownStr)
+		chownComment = fmt.Sprintf("--chown=%s ", inst.chownStr)
 	}
 	commentStr := fmt.Sprintf("%s %s%s in %s ", inst.cmdName, chownComment, srcHash, inst.dest)
 
@@ -171,7 +136,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 		return err
 	}
 
-	imageMount, err := b.imageSources.Get(state.imageID, true, req.builder.platform)
+	imageMount, err := b.imageSources.Get(ctx, state.imageID, true, req.builder.platform)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get destination image %q", state.imageID)
 	}
@@ -192,7 +157,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 	// translated (if necessary because of user namespaces), and replace
 	// the root pair with the chown pair for copy operations
 	if inst.chownStr != "" {
-		identity, err = parseChownFlag(b, state, inst.chownStr, destInfo.root.Path(), b.idMapping)
+		identity, err = parseChownFlag(ctx, b, state, inst.chownStr, destInfo.root, b.idMapping)
 		if err != nil {
 			if b.options.Platform != "windows" {
 				return errors.Wrapf(err, "unable to convert uid/gid chown string to host mapping")
@@ -205,7 +170,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 	for _, info := range inst.infos {
 		opts := copyFileOptions{
 			decompress: inst.allowLocalDecompression,
-			archiver:   b.getArchiver(info.root, destInfo.root),
+			archiver:   b.getArchiver(),
 		}
 		if !inst.preserveOwnership {
 			opts.identity = &identity
@@ -214,7 +179,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 			return errors.Wrapf(err, "failed to copy files")
 		}
 	}
-	return b.exportImage(state, rwLayer, imageMount.Image(), runConfigWithCommentCmd)
+	return b.exportImage(ctx, state, rwLayer, imageMount.Image(), runConfigWithCommentCmd)
 }
 
 func createDestInfo(workingDir string, inst copyInstruction, rwLayer builder.RWLayer, platform string) (copyInfo, error) {
@@ -364,7 +329,7 @@ func getShell(c *container.Config, os string) []string {
 }
 
 func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.Config) (bool, error) {
-	cachedID, err := b.imageProber.Probe(dispatchState.imageID, runConfig)
+	cachedID, err := b.imageProber.Probe(dispatchState.imageID, runConfig, b.getPlatform(dispatchState))
 	if cachedID == "" || err != nil {
 		return false, err
 	}
@@ -376,18 +341,18 @@ func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.
 
 var defaultLogConfig = container.LogConfig{Type: "none"}
 
-func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *container.Config) (string, error) {
+func (b *Builder) probeAndCreate(ctx context.Context, dispatchState *dispatchState, runConfig *container.Config) (string, error) {
 	if hit, err := b.probeCache(dispatchState, runConfig); err != nil || hit {
 		return "", err
 	}
-	return b.create(runConfig)
+	return b.create(ctx, runConfig)
 }
 
-func (b *Builder) create(runConfig *container.Config) (string, error) {
-	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
+func (b *Builder) create(ctx context.Context, runConfig *container.Config) (string, error) {
+	log.G(ctx).Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
 
 	hostConfig := hostConfigFromOptions(b.options)
-	container, err := b.containerManager.Create(runConfig, hostConfig)
+	container, err := b.containerManager.Create(ctx, runConfig, hostConfig)
 	if err != nil {
 		return "", err
 	}
@@ -423,4 +388,18 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		ExtraHosts: options.ExtraHosts,
 	}
 	return hc
+}
+
+func (b *Builder) getPlatform(state *dispatchState) ocispec.Platform {
+	// May be nil if not explicitly set in API/dockerfile
+	out := platforms.DefaultSpec()
+	if b.platform != nil {
+		out = *b.platform
+	}
+
+	if state.operatingSystem != "" {
+		out.OS = state.operatingSystem
+	}
+
+	return out
 }

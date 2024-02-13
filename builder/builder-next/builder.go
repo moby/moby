@@ -14,10 +14,15 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/builder-next/exporter"
+	"github.com/docker/docker/builder/builder-next/exporter/mobyexporter"
+	"github.com/docker/docker/builder/builder-next/exporter/overrides"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/go-units"
@@ -50,6 +55,12 @@ func (e errConflictFilter) Error() string {
 
 func (errConflictFilter) InvalidParameter() {}
 
+type errInvalidFilterValue struct {
+	error
+}
+
+func (errInvalidFilterValue) InvalidParameter() {}
+
 var cacheFields = map[string]bool{
 	"id":          true,
 	"parent":      true,
@@ -67,8 +78,10 @@ var cacheFields = map[string]bool{
 type Opt struct {
 	SessionManager      *session.Manager
 	Root                string
+	EngineID            string
 	Dist                images.DistributionServices
-	NetworkController   libnetwork.NetworkController
+	ImageTagger         mobyexporter.ImageTagger
+	NetworkController   *libnetwork.Controller
 	DefaultCgroupParent string
 	RegistryHosts       docker.RegistryHosts
 	BuilderConfig       config.BuilderConfig
@@ -76,31 +89,43 @@ type Opt struct {
 	IdentityMapping     idtools.IdentityMapping
 	DNSConfig           config.DNSConfig
 	ApparmorProfile     string
+	UseSnapshotter      bool
+	Snapshotter         string
+	ContainerdAddress   string
+	ContainerdNamespace string
 }
 
 // Builder can build using BuildKit backend
 type Builder struct {
 	controller     *control.Controller
+	dnsconfig      config.DNSConfig
 	reqBodyHandler *reqBodyHandler
 
-	mu   sync.Mutex
-	jobs map[string]*buildJob
+	mu             sync.Mutex
+	jobs           map[string]*buildJob
+	useSnapshotter bool
 }
 
 // New creates a new builder
-func New(opt Opt) (*Builder, error) {
+func New(ctx context.Context, opt Opt) (*Builder, error) {
 	reqHandler := newReqBodyHandler(tracing.DefaultTransport)
 
-	c, err := newController(reqHandler, opt)
+	c, err := newController(ctx, reqHandler, opt)
 	if err != nil {
 		return nil, err
 	}
 	b := &Builder{
 		controller:     c,
+		dnsconfig:      opt.DNSConfig,
 		reqBodyHandler: reqHandler,
 		jobs:           map[string]*buildJob{},
+		useSnapshotter: opt.UseSnapshotter,
 	}
 	return b, nil
+}
+
+func (b *Builder) Close() error {
+	return b.controller.Close()
 }
 
 // RegisterGRPC registers controller to the grpc server.
@@ -199,8 +224,11 @@ func (b *Builder) Prune(ctx context.Context, opts types.BuildCachePruneOptions) 
 
 // Build executes a build request
 func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.Result, error) {
-	var rc = opt.Source
+	if len(opt.Options.Outputs) > 1 {
+		return nil, errors.Errorf("multiple outputs not supported")
+	}
 
+	rc := opt.Source
 	if buildID := opt.Options.BuildID; buildID != "" {
 		b.mu.Lock()
 
@@ -311,7 +339,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		return nil, errors.Errorf("network mode %q not supported by buildkit", opt.Options.NetworkMode)
 	}
 
-	extraHosts, err := toBuildkitExtraHosts(opt.Options.ExtraHosts)
+	extraHosts, err := toBuildkitExtraHosts(opt.Options.ExtraHosts, b.dnsconfig.HostGatewayIP)
 	if err != nil {
 		return nil, err
 	}
@@ -330,11 +358,8 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 
 	exporterName := ""
 	exporterAttrs := map[string]string{}
-
-	if len(opt.Options.Outputs) > 1 {
-		return nil, errors.Errorf("multiple outputs not supported")
-	} else if len(opt.Options.Outputs) == 0 {
-		exporterName = "moby"
+	if len(opt.Options.Outputs) == 0 {
+		exporterName = exporter.Moby
 	} else {
 		// cacheonly is a special type for triggering skipping all exporters
 		if opt.Options.Outputs[0].Type != "cacheonly" {
@@ -343,14 +368,18 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		}
 	}
 
-	if exporterName == "moby" {
-		if len(opt.Options.Tags) > 0 {
-			exporterAttrs["name"] = strings.Join(opt.Options.Tags, ",")
+	if (exporterName == client.ExporterImage || exporterName == exporter.Moby) && len(opt.Options.Tags) > 0 {
+		nameAttr, err := overrides.SanitizeRepoAndTags(opt.Options.Tags)
+		if err != nil {
+			return nil, err
 		}
+		if exporterAttrs == nil {
+			exporterAttrs = make(map[string]string)
+		}
+		exporterAttrs["name"] = strings.Join(nameAttr, ",")
 	}
 
 	cache := controlapi.CacheOptions{}
-
 	if inlineCache := opt.Options.BuildArgs["BUILDKIT_INLINE_CACHE"]; inlineCache != nil {
 		if b, err := strconv.ParseBool(*inlineCache); err == nil && b {
 			cache.Exports = append(cache.Exports, &controlapi.CacheOptionsEntry{
@@ -382,7 +411,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		if err != nil {
 			return err
 		}
-		if exporterName != "moby" {
+		if exporterName != exporter.Moby && exporterName != client.ExporterImage {
 			return nil
 		}
 		id, ok := resp.ExporterResponse["containerimage.digest"]
@@ -441,6 +470,7 @@ func (sp *streamProxy) SetTrailer(_ grpcmetadata.MD) {
 func (sp *streamProxy) Context() context.Context {
 	return sp.ctx
 }
+
 func (sp *streamProxy) RecvMsg(m interface{}) error {
 	return io.EOF
 }
@@ -453,6 +483,7 @@ type statusProxy struct {
 func (sp *statusProxy) Send(resp *controlapi.StatusResponse) error {
 	return sp.SendMsg(resp)
 }
+
 func (sp *statusProxy) SendMsg(m interface{}) error {
 	if sr, ok := m.(*controlapi.StatusResponse); ok {
 		sp.ch <- sr
@@ -468,6 +499,7 @@ type pruneProxy struct {
 func (sp *pruneProxy) Send(resp *controlapi.UsageRecord) error {
 	return sp.SendMsg(resp)
 }
+
 func (sp *pruneProxy) SendMsg(m interface{}) error {
 	if sr, ok := m.(*controlapi.UsageRecord); ok {
 		sp.ch <- sr
@@ -551,18 +583,28 @@ func (j *buildJob) SetUpload(ctx context.Context, rc io.ReadCloser) error {
 }
 
 // toBuildkitExtraHosts converts hosts from docker key:value format to buildkit's csv format
-func toBuildkitExtraHosts(inp []string) (string, error) {
+func toBuildkitExtraHosts(inp []string, hostGatewayIP net.IP) (string, error) {
 	if len(inp) == 0 {
 		return "", nil
 	}
 	hosts := make([]string, 0, len(inp))
 	for _, h := range inp {
-		parts := strings.Split(h, ":")
-
-		if len(parts) != 2 || parts[0] == "" || net.ParseIP(parts[1]) == nil {
+		host, ip, ok := strings.Cut(h, ":")
+		if !ok || host == "" || ip == "" {
 			return "", errors.Errorf("invalid host %s", h)
 		}
-		hosts = append(hosts, parts[0]+"="+parts[1])
+		// If the IP Address is a "host-gateway", replace this value with the
+		// IP address stored in the daemon level HostGatewayIP config variable.
+		if ip == opts.HostGatewayName {
+			gateway := hostGatewayIP.String()
+			if gateway == "" {
+				return "", fmt.Errorf("unable to derive the IP value for host-gateway")
+			}
+			ip = gateway
+		} else if net.ParseIP(ip) == nil {
+			return "", fmt.Errorf("invalid host %s", h)
+		}
+		hosts = append(hosts, host+"="+ip)
 	}
 	return strings.Join(hosts, ","), nil
 }
@@ -597,11 +639,20 @@ func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, e
 	case 0:
 		// nothing to do
 	case 1:
-		var err error
-		until, err = time.ParseDuration(untilValues[0])
+		ts, err := timetypes.GetTimestamp(untilValues[0], time.Now())
 		if err != nil {
-			return client.PruneInfo{}, errors.Wrapf(err, "%q filter expects a duration (e.g., '24h')", filterKey)
+			return client.PruneInfo{}, errInvalidFilterValue{
+				errors.Wrapf(err, "%q filter expects a duration (e.g., '24h') or a timestamp", filterKey),
+			}
 		}
+		seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+		if err != nil {
+			return client.PruneInfo{}, errInvalidFilterValue{
+				errors.Wrapf(err, "failed to parse timestamp %q", ts),
+			}
+		}
+
+		until = time.Since(time.Unix(seconds, nanoseconds))
 	default:
 		return client.PruneInfo{}, errMultipleFilterValues{}
 	}

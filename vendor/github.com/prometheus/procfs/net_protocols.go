@@ -23,7 +23,7 @@ import (
 	"github.com/prometheus/procfs/internal/util"
 )
 
-// NetProtocolStats stores the contents from /proc/net/protocols
+// NetProtocolStats stores the contents from /proc/net/protocols.
 type NetProtocolStats map[string]NetProtocolStatLine
 
 // NetProtocolStatLine contains a single line parsed from /proc/net/protocols. We
@@ -41,7 +41,7 @@ type NetProtocolStatLine struct {
 	Capabilities NetProtocolCapabilities
 }
 
-// NetProtocolCapabilities contains a list of capabilities for each protocol
+// NetProtocolCapabilities contains a list of capabilities for each protocol.
 type NetProtocolCapabilities struct {
 	Close               bool // 8
 	Connect             bool // 9
@@ -131,7 +131,7 @@ func (ps NetProtocolStats) parseLine(rawLine string) (*NetProtocolStatLine, erro
 	} else if fields[6] == disabled {
 		line.Slab = false
 	} else {
-		return nil, fmt.Errorf("unable to parse capability for protocol: %s", line.Name)
+		return nil, fmt.Errorf("%w: capability for protocol: %s", ErrFileParse, line.Name)
 	}
 	line.ModuleName = fields[7]
 
@@ -173,7 +173,7 @@ func (pc *NetProtocolCapabilities) parseCapabilities(capabilities []string) erro
 		} else if capabilities[i] == "n" {
 			*capabilityFields[i] = false
 		} else {
-			return fmt.Errorf("unable to parse capability block for protocol: position %d", i)
+			return fmt.Errorf("%w: capability block for protocol: position %d", ErrFileParse, i)
 		}
 	}
 	return nil

@@ -17,7 +17,7 @@ type PortMapper struct {
 
 	proxyPath string
 
-	Allocator *portallocator.PortAllocator
+	allocator *portallocator.PortAllocator
 }
 
 // AppendForwardingTableEntry adds a port mapping to the forwarding table
@@ -28,10 +28,4 @@ func (pm *PortMapper) AppendForwardingTableEntry(proto string, sourceIP net.IP, 
 // DeleteForwardingTableEntry removes a port mapping from the forwarding table
 func (pm *PortMapper) DeleteForwardingTableEntry(proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
 	return nil
-}
-
-// checkIP checks if IP is valid and matching to chain version
-func (pm *PortMapper) checkIP(ip net.IP) bool {
-	// no IPv6 for port mapper on windows -> only IPv4 valid
-	return ip.To4() != nil
 }

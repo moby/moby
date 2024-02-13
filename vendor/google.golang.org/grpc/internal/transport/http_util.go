@@ -20,8 +20,8 @@ package transport
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -30,29 +30,20 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
-	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/hpack"
-	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/grpclog"
-	"google.golang.org/grpc/status"
 )
 
 const (
 	// http2MaxFrameLen specifies the max length of a HTTP2 frame.
 	http2MaxFrameLen = 16384 // 16KB frame
-	// http://http2.github.io/http2-spec/#SettingValues
+	// https://httpwg.org/specs/rfc7540.html#SettingValues
 	http2InitHeaderTableSize = 4096
-	// baseContentType is the base content-type for gRPC.  This is a valid
-	// content-type on it's own, but can also include a content-subtype such as
-	// "proto" as a suffix after "+" or ";".  See
-	// https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md#requests
-	// for more details.
-
 )
 
 var (
@@ -92,8 +83,9 @@ var (
 		// 504 Gateway timeout - UNAVAILABLE.
 		http.StatusGatewayTimeout: codes.Unavailable,
 	}
-	logger = grpclog.Component("transport")
 )
+
+var grpcStatusDetailsBinHeader = "grpc-status-details-bin"
 
 // isReservedHeader checks whether hdr belongs to HTTP2 headers
 // reserved by gRPC protocol. Any other headers are classified as the
@@ -110,7 +102,6 @@ func isReservedHeader(hdr string) bool {
 		"grpc-message",
 		"grpc-status",
 		"grpc-timeout",
-		"grpc-status-details-bin",
 		// Intentionally exclude grpc-previous-rpc-attempts and
 		// grpc-retry-pushback-ms, which are "reserved", but their API
 		// intentionally works via metadata.
@@ -159,18 +150,6 @@ func decodeMetadataHeader(k, v string) (string, error) {
 		return string(b), err
 	}
 	return v, nil
-}
-
-func decodeGRPCStatusDetails(rawDetails string) (*status.Status, error) {
-	v, err := decodeBinHeader(rawDetails)
-	if err != nil {
-		return nil, err
-	}
-	st := &spb.Status{}
-	if err = proto.Unmarshal(v, st); err != nil {
-		return nil, err
-	}
-	return status.FromProto(st), nil
 }
 
 type timeoutUnit uint8
@@ -257,13 +236,13 @@ func encodeGrpcMessage(msg string) string {
 }
 
 func encodeGrpcMessageUnchecked(msg string) string {
-	var buf bytes.Buffer
+	var sb strings.Builder
 	for len(msg) > 0 {
 		r, size := utf8.DecodeRuneInString(msg)
 		for _, b := range []byte(string(r)) {
 			if size > 1 {
 				// If size > 1, r is not ascii. Always do percent encoding.
-				buf.WriteString(fmt.Sprintf("%%%02X", b))
+				fmt.Fprintf(&sb, "%%%02X", b)
 				continue
 			}
 
@@ -272,14 +251,14 @@ func encodeGrpcMessageUnchecked(msg string) string {
 			//
 			// fmt.Sprintf("%%%02X", utf8.RuneError) gives "%FFFD".
 			if b >= spaceByte && b <= tildeByte && b != percentByte {
-				buf.WriteByte(b)
+				sb.WriteByte(b)
 			} else {
-				buf.WriteString(fmt.Sprintf("%%%02X", b))
+				fmt.Fprintf(&sb, "%%%02X", b)
 			}
 		}
 		msg = msg[size:]
 	}
-	return buf.String()
+	return sb.String()
 }
 
 // decodeGrpcMessage decodes the msg encoded by encodeGrpcMessage.
@@ -297,41 +276,45 @@ func decodeGrpcMessage(msg string) string {
 }
 
 func decodeGrpcMessageUnchecked(msg string) string {
-	var buf bytes.Buffer
+	var sb strings.Builder
 	lenMsg := len(msg)
 	for i := 0; i < lenMsg; i++ {
 		c := msg[i]
 		if c == percentByte && i+2 < lenMsg {
 			parsed, err := strconv.ParseUint(msg[i+1:i+3], 16, 8)
 			if err != nil {
-				buf.WriteByte(c)
+				sb.WriteByte(c)
 			} else {
-				buf.WriteByte(byte(parsed))
+				sb.WriteByte(byte(parsed))
 				i += 2
 			}
 		} else {
-			buf.WriteByte(c)
+			sb.WriteByte(c)
 		}
 	}
-	return buf.String()
+	return sb.String()
 }
 
 type bufWriter struct {
+	pool      *sync.Pool
 	buf       []byte
 	offset    int
 	batchSize int
 	conn      net.Conn
 	err       error
-
-	onFlush func()
 }
 
-func newBufWriter(conn net.Conn, batchSize int) *bufWriter {
-	return &bufWriter{
-		buf:       make([]byte, batchSize*2),
+func newBufWriter(conn net.Conn, batchSize int, pool *sync.Pool) *bufWriter {
+	w := &bufWriter{
 		batchSize: batchSize,
 		conn:      conn,
+		pool:      pool,
 	}
+	// this indicates that we should use non shared buf
+	if pool == nil {
+		w.buf = make([]byte, batchSize)
+	}
+	return w
 }
 
 func (w *bufWriter) Write(b []byte) (n int, err error) {
@@ -339,7 +322,12 @@ func (w *bufWriter) Write(b []byte) (n int, err error) {
 		return 0, w.err
 	}
 	if w.batchSize == 0 { // Buffer has been disabled.
-		return w.conn.Write(b)
+		n, err = w.conn.Write(b)
+		return n, toIOError(err)
+	}
+	if w.buf == nil {
+		b := w.pool.Get().(*[]byte)
+		w.buf = *b
 	}
 	for len(b) > 0 {
 		nn := copy(w.buf[w.offset:], b)
@@ -347,25 +335,53 @@ func (w *bufWriter) Write(b []byte) (n int, err error) {
 		w.offset += nn
 		n += nn
 		if w.offset >= w.batchSize {
-			err = w.Flush()
+			err = w.flushKeepBuffer()
 		}
 	}
 	return n, err
 }
 
 func (w *bufWriter) Flush() error {
+	err := w.flushKeepBuffer()
+	// Only release the buffer if we are in a "shared" mode
+	if w.buf != nil && w.pool != nil {
+		b := w.buf
+		w.pool.Put(&b)
+		w.buf = nil
+	}
+	return err
+}
+
+func (w *bufWriter) flushKeepBuffer() error {
 	if w.err != nil {
 		return w.err
 	}
 	if w.offset == 0 {
 		return nil
 	}
-	if w.onFlush != nil {
-		w.onFlush()
-	}
 	_, w.err = w.conn.Write(w.buf[:w.offset])
+	w.err = toIOError(w.err)
 	w.offset = 0
 	return w.err
+}
+
+type ioError struct {
+	error
+}
+
+func (i ioError) Unwrap() error {
+	return i.error
+}
+
+func isIOError(err error) bool {
+	return errors.As(err, &ioError{})
+}
+
+func toIOError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return ioError{error: err}
 }
 
 type framer struct {
@@ -373,7 +389,10 @@ type framer struct {
 	fr     *http2.Framer
 }
 
-func newFramer(conn net.Conn, writeBufferSize, readBufferSize int, maxHeaderListSize uint32) *framer {
+var writeBufferPoolMap map[int]*sync.Pool = make(map[int]*sync.Pool)
+var writeBufferMutex sync.Mutex
+
+func newFramer(conn net.Conn, writeBufferSize, readBufferSize int, sharedWriteBuffer bool, maxHeaderListSize uint32) *framer {
 	if writeBufferSize < 0 {
 		writeBufferSize = 0
 	}
@@ -381,7 +400,11 @@ func newFramer(conn net.Conn, writeBufferSize, readBufferSize int, maxHeaderList
 	if readBufferSize > 0 {
 		r = bufio.NewReaderSize(r, readBufferSize)
 	}
-	w := newBufWriter(conn, writeBufferSize)
+	var pool *sync.Pool
+	if sharedWriteBuffer {
+		pool = getWriteBufferPool(writeBufferSize)
+	}
+	w := newBufWriter(conn, writeBufferSize, pool)
 	f := &framer{
 		writer: w,
 		fr:     http2.NewFramer(w, r),
@@ -393,6 +416,24 @@ func newFramer(conn net.Conn, writeBufferSize, readBufferSize int, maxHeaderList
 	f.fr.MaxHeaderListSize = maxHeaderListSize
 	f.fr.ReadMetaHeaders = hpack.NewDecoder(http2InitHeaderTableSize, nil)
 	return f
+}
+
+func getWriteBufferPool(writeBufferSize int) *sync.Pool {
+	writeBufferMutex.Lock()
+	defer writeBufferMutex.Unlock()
+	size := writeBufferSize * 2
+	pool, ok := writeBufferPoolMap[size]
+	if ok {
+		return pool
+	}
+	pool = &sync.Pool{
+		New: func() any {
+			b := make([]byte, size)
+			return &b
+		},
+	}
+	writeBufferPoolMap[size] = pool
+	return pool
 }
 
 // parseDialTarget returns the network and address to pass to dialer.

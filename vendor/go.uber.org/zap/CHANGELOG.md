@@ -1,4 +1,108 @@
 # Changelog
+All notable changes to this project will be documented in this file.
+
+This project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
+
+## 1.21.0 (7 Feb 2022)
+
+Enhancements:
+*  [#1047][]: Add `zapcore.ParseLevel` to parse a `Level` from a string.
+*  [#1048][]: Add `zap.ParseAtomicLevel` to parse an `AtomicLevel` from a
+   string.
+
+Bugfixes:
+* [#1058][]: Fix panic in JSON encoder when `EncodeLevel` is unset.
+
+Other changes:
+* [#1052][]: Improve encoding performance when the `AddCaller` and
+  `AddStacktrace` options are used together.
+
+[#1047]: https://github.com/uber-go/zap/pull/1047
+[#1048]: https://github.com/uber-go/zap/pull/1048
+[#1052]: https://github.com/uber-go/zap/pull/1052
+[#1058]: https://github.com/uber-go/zap/pull/1058
+
+Thanks to @aerosol and @Techassi for their contributions to this release.
+
+## 1.20.0 (4 Jan 2022)
+
+Enhancements:
+* [#989][]: Add `EncoderConfig.SkipLineEnding` flag to disable adding newline
+  characters between log statements.
+* [#1039][]: Add `EncoderConfig.NewReflectedEncoder` field to customize JSON
+  encoding of reflected log fields.
+
+Bugfixes:
+* [#1011][]: Fix inaccurate precision when encoding complex64 as JSON.
+* [#554][], [#1017][]: Close JSON namespaces opened in `MarshalLogObject`
+  methods when the methods return.
+* [#1033][]: Avoid panicking in Sampler core if `thereafter` is zero.
+
+Other changes:
+* [#1028][]: Drop support for Go < 1.15.
+
+[#554]: https://github.com/uber-go/zap/pull/554
+[#989]: https://github.com/uber-go/zap/pull/989
+[#1011]: https://github.com/uber-go/zap/pull/1011
+[#1017]: https://github.com/uber-go/zap/pull/1017
+[#1028]: https://github.com/uber-go/zap/pull/1028
+[#1033]: https://github.com/uber-go/zap/pull/1033
+[#1039]: https://github.com/uber-go/zap/pull/1039
+
+Thanks to @psrajat, @lruggieri, @sammyrnycreal for their contributions to this release.
+
+## 1.19.1 (8 Sep 2021)
+
+Bugfixes:
+* [#1001][]: JSON: Fix complex number encoding with negative imaginary part. Thanks to @hemantjadon.
+* [#1003][]: JSON: Fix inaccurate precision when encoding float32.
+
+[#1001]: https://github.com/uber-go/zap/pull/1001
+[#1003]: https://github.com/uber-go/zap/pull/1003
+
+## 1.19.0 (9 Aug 2021)
+
+Enhancements:
+* [#975][]: Avoid panicking in Sampler core if the level is out of bounds.
+* [#984][]: Reduce the size of BufferedWriteSyncer by aligning the fields
+  better.
+
+[#975]: https://github.com/uber-go/zap/pull/975
+[#984]: https://github.com/uber-go/zap/pull/984
+
+Thanks to @lancoLiu and @thockin for their contributions to this release.
+
+## 1.18.1 (28 Jun 2021)
+
+Bugfixes:
+* [#974][]: Fix nil dereference in logger constructed by `zap.NewNop`.
+
+[#974]: https://github.com/uber-go/zap/pull/974
+
+## 1.18.0 (28 Jun 2021)
+
+Enhancements:
+* [#961][]: Add `zapcore.BufferedWriteSyncer`, a new `WriteSyncer` that buffers
+  messages in-memory and flushes them periodically.
+* [#971][]: Add `zapio.Writer` to use a Zap logger as an `io.Writer`.
+* [#897][]: Add `zap.WithClock` option to control the source of time via the
+  new `zapcore.Clock` interface.
+* [#949][]: Avoid panicking in `zap.SugaredLogger` when arguments of `*w`
+  methods don't match expectations.
+* [#943][]: Add support for filtering by level or arbitrary matcher function to
+  `zaptest/observer`.
+* [#691][]: Comply with `io.StringWriter` and `io.ByteWriter` in Zap's
+  `buffer.Buffer`.
+
+Thanks to @atrn0, @ernado, @heyanfu, @hnlq715, @zchee
+for their contributions to this release.
+
+[#691]: https://github.com/uber-go/zap/pull/691
+[#897]: https://github.com/uber-go/zap/pull/897
+[#943]: https://github.com/uber-go/zap/pull/943
+[#949]: https://github.com/uber-go/zap/pull/949
+[#961]: https://github.com/uber-go/zap/pull/961
+[#971]: https://github.com/uber-go/zap/pull/971
 
 ## 1.17.0 (25 May 2021)
 

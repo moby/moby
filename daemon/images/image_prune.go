@@ -7,17 +7,18 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/distribution/reference"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
+	imagetypes "github.com/docker/docker/api/types/image"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var imagesAcceptedFilters = map[string]bool{
@@ -46,13 +47,9 @@ func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Arg
 
 	rep := &types.ImagesPruneReport{}
 
-	danglingOnly := true
-	if pruneFilters.Contains("dangling") {
-		if pruneFilters.ExactMatch("dangling", "false") || pruneFilters.ExactMatch("dangling", "0") {
-			danglingOnly = false
-		} else if !pruneFilters.ExactMatch("dangling", "true") && !pruneFilters.ExactMatch("dangling", "1") {
-			return nil, invalidFilter{"dangling", pruneFilters.Get("dangling")}
-		}
+	danglingOnly, err := pruneFilters.GetBoolOrDefault("dangling", true)
+	if err != nil {
+		return nil, err
 	}
 
 	until, err := getUntilFromPruneFilters(pruneFilters)
@@ -79,7 +76,7 @@ func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Arg
 			if len(i.referenceStore.References(dgst)) == 0 && len(i.imageStore.Children(id)) != 0 {
 				continue
 			}
-			if !until.IsZero() && img.Created.After(until) {
+			if !until.IsZero() && (img.Created == nil || img.Created.After(until)) {
 				continue
 			}
 			if img.Config != nil && !matchLabels(pruneFilters, img.Config.Labels) {
@@ -100,7 +97,7 @@ deleteImagesLoop:
 		default:
 		}
 
-		deletedImages := []types.ImageDeleteResponseItem{}
+		deletedImages := []imagetypes.DeleteResponse{}
 		refs := i.referenceStore.References(id.Digest())
 		if len(refs) > 0 {
 			shouldDelete := !danglingOnly
@@ -113,7 +110,7 @@ deleteImagesLoop:
 					}
 				}
 
-				// Only delete if it's untagged (i.e. repo:<none>)
+				// Only delete if it has no references which is a valid NamedTagged.
 				shouldDelete = !hasTag
 			}
 
@@ -127,7 +124,7 @@ deleteImagesLoop:
 				}
 			}
 		} else {
-			hex := id.Digest().Hex()
+			hex := id.Digest().Encoded()
 			imgDel, err := i.ImageDelete(ctx, hex, false, true)
 			if imageDeleteFailed(hex, err) {
 				continue
@@ -149,9 +146,9 @@ deleteImagesLoop:
 	}
 
 	if canceled {
-		logrus.Debugf("ImagesPrune operation cancelled: %#v", *rep)
+		log.G(ctx).Debugf("ImagesPrune operation cancelled: %#v", *rep)
 	}
-	i.eventsService.Log("prune", events.ImageEventType, events.Actor{
+	i.eventsService.Log(events.ActionPrune, events.ImageEventType, events.Actor{
 		Attributes: map[string]string{
 			"reclaimed": strconv.FormatUint(rep.SpaceReclaimed, 10),
 		},
@@ -166,7 +163,7 @@ func imageDeleteFailed(ref string, err error) bool {
 	case errdefs.IsConflict(err), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return true
 	default:
-		logrus.Warnf("failed to prune image %s: %v", ref, err)
+		log.G(context.TODO()).Warnf("failed to prune image %s: %v", ref, err)
 		return true
 	}
 }

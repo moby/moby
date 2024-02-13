@@ -29,7 +29,7 @@ func (s *sequenceDecs) decode(seqs []seqVals) error {
 	}
 	for i := range seqs {
 		var ll, mo, ml int
-		if br.off > 4+((maxOffsetBits+16+16)>>3) {
+		if len(br.in) > 4+((maxOffsetBits+16+16)>>3) {
 			// inlined function:
 			// ll, mo, ml = s.nextFast(br, llState, mlState, ofState)
 
@@ -111,7 +111,7 @@ func (s *sequenceDecs) decode(seqs []seqVals) error {
 		}
 		s.seqSize += ll + ml
 		if s.seqSize > maxBlockSize {
-			return fmt.Errorf("output (%d) bigger than max block size (%d)", s.seqSize, maxBlockSize)
+			return fmt.Errorf("output bigger than max block size (%d)", maxBlockSize)
 		}
 		litRemain -= ll
 		if litRemain < 0 {
@@ -149,7 +149,7 @@ func (s *sequenceDecs) decode(seqs []seqVals) error {
 	}
 	s.seqSize += litRemain
 	if s.seqSize > maxBlockSize {
-		return fmt.Errorf("output (%d) bigger than max block size (%d)", s.seqSize, maxBlockSize)
+		return fmt.Errorf("output bigger than max block size (%d)", maxBlockSize)
 	}
 	err := br.close()
 	if err != nil {

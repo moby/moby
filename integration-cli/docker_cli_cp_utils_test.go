@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/archive"
 	"gotest.tools/v3/assert"
 )
@@ -59,33 +60,33 @@ func mkFilesCommand(fds []fileData) string {
 }
 
 var defaultFileData = []fileData{
-	{ftRegular, "file1", "file1", 0, 0, 0666},
-	{ftRegular, "file2", "file2", 0, 0, 0666},
-	{ftRegular, "file3", "file3", 0, 0, 0666},
-	{ftRegular, "file4", "file4", 0, 0, 0666},
-	{ftRegular, "file5", "file5", 0, 0, 0666},
-	{ftRegular, "file6", "file6", 0, 0, 0666},
-	{ftRegular, "file7", "file7", 0, 0, 0666},
-	{ftDir, "dir1", "", 0, 0, 0777},
-	{ftRegular, "dir1/file1-1", "file1-1", 0, 0, 0666},
-	{ftRegular, "dir1/file1-2", "file1-2", 0, 0, 0666},
-	{ftDir, "dir2", "", 0, 0, 0666},
-	{ftRegular, "dir2/file2-1", "file2-1", 0, 0, 0666},
-	{ftRegular, "dir2/file2-2", "file2-2", 0, 0, 0666},
-	{ftDir, "dir3", "", 0, 0, 0666},
-	{ftRegular, "dir3/file3-1", "file3-1", 0, 0, 0666},
-	{ftRegular, "dir3/file3-2", "file3-2", 0, 0, 0666},
-	{ftDir, "dir4", "", 0, 0, 0666},
-	{ftRegular, "dir4/file3-1", "file4-1", 0, 0, 0666},
-	{ftRegular, "dir4/file3-2", "file4-2", 0, 0, 0666},
-	{ftDir, "dir5", "", 0, 0, 0666},
-	{ftSymlink, "symlinkToFile1", "file1", 0, 0, 0666},
-	{ftSymlink, "symlinkToDir1", "dir1", 0, 0, 0666},
-	{ftSymlink, "brokenSymlinkToFileX", "fileX", 0, 0, 0666},
-	{ftSymlink, "brokenSymlinkToDirX", "dirX", 0, 0, 0666},
-	{ftSymlink, "symlinkToAbsDir", "/root", 0, 0, 0666},
-	{ftDir, "permdirtest", "", 2, 2, 0700},
-	{ftRegular, "permdirtest/permtest", "perm_test", 65534, 65534, 0400},
+	{ftRegular, "file1", "file1", 0, 0, 0o666},
+	{ftRegular, "file2", "file2", 0, 0, 0o666},
+	{ftRegular, "file3", "file3", 0, 0, 0o666},
+	{ftRegular, "file4", "file4", 0, 0, 0o666},
+	{ftRegular, "file5", "file5", 0, 0, 0o666},
+	{ftRegular, "file6", "file6", 0, 0, 0o666},
+	{ftRegular, "file7", "file7", 0, 0, 0o666},
+	{ftDir, "dir1", "", 0, 0, 0o777},
+	{ftRegular, "dir1/file1-1", "file1-1", 0, 0, 0o666},
+	{ftRegular, "dir1/file1-2", "file1-2", 0, 0, 0o666},
+	{ftDir, "dir2", "", 0, 0, 0o666},
+	{ftRegular, "dir2/file2-1", "file2-1", 0, 0, 0o666},
+	{ftRegular, "dir2/file2-2", "file2-2", 0, 0, 0o666},
+	{ftDir, "dir3", "", 0, 0, 0o666},
+	{ftRegular, "dir3/file3-1", "file3-1", 0, 0, 0o666},
+	{ftRegular, "dir3/file3-2", "file3-2", 0, 0, 0o666},
+	{ftDir, "dir4", "", 0, 0, 0o666},
+	{ftRegular, "dir4/file3-1", "file4-1", 0, 0, 0o666},
+	{ftRegular, "dir4/file3-2", "file4-2", 0, 0, 0o666},
+	{ftDir, "dir5", "", 0, 0, 0o666},
+	{ftSymlink, "symlinkToFile1", "file1", 0, 0, 0o666},
+	{ftSymlink, "symlinkToDir1", "dir1", 0, 0, 0o666},
+	{ftSymlink, "brokenSymlinkToFileX", "fileX", 0, 0, 0o666},
+	{ftSymlink, "brokenSymlinkToDirX", "dirX", 0, 0, 0o666},
+	{ftSymlink, "symlinkToAbsDir", "/root", 0, 0, 0o666},
+	{ftDir, "permdirtest", "", 2, 2, 0o700},
+	{ftRegular, "permdirtest/permtest", "perm_test", 65534, 65534, 0o400},
 }
 
 func defaultMkContentCommand() string {
@@ -150,15 +151,15 @@ func makeTestContainer(c *testing.T, options testContainerOptions) (containerID 
 
 	args = append(args, "busybox", "/bin/sh", "-c", options.command)
 
-	out, _ := dockerCmd(c, args...)
+	out := cli.DockerCmd(c, args...).Combined()
 
 	containerID = strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", containerID)
+	out = cli.DockerCmd(c, "wait", containerID).Combined()
 
 	exitCode := strings.TrimSpace(out)
 	if exitCode != "0" {
-		out, _ = dockerCmd(c, "logs", containerID)
+		out = cli.DockerCmd(c, "logs", containerID).Combined()
 	}
 	assert.Equal(c, exitCode, "0", "failed to make test container: %s", out)
 
@@ -230,10 +231,6 @@ func isCpDirNotExist(err error) bool {
 
 func isCpCannotCopyDir(err error) bool {
 	return strings.Contains(err.Error(), archive.ErrCannotCopyDir.Error())
-}
-
-func isCpCannotCopyReadOnly(err error) bool {
-	return strings.Contains(err.Error(), "marked read-only")
 }
 
 func fileContentEquals(c *testing.T, filename, contents string) error {

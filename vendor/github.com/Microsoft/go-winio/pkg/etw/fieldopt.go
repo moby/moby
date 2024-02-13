@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package etw
@@ -481,7 +482,7 @@ func SmartField(name string, v interface{}) FieldOpt {
 		case reflect.Int32:
 			return SmartField(name, int32(rv.Int()))
 		case reflect.Int64:
-			return SmartField(name, int64(rv.Int()))
+			return SmartField(name, int64(rv.Int())) //nolint:unconvert // make look consistent
 		case reflect.Uint:
 			return SmartField(name, uint(rv.Uint()))
 		case reflect.Uint8:
@@ -491,13 +492,13 @@ func SmartField(name string, v interface{}) FieldOpt {
 		case reflect.Uint32:
 			return SmartField(name, uint32(rv.Uint()))
 		case reflect.Uint64:
-			return SmartField(name, uint64(rv.Uint()))
+			return SmartField(name, uint64(rv.Uint())) //nolint:unconvert // make look consistent
 		case reflect.Uintptr:
 			return SmartField(name, uintptr(rv.Uint()))
 		case reflect.Float32:
 			return SmartField(name, float32(rv.Float()))
 		case reflect.Float64:
-			return SmartField(name, float64(rv.Float()))
+			return SmartField(name, float64(rv.Float())) //nolint:unconvert // make look consistent
 		case reflect.String:
 			return SmartField(name, rv.String())
 		case reflect.Struct:
@@ -509,6 +510,9 @@ func SmartField(name string, v interface{}) FieldOpt {
 				}
 			}
 			return Struct(name, fields...)
+		case reflect.Array, reflect.Chan, reflect.Complex128, reflect.Complex64,
+			reflect.Func, reflect.Interface, reflect.Invalid, reflect.Map, reflect.Ptr,
+			reflect.Slice, reflect.UnsafePointer:
 		}
 	}
 

@@ -33,7 +33,7 @@ func TestJsonContentType(t *testing.T) {
 
 func TestReadJSON(t *testing.T) {
 	t.Run("nil body", func(t *testing.T) {
-		req, err := http.NewRequest("POST", "https://example.com/some/path", nil)
+		req, err := http.NewRequest(http.MethodPost, "https://example.com/some/path", nil)
 		if err != nil {
 			t.Error(err)
 		}
@@ -45,7 +45,7 @@ func TestReadJSON(t *testing.T) {
 	})
 
 	t.Run("empty body", func(t *testing.T) {
-		req, err := http.NewRequest("POST", "https://example.com/some/path", strings.NewReader(""))
+		req, err := http.NewRequest(http.MethodPost, "https://example.com/some/path", strings.NewReader(""))
 		if err != nil {
 			t.Error(err)
 		}
@@ -60,7 +60,7 @@ func TestReadJSON(t *testing.T) {
 	})
 
 	t.Run("with valid request", func(t *testing.T) {
-		req, err := http.NewRequest("POST", "https://example.com/some/path", strings.NewReader(`{"SomeField":"some value"}`))
+		req, err := http.NewRequest(http.MethodPost, "https://example.com/some/path", strings.NewReader(`{"SomeField":"some value"}`))
 		if err != nil {
 			t.Error(err)
 		}
@@ -75,7 +75,7 @@ func TestReadJSON(t *testing.T) {
 		}
 	})
 	t.Run("with whitespace", func(t *testing.T) {
-		req, err := http.NewRequest("POST", "https://example.com/some/path", strings.NewReader(`
+		req, err := http.NewRequest(http.MethodPost, "https://example.com/some/path", strings.NewReader(`
 
 	{"SomeField":"some value"}
 
@@ -95,7 +95,7 @@ func TestReadJSON(t *testing.T) {
 	})
 
 	t.Run("with extra content", func(t *testing.T) {
-		req, err := http.NewRequest("POST", "https://example.com/some/path", strings.NewReader(`{"SomeField":"some value"} and more content`))
+		req, err := http.NewRequest(http.MethodPost, "https://example.com/some/path", strings.NewReader(`{"SomeField":"some value"} and more content`))
 		if err != nil {
 			t.Error(err)
 		}
@@ -112,7 +112,7 @@ func TestReadJSON(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
-		req, err := http.NewRequest("POST", "https://example.com/some/path", strings.NewReader(`{invalid json`))
+		req, err := http.NewRequest(http.MethodPost, "https://example.com/some/path", strings.NewReader(`{invalid json`))
 		if err != nil {
 			t.Error(err)
 		}

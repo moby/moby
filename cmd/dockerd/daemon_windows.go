@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -19,13 +19,15 @@ func getDefaultDaemonConfigFile() (string, error) {
 	return "", nil
 }
 
-// setDefaultUmask doesn't do anything on windows
-func setDefaultUmask() error {
+// loadCLIPlatformConfig loads the platform specific CLI configuration
+// there is none on windows, so this is a no-op
+func loadCLIPlatformConfig(conf *config.Config) error {
 	return nil
 }
 
-func getDaemonConfDir(root string) (string, error) {
-	return filepath.Join(root, "config"), nil
+// setDefaultUmask doesn't do anything on windows
+func setDefaultUmask() error {
+	return nil
 }
 
 // preNotifyReady sends a message to the host when the API is active, but before the daemon is
@@ -35,7 +37,7 @@ func preNotifyReady() {
 	if service != nil {
 		err := service.started()
 		if err != nil {
-			logrus.Fatal(err)
+			log.G(context.TODO()).Fatal(err)
 		}
 	}
 }
@@ -52,7 +54,7 @@ func notifyStopping() {
 func notifyShutdown(err error) {
 	if service != nil {
 		if err != nil {
-			logrus.Fatal(err)
+			log.G(context.TODO()).Fatal(err)
 		}
 		service.stopped(err)
 	}
@@ -78,7 +80,7 @@ func (cli *DaemonCli) setupConfigReloadTrap() {
 		event := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
 		ev, _ := windows.UTF16PtrFromString(event)
 		if h, _ := windows.CreateEvent(&sa, 0, 0, ev); h != 0 {
-			logrus.Debugf("Config reload - waiting signal at %s", event)
+			log.G(context.TODO()).Debugf("Config reload - waiting signal at %s", event)
 			for {
 				windows.WaitForSingleObject(h, windows.INFINITE)
 				cli.reloadConfig()

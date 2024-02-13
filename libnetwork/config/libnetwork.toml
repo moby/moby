@@ -1,9 +1,0 @@
-title = "LibNetwork Configuration file"
-
-[daemon]
-  debug = false
-[cluster]
-  discovery = "token://swarm-discovery-token"
-  Address = "Cluster-wide reachable Host IP"
-[datastore]
-  embedded = false

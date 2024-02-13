@@ -6,6 +6,7 @@
 
 # Ignore vscode setting files
 .vscode/
+.idea/
 
 # Test binary, build with `go test -c`
 *.test
@@ -23,16 +24,30 @@ service/pkg/
 *.img
 *.vhd
 *.tar.gz
+*.tar
 
 # Make stuff
 .rootfs-done
 bin/*
 rootfs/*
+rootfs-conv/*
 *.o
 /build/
 
 deps/*
 out/*
 
-.idea/
-.vscode/
+# protobuf files
+# only files at root of the repo, otherwise this will cause issues with vendoring
+/protobuf/*
+
+# test results
+test/results
+
+# go workspace files
+go.work
+go.work.sum
+
+# keys and related artifacts
+*.pem
+*.cose

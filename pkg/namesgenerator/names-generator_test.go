@@ -23,7 +23,6 @@ func TestNameRetries(t *testing.T) {
 	if !strings.ContainsAny(name, "0123456789") {
 		t.Fatalf("Generated name doesn't contain a number")
 	}
-
 }
 
 func BenchmarkGetRandomName(b *testing.B) {

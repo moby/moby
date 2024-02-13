@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.19
+
 // Package options provides a way to pass unstructured sets of options to a
 // component expecting a strongly-typed configuration structure.
 package options
@@ -42,12 +45,7 @@ func (e TypeMismatchError) Error() string {
 }
 
 // Generic is a basic type to store arbitrary settings.
-type Generic map[string]interface{}
-
-// NewGeneric returns a new Generic instance.
-func NewGeneric() Generic {
-	return make(Generic)
-}
+type Generic map[string]any
 
 // GenerateFromModel takes the generic options, and tries to build a new
 // instance of the model's type by matching keys from the generic options to

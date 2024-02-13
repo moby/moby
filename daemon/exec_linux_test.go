@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package daemon
 
@@ -10,7 +9,6 @@ import (
 	"github.com/containerd/containerd/pkg/apparmor"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/config"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"gotest.tools/v3/assert"
 )
@@ -51,7 +49,9 @@ func TestExecSetPlatformOptAppArmor(t *testing.T) {
 		},
 	}
 
-	d := &Daemon{configStore: &config.Config{}}
+	cfg := &configStore{}
+	d := &Daemon{}
+	d.configStore.Store(cfg)
 
 	// Currently, `docker exec --privileged` inherits the Privileged configuration
 	// of the container, and does not disable AppArmor.
@@ -74,7 +74,7 @@ func TestExecSetPlatformOptAppArmor(t *testing.T) {
 			}
 			t.Run(doc, func(t *testing.T) {
 				c := &container.Container{
-					AppArmorProfile: tc.appArmorProfile,
+					SecurityOptions: container.SecurityOptions{AppArmorProfile: tc.appArmorProfile},
 					HostConfig: &containertypes.HostConfig{
 						Privileged: tc.privileged,
 					},
@@ -82,7 +82,7 @@ func TestExecSetPlatformOptAppArmor(t *testing.T) {
 				ec := &container.ExecConfig{Container: c, Privileged: execPrivileged}
 				p := &specs.Process{}
 
-				err := d.execSetPlatformOpt(context.Background(), ec, p)
+				err := d.execSetPlatformOpt(context.Background(), &cfg.Config, ec, p)
 				assert.NilError(t, err)
 				assert.Equal(t, p.ApparmorProfile, tc.expectedProfile)
 			})

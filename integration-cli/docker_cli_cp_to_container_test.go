@@ -411,9 +411,7 @@ func (s *DockerCLICpSuite) TestCpToErrReadOnlyRootfs(c *testing.T) {
 	dstPath := containerCpPath(containerID, "/root/shouldNotExist")
 
 	err := runDockerCp(c, srcPath, dstPath)
-	assert.ErrorContains(c, err, "")
-
-	assert.Assert(c, isCpCannotCopyReadOnly(err), "expected ErrContainerRootfsReadonly error, but got %T: %s", err, err)
+	assert.ErrorContains(c, err, "marked read-only")
 	assert.NilError(c, containerStartOutputEquals(c, containerID, ""), "dstPath should not have existed")
 }
 
@@ -436,8 +434,7 @@ func (s *DockerCLICpSuite) TestCpToErrReadOnlyVolume(c *testing.T) {
 	dstPath := containerCpPath(containerID, "/vol_ro/shouldNotExist")
 
 	err := runDockerCp(c, srcPath, dstPath)
-	assert.ErrorContains(c, err, "")
+	assert.ErrorContains(c, err, "marked read-only")
 
-	assert.Assert(c, isCpCannotCopyReadOnly(err), "expected ErrVolumeReadonly error, but got %T: %s", err, err)
 	assert.NilError(c, containerStartOutputEquals(c, containerID, ""), "dstPath should not have existed")
 }

@@ -1,0 +1,13 @@
+{
+  "name": "moby",
+  "build": {
+    "context": "..",
+    "dockerfile": "../Dockerfile",
+    "target": "dev"
+  },
+  "workspaceFolder": "/go/src/github.com/docker/docker",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/go/src/github.com/docker/docker,type=bind,consistency=cached",
+
+  "remoteUser": "root",
+  "runArgs": ["--privileged"]
+}

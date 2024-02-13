@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package journald // import "github.com/docker/docker/daemon/logger/journald"
 
@@ -63,7 +62,7 @@ type journald struct {
 	// Overrides for unit tests.
 
 	sendToJournal   func(message string, priority journal.Priority, vars map[string]string) error
-	journalReadDir  string //nolint:structcheck,unused // Referenced in read.go, which has more restrictive build constraints.
+	journalReadDir  string //nolint:unused // Referenced in read.go, which has more restrictive build constraints.
 	readSyncTimeout time.Duration
 }
 
@@ -76,7 +75,7 @@ func init() {
 	}
 }
 
-// sanitizeKeyMode returns the sanitized string so that it could be used in journald.
+// sanitizeKeyMod returns the sanitized string so that it could be used in journald.
 // In journald log, there are special requirements for fields.
 // Fields must be composed of uppercase letters, numbers, and underscores, but must
 // not start with an underscore.

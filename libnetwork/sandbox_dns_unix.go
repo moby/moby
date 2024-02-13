@@ -1,33 +1,56 @@
 //go:build !windows
-// +build !windows
 
 package libnetwork
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/etchosts"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 const (
 	defaultPrefix = "/var/lib/docker/network/files"
-	dirPerm       = 0755
-	filePerm      = 0644
+	dirPerm       = 0o755
+	filePerm      = 0o644
+
+	resolverIPSandbox = "127.0.0.11"
 )
 
-func (sb *sandbox) startResolver(restore bool) {
+// finishInitDNS is to be called after the container namespace has been created,
+// before it the user process is started. The container's support for IPv6 can be
+// determined at this point.
+func (sb *Sandbox) finishInitDNS() error {
+	if err := sb.buildHostsFile(); err != nil {
+		return errdefs.System(err)
+	}
+	for _, ep := range sb.Endpoints() {
+		if err := sb.updateHostsFile(ep.getEtcHostsAddrs()); err != nil {
+			return errdefs.System(err)
+		}
+	}
+	return nil
+}
+
+func (sb *Sandbox) startResolver(restore bool) {
 	sb.resolverOnce.Do(func() {
 		var err error
-		sb.resolver = NewResolver(resolverIPSandbox, true, sb.Key(), sb)
+		// The embedded resolver is always started with proxyDNS set as true, even when the sandbox is only attached to
+		// an internal network. This way, it's the driver responsibility to make sure `connect` syscall fails fast when
+		// no external connectivity is available (eg. by not setting a default gateway).
+		sb.resolver = NewResolver(resolverIPSandbox, true, sb)
 		defer func() {
 			if err != nil {
 				sb.resolver = nil
@@ -41,45 +64,42 @@ func (sb *sandbox) startResolver(restore bool) {
 		if !restore {
 			err = sb.rebuildDNS()
 			if err != nil {
-				logrus.Errorf("Updating resolv.conf failed for container %s, %q", sb.ContainerID(), err)
+				log.G(context.TODO()).Errorf("Updating resolv.conf failed for container %s, %q", sb.ContainerID(), err)
 				return
 			}
 		}
 		sb.resolver.SetExtServers(sb.extDNS)
 
 		if err = sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err != nil {
-			logrus.Errorf("Resolver Setup function failed for container %s, %q", sb.ContainerID(), err)
+			log.G(context.TODO()).Errorf("Resolver Setup function failed for container %s, %q", sb.ContainerID(), err)
 			return
 		}
 
 		if err = sb.resolver.Start(); err != nil {
-			logrus.Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+			log.G(context.TODO()).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
 		}
 	})
 }
 
-func (sb *sandbox) setupResolutionFiles() error {
-	if err := sb.buildHostsFile(); err != nil {
+func (sb *Sandbox) setupResolutionFiles() error {
+	// Create a hosts file that can be mounted during container setup. For most
+	// networking modes (not host networking) it will be re-created before the
+	// container start, once its support for IPv6 is known.
+	if sb.config.hostsPath == "" {
+		sb.config.hostsPath = defaultPrefix + "/" + sb.id + "/hosts"
+	}
+	dir, _ := filepath.Split(sb.config.hostsPath)
+	if err := createBasePath(dir); err != nil {
 		return err
 	}
-
-	if err := sb.updateParentHosts(); err != nil {
+	if err := sb.buildHostsFile(); err != nil {
 		return err
 	}
 
 	return sb.setupDNS()
 }
 
-func (sb *sandbox) buildHostsFile() error {
-	if sb.config.hostsPath == "" {
-		sb.config.hostsPath = defaultPrefix + "/" + sb.id + "/hosts"
-	}
-
-	dir, _ := filepath.Split(sb.config.hostsPath)
-	if err := createBasePath(dir); err != nil {
-		return err
-	}
-
+func (sb *Sandbox) buildHostsFile() error {
 	// This is for the host mode networking
 	if sb.config.useDefaultSandBox && len(sb.config.extraHosts) == 0 {
 		// We are working under the assumption that the origin file option had been properly expressed by the upper layer
@@ -95,10 +115,19 @@ func (sb *sandbox) buildHostsFile() error {
 		extraContent = append(extraContent, etchosts.Record{Hosts: extraHost.name, IP: extraHost.IP})
 	}
 
-	return etchosts.Build(sb.config.hostsPath, "", sb.config.hostName, sb.config.domainName, extraContent)
+	// Assume IPv6 support, unless it's definitely disabled.
+	buildf := etchosts.Build
+	if en, ok := sb.ipv6Enabled(); ok && !en {
+		buildf = etchosts.BuildNoIPv6
+	}
+	if err := buildf(sb.config.hostsPath, extraContent); err != nil {
+		return err
+	}
+
+	return sb.updateParentHosts()
 }
 
-func (sb *sandbox) updateHostsFile(ifaceIPs []string) error {
+func (sb *Sandbox) updateHostsFile(ifaceIPs []string) error {
 	if len(ifaceIPs) == 0 {
 		return nil
 	}
@@ -110,46 +139,68 @@ func (sb *sandbox) updateHostsFile(ifaceIPs []string) error {
 	// User might have provided a FQDN in hostname or split it across hostname
 	// and domainname.  We want the FQDN and the bare hostname.
 	fqdn := sb.config.hostName
-	mhost := sb.config.hostName
 	if sb.config.domainName != "" {
-		fqdn = fmt.Sprintf("%s.%s", fqdn, sb.config.domainName)
+		fqdn += "." + sb.config.domainName
 	}
+	hosts := fqdn
 
-	parts := strings.SplitN(fqdn, ".", 2)
-	if len(parts) == 2 {
-		mhost = fmt.Sprintf("%s %s", fqdn, parts[0])
+	if hostName, _, ok := strings.Cut(fqdn, "."); ok {
+		hosts += " " + hostName
 	}
 
 	var extraContent []etchosts.Record
 	for _, ip := range ifaceIPs {
-		extraContent = append(extraContent, etchosts.Record{Hosts: mhost, IP: ip})
+		extraContent = append(extraContent, etchosts.Record{Hosts: hosts, IP: ip})
 	}
 
 	sb.addHostsEntries(extraContent)
 	return nil
 }
 
-func (sb *sandbox) addHostsEntries(recs []etchosts.Record) {
+func (sb *Sandbox) addHostsEntries(recs []etchosts.Record) {
+	// Assume IPv6 support, unless it's definitely disabled.
+	if en, ok := sb.ipv6Enabled(); ok && !en {
+		var filtered []etchosts.Record
+		for _, rec := range recs {
+			if addr, err := netip.ParseAddr(rec.IP); err == nil && !addr.Is6() {
+				filtered = append(filtered, rec)
+			}
+		}
+		recs = filtered
+	}
 	if err := etchosts.Add(sb.config.hostsPath, recs); err != nil {
-		logrus.Warnf("Failed adding service host entries to the running container: %v", err)
+		log.G(context.TODO()).Warnf("Failed adding service host entries to the running container: %v", err)
 	}
 }
 
-func (sb *sandbox) deleteHostsEntries(recs []etchosts.Record) {
+func (sb *Sandbox) deleteHostsEntries(recs []etchosts.Record) {
 	if err := etchosts.Delete(sb.config.hostsPath, recs); err != nil {
-		logrus.Warnf("Failed deleting service host entries to the running container: %v", err)
+		log.G(context.TODO()).Warnf("Failed deleting service host entries to the running container: %v", err)
 	}
 }
 
-func (sb *sandbox) updateParentHosts() error {
-	var pSb Sandbox
+func (sb *Sandbox) updateParentHosts() error {
+	var pSb *Sandbox
 
 	for _, update := range sb.config.parentUpdates {
-		sb.controller.WalkSandboxes(SandboxContainerWalker(&pSb, update.cid))
+		// TODO(thaJeztah): was it intentional for this loop to re-use prior results of pSB? If not, we should make pSb local and always replace here.
+		if s, _ := sb.controller.GetSandbox(update.cid); s != nil {
+			pSb = s
+		}
 		if pSb == nil {
 			continue
 		}
-		if err := etchosts.Update(pSb.(*sandbox).config.hostsPath, update.ip, update.name); err != nil {
+		// TODO(robmry) - filter out IPv6 addresses here if !sb.ipv6Enabled() but...
+		// - this is part of the implementation of '--link', which will be removed along
+		//   with the rest of legacy networking.
+		// - IPv6 addresses shouldn't be allocated if IPv6 is not available in a container,
+		//   and that change will come along later.
+		// - I think this may be dead code, it's not possible to start a parent container with
+		//   '--link child' unless the child has already started ("Error response from daemon:
+		//   Cannot link to a non running container"). So, when the child starts and this method
+		//   is called with updates for parents, the parents aren't running and GetSandbox()
+		//   returns nil.)
+		if err := etchosts.Update(pSb.config.hostsPath, update.ip, update.name); err != nil {
 			return err
 		}
 	}
@@ -157,7 +208,7 @@ func (sb *sandbox) updateParentHosts() error {
 	return nil
 }
 
-func (sb *sandbox) restorePath() {
+func (sb *Sandbox) restorePath() {
 	if sb.config.resolvConfPath == "" {
 		sb.config.resolvConfPath = defaultPrefix + "/" + sb.id + "/resolv.conf"
 	}
@@ -167,7 +218,7 @@ func (sb *sandbox) restorePath() {
 	}
 }
 
-func (sb *sandbox) setExternalResolvers(content []byte, addrType int, checkLoopback bool) {
+func (sb *Sandbox) setExternalResolvers(content []byte, addrType int, checkLoopback bool) {
 	servers := resolvconf.GetNameservers(content, addrType)
 	for _, ip := range servers {
 		hostLoopback := false
@@ -193,9 +244,7 @@ func isIPv4Loopback(ipAddress string) bool {
 	return false
 }
 
-func (sb *sandbox) setupDNS() error {
-	var newRC *resolvconf.File
-
+func (sb *Sandbox) setupDNS() error {
 	if sb.config.resolvConfPath == "" {
 		sb.config.resolvConfPath = defaultPrefix + "/" + sb.id + "/resolv.conf"
 	}
@@ -209,16 +258,14 @@ func (sb *sandbox) setupDNS() error {
 
 	// When the user specify a conainter in the host namespace and do no have any dns option specified
 	// we just copy the host resolv.conf from the host itself
-	if sb.config.useDefaultSandBox &&
-		len(sb.config.dnsList) == 0 && len(sb.config.dnsSearchList) == 0 && len(sb.config.dnsOptionsList) == 0 {
-
+	if sb.config.useDefaultSandBox && len(sb.config.dnsList) == 0 && len(sb.config.dnsSearchList) == 0 && len(sb.config.dnsOptionsList) == 0 {
 		// We are working under the assumption that the origin file option had been properly expressed by the upper layer
 		// if not here we are going to error out
 		if err := copyFile(sb.config.originResolvConfPath, sb.config.resolvConfPath); err != nil {
 			if !os.IsNotExist(err) {
 				return fmt.Errorf("could not copy source resolv.conf file %s to %s: %v", sb.config.originResolvConfPath, sb.config.resolvConfPath, err)
 			}
-			logrus.Infof("%s does not exist, we create an empty resolv.conf for container", sb.config.originResolvConfPath)
+			log.G(context.TODO()).Infof("%s does not exist, we create an empty resolv.conf for container", sb.config.originResolvConfPath)
 			if err := createFile(sb.config.resolvConfPath); err != nil {
 				return err
 			}
@@ -231,32 +278,30 @@ func (sb *sandbox) setupDNS() error {
 		// fallback if not specified
 		originResolvConfPath = resolvconf.Path()
 	}
-	currRC, err := resolvconf.GetSpecific(originResolvConfPath)
+	currRC, err := os.ReadFile(originResolvConfPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
-		// it's ok to continue if /etc/resolv.conf doesn't exist, default resolvers (Google's Public DNS)
-		// will be used
-		currRC = &resolvconf.File{}
-		logrus.Infof("/etc/resolv.conf does not exist")
+		// No /etc/resolv.conf found: we'll use the default resolvers (Google's Public DNS).
+		log.G(context.TODO()).WithField("path", originResolvConfPath).Infof("no resolv.conf found, falling back to defaults")
 	}
 
+	var newRC *resolvconf.File
 	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
 		var (
-			err            error
-			dnsList        = resolvconf.GetNameservers(currRC.Content, resolvconf.IP)
-			dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
-			dnsOptionsList = resolvconf.GetOptions(currRC.Content)
-		)
-		if len(sb.config.dnsList) > 0 {
-			dnsList = sb.config.dnsList
-		}
-		if len(sb.config.dnsSearchList) > 0 {
-			dnsSearchList = sb.config.dnsSearchList
-		}
-		if len(sb.config.dnsOptionsList) > 0 {
+			dnsList        = sb.config.dnsList
+			dnsSearchList  = sb.config.dnsSearchList
 			dnsOptionsList = sb.config.dnsOptionsList
+		)
+		if len(sb.config.dnsList) == 0 {
+			dnsList = resolvconf.GetNameservers(currRC, resolvconf.IP)
+		}
+		if len(sb.config.dnsSearchList) == 0 {
+			dnsSearchList = resolvconf.GetSearchDomains(currRC)
+		}
+		if len(sb.config.dnsOptionsList) == 0 {
+			dnsOptionsList = resolvconf.GetOptions(currRC)
 		}
 		newRC, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
 		if err != nil {
@@ -265,38 +310,36 @@ func (sb *sandbox) setupDNS() error {
 		// After building the resolv.conf from the user config save the
 		// external resolvers in the sandbox. Note that --dns 127.0.0.x
 		// config refers to the loopback in the container namespace
-		sb.setExternalResolvers(newRC.Content, resolvconf.IPv4, false)
+		sb.setExternalResolvers(newRC.Content, resolvconf.IPv4, len(sb.config.dnsList) == 0)
 	} else {
 		// If the host resolv.conf file has 127.0.0.x container should
 		// use the host resolver for queries. This is supported by the
 		// docker embedded DNS server. Hence save the external resolvers
 		// before filtering it out.
-		sb.setExternalResolvers(currRC.Content, resolvconf.IPv4, true)
+		sb.setExternalResolvers(currRC, resolvconf.IPv4, true)
 
 		// Replace any localhost/127.* (at this point we have no info about ipv6, pass it as true)
-		if newRC, err = resolvconf.FilterResolvDNS(currRC.Content, true); err != nil {
+		newRC, err = resolvconf.FilterResolvDNS(currRC, true)
+		if err != nil {
 			return err
 		}
 		// No contention on container resolv.conf file at sandbox creation
-		if err := os.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm); err != nil {
+		err = os.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm)
+		if err != nil {
 			return types.InternalErrorf("failed to write unhaltered resolv.conf file content when setting up dns for sandbox %s: %v", sb.ID(), err)
 		}
 	}
 
 	// Write hash
-	if err := os.WriteFile(sb.config.resolvConfHashFile, []byte(newRC.Hash), filePerm); err != nil {
+	err = os.WriteFile(sb.config.resolvConfHashFile, newRC.Hash, filePerm)
+	if err != nil {
 		return types.InternalErrorf("failed to write resolv.conf hash file when setting up dns for sandbox %s: %v", sb.ID(), err)
 	}
 
 	return nil
 }
 
-func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
-	var (
-		currHash string
-		hashFile = sb.config.resolvConfHashFile
-	)
-
+func (sb *Sandbox) updateDNS(ipv6Enabled bool) error {
 	// This is for the host mode networking
 	if sb.config.useDefaultSandBox {
 		return nil
@@ -306,26 +349,23 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 		return nil
 	}
 
+	var currHash []byte
 	currRC, err := resolvconf.GetSpecific(sb.config.resolvConfPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
 	} else {
-		h, err := os.ReadFile(hashFile)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return err
-			}
-		} else {
-			currHash = string(h)
+		currHash, err = os.ReadFile(sb.config.resolvConfHashFile)
+		if err != nil && !os.IsNotExist(err) {
+			return err
 		}
 	}
 
-	if currHash != "" && currHash != currRC.Hash {
+	if len(currHash) > 0 && !bytes.Equal(currHash, currRC.Hash) {
 		// Seems the user has changed the container resolv.conf since the last time
 		// we checked so return without doing anything.
-		//logrus.Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
+		// log.G(ctx).Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
 		return nil
 	}
 
@@ -334,7 +374,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644) //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
+	err = os.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm)
 	if err != nil {
 		return err
 	}
@@ -349,42 +389,31 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 		tmpHashFile.Close()
 		return err
 	}
-	_, err = tmpHashFile.Write([]byte(newRC.Hash))
+	_, err = tmpHashFile.Write(newRC.Hash)
 	if err1 := tmpHashFile.Close(); err == nil {
 		err = err1
 	}
 	if err != nil {
 		return err
 	}
-	return os.Rename(tmpHashFile.Name(), hashFile)
+	return os.Rename(tmpHashFile.Name(), sb.config.resolvConfHashFile)
 }
 
 // Embedded DNS server has to be enabled for this sandbox. Rebuild the container's
 // resolv.conf by doing the following
 // - Add only the embedded server's IP to container's resolv.conf
 // - If the embedded server needs any resolv.conf options add it to the current list
-func (sb *sandbox) rebuildDNS() error {
-	currRC, err := resolvconf.GetSpecific(sb.config.resolvConfPath)
+func (sb *Sandbox) rebuildDNS() error {
+	currRC, err := os.ReadFile(sb.config.resolvConfPath)
 	if err != nil {
 		return err
 	}
-
-	if len(sb.extDNS) == 0 {
-		sb.setExternalResolvers(currRC.Content, resolvconf.IPv4, false)
-	}
-	var (
-		dnsList        = []string{sb.resolver.NameServer()}
-		dnsOptionsList = resolvconf.GetOptions(currRC.Content)
-		dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
-	)
-
-	// external v6 DNS servers has to be listed in resolv.conf
-	dnsList = append(dnsList, resolvconf.GetNameservers(currRC.Content, resolvconf.IPv6)...)
 
 	// If the user config and embedded DNS server both have ndots option set,
 	// remember the user's config so that unqualified names not in the docker
 	// domain can be dropped.
 	resOptions := sb.resolver.ResolverOptions()
+	dnsOptionsList := resolvconf.GetOptions(currRC)
 
 dnsOpt:
 	for _, resOpt := range resOptions {
@@ -414,6 +443,15 @@ dnsOpt:
 		// Ref: https://linux.die.net/man/5/resolv.conf
 		dnsOptionsList = append(dnsOptionsList, resOptions...)
 	}
+	if len(sb.extDNS) == 0 {
+		sb.setExternalResolvers(currRC, resolvconf.IPv4, false)
+	}
+
+	var (
+		// external v6 DNS servers have to be listed in resolv.conf
+		dnsList       = append([]string{sb.resolver.NameServer()}, resolvconf.GetNameservers(currRC, resolvconf.IPv6)...)
+		dnsSearchList = resolvconf.GetSearchDomains(currRC)
+	)
 
 	_, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
 	return err

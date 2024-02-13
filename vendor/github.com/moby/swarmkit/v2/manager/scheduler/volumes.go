@@ -50,9 +50,11 @@ func newVolumeSet() *volumeSet {
 	}
 }
 
+// getVolume returns the volume object for the given ID as stored in the
+// volumeSet, or nil if none exists.
+//
+//nolint:unused // TODO(thaJeztah) this is currently unused: is it safe to remove?
 func (vs *volumeSet) getVolume(id string) *api.Volume {
-	// getVolume returns the volume object for the given ID as stored in the
-	// volumeSet, or nil if none exists
 	return vs.volumes[id].volume
 }
 
@@ -77,6 +79,7 @@ func (vs *volumeSet) addOrUpdateVolume(v *api.Volume) {
 	vs.byName[v.Spec.Annotations.Name] = v.ID
 }
 
+//nolint:unused // only used in tests.
 func (vs *volumeSet) removeVolume(volumeID string) {
 	if info, ok := vs.volumes[volumeID]; ok {
 		// if the volume exists in the set, look up its group ID and remove it
@@ -180,24 +183,33 @@ func (vs *volumeSet) releaseVolume(volumeID, taskID string) {
 //
 // TODO(dperny): this is messy and has a lot of overhead. it should be reworked
 // to something more streamlined.
-func (vs *volumeSet) freeVolumes(tx store.Tx) error {
+func (vs *volumeSet) freeVolumes(batch *store.Batch) error {
 	for volumeID, info := range vs.volumes {
-		v := store.GetVolume(tx, volumeID)
-		if v == nil {
-			continue
-		}
+		if err := batch.Update(func(tx store.Tx) error {
+			v := store.GetVolume(tx, volumeID)
+			if v == nil {
+				return nil
+			}
 
-		changed := false
-		for _, status := range v.PublishStatus {
-			if info.nodes[status.NodeID] == 0 && status.State == api.VolumePublishStatus_PUBLISHED {
-				status.State = api.VolumePublishStatus_PENDING_NODE_UNPUBLISH
-				changed = true
+			// when we are freeing a volume, we may update more than one of the
+			// volume's PublishStatuses. this means we can't simply put the
+			// Update call inside of the if statement; we need to know if we've
+			// changed anything once we've checked *all* of the statuses.
+			changed := false
+			for _, status := range v.PublishStatus {
+				if info.nodes[status.NodeID] == 0 && status.State == api.VolumePublishStatus_PUBLISHED {
+					status.State = api.VolumePublishStatus_PENDING_NODE_UNPUBLISH
+					changed = true
+				}
 			}
-		}
-		if changed {
-			if err := store.UpdateVolume(tx, v); err != nil {
-				return err
+			if changed {
+				if err := store.UpdateVolume(tx, v); err != nil {
+					return err
+				}
 			}
+			return nil
+		}); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -300,11 +312,7 @@ func (vs *volumeSet) checkVolume(id string, info *NodeInfo, readOnly bool) bool 
 	// then, do the quick check of whether this volume is in the topology.  if
 	// the volume has an AccessibleTopology, and it does not lie within the
 	// node's topology, then this volume won't fit.
-	if !IsInTopology(top, vi.volume.VolumeInfo.AccessibleTopology) {
-		return false
-	}
-
-	return true
+	return IsInTopology(top, vi.volume.VolumeInfo.AccessibleTopology)
 }
 
 // hasWriter is a helper function that returns true if at least one task is

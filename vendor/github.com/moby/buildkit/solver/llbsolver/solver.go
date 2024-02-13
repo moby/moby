@@ -2,16 +2,23 @@ package llbsolver
 
 import (
 	"context"
-	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
+	intoto "github.com/in-toto/in-toto-golang/in_toto"
+	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
+	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/cache"
 	cacheconfig "github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/client"
 	controlgateway "github.com/moby/buildkit/control/gateway"
+	"github.com/moby/buildkit/executor/resources"
+	resourcetypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
@@ -19,26 +26,58 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
-	"github.com/moby/buildkit/util/buildinfo"
+	"github.com/moby/buildkit/solver/llbsolver/provenance"
+	"github.com/moby/buildkit/solver/result"
+	spb "github.com/moby/buildkit/sourcepolicy/pb"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/entitlements"
+	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/buildkit/util/tracing/detect"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-const keyEntitlements = "llb.entitlements"
+const (
+	keyEntitlements = "llb.entitlements"
+	keySourcePolicy = "llb.sourcepolicy"
+)
 
 type ExporterRequest struct {
-	Exporter        exporter.ExporterInstance
-	CacheExporter   remotecache.Exporter
-	CacheExportMode solver.CacheExportMode
+	Type           string
+	Attrs          map[string]string
+	Exporter       exporter.ExporterInstance
+	CacheExporters []RemoteCacheExporter
+}
+
+type RemoteCacheExporter struct {
+	remotecache.Exporter
+	solver.CacheExportMode
+	IgnoreError bool
 }
 
 // ResolveWorkerFunc returns default worker for the temporary default non-distributed use cases
 type ResolveWorkerFunc func() (worker.Worker, error)
+
+// Opt defines options for new Solver.
+type Opt struct {
+	CacheManager     solver.CacheManager
+	CacheResolvers   map[string]remotecache.ResolveCacheImporterFunc
+	Entitlements     []string
+	Frontends        map[string]frontend.Frontend
+	GatewayForwarder *controlgateway.GatewayForwarder
+	SessionManager   *session.Manager
+	WorkerController *worker.Controller
+	HistoryQueue     *HistoryQueue
+	ResourceMonitor  *resources.Monitor
+}
 
 type Solver struct {
 	workerController          *worker.Controller
@@ -50,23 +89,36 @@ type Solver struct {
 	gatewayForwarder          *controlgateway.GatewayForwarder
 	sm                        *session.Manager
 	entitlements              []string
+	history                   *HistoryQueue
+	sysSampler                *resources.Sampler[*resourcetypes.SysSample]
 }
 
-func New(wc *worker.Controller, f map[string]frontend.Frontend, cache solver.CacheManager, resolveCI map[string]remotecache.ResolveCacheImporterFunc, gatewayForwarder *controlgateway.GatewayForwarder, sm *session.Manager, ents []string) (*Solver, error) {
+// Processor defines a processing function to be applied after solving, but
+// before exporting
+type Processor func(ctx context.Context, result *Result, s *Solver, j *solver.Job, usage *resources.SysSampler) (*Result, error)
+
+func New(opt Opt) (*Solver, error) {
 	s := &Solver{
-		workerController:          wc,
-		resolveWorker:             defaultResolver(wc),
-		eachWorker:                allWorkers(wc),
-		frontends:                 f,
-		resolveCacheImporterFuncs: resolveCI,
-		gatewayForwarder:          gatewayForwarder,
-		sm:                        sm,
-		entitlements:              ents,
+		workerController:          opt.WorkerController,
+		resolveWorker:             defaultResolver(opt.WorkerController),
+		eachWorker:                allWorkers(opt.WorkerController),
+		frontends:                 opt.Frontends,
+		resolveCacheImporterFuncs: opt.CacheResolvers,
+		gatewayForwarder:          opt.GatewayForwarder,
+		sm:                        opt.SessionManager,
+		entitlements:              opt.Entitlements,
+		history:                   opt.HistoryQueue,
 	}
+
+	sampler, err := resources.NewSysSampler()
+	if err != nil {
+		return nil, err
+	}
+	s.sysSampler = sampler
 
 	s.solver = solver.NewSolver(solver.SolverOpt{
 		ResolveOpFunc: s.resolver(),
-		DefaultCache:  cache,
+		DefaultCache:  opt.CacheManager,
 	})
 	return s, nil
 }
@@ -81,8 +133,8 @@ func (s *Solver) resolver() solver.ResolveOpFunc {
 	}
 }
 
-func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
-	return &llbBridge{
+func (s *Solver) bridge(b solver.Builder) *provenanceBridge {
+	return &provenanceBridge{llbBridge: &llbBridge{
 		builder:                   b,
 		frontends:                 s.frontends,
 		resolveWorker:             s.resolveWorker,
@@ -90,10 +142,273 @@ func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
 		resolveCacheImporterFuncs: s.resolveCacheImporterFuncs,
 		cms:                       map[string]solver.CacheManager{},
 		sm:                        s.sm,
-	}
+	}}
 }
 
-func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req frontend.SolveRequest, exp ExporterRequest, ent []entitlements.Entitlement) (*client.SolveResponse, error) {
+func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
+	return s.bridge(b)
+}
+
+func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend.SolveRequest, exp ExporterRequest, j *solver.Job, usage *resources.SysSampler) (func(*Result, exporter.DescriptorReference, error) error, error) {
+	var stopTrace func() []tracetest.SpanStub
+
+	if s := trace.SpanFromContext(ctx); s.SpanContext().IsValid() {
+		if exp, err := detect.Exporter(); err == nil {
+			if rec, ok := exp.(*detect.TraceRecorder); ok {
+				stopTrace = rec.Record(s.SpanContext().TraceID())
+			}
+		}
+	}
+
+	st := time.Now()
+	rec := &controlapi.BuildHistoryRecord{
+		Ref:           id,
+		Frontend:      req.Frontend,
+		FrontendAttrs: req.FrontendOpt,
+		CreatedAt:     &st,
+	}
+
+	if exp.Type != "" {
+		rec.Exporters = []*controlapi.Exporter{{
+			Type:  exp.Type,
+			Attrs: exp.Attrs,
+		}}
+	}
+
+	if err := s.history.Update(ctx, &controlapi.BuildHistoryEvent{
+		Type:   controlapi.BuildHistoryEventType_STARTED,
+		Record: rec,
+	}); err != nil {
+		return nil, err
+	}
+
+	return func(res *Result, descref exporter.DescriptorReference, err error) error {
+		en := time.Now()
+		rec.CompletedAt = &en
+
+		j.CloseProgress()
+
+		if res != nil && len(res.Metadata) > 0 {
+			rec.ExporterResponse = map[string]string{}
+			for k, v := range res.Metadata {
+				rec.ExporterResponse[k] = string(v)
+			}
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+
+		var mu sync.Mutex
+		ch := make(chan *client.SolveStatus)
+		eg, ctx2 := errgroup.WithContext(ctx)
+		var releasers []func()
+
+		attrs := map[string]string{
+			"mode":          "max",
+			"capture-usage": "true",
+		}
+
+		makeProvenance := func(res solver.ResultProxy, cap *provenance.Capture) (*controlapi.Descriptor, func(), error) {
+			prc, err := NewProvenanceCreator(ctx2, cap, res, attrs, j, usage)
+			if err != nil {
+				return nil, nil, err
+			}
+			pr, err := prc.Predicate()
+			if err != nil {
+				return nil, nil, err
+			}
+			dt, err := json.MarshalIndent(pr, "", "  ")
+			if err != nil {
+				return nil, nil, err
+			}
+			w, err := s.history.OpenBlobWriter(ctx, intoto.PayloadType)
+			if err != nil {
+				return nil, nil, err
+			}
+			defer func() {
+				if w != nil {
+					w.Discard()
+				}
+			}()
+			if _, err := w.Write(dt); err != nil {
+				return nil, nil, err
+			}
+			desc, release, err := w.Commit(ctx2)
+			if err != nil {
+				return nil, nil, err
+			}
+			w = nil
+			return &controlapi.Descriptor{
+				Digest:    desc.Digest,
+				Size_:     desc.Size,
+				MediaType: desc.MediaType,
+				Annotations: map[string]string{
+					"in-toto.io/predicate-type": slsa02.PredicateSLSAProvenance,
+				},
+			}, release, nil
+		}
+
+		if res != nil {
+			if res.Ref != nil {
+				eg.Go(func() error {
+					desc, release, err := makeProvenance(res.Ref, res.Provenance.Ref)
+					if err != nil {
+						return err
+					}
+
+					mu.Lock()
+					releasers = append(releasers, release)
+					if rec.Result == nil {
+						rec.Result = &controlapi.BuildResultInfo{}
+					}
+					rec.Result.Attestations = append(rec.Result.Attestations, desc)
+					mu.Unlock()
+					return nil
+				})
+			}
+
+			for k, r := range res.Refs {
+				k, r := k, r
+				cp := res.Provenance.Refs[k]
+				eg.Go(func() error {
+					desc, release, err := makeProvenance(r, cp)
+					if err != nil {
+						return err
+					}
+
+					mu.Lock()
+					releasers = append(releasers, release)
+					if rec.Results == nil {
+						rec.Results = make(map[string]*controlapi.BuildResultInfo)
+					}
+					if rec.Results[k] == nil {
+						rec.Results[k] = &controlapi.BuildResultInfo{}
+					}
+					rec.Results[k].Attestations = append(rec.Results[k].Attestations, desc)
+					mu.Unlock()
+					return nil
+				})
+			}
+		}
+
+		eg.Go(func() error {
+			st, releaseStatus, err := s.history.ImportStatus(ctx2, ch)
+			if err != nil {
+				return err
+			}
+			mu.Lock()
+			releasers = append(releasers, releaseStatus)
+			rec.Logs = &controlapi.Descriptor{
+				Digest:    st.Descriptor.Digest,
+				Size_:     st.Descriptor.Size,
+				MediaType: st.Descriptor.MediaType,
+			}
+			rec.NumCachedSteps = int32(st.NumCachedSteps)
+			rec.NumCompletedSteps = int32(st.NumCompletedSteps)
+			rec.NumTotalSteps = int32(st.NumTotalSteps)
+			mu.Unlock()
+			return nil
+		})
+		eg.Go(func() error {
+			return j.Status(ctx2, ch)
+		})
+
+		if descref != nil {
+			eg.Go(func() error {
+				mu.Lock()
+				if rec.Result == nil {
+					rec.Result = &controlapi.BuildResultInfo{}
+				}
+				desc := descref.Descriptor()
+				rec.Result.Result = &controlapi.Descriptor{
+					Digest:      desc.Digest,
+					Size_:       desc.Size,
+					MediaType:   desc.MediaType,
+					Annotations: desc.Annotations,
+				}
+				mu.Unlock()
+				return nil
+			})
+		}
+
+		if err1 := eg.Wait(); err == nil {
+			err = err1
+		}
+
+		defer func() {
+			for _, f := range releasers {
+				f()
+			}
+		}()
+
+		if err != nil {
+			st, ok := grpcerrors.AsGRPCStatus(grpcerrors.ToGRPC(ctx, err))
+			if !ok {
+				st = status.New(codes.Unknown, err.Error())
+			}
+			rec.Error = grpcerrors.ToRPCStatus(st.Proto())
+		}
+		if err1 := s.history.Update(ctx, &controlapi.BuildHistoryEvent{
+			Type:   controlapi.BuildHistoryEventType_COMPLETE,
+			Record: rec,
+		}); err1 != nil {
+			if err == nil {
+				err = err1
+			}
+		}
+
+		if stopTrace == nil {
+			bklog.G(ctx).Warn("no trace recorder found, skipping")
+			return err
+		}
+		go func() {
+			time.Sleep(3 * time.Second)
+			spans := stopTrace()
+
+			if len(spans) == 0 {
+				return
+			}
+
+			if err := func() error {
+				w, err := s.history.OpenBlobWriter(context.TODO(), "application/vnd.buildkit.otlp.json.v0")
+				if err != nil {
+					return err
+				}
+				enc := json.NewEncoder(w)
+				enc.SetIndent("", "  ")
+				for _, sp := range spans {
+					if err := enc.Encode(sp); err != nil {
+						return err
+					}
+				}
+
+				desc, release, err := w.Commit(context.TODO())
+				if err != nil {
+					return err
+				}
+				defer release()
+
+				if err := s.history.UpdateRef(context.TODO(), id, func(rec *controlapi.BuildHistoryRecord) error {
+					rec.Trace = &controlapi.Descriptor{
+						Digest:    desc.Digest,
+						MediaType: desc.MediaType,
+						Size_:     desc.Size,
+					}
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				bklog.G(ctx).Errorf("failed to save trace for %s: %+v", id, err)
+			}
+		}()
+
+		return err
+	}, nil
+}
+
+func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req frontend.SolveRequest, exp ExporterRequest, ent []entitlements.Entitlement, post []Processor, internal bool, srcPol *spb.Policy) (_ *client.SolveResponse, err error) {
 	j, err := s.solver.NewJob(id)
 	if err != nil {
 		return nil, err
@@ -101,23 +416,72 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 
 	defer j.Discard()
 
+	var usage *resources.Sub[*resourcetypes.SysSample]
+	if s.sysSampler != nil {
+		usage = s.sysSampler.Record()
+		defer usage.Close(false)
+	}
+
+	var res *frontend.Result
+	var resProv *Result
+	var descref exporter.DescriptorReference
+
+	var releasers []func()
+	defer func() {
+		for _, f := range releasers {
+			f()
+		}
+		if descref != nil {
+			descref.Release()
+		}
+	}()
+
+	if internal {
+		defer j.CloseProgress()
+	}
+
 	set, err := entitlements.WhiteList(ent, supportedEntitlements(s.entitlements))
 	if err != nil {
 		return nil, err
 	}
 	j.SetValue(keyEntitlements, set)
 
+	if srcPol != nil {
+		if err := validateSourcePolicy(*srcPol); err != nil {
+			return nil, err
+		}
+		j.SetValue(keySourcePolicy, *srcPol)
+	}
+
 	j.SessionID = sessionID
 
-	var res *frontend.Result
+	br := s.bridge(j)
+	var fwd gateway.LLBBridgeForwarder
 	if s.gatewayForwarder != nil && req.Definition == nil && req.Frontend == "" {
-		fwd := gateway.NewBridgeForwarder(ctx, s.Bridge(j), s.workerController, req.FrontendInputs, sessionID, s.sm)
+		fwd = gateway.NewBridgeForwarder(ctx, br, br, s.workerController.Infos(), req.FrontendInputs, sessionID, s.sm)
 		defer fwd.Discard()
+		// Register build before calling s.recordBuildHistory, because
+		// s.recordBuildHistory can block for several seconds on
+		// LeaseManager calls, and there is a fixed 3s timeout in
+		// GatewayForwarder on build registration.
 		if err := s.gatewayForwarder.RegisterBuild(ctx, id, fwd); err != nil {
 			return nil, err
 		}
 		defer s.gatewayForwarder.UnregisterBuild(ctx, id)
+	}
 
+	if !internal {
+		rec, err1 := s.recordBuildHistory(ctx, id, req, exp, j, usage)
+		if err1 != nil {
+			defer j.CloseProgress()
+			return nil, err1
+		}
+		defer func() {
+			err = rec(resProv, descref, err)
+		}()
+	}
+
+	if fwd != nil {
 		var err error
 		select {
 		case <-fwd.Done():
@@ -129,7 +493,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 			return nil, err
 		}
 	} else {
-		res, err = s.Bridge(j).Solve(ctx, req, sessionID)
+		res, err = br.Solve(ctx, req, sessionID)
 		if err != nil {
 			return nil, err
 		}
@@ -139,12 +503,12 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		res = &frontend.Result{}
 	}
 
-	defer func() {
+	releasers = append(releasers, func() {
 		res.EachRef(func(ref solver.ResultProxy) error {
 			go ref.Release(context.TODO())
 			return nil
 		})
-	}()
+	})
 
 	eg, ctx2 := errgroup.WithContext(ctx)
 	res.EachRef(func(ref solver.ResultProxy) error {
@@ -158,149 +522,60 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		return nil, err
 	}
 
-	if r := res.Ref; r != nil {
-		dtbi, err := buildinfo.Encode(ctx, res.Metadata, exptypes.ExporterBuildInfo, r.BuildSources())
+	resProv, err = addProvenanceToResult(res, br)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, post := range post {
+		res2, err := post(ctx, resProv, s, j, usage)
 		if err != nil {
 			return nil, err
 		}
-		if dtbi != nil && len(dtbi) > 0 {
-			if res.Metadata == nil {
-				res.Metadata = make(map[string][]byte)
-			}
-			res.Metadata[exptypes.ExporterBuildInfo] = dtbi
-		}
+		resProv = res2
 	}
-	if res.Refs != nil {
-		for k, r := range res.Refs {
-			if r == nil {
-				continue
-			}
-			dtbi, err := buildinfo.Encode(ctx, res.Metadata, fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, k), r.BuildSources())
-			if err != nil {
-				return nil, err
-			}
-			if dtbi != nil && len(dtbi) > 0 {
-				if res.Metadata == nil {
-					res.Metadata = make(map[string][]byte)
-				}
-				res.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, k)] = dtbi
-			}
-		}
+	res = resProv.Result
+
+	cached, err := result.ConvertResult(res, func(res solver.ResultProxy) (solver.CachedResult, error) {
+		return res.Result(ctx)
+	})
+	if err != nil {
+		return nil, err
 	}
+	inp, err := result.ConvertResult(cached, func(res solver.CachedResult) (cache.ImmutableRef, error) {
+		workerRef, ok := res.Sys().(*worker.WorkerRef)
+		if !ok {
+			return nil, errors.Errorf("invalid reference: %T", res.Sys())
+		}
+		return workerRef.ImmutableRef, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	cacheExporters, inlineCacheExporter := splitCacheExporters(exp.CacheExporters)
 
 	var exporterResponse map[string]string
 	if e := exp.Exporter; e != nil {
-		inp := exporter.Source{
-			Metadata: res.Metadata,
+		meta, err := runInlineCacheExporter(ctx, e, inlineCacheExporter, j, cached)
+		if err != nil {
+			return nil, err
 		}
-		if inp.Metadata == nil {
-			inp.Metadata = make(map[string][]byte)
+		for k, v := range meta {
+			inp.AddMeta(k, v)
 		}
-		var cr solver.CachedResult
-		var crMap = map[string]solver.CachedResult{}
-		if res := res.Ref; res != nil {
-			r, err := res.Result(ctx)
-			if err != nil {
-				return nil, err
-			}
-			workerRef, ok := r.Sys().(*worker.WorkerRef)
-			if !ok {
-				return nil, errors.Errorf("invalid reference: %T", r.Sys())
-			}
-			inp.Ref = workerRef.ImmutableRef
-			cr = r
-		}
-		if res.Refs != nil {
-			m := make(map[string]cache.ImmutableRef, len(res.Refs))
-			for k, res := range res.Refs {
-				if res == nil {
-					m[k] = nil
-				} else {
-					r, err := res.Result(ctx)
-					if err != nil {
-						return nil, err
-					}
-					workerRef, ok := r.Sys().(*worker.WorkerRef)
-					if !ok {
-						return nil, errors.Errorf("invalid reference: %T", r.Sys())
-					}
-					m[k] = workerRef.ImmutableRef
-					crMap[k] = r
-				}
-			}
-			inp.Refs = m
-		}
-		if _, ok := asInlineCache(exp.CacheExporter); ok {
-			if err := inBuilderContext(ctx, j, "preparing layers for inline cache", "", func(ctx context.Context, _ session.Group) error {
-				if cr != nil {
-					dtic, err := inlineCache(ctx, exp.CacheExporter, cr, e.Config().Compression, session.NewGroup(sessionID))
-					if err != nil {
-						return err
-					}
-					if dtic != nil {
-						inp.Metadata[exptypes.ExporterInlineCache] = dtic
-					}
-				}
-				for k, res := range crMap {
-					dtic, err := inlineCache(ctx, exp.CacheExporter, res, e.Config().Compression, session.NewGroup(sessionID))
-					if err != nil {
-						return err
-					}
-					if dtic != nil {
-						inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterInlineCache, k)] = dtic
-					}
-				}
-				exp.CacheExporter = nil
-				return nil
-			}); err != nil {
-				return nil, err
-			}
-		}
-		if err := inBuilderContext(ctx, j, e.Name(), "", func(ctx context.Context, _ session.Group) error {
-			exporterResponse, err = e.Export(ctx, inp, j.SessionID)
+
+		if err := inBuilderContext(ctx, j, e.Name(), j.SessionID+"-export", func(ctx context.Context, _ session.Group) error {
+			exporterResponse, descref, err = e.Export(ctx, inp, j.SessionID)
 			return err
 		}); err != nil {
 			return nil, err
 		}
 	}
 
-	g := session.NewGroup(j.SessionID)
-	var cacheExporterResponse map[string]string
-	if e := exp.CacheExporter; e != nil {
-		if err := inBuilderContext(ctx, j, "exporting cache", "", func(ctx context.Context, _ session.Group) error {
-			prepareDone := oneOffProgress(ctx, "preparing build cache for export")
-			if err := res.EachRef(func(res solver.ResultProxy) error {
-				r, err := res.Result(ctx)
-				if err != nil {
-					return err
-				}
-
-				workerRef, ok := r.Sys().(*worker.WorkerRef)
-				if !ok {
-					return errors.Errorf("invalid reference: %T", r.Sys())
-				}
-				ctx = withDescHandlerCacheOpts(ctx, workerRef.ImmutableRef)
-
-				// Configure compression
-				compressionConfig := e.Config().Compression
-
-				// all keys have same export chain so exporting others is not needed
-				_, err = r.CacheKeys()[0].Exporter.ExportTo(ctx, e, solver.CacheExportOpt{
-					ResolveRemotes: workerRefResolver(cacheconfig.RefConfig{Compression: compressionConfig}, false, g),
-					Mode:           exp.CacheExportMode,
-					Session:        g,
-					CompressionOpt: &compressionConfig,
-				})
-				return err
-			}); err != nil {
-				return prepareDone(err)
-			}
-			prepareDone(nil)
-			cacheExporterResponse, err = e.Finalize(ctx)
-			return err
-		}); err != nil {
-			return nil, err
-		}
+	cacheExporterResponse, err := runCacheExporters(ctx, cacheExporters, j, cached, inp)
+	if err != nil {
+		return nil, err
 	}
 
 	if exporterResponse == nil {
@@ -310,9 +585,6 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	for k, v := range res.Metadata {
 		if strings.HasPrefix(k, "frontend.") {
 			exporterResponse[k] = string(v)
-		}
-		if strings.HasPrefix(k, exptypes.ExporterBuildInfo) {
-			exporterResponse[k] = base64.StdEncoding.EncodeToString(v)
 		}
 	}
 	for k, v := range cacheExporterResponse {
@@ -324,6 +596,247 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	return &client.SolveResponse{
 		ExporterResponse: exporterResponse,
 	}, nil
+}
+
+func validateSourcePolicy(pol spb.Policy) error {
+	for _, r := range pol.Rules {
+		if r == nil {
+			return errors.New("invalid nil rule in policy")
+		}
+		if r.Selector == nil {
+			return errors.New("invalid nil selector in policy")
+		}
+		for _, c := range r.Selector.Constraints {
+			if c == nil {
+				return errors.New("invalid nil constraint in policy")
+			}
+		}
+	}
+	return nil
+}
+
+func runCacheExporters(ctx context.Context, exporters []RemoteCacheExporter, j *solver.Job, cached *result.Result[solver.CachedResult], inp *result.Result[cache.ImmutableRef]) (map[string]string, error) {
+	eg, ctx := errgroup.WithContext(ctx)
+	g := session.NewGroup(j.SessionID)
+	var cacheExporterResponse map[string]string
+	resps := make([]map[string]string, len(exporters))
+	for i, exp := range exporters {
+		func(exp RemoteCacheExporter, i int) {
+			eg.Go(func() (err error) {
+				id := fmt.Sprint(j.SessionID, "-cache-", i)
+				err = inBuilderContext(ctx, j, exp.Exporter.Name(), id, func(ctx context.Context, _ session.Group) error {
+					prepareDone := progress.OneOff(ctx, "preparing build cache for export")
+					if err := result.EachRef(cached, inp, func(res solver.CachedResult, ref cache.ImmutableRef) error {
+						ctx = withDescHandlerCacheOpts(ctx, ref)
+
+						// Configure compression
+						compressionConfig := exp.Config().Compression
+
+						// all keys have same export chain so exporting others is not needed
+						_, err = res.CacheKeys()[0].Exporter.ExportTo(ctx, exp, solver.CacheExportOpt{
+							ResolveRemotes: workerRefResolver(cacheconfig.RefConfig{Compression: compressionConfig}, false, g),
+							Mode:           exp.CacheExportMode,
+							Session:        g,
+							CompressionOpt: &compressionConfig,
+						})
+						return err
+					}); err != nil {
+						return prepareDone(err)
+					}
+					resps[i], err = exp.Finalize(ctx)
+					return prepareDone(err)
+				})
+				if exp.IgnoreError {
+					err = nil
+				}
+				return err
+			})
+		}(exp, i)
+	}
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+	for _, resp := range resps {
+		for k, v := range resp {
+			if cacheExporterResponse == nil {
+				cacheExporterResponse = make(map[string]string)
+			}
+			cacheExporterResponse[k] = v
+		}
+	}
+	return cacheExporterResponse, nil
+}
+
+func runInlineCacheExporter(ctx context.Context, e exporter.ExporterInstance, inlineExporter *RemoteCacheExporter, j *solver.Job, cached *result.Result[solver.CachedResult]) (map[string][]byte, error) {
+	meta := map[string][]byte{}
+	if inlineExporter == nil {
+		return nil, nil
+	}
+	if err := inBuilderContext(ctx, j, "preparing layers for inline cache", j.SessionID+"-cache-inline", func(ctx context.Context, _ session.Group) error {
+		if res := cached.Ref; res != nil {
+			dtic, err := inlineCache(ctx, inlineExporter.Exporter, res, e.Config().Compression(), session.NewGroup(j.SessionID))
+			if err != nil {
+				return err
+			}
+			if dtic != nil {
+				meta[exptypes.ExporterInlineCache] = dtic
+			}
+		}
+		for k, res := range cached.Refs {
+			dtic, err := inlineCache(ctx, inlineExporter.Exporter, res, e.Config().Compression(), session.NewGroup(j.SessionID))
+			if err != nil {
+				return err
+			}
+			if dtic != nil {
+				meta[fmt.Sprintf("%s/%s", exptypes.ExporterInlineCache, k)] = dtic
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return meta, nil
+}
+
+func splitCacheExporters(exporters []RemoteCacheExporter) (rest []RemoteCacheExporter, inline *RemoteCacheExporter) {
+	rest = make([]RemoteCacheExporter, 0, len(exporters))
+	for i, exp := range exporters {
+		if _, ok := asInlineCache(exp.Exporter); ok {
+			inline = &exporters[i]
+			continue
+		}
+		rest = append(rest, exp)
+	}
+	return rest, inline
+}
+
+func addProvenanceToResult(res *frontend.Result, br *provenanceBridge) (*Result, error) {
+	if res == nil {
+		return nil, nil
+	}
+	reqs, err := br.requests(res)
+	if err != nil {
+		return nil, err
+	}
+	out := &Result{
+		Result:     res,
+		Provenance: &provenance.Result{},
+	}
+
+	if res.Ref != nil {
+		cp, err := getProvenance(res.Ref, reqs.ref.bridge, "", reqs)
+		if err != nil {
+			return nil, err
+		}
+		out.Provenance.Ref = cp
+		if res.Metadata == nil {
+			res.Metadata = map[string][]byte{}
+		}
+	}
+
+	if len(res.Refs) != 0 {
+		out.Provenance.Refs = make(map[string]*provenance.Capture, len(res.Refs))
+	}
+	for k, ref := range res.Refs {
+		cp, err := getProvenance(ref, reqs.refs[k].bridge, k, reqs)
+		if err != nil {
+			return nil, err
+		}
+		out.Provenance.Refs[k] = cp
+		if res.Metadata == nil {
+			res.Metadata = map[string][]byte{}
+		}
+	}
+
+	if len(res.Attestations) != 0 {
+		out.Provenance.Attestations = make(map[string][]result.Attestation[*provenance.Capture], len(res.Attestations))
+	}
+	for k, as := range res.Attestations {
+		for i, a := range as {
+			a2, err := result.ConvertAttestation(&a, func(r solver.ResultProxy) (*provenance.Capture, error) {
+				return getProvenance(r, reqs.atts[k][i].bridge, k, reqs)
+			})
+			if err != nil {
+				return nil, err
+			}
+			out.Provenance.Attestations[k] = append(out.Provenance.Attestations[k], *a2)
+		}
+	}
+
+	return out, nil
+}
+
+func getRefProvenance(ref solver.ResultProxy, br *provenanceBridge) (*provenance.Capture, error) {
+	if ref == nil {
+		return nil, nil
+	}
+	p := ref.Provenance()
+	if p == nil {
+		return nil, nil
+	}
+
+	pr, ok := p.(*provenance.Capture)
+	if !ok {
+		return nil, errors.Errorf("invalid provenance type %T", p)
+	}
+
+	if br.req != nil {
+		if pr == nil {
+			return nil, errors.Errorf("missing provenance for %s", ref.ID())
+		}
+
+		pr.Frontend = br.req.Frontend
+		pr.Args = provenance.FilterArgs(br.req.FrontendOpt)
+		// TODO: should also save some output options like compression
+
+		if len(br.req.FrontendInputs) > 0 {
+			pr.IncompleteMaterials = true // not implemented
+		}
+	}
+
+	return pr, nil
+}
+
+func getProvenance(ref solver.ResultProxy, br *provenanceBridge, id string, reqs *resultRequests) (*provenance.Capture, error) {
+	pr, err := getRefProvenance(ref, br)
+	if err != nil {
+		return nil, err
+	}
+	if pr == nil {
+		return nil, nil
+	}
+
+	visited := reqs.allRes()
+	visited[ref.ID()] = struct{}{}
+	// provenance for all the refs not directly in the result needs to be captured as well
+	if err := br.eachRef(func(r solver.ResultProxy) error {
+		if _, ok := visited[r.ID()]; ok {
+			return nil
+		}
+		visited[r.ID()] = struct{}{}
+		pr2, err := getRefProvenance(r, br)
+		if err != nil {
+			return err
+		}
+		return pr.Merge(pr2)
+	}); err != nil {
+		return nil, err
+	}
+
+	imgs := br.allImages()
+	if id != "" {
+		imgs = reqs.filterImagePlatforms(id, imgs)
+	}
+	for _, img := range imgs {
+		pr.AddImage(img)
+	}
+
+	if err := pr.OptimizeImageSources(); err != nil {
+		return nil, err
+	}
+	pr.Sort()
+
+	return pr, nil
 }
 
 type inlineCacheExporter interface {
@@ -384,6 +897,15 @@ func withDescHandlerCacheOpts(ctx context.Context, ref cache.ImmutableRef) conte
 }
 
 func (s *Solver) Status(ctx context.Context, id string, statusChan chan *client.SolveStatus) error {
+	if err := s.history.Status(ctx, id, statusChan); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			close(statusChan)
+			return err
+		}
+	} else {
+		close(statusChan)
+		return nil
+	}
 	j, err := s.solver.Get(id)
 	if err != nil {
 		close(statusChan)
@@ -397,6 +919,7 @@ func defaultResolver(wc *worker.Controller) ResolveWorkerFunc {
 		return wc.GetDefault()
 	}
 }
+
 func allWorkers(wc *worker.Controller) func(func(w worker.Worker) error) error {
 	return func(f func(worker.Worker) error) error {
 		all, err := wc.List()
@@ -412,23 +935,6 @@ func allWorkers(wc *worker.Controller) func(func(w worker.Worker) error) error {
 	}
 }
 
-func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.NewFromContext(ctx)
-	now := time.Now()
-	st := progress.Status{
-		Started: &now,
-	}
-	pw.Write(id, st)
-	return func(err error) error {
-		// TODO: set error on status
-		now := time.Now()
-		st.Completed = &now
-		pw.Write(id, st)
-		pw.Close()
-		return err
-	}
-}
-
 func inBuilderContext(ctx context.Context, b solver.Builder, name, id string, f func(ctx context.Context, g session.Group) error) error {
 	if id == "" {
 		id = name
@@ -439,27 +945,26 @@ func inBuilderContext(ctx context.Context, b solver.Builder, name, id string, f 
 	}
 	return b.InContext(ctx, func(ctx context.Context, g session.Group) error {
 		pw, _, ctx := progress.NewFromContext(ctx, progress.WithMetadata("vertex", v.Digest))
-		notifyCompleted := notifyStarted(ctx, &v, false)
+		notifyCompleted := notifyStarted(ctx, &v)
 		defer pw.Close()
 		err := f(ctx, g)
-		notifyCompleted(err, false)
+		notifyCompleted(err)
 		return err
 	})
 }
 
-func notifyStarted(ctx context.Context, v *client.Vertex, cached bool) func(err error, cached bool) {
+func notifyStarted(ctx context.Context, v *client.Vertex) func(err error) {
 	pw, _, _ := progress.NewFromContext(ctx)
 	start := time.Now()
 	v.Started = &start
 	v.Completed = nil
-	v.Cached = cached
 	id := identity.NewID()
 	pw.Write(id, *v)
-	return func(err error, cached bool) {
+	return func(err error) {
 		defer pw.Close()
 		stop := time.Now()
 		v.Completed = &stop
-		v.Cached = cached
+		v.Cached = false
 		if err != nil {
 			v.Error = err.Error()
 		}
@@ -496,4 +1001,27 @@ func loadEntitlements(b solver.Builder) (entitlements.Set, error) {
 		return nil, err
 	}
 	return ent, nil
+}
+
+func loadSourcePolicy(b solver.Builder) (*spb.Policy, error) {
+	var srcPol spb.Policy
+	err := b.EachValue(context.TODO(), keySourcePolicy, func(v interface{}) error {
+		x, ok := v.(spb.Policy)
+		if !ok {
+			return errors.Errorf("invalid source policy %T", v)
+		}
+		for _, f := range x.Rules {
+			if f == nil {
+				return errors.Errorf("invalid nil policy rule")
+			}
+			r := *f
+			srcPol.Rules = append(srcPol.Rules, &r)
+		}
+		srcPol.Version = x.Version
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &srcPol, nil
 }

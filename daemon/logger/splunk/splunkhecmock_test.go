@@ -55,7 +55,8 @@ func NewHTTPEventCollectorMock(t *testing.T) *HTTPEventCollectorMock {
 		token:               "4642492F-D8BD-47F1-A005-0C08AE4657DF",
 		simulateServerError: false,
 		test:                t,
-		connectionVerified:  false}
+		connectionVerified:  false,
+	}
 }
 
 func (hec *HTTPEventCollectorMock) simulateErr(b bool) {

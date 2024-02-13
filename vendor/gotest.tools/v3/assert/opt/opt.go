@@ -11,7 +11,7 @@ import (
 	gocmp "github.com/google/go-cmp/cmp"
 )
 
-// DurationWithThreshold returns a gocmp.Comparer for comparing time.Duration. The
+// DurationWithThreshold returns a [gocmp.Comparer] for comparing [time.Duration]. The
 // Comparer returns true if the difference between the two Duration values is
 // within the threshold and neither value is zero.
 func DurationWithThreshold(threshold time.Duration) gocmp.Option {
@@ -28,7 +28,7 @@ func cmpDuration(threshold time.Duration) func(x, y time.Duration) bool {
 	}
 }
 
-// TimeWithThreshold returns a gocmp.Comparer for comparing time.Time. The
+// TimeWithThreshold returns a [gocmp.Comparer] for comparing [time.Time]. The
 // Comparer returns true if the difference between the two Time values is
 // within the threshold and neither value is zero.
 func TimeWithThreshold(threshold time.Duration) gocmp.Option {
@@ -45,12 +45,12 @@ func cmpTime(threshold time.Duration) func(x, y time.Time) bool {
 	}
 }
 
-// PathString is a gocmp.FilterPath filter that returns true when path.String()
+// PathString is a [gocmp.FilterPath] filter that returns true when path.String()
 // matches any of the specs.
 //
 // The path spec is a dot separated string where each segment is a field name.
 // Slices, Arrays, and Maps are always matched against every element in the
-// sequence. gocmp.Indirect, gocmp.Transform, and gocmp.TypeAssertion are always
+// sequence. [gocmp.Indirect], [gocmp.Transform], and [gocmp.TypeAssertion] are always
 // ignored.
 //
 // Note: this path filter is not type safe. Incorrect paths will be silently
@@ -66,7 +66,7 @@ func PathString(specs ...string) func(path gocmp.Path) bool {
 	}
 }
 
-// PathDebug is a gocmp.FilerPath filter that always returns false. It prints
+// PathDebug is a [gocmp.FilterPath] filter that always returns false. It prints
 // each path it receives. It can be used to debug path matching problems.
 func PathDebug(path gocmp.Path) bool {
 	fmt.Printf("PATH string=%s gostring=%s\n", path, path.GoString())
@@ -95,7 +95,7 @@ func stepTypeFields(step gocmp.PathStep) string {
 	return ""
 }
 
-// PathField is a gocmp.FilerPath filter that matches a struct field by name.
+// PathField is a [gocmp.FilterPath] filter that matches a struct field by name.
 // PathField will match every instance of the field in a recursive or nested
 // structure.
 func PathField(structType interface{}, field string) func(gocmp.Path) bool {

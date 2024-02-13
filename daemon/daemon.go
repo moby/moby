@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.19
+
 // Package daemon exposes the functions that occur on the host server
 // that the Docker daemon is running.
 //
@@ -9,12 +12,12 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/containerd/containerd"
@@ -22,28 +25,41 @@ import (
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
+	dist "github.com/docker/distribution"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
+	imagetypes "github.com/docker/docker/api/types/image"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
+	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/config"
 	ctrd "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/daemon/events"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/daemon/logger"
+	dlogger "github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/local"
 	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/daemon/stats"
+	"github.com/docker/docker/distribution"
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/layer"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/cluster"
 	nwconfig "github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -59,14 +75,20 @@ import (
 	resolverconfig "github.com/moby/buildkit/util/resolver/config"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/sync/semaphore"
-	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
+	"resenje.org/singleflight"
 )
+
+type configStore struct {
+	config.Config
+
+	Runtimes runtimes
+}
 
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
@@ -76,12 +98,13 @@ type Daemon struct {
 	containersReplica     *container.ViewDB
 	execCommands          *container.ExecStore
 	imageService          ImageService
-	configStore           *config.Config
+	configStore           atomic.Pointer[configStore]
+	configReload          sync.Mutex
 	statsCollector        *stats.Collector
 	defaultLogConfig      containertypes.LogConfig
-	registryService       registry.Service
+	registryService       *registry.Service
 	EventsService         *events.Events
-	netController         libnetwork.NetworkController
+	netController         *libnetwork.Controller
 	volumes               *volumesservice.VolumesService
 	root                  string
 	sysInfoOnce           sync.Once
@@ -91,7 +114,7 @@ type Daemon struct {
 	PluginStore           *plugin.Store // TODO: remove
 	pluginManager         *plugin.Manager
 	linkIndex             *linkIndex
-	containerdCli         *containerd.Client
+	containerdClient      *containerd.Client
 	containerd            libcontainerdtypes.Client
 	defaultIsolation      containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider       cluster.Provider
@@ -105,7 +128,10 @@ type Daemon struct {
 	seccompProfile     []byte
 	seccompProfilePath string
 
-	usage singleflight.Group
+	usageContainers singleflight.Group[struct{}, []*types.Container]
+	usageImages     singleflight.Group[struct{}, []*imagetypes.Summary]
+	usageVolumes    singleflight.Group[struct{}, []*volume.Volume]
+	usageLayer      singleflight.Group[struct{}, int64]
 
 	pruneRunning int32
 	hosts        map[string]bool // hosts stores the addresses the daemon is listening on
@@ -118,6 +144,13 @@ type Daemon struct {
 	// It stores metadata for the content store (used for manifest caching)
 	// This needs to be closed on daemon exit
 	mdDB *bbolt.DB
+
+	usesSnapshotter bool
+}
+
+// ID returns the daemon id
+func (daemon *Daemon) ID() string {
+	return daemon.id
 }
 
 // StoreHosts stores the addresses the daemon is listening on
@@ -130,56 +163,64 @@ func (daemon *Daemon) StoreHosts(hosts []string) {
 	}
 }
 
+// config returns an immutable snapshot of the current daemon configuration.
+// Multiple calls to this function will return the same pointer until the
+// configuration is reloaded so callers must take care not to modify the
+// returned value.
+//
+// To ensure that the configuration used remains consistent throughout the
+// lifetime of an operation, the configuration pointer should be passed down the
+// call stack, like one would a [context.Context] value. Only the entrypoints
+// for operations, the outermost functions, should call this function.
+func (daemon *Daemon) config() *configStore {
+	cfg := daemon.configStore.Load()
+	if cfg == nil {
+		return &configStore{}
+	}
+	return cfg
+}
+
+// Config returns daemon's config.
+func (daemon *Daemon) Config() config.Config {
+	return daemon.config().Config
+}
+
 // HasExperimental returns whether the experimental features of the daemon are enabled or not
 func (daemon *Daemon) HasExperimental() bool {
-	return daemon.configStore != nil && daemon.configStore.Experimental
+	return daemon.config().Experimental
 }
 
 // Features returns the features map from configStore
-func (daemon *Daemon) Features() *map[string]bool {
-	return &daemon.configStore.Features
+func (daemon *Daemon) Features() map[string]bool {
+	return daemon.config().Features
 }
 
 // UsesSnapshotter returns true if feature flag to use containerd snapshotter is enabled
 func (daemon *Daemon) UsesSnapshotter() bool {
-	if daemon.configStore.Features != nil {
-		if b, ok := daemon.configStore.Features["containerd-snapshotter"]; ok {
-			return b
-		}
-	}
-	return false
+	return daemon.usesSnapshotter
 }
 
-// RegistryHosts returns registry configuration in containerd resolvers format
-func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
-	var (
-		registryKey = "docker.io"
-		mirrors     = make([]string, len(daemon.configStore.Mirrors))
-		m           = map[string]resolverconfig.RegistryConfig{}
-	)
-	// must trim "https://" or "http://" prefix
-	for i, v := range daemon.configStore.Mirrors {
-		if uri, err := url.Parse(v); err == nil {
-			v = uri.Host
-		}
-		mirrors[i] = v
+// RegistryHosts returns the registry hosts configuration for the host component
+// of a distribution image reference.
+func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) {
+	m := map[string]resolverconfig.RegistryConfig{
+		"docker.io": {Mirrors: daemon.registryService.ServiceConfig().Mirrors},
 	}
-	// set mirrors for default registry
-	m[registryKey] = resolverconfig.RegistryConfig{Mirrors: mirrors}
-
-	for _, v := range daemon.configStore.InsecureRegistries {
-		u, err := url.Parse(v)
-		c := resolverconfig.RegistryConfig{}
-		if err == nil {
-			v = u.Host
+	conf := daemon.registryService.ServiceConfig().IndexConfigs
+	for k, v := range conf {
+		c := m[k]
+		if !v.Secure {
 			t := true
-			if u.Scheme == "http" {
-				c.PlainHTTP = &t
-			} else {
-				c.Insecure = &t
-			}
+			c.PlainHTTP = &t
+			c.Insecure = &t
 		}
-		m[v] = c
+		m[k] = c
+	}
+	if c, ok := m[host]; !ok && daemon.registryService.IsInsecureRegistry(host) {
+		t := true
+		c.PlainHTTP = &t
+		c.Insecure = &t
+		m[host] = c
 	}
 
 	for k, v := range m {
@@ -198,14 +239,19 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 		}
 	}
 
-	return resolver.NewRegistryConfig(m)
+	return resolver.NewRegistryConfig(m)(host)
 }
 
-func (daemon *Daemon) restore() error {
+// layerAccessor may be implemented by ImageService
+type layerAccessor interface {
+	GetLayerByID(cid string) (layer.RWLayer, error)
+}
+
+func (daemon *Daemon) restore(cfg *configStore) error {
 	var mapLock sync.Mutex
 	containers := make(map[string]*container.Container)
 
-	logrus.Info("Loading containers: start.")
+	log.G(context.TODO()).Info("Loading containers: start.")
 
 	dir, err := os.ReadDir(daemon.repository)
 	if err != nil {
@@ -230,25 +276,27 @@ func (daemon *Daemon) restore() error {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			log := logrus.WithField("container", id)
+			logger := log.G(context.TODO()).WithField("container", id)
 
 			c, err := daemon.load(id)
 			if err != nil {
-				log.WithError(err).Error("failed to load container")
+				logger.WithError(err).Error("failed to load container")
 				return
 			}
 			if c.Driver != daemon.imageService.StorageDriver() {
 				// Ignore the container if it wasn't created with the current storage-driver
-				log.Debugf("not restoring container because it was created with another storage driver (%s)", c.Driver)
+				logger.Debugf("not restoring container because it was created with another storage driver (%s)", c.Driver)
 				return
 			}
-			rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
-			if err != nil {
-				log.WithError(err).Error("failed to load container mount")
-				return
+			if accessor, ok := daemon.imageService.(layerAccessor); ok {
+				rwlayer, err := accessor.GetLayerByID(c.ID)
+				if err != nil {
+					logger.WithError(err).Error("failed to load container mount")
+					return
+				}
+				c.RWLayer = rwlayer
 			}
-			c.RWLayer = rwlayer
-			log.WithFields(logrus.Fields{
+			logger.WithFields(log.Fields{
 				"running": c.IsRunning(),
 				"paused":  c.IsPaused(),
 			}).Debug("loaded container")
@@ -271,17 +319,17 @@ func (daemon *Daemon) restore() error {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			log := logrus.WithField("container", c.ID)
+			logger := log.G(context.TODO()).WithField("container", c.ID)
 
 			if err := daemon.registerName(c); err != nil {
-				log.WithError(err).Errorf("failed to register container name: %s", c.Name)
+				logger.WithError(err).Errorf("failed to register container name: %s", c.Name)
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
 				return
 			}
 			if err := daemon.Register(c); err != nil {
-				log.WithError(err).Error("failed to register container")
+				logger.WithError(err).Error("failed to register container")
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
@@ -298,16 +346,43 @@ func (daemon *Daemon) restore() error {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			log := logrus.WithField("container", c.ID)
+			baseLogger := log.G(context.TODO()).WithField("container", c.ID)
+
+			if c.HostConfig != nil {
+				// Migrate containers that don't have the default ("no") restart-policy set.
+				// The RestartPolicy.Name field may be empty for containers that were
+				// created with versions before v25.0.0.
+				//
+				// We also need to set the MaximumRetryCount to 0, to prevent
+				// validation from failing (MaximumRetryCount is not allowed if
+				// no restart-policy ("none") is set).
+				if c.HostConfig.RestartPolicy.Name == "" {
+					baseLogger.Debug("migrated restart-policy")
+					c.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
+					c.HostConfig.RestartPolicy.MaximumRetryCount = 0
+				}
+
+				// Migrate containers that use the deprecated (and now non-functional)
+				// logentries driver. Update them to use the "local" logging driver
+				// instead.
+				//
+				// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
+				if c.HostConfig.LogConfig.Type == "logentries" {
+					baseLogger.Warn("migrated deprecated logentries logging driver")
+					c.HostConfig.LogConfig = containertypes.LogConfig{
+						Type: local.Name,
+					}
+				}
+			}
 
 			if err := daemon.checkpointAndSave(c); err != nil {
-				log.WithError(err).Error("error saving backported mountspec to disk")
+				baseLogger.WithError(err).Error("failed to save migrated container config to disk")
 			}
 
 			daemon.setStateCounter(c)
 
-			logger := func(c *container.Container) *logrus.Entry {
-				return log.WithFields(logrus.Fields{
+			logger := func(c *container.Container) *log.Entry {
+				return baseLogger.WithFields(log.Fields{
 					"running":    c.IsRunning(),
 					"paused":     c.IsPaused(),
 					"restarting": c.IsRestarting(),
@@ -339,10 +414,10 @@ func (daemon *Daemon) restore() error {
 							logger(c).WithError(err).Error("failed to delete task from containerd")
 							return
 						}
-					} else if !daemon.configStore.LiveRestoreEnabled {
+					} else if !cfg.LiveRestoreEnabled {
 						logger(c).Debug("shutting down container considered alive by containerd")
 						if err := daemon.shutdownContainer(c); err != nil && !errdefs.IsNotFound(err) {
-							log.WithError(err).Error("error shutting down container")
+							baseLogger.WithError(err).Error("error shutting down container")
 							return
 						}
 						status = containerd.Stopped
@@ -366,22 +441,22 @@ func (daemon *Daemon) restore() error {
 					case containerd.Paused, containerd.Pausing:
 						// nothing to do
 					case containerd.Unknown, containerd.Stopped, "":
-						log.WithField("status", status).Error("unexpected status for paused container during restore")
+						baseLogger.WithField("status", status).Error("unexpected status for paused container during restore")
 					default:
 						// running
 						c.Lock()
 						c.Paused = false
 						daemon.setStateCounter(c)
-						daemon.updateHealthMonitor(c)
+						daemon.initHealthMonitor(c)
 						if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-							log.WithError(err).Error("failed to update paused container state")
+							baseLogger.WithError(err).Error("failed to update paused container state")
 						}
 						c.Unlock()
 					}
 				case !c.IsPaused() && alive:
 					logger(c).Debug("restoring healthcheck")
 					c.Lock()
-					daemon.updateHealthMonitor(c)
+					daemon.initHealthMonitor(c)
 					c.Unlock()
 				}
 
@@ -392,11 +467,13 @@ func (daemon *Daemon) restore() error {
 					if es != nil {
 						ces.ExitCode = int(es.ExitCode())
 						ces.ExitedAt = es.ExitTime()
+					} else {
+						ces.ExitCode = 255
 					}
 					c.SetStopped(&ces)
-					daemon.Cleanup(c)
+					daemon.Cleanup(context.TODO(), c)
 					if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-						log.WithError(err).Error("failed to update stopped container state")
+						baseLogger.WithError(err).Error("failed to update stopped container state")
 					}
 					c.Unlock()
 					logger(c).Debug("set stopped state")
@@ -419,7 +496,7 @@ func (daemon *Daemon) restore() error {
 
 				c.ResetRestartManager(false)
 				if !c.HostConfig.NetworkMode.IsContainer() && c.IsRunning() {
-					options, err := daemon.buildSandboxOptions(c)
+					options, err := daemon.buildSandboxOptions(&cfg.Config, c)
 					if err != nil {
 						logger(c).WithError(err).Warn("failed to build sandbox option to restore container")
 					}
@@ -437,14 +514,17 @@ func (daemon *Daemon) restore() error {
 			// not initialized yet. We will start
 			// it after the cluster is
 			// initialized.
-			if daemon.configStore.AutoRestart && c.ShouldRestart() && !c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
+			if cfg.AutoRestart && c.ShouldRestart() && !c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
 				mapLock.Lock()
 				restartContainers[c] = make(chan struct{})
 				mapLock.Unlock()
 			} else if c.HostConfig != nil && c.HostConfig.AutoRemove {
-				mapLock.Lock()
-				removeContainers[c.ID] = c
-				mapLock.Unlock()
+				// Remove the container if live-restore is disabled or if the container has already exited.
+				if !cfg.LiveRestoreEnabled || !alive {
+					mapLock.Lock()
+					removeContainers[c.ID] = c
+					mapLock.Unlock()
+				}
 			}
 
 			c.Lock()
@@ -460,9 +540,9 @@ func (daemon *Daemon) restore() error {
 				c.RemovalInProgress = false
 				c.Dead = true
 				if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-					log.WithError(err).Error("failed to update RemovalInProgress container state")
+					baseLogger.WithError(err).Error("failed to update RemovalInProgress container state")
 				} else {
-					log.Debugf("reset RemovalInProgress state for container")
+					baseLogger.Debugf("reset RemovalInProgress state for container")
 				}
 			}
 			c.Unlock()
@@ -475,7 +555,7 @@ func (daemon *Daemon) restore() error {
 	//
 	// Note that we cannot initialize the network controller earlier, as it
 	// needs to know if there's active sandboxes (running containers).
-	if err = daemon.initNetworkController(activeSandboxes); err != nil {
+	if err = daemon.initNetworkController(&cfg.Config, activeSandboxes); err != nil {
 		return fmt.Errorf("Error initializing network controller: %v", err)
 	}
 
@@ -486,7 +566,7 @@ func (daemon *Daemon) restore() error {
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.registerLinks(c, c.HostConfig); err != nil {
-				logrus.WithField("container", c.ID).WithError(err).Error("failed to register link for container")
+				log.G(context.TODO()).WithField("container", c.ID).WithError(err).Error("failed to register link for container")
 			}
 
 			sem.Release(1)
@@ -495,14 +575,14 @@ func (daemon *Daemon) restore() error {
 	}
 	group.Wait()
 
-	for c, notifier := range restartContainers {
+	for c, notifyChan := range restartContainers {
 		group.Add(1)
 		go func(c *container.Container, chNotify chan struct{}) {
 			_ = sem.Acquire(context.Background(), 1)
 
-			log := logrus.WithField("container", c.ID)
+			logger := log.G(context.TODO()).WithField("container", c.ID)
 
-			log.Debug("starting container")
+			logger.Debug("starting container")
 
 			// ignore errors here as this is a best effort to wait for children to be
 			//   running before we try to start the container
@@ -519,14 +599,17 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 
-			if err := daemon.containerStart(c, "", "", true); err != nil {
-				log.WithError(err).Error("failed to start container")
+			if err := daemon.prepareMountPoints(c); err != nil {
+				logger.WithError(err).Error("failed to prepare mount points for container")
+			}
+			if err := daemon.containerStart(context.Background(), cfg, c, "", "", true); err != nil {
+				logger.WithError(err).Error("failed to start container")
 			}
 			close(chNotify)
 
 			sem.Release(1)
 			group.Done()
-		}(c, notifier)
+		}(c, notifyChan)
 	}
 	group.Wait()
 
@@ -535,8 +618,8 @@ func (daemon *Daemon) restore() error {
 		go func(cid string) {
 			_ = sem.Acquire(context.Background(), 1)
 
-			if err := daemon.ContainerRm(cid, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
-				logrus.WithField("container", cid).WithError(err).Error("failed to remove container")
+			if err := daemon.containerRm(&cfg.Config, cid, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+				log.G(context.TODO()).WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
 
 			sem.Release(1)
@@ -567,7 +650,7 @@ func (daemon *Daemon) restore() error {
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.prepareMountPoints(c); err != nil {
-				logrus.WithField("container", c.ID).WithError(err).Error("failed to prepare mountpoints for container")
+				log.G(context.TODO()).WithField("container", c.ID).WithError(err).Error("failed to prepare mountpoints for container")
 			}
 
 			sem.Release(1)
@@ -576,7 +659,7 @@ func (daemon *Daemon) restore() error {
 	}
 	group.Wait()
 
-	logrus.Info("Loading containers: done.")
+	log.G(context.TODO()).Info("Loading containers: done.")
 
 	return nil
 }
@@ -584,8 +667,10 @@ func (daemon *Daemon) restore() error {
 // RestartSwarmContainers restarts any autostart container which has a
 // swarm endpoint.
 func (daemon *Daemon) RestartSwarmContainers() {
-	ctx := context.Background()
+	daemon.restartSwarmContainers(context.Background(), daemon.config())
+}
 
+func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configStore) {
 	// parallelLimit is the maximum number of parallel startup jobs that we
 	// allow (this is the limited used for all startup semaphores). The multipler
 	// (128) was chosen after some fairly significant benchmarking -- don't change
@@ -601,7 +686,7 @@ func (daemon *Daemon) RestartSwarmContainers() {
 			// Autostart all the containers which has a
 			// swarm endpoint now that the cluster is
 			// initialized.
-			if daemon.configStore.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
+			if cfg.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
 				group.Add(1)
 				go func(c *container.Container) {
 					if err := sem.Acquire(ctx, 1); err != nil {
@@ -610,8 +695,8 @@ func (daemon *Daemon) RestartSwarmContainers() {
 						return
 					}
 
-					if err := daemon.containerStart(c, "", "", true); err != nil {
-						logrus.WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
+					if err := daemon.containerStart(ctx, cfg, c, "", "", true); err != nil {
+						log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
 					}
 
 					sem.Release(1)
@@ -636,8 +721,8 @@ func (daemon *Daemon) parents(c *container.Container) map[string]*container.Cont
 func (daemon *Daemon) registerLink(parent, child *container.Container, alias string) error {
 	fullName := path.Join(parent.Name, alias)
 	if err := daemon.containersReplica.ReserveName(fullName, child.ID); err != nil {
-		if err == container.ErrNameReserved {
-			logrus.Warnf("error registering link for %s, to %s, as alias %s, ignoring: %v", parent.ID, child.ID, alias, err)
+		if errors.Is(err, container.ErrNameReserved) {
+			log.G(context.TODO()).Warnf("error registering link for %s, to %s, as alias %s, ignoring: %v", parent.ID, child.ID, alias, err)
 			return nil
 		}
 		return err
@@ -675,10 +760,10 @@ func (daemon *Daemon) DaemonLeavesCluster() {
 		select {
 		case <-done:
 		case <-timeout.C:
-			logrus.Warn("timeout while waiting for ingress network removal")
+			log.G(context.TODO()).Warn("timeout while waiting for ingress network removal")
 		}
 	} else {
-		logrus.Warnf("failed to initiate ingress network removal: %v", err)
+		log.G(context.TODO()).Warnf("failed to initiate ingress network removal: %v", err)
 	}
 
 	daemon.attachmentStore.ClearAttachments()
@@ -694,18 +779,16 @@ func (daemon *Daemon) setClusterProvider(clusterProvider cluster.Provider) {
 // IsSwarmCompatible verifies if the current daemon
 // configuration is compatible with the swarm mode
 func (daemon *Daemon) IsSwarmCompatible() error {
-	if daemon.configStore == nil {
-		return nil
-	}
-	return daemon.configStore.IsSwarmCompatible()
+	return daemon.config().IsSwarmCompatible()
 }
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store) (daemon *Daemon, err error) {
-	// Verify the platform is supported as a daemon
-	if !platformSupported {
-		return nil, errors.New("the Docker daemon is not supported on this platform")
+func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (daemon *Daemon, err error) {
+	// Verify platform-specific requirements.
+	// TODO(thaJeztah): this should be called before we try to create the daemon; perhaps together with the config validation.
+	if err := checkSystem(); err != nil {
+		return nil, err
 	}
 
 	registryService, err := registry.NewService(config.ServiceOptions)
@@ -715,7 +798,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// Ensure that we have a correct root key limit for launching containers.
 	if err := modifyRootKeyLimit(); err != nil {
-		logrus.Warnf("unable to modify root key limit, number of containers could be limited by this quota: %v", err)
+		log.G(ctx).Warnf("unable to modify root key limit, number of containers could be limited by this quota: %v", err)
 	}
 
 	// Ensure we have compatible and valid configuration options
@@ -729,18 +812,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// Setup the resolv.conf
 	setupResolvConf(config)
 
-	// Validate platform-specific requirements
-	if err := checkSystem(); err != nil {
-		return nil, err
-	}
-
 	idMapping, err := setupRemappedRoot(config)
 	if err != nil {
 		return nil, err
 	}
 	rootIDs := idMapping.RootPair()
-	if err := setupDaemonProcess(config); err != nil {
-		return nil, err
+	if err := setMayDetachMounts(); err != nil {
+		log.G(ctx).WithError(err).Warn("Could not set may_detach_mounts kernel parameter")
 	}
 
 	// set up the tmpDir to use a canonical path
@@ -753,10 +831,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
 	if isWindows {
-		if _, err := os.Stat(realTmp); err != nil && os.IsNotExist(err) {
-			if err := system.MkdirAll(realTmp, 0700); err != nil {
-				return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
-			}
+		if err := system.MkdirAll(realTmp, 0); err != nil {
+			return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
 		}
 		os.Setenv("TEMP", realTmp)
 		os.Setenv("TMP", realTmp)
@@ -764,79 +840,92 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		os.Setenv("TMPDIR", realTmp)
 	}
 
+	if err := initRuntimesDir(config); err != nil {
+		return nil, err
+	}
+	rts, err := setupRuntimes(config)
+	if err != nil {
+		return nil, err
+	}
+
 	d := &Daemon{
-		configStore: config,
 		PluginStore: pluginStore,
 		startupDone: make(chan struct{}),
+	}
+	cfgStore := &configStore{
+		Config:   *config,
+		Runtimes: rts,
+	}
+	d.configStore.Store(cfgStore)
+
+	// TEST_INTEGRATION_USE_SNAPSHOTTER is used for integration tests only.
+	if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
+		d.usesSnapshotter = true
+	} else {
+		d.usesSnapshotter = config.Features["containerd-snapshotter"]
 	}
 
 	// Ensure the daemon is properly shutdown if there is a failure during
 	// initialization
 	defer func() {
 		if err != nil {
-			if err := d.Shutdown(); err != nil {
-				logrus.Error(err)
+			// Use a fresh context here. Passed context could be cancelled.
+			if err := d.Shutdown(context.Background()); err != nil {
+				log.G(ctx).Error(err)
 			}
 		}
 	}()
 
-	if err := d.setGenericResources(config); err != nil {
+	if err := d.setGenericResources(&cfgStore.Config); err != nil {
 		return nil, err
 	}
 	// set up SIGUSR1 handler on Unix-like systems, or a Win32 global event
 	// on Windows to dump Go routine stacks
-	stackDumpDir := config.Root
-	if execRoot := config.GetExecRoot(); execRoot != "" {
+	stackDumpDir := cfgStore.Root
+	if execRoot := cfgStore.GetExecRoot(); execRoot != "" {
 		stackDumpDir = execRoot
 	}
 	d.setupDumpStackTrap(stackDumpDir)
 
-	if err := d.setupSeccompProfile(); err != nil {
+	if err := d.setupSeccompProfile(&cfgStore.Config); err != nil {
 		return nil, err
 	}
 
 	// Set the default isolation mode (only applicable on Windows)
-	if err := d.setDefaultIsolation(); err != nil {
+	if err := d.setDefaultIsolation(&cfgStore.Config); err != nil {
 		return nil, fmt.Errorf("error setting default isolation mode: %v", err)
 	}
 
-	if err := configureMaxThreads(config); err != nil {
-		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
+	if err := configureMaxThreads(&cfgStore.Config); err != nil {
+		log.G(ctx).Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
 	// ensureDefaultAppArmorProfile does nothing if apparmor is disabled
 	if err := ensureDefaultAppArmorProfile(); err != nil {
-		logrus.Errorf(err.Error())
+		log.G(ctx).Errorf(err.Error())
 	}
 
-	daemonRepo := filepath.Join(config.Root, "containers")
-	if err := idtools.MkdirAllAndChown(daemonRepo, 0710, idtools.Identity{
+	daemonRepo := filepath.Join(cfgStore.Root, "containers")
+	if err := idtools.MkdirAllAndChown(daemonRepo, 0o710, idtools.Identity{
 		UID: idtools.CurrentIdentity().UID,
 		GID: rootIDs.GID,
 	}); err != nil {
 		return nil, err
 	}
 
-	// Create the directory where we'll store the runtime scripts (i.e. in
-	// order to support runtimeArgs)
-	daemonRuntimes := filepath.Join(config.Root, "runtimes")
-	if err := system.MkdirAll(daemonRuntimes, 0700); err != nil {
-		return nil, err
-	}
-	if err := d.loadRuntimes(); err != nil {
-		return nil, err
-	}
-
 	if isWindows {
-		if err := system.MkdirAll(filepath.Join(config.Root, "credentialspecs"), 0); err != nil {
+		// Note that permissions (0o700) are ignored on Windows; passing them to
+		// show intent only. We could consider using idtools.MkdirAndChown here
+		// to apply an ACL.
+		if err = os.Mkdir(filepath.Join(cfgStore.Root, "credentialspecs"), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 			return nil, err
 		}
 	}
 
 	d.registryService = registryService
-	logger.RegisterPluginGetter(d.PluginStore)
+	dlogger.RegisterPluginGetter(d.PluginStore)
 
-	metricsSockPath, err := d.listenMetricsSock()
+	metricsSockPath, err := d.listenMetricsSock(&cfgStore.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -873,66 +962,74 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// TODO(stevvooe): We may need to allow configuration of this on the client.
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
+		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
 	}
 
-	if config.ContainerdAddr != "" {
-		d.containerdCli, err = containerd.New(config.ContainerdAddr, containerd.WithDefaultNamespace(config.ContainerdNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
+	if cfgStore.ContainerdAddr != "" {
+		d.containerdClient, err = containerd.New(
+			cfgStore.ContainerdAddr,
+			containerd.WithDefaultNamespace(cfgStore.ContainerdNamespace),
+			containerd.WithDialOpts(gopts),
+			containerd.WithTimeout(60*time.Second),
+		)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to dial %q", config.ContainerdAddr)
+			return nil, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
 		}
 	}
 
 	createPluginExec := func(m *plugin.Manager) (plugin.Executor, error) {
 		var pluginCli *containerd.Client
 
-		if config.ContainerdAddr != "" {
-			pluginCli, err = containerd.New(config.ContainerdAddr, containerd.WithDefaultNamespace(config.ContainerdPluginNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
+		if cfgStore.ContainerdAddr != "" {
+			pluginCli, err = containerd.New(
+				cfgStore.ContainerdAddr,
+				containerd.WithDefaultNamespace(cfgStore.ContainerdPluginNamespace),
+				containerd.WithDialOpts(gopts),
+				containerd.WithTimeout(60*time.Second),
+			)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to dial %q", config.ContainerdAddr)
+				return nil, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
 			}
 		}
 
-		var rt types.Runtime
+		var (
+			shim     string
+			shimOpts interface{}
+		)
 		if runtime.GOOS != "windows" {
-			rtPtr, err := d.getRuntime(config.GetDefaultRuntimeName())
+			shim, shimOpts, err = rts.Get("")
 			if err != nil {
 				return nil, err
 			}
-			rt = *rtPtr
 		}
-		return pluginexec.New(ctx, getPluginExecRoot(config.Root), pluginCli, config.ContainerdPluginNamespace, m, rt)
+		return pluginexec.New(ctx, getPluginExecRoot(&cfgStore.Config), pluginCli, cfgStore.ContainerdPluginNamespace, m, shim, shimOpts)
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.
 	d.pluginManager, err = plugin.NewManager(plugin.ManagerConfig{
-		Root:               filepath.Join(config.Root, "plugins"),
-		ExecRoot:           getPluginExecRoot(config.Root),
+		Root:               filepath.Join(cfgStore.Root, "plugins"),
+		ExecRoot:           getPluginExecRoot(&cfgStore.Config),
 		Store:              d.PluginStore,
 		CreateExecutor:     createPluginExec,
 		RegistryService:    registryService,
-		LiveRestoreEnabled: config.LiveRestoreEnabled,
+		LiveRestoreEnabled: cfgStore.LiveRestoreEnabled,
 		LogPluginEvent:     d.LogPluginEvent, // todo: make private
-		AuthzMiddleware:    config.AuthzMiddleware,
+		AuthzMiddleware:    authzMiddleware,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create plugin manager")
 	}
 
-	if err := d.setupDefaultLogConfig(); err != nil {
-		return nil, err
+	d.defaultLogConfig, err = defaultLogConfig(&cfgStore.Config)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to set log opts")
 	}
+	log.G(ctx).Debugf("Using default logging driver %s", d.defaultLogConfig.Type)
 
-	d.volumes, err = volumesservice.NewVolumeService(config.Root, d.PluginStore, rootIDs, d)
+	d.volumes, err = volumesservice.NewVolumeService(cfgStore.Root, d.PluginStore, rootIDs, d)
 	if err != nil {
 		return nil, err
-	}
-
-	// Try to preserve the daemon ID (which is the trust-key's ID) when upgrading
-	// an existing installation; this is a "best-effort".
-	idPath := filepath.Join(config.Root, "engine-id")
-	err = migrateTrustKeyID(config.TrustKeyPath, idPath)
-	if err != nil {
-		logrus.WithError(err).Warnf("unable to migrate engine ID; a new engine ID will be generated")
 	}
 
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
@@ -943,11 +1040,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// at this point.
 	//
 	// TODO(thaJeztah) add a utility to only collect the CgroupDevicesEnabled information
-	if runtime.GOOS == "linux" && !userns.RunningInUserNS() && !getSysInfo(d).CgroupDevicesEnabled {
+	if runtime.GOOS == "linux" && !userns.RunningInUserNS() && !getSysInfo(&cfgStore.Config).CgroupDevicesEnabled {
 		return nil, errors.New("Devices cgroup isn't mounted")
 	}
 
-	d.id, err = loadOrCreateID(idPath)
+	d.id, err = LoadOrCreateID(cfgStore.Root)
 	if err != nil {
 		return nil, err
 	}
@@ -960,7 +1057,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
 
 	d.EventsService = events.New()
-	d.root = config.Root
+	d.root = cfgStore.Root
 	d.idMapping = idMapping
 
 	d.linkIndex = newLinkIndex()
@@ -970,15 +1067,24 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// be set through an environment variable, a daemon start parameter, or chosen through
 	// initialization of the layerstore through driver priority order for example.
 	driverName := os.Getenv("DOCKER_DRIVER")
-	if isWindows {
+	if isWindows && d.UsesSnapshotter() {
+		// Containerd WCOW snapshotter
+		driverName = "windows"
+	} else if isWindows {
+		// Docker WCOW graphdriver
 		driverName = "windowsfilter"
 	} else if driverName != "" {
-		logrus.Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
+		log.G(ctx).Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
 	} else {
-		driverName = config.GraphDriver
+		driverName = cfgStore.GraphDriver
 	}
 
 	if d.UsesSnapshotter() {
+		if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
+			log.G(ctx).Warn("Enabling containerd snapshotter through the $TEST_INTEGRATION_USE_SNAPSHOTTER environment variable. This should only be used for testing.")
+		}
+		log.G(ctx).Info("Starting daemon with containerd snapshotter integration enabled")
+
 		// FIXME(thaJeztah): implement automatic snapshotter-selection similar to graph-driver selection; see https://github.com/moby/moby/issues/44076
 		if driverName == "" {
 			driverName = containerd.DefaultSnapshotter
@@ -986,19 +1092,28 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
-		if err := configureKernelSecuritySupport(config, driverName); err != nil {
+		if err := configureKernelSecuritySupport(&cfgStore.Config, driverName); err != nil {
 			return nil, err
 		}
-		d.imageService = ctrd.NewService(d.containerdCli, driverName)
+		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
+			Client:          d.containerdClient,
+			Containers:      d.containers,
+			Snapshotter:     driverName,
+			RegistryHosts:   d.RegistryHosts,
+			Registry:        d.registryService,
+			EventsService:   d.EventsService,
+			IDMapping:       idMapping,
+			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idMapping),
+		})
 	} else {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
-			Root:                      config.Root,
-			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
+			Root:                      cfgStore.Root,
+			MetadataStorePathTemplate: filepath.Join(cfgStore.Root, "image", "%s", "layerdb"),
 			GraphDriver:               driverName,
-			GraphDriverOptions:        config.GraphOptions,
+			GraphDriverOptions:        cfgStore.GraphOptions,
 			IDMapping:                 idMapping,
 			PluginGetter:              d.PluginStore,
-			ExperimentalEnabled:       config.Experimental,
+			ExperimentalEnabled:       cfgStore.Experimental,
 		})
 		if err != nil {
 			return nil, err
@@ -1006,11 +1121,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
-		if err := configureKernelSecuritySupport(config, layerStore.DriverName()); err != nil {
+		if err := configureKernelSecuritySupport(&cfgStore.Config, layerStore.DriverName()); err != nil {
 			return nil, err
 		}
 
-		imageRoot := filepath.Join(config.Root, "image", layerStore.DriverName())
+		imageRoot := filepath.Join(cfgStore.Root, "image", layerStore.DriverName())
 		ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
 		if err != nil {
 			return nil, err
@@ -1057,32 +1172,17 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			ContentNamespace:          config.ContainerdNamespace,
 		}
 
-		// This is a temporary environment variables used in CI to allow pushing
-		// manifest v2 schema 1 images to test-registries used for testing *pulling*
-		// these images.
-		if os.Getenv("DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE") != "" {
-			imgSvcConfig.TrustKey, err = loadOrCreateTrustKey(config.TrustKeyPath)
-			if err != nil {
-				return nil, err
-			}
-			if err = system.MkdirAll(filepath.Join(config.Root, "trust"), 0700); err != nil {
-				return nil, err
-			}
-		}
-
 		// containerd is not currently supported with Windows.
 		// So sometimes d.containerdCli will be nil
 		// In that case we'll create a local content store... but otherwise we'll use containerd
-		if d.containerdCli != nil {
-			imgSvcConfig.Leases = d.containerdCli.LeasesService()
-			imgSvcConfig.ContentStore = d.containerdCli.ContentStore()
+		if d.containerdClient != nil {
+			imgSvcConfig.Leases = d.containerdClient.LeasesService()
+			imgSvcConfig.ContentStore = d.containerdClient.ContentStore()
 		} else {
-			cs, lm, err := d.configureLocalContentStore(config.ContainerdNamespace)
+			imgSvcConfig.ContentStore, imgSvcConfig.Leases, err = d.configureLocalContentStore(config.ContainerdNamespace)
 			if err != nil {
 				return nil, err
 			}
-			imgSvcConfig.ContentStore = cs
-			imgSvcConfig.Leases = lm
 		}
 
 		// TODO: imageStore, distributionMetadataStore, and ReferenceStore are only
@@ -1090,25 +1190,28 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// if migration is called from daemon/images. layerStore might move as well.
 		d.imageService = images.NewImageService(imgSvcConfig)
 
-		logrus.Debugf("Max Concurrent Downloads: %d", imgSvcConfig.MaxConcurrentDownloads)
-		logrus.Debugf("Max Concurrent Uploads: %d", imgSvcConfig.MaxConcurrentUploads)
-		logrus.Debugf("Max Download Attempts: %d", imgSvcConfig.MaxDownloadAttempts)
+		log.G(ctx).Debugf("Max Concurrent Downloads: %d", imgSvcConfig.MaxConcurrentDownloads)
+		log.G(ctx).Debugf("Max Concurrent Uploads: %d", imgSvcConfig.MaxConcurrentUploads)
+		log.G(ctx).Debugf("Max Download Attempts: %d", imgSvcConfig.MaxDownloadAttempts)
 	}
 
 	go d.execCommandGC()
 
-	if err := d.initLibcontainerd(ctx); err != nil {
+	if err := d.initLibcontainerd(ctx, &cfgStore.Config); err != nil {
 		return nil, err
 	}
 
-	if err := d.restore(); err != nil {
+	if err := d.restore(cfgStore); err != nil {
 		return nil, err
 	}
 	close(d.startupDone)
 
-	info := d.SystemInfo()
+	info, err := d.SystemInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 	for _, w := range info.Warnings {
-		logrus.Warn(w)
+		log.G(ctx).Warn(w)
 	}
 
 	engineInfo.WithValues(
@@ -1125,10 +1228,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	engineCpus.Set(float64(info.NCPU))
 	engineMemory.Set(float64(info.MemTotal))
 
-	logrus.WithFields(logrus.Fields{
-		"version":     dockerversion.Version,
-		"commit":      dockerversion.GitCommit,
-		"graphdriver": d.ImageService().StorageDriver(),
+	log.G(ctx).WithFields(log.Fields{
+		"version":                dockerversion.Version,
+		"commit":                 dockerversion.GitCommit,
+		"storage-driver":         d.ImageService().StorageDriver(),
+		"containerd-snapshotter": d.UsesSnapshotter(),
 	}).Info("Docker daemon")
 
 	return d, nil
@@ -1144,14 +1248,16 @@ func (daemon *Daemon) waitForStartupDone() {
 }
 
 func (daemon *Daemon) shutdownContainer(c *container.Container) error {
+	ctx := compatcontext.WithoutCancel(context.TODO())
+
 	// If container failed to exit in stopTimeout seconds of SIGTERM, then using the force
-	if err := daemon.containerStop(context.TODO(), c, containertypes.StopOptions{}); err != nil {
+	if err := daemon.containerStop(ctx, c, containertypes.StopOptions{}); err != nil {
 		return fmt.Errorf("Failed to stop container %s with error: %v", c.ID, err)
 	}
 
 	// Wait without timeout for the container to exit.
 	// Ignore the result.
-	<-c.Wait(context.Background(), container.WaitConditionNotRunning)
+	<-c.Wait(ctx, container.WaitConditionNotRunning)
 	return nil
 }
 
@@ -1163,7 +1269,11 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 // A negative (-1) timeout means "indefinitely", which means that containers
 // are not forcibly killed, and the daemon shuts down after all containers exit.
 func (daemon *Daemon) ShutdownTimeout() int {
-	shutdownTimeout := daemon.configStore.ShutdownTimeout
+	return daemon.shutdownTimeout(&daemon.config().Config)
+}
+
+func (daemon *Daemon) shutdownTimeout(cfg *config.Config) int {
+	shutdownTimeout := cfg.ShutdownTimeout
 	if shutdownTimeout < 0 {
 		return -1
 	}
@@ -1185,55 +1295,56 @@ func (daemon *Daemon) ShutdownTimeout() int {
 }
 
 // Shutdown stops the daemon.
-func (daemon *Daemon) Shutdown() error {
+func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	daemon.shutdown = true
 	// Keep mounts and networking running on daemon shutdown if
 	// we are to keep containers running and restore them.
 
-	if daemon.configStore.LiveRestoreEnabled && daemon.containers != nil {
+	cfg := &daemon.config().Config
+	if cfg.LiveRestoreEnabled && daemon.containers != nil {
 		// check if there are any running containers, if none we should do some cleanup
-		if ls, err := daemon.Containers(&types.ContainerListOptions{}); len(ls) != 0 || err != nil {
+		if ls, err := daemon.Containers(ctx, &containertypes.ListOptions{}); len(ls) != 0 || err != nil {
 			// metrics plugins still need some cleanup
 			daemon.cleanupMetricsPlugins()
-			return nil
+			return err
 		}
 	}
 
 	if daemon.containers != nil {
-		logrus.Debugf("daemon configured with a %d seconds minimum shutdown timeout", daemon.configStore.ShutdownTimeout)
-		logrus.Debugf("start clean shutdown of all containers with a %d seconds timeout...", daemon.ShutdownTimeout())
+		log.G(ctx).Debugf("daemon configured with a %d seconds minimum shutdown timeout", cfg.ShutdownTimeout)
+		log.G(ctx).Debugf("start clean shutdown of all containers with a %d seconds timeout...", daemon.shutdownTimeout(cfg))
 		daemon.containers.ApplyAll(func(c *container.Container) {
 			if !c.IsRunning() {
 				return
 			}
-			log := logrus.WithField("container", c.ID)
-			log.Debug("shutting down container")
+			logger := log.G(ctx).WithField("container", c.ID)
+			logger.Debug("shutting down container")
 			if err := daemon.shutdownContainer(c); err != nil {
-				log.WithError(err).Error("failed to shut down container")
+				logger.WithError(err).Error("failed to shut down container")
 				return
 			}
 			if mountid, err := daemon.imageService.GetLayerMountID(c.ID); err == nil {
 				daemon.cleanupMountsByID(mountid)
 			}
-			log.Debugf("shut down container")
+			logger.Debugf("shut down container")
 		})
 	}
 
 	if daemon.volumes != nil {
 		if err := daemon.volumes.Shutdown(); err != nil {
-			logrus.Errorf("Error shutting down volume store: %v", err)
+			log.G(ctx).Errorf("Error shutting down volume store: %v", err)
 		}
 	}
 
 	if daemon.imageService != nil {
 		if err := daemon.imageService.Cleanup(); err != nil {
-			logrus.Error(err)
+			log.G(ctx).Error(err)
 		}
 	}
 
 	// If we are part of a cluster, clean up cluster's stuff
 	if daemon.clusterProvider != nil {
-		logrus.Debugf("start clean shutdown of cluster resources...")
+		log.G(ctx).Debugf("start clean shutdown of cluster resources...")
 		daemon.DaemonLeavesCluster()
 	}
 
@@ -1247,54 +1358,25 @@ func (daemon *Daemon) Shutdown() error {
 		daemon.netController.Stop()
 	}
 
-	if daemon.containerdCli != nil {
-		daemon.containerdCli.Close()
+	if daemon.containerdClient != nil {
+		daemon.containerdClient.Close()
 	}
 
 	if daemon.mdDB != nil {
 		daemon.mdDB.Close()
 	}
 
-	return daemon.cleanupMounts()
+	return daemon.cleanupMounts(cfg)
 }
 
 // Mount sets container.BaseFS
-// (is it not set coming in? why is it unset?)
 func (daemon *Daemon) Mount(container *container.Container) error {
-	if container.RWLayer == nil {
-		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
-	}
-	dir, err := container.RWLayer.Mount(container.GetMountLabel())
-	if err != nil {
-		return err
-	}
-	logrus.WithField("container", container.ID).Debugf("container mounted via layerStore: %v", dir)
-
-	if container.BaseFS != nil && container.BaseFS.Path() != dir.Path() {
-		// The mount path reported by the graph driver should always be trusted on Windows, since the
-		// volume path for a given mounted layer may change over time.  This should only be an error
-		// on non-Windows operating systems.
-		if runtime.GOOS != "windows" {
-			daemon.Unmount(container)
-			return fmt.Errorf("driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-				container.Driver, container.ID, container.BaseFS, dir)
-		}
-	}
-	container.BaseFS = dir // TODO: combine these fields
-	return nil
+	return daemon.imageService.Mount(context.Background(), container)
 }
 
 // Unmount unsets the container base filesystem
 func (daemon *Daemon) Unmount(container *container.Container) error {
-	if container.RWLayer == nil {
-		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
-	}
-	if err := container.RWLayer.Unmount(); err != nil {
-		logrus.WithField("container", container.ID).WithError(err).Error("error unmounting container")
-		return err
-	}
-
-	return nil
+	return daemon.imageService.Unmount(context.Background(), container)
 }
 
 // Subnets return the IPv4 and IPv6 subnets of networks that are manager by Docker.
@@ -1302,10 +1384,8 @@ func (daemon *Daemon) Subnets() ([]net.IPNet, []net.IPNet) {
 	var v4Subnets []net.IPNet
 	var v6Subnets []net.IPNet
 
-	managedNetworks := daemon.netController.Networks()
-
-	for _, managedNetwork := range managedNetworks {
-		v4infos, v6infos := managedNetwork.Info().IpamInfo()
+	for _, managedNetwork := range daemon.netController.Networks(context.TODO()) {
+		v4infos, v6infos := managedNetwork.IpamInfo()
 		for _, info := range v4infos {
 			if info.IPAMData.Pool != nil {
 				v4Subnets = append(v4Subnets, *info.IPAMData.Pool)
@@ -1332,17 +1412,17 @@ func prepareTempDir(rootDir string) (string, error) {
 		if err := os.Rename(tmpDir, newName); err == nil {
 			go func() {
 				if err := os.RemoveAll(newName); err != nil {
-					logrus.Warnf("failed to delete old tmp directory: %s", newName)
+					log.G(context.TODO()).Warnf("failed to delete old tmp directory: %s", newName)
 				}
 			}()
 		} else if !os.IsNotExist(err) {
-			logrus.Warnf("failed to rename %s for background deletion: %s. Deleting synchronously", tmpDir, err)
+			log.G(context.TODO()).Warnf("failed to rename %s for background deletion: %s. Deleting synchronously", tmpDir, err)
 			if err := os.RemoveAll(tmpDir); err != nil {
-				logrus.Warnf("failed to delete old tmp directory: %s", tmpDir)
+				log.G(context.TODO()).Warnf("failed to delete old tmp directory: %s", tmpDir)
 			}
 		}
 	}
-	return tmpDir, idtools.MkdirAllAndChown(tmpDir, 0700, idtools.CurrentIdentity())
+	return tmpDir, idtools.MkdirAllAndChown(tmpDir, 0o700, idtools.CurrentIdentity())
 }
 
 func (daemon *Daemon) setGenericResources(conf *config.Config) error {
@@ -1365,16 +1445,10 @@ func isBridgeNetworkDisabled(conf *config.Config) bool {
 	return conf.BridgeConfig.Iface == config.DisableNetworkBridge
 }
 
-func (daemon *Daemon) networkOptions(pg plugingetter.PluginGetter, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
-	options := []nwconfig.Option{}
-	if daemon.configStore == nil {
-		return options, nil
-	}
-	conf := daemon.configStore
+func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.PluginGetter, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
 	dd := runconfig.DefaultDaemonNetworkMode()
 
-	options = []nwconfig.Option{
-		nwconfig.OptionExperimental(conf.Experimental),
+	options := []nwconfig.Option{
 		nwconfig.OptionDataDir(conf.Root),
 		nwconfig.OptionExecRoot(conf.GetExecRoot()),
 		nwconfig.OptionDefaultDriver(string(dd)),
@@ -1446,6 +1520,34 @@ func CreateDaemonRoot(config *config.Config) error {
 	return setupDaemonRoot(config, realRoot, idMapping.RootPair())
 }
 
+// RemapContainerdNamespaces returns the right containerd namespaces to use:
+// - if they are not already set in the config file
+// -  and the daemon is running with user namespace remapping enabled
+// Then it will return new namespace names, otherwise it will return the existing
+// namespaces
+func RemapContainerdNamespaces(config *config.Config) (ns string, pluginNs string, err error) {
+	idMapping, err := setupRemappedRoot(config)
+	if err != nil {
+		return "", "", err
+	}
+	if idMapping.Empty() {
+		return config.ContainerdNamespace, config.ContainerdPluginNamespace, nil
+	}
+	root := idMapping.RootPair()
+
+	ns = config.ContainerdNamespace
+	if _, ok := config.ValuesSet["containerd-namespace"]; !ok {
+		ns = fmt.Sprintf("%s-%d.%d", config.ContainerdNamespace, root.UID, root.GID)
+	}
+
+	pluginNs = config.ContainerdPluginNamespace
+	if _, ok := config.ValuesSet["containerd-plugin-namespace"]; !ok {
+		pluginNs = fmt.Sprintf("%s-%d.%d", config.ContainerdPluginNamespace, root.UID, root.GID)
+	}
+
+	return
+}
+
 // checkpointAndSave grabs a container lock to safely call container.CheckpointTo
 func (daemon *Daemon) checkpointAndSave(container *container.Container) error {
 	container.Lock()
@@ -1479,6 +1581,19 @@ func (daemon *Daemon) ImageService() ImageService {
 	return daemon.imageService
 }
 
+// ImageBackend returns an image-backend for Swarm and the distribution router.
+func (daemon *Daemon) ImageBackend() executorpkg.ImageBackend {
+	return &imageBackend{
+		ImageService:    daemon.imageService,
+		registryService: daemon.registryService,
+	}
+}
+
+// RegistryService returns the Daemon's RegistryService
+func (daemon *Daemon) RegistryService() *registry.Service {
+	return daemon.registryService
+}
+
 // BuilderBackend returns the backend used by builder
 func (daemon *Daemon) BuilderBackend() builder.Backend {
 	return struct {
@@ -1493,9 +1608,33 @@ func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
 		// We check if sysInfo is not set here, to allow some test to
 		// override the actual sysInfo.
 		if daemon.sysInfo == nil {
-			daemon.sysInfo = getSysInfo(daemon)
+			daemon.sysInfo = getSysInfo(&daemon.config().Config)
 		}
 	})
 
 	return daemon.sysInfo
+}
+
+// imageBackend is used to satisfy the [executorpkg.ImageBackend] and
+// [github.com/docker/docker/api/server/router/distribution.Backend]
+// interfaces.
+type imageBackend struct {
+	ImageService
+	registryService *registry.Service
+}
+
+// GetRepositories returns a list of repositories configured for the given
+// reference. Multiple repositories can be returned if the reference is for
+// the default (Docker Hub) registry and a mirror is configured, but it omits
+// registries that were not reachable (pinging the /v2/ endpoint failed).
+//
+// It returns an error if it was unable to reach any of the registries for
+// the given reference, or if the provided reference is invalid.
+func (i *imageBackend) GetRepositories(ctx context.Context, ref reference.Named, authConfig *registrytypes.AuthConfig) ([]dist.Repository, error) {
+	return distribution.GetRepositories(ctx, ref, &distribution.ImagePullConfig{
+		Config: distribution.Config{
+			AuthConfig:      authConfig,
+			RegistryService: i.registryService,
+		},
+	})
 }

@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestVolumeRemoveError(t *testing.T) {
@@ -18,9 +20,7 @@ func TestVolumeRemoveError(t *testing.T) {
 	}
 
 	err := client.VolumeRemove(context.Background(), "volume_id", false)
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestVolumeRemove(t *testing.T) {

@@ -3,7 +3,6 @@ package cache
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/hashicorp/go-multierror"
@@ -27,7 +27,9 @@ import (
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/leaseutil"
+	"github.com/moby/buildkit/util/overlay"
 	"github.com/moby/buildkit/util/progress"
+	rootlessmountopts "github.com/moby/buildkit/util/rootless/mountopts"
 	"github.com/moby/buildkit/util/winlayers"
 	"github.com/moby/sys/mountinfo"
 	digest "github.com/opencontainers/go-digest"
@@ -36,6 +38,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
+
+var additionalAnnotations = append(compression.EStargzAnnotations, containerdUncompressed)
 
 // Ref is a reference to cacheable objects.
 type Ref interface {
@@ -56,6 +60,7 @@ type ImmutableRef interface {
 	Extract(ctx context.Context, s session.Group) error // +progress
 	GetRemotes(ctx context.Context, createIfNeeded bool, cfg config.RefConfig, all bool, s session.Group) ([]*solver.Remote, error)
 	LayerChain() RefList
+	FileList(ctx context.Context, s session.Group) ([]string, error)
 }
 
 type MutableRef interface {
@@ -85,7 +90,7 @@ type cacheRecord struct {
 
 	mountCache snapshot.Mountable
 
-	sizeG flightcontrol.Group
+	sizeG flightcontrol.Group[int64]
 
 	// these are filled if multiple refs point to same data
 	equalMutable   *mutableRef
@@ -103,6 +108,7 @@ func (cr *cacheRecord) ref(triggerLastUsed bool, descHandlers DescHandlers, pg p
 		progress:        pg,
 	}
 	cr.refs[ref] = struct{}{}
+	bklog.G(context.TODO()).WithFields(ref.traceLogFields()).Trace("acquired cache ref")
 	return ref
 }
 
@@ -114,6 +120,7 @@ func (cr *cacheRecord) mref(triggerLastUsed bool, descHandlers DescHandlers) *mu
 		descHandlers:    descHandlers,
 	}
 	cr.refs[ref] = struct{}{}
+	bklog.G(context.TODO()).WithFields(ref.traceLogFields()).Trace("acquired cache ref")
 	return ref
 }
 
@@ -318,7 +325,7 @@ func (cr *cacheRecord) viewSnapshotID() string {
 
 func (cr *cacheRecord) size(ctx context.Context) (int64, error) {
 	// this expects that usage() is implemented lazily
-	s, err := cr.sizeG.Do(ctx, cr.ID(), func(ctx context.Context) (interface{}, error) {
+	return cr.sizeG.Do(ctx, cr.ID(), func(ctx context.Context) (int64, error) {
 		cr.mu.Lock()
 		s := cr.getSize()
 		if s != sizeUnknown {
@@ -339,7 +346,7 @@ func (cr *cacheRecord) size(ctx context.Context) (int64, error) {
 				isDead := cr.isDead()
 				cr.mu.Unlock()
 				if isDead {
-					return int64(0), nil
+					return 0, nil
 				}
 				if !errors.Is(err, errdefs.ErrNotFound) {
 					return s, errors.Wrapf(err, "failed to get usage for %s", cr.ID())
@@ -372,10 +379,6 @@ func (cr *cacheRecord) size(ctx context.Context) (int64, error) {
 		cr.mu.Unlock()
 		return usage.Size, nil
 	})
-	if err != nil {
-		return 0, err
-	}
-	return s.(int64), nil
 }
 
 // caller must hold cr.mu
@@ -434,7 +437,19 @@ func (cr *cacheRecord) mount(ctx context.Context, s session.Group) (_ snapshot.M
 }
 
 // call when holding the manager lock
-func (cr *cacheRecord) remove(ctx context.Context, removeSnapshot bool) error {
+func (cr *cacheRecord) remove(ctx context.Context, removeSnapshot bool) (rerr error) {
+	defer func() {
+		l := bklog.G(ctx).WithFields(map[string]any{
+			"id":             cr.ID(),
+			"refCount":       len(cr.refs),
+			"removeSnapshot": removeSnapshot,
+			"stack":          bklog.LazyStackTrace{},
+		})
+		if rerr != nil {
+			l = l.WithError(rerr)
+		}
+		l.Trace("removed cache record")
+	}()
 	delete(cr.cm.records, cr.ID())
 	if removeSnapshot {
 		if err := cr.cm.LeaseManager.Delete(ctx, leases.Lease{
@@ -463,6 +478,24 @@ type immutableRef struct {
 	descHandlers    DescHandlers
 	// TODO:(sipsma) de-dupe progress with the same field inside descHandlers?
 	progress progress.Controller
+}
+
+// hold ref lock before calling
+func (sr *immutableRef) traceLogFields() logrus.Fields {
+	m := map[string]any{
+		"id":          sr.ID(),
+		"refID":       fmt.Sprintf("%p", sr),
+		"newRefCount": len(sr.refs),
+		"mutable":     false,
+		"stack":       bklog.LazyStackTrace{},
+	}
+	if sr.equalMutable != nil {
+		m["equalMutableID"] = sr.equalMutable.ID()
+	}
+	if sr.equalImmutable != nil {
+		m["equalImmutableID"] = sr.equalImmutable.ID()
+	}
+	return m
 }
 
 // Order is from parent->child, sr will be at end of slice. Refs should not
@@ -587,6 +620,24 @@ type mutableRef struct {
 	descHandlers    DescHandlers
 }
 
+// hold ref lock before calling
+func (sr *mutableRef) traceLogFields() logrus.Fields {
+	m := map[string]any{
+		"id":          sr.ID(),
+		"refID":       fmt.Sprintf("%p", sr),
+		"newRefCount": len(sr.refs),
+		"mutable":     true,
+		"stack":       bklog.LazyStackTrace{},
+	}
+	if sr.equalMutable != nil {
+		m["equalMutableID"] = sr.equalMutable.ID()
+	}
+	if sr.equalImmutable != nil {
+		m["equalImmutableID"] = sr.equalImmutable.ID()
+	}
+	return m
+}
+
 func (sr *mutableRef) DescHandler(dgst digest.Digest) *DescHandler {
 	return sr.descHandlers[dgst]
 }
@@ -611,11 +662,11 @@ func layerToDistributable(mt string) string {
 	}
 
 	switch mt {
-	case ocispecs.MediaTypeImageLayerNonDistributable:
+	case ocispecs.MediaTypeImageLayerNonDistributable: //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
 		return ocispecs.MediaTypeImageLayer
-	case ocispecs.MediaTypeImageLayerNonDistributableGzip:
+	case ocispecs.MediaTypeImageLayerNonDistributableGzip: //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
 		return ocispecs.MediaTypeImageLayerGzip
-	case ocispecs.MediaTypeImageLayerNonDistributableZstd:
+	case ocispecs.MediaTypeImageLayerNonDistributableZstd: //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
 		return ocispecs.MediaTypeImageLayerZstd
 	case images.MediaTypeDockerSchema2LayerForeign:
 		return images.MediaTypeDockerSchema2Layer
@@ -629,11 +680,11 @@ func layerToDistributable(mt string) string {
 func layerToNonDistributable(mt string) string {
 	switch mt {
 	case ocispecs.MediaTypeImageLayer:
-		return ocispecs.MediaTypeImageLayerNonDistributable
+		return ocispecs.MediaTypeImageLayerNonDistributable //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
 	case ocispecs.MediaTypeImageLayerGzip:
-		return ocispecs.MediaTypeImageLayerNonDistributableGzip
+		return ocispecs.MediaTypeImageLayerNonDistributableGzip //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
 	case ocispecs.MediaTypeImageLayerZstd:
-		return ocispecs.MediaTypeImageLayerNonDistributableZstd
+		return ocispecs.MediaTypeImageLayerNonDistributableZstd //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
 	case images.MediaTypeDockerSchema2Layer:
 		return images.MediaTypeDockerSchema2LayerForeign
 	case images.MediaTypeDockerSchema2LayerForeignGzip:
@@ -768,12 +819,9 @@ func (sr *immutableRef) getBlobWithCompression(ctx context.Context, compressionT
 }
 
 func getBlobWithCompression(ctx context.Context, cs content.Store, desc ocispecs.Descriptor, compressionType compression.Type) (ocispecs.Descriptor, error) {
-	if compressionType == compression.UnknownCompression {
-		return ocispecs.Descriptor{}, fmt.Errorf("cannot get unknown compression type")
-	}
 	var target *ocispecs.Descriptor
 	if err := walkBlob(ctx, cs, desc, func(desc ocispecs.Descriptor) bool {
-		if needs, err := needsConversion(ctx, cs, desc, compressionType); err == nil && !needs {
+		if needs, err := compressionType.NeedsConversion(ctx, cs, desc); err == nil && !needs {
 			target = &desc
 			return false
 		}
@@ -838,11 +886,11 @@ func getBlobDesc(ctx context.Context, cs content.Store, dgst digest.Digest) (oci
 		return ocispecs.Descriptor{}, err
 	}
 	if info.Labels == nil {
-		return ocispecs.Descriptor{}, fmt.Errorf("no blob metadata is stored for %q", info.Digest)
+		return ocispecs.Descriptor{}, errors.Errorf("no blob metadata is stored for %q", info.Digest)
 	}
 	mt, ok := info.Labels[blobMediaTypeLabel]
 	if !ok {
-		return ocispecs.Descriptor{}, fmt.Errorf("no media type is stored for %q", info.Digest)
+		return ocispecs.Descriptor{}, errors.Errorf("no media type is stored for %q", info.Digest)
 	}
 	desc := ocispecs.Descriptor{
 		Digest:    info.Digest,
@@ -882,7 +930,7 @@ func filterAnnotationsForSave(a map[string]string) (b map[string]string) {
 	if a == nil {
 		return nil
 	}
-	for _, k := range append(eStargzAnnotations, containerdUncompressed) {
+	for _, k := range additionalAnnotations {
 		v, ok := a[k]
 		if !ok {
 			continue
@@ -992,7 +1040,7 @@ func (sr *immutableRef) withRemoteSnapshotLabelsStargzMode(ctx context.Context, 
 				info.Labels[k] = "" // Remove labels appended in this call
 			}
 			if _, err := r.cm.Snapshotter.Update(ctx, info, flds...); err != nil {
-				logrus.Warn(errors.Wrapf(err, "failed to remove tmp remote labels"))
+				bklog.G(ctx).Warn(errors.Wrapf(err, "failed to remove tmp remote labels"))
 			}
 		}()
 
@@ -1005,7 +1053,7 @@ func (sr *immutableRef) withRemoteSnapshotLabelsStargzMode(ctx context.Context, 
 }
 
 func (sr *immutableRef) prepareRemoteSnapshotsStargzMode(ctx context.Context, s session.Group) error {
-	_, err := sr.sizeG.Do(ctx, sr.ID()+"-prepare-remote-snapshot", func(ctx context.Context) (_ interface{}, rerr error) {
+	_, err := g.Do(ctx, sr.ID()+"-prepare-remote-snapshot", func(ctx context.Context) (_ struct{}, rerr error) {
 		dhs := sr.descHandlers
 		for _, r := range sr.layerChain() {
 			r := r
@@ -1017,7 +1065,7 @@ func (sr *immutableRef) prepareRemoteSnapshotsStargzMode(ctx context.Context, s 
 			dh := dhs[digest.Digest(r.getBlob())]
 			if dh == nil {
 				// We cannot prepare remote snapshots without descHandler.
-				return nil, nil
+				return struct{}{}, nil
 			}
 
 			// tmpLabels contains dh.SnapshotLabels + session IDs. All keys contain
@@ -1054,7 +1102,7 @@ func (sr *immutableRef) prepareRemoteSnapshotsStargzMode(ctx context.Context, s 
 								info.Labels[k] = ""
 							}
 							if _, err := r.cm.Snapshotter.Update(ctx, info, tmpFields...); err != nil {
-								logrus.Warn(errors.Wrapf(err,
+								bklog.G(ctx).Warn(errors.Wrapf(err,
 									"failed to remove tmp remote labels after prepare"))
 							}
 						}()
@@ -1069,7 +1117,7 @@ func (sr *immutableRef) prepareRemoteSnapshotsStargzMode(ctx context.Context, s 
 			break
 		}
 
-		return nil, nil
+		return struct{}{}, nil
 	})
 	return err
 }
@@ -1092,18 +1140,18 @@ func makeTmpLabelsStargzMode(labels map[string]string, s session.Group) (fields 
 }
 
 func (sr *immutableRef) unlazy(ctx context.Context, dhs DescHandlers, pg progress.Controller, s session.Group, topLevel bool) error {
-	_, err := sr.sizeG.Do(ctx, sr.ID()+"-unlazy", func(ctx context.Context) (_ interface{}, rerr error) {
+	_, err := g.Do(ctx, sr.ID()+"-unlazy", func(ctx context.Context) (_ struct{}, rerr error) {
 		if _, err := sr.cm.Snapshotter.Stat(ctx, sr.getSnapshotID()); err == nil {
-			return nil, nil
+			return struct{}{}, nil
 		}
 
 		switch sr.kind() {
 		case Merge, Diff:
-			return nil, sr.unlazyDiffMerge(ctx, dhs, pg, s, topLevel)
+			return struct{}{}, sr.unlazyDiffMerge(ctx, dhs, pg, s, topLevel)
 		case Layer, BaseLayer:
-			return nil, sr.unlazyLayer(ctx, dhs, pg, s)
+			return struct{}{}, sr.unlazyLayer(ctx, dhs, pg, s)
 		}
-		return nil, nil
+		return struct{}{}, nil
 	})
 	return err
 }
@@ -1293,9 +1341,16 @@ func (sr *immutableRef) updateLastUsedNow() bool {
 	return true
 }
 
-func (sr *immutableRef) release(ctx context.Context) error {
-	delete(sr.refs, sr)
+func (sr *immutableRef) release(ctx context.Context) (rerr error) {
+	defer func() {
+		l := bklog.G(ctx).WithFields(sr.traceLogFields())
+		if rerr != nil {
+			l = l.WithError(rerr)
+		}
+		l.Trace("released cache ref")
+	}()
 
+	delete(sr.refs, sr)
 	if sr.updateLastUsedNow() {
 		sr.updateLastUsed()
 		if sr.equalMutable != nil {
@@ -1362,7 +1417,7 @@ func (cr *cacheRecord) finalize(ctx context.Context) error {
 		cr.cm.mu.Lock()
 		defer cr.cm.mu.Unlock()
 		if err := mutable.remove(context.TODO(), true); err != nil {
-			logrus.Error(err)
+			bklog.G(ctx).Error(err)
 		}
 	}()
 
@@ -1475,8 +1530,16 @@ func (sr *mutableRef) Release(ctx context.Context) error {
 	return sr.release(ctx)
 }
 
-func (sr *mutableRef) release(ctx context.Context) error {
+func (sr *mutableRef) release(ctx context.Context) (rerr error) {
+	defer func() {
+		l := bklog.G(ctx).WithFields(sr.traceLogFields())
+		if rerr != nil {
+			l = l.WithError(rerr)
+		}
+		l.Trace("released cache ref")
+	}()
 	delete(sr.refs, sr)
+
 	if !sr.HasCachePolicyRetain() {
 		if sr.equalImmutable != nil {
 			if sr.equalImmutable.HasCachePolicyRetain() {
@@ -1513,7 +1576,7 @@ func (m *readOnlyMounter) Mount() ([]mount.Mount, func() error, error) {
 		return nil, nil, err
 	}
 	for i, m := range mounts {
-		if m.Type == "overlay" {
+		if overlay.IsOverlayMountType(m) {
 			mounts[i].Options = readonlyOverlay(m.Options)
 			continue
 		}
@@ -1552,12 +1615,12 @@ func readonlyOverlay(opt []string) []string {
 func newSharableMountPool(tmpdirRoot string) (sharableMountPool, error) {
 	if tmpdirRoot != "" {
 		if err := os.MkdirAll(tmpdirRoot, 0700); err != nil {
-			return sharableMountPool{}, fmt.Errorf("failed to prepare mount pool: %w", err)
+			return sharableMountPool{}, errors.Wrap(err, "failed to prepare mount pool")
 		}
 		// If tmpdirRoot is specified, remove existing mounts to avoid conflict.
 		files, err := os.ReadDir(tmpdirRoot)
 		if err != nil {
-			return sharableMountPool{}, fmt.Errorf("failed to read mount pool: %w", err)
+			return sharableMountPool{}, errors.Wrap(err, "failed to read mount pool")
 		}
 		for _, file := range files {
 			if file.IsDir() {
@@ -1591,9 +1654,10 @@ func (p sharableMountPool) setSharable(mounts snapshot.Mountable) snapshot.Mount
 // This is useful to share writable overlayfs mounts.
 //
 // NOTE: Mount() method doesn't return the underlying mount configuration (e.g. overlayfs mounts)
-//       instead it always return bind mounts of the temporary mount point. So if the caller
-//       needs to inspect the underlying mount configuration (e.g. for optimized differ for
-//       overlayfs), this wrapper shouldn't be used.
+//
+//	instead it always return bind mounts of the temporary mount point. So if the caller
+//	needs to inspect the underlying mount configuration (e.g. for optimized differ for
+//	overlayfs), this wrapper shouldn't be used.
 type sharableMountable struct {
 	snapshot.Mountable
 
@@ -1622,7 +1686,7 @@ func (sm *sharableMountable) Mount() (_ []mount.Mount, _ func() error, retErr er
 		}()
 		var isOverlay bool
 		for _, m := range mounts {
-			if m.Type == "overlay" {
+			if overlay.IsOverlayMountType(m) {
 				isOverlay = true
 				break
 			}
@@ -1631,7 +1695,7 @@ func (sm *sharableMountable) Mount() (_ []mount.Mount, _ func() error, retErr er
 			// Don't need temporary mount wrapper for non-overlayfs mounts
 			return mounts, release, nil
 		}
-		dir, err := ioutil.TempDir(sm.mountPoolRoot, "buildkit")
+		dir, err := os.MkdirTemp(sm.mountPoolRoot, "buildkit")
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1640,6 +1704,12 @@ func (sm *sharableMountable) Mount() (_ []mount.Mount, _ func() error, retErr er
 				os.Remove(dir)
 			}
 		}()
+		if userns.RunningInUserNS() {
+			mounts, err = rootlessmountopts.FixUp(mounts)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
 		if err := mount.All(mounts, dir); err != nil {
 			return nil, nil, err
 		}

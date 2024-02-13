@@ -2,15 +2,43 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"strings"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/content"
+	cerrdefs "github.com/containerd/containerd/errdefs"
+	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/images/archive"
+	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
-	"github.com/docker/distribution/reference"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/errdefs"
+	dockerarchive "github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/streamformatter"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
+
+func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Container, fn func(root string) error) error {
+	snapshotter := i.client.SnapshotService(c.Driver)
+	mounts, err := snapshotter.Mounts(ctx, c.ID)
+	if err != nil {
+		return err
+	}
+	path, err := i.refCountMounter.Mount(mounts, c.ID)
+	if err != nil {
+		return err
+	}
+	defer i.refCountMounter.Unmount(path)
+
+	return fn(path)
+}
 
 // ExportImage exports a list of images to the given output stream. The
 // exported images are archived into a tar when written to the output
@@ -20,54 +48,272 @@ import (
 //
 // TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
 func (i *ImageService) ExportImage(ctx context.Context, names []string, outStream io.Writer) error {
+	platform := matchAllWithPreference(platforms.Default())
 	opts := []archive.ExportOpt{
-		archive.WithPlatform(platforms.Ordered(platforms.DefaultSpec())),
 		archive.WithSkipNonDistributableBlobs(),
+
+		// This makes the exported archive also include `manifest.json`
+		// when the image is a manifest list. It is needed for backwards
+		// compatibility with Docker image format.
+		// The containerd will choose only one manifest for the `manifest.json`.
+		// Our preference is to have it point to the default platform.
+		// Example:
+		//  Daemon is running on linux/arm64
+		//  When we export linux/amd64 and linux/arm64, manifest.json will point to linux/arm64.
+		//  When we export linux/amd64 only, manifest.json will point to linux/amd64.
+		// Note: This is only applicable if importing this archive into non-containerd Docker.
+		// Importing the same archive into containerd, will not restrict the platforms.
+		archive.WithPlatform(platform),
+		archive.WithSkipMissing(i.content),
 	}
-	is := i.client.ImageService()
-	for _, imageRef := range names {
-		named, err := reference.ParseDockerRef(imageRef)
-		if err != nil {
+
+	leasesManager := i.client.LeasesService()
+	lease, err := leasesManager.Create(ctx, leases.WithRandomID())
+	if err != nil {
+		return errdefs.System(err)
+	}
+	defer func() {
+		if err := leasesManager.Delete(ctx, lease); err != nil {
+			log.G(ctx).WithError(err).Warn("cleaning up lease")
+		}
+	}()
+
+	addLease := func(ctx context.Context, target ocispec.Descriptor) error {
+		return leaseContent(ctx, i.content, leasesManager, lease, target)
+	}
+
+	exportImage := func(ctx context.Context, target ocispec.Descriptor, ref reference.Named) error {
+		if err := addLease(ctx, target); err != nil {
 			return err
 		}
-		opts = append(opts, archive.WithImage(is, named.String()))
+
+		if ref != nil {
+			opts = append(opts, archive.WithManifest(target, ref.String()))
+
+			log.G(ctx).WithFields(log.Fields{
+				"target": target,
+				"name":   ref,
+			}).Debug("export image")
+		} else {
+			orgTarget := target
+			target.Annotations = make(map[string]string)
+
+			for k, v := range orgTarget.Annotations {
+				switch k {
+				case containerdimages.AnnotationImageName, ocispec.AnnotationRefName:
+					// Strip image name/tag annotations from the descriptor.
+					// Otherwise containerd will use it as name.
+				default:
+					target.Annotations[k] = v
+				}
+			}
+
+			opts = append(opts, archive.WithManifest(target))
+
+			log.G(ctx).WithFields(log.Fields{
+				"target": target,
+			}).Debug("export image without name")
+		}
+
+		i.LogImageEvent(target.Digest.String(), target.Digest.String(), events.ActionSave)
+		return nil
 	}
+
+	exportRepository := func(ctx context.Context, ref reference.Named) error {
+		imgs, err := i.getAllImagesWithRepository(ctx, ref)
+		if err != nil {
+			return errdefs.System(fmt.Errorf("failed to list all images from repository %s: %w", ref.Name(), err))
+		}
+
+		if len(imgs) == 0 {
+			return images.ErrImageDoesNotExist{Ref: ref}
+		}
+
+		for _, img := range imgs {
+			ref, err := reference.ParseNamed(img.Name)
+
+			if err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"image": img.Name,
+					"error": err,
+				}).Warn("couldn't parse image name as a valid named reference")
+				continue
+			}
+
+			if err := exportImage(ctx, img.Target, ref); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	for _, name := range names {
+		target, resolveErr := i.resolveDescriptor(ctx, name)
+
+		// Check if the requested name is a truncated digest of the resolved descriptor.
+		// If yes, that means that the user specified a specific image ID so
+		// it's not referencing a repository.
+		specificDigestResolved := false
+		if resolveErr == nil {
+			nameWithoutDigestAlgorithm := strings.TrimPrefix(name, target.Digest.Algorithm().String()+":")
+			specificDigestResolved = strings.HasPrefix(target.Digest.Encoded(), nameWithoutDigestAlgorithm)
+		}
+
+		log.G(ctx).WithFields(log.Fields{
+			"name":                   name,
+			"resolveErr":             resolveErr,
+			"specificDigestResolved": specificDigestResolved,
+		}).Debug("export requested")
+
+		ref, refErr := reference.ParseNormalizedNamed(name)
+
+		if refErr == nil {
+			if _, ok := ref.(reference.Digested); ok {
+				specificDigestResolved = true
+			}
+		}
+
+		if resolveErr != nil || !specificDigestResolved {
+			// Name didn't resolve to anything, or name wasn't explicitly referencing a digest
+			if refErr == nil && reference.IsNameOnly(ref) {
+				// Reference is valid, but doesn't include a specific tag.
+				// Export all images with the same repository.
+				if err := exportRepository(ctx, ref); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+
+		if resolveErr != nil {
+			return resolveErr
+		}
+		if refErr != nil {
+			return refErr
+		}
+
+		// If user exports a specific digest, it shouldn't have a tag.
+		if specificDigestResolved {
+			ref = nil
+		}
+		if err := exportImage(ctx, target, ref); err != nil {
+			return err
+		}
+	}
+
 	return i.client.Export(ctx, outStream, opts...)
+}
+
+// leaseContent will add a resource to the lease for each child of the descriptor making sure that it and
+// its children won't be deleted while the lease exists
+func leaseContent(ctx context.Context, store content.Store, leasesManager leases.Manager, lease leases.Lease, desc ocispec.Descriptor) error {
+	return containerdimages.Walk(ctx, containerdimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		_, err := store.Info(ctx, desc.Digest)
+		if err != nil {
+			if errors.Is(err, cerrdefs.ErrNotFound) {
+				return nil, nil
+			}
+			return nil, errdefs.System(err)
+		}
+
+		r := leases.Resource{
+			ID:   desc.Digest.String(),
+			Type: "content",
+		}
+		if err := leasesManager.AddResource(ctx, lease, r); err != nil {
+			return nil, errdefs.System(err)
+		}
+
+		return containerdimages.Children(ctx, store, desc)
+	}), desc)
 }
 
 // LoadImage uploads a set of images into the repository. This is the
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
-//
-// TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
 func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	platform := platforms.All
-	imgs, err := i.client.Import(ctx, inTar, containerd.WithImportPlatform(platform))
-
+	decompressed, err := dockerarchive.DecompressStream(inTar)
 	if err != nil {
-		// TODO(thaJeztah): remove this log or change to debug once we can; see https://github.com/moby/moby/pull/43822#discussion_r937502405
-		logrus.WithError(err).Warn("failed to import image to containerd")
-		return errors.Wrap(err, "failed to import image")
+		return errors.Wrap(err, "failed to decompress input tar archive")
 	}
+	defer decompressed.Close()
+
+	opts := []containerd.ImportOpt{
+		// TODO(vvoland): Allow user to pass platform
+		containerd.WithImportPlatform(platforms.All),
+
+		containerd.WithSkipMissing(),
+
+		// Create an additional image with dangling name for imported images...
+		containerd.WithDigestRef(danglingImageName),
+		// ... but only if they don't have a name or it's invalid.
+		containerd.WithSkipDigestRef(func(nameFromArchive string) bool {
+			if nameFromArchive == "" {
+				return false
+			}
+			_, err := reference.ParseNormalizedNamed(nameFromArchive)
+			return err == nil
+		}),
+	}
+
+	imgs, err := i.client.Import(ctx, decompressed, opts...)
+	if err != nil {
+		log.G(ctx).WithError(err).Debug("failed to import image to containerd")
+		return errdefs.System(err)
+	}
+
+	progress := streamformatter.NewStdoutWriter(outStream)
 
 	for _, img := range imgs {
-		platformImg := containerd.NewImageWithPlatform(i.client, img, platform)
+		name := img.Name
+		loadedMsg := "Loaded image"
 
-		unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
-		if err != nil {
-			// TODO(thaJeztah): remove this log or change to debug once we can; see https://github.com/moby/moby/pull/43822#discussion_r937502405
-			logrus.WithError(err).WithField("image", img.Name).Debug("failed to check if image is unpacked")
-			continue
+		if isDanglingImage(img) {
+			name = img.Target.Digest.String()
+			loadedMsg = "Loaded image ID"
+		} else if named, err := reference.ParseNormalizedNamed(img.Name); err == nil {
+			name = reference.FamiliarString(reference.TagNameOnly(named))
 		}
 
-		if !unpacked {
-			err := platformImg.Unpack(ctx, i.snapshotter)
-			if err != nil {
-				// TODO(thaJeztah): remove this log or change to debug once we can; see https://github.com/moby/moby/pull/43822#discussion_r937502405
-				logrus.WithError(err).WithField("image", img.Name).Warn("failed to unpack image")
-				return errors.Wrap(err, "failed to unpack image")
+		err = i.walkImageManifests(ctx, img, func(platformImg *ImageManifest) error {
+			logger := log.G(ctx).WithFields(log.Fields{
+				"image":    name,
+				"manifest": platformImg.Target().Digest,
+			})
+
+			if isPseudo, err := platformImg.IsPseudoImage(ctx); isPseudo || err != nil {
+				if err != nil {
+					logger.WithError(err).Warn("failed to read manifest")
+				} else {
+					logger.Debug("don't unpack non-image manifest")
+				}
+				return nil
 			}
+
+			unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
+			if err != nil {
+				logger.WithError(err).Warn("failed to check if image is unpacked")
+				return nil
+			}
+
+			if !unpacked {
+				err = platformImg.Unpack(ctx, i.snapshotter)
+
+				if err != nil {
+					return errdefs.System(err)
+				}
+			}
+			logger.WithField("alreadyUnpacked", unpacked).WithError(err).Debug("unpack")
+			return nil
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to unpack loaded image")
 		}
+
+		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)
+		i.LogImageEvent(img.Target.Digest.String(), img.Target.Digest.String(), events.ActionLoad)
 	}
+
 	return nil
 }

@@ -87,7 +87,7 @@ func (cm *cacheManager) Search(ctx context.Context, idx string) ([]RefMetadata, 
 
 // callers must hold cm.mu lock
 func (cm *cacheManager) search(ctx context.Context, idx string) ([]RefMetadata, error) {
-	sis, err := cm.MetadataStore.Search(idx)
+	sis, err := cm.MetadataStore.Search(ctx, idx)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,13 @@ func (md *cacheMetadata) queueMediaType(str string) error {
 }
 
 func (md *cacheMetadata) getSnapshotID() string {
-	return md.GetString(keySnapshot)
+	sid := md.GetString(keySnapshot)
+	// Note that historic buildkit releases did not always set the snapshot ID.
+	// Fallback to record ID is needed for old build cache compatibility.
+	if sid == "" {
+		return md.ID()
+	}
+	return sid
 }
 
 func (md *cacheMetadata) queueSnapshotID(str string) error {
@@ -551,9 +557,7 @@ func (md *cacheMetadata) appendStringSlice(key string, values ...string) error {
 		}
 
 		for _, existing := range slice {
-			if _, ok := idx[existing]; ok {
-				delete(idx, existing)
-			}
+			delete(idx, existing)
 		}
 
 		if len(idx) == 0 {

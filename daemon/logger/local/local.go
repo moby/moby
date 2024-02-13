@@ -138,7 +138,7 @@ func newDriver(logPath string, cfg *CreateConfig) (logger.Logger, error) {
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	lf, err := loggerutils.NewLogFile(logPath, cfg.MaxFileSize, cfg.MaxFileCount, !cfg.DisableCompression, decodeFunc, 0640, getTailReader)
+	lf, err := loggerutils.NewLogFile(logPath, cfg.MaxFileSize, cfg.MaxFileCount, !cfg.DisableCompression, decodeFunc, 0o640, getTailReader)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func messageToProto(msg *logger.Message, proto *logdriver.LogEntry, partial *log
 func protoToMessage(proto *logdriver.LogEntry) *logger.Message {
 	msg := &logger.Message{
 		Source:    proto.Source,
-		Timestamp: time.Unix(0, proto.TimeNano),
+		Timestamp: time.Unix(0, proto.TimeNano).UTC(),
 	}
 	if proto.Partial {
 		var md backend.PartialLogMetaData

@@ -15,7 +15,7 @@ type StatusReporter interface {
 	UpdateTaskStatus(ctx context.Context, taskID string, status *api.TaskStatus) error
 }
 
-// Reporter recieves update to both task and volume status.
+// Reporter receives update to both task and volume status.
 type Reporter interface {
 	StatusReporter
 	ReportVolumeUnpublished(ctx context.Context, volumeID string) error
@@ -27,12 +27,15 @@ func (fn statusReporterFunc) UpdateTaskStatus(ctx context.Context, taskID string
 	return fn(ctx, taskID, status)
 }
 
+//nolint:unused // currently only used in tests.
 type volumeReporterFunc func(ctx context.Context, volumeID string) error
 
+//nolint:unused // currently only used in tests.
 func (fn volumeReporterFunc) ReportVolumeUnpublished(ctx context.Context, volumeID string) error {
 	return fn(ctx, volumeID)
 }
 
+//nolint:unused // currently only used in tests.
 type statusReporterCombined struct {
 	statusReporterFunc
 	volumeReporterFunc

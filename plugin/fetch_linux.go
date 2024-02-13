@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	c8derrdefs "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/docker/distribution/reference"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -19,9 +20,8 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const mediaTypePluginConfig = "application/vnd.docker.plugin.v1+json"
@@ -84,17 +84,17 @@ func (pm *Manager) fetch(ctx context.Context, ref reference.Named, auth *registr
 		// This is perfectly fine, unless you are talking to an older registry which does not split the comma separated list,
 		//   so it is never able to match a media type and it falls back to schema1 (yuck) and fails because our manifest the
 		//   fallback does not support plugin configs...
-		logrus.WithError(err).WithField("ref", withDomain).Debug("Error while resolving reference, falling back to backwards compatible accept header format")
+		log.G(ctx).WithError(err).WithField("ref", withDomain).Debug("Error while resolving reference, falling back to backwards compatible accept header format")
 		headers := http.Header{}
 		headers.Add("Accept", images.MediaTypeDockerSchema2Manifest)
 		headers.Add("Accept", images.MediaTypeDockerSchema2ManifestList)
-		headers.Add("Accept", specs.MediaTypeImageManifest)
-		headers.Add("Accept", specs.MediaTypeImageIndex)
+		headers.Add("Accept", ocispec.MediaTypeImageManifest)
+		headers.Add("Accept", ocispec.MediaTypeImageIndex)
 		resolver, _ = pm.newResolver(ctx, nil, auth, headers, false)
 		if resolver != nil {
 			resolved, desc, err = resolver.Resolve(ctx, withDomain.String())
 			if err != nil {
-				logrus.WithError(err).WithField("ref", withDomain).Debug("Failed to resolve reference after falling back to backwards compatible accept header format")
+				log.G(ctx).WithError(err).WithField("ref", withDomain).Debug("Failed to resolve reference after falling back to backwards compatible accept header format")
 			}
 		}
 		if err != nil {
@@ -118,12 +118,12 @@ func (pm *Manager) fetch(ctx context.Context, ref reference.Named, auth *registr
 // if there are multiple layers to fetch we may end up extracting layers in the wrong
 // order.
 func applyLayer(cs content.Store, dir string, out progress.Output) images.HandlerFunc {
-	return func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
+	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		switch desc.MediaType {
 		case
-			specs.MediaTypeImageLayer,
+			ocispec.MediaTypeImageLayer,
 			images.MediaTypeDockerSchema2Layer,
-			specs.MediaTypeImageLayerGzip,
+			ocispec.MediaTypeImageLayerGzip,
 			images.MediaTypeDockerSchema2LayerGzip:
 		default:
 			return nil, nil
@@ -150,7 +150,7 @@ func applyLayer(cs content.Store, dir string, out progress.Output) images.Handle
 
 func childrenHandler(cs content.Store) images.HandlerFunc {
 	ch := images.ChildrenHandler(cs)
-	return func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
+	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		switch desc.MediaType {
 		case mediaTypePluginConfig:
 			return nil, nil
@@ -167,15 +167,15 @@ type fetchMeta struct {
 }
 
 func storeFetchMetadata(m *fetchMeta) images.HandlerFunc {
-	return func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
+	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		switch desc.MediaType {
 		case
 			images.MediaTypeDockerSchema2LayerForeignGzip,
 			images.MediaTypeDockerSchema2Layer,
-			specs.MediaTypeImageLayer,
-			specs.MediaTypeImageLayerGzip:
+			ocispec.MediaTypeImageLayer,
+			ocispec.MediaTypeImageLayerGzip:
 			m.blobs = append(m.blobs, desc.Digest)
-		case specs.MediaTypeImageManifest, images.MediaTypeDockerSchema2Manifest:
+		case ocispec.MediaTypeImageManifest, images.MediaTypeDockerSchema2Manifest:
 			m.manifest = desc.Digest
 		case mediaTypePluginConfig:
 			m.config = desc.Digest
@@ -196,19 +196,24 @@ func validateFetchedMetadata(md fetchMeta) error {
 
 // withFetchProgress is a fetch handler which registers a descriptor with a progress
 func withFetchProgress(cs content.Store, out progress.Output, ref reference.Named) images.HandlerFunc {
-	return func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
+	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		switch desc.MediaType {
-		case specs.MediaTypeImageManifest, images.MediaTypeDockerSchema2Manifest:
+		case ocispec.MediaTypeImageManifest, images.MediaTypeDockerSchema2Manifest:
 			tn := reference.TagNameOnly(ref)
-			tagged := tn.(reference.Tagged)
-			progress.Messagef(out, tagged.Tag(), "Pulling from %s", reference.FamiliarName(ref))
+			var tagOrDigest string
+			if tagged, ok := tn.(reference.Tagged); ok {
+				tagOrDigest = tagged.Tag()
+			} else {
+				tagOrDigest = tn.String()
+			}
+			progress.Messagef(out, tagOrDigest, "Pulling from %s", reference.FamiliarName(ref))
 			progress.Messagef(out, "", "Digest: %s", desc.Digest.String())
 			return nil, nil
 		case
 			images.MediaTypeDockerSchema2LayerGzip,
 			images.MediaTypeDockerSchema2Layer,
-			specs.MediaTypeImageLayer,
-			specs.MediaTypeImageLayerGzip:
+			ocispec.MediaTypeImageLayer,
+			ocispec.MediaTypeImageLayerGzip:
 		default:
 			return nil, nil
 		}
@@ -248,8 +253,8 @@ func withFetchProgress(cs content.Store, out progress.Output, ref reference.Name
 
 				s, err := cs.Status(ctx, key)
 				if err != nil {
-					if !c8derrdefs.IsNotFound(err) {
-						logrus.WithError(err).WithField("layerDigest", desc.Digest.String()).Error("Error looking up status of plugin layer pull")
+					if !cerrdefs.IsNotFound(err) {
+						log.G(ctx).WithError(err).WithField("layerDigest", desc.Digest.String()).Error("Error looking up status of plugin layer pull")
 						progress.Update(out, id, err.Error())
 						return
 					}

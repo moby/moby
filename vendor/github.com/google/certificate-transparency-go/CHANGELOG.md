@@ -1,5 +1,398 @@
 # CERTIFICATE-TRANSPARENCY-GO Changelog
 
+## HEAD
+
+### Integration
+
+ * Breaking change to API for `integration.HammerCTLog`:
+    * Added `ctx` as first argument, and terminate loop if it becomes cancelled
+
+### JSONClient
+
+ * PostAndParseWithRetry now does backoff-and-retry upon receiving HTTP 429.
+
+### Cleanup
+
+ * `WithBalancerName` is deprecated and removed, using the recommended way.
+ * `ctfe.PEMCertPool` type has been moved to `x509util.PEMCertPool` to reduce
+   dependencies (#903).
+ * Remove log list v1 package and its dependencies.
+
+### Migrillian
+
+* #960: Skip consistency check when root is size zero.
+
+### Misc
+
+ * updated golangci-lint to v1.46.1 (developers should update to this version)
+ * update `google.golang.org/grpc` to v1.46.0
+ * `ctclient` tool now uses Cobra for better CLI experience (#901).
+ * #800: Remove dependency from `ratelimit`.
+ * #927: Add read-only mode to CTFE config.
+ * Update Trillian to [0a389c4](https://github.com/google/trillian/commit/0a389c4bb8d97fb3be8f55d7e5b428cf4304986f)
+ * Migrate loglist dependency from v1 to v3 in ctclient cmd.
+ * Migrate loglist dependency from v1 to v3 in ctutil/loginfo.go
+ * Migrate loglist dependency from v1 to v3 in ctutil/sctscan.go
+ * Migrate loglist dependency from v1 to v3 in trillian/integration/ct_hammer/main.go
+
+## v1.1.2
+
+### CTFE
+
+ * Removed the `-by_range` flag.
+
+### Updated dependencies
+
+ * Trillian from v1.3.11 to v1.4.0
+ * protobuf to v2
+
+## v1.1.1
+[Published 2020-10-06](https://github.com/google/certificate-transparency-go/releases/tag/v1.1.1)
+
+### Tools
+
+#### CT Hammer
+
+Added a flag (--strict_sth_consistency_size) which when set to true enforces the current behaviour of only request consistency proofs between tree sizes for which the hammer has seen valid STHs.
+When setting this flag to false, if no two usable STHs are available the hammer will attempt to request a consistency proof between the latest STH it's seen and a random smaller (but > 0) tree size.
+
+
+### CTFE
+
+#### Caching
+
+The CTFE now includes a Cache-Control header in responses containing purely
+immutable data, e.g. those for get-entries and get-proof-by-hash. This allows
+clients and proxies to cache these responses for up to 24 hours.
+
+#### EKU Filtering
+
+> :warning: **It is not yet recommended to enable this option in a production CT Log!**
+
+CTFE now supports filtering logging submissions by leaf certificate EKU.
+This is enabled by adding an extKeyUsage list to a log's stanza in the
+config file.
+
+The format is a list of strings corresponding to the supported golang x509 EKUs:
+  |Config string               | Extended Key Usage                     |
+  |----------------------------|----------------------------------------|
+  |`Any`                       |  ExtKeyUsageAny                        |
+  |`ServerAuth`                |  ExtKeyUsageServerAuth                 |
+  |`ClientAuth`                |  ExtKeyUsageClientAuth                 |
+  |`CodeSigning`               |  ExtKeyUsageCodeSigning                |
+  |`EmailProtection`           |  ExtKeyUsageEmailProtection            |
+  |`IPSECEndSystem`            |  ExtKeyUsageIPSECEndSystem             |
+  |`IPSECTunnel`               |  ExtKeyUsageIPSECTunnel                |
+  |`IPSECUser`                 |  ExtKeyUsageIPSECUser                  |
+  |`TimeStamping`              |  ExtKeyUsageTimeStamping               |
+  |`OCSPSigning`               |  ExtKeyUsageOCSPSigning                |
+  |`MicrosoftServerGatedCrypto`|  ExtKeyUsageMicrosoftServerGatedCrypto |
+  |`NetscapeServerGatedCrypto` |  ExtKeyUsageNetscapeServerGatedCrypto  |
+
+When an extKeyUsage list is specified, the CT Log will reject logging
+submissions for leaf certificates that do not contain an EKU present in this
+list.
+
+When enabled, EKU filtering is only performed at the leaf level (i.e. there is
+no 'nested' EKU filtering performed).
+
+If no list is specified, or the list contains an `Any` entry, no EKU
+filtering will be performed.
+
+#### GetEntries
+Calls to `get-entries` which are at (or above) the maximum permitted number of
+entries whose `start` parameter does not fall on a multiple of the maximum
+permitted number of entries, will have their responses truncated such that
+subsequent requests will align with this boundary.
+This is intended to coerce callers of `get-entries` into all using the same
+`start` and `end` parameters and thereby increase the cachability of
+these requests.
+
+e.g.:
+
+<pre>
+Old behaviour:
+             1         2         3
+             0         0         0
+Entries>-----|---------|---------|----...
+Client A -------|---------|----------|...
+Client B --|--------|---------|-------...
+           ^        ^         ^
+           `--------`---------`---- requests
+
+With coercion (max batch = 10 entries):
+             1         2         3
+             0         0         0
+Entries>-----|---------|---------|----...
+Client A ----X---------|---------|...
+Client B --|-X---------|---------|-------...
+             ^
+             `-- Requests truncated
+</pre>
+
+This behaviour can be disabled by setting the `--align_getentries`
+flag to false.
+
+#### Flags
+
+The `ct_server` binary changed the default of these flags:
+
+-   `by_range` - Now defaults to `true`
+
+The `ct_server` binary added the following flags:
+-   `align_getentries` - See GetEntries section above for details
+
+Added `backend` flag to `migrillian`, which now replaces the deprecated
+"backend" feature of Migrillian configs.
+
+#### FixedBackendResolver Replaced
+
+This was previously used in situations where a comma separated list of
+backends was provided in the `rpcBackend` flag rather than a single value.
+
+It has been replaced by equivalent functionality using a newer gRPC API.
+However this support was only intended for use in integration tests. In
+production we recommend the use of etcd or a gRPC load balancer.
+
+### LogList
+
+Log list tools updated to use the correct v2 URL (from v2_beta previously).
+
+### Libraries
+
+#### x509 fork
+
+Merged upstream Go 1.13 and Go 1.14 changes (with the exception
+of https://github.com/golang/go/commit/14521198679e, to allow
+old certs using a malformed root still to be logged).
+
+#### asn1 fork
+
+Merged upstream Go 1.14 changes.
+
+#### ctutil
+
+Added VerifySCTWithVerifier() to verify SCTs using a given ct.SignatureVerifier.
+
+### Configuration Files
+
+Configuration files that previously had to be text-encoded Protobuf messages can
+now alternatively be binary-encoded instead.
+
+### JSONClient
+
+- `PostAndParseWithRetry` error logging now includes log URI in messages.
+
+### Minimal Gossip Example
+
+All the code for this, except for the x509ext package, has been moved over
+to the [trillian-examples](https://github.com/google/trillian-examples) repository.
+
+This keeps the code together and removes a circular dependency between the
+two repositories. The package layout and structure remains the same so
+updating should just mean changing any relevant import paths.
+
+### Dependencies
+
+A circular dependency on the [monologue](https://github.com/google/monologue) repository has been removed.
+
+A circular dependency on the [trillian-examples](https://github.com/google/trillian-examples) repository has been removed.
+
+The version of trillian in use has been updated to 1.3.11. This has required
+various other dependency updates including gRPC and protobuf. This code now
+uses the v2 proto API. The Travis tests now expect the 3.11.4 version of
+protoc.
+
+The version of etcd in use has been switched to the one from `go.etcd.io`.
+
+Most of the above changes are to align versions more closely with the ones
+used in the trillian repository.
+
+## v1.1.0
+
+Published 2019-11-14 15:00:00 +0000 UTC
+
+### CTFE
+
+The `reject_expired` and `reject_unexpired` configuration fields for the CTFE
+have been changed so that their behaviour reflects their name:
+
+-   `reject_expired` only rejects expired certificates (i.e. it now allows
+    not-yet-valid certificates).
+-   `reject_unexpired` only allows expired certificates (i.e. it now rejects
+    not-yet-valid certificates).
+
+A `reject_extensions` configuration field for the CTFE was added, this allows
+submissions to be rejected if they contain an extension with any of the
+specified OIDs.
+
+A `frozen_sth` configuration field for the CTFE was added. This STH will be
+served permanently. It must be signed by the log's private key.
+
+A `/healthz` URL has been added which responds with HTTP 200 OK and the string
+"ok" when the server is up.
+
+#### Flags
+
+The `ct_server` binary has these new flags:
+
+-   `mask_internal_errors` - Removes error strings from HTTP 500 responses
+    (Internal Server Error)
+
+Removed default values for `--metrics_endpoint` and `--log_rpc_server` flags.
+This makes it easier to get the documented "unset" behaviour.
+
+#### Metrics
+
+The CTFE exports these new metrics:
+
+-   `is_mirror` - set to 1 for mirror logs (copies of logs hosted elsewhere)
+-   `frozen_sth_timestamp` - time of the frozen Signed Tree Head in milliseconds
+    since the epoch
+
+#### Kubernetes
+
+Updated prometheus-to-sd to v0.5.2.
+
+A dedicated node pool is no longer required by the Kubernetes manifests.
+
+### Log Lists
+
+A new package has been created for parsing, searching and creating JSON log
+lists compatible with the
+[v2 schema](http://www.gstatic.com/ct/log_list/v2_beta/log_list_schema.json):
+`github.com/google/certificate-transparency-go/loglist2`.
+
+### Docker Images
+
+Our Docker images have been updated to use Go 1.11 and
+[Distroless base images](https://github.com/GoogleContainerTools/distroless).
+
+The CTFE Docker image now sets `ENTRYPOINT`.
+
+### Utilities / Libraries
+
+#### jsonclient
+
+The `jsonclient` package now copes with empty HTTP responses. The user-agent
+header it sends can now be specified.
+
+#### x509 and asn1 forks
+
+Merged upstream changes from Go 1.12 into the `asn1` and `x509` packages.
+
+Added a "lax" tag to `asn1` that applies recursively and makes some checks more
+relaxed:
+
+-   parsePrintableString() copes with invalid PrintableString contents, e.g. use
+    of tagPrintableString when the string data is really ISO8859-1.
+-   checkInteger() allows integers that are not minimally encoded (and so are
+    not correct DER).
+-   OIDs are allowed to be empty.
+
+The following `x509` functions will now return `x509.NonFatalErrors` if ASN.1
+parsing fails in strict mode but succeeds in lax mode. Previously, they only
+attempted strict mode parsing.
+
+-   `x509.ParseTBSCertificate()`
+-   `x509.ParseCertificate()`
+-   `x509.ParseCertificates()`
+
+The `x509` package will now treat a negative RSA modulus as a non-fatal error.
+
+The `x509` package now supports RSASES-OAEP and Ed25519 keys.
+
+#### ctclient
+
+The `ctclient` tool now defaults to using
+[all_logs_list.json](https://www.gstatic.com/ct/log_list/all_logs_list.json)
+instead of [log_list.json](https://www.gstatic.com/ct/log_list/log_list.json).
+This can be overridden using the `--log_list` flag.
+
+It can now perform inclusion checks on pre-certificates.
+
+It has these new commands:
+
+-   `bisect` - Finds a log entry given a timestamp.
+
+It has these new flags:
+
+-   `--chain` - Displays the entire certificate chain
+-   `--dns_server` - The DNS server to direct queries to (system resolver by
+    default)
+-   `--skip_https_verify` - Skips verification of the HTTPS connection
+-   `--timestamp` - Timestamp to use for `bisect` and `inclusion` commands (for
+    `inclusion`, only if --leaf_hash is not used)
+
+It now accepts hex or base64-encoded strings for the `--tree_hash`,
+`--prev_hash` and `--leaf_hash` flags.
+
+#### certcheck
+
+The `certcheck` tool has these new flags:
+
+-   `--check_time` - Check current validity of certificate (replaces
+    `--timecheck`)
+-   `--check_name` - Check validity of certificate name
+-   `--check_eku` - Check validity of EKU nesting
+-   `--check_path_len` - Check validity of path length constraint
+-   `--check_name_constraint` - Check name constraints
+-   `--check_unknown_critical_exts` - Check for unknown critical extensions
+    (replaces `--ignore_unknown_critical_exts`)
+-   `--strict` - Set non-zero exit code for non-fatal errors in parsing
+
+#### sctcheck
+
+The `sctcheck` tool has these new flags:
+
+-   `--check_inclusion` - Checks that the SCT was honoured (i.e. the
+    corresponding certificate was included in the issuing CT log)
+
+#### ct_hammer
+
+The `ct_hammer` tool has these new flags:
+
+-   `--duplicate_chance` - Allows setting the probability of the hammer sending
+    a duplicate submission.
+
+## v1.0.21 - CTFE Logging / Path Options. Mirroring. RPKI. Non Fatal X.509 error improvements
+
+Published 2018-08-20 10:11:04 +0000 UTC
+
+### CTFE
+
+`CTFE` no longer prints certificate chains as long byte strings in messages when handler errors occur. This was obscuring the reason for the failure and wasn't particularly useful.
+
+`CTFE` now has a global log URL path prefix flag and a configuration proto for a log specific path. The latter should help for various migration strategies if existing C++ server logs are going to be converted to run on the new code.
+
+### Mirroring
+
+More progress has been made on log mirroring. We believe that it's now at the point where testing can begin.
+
+### Utilities / Libraries
+
+The `certcheck` and `ct_hammer` utilities have received more enhancements.
+
+`x509` and `x509util` now support Subject Information Access and additional extensions for [RPKI / RFC 3779](https://www.ietf.org/rfc/rfc3779.txt).
+
+`scanner` / `fixchain` and some other command line utilities now have better handling of non-fatal errors.
+
+Commit [3629d6846518309d22c16fee15d1007262a459d2](https://api.github.com/repos/google/certificate-transparency-go/commits/3629d6846518309d22c16fee15d1007262a459d2) Download [zip](https://api.github.com/repos/google/certificate-transparency-go/zipball/v1.0.21)
+
+## v1.0.20 - Minimal Gossip / Go 1.11 Fix / Utility Improvements
+
+Published 2018-07-05 09:21:34 +0000 UTC
+
+Enhancements have been made to various utilities including `scanner`, `sctcheck`, `loglist` and `x509util`.
+
+The `allow_verification_with_non_compliant_keys` flag has been removed from `signatures.go`.
+
+An implementation of Gossip has been added. See the `gossip/minimal` package for more information.
+
+An X.509 compatibility issue for Go 1.11 has been fixed. This should be backwards compatible with 1.10.
+
+Commit [37a384cd035e722ea46e55029093e26687138edf](https://api.github.com/repos/google/certificate-transparency-go/commits/37a384cd035e722ea46e55029093e26687138edf) Download [zip](https://api.github.com/repos/google/certificate-transparency-go/zipball/v1.0.20)
+
 ## v1.0.19 - CTFE User Quota
 
 Published 2018-06-01 13:51:52 +0000 UTC
@@ -50,7 +443,7 @@ Published 2018-06-01 14:20:32 +0000 UTC
 
 Facilities were added to the `x509` package to control whether verification checks are applied.
 
-Log server requests are now balanced using `gRPClb`. 
+Log server requests are now balanced using `gRPClb`.
 
 For Kubernetes, metrics can be published to Stackdriver monitoring.
 
@@ -60,7 +453,7 @@ Commit [684d6eee6092774e54d301ccad0ed61bc8d010c1](https://api.github.com/repos/g
 
 Published 2018-06-01 14:15:37 +0000 UTC
 
-Support for SQLlite was removed. This motivation was ongoing test flakiness caused by multi-user access. This database may work for an embedded scenario but is not suitable for use in a server environment.
+Support for SQLite was removed. This motivation was ongoing test flakiness caused by multi-user access. This database may work for an embedded scenario but is not suitable for use in a server environment.
 
 A `LeafHashForLeaf` client API was added and is now used by the CT client and integration tests.
 
@@ -191,4 +584,3 @@ Published 2018-06-01 13:59:00 +0000 UTC
 This is the point that corresponds to the 1.0 release in the trillian repo.
 
 Commit [abb79e468b6f3bbd48d1ab0c9e68febf80d52c4d](https://api.github.com/repos/google/certificate-transparency-go/commits/abb79e468b6f3bbd48d1ab0c9e68febf80d52c4d) Download [zip](https://api.github.com/repos/google/certificate-transparency-go/zipball/v1.0)
-

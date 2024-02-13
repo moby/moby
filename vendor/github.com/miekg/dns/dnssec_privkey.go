@@ -2,13 +2,11 @@ package dns
 
 import (
 	"crypto"
-	"crypto/dsa"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"math/big"
 	"strconv"
-
-	"golang.org/x/crypto/ed25519"
 )
 
 const format = "Private-key-format: v1.3\n"
@@ -17,8 +15,8 @@ var bigIntOne = big.NewInt(1)
 
 // PrivateKeyString converts a PrivateKey to a string. This string has the same
 // format as the private-key-file of BIND9 (Private-key-format: v1.3).
-// It needs some info from the key (the algorithm), so its a method of the DNSKEY
-// It supports rsa.PrivateKey, ecdsa.PrivateKey and dsa.PrivateKey
+// It needs some info from the key (the algorithm), so its a method of the DNSKEY.
+// It supports *rsa.PrivateKey, *ecdsa.PrivateKey and ed25519.PrivateKey.
 func (r *DNSKEY) PrivateKeyString(p crypto.PrivateKey) string {
 	algorithm := strconv.Itoa(int(r.Algorithm))
 	algorithm += " (" + AlgorithmToString[r.Algorithm] + ")"
@@ -66,21 +64,6 @@ func (r *DNSKEY) PrivateKeyString(p crypto.PrivateKey) string {
 		return format +
 			"Algorithm: " + algorithm + "\n" +
 			"PrivateKey: " + private + "\n"
-
-	case *dsa.PrivateKey:
-		T := divRoundUp(divRoundUp(p.PublicKey.Parameters.G.BitLen(), 8)-64, 8)
-		prime := toBase64(intToBytes(p.PublicKey.Parameters.P, 64+T*8))
-		subprime := toBase64(intToBytes(p.PublicKey.Parameters.Q, 20))
-		base := toBase64(intToBytes(p.PublicKey.Parameters.G, 64+T*8))
-		priv := toBase64(intToBytes(p.X, 20))
-		pub := toBase64(intToBytes(p.PublicKey.Y, 64+T*8))
-		return format +
-			"Algorithm: " + algorithm + "\n" +
-			"Prime(p): " + prime + "\n" +
-			"Subprime(q): " + subprime + "\n" +
-			"Base(g): " + base + "\n" +
-			"Private_value(x): " + priv + "\n" +
-			"Public_value(y): " + pub + "\n"
 
 	case ed25519.PrivateKey:
 		private := toBase64(p.Seed())

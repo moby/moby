@@ -175,6 +175,7 @@ func (vrc *verifiedReadCloser) Read(p []byte) (n int, err error) {
 	}
 	return
 }
+
 func (vrc *verifiedReadCloser) Close() error {
 	return vrc.rc.Close()
 }

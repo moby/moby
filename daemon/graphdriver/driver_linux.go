@@ -50,7 +50,7 @@ const (
 
 var (
 	// List of drivers that should be used in an order
-	priority = "overlay2,fuse-overlayfs,btrfs,zfs,aufs,overlay,devicemapper,vfs"
+	priority = "overlay2,fuse-overlayfs,btrfs,zfs,vfs"
 
 	// FsNames maps filesystem id to name of the filesystem.
 	FsNames = map[FsMagic]string{
@@ -109,8 +109,7 @@ func NewDefaultChecker() Checker {
 	return &defaultChecker{}
 }
 
-type defaultChecker struct {
-}
+type defaultChecker struct{}
 
 func (c *defaultChecker) IsMounted(path string) bool {
 	m, _ := mountinfo.Mounted(path)

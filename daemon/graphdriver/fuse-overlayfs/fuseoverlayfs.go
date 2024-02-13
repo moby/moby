@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package fuseoverlayfs // import "github.com/docker/docker/daemon/graphdriver/fuse-overlayfs"
 
@@ -15,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/pkg/userns"
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/archive"
@@ -27,14 +27,11 @@ import (
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
-var (
-	// untar defines the untar method
-	untar = chrootarchive.UntarUncompressed
-)
+// untar defines the untar method
+var untar = chrootarchive.UntarUncompressed
 
 const (
 	driverName    = "fuse-overlayfs"
@@ -66,9 +63,7 @@ type Driver struct {
 	locker    *locker.Locker
 }
 
-var (
-	logger = logrus.WithField("storage-driver", driverName)
-)
+var logger = log.G(context.TODO()).WithField("storage-driver", driverName)
 
 func init() {
 	graphdriver.Register(driverName, Init)
@@ -92,10 +87,10 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		GID: idMap.RootPair().GID,
 	}
 
-	if err := idtools.MkdirAllAndChown(home, 0710, dirID); err != nil {
+	if err := idtools.MkdirAllAndChown(home, 0o710, dirID); err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0700, currentID); err != nil {
+	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0o700, currentID); err != nil {
 		return nil, err
 	}
 
@@ -174,10 +169,10 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	dir := d.dir(id)
 	root := d.idMap.RootPair()
 
-	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0710, root); err != nil {
+	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0o710, root); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAndChown(dir, 0710, root); err != nil {
+	if err := idtools.MkdirAndChown(dir, 0o710, root); err != nil {
 		return err
 	}
 
@@ -192,7 +187,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return fmt.Errorf("--storage-opt is not supported")
 	}
 
-	if err := idtools.MkdirAndChown(path.Join(dir, diffDirName), 0755, root); err != nil {
+	if err := idtools.MkdirAndChown(path.Join(dir, diffDirName), 0o755, root); err != nil {
 		return err
 	}
 
@@ -202,7 +197,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	}
 
 	// Write link id to link file
-	if err := os.WriteFile(path.Join(dir, "link"), []byte(lid), 0644); err != nil {
+	if err := os.WriteFile(path.Join(dir, "link"), []byte(lid), 0o644); err != nil {
 		return err
 	}
 
@@ -211,11 +206,11 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return nil
 	}
 
-	if err := idtools.MkdirAndChown(path.Join(dir, workDirName), 0710, root); err != nil {
+	if err := idtools.MkdirAndChown(path.Join(dir, workDirName), 0o710, root); err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(path.Join(d.dir(parent), "committed"), []byte{}, 0600); err != nil {
+	if err := os.WriteFile(path.Join(d.dir(parent), "committed"), []byte{}, 0o600); err != nil {
 		return err
 	}
 
@@ -224,7 +219,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return err
 	}
 	if lower != "" {
-		if err := os.WriteFile(path.Join(dir, lowerFile), []byte(lower), 0666); err != nil {
+		if err := os.WriteFile(path.Join(dir, lowerFile), []byte(lower), 0o666); err != nil {
 			return err
 		}
 	}
@@ -303,12 +298,12 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get creates and mounts the required file system for the given id and returns the mount path.
-func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr error) {
+func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	diffDir := path.Join(dir, diffDirName)
@@ -316,14 +311,14 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	if err != nil {
 		// If no lower, just return diff directory
 		if os.IsNotExist(err) {
-			return containerfs.NewLocalContainerFS(diffDir), nil
+			return diffDir, nil
 		}
-		return nil, err
+		return "", err
 	}
 
 	mergedDir := path.Join(dir, mergedDirName)
 	if count := d.ctr.Increment(mergedDir); count > 1 {
-		return containerfs.NewLocalContainerFS(mergedDir), nil
+		return mergedDir, nil
 	}
 	defer func() {
 		if retErr != nil {
@@ -351,7 +346,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	if _, err := os.Stat(path.Join(dir, "committed")); err == nil {
 		readonly = true
 	} else if !os.IsNotExist(err) {
-		return nil, err
+		return "", err
 	}
 
 	var opts string
@@ -364,8 +359,8 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	mountData := label.FormatMountLabel(opts, mountLabel)
 	mountTarget := mergedDir
 
-	if err := idtools.MkdirAndChown(mergedDir, 0700, d.idMap.RootPair()); err != nil {
-		return nil, err
+	if err := idtools.MkdirAndChown(mergedDir, 0o700, d.idMap.RootPair()); err != nil {
+		return "", err
 	}
 
 	mountProgram := exec.Command(binary, "-o", mountData, mountTarget)
@@ -377,10 +372,10 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		if output == "" {
 			output = "<stderr empty>"
 		}
-		return nil, errors.Wrapf(err, "using mount program %s: %s", binary, output)
+		return "", errors.Wrapf(err, "using mount program %s: %s", binary, output)
 	}
 
-	return containerfs.NewLocalContainerFS(mergedDir), nil
+	return mergedDir, nil
 }
 
 // Put unmounts the mount path created for the give id.
@@ -503,7 +498,7 @@ func fusermountU(mountpoint string) (unmounted bool) {
 	for _, v := range []string{"fusermount3", "fusermount"} {
 		err := exec.Command(v, "-u", mountpoint).Run()
 		if err != nil && !os.IsNotExist(err) {
-			logrus.Debugf("Error unmounting %s with %s - %v", mountpoint, v, err)
+			log.G(context.TODO()).Debugf("Error unmounting %s with %s - %v", mountpoint, v, err)
 		}
 		if err == nil {
 			unmounted = true
@@ -516,7 +511,7 @@ func fusermountU(mountpoint string) (unmounted bool) {
 		fd, err := unix.Open(mountpoint, unix.O_DIRECTORY, 0)
 		if err == nil {
 			if err := unix.Syncfs(fd); err != nil {
-				logrus.Debugf("Error Syncfs(%s) - %v", mountpoint, err)
+				log.G(context.TODO()).Debugf("Error Syncfs(%s) - %v", mountpoint, err)
 			}
 			unix.Close(fd)
 		}

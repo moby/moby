@@ -17,7 +17,7 @@
 #DOCKER_PIDFILE="/run/docker.pid"
 
 # Settings for process limits (ulimit)
-#DOCKER_ULIMIT="-c unlimited -n 1048576 -u unlimited"
+#DOCKER_ULIMIT="-c unlimited -n 524288 -u unlimited"
 
 # seconds to wait for sending SIGTERM and SIGKILL signals when stopping docker
 #DOCKER_RETRY="TERM/60/KILL/10"

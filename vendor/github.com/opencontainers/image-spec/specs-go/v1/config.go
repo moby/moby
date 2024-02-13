@@ -48,6 +48,17 @@ type ImageConfig struct {
 
 	// StopSignal contains the system call signal that will be sent to the container to exit.
 	StopSignal string `json:"StopSignal,omitempty"`
+
+	// ArgsEscaped
+	//
+	// Deprecated: This field is present only for legacy compatibility with
+	// Docker and should not be used by new image builders.  It is used by Docker
+	// for Windows images to indicate that the `Entrypoint` or `Cmd` or both,
+	// contains only a single element array, that is a pre-escaped, and combined
+	// into a single string `CommandLine`. If `true` the value in `Entrypoint` or
+	// `Cmd` should be used as-is to avoid double escaping.
+	// https://github.com/opencontainers/image-spec/pull/892
+	ArgsEscaped bool `json:"ArgsEscaped,omitempty"`
 }
 
 // RootFS describes a layer content addresses
@@ -86,22 +97,8 @@ type Image struct {
 	// Author defines the name and/or email address of the person or entity which created and is responsible for maintaining the image.
 	Author string `json:"author,omitempty"`
 
-	// Architecture is the CPU architecture which the binaries in this image are built to run on.
-	Architecture string `json:"architecture"`
-
-	// Variant is the variant of the specified CPU architecture which image binaries are intended to run on.
-	Variant string `json:"variant,omitempty"`
-
-	// OS is the name of the operating system which the image is built to run on.
-	OS string `json:"os"`
-
-	// OSVersion is an optional field specifying the operating system
-	// version, for example on Windows `10.0.14393.1066`.
-	OSVersion string `json:"os.version,omitempty"`
-
-	// OSFeatures is an optional field specifying an array of strings,
-	// each listing a required OS feature (for example on Windows `win32k`).
-	OSFeatures []string `json:"os.features,omitempty"`
+	// Platform describes the platform which the image in the manifest runs on.
+	Platform
 
 	// Config defines the execution parameters which should be used as a base when running a container using the image.
 	Config ImageConfig `json:"config,omitempty"`

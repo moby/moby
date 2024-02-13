@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net"
 
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ServiceConfig stores daemon registry services configuration.
@@ -92,7 +92,9 @@ type SearchResult struct {
 	IsOfficial bool `json:"is_official"`
 	// Name is the name of the repository
 	Name string `json:"name"`
-	// IsAutomated indicates whether the result is automated
+	// IsAutomated indicates whether the result is automated.
+	//
+	// Deprecated: the "is_automated" field is deprecated and will always be "false" in the future.
 	IsAutomated bool `json:"is_automated"`
 	// Description is a textual description of the repository
 	Description string `json:"description"`
@@ -113,8 +115,8 @@ type SearchResults struct {
 type DistributionInspect struct {
 	// Descriptor contains information about the manifest, including
 	// the content addressable digest
-	Descriptor v1.Descriptor
+	Descriptor ocispec.Descriptor
 	// Platforms contains the list of platforms supported by the image,
 	// obtained by parsing the manifest
-	Platforms []v1.Platform
+	Platforms []ocispec.Platform
 }

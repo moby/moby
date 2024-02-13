@@ -14,12 +14,14 @@ import (
 
 // decompress4x_main_loop_x86 is an x86 assembler implementation
 // of Decompress4X when tablelog > 8.
+//
 //go:noescape
 func decompress4x_main_loop_amd64(ctx *decompress4xContext)
 
 // decompress4x_8b_loop_x86 is an x86 assembler implementation
 // of Decompress4X when tablelog <= 8 which decodes 4 entries
 // per loop.
+//
 //go:noescape
 func decompress4x_8b_main_loop_amd64(ctx *decompress4xContext)
 
@@ -145,11 +147,13 @@ func (d *Decoder) Decompress4X(dst, src []byte) ([]byte, error) {
 
 // decompress4x_main_loop_x86 is an x86 assembler implementation
 // of Decompress1X when tablelog > 8.
+//
 //go:noescape
 func decompress1x_main_loop_amd64(ctx *decompress1xContext)
 
 // decompress4x_main_loop_x86 is an x86 with BMI2 assembler implementation
 // of Decompress1X when tablelog > 8.
+//
 //go:noescape
 func decompress1x_main_loop_bmi2(ctx *decompress1xContext)
 

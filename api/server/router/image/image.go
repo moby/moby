@@ -10,6 +10,7 @@ import (
 // imageRouter is a router to talk with the image controller
 type imageRouter struct {
 	backend          Backend
+	searcher         Searcher
 	referenceBackend reference.Store
 	imageStore       image.Store
 	layerStore       layer.Store
@@ -17,9 +18,10 @@ type imageRouter struct {
 }
 
 // NewRouter initializes a new image router
-func NewRouter(backend Backend, referenceBackend reference.Store, imageStore image.Store, layerStore layer.Store) router.Router {
+func NewRouter(backend Backend, searcher Searcher, referenceBackend reference.Store, imageStore image.Store, layerStore layer.Store) router.Router {
 	ir := &imageRouter{
 		backend:          backend,
+		searcher:         searcher,
 		referenceBackend: referenceBackend,
 		imageStore:       imageStore,
 		layerStore:       layerStore,

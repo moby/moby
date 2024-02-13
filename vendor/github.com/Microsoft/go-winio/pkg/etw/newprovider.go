@@ -1,3 +1,4 @@
+//go:build windows && (amd64 || arm64 || 386)
 // +build windows
 // +build amd64 arm64 386
 
@@ -45,18 +46,18 @@ func NewProviderWithOptions(name string, options ...ProviderOpt) (provider *Prov
 
 	trait := &bytes.Buffer{}
 	if opts.group != (guid.GUID{}) {
-		binary.Write(trait, binary.LittleEndian, uint16(0)) // Write empty size for buffer (update later)
-		binary.Write(trait, binary.LittleEndian, uint8(1))  // EtwProviderTraitTypeGroup
-		traitArray := opts.group.ToWindowsArray()           // Append group guid
+		_ = binary.Write(trait, binary.LittleEndian, uint16(0)) // Write empty size for buffer (update later)
+		_ = binary.Write(trait, binary.LittleEndian, uint8(1))  // EtwProviderTraitTypeGroup
+		traitArray := opts.group.ToWindowsArray()               // Append group guid
 		trait.Write(traitArray[:])
 		binary.LittleEndian.PutUint16(trait.Bytes(), uint16(trait.Len())) // Update size
 	}
 
 	metadata := &bytes.Buffer{}
-	binary.Write(metadata, binary.LittleEndian, uint16(0)) // Write empty size for buffer (to update later)
+	_ = binary.Write(metadata, binary.LittleEndian, uint16(0)) // Write empty size for buffer (to update later)
 	metadata.WriteString(name)
 	metadata.WriteByte(0)                                                   // Null terminator for name
-	trait.WriteTo(metadata)                                                 // Add traits if applicable
+	_, _ = trait.WriteTo(metadata)                                          // Add traits if applicable
 	binary.LittleEndian.PutUint16(metadata.Bytes(), uint16(metadata.Len())) // Update the size at the beginning of the buffer
 	provider.metadata = metadata.Bytes()
 
@@ -64,8 +65,8 @@ func NewProviderWithOptions(name string, options ...ProviderOpt) (provider *Prov
 		provider.handle,
 		eventInfoClassProviderSetTraits,
 		uintptr(unsafe.Pointer(&provider.metadata[0])),
-		uint32(len(provider.metadata))); err != nil {
-
+		uint32(len(provider.metadata)),
+	); err != nil {
 		return nil, err
 	}
 

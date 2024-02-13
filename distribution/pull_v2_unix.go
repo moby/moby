@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package distribution // import "github.com/docker/docker/distribution"
 
@@ -8,10 +7,10 @@ import (
 	"sort"
 
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func (ld *layerDescriptor) open(ctx context.Context) (distribution.ReadSeekCloser, error) {
@@ -19,7 +18,7 @@ func (ld *layerDescriptor) open(ctx context.Context) (distribution.ReadSeekClose
 	return blobs.Open(ctx, ld.digest)
 }
 
-func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platform) []manifestlist.ManifestDescriptor {
+func filterManifests(manifests []manifestlist.ManifestDescriptor, p ocispec.Platform) []manifestlist.ManifestDescriptor {
 	p = platforms.Normalize(withDefault(p))
 	m := platforms.Only(p)
 	var matches []manifestlist.ManifestDescriptor
@@ -28,7 +27,7 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platfo
 		if descP == nil || m.Match(*descP) {
 			matches = append(matches, desc)
 			if descP != nil {
-				logrus.Debugf("found match for %s with media type %s, digest %s", platforms.Format(p), desc.MediaType, desc.Digest.String())
+				log.G(context.TODO()).Debugf("found match for %s with media type %s, digest %s", platforms.Format(p), desc.MediaType, desc.Digest.String())
 			}
 		}
 	}
@@ -45,17 +44,6 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platfo
 		return m.Less(*p1, *p2)
 	})
 
-	// deprecated: backwards compatibility with older versions that didn't compare variant
-	if len(matches) == 0 && p.Architecture == "arm" {
-		p = platforms.Normalize(p)
-		for _, desc := range manifests {
-			if desc.Platform.OS == p.OS && desc.Platform.Architecture == p.Architecture {
-				matches = append(matches, desc)
-				logrus.Debugf("found deprecated partial match for %s with media type %s, digest %s", platforms.Format(p), desc.MediaType, desc.Digest.String())
-			}
-		}
-	}
-
 	return matches
 }
 
@@ -64,7 +52,7 @@ func checkImageCompatibility(imageOS, imageOSVersion string) error {
 	return nil
 }
 
-func withDefault(p specs.Platform) specs.Platform {
+func withDefault(p ocispec.Platform) ocispec.Platform {
 	def := maximumSpec()
 	if p.OS == "" {
 		p.OS = def.OS
@@ -76,7 +64,7 @@ func withDefault(p specs.Platform) specs.Platform {
 	return p
 }
 
-func formatPlatform(platform specs.Platform) string {
+func formatPlatform(platform ocispec.Platform) string {
 	if platform.OS == "" {
 		platform = platforms.DefaultSpec()
 	}

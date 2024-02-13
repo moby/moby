@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -25,9 +25,7 @@ func TestServiceCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, types.ServiceCreateOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestServiceCreate(t *testing.T) {
@@ -40,7 +38,7 @@ func TestServiceCreate(t *testing.T) {
 			if req.Method != http.MethodPost {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
-			b, err := json.Marshal(types.ServiceCreateResponse{
+			b, err := json.Marshal(swarm.ServiceCreateResponse{
 				ID: "service_id",
 			})
 			if err != nil {
@@ -79,7 +77,7 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 				assert.Check(t, is.Len(serviceSpec.TaskTemplate.Placement.Platforms, 1))
 
 				p := serviceSpec.TaskTemplate.Placement.Platforms[0]
-				b, err := json.Marshal(types.ServiceCreateResponse{
+				b, err := json.Marshal(swarm.ServiceCreateResponse{
 					ID: "service_" + p.OS + "_" + p.Architecture,
 				})
 				if err != nil {
@@ -91,10 +89,10 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 				}, nil
 			} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/") {
 				b, err := json.Marshal(registrytypes.DistributionInspect{
-					Descriptor: v1.Descriptor{
+					Descriptor: ocispec.Descriptor{
 						Digest: "sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96",
 					},
-					Platforms: []v1.Platform{
+					Platforms: []ocispec.Platform{
 						{
 							Architecture: "amd64",
 							OS:           "linux",
@@ -155,7 +153,7 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 				}
 				serviceCreateImage = service.TaskTemplate.ContainerSpec.Image
 
-				b, err := json.Marshal(types.ServiceCreateResponse{
+				b, err := json.Marshal(swarm.ServiceCreateResponse{
 					ID: "service_id",
 				})
 				if err != nil {
@@ -171,7 +169,7 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 			} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/") {
 				// resolvable images
 				b, err := json.Marshal(registrytypes.DistributionInspect{
-					Descriptor: v1.Descriptor{
+					Descriptor: ocispec.Descriptor{
 						Digest: digest.Digest(dgst),
 					},
 				})
@@ -196,7 +194,6 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 				},
 			},
 		}, types.ServiceCreateOptions{QueryRegistry: true})
-
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -7,10 +7,11 @@ import (
 )
 
 func TestGenerate(t *testing.T) {
-	gen := NewGeneric()
-	gen["Int"] = 1
-	gen["Rune"] = 'b'
-	gen["Float64"] = 2.0
+	gen := Generic{
+		"Int":     1,
+		"Rune":    'b',
+		"Float64": 2.0,
+	}
 
 	type Model struct {
 		Int     int
@@ -19,7 +20,6 @@ func TestGenerate(t *testing.T) {
 	}
 
 	result, err := GenerateFromModel(gen, Model{})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,10 +40,11 @@ func TestGenerate(t *testing.T) {
 }
 
 func TestGeneratePtr(t *testing.T) {
-	gen := NewGeneric()
-	gen["Int"] = 1
-	gen["Rune"] = 'b'
-	gen["Float64"] = 2.0
+	gen := Generic{
+		"Int":     1,
+		"Rune":    'b',
+		"Float64": 2.0,
+	}
 
 	type Model struct {
 		Int     int
@@ -52,7 +53,6 @@ func TestGeneratePtr(t *testing.T) {
 	}
 
 	result, err := GenerateFromModel(gen, &Model{})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,18 +78,24 @@ func TestGenerateMissingField(t *testing.T) {
 
 	if _, ok := err.(NoSuchFieldError); !ok {
 		t.Fatalf("expected NoSuchFieldError, got %#v", err)
-	} else if expected := "no field"; !strings.Contains(err.Error(), expected) {
+	}
+
+	const expected = "no field"
+	if !strings.Contains(err.Error(), expected) {
 		t.Fatalf("expected %q in error message, got %s", expected, err.Error())
 	}
 }
 
 func TestFieldCannotBeSet(t *testing.T) {
-	type Model struct{ foo int } //nolint:structcheck
+	type Model struct{ foo int } //nolint:nolintlint,unused // un-exported field is used to test error-handling
 	_, err := GenerateFromModel(Generic{"foo": "bar"}, Model{})
 
 	if _, ok := err.(CannotSetFieldError); !ok {
 		t.Fatalf("expected CannotSetFieldError, got %#v", err)
-	} else if expected := "cannot set field"; !strings.Contains(err.Error(), expected) {
+	}
+
+	const expected = "cannot set field"
+	if !strings.Contains(err.Error(), expected) {
 		t.Fatalf("expected %q in error message, got %s", expected, err.Error())
 	}
 }
@@ -100,7 +106,10 @@ func TestTypeMismatchError(t *testing.T) {
 
 	if _, ok := err.(TypeMismatchError); !ok {
 		t.Fatalf("expected TypeMismatchError, got %#v", err)
-	} else if expected := "type mismatch"; !strings.Contains(err.Error(), expected) {
+	}
+
+	const expected = "type mismatch"
+	if !strings.Contains(err.Error(), expected) {
 		t.Fatalf("expected %q in error message, got %s", expected, err.Error())
 	}
 }

@@ -216,6 +216,5 @@ func (s *scanner) Scan(ctx context.Context) bool {
 			// It's much simpler and cleaner to just re-read `len(delimiter)-1` bytes again.
 			s.pos += int64(len(s.delim)) - 1
 		}
-
 	}
 }

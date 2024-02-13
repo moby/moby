@@ -29,6 +29,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
+	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -52,18 +53,17 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 	return newHTTPReadSeeker(desc.Size, func(offset int64) (io.ReadCloser, error) {
 		// firstly try fetch via external urls
 		for _, us := range desc.URLs {
-			ctx = log.WithLogger(ctx, log.G(ctx).WithField("url", us))
-
 			u, err := url.Parse(us)
 			if err != nil {
-				log.G(ctx).WithError(err).Debug("failed to parse")
+				log.G(ctx).WithError(err).Debugf("failed to parse %q", us)
 				continue
 			}
 			if u.Scheme != "http" && u.Scheme != "https" {
 				log.G(ctx).Debug("non-http(s) alternative url is unsupported")
 				continue
 			}
-			log.G(ctx).Debug("trying alternative url")
+			ctx = log.WithLogger(ctx, log.G(ctx).WithField("url", u))
+			log.G(ctx).Info("request")
 
 			// Try this first, parse it
 			host := RegistryHost{
@@ -151,8 +151,106 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 	})
 }
 
+func (r dockerFetcher) createGetReq(ctx context.Context, host RegistryHost, ps ...string) (*request, int64, error) {
+	headReq := r.request(host, http.MethodHead, ps...)
+	if err := headReq.addNamespace(r.refspec.Hostname()); err != nil {
+		return nil, 0, err
+	}
+
+	headResp, err := headReq.doWithRetries(ctx, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	if headResp.Body != nil {
+		headResp.Body.Close()
+	}
+	if headResp.StatusCode > 299 {
+		return nil, 0, fmt.Errorf("unexpected HEAD status code %v: %s", headReq.String(), headResp.Status)
+	}
+
+	getReq := r.request(host, http.MethodGet, ps...)
+	if err := getReq.addNamespace(r.refspec.Hostname()); err != nil {
+		return nil, 0, err
+	}
+	return getReq, headResp.ContentLength, nil
+}
+
+func (r dockerFetcher) FetchByDigest(ctx context.Context, dgst digest.Digest) (io.ReadCloser, ocispec.Descriptor, error) {
+	var desc ocispec.Descriptor
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("digest", dgst))
+
+	hosts := r.filterHosts(HostCapabilityPull)
+	if len(hosts) == 0 {
+		return nil, desc, fmt.Errorf("no pull hosts: %w", errdefs.ErrNotFound)
+	}
+
+	ctx, err := ContextWithRepositoryScope(ctx, r.refspec, false)
+	if err != nil {
+		return nil, desc, err
+	}
+
+	var (
+		getReq   *request
+		sz       int64
+		firstErr error
+	)
+
+	for _, host := range r.hosts {
+		getReq, sz, err = r.createGetReq(ctx, host, "blobs", dgst.String())
+		if err == nil {
+			break
+		}
+		// Store the error for referencing later
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+
+	if getReq == nil {
+		// Fall back to the "manifests" endpoint
+		for _, host := range r.hosts {
+			getReq, sz, err = r.createGetReq(ctx, host, "manifests", dgst.String())
+			if err == nil {
+				break
+			}
+			// Store the error for referencing later
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+
+	if getReq == nil {
+		if errdefs.IsNotFound(firstErr) {
+			firstErr = fmt.Errorf("could not fetch content %v from remote: %w", dgst, errdefs.ErrNotFound)
+		}
+		if firstErr == nil {
+			firstErr = fmt.Errorf("could not fetch content %v from remote: (unknown)", dgst)
+		}
+		return nil, desc, firstErr
+	}
+
+	seeker, err := newHTTPReadSeeker(sz, func(offset int64) (io.ReadCloser, error) {
+		return r.open(ctx, getReq, "", offset)
+	})
+	if err != nil {
+		return nil, desc, err
+	}
+
+	desc = ocispec.Descriptor{
+		MediaType: "application/octet-stream",
+		Digest:    dgst,
+		Size:      sz,
+	}
+	return seeker, desc, nil
+}
+
 func (r dockerFetcher) open(ctx context.Context, req *request, mediatype string, offset int64) (_ io.ReadCloser, retErr error) {
-	req.header.Set("Accept", strings.Join([]string{mediatype, `*/*`}, ", "))
+	if mediatype == "" {
+		req.header.Set("Accept", "*/*")
+	} else {
+		req.header.Set("Accept", strings.Join([]string{mediatype, `*/*`}, ", "))
+	}
 
 	if offset > 0 {
 		// Note: "Accept-Ranges: bytes" cannot be trusted as some endpoints

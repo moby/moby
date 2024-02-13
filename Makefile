@@ -1,31 +1,13 @@
 .PHONY: all binary dynbinary build cross help install manpages run shell test test-docker-py test-integration test-unit validate validate-% win
 
-BUILDX_VERSION ?= v0.9.1
-
-ifdef USE_BUILDX
-BUILDX ?= $(shell command -v buildx)
-BUILDX ?= $(shell command -v docker-buildx)
-DOCKER_BUILDX_CLI_PLUGIN_PATH ?= ~/.docker/cli-plugins/docker-buildx
-BUILDX ?= $(shell if [ -x "$(DOCKER_BUILDX_CLI_PLUGIN_PATH)" ]; then echo $(DOCKER_BUILDX_CLI_PLUGIN_PATH); fi)
-endif
-
-ifndef USE_BUILDX
-DOCKER_BUILDKIT := 1
-export DOCKER_BUILDKIT
-endif
-
-BUILDX ?= bundles/buildx
 DOCKER ?= docker
+BUILDX ?= $(DOCKER) buildx
 
 # set the graph driver as the current graphdriver if not set
-DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
+DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info -f '{{ .Driver }}' 2>&1))
 export DOCKER_GRAPHDRIVER
 
-# get OS/Arch of docker engine
-DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH}')
-DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKERFILE}')
-
-DOCKER_GITCOMMIT := $(shell git rev-parse --short HEAD || echo unsupported)
+DOCKER_GITCOMMIT := $(shell git rev-parse HEAD)
 export DOCKER_GITCOMMIT
 
 # allow overriding the repository and branch that validation scripts are running
@@ -42,11 +24,9 @@ export VALIDATE_ORIGIN_BRANCH
 # option of "go build". For example, a built-in graphdriver priority list
 # can be changed during build time like this:
 #
-# make DOCKER_LDFLAGS="-X github.com/docker/docker/daemon/graphdriver.priority=overlay2,devicemapper" dynbinary
+# make DOCKER_LDFLAGS="-X github.com/docker/docker/daemon/graphdriver.priority=overlay2,zfs" dynbinary
 #
 DOCKER_ENVS := \
-	-e DOCKER_CROSSPLATFORMS \
-	-e BUILD_APT_MIRROR \
 	-e BUILDFLAGS \
 	-e KEEPBUNDLE \
 	-e DOCKER_BUILD_ARGS \
@@ -56,6 +36,10 @@ DOCKER_ENVS := \
 	-e DOCKER_BUILDKIT \
 	-e DOCKER_BASH_COMPLETION_PATH \
 	-e DOCKER_CLI_PATH \
+	-e DOCKERCLI_VERSION \
+	-e DOCKERCLI_REPOSITORY \
+	-e DOCKERCLI_INTEGRATION_VERSION \
+	-e DOCKERCLI_INTEGRATION_REPOSITORY \
 	-e DOCKER_DEBUG \
 	-e DOCKER_EXPERIMENTAL \
 	-e DOCKER_GITCOMMIT \
@@ -72,8 +56,11 @@ DOCKER_ENVS := \
 	-e GITHUB_ACTIONS \
 	-e TEST_FORCE_VALIDATE \
 	-e TEST_INTEGRATION_DIR \
+	-e TEST_INTEGRATION_USE_SNAPSHOTTER \
+	-e TEST_INTEGRATION_FAIL_FAST \
 	-e TEST_SKIP_INTEGRATION \
 	-e TEST_SKIP_INTEGRATION_CLI \
+	-e TEST_IGNORE_CGROUP_CHECK \
 	-e TESTCOVERAGE \
 	-e TESTDEBUG \
 	-e TESTDIRS \
@@ -89,7 +76,10 @@ DOCKER_ENVS := \
 	-e PLATFORM \
 	-e DEFAULT_PRODUCT_LICENSE \
 	-e PRODUCT \
-	-e PACKAGER_NAME
+	-e PACKAGER_NAME \
+	-e OTEL_EXPORTER_OTLP_ENDPOINT \
+	-e OTEL_EXPORTER_OTLP_PROTOCOL \
+	-e OTEL_SERVICE_NAME
 # note: we _cannot_ add "-e DOCKER_BUILDTAGS" here because even if it's unset in the shell, that would shadow the "ENV DOCKER_BUILDTAGS" set in our Dockerfile, which is very important for our official builds
 
 # to allow `make BIND_DIR=. shell` or `make BIND_DIR= test`
@@ -121,8 +111,6 @@ DOCKER_PORT_FORWARD := $(if $(DOCKER_PORT),-p "$(DOCKER_PORT)",)
 DELVE_PORT_FORWARD := $(if $(DELVE_PORT),-p "$(DELVE_PORT)",)
 
 DOCKER_FLAGS := $(DOCKER) run --rm --privileged $(DOCKER_CONTAINER_NAME) $(DOCKER_ENVS) $(DOCKER_MOUNT) $(DOCKER_PORT_FORWARD) $(DELVE_PORT_FORWARD)
-BUILD_APT_MIRROR := $(if $(DOCKER_BUILD_APT_MIRROR),--build-arg APT_MIRROR=$(DOCKER_BUILD_APT_MIRROR))
-export BUILD_APT_MIRROR
 
 SWAGGER_DOCS_PORT ?= 9000
 
@@ -150,43 +138,31 @@ endif
 DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 
 DOCKER_BUILD_ARGS += --build-arg=GO_VERSION
+DOCKER_BUILD_ARGS += --build-arg=DOCKERCLI_VERSION
+DOCKER_BUILD_ARGS += --build-arg=DOCKERCLI_REPOSITORY
+DOCKER_BUILD_ARGS += --build-arg=DOCKERCLI_INTEGRATION_VERSION
+DOCKER_BUILD_ARGS += --build-arg=DOCKERCLI_INTEGRATION_REPOSITORY
 ifdef DOCKER_SYSTEMD
 DOCKER_BUILD_ARGS += --build-arg=SYSTEMD=true
 endif
 
-BUILD_OPTS := ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -f "$(DOCKERFILE)"
-ifdef USE_BUILDX
-BUILD_OPTS += $(BUILDX_BUILD_EXTRA_OPTS)
+BUILD_OPTS := ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS}
 BUILD_CMD := $(BUILDX) build
-else
-BUILD_CMD := $(DOCKER) build
-endif
-
-# This is used for the legacy "build" target and anything still depending on it
-BUILD_CROSS =
-ifdef DOCKER_CROSS
-BUILD_CROSS = --build-arg CROSS=$(DOCKER_CROSS)
-endif
-ifdef DOCKER_CROSSPLATFORMS
-BUILD_CROSS = --build-arg CROSS=true
-endif
-
-VERSION_AUTOGEN_ARGS = --build-arg VERSION --build-arg DOCKER_GITCOMMIT --build-arg PRODUCT --build-arg PLATFORM --build-arg DEFAULT_PRODUCT_LICENSE --build-arg PACKAGER_NAME
+BAKE_CMD := $(BUILDX) bake
 
 default: binary
 
 all: build ## validate all checks, build linux binaries, run all tests,\ncross build non-linux binaries, and generate archives
 	$(DOCKER_RUN_DOCKER) bash -c 'hack/validate/default && hack/make.sh'
 
-binary: buildx ## build statically linked linux binaries
-	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
+binary: bundles ## build statically linked linux binaries
+	$(BAKE_CMD) binary
 
-dynbinary: buildx ## build dynamically linked linux binaries
-	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
+dynbinary: bundles ## build dynamically linked linux binaries
+	$(BAKE_CMD) dynbinary
 
-cross: BUILD_OPTS += --build-arg CROSS=true --build-arg DOCKER_CROSSPLATFORMS
-cross: buildx ## cross build the binaries for darwin, freebsd and\nwindows
-	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
+cross: bundles ## cross build the binaries
+	$(BAKE_CMD) binary-cross
 
 bundles:
 	mkdir bundles
@@ -209,21 +185,18 @@ run: build ## run the docker daemon in a container
  
 .PHONY: build
 ifeq ($(BIND_DIR), .)
-build: shell_target := --target=dev
+build: shell_target := --target=dev-base
 else
-build: shell_target := --target=final
+build: shell_target := --target=dev
 endif
-ifdef USE_BUILDX
-build: buildx_load := --load
-endif
-build: buildx
-	$(BUILD_CMD) $(BUILD_OPTS) $(shell_target) $(buildx_load) $(BUILD_CROSS) -t "$(DOCKER_IMAGE)" .
+build: bundles
+	$(BUILD_CMD) $(BUILD_OPTS) $(shell_target) --load -t "$(DOCKER_IMAGE)" .
 
 shell: build  ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
 test: build test-unit ## run the unit, integration and docker-py tests
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-integration test-docker-py
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration test-docker-py
 
 test-docker-py: build ## run the docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-docker-py
@@ -247,11 +220,16 @@ test-unit: build ## run the unit tests
 validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isolation, golint, tests, tomls, go vet and vendor
 	$(DOCKER_RUN_DOCKER) hack/validate/all
 
+validate-generate-files:
+	$(BUILD_CMD) --target "validate" \
+		--output "type=cacheonly" \
+		--file "./hack/dockerfiles/generate-files.Dockerfile" .
+
 validate-%: build ## validate specific check
 	$(DOCKER_RUN_DOCKER) hack/validate/$*
 
-win: build ## cross build the binary for windows
-	$(DOCKER_RUN_DOCKER) DOCKER_CROSSPLATFORMS=windows/amd64 hack/make.sh cross
+win: bundles ## cross build the binary for windows
+	$(BAKE_CMD) --set *.platform=windows/amd64 binary
 
 .PHONY: swagger-gen
 swagger-gen:
@@ -269,13 +247,14 @@ swagger-docs: ## preview the API documentation
 		-p $(SWAGGER_DOCS_PORT):80 \
 		bfirsh/redoc:1.14.0
 
-.PHONY: buildx
-ifdef USE_BUILDX
-ifeq ($(BUILDX), bundles/buildx)
-buildx: bundles/buildx ## build buildx cli tool
-endif
-endif
-
-bundles/buildx: bundles ## build buildx CLI tool
-	curl -fsSL https://raw.githubusercontent.com/moby/buildkit/70deac12b5857a1aa4da65e90b262368e2f71500/hack/install-buildx | VERSION="$(BUILDX_VERSION)" BINDIR="$(@D)" bash
-	$@ version
+.PHONY: generate-files
+generate-files:
+	$(eval $@_TMP_OUT := $(shell mktemp -d -t moby-output.XXXXXXXXXX))
+	ifeq ($($@_TMP_OUT),)
+		$(error Could not create temp directory.)
+	endif
+	$(BUILD_CMD) --target "update" \
+		--output "type=local,dest=$($@_TMP_OUT)" \
+		--file "./hack/dockerfiles/generate-files.Dockerfile" .
+	cp -R "$($@_TMP_OUT)"/. .
+	rm -rf "$($@_TMP_OUT)"/*

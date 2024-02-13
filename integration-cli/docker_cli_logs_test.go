@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os/exec"
@@ -9,8 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/testutil"
+	testdaemon "github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )
@@ -19,8 +23,8 @@ type DockerCLILogsSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLILogsSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLILogsSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLILogsSuite) OnTimeout(c *testing.T) {
@@ -43,22 +47,20 @@ func (s *DockerCLILogsSuite) TestLogsContainerMuchBiggerThanPage(c *testing.T) {
 }
 
 func testLogsContainerPagination(c *testing.T, testLen int) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n = >> a.a; done; echo >> a.a; cat a.a", testLen))
-	id := strings.TrimSpace(out)
-	dockerCmd(c, "wait", id)
-	out, _ = dockerCmd(c, "logs", id)
+	id := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n = >> a.a; done; echo >> a.a; cat a.a", testLen)).Stdout()
+	id = strings.TrimSpace(id)
+	cli.DockerCmd(c, "wait", id)
+	out := cli.DockerCmd(c, "logs", id).Combined()
 	assert.Equal(c, len(out), testLen+1)
 }
 
 func (s *DockerCLILogsSuite) TestLogsTimestamps(c *testing.T) {
 	testLen := 100
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo = >> a.a; done; cat a.a", testLen))
+	id := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo = >> a.a; done; cat a.a", testLen)).Stdout()
+	id = strings.TrimSpace(id)
+	cli.DockerCmd(c, "wait", id)
 
-	id := strings.TrimSpace(out)
-	dockerCmd(c, "wait", id)
-
-	out, _ = dockerCmd(c, "logs", "-t", id)
-
+	out := cli.DockerCmd(c, "logs", "-t", id).Combined()
 	lines := strings.Split(out, "\n")
 
 	assert.Equal(c, len(lines), testLen+1)
@@ -67,7 +69,7 @@ func (s *DockerCLILogsSuite) TestLogsTimestamps(c *testing.T) {
 
 	for _, l := range lines {
 		if l != "" {
-			_, err := time.Parse(jsonmessage.RFC3339NanoFixed+" ", ts.FindString(l))
+			_, err := time.Parse(log.RFC3339NanoFixed+" ", ts.FindString(l))
 			assert.NilError(c, err, "Failed to parse timestamp from %v", l)
 			// ensure we have padded 0's
 			assert.Equal(c, l[29], uint8('Z'))
@@ -134,7 +136,7 @@ func (s *DockerCLILogsSuite) TestLogsTail(c *testing.T) {
 }
 
 func (s *DockerCLILogsSuite) TestLogsFollowStopped(c *testing.T) {
-	dockerCmd(c, "run", "--name=test", "busybox", "echo", "hello")
+	cli.DockerCmd(c, "run", "--name=test", "busybox", "echo", "hello")
 	id := getIDByName(c, "test")
 
 	logsCmd := exec.Command(dockerBinary, "logs", "-f", id)
@@ -156,14 +158,14 @@ func (s *DockerCLILogsSuite) TestLogsFollowStopped(c *testing.T) {
 
 func (s *DockerCLILogsSuite) TestLogsSince(c *testing.T) {
 	name := "testlogssince"
-	dockerCmd(c, "run", "--name="+name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do sleep 2; echo log$i; done")
-	out, _ := dockerCmd(c, "logs", "-t", name)
+	cli.DockerCmd(c, "run", "--name="+name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do sleep 2; echo log$i; done")
+	out := cli.DockerCmd(c, "logs", "-t", name).Combined()
 
 	log2Line := strings.Split(strings.Split(out, "\n")[1], " ")
 	t, err := time.Parse(time.RFC3339Nano, log2Line[0]) // the timestamp log2 is written
 	assert.NilError(c, err)
 	since := t.Unix() + 1 // add 1s so log1 & log2 doesn't show up
-	out, _ = dockerCmd(c, "logs", "-t", fmt.Sprintf("--since=%v", since), name)
+	out = cli.DockerCmd(c, "logs", "-t", fmt.Sprintf("--since=%v", since), name).Combined()
 
 	// Skip 2 seconds
 	unexpected := []string{"log1", "log2"}
@@ -193,14 +195,14 @@ func (s *DockerCLILogsSuite) TestLogsSinceFutureFollow(c *testing.T) {
 	// TODO Windows TP5 - Figure out why this test is so flakey. Disabled for now.
 	testRequires(c, DaemonIsLinux)
 	name := "testlogssincefuturefollow"
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do echo log$i; sleep 1; done`)
+	cli.DockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do echo log$i; sleep 1; done`)
 
 	// Extract one timestamp from the log file to give us a starting point for
 	// our `--since` argument. Because the log producer runs in the background,
 	// we need to check repeatedly for some output to be produced.
 	var timestamp string
 	for i := 0; i != 100 && timestamp == ""; i++ {
-		if out, _ := dockerCmd(c, "logs", "-t", name); out == "" {
+		if out := cli.DockerCmd(c, "logs", "-t", name).Combined(); out == "" {
 			time.Sleep(time.Millisecond * 100) // Retry
 		} else {
 			timestamp = strings.Split(strings.Split(out, "\n")[0], " ")[0]
@@ -212,7 +214,7 @@ func (s *DockerCLILogsSuite) TestLogsSinceFutureFollow(c *testing.T) {
 	assert.NilError(c, err)
 
 	since := t.Unix() + 2
-	out, _ := dockerCmd(c, "logs", "-t", "-f", fmt.Sprintf("--since=%v", since), name)
+	out := cli.DockerCmd(c, "logs", "-t", "-f", fmt.Sprintf("--since=%v", since), name).Combined()
 	assert.Assert(c, len(out) != 0, "cannot read from empty log")
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	for _, v := range lines {
@@ -227,14 +229,13 @@ func (s *DockerCLILogsSuite) TestLogsFollowSlowStdoutConsumer(c *testing.T) {
 	// TODO Windows: Fix this test for TP5.
 	testRequires(c, DaemonIsLinux)
 	expected := 150000
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", fmt.Sprintf("usleep 600000; yes X | head -c %d", expected))
-
-	id := strings.TrimSpace(out)
+	id := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", fmt.Sprintf("usleep 600000; yes X | head -c %d", expected)).Stdout()
+	id = strings.TrimSpace(id)
 
 	stopSlowRead := make(chan bool)
 
 	go func() {
-		dockerCmd(c, "wait", id)
+		cli.DockerCmd(c, "wait", id)
 		stopSlowRead <- true
 	}()
 
@@ -282,17 +283,40 @@ func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, s
 }
 
 func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesWithStdout(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 2; done")
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	c.Parallel()
 
-	nroutines, err := getGoroutineNumber()
+	ctx := testutil.GetContext(c)
+	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvVars("OTEL_SDK_DISABLED=1"))
+	defer func() {
+		d.Stop(c)
+		d.Cleanup(c)
+	}()
+	d.StartWithBusybox(ctx, c, "--iptables=false")
+
+	out, err := d.Cmd("run", "-d", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 2; done")
 	assert.NilError(c, err)
-	cmd := exec.Command(dockerBinary, "logs", "-f", id)
+
+	id := strings.TrimSpace(out)
+	assert.NilError(c, d.WaitRun(id))
+
+	client := d.NewClientT(c)
+	nroutines := waitForStableGourtineCount(ctx, c, client)
+
+	cmd := d.Command("logs", "-f", id)
 	r, w := io.Pipe()
+	defer r.Close()
+	defer w.Close()
+
 	cmd.Stdout = w
-	assert.NilError(c, cmd.Start())
-	go cmd.Wait()
+	res := icmd.StartCmd(cmd)
+	assert.NilError(c, res.Error)
+	defer res.Cmd.Process.Kill()
+
+	finished := make(chan error)
+	go func() {
+		finished <- res.Cmd.Wait()
+	}()
 
 	// Make sure pipe is written to
 	chErr := make(chan error)
@@ -300,31 +324,58 @@ func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesWithStdout(c *testing.T) {
 		b := make([]byte, 1)
 		_, err := r.Read(b)
 		chErr <- err
+		r.Close()
 	}()
+
+	// Check read from pipe succeeded
 	assert.NilError(c, <-chErr)
-	assert.NilError(c, cmd.Process.Kill())
-	r.Close()
-	cmd.Wait()
+
+	assert.NilError(c, res.Cmd.Process.Kill())
+	<-finished
+
 	// NGoroutines is not updated right away, so we need to wait before failing
-	assert.NilError(c, waitForGoroutines(nroutines))
+	waitForGoroutines(ctx, c, client, nroutines)
 }
 
 func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesNoOutput(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 2; done")
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	c.Parallel()
 
-	nroutines, err := getGoroutineNumber()
+	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvVars("OTEL_SDK_DISABLED=1"))
+	defer func() {
+		d.Stop(c)
+		d.Cleanup(c)
+	}()
+
+	ctx := testutil.GetContext(c)
+
+	d.StartWithBusybox(ctx, c, "--iptables=false")
+
+	out, err := d.Cmd("run", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 2; done")
 	assert.NilError(c, err)
-	cmd := exec.Command(dockerBinary, "logs", "-f", id)
-	assert.NilError(c, cmd.Start())
-	go cmd.Wait()
+	id := strings.TrimSpace(out)
+	assert.NilError(c, d.WaitRun(id))
+
+	client := d.NewClientT(c)
+	nroutines := waitForStableGourtineCount(ctx, c, client)
+	assert.NilError(c, err)
+
+	cmd := d.Command("logs", "-f", id)
+	res := icmd.StartCmd(cmd)
+	assert.NilError(c, res.Error)
+
+	finished := make(chan error)
+	go func() {
+		finished <- res.Cmd.Wait()
+	}()
+
 	time.Sleep(200 * time.Millisecond)
-	assert.NilError(c, cmd.Process.Kill())
-	cmd.Wait()
+	assert.NilError(c, res.Cmd.Process.Kill())
+
+	<-finished
 
 	// NGoroutines is not updated right away, so we need to wait before failing
-	assert.NilError(c, waitForGoroutines(nroutines))
+	waitForGoroutines(ctx, c, client, nroutines)
 }
 
 func (s *DockerCLILogsSuite) TestLogsCLIContainerNotFound(c *testing.T) {
@@ -335,8 +386,8 @@ func (s *DockerCLILogsSuite) TestLogsCLIContainerNotFound(c *testing.T) {
 }
 
 func (s *DockerCLILogsSuite) TestLogsWithDetails(c *testing.T) {
-	dockerCmd(c, "run", "--name=test", "--label", "foo=bar", "-e", "baz=qux", "--log-opt", "labels=foo", "--log-opt", "env=baz", "busybox", "echo", "hello")
-	out, _ := dockerCmd(c, "logs", "--details", "--timestamps", "test")
+	cli.DockerCmd(c, "run", "--name=test", "--label", "foo=bar", "-e", "baz=qux", "--log-opt", "labels=foo", "--log-opt", "env=baz", "busybox", "echo", "hello")
+	out := cli.DockerCmd(c, "logs", "--details", "--timestamps", "test").Combined()
 
 	logFields := strings.Fields(strings.TrimSpace(out))
 	assert.Equal(c, len(logFields), 3, out)

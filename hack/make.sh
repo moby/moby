@@ -36,15 +36,21 @@ DEFAULT_BUNDLES=(
 	dynbinary
 	test-integration
 	test-docker-py
-	cross
 )
 
 VERSION=${VERSION:-dev}
+case "$VERSION" in
+	refs/tags/v*) VERSION=${VERSION#refs/tags/v} ;;
+	refs/tags/*) VERSION=${VERSION#refs/tags/} ;;
+	refs/heads/*) VERSION=$(echo "${VERSION#refs/heads/}" | sed -r 's#/+#-#g') ;;
+	refs/pull/*) VERSION=pr-$(echo "$VERSION" | grep -o '[0-9]\+') ;;
+esac
+
 ! BUILDTIME=$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
 if [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"
 elif command -v git &> /dev/null && [ -e .git ] && git rev-parse &> /dev/null; then
-	GITCOMMIT=$(git rev-parse --short HEAD)
+	GITCOMMIT=$(git rev-parse HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-unsupported"
 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -59,8 +65,8 @@ elif command -v git &> /dev/null && [ -e .git ] && git rev-parse &> /dev/null; t
 else
 	echo >&2 'error: .git directory missing and DOCKER_GITCOMMIT not specified'
 	echo >&2 '  Please either build with the .git directory accessible, or specify the'
-	echo >&2 '  exact (--short) commit hash you are building using DOCKER_GITCOMMIT for'
-	echo >&2 '  future accountability in diagnosing build issues.  Thanks!'
+	echo >&2 '  exact commit hash you are building using DOCKER_GITCOMMIT for future'
+	echo >&2 '  accountability in diagnosing build issues.  Thanks!'
 	exit 1
 fi
 
@@ -72,53 +78,23 @@ if [ "$AUTO_GOPATH" ]; then
 fi
 
 if [ ! "$GOPATH" ]; then
-	echo >&2 'error: missing GOPATH; please see https://golang.org/doc/code.html#GOPATH'
+	echo >&2 'error: missing GOPATH; please see https://pkg.go.dev/cmd/go#hdr-GOPATH_environment_variable'
 	echo >&2 '  alternatively, set AUTO_GOPATH=1'
 	exit 1
 fi
-
-# Adds $1_$2 to DOCKER_BUILDTAGS unless it already
-# contains a word starting from $1_
-add_buildtag() {
-	[[ " $DOCKER_BUILDTAGS" == *" $1_"* ]] || DOCKER_BUILDTAGS+=" $1_$2"
-}
 
 if ${PKG_CONFIG} 'libsystemd' 2> /dev/null; then
 	DOCKER_BUILDTAGS+=" journald"
 fi
 
-# test whether "libdevmapper.h" is new enough to support deferred remove
-# functionality. We favour libdm_dlsym_deferred_remove over
-# libdm_no_deferred_remove in dynamic cases because the binary could be shipped
-# with a newer libdevmapper than the one it was built with.
-if
-	command -v gcc &> /dev/null \
-		&& ! (echo -e '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }' | gcc -xc - -o /dev/null $(pkg-config --libs devmapper) &> /dev/null) \
-		;
-then
-	add_buildtag libdm dlsym_deferred_remove
-fi
-
 # Use these flags when compiling the tests and final binary
 
-IAMSTATIC='true'
 if [ -z "$DOCKER_DEBUG" ]; then
 	LDFLAGS='-w'
 fi
 
-LDFLAGS_STATIC=''
-EXTLDFLAGS_STATIC='-static'
-# ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
-# with options like -race.
-ORIG_BUILDFLAGS=(-tags "netgo osusergo static_build $DOCKER_BUILDTAGS" -installsuffix netgo)
-# see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
-
-BUILDFLAGS=(${BUILDFLAGS} "${ORIG_BUILDFLAGS[@]}")
-
-LDFLAGS_STATIC_DOCKER="
-	$LDFLAGS_STATIC
-	-extldflags \"$EXTLDFLAGS_STATIC\"
-"
+BUILDFLAGS=(${BUILDFLAGS} -tags "netgo osusergo static_build $DOCKER_BUILDTAGS")
+LDFLAGS_STATIC="-extldflags -static"
 
 if [ "$(uname -s)" = 'FreeBSD' ]; then
 	# Tell cgo the compiler is Clang, not GCC

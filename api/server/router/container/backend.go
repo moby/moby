@@ -24,22 +24,21 @@ type execBackend interface {
 // copyBackend includes functions to implement to provide container copy functionality.
 type copyBackend interface {
 	ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error)
-	ContainerCopy(name string, res string) (io.ReadCloser, error)
-	ContainerExport(name string, out io.Writer) error
+	ContainerExport(ctx context.Context, name string, out io.Writer) error
 	ContainerExtractToDir(name, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error
 	ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error)
 }
 
 // stateBackend includes functions to implement to provide container state lifecycle functionality.
 type stateBackend interface {
-	ContainerCreate(config types.ContainerCreateConfig) (container.CreateResponse, error)
+	ContainerCreate(ctx context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error)
 	ContainerKill(name string, signal string) error
 	ContainerPause(name string) error
 	ContainerRename(oldName, newName string) error
 	ContainerResize(name string, height, width int) error
 	ContainerRestart(ctx context.Context, name string, options container.StopOptions) error
-	ContainerRm(name string, config *types.ContainerRmConfig) error
-	ContainerStart(name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
+	ContainerRm(name string, config *backend.ContainerRmConfig) error
+	ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error
 	ContainerStop(ctx context.Context, name string, options container.StopOptions) error
 	ContainerUnpause(name string) error
 	ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error)
@@ -48,13 +47,12 @@ type stateBackend interface {
 
 // monitorBackend includes functions to implement to provide containers monitoring functionality.
 type monitorBackend interface {
-	ContainerChanges(name string) ([]archive.Change, error)
-	ContainerInspect(name string, size bool, version string) (interface{}, error)
-	ContainerLogs(ctx context.Context, name string, config *types.ContainerLogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
+	ContainerChanges(ctx context.Context, name string) ([]archive.Change, error)
+	ContainerInspect(ctx context.Context, name string, size bool, version string) (interface{}, error)
+	ContainerLogs(ctx context.Context, name string, config *container.LogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
 	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error)
-
-	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
+	Containers(ctx context.Context, config *container.ListOptions) ([]*types.Container, error)
 }
 
 // attachBackend includes function to implement to provide container attaching functionality.
@@ -68,7 +66,7 @@ type systemBackend interface {
 }
 
 type commitBackend interface {
-	CreateImageFromContainer(name string, config *backend.CreateImageConfig) (imageID string, err error)
+	CreateImageFromContainer(ctx context.Context, name string, config *backend.CreateImageConfig) (imageID string, err error)
 }
 
 // Backend is all the methods that need to be implemented to provide container specific functionality.

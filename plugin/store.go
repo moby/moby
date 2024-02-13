@@ -1,17 +1,18 @@
 package plugin // import "github.com/docker/docker/plugin"
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	"github.com/docker/distribution/reference"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	v2 "github.com/docker/docker/plugin/v2"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // allowV1PluginsFallback determines daemon's support for V1 plugins.
@@ -192,7 +193,8 @@ func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, er
 
 	// Lookup with legacy model
 	if allowV1PluginsFallback {
-		pl, err := plugins.GetAll(capability)
+		l := plugins.NewLocalRegistry()
+		pl, err := l.GetAll(capability)
 		if err != nil {
 			return nil, errors.Wrap(errdefs.System(err), "legacy plugin")
 		}
@@ -258,7 +260,7 @@ func (ps *Store) resolvePluginID(idOrName string) (string, error) {
 		return "", errors.WithStack(errNotFound(idOrName))
 	}
 	if _, ok := ref.(reference.Canonical); ok {
-		logrus.Warnf("canonical references cannot be resolved: %v", reference.FamiliarString(ref))
+		log.G(context.TODO()).Warnf("canonical references cannot be resolved: %v", reference.FamiliarString(ref))
 		return "", errors.WithStack(errNotFound(idOrName))
 	}
 

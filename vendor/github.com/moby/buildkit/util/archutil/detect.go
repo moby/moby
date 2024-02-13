@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/platforms"
+	"github.com/moby/buildkit/util/bklog"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 )
 
 var mu sync.Mutex
@@ -45,6 +45,11 @@ func SupportedPlatforms(noCache bool) []ocispecs.Platform {
 	}
 	if p := "riscv64"; def.Architecture != p {
 		if _, err := riscv64Supported(); err == nil {
+			arr = append(arr, linux(p))
+		}
+	}
+	if p := "ppc64"; def.Architecture != p {
+		if _, err := ppc64Supported(); err == nil {
 			arr = append(arr, linux(p))
 		}
 	}
@@ -87,9 +92,9 @@ func SupportedPlatforms(noCache bool) []ocispecs.Platform {
 	return arr
 }
 
-//WarnIfUnsupported validates the platforms and show warning message if there is,
-//the end user could fix the issue based on those warning, and thus no need to drop
-//the platform from the candidates.
+// WarnIfUnsupported validates the platforms and show warning message if there is,
+// the end user could fix the issue based on those warning, and thus no need to drop
+// the platform from the candidates.
 func WarnIfUnsupported(pfs []ocispecs.Platform) {
 	def := nativePlatform()
 	for _, p := range pfs {
@@ -106,6 +111,11 @@ func WarnIfUnsupported(pfs []ocispecs.Platform) {
 			}
 			if p.Architecture == "riscv64" {
 				if _, err := riscv64Supported(); err != nil {
+					printPlatformWarning(p, err)
+				}
+			}
+			if p.Architecture == "ppc64" {
+				if _, err := ppc64Supported(); err != nil {
 					printPlatformWarning(p, err)
 				}
 			}
@@ -171,10 +181,10 @@ func amd64vector(v string) (out []string) {
 
 func printPlatformWarning(p ocispecs.Platform, err error) {
 	if strings.Contains(err.Error(), "exec format error") {
-		logrus.Warnf("platform %s cannot pass the validation, kernel support for miscellaneous binary may have not enabled.", platforms.Format(p))
+		bklog.L.Warnf("platform %s cannot pass the validation, kernel support for miscellaneous binary may have not enabled.", platforms.Format(p))
 	} else if strings.Contains(err.Error(), "no such file or directory") {
-		logrus.Warnf("platforms %s cannot pass the validation, '-F' flag might have not set for 'archutil'.", platforms.Format(p))
+		bklog.L.Warnf("platforms %s cannot pass the validation, '-F' flag might have not set for 'archutil'.", platforms.Format(p))
 	} else {
-		logrus.Warnf("platforms %s cannot pass the validation: %s", platforms.Format(p), err.Error())
+		bklog.L.Warnf("platforms %s cannot pass the validation: %s", platforms.Format(p), err.Error())
 	}
 }

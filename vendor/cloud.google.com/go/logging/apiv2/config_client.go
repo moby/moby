@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,16 +23,18 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/golang/protobuf/proto"
+	loggingpb "cloud.google.com/go/logging/apiv2/loggingpb"
+	"cloud.google.com/go/longrunning"
+	lroauto "cloud.google.com/go/longrunning/autogen"
+	longrunningpb "cloud.google.com/go/longrunning/autogen/longrunningpb"
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
 	gtransport "google.golang.org/api/transport/grpc"
-	loggingpb "google.golang.org/genproto/googleapis/logging/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 var newConfigClientHook clientHook
@@ -41,6 +43,8 @@ var newConfigClientHook clientHook
 type ConfigCallOptions struct {
 	ListBuckets        []gax.CallOption
 	GetBucket          []gax.CallOption
+	CreateBucketAsync  []gax.CallOption
+	UpdateBucketAsync  []gax.CallOption
 	CreateBucket       []gax.CallOption
 	UpdateBucket       []gax.CallOption
 	DeleteBucket       []gax.CallOption
@@ -55,6 +59,10 @@ type ConfigCallOptions struct {
 	CreateSink         []gax.CallOption
 	UpdateSink         []gax.CallOption
 	DeleteSink         []gax.CallOption
+	CreateLink         []gax.CallOption
+	DeleteLink         []gax.CallOption
+	ListLinks          []gax.CallOption
+	GetLink            []gax.CallOption
 	ListExclusions     []gax.CallOption
 	GetExclusion       []gax.CallOption
 	CreateExclusion    []gax.CallOption
@@ -62,15 +70,21 @@ type ConfigCallOptions struct {
 	DeleteExclusion    []gax.CallOption
 	GetCmekSettings    []gax.CallOption
 	UpdateCmekSettings []gax.CallOption
+	GetSettings        []gax.CallOption
+	UpdateSettings     []gax.CallOption
+	CopyLogEntries     []gax.CallOption
+	CancelOperation    []gax.CallOption
+	GetOperation       []gax.CallOption
+	ListOperations     []gax.CallOption
 }
 
-func defaultConfigClientOptions() []option.ClientOption {
+func defaultConfigGRPCClientOptions() []option.ClientOption {
 	return []option.ClientOption{
 		internaloption.WithDefaultEndpoint("logging.googleapis.com:443"),
 		internaloption.WithDefaultMTLSEndpoint("logging.mtls.googleapis.com:443"),
 		internaloption.WithDefaultAudience("https://logging.googleapis.com/"),
 		internaloption.WithDefaultScopes(DefaultAuthScopes()...),
-		option.WithGRPCDialOption(grpc.WithDisableServiceConfig()),
+		internaloption.EnableJwtWithScope(),
 		option.WithGRPCDialOption(grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(math.MaxInt32))),
 	}
@@ -78,18 +92,21 @@ func defaultConfigClientOptions() []option.ClientOption {
 
 func defaultConfigCallOptions() *ConfigCallOptions {
 	return &ConfigCallOptions{
-		ListBuckets:    []gax.CallOption{},
-		GetBucket:      []gax.CallOption{},
-		CreateBucket:   []gax.CallOption{},
-		UpdateBucket:   []gax.CallOption{},
-		DeleteBucket:   []gax.CallOption{},
-		UndeleteBucket: []gax.CallOption{},
-		ListViews:      []gax.CallOption{},
-		GetView:        []gax.CallOption{},
-		CreateView:     []gax.CallOption{},
-		UpdateView:     []gax.CallOption{},
-		DeleteView:     []gax.CallOption{},
+		ListBuckets:       []gax.CallOption{},
+		GetBucket:         []gax.CallOption{},
+		CreateBucketAsync: []gax.CallOption{},
+		UpdateBucketAsync: []gax.CallOption{},
+		CreateBucket:      []gax.CallOption{},
+		UpdateBucket:      []gax.CallOption{},
+		DeleteBucket:      []gax.CallOption{},
+		UndeleteBucket:    []gax.CallOption{},
+		ListViews:         []gax.CallOption{},
+		GetView:           []gax.CallOption{},
+		CreateView:        []gax.CallOption{},
+		UpdateView:        []gax.CallOption{},
+		DeleteView:        []gax.CallOption{},
 		ListSinks: []gax.CallOption{
+			gax.WithTimeout(60000 * time.Millisecond),
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
 					codes.DeadlineExceeded,
@@ -103,6 +120,7 @@ func defaultConfigCallOptions() *ConfigCallOptions {
 			}),
 		},
 		GetSink: []gax.CallOption{
+			gax.WithTimeout(60000 * time.Millisecond),
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
 					codes.DeadlineExceeded,
@@ -115,8 +133,11 @@ func defaultConfigCallOptions() *ConfigCallOptions {
 				})
 			}),
 		},
-		CreateSink: []gax.CallOption{},
+		CreateSink: []gax.CallOption{
+			gax.WithTimeout(120000 * time.Millisecond),
+		},
 		UpdateSink: []gax.CallOption{
+			gax.WithTimeout(60000 * time.Millisecond),
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
 					codes.DeadlineExceeded,
@@ -130,6 +151,7 @@ func defaultConfigCallOptions() *ConfigCallOptions {
 			}),
 		},
 		DeleteSink: []gax.CallOption{
+			gax.WithTimeout(60000 * time.Millisecond),
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
 					codes.DeadlineExceeded,
@@ -142,7 +164,12 @@ func defaultConfigCallOptions() *ConfigCallOptions {
 				})
 			}),
 		},
+		CreateLink: []gax.CallOption{},
+		DeleteLink: []gax.CallOption{},
+		ListLinks:  []gax.CallOption{},
+		GetLink:    []gax.CallOption{},
 		ListExclusions: []gax.CallOption{
+			gax.WithTimeout(60000 * time.Millisecond),
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
 					codes.DeadlineExceeded,
@@ -156,6 +183,7 @@ func defaultConfigCallOptions() *ConfigCallOptions {
 			}),
 		},
 		GetExclusion: []gax.CallOption{
+			gax.WithTimeout(60000 * time.Millisecond),
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
 					codes.DeadlineExceeded,
@@ -168,9 +196,14 @@ func defaultConfigCallOptions() *ConfigCallOptions {
 				})
 			}),
 		},
-		CreateExclusion: []gax.CallOption{},
-		UpdateExclusion: []gax.CallOption{},
+		CreateExclusion: []gax.CallOption{
+			gax.WithTimeout(120000 * time.Millisecond),
+		},
+		UpdateExclusion: []gax.CallOption{
+			gax.WithTimeout(120000 * time.Millisecond),
+		},
 		DeleteExclusion: []gax.CallOption{
+			gax.WithTimeout(60000 * time.Millisecond),
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
 					codes.DeadlineExceeded,
@@ -185,35 +218,424 @@ func defaultConfigCallOptions() *ConfigCallOptions {
 		},
 		GetCmekSettings:    []gax.CallOption{},
 		UpdateCmekSettings: []gax.CallOption{},
+		GetSettings:        []gax.CallOption{},
+		UpdateSettings:     []gax.CallOption{},
+		CopyLogEntries:     []gax.CallOption{},
+		CancelOperation:    []gax.CallOption{},
+		GetOperation:       []gax.CallOption{},
+		ListOperations:     []gax.CallOption{},
 	}
 }
 
+// internalConfigClient is an interface that defines the methods available from Cloud Logging API.
+type internalConfigClient interface {
+	Close() error
+	setGoogleClientInfo(...string)
+	Connection() *grpc.ClientConn
+	ListBuckets(context.Context, *loggingpb.ListBucketsRequest, ...gax.CallOption) *LogBucketIterator
+	GetBucket(context.Context, *loggingpb.GetBucketRequest, ...gax.CallOption) (*loggingpb.LogBucket, error)
+	CreateBucketAsync(context.Context, *loggingpb.CreateBucketRequest, ...gax.CallOption) (*CreateBucketAsyncOperation, error)
+	CreateBucketAsyncOperation(name string) *CreateBucketAsyncOperation
+	UpdateBucketAsync(context.Context, *loggingpb.UpdateBucketRequest, ...gax.CallOption) (*UpdateBucketAsyncOperation, error)
+	UpdateBucketAsyncOperation(name string) *UpdateBucketAsyncOperation
+	CreateBucket(context.Context, *loggingpb.CreateBucketRequest, ...gax.CallOption) (*loggingpb.LogBucket, error)
+	UpdateBucket(context.Context, *loggingpb.UpdateBucketRequest, ...gax.CallOption) (*loggingpb.LogBucket, error)
+	DeleteBucket(context.Context, *loggingpb.DeleteBucketRequest, ...gax.CallOption) error
+	UndeleteBucket(context.Context, *loggingpb.UndeleteBucketRequest, ...gax.CallOption) error
+	ListViews(context.Context, *loggingpb.ListViewsRequest, ...gax.CallOption) *LogViewIterator
+	GetView(context.Context, *loggingpb.GetViewRequest, ...gax.CallOption) (*loggingpb.LogView, error)
+	CreateView(context.Context, *loggingpb.CreateViewRequest, ...gax.CallOption) (*loggingpb.LogView, error)
+	UpdateView(context.Context, *loggingpb.UpdateViewRequest, ...gax.CallOption) (*loggingpb.LogView, error)
+	DeleteView(context.Context, *loggingpb.DeleteViewRequest, ...gax.CallOption) error
+	ListSinks(context.Context, *loggingpb.ListSinksRequest, ...gax.CallOption) *LogSinkIterator
+	GetSink(context.Context, *loggingpb.GetSinkRequest, ...gax.CallOption) (*loggingpb.LogSink, error)
+	CreateSink(context.Context, *loggingpb.CreateSinkRequest, ...gax.CallOption) (*loggingpb.LogSink, error)
+	UpdateSink(context.Context, *loggingpb.UpdateSinkRequest, ...gax.CallOption) (*loggingpb.LogSink, error)
+	DeleteSink(context.Context, *loggingpb.DeleteSinkRequest, ...gax.CallOption) error
+	CreateLink(context.Context, *loggingpb.CreateLinkRequest, ...gax.CallOption) (*CreateLinkOperation, error)
+	CreateLinkOperation(name string) *CreateLinkOperation
+	DeleteLink(context.Context, *loggingpb.DeleteLinkRequest, ...gax.CallOption) (*DeleteLinkOperation, error)
+	DeleteLinkOperation(name string) *DeleteLinkOperation
+	ListLinks(context.Context, *loggingpb.ListLinksRequest, ...gax.CallOption) *LinkIterator
+	GetLink(context.Context, *loggingpb.GetLinkRequest, ...gax.CallOption) (*loggingpb.Link, error)
+	ListExclusions(context.Context, *loggingpb.ListExclusionsRequest, ...gax.CallOption) *LogExclusionIterator
+	GetExclusion(context.Context, *loggingpb.GetExclusionRequest, ...gax.CallOption) (*loggingpb.LogExclusion, error)
+	CreateExclusion(context.Context, *loggingpb.CreateExclusionRequest, ...gax.CallOption) (*loggingpb.LogExclusion, error)
+	UpdateExclusion(context.Context, *loggingpb.UpdateExclusionRequest, ...gax.CallOption) (*loggingpb.LogExclusion, error)
+	DeleteExclusion(context.Context, *loggingpb.DeleteExclusionRequest, ...gax.CallOption) error
+	GetCmekSettings(context.Context, *loggingpb.GetCmekSettingsRequest, ...gax.CallOption) (*loggingpb.CmekSettings, error)
+	UpdateCmekSettings(context.Context, *loggingpb.UpdateCmekSettingsRequest, ...gax.CallOption) (*loggingpb.CmekSettings, error)
+	GetSettings(context.Context, *loggingpb.GetSettingsRequest, ...gax.CallOption) (*loggingpb.Settings, error)
+	UpdateSettings(context.Context, *loggingpb.UpdateSettingsRequest, ...gax.CallOption) (*loggingpb.Settings, error)
+	CopyLogEntries(context.Context, *loggingpb.CopyLogEntriesRequest, ...gax.CallOption) (*CopyLogEntriesOperation, error)
+	CopyLogEntriesOperation(name string) *CopyLogEntriesOperation
+	CancelOperation(context.Context, *longrunningpb.CancelOperationRequest, ...gax.CallOption) error
+	GetOperation(context.Context, *longrunningpb.GetOperationRequest, ...gax.CallOption) (*longrunningpb.Operation, error)
+	ListOperations(context.Context, *longrunningpb.ListOperationsRequest, ...gax.CallOption) *OperationIterator
+}
+
 // ConfigClient is a client for interacting with Cloud Logging API.
-//
 // Methods, except Close, may be called concurrently. However, fields must not be modified concurrently with method calls.
+//
+// Service for configuring sinks used to route log entries.
 type ConfigClient struct {
-	// Connection pool of gRPC connections to the service.
-	connPool gtransport.ConnPool
-
-	// flag to opt out of default deadlines via GOOGLE_API_GO_EXPERIMENTAL_DISABLE_DEFAULT_DEADLINE
-	disableDeadlines bool
-
-	// The gRPC API client.
-	configClient loggingpb.ConfigServiceV2Client
+	// The internal transport-dependent client.
+	internalClient internalConfigClient
 
 	// The call options for this service.
 	CallOptions *ConfigCallOptions
 
-	// The x-goog-* metadata to be sent with each request.
-	xGoogMetadata metadata.MD
+	// LROClient is used internally to handle long-running operations.
+	// It is exposed so that its CallOptions can be modified if required.
+	// Users should not Close this client.
+	LROClient *lroauto.OperationsClient
 }
 
-// NewConfigClient creates a new config service v2 client.
+// Wrapper methods routed to the internal client.
+
+// Close closes the connection to the API service. The user should invoke this when
+// the client is no longer required.
+func (c *ConfigClient) Close() error {
+	return c.internalClient.Close()
+}
+
+// setGoogleClientInfo sets the name and version of the application in
+// the `x-goog-api-client` header passed on each request. Intended for
+// use by Google-written clients.
+func (c *ConfigClient) setGoogleClientInfo(keyval ...string) {
+	c.internalClient.setGoogleClientInfo(keyval...)
+}
+
+// Connection returns a connection to the API service.
+//
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
+func (c *ConfigClient) Connection() *grpc.ClientConn {
+	return c.internalClient.Connection()
+}
+
+// ListBuckets lists log buckets.
+func (c *ConfigClient) ListBuckets(ctx context.Context, req *loggingpb.ListBucketsRequest, opts ...gax.CallOption) *LogBucketIterator {
+	return c.internalClient.ListBuckets(ctx, req, opts...)
+}
+
+// GetBucket gets a log bucket.
+func (c *ConfigClient) GetBucket(ctx context.Context, req *loggingpb.GetBucketRequest, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
+	return c.internalClient.GetBucket(ctx, req, opts...)
+}
+
+// CreateBucketAsync creates a log bucket asynchronously that can be used to store log entries.
+//
+// After a bucket has been created, the bucket’s location cannot be changed.
+func (c *ConfigClient) CreateBucketAsync(ctx context.Context, req *loggingpb.CreateBucketRequest, opts ...gax.CallOption) (*CreateBucketAsyncOperation, error) {
+	return c.internalClient.CreateBucketAsync(ctx, req, opts...)
+}
+
+// CreateBucketAsyncOperation returns a new CreateBucketAsyncOperation from a given name.
+// The name must be that of a previously created CreateBucketAsyncOperation, possibly from a different process.
+func (c *ConfigClient) CreateBucketAsyncOperation(name string) *CreateBucketAsyncOperation {
+	return c.internalClient.CreateBucketAsyncOperation(name)
+}
+
+// UpdateBucketAsync updates a log bucket asynchronously.
+//
+// If the bucket has a lifecycle_state of DELETE_REQUESTED, then
+// FAILED_PRECONDITION will be returned.
+//
+// After a bucket has been created, the bucket’s location cannot be changed.
+func (c *ConfigClient) UpdateBucketAsync(ctx context.Context, req *loggingpb.UpdateBucketRequest, opts ...gax.CallOption) (*UpdateBucketAsyncOperation, error) {
+	return c.internalClient.UpdateBucketAsync(ctx, req, opts...)
+}
+
+// UpdateBucketAsyncOperation returns a new UpdateBucketAsyncOperation from a given name.
+// The name must be that of a previously created UpdateBucketAsyncOperation, possibly from a different process.
+func (c *ConfigClient) UpdateBucketAsyncOperation(name string) *UpdateBucketAsyncOperation {
+	return c.internalClient.UpdateBucketAsyncOperation(name)
+}
+
+// CreateBucket creates a log bucket that can be used to store log entries. After a bucket
+// has been created, the bucket’s location cannot be changed.
+func (c *ConfigClient) CreateBucket(ctx context.Context, req *loggingpb.CreateBucketRequest, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
+	return c.internalClient.CreateBucket(ctx, req, opts...)
+}
+
+// UpdateBucket updates a log bucket.
+//
+// If the bucket has a lifecycle_state of DELETE_REQUESTED, then
+// FAILED_PRECONDITION will be returned.
+//
+// After a bucket has been created, the bucket’s location cannot be changed.
+func (c *ConfigClient) UpdateBucket(ctx context.Context, req *loggingpb.UpdateBucketRequest, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
+	return c.internalClient.UpdateBucket(ctx, req, opts...)
+}
+
+// DeleteBucket deletes a log bucket.
+//
+// Changes the bucket’s lifecycle_state to the DELETE_REQUESTED state.
+// After 7 days, the bucket will be purged and all log entries in the bucket
+// will be permanently deleted.
+func (c *ConfigClient) DeleteBucket(ctx context.Context, req *loggingpb.DeleteBucketRequest, opts ...gax.CallOption) error {
+	return c.internalClient.DeleteBucket(ctx, req, opts...)
+}
+
+// UndeleteBucket undeletes a log bucket. A bucket that has been deleted can be undeleted
+// within the grace period of 7 days.
+func (c *ConfigClient) UndeleteBucket(ctx context.Context, req *loggingpb.UndeleteBucketRequest, opts ...gax.CallOption) error {
+	return c.internalClient.UndeleteBucket(ctx, req, opts...)
+}
+
+// ListViews lists views on a log bucket.
+func (c *ConfigClient) ListViews(ctx context.Context, req *loggingpb.ListViewsRequest, opts ...gax.CallOption) *LogViewIterator {
+	return c.internalClient.ListViews(ctx, req, opts...)
+}
+
+// GetView gets a view on a log bucket…
+func (c *ConfigClient) GetView(ctx context.Context, req *loggingpb.GetViewRequest, opts ...gax.CallOption) (*loggingpb.LogView, error) {
+	return c.internalClient.GetView(ctx, req, opts...)
+}
+
+// CreateView creates a view over log entries in a log bucket. A bucket may contain a
+// maximum of 30 views.
+func (c *ConfigClient) CreateView(ctx context.Context, req *loggingpb.CreateViewRequest, opts ...gax.CallOption) (*loggingpb.LogView, error) {
+	return c.internalClient.CreateView(ctx, req, opts...)
+}
+
+// UpdateView updates a view on a log bucket. This method replaces the following fields
+// in the existing view with values from the new view: filter.
+// If an UNAVAILABLE error is returned, this indicates that system is not in
+// a state where it can update the view. If this occurs, please try again in a
+// few minutes.
+func (c *ConfigClient) UpdateView(ctx context.Context, req *loggingpb.UpdateViewRequest, opts ...gax.CallOption) (*loggingpb.LogView, error) {
+	return c.internalClient.UpdateView(ctx, req, opts...)
+}
+
+// DeleteView deletes a view on a log bucket.
+// If an UNAVAILABLE error is returned, this indicates that system is not in
+// a state where it can delete the view. If this occurs, please try again in a
+// few minutes.
+func (c *ConfigClient) DeleteView(ctx context.Context, req *loggingpb.DeleteViewRequest, opts ...gax.CallOption) error {
+	return c.internalClient.DeleteView(ctx, req, opts...)
+}
+
+// ListSinks lists sinks.
+func (c *ConfigClient) ListSinks(ctx context.Context, req *loggingpb.ListSinksRequest, opts ...gax.CallOption) *LogSinkIterator {
+	return c.internalClient.ListSinks(ctx, req, opts...)
+}
+
+// GetSink gets a sink.
+func (c *ConfigClient) GetSink(ctx context.Context, req *loggingpb.GetSinkRequest, opts ...gax.CallOption) (*loggingpb.LogSink, error) {
+	return c.internalClient.GetSink(ctx, req, opts...)
+}
+
+// CreateSink creates a sink that exports specified log entries to a destination. The
+// export of newly-ingested log entries begins immediately, unless the sink’s
+// writer_identity is not permitted to write to the destination. A sink can
+// export log entries only from the resource owning the sink.
+func (c *ConfigClient) CreateSink(ctx context.Context, req *loggingpb.CreateSinkRequest, opts ...gax.CallOption) (*loggingpb.LogSink, error) {
+	return c.internalClient.CreateSink(ctx, req, opts...)
+}
+
+// UpdateSink updates a sink. This method replaces the following fields in the existing
+// sink with values from the new sink: destination, and filter.
+//
+// The updated sink might also have a new writer_identity; see the
+// unique_writer_identity field.
+func (c *ConfigClient) UpdateSink(ctx context.Context, req *loggingpb.UpdateSinkRequest, opts ...gax.CallOption) (*loggingpb.LogSink, error) {
+	return c.internalClient.UpdateSink(ctx, req, opts...)
+}
+
+// DeleteSink deletes a sink. If the sink has a unique writer_identity, then that
+// service account is also deleted.
+func (c *ConfigClient) DeleteSink(ctx context.Context, req *loggingpb.DeleteSinkRequest, opts ...gax.CallOption) error {
+	return c.internalClient.DeleteSink(ctx, req, opts...)
+}
+
+// CreateLink asynchronously creates a linked dataset in BigQuery which makes it possible
+// to use BigQuery to read the logs stored in the log bucket. A log bucket may
+// currently only contain one link.
+func (c *ConfigClient) CreateLink(ctx context.Context, req *loggingpb.CreateLinkRequest, opts ...gax.CallOption) (*CreateLinkOperation, error) {
+	return c.internalClient.CreateLink(ctx, req, opts...)
+}
+
+// CreateLinkOperation returns a new CreateLinkOperation from a given name.
+// The name must be that of a previously created CreateLinkOperation, possibly from a different process.
+func (c *ConfigClient) CreateLinkOperation(name string) *CreateLinkOperation {
+	return c.internalClient.CreateLinkOperation(name)
+}
+
+// DeleteLink deletes a link. This will also delete the corresponding BigQuery linked
+// dataset.
+func (c *ConfigClient) DeleteLink(ctx context.Context, req *loggingpb.DeleteLinkRequest, opts ...gax.CallOption) (*DeleteLinkOperation, error) {
+	return c.internalClient.DeleteLink(ctx, req, opts...)
+}
+
+// DeleteLinkOperation returns a new DeleteLinkOperation from a given name.
+// The name must be that of a previously created DeleteLinkOperation, possibly from a different process.
+func (c *ConfigClient) DeleteLinkOperation(name string) *DeleteLinkOperation {
+	return c.internalClient.DeleteLinkOperation(name)
+}
+
+// ListLinks lists links.
+func (c *ConfigClient) ListLinks(ctx context.Context, req *loggingpb.ListLinksRequest, opts ...gax.CallOption) *LinkIterator {
+	return c.internalClient.ListLinks(ctx, req, opts...)
+}
+
+// GetLink gets a link.
+func (c *ConfigClient) GetLink(ctx context.Context, req *loggingpb.GetLinkRequest, opts ...gax.CallOption) (*loggingpb.Link, error) {
+	return c.internalClient.GetLink(ctx, req, opts...)
+}
+
+// ListExclusions lists all the exclusions on the _Default sink in a parent resource.
+func (c *ConfigClient) ListExclusions(ctx context.Context, req *loggingpb.ListExclusionsRequest, opts ...gax.CallOption) *LogExclusionIterator {
+	return c.internalClient.ListExclusions(ctx, req, opts...)
+}
+
+// GetExclusion gets the description of an exclusion in the _Default sink.
+func (c *ConfigClient) GetExclusion(ctx context.Context, req *loggingpb.GetExclusionRequest, opts ...gax.CallOption) (*loggingpb.LogExclusion, error) {
+	return c.internalClient.GetExclusion(ctx, req, opts...)
+}
+
+// CreateExclusion creates a new exclusion in the _Default sink in a specified parent
+// resource. Only log entries belonging to that resource can be excluded. You
+// can have up to 10 exclusions in a resource.
+func (c *ConfigClient) CreateExclusion(ctx context.Context, req *loggingpb.CreateExclusionRequest, opts ...gax.CallOption) (*loggingpb.LogExclusion, error) {
+	return c.internalClient.CreateExclusion(ctx, req, opts...)
+}
+
+// UpdateExclusion changes one or more properties of an existing exclusion in the _Default
+// sink.
+func (c *ConfigClient) UpdateExclusion(ctx context.Context, req *loggingpb.UpdateExclusionRequest, opts ...gax.CallOption) (*loggingpb.LogExclusion, error) {
+	return c.internalClient.UpdateExclusion(ctx, req, opts...)
+}
+
+// DeleteExclusion deletes an exclusion in the _Default sink.
+func (c *ConfigClient) DeleteExclusion(ctx context.Context, req *loggingpb.DeleteExclusionRequest, opts ...gax.CallOption) error {
+	return c.internalClient.DeleteExclusion(ctx, req, opts...)
+}
+
+// GetCmekSettings gets the Logging CMEK settings for the given resource.
+//
+// Note: CMEK for the Log Router can be configured for Google Cloud projects,
+// folders, organizations and billing accounts. Once configured for an
+// organization, it applies to all projects and folders in the Google Cloud
+// organization.
+//
+// See Enabling CMEK for Log
+// Router (at https://cloud.google.com/logging/docs/routing/managed-encryption)
+// for more information.
+func (c *ConfigClient) GetCmekSettings(ctx context.Context, req *loggingpb.GetCmekSettingsRequest, opts ...gax.CallOption) (*loggingpb.CmekSettings, error) {
+	return c.internalClient.GetCmekSettings(ctx, req, opts...)
+}
+
+// UpdateCmekSettings updates the Log Router CMEK settings for the given resource.
+//
+// Note: CMEK for the Log Router can currently only be configured for Google
+// Cloud organizations. Once configured, it applies to all projects and
+// folders in the Google Cloud organization.
+//
+// UpdateCmekSettings
+// will fail if 1) kms_key_name is invalid, or 2) the associated service
+// account does not have the required
+// roles/cloudkms.cryptoKeyEncrypterDecrypter role assigned for the key, or
+// 3) access to the key is disabled.
+//
+// See Enabling CMEK for Log
+// Router (at https://cloud.google.com/logging/docs/routing/managed-encryption)
+// for more information.
+func (c *ConfigClient) UpdateCmekSettings(ctx context.Context, req *loggingpb.UpdateCmekSettingsRequest, opts ...gax.CallOption) (*loggingpb.CmekSettings, error) {
+	return c.internalClient.UpdateCmekSettings(ctx, req, opts...)
+}
+
+// GetSettings gets the Log Router settings for the given resource.
+//
+// Note: Settings for the Log Router can be get for Google Cloud projects,
+// folders, organizations and billing accounts. Currently it can only be
+// configured for organizations. Once configured for an organization, it
+// applies to all projects and folders in the Google Cloud organization.
+//
+// See Enabling CMEK for Log
+// Router (at https://cloud.google.com/logging/docs/routing/managed-encryption)
+// for more information.
+func (c *ConfigClient) GetSettings(ctx context.Context, req *loggingpb.GetSettingsRequest, opts ...gax.CallOption) (*loggingpb.Settings, error) {
+	return c.internalClient.GetSettings(ctx, req, opts...)
+}
+
+// UpdateSettings updates the Log Router settings for the given resource.
+//
+// Note: Settings for the Log Router can currently only be configured for
+// Google Cloud organizations. Once configured, it applies to all projects and
+// folders in the Google Cloud organization.
+//
+// UpdateSettings
+// will fail if 1) kms_key_name is invalid, or 2) the associated service
+// account does not have the required
+// roles/cloudkms.cryptoKeyEncrypterDecrypter role assigned for the key, or
+// 3) access to the key is disabled. 4) location_id is not supported by
+// Logging. 5) location_id violate OrgPolicy.
+//
+// See Enabling CMEK for Log
+// Router (at https://cloud.google.com/logging/docs/routing/managed-encryption)
+// for more information.
+func (c *ConfigClient) UpdateSettings(ctx context.Context, req *loggingpb.UpdateSettingsRequest, opts ...gax.CallOption) (*loggingpb.Settings, error) {
+	return c.internalClient.UpdateSettings(ctx, req, opts...)
+}
+
+// CopyLogEntries copies a set of log entries from a log bucket to a Cloud Storage bucket.
+func (c *ConfigClient) CopyLogEntries(ctx context.Context, req *loggingpb.CopyLogEntriesRequest, opts ...gax.CallOption) (*CopyLogEntriesOperation, error) {
+	return c.internalClient.CopyLogEntries(ctx, req, opts...)
+}
+
+// CopyLogEntriesOperation returns a new CopyLogEntriesOperation from a given name.
+// The name must be that of a previously created CopyLogEntriesOperation, possibly from a different process.
+func (c *ConfigClient) CopyLogEntriesOperation(name string) *CopyLogEntriesOperation {
+	return c.internalClient.CopyLogEntriesOperation(name)
+}
+
+// CancelOperation is a utility method from google.longrunning.Operations.
+func (c *ConfigClient) CancelOperation(ctx context.Context, req *longrunningpb.CancelOperationRequest, opts ...gax.CallOption) error {
+	return c.internalClient.CancelOperation(ctx, req, opts...)
+}
+
+// GetOperation is a utility method from google.longrunning.Operations.
+func (c *ConfigClient) GetOperation(ctx context.Context, req *longrunningpb.GetOperationRequest, opts ...gax.CallOption) (*longrunningpb.Operation, error) {
+	return c.internalClient.GetOperation(ctx, req, opts...)
+}
+
+// ListOperations is a utility method from google.longrunning.Operations.
+func (c *ConfigClient) ListOperations(ctx context.Context, req *longrunningpb.ListOperationsRequest, opts ...gax.CallOption) *OperationIterator {
+	return c.internalClient.ListOperations(ctx, req, opts...)
+}
+
+// configGRPCClient is a client for interacting with Cloud Logging API over gRPC transport.
+//
+// Methods, except Close, may be called concurrently. However, fields must not be modified concurrently with method calls.
+type configGRPCClient struct {
+	// Connection pool of gRPC connections to the service.
+	connPool gtransport.ConnPool
+
+	// Points back to the CallOptions field of the containing ConfigClient
+	CallOptions **ConfigCallOptions
+
+	// The gRPC API client.
+	configClient loggingpb.ConfigServiceV2Client
+
+	// LROClient is used internally to handle long-running operations.
+	// It is exposed so that its CallOptions can be modified if required.
+	// Users should not Close this client.
+	LROClient **lroauto.OperationsClient
+
+	operationsClient longrunningpb.OperationsClient
+
+	// The x-goog-* metadata to be sent with each request.
+	xGoogHeaders []string
+}
+
+// NewConfigClient creates a new config service v2 client based on gRPC.
+// The returned client must be Closed when it is done being used to clean up its underlying connections.
 //
 // Service for configuring sinks used to route log entries.
 func NewConfigClient(ctx context.Context, opts ...option.ClientOption) (*ConfigClient, error) {
-	clientOpts := defaultConfigClientOptions()
-
+	clientOpts := defaultConfigGRPCClientOptions()
 	if newConfigClientHook != nil {
 		hookOpts, err := newConfigClientHook(ctx, clientHookParams{})
 		if err != nil {
@@ -222,62 +644,75 @@ func NewConfigClient(ctx context.Context, opts ...option.ClientOption) (*ConfigC
 		clientOpts = append(clientOpts, hookOpts...)
 	}
 
-	disableDeadlines, err := checkDisableDeadlines()
-	if err != nil {
-		return nil, err
-	}
-
 	connPool, err := gtransport.DialPool(ctx, append(clientOpts, opts...)...)
 	if err != nil {
 		return nil, err
 	}
-	c := &ConfigClient{
-		connPool:         connPool,
-		disableDeadlines: disableDeadlines,
-		CallOptions:      defaultConfigCallOptions(),
+	client := ConfigClient{CallOptions: defaultConfigCallOptions()}
 
-		configClient: loggingpb.NewConfigServiceV2Client(connPool),
+	c := &configGRPCClient{
+		connPool:         connPool,
+		configClient:     loggingpb.NewConfigServiceV2Client(connPool),
+		CallOptions:      &client.CallOptions,
+		operationsClient: longrunningpb.NewOperationsClient(connPool),
 	}
 	c.setGoogleClientInfo()
 
-	return c, nil
+	client.internalClient = c
+
+	client.LROClient, err = lroauto.NewOperationsClient(ctx, gtransport.WithConnPool(connPool))
+	if err != nil {
+		// This error "should not happen", since we are just reusing old connection pool
+		// and never actually need to dial.
+		// If this does happen, we could leak connp. However, we cannot close conn:
+		// If the user invoked the constructor with option.WithGRPCConn,
+		// we would close a connection that's still in use.
+		// TODO: investigate error conditions.
+		return nil, err
+	}
+	c.LROClient = &client.LROClient
+	return &client, nil
 }
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
-func (c *ConfigClient) Connection() *grpc.ClientConn {
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
+func (c *configGRPCClient) Connection() *grpc.ClientConn {
 	return c.connPool.Conn()
-}
-
-// Close closes the connection to the API service. The user should invoke this when
-// the client is no longer required.
-func (c *ConfigClient) Close() error {
-	return c.connPool.Close()
 }
 
 // setGoogleClientInfo sets the name and version of the application in
 // the `x-goog-api-client` header passed on each request. Intended for
 // use by Google-written clients.
-func (c *ConfigClient) setGoogleClientInfo(keyval ...string) {
-	kv := append([]string{"gl-go", versionGo()}, keyval...)
-	kv = append(kv, "gapic", versionClient, "gax", gax.Version, "grpc", grpc.Version)
-	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
+func (c *configGRPCClient) setGoogleClientInfo(keyval ...string) {
+	kv := append([]string{"gl-go", gax.GoVersion}, keyval...)
+	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "grpc", grpc.Version)
+	c.xGoogHeaders = []string{"x-goog-api-client", gax.XGoogHeader(kv...)}
 }
 
-// ListBuckets lists buckets.
-func (c *ConfigClient) ListBuckets(ctx context.Context, req *loggingpb.ListBucketsRequest, opts ...gax.CallOption) *LogBucketIterator {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.ListBuckets[0:len(c.CallOptions.ListBuckets):len(c.CallOptions.ListBuckets)], opts...)
+// Close closes the connection to the API service. The user should invoke this when
+// the client is no longer required.
+func (c *configGRPCClient) Close() error {
+	return c.connPool.Close()
+}
+
+func (c *configGRPCClient) ListBuckets(ctx context.Context, req *loggingpb.ListBucketsRequest, opts ...gax.CallOption) *LogBucketIterator {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).ListBuckets[0:len((*c.CallOptions).ListBuckets):len((*c.CallOptions).ListBuckets)], opts...)
 	it := &LogBucketIterator{}
 	req = proto.Clone(req).(*loggingpb.ListBucketsRequest)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*loggingpb.LogBucket, string, error) {
-		var resp *loggingpb.ListBucketsResponse
-		req.PageToken = pageToken
+		resp := &loggingpb.ListBucketsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
 		if pageSize > math.MaxInt32 {
 			req.PageSize = math.MaxInt32
-		} else {
+		} else if pageSize != 0 {
 			req.PageSize = int32(pageSize)
 		}
 		err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
@@ -300,17 +735,20 @@ func (c *ConfigClient) ListBuckets(ctx context.Context, req *loggingpb.ListBucke
 		it.items = append(it.items, items...)
 		return nextPageToken, nil
 	}
+
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	it.pageInfo.MaxSize = int(req.GetPageSize())
 	it.pageInfo.Token = req.GetPageToken()
+
 	return it
 }
 
-// GetBucket gets a bucket.
-func (c *ConfigClient) GetBucket(ctx context.Context, req *loggingpb.GetBucketRequest, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.GetBucket[0:len(c.CallOptions.GetBucket):len(c.CallOptions.GetBucket)], opts...)
+func (c *configGRPCClient) GetBucket(ctx context.Context, req *loggingpb.GetBucketRequest, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).GetBucket[0:len((*c.CallOptions).GetBucket):len((*c.CallOptions).GetBucket)], opts...)
 	var resp *loggingpb.LogBucket
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -323,12 +761,52 @@ func (c *ConfigClient) GetBucket(ctx context.Context, req *loggingpb.GetBucketRe
 	return resp, nil
 }
 
-// CreateBucket creates a bucket that can be used to store log entries. Once a bucket has
-// been created, the region cannot be changed.
-func (c *ConfigClient) CreateBucket(ctx context.Context, req *loggingpb.CreateBucketRequest, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.CreateBucket[0:len(c.CallOptions.CreateBucket):len(c.CallOptions.CreateBucket)], opts...)
+func (c *configGRPCClient) CreateBucketAsync(ctx context.Context, req *loggingpb.CreateBucketRequest, opts ...gax.CallOption) (*CreateBucketAsyncOperation, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).CreateBucketAsync[0:len((*c.CallOptions).CreateBucketAsync):len((*c.CallOptions).CreateBucketAsync)], opts...)
+	var resp *longrunningpb.Operation
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.configClient.CreateBucketAsync(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &CreateBucketAsyncOperation{
+		lro: longrunning.InternalNewOperation(*c.LROClient, resp),
+	}, nil
+}
+
+func (c *configGRPCClient) UpdateBucketAsync(ctx context.Context, req *loggingpb.UpdateBucketRequest, opts ...gax.CallOption) (*UpdateBucketAsyncOperation, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).UpdateBucketAsync[0:len((*c.CallOptions).UpdateBucketAsync):len((*c.CallOptions).UpdateBucketAsync)], opts...)
+	var resp *longrunningpb.Operation
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.configClient.UpdateBucketAsync(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &UpdateBucketAsyncOperation{
+		lro: longrunning.InternalNewOperation(*c.LROClient, resp),
+	}, nil
+}
+
+func (c *configGRPCClient) CreateBucket(ctx context.Context, req *loggingpb.CreateBucketRequest, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).CreateBucket[0:len((*c.CallOptions).CreateBucket):len((*c.CallOptions).CreateBucket)], opts...)
 	var resp *loggingpb.LogBucket
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -341,20 +819,12 @@ func (c *ConfigClient) CreateBucket(ctx context.Context, req *loggingpb.CreateBu
 	return resp, nil
 }
 
-// UpdateBucket updates a bucket. This method replaces the following fields in the
-// existing bucket with values from the new bucket: retention_period
-//
-// If the retention period is decreased and the bucket is locked,
-// FAILED_PRECONDITION will be returned.
-//
-// If the bucket has a LifecycleState of DELETE_REQUESTED, FAILED_PRECONDITION
-// will be returned.
-//
-// A buckets region may not be modified after it is created.
-func (c *ConfigClient) UpdateBucket(ctx context.Context, req *loggingpb.UpdateBucketRequest, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.UpdateBucket[0:len(c.CallOptions.UpdateBucket):len(c.CallOptions.UpdateBucket)], opts...)
+func (c *configGRPCClient) UpdateBucket(ctx context.Context, req *loggingpb.UpdateBucketRequest, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).UpdateBucket[0:len((*c.CallOptions).UpdateBucket):len((*c.CallOptions).UpdateBucket)], opts...)
 	var resp *loggingpb.LogBucket
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -367,14 +837,12 @@ func (c *ConfigClient) UpdateBucket(ctx context.Context, req *loggingpb.UpdateBu
 	return resp, nil
 }
 
-// DeleteBucket deletes a bucket.
-// Moves the bucket to the DELETE_REQUESTED state. After 7 days, the
-// bucket will be purged and all logs in the bucket will be permanently
-// deleted.
-func (c *ConfigClient) DeleteBucket(ctx context.Context, req *loggingpb.DeleteBucketRequest, opts ...gax.CallOption) error {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.DeleteBucket[0:len(c.CallOptions.DeleteBucket):len(c.CallOptions.DeleteBucket)], opts...)
+func (c *configGRPCClient) DeleteBucket(ctx context.Context, req *loggingpb.DeleteBucketRequest, opts ...gax.CallOption) error {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).DeleteBucket[0:len((*c.CallOptions).DeleteBucket):len((*c.CallOptions).DeleteBucket)], opts...)
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
 		_, err = c.configClient.DeleteBucket(ctx, req, settings.GRPC...)
@@ -383,12 +851,12 @@ func (c *ConfigClient) DeleteBucket(ctx context.Context, req *loggingpb.DeleteBu
 	return err
 }
 
-// UndeleteBucket undeletes a bucket. A bucket that has been deleted may be undeleted within
-// the grace period of 7 days.
-func (c *ConfigClient) UndeleteBucket(ctx context.Context, req *loggingpb.UndeleteBucketRequest, opts ...gax.CallOption) error {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.UndeleteBucket[0:len(c.CallOptions.UndeleteBucket):len(c.CallOptions.UndeleteBucket)], opts...)
+func (c *configGRPCClient) UndeleteBucket(ctx context.Context, req *loggingpb.UndeleteBucketRequest, opts ...gax.CallOption) error {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).UndeleteBucket[0:len((*c.CallOptions).UndeleteBucket):len((*c.CallOptions).UndeleteBucket)], opts...)
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
 		_, err = c.configClient.UndeleteBucket(ctx, req, settings.GRPC...)
@@ -397,19 +865,22 @@ func (c *ConfigClient) UndeleteBucket(ctx context.Context, req *loggingpb.Undele
 	return err
 }
 
-// ListViews lists views on a bucket.
-func (c *ConfigClient) ListViews(ctx context.Context, req *loggingpb.ListViewsRequest, opts ...gax.CallOption) *LogViewIterator {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.ListViews[0:len(c.CallOptions.ListViews):len(c.CallOptions.ListViews)], opts...)
+func (c *configGRPCClient) ListViews(ctx context.Context, req *loggingpb.ListViewsRequest, opts ...gax.CallOption) *LogViewIterator {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).ListViews[0:len((*c.CallOptions).ListViews):len((*c.CallOptions).ListViews)], opts...)
 	it := &LogViewIterator{}
 	req = proto.Clone(req).(*loggingpb.ListViewsRequest)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*loggingpb.LogView, string, error) {
-		var resp *loggingpb.ListViewsResponse
-		req.PageToken = pageToken
+		resp := &loggingpb.ListViewsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
 		if pageSize > math.MaxInt32 {
 			req.PageSize = math.MaxInt32
-		} else {
+		} else if pageSize != 0 {
 			req.PageSize = int32(pageSize)
 		}
 		err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
@@ -432,17 +903,20 @@ func (c *ConfigClient) ListViews(ctx context.Context, req *loggingpb.ListViewsRe
 		it.items = append(it.items, items...)
 		return nextPageToken, nil
 	}
+
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	it.pageInfo.MaxSize = int(req.GetPageSize())
 	it.pageInfo.Token = req.GetPageToken()
+
 	return it
 }
 
-// GetView gets a view.
-func (c *ConfigClient) GetView(ctx context.Context, req *loggingpb.GetViewRequest, opts ...gax.CallOption) (*loggingpb.LogView, error) {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.GetView[0:len(c.CallOptions.GetView):len(c.CallOptions.GetView)], opts...)
+func (c *configGRPCClient) GetView(ctx context.Context, req *loggingpb.GetViewRequest, opts ...gax.CallOption) (*loggingpb.LogView, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).GetView[0:len((*c.CallOptions).GetView):len((*c.CallOptions).GetView)], opts...)
 	var resp *loggingpb.LogView
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -455,12 +929,12 @@ func (c *ConfigClient) GetView(ctx context.Context, req *loggingpb.GetViewReques
 	return resp, nil
 }
 
-// CreateView creates a view over logs in a bucket. A bucket may contain a maximum of
-// 50 views.
-func (c *ConfigClient) CreateView(ctx context.Context, req *loggingpb.CreateViewRequest, opts ...gax.CallOption) (*loggingpb.LogView, error) {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.CreateView[0:len(c.CallOptions.CreateView):len(c.CallOptions.CreateView)], opts...)
+func (c *configGRPCClient) CreateView(ctx context.Context, req *loggingpb.CreateViewRequest, opts ...gax.CallOption) (*loggingpb.LogView, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).CreateView[0:len((*c.CallOptions).CreateView):len((*c.CallOptions).CreateView)], opts...)
 	var resp *loggingpb.LogView
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -473,12 +947,12 @@ func (c *ConfigClient) CreateView(ctx context.Context, req *loggingpb.CreateView
 	return resp, nil
 }
 
-// UpdateView updates a view. This method replaces the following fields in the existing
-// view with values from the new view: filter.
-func (c *ConfigClient) UpdateView(ctx context.Context, req *loggingpb.UpdateViewRequest, opts ...gax.CallOption) (*loggingpb.LogView, error) {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.UpdateView[0:len(c.CallOptions.UpdateView):len(c.CallOptions.UpdateView)], opts...)
+func (c *configGRPCClient) UpdateView(ctx context.Context, req *loggingpb.UpdateViewRequest, opts ...gax.CallOption) (*loggingpb.LogView, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).UpdateView[0:len((*c.CallOptions).UpdateView):len((*c.CallOptions).UpdateView)], opts...)
 	var resp *loggingpb.LogView
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -491,11 +965,12 @@ func (c *ConfigClient) UpdateView(ctx context.Context, req *loggingpb.UpdateView
 	return resp, nil
 }
 
-// DeleteView deletes a view from a bucket.
-func (c *ConfigClient) DeleteView(ctx context.Context, req *loggingpb.DeleteViewRequest, opts ...gax.CallOption) error {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.DeleteView[0:len(c.CallOptions.DeleteView):len(c.CallOptions.DeleteView)], opts...)
+func (c *configGRPCClient) DeleteView(ctx context.Context, req *loggingpb.DeleteViewRequest, opts ...gax.CallOption) error {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).DeleteView[0:len((*c.CallOptions).DeleteView):len((*c.CallOptions).DeleteView)], opts...)
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
 		_, err = c.configClient.DeleteView(ctx, req, settings.GRPC...)
@@ -504,19 +979,22 @@ func (c *ConfigClient) DeleteView(ctx context.Context, req *loggingpb.DeleteView
 	return err
 }
 
-// ListSinks lists sinks.
-func (c *ConfigClient) ListSinks(ctx context.Context, req *loggingpb.ListSinksRequest, opts ...gax.CallOption) *LogSinkIterator {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.ListSinks[0:len(c.CallOptions.ListSinks):len(c.CallOptions.ListSinks)], opts...)
+func (c *configGRPCClient) ListSinks(ctx context.Context, req *loggingpb.ListSinksRequest, opts ...gax.CallOption) *LogSinkIterator {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).ListSinks[0:len((*c.CallOptions).ListSinks):len((*c.CallOptions).ListSinks)], opts...)
 	it := &LogSinkIterator{}
 	req = proto.Clone(req).(*loggingpb.ListSinksRequest)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*loggingpb.LogSink, string, error) {
-		var resp *loggingpb.ListSinksResponse
-		req.PageToken = pageToken
+		resp := &loggingpb.ListSinksResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
 		if pageSize > math.MaxInt32 {
 			req.PageSize = math.MaxInt32
-		} else {
+		} else if pageSize != 0 {
 			req.PageSize = int32(pageSize)
 		}
 		err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
@@ -539,22 +1017,20 @@ func (c *ConfigClient) ListSinks(ctx context.Context, req *loggingpb.ListSinksRe
 		it.items = append(it.items, items...)
 		return nextPageToken, nil
 	}
+
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	it.pageInfo.MaxSize = int(req.GetPageSize())
 	it.pageInfo.Token = req.GetPageToken()
+
 	return it
 }
 
-// GetSink gets a sink.
-func (c *ConfigClient) GetSink(ctx context.Context, req *loggingpb.GetSinkRequest, opts ...gax.CallOption) (*loggingpb.LogSink, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "sink_name", url.QueryEscape(req.GetSinkName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.GetSink[0:len(c.CallOptions.GetSink):len(c.CallOptions.GetSink)], opts...)
+func (c *configGRPCClient) GetSink(ctx context.Context, req *loggingpb.GetSinkRequest, opts ...gax.CallOption) (*loggingpb.LogSink, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "sink_name", url.QueryEscape(req.GetSinkName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).GetSink[0:len((*c.CallOptions).GetSink):len((*c.CallOptions).GetSink)], opts...)
 	var resp *loggingpb.LogSink
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -567,19 +1043,12 @@ func (c *ConfigClient) GetSink(ctx context.Context, req *loggingpb.GetSinkReques
 	return resp, nil
 }
 
-// CreateSink creates a sink that exports specified log entries to a destination. The
-// export of newly-ingested log entries begins immediately, unless the sink’s
-// writer_identity is not permitted to write to the destination. A sink can
-// export log entries only from the resource owning the sink.
-func (c *ConfigClient) CreateSink(ctx context.Context, req *loggingpb.CreateSinkRequest, opts ...gax.CallOption) (*loggingpb.LogSink, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 120000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.CreateSink[0:len(c.CallOptions.CreateSink):len(c.CallOptions.CreateSink)], opts...)
+func (c *configGRPCClient) CreateSink(ctx context.Context, req *loggingpb.CreateSinkRequest, opts ...gax.CallOption) (*loggingpb.LogSink, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).CreateSink[0:len((*c.CallOptions).CreateSink):len((*c.CallOptions).CreateSink)], opts...)
 	var resp *loggingpb.LogSink
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -592,20 +1061,12 @@ func (c *ConfigClient) CreateSink(ctx context.Context, req *loggingpb.CreateSink
 	return resp, nil
 }
 
-// UpdateSink updates a sink. This method replaces the following fields in the existing
-// sink with values from the new sink: destination, and filter.
-//
-// The updated sink might also have a new writer_identity; see the
-// unique_writer_identity field.
-func (c *ConfigClient) UpdateSink(ctx context.Context, req *loggingpb.UpdateSinkRequest, opts ...gax.CallOption) (*loggingpb.LogSink, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "sink_name", url.QueryEscape(req.GetSinkName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.UpdateSink[0:len(c.CallOptions.UpdateSink):len(c.CallOptions.UpdateSink)], opts...)
+func (c *configGRPCClient) UpdateSink(ctx context.Context, req *loggingpb.UpdateSinkRequest, opts ...gax.CallOption) (*loggingpb.LogSink, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "sink_name", url.QueryEscape(req.GetSinkName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).UpdateSink[0:len((*c.CallOptions).UpdateSink):len((*c.CallOptions).UpdateSink)], opts...)
 	var resp *loggingpb.LogSink
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -618,17 +1079,12 @@ func (c *ConfigClient) UpdateSink(ctx context.Context, req *loggingpb.UpdateSink
 	return resp, nil
 }
 
-// DeleteSink deletes a sink. If the sink has a unique writer_identity, then that
-// service account is also deleted.
-func (c *ConfigClient) DeleteSink(ctx context.Context, req *loggingpb.DeleteSinkRequest, opts ...gax.CallOption) error {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "sink_name", url.QueryEscape(req.GetSinkName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.DeleteSink[0:len(c.CallOptions.DeleteSink):len(c.CallOptions.DeleteSink)], opts...)
+func (c *configGRPCClient) DeleteSink(ctx context.Context, req *loggingpb.DeleteSinkRequest, opts ...gax.CallOption) error {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "sink_name", url.QueryEscape(req.GetSinkName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).DeleteSink[0:len((*c.CallOptions).DeleteSink):len((*c.CallOptions).DeleteSink)], opts...)
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
 		_, err = c.configClient.DeleteSink(ctx, req, settings.GRPC...)
@@ -637,19 +1093,126 @@ func (c *ConfigClient) DeleteSink(ctx context.Context, req *loggingpb.DeleteSink
 	return err
 }
 
-// ListExclusions lists all the exclusions in a parent resource.
-func (c *ConfigClient) ListExclusions(ctx context.Context, req *loggingpb.ListExclusionsRequest, opts ...gax.CallOption) *LogExclusionIterator {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.ListExclusions[0:len(c.CallOptions.ListExclusions):len(c.CallOptions.ListExclusions)], opts...)
+func (c *configGRPCClient) CreateLink(ctx context.Context, req *loggingpb.CreateLinkRequest, opts ...gax.CallOption) (*CreateLinkOperation, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).CreateLink[0:len((*c.CallOptions).CreateLink):len((*c.CallOptions).CreateLink)], opts...)
+	var resp *longrunningpb.Operation
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.configClient.CreateLink(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &CreateLinkOperation{
+		lro: longrunning.InternalNewOperation(*c.LROClient, resp),
+	}, nil
+}
+
+func (c *configGRPCClient) DeleteLink(ctx context.Context, req *loggingpb.DeleteLinkRequest, opts ...gax.CallOption) (*DeleteLinkOperation, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).DeleteLink[0:len((*c.CallOptions).DeleteLink):len((*c.CallOptions).DeleteLink)], opts...)
+	var resp *longrunningpb.Operation
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.configClient.DeleteLink(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &DeleteLinkOperation{
+		lro: longrunning.InternalNewOperation(*c.LROClient, resp),
+	}, nil
+}
+
+func (c *configGRPCClient) ListLinks(ctx context.Context, req *loggingpb.ListLinksRequest, opts ...gax.CallOption) *LinkIterator {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).ListLinks[0:len((*c.CallOptions).ListLinks):len((*c.CallOptions).ListLinks)], opts...)
+	it := &LinkIterator{}
+	req = proto.Clone(req).(*loggingpb.ListLinksRequest)
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*loggingpb.Link, string, error) {
+		resp := &loggingpb.ListLinksResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			var err error
+			resp, err = c.configClient.ListLinks(ctx, req, settings.GRPC...)
+			return err
+		}, opts...)
+		if err != nil {
+			return nil, "", err
+		}
+
+		it.Response = resp
+		return resp.GetLinks(), resp.GetNextPageToken(), nil
+	}
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+func (c *configGRPCClient) GetLink(ctx context.Context, req *loggingpb.GetLinkRequest, opts ...gax.CallOption) (*loggingpb.Link, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).GetLink[0:len((*c.CallOptions).GetLink):len((*c.CallOptions).GetLink)], opts...)
+	var resp *loggingpb.Link
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.configClient.GetLink(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *configGRPCClient) ListExclusions(ctx context.Context, req *loggingpb.ListExclusionsRequest, opts ...gax.CallOption) *LogExclusionIterator {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).ListExclusions[0:len((*c.CallOptions).ListExclusions):len((*c.CallOptions).ListExclusions)], opts...)
 	it := &LogExclusionIterator{}
 	req = proto.Clone(req).(*loggingpb.ListExclusionsRequest)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*loggingpb.LogExclusion, string, error) {
-		var resp *loggingpb.ListExclusionsResponse
-		req.PageToken = pageToken
+		resp := &loggingpb.ListExclusionsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
 		if pageSize > math.MaxInt32 {
 			req.PageSize = math.MaxInt32
-		} else {
+		} else if pageSize != 0 {
 			req.PageSize = int32(pageSize)
 		}
 		err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
@@ -672,22 +1235,20 @@ func (c *ConfigClient) ListExclusions(ctx context.Context, req *loggingpb.ListEx
 		it.items = append(it.items, items...)
 		return nextPageToken, nil
 	}
+
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	it.pageInfo.MaxSize = int(req.GetPageSize())
 	it.pageInfo.Token = req.GetPageToken()
+
 	return it
 }
 
-// GetExclusion gets the description of an exclusion.
-func (c *ConfigClient) GetExclusion(ctx context.Context, req *loggingpb.GetExclusionRequest, opts ...gax.CallOption) (*loggingpb.LogExclusion, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.GetExclusion[0:len(c.CallOptions.GetExclusion):len(c.CallOptions.GetExclusion)], opts...)
+func (c *configGRPCClient) GetExclusion(ctx context.Context, req *loggingpb.GetExclusionRequest, opts ...gax.CallOption) (*loggingpb.LogExclusion, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).GetExclusion[0:len((*c.CallOptions).GetExclusion):len((*c.CallOptions).GetExclusion)], opts...)
 	var resp *loggingpb.LogExclusion
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -700,18 +1261,12 @@ func (c *ConfigClient) GetExclusion(ctx context.Context, req *loggingpb.GetExclu
 	return resp, nil
 }
 
-// CreateExclusion creates a new exclusion in a specified parent resource.
-// Only log entries belonging to that resource can be excluded.
-// You can have up to 10 exclusions in a resource.
-func (c *ConfigClient) CreateExclusion(ctx context.Context, req *loggingpb.CreateExclusionRequest, opts ...gax.CallOption) (*loggingpb.LogExclusion, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 120000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.CreateExclusion[0:len(c.CallOptions.CreateExclusion):len(c.CallOptions.CreateExclusion)], opts...)
+func (c *configGRPCClient) CreateExclusion(ctx context.Context, req *loggingpb.CreateExclusionRequest, opts ...gax.CallOption) (*loggingpb.LogExclusion, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).CreateExclusion[0:len((*c.CallOptions).CreateExclusion):len((*c.CallOptions).CreateExclusion)], opts...)
 	var resp *loggingpb.LogExclusion
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -724,16 +1279,12 @@ func (c *ConfigClient) CreateExclusion(ctx context.Context, req *loggingpb.Creat
 	return resp, nil
 }
 
-// UpdateExclusion changes one or more properties of an existing exclusion.
-func (c *ConfigClient) UpdateExclusion(ctx context.Context, req *loggingpb.UpdateExclusionRequest, opts ...gax.CallOption) (*loggingpb.LogExclusion, error) {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 120000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.UpdateExclusion[0:len(c.CallOptions.UpdateExclusion):len(c.CallOptions.UpdateExclusion)], opts...)
+func (c *configGRPCClient) UpdateExclusion(ctx context.Context, req *loggingpb.UpdateExclusionRequest, opts ...gax.CallOption) (*loggingpb.LogExclusion, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).UpdateExclusion[0:len((*c.CallOptions).UpdateExclusion):len((*c.CallOptions).UpdateExclusion)], opts...)
 	var resp *loggingpb.LogExclusion
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -746,16 +1297,12 @@ func (c *ConfigClient) UpdateExclusion(ctx context.Context, req *loggingpb.Updat
 	return resp, nil
 }
 
-// DeleteExclusion deletes an exclusion.
-func (c *ConfigClient) DeleteExclusion(ctx context.Context, req *loggingpb.DeleteExclusionRequest, opts ...gax.CallOption) error {
-	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 60000*time.Millisecond)
-		defer cancel()
-		ctx = cctx
-	}
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.DeleteExclusion[0:len(c.CallOptions.DeleteExclusion):len(c.CallOptions.DeleteExclusion)], opts...)
+func (c *configGRPCClient) DeleteExclusion(ctx context.Context, req *loggingpb.DeleteExclusionRequest, opts ...gax.CallOption) error {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).DeleteExclusion[0:len((*c.CallOptions).DeleteExclusion):len((*c.CallOptions).DeleteExclusion)], opts...)
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
 		_, err = c.configClient.DeleteExclusion(ctx, req, settings.GRPC...)
@@ -764,19 +1311,12 @@ func (c *ConfigClient) DeleteExclusion(ctx context.Context, req *loggingpb.Delet
 	return err
 }
 
-// GetCmekSettings gets the Logs Router CMEK settings for the given resource.
-//
-// Note: CMEK for the Logs Router can currently only be configured for GCP
-// organizations. Once configured, it applies to all projects and folders in
-// the GCP organization.
-//
-// See Enabling CMEK for Logs
-// Router (at https://cloud.google.com/logging/docs/routing/managed-encryption)
-// for more information.
-func (c *ConfigClient) GetCmekSettings(ctx context.Context, req *loggingpb.GetCmekSettingsRequest, opts ...gax.CallOption) (*loggingpb.CmekSettings, error) {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.GetCmekSettings[0:len(c.CallOptions.GetCmekSettings):len(c.CallOptions.GetCmekSettings)], opts...)
+func (c *configGRPCClient) GetCmekSettings(ctx context.Context, req *loggingpb.GetCmekSettingsRequest, opts ...gax.CallOption) (*loggingpb.CmekSettings, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).GetCmekSettings[0:len((*c.CallOptions).GetCmekSettings):len((*c.CallOptions).GetCmekSettings)], opts...)
 	var resp *loggingpb.CmekSettings
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -789,25 +1329,12 @@ func (c *ConfigClient) GetCmekSettings(ctx context.Context, req *loggingpb.GetCm
 	return resp, nil
 }
 
-// UpdateCmekSettings updates the Logs Router CMEK settings for the given resource.
-//
-// Note: CMEK for the Logs Router can currently only be configured for GCP
-// organizations. Once configured, it applies to all projects and folders in
-// the GCP organization.
-//
-// UpdateCmekSettings
-// will fail if 1) kms_key_name is invalid, or 2) the associated service
-// account does not have the required
-// roles/cloudkms.cryptoKeyEncrypterDecrypter role assigned for the key, or
-// 3) access to the key is disabled.
-//
-// See Enabling CMEK for Logs
-// Router (at https://cloud.google.com/logging/docs/routing/managed-encryption)
-// for more information.
-func (c *ConfigClient) UpdateCmekSettings(ctx context.Context, req *loggingpb.UpdateCmekSettingsRequest, opts ...gax.CallOption) (*loggingpb.CmekSettings, error) {
-	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
-	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
-	opts = append(c.CallOptions.UpdateCmekSettings[0:len(c.CallOptions.UpdateCmekSettings):len(c.CallOptions.UpdateCmekSettings)], opts...)
+func (c *configGRPCClient) UpdateCmekSettings(ctx context.Context, req *loggingpb.UpdateCmekSettingsRequest, opts ...gax.CallOption) (*loggingpb.CmekSettings, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).UpdateCmekSettings[0:len((*c.CallOptions).UpdateCmekSettings):len((*c.CallOptions).UpdateCmekSettings)], opts...)
 	var resp *loggingpb.CmekSettings
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
@@ -818,6 +1345,518 @@ func (c *ConfigClient) UpdateCmekSettings(ctx context.Context, req *loggingpb.Up
 		return nil, err
 	}
 	return resp, nil
+}
+
+func (c *configGRPCClient) GetSettings(ctx context.Context, req *loggingpb.GetSettingsRequest, opts ...gax.CallOption) (*loggingpb.Settings, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).GetSettings[0:len((*c.CallOptions).GetSettings):len((*c.CallOptions).GetSettings)], opts...)
+	var resp *loggingpb.Settings
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.configClient.GetSettings(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *configGRPCClient) UpdateSettings(ctx context.Context, req *loggingpb.UpdateSettingsRequest, opts ...gax.CallOption) (*loggingpb.Settings, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).UpdateSettings[0:len((*c.CallOptions).UpdateSettings):len((*c.CallOptions).UpdateSettings)], opts...)
+	var resp *loggingpb.Settings
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.configClient.UpdateSettings(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *configGRPCClient) CopyLogEntries(ctx context.Context, req *loggingpb.CopyLogEntriesRequest, opts ...gax.CallOption) (*CopyLogEntriesOperation, error) {
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, c.xGoogHeaders...)
+	opts = append((*c.CallOptions).CopyLogEntries[0:len((*c.CallOptions).CopyLogEntries):len((*c.CallOptions).CopyLogEntries)], opts...)
+	var resp *longrunningpb.Operation
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.configClient.CopyLogEntries(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &CopyLogEntriesOperation{
+		lro: longrunning.InternalNewOperation(*c.LROClient, resp),
+	}, nil
+}
+
+func (c *configGRPCClient) CancelOperation(ctx context.Context, req *longrunningpb.CancelOperationRequest, opts ...gax.CallOption) error {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).CancelOperation[0:len((*c.CallOptions).CancelOperation):len((*c.CallOptions).CancelOperation)], opts...)
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		_, err = c.operationsClient.CancelOperation(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	return err
+}
+
+func (c *configGRPCClient) GetOperation(ctx context.Context, req *longrunningpb.GetOperationRequest, opts ...gax.CallOption) (*longrunningpb.Operation, error) {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).GetOperation[0:len((*c.CallOptions).GetOperation):len((*c.CallOptions).GetOperation)], opts...)
+	var resp *longrunningpb.Operation
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.operationsClient.GetOperation(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *configGRPCClient) ListOperations(ctx context.Context, req *longrunningpb.ListOperationsRequest, opts ...gax.CallOption) *OperationIterator {
+	hds := []string{"x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName()))}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).ListOperations[0:len((*c.CallOptions).ListOperations):len((*c.CallOptions).ListOperations)], opts...)
+	it := &OperationIterator{}
+	req = proto.Clone(req).(*longrunningpb.ListOperationsRequest)
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*longrunningpb.Operation, string, error) {
+		resp := &longrunningpb.ListOperationsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			var err error
+			resp, err = c.operationsClient.ListOperations(ctx, req, settings.GRPC...)
+			return err
+		}, opts...)
+		if err != nil {
+			return nil, "", err
+		}
+
+		it.Response = resp
+		return resp.GetOperations(), resp.GetNextPageToken(), nil
+	}
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+// CopyLogEntriesOperation manages a long-running operation from CopyLogEntries.
+type CopyLogEntriesOperation struct {
+	lro *longrunning.Operation
+}
+
+// CopyLogEntriesOperation returns a new CopyLogEntriesOperation from a given name.
+// The name must be that of a previously created CopyLogEntriesOperation, possibly from a different process.
+func (c *configGRPCClient) CopyLogEntriesOperation(name string) *CopyLogEntriesOperation {
+	return &CopyLogEntriesOperation{
+		lro: longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+	}
+}
+
+// Wait blocks until the long-running operation is completed, returning the response and any errors encountered.
+//
+// See documentation of Poll for error-handling information.
+func (op *CopyLogEntriesOperation) Wait(ctx context.Context, opts ...gax.CallOption) (*loggingpb.CopyLogEntriesResponse, error) {
+	var resp loggingpb.CopyLogEntriesResponse
+	if err := op.lro.WaitWithInterval(ctx, &resp, time.Minute, opts...); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// Poll fetches the latest state of the long-running operation.
+//
+// Poll also fetches the latest metadata, which can be retrieved by Metadata.
+//
+// If Poll fails, the error is returned and op is unmodified. If Poll succeeds and
+// the operation has completed with failure, the error is returned and op.Done will return true.
+// If Poll succeeds and the operation has completed successfully,
+// op.Done will return true, and the response of the operation is returned.
+// If Poll succeeds and the operation has not completed, the returned response and error are both nil.
+func (op *CopyLogEntriesOperation) Poll(ctx context.Context, opts ...gax.CallOption) (*loggingpb.CopyLogEntriesResponse, error) {
+	var resp loggingpb.CopyLogEntriesResponse
+	if err := op.lro.Poll(ctx, &resp, opts...); err != nil {
+		return nil, err
+	}
+	if !op.Done() {
+		return nil, nil
+	}
+	return &resp, nil
+}
+
+// Metadata returns metadata associated with the long-running operation.
+// Metadata itself does not contact the server, but Poll does.
+// To get the latest metadata, call this method after a successful call to Poll.
+// If the metadata is not available, the returned metadata and error are both nil.
+func (op *CopyLogEntriesOperation) Metadata() (*loggingpb.CopyLogEntriesMetadata, error) {
+	var meta loggingpb.CopyLogEntriesMetadata
+	if err := op.lro.Metadata(&meta); err == longrunning.ErrNoMetadata {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return &meta, nil
+}
+
+// Done reports whether the long-running operation has completed.
+func (op *CopyLogEntriesOperation) Done() bool {
+	return op.lro.Done()
+}
+
+// Name returns the name of the long-running operation.
+// The name is assigned by the server and is unique within the service from which the operation is created.
+func (op *CopyLogEntriesOperation) Name() string {
+	return op.lro.Name()
+}
+
+// CreateBucketAsyncOperation manages a long-running operation from CreateBucketAsync.
+type CreateBucketAsyncOperation struct {
+	lro *longrunning.Operation
+}
+
+// CreateBucketAsyncOperation returns a new CreateBucketAsyncOperation from a given name.
+// The name must be that of a previously created CreateBucketAsyncOperation, possibly from a different process.
+func (c *configGRPCClient) CreateBucketAsyncOperation(name string) *CreateBucketAsyncOperation {
+	return &CreateBucketAsyncOperation{
+		lro: longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+	}
+}
+
+// Wait blocks until the long-running operation is completed, returning the response and any errors encountered.
+//
+// See documentation of Poll for error-handling information.
+func (op *CreateBucketAsyncOperation) Wait(ctx context.Context, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
+	var resp loggingpb.LogBucket
+	if err := op.lro.WaitWithInterval(ctx, &resp, time.Minute, opts...); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// Poll fetches the latest state of the long-running operation.
+//
+// Poll also fetches the latest metadata, which can be retrieved by Metadata.
+//
+// If Poll fails, the error is returned and op is unmodified. If Poll succeeds and
+// the operation has completed with failure, the error is returned and op.Done will return true.
+// If Poll succeeds and the operation has completed successfully,
+// op.Done will return true, and the response of the operation is returned.
+// If Poll succeeds and the operation has not completed, the returned response and error are both nil.
+func (op *CreateBucketAsyncOperation) Poll(ctx context.Context, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
+	var resp loggingpb.LogBucket
+	if err := op.lro.Poll(ctx, &resp, opts...); err != nil {
+		return nil, err
+	}
+	if !op.Done() {
+		return nil, nil
+	}
+	return &resp, nil
+}
+
+// Metadata returns metadata associated with the long-running operation.
+// Metadata itself does not contact the server, but Poll does.
+// To get the latest metadata, call this method after a successful call to Poll.
+// If the metadata is not available, the returned metadata and error are both nil.
+func (op *CreateBucketAsyncOperation) Metadata() (*loggingpb.BucketMetadata, error) {
+	var meta loggingpb.BucketMetadata
+	if err := op.lro.Metadata(&meta); err == longrunning.ErrNoMetadata {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return &meta, nil
+}
+
+// Done reports whether the long-running operation has completed.
+func (op *CreateBucketAsyncOperation) Done() bool {
+	return op.lro.Done()
+}
+
+// Name returns the name of the long-running operation.
+// The name is assigned by the server and is unique within the service from which the operation is created.
+func (op *CreateBucketAsyncOperation) Name() string {
+	return op.lro.Name()
+}
+
+// CreateLinkOperation manages a long-running operation from CreateLink.
+type CreateLinkOperation struct {
+	lro *longrunning.Operation
+}
+
+// CreateLinkOperation returns a new CreateLinkOperation from a given name.
+// The name must be that of a previously created CreateLinkOperation, possibly from a different process.
+func (c *configGRPCClient) CreateLinkOperation(name string) *CreateLinkOperation {
+	return &CreateLinkOperation{
+		lro: longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+	}
+}
+
+// Wait blocks until the long-running operation is completed, returning the response and any errors encountered.
+//
+// See documentation of Poll for error-handling information.
+func (op *CreateLinkOperation) Wait(ctx context.Context, opts ...gax.CallOption) (*loggingpb.Link, error) {
+	var resp loggingpb.Link
+	if err := op.lro.WaitWithInterval(ctx, &resp, time.Minute, opts...); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// Poll fetches the latest state of the long-running operation.
+//
+// Poll also fetches the latest metadata, which can be retrieved by Metadata.
+//
+// If Poll fails, the error is returned and op is unmodified. If Poll succeeds and
+// the operation has completed with failure, the error is returned and op.Done will return true.
+// If Poll succeeds and the operation has completed successfully,
+// op.Done will return true, and the response of the operation is returned.
+// If Poll succeeds and the operation has not completed, the returned response and error are both nil.
+func (op *CreateLinkOperation) Poll(ctx context.Context, opts ...gax.CallOption) (*loggingpb.Link, error) {
+	var resp loggingpb.Link
+	if err := op.lro.Poll(ctx, &resp, opts...); err != nil {
+		return nil, err
+	}
+	if !op.Done() {
+		return nil, nil
+	}
+	return &resp, nil
+}
+
+// Metadata returns metadata associated with the long-running operation.
+// Metadata itself does not contact the server, but Poll does.
+// To get the latest metadata, call this method after a successful call to Poll.
+// If the metadata is not available, the returned metadata and error are both nil.
+func (op *CreateLinkOperation) Metadata() (*loggingpb.LinkMetadata, error) {
+	var meta loggingpb.LinkMetadata
+	if err := op.lro.Metadata(&meta); err == longrunning.ErrNoMetadata {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return &meta, nil
+}
+
+// Done reports whether the long-running operation has completed.
+func (op *CreateLinkOperation) Done() bool {
+	return op.lro.Done()
+}
+
+// Name returns the name of the long-running operation.
+// The name is assigned by the server and is unique within the service from which the operation is created.
+func (op *CreateLinkOperation) Name() string {
+	return op.lro.Name()
+}
+
+// DeleteLinkOperation manages a long-running operation from DeleteLink.
+type DeleteLinkOperation struct {
+	lro *longrunning.Operation
+}
+
+// DeleteLinkOperation returns a new DeleteLinkOperation from a given name.
+// The name must be that of a previously created DeleteLinkOperation, possibly from a different process.
+func (c *configGRPCClient) DeleteLinkOperation(name string) *DeleteLinkOperation {
+	return &DeleteLinkOperation{
+		lro: longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+	}
+}
+
+// Wait blocks until the long-running operation is completed, returning the response and any errors encountered.
+//
+// See documentation of Poll for error-handling information.
+func (op *DeleteLinkOperation) Wait(ctx context.Context, opts ...gax.CallOption) error {
+	return op.lro.WaitWithInterval(ctx, nil, time.Minute, opts...)
+}
+
+// Poll fetches the latest state of the long-running operation.
+//
+// Poll also fetches the latest metadata, which can be retrieved by Metadata.
+//
+// If Poll fails, the error is returned and op is unmodified. If Poll succeeds and
+// the operation has completed with failure, the error is returned and op.Done will return true.
+// If Poll succeeds and the operation has completed successfully,
+// op.Done will return true, and the response of the operation is returned.
+// If Poll succeeds and the operation has not completed, the returned response and error are both nil.
+func (op *DeleteLinkOperation) Poll(ctx context.Context, opts ...gax.CallOption) error {
+	return op.lro.Poll(ctx, nil, opts...)
+}
+
+// Metadata returns metadata associated with the long-running operation.
+// Metadata itself does not contact the server, but Poll does.
+// To get the latest metadata, call this method after a successful call to Poll.
+// If the metadata is not available, the returned metadata and error are both nil.
+func (op *DeleteLinkOperation) Metadata() (*loggingpb.LinkMetadata, error) {
+	var meta loggingpb.LinkMetadata
+	if err := op.lro.Metadata(&meta); err == longrunning.ErrNoMetadata {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return &meta, nil
+}
+
+// Done reports whether the long-running operation has completed.
+func (op *DeleteLinkOperation) Done() bool {
+	return op.lro.Done()
+}
+
+// Name returns the name of the long-running operation.
+// The name is assigned by the server and is unique within the service from which the operation is created.
+func (op *DeleteLinkOperation) Name() string {
+	return op.lro.Name()
+}
+
+// UpdateBucketAsyncOperation manages a long-running operation from UpdateBucketAsync.
+type UpdateBucketAsyncOperation struct {
+	lro *longrunning.Operation
+}
+
+// UpdateBucketAsyncOperation returns a new UpdateBucketAsyncOperation from a given name.
+// The name must be that of a previously created UpdateBucketAsyncOperation, possibly from a different process.
+func (c *configGRPCClient) UpdateBucketAsyncOperation(name string) *UpdateBucketAsyncOperation {
+	return &UpdateBucketAsyncOperation{
+		lro: longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+	}
+}
+
+// Wait blocks until the long-running operation is completed, returning the response and any errors encountered.
+//
+// See documentation of Poll for error-handling information.
+func (op *UpdateBucketAsyncOperation) Wait(ctx context.Context, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
+	var resp loggingpb.LogBucket
+	if err := op.lro.WaitWithInterval(ctx, &resp, time.Minute, opts...); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// Poll fetches the latest state of the long-running operation.
+//
+// Poll also fetches the latest metadata, which can be retrieved by Metadata.
+//
+// If Poll fails, the error is returned and op is unmodified. If Poll succeeds and
+// the operation has completed with failure, the error is returned and op.Done will return true.
+// If Poll succeeds and the operation has completed successfully,
+// op.Done will return true, and the response of the operation is returned.
+// If Poll succeeds and the operation has not completed, the returned response and error are both nil.
+func (op *UpdateBucketAsyncOperation) Poll(ctx context.Context, opts ...gax.CallOption) (*loggingpb.LogBucket, error) {
+	var resp loggingpb.LogBucket
+	if err := op.lro.Poll(ctx, &resp, opts...); err != nil {
+		return nil, err
+	}
+	if !op.Done() {
+		return nil, nil
+	}
+	return &resp, nil
+}
+
+// Metadata returns metadata associated with the long-running operation.
+// Metadata itself does not contact the server, but Poll does.
+// To get the latest metadata, call this method after a successful call to Poll.
+// If the metadata is not available, the returned metadata and error are both nil.
+func (op *UpdateBucketAsyncOperation) Metadata() (*loggingpb.BucketMetadata, error) {
+	var meta loggingpb.BucketMetadata
+	if err := op.lro.Metadata(&meta); err == longrunning.ErrNoMetadata {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return &meta, nil
+}
+
+// Done reports whether the long-running operation has completed.
+func (op *UpdateBucketAsyncOperation) Done() bool {
+	return op.lro.Done()
+}
+
+// Name returns the name of the long-running operation.
+// The name is assigned by the server and is unique within the service from which the operation is created.
+func (op *UpdateBucketAsyncOperation) Name() string {
+	return op.lro.Name()
+}
+
+// LinkIterator manages a stream of *loggingpb.Link.
+type LinkIterator struct {
+	items    []*loggingpb.Link
+	pageInfo *iterator.PageInfo
+	nextFunc func() error
+
+	// Response is the raw response for the current page.
+	// It must be cast to the RPC response type.
+	// Calling Next() or InternalFetch() updates this value.
+	Response interface{}
+
+	// InternalFetch is for use by the Google Cloud Libraries only.
+	// It is not part of the stable interface of this package.
+	//
+	// InternalFetch returns results from a single call to the underlying RPC.
+	// The number of results is no greater than pageSize.
+	// If there are no more results, nextPageToken is empty and err is nil.
+	InternalFetch func(pageSize int, pageToken string) (results []*loggingpb.Link, nextPageToken string, err error)
+}
+
+// PageInfo supports pagination. See the google.golang.org/api/iterator package for details.
+func (it *LinkIterator) PageInfo() *iterator.PageInfo {
+	return it.pageInfo
+}
+
+// Next returns the next result. Its second return value is iterator.Done if there are no more
+// results. Once Next returns Done, all subsequent calls will return Done.
+func (it *LinkIterator) Next() (*loggingpb.Link, error) {
+	var item *loggingpb.Link
+	if err := it.nextFunc(); err != nil {
+		return item, err
+	}
+	item = it.items[0]
+	it.items = it.items[1:]
+	return item, nil
+}
+
+func (it *LinkIterator) bufLen() int {
+	return len(it.items)
+}
+
+func (it *LinkIterator) takeBuf() interface{} {
+	b := it.items
+	it.items = nil
+	return b
 }
 
 // LogBucketIterator manages a stream of *loggingpb.LogBucket.

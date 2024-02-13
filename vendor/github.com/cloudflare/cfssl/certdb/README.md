@@ -27,11 +27,11 @@ Currently supported:
 ### Use goose to start and terminate a MySQL DB
 To start a MySQL using goose:
 
-    goose -path $GOPATH/src/github.com/cloudflare/cfssl/certdb/mysql up
+    goose -path certdb/mysql up
 
 To tear down a MySQL DB using goose
 
-    goose -path $GOPATH/src/github.com/cloudflare/cfssl/certdb/mysql down
+    goose -path certdb/mysql down
 
 Note: the administration of MySQL DB is not included. We assume
 the databases being connected to are already created and access control
@@ -40,11 +40,11 @@ is properly handled.
 ### Use goose to start and terminate a PostgreSQL DB
 To start a PostgreSQL using goose:
 
-    goose -path $GOPATH/src/github.com/cloudflare/cfssl/certdb/pg up
+    goose -path certdb/pg up
 
 To tear down a PostgreSQL DB using goose
 
-    goose -path $GOPATH/src/github.com/cloudflare/cfssl/certdb/pg down
+    goose -path certdb/pg down
 
 Note: the administration of PostgreSQL DB is not included. We assume
 the databases being connected to are already created and access control
@@ -53,11 +53,11 @@ is properly handled.
 ### Use goose to start and terminate a SQLite DB
 To start a SQLite DB using goose:
 
-    goose -path $GOPATH/src/github.com/cloudflare/cfssl/certdb/sqlite up
+    goose -path certdb/sqlite up
 
 To tear down a SQLite DB using goose
 
-    goose -path $GOPATH/src/github.com/cloudflare/cfssl/certdb/sqlite down
+    goose -path certdb/sqlite down
 
 ## CFSSL Configuration
 

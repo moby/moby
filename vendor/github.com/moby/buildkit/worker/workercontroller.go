@@ -2,6 +2,8 @@ package worker
 
 import (
 	"github.com/containerd/containerd/filters"
+	"github.com/hashicorp/go-multierror"
+	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
 	"github.com/pkg/errors"
 )
@@ -11,6 +13,16 @@ import (
 type Controller struct {
 	// TODO: define worker interface and support remote ones
 	workers []Worker
+}
+
+func (c *Controller) Close() error {
+	var rerr error
+	for _, w := range c.workers {
+		if err := w.Close(); err != nil {
+			rerr = multierror.Append(rerr, err)
+		}
+	}
+	return rerr
 }
 
 // Add adds a local worker.
@@ -62,10 +74,33 @@ func (c *Controller) WorkerInfos() []client.WorkerInfo {
 	out := make([]client.WorkerInfo, 0, len(c.workers))
 	for _, w := range c.workers {
 		out = append(out, client.WorkerInfo{
-			ID:        w.ID(),
-			Labels:    w.Labels(),
-			Platforms: w.Platforms(false),
+			ID:              w.ID(),
+			Labels:          w.Labels(),
+			Platforms:       w.Platforms(false),
+			BuildkitVersion: w.BuildkitVersion(),
 		})
 	}
 	return out
+}
+
+func (c *Controller) Infos() Infos {
+	return &infosController{c: c}
+}
+
+type infosController struct {
+	c *Controller
+}
+
+var _ Infos = &infosController{}
+
+func (c *infosController) DefaultCacheManager() (cache.Manager, error) {
+	w, err := c.c.GetDefault()
+	if err != nil {
+		return nil, err
+	}
+	return w.CacheManager(), nil
+}
+
+func (c *infosController) WorkerInfos() []client.WorkerInfo {
+	return c.c.WorkerInfos()
 }

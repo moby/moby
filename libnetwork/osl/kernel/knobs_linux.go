@@ -1,18 +1,19 @@
 package kernel
 
 import (
+	"context"
 	"os"
 	"path"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 )
 
 // writeSystemProperty writes the value to a path under /proc/sys as determined from the key.
 // For e.g. net.ipv4.ip_forward translated to /proc/sys/net/ipv4/ip_forward.
 func writeSystemProperty(key, value string) error {
 	keyPath := strings.ReplaceAll(key, ".", "/")
-	return os.WriteFile(path.Join("/proc/sys", keyPath), []byte(value), 0644)
+	return os.WriteFile(path.Join("/proc/sys", keyPath), []byte(value), 0o644)
 }
 
 // readSystemProperty reads the value from the path under /proc/sys and returns it
@@ -31,17 +32,17 @@ func ApplyOSTweaks(osConfig map[string]*OSValue) {
 		// read the existing property from disk
 		oldv, err := readSystemProperty(k)
 		if err != nil {
-			logrus.WithError(err).Errorf("error reading the kernel parameter %s", k)
+			log.G(context.TODO()).WithError(err).Errorf("error reading the kernel parameter %s", k)
 			continue
 		}
 
 		if propertyIsValid(oldv, v.Value, v.CheckFn) {
 			// write new prop value to disk
 			if err := writeSystemProperty(k, v.Value); err != nil {
-				logrus.WithError(err).Errorf("error setting the kernel parameter %s = %s, (leaving as %s)", k, v.Value, oldv)
+				log.G(context.TODO()).WithError(err).Errorf("error setting the kernel parameter %s = %s, (leaving as %s)", k, v.Value, oldv)
 				continue
 			}
-			logrus.Debugf("updated kernel parameter %s = %s (was %s)", k, v.Value, oldv)
+			log.G(context.TODO()).Debugf("updated kernel parameter %s = %s (was %s)", k, v.Value, oldv)
 		}
 	}
 }

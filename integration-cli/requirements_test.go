@@ -13,36 +13,26 @@ import (
 	"github.com/containerd/containerd/plugin"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/requirement"
 	"github.com/docker/docker/testutil/registry"
 )
 
-func ArchitectureIsNot(arch string) bool {
-	return os.Getenv("DOCKER_ENGINE_GOARCH") != arch
-}
-
 func DaemonIsWindows() bool {
-	return testEnv.OSType == "windows"
+	return testEnv.DaemonInfo.OSType == "windows"
 }
 
 func DaemonIsLinux() bool {
-	return testEnv.OSType == "linux"
+	return testEnv.DaemonInfo.OSType == "linux"
 }
 
-func MinimumAPIVersion(version string) func() bool {
-	return func() bool {
-		return versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), version)
-	}
-}
-
-func OnlyDefaultNetworks() bool {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+func OnlyDefaultNetworks(ctx context.Context) bool {
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return false
 	}
-	networks, err := cli.NetworkList(context.TODO(), types.NetworkListOptions{})
+	networks, err := apiClient.NetworkList(ctx, types.NetworkListOptions{})
 	if err != nil || len(networks) > 0 {
 		return false
 	}
@@ -50,19 +40,15 @@ func OnlyDefaultNetworks() bool {
 }
 
 func IsAmd64() bool {
-	return os.Getenv("DOCKER_ENGINE_GOARCH") == "amd64"
-}
-
-func NotArm() bool {
-	return ArchitectureIsNot("arm")
+	return testEnv.DaemonVersion.Arch == "amd64"
 }
 
 func NotArm64() bool {
-	return ArchitectureIsNot("arm64")
+	return testEnv.DaemonVersion.Arch != "arm64"
 }
 
 func NotPpc64le() bool {
-	return ArchitectureIsNot("ppc64le")
+	return testEnv.DaemonVersion.Arch != "ppc64le"
 }
 
 func UnixCli() bool {
@@ -78,11 +64,11 @@ func Network() bool {
 	const timeout = 15 * time.Second
 	const url = "https://hub.docker.com"
 
-	client := http.Client{
+	c := http.Client{
 		Timeout: timeout,
 	}
 
-	resp, err := client.Get(url)
+	resp, err := c.Get(url)
 	if err != nil && strings.Contains(err.Error(), "use of closed network connection") {
 		panic(fmt.Sprintf("Timeout for GET request on %s", url))
 	}
@@ -98,10 +84,6 @@ func Apparmor() bool {
 	}
 	buf, err := os.ReadFile("/sys/module/apparmor/parameters/enabled")
 	return err == nil && len(buf) > 1 && buf[0] == 'Y'
-}
-
-func Devicemapper() bool {
-	return strings.HasPrefix(testEnv.DaemonInfo.Driver, "devicemapper")
 }
 
 // containerdSnapshotterEnabled checks if the daemon in the test-environment is
@@ -157,7 +139,7 @@ func UserNamespaceInKernel() bool {
 }
 
 func IsPausable() bool {
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		return testEnv.DaemonInfo.Isolation.IsHyperV()
 	}
 	return true
@@ -185,7 +167,7 @@ func TODOBuildkit() bool {
 }
 
 func DockerCLIVersion(t testing.TB) string {
-	out, _ := dockerCmd(t, "--version")
+	out := cli.DockerCmd(t, "--version").Stdout()
 	version := strings.Fields(out)
 	if len(version) < 3 {
 		t.Fatal("unknown version output", version)

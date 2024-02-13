@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/stringid"
 	v2 "github.com/docker/docker/plugin/v2"
@@ -40,7 +42,7 @@ func TestManagerWithPluginMounts(t *testing.T) {
 			Root:           managerRoot,
 			ExecRoot:       filepath.Join(root, "exec"),
 			CreateExecutor: func(*Manager) (Executor, error) { return nil, nil },
-			LogPluginEvent: func(_, _, _ string) {},
+			LogPluginEvent: func(_, _ string, _ events.Action) {},
 		})
 	if err != nil {
 		t.Fatal(err)
@@ -55,14 +57,14 @@ func TestManagerWithPluginMounts(t *testing.T) {
 
 	// Create a mount to simulate a plugin that has created it's own mounts
 	p2Mount := filepath.Join(p2.Rootfs, "testmount")
-	if err := os.MkdirAll(p2Mount, 0755); err != nil {
+	if err := os.MkdirAll(p2Mount, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := mount.Mount("tmpfs", p2Mount, "tmpfs", ""); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := m.Remove(p1.GetID(), &types.PluginRmConfig{ForceRemove: true}); err != nil {
+	if err := m.Remove(p1.GetID(), &backend.PluginRmConfig{ForceRemove: true}); err != nil {
 		t.Fatal(err)
 	}
 	if mounted, err := mountinfo.Mounted(p2Mount); !mounted || err != nil {
@@ -73,7 +75,7 @@ func TestManagerWithPluginMounts(t *testing.T) {
 func newTestPlugin(t *testing.T, name, cap, root string) *v2.Plugin {
 	id := stringid.GenerateRandomID()
 	rootfs := filepath.Join(root, id)
-	if err := os.MkdirAll(rootfs, 0755); err != nil {
+	if err := os.MkdirAll(rootfs, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -112,7 +114,7 @@ func TestCreateFailed(t *testing.T) {
 			Root:           managerRoot,
 			ExecRoot:       filepath.Join(root, "exec"),
 			CreateExecutor: func(*Manager) (Executor, error) { return &simpleExecutor{}, nil },
-			LogPluginEvent: func(_, _, _ string) {},
+			LogPluginEvent: func(_, _ string, _ events.Action) {},
 		})
 	if err != nil {
 		t.Fatal(err)
@@ -126,7 +128,7 @@ func TestCreateFailed(t *testing.T) {
 		t.Fatalf("expected Create failed error, got %v", err)
 	}
 
-	if err := m.Remove(p.GetID(), &types.PluginRmConfig{ForceRemove: true}); err != nil {
+	if err := m.Remove(p.GetID(), &backend.PluginRmConfig{ForceRemove: true}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -151,6 +153,7 @@ func (e *executorWithRunning) Create(id string, spec specs.Spec, stdout, stderr 
 func (e *executorWithRunning) IsRunning(id string) (bool, error) {
 	return true, nil
 }
+
 func (e *executorWithRunning) Restore(id string, stdout, stderr io.WriteCloser) (bool, error) {
 	return true, nil
 }
@@ -180,13 +183,13 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 		{
 			desc: "live-restore-disabled",
 			config: ManagerConfig{
-				LogPluginEvent: func(_, _, _ string) {},
+				LogPluginEvent: func(_, _ string, _ events.Action) {},
 			},
 		},
 		{
 			desc: "live-restore-enabled",
 			config: ManagerConfig{
-				LogPluginEvent:     func(_, _, _ string) {},
+				LogPluginEvent:     func(_, _ string, _ events.Action) {},
 				LiveRestoreEnabled: true,
 			},
 		},
@@ -211,7 +214,7 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 
 			root := filepath.Join(root, desc)
 			config.Root = filepath.Join(root, "manager")
-			if err := os.MkdirAll(filepath.Join(config.Root, p.GetID()), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Join(config.Root, p.GetID()), 0o755); err != nil {
 				t.Fatal(err)
 			}
 
@@ -244,7 +247,7 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 }
 
 func listenTestPlugin(sockAddr string, exit chan struct{}) (net.Listener, error) {
-	if err := os.MkdirAll(filepath.Dir(sockAddr), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(sockAddr), 0o755); err != nil {
 		return nil, err
 	}
 	l, err := net.Listen("unix", sockAddr)

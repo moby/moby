@@ -8,12 +8,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/mount"
@@ -39,24 +39,23 @@ func GetUpperdir(lower, upper []mount.Mount) (string, error) {
 		// Get layer directories of lower snapshot
 		var lowerlayers []string
 		lowerM := lower[0]
-		switch lowerM.Type {
-		case "bind":
+		if lowerM.Type == "bind" {
 			// lower snapshot is a bind mount of one layer
 			lowerlayers = []string{lowerM.Source}
-		case "overlay":
+		} else if IsOverlayMountType(lowerM) {
 			// lower snapshot is an overlay mount of multiple layers
 			var err error
 			lowerlayers, err = GetOverlayLayers(lowerM)
 			if err != nil {
 				return "", err
 			}
-		default:
+		} else {
 			return "", errors.Errorf("cannot get layer information from mount option (type = %q)", lowerM.Type)
 		}
 
 		// Get layer directories of upper snapshot
 		upperM := upper[0]
-		if upperM.Type != "overlay" {
+		if !IsOverlayMountType(upperM) {
 			return "", errors.Errorf("upper snapshot isn't overlay mounted (type = %q)", upperM.Type)
 		}
 		upperlayers, err := GetOverlayLayers(upperM)
@@ -114,7 +113,7 @@ func GetOverlayLayers(m mount.Mount) ([]string, error) {
 // WriteUpperdir writes a layer tar archive into the specified writer, based on
 // the diff information stored in the upperdir.
 func WriteUpperdir(ctx context.Context, w io.Writer, upperdir string, lower []mount.Mount) error {
-	emptyLower, err := ioutil.TempDir("", "buildkit") // empty directory used for the lower of diff view
+	emptyLower, err := os.MkdirTemp("", "buildkit") // empty directory used for the lower of diff view
 	if err != nil {
 		return errors.Wrapf(err, "failed to create temp dir")
 	}
@@ -128,7 +127,8 @@ func WriteUpperdir(ctx context.Context, w io.Writer, upperdir string, lower []mo
 	}
 	return mount.WithTempMount(ctx, lower, func(lowerRoot string) error {
 		return mount.WithTempMount(ctx, upperView, func(upperViewRoot string) error {
-			cw := archive.NewChangeWriter(&cancellableWriter{ctx, w}, upperViewRoot)
+			// WithWhiteoutTime(0) will no longer need to be specified when https://github.com/containerd/containerd/pull/8764 gets merged
+			cw := archive.NewChangeWriter(&cancellableWriter{ctx, w}, upperViewRoot, archive.WithWhiteoutTime(time.Unix(0, 0).UTC()))
 			if err := Changes(ctx, cw.HandleChange, upperdir, upperViewRoot, lowerRoot); err != nil {
 				if err2 := cw.Close(); err2 != nil {
 					return errors.Wrapf(err, "failed to record upperdir changes (close error: %v)", err2)
@@ -183,7 +183,7 @@ func Changes(ctx context.Context, changeFn fs.ChangeFunc, upperdir, upperdirView
 		} else if redirect {
 			// Return error when redirect_dir is enabled which can result to a wrong diff.
 			// TODO: support redirect_dir
-			return fmt.Errorf("redirect_dir is used but it's not supported in overlayfs differ")
+			return errors.New("redirect_dir is used but it's not supported in overlayfs differ")
 		}
 
 		// Check if this is a deleted entry

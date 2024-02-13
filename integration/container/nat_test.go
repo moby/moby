@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/go-connections/nat"
 	"gotest.tools/v3/assert"
@@ -20,13 +20,13 @@ import (
 )
 
 func TestNetworkNat(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, testEnv.IsRemoteDaemon)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	msg := "it works"
-	startServerContainer(t, msg, 8080)
+	startServerContainer(ctx, t, msg, 8080)
 
 	endpoint := getExternalAddress(t)
 	conn, err := net.Dial("tcp", net.JoinHostPort(endpoint.String(), "8080"))
@@ -41,10 +41,10 @@ func TestNetworkNat(t *testing.T) {
 func TestNetworkLocalhostTCPNat(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	msg := "hi yall"
-	startServerContainer(t, msg, 8081)
+	startServerContainer(ctx, t, msg, 8081)
 
 	conn, err := net.Dial("tcp", "localhost:8081")
 	assert.NilError(t, err)
@@ -57,28 +57,27 @@ func TestNetworkLocalhostTCPNat(t *testing.T) {
 
 func TestNetworkLoopbackNat(t *testing.T) {
 	skip.If(t, testEnv.GitHubActions, "FIXME: https://github.com/moby/moby/issues/41561")
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, testEnv.IsRemoteDaemon)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	msg := "it works"
-	serverContainerID := startServerContainer(t, msg, 8080)
+	serverContainerID := startServerContainer(ctx, t, msg, 8080)
 
 	endpoint := getExternalAddress(t)
 
-	client := testEnv.APIClient()
-	ctx := context.Background()
+	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, client,
+	cID := container.Run(ctx, t, apiClient,
 		container.WithCmd("sh", "-c", fmt.Sprintf("stty raw && nc -w 1 %s 8080", endpoint.String())),
 		container.WithTty(true),
 		container.WithNetworkMode("container:"+serverContainerID),
 	)
 
-	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
 
-	body, err := client.ContainerLogs(ctx, cID, types.ContainerLogsOptions{
+	body, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
@@ -91,12 +90,11 @@ func TestNetworkLoopbackNat(t *testing.T) {
 	assert.Check(t, is.Equal(msg, strings.TrimSpace(b.String())))
 }
 
-func startServerContainer(t *testing.T, msg string, port int) string {
+func startServerContainer(ctx context.Context, t *testing.T, msg string, port int) string {
 	t.Helper()
-	client := testEnv.APIClient()
-	ctx := context.Background()
+	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, client,
+	return container.Run(ctx, t, apiClient,
 		container.WithName("server-"+t.Name()),
 		container.WithCmd("sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port)),
 		container.WithExposedPorts(fmt.Sprintf("%d/tcp", port)),
@@ -108,11 +106,8 @@ func startServerContainer(t *testing.T, msg string, port int) string {
 					},
 				},
 			}
-		})
-
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
-
-	return cID
+		},
+	)
 }
 
 // getExternalAddress() returns the external IP-address from eth0. If eth0 has

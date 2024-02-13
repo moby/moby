@@ -10,36 +10,32 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/hcsshim/osversion"
-	"github.com/docker/docker/api/types"
+	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/local"
 	"github.com/docker/docker/libcontainerd/remote"
 	"github.com/docker/docker/libnetwork"
 	nwconfig "github.com/docker/docker/libnetwork/config"
-	"github.com/docker/docker/libnetwork/datastore"
 	winlibnetwork "github.com/docker/docker/libnetwork/drivers/windows"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
-	"github.com/docker/docker/pkg/containerfs"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
-	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc/mgr"
 )
 
 const (
 	isWindows            = true
-	platformSupported    = true
 	windowsMinCPUShares  = 1
 	windowsMaxCPUShares  = 10000
 	windowsMinCPUPercent = 1
@@ -53,21 +49,21 @@ func adjustParallelLimit(n int, limit int) int {
 }
 
 // Windows has no concept of an execution state directory. So use config.Root here.
-func getPluginExecRoot(root string) string {
-	return filepath.Join(root, "plugins")
+func getPluginExecRoot(cfg *config.Config) string {
+	return filepath.Join(cfg.Root, "plugins")
 }
 
-func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) parseSecurityOpt(daemonCfg *config.Config, securityOptions *container.SecurityOptions, hostConfig *containertypes.HostConfig) error {
 	return nil
 }
 
-func setupInitLayer(idMapping idtools.IdentityMapping) func(containerfs.ContainerFS) error {
+func setupInitLayer(idMapping idtools.IdentityMapping) func(string) error {
 	return nil
 }
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
+func (daemon *Daemon) adaptContainerSettings(daemonCfg *config.Config, hostConfig *containertypes.HostConfig) error {
 	return nil
 }
 
@@ -173,7 +169,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, isHyp
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
+func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
 	if hostConfig == nil {
 		return nil, nil
 	}
@@ -200,7 +196,7 @@ func checkSystem() error {
 
 	// Ensure that the required Host Network Service and vmcompute services
 	// are running. Docker will fail in unexpected ways if this is not present.
-	var requiredServices = []string{"hns", "vmcompute"}
+	requiredServices := []string{"hns", "vmcompute"}
 	if err := ensureServicesInstalled(requiredServices); err != nil {
 		return errors.Wrap(err, "a required service is not installed, ensure the Containers feature is installed")
 	}
@@ -234,8 +230,8 @@ func configureMaxThreads(config *config.Config) error {
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface{}) error {
-	netOptions, err := daemon.networkOptions(nil, nil)
+func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSandboxes map[string]interface{}) error {
+	netOptions, err := daemon.networkOptions(daemonCfg, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -249,9 +245,11 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 		return err
 	}
 
+	ctx := context.TODO()
+
 	// Remove networks not present in HNS
-	for _, v := range daemon.netController.Networks() {
-		hnsid := v.Info().DriverOptions()[winlibnetwork.HNSID]
+	for _, v := range daemon.netController.Networks(ctx) {
+		hnsid := v.DriverOptions()[winlibnetwork.HNSID]
 		found := false
 
 		for _, v := range hnsresponse {
@@ -263,10 +261,10 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 
 		if !found {
 			// non-default nat networks should be re-created if missing from HNS
-			if v.Type() == "nat" && v.Name() != "nat" {
-				_, _, v4Conf, v6Conf := v.Info().IpamConfig()
+			if v.Type() == "nat" && v.Name() != networktypes.NetworkNat {
+				_, _, v4Conf, v6Conf := v.IpamConfig()
 				netOption := map[string]string{}
-				for k, v := range v.Info().DriverOptions() {
+				for k, v := range v.DriverOptions() {
 					if k != winlibnetwork.NetworkName && k != winlibnetwork.HNSID {
 						netOption[k] = v
 					}
@@ -276,7 +274,7 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 
 				err = v.Delete()
 				if err != nil {
-					logrus.Errorf("Error occurred when removing network %v", err)
+					log.G(context.TODO()).Errorf("Error occurred when removing network %v", err)
 				}
 
 				_, err := daemon.netController.NewNetwork("nat", name, id,
@@ -286,16 +284,16 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 					libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 				)
 				if err != nil {
-					logrus.Errorf("Error occurred when creating network %v", err)
+					log.G(context.TODO()).Errorf("Error occurred when creating network %v", err)
 				}
 				continue
 			}
 
 			// global networks should not be deleted by local HNS
-			if v.Info().Scope() != datastore.GlobalScope {
+			if v.Scope() != scope.Global {
 				err = v.Delete()
 				if err != nil {
-					logrus.Errorf("Error occurred when removing network %v", err)
+					log.G(context.TODO()).Errorf("Error occurred when removing network %v", err)
 				}
 			}
 		}
@@ -309,7 +307,7 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 	defaultNetworkExists := false
 
 	if network, err := daemon.netController.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
-		hnsid := network.Info().DriverOptions()[winlibnetwork.HNSID]
+		hnsid := network.DriverOptions()[winlibnetwork.HNSID]
 		for _, v := range hnsresponse {
 			if hnsid == v.Id {
 				defaultNetworkExists = true
@@ -325,17 +323,15 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 		if networkTypeNorm == "private" || networkTypeNorm == "internal" {
 			continue // workaround for HNS reporting unsupported networks
 		}
-		var n libnetwork.Network
-		s := func(current libnetwork.Network) bool {
-			hnsid := current.Info().DriverOptions()[winlibnetwork.HNSID]
+		var n *libnetwork.Network
+		daemon.netController.WalkNetworks(func(current *libnetwork.Network) bool {
+			hnsid := current.DriverOptions()[winlibnetwork.HNSID]
 			if hnsid == v.Id {
 				n = current
 				return true
 			}
 			return false
-		}
-
-		daemon.netController.WalkNetworks(s)
+		})
 
 		drvOptions := make(map[string]string)
 		nid := ""
@@ -343,7 +339,7 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 			nid = n.ID()
 
 			// global networks should not be deleted by local HNS
-			if n.Info().Scope() == datastore.GlobalScope {
+			if n.Scope() == scope.Global {
 				continue
 			}
 			v.Name = n.Name()
@@ -351,7 +347,7 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 			// is not yet populated in the libnetwork windows driver
 
 			// restore option if it existed before
-			drvOptions = n.Info().DriverOptions()
+			drvOptions = n.DriverOptions()
 			n.Delete()
 		}
 		netOption := map[string]string{
@@ -392,15 +388,14 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 			}),
 			libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		)
-
 		if err != nil {
-			logrus.Errorf("Error occurred when creating network %v", err)
+			log.G(context.TODO()).Errorf("Error occurred when creating network %v", err)
 		}
 	}
 
-	if !daemon.configStore.DisableBridge {
+	if !daemonCfg.DisableBridge {
 		// Initialize default driver "bridge"
-		if err := initBridgeDriver(daemon.netController, daemon.configStore); err != nil {
+		if err := initBridgeDriver(daemon.netController, daemonCfg.BridgeConfig); err != nil {
 			return err
 		}
 	}
@@ -408,7 +403,7 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 	return nil
 }
 
-func initBridgeDriver(controller libnetwork.NetworkController, config *config.Config) error {
+func initBridgeDriver(controller *libnetwork.Controller, config config.BridgeConfig) error {
 	if _, err := controller.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
 		return nil
 	}
@@ -420,8 +415,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *config.Co
 	var ipamOption libnetwork.NetworkOption
 	var subnetPrefix string
 
-	if config.BridgeConfig.FixedCIDR != "" {
-		subnetPrefix = config.BridgeConfig.FixedCIDR
+	if config.FixedCIDR != "" {
+		subnetPrefix = config.FixedCIDR
 	}
 
 	if subnetPrefix != "" {
@@ -454,7 +449,7 @@ func (daemon *Daemon) cleanupMountsByID(in string) error {
 	return nil
 }
 
-func (daemon *Daemon) cleanupMounts() error {
+func (daemon *Daemon) cleanupMounts(*config.Config) error {
 	return nil
 }
 
@@ -484,7 +479,6 @@ func (daemon *Daemon) runAsHyperVContainer(hostConfig *containertypes.HostConfig
 
 	// Container is requesting an isolation mode. Honour it.
 	return hostConfig.Isolation.IsHyperV()
-
 }
 
 // conditionalMountOnStart is a platform specific helper function during the
@@ -512,73 +506,9 @@ func driverOptions(_ *config.Config) nwconfig.Option {
 	return nil
 }
 
-func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
-	c.Lock()
-	task, err := c.GetRunningTask()
-	c.Unlock()
-	if err != nil {
-		return nil, err
-	}
-
-	// Obtain the stats from HCS via libcontainerd
-	stats, err := task.Stats(context.Background())
-	if err != nil {
-		if errdefs.IsNotFound(err) {
-			return nil, containerNotFound(c.ID)
-		}
-		return nil, err
-	}
-
-	// Start with an empty structure
-	s := &types.StatsJSON{}
-	s.Stats.Read = stats.Read
-	s.Stats.NumProcs = platform.NumProcs()
-
-	if stats.HCSStats != nil {
-		hcss := stats.HCSStats
-		// Populate the CPU/processor statistics
-		s.CPUStats = types.CPUStats{
-			CPUUsage: types.CPUUsage{
-				TotalUsage:        hcss.Processor.TotalRuntime100ns,
-				UsageInKernelmode: hcss.Processor.RuntimeKernel100ns,
-				UsageInUsermode:   hcss.Processor.RuntimeUser100ns,
-			},
-		}
-
-		// Populate the memory statistics
-		s.MemoryStats = types.MemoryStats{
-			Commit:            hcss.Memory.UsageCommitBytes,
-			CommitPeak:        hcss.Memory.UsageCommitPeakBytes,
-			PrivateWorkingSet: hcss.Memory.UsagePrivateWorkingSetBytes,
-		}
-
-		// Populate the storage statistics
-		s.StorageStats = types.StorageStats{
-			ReadCountNormalized:  hcss.Storage.ReadCountNormalized,
-			ReadSizeBytes:        hcss.Storage.ReadSizeBytes,
-			WriteCountNormalized: hcss.Storage.WriteCountNormalized,
-			WriteSizeBytes:       hcss.Storage.WriteSizeBytes,
-		}
-
-		// Populate the network statistics
-		s.Networks = make(map[string]types.NetworkStats)
-		for _, nstats := range hcss.Network {
-			s.Networks[nstats.EndpointId] = types.NetworkStats{
-				RxBytes:   nstats.BytesReceived,
-				RxPackets: nstats.PacketsReceived,
-				RxDropped: nstats.DroppedPacketsIncoming,
-				TxBytes:   nstats.BytesSent,
-				TxPackets: nstats.PacketsSent,
-				TxDropped: nstats.DroppedPacketsOutgoing,
-			}
-		}
-	}
-	return s, nil
-}
-
 // setDefaultIsolation determine the default isolation mode for the
 // daemon to run in. This is only applicable on Windows
-func (daemon *Daemon) setDefaultIsolation() error {
+func (daemon *Daemon) setDefaultIsolation(config *config.Config) error {
 	// On client SKUs, default to Hyper-V. @engine maintainers. This
 	// should not be removed. Ping Microsoft folks is there are PRs to
 	// to change this.
@@ -587,7 +517,7 @@ func (daemon *Daemon) setDefaultIsolation() error {
 	} else {
 		daemon.defaultIsolation = containertypes.IsolationProcess
 	}
-	for _, option := range daemon.configStore.ExecOptions {
+	for _, option := range config.ExecOptions {
 		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil {
 			return err
@@ -610,32 +540,28 @@ func (daemon *Daemon) setDefaultIsolation() error {
 		}
 	}
 
-	logrus.Infof("Windows default isolation mode: %s", daemon.defaultIsolation)
+	log.G(context.TODO()).Infof("Windows default isolation mode: %s", daemon.defaultIsolation)
 	return nil
 }
 
-func setupDaemonProcess(config *config.Config) error {
+func setMayDetachMounts() error {
 	return nil
 }
 
-func (daemon *Daemon) setupSeccompProfile() error {
-	return nil
-}
-
-func (daemon *Daemon) loadRuntimes() error {
+func (daemon *Daemon) setupSeccompProfile(*config.Config) error {
 	return nil
 }
 
 func setupResolvConf(config *config.Config) {}
 
-func getSysInfo(daemon *Daemon) *sysinfo.SysInfo {
+func getSysInfo(*config.Config) *sysinfo.SysInfo {
 	return sysinfo.New()
 }
 
-func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
+func (daemon *Daemon) initLibcontainerd(ctx context.Context, cfg *config.Config) error {
 	var err error
 
-	rt := daemon.configStore.GetDefaultRuntimeName()
+	rt := cfg.DefaultRuntime
 	if rt == "" {
 		if daemon.configStore.ContainerdAddr == "" {
 			rt = config.WindowsV1RuntimeName
@@ -648,9 +574,9 @@ func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
 	case config.WindowsV1RuntimeName:
 		daemon.containerd, err = local.NewClient(
 			ctx,
-			daemon.containerdCli,
-			filepath.Join(daemon.configStore.ExecRoot, "containerd"),
-			daemon.configStore.ContainerdNamespace,
+			daemon.containerdClient,
+			filepath.Join(cfg.ExecRoot, "containerd"),
+			cfg.ContainerdNamespace,
 			daemon,
 		)
 	case config.WindowsV2RuntimeName:
@@ -659,9 +585,9 @@ func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
 		}
 		daemon.containerd, err = remote.NewClient(
 			ctx,
-			daemon.containerdCli,
-			filepath.Join(daemon.configStore.ExecRoot, "containerd"),
-			daemon.configStore.ContainerdNamespace,
+			daemon.containerdClient,
+			filepath.Join(cfg.ExecRoot, "containerd"),
+			cfg.ContainerdNamespace,
 			daemon,
 		)
 	default:

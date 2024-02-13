@@ -5,15 +5,30 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/containerd/log"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	volumesservice "github.com/docker/docker/volume/service"
 )
 
 func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
+	alive := container.IsRunning()
 	for _, config := range container.MountPoints {
 		if err := daemon.lazyInitializeVolume(container.ID, config); err != nil {
 			return err
+		}
+		if config.Volume == nil {
+			// FIXME(thaJeztah): should we check for config.Type here as well? (i.e., skip bind-mounts etc)
+			continue
+		}
+		if alive {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"container": container.ID,
+				"volume":    config.Volume.Name(),
+			}).Debug("Live-restoring volume for alive container")
+			if err := config.LiveRestore(context.TODO()); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

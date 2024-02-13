@@ -48,7 +48,7 @@ func (proxy *SCTPProxy) clientLoop(client *sctp.SCTPConn, quit chan bool) {
 	backendC := sctp.NewSCTPSndRcvInfoWrappedConn(backend)
 
 	var wg sync.WaitGroup
-	var broker = func(to, from net.Conn) {
+	broker := func(to, from net.Conn) {
 		io.Copy(to, from)
 		from.Close()
 		to.Close()

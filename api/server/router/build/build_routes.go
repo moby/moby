@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -26,7 +27,6 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type invalidParam struct {
@@ -42,6 +42,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		SuppressOutput: httputils.BoolValue(r, "q"),
 		NoCache:        httputils.BoolValue(r, "nocache"),
 		ForceRemove:    httputils.BoolValue(r, "forcerm"),
+		PullParent:     httputils.BoolValue(r, "pull"),
 		MemorySwap:     httputils.Int64ValueOrZero(r, "memswap"),
 		Memory:         httputils.Int64ValueOrZero(r, "memory"),
 		CPUShares:      httputils.Int64ValueOrZero(r, "cpushares"),
@@ -66,17 +67,14 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		return nil, invalidParam{errors.New("security options are not supported on " + runtime.GOOS)}
 	}
 
-	version := httputils.VersionFromContext(ctx)
-	if httputils.BoolValue(r, "forcerm") && versions.GreaterThanOrEqualTo(version, "1.12") {
+	if httputils.BoolValue(r, "forcerm") {
 		options.Remove = true
-	} else if r.FormValue("rm") == "" && versions.GreaterThanOrEqualTo(version, "1.12") {
+	} else if r.FormValue("rm") == "" {
 		options.Remove = true
 	} else {
 		options.Remove = httputils.BoolValue(r, "rm")
 	}
-	if httputils.BoolValue(r, "pull") && versions.GreaterThanOrEqualTo(version, "1.16") {
-		options.PullParent = true
-	}
+	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, "1.32") {
 		options.Platform = r.FormValue("platform")
 	}
@@ -107,7 +105,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	}
 
 	if ulimitsJSON := r.FormValue("ulimits"); ulimitsJSON != "" {
-		var buildUlimits = []*units.Ulimit{}
+		buildUlimits := []*units.Ulimit{}
 		if err := json.Unmarshal([]byte(ulimitsJSON), &buildUlimits); err != nil {
 			return nil, invalidParam{errors.Wrap(err, "error reading ulimit settings")}
 		}
@@ -127,7 +125,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	// so that it can print a warning about "foo" being unused if there is
 	// no "ARG foo" in the Dockerfile.
 	if buildArgsJSON := r.FormValue("buildargs"); buildArgsJSON != "" {
-		var buildArgs = map[string]*string{}
+		buildArgs := map[string]*string{}
 		if err := json.Unmarshal([]byte(buildArgsJSON), &buildArgs); err != nil {
 			return nil, invalidParam{errors.Wrap(err, "error reading build args")}
 		}
@@ -135,7 +133,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	}
 
 	if labelsJSON := r.FormValue("labels"); labelsJSON != "" {
-		var labels = map[string]string{}
+		labels := map[string]string{}
 		if err := json.Unmarshal([]byte(labelsJSON), &labels); err != nil {
 			return nil, invalidParam{errors.Wrap(err, "error reading labels")}
 		}
@@ -143,7 +141,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	}
 
 	if cacheFromJSON := r.FormValue("cachefrom"); cacheFromJSON != "" {
-		var cacheFrom = []string{}
+		cacheFrom := []string{}
 		if err := json.Unmarshal([]byte(cacheFromJSON), &cacheFrom); err != nil {
 			return nil, invalidParam{errors.Wrap(err, "error reading cache-from")}
 		}
@@ -237,7 +235,6 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	defer func() { _ = output.Close() }()
 
 	errf := func(err error) error {
-
 		if httputils.BoolValue(r, "q") && notVerboseBuffer.Len() > 0 {
 			_, _ = output.Write(notVerboseBuffer.Bytes())
 		}
@@ -249,7 +246,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		}
 		_, err = output.Write(streamformatter.FormatError(err))
 		if err != nil {
-			logrus.Warnf("could not write error response: %v", err)
+			log.G(ctx).Warnf("could not write error response: %v", err)
 		}
 		return nil
 	}

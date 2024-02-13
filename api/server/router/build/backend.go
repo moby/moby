@@ -15,7 +15,6 @@ type Backend interface {
 
 	// Prune build cache
 	PruneCache(context.Context, types.BuildCachePruneOptions) (*types.BuildCachePruneReport, error)
-
 	Cancel(context.Context, string) error
 }
 

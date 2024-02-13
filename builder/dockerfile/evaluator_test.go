@@ -1,6 +1,7 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
 	"os"
 	"runtime"
 	"testing"
@@ -20,8 +21,11 @@ type dispatchTestCase struct {
 	files               map[string]string
 }
 
-func init() {
-	reexec.Init()
+func TestMain(m *testing.M) {
+	if reexec.Init() {
+		return
+	}
+	os.Exit(m.Run())
 }
 
 func TestDispatch(t *testing.T) {
@@ -86,7 +90,7 @@ func TestDispatch(t *testing.T) {
 		{
 			name: "COPY url",
 			cmd: &instructions.CopyCommand{SourcesAndDest: instructions.SourcesAndDest{
-				SourcePaths: []string{"https://index.docker.io/robots.txt"},
+				SourcePaths: []string{"https://example.com/index.html"},
 				DestPath:    "/",
 			}},
 			expectedError: "source can't be a URL for COPY",
@@ -100,11 +104,10 @@ func TestDispatch(t *testing.T) {
 			defer cleanup()
 
 			for filename, content := range tc.files {
-				createTestTempFile(t, contextDir, filename, content, 0777)
+				createTestTempFile(t, contextDir, filename, content, 0o777)
 			}
 
 			tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
-
 			if err != nil {
 				t.Fatalf("Error when creating tar stream: %s", err)
 			}
@@ -116,7 +119,6 @@ func TestDispatch(t *testing.T) {
 			}()
 
 			buildContext, err := remotecontext.FromArchive(tarStream)
-
 			if err != nil {
 				t.Fatalf("Error when creating tar context: %s", err)
 			}
@@ -127,9 +129,9 @@ func TestDispatch(t *testing.T) {
 				}
 			}()
 
-			b := newBuilderWithMockBackend()
+			b := newBuilderWithMockBackend(t)
 			sb := newDispatchRequest(b, '`', buildContext, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
-			err = dispatch(sb, tc.cmd)
+			err = dispatch(context.TODO(), sb, tc.cmd)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
 		})
 	}

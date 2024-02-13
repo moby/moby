@@ -61,7 +61,7 @@ func parseRecord(cc CacheConfig, idx int, provider DescriptorProvider, t solver.
 			return nil, err
 		}
 		if remote != nil {
-			r.AddResult(res.CreatedAt, remote)
+			r.AddResult("", 0, res.CreatedAt, remote)
 		}
 	}
 
@@ -86,7 +86,7 @@ func parseRecord(cc CacheConfig, idx int, provider DescriptorProvider, t solver.
 		}
 		if remote != nil {
 			remote.Provider = mp
-			r.AddResult(res.CreatedAt, remote)
+			r.AddResult("", 0, res.CreatedAt, remote)
 		}
 	}
 

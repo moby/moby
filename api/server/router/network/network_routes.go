@@ -8,12 +8,13 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
-	netconst "github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/pkg/errors"
 )
 
@@ -39,7 +40,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 
 	// Combine the network list returned by Docker daemon if it is not already
 	// returned by the cluster manager
-	localNetworks, err := n.backend.GetNetworks(filter, types.NetworkListConfig{Detailed: versions.LessThan(httputils.VersionFromContext(ctx), "1.28")})
+	localNetworks, err := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: versions.LessThan(httputils.VersionFromContext(ctx), "1.28")})
 	if err != nil {
 		return err
 	}
@@ -83,10 +84,6 @@ func (e ambigousResultsError) Error() string {
 
 func (ambigousResultsError) InvalidParameter() {}
 
-func nameConflict(name string) error {
-	return errdefs.Conflict(libnetwork.NetworkNameError(name))
-}
-
 func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -102,7 +99,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 			return errors.Wrapf(invalidRequestError{err}, "invalid value for verbose: %s", v)
 		}
 	}
-	scope := r.URL.Query().Get("scope")
+	networkScope := r.URL.Query().Get("scope")
 
 	// In case multiple networks have duplicate names, return error.
 	// TODO (yongtang): should we wrap with version here for backward compatibility?
@@ -118,23 +115,23 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	// TODO(@cpuguy83): All this logic for figuring out which network to return does not belong here
 	// Instead there should be a backend function to just get one network.
 	filter := filters.NewArgs(filters.Arg("idOrName", term))
-	if scope != "" {
-		filter.Add("scope", scope)
+	if networkScope != "" {
+		filter.Add("scope", networkScope)
 	}
-	nw, _ := n.backend.GetNetworks(filter, types.NetworkListConfig{Detailed: true, Verbose: verbose})
-	for _, network := range nw {
-		if network.ID == term {
-			return httputils.WriteJSON(w, http.StatusOK, network)
+	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true, Verbose: verbose})
+	for _, nw := range networks {
+		if nw.ID == term {
+			return httputils.WriteJSON(w, http.StatusOK, nw)
 		}
-		if network.Name == term {
+		if nw.Name == term {
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
-			listByFullName[network.ID] = network
+			listByFullName[nw.ID] = nw
 		}
-		if strings.HasPrefix(network.ID, term) {
+		if strings.HasPrefix(nw.ID, term) {
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
-			listByPartialID[network.ID] = network
+			listByPartialID[nw.ID] = nw
 		}
 	}
 
@@ -144,7 +141,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		// or if the get network was passed with a network name and scope as swarm
 		// return the network. Skipped using isMatchingScope because it is true if the scope
 		// is not set which would be case if the client API v1.30
-		if strings.HasPrefix(nwk.ID, term) || (netconst.SwarmScope == scope) {
+		if strings.HasPrefix(nwk.ID, term) || networkScope == scope.Swarm {
 			// If we have a previous match "backend", return it, we need verbose when enabled
 			// ex: overlay/partial_ID or name/swarm_scope
 			if nwv, ok := listByPartialID[nwk.ID]; ok {
@@ -156,25 +153,25 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 
-	nr, _ := n.cluster.GetNetworks(filter)
-	for _, network := range nr {
-		if network.ID == term {
-			return httputils.WriteJSON(w, http.StatusOK, network)
+	networks, _ = n.cluster.GetNetworks(filter)
+	for _, nw := range networks {
+		if nw.ID == term {
+			return httputils.WriteJSON(w, http.StatusOK, nw)
 		}
-		if network.Name == term {
+		if nw.Name == term {
 			// Check the ID collision as we are in swarm scope here, and
 			// the map (of the listByFullName) may have already had a
 			// network with the same ID (from local scope previously)
-			if _, ok := listByFullName[network.ID]; !ok {
-				listByFullName[network.ID] = network
+			if _, ok := listByFullName[nw.ID]; !ok {
+				listByFullName[nw.ID] = nw
 			}
 		}
-		if strings.HasPrefix(network.ID, term) {
+		if strings.HasPrefix(nw.ID, term) {
 			// Check the ID collision as we are in swarm scope here, and
 			// the map (of the listByPartialID) may have already had a
 			// network with the same ID (from local scope previously)
-			if _, ok := listByPartialID[network.ID]; !ok {
-				listByPartialID[network.ID] = network
+			if _, ok := listByPartialID[nw.ID]; !ok {
+				listByPartialID[nw.ID] = nw
 			}
 		}
 	}
@@ -213,21 +210,11 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 	}
 
 	if nws, err := n.cluster.GetNetworksByName(create.Name); err == nil && len(nws) > 0 {
-		return nameConflict(create.Name)
+		return libnetwork.NetworkNameError(create.Name)
 	}
 
 	nw, err := n.backend.CreateNetwork(create)
 	if err != nil {
-		var warning string
-		if _, ok := err.(libnetwork.NetworkNameError); ok {
-			// check if user defined CheckDuplicate, if set true, return err
-			// otherwise prepare a warning message
-			if create.CheckDuplicate {
-				return nameConflict(create.Name)
-			}
-			warning = libnetwork.NetworkNameError(create.Name).Error()
-		}
-
 		if _, ok := err.(libnetwork.ManagerRedirectError); !ok {
 			return err
 		}
@@ -236,8 +223,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 			return err
 		}
 		nw = &types.NetworkCreateResponse{
-			ID:      id,
-			Warning: warning,
+			ID: id,
 		}
 	}
 
@@ -326,42 +312,42 @@ func (n *networkRouter) findUniqueNetwork(term string) (types.NetworkResource, e
 	listByPartialID := map[string]types.NetworkResource{}
 
 	filter := filters.NewArgs(filters.Arg("idOrName", term))
-	nw, _ := n.backend.GetNetworks(filter, types.NetworkListConfig{Detailed: true})
-	for _, network := range nw {
-		if network.ID == term {
-			return network, nil
+	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true})
+	for _, nw := range networks {
+		if nw.ID == term {
+			return nw, nil
 		}
-		if network.Name == term && !network.Ingress {
+		if nw.Name == term && !nw.Ingress {
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
-			listByFullName[network.ID] = network
+			listByFullName[nw.ID] = nw
 		}
-		if strings.HasPrefix(network.ID, term) {
+		if strings.HasPrefix(nw.ID, term) {
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
-			listByPartialID[network.ID] = network
+			listByPartialID[nw.ID] = nw
 		}
 	}
 
-	nr, _ := n.cluster.GetNetworks(filter)
-	for _, network := range nr {
-		if network.ID == term {
-			return network, nil
+	networks, _ = n.cluster.GetNetworks(filter)
+	for _, nw := range networks {
+		if nw.ID == term {
+			return nw, nil
 		}
-		if network.Name == term {
+		if nw.Name == term {
 			// Check the ID collision as we are in swarm scope here, and
 			// the map (of the listByFullName) may have already had a
 			// network with the same ID (from local scope previously)
-			if _, ok := listByFullName[network.ID]; !ok {
-				listByFullName[network.ID] = network
+			if _, ok := listByFullName[nw.ID]; !ok {
+				listByFullName[nw.ID] = nw
 			}
 		}
-		if strings.HasPrefix(network.ID, term) {
+		if strings.HasPrefix(nw.ID, term) {
 			// Check the ID collision as we are in swarm scope here, and
 			// the map (of the listByPartialID) may have already had a
 			// network with the same ID (from local scope previously)
-			if _, ok := listByPartialID[network.ID]; !ok {
-				listByPartialID[network.ID] = network
+			if _, ok := listByPartialID[nw.ID]; !ok {
+				listByPartialID[nw.ID] = nw
 			}
 		}
 	}

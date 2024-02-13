@@ -1,10 +1,8 @@
 //go:build !windows
-// +build !windows
 
 package image // import "github.com/docker/docker/integration/image"
 
 import (
-	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -15,10 +13,12 @@ import (
 	"unsafe"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
 	"gotest.tools/v3/assert"
@@ -32,8 +32,11 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	// This test uses very platform specific way to prevent
 	// daemon for remove image layer.
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
+	skip.If(t, testEnv.NotAmd64)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support overlay2 on most distros")
+	skip.If(t, testEnv.UsingSnapshotter, "tests the graph driver layer store that's not used with the containerd image store")
+
+	ctx := testutil.StartSpan(baseContext, t)
 
 	// Create daemon with overlay2 graphdriver because vfs uses disk differently
 	// and this test case would not work with it.
@@ -41,7 +44,6 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	d.Start(t)
 	defer d.Stop(t)
 
-	ctx := context.Background()
 	client := d.NewClientT(t)
 
 	layerStore, _ := layer.NewStoreFromOptions(layer.StoreOptions{
@@ -57,7 +59,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 		LayerStore: layerStore,
 	})
 
-	img := "test-garbage-collector"
+	const imgName = "test-garbage-collector"
 
 	// Build a image with multiple layers
 	dockerfile := `FROM busybox
@@ -69,17 +71,17 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
-			Tags:        []string{img},
+			Tags:        []string{imgName},
 		})
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
-	image, _, err := client.ImageInspectWithRaw(ctx, img)
+	img, _, err := client.ImageInspectWithRaw(ctx, imgName)
 	assert.NilError(t, err)
 
 	// Mark latest image layer to immutable
-	data := image.GraphDriver.Data
+	data := img.GraphDriver.Data
 	file, _ := os.Open(data["UpperDir"])
 	attr := 0x00000010
 	fsflags := uintptr(0x40086602)
@@ -89,7 +91,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 
 	// Try to remove the image, it should generate error
 	// but marking layer back to mutable before checking errors (so we don't break CI server)
-	_, err = client.ImageRemove(ctx, img, types.ImageRemoveOptions{})
+	_, err = client.ImageRemove(ctx, imgName, image.RemoveOptions{})
 	attr = 0x00000000
 	argp = uintptr(unsafe.Pointer(&attr))
 	_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), fsflags, argp)

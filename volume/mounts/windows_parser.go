@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -128,7 +129,6 @@ func (p *windowsParser) splitRawSpec(raw string, splitRegexp *regexp.Regexp) ([]
 			exists, isDir, _ := p.fi.fileInfo(matchgroups["destination"])
 			if exists && !isDir {
 				return nil, fmt.Errorf("file '%s' cannot be mapped. Only directories can be mapped on this platform", matchgroups["destination"])
-
 			}
 		}
 	}
@@ -192,6 +192,7 @@ func (p *windowsParser) ValidateVolumeName(name string) error {
 	}
 	return nil
 }
+
 func (p *windowsParser) ValidateMountConfig(mnt *mount.Mount) error {
 	return p.validateMountConfigReg(mnt, windowsValidators)
 }
@@ -200,8 +201,7 @@ type fileInfoProvider interface {
 	fileInfo(path string) (exist, isDir bool, err error)
 }
 
-type defaultFileInfoProvider struct {
-}
+type defaultFileInfoProvider struct{}
 
 func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err error) {
 	fi, err := os.Stat(path)
@@ -259,7 +259,19 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 			return &errMountConfig{mnt, errExtraField("BindOptions")}
 		}
 
-		if len(mnt.Source) == 0 && mnt.ReadOnly {
+		anonymousVolume := len(mnt.Source) == 0
+		if mnt.VolumeOptions != nil && mnt.VolumeOptions.Subpath != "" {
+			if anonymousVolume {
+				return errAnonymousVolumeWithSubpath
+			}
+
+			// Check if path is relative but without any back traversals
+			if !filepath.IsLocal(mnt.VolumeOptions.Subpath) {
+				return &errMountConfig{mnt, errInvalidSubpath}
+			}
+		}
+
+		if anonymousVolume && mnt.ReadOnly {
 			return &errMountConfig{mnt, fmt.Errorf("must not set ReadOnly mode when using anonymous volumes")}
 		}
 
@@ -416,20 +428,18 @@ func (p *windowsParser) ParseVolumesFrom(spec string) (string, string, error) {
 		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
 	}
 
-	specParts := strings.SplitN(spec, ":", 2)
-	id := specParts[0]
-	mode := "rw"
+	id, mode, _ := strings.Cut(spec, ":")
+	if mode == "" {
+		return id, "rw", nil
+	}
 
-	if len(specParts) == 2 {
-		mode = specParts[1]
-		if !windowsValidMountMode(mode) {
-			return "", "", errInvalidMode(mode)
-		}
+	if !windowsValidMountMode(mode) {
+		return "", "", errInvalidMode(mode)
+	}
 
-		// Do not allow copy modes on volumes-from
-		if _, isSet := getCopyMode(mode, p.DefaultCopyMode()); isSet {
-			return "", "", errInvalidMode(mode)
-		}
+	// Do not allow copy modes on volumes-from
+	if _, isSet := getCopyMode(mode, p.DefaultCopyMode()); isSet {
+		return "", "", errInvalidMode(mode)
 	}
 	return id, mode, nil
 }

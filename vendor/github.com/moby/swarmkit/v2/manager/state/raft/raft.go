@@ -132,8 +132,7 @@ type Node struct {
 	// RemovedFromRaft notifies about node deletion from raft cluster
 	RemovedFromRaft chan struct{}
 	cancelFunc      func()
-	// removeRaftCh notifies about node deletion from raft cluster
-	removeRaftCh        chan struct{}
+
 	removeRaftOnce      sync.Once
 	leadershipBroadcast *watch.Queue
 
@@ -930,7 +929,7 @@ func (n *Node) Join(ctx context.Context, req *api.JoinRequest) (*api.JoinRespons
 		return nil, err
 	}
 
-	fields := logrus.Fields{
+	fields := log.Fields{
 		"node.id": nodeInfo.NodeID,
 		"method":  "(*Node).Join",
 		"raft_id": fmt.Sprintf("%x", n.Config.ID),
@@ -938,8 +937,8 @@ func (n *Node) Join(ctx context.Context, req *api.JoinRequest) (*api.JoinRespons
 	if nodeInfo.ForwardedBy != nil {
 		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
 	}
-	log := log.G(ctx).WithFields(fields)
-	log.Debug("")
+	logger := log.G(ctx).WithFields(fields)
+	logger.Debug("")
 
 	// can't stop the raft node while an async RPC is in progress
 	n.stopMu.RLock()
@@ -1000,11 +999,11 @@ func (n *Node) Join(ctx context.Context, req *api.JoinRequest) (*api.JoinRespons
 			}
 
 			if err := n.updateNodeBlocking(ctx, m.RaftID, remoteAddr); err != nil {
-				log.WithError(err).Error("failed to update node address")
+				logger.WithError(err).Error("failed to update node address")
 				return nil, err
 			}
 
-			log.Info("updated node address")
+			logger.Info("updated node address")
 			return n.joinResponse(m.RaftID), nil
 		}
 	}
@@ -1020,11 +1019,11 @@ func (n *Node) Join(ctx context.Context, req *api.JoinRequest) (*api.JoinRespons
 
 	err = n.addMember(ctx, remoteAddr, raftID, nodeInfo.NodeID)
 	if err != nil {
-		log.WithError(err).Errorf("failed to add member %x", raftID)
+		logger.WithError(err).Errorf("failed to add member %x", raftID)
 		return nil, err
 	}
 
-	log.Debug("node joined")
+	logger.Debug("node joined")
 
 	return n.joinResponse(raftID), nil
 }
@@ -1127,7 +1126,7 @@ func (n *Node) UpdateNode(id uint64, addr string) {
 	// spawn updating info in raft in background to unblock transport
 	go func() {
 		if err := n.updateNodeBlocking(ctx, id, addr); err != nil {
-			log.G(ctx).WithFields(logrus.Fields{"raft_id": n.Config.ID, "update_id": id}).WithError(err).Error("failed to update member address in cluster")
+			log.G(ctx).WithFields(log.Fields{"raft_id": n.Config.ID, "update_id": id}).WithError(err).Error("failed to update member address in cluster")
 		}
 	}()
 }
@@ -1149,7 +1148,7 @@ func (n *Node) Leave(ctx context.Context, req *api.LeaveRequest) (*api.LeaveResp
 	ctx, cancel := n.WithContext(ctx)
 	defer cancel()
 
-	fields := logrus.Fields{
+	fields := log.Fields{
 		"node.id": nodeInfo.NodeID,
 		"method":  "(*Node).Leave",
 		"raft_id": fmt.Sprintf("%x", n.Config.ID),
@@ -1274,7 +1273,7 @@ func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
 // ProcessRaftMessage. Usually nothing will be logged, so it is useful to avoid
 // formatting strings and allocating a logger when it won't be used.
 func (n *Node) processRaftMessageLogger(ctx context.Context, msg *api.ProcessRaftMessageRequest) *logrus.Entry {
-	fields := logrus.Fields{
+	fields := log.Fields{
 		"method": "(*Node).ProcessRaftMessage",
 	}
 
@@ -1289,6 +1288,7 @@ func (n *Node) processRaftMessageLogger(ctx context.Context, msg *api.ProcessRaf
 	return log.G(ctx).WithFields(fields)
 }
 
+//nolint:unused // currently unused, but should be used again; see TODO in Node.ProcessRaftMessage
 func (n *Node) reportNewAddress(ctx context.Context, id uint64) error {
 	// too early
 	if !n.IsMember() {
@@ -1418,9 +1418,9 @@ func (n *Node) ProcessRaftMessage(ctx context.Context, msg *api.ProcessRaftMessa
 	// See https://github.com/docker/docker/issues/30455.
 	// This should be reenabled in the future with additional
 	// safeguards (perhaps storing multiple addresses per node).
-	//if err := n.reportNewAddress(ctx, msg.Message.From); err != nil {
+	// if err := n.reportNewAddress(ctx, msg.Message.From); err != nil {
 	//	log.G(ctx).WithError(err).Errorf("failed to report new address of %x to transport", msg.Message.From)
-	//}
+	// }
 
 	// Reject vote requests from unreachable peers
 	if msg.Message.Type == raftpb.MsgVote {
@@ -1474,7 +1474,7 @@ func (n *Node) ResolveAddress(ctx context.Context, msg *api.ResolveAddressReques
 		return nil, err
 	}
 
-	fields := logrus.Fields{
+	fields := log.Fields{
 		"node.id": nodeInfo.NodeID,
 		"method":  "(*Node).ResolveAddress",
 		"raft_id": fmt.Sprintf("%x", n.Config.ID),

@@ -1,7 +1,6 @@
 file {
   name: "github.com/containerd/containerd/runtime/v2/runc/options/oci.proto"
   package: "containerd.runc.v1"
-  dependency: "gogoproto/gogo.proto"
   message_type {
     name: "Options"
     field {
@@ -58,6 +57,9 @@ file {
       number: 8
       label: LABEL_OPTIONAL
       type: TYPE_STRING
+      options {
+        deprecated: true
+      }
       json_name: "criuPath"
     }
     field {
@@ -161,6 +163,5 @@ file {
   options {
     go_package: "github.com/containerd/containerd/runtime/v2/runc/options;options"
   }
-  weak_dependency: 0
   syntax: "proto3"
 }

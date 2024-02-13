@@ -1,3 +1,5 @@
+//go:build windows
+
 package wclayer
 
 // This file contains utility functions to support storage (graph) related
@@ -11,7 +13,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-/* To pass into syscall, we need a struct matching the following:
+/*
+To pass into syscall, we need a struct matching the following:
+
 enum GraphDriverType
 {
     DiffDriver,
@@ -34,32 +38,34 @@ var (
 	stdDriverInfo    = driverInfo{1, &utf16EmptyString}
 )
 
-/* To pass into syscall, we need a struct matching the following:
+/*
+To pass into syscall, we need a struct matching the following:
+
 typedef struct _WC_LAYER_DESCRIPTOR {
 
-    //
-    // The ID of the layer
-    //
+	//
+	// The ID of the layer
+	//
 
-    GUID LayerId;
+	GUID LayerId;
 
-    //
-    // Additional flags
-    //
+	//
+	// Additional flags
+	//
 
-    union {
-        struct {
-            ULONG Reserved : 31;
-            ULONG Dirty : 1;    // Created from sandbox as a result of snapshot
-        };
-        ULONG Value;
-    } Flags;
+	union {
+	    struct {
+	        ULONG Reserved : 31;
+	        ULONG Dirty : 1;    // Created from sandbox as a result of snapshot
+	    };
+	    ULONG Value;
+	} Flags;
 
-    //
-    // Path to the layer root directory, null-terminated
-    //
+	//
+	// Path to the layer root directory, null-terminated
+	//
 
-    PCWSTR Path;
+	PCWSTR Path;
 
 } WC_LAYER_DESCRIPTOR, *PWC_LAYER_DESCRIPTOR;
 */
