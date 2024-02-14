@@ -3,4 +3,4 @@
 package cloudwatchlogs
 
 // goModuleVersion is the tagged release for this module
-const goModuleVersion = "1.15.17"
+const goModuleVersion = "1.32.0"
