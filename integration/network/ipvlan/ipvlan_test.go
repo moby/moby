@@ -96,7 +96,7 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 			t.Cleanup(func() { d.Stop(t) })
 			d.StartWithBusybox(ctx, t)
 			c := d.NewClientT(t)
-			tc.test(ctx, c)
+			tc.test(ctx, c)(t)
 		})
 
 		// FIXME(vdemeester) clean network
