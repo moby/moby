@@ -34,7 +34,7 @@ type DescribeDestinationsInput struct {
 	DestinationNamePrefix *string
 
 	// The maximum number of items returned. If you don't specify a value, the default
-	// is up to 50 items.
+	// maximum value of 50 items is used.
 	Limit *int32
 
 	// The token for the next set of items to return. (You received this token from a
@@ -59,12 +59,22 @@ type DescribeDestinationsOutput struct {
 }
 
 func (c *Client) addOperationDescribeDestinationsMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeDestinations{}, middleware.After)
 	if err != nil {
 		return err
 	}
 	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeDestinations{}, middleware.After)
 	if err != nil {
+		return err
+	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "DescribeDestinations"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
 		return err
 	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
@@ -85,16 +95,13 @@ func (c *Client) addOperationDescribeDestinationsMiddlewares(stack *middleware.S
 	if err = addRetryMiddlewares(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
-		return err
-	}
 	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
 		return err
 	}
 	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -103,7 +110,13 @@ func (c *Client) addOperationDescribeDestinationsMiddlewares(stack *middleware.S
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeDestinations(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -113,6 +126,9 @@ func (c *Client) addOperationDescribeDestinationsMiddlewares(stack *middleware.S
 		return err
 	}
 	if err = addRequestResponseLogging(stack, options); err != nil {
+		return err
+	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
 	return nil
@@ -130,7 +146,7 @@ var _ DescribeDestinationsAPIClient = (*Client)(nil)
 // DescribeDestinations
 type DescribeDestinationsPaginatorOptions struct {
 	// The maximum number of items returned. If you don't specify a value, the default
-	// is up to 50 items.
+	// maximum value of 50 items is used.
 	Limit int32
 
 	// Set to true if pagination should stop if the service returns a pagination token
@@ -214,7 +230,6 @@ func newServiceMetadataMiddleware_opDescribeDestinations(region string) *awsmidd
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "logs",
 		OperationName: "DescribeDestinations",
 	}
 }
