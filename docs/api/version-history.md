@@ -86,6 +86,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   `SecondaryIPv6Addresses` available in `NetworkSettings` when calling `GET /containers/{id}/json` are
   deprecated and will be removed in a future release. You should instead look for the default network in
   `NetworkSettings.Networks`.
+* `GET /images/{id}/json` now responds with an empty `Created` field
+  (previously it was `0001-01-01T00:00:00Z`) if the `Created` field is missing
+  from the image config.
 
 ## v1.43 API changes
 

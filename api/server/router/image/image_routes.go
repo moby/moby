@@ -299,6 +299,12 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 	version := httputils.VersionFromContext(ctx)
 	if versions.LessThan(version, "1.44") {
 		imageInspect.VirtualSize = imageInspect.Size //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
+
+		if imageInspect.Created == "" {
+			// backwards compatibility for Created not existing returning "0001-01-01T00:00:00Z"
+			// https://github.com/moby/moby/issues/47368
+			imageInspect.Created = time.Time{}.Format(time.RFC3339Nano)
+		}
 	}
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
 }
