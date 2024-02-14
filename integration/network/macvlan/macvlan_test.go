@@ -82,7 +82,7 @@ func TestDockerNetworkMacvlan(t *testing.T) {
 			d.StartWithBusybox(ctx, t)
 			c := d.NewClientT(t)
 
-			tc.test(ctx, c)
+			tc.test(ctx, c)(t)
 		})
 
 		// FIXME(vdemeester) clean network
