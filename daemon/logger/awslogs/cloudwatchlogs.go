@@ -406,11 +406,10 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 	clientOpts = append(
 		clientOpts,
 		cloudwatchlogs.WithAPIOptions(middleware.AddUserAgentKeyValue("Docker", dockerversion.Version)),
+		func(o *cloudwatchlogs.Options) {
+			o.BaseEndpoint = endpoint
+		},
 	)
-
-	if endpoint != nil {
-		clientOpts = append(clientOpts, cloudwatchlogs.WithEndpointResolver(cloudwatchlogs.EndpointResolverFromURL(*endpoint)))
-	}
 
 	client := cloudwatchlogs.NewFromConfig(cfg, clientOpts...)
 
