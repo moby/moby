@@ -175,15 +175,22 @@ func (s *DockerCLIInspectSuite) TestInspectContainerFilterInt(c *testing.T) {
 }
 
 func (s *DockerCLIInspectSuite) TestInspectBindMountPoint(c *testing.T) {
-	modifier := ",z"
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+	mopt := prefix + slash + "data:" + prefix + slash + "data"
+
+	mode := ""
 	if testEnv.DaemonInfo.OSType == "windows" {
-		modifier = ""
 		// Linux creates the host directory if it doesn't exist. Windows does not.
 		os.Mkdir(`c:\data`, os.ModeDir)
+	} else {
+		mode = "z" // Relabel
 	}
 
-	cli.DockerCmd(c, "run", "-d", "--name", "test", "-v", prefix+slash+"data:"+prefix+slash+"data:ro"+modifier, "busybox", "cat")
+	if mode != "" {
+		mopt += ":" + mode
+	}
+
+	cli.DockerCmd(c, "run", "-d", "--name", "test", "-v", mopt, "busybox", "cat")
 
 	vol := inspectFieldJSON(c, "test", "Mounts")
 
@@ -200,10 +207,8 @@ func (s *DockerCLIInspectSuite) TestInspectBindMountPoint(c *testing.T) {
 	assert.Equal(c, m.Driver, "")
 	assert.Equal(c, m.Source, prefix+slash+"data")
 	assert.Equal(c, m.Destination, prefix+slash+"data")
-	if testEnv.DaemonInfo.OSType != "windows" { // Windows does not set mode
-		assert.Equal(c, m.Mode, "ro"+modifier)
-	}
-	assert.Equal(c, m.RW, false)
+	assert.Equal(c, m.Mode, mode)
+	assert.Equal(c, m.RW, true)
 }
 
 func (s *DockerCLIInspectSuite) TestInspectNamedMountPoint(c *testing.T) {

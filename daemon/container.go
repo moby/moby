@@ -203,10 +203,10 @@ func (daemon *Daemon) setSecurityOptions(cfg *config.Config, container *containe
 	return daemon.parseSecurityOpt(cfg, &container.SecurityOptions, hostConfig)
 }
 
-func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *containertypes.HostConfig, defaultReadOnlyNonRecursive bool) error {
 	// Do not lock while creating volumes since this could be calling out to external plugins
 	// Don't want to block other actions, like `docker ps` because we're waiting on an external plugin
-	if err := daemon.registerMountPoints(container, hostConfig); err != nil {
+	if err := daemon.registerMountPoints(container, hostConfig, defaultReadOnlyNonRecursive); err != nil {
 		return err
 	}
 

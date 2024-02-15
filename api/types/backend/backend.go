@@ -13,12 +13,13 @@ import (
 
 // ContainerCreateConfig is the parameter set to ContainerCreate()
 type ContainerCreateConfig struct {
-	Name             string
-	Config           *container.Config
-	HostConfig       *container.HostConfig
-	NetworkingConfig *network.NetworkingConfig
-	Platform         *ocispec.Platform
-	AdjustCPUShares  bool
+	Name                        string
+	Config                      *container.Config
+	HostConfig                  *container.HostConfig
+	NetworkingConfig            *network.NetworkingConfig
+	Platform                    *ocispec.Platform
+	AdjustCPUShares             bool
+	DefaultReadOnlyNonRecursive bool
 }
 
 // ContainerRmConfig holds arguments for the container remove
