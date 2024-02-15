@@ -3,4 +3,4 @@
 package configsources
 
 // goModuleVersion is the tagged release for this module
-const goModuleVersion = "1.1.30"
+const goModuleVersion = "1.2.10"

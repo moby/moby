@@ -1,3 +1,158 @@
+# v1.21.7 (2024-01-16)
+
+* No change notes available for this release.
+
+# v1.21.6 (2024-01-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.21.5 (2023-12-08)
+
+* **Bug Fix**: Reinstate presence of default Retryer in functional options, but still respect max attempts set therein.
+
+# v1.21.4 (2023-12-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.21.3 (2023-12-06)
+
+* **Bug Fix**: Restore pre-refactor auth behavior where all operations could technically be performed anonymously.
+
+# v1.21.2 (2023-12-01)
+
+* **Bug Fix**: Correct wrapping of errors in authentication workflow.
+* **Bug Fix**: Correctly recognize cache-wrapped instances of AnonymousCredentials at client construction.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.21.1 (2023-11-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.21.0 (2023-11-29)
+
+* **Feature**: Expose Options() accessor on service clients.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.3 (2023-11-28.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.2 (2023-11-28)
+
+* **Bug Fix**: Respect setting RetryMaxAttempts in functional options at client construction.
+
+# v1.20.1 (2023-11-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.0 (2023-11-17)
+
+* **Feature**: Adding support for `sso-oauth:CreateTokenWithIAM`.
+
+# v1.19.2 (2023-11-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.1 (2023-11-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.0 (2023-11-01)
+
+* **Feature**: Adds support for configured endpoints via environment variables and the AWS shared configuration file.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.0 (2023-10-31)
+
+* **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.3 (2023-10-12)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.2 (2023-10-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.1 (2023-09-22)
+
+* No change notes available for this release.
+
+# v1.17.0 (2023-09-20)
+
+* **Feature**: Update FIPS endpoints in aws-us-gov.
+
+# v1.16.0 (2023-09-18)
+
+* **Announcement**: [BREAKFIX] Change in MaxResults datatype from value to pointer type in cognito-sync service.
+* **Feature**: Adds several endpoint ruleset changes across all models: smaller rulesets, removed non-unique regional endpoints, fixes FIPS and DualStack endpoints, and make region not required in SDK::Endpoint. Additional breakfix to cognito-sync field.
+
+# v1.15.6 (2023-09-05)
+
+* No change notes available for this release.
+
+# v1.15.5 (2023-08-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.4 (2023-08-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.3 (2023-08-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.2 (2023-08-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.1 (2023-08-01)
+
+* No change notes available for this release.
+
+# v1.15.0 (2023-07-31)
+
+* **Feature**: Adds support for smithy-modeled endpoint resolution. A new rules-based endpoint resolution will be added to the SDK which will supercede and deprecate existing endpoint resolution. Specifically, EndpointResolver will be deprecated while BaseEndpoint and EndpointResolverV2 will take its place. For more information, please see the Endpoints section in our Developer Guide.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.14 (2023-07-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.13 (2023-07-13)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.12 (2023-06-15)
+
+* No change notes available for this release.
+
+# v1.14.11 (2023-06-13)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.10 (2023-05-04)
+
+* No change notes available for this release.
+
+# v1.14.9 (2023-04-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.8 (2023-04-10)
+
+* No change notes available for this release.
+
+# v1.14.7 (2023-04-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.6 (2023-03-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.14.5 (2023-03-10)
 
 * **Dependency Update**: Updated to the latest SDK module versions
