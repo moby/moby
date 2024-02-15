@@ -191,6 +191,66 @@ func TestBridgeICC(t *testing.T) {
 	}
 }
 
+// TestBridgeICCWindows tries to ping container ctr1 from container ctr2 using its hostname.
+// Checks DNS resolution, and whether containers can communicate with each other.
+// Regression test for https://github.com/moby/moby/issues/47370
+func TestBridgeICCWindows(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
+
+	ctx := setupTest(t)
+	c := testEnv.APIClient()
+
+	testcases := []struct {
+		name    string
+		netName string
+	}{
+		{
+			name:    "Default nat network",
+			netName: "nat",
+		},
+		{
+			name:    "User defined nat network",
+			netName: "mynat",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			if tc.netName != "nat" {
+				network.CreateNoError(ctx, t, c, tc.netName,
+					network.WithDriver("nat"),
+				)
+				defer network.RemoveNoError(ctx, t, c, tc.netName)
+			}
+
+			const ctr1Name = "ctr1"
+			id1 := container.Run(ctx, t, c,
+				container.WithName(ctr1Name),
+				container.WithNetworkMode(tc.netName),
+			)
+			defer c.ContainerRemove(ctx, id1, containertypes.RemoveOptions{Force: true})
+
+			pingCmd := []string{"ping", "-n", "1", "-w", "3000", ctr1Name}
+
+			const ctr2Name = "ctr2"
+			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			res := container.RunAttach(attachCtx, t, c,
+				container.WithName(ctr2Name),
+				container.WithCmd(pingCmd...),
+				container.WithNetworkMode(tc.netName),
+			)
+			defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+
+			assert.Check(t, is.Equal(res.ExitCode, 0))
+			assert.Check(t, is.Equal(res.Stderr.Len(), 0))
+			assert.Check(t, is.Contains(res.Stdout.String(), "Sent = 1, Received = 1, Lost = 0"))
+		})
+	}
+}
+
 // TestBridgeINC makes sure two containers on two different bridge networks can't communicate with each other.
 func TestBridgeINC(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
