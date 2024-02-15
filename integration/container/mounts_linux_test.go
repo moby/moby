@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
@@ -426,6 +427,78 @@ func TestContainerCopyLeaksMounts(t *testing.T) {
 	assert.Equal(t, mountsBefore, mountsAfter)
 }
 
+func TestContainerBindMountReadOnlyDefault(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, !isRROSupported(), "requires recursive read-only mounts")
+
+	ctx := setupTest(t)
+
+	// The test will run a container with a simple readonly /dev bind mount (-v /dev:/dev:ro)
+	// It will then check /proc/self/mountinfo for the mount type of /dev/shm (submount of /dev)
+	// If /dev/shm is rw, that will mean that the read-only mounts are NOT recursive by default.
+	const nonRecursive = " /dev/shm rw,"
+	// If /dev/shm is ro, that will mean that the read-only mounts ARE recursive by default.
+	const recursive = " /dev/shm ro,"
+
+	for _, tc := range []struct {
+		clientVersion string
+		expectedOut   string
+		name          string
+	}{
+		{clientVersion: "", expectedOut: recursive, name: "latest should be the same as 1.44"},
+		{clientVersion: "1.44", expectedOut: recursive, name: "submount should be recursive by default on 1.44"},
+
+		{clientVersion: "1.43", expectedOut: nonRecursive, name: "older than 1.44 should be non-recursive by default"},
+
+		// TODO: Remove when MinSupportedAPIVersion >= 1.44
+		{clientVersion: api.MinSupportedAPIVersion, expectedOut: nonRecursive, name: "minimum API should be non-recursive by default"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			apiClient := testEnv.APIClient()
+
+			minDaemonVersion := tc.clientVersion
+			if minDaemonVersion == "" {
+				minDaemonVersion = "1.44"
+			}
+			skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), minDaemonVersion), "requires API v"+minDaemonVersion)
+
+			if tc.clientVersion != "" {
+				c, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(tc.clientVersion))
+				assert.NilError(t, err, "failed to create client with version v%s", tc.clientVersion)
+				apiClient = c
+			}
+
+			for _, tc2 := range []struct {
+				subname  string
+				mountOpt func(*container.TestContainerConfig)
+			}{
+				{"mount", container.WithMount(mounttypes.Mount{
+					Type:     mounttypes.TypeBind,
+					Source:   "/dev",
+					Target:   "/dev",
+					ReadOnly: true,
+				})},
+				{"bind mount", container.WithBindRaw("/dev:/dev:ro")},
+			} {
+				t.Run(tc2.subname, func(t *testing.T) {
+					cid := container.Run(ctx, t, apiClient, tc2.mountOpt,
+						container.WithCmd("sh", "-c", "grep /dev/shm /proc/self/mountinfo"),
+					)
+					out, err := container.Output(ctx, apiClient, cid)
+					assert.NilError(t, err)
+
+					assert.Check(t, is.Equal(out.Stderr, ""))
+					// Output should be either:
+					// 545 526 0:160 / /dev/shm ro,nosuid,nodev,noexec,relatime shared:90 - tmpfs shm rw,size=65536k
+					// or
+					// 545 526 0:160 / /dev/shm rw,nosuid,nodev,noexec,relatime shared:90 - tmpfs shm rw,size=65536k
+					assert.Check(t, is.Contains(out.Stdout, tc.expectedOut))
+				})
+			}
+		})
+	}
+}
+
 func TestContainerBindMountRecursivelyReadOnly(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "requires API v1.44")
@@ -450,7 +523,7 @@ func TestContainerBindMountRecursivelyReadOnly(t *testing.T) {
 		}
 	}()
 
-	rroSupported := kernel.CheckKernelVersion(5, 12, 0)
+	rroSupported := isRROSupported()
 
 	nonRecursiveVerifier := []string{`/bin/sh`, `-xc`, `touch /foo/mnt/file; [ $? = 0 ]`}
 	forceRecursiveVerifier := []string{`/bin/sh`, `-xc`, `touch /foo/mnt/file; [ $? != 0 ]`}
@@ -503,4 +576,8 @@ func TestContainerBindMountRecursivelyReadOnly(t *testing.T) {
 	for _, c := range containers {
 		poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, c), poll.WithDelay(100*time.Millisecond))
 	}
+}
+
+func isRROSupported() bool {
+	return kernel.CheckKernelVersion(5, 12, 0)
 }

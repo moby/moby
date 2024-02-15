@@ -556,17 +556,27 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.Annotations = nil
 	}
 
+	defaultReadOnlyNonRecursive := false
 	if versions.LessThan(version, "1.44") {
 		if config.Healthcheck != nil {
 			// StartInterval was added in API 1.44
 			config.Healthcheck.StartInterval = 0
 		}
 
+		// Set ReadOnlyNonRecursive to true because it was added in API 1.44
+		// Before that all read-only mounts were non-recursive.
+		// Keep that behavior for clients on older APIs.
+		defaultReadOnlyNonRecursive = true
+
 		for _, m := range hostConfig.Mounts {
-			if m.BindOptions != nil {
-				// Ignore ReadOnlyNonRecursive because it was added in API 1.44.
-				m.BindOptions.ReadOnlyNonRecursive = false
-				if m.BindOptions.ReadOnlyForceRecursive {
+			if m.Type == mount.TypeBind {
+				if m.BindOptions != nil && m.BindOptions.ReadOnlyForceRecursive {
+					// NOTE: that technically this is a breaking change for older
+					// API versions, and we should ignore the new field.
+					// However, this option may be incorrectly set by a client with
+					// the expectation that the failing to apply recursive read-only
+					// is enforced, so we decided to produce an error instead,
+					// instead of silently ignoring.
 					return errdefs.InvalidParameter(errors.New("BindOptions.ReadOnlyForceRecursive needs API v1.44 or newer"))
 				}
 			}
@@ -606,11 +616,12 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	}
 
 	ccr, err := s.backend.ContainerCreate(ctx, backend.ContainerCreateConfig{
-		Name:             name,
-		Config:           config,
-		HostConfig:       hostConfig,
-		NetworkingConfig: networkingConfig,
-		Platform:         platform,
+		Name:                        name,
+		Config:                      config,
+		HostConfig:                  hostConfig,
+		NetworkingConfig:            networkingConfig,
+		Platform:                    platform,
+		DefaultReadOnlyNonRecursive: defaultReadOnlyNonRecursive,
 	})
 	if err != nil {
 		return err

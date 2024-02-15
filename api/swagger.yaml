@@ -391,7 +391,11 @@ definitions:
           ReadOnlyNonRecursive:
             description: |
                Make the mount non-recursively read-only, but still leave the mount recursive
-               (unless NonRecursive is set to true in conjunction).
+               (unless NonRecursive is set to `true` in conjunction).
+
+               Addded in v1.44, before that version all read-only mounts were
+               non-recursive by default. To match the previous behaviour this
+               will default to `true` for clients on versions prior to v1.44.
             type: "boolean"
             default: false
           ReadOnlyForceRecursive:
