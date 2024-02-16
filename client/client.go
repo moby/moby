@@ -49,6 +49,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api"
@@ -132,6 +133,9 @@ type Client struct {
 
 	// negotiated indicates that API version negotiation took place
 	negotiated bool
+
+	// negotiationMutex locks negotiateVersion and negotiated.
+	negotiationMutex sync.Mutex
 
 	tp trace.TracerProvider
 
@@ -266,7 +270,10 @@ func (cli *Client) Close() error {
 // be negotiated when making the actual requests, and for which cases
 // we cannot do the negotiation lazily.
 func (cli *Client) checkVersion(ctx context.Context) {
-	if cli.negotiateVersion && !cli.negotiated {
+	cli.negotiationMutex.Lock()
+	shouldNegotiate := cli.negotiateVersion && !cli.negotiated
+	cli.negotiationMutex.Unlock()
+	if shouldNegotiate {
 		cli.NegotiateAPIVersion(ctx)
 	}
 }
@@ -334,6 +341,9 @@ func (cli *Client) NegotiateAPIVersionPing(pingResponse types.Ping) {
 // negotiateAPIVersionPing queries the API and updates the version to match the
 // API version from the ping response.
 func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
+	cli.negotiationMutex.Lock()
+	defer cli.negotiationMutex.Unlock()
+
 	// default to the latest version before versioning headers existed
 	if pingResponse.APIVersion == "" {
 		pingResponse.APIVersion = fallbackAPIVersion
