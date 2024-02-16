@@ -332,7 +332,27 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 	}
 
 	if err := network.ValidateIPAM(create.IPAM, create.EnableIPv6); err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		if agent {
+			// This function is called with agent=false for all networks. For swarm-scoped
+			// networks, the configuration is validated but ManagerRedirectError is returned
+			// and the network is not created. Then, each time a swarm-scoped network is
+			// needed, this function is called again with agent=true.
+			//
+			// Non-swarm networks created before ValidateIPAM was introduced continue to work
+			// as they did before-upgrade, even if they would fail the new checks on creation
+			// (for example, by having host-bits set in their subnet). Those networks are not
+			// seen again here.
+			//
+			// By dropping errors for agent networks, existing swarm-scoped networks also
+			// continue to behave as they did before upgrade - but new networks are still
+			// validated.
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error":   err,
+				"network": create.Name,
+			}).Warn("Continuing with validation errors in agent IPAM")
+		} else {
+			return nil, errdefs.InvalidParameter(err)
+		}
 	}
 
 	if create.IPAM != nil {
