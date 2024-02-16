@@ -1,16 +1,22 @@
 package mobyexporter
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/leases"
 	distref "github.com/distribution/reference"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/moby/buildkit/exporter"
+	"github.com/moby/buildkit/exporter/containerimage"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -25,9 +31,11 @@ type ImageTagger interface {
 
 // Opt defines a struct for creating new exporter
 type Opt struct {
-	ImageStore  image.Store
-	Differ      Differ
-	ImageTagger ImageTagger
+	ImageStore   image.Store
+	Differ       Differ
+	ImageTagger  ImageTagger
+	ContentStore content.Store
+	LeaseManager leases.Manager
 }
 
 type imageExporter struct {
@@ -202,5 +210,34 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 		resp["image.name"] = strings.Join(names, ",")
 	}
 
-	return resp, nil, nil
+	descRef, err := e.newTempReference(ctx, config)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create a temporary descriptor reference: %w", err)
+	}
+
+	return resp, descRef, nil
+}
+
+func (e *imageExporterInstance) newTempReference(ctx context.Context, config []byte) (exporter.DescriptorReference, error) {
+	lm := e.opt.LeaseManager
+
+	dgst := digest.FromBytes(config)
+	lease, err := lm.Create(ctx, leases.WithRandomID(), leases.WithExpiration(time.Hour))
+	if err != nil {
+		return nil, err
+	}
+
+	desc := ocispec.Descriptor{
+		Digest:    dgst,
+		MediaType: "application/vnd.docker.container.image.v1+json",
+		Size:      int64(len(config)),
+	}
+
+	if err := content.WriteBlob(ctx, e.opt.ContentStore, desc.Digest.String(), bytes.NewReader(config), desc); err != nil {
+		return nil, fmt.Errorf("failed to save temporary image config: %w", err)
+	}
+
+	return containerimage.NewDescriptorReference(desc, func(ctx context.Context) error {
+		return lm.Delete(ctx, lease)
+	}), nil
 }
