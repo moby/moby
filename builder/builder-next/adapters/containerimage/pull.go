@@ -36,7 +36,7 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
-	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/pb"
@@ -44,7 +44,6 @@ import (
 	"github.com/moby/buildkit/source/containerimage"
 	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/sourcepolicy"
-	policy "github.com/moby/buildkit/sourcepolicy/pb"
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
@@ -178,7 +177,7 @@ type resolveRemoteResult struct {
 	dt   []byte
 }
 
-func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocispec.Platform, sm *session.Manager, g session.Group) (string, digest.Digest, []byte, error) {
+func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocispec.Platform, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
 	p := platforms.DefaultSpec()
 	if platform != nil {
 		p = *platform
@@ -187,34 +186,36 @@ func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocisp
 	key := "getconfig::" + ref + "::" + platforms.Format(p)
 	res, err := is.g.Do(ctx, key, func(ctx context.Context) (*resolveRemoteResult, error) {
 		res := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g)
-		ref, dgst, dt, err := imageutil.Config(ctx, ref, res, is.ContentStore, is.LeaseManager, platform, []*policy.Policy{})
+		dgst, dt, err := imageutil.Config(ctx, ref, res, is.ContentStore, is.LeaseManager, platform)
 		if err != nil {
 			return nil, err
 		}
 		return &resolveRemoteResult{ref: ref, dgst: dgst, dt: dt}, nil
 	})
 	if err != nil {
-		return ref, "", nil, err
+		return "", nil, err
 	}
-	return res.ref, res.dgst, res.dt, nil
+	return res.dgst, res.dt, nil
 }
 
 // ResolveImageConfig returns image config for an image
-func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (string, digest.Digest, []byte, error) {
+func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
+	if opt.ImageOpt == nil {
+		return "", nil, fmt.Errorf("can only resolve an image: %v, opt: %v", ref, opt)
+	}
 	ref, err := applySourcePolicies(ctx, ref, opt.SourcePolicies)
 	if err != nil {
-		return "", "", nil, err
+		return "", nil, err
 	}
-	resolveMode, err := resolver.ParseImageResolveMode(opt.ResolveMode)
+	resolveMode, err := resolver.ParseImageResolveMode(opt.ImageOpt.ResolveMode)
 	if err != nil {
-		return ref, "", nil, err
+		return "", nil, err
 	}
 	switch resolveMode {
 	case resolver.ResolveModeForcePull:
-		ref, dgst, dt, err := is.resolveRemote(ctx, ref, opt.Platform, sm, g)
+		return is.resolveRemote(ctx, ref, opt.Platform, sm, g)
 		// TODO: pull should fallback to local in case of failure to allow offline behavior
 		// the fallback doesn't work currently
-		return ref, dgst, dt, err
 		/*
 			if err == nil {
 				return dgst, dt, err
@@ -236,14 +237,14 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 					path.Join(img.OS, img.Architecture, img.Variant),
 				)
 			} else {
-				return ref, "", img.RawJSON(), err
+				return "", img.RawJSON(), err
 			}
 		}
 		// fallback to remote
 		return is.resolveRemote(ctx, ref, opt.Platform, sm, g)
 	}
 	// should never happen
-	return ref, "", nil, fmt.Errorf("builder cannot resolve image %s: invalid mode %q", ref, opt.ResolveMode)
+	return "", nil, fmt.Errorf("builder cannot resolve image %s: invalid mode %q", ref, opt.ImageOpt.ResolveMode)
 }
 
 // Resolve returns access to pulling for an identifier
@@ -373,12 +374,16 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 			if err != nil {
 				return struct{}{}, err
 			}
-			newRef, _, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: p.src.ResolveMode.String()}, p.sm, g)
+			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), sourceresolver.Opt{
+				Platform: &p.platform,
+				ImageOpt: &sourceresolver.ResolveImageOpt{
+					ResolveMode: p.src.ResolveMode.String(),
+				},
+			}, p.sm, g)
 			if err != nil {
 				return struct{}{}, err
 			}
 
-			p.ref = newRef
 			p.config = dt
 		}
 		return struct{}{}, nil
@@ -945,7 +950,7 @@ func applySourcePolicies(ctx context.Context, str string, spls []*spb.Policy) (s
 		},
 	}
 
-	mut, err := sourcepolicy.NewEngine(spls).Evaluate(ctx, op)
+	mut, err := sourcepolicy.NewEngine(spls).Evaluate(ctx, op.GetSource())
 	if err != nil {
 		return "", errors.Wrap(err, "could not resolve image due to policy")
 	}
