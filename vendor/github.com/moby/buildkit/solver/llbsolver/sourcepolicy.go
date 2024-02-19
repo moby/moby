@@ -7,5 +7,5 @@ import (
 )
 
 type SourcePolicyEvaluator interface {
-	Evaluate(ctx context.Context, op *pb.Op) (bool, error)
+	Evaluate(ctx context.Context, op *pb.SourceOp) (bool, error)
 }

@@ -12,9 +12,6 @@ import (
 )
 
 const (
-	// indexFile is the name of the index file
-	indexFile = "index.json"
-
 	// lockFileSuffix is the suffix of the lock file
 	lockFileSuffix = ".lock"
 )
@@ -26,7 +23,7 @@ type StoreIndex struct {
 }
 
 func NewStoreIndex(storePath string) StoreIndex {
-	indexPath := path.Join(storePath, indexFile)
+	indexPath := path.Join(storePath, ocispecs.ImageIndexFile)
 	layoutPath := path.Join(storePath, ocispecs.ImageLayoutFile)
 	return StoreIndex{
 		indexPath:  indexPath,

@@ -8,49 +8,50 @@ import (
 )
 
 type Vertex struct {
-	Digest        digest.Digest
-	Inputs        []digest.Digest
-	Name          string
-	Started       *time.Time
-	Completed     *time.Time
-	Cached        bool
-	Error         string
-	ProgressGroup *pb.ProgressGroup
+	Digest        digest.Digest     `json:"digest,omitempty"`
+	Inputs        []digest.Digest   `json:"inputs,omitempty"`
+	Name          string            `json:"name,omitempty"`
+	Started       *time.Time        `json:"started,omitempty"`
+	Completed     *time.Time        `json:"completed,omitempty"`
+	Cached        bool              `json:"cached,omitempty"`
+	Error         string            `json:"error,omitempty"`
+	ProgressGroup *pb.ProgressGroup `json:"progressGroup,omitempty"`
 }
 
 type VertexStatus struct {
-	ID        string
-	Vertex    digest.Digest
-	Name      string
-	Total     int64
-	Current   int64
-	Timestamp time.Time
-	Started   *time.Time
-	Completed *time.Time
+	ID        string        `json:"id"`
+	Vertex    digest.Digest `json:"vertex,omitempty"`
+	Name      string        `json:"name,omitempty"`
+	Total     int64         `json:"total,omitempty"`
+	Current   int64         `json:"current"`
+	Timestamp time.Time     `json:"timestamp,omitempty"`
+	Started   *time.Time    `json:"started,omitempty"`
+	Completed *time.Time    `json:"completed,omitempty"`
 }
 
 type VertexLog struct {
-	Vertex    digest.Digest
-	Stream    int
-	Data      []byte
-	Timestamp time.Time
+	Vertex    digest.Digest `json:"vertex,omitempty"`
+	Stream    int           `json:"stream,omitempty"`
+	Data      []byte        `json:"data"`
+	Timestamp time.Time     `json:"timestamp"`
 }
 
 type VertexWarning struct {
-	Vertex     digest.Digest
-	Level      int
-	Short      []byte
-	Detail     [][]byte
-	URL        string
-	SourceInfo *pb.SourceInfo
-	Range      []*pb.Range
+	Vertex digest.Digest `json:"vertex,omitempty"`
+	Level  int           `json:"level,omitempty"`
+	Short  []byte        `json:"short,omitempty"`
+	Detail [][]byte      `json:"detail,omitempty"`
+	URL    string        `json:"url,omitempty"`
+
+	SourceInfo *pb.SourceInfo `json:"sourceInfo,omitempty"`
+	Range      []*pb.Range    `json:"range,omitempty"`
 }
 
 type SolveStatus struct {
-	Vertexes []*Vertex
-	Statuses []*VertexStatus
-	Logs     []*VertexLog
-	Warnings []*VertexWarning
+	Vertexes []*Vertex        `json:"vertexes,omitempty"`
+	Statuses []*VertexStatus  `json:"statuses,omitempty"`
+	Logs     []*VertexLog     `json:"logs,omitempty"`
+	Warnings []*VertexWarning `json:"warnings,omitempty"`
 }
 
 type SolveResponse struct {

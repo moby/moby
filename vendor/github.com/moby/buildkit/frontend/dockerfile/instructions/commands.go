@@ -239,11 +239,12 @@ func (s *SourcesAndDest) ExpandRaw(expander SingleWordExpander) error {
 type AddCommand struct {
 	withNameAndCode
 	SourcesAndDest
-	Chown      string
-	Chmod      string
-	Link       bool
-	KeepGitDir bool // whether to keep .git dir, only meaningful for git sources
-	Checksum   string
+	Chown           string
+	Chmod           string
+	Link            bool
+	ExcludePatterns []string
+	KeepGitDir      bool // whether to keep .git dir, only meaningful for git sources
+	Checksum        string
 }
 
 func (c *AddCommand) Expand(expander SingleWordExpander) error {
@@ -270,10 +271,12 @@ func (c *AddCommand) Expand(expander SingleWordExpander) error {
 type CopyCommand struct {
 	withNameAndCode
 	SourcesAndDest
-	From  string
-	Chown string
-	Chmod string
-	Link  bool
+	From            string
+	Chown           string
+	Chmod           string
+	Link            bool
+	ExcludePatterns []string
+	Parents         bool // parents preserves directory structure
 }
 
 func (c *CopyCommand) Expand(expander SingleWordExpander) error {

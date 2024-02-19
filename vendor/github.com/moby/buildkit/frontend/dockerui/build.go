@@ -7,14 +7,14 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
-	"github.com/moby/buildkit/exporter/containerimage/image"
 	"github.com/moby/buildkit/frontend/gateway/client"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
 
-type BuildFunc func(ctx context.Context, platform *ocispecs.Platform, idx int) (client.Reference, *image.Image, error)
+type BuildFunc func(ctx context.Context, platform *ocispecs.Platform, idx int) (r client.Reference, img, baseImg *dockerspec.DockerOCIImage, err error)
 
 func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, error) {
 	res := client.NewResult()
@@ -36,7 +36,7 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 	for i, tp := range targets {
 		i, tp := i, tp
 		eg.Go(func() error {
-			ref, img, err := fn(ctx, tp, i)
+			ref, img, baseImg, err := fn(ctx, tp, i)
 			if err != nil {
 				return err
 			}
@@ -44,6 +44,14 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 			config, err := json.Marshal(img)
 			if err != nil {
 				return errors.Wrapf(err, "failed to marshal image config")
+			}
+
+			var baseConfig []byte
+			if baseImg != nil {
+				baseConfig, err = json.Marshal(baseImg)
+				if err != nil {
+					return errors.Wrapf(err, "failed to marshal source image config")
+				}
 			}
 
 			p := platforms.DefaultSpec()
@@ -57,7 +65,7 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 					p.OSVersion = img.OSVersion
 				}
 				if p.OSFeatures == nil && len(img.OSFeatures) > 0 {
-					p.OSFeatures = img.OSFeatures
+					p.OSFeatures = append([]string{}, img.OSFeatures...)
 				}
 			}
 
@@ -67,9 +75,15 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 			if bc.MultiPlatformRequested {
 				res.AddRef(k, ref)
 				res.AddMeta(fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, k), config)
+				if len(baseConfig) > 0 {
+					res.AddMeta(fmt.Sprintf("%s/%s", exptypes.ExporterImageBaseConfigKey, k), baseConfig)
+				}
 			} else {
 				res.SetRef(ref)
 				res.AddMeta(exptypes.ExporterImageConfigKey, config)
+				if len(baseConfig) > 0 {
+					res.AddMeta(exptypes.ExporterImageBaseConfigKey, baseConfig)
+				}
 			}
 			expPlatforms.Platforms[i] = exptypes.Platform{
 				ID:       k,

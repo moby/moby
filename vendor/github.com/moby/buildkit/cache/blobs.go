@@ -8,12 +8,15 @@ import (
 
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/diff/walking"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
+	"github.com/moby/buildkit/util/converter"
 	"github.com/moby/buildkit/util/flightcontrol"
+	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/winlayers"
 	digest "github.com/opencontainers/go-digest"
 	imagespecidentity "github.com/opencontainers/image-spec/identity"
@@ -22,10 +25,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var g flightcontrol.Group[struct{}]
+var g flightcontrol.Group[*leaseutil.LeaseRef]
 var gFileList flightcontrol.Group[[]string]
-
-const containerdUncompressed = "containerd.io/uncompressed"
 
 var ErrNoBlobs = errors.Errorf("no blobs for snapshot")
 
@@ -87,13 +88,23 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 
 	if _, ok := filter[sr.ID()]; ok {
 		eg.Go(func() error {
-			_, err := g.Do(ctx, fmt.Sprintf("%s-%t", sr.ID(), createIfNeeded), func(ctx context.Context) (struct{}, error) {
+			l, err := g.Do(ctx, fmt.Sprintf("%s-%t", sr.ID(), createIfNeeded), func(ctx context.Context) (_ *leaseutil.LeaseRef, err error) {
 				if sr.getBlob() != "" {
-					return struct{}{}, nil
+					return nil, nil
 				}
 				if !createIfNeeded {
-					return struct{}{}, errors.WithStack(ErrNoBlobs)
+					return nil, errors.WithStack(ErrNoBlobs)
 				}
+
+				l, ctx, err := leaseutil.NewLease(ctx, sr.cm.LeaseManager, leaseutil.MakeTemporary)
+				if err != nil {
+					return nil, err
+				}
+				defer func() {
+					if err != nil {
+						l.Discard()
+					}
+				}()
 
 				compressorFunc, finalize := comp.Type.Compress(ctx, comp)
 				mediaType := comp.Type.MediaType()
@@ -109,12 +120,12 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 				if lowerRef != nil {
 					m, err := lowerRef.Mount(ctx, true, s)
 					if err != nil {
-						return struct{}{}, err
+						return nil, err
 					}
 					var release func() error
 					lower, release, err = m.Mount()
 					if err != nil {
-						return struct{}{}, err
+						return nil, err
 					}
 					if release != nil {
 						defer release()
@@ -132,12 +143,12 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 				if upperRef != nil {
 					m, err := upperRef.Mount(ctx, true, s)
 					if err != nil {
-						return struct{}{}, err
+						return nil, err
 					}
 					var release func() error
 					upper, release, err = m.Mount()
 					if err != nil {
-						return struct{}{}, err
+						return nil, err
 					}
 					if release != nil {
 						defer release()
@@ -145,14 +156,13 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 				}
 
 				var desc ocispecs.Descriptor
-				var err error
 
 				// Determine differ and error/log handling according to the platform, envvar and the snapshotter.
 				var enableOverlay, fallback, logWarnOnErr bool
 				if forceOvlStr := os.Getenv("BUILDKIT_DEBUG_FORCE_OVERLAY_DIFF"); forceOvlStr != "" && sr.kind() != Diff {
 					enableOverlay, err = strconv.ParseBool(forceOvlStr)
 					if err != nil {
-						return struct{}{}, errors.Wrapf(err, "invalid boolean in BUILDKIT_DEBUG_FORCE_OVERLAY_DIFF")
+						return nil, errors.Wrapf(err, "invalid boolean in BUILDKIT_DEBUG_FORCE_OVERLAY_DIFF")
 					}
 					fallback = false // prohibit fallback on debug
 				} else if !isTypeWindows(sr) {
@@ -174,10 +184,10 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 					if !ok || err != nil {
 						if !fallback {
 							if !ok {
-								return struct{}{}, errors.Errorf("overlay mounts not detected (lower=%+v,upper=%+v)", lower, upper)
+								return nil, errors.Errorf("overlay mounts not detected (lower=%+v,upper=%+v)", lower, upper)
 							}
 							if err != nil {
-								return struct{}{}, errors.Wrapf(err, "failed to compute overlay diff")
+								return nil, errors.Wrapf(err, "failed to compute overlay diff")
 							}
 						}
 						if logWarnOnErr {
@@ -189,7 +199,7 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 					}
 				}
 
-				if desc.Digest == "" && !isTypeWindows(sr) && comp.Type.NeedsComputeDiffBySelf() {
+				if desc.Digest == "" && !isTypeWindows(sr) && comp.Type.NeedsComputeDiffBySelf(comp) {
 					// These compression types aren't supported by containerd differ. So try to compute diff on buildkit side.
 					// This case can be happen on containerd worker + non-overlayfs snapshotter (e.g. native).
 					// See also: https://github.com/containerd/containerd/issues/4263
@@ -210,7 +220,7 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 						diff.WithCompressor(compressorFunc),
 					)
 					if err != nil {
-						return struct{}{}, err
+						return nil, err
 					}
 				}
 
@@ -220,7 +230,7 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 				if finalize != nil {
 					a, err := finalize(ctx, sr.cm.ContentStore)
 					if err != nil {
-						return struct{}{}, errors.Wrapf(err, "failed to finalize compression")
+						return nil, errors.Wrapf(err, "failed to finalize compression")
 					}
 					for k, v := range a {
 						desc.Annotations[k] = v
@@ -228,24 +238,30 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 				}
 				info, err := sr.cm.ContentStore.Info(ctx, desc.Digest)
 				if err != nil {
-					return struct{}{}, err
+					return nil, err
 				}
 
-				if diffID, ok := info.Labels[containerdUncompressed]; ok {
-					desc.Annotations[containerdUncompressed] = diffID
+				if diffID, ok := info.Labels[labels.LabelUncompressed]; ok {
+					desc.Annotations[labels.LabelUncompressed] = diffID
 				} else if mediaType == ocispecs.MediaTypeImageLayer {
-					desc.Annotations[containerdUncompressed] = desc.Digest.String()
+					desc.Annotations[labels.LabelUncompressed] = desc.Digest.String()
 				} else {
-					return struct{}{}, errors.Errorf("unknown layer compression type")
+					return nil, errors.Errorf("unknown layer compression type")
 				}
 
 				if err := sr.setBlob(ctx, desc); err != nil {
-					return struct{}{}, err
+					return nil, err
 				}
-				return struct{}{}, nil
+				return l, nil
 			})
 			if err != nil {
 				return err
+			}
+
+			if l != nil {
+				if err := l.Adopt(ctx); err != nil {
+					return err
+				}
 			}
 
 			if comp.Force {
@@ -416,29 +432,42 @@ func isTypeWindows(sr *immutableRef) bool {
 
 // ensureCompression ensures the specified ref has the blob of the specified compression Type.
 func ensureCompression(ctx context.Context, ref *immutableRef, comp compression.Config, s session.Group) error {
-	_, err := g.Do(ctx, fmt.Sprintf("ensureComp-%s-%s", ref.ID(), comp.Type), func(ctx context.Context) (struct{}, error) {
+	l, err := g.Do(ctx, fmt.Sprintf("ensureComp-%s-%s", ref.ID(), comp.Type), func(ctx context.Context) (_ *leaseutil.LeaseRef, err error) {
 		desc, err := ref.ociDesc(ctx, ref.descHandlers, true)
 		if err != nil {
-			return struct{}{}, err
+			return nil, err
 		}
 
-		// Resolve converters
-		layerConvertFunc, err := getConverter(ctx, ref.cm.ContentStore, desc, comp)
+		l, ctx, err := leaseutil.NewLease(ctx, ref.cm.LeaseManager, leaseutil.MakeTemporary)
 		if err != nil {
-			return struct{}{}, err
+			return nil, err
+		}
+		defer func() {
+			if err != nil {
+				l.Discard()
+			}
+		}()
+
+		// Resolve converters
+		layerConvertFunc, err := converter.New(ctx, ref.cm.ContentStore, desc, comp)
+		if err != nil {
+			return nil, err
 		} else if layerConvertFunc == nil {
 			if isLazy, err := ref.isLazy(ctx); err != nil {
-				return struct{}{}, err
+				return nil, err
 			} else if isLazy {
 				// This ref can be used as the specified compressionType. Keep it lazy.
-				return struct{}{}, nil
+				return l, nil
 			}
-			return struct{}{}, ref.linkBlob(ctx, desc)
+			if err := ref.linkBlob(ctx, desc); err != nil {
+				return nil, err
+			}
+			return l, nil
 		}
 
 		// First, lookup local content store
 		if _, err := ref.getBlobWithCompression(ctx, comp.Type); err == nil {
-			return struct{}{}, nil // found the compression variant. no need to convert.
+			return l, nil // found the compression variant. no need to convert.
 		}
 
 		// Convert layer compression type
@@ -448,18 +477,26 @@ func ensureCompression(ctx context.Context, ref *immutableRef, comp compression.
 			dh:      ref.descHandlers[desc.Digest],
 			session: s,
 		}).Unlazy(ctx); err != nil {
-			return struct{}{}, err
+			return l, err
 		}
 		newDesc, err := layerConvertFunc(ctx, ref.cm.ContentStore, desc)
 		if err != nil {
-			return struct{}{}, errors.Wrapf(err, "failed to convert")
+			return nil, errors.Wrapf(err, "failed to convert")
 		}
 
 		// Start to track converted layer
 		if err := ref.linkBlob(ctx, *newDesc); err != nil {
-			return struct{}{}, errors.Wrapf(err, "failed to add compression blob")
+			return nil, errors.Wrapf(err, "failed to add compression blob")
 		}
-		return struct{}{}, nil
+		return l, nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if l != nil {
+		if err := l.Adopt(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }

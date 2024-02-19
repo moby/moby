@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/containerd/containers"
 	containerdoci "github.com/containerd/containerd/oci"
 	"github.com/containerd/continuity/fs"
-	"github.com/opencontainers/runc/libcontainer/user"
+	"github.com/moby/sys/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )

@@ -136,7 +136,7 @@ func (g *cacheRefGetter) getRefCacheDirNoCache(ctx context.Context, key string, 
 			select {
 			case <-ctx.Done():
 				cacheRefsLocker.Lock(key)
-				return nil, ctx.Err()
+				return nil, context.Cause(ctx)
 			case <-time.After(100 * time.Millisecond):
 				cacheRefsLocker.Lock(key)
 			}
@@ -199,7 +199,7 @@ type sshMountInstance struct {
 }
 
 func (sm *sshMountInstance) Mount() ([]mount.Mount, func() error, error) {
-	ctx, cancel := context.WithCancel(context.TODO())
+	ctx, cancel := context.WithCancelCause(context.TODO())
 
 	uid := int(sm.sm.mount.SSHOpt.Uid)
 	gid := int(sm.sm.mount.SSHOpt.Gid)
@@ -210,7 +210,7 @@ func (sm *sshMountInstance) Mount() ([]mount.Mount, func() error, error) {
 			GID: gid,
 		})
 		if err != nil {
-			cancel()
+			cancel(err)
 			return nil, nil, err
 		}
 		uid = identity.UID
@@ -224,7 +224,7 @@ func (sm *sshMountInstance) Mount() ([]mount.Mount, func() error, error) {
 		Mode: int(sm.sm.mount.SSHOpt.Mode & 0777),
 	})
 	if err != nil {
-		cancel()
+		cancel(err)
 		return nil, nil, err
 	}
 	release := func() error {
@@ -232,7 +232,7 @@ func (sm *sshMountInstance) Mount() ([]mount.Mount, func() error, error) {
 		if cleanup != nil {
 			err = cleanup()
 		}
-		cancel()
+		cancel(err)
 		return err
 	}
 
@@ -305,10 +305,15 @@ func (sm *secretMountInstance) Mount() ([]mount.Mount, func() error, error) {
 		return nil, nil, err
 	}
 
+	var mountOpts []string
+	if sm.sm.mount.SecretOpt.Mode&0o111 == 0 {
+		mountOpts = append(mountOpts, "noexec")
+	}
+
 	tmpMount := mount.Mount{
 		Type:    "tmpfs",
 		Source:  "tmpfs",
-		Options: []string{"nodev", "nosuid", "noexec", fmt.Sprintf("uid=%d,gid=%d", os.Geteuid(), os.Getegid())},
+		Options: append([]string{"nodev", "nosuid", fmt.Sprintf("uid=%d,gid=%d", os.Geteuid(), os.Getegid())}, mountOpts...),
 	}
 
 	if userns.RunningInUserNS() {
@@ -364,7 +369,7 @@ func (sm *secretMountInstance) Mount() ([]mount.Mount, func() error, error) {
 	return []mount.Mount{{
 		Type:    "bind",
 		Source:  fp,
-		Options: []string{"ro", "rbind", "nodev", "nosuid", "noexec"},
+		Options: append([]string{"ro", "rbind", "nodev", "nosuid"}, mountOpts...),
 	}}, cleanup, nil
 }
 
@@ -483,7 +488,7 @@ type cacheRefShare struct {
 func (r *cacheRefShare) clone(ctx context.Context) cache.MutableRef {
 	bklog.G(ctx).WithFields(map[string]any{
 		"key":   r.key,
-		"stack": bklog.LazyStackTrace{},
+		"stack": bklog.TraceLevelOnlyStack(),
 	}).Trace("cloning cache mount ref share")
 	cacheRef := &cacheRef{cacheRefShare: r}
 	if cacheRefCloneHijack != nil {
@@ -498,7 +503,7 @@ func (r *cacheRefShare) clone(ctx context.Context) cache.MutableRef {
 func (r *cacheRefShare) release(ctx context.Context) error {
 	bklog.G(ctx).WithFields(map[string]any{
 		"key":   r.key,
-		"stack": bklog.LazyStackTrace{},
+		"stack": bklog.TraceLevelOnlyStack(),
 	}).Trace("releasing cache mount ref share main")
 	if r.main != nil {
 		delete(r.main.shares, r.key)
@@ -516,7 +521,7 @@ type cacheRef struct {
 func (r *cacheRef) Release(ctx context.Context) error {
 	bklog.G(ctx).WithFields(map[string]any{
 		"key":   r.key,
-		"stack": bklog.LazyStackTrace{},
+		"stack": bklog.TraceLevelOnlyStack(),
 	}).Trace("releasing cache mount ref share")
 	if r.main != nil {
 		r.main.mu.Lock()

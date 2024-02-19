@@ -79,6 +79,10 @@ type Mount struct {
 	readonly bool
 }
 
+func (m *Mount) Mountable() snapshot.Mountable {
+	return m.m
+}
+
 func (m *Mount) Release(ctx context.Context) error {
 	if m.mr != nil {
 		return m.mr.Release(ctx)

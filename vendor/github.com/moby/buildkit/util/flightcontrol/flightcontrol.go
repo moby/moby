@@ -90,7 +90,7 @@ type call[T any] struct {
 	fn   func(ctx context.Context) (T, error)
 	once sync.Once
 
-	closeProgressWriter func()
+	closeProgressWriter func(error)
 	progressState       *progressState
 	progressCtx         context.Context
 }
@@ -115,9 +115,9 @@ func newCall[T any](fn func(ctx context.Context) (T, error)) *call[T] {
 }
 
 func (c *call[T]) run() {
-	defer c.closeProgressWriter()
-	ctx, cancel := context.WithCancel(c.ctx)
-	defer cancel()
+	defer c.closeProgressWriter(errors.WithStack(context.Canceled))
+	ctx, cancel := context.WithCancelCause(c.ctx)
+	defer cancel(errors.WithStack(context.Canceled))
 	v, err := c.fn(ctx)
 	c.mu.Lock()
 	c.result = v
@@ -155,8 +155,8 @@ func (c *call[T]) wait(ctx context.Context) (v T, err error) {
 		c.progressState.add(pw)
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(errors.WithStack(context.Canceled))
 
 	c.ctxs = append(c.ctxs, ctx)
 
@@ -175,7 +175,7 @@ func (c *call[T]) wait(ctx context.Context) (v T, err error) {
 		if ok {
 			c.progressState.close(pw)
 		}
-		return empty, ctx.Err()
+		return empty, context.Cause(ctx)
 	case <-c.ready:
 		return c.result, c.err // shared not implemented yet
 	}
@@ -262,7 +262,9 @@ func (sc *sharedContext[T]) checkDone() bool {
 	for _, ctx := range sc.ctxs {
 		select {
 		case <-ctx.Done():
-			err = ctx.Err()
+			// Cause can't be used here because this error is returned for Err() in custom context
+			// implementation and unfortunately stdlib does not allow defining Cause() for custom contexts
+			err = ctx.Err() //nolint: forbidigo
 		default:
 			sc.mu.Unlock()
 			return false

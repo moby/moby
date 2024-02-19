@@ -35,7 +35,7 @@ func (sr *immutableRef) FileList(ctx context.Context, s session.Group) ([]string
 		}
 
 		// lazy blobs need to be pulled first
-		if err := sr.Extract(ctx, s); err != nil {
+		if err := sr.ensureLocalContentBlob(ctx, s); err != nil {
 			return nil, err
 		}
 

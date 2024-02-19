@@ -14,13 +14,13 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var unsupportedConsoleError = errors.New("tty for runc is only supported on linux")
+var errUnsupportedConsole = errors.New("tty for runc is only supported on linux")
 
 func updateRuncFieldsForHostOS(runtime *runc.Runc) {}
 
 func (w *runcExecutor) run(ctx context.Context, id, bundle string, process executor.ProcessInfo, started func(), keep bool) error {
 	if process.Meta.Tty {
-		return unsupportedConsoleError
+		return errUnsupportedConsole
 	}
 	extraArgs := []string{}
 	if keep {
@@ -40,7 +40,7 @@ func (w *runcExecutor) run(ctx context.Context, id, bundle string, process execu
 
 func (w *runcExecutor) exec(ctx context.Context, id, bundle string, specsProcess *specs.Process, process executor.ProcessInfo, started func()) error {
 	if process.Meta.Tty {
-		return unsupportedConsoleError
+		return errUnsupportedConsole
 	}
 
 	killer, err := newExecProcKiller(w.runc, id)

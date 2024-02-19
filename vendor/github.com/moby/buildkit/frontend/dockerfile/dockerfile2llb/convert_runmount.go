@@ -30,7 +30,8 @@ func detectRunMount(cmd *command, allDispatchStates *dispatchStates) bool {
 			if !ok {
 				stn = &dispatchState{
 					stage:        instructions.Stage{BaseName: from},
-					deps:         make(map[*dispatchState]struct{}),
+					deps:         make(map[*dispatchState]instructions.Command),
+					paths:        make(map[string]struct{}),
 					unregistered: true,
 				}
 			}
@@ -69,7 +70,11 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 		}
 		st := opt.buildContext
 		if mount.From != "" {
-			st = sources[i].state
+			src := sources[i]
+			st = src.state
+			if !src.noinit {
+				return nil, errors.Errorf("cannot mount from stage %q to %q, stage needs to be defined before current command", mount.From, mount.Target)
+			}
 		}
 		var mountOpts []llb.MountOption
 		if mount.Type == instructions.MountTypeTmpfs {
@@ -136,6 +141,9 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 
 		if mount.From == "" {
 			d.ctxPaths[path.Join("/", filepath.ToSlash(mount.Source))] = struct{}{}
+		} else {
+			source := sources[i]
+			source.paths[path.Join("/", filepath.ToSlash(mount.Source))] = struct{}{}
 		}
 	}
 	return out, nil

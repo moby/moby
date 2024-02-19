@@ -2,13 +2,13 @@ syntax = "proto3";
 
 package moby.buildkit.v1;
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-import "google/protobuf/timestamp.proto";
-import "github.com/moby/buildkit/solver/pb/ops.proto";
-import "github.com/moby/buildkit/api/types/worker.proto";
 // import "github.com/containerd/containerd/api/types/descriptor.proto";
 import "github.com/gogo/googleapis/google/rpc/status.proto";
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "github.com/moby/buildkit/api/types/worker.proto";
+import "github.com/moby/buildkit/solver/pb/ops.proto";
 import "github.com/moby/buildkit/sourcepolicy/pb/policy.proto";
+import "google/protobuf/timestamp.proto";
 
 option (gogoproto.sizer_all) = true;
 option (gogoproto.marshaler_all) = true;
@@ -60,8 +60,11 @@ message UsageRecord {
 message SolveRequest {
 	string Ref = 1;
 	pb.Definition Definition = 2;
-	string Exporter = 3;
-	map<string, string> ExporterAttrs = 4;
+	// ExporterDeprecated and ExporterAttrsDeprecated are deprecated in favor
+	// of the new Exporters. If these fields are set, then they will be
+	// appended to the Exporters field if Exporters was not explicitly set.
+	string ExporterDeprecated = 3;
+	map<string, string> ExporterAttrsDeprecated = 4;
 	string Session = 5;
 	string Frontend = 6;
 	map<string, string> FrontendAttrs = 7;
@@ -70,6 +73,7 @@ message SolveRequest {
 	map<string, pb.Definition> FrontendInputs = 10;
 	bool Internal = 11; // Internal builds are not recorded in build history
 	moby.buildkit.v1.sourcepolicy.Policy SourcePolicy = 12;
+	repeated Exporter Exporters = 13;
 }
 
 message CacheOptions {
@@ -227,11 +231,15 @@ message Descriptor {
 }
 
 message BuildResultInfo {
-	Descriptor Result = 1;
+	Descriptor ResultDeprecated = 1;
 	repeated Descriptor Attestations = 2;
+	map<int64, Descriptor> Results = 3;
 }
 
+// Exporter describes the output exporter
 message Exporter {
+	// Type identifies the exporter
 	string Type = 1;
+	// Attrs specifies exporter configuration
 	map<string, string> Attrs = 2;
 }

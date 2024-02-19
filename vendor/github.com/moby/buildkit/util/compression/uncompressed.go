@@ -40,15 +40,11 @@ func (c uncompressedType) NeedsConversion(ctx context.Context, cs content.Store,
 	return true, nil
 }
 
-func (c uncompressedType) NeedsComputeDiffBySelf() bool {
+func (c uncompressedType) NeedsComputeDiffBySelf(comp Config) bool {
 	return false
 }
 
 func (c uncompressedType) OnlySupportOCITypes() bool {
-	return false
-}
-
-func (c uncompressedType) NeedsForceCompression() bool {
 	return false
 }
 

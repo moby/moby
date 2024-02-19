@@ -2,15 +2,13 @@ syntax = "proto3";
 
 package moby.buildkit.v1.frontend;
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "github.com/gogo/googleapis/google/rpc/status.proto";
-import "github.com/moby/buildkit/solver/pb/ops.proto";
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "github.com/moby/buildkit/api/types/worker.proto";
+import "github.com/moby/buildkit/solver/pb/ops.proto";
+import "github.com/moby/buildkit/sourcepolicy/pb/policy.proto";
 import "github.com/moby/buildkit/util/apicaps/pb/caps.proto";
 import "github.com/tonistiigi/fsutil/types/stat.proto";
-import "github.com/moby/buildkit/sourcepolicy/pb/policy.proto";
-
-
 
 option (gogoproto.sizer_all) = true;
 option (gogoproto.marshaler_all) = true;
@@ -19,6 +17,8 @@ option (gogoproto.unmarshaler_all) = true;
 service LLBBridge {
 	// apicaps:CapResolveImage
 	rpc ResolveImageConfig(ResolveImageConfigRequest) returns (ResolveImageConfigResponse);
+	// apicaps:CapSourceMetaResolver
+	rpc ResolveSourceMeta(ResolveSourceMetaRequest) returns (ResolveSourceMetaResponse);
 	// apicaps:CapSolveBase
 	rpc Solve(SolveRequest) returns (SolveResponse);
 	// apicaps:CapReadFile
@@ -70,7 +70,7 @@ message RefMap {
 }
 
 message Attestations {
-    repeated Attestation attestation = 1;
+	repeated Attestation attestation = 1;
 }
 
 message Attestation {
@@ -134,6 +134,24 @@ message ResolveImageConfigResponse {
 	string Ref = 3;
 }
 
+message ResolveSourceMetaRequest {
+	pb.SourceOp Source = 1;
+	pb.Platform Platform = 2;
+	string LogName = 3;
+	string ResolveMode = 4;
+	repeated moby.buildkit.v1.sourcepolicy.Policy SourcePolicies = 8;
+}
+
+message ResolveSourceMetaResponse {
+	pb.SourceOp Source = 1;
+	ResolveSourceImageResponse Image = 2;
+}
+
+message ResolveSourceImageResponse {
+	string Digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	bytes Config = 2;
+}
+
 message SolveRequest {
 	pb.Definition Definition = 1;
 	string Frontend = 2;
@@ -167,7 +185,7 @@ message SolveResponse {
 	// deprecated
 	string ref = 1; // can be used by readfile request
 	// deprecated
-/*	bytes ExporterAttr = 2;*/
+	// bytes ExporterAttr = 2;
 
 	// these fields are returned when allowMapReturn was set
 	Result result = 3;

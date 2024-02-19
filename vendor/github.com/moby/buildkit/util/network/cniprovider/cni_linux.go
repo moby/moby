@@ -1,11 +1,15 @@
 package cniprovider
 
 import (
+	"context"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 
+	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/network"
 	"github.com/pkg/errors"
 )
@@ -67,4 +71,28 @@ func readFileAt(dirfd int, filename string, buf []byte) (int64, error) {
 		return 0, err
 	}
 	return nn, nil
+}
+
+// withDetachedNetNSIfAny executes fn in $ROOTLESSKIT_STATE_DIR/netns if it exists.
+// Otherwise it executes fn in the current netns.
+//
+// $ROOTLESSKIT_STATE_DIR/netns exists when we are running with RootlessKit >= 2.0 with --detach-netns.
+// Since we are left in the host netns, we have to join the "detached" netns that is associated with slirp
+// to create CNI namespaces inside it.
+// https://github.com/rootless-containers/rootlesskit/pull/379
+// https://github.com/containerd/nerdctl/pull/2723
+func withDetachedNetNSIfAny(ctx context.Context, fn func(context.Context) error) error {
+	if stateDir := os.Getenv("ROOTLESSKIT_STATE_DIR"); stateDir != "" {
+		detachedNetNS := filepath.Join(stateDir, "netns")
+		if _, err := os.Lstat(detachedNetNS); !errors.Is(err, os.ErrNotExist) {
+			return ns.WithNetNSPath(detachedNetNS, func(_ ns.NetNS) error {
+				ctx = context.WithValue(ctx, contextKeyDetachedNetNS, detachedNetNS)
+				bklog.G(ctx).Debugf("Entering RootlessKit's detached netns %q", detachedNetNS)
+				err2 := fn(ctx)
+				bklog.G(ctx).WithError(err2).Debugf("Leaving RootlessKit's detached netns %q", detachedNetNS)
+				return err2
+			})
+		}
+	}
+	return fn(ctx)
 }

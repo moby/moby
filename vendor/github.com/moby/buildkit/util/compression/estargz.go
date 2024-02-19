@@ -12,6 +12,7 @@ import (
 	cdcompression "github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/stargz-snapshotter/estargz"
 	"github.com/moby/buildkit/util/iohelper"
 	digest "github.com/opencontainers/go-digest"
@@ -21,7 +22,6 @@ import (
 
 var EStargzAnnotations = []string{estargz.TOCJSONDigestAnnotation, estargz.StoreUncompressedSizeAnnotation}
 
-const containerdUncompressed = "containerd.io/uncompressed"
 const estargzLabel = "buildkit.io/compression/estargz"
 
 func (c estargzType) Compress(ctx context.Context, comp Config) (compressorFunc Compressor, finalize Finalizer) {
@@ -105,8 +105,8 @@ func (c estargzType) Compress(ctx context.Context, comp Config) (compressorFunc 
 			if info.Labels == nil {
 				info.Labels = make(map[string]string)
 			}
-			info.Labels[containerdUncompressed] = cInfo.uncompressedDigest.String()
-			if _, err := cs.Update(ctx, info, "labels."+containerdUncompressed); err != nil {
+			info.Labels[labels.LabelUncompressed] = cInfo.uncompressedDigest.String()
+			if _, err := cs.Update(ctx, info, "labels."+labels.LabelUncompressed); err != nil {
 				return nil, err
 			}
 
@@ -114,7 +114,7 @@ func (c estargzType) Compress(ctx context.Context, comp Config) (compressorFunc 
 			a := make(map[string]string)
 			a[estargz.TOCJSONDigestAnnotation] = cInfo.tocDigest.String()
 			a[estargz.StoreUncompressedSizeAnnotation] = fmt.Sprintf("%d", cInfo.uncompressedSize)
-			a[containerdUncompressed] = cInfo.uncompressedDigest.String()
+			a[labels.LabelUncompressed] = cInfo.uncompressedDigest.String()
 			return a, nil
 		}
 }
@@ -134,16 +134,12 @@ func (c estargzType) NeedsConversion(ctx context.Context, cs content.Store, desc
 	return true, nil
 }
 
-func (c estargzType) NeedsComputeDiffBySelf() bool {
+func (c estargzType) NeedsComputeDiffBySelf(comp Config) bool {
 	return true
 }
 
 func (c estargzType) OnlySupportOCITypes() bool {
 	return true
-}
-
-func (c estargzType) NeedsForceCompression() bool {
-	return false
 }
 
 func (c estargzType) MediaType() string {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -56,14 +57,14 @@ func (c nydusType) Compress(ctx context.Context, comp Config) (compressorFunc Co
 			if info.Labels == nil {
 				info.Labels = make(map[string]string)
 			}
-			info.Labels[containerdUncompressed] = uncompressedDgst
-			if _, err := cs.Update(ctx, info, "labels."+containerdUncompressed); err != nil {
+			info.Labels[labels.LabelUncompressed] = uncompressedDgst
+			if _, err := cs.Update(ctx, info, "labels."+labels.LabelUncompressed); err != nil {
 				return nil, errors.Wrap(err, "update info to content store")
 			}
 
 			// Fill annotations
 			annotations := map[string]string{
-				containerdUncompressed: uncompressedDgst,
+				labels.LabelUncompressed: uncompressedDgst,
 				// Use this annotation to identify nydus blob layer.
 				nydusify.LayerAnnotationNydusBlob: "true",
 			}
@@ -103,15 +104,11 @@ func (c nydusType) NeedsConversion(ctx context.Context, cs content.Store, desc o
 	return true, nil
 }
 
-func (c nydusType) NeedsComputeDiffBySelf() bool {
+func (c nydusType) NeedsComputeDiffBySelf(comp Config) bool {
 	return true
 }
 
 func (c nydusType) OnlySupportOCITypes() bool {
-	return true
-}
-
-func (c nydusType) NeedsForceCompression() bool {
 	return true
 }
 

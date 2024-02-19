@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/mount"
 	log "github.com/moby/buildkit/util/bklog"
 	digest "github.com/opencontainers/go-digest"
@@ -121,7 +122,7 @@ func (s *winDiffer) Compare(ctx context.Context, lower, upper []mount.Mount, opt
 				if config.Labels == nil {
 					config.Labels = map[string]string{}
 				}
-				config.Labels["containerd.io/uncompressed"] = dgstr.Digest().String()
+				config.Labels[labels.LabelUncompressed] = dgstr.Digest().String()
 			} else {
 				w, discard, done := makeWindowsLayer(ctx, cw)
 				if err = archive.WriteDiff(ctx, w, lowerRoot, upperRoot); err != nil {

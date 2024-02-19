@@ -209,17 +209,17 @@ func newDefaultTransport() *http.Transport {
 }
 
 type httpFallback struct {
-	super    http.RoundTripper
-	fallback bool
+	super http.RoundTripper
+	host  string
 }
 
 func (f *httpFallback) RoundTrip(r *http.Request) (*http.Response, error) {
-	if !f.fallback {
+	// only fall back if the same host had previously fell back
+	if f.host != r.URL.Host {
 		resp, err := f.super.RoundTrip(r)
 		var tlsErr tls.RecordHeaderError
 		if errors.As(err, &tlsErr) && string(tlsErr.RecordHeader[:]) == "HTTP/" {
-			// Server gave HTTP response to HTTPS client
-			f.fallback = true
+			f.host = r.URL.Host
 		} else {
 			return resp, err
 		}

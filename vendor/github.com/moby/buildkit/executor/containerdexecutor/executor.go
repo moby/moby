@@ -16,19 +16,13 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/mount"
-	containerdoci "github.com/containerd/containerd/oci"
-	"github.com/containerd/continuity/fs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	gatewayapi "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/identity"
-	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
-	rootlessspecconv "github.com/moby/buildkit/util/rootless/specconv"
-	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
 
@@ -38,12 +32,13 @@ type containerdExecutor struct {
 	networkProviders map[pb.NetMode]network.Provider
 	cgroupParent     string
 	dnsConfig        *oci.DNSConfig
-	running          map[string]chan error
+	running          map[string]*containerState
 	mu               sync.Mutex
 	apparmorProfile  string
 	selinux          bool
 	traceSocket      string
 	rootless         bool
+	runtime          *RuntimeInfo
 }
 
 // OnCreateRuntimer provides an alternative to OCI hooks for applying network
@@ -59,8 +54,14 @@ type OnCreateRuntimer interface {
 	OnCreateRuntime(pid uint32) error
 }
 
+type RuntimeInfo struct {
+	Name    string
+	Path    string
+	Options any
+}
+
 // New creates a new executor backed by connection to containerd API
-func New(client *containerd.Client, root, cgroup string, networkProviders map[pb.NetMode]network.Provider, dnsConfig *oci.DNSConfig, apparmorProfile string, selinux bool, traceSocket string, rootless bool) executor.Executor {
+func New(client *containerd.Client, root, cgroup string, networkProviders map[pb.NetMode]network.Provider, dnsConfig *oci.DNSConfig, apparmorProfile string, selinux bool, traceSocket string, rootless bool, runtime *RuntimeInfo) executor.Executor {
 	// clean up old hosts/resolv.conf file. ignore errors
 	os.RemoveAll(filepath.Join(root, "hosts"))
 	os.RemoveAll(filepath.Join(root, "resolv.conf"))
@@ -71,12 +72,23 @@ func New(client *containerd.Client, root, cgroup string, networkProviders map[pb
 		networkProviders: networkProviders,
 		cgroupParent:     cgroup,
 		dnsConfig:        dnsConfig,
-		running:          make(map[string]chan error),
+		running:          make(map[string]*containerState),
 		apparmorProfile:  apparmorProfile,
 		selinux:          selinux,
 		traceSocket:      traceSocket,
 		rootless:         rootless,
+		runtime:          runtime,
 	}
+}
+
+type containerState struct {
+	done chan error
+	// On linux the rootfsPath is used to ensure the CWD exists, to fetch user information
+	// and as a bind mount for the root FS of the container.
+	rootfsPath string
+	// On Windows we need to use the root mounts to achieve the same thing that Linux does
+	// with rootfsPath. So we save both in details.
+	rootMounts []mount.Mount
 }
 
 func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (rec resourcestypes.Recorder, err error) {
@@ -86,8 +98,11 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 
 	startedOnce := sync.Once{}
 	done := make(chan error, 1)
+	details := &containerState{
+		done: done,
+	}
 	w.mu.Lock()
-	w.running[id] = done
+	w.running[id] = details
 	w.mu.Unlock()
 	defer func() {
 		w.mu.Lock()
@@ -103,96 +118,49 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 	}()
 
 	meta := process.Meta
-
-	resolvConf, err := oci.GetResolvConf(ctx, w.root, nil, w.dnsConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	hostsFile, clean, err := oci.GetHostsFile(ctx, w.root, meta.ExtraHosts, nil, meta.Hostname)
-	if err != nil {
-		return nil, err
-	}
-	if clean != nil {
-		defer clean()
-	}
-
-	mountable, err := root.Src.Mount(ctx, false)
-	if err != nil {
-		return nil, err
-	}
-
-	rootMounts, release, err := mountable.Mount()
-	if err != nil {
-		return nil, err
-	}
-	if release != nil {
-		defer release()
-	}
-
-	lm := snapshot.LocalMounterWithMounts(rootMounts)
-	rootfsPath, err := lm.Mount()
-	if err != nil {
-		return nil, err
-	}
-	defer lm.Unmount()
-	defer executor.MountStubsCleaner(ctx, rootfsPath, mounts, meta.RemoveMountStubsRecursive)()
-
-	uid, gid, sgids, err := oci.GetUser(rootfsPath, meta.User)
-	if err != nil {
-		return nil, err
-	}
-
-	identity := idtools.Identity{
-		UID: int(uid),
-		GID: int(gid),
-	}
-
-	newp, err := fs.RootPath(rootfsPath, meta.Cwd)
-	if err != nil {
-		return nil, errors.Wrapf(err, "working dir %s points to invalid target", newp)
-	}
-	if _, err := os.Stat(newp); err != nil {
-		if err := idtools.MkdirAllAndChown(newp, 0755, identity); err != nil {
-			return nil, errors.Wrapf(err, "failed to create working directory %s", newp)
-		}
+	if meta.NetMode == pb.NetMode_HOST {
+		bklog.G(ctx).Info("enabling HostNetworking")
 	}
 
 	provider, ok := w.networkProviders[meta.NetMode]
 	if !ok {
 		return nil, errors.Errorf("unknown network mode %s", meta.NetMode)
 	}
+
+	resolvConf, hostsFile, releasers, err := w.prepareExecutionEnv(ctx, root, mounts, meta, details, meta.NetMode)
+	if err != nil {
+		return nil, err
+	}
+
+	if releasers != nil {
+		defer releasers()
+	}
+
+	if err := w.ensureCWD(ctx, details, meta); err != nil {
+		return nil, err
+	}
+
 	namespace, err := provider.New(ctx, meta.Hostname)
 	if err != nil {
 		return nil, err
 	}
 	defer namespace.Close()
 
-	if meta.NetMode == pb.NetMode_HOST {
-		bklog.G(ctx).Info("enabling HostNetworking")
-	}
-
-	opts := []containerdoci.SpecOpts{oci.WithUIDGID(uid, gid, sgids)}
-	if meta.ReadonlyRootFS {
-		opts = append(opts, containerdoci.WithRootFSReadonly())
-	}
-
-	processMode := oci.ProcessSandbox // FIXME(AkihiroSuda)
-	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, w.cgroupParent, processMode, nil, w.apparmorProfile, w.selinux, w.traceSocket, opts...)
+	spec, releaseSpec, err := w.createOCISpec(ctx, id, resolvConf, hostsFile, namespace, mounts, meta, details)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
-	spec.Process.Terminal = meta.Tty
-	if w.rootless {
-		if err := rootlessspecconv.ToRootless(spec); err != nil {
-			return nil, err
-		}
+	if releaseSpec != nil {
+		defer releaseSpec()
 	}
 
-	container, err := w.client.NewContainer(ctx, id,
+	opts := []containerd.NewContainerOpts{
 		containerd.WithSpec(spec),
-	)
+	}
+	if w.runtime != nil {
+		opts = append(opts, containerd.WithRuntime(w.runtime.Name, w.runtime.Options))
+	}
+	container, err := w.client.NewContainer(ctx, id, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -209,11 +177,14 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 		cioOpts = append(cioOpts, cio.WithTerminal)
 	}
 
-	task, err := container.NewTask(ctx, cio.NewCreator(cioOpts...), containerd.WithRootFS([]mount.Mount{{
-		Source:  rootfsPath,
-		Type:    "bind",
-		Options: []string{"rbind"},
-	}}))
+	taskOpts, err := details.getTaskOpts()
+	if err != nil {
+		return nil, err
+	}
+	if w.runtime != nil && w.runtime.Path != "" {
+		taskOpts = append(taskOpts, containerd.WithRuntimePath(w.runtime.Path))
+	}
+	task, err := container.NewTask(ctx, cio.NewCreator(cioOpts...), taskOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -249,17 +220,16 @@ func (w *containerdExecutor) Exec(ctx context.Context, id string, process execut
 	// is in the process of being created and check again every 100ms or until
 	// context is canceled.
 
+	w.mu.Lock()
+	details, ok := w.running[id]
+	w.mu.Unlock()
+
+	if !ok {
+		return errors.Errorf("container %s not found", id)
+	}
 	var container containerd.Container
 	var task containerd.Task
 	for {
-		w.mu.Lock()
-		done, ok := w.running[id]
-		w.mu.Unlock()
-
-		if !ok {
-			return errors.Errorf("container %s not found", id)
-		}
-
 		if container == nil {
 			container, _ = w.client.LoadContainer(ctx, id)
 		}
@@ -274,8 +244,8 @@ func (w *containerdExecutor) Exec(ctx context.Context, id string, process execut
 		}
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
-		case err, ok := <-done:
+			return context.Cause(ctx)
+		case err, ok := <-details.done:
 			if !ok || err == nil {
 				return errors.Errorf("container %s has stopped", id)
 			}
@@ -291,23 +261,20 @@ func (w *containerdExecutor) Exec(ctx context.Context, id string, process execut
 	}
 
 	proc := spec.Process
-
-	// TODO how do we get rootfsPath for oci.GetUser in case user passed in username rather than uid:gid?
-	// For now only support uid:gid
 	if meta.User != "" {
-		uid, gid, err := oci.ParseUIDGID(meta.User)
+		userSpec, err := getUserSpec(meta.User, details.rootfsPath)
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		proc.User = specs.User{
-			UID:            uid,
-			GID:            gid,
-			AdditionalGids: []uint32{},
-		}
+		proc.User = userSpec
 	}
 
 	proc.Terminal = meta.Tty
-	proc.Args = meta.Args
+	// setArgs will set the proper command line arguments for this process.
+	// On Windows, this will set the CommandLine field. On Linux it will set the
+	// Args field.
+	setArgs(proc, meta.Args)
+
 	if meta.Cwd != "" {
 		spec.Process.Cwd = meta.Cwd
 	}
@@ -370,8 +337,8 @@ func (w *containerdExecutor) runProcess(ctx context.Context, p containerd.Proces
 
 	// handle signals (and resize) in separate go loop so it does not
 	// potentially block the container cancel/exit status loop below.
-	eventCtx, eventCancel := context.WithCancel(ctx)
-	defer eventCancel()
+	eventCtx, eventCancel := context.WithCancelCause(ctx)
+	defer eventCancel(errors.WithStack(context.Canceled))
 	go func() {
 		for {
 			select {
@@ -405,7 +372,7 @@ func (w *containerdExecutor) runProcess(ctx context.Context, p containerd.Proces
 		}
 	}()
 
-	var cancel func()
+	var cancel func(error)
 	var killCtxDone <-chan struct{}
 	ctxDone := ctx.Done()
 	for {
@@ -413,13 +380,14 @@ func (w *containerdExecutor) runProcess(ctx context.Context, p containerd.Proces
 		case <-ctxDone:
 			ctxDone = nil
 			var killCtx context.Context
-			killCtx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+			killCtx, cancel = context.WithCancelCause(context.Background())
+			killCtx, _ = context.WithTimeoutCause(killCtx, 10*time.Second, errors.WithStack(context.DeadlineExceeded))
 			killCtxDone = killCtx.Done()
 			p.Kill(killCtx, syscall.SIGKILL)
 			io.Cancel()
 		case status := <-statusCh:
 			if cancel != nil {
-				cancel()
+				cancel(errors.WithStack(context.Canceled))
 			}
 			trace.SpanFromContext(ctx).AddEvent(
 				"Container exited",
@@ -437,7 +405,7 @@ func (w *containerdExecutor) runProcess(ctx context.Context, p containerd.Proces
 				}
 				select {
 				case <-ctx.Done():
-					exitErr.Err = errors.Wrap(ctx.Err(), exitErr.Error())
+					exitErr.Err = errors.Wrap(context.Cause(ctx), exitErr.Error())
 				default:
 				}
 				return exitErr
@@ -445,7 +413,7 @@ func (w *containerdExecutor) runProcess(ctx context.Context, p containerd.Proces
 			return nil
 		case <-killCtxDone:
 			if cancel != nil {
-				cancel()
+				cancel(errors.WithStack(context.Canceled))
 			}
 			io.Cancel()
 			return errors.Errorf("failed to kill process on cancel")

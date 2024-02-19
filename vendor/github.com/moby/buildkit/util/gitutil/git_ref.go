@@ -1,10 +1,11 @@
 package gitutil
 
 import (
-	"regexp"
+	"net/url"
 	"strings"
 
 	"github.com/containerd/containerd/errdefs"
+	"github.com/pkg/errors"
 )
 
 // GitRef represents a git ref.
@@ -51,35 +52,51 @@ type GitRef struct {
 func ParseGitRef(ref string) (*GitRef, error) {
 	res := &GitRef{}
 
+	var (
+		remote *GitURL
+		err    error
+	)
+
 	if strings.HasPrefix(ref, "github.com/") {
 		res.IndistinguishableFromLocal = true // Deprecated
+		remote = fromURL(&url.URL{
+			Scheme: "https",
+			Host:   "github.com",
+			Path:   strings.TrimPrefix(ref, "github.com/"),
+		})
 	} else {
-		_, proto := ParseProtocol(ref)
-		switch proto {
-		case UnknownProtocol:
-			return nil, errdefs.ErrInvalidArgument
+		remote, err = ParseURL(ref)
+		if errors.Is(err, ErrUnknownProtocol) {
+			remote, err = ParseURL("https://" + ref)
 		}
-		switch proto {
+		if err != nil {
+			return nil, err
+		}
+
+		switch remote.Scheme {
 		case HTTPProtocol, GitProtocol:
 			res.UnencryptedTCP = true // Discouraged, but not deprecated
 		}
-		switch proto {
+
+		switch remote.Scheme {
 		// An HTTP(S) URL is considered to be a valid git ref only when it has the ".git[...]" suffix.
 		case HTTPProtocol, HTTPSProtocol:
-			var gitURLPathWithFragmentSuffix = regexp.MustCompile(`\.git(?:#.+)?$`)
-			if !gitURLPathWithFragmentSuffix.MatchString(ref) {
+			if !strings.HasSuffix(remote.Path, ".git") {
 				return nil, errdefs.ErrInvalidArgument
 			}
 		}
 	}
 
-	var fragment string
-	res.Remote, fragment, _ = strings.Cut(ref, "#")
-	if len(res.Remote) == 0 {
-		return res, errdefs.ErrInvalidArgument
+	res.Remote = remote.Remote
+	if res.IndistinguishableFromLocal {
+		_, res.Remote, _ = strings.Cut(res.Remote, "://")
 	}
-	res.Commit, res.SubDir, _ = strings.Cut(fragment, ":")
+	if remote.Fragment != nil {
+		res.Commit, res.SubDir = remote.Fragment.Ref, remote.Fragment.Subdir
+	}
+
 	repoSplitBySlash := strings.Split(res.Remote, "/")
 	res.ShortName = strings.TrimSuffix(repoSplitBySlash[len(repoSplitBySlash)-1], ".git")
+
 	return res, nil
 }

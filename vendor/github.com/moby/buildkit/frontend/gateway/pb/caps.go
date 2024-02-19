@@ -68,6 +68,10 @@ const (
 	// CapAttestations is the capability to indicate that attestation
 	// references will be attached to results
 	CapAttestations apicaps.CapID = "reference.attestations"
+
+	// CapSourceMetaResolver is the capability to indicates support for ResolveSourceMetadata
+	// function in gateway API
+	CapSourceMetaResolver apicaps.CapID = "source.metaresolver"
 )
 
 func init() {
@@ -228,6 +232,13 @@ func init() {
 	Caps.Init(apicaps.Cap{
 		ID:      CapAttestations,
 		Name:    "reference attestations",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapSourceMetaResolver,
+		Name:    "source meta resolver",
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})
