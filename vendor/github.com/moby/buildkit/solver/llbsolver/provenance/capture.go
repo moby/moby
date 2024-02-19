@@ -3,7 +3,7 @@ package provenance
 import (
 	"sort"
 
-	distreference "github.com/docker/distribution/reference"
+	distreference "github.com/distribution/reference"
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/solver/result"
 	"github.com/moby/buildkit/util/urlutil"
@@ -152,7 +152,9 @@ func (c *Capture) AddImage(i ImageSource) {
 				return
 			}
 			if v.Platform != nil && i.Platform != nil {
-				if v.Platform.Architecture == i.Platform.Architecture && v.Platform.OS == i.Platform.OS && v.Platform.Variant == i.Platform.Variant {
+				// NOTE: Deliberately excluding OSFeatures, as there's no extant (or rational) case where a source image is an index and contains images distinguished only by OSFeature
+				// See https://github.com/moby/buildkit/pull/4387#discussion_r1376234241 and https://github.com/opencontainers/image-spec/issues/1147
+				if v.Platform.Architecture == i.Platform.Architecture && v.Platform.OS == i.Platform.OS && v.Platform.OSVersion == i.Platform.OSVersion && v.Platform.Variant == i.Platform.Variant {
 					return
 				}
 			}

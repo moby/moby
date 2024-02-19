@@ -10,7 +10,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/client"
-	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/executor"
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/frontend"
@@ -351,32 +351,44 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 	})
 }
 
-func (b *llbBridge) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (resolvedRef string, dgst digest.Digest, config []byte, err error) {
+func (b *llbBridge) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt sourceresolver.Opt) (resp *sourceresolver.MetaResponse, err error) {
 	w, err := b.resolveWorker()
 	if err != nil {
-		return "", "", nil, err
+		return nil, err
 	}
 	if opt.LogName == "" {
-		opt.LogName = fmt.Sprintf("resolve image config for %s", ref)
+		// TODO: better name
+		opt.LogName = fmt.Sprintf("resolve image config for %s", op.Identifier)
 	}
-	id := ref // make a deterministic ID for avoiding duplicates
-	if platform := opt.Platform; platform == nil {
-		id += platforms.Format(platforms.DefaultSpec())
+	id := op.Identifier
+	if opt.Platform != nil {
+		id += platforms.Format(*opt.Platform)
 	} else {
-		id += platforms.Format(*platform)
+		id += platforms.Format(platforms.DefaultSpec())
 	}
 	pol, err := loadSourcePolicy(b.builder)
 	if err != nil {
-		return "", "", nil, err
+		return nil, err
 	}
 	if pol != nil {
 		opt.SourcePolicies = append(opt.SourcePolicies, pol)
 	}
+
+	if _, err := sourcepolicy.NewEngine(opt.SourcePolicies).Evaluate(ctx, op); err != nil {
+		return nil, errors.Wrap(err, "could not resolve image due to policy")
+	}
+
+	// policy is evaluated, so we can remove it from the options
+	opt.SourcePolicies = nil
+
 	err = inBuilderContext(ctx, b.builder, opt.LogName, id, func(ctx context.Context, g session.Group) error {
-		resolvedRef, dgst, config, err = w.ResolveImageConfig(ctx, ref, opt, b.sm, g)
+		resp, err = w.ResolveSourceMetadata(ctx, op, opt, b.sm, g)
 		return err
 	})
-	return resolvedRef, dgst, config, err
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 type lazyCacheManager struct {

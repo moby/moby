@@ -60,10 +60,13 @@ func ParsePlatforms(meta map[string][]byte) (Platforms, error) {
 	return ps, nil
 }
 
-func ParseKey(meta map[string][]byte, key string, p Platform) []byte {
-	if v, ok := meta[fmt.Sprintf("%s/%s", key, p.ID)]; ok {
-		return v
-	} else if v, ok := meta[key]; ok {
+func ParseKey(meta map[string][]byte, key string, p *Platform) []byte {
+	if p != nil {
+		if v, ok := meta[fmt.Sprintf("%s/%s", key, p.ID)]; ok {
+			return v
+		}
+	}
+	if v, ok := meta[key]; ok {
 		return v
 	}
 	return nil

@@ -42,7 +42,7 @@ type Session struct {
 	name        string
 	sharedKey   string
 	ctx         context.Context
-	cancelCtx   func()
+	cancelCtx   func(error)
 	done        chan struct{}
 	grpcServer  *grpc.Server
 	conn        net.Conn
@@ -107,11 +107,11 @@ func (s *Session) Run(ctx context.Context, dialer Dialer) error {
 		s.mu.Unlock()
 		return nil
 	}
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancelCause(ctx)
 	s.cancelCtx = cancel
 	s.done = make(chan struct{})
 
-	defer cancel()
+	defer cancel(errors.WithStack(context.Canceled))
 	defer close(s.done)
 
 	meta := make(map[string][]string)

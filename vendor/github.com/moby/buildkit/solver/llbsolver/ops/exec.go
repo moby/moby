@@ -90,20 +90,55 @@ func cloneExecOp(old *pb.ExecOp) pb.ExecOp {
 	n.Mounts = nil
 	for i := range old.Mounts {
 		m := *old.Mounts[i]
+
+		if m.CacheOpt != nil {
+			co := *m.CacheOpt
+			m.CacheOpt = &co
+		}
+
 		n.Mounts = append(n.Mounts, &m)
 	}
 	return n
 }
 
+func checkShouldClearCacheOpts(m *pb.Mount) bool {
+	if m.CacheOpt == nil {
+		return false
+	}
+
+	// This is a dockerfile default cache mount.
+	// We are treating this as a special case so we don't cause a cache miss unintentionally.
+	if m.CacheOpt.ID == m.Dest && m.CacheOpt.Sharing == 0 {
+		return false
+	}
+
+	// Check the case where a dockerfile cache-namespace may be used.
+	// This would be `<namespace>/<dest>`
+	_, trimmed, ok := strings.Cut(m.CacheOpt.ID, "/")
+	if ok && trimmed == m.Dest && m.CacheOpt.Sharing == 0 {
+		return false
+	}
+
+	return true
+}
+
 func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*solver.CacheMap, bool, error) {
 	op := cloneExecOp(e.op)
+
 	for i := range op.Meta.ExtraHosts {
 		h := op.Meta.ExtraHosts[i]
 		h.IP = ""
 		op.Meta.ExtraHosts[i] = h
 	}
+
 	for i := range op.Mounts {
-		op.Mounts[i].Selector = ""
+		m := op.Mounts[i]
+		m.Selector = ""
+
+		if checkShouldClearCacheOpts(m) {
+			m.CacheOpt.ID = ""
+			m.CacheOpt.Sharing = 0
+		}
 	}
 	op.Meta.ProxyEnv = nil
 
@@ -113,6 +148,8 @@ func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			OS:           e.platform.OS,
 			Architecture: e.platform.Architecture,
 			Variant:      e.platform.Variant,
+			OSVersion:    e.platform.OSVersion,
+			OSFeatures:   e.platform.OSFeatures,
 		}
 	}
 
@@ -133,17 +170,21 @@ func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 	}
 
 	dt, err := json.Marshal(struct {
-		Type    string
-		Exec    *pb.ExecOp
-		OS      string
-		Arch    string
-		Variant string `json:",omitempty"`
+		Type       string
+		Exec       *pb.ExecOp
+		OS         string
+		Arch       string
+		Variant    string   `json:",omitempty"`
+		OSVersion  string   `json:",omitempty"`
+		OSFeatures []string `json:",omitempty"`
 	}{
-		Type:    execCacheType,
-		Exec:    &op,
-		OS:      p.OS,
-		Arch:    p.Architecture,
-		Variant: p.Variant,
+		Type:       execCacheType,
+		Exec:       &op,
+		OS:         p.OS,
+		Arch:       p.Architecture,
+		Variant:    p.Variant,
+		OSVersion:  p.OSVersion,
+		OSFeatures: p.OSFeatures,
 	})
 	if err != nil {
 		return nil, false, err
@@ -171,7 +212,7 @@ func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			}
 			cm.Deps[i].Selector = digest.FromBytes(bytes.Join(dgsts, []byte{0}))
 		}
-		if !dep.NoContentBasedHash {
+		if dep.ContentBasedHash {
 			cm.Deps[i].ComputeDigestFunc = opsutils.NewContentHashFunc(toSelectors(dedupePaths(dep.Selectors)))
 		}
 		cm.Deps[i].PreprocessFunc = unlazyResultFunc
@@ -181,6 +222,12 @@ func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 }
 
 func dedupePaths(inp []string) []string {
+	// If there's one or fewer inputs, then dedupe won't do anything.
+	// Skip the allocations and logic of this function in that case.
+	if len(inp) <= 1 {
+		return inp
+	}
+
 	old := make(map[string]struct{}, len(inp))
 	for _, p := range inp {
 		old[p] = struct{}{}
@@ -189,7 +236,10 @@ func dedupePaths(inp []string) []string {
 	for p1 := range old {
 		var skip bool
 		for p2 := range old {
-			if p1 != p2 && strings.HasPrefix(p1, p2+"/") {
+			// Check if p2 is a prefix of p1. Ensure that p2 ends in a slash
+			// so that we know p2 is a parent directory of p1. We don't want
+			// /foo to be a parent of /foobar.
+			if p1 != p2 && strings.HasPrefix(p1, forceTrailingSlash(p2)) {
 				skip = true
 				break
 			}
@@ -204,17 +254,32 @@ func dedupePaths(inp []string) []string {
 	return paths
 }
 
+// forceTrailingSlash ensures that the path always ends with a path separator.
+// If the path already ends with a /, this method returns the same string.
+func forceTrailingSlash(s string) string {
+	if strings.HasSuffix(s, "/") {
+		return s
+	}
+	return s + "/"
+}
+
 func toSelectors(p []string) []opsutils.Selector {
 	sel := make([]opsutils.Selector, 0, len(p))
 	for _, p := range p {
+		if p == "" || p == "/" {
+			return nil
+		}
 		sel = append(sel, opsutils.Selector{Path: p, FollowLinks: true})
 	}
 	return sel
 }
 
 type dep struct {
-	Selectors          []string
-	NoContentBasedHash bool
+	Selectors []string
+
+	// ContentBasedHash enables content-based caching. This is used to ensure
+	// that all caching is done safely and efficiently.
+	ContentBasedHash bool
 }
 
 func (e *ExecOp) getMountDeps() ([]dep, error) {
@@ -227,15 +292,56 @@ func (e *ExecOp) getMountDeps() ([]dep, error) {
 			return nil, errors.Errorf("invalid mountinput %v", m)
 		}
 
-		sel := m.Selector
-		if sel != "" {
-			sel = path.Join("/", sel)
-			deps[m.Input].Selectors = append(deps[m.Input].Selectors, sel)
+		sel := path.Join("/", m.Selector)
+		deps[m.Input].Selectors = append(deps[m.Input].Selectors, sel)
+
+		// Assume that we *cannot* perform content-based caching, and then
+		// enable it selectively only for cases where we want to
+		contentBasedCache := false
+
+		// Allow content-based cached where safe - these are enforced to avoid
+		// the following case:
+		// - A "snapshot" contains "foo/a.txt" and "bar/b.txt"
+		// - "RUN --mount from=snapshot,src=bar touch bar/c.txt" creates a new
+		//   file in bar
+		// - If we run again, but this time "snapshot" contains a new
+		//   "foo/sneaky.txt", the content-based cache matches the previous
+		//   run, since we only select "bar"
+		// - But this cached result is incorrect - "foo/sneaky.txt" isn't in
+		//   our cached result, but it is in our input.
+		if m.Output == pb.SkipOutput {
+			// if the mount has no outputs, it's safe to enable content-based
+			// caching, since it's guaranteed to not be used as an input for
+			// any future steps
+			contentBasedCache = true
+		} else if m.Readonly {
+			// if the mount is read-only, then it's also safe, since it can't
+			// be modified by the operation
+			contentBasedCache = true
+		} else if sel == pb.RootMount {
+			// if the mount mounts the entire source, then it's also safe,
+			// since there are no unselected "sneaky" files
+			contentBasedCache = true
 		}
 
-		if (!m.Readonly || m.Dest == pb.RootMount) && m.Output != -1 { // exclude read-only rootfs && read-write mounts
-			deps[m.Input].NoContentBasedHash = true
+		// Now apply the user-specified option.
+		switch m.ContentCache {
+		case pb.MountContentCache_OFF:
+			contentBasedCache = false
+		case pb.MountContentCache_ON:
+			if !contentBasedCache {
+				// If we can't enable cache for safety, then force-enabling it is invalid
+				return nil, errors.Errorf("invalid mount cache content %v", m)
+			}
+		case pb.MountContentCache_DEFAULT:
+			if m.Dest == pb.RootMount {
+				// we explicitly choose to not implement it on the root mount,
+				// since this is likely very expensive (and not incredibly useful)
+				contentBasedCache = false
+			}
 		}
+
+		deps[m.Input].ContentBasedHash = contentBasedCache
 	}
 	return deps, nil
 }

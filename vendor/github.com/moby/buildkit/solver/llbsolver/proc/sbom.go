@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/executor/resources"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
@@ -26,8 +27,10 @@ func SBOMProcessor(scannerRef string, useCache bool, resolveMode string) llbsolv
 			return nil, err
 		}
 
-		scanner, err := sbom.CreateSBOMScanner(ctx, s.Bridge(j), scannerRef, llb.ResolveImageConfigOpt{
-			ResolveMode: resolveMode,
+		scanner, err := sbom.CreateSBOMScanner(ctx, s.Bridge(j), scannerRef, sourceresolver.Opt{
+			ImageOpt: &sourceresolver.ResolveImageOpt{
+				ResolveMode: resolveMode,
+			},
 		})
 		if err != nil {
 			return nil, err

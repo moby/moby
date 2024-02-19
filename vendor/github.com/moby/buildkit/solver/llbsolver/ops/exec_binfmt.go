@@ -90,6 +90,8 @@ func getEmulator(ctx context.Context, p *pb.Platform, idmap *idtools.IdentityMap
 	pp := platforms.Normalize(ocispecs.Platform{
 		Architecture: p.Architecture,
 		OS:           p.OS,
+		OSVersion:    p.OSVersion,
+		OSFeatures:   p.OSFeatures,
 		Variant:      p.Variant,
 	})
 

@@ -270,10 +270,11 @@ func (c *AddCommand) Expand(expander SingleWordExpander) error {
 type CopyCommand struct {
 	withNameAndCode
 	SourcesAndDest
-	From  string
-	Chown string
-	Chmod string
-	Link  bool
+	From    string
+	Chown   string
+	Chmod   string
+	Link    bool
+	Parents bool // parents preserves directory structure
 }
 
 func (c *CopyCommand) Expand(expander SingleWordExpander) error {

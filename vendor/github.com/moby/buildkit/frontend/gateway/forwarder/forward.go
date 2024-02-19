@@ -6,6 +6,7 @@ import (
 
 	cacheutil "github.com/moby/buildkit/cache/util"
 	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/frontend/gateway/client"
@@ -94,6 +95,12 @@ func (c *BridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*cli
 
 	return cRes, nil
 }
+
+func (c *BridgeClient) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt) (string, digest.Digest, []byte, error) {
+	imr := sourceresolver.NewImageMetaResolver(c)
+	return imr.ResolveImageConfig(ctx, ref, opt)
+}
+
 func (c *BridgeClient) loadBuildOpts() client.BuildOpts {
 	wis := c.workers.WorkerInfos()
 	workers := make([]client.WorkerInfo, len(wis))

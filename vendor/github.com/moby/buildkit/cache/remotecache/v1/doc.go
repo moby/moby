@@ -30,7 +30,6 @@ package cacheimport
 //    },
 //    {
 //      "digest": "sha256:deadbeef",
-//      "output": 1,                   <- optional output index
 //      "layers": [                    <- optional array of layer pointers
 //        {
 //          "createdat": "",

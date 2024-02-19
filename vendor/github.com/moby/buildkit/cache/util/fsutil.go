@@ -90,17 +90,17 @@ type ReadDirRequest struct {
 func ReadDir(ctx context.Context, mount snapshot.Mountable, req ReadDirRequest) ([]*fstypes.Stat, error) {
 	var (
 		rd []*fstypes.Stat
-		wo fsutil.WalkOpt
+		fo fsutil.FilterOpt
 	)
 	if req.IncludePattern != "" {
-		wo.IncludePatterns = append(wo.IncludePatterns, req.IncludePattern)
+		fo.IncludePatterns = append(fo.IncludePatterns, req.IncludePattern)
 	}
 	err := withMount(ctx, mount, func(root string) error {
 		fp, err := fs.RootPath(root, req.Path)
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		return fsutil.Walk(ctx, fp, &wo, func(path string, info os.FileInfo, err error) error {
+		return fsutil.Walk(ctx, fp, &fo, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return errors.Wrapf(err, "walking %q", root)
 			}
@@ -128,6 +128,16 @@ func StatFile(ctx context.Context, mount snapshot.Mountable, path string) (*fsty
 			return errors.WithStack(err)
 		}
 		if st, err = fsutil.Stat(fp); err != nil {
+			// The filename here is internal to the mount, so we can restore
+			// the request base path for error reporting.
+			// See os.DirFS.Open for details.
+			err1 := err
+			if err := errors.Cause(err); err != nil {
+				err1 = err
+			}
+			if pe, ok := err1.(*os.PathError); ok {
+				pe.Path = path
+			}
 			return errors.WithStack(err)
 		}
 		return nil

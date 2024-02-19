@@ -70,11 +70,11 @@ type Status struct {
 func NewWithFunction(f func(context.Context) (interface{}, error)) (*Pipe, func()) {
 	p := New(Request{})
 
-	ctx, cancel := context.WithCancel(context.TODO())
+	ctx, cancel := context.WithCancelCause(context.TODO())
 
 	p.OnReceiveCompletion = func() {
 		if req := p.Sender.Request(); req.Canceled {
-			cancel()
+			cancel(errors.WithStack(context.Canceled))
 		}
 	}
 

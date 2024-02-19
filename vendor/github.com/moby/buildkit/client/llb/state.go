@@ -229,7 +229,7 @@ func (s State) Output() Output {
 	return s.out
 }
 
-// WithOutput creats a new state with the output set to the given output.
+// WithOutput creates a new state with the output set to the given output.
 func (s State) WithOutput(o Output) State {
 	prev := s
 	s = State{
@@ -258,16 +258,21 @@ func (s State) WithImageConfig(c []byte) (State, error) {
 	}
 	s = s.Dir(img.Config.WorkingDir)
 	if img.Architecture != "" && img.OS != "" {
-		s = s.Platform(ocispecs.Platform{
+		plat := ocispecs.Platform{
 			OS:           img.OS,
 			Architecture: img.Architecture,
 			Variant:      img.Variant,
-		})
+			OSVersion:    img.OSVersion,
+		}
+		if img.OSFeatures != nil {
+			plat.OSFeatures = append([]string{}, img.OSFeatures...)
+		}
+		s = s.Platform(plat)
 	}
 	return s, nil
 }
 
-// Run performs the command specified by the arguments within the contexst of the current [State].
+// Run performs the command specified by the arguments within the context of the current [State].
 // The command is executed as a container with the [State]'s filesystem as the root filesystem.
 // As such any command you run must be present in the [State]'s filesystem.
 // Constraints such as [State.Ulimit], [State.ParentCgroup], [State.Network], etc. are applied to the container.

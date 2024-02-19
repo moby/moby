@@ -56,7 +56,7 @@ type WriterOption func(Writer)
 // NewContext returns a new context and a progress reader that captures all
 // progress items writtern to this context. Last returned parameter is a closer
 // function to signal that no new writes will happen to this context.
-func NewContext(ctx context.Context) (Reader, context.Context, func()) {
+func NewContext(ctx context.Context) (Reader, context.Context, func(error)) {
 	pr, pw, cancel := pipe()
 	ctx = WithProgress(ctx, pw)
 	return pr, ctx, cancel
@@ -141,7 +141,7 @@ func (pr *progressReader) Read(ctx context.Context) ([]*Progress, error) {
 		select {
 		case <-ctx.Done():
 			pr.mu.Unlock()
-			return nil, ctx.Err()
+			return nil, context.Cause(ctx)
 		default:
 		}
 		dmap := pr.dirty
@@ -185,8 +185,8 @@ func (pr *progressReader) append(pw *progressWriter) {
 	}
 }
 
-func pipe() (*progressReader, *progressWriter, func()) {
-	ctx, cancel := context.WithCancel(context.Background())
+func pipe() (*progressReader, *progressWriter, func(error)) {
+	ctx, cancel := context.WithCancelCause(context.Background())
 	pr := &progressReader{
 		ctx:     ctx,
 		writers: make(map[*progressWriter]struct{}),

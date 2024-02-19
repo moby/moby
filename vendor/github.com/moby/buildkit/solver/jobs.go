@@ -141,6 +141,9 @@ func (s *state) getEdge(index Index) *edge {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if e, ok := s.edges[index]; ok {
+		for e.owner != nil {
+			e = e.owner
+		}
 		return e
 	}
 
@@ -153,19 +156,29 @@ func (s *state) getEdge(index Index) *edge {
 	return e
 }
 
-func (s *state) setEdge(index Index, newEdge *edge) {
+func (s *state) setEdge(index Index, targetEdge *edge, targetState *state) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	e, ok := s.edges[index]
 	if ok {
-		if e == newEdge {
+		for e.owner != nil {
+			e = e.owner
+		}
+		if e == targetEdge {
 			return
 		}
-		e.release()
+	} else {
+		e = newEdge(Edge{Index: index, Vertex: s.vtx}, s.op, s.index)
+		s.edges[index] = e
 	}
+	targetEdge.takeOwnership(e)
 
-	newEdge.incrementReferenceCount()
-	s.edges[index] = newEdge
+	if targetState != nil {
+		if _, ok := targetState.allPw[s.mpw]; !ok {
+			targetState.mpw.Add(s.mpw)
+			targetState.allPw[s.mpw] = struct{}{}
+		}
+	}
 }
 
 func (s *state) combinedCacheManager() CacheManager {
@@ -186,6 +199,9 @@ func (s *state) combinedCacheManager() CacheManager {
 
 func (s *state) Release() {
 	for _, e := range s.edges {
+		for e.owner != nil {
+			e = e.owner
+		}
 		e.release()
 	}
 	if s.op != nil {
@@ -239,7 +255,7 @@ type Job struct {
 	startedTime   time.Time
 	completedTime time.Time
 
-	progressCloser func()
+	progressCloser func(error)
 	SessionID      string
 	uniqueID       string // unique ID is used for provenance. We use a different field that client can't control
 }
@@ -264,7 +280,50 @@ func NewSolver(opts SolverOpt) *Solver {
 	return jl
 }
 
-func (jl *Solver) setEdge(e Edge, newEdge *edge) {
+// hasOwner returns true if the provided target edge (or any of it's sibling
+// edges) has the provided owner.
+func (jl *Solver) hasOwner(target Edge, owner Edge) bool {
+	jl.mu.RLock()
+	defer jl.mu.RUnlock()
+
+	st, ok := jl.actives[target.Vertex.Digest()]
+	if !ok {
+		return false
+	}
+
+	var owners []Edge
+	for _, e := range st.edges {
+		if e.owner != nil {
+			owners = append(owners, e.owner.edge)
+		}
+	}
+	for len(owners) > 0 {
+		var owners2 []Edge
+		for _, e := range owners {
+			st, ok = jl.actives[e.Vertex.Digest()]
+			if !ok {
+				continue
+			}
+
+			if st.vtx.Digest() == owner.Vertex.Digest() {
+				return true
+			}
+
+			for _, e := range st.edges {
+				if e.owner != nil {
+					owners2 = append(owners2, e.owner.edge)
+				}
+			}
+		}
+
+		// repeat recursively, this time with the linked owners owners
+		owners = owners2
+	}
+
+	return false
+}
+
+func (jl *Solver) setEdge(e Edge, targetEdge *edge) {
 	jl.mu.RLock()
 	defer jl.mu.RUnlock()
 
@@ -273,7 +332,10 @@ func (jl *Solver) setEdge(e Edge, newEdge *edge) {
 		return
 	}
 
-	st.setEdge(e.Index, newEdge)
+	// potentially passing nil targetSt is intentional and handled in st.setEdge
+	targetSt := jl.actives[targetEdge.edge.Vertex.Digest()]
+
+	st.setEdge(e.Index, targetEdge, targetSt)
 }
 
 func (jl *Solver) getState(e Edge) *state {
@@ -469,8 +531,9 @@ func (jl *Solver) NewJob(id string) (*Job, error) {
 }
 
 func (jl *Solver) Get(id string) (*Job, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-	defer cancel()
+	ctx, cancel := context.WithCancelCause(context.Background())
+	ctx, _ = context.WithTimeoutCause(ctx, 6*time.Second, errors.WithStack(context.DeadlineExceeded))
+	defer cancel(errors.WithStack(context.Canceled))
 
 	go func() {
 		<-ctx.Done()
@@ -484,7 +547,7 @@ func (jl *Solver) Get(id string) (*Job, error) {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, errors.Errorf("no such job %s", id)
+			return nil, errdefs.NewUnknownJobError(id)
 		default:
 		}
 		j, ok := jl.jobs[id]
@@ -570,7 +633,7 @@ func (j *Job) walkProvenance(ctx context.Context, e Edge, f func(ProvenanceProvi
 }
 
 func (j *Job) CloseProgress() {
-	j.progressCloser()
+	j.progressCloser(errors.WithStack(context.Canceled))
 	j.pw.Close()
 }
 
@@ -771,7 +834,7 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessF
 				if errdefs.IsCanceled(ctx, err) {
 					complete = false
 					releaseError(err)
-					err = errors.Wrap(ctx.Err(), err.Error())
+					err = errors.Wrap(context.Cause(ctx), err.Error())
 				}
 			default:
 			}
@@ -837,7 +900,7 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 				if errdefs.IsCanceled(ctx, err) {
 					complete = false
 					releaseError(err)
-					err = errors.Wrap(ctx.Err(), err.Error())
+					err = errors.Wrap(context.Cause(ctx), err.Error())
 				}
 			default:
 			}
@@ -916,7 +979,7 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 				if errdefs.IsCanceled(ctx, err) {
 					complete = false
 					releaseError(err)
-					err = errors.Wrap(ctx.Err(), err.Error())
+					err = errors.Wrap(context.Cause(ctx), err.Error())
 				}
 			default:
 			}

@@ -31,7 +31,7 @@ func (p *ProviderWithProgress) ReaderAt(ctx context.Context, desc ocispecs.Descr
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancelCause(ctx)
 	doneCh := make(chan struct{})
 	go trackProgress(ctx, desc, p.Manager, doneCh)
 	return readerAtWithCancel{ReaderAt: ra, cancel: cancel, doneCh: doneCh, logger: bklog.G(ctx)}, nil
@@ -39,13 +39,13 @@ func (p *ProviderWithProgress) ReaderAt(ctx context.Context, desc ocispecs.Descr
 
 type readerAtWithCancel struct {
 	content.ReaderAt
-	cancel func()
+	cancel func(error)
 	doneCh <-chan struct{}
 	logger *logrus.Entry
 }
 
 func (ra readerAtWithCancel) Close() error {
-	ra.cancel()
+	ra.cancel(errors.WithStack(context.Canceled))
 	select {
 	case <-ra.doneCh:
 	case <-time.After(time.Second):
@@ -65,7 +65,7 @@ func (f *FetcherWithProgress) Fetch(ctx context.Context, desc ocispecs.Descripto
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancelCause(ctx)
 	doneCh := make(chan struct{})
 	go trackProgress(ctx, desc, f.Manager, doneCh)
 	return readerWithCancel{ReadCloser: rc, cancel: cancel, doneCh: doneCh, logger: bklog.G(ctx)}, nil
@@ -73,13 +73,13 @@ func (f *FetcherWithProgress) Fetch(ctx context.Context, desc ocispecs.Descripto
 
 type readerWithCancel struct {
 	io.ReadCloser
-	cancel func()
+	cancel func(error)
 	doneCh <-chan struct{}
 	logger *logrus.Entry
 }
 
 func (r readerWithCancel) Close() error {
-	r.cancel()
+	r.cancel(errors.WithStack(context.Canceled))
 	select {
 	case <-r.doneCh:
 	case <-time.After(time.Second):

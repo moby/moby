@@ -3,7 +3,7 @@ package frontend
 import (
 	"context"
 
-	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/executor"
 	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/session"
@@ -22,8 +22,8 @@ type Frontend interface {
 }
 
 type FrontendLLBBridge interface {
+	sourceresolver.MetaResolver
 	Solve(ctx context.Context, req SolveRequest, sid string) (*Result, error)
-	ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (string, digest.Digest, []byte, error)
 	Warn(ctx context.Context, dgst digest.Digest, msg string, opts WarnOpts) error
 }
 
