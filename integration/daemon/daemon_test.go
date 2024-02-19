@@ -2,6 +2,7 @@ package daemon // import "github.com/docker/docker/integration/daemon"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -182,7 +183,9 @@ func TestConfigDaemonSeccompProfiles(t *testing.T) {
 func TestDaemonProxy(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "cannot start multiple daemons on windows")
 	skip.If(t, os.Getenv("DOCKER_ROOTLESS") != "", "cannot connect to localhost proxy in rootless environment")
-	ctx := testutil.StartSpan(baseContext, t)
+
+	// Don't setup OTEL here to avoid it hitting the HTTP proxy.
+	ctx := context.Background()
 
 	newProxy := func(rcvd *string, t *testing.T) *httptest.Server {
 		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -200,7 +203,6 @@ func TestDaemonProxy(t *testing.T) {
 	t.Run("environment variables", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := testutil.StartSpan(ctx, t)
 		var received string
 		proxyServer := newProxy(&received, t)
 
@@ -232,8 +234,6 @@ func TestDaemonProxy(t *testing.T) {
 	// Configure proxy through command-line flags
 	t.Run("command-line options", func(t *testing.T) {
 		t.Parallel()
-
-		ctx := testutil.StartSpan(ctx, t)
 
 		var received string
 		proxyServer := newProxy(&received, t)
@@ -283,7 +283,6 @@ func TestDaemonProxy(t *testing.T) {
 	// Configure proxy through configuration file
 	t.Run("configuration file", func(t *testing.T) {
 		t.Parallel()
-		ctx := testutil.StartSpan(ctx, t)
 
 		var received string
 		proxyServer := newProxy(&received, t)
@@ -332,7 +331,6 @@ func TestDaemonProxy(t *testing.T) {
 
 	// Conflicting options (passed both through command-line options and config file)
 	t.Run("conflicting options", func(t *testing.T) {
-		ctx := testutil.StartSpan(ctx, t)
 		const (
 			proxyRawURL = "https://" + userPass + "example.org"
 			proxyURL    = "https://xxxxx:xxxxx@example.org"
@@ -357,7 +355,6 @@ func TestDaemonProxy(t *testing.T) {
 	// Make sure values are sanitized when reloading the daemon-config
 	t.Run("reload sanitized", func(t *testing.T) {
 		t.Parallel()
-		ctx := testutil.StartSpan(ctx, t)
 
 		const (
 			proxyRawURL = "https://" + userPass + "example.org"
