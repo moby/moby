@@ -182,6 +182,7 @@ jobs:
           directory: bundles
           env_vars: RUNNER_OS
           flags: unit
+          token: ${{ secrets.CODECOV_TOKEN }}  # used to upload coverage reports: https://github.com/moby/buildkit/pull/4660#issue-2142122533
       -
         name: Upload reports
         if: always()
@@ -455,6 +456,7 @@ jobs:
           directory: bundles
           env_vars: RUNNER_OS
           flags: integration,${{ matrix.runtime }}
+          token: ${{ secrets.CODECOV_TOKEN }}  # used to upload coverage reports: https://github.com/moby/buildkit/pull/4660#issue-2142122533
       -
         name: Docker info
         run: |
