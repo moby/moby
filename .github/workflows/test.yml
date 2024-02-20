@@ -14,6 +14,8 @@ on:
 
 env:
   GO_VERSION: "1.21.10"
+  GIT_PAGER: "cat"
+  PAGER: "cat"
 
 jobs:
   validate-dco:
