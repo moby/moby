@@ -25,6 +25,7 @@ jobs:
     needs:
       - test-prepare
     uses: ./.github/workflows/.windows.yml
+    secrets: inherit
     strategy:
       fail-fast: false
       matrix:

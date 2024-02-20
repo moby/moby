@@ -62,6 +62,7 @@ jobs:
           directory: ./bundles
           env_vars: RUNNER_OS
           flags: unit
+          token: ${{ secrets.CODECOV_TOKEN }}  # used to upload coverage reports: https://github.com/moby/buildkit/pull/4660#issue-2142122533
       -
         name: Upload reports
         if: always()
@@ -257,6 +258,7 @@ jobs:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
           flags: integration,${{ matrix.mode }}
+          token: ${{ secrets.CODECOV_TOKEN }}  # used to upload coverage reports: https://github.com/moby/buildkit/pull/4660#issue-2142122533
       -
         name: Test daemon logs
         if: always()
@@ -395,6 +397,7 @@ jobs:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
           flags: integration-cli
+          token: ${{ secrets.CODECOV_TOKEN }}  # used to upload coverage reports: https://github.com/moby/buildkit/pull/4660#issue-2142122533
       -
         name: Test daemon logs
         if: always()

@@ -57,6 +57,7 @@ jobs:
       - build-dev
       - validate-dco
     uses: ./.github/workflows/.test.yml
+    secrets: inherit
     strategy:
       fail-fast: false
       matrix:
