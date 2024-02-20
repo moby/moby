@@ -78,42 +78,38 @@ type DaemonCli struct {
 	d               *daemon.Daemon
 	authzMiddleware *authorization.Middleware // authzMiddleware enables to dynamically reload the authorization plugins
 
-	stopOnce    sync.Once
-	apiShutdown chan struct{}
+	stopOnce     sync.Once
+	apiShutdown  chan struct{}
+	apiTLSConfig *tls.Config
 }
 
-// NewDaemonCli returns a daemon CLI
-func NewDaemonCli() *DaemonCli {
-	return &DaemonCli{
-		apiShutdown: make(chan struct{}),
-	}
-}
-
-func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
-	ctx := context.TODO()
-
-	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
-		return err
-	}
-
-	tlsConfig, err := newAPIServerTLSConfig(cli.Config)
+// NewDaemonCli returns a daemon CLI with the given options.
+func NewDaemonCli(opts *daemonOptions) (*DaemonCli, error) {
+	cfg, err := loadDaemonCliConfig(opts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if opts.Validate {
-		// If config wasn't OK we wouldn't have made it this far.
-		_, _ = fmt.Fprintln(os.Stderr, "configuration OK")
-		return nil
+	tlsConfig, err := newAPIServerTLSConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
 
+	return &DaemonCli{
+		Config:       cfg,
+		configFile:   &opts.configFile,
+		flags:        opts.flags,
+		apiShutdown:  make(chan struct{}),
+		apiTLSConfig: tlsConfig,
+	}, nil
+}
+
+func (cli *DaemonCli) start() (err error) {
+	ctx := context.TODO()
 	configureProxyEnv(cli.Config)
 	configureDaemonLogs(cli.Config)
 
 	log.G(ctx).Info("Starting up")
-
-	cli.configFile = &opts.configFile
-	cli.flags = opts.flags
 
 	if cli.Config.Debug {
 		debug.Enable()
@@ -177,7 +173,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		}
 	}
 
-	lss, hosts, err := loadListeners(cli.Config, tlsConfig)
+	lss, hosts, err := loadListeners(cli.Config, cli.apiTLSConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to load listeners")
 	}
