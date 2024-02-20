@@ -54,7 +54,7 @@ func installServiceFlags(flags *pflag.FlagSet) {
 type handler struct {
 	tosvc     chan bool
 	fromsvc   chan error
-	daemonCli *DaemonCli
+	daemonCLI *daemonCLI
 }
 
 type etwHook struct {
@@ -216,7 +216,7 @@ func unregisterService() error {
 // initService is the entry point for running the daemon as a Windows
 // service. It returns an indication to stop (if registering/un-registering);
 // an indication of whether it is running as a service; and an error.
-func initService(daemonCli *DaemonCli) (bool, bool, error) {
+func initService(cli *daemonCLI) (bool, bool, error) {
 	if *flUnregisterService {
 		if *flRegisterService {
 			return true, false, errors.New("--register-service and --unregister-service cannot be used together")
@@ -241,7 +241,7 @@ func initService(daemonCli *DaemonCli) (bool, bool, error) {
 	h := &handler{
 		tosvc:     make(chan bool),
 		fromsvc:   make(chan error),
-		daemonCli: daemonCli,
+		daemonCLI: cli,
 	}
 
 	var eventLog *eventlog.Log
@@ -276,7 +276,7 @@ func initService(daemonCli *DaemonCli) (bool, bool, error) {
 
 func (h *handler) started() error {
 	// This must be delayed until daemonCli initializes Config.Root
-	err := initPanicFile(filepath.Join(h.daemonCli.Config.Root, "panic.log"))
+	err := initPanicFile(filepath.Join(h.daemonCLI.Config.Root, "panic.log"))
 	if err != nil {
 		return err
 	}
@@ -313,12 +313,12 @@ Loop:
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Cmd(windows.SERVICE_CONTROL_PARAMCHANGE):
-				h.daemonCli.reloadConfig()
+				h.daemonCLI.reloadConfig()
 			case svc.Interrogate:
 				s <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
 				s <- svc.Status{State: svc.StopPending, Accepts: 0}
-				h.daemonCli.stop()
+				h.daemonCLI.stop()
 			}
 		}
 	}

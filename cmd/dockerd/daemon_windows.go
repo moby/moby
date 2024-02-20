@@ -71,7 +71,7 @@ func notifyShutdown(err error) {
 }
 
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
-func (cli *DaemonCli) setupConfigReloadTrap() {
+func (cli *daemonCLI) setupConfigReloadTrap() {
 	go func() {
 		sa := windows.SecurityAttributes{
 			Length: 0,
@@ -90,7 +90,7 @@ func (cli *DaemonCli) setupConfigReloadTrap() {
 
 // getSwarmRunRoot gets the root directory for swarm to store runtime state
 // For example, the control socket
-func (cli *DaemonCli) getSwarmRunRoot() string {
+func (cli *daemonCLI) getSwarmRunRoot() string {
 	return ""
 }
 
@@ -102,7 +102,7 @@ func newCgroupParent(config *config.Config) string {
 	return ""
 }
 
-func (cli *DaemonCli) initContainerd(_ context.Context) (func(time.Duration) error, error) {
+func (cli *daemonCLI) initContainerd(_ context.Context) (func(time.Duration) error, error) {
 	system.InitContainerdRuntime(cli.ContainerdAddr)
 	return nil, nil
 }
