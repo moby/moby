@@ -104,8 +104,7 @@ func NewDaemonCli(opts *daemonOptions) (*DaemonCli, error) {
 	}, nil
 }
 
-func (cli *DaemonCli) start() (err error) {
-	ctx := context.TODO()
+func (cli *DaemonCli) start(ctx context.Context) (err error) {
 	configureProxyEnv(cli.Config)
 	configureDaemonLogs(cli.Config)
 

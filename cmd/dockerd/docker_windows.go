@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -9,7 +10,7 @@ import (
 	"github.com/containerd/log"
 )
 
-func runDaemon(opts *daemonOptions) error {
+func runDaemon(ctx context.Context, opts *daemonOptions) error {
 	cli, err := NewDaemonCli(opts)
 	if err != nil {
 		return err
@@ -36,7 +37,7 @@ func runDaemon(opts *daemonOptions) error {
 		cli.Config.Pidfile = ""
 	}
 
-	err = cli.start()
+	err = cli.start(ctx)
 	notifyShutdown(err)
 	return err
 }
