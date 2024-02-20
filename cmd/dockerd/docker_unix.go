@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,7 +11,7 @@ import (
 	"github.com/containerd/log"
 )
 
-func runDaemon(opts *daemonOptions) error {
+func runDaemon(ctx context.Context, opts *daemonOptions) error {
 	cli, err := NewDaemonCli(opts)
 	if err != nil {
 		return err
@@ -20,7 +21,7 @@ func runDaemon(opts *daemonOptions) error {
 		_, _ = fmt.Fprintln(os.Stderr, "configuration OK")
 		return nil
 	}
-	return cli.start()
+	return cli.start(ctx)
 }
 
 func initLogging(_, stderr io.Writer) {
