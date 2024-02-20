@@ -36,6 +36,7 @@ Special status labels:
  * `impact/deprecation`
  * `impact/distribution`
  * `impact/dockerfile`
+ * `impact/vendor`
 
 ### Process labels (apply to merged pull requests)
 
@@ -186,6 +187,7 @@ to ease future classification:
  * `impact/cli` signifies the patch impacted a CLI command
  * `impact/dockerfile` signifies the patch impacted the Dockerfile syntax
  * `impact/deprecation` signifies the patch participates in deprecating an existing feature
+ * `impact/vendor` signifies the patch updated a vendored package
 
 ### Close
 
