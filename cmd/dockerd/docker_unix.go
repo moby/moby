@@ -12,7 +12,7 @@ import (
 )
 
 func runDaemon(ctx context.Context, opts *daemonOptions) error {
-	cli, err := NewDaemonCli(opts)
+	cli, err := newDaemonCLI(opts)
 	if err != nil {
 		return err
 	}

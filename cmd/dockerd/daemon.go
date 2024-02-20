@@ -67,8 +67,8 @@ import (
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
-// DaemonCli represents the daemon CLI.
-type DaemonCli struct {
+// daemonCLI represents the daemon CLI.
+type daemonCLI struct {
 	*config.Config
 	configFile *string
 	flags      *pflag.FlagSet
@@ -81,8 +81,8 @@ type DaemonCli struct {
 	apiTLSConfig *tls.Config
 }
 
-// NewDaemonCli returns a daemon CLI with the given options.
-func NewDaemonCli(opts *daemonOptions) (*DaemonCli, error) {
+// newDaemonCLI returns a daemon CLI with the given options.
+func newDaemonCLI(opts *daemonOptions) (*daemonCLI, error) {
 	cfg, err := loadDaemonCliConfig(opts)
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func NewDaemonCli(opts *daemonOptions) (*DaemonCli, error) {
 		return nil, err
 	}
 
-	return &DaemonCli{
+	return &daemonCLI{
 		Config:       cfg,
 		configFile:   &opts.configFile,
 		flags:        opts.flags,
@@ -102,7 +102,7 @@ func NewDaemonCli(opts *daemonOptions) (*DaemonCli, error) {
 	}, nil
 }
 
-func (cli *DaemonCli) start(ctx context.Context) (err error) {
+func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	configureProxyEnv(cli.Config)
 	configureDaemonLogs(cli.Config)
 
@@ -451,7 +451,7 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 	}, nil
 }
 
-func (cli *DaemonCli) reloadConfig() {
+func (cli *daemonCLI) reloadConfig() {
 	ctx := context.TODO()
 	reload := func(c *config.Config) {
 		if err := validateAuthzPlugins(c.AuthorizationPlugins, cli.d.PluginStore); err != nil {
@@ -485,7 +485,7 @@ func (cli *DaemonCli) reloadConfig() {
 	}
 }
 
-func (cli *DaemonCli) stop() {
+func (cli *daemonCLI) stop() {
 	// Signal that the API server should shut down as soon as possible.
 	// This construct is used rather than directly shutting down the HTTP
 	// server to avoid any issues if this method is called before the server
@@ -752,7 +752,7 @@ func initMiddlewares(s *apiserver.Server, cfg *config.Config, pluginStore plugin
 	return authzMiddleware, nil
 }
 
-func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
+func (cli *daemonCLI) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
 	var opts []supervisor.DaemonOpt
 	if cli.Debug {
 		opts = append(opts, supervisor.WithLogLevel("debug"))
@@ -909,7 +909,7 @@ func loadListeners(cfg *config.Config, tlsConfig *tls.Config) ([]net.Listener, [
 	return lss, hosts, nil
 }
 
-func createAndStartCluster(cli *DaemonCli, d *daemon.Daemon) (*cluster.Cluster, error) {
+func createAndStartCluster(cli *daemonCLI, d *daemon.Daemon) (*cluster.Cluster, error) {
 	name, _ := os.Hostname()
 
 	// Use a buffered channel to pass changes from store watch API to daemon
