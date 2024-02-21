@@ -180,6 +180,21 @@ func (b *BoltDB) AtomicDelete(key string, previous *store.KVPair) error {
 	})
 }
 
+// Delete deletes a value at "key". Unlike AtomicDelete it doesn't check
+// whether the deleted key is at a specific version before deleting.
+func (b *BoltDB) Delete(key string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.client.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(b.boltBucket)
+		if bucket == nil || bucket.Get([]byte(key)) == nil {
+			return store.ErrKeyNotFound
+		}
+		return bucket.Delete([]byte(key))
+	})
+}
+
 // AtomicPut puts a value at "key" if the key has not been
 // modified since the last Put, throws an error if this is the case
 func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair) (*store.KVPair, error) {

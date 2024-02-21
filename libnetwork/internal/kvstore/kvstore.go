@@ -51,6 +51,10 @@ type Store interface {
 	// AtomicDelete performs an atomic delete of a single value.
 	AtomicDelete(key string, previous *KVPair) error
 
+	// Delete deletes a value at "key". Unlike AtomicDelete it doesn't check
+	// whether the deleted key is at a specific version before deleting.
+	Delete(key string) error
+
 	// Close the store connection
 	Close()
 }
