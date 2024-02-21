@@ -336,7 +336,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	cli.setupConfigReloadTrap()
 
 	// after the daemon is done setting up we can notify systemd api
-	go notifyReady()
+	notifyReady()
 	log.G(ctx).Info("Daemon has completed initialization")
 
 	// Daemon is fully initialized. Start handling API traffic
@@ -369,7 +369,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	c.Cleanup()
 
 	// notify systemd that we're shutting down
-	go notifyStopping()
+	notifyStopping()
 	shutdownDaemon(ctx, d)
 
 	// shutdown / close BuildKit backend
