@@ -12,6 +12,12 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// getDefaultDaemonConfigFile returns the default location of the daemon's
+// configuration file.
+//
+// On Windows, the location of the config-file is relative to the daemon's
+// data-root (config.Root), which is configurable, so we cannot use a fixed
+// default location, and this function always returns an empty string.
 func getDefaultDaemonConfigFile() string {
 	return ""
 }
