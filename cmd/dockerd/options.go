@@ -95,6 +95,7 @@ func defaultCertPath() string {
 func newDaemonOptions(config *config.Config) *daemonOptions {
 	return &daemonOptions{
 		daemonConfig: config,
+		configFile:   getDefaultDaemonConfigFile(),
 	}
 }
 
