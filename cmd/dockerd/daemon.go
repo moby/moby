@@ -571,6 +571,24 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		conf.TLSOptions = config.TLSOptions{}
 	}
 
+	if runtime.GOOS == "windows" && opts.configFile == "" {
+		// On Windows, the location of the config-file is relative to the
+		// daemon's data-root, which is configurable, so we cannot use a
+		// fixed default location. Instead, we set the location here, after
+		// we parsed command-line flags.
+		//
+		// Note, however, that the data-root is also configurable through the
+		// daemon.json file. Observant readers may see that we have a classic
+		// chicken-and-egg situation at hand here; we don't know where to look
+		// for the daemon.json file ... until we loaded the daemon.json file.
+		//
+		// We need a better solution for this, and a better default (which
+		// could be a fixed location, similar to how the Linux daemon works).
+		//
+		// FIXME(thaJeztah): find a better default on Windows that does not depend on "daemon.json" or the --data-root option.
+		opts.configFile = filepath.Join(conf.Root, "config", "daemon.json")
+	}
+
 	if opts.configFile != "" {
 		c, err := config.MergeDaemonConfigurations(conf, flags, opts.configFile)
 		if err != nil {
