@@ -4,17 +4,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/Microsoft/go-winio/pkg/etwlogrus"
 	"github.com/containerd/log"
 )
 
 func runDaemon(opts *daemonOptions) error {
-	// Windows specific settings as these are not defaulted.
-	if opts.daemonConfig.Pidfile == "" {
-		opts.daemonConfig.Pidfile = filepath.Join(opts.daemonConfig.Root, "docker.pid")
-	}
 	cli, err := NewDaemonCli(opts)
 	if err != nil {
 		return err
