@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/containerd/log"
@@ -23,8 +24,14 @@ func getDefaultDaemonConfigFile() string {
 }
 
 // setPlatformOptions applies platform-specific CLI configuration options.
-// There is none on windows, so this is a no-op.
 func setPlatformOptions(conf *config.Config) error {
+	if conf.Pidfile == "" {
+		// On Windows, the pid-file location is relative to the daemon's data-root,
+		// which is configurable, so we cannot use a fixed default location.
+		// Instead, we set the location here, after we parsed command-line flags
+		// and loaded the configuration file (if any).
+		conf.Pidfile = filepath.Join(conf.Root, "docker.pid")
+	}
 	return nil
 }
 
