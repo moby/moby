@@ -22,9 +22,9 @@ func getDefaultDaemonConfigFile() string {
 	return ""
 }
 
-// loadCLIPlatformConfig loads the platform specific CLI configuration
-// there is none on windows, so this is a no-op
-func loadCLIPlatformConfig(conf *config.Config) error {
+// setPlatformOptions applies platform-specific CLI configuration options.
+// There is none on windows, so this is a no-op.
+func setPlatformOptions(conf *config.Config) error {
 	return nil
 }
 

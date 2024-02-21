@@ -654,7 +654,7 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		conf.CDISpecDirs = nil
 	}
 
-	if err := loadCLIPlatformConfig(conf); err != nil {
+	if err := setPlatformOptions(conf); err != nil {
 		return nil, err
 	}
 
