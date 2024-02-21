@@ -576,7 +576,7 @@ func (r *Resolver) exchange(ctx context.Context, proto string, extDNS extDNSEntr
 		UDPSize: dns.MaxMsgSize,
 	}).ExchangeWithConn(query, &dns.Conn{Conn: extConn})
 	if err != nil {
-		r.log(ctx).WithError(err).Errorf("[resolver] failed to query DNS server: %s, query: %s", extConn.RemoteAddr().String(), query.Question[0].String())
+		logger.WithError(err).Error("[resolver] failed to query external DNS server")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "ExchangeWithConn failed")
 		return nil
