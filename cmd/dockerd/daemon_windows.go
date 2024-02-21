@@ -12,8 +12,8 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func getDefaultDaemonConfigFile() (string, error) {
-	return "", nil
+func getDefaultDaemonConfigFile() string {
+	return ""
 }
 
 // loadCLIPlatformConfig loads the platform specific CLI configuration
