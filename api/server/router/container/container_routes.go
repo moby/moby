@@ -658,7 +658,7 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 			}
 			return "", nil
 		}
-		if !hostConfig.NetworkMode.IsDefault() && !hostConfig.NetworkMode.IsBridge() && !hostConfig.NetworkMode.IsUserDefined() {
+		if !hostConfig.NetworkMode.IsBridge() && !hostConfig.NetworkMode.IsUserDefined() {
 			return "", runconfig.ErrConflictContainerNetworkAndMac
 		}
 
@@ -687,7 +687,7 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 		return "", nil
 	}
 	var warning string
-	if hostConfig.NetworkMode.IsDefault() || hostConfig.NetworkMode.IsBridge() || hostConfig.NetworkMode.IsUserDefined() {
+	if hostConfig.NetworkMode.IsBridge() || hostConfig.NetworkMode.IsUserDefined() {
 		nwName := hostConfig.NetworkMode.NetworkName()
 		// If there's no endpoint config, create a place to store the configured address.
 		if len(networkingConfig.EndpointsConfig) == 0 {
