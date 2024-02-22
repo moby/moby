@@ -224,3 +224,5 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v0.6.0 // indirect
 )
+
+replace github.com/moby/buildkit => github.com/thaJeztah/buildkit bump_otel
