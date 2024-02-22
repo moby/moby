@@ -188,9 +188,11 @@ type int64Inst struct {
 	embedded.Int64Histogram
 }
 
-var _ metric.Int64Counter = (*int64Inst)(nil)
-var _ metric.Int64UpDownCounter = (*int64Inst)(nil)
-var _ metric.Int64Histogram = (*int64Inst)(nil)
+var (
+	_ metric.Int64Counter       = (*int64Inst)(nil)
+	_ metric.Int64UpDownCounter = (*int64Inst)(nil)
+	_ metric.Int64Histogram     = (*int64Inst)(nil)
+)
 
 func (i *int64Inst) Add(ctx context.Context, val int64, opts ...metric.AddOption) {
 	c := metric.NewAddConfig(opts)
@@ -219,9 +221,11 @@ type float64Inst struct {
 	embedded.Float64Histogram
 }
 
-var _ metric.Float64Counter = (*float64Inst)(nil)
-var _ metric.Float64UpDownCounter = (*float64Inst)(nil)
-var _ metric.Float64Histogram = (*float64Inst)(nil)
+var (
+	_ metric.Float64Counter       = (*float64Inst)(nil)
+	_ metric.Float64UpDownCounter = (*float64Inst)(nil)
+	_ metric.Float64Histogram     = (*float64Inst)(nil)
+)
 
 func (i *float64Inst) Add(ctx context.Context, val float64, opts ...metric.AddOption) {
 	c := metric.NewAddConfig(opts)
@@ -260,9 +264,11 @@ type float64Observable struct {
 	embedded.Float64ObservableGauge
 }
 
-var _ metric.Float64ObservableCounter = float64Observable{}
-var _ metric.Float64ObservableUpDownCounter = float64Observable{}
-var _ metric.Float64ObservableGauge = float64Observable{}
+var (
+	_ metric.Float64ObservableCounter       = float64Observable{}
+	_ metric.Float64ObservableUpDownCounter = float64Observable{}
+	_ metric.Float64ObservableGauge         = float64Observable{}
+)
 
 func newFloat64Observable(m *meter, kind InstrumentKind, name, desc, u string, meas []aggregate.Measure[float64]) float64Observable {
 	return float64Observable{
@@ -279,9 +285,11 @@ type int64Observable struct {
 	embedded.Int64ObservableGauge
 }
 
-var _ metric.Int64ObservableCounter = int64Observable{}
-var _ metric.Int64ObservableUpDownCounter = int64Observable{}
-var _ metric.Int64ObservableGauge = int64Observable{}
+var (
+	_ metric.Int64ObservableCounter       = int64Observable{}
+	_ metric.Int64ObservableUpDownCounter = int64Observable{}
+	_ metric.Int64ObservableGauge         = int64Observable{}
+)
 
 func newInt64Observable(m *meter, kind InstrumentKind, name, desc, u string, meas []aggregate.Measure[int64]) int64Observable {
 	return int64Observable{

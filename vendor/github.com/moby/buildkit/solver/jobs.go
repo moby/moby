@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // ResolveOpFunc finds an Op implementation for a Vertex
@@ -512,7 +513,7 @@ func (jl *Solver) NewJob(id string) (*Job, error) {
 	pr, ctx, progressCloser := progress.NewContext(context.Background())
 	pw, _, _ := progress.NewFromContext(ctx) // TODO: expose progress.Pipe()
 
-	_, span := trace.NewNoopTracerProvider().Tracer("").Start(ctx, "")
+	_, span := noop.NewTracerProvider().Tracer("").Start(ctx, "")
 	j := &Job{
 		list:           jl,
 		pr:             progress.NewMultiReader(pr),

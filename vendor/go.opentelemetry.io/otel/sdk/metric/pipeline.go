@@ -231,7 +231,7 @@ func newInserter[N int64 | float64](p *pipeline, vc *cache[string, instID]) *ins
 //
 // If an instrument is determined to use a Drop aggregation, that instrument is
 // not inserted nor returned.
-func (i *inserter[N]) Instrument(inst Instrument) ([]aggregate.Measure[N], error) {
+func (i *inserter[N]) Instrument(inst Instrument, readerAggregation Aggregation) ([]aggregate.Measure[N], error) {
 	var (
 		matched  bool
 		measures []aggregate.Measure[N]
@@ -245,8 +245,7 @@ func (i *inserter[N]) Instrument(inst Instrument) ([]aggregate.Measure[N], error
 			continue
 		}
 		matched = true
-
-		in, id, err := i.cachedAggregator(inst.Scope, inst.Kind, stream)
+		in, id, err := i.cachedAggregator(inst.Scope, inst.Kind, stream, readerAggregation)
 		if err != nil {
 			errs.append(err)
 		}
@@ -271,7 +270,7 @@ func (i *inserter[N]) Instrument(inst Instrument) ([]aggregate.Measure[N], error
 		Description: inst.Description,
 		Unit:        inst.Unit,
 	}
-	in, _, err := i.cachedAggregator(inst.Scope, inst.Kind, stream)
+	in, _, err := i.cachedAggregator(inst.Scope, inst.Kind, stream, readerAggregation)
 	if err != nil {
 		errs.append(err)
 	}
@@ -291,6 +290,31 @@ type aggVal[N int64 | float64] struct {
 	Err     error
 }
 
+// readerDefaultAggregation returns the default aggregation for the instrument
+// kind based on the reader's aggregation preferences. This is used unless the
+// aggregation is overridden with a view.
+func (i *inserter[N]) readerDefaultAggregation(kind InstrumentKind) Aggregation {
+	aggregation := i.pipeline.reader.aggregation(kind)
+	switch aggregation.(type) {
+	case nil, AggregationDefault:
+		// If the reader returns default or nil use the default selector.
+		aggregation = DefaultAggregationSelector(kind)
+	default:
+		// Deep copy and validate before using.
+		aggregation = aggregation.copy()
+		if err := aggregation.err(); err != nil {
+			orig := aggregation
+			aggregation = DefaultAggregationSelector(kind)
+			global.Error(
+				err, "using default aggregation instead",
+				"aggregation", orig,
+				"replacement", aggregation,
+			)
+		}
+	}
+	return aggregation
+}
+
 // cachedAggregator returns the appropriate aggregate input and output
 // functions for an instrument configuration. If the exact instrument has been
 // created within the inst.Scope, those aggregate function instances will be
@@ -305,29 +329,14 @@ type aggVal[N int64 | float64] struct {
 //
 // If the instrument defines an unknown or incompatible aggregation, an error
 // is returned.
-func (i *inserter[N]) cachedAggregator(scope instrumentation.Scope, kind InstrumentKind, stream Stream) (meas aggregate.Measure[N], aggID uint64, err error) {
+func (i *inserter[N]) cachedAggregator(scope instrumentation.Scope, kind InstrumentKind, stream Stream, readerAggregation Aggregation) (meas aggregate.Measure[N], aggID uint64, err error) {
 	switch stream.Aggregation.(type) {
 	case nil:
-		// Undefined, nil, means to use the default from the reader.
-		stream.Aggregation = i.pipeline.reader.aggregation(kind)
-		switch stream.Aggregation.(type) {
-		case nil, AggregationDefault:
-			// If the reader returns default or nil use the default selector.
-			stream.Aggregation = DefaultAggregationSelector(kind)
-		default:
-			// Deep copy and validate before using.
-			stream.Aggregation = stream.Aggregation.copy()
-			if err := stream.Aggregation.err(); err != nil {
-				orig := stream.Aggregation
-				stream.Aggregation = DefaultAggregationSelector(kind)
-				global.Error(
-					err, "using default aggregation instead",
-					"aggregation", orig,
-					"replacement", stream.Aggregation,
-				)
-			}
-		}
+		// The aggregation was not overridden with a view. Use the aggregation
+		// provided by the reader.
+		stream.Aggregation = readerAggregation
 	case AggregationDefault:
+		// The view explicitly requested the default aggregation.
 		stream.Aggregation = DefaultAggregationSelector(kind)
 	}
 
@@ -596,7 +605,29 @@ func (r resolver[N]) Aggregators(id Instrument) ([]aggregate.Measure[N], error) 
 
 	errs := &multierror{}
 	for _, i := range r.inserters {
-		in, err := i.Instrument(id)
+		in, err := i.Instrument(id, i.readerDefaultAggregation(id.Kind))
+		if err != nil {
+			errs.append(err)
+		}
+		measures = append(measures, in...)
+	}
+	return measures, errs.errorOrNil()
+}
+
+// HistogramAggregators returns the histogram Aggregators that must be updated by the instrument
+// defined by key. If boundaries were provided on instrument instantiation, those take precedence
+// over boundaries provided by the reader.
+func (r resolver[N]) HistogramAggregators(id Instrument, boundaries []float64) ([]aggregate.Measure[N], error) {
+	var measures []aggregate.Measure[N]
+
+	errs := &multierror{}
+	for _, i := range r.inserters {
+		agg := i.readerDefaultAggregation(id.Kind)
+		if histAgg, ok := agg.(AggregationExplicitBucketHistogram); ok && len(boundaries) > 0 {
+			histAgg.Boundaries = boundaries
+			agg = histAgg
+		}
+		in, err := i.Instrument(id, agg)
 		if err != nil {
 			errs.append(err)
 		}

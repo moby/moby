@@ -113,7 +113,7 @@ func (p *expoHistogramDataPoint[N]) record(v N) {
 			otel.Handle(errors.New("exponential histogram scale underflow"))
 			return
 		}
-		//Downscale
+		// Downscale
 		p.scale -= scaleDelta
 		p.posBuckets.downscale(scaleDelta)
 		p.negBuckets.downscale(scaleDelta)

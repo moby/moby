@@ -127,7 +127,8 @@ func NewPeriodicReader(exporter Exporter, options ...PeriodicReaderOption) *Peri
 		rmPool: sync.Pool{
 			New: func() interface{} {
 				return &metricdata.ResourceMetrics{}
-			}},
+			},
+		},
 	}
 	r.externalProducers.Store(conf.producers)
 
