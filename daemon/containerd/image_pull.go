@@ -117,6 +117,9 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 			progress.Message(out, "", distribution.DeprecatedSchema1ImageMessage(ref))
 			sentSchema1Deprecation = true
 		}
+		if images.IsLayerType(desc.MediaType) {
+			progress.Update(out, desc.Digest.String(), "Pulling fs layer")
+		}
 		if images.IsManifestType(desc.MediaType) {
 			if !sentPullingFrom {
 				var tagOrDigest string
