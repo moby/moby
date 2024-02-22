@@ -503,11 +503,7 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 		return nil
 	}
 
-	updateSettings := false
-	if len(container.NetworkSettings.Networks) == 0 {
-		daemon.updateContainerNetworkSettings(container, nil)
-		updateSettings = true
-	}
+	daemon.updateContainerNetworkSettings(container, nil)
 
 	// always connect default network first since only default
 	// network mode support link and we need do some setting
@@ -516,7 +512,7 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
 	if nConf, ok := container.NetworkSettings.Networks[defaultNetName]; ok {
 		cleanOperationalData(nConf)
-		if err := daemon.connectToNetwork(cfg, container, defaultNetName, nConf, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(cfg, container, defaultNetName, nConf); err != nil {
 			return err
 		}
 	}
@@ -533,7 +529,7 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 
 	for netName, epConf := range networks {
 		cleanOperationalData(epConf)
-		if err := daemon.connectToNetwork(cfg, container, netName, epConf, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(cfg, container, netName, epConf); err != nil {
 			return err
 		}
 	}
@@ -648,7 +644,7 @@ func cleanOperationalData(es *network.EndpointSettings) {
 	}
 }
 
-func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings, updateSettings bool) error {
+func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings) error {
 	// Set up DNS names for a user defined network, and for the default 'nat'
 	// network on Windows (IsBridge() returns true for nat).
 	if containertypes.NetworkMode(n.Name()).IsUserDefined() ||
@@ -660,10 +656,8 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *lib
 		return errdefs.InvalidParameter(err)
 	}
 
-	if updateSettings {
-		if err := daemon.updateNetworkSettings(container, n, endpointConfig); err != nil {
-			return err
-		}
+	if err := daemon.updateNetworkSettings(container, n, endpointConfig); err != nil {
+		return err
 	}
 	return nil
 }
@@ -691,7 +685,7 @@ func buildEndpointDNSNames(ctr *container.Container, aliases []string) []string 
 	return sliceutil.Dedup(dnsNames)
 }
 
-func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.Container, idOrName string, endpointConfig *network.EndpointSettings, updateSettings bool) (retErr error) {
+func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.Container, idOrName string, endpointConfig *network.EndpointSettings) (retErr error) {
 	start := time.Now()
 	if container.HostConfig.NetworkMode.IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
@@ -734,7 +728,7 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 		}
 	}
 
-	if err := daemon.updateNetworkConfig(container, n, endpointConfig.EndpointSettings, updateSettings); err != nil {
+	if err := daemon.updateNetworkConfig(container, n, endpointConfig.EndpointSettings); err != nil {
 		return err
 	}
 
@@ -1052,7 +1046,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 
 		n, err := daemon.FindNetwork(idOrName)
 		if err == nil && n != nil {
-			if err := daemon.updateNetworkConfig(container, n, endpointConfig, true); err != nil {
+			if err := daemon.updateNetworkConfig(container, n, endpointConfig); err != nil {
 				return err
 			}
 		} else {
@@ -1064,7 +1058,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 		epc := &network.EndpointSettings{
 			EndpointSettings: endpointConfig,
 		}
-		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, epc, true); err != nil {
+		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, epc); err != nil {
 			return err
 		}
 	}
