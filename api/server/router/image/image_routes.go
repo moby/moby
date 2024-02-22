@@ -306,6 +306,10 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 			imageInspect.Created = time.Time{}.Format(time.RFC3339Nano)
 		}
 	}
+	if versions.GreaterThanOrEqualTo(version, "1.45") {
+		imageInspect.Container = ""        //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
+		imageInspect.ContainerConfig = nil //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
+	}
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
 }
 
