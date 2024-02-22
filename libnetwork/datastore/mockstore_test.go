@@ -88,6 +88,16 @@ func (s *MockStore) AtomicDelete(key string, previous *store.KVPair) error {
 	return nil
 }
 
+// Delete deletes a value at "key". Unlike AtomicDelete it doesn't check
+// whether the deleted key is at a specific version before deleting.
+func (s *MockStore) Delete(key string) error {
+	if _, ok := s.db[key]; !ok {
+		return store.ErrKeyNotFound
+	}
+	delete(s.db, key)
+	return nil
+}
+
 // Close closes the client connection
 func (s *MockStore) Close() {
 }

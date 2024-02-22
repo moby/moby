@@ -159,11 +159,15 @@ retry:
 }
 
 func (sb *Sandbox) storeDelete() error {
-	return sb.controller.deleteFromStore(&sbState{
+	cs := sb.controller.getStore()
+	if cs == nil {
+		return fmt.Errorf("datastore is not initialized")
+	}
+
+	return cs.DeleteObject(&sbState{
 		c:        sb.controller,
 		ID:       sb.id,
 		Cid:      sb.containerID,
-		dbIndex:  sb.dbIndex,
 		dbExists: sb.dbExists,
 	})
 }

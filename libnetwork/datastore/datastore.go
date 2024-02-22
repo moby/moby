@@ -261,6 +261,29 @@ func (ds *Store) Map(key string, kvObject KVObject) (map[string]KVObject, error)
 	return results, nil
 }
 
+// DeleteObject deletes a kvObject from the on-disk DB and the in-memory cache.
+// Unlike DeleteObjectAtomic, it doesn't check the optimistic lock of the
+// passed kvObject.
+func (ds *Store) DeleteObject(kvObject KVObject) error {
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
+
+	if kvObject == nil {
+		return types.InvalidParameterErrorf("invalid KV Object : nil")
+	}
+
+	if !kvObject.Skip() {
+		if err := ds.store.Delete(Key(kvObject.Key()...)); err != nil {
+			return err
+		}
+	}
+
+	// cleanup the cache only if AtomicDelete went through successfully
+	// If persistent store is skipped, sequencing needs to
+	// happen in cache.
+	return ds.cache.del(kvObject, false)
+}
+
 // DeleteObjectAtomic performs atomic delete on a record.
 func (ds *Store) DeleteObjectAtomic(kvObject KVObject) error {
 	ds.mu.Lock()
