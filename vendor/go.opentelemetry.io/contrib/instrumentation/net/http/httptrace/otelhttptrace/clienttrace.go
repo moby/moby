@@ -29,6 +29,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// ScopeName is the instrumentation scope name.
+const ScopeName = "go.opentelemetry.io/otel/instrumentation/httptrace"
+
 // HTTP attributes.
 var (
 	HTTPStatus                 = attribute.Key("http.status")
@@ -44,13 +47,11 @@ var (
 	HTTPDNSAddrs               = attribute.Key("http.dns.addrs")
 )
 
-var (
-	hookMap = map[string]string{
-		"http.dns":     "http.getconn",
-		"http.connect": "http.getconn",
-		"http.tls":     "http.getconn",
-	}
-)
+var hookMap = map[string]string{
+	"http.dns":     "http.getconn",
+	"http.connect": "http.getconn",
+	"http.tls":     "http.getconn",
+}
 
 func parentHook(hook string) string {
 	if strings.HasPrefix(hook, "http.connect") {
@@ -171,7 +172,7 @@ func NewClientTrace(ctx context.Context, opts ...ClientTraceOption) *httptrace.C
 	}
 
 	ct.tr = ct.tracerProvider.Tracer(
-		"go.opentelemetry.io/otel/instrumentation/httptrace",
+		ScopeName,
 		trace.WithInstrumentationVersion(Version()),
 	)
 
