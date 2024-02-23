@@ -307,7 +307,11 @@ func (cli *Client) ClientVersion() string {
 // added (1.24).
 func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 	if !cli.manualOverride {
-		ping, _ := cli.Ping(ctx)
+		ping, err := cli.Ping(ctx)
+		if err != nil {
+			// FIXME(thaJeztah): Ping returns an error when failing to connect to the API; we should not swallow the error here, and instead returning it.
+			return
+		}
 		cli.negotiateAPIVersionPing(ping)
 	}
 }
