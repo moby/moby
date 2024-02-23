@@ -10,10 +10,10 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/internal/csi/capability"
 	"github.com/moby/swarmkit/v2/log"
+	mobyplugin "github.com/moby/swarmkit/v2/node/plugin"
 )
 
 // Plugin is the interface for a CSI controller plugin.
@@ -74,12 +74,12 @@ type plugin struct {
 // the same object. By taking both parts here, we can push off the work of
 // assuring that the given plugin implements the PluginAddr interface without
 // having to typecast in this constructor.
-func NewPlugin(pc plugingetter.CompatPlugin, pa plugingetter.PluginAddr, provider SecretProvider) Plugin {
+func NewPlugin(p mobyplugin.AddrPlugin, provider SecretProvider) Plugin {
 	return &plugin{
-		name: pc.Name(),
+		name: p.Name(),
 		// TODO(dperny): verify that we do not need to include the Network()
 		// portion of the Addr.
-		socket:     fmt.Sprintf("%s://%s", pa.Addr().Network(), pa.Addr().String()),
+		socket:     fmt.Sprintf("%s://%s", p.Addr().Network(), p.Addr().String()),
 		provider:   provider,
 		swarmToCSI: map[string]string{},
 		csiToSwarm: map[string]string{},

@@ -3,9 +3,9 @@ package drivers
 import (
 	"fmt"
 
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/naming"
+	"github.com/moby/swarmkit/v2/node/plugin"
 )
 
 const (
@@ -18,11 +18,11 @@ const (
 
 // SecretDriver provides secrets from different stores
 type SecretDriver struct {
-	plugin plugingetter.CompatPlugin
+	plugin plugin.Plugin
 }
 
 // NewSecretDriver creates a new driver that provides third party secrets
-func NewSecretDriver(plugin plugingetter.CompatPlugin) *SecretDriver {
+func NewSecretDriver(plugin plugin.Plugin) *SecretDriver {
 	return &SecretDriver{plugin: plugin}
 }
 

@@ -15,8 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-metrics"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/moby/swarmkit/v2/agent"
@@ -29,8 +27,9 @@ import (
 	"github.com/moby/swarmkit/v2/ioutils"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager"
-	"github.com/moby/swarmkit/v2/manager/allocator/cnmallocator"
+	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"github.com/moby/swarmkit/v2/manager/encryption"
+	"github.com/moby/swarmkit/v2/node/plugin"
 	"github.com/moby/swarmkit/v2/remotes"
 	"github.com/moby/swarmkit/v2/xnet"
 	"github.com/pkg/errors"
@@ -106,8 +105,11 @@ type Config struct {
 	// for connections to the remote API (including the raft service).
 	AdvertiseRemoteAPI string
 
+	// NetworkProvider provides network allocation for the cluster
+	NetworkProvider networkallocator.Provider
+
 	// NetworkConfig stores network related config for the cluster
-	NetworkConfig *cnmallocator.NetworkConfig
+	NetworkConfig *networkallocator.Config
 
 	// Executor specifies the executor to use for the agent.
 	Executor exec.Executor
@@ -132,7 +134,7 @@ type Config struct {
 	Availability api.NodeSpec_Availability
 
 	// PluginGetter provides access to docker's plugin inventory.
-	PluginGetter plugingetter.PluginGetter
+	PluginGetter plugin.Getter
 
 	// FIPS is a boolean stating whether the node is FIPS enabled
 	FIPS bool
@@ -161,7 +163,6 @@ type Node struct {
 	manager          *manager.Manager
 	notifyNodeChange chan *agent.NodeChanges // used by the agent to relay node updates from the dispatcher Session stream to (*Node).run
 	unlockKey        []byte
-	vxlanUDPPort     uint32
 }
 
 type lastSeenRole struct {
@@ -271,8 +272,11 @@ func (n *Node) currentRole() api.NodeRole {
 }
 
 // configVXLANUDPPort sets vxlan port in libnetwork
-func configVXLANUDPPort(ctx context.Context, vxlanUDPPort uint32) {
-	if err := overlayutils.ConfigVXLANUDPPort(vxlanUDPPort); err != nil {
+func (n *Node) configVXLANUDPPort(ctx context.Context, vxlanUDPPort uint32) {
+	if n.config.NetworkProvider == nil {
+		return
+	}
+	if err := n.config.NetworkProvider.SetDefaultVXLANUDPPort(vxlanUDPPort); err != nil {
 		log.G(ctx).WithError(err).Error("failed to configure VXLAN UDP port")
 		return
 	}
@@ -369,8 +373,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 			case nodeChanges := <-n.notifyNodeChange:
 				if nodeChanges.Node != nil {
 					if nodeChanges.Node.VXLANUDPPort != 0 {
-						n.vxlanUDPPort = nodeChanges.Node.VXLANUDPPort
-						configVXLANUDPPort(ctx, n.vxlanUDPPort)
+						n.configVXLANUDPPort(ctx, nodeChanges.Node.VXLANUDPPort)
 					}
 					// This is a bit complex to be backward compatible with older CAs that
 					// don't support the Node.Role field. They only use what's presently
@@ -1015,6 +1018,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		RootCAPaths:      rootPaths,
 		FIPS:             n.config.FIPS,
 		NetworkConfig:    n.config.NetworkConfig,
+		NetworkProvider:  n.config.NetworkProvider,
 	})
 	if err != nil {
 		return false, err
