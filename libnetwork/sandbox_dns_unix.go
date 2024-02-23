@@ -26,7 +26,8 @@ const (
 	dirPerm       = 0o755
 	filePerm      = 0o644
 
-	resolverIPSandbox = "127.0.0.11"
+	resolverIPv4Sandbox = "127.0.0.11"
+	resolverIPv6Sandbox = "::1"
 )
 
 // finishInitDNS is to be called after the container namespace has been created,
@@ -50,10 +51,13 @@ func (sb *Sandbox) startResolver(restore bool) {
 		// The embedded resolver is always started with proxyDNS set as true, even when the sandbox is only attached to
 		// an internal network. This way, it's the driver responsibility to make sure `connect` syscall fails fast when
 		// no external connectivity is available (eg. by not setting a default gateway).
-		sb.resolver = NewResolver(resolverIPSandbox, true, sb)
+		sb.resolvers = []*Resolver{
+			NewResolver(resolverIPv4Sandbox, true, sb),
+			NewResolver(resolverIPv6Sandbox, true, sb),
+		}
 		defer func() {
 			if err != nil {
-				sb.resolver = nil
+				sb.resolvers = nil
 			}
 		}()
 
@@ -68,15 +72,18 @@ func (sb *Sandbox) startResolver(restore bool) {
 				return
 			}
 		}
-		sb.resolver.SetExtServers(sb.extDNS)
 
-		if err = sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err != nil {
-			log.G(context.TODO()).Errorf("Resolver Setup function failed for container %s, %q", sb.ContainerID(), err)
-			return
-		}
+		for _, resolver := range sb.resolvers {
+			resolver.SetExtServers(sb.extDNS)
 
-		if err = sb.resolver.Start(); err != nil {
-			log.G(context.TODO()).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+			if err = sb.osSbox.InvokeFunc(resolver.SetupFunc(0)); err != nil {
+				log.G(context.TODO()).Errorf("Resolver Setup function failed for container %s, %q", sb.ContainerID(), err)
+				return
+			}
+
+			if err = resolver.Start(); err != nil {
+				log.G(context.TODO()).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+			}
 		}
 	})
 }
@@ -222,7 +229,7 @@ func (sb *Sandbox) setExternalResolvers(content []byte, addrType int, checkLoopb
 	servers := resolvconf.GetNameservers(content, addrType)
 	for _, ip := range servers {
 		hostLoopback := false
-		if checkLoopback && isIPv4Loopback(ip) {
+		if checkLoopback && isIPLoopback(ip) {
 			hostLoopback = true
 		}
 		sb.extDNS = append(sb.extDNS, extDNSEntry{
@@ -232,14 +239,10 @@ func (sb *Sandbox) setExternalResolvers(content []byte, addrType int, checkLoopb
 	}
 }
 
-// isIPv4Loopback checks if the given IP address is an IPv4 loopback address.
-// It's based on the logic in Go's net.IP.IsLoopback(), but only the IPv4 part:
-// https://github.com/golang/go/blob/go1.16.6/src/net/ip.go#L120-L126
-func isIPv4Loopback(ipAddress string) bool {
+// isIPLoopback checks if the given IP address is an IPv4 or IPv6 loopback address.
+func isIPLoopback(ipAddress string) bool {
 	if ip := net.ParseIP(ipAddress); ip != nil {
-		if ip4 := ip.To4(); ip4 != nil {
-			return ip4[0] == 127
-		}
+		return ip.IsLoopback()
 	}
 	return false
 }
@@ -412,7 +415,7 @@ func (sb *Sandbox) rebuildDNS() error {
 	// If the user config and embedded DNS server both have ndots option set,
 	// remember the user's config so that unqualified names not in the docker
 	// domain can be dropped.
-	resOptions := sb.resolver.ResolverOptions()
+	resOptions := sb.resolvers[0].ResolverOptions()
 	dnsOptionsList := resolvconf.GetOptions(currRC)
 
 dnsOpt:
@@ -448,10 +451,13 @@ dnsOpt:
 	}
 
 	var (
-		// external v6 DNS servers have to be listed in resolv.conf
-		dnsList       = append([]string{sb.resolver.NameServer()}, resolvconf.GetNameservers(currRC, resolvconf.IPv6)...)
+		dnsList       []string
 		dnsSearchList = resolvconf.GetSearchDomains(currRC)
 	)
+
+	for _, resolver := range sb.resolvers {
+		dnsList = append(dnsList, resolver.NameServer())
+	}
 
 	_, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
 	return err

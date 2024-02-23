@@ -1795,7 +1795,7 @@ func TestEnableIPv6(t *testing.T) {
 	controller := newController(t)
 
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n")
-	expectedResolvConf := []byte("search pommesfrites.fr\nnameserver 127.0.0.11\nnameserver 2001:4860:4860::8888\noptions ndots:0\n")
+	expectedResolvConf := []byte("search pommesfrites.fr\nnameserver 127.0.0.11\nnameserver ::1\noptions ndots:0\n")
 	// take a copy of resolv.conf for restoring after test completes
 	resolvConfSystem, err := os.ReadFile("/etc/resolv.conf")
 	if err != nil {
@@ -1948,7 +1948,7 @@ func TestResolvConf(t *testing.T) {
 
 	tmpResolvConf1 := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n")
 	tmpResolvConf2 := []byte("search pommesfrites.fr\nnameserver 112.34.56.78\nnameserver 2001:4860:4860::8888\n")
-	expectedResolvConf1 := []byte("search pommesfrites.fr\nnameserver 127.0.0.11\noptions ndots:0\n")
+	expectedResolvConf1 := []byte("search pommesfrites.fr\nnameserver 127.0.0.11\nnameserver ::1\noptions ndots:0\n")
 	tmpResolvConf3 := []byte("search pommesfrites.fr\nnameserver 113.34.56.78\n")
 
 	// take a copy of resolv.conf for restoring after test completes

@@ -30,11 +30,14 @@ func (r *Resolver) setupIPTable() error {
 		{"-t", "nat", "-I", outputChain, "-d", resolverIP, "-p", "tcp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", ltcpaddr},
 		{"-t", "nat", "-I", postroutingChain, "-s", resolverIP, "-p", "tcp", "--sport", tcpPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
 	}
+	ipVersion := iptables.IPv4
+	if ip := net.ParseIP(resolverIP); ip != nil && ip.To4() == nil {
+		ipVersion = iptables.IPv6
+	}
 
 	var setupErr error
 	err := r.backend.ExecFunc(func() {
-		// TODO IPv6 support
-		iptable := iptables.GetIptable(iptables.IPv4)
+		iptable := iptables.GetIptable(ipVersion)
 
 		// insert outputChain and postroutingchain
 		if iptable.ExistsNative("nat", "OUTPUT", "-d", resolverIP, "-j", outputChain) {

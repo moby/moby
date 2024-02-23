@@ -40,7 +40,7 @@ type Sandbox struct {
 	extDNS             []extDNSEntry
 	osSbox             *osl.Namespace
 	controller         *Controller
-	resolver           *Resolver
+	resolvers          []*Resolver
 	resolverOnce       sync.Once
 	endpoints          []*Endpoint
 	epPriority         map[string]int
@@ -190,8 +190,8 @@ func (sb *Sandbox) delete(force bool) error {
 	// likely not required any more. Drop it.
 	etchosts.Drop(sb.config.hostsPath)
 
-	if sb.resolver != nil {
-		sb.resolver.Stop()
+	for _, resolver := range sb.resolvers {
+		resolver.Stop()
 	}
 
 	if sb.osSbox != nil && !sb.config.useDefaultSandBox {
