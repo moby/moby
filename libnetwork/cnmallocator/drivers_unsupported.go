@@ -10,6 +10,6 @@ import (
 const initializers = nil
 
 // PredefinedNetworks returns the list of predefined network structures
-func PredefinedNetworks() []networkallocator.PredefinedNetworkData {
+func (*Provider) PredefinedNetworks() []networkallocator.PredefinedNetworkData {
 	return nil
 }
