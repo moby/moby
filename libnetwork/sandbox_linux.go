@@ -146,15 +146,17 @@ func (sb *Sandbox) SetKey(basePath string) error {
 
 	// If the resolver was setup before stop it and set it up in the
 	// new osl sandbox.
-	if oldosSbox != nil && sb.resolver != nil {
-		sb.resolver.Stop()
+	if oldosSbox != nil {
+		for _, resolver := range sb.resolvers {
+			resolver.Stop()
 
-		if err := sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err == nil {
-			if err := sb.resolver.Start(); err != nil {
-				log.G(context.TODO()).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+			if err := sb.osSbox.InvokeFunc(resolver.SetupFunc(0)); err == nil {
+				if err := resolver.Start(); err != nil {
+					log.G(context.TODO()).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+				}
+			} else {
+				log.G(context.TODO()).Errorf("Resolver Setup Function failed for container %s, %q", sb.ContainerID(), err)
 			}
-		} else {
-			log.G(context.TODO()).Errorf("Resolver Setup Function failed for container %s, %q", sb.ContainerID(), err)
 		}
 	}
 
