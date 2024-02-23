@@ -53,18 +53,12 @@ func TestPingFail(t *testing.T) {
 func TestPingWithError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			resp := &http.Response{StatusCode: http.StatusInternalServerError}
-			resp.Header = http.Header{}
-			resp.Header.Set("API-Version", "awesome")
-			resp.Header.Set("Docker-Experimental", "true")
-			resp.Header.Set("Swarm", "active/manager")
-			resp.Body = io.NopCloser(strings.NewReader("some error with the server"))
-			return resp, errors.New("some error")
+			return nil, errors.New("some connection error")
 		}),
 	}
 
 	ping, err := client.Ping(context.Background())
-	assert.Check(t, is.ErrorContains(err, "some error"))
+	assert.Check(t, is.ErrorContains(err, "some connection error"))
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
 	var si *swarm.Status
