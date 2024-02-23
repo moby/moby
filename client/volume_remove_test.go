@@ -23,6 +23,18 @@ func TestVolumeRemoveError(t *testing.T) {
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
+// TestVolumeRemoveConnectionError verifies that connection errors occurring
+// during API-version negotiation are not shadowed by API-version errors.
+//
+// Regression test for https://github.com/docker/cli/issues/4890
+func TestVolumeRemoveConnectionError(t *testing.T) {
+	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	assert.NilError(t, err)
+
+	err = client.VolumeRemove(context.Background(), "volume_id", false)
+	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
+}
+
 func TestVolumeRemove(t *testing.T) {
 	expectedURL := "/volumes/volume_id"
 

@@ -25,6 +25,18 @@ func TestServiceUpdateError(t *testing.T) {
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
+// TestServiceUpdateConnectionError verifies that connection errors occurring
+// during API-version negotiation are not shadowed by API-version errors.
+//
+// Regression test for https://github.com/docker/cli/issues/4890
+func TestServiceUpdateConnectionError(t *testing.T) {
+	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	assert.NilError(t, err)
+
+	_, err = client.ServiceUpdate(context.Background(), "service_id", swarm.Version{}, swarm.ServiceSpec{}, types.ServiceUpdateOptions{})
+	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
+}
+
 func TestServiceUpdate(t *testing.T) {
 	expectedURL := "/services/service_id/update"
 

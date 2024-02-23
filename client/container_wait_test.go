@@ -34,6 +34,23 @@ func TestContainerWaitError(t *testing.T) {
 	}
 }
 
+// TestContainerWaitConnectionError verifies that connection errors occurring
+// during API-version negotiation are not shadowed by API-version errors.
+//
+// Regression test for https://github.com/docker/cli/issues/4890
+func TestContainerWaitConnectionError(t *testing.T) {
+	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	assert.NilError(t, err)
+
+	resultC, errC := client.ContainerWait(context.Background(), "nothing", "")
+	select {
+	case result := <-resultC:
+		t.Fatalf("expected to not get a wait result, got %d", result.StatusCode)
+	case err := <-errC:
+		assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
+	}
+}
+
 func TestContainerWait(t *testing.T) {
 	expectedURL := "/containers/container_id/wait"
 	client := &Client{
