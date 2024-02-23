@@ -359,7 +359,7 @@ func TestNegotiateAPVersionOverride(t *testing.T) {
 func TestNegotiateAPVersionConnectionFailure(t *testing.T) {
 	const expected = "9.99"
 
-	client, err := NewClientWithOpts(WithHost("unix:///no-such-socket"))
+	client, err := NewClientWithOpts(WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	client.version = expected

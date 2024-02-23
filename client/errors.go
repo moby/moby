@@ -67,7 +67,9 @@ func (cli *Client) NewVersionError(ctx context.Context, APIrequired, feature str
 	//
 	// Normally, version-negotiation (if enabled) would not happen until
 	// the API request is made.
-	cli.checkVersion(ctx)
+	if err := cli.checkVersion(ctx); err != nil {
+		return err
+	}
 	if cli.version != "" && versions.LessThan(cli.version, APIrequired) {
 		return fmt.Errorf("%q requires API version %s, but the Docker daemon API version is %s", feature, APIrequired, cli.version)
 	}

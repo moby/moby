@@ -28,7 +28,9 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 	//
 	// Normally, version-negotiation (if enabled) would not happen until
 	// the API request is made.
-	cli.checkVersion(ctx)
+	if err := cli.checkVersion(ctx); err != nil {
+		return response, err
+	}
 
 	if err := cli.NewVersionError(ctx, "1.25", "stop timeout"); config != nil && config.StopTimeout != nil && err != nil {
 		return response, err

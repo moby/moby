@@ -28,6 +28,18 @@ func TestServiceCreateError(t *testing.T) {
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
+// TestServiceCreateConnectionError verifies that connection errors occurring
+// during API-version negotiation are not shadowed by API-version errors.
+//
+// Regression test for https://github.com/docker/cli/issues/4890
+func TestServiceCreateConnectionError(t *testing.T) {
+	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	assert.NilError(t, err)
+
+	_, err = client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, types.ServiceCreateOptions{})
+	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
+}
+
 func TestServiceCreate(t *testing.T) {
 	expectedURL := "/services/create"
 	client := &Client{

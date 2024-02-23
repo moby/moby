@@ -23,6 +23,18 @@ func TestContainerRestartError(t *testing.T) {
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
+// TestContainerRestartConnectionError verifies that connection errors occurring
+// during API-version negotiation are not shadowed by API-version errors.
+//
+// Regression test for https://github.com/docker/cli/issues/4890
+func TestContainerRestartConnectionError(t *testing.T) {
+	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	assert.NilError(t, err)
+
+	err = client.ContainerRestart(context.Background(), "nothing", container.StopOptions{})
+	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
+}
+
 func TestContainerRestart(t *testing.T) {
 	const expectedURL = "/v1.42/containers/container_id/restart"
 	client := &Client{
