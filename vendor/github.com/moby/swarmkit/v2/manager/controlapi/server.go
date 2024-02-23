@@ -3,8 +3,8 @@ package controlapi
 import (
 	"errors"
 
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/ca"
+	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"github.com/moby/swarmkit/v2/manager/drivers"
 	"github.com/moby/swarmkit/v2/manager/state/raft"
 	"github.com/moby/swarmkit/v2/manager/state/store"
@@ -19,17 +19,20 @@ type Server struct {
 	store          *store.MemoryStore
 	raft           *raft.Node
 	securityConfig *ca.SecurityConfig
-	pg             plugingetter.PluginGetter
+	netvalidator   networkallocator.DriverValidator
 	dr             *drivers.DriverProvider
 }
 
 // NewServer creates a Cluster API server.
-func NewServer(store *store.MemoryStore, raft *raft.Node, securityConfig *ca.SecurityConfig, pg plugingetter.PluginGetter, dr *drivers.DriverProvider) *Server {
+func NewServer(store *store.MemoryStore, raft *raft.Node, securityConfig *ca.SecurityConfig, nv networkallocator.DriverValidator, dr *drivers.DriverProvider) *Server {
+	if nv == nil {
+		nv = networkallocator.InertProvider{}
+	}
 	return &Server{
 		store:          store,
 		dr:             dr,
 		raft:           raft,
 		securityConfig: securityConfig,
-		pg:             pg,
+		netvalidator:   nv,
 	}
 }

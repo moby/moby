@@ -1,4 +1,4 @@
-package cnmallocator
+package allocator
 
 import (
 	"github.com/moby/swarmkit/v2/api"
@@ -101,36 +101,31 @@ func (ps allocatedPorts) delState(p *api.PortConfig) *api.PortConfig {
 	return nil
 }
 
-func newPortAllocator() (*portAllocator, error) {
+func newPortAllocator() *portAllocator {
 	portSpaces := make(map[api.PortConfig_Protocol]*portSpace)
 	for _, protocol := range []api.PortConfig_Protocol{api.ProtocolTCP, api.ProtocolUDP, api.ProtocolSCTP} {
-		ps, err := newPortSpace(protocol)
-		if err != nil {
-			return nil, err
-		}
-
-		portSpaces[protocol] = ps
+		portSpaces[protocol] = newPortSpace(protocol)
 	}
 
-	return &portAllocator{portSpaces: portSpaces}, nil
+	return &portAllocator{portSpaces: portSpaces}
 }
 
-func newPortSpace(protocol api.PortConfig_Protocol) (*portSpace, error) {
+func newPortSpace(protocol api.PortConfig_Protocol) *portSpace {
 	master, err := idm.New(masterPortStart, masterPortEnd)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	dynamic, err := idm.New(dynamicPortStart, dynamicPortEnd)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	return &portSpace{
 		protocol:         protocol,
 		masterPortSpace:  master,
 		dynamicPortSpace: dynamic,
-	}, nil
+	}
 }
 
 // getPortConfigKey returns a map key for doing set operations with
@@ -377,18 +372,18 @@ func (ps *portSpace) allocate(p *api.PortConfig) (err error) {
 		// If it falls in the dynamic port range check out
 		// from dynamic port space first.
 		if p.PublishedPort >= dynamicPortStart && p.PublishedPort <= dynamicPortEnd {
-			if err = ps.dynamicPortSpace.GetSpecificID(uint64(p.PublishedPort)); err != nil {
+			if err = ps.dynamicPortSpace.GetSpecificID(uint(p.PublishedPort)); err != nil {
 				return err
 			}
 
 			defer func() {
 				if err != nil {
-					ps.dynamicPortSpace.Release(uint64(p.PublishedPort))
+					ps.dynamicPortSpace.Release(uint(p.PublishedPort))
 				}
 			}()
 		}
 
-		return ps.masterPortSpace.GetSpecificID(uint64(p.PublishedPort))
+		return ps.masterPortSpace.GetSpecificID(uint(p.PublishedPort))
 	}
 
 	// Check out an arbitrary port from dynamic port space.
@@ -413,8 +408,8 @@ func (ps *portSpace) allocate(p *api.PortConfig) (err error) {
 
 func (ps *portSpace) free(p *api.PortConfig) {
 	if p.PublishedPort >= dynamicPortStart && p.PublishedPort <= dynamicPortEnd {
-		ps.dynamicPortSpace.Release(uint64(p.PublishedPort))
+		ps.dynamicPortSpace.Release(uint(p.PublishedPort))
 	}
 
-	ps.masterPortSpace.Release(uint64(p.PublishedPort))
+	ps.masterPortSpace.Release(uint(p.PublishedPort))
 }

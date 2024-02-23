@@ -4,10 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-events"
 	"github.com/moby/swarmkit/v2/api"
-	"github.com/moby/swarmkit/v2/manager/allocator/cnmallocator"
+	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"github.com/moby/swarmkit/v2/manager/state"
 	"github.com/moby/swarmkit/v2/manager/state/store"
 )
@@ -31,11 +30,7 @@ type Allocator struct {
 	// doneChan is closed when the allocator is finished running.
 	doneChan chan struct{}
 
-	// pluginGetter provides access to docker's plugin inventory.
-	pluginGetter plugingetter.PluginGetter
-
-	// networkConfig stores network related config for the cluster
-	networkConfig *cnmallocator.NetworkConfig
+	nwkAllocator networkallocator.NetworkAllocator
 }
 
 // taskBallot controls how the voting for task allocation is
@@ -69,19 +64,19 @@ type allocActor struct {
 
 // New returns a new instance of Allocator for use during allocation
 // stage of the manager.
-func New(store *store.MemoryStore, pg plugingetter.PluginGetter, netConfig *cnmallocator.NetworkConfig) (*Allocator, error) {
-	a := &Allocator{
+func New(store *store.MemoryStore, na networkallocator.NetworkAllocator) *Allocator {
+	if na == nil {
+		na = networkallocator.Inert{}
+	}
+	return &Allocator{
 		store: store,
 		taskBallot: &taskBallot{
 			votes: make(map[string][]string),
 		},
-		stopChan:      make(chan struct{}),
-		doneChan:      make(chan struct{}),
-		pluginGetter:  pg,
-		networkConfig: netConfig,
+		stopChan:     make(chan struct{}),
+		doneChan:     make(chan struct{}),
+		nwkAllocator: na,
 	}
-
-	return a, nil
 }
 
 // Run starts all allocator go-routines and waits for Stop to be called.

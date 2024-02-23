@@ -1,0 +1,16 @@
+run:
+  timeout: 10m
+  skip-files:
+    - ".*\\.pb\\.go$"
+
+linters:
+  enable:
+    - gofmt
+    - govet
+    - goimports
+    - ineffassign
+    - misspell
+    - unused
+    - staticcheck
+    - typecheck
+  disable-all: true

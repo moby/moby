@@ -4,11 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
-	"github.com/moby/swarmkit/v2/manager/allocator"
 	"github.com/moby/swarmkit/v2/manager/state/store"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -91,45 +87,5 @@ func validateConfigOrSecretAnnotations(m api.Annotations) error {
 		return status.Errorf(codes.InvalidArgument,
 			"invalid name, only 64 [a-zA-Z0-9-_.] characters allowed, and the start and end character must be [a-zA-Z0-9]")
 	}
-	return nil
-}
-
-func validateDriver(driver *api.Driver, pg plugingetter.PluginGetter, pluginType string) error {
-	if driver == nil {
-		// It is ok to not specify the driver. We will choose
-		// a default driver.
-		return nil
-	}
-
-	if driver.Name == "" {
-		return status.Errorf(codes.InvalidArgument, "driver name: if driver is specified name is required")
-	}
-
-	// First check against the known drivers
-	switch pluginType {
-	case ipamapi.PluginEndpointType:
-		if strings.ToLower(driver.Name) == ipamapi.DefaultIPAM {
-			return nil
-		}
-	case driverapi.NetworkPluginEndpointType:
-		if allocator.IsBuiltInNetworkDriver(driver.Name) {
-			return nil
-		}
-	default:
-	}
-
-	if pg == nil {
-		return status.Errorf(codes.InvalidArgument, "plugin %s not supported", driver.Name)
-	}
-
-	p, err := pg.Get(driver.Name, pluginType, plugingetter.Lookup)
-	if err != nil {
-		return status.Errorf(codes.InvalidArgument, "error during lookup of plugin %s", driver.Name)
-	}
-
-	if p.IsV1() {
-		return status.Errorf(codes.InvalidArgument, "legacy plugin %s of type %s is not supported in swarm mode", driver.Name, pluginType)
-	}
-
 	return nil
 }

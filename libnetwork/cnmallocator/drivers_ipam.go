@@ -5,14 +5,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	builtinIpam "github.com/docker/docker/libnetwork/ipams/builtin"
 	nullIpam "github.com/docker/docker/libnetwork/ipams/null"
 	"github.com/docker/docker/libnetwork/ipamutils"
-	"github.com/moby/swarmkit/v2/log"
+	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 )
 
-func initIPAMDrivers(r ipamapi.Registerer, netConfig *NetworkConfig) error {
+func initIPAMDrivers(r ipamapi.Registerer, netConfig *networkallocator.Config) error {
 	var addressPool []*ipamutils.NetworkToSplit
 	var str strings.Builder
 	str.WriteString("Subnetlist - ")
@@ -36,7 +37,7 @@ func initIPAMDrivers(r ipamapi.Registerer, netConfig *NetworkConfig) error {
 		return err
 	}
 	if addressPool != nil {
-		log.G(context.TODO()).Infof("Swarm initialized global default address pool to: " + str.String())
+		log.G(context.TODO()).Info("Swarm initialized global default address pool to: " + str.String())
 	}
 
 	for _, fn := range [](func(ipamapi.Registerer) error){
