@@ -124,9 +124,20 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 
-	if err := daemon.initializeNetworking(ctx, &daemonCfg.Config, container); err != nil {
+	newSandbox, err := daemon.initializeNetworking(ctx, &daemonCfg.Config, container)
+	if err != nil {
 		return err
 	}
+	defer func() {
+		if retErr != nil && newSandbox != nil {
+			if err := newSandbox.Delete(ctx); err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"error":     err,
+					"container": container.ID,
+				}).Warn("After failure in networking initialisation, failed to remove sandbox")
+			}
+		}
+	}()
 
 	mnts, err := daemon.setupContainerDirs(container)
 	if err != nil {
@@ -221,7 +232,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		}
 	}()
 
-	if err := daemon.initializeCreatedTask(ctx, tsk, container, spec); err != nil {
+	if err := daemon.initializeCreatedTask(ctx, &daemonCfg.Config, tsk, container, spec); err != nil {
 		return err
 	}
 
