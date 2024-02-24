@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -421,40 +422,9 @@ func (daemon *Daemon) updateContainerNetworkSettings(ctr *container.Container, e
 }
 
 func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, ctr *container.Container) (retErr error) {
-	if daemon.netController == nil {
-		return nil
-	}
-
 	start := time.Now()
 
-	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
-	if err := daemon.netController.SandboxDestroy(ctx, ctr.ID); err != nil {
-		log.G(ctx).WithError(err).Errorf("failed to cleanup up stale network sandbox for container %s", ctr.ID)
-	}
-
-	if ctr.Config.NetworkDisabled || ctr.HostConfig.NetworkMode.IsContainer() {
-		return nil
-	}
-
-	daemon.updateContainerNetworkSettings(ctr, nil)
-
-	sbOptions, err := buildSandboxOptions(cfg, ctr)
-	if err != nil {
-		return err
-	}
-	sb, err := daemon.netController.NewSandbox(ctx, ctr.ID, sbOptions...)
-	if err != nil {
-		return err
-	}
-
-	setNetworkSandbox(ctr, sb)
-
-	defer func() {
-		if retErr != nil {
-			sb.Delete(ctx)
-		}
-	}()
-
+	// An intermediate map is necessary because "connectToNetwork" modifies "container.NetworkSettings.Networks"
 	networks := make(map[string]*network.EndpointSettings)
 	for n, epConf := range ctr.NetworkSettings.Networks {
 		networks[n] = epConf
@@ -471,6 +441,86 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 	}
 	networkActions.WithValues("allocate").UpdateSince(start)
 	return nil
+}
+
+// initializeNetworking prepares network configuration for a new container.
+// If it creates a new libnetwork.Sandbox it's returned as newSandbox, for
+// the caller to Delete() if the container setup fails later in the process.
+func (daemon *Daemon) initializeNetworking(ctx context.Context, cfg *config.Config, ctr *container.Container) (newSandbox *libnetwork.Sandbox, retErr error) {
+	if daemon.netController == nil || ctr.Config.NetworkDisabled {
+		return nil, nil
+	}
+
+	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
+	if err := daemon.netController.SandboxDestroy(ctx, ctr.ID); err != nil {
+		log.G(ctx).WithError(err).Errorf("failed to cleanup up stale network sandbox for container %s", ctr.ID)
+	}
+
+	if ctr.HostConfig.NetworkMode.IsContainer() {
+		// we need to get the hosts files from the container to join
+		nc, err := daemon.getNetworkedContainer(ctr.ID, ctr.HostConfig.NetworkMode.ConnectedContainer())
+		if err != nil {
+			return nil, err
+		}
+
+		err = daemon.initializeNetworkingPaths(ctr, nc)
+		if err != nil {
+			return nil, err
+		}
+
+		ctr.Config.Hostname = nc.Config.Hostname
+		ctr.Config.Domainname = nc.Config.Domainname
+		return nil, nil
+	}
+
+	if ctr.HostConfig.NetworkMode.IsHost() && ctr.Config.Hostname == "" {
+		hn, err := os.Hostname()
+		if err != nil {
+			return nil, err
+		}
+		ctr.Config.Hostname = hn
+	}
+
+	daemon.updateContainerNetworkSettings(ctr, nil)
+
+	sbOptions, err := buildSandboxOptions(cfg, ctr)
+	if err != nil {
+		return nil, err
+	}
+	sb, err := daemon.netController.NewSandbox(ctx, ctr.ID, sbOptions...)
+	if err != nil {
+		return nil, err
+	}
+
+	setNetworkSandbox(ctr, sb)
+
+	defer func() {
+		if retErr != nil {
+			if err := sb.Delete(ctx); err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"error":     err,
+					"container": ctr.ID,
+				}).Warn("Failed to remove new network sandbox")
+			}
+		}
+	}()
+
+	if err := ctr.BuildHostnameFile(); err != nil {
+		return nil, err
+	}
+
+	// TODO(robmry) - on Windows, running this after the task has been created does something
+	//  strange to the resolver ... addresses are assigned properly (including addresses
+	//  specified in the 'run' command), nslookup works, but 'ping' doesn't find the address
+	//  of a container. There's no query to our internal resolver from 'ping' (there is from
+	//  nslookup), so Windows must have squirreled away the address somewhere else.
+	if runtime.GOOS == "windows" {
+		if err := daemon.allocateNetwork(ctx, cfg, ctr); err != nil {
+			return nil, err
+		}
+	}
+
+	return newSandbox, nil
 }
 
 // validateEndpointSettings checks whether the given epConfig is valid. The nw parameter can be nil, in which case it
@@ -846,39 +896,6 @@ func (daemon *Daemon) normalizeNetMode(ctr *container.Container) error {
 	}
 
 	return nil
-}
-
-func (daemon *Daemon) initializeNetworking(ctx context.Context, cfg *config.Config, ctr *container.Container) error {
-	if ctr.HostConfig.NetworkMode.IsContainer() {
-		// we need to get the hosts files from the container to join
-		nc, err := daemon.getNetworkedContainer(ctr.ID, ctr.HostConfig.NetworkMode.ConnectedContainer())
-		if err != nil {
-			return err
-		}
-
-		err = daemon.initializeNetworkingPaths(ctr, nc)
-		if err != nil {
-			return err
-		}
-
-		ctr.Config.Hostname = nc.Config.Hostname
-		ctr.Config.Domainname = nc.Config.Domainname
-		return nil
-	}
-
-	if ctr.HostConfig.NetworkMode.IsHost() && ctr.Config.Hostname == "" {
-		hn, err := os.Hostname()
-		if err != nil {
-			return err
-		}
-		ctr.Config.Hostname = hn
-	}
-
-	if err := daemon.allocateNetwork(ctx, cfg, ctr); err != nil {
-		return err
-	}
-
-	return ctr.BuildHostnameFile()
 }
 
 func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID string) (*container.Container, error) {
