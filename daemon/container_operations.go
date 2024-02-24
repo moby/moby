@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -416,31 +417,56 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 	}
 }
 
-func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.Container) (retErr error) {
-	if daemon.netController == nil {
-		return nil
+// initializeNetworking prepares network configuration for a new container.
+// If it creates a new libnetwork.Sandbox it's returned as newSandbox, for
+// the caller to Delete() if the container setup fails later in the process.
+func (daemon *Daemon) initializeNetworking(
+	cfg *config.Config,
+	container *container.Container,
+) (newSandbox *libnetwork.Sandbox, retErr error) {
+	if daemon.netController == nil || container.Config.NetworkDisabled {
+		return nil, nil
 	}
-
-	start := time.Now()
 
 	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
 	if err := daemon.netController.SandboxDestroy(container.ID); err != nil {
 		log.G(context.TODO()).WithError(err).Errorf("failed to cleanup up stale network sandbox for container %s", container.ID)
 	}
 
-	if container.Config.NetworkDisabled || container.HostConfig.NetworkMode.IsContainer() {
-		return nil
+	if container.HostConfig.NetworkMode.IsContainer() {
+		// we need to get the hosts files from the container to join
+		nc, err := daemon.getNetworkedContainer(container.ID, container.HostConfig.NetworkMode.ConnectedContainer())
+		if err != nil {
+			return nil, err
+		}
+
+		err = daemon.initializeNetworkingPaths(container, nc)
+		if err != nil {
+			return nil, err
+		}
+
+		container.Config.Hostname = nc.Config.Hostname
+		container.Config.Domainname = nc.Config.Domainname
+		return nil, nil
+	}
+
+	if container.HostConfig.NetworkMode.IsHost() && container.Config.Hostname == "" {
+		hn, err := os.Hostname()
+		if err != nil {
+			return nil, err
+		}
+		container.Config.Hostname = hn
 	}
 
 	daemon.updateContainerNetworkSettings(container, nil)
 
 	sbOptions, err := daemon.buildSandboxOptions(cfg, container)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	sb, err := daemon.netController.NewSandbox(container.ID, sbOptions...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	setNetworkSandbox(container, sb)
@@ -451,6 +477,28 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 		}
 	}()
 
+	if err := container.BuildHostnameFile(); err != nil {
+		return nil, err
+	}
+
+	// TODO(robmry) - on Windows, running this after the task has been created does something
+	//  strange to the resolver ... addresses are assigned properly (including addresses
+	//  specified in the 'run' command), nslookup works, but 'ping' doesn't find the address
+	//  of a container. There's no query to our internal resolver from 'ping' (there is from
+	//  nslookup), so Windows must have squirreled away the address somewhere else.
+	if runtime.GOOS == "windows" {
+		if err := daemon.allocateNetwork(cfg, container); err != nil {
+			return nil, err
+		}
+	}
+
+	return newSandbox, nil
+}
+
+func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.Container) (retErr error) {
+	start := time.Now()
+
+	// An intermediate map is necessary because "connectToNetwork" modifies "container.NetworkSettings.Networks"
 	networks := make(map[string]*network.EndpointSettings)
 	for n, epConf := range container.NetworkSettings.Networks {
 		networks[n] = epConf
@@ -838,39 +886,6 @@ func (daemon *Daemon) normalizeNetMode(container *container.Container) error {
 	}
 
 	return nil
-}
-
-func (daemon *Daemon) initializeNetworking(cfg *config.Config, container *container.Container) error {
-	if container.HostConfig.NetworkMode.IsContainer() {
-		// we need to get the hosts files from the container to join
-		nc, err := daemon.getNetworkedContainer(container.ID, container.HostConfig.NetworkMode.ConnectedContainer())
-		if err != nil {
-			return err
-		}
-
-		err = daemon.initializeNetworkingPaths(container, nc)
-		if err != nil {
-			return err
-		}
-
-		container.Config.Hostname = nc.Config.Hostname
-		container.Config.Domainname = nc.Config.Domainname
-		return nil
-	}
-
-	if container.HostConfig.NetworkMode.IsHost() && container.Config.Hostname == "" {
-		hn, err := os.Hostname()
-		if err != nil {
-			return err
-		}
-		container.Config.Hostname = hn
-	}
-
-	if err := daemon.allocateNetwork(cfg, container); err != nil {
-		return err
-	}
-
-	return container.BuildHostnameFile()
 }
 
 func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID string) (*container.Container, error) {
