@@ -11,6 +11,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/labels"
+	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
@@ -21,6 +22,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -123,6 +125,9 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		}
 	}
 
+	// TODO: Allow platform override?
+	platformMatcher := matchAllWithPreference(cplatforms.Default())
+
 	for _, img := range imgs {
 		isDangling := isDanglingImage(img)
 
@@ -154,7 +159,14 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		allContainers = i.containers.List()
 	}
 
+	type tempImage struct {
+		img           *ImageManifest
+		indexPlatform *ocispec.Platform
+		dockerImage   *dockerspec.DockerOCIImage
+	}
+
 	for _, img := range uniqueImages {
+		var presentImages []tempImage
 		err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
 			if isPseudo, err := img.IsPseudoImage(ctx); isPseudo || err != nil {
 				return err
@@ -174,26 +186,60 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 				return nil
 			}
 
-			image, chainIDs, err := i.singlePlatformImage(ctx, contentStore, tagsByDigest[img.RealTarget.Digest], img, opts, allContainers)
+			conf, err := img.Config(ctx)
 			if err != nil {
 				return err
 			}
 
-			summaries = append(summaries, image)
-
-			if opts.SharedSize {
-				root = append(root, &chainIDs)
-				for _, id := range chainIDs {
-					layers[id] = layers[id] + 1
-				}
+			var dockerImage dockerspec.DockerOCIImage
+			if err := readConfig(ctx, contentStore, conf, &dockerImage); err != nil {
+				return err
 			}
 
+			presentImages = append(presentImages, tempImage{
+				img:           img,
+				indexPlatform: img.Target().Platform,
+				dockerImage:   &dockerImage,
+			})
 			return nil
 		})
 		if err != nil {
 			return nil, err
 		}
 
+		if len(presentImages) == 0 {
+			// TODO we should probably show *something* for images we've pulled
+			// but are 100% shallow or an empty manifest list/index
+			// ("tianon/scratch:index" is an empty example image index and
+			// "tianon/scratch:list" is an empty example manifest list)
+			continue
+		}
+
+		sort.SliceStable(presentImages, func(i, j int) bool {
+			platformFromIndexOrConfig := func(idx int) ocispec.Platform {
+				if presentImages[i].indexPlatform != nil {
+					return *presentImages[i].indexPlatform
+				}
+				return presentImages[i].dockerImage.Platform
+			}
+
+			return platformMatcher.Less(platformFromIndexOrConfig(i), platformFromIndexOrConfig(j))
+		})
+
+		best := presentImages[0].img
+		image, chainIDs, err := i.singlePlatformImage(ctx, contentStore, tagsByDigest[best.RealTarget.Digest], best, opts, allContainers)
+		if err != nil {
+			return nil, err
+		}
+
+		summaries = append(summaries, image)
+
+		if opts.SharedSize {
+			root = append(root, &chainIDs)
+			for _, id := range chainIDs {
+				layers[id] = layers[id] + 1
+			}
+		}
 	}
 
 	if opts.SharedSize {

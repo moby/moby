@@ -135,6 +135,9 @@ func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pro
 		}
 		key := remotes.MakeRefKey(ctx, j)
 		if info, ok := pulling[key]; ok {
+			if info.Offset == 0 {
+				continue
+			}
 			out.WriteProgress(progress.Progress{
 				ID:      stringid.TruncateID(j.Digest.Encoded()),
 				Action:  "Downloading",
