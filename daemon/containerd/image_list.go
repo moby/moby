@@ -167,6 +167,9 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 
 	for _, img := range uniqueImages {
 		var presentImages []tempImage
+		var totalSize int64
+		var allChainsIDs []digest.Digest
+
 		err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
 			if isPseudo, err := img.IsPseudoImage(ctx); isPseudo || err != nil {
 				return err
@@ -201,6 +204,20 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 				indexPlatform: img.Target().Platform,
 				dockerImage:   &dockerImage,
 			})
+
+			chainIDs, err := img.RootFS(ctx)
+			if err != nil {
+				return err
+			}
+
+			ts, _, err := i.singlePlatformSize(ctx, img)
+			if err != nil {
+				return err
+			}
+
+			totalSize += ts
+			allChainsIDs = append(allChainsIDs, chainIDs...)
+
 			return nil
 		})
 		if err != nil {
@@ -227,16 +244,17 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		})
 
 		best := presentImages[0].img
-		image, chainIDs, err := i.singlePlatformImage(ctx, contentStore, tagsByDigest[best.RealTarget.Digest], best, opts, allContainers)
+		image, _, err := i.singlePlatformImage(ctx, contentStore, tagsByDigest[best.RealTarget.Digest], best, opts, allContainers)
 		if err != nil {
 			return nil, err
 		}
+		image.Size = totalSize
 
 		summaries = append(summaries, image)
 
 		if opts.SharedSize {
-			root = append(root, &chainIDs)
-			for _, id := range chainIDs {
+			root = append(root, &allChainsIDs)
+			for _, id := range allChainsIDs {
 				layers[id] = layers[id] + 1
 			}
 		}
@@ -257,36 +275,39 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 	return summaries, nil
 }
 
-func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest, opts imagetypes.ListOptions, allContainers []*container.Container) (*imagetypes.Summary, []digest.Digest, error) {
-	diffIDs, err := imageManifest.RootFS(ctx)
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to get rootfs of image %s", imageManifest.Name())
-	}
-
+func (i *ImageService) singlePlatformSize(ctx context.Context, imgMfst *ImageManifest) (totalSize int64, contentSize int64, _ error) {
 	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
 	snapshotter := i.snapshotterService(i.snapshotter)
+
+	diffIDs, err := imgMfst.RootFS(ctx)
+	if err != nil {
+		return -1, -1, errors.Wrapf(err, "failed to get rootfs of image %s", imgMfst.Name())
+	}
 
 	imageSnapshotID := identity.ChainID(diffIDs).String()
 	unpackedUsage, err := calculateSnapshotTotalUsage(ctx, snapshotter, imageSnapshotID)
 	if err != nil {
 		if !cerrdefs.IsNotFound(err) {
 			log.G(ctx).WithError(err).WithFields(log.Fields{
-				"image":      imageManifest.Name(),
+				"image":      imgMfst.Name(),
 				"snapshotID": imageSnapshotID,
 			}).Warn("failed to calculate unpacked size of image")
 		}
 		unpackedUsage = snapshots.Usage{Size: 0}
 	}
 
-	contentSize, err := imageManifest.Size(ctx)
+	contentSize, err = imgMfst.Size(ctx)
 	if err != nil {
-		return nil, nil, err
+		return -1, -1, err
 	}
 
 	// totalSize is the size of the image's packed layers and snapshots
 	// (unpacked layers) combined.
-	totalSize := contentSize + unpackedUsage.Size
+	totalSize = contentSize + unpackedUsage.Size
+	return totalSize, contentSize, nil
+}
 
+func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest, opts imagetypes.ListOptions, allContainers []*container.Container) (*imagetypes.Summary, []digest.Digest, error) {
 	var repoDigests []string
 	rawImg := imageManifest.Metadata()
 	target := rawImg.Target.Digest
@@ -325,6 +346,11 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		return nil, nil, err
 	}
 
+	totalSize, _, err := i.singlePlatformSize(ctx, imageManifest)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to calculate size of image %s", imageManifest.Name())
+	}
+
 	summary := &imagetypes.Summary{
 		ParentID:    rawImg.Labels[imageLabelClassicBuilderParent],
 		ID:          target.String(),
@@ -352,6 +378,11 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 			}
 		}
 		summary.Containers = containers
+	}
+
+	diffIDs, err := imageManifest.RootFS(ctx)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to get rootfs of image %s", imageManifest.Name())
 	}
 
 	return summary, identity.ChainIDs(diffIDs), nil
