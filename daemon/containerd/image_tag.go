@@ -28,8 +28,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 		Labels: targetImage.Labels,
 	}
 
-	is := i.client.ImageService()
-	_, err = is.Create(ctx, newImg)
+	_, err = i.images.Create(ctx, newImg)
 	if err != nil {
 		if !cerrdefs.IsAlreadyExists(err) {
 			return errdefs.System(errors.Wrapf(err, "failed to create image with name %s and target %s", newImg.Name, newImg.Target.Digest.String()))
@@ -54,7 +53,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 			return errors.Wrapf(err, "failed to delete previous image %s", replacedImg.Name)
 		}
 
-		if _, err = is.Create(compatcontext.WithoutCancel(ctx), newImg); err != nil {
+		if _, err = i.images.Create(compatcontext.WithoutCancel(ctx), newImg); err != nil {
 			return errdefs.System(errors.Wrapf(err, "failed to create an image %s with target %s after deleting the existing one",
 				newImg.Name, imageID.String()))
 		}
@@ -69,7 +68,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 	defer i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
 
 	// Delete the source dangling image, as it's no longer dangling.
-	if err := is.Delete(compatcontext.WithoutCancel(ctx), danglingImageName(targetImage.Target.Digest)); err != nil {
+	if err := i.images.Delete(compatcontext.WithoutCancel(ctx), danglingImageName(targetImage.Target.Digest)); err != nil {
 		logger.WithError(err).Warn("unexpected error when deleting dangling image")
 	}
 

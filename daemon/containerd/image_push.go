@@ -91,7 +91,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, m
 		}
 	}()
 
-	img, err := i.client.ImageService().Get(ctx, targetRef.String())
+	img, err := i.images.Get(ctx, targetRef.String())
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
 			return errdefs.NotFound(fmt.Errorf("tag does not exist: %s", reference.FamiliarString(targetRef)))
@@ -100,7 +100,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, m
 	}
 
 	target := img.Target
-	store := i.client.ContentStore()
+	store := i.content
 
 	resolver, tracker := i.newResolverFromAuthConfig(ctx, authConfig, targetRef)
 	pp := pushProgress{Tracker: tracker}

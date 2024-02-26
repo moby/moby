@@ -26,7 +26,7 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 			return err
 		}
 
-		cs := i.client.ContentStore()
+		cs := i.content
 
 		matcher := matchAllWithPreference(platforms.Default())
 		if platform != nil {

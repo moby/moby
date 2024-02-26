@@ -66,7 +66,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 		return "", errdefs.InvalidParameter(err)
 	}
 
-	cs := i.client.ContentStore()
+	cs := i.content
 
 	compressedDigest, uncompressedDigest, mt, err := saveArchive(ctx, cs, layerReader)
 	if err != nil {
@@ -299,11 +299,9 @@ func writeBlobAndReturnDigest(ctx context.Context, cs content.Store, mt string, 
 
 // saveImage creates an image in the ImageService or updates it if it exists.
 func (i *ImageService) saveImage(ctx context.Context, img images.Image) error {
-	is := i.client.ImageService()
-
-	if _, err := is.Update(ctx, img); err != nil {
+	if _, err := i.images.Update(ctx, img); err != nil {
 		if cerrdefs.IsNotFound(err) {
-			if _, err := is.Create(ctx, img); err != nil {
+			if _, err := i.images.Create(ctx, img); err != nil {
 				return errdefs.Unknown(err)
 			}
 		} else {

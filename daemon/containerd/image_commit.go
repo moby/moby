@@ -38,7 +38,7 @@ with adaptations to match the Moby data model and services.
 // CommitImage creates a new image from a commit config.
 func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig) (image.ID, error) {
 	container := i.containers.Get(cc.ContainerID)
-	cs := i.client.ContentStore()
+	cs := i.content
 
 	var parentManifest ocispec.Manifest
 	var parentImage imagespec.DockerOCIImage

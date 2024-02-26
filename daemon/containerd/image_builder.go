@@ -202,12 +202,12 @@ func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *Ima
 		platMatcher = platforms.Only(*platform)
 	}
 
-	confDesc, err := containerdimages.Config(ctx, i.client.ContentStore(), *imgDesc, platMatcher)
+	confDesc, err := containerdimages.Config(ctx, i.content, *imgDesc, platMatcher)
 	if err != nil {
 		return nil, err
 	}
 
-	diffIDs, err := containerdimages.RootFS(ctx, i.client.ContentStore(), confDesc)
+	diffIDs, err := containerdimages.RootFS(ctx, i.content, confDesc)
 	if err != nil {
 		return nil, err
 	}
@@ -446,7 +446,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		if err != nil {
 			return nil, err
 		}
-		parentImageManifest, err := containerdimages.Manifest(ctx, i.client.ContentStore(), parentDesc, platforms.Default())
+		parentImageManifest, err := containerdimages.Manifest(ctx, i.content, parentDesc, platforms.Default())
 		if err != nil {
 			return nil, err
 		}
@@ -455,7 +455,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		parentDigest = parentDesc.Digest
 	}
 
-	cs := i.client.ContentStore()
+	cs := i.content
 
 	ra, err := cs.ReaderAt(ctx, ocispec.Descriptor{Digest: layerDigest})
 	if err != nil {
@@ -504,7 +504,7 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 		}
 	}()
 
-	manifestDesc, ccDesc, err := writeContentsForImage(ctx, i.snapshotter, i.client.ContentStore(), imgToCreate, layers, containerConfig)
+	manifestDesc, ccDesc, err := writeContentsForImage(ctx, i.snapshotter, i.content, imgToCreate, layers, containerConfig)
 	if err != nil {
 		return "", err
 	}
@@ -523,13 +523,13 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 		img.Labels[imageLabelClassicBuilderFromScratch] = "1"
 	}
 
-	createdImage, err := i.client.ImageService().Update(ctx, img)
+	createdImage, err := i.images.Update(ctx, img)
 	if err != nil {
 		if !cerrdefs.IsNotFound(err) {
 			return "", err
 		}
 
-		if createdImage, err = i.client.ImageService().Create(ctx, img); err != nil {
+		if createdImage, err = i.images.Create(ctx, img); err != nil {
 			return "", fmt.Errorf("failed to create new image: %w", err)
 		}
 	}

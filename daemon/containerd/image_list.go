@@ -72,7 +72,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		return nil, err
 	}
 
-	imgs, err := i.client.ImageService().List(ctx)
+	imgs, err := i.images.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		layers = make(map[digest.Digest]int)
 	}
 
-	contentStore := i.client.ContentStore()
+	contentStore := i.content
 	uniqueImages := map[digest.Digest]images.Image{}
 	tagsByDigest := map[digest.Digest][]string{}
 	intermediateImages := map[digest.Digest]struct{}{}
@@ -426,7 +426,7 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		return nil, err
 	}
 
-	labelFn, err := setupLabelFilter(i.client.ContentStore(), imageFilters)
+	labelFn, err := setupLabelFilter(i.content, imageFilters)
 	if err != nil {
 		return nil, err
 	}
