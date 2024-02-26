@@ -72,7 +72,10 @@ type ImageInspect struct {
 
 	// Created is the date and time at which the image was created, formatted in
 	// RFC 3339 nano-seconds (time.RFC3339Nano).
-	Created string
+	//
+	// This information is only available if present in the image,
+	// and omitted otherwise.
+	Created string `json:",omitempty"`
 
 	// Container is the ID of the container that was used to create the image.
 	//
