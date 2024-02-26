@@ -1746,9 +1746,13 @@ definitions:
       Created:
         description: |
           Date and time at which the image was created, formatted in
-          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds, or empty if the field was not set in the image config.
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
+
+          This information is only available if present in the image,
+          and omitted otherwise.
         type: "string"
-        x-nullable: false
+        format: "dateTime"
+        x-nullable: true
         example: "2022-02-04T21:20:12.497794809Z"
       Container:
         description: |
