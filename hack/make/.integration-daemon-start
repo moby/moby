@@ -46,6 +46,9 @@ export DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE=1
 export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
 
+# Allow testing push/pull of legacy image formats
+export DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE=1
+
 # example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
 storage_params=""
 if [ -n "$DOCKER_STORAGE_OPTS" ]; then

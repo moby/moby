@@ -213,6 +213,15 @@ func (e reservedNameError) Error() string {
 
 func (e reservedNameError) Forbidden() {}
 
-func DeprecatedSchema1ImageMessage(ref reference.Named) string {
-	return fmt.Sprintf("[DEPRECATION NOTICE] Docker Image Format v1, and Docker Image manifest version 2, schema 1 support will be removed in an upcoming release. Suggest the author of %s to upgrade the image to the OCI Format, or Docker Image manifest v2, schema 2. More information at https://docs.docker.com/go/deprecated-image-specs/", ref)
+type invalidArgumentErr struct{ error }
+
+func (invalidArgumentErr) InvalidParameter() {}
+
+func DeprecatedSchema1ImageError(ref reference.Named) error {
+	msg := "[DEPRECATION NOTICE] Docker Image Format v1 and Docker Image manifest version 2, schema 1 support is disabled by default and will be removed in an upcoming release."
+	if ref != nil {
+		msg += " Suggest the author of " + ref.String() + " to upgrade the image to the OCI Format or Docker Image manifest v2, schema 2."
+	}
+	msg += " More information at https://docs.docker.com/go/deprecated-image-specs/"
+	return invalidArgumentErr{errors.New(msg)}
 }

@@ -362,6 +362,7 @@ func TestDetectManifestBlobMediaType(t *testing.T) {
 		"mediaType and fsLayers set": {[]byte(`{"mediaType": "bananas", "fsLayers": []}`), "bananas"},
 	}
 
+	t.Setenv("DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE", "1")
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			mt, err := detectManifestBlobMediaType(tc.json)
@@ -431,6 +432,7 @@ func TestDetectManifestBlobMediaTypeInvalid(t *testing.T) {
 		},
 	}
 
+	t.Setenv("DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE", "1")
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			mt, err := detectManifestBlobMediaType(tc.json)
