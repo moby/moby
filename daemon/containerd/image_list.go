@@ -153,17 +153,12 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		tagsByDigest[dgst] = append(tagsByDigest[dgst], reference.FamiliarString(ref))
 	}
 
-	type tempImage struct {
-		img           *ImageManifest
-		indexPlatform *ocispec.Platform
-		dockerImage   *dockerspec.DockerOCIImage
-	}
-
 	for _, img := range uniqueImages {
-		var presentImages []tempImage
 		var totalSize int64
 		var allChainsIDs []digest.Digest
 		var containersCount int64
+		var best *ImageManifest
+		var bestPlatform ocispec.Platform
 
 		err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
 			if isPseudo, err := img.IsPseudoImage(ctx); isPseudo || err != nil {
@@ -194,11 +189,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 				return err
 			}
 
-			presentImages = append(presentImages, tempImage{
-				img:           img,
-				indexPlatform: img.Target().Platform,
-				dockerImage:   &dockerImage,
-			})
+			target := img.Target()
 
 			chainIDs, err := img.RootFS(ctx)
 			if err != nil {
@@ -215,10 +206,22 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 
 			if opts.ContainerCount {
 				i.containers.ApplyAll(func(c *container.Container) {
-					if c.ImageManifest != nil && c.ImageManifest.Digest == img.Target().Digest {
+					if c.ImageManifest != nil && c.ImageManifest.Digest == target.Digest {
 						containersCount++
 					}
 				})
+			}
+
+			var platform ocispec.Platform
+			if target.Platform != nil {
+				platform = *target.Platform
+			} else {
+				platform = dockerImage.Platform
+			}
+
+			if best == nil || platformMatcher.Less(platform, bestPlatform) {
+				best = img
+				bestPlatform = platform
 			}
 
 			return nil
@@ -227,7 +230,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 			return nil, err
 		}
 
-		if len(presentImages) == 0 {
+		if best == nil {
 			// TODO we should probably show *something* for images we've pulled
 			// but are 100% shallow or an empty manifest list/index
 			// ("tianon/scratch:index" is an empty example image index and
@@ -235,18 +238,6 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 			continue
 		}
 
-		sort.SliceStable(presentImages, func(i, j int) bool {
-			platformFromIndexOrConfig := func(idx int) ocispec.Platform {
-				if presentImages[i].indexPlatform != nil {
-					return *presentImages[i].indexPlatform
-				}
-				return presentImages[i].dockerImage.Platform
-			}
-
-			return platformMatcher.Less(platformFromIndexOrConfig(i), platformFromIndexOrConfig(j))
-		})
-
-		best := presentImages[0].img
 		image, err := i.singlePlatformImage(ctx, contentStore, tagsByDigest[best.RealTarget.Digest], best)
 		if err != nil {
 			return nil, err
