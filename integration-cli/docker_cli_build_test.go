@@ -3576,6 +3576,7 @@ RUN [ $(ls -l /test | awk '{print $3":"$4}') = 'root:root' ]
 }
 
 func (s *DockerCLIBuildSuite) TestBuildSymlinkBreakout(c *testing.T) {
+	skip.If(c, testEnv.UsingSnapshotter(), "FIXME: https://github.com/moby/moby/issues/47107")
 	const name = "testbuildsymlinkbreakout"
 	tmpdir, err := os.MkdirTemp("", name)
 	assert.NilError(c, err)
