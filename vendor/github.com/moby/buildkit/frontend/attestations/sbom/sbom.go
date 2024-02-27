@@ -9,6 +9,7 @@ import (
 
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
 	gatewaypb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/solver/result"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -33,12 +34,13 @@ const (
 // attestation.
 type Scanner func(ctx context.Context, name string, ref llb.State, extras map[string]llb.State, opts ...llb.ConstraintsOpt) (result.Attestation[*llb.State], error)
 
-func CreateSBOMScanner(ctx context.Context, resolver llb.ImageMetaResolver, scanner string, resolveOpt llb.ResolveImageConfigOpt) (Scanner, error) {
+func CreateSBOMScanner(ctx context.Context, resolver sourceresolver.MetaResolver, scanner string, resolveOpt sourceresolver.Opt) (Scanner, error) {
 	if scanner == "" {
 		return nil, nil
 	}
 
-	scanner, _, dt, err := resolver.ResolveImageConfig(ctx, scanner, resolveOpt)
+	imr := sourceresolver.NewImageMetaResolver(resolver)
+	scanner, _, dt, err := imr.ResolveImageConfig(ctx, scanner, resolveOpt)
 	if err != nil {
 		return nil, err
 	}

@@ -326,7 +326,7 @@ func (h *HistoryQueue) delete(ref string, sync bool) error {
 	if err := h.opt.DB.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(recordsBucket))
 		if b == nil {
-			return os.ErrNotExist
+			return errors.Wrapf(os.ErrNotExist, "failed to retrieve bucket %s", recordsBucket)
 		}
 		err1 := b.Delete([]byte(ref))
 		var opts []leases.DeleteOpt
@@ -393,11 +393,11 @@ func (h *HistoryQueue) UpdateRef(ctx context.Context, ref string, upt func(r *co
 	if err := h.opt.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(recordsBucket))
 		if b == nil {
-			return os.ErrNotExist
+			return errors.Wrapf(os.ErrNotExist, "failed to retrieve bucket %s", recordsBucket)
 		}
 		dt := b.Get([]byte(ref))
 		if dt == nil {
-			return os.ErrNotExist
+			return errors.Wrapf(os.ErrNotExist, "failed to retrieve ref %s", ref)
 		}
 
 		if err := br.Unmarshal(dt); err != nil {
@@ -433,11 +433,11 @@ func (h *HistoryQueue) Status(ctx context.Context, ref string, st chan<- *client
 	if err := h.opt.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(recordsBucket))
 		if b == nil {
-			return os.ErrNotExist
+			return errors.Wrapf(os.ErrNotExist, "failed to retrieve bucket %s", recordsBucket)
 		}
 		dt := b.Get([]byte(ref))
 		if dt == nil {
-			return os.ErrNotExist
+			return errors.Wrapf(os.ErrNotExist, "failed to retrieve ref %s", ref)
 		}
 
 		if err := br.Unmarshal(dt); err != nil {
@@ -526,8 +526,13 @@ func (h *HistoryQueue) update(ctx context.Context, rec controlapi.BuildHistoryRe
 			return err
 		}
 		if rec.Result != nil {
-			if err := h.addResource(ctx, l, rec.Result.Result, true); err != nil {
+			if err := h.addResource(ctx, l, rec.Result.ResultDeprecated, true); err != nil {
 				return err
+			}
+			for _, res := range rec.Result.Results {
+				if err := h.addResource(ctx, l, res, true); err != nil {
+					return err
+				}
 			}
 			for _, att := range rec.Result.Attestations {
 				if err := h.addResource(ctx, l, att, false); err != nil {
@@ -536,8 +541,13 @@ func (h *HistoryQueue) update(ctx context.Context, rec controlapi.BuildHistoryRe
 			}
 		}
 		for _, r := range rec.Results {
-			if err := h.addResource(ctx, l, r.Result, true); err != nil {
+			if err := h.addResource(ctx, l, r.ResultDeprecated, true); err != nil {
 				return err
+			}
+			for _, res := range r.Results {
+				if err := h.addResource(ctx, l, res, true); err != nil {
+					return err
+				}
 			}
 			for _, att := range r.Attestations {
 				if err := h.addResource(ctx, l, att, false); err != nil {
@@ -835,7 +845,7 @@ func (h *HistoryQueue) Listen(ctx context.Context, req *controlapi.BuildHistoryR
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 		case e := <-sub.ch:
 			if req.Ref != "" && req.Ref != e.Record.Ref {
 				continue

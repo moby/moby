@@ -398,6 +398,18 @@ func WithAllowWildcard(b bool) RmOption {
 	})
 }
 
+type excludeOnCopyAction struct {
+	patterns []string
+}
+
+func (e *excludeOnCopyAction) SetCopyOption(i *CopyInfo) {
+	i.ExcludePatterns = append(i.ExcludePatterns, e.patterns...)
+}
+
+func WithExcludePatterns(patterns []string) CopyOption {
+	return &excludeOnCopyAction{patterns}
+}
+
 type fileActionRm struct {
 	file string
 	info RmInfo

@@ -34,15 +34,11 @@ func (c zstdType) NeedsConversion(ctx context.Context, cs content.Store, desc oc
 	return true, nil
 }
 
-func (c zstdType) NeedsComputeDiffBySelf() bool {
+func (c zstdType) NeedsComputeDiffBySelf(comp Config) bool {
 	return true
 }
 
 func (c zstdType) OnlySupportOCITypes() bool {
-	return false
-}
-
-func (c zstdType) NeedsForceCompression() bool {
 	return false
 }
 

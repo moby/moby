@@ -67,11 +67,11 @@ func newController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control
 }
 
 func getTraceExporter(ctx context.Context) trace.SpanExporter {
-	exp, err := detect.Exporter()
+	span, _, err := detect.Exporter()
 	if err != nil {
 		log.G(ctx).WithError(err).Error("Failed to detect trace exporter for buildkit controller")
 	}
-	return exp
+	return span
 }
 
 func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
@@ -105,7 +105,8 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo, err := containerd.NewWorkerOpt(opt.Root, opt.ContainerdAddress, opt.Snapshotter, opt.ContainerdNamespace,
 		opt.Rootless, map[string]string{
 			label.Snapshotter: opt.Snapshotter,
-		}, dns, nc, opt.ApparmorProfile, false, nil, "", ctd.WithTimeout(60*time.Second))
+		}, dns, nc, opt.ApparmorProfile, false, nil, "", nil, ctd.WithTimeout(60*time.Second),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -302,9 +303,11 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	}
 
 	exp, err := mobyexporter.New(mobyexporter.Opt{
-		ImageStore:  dist.ImageStore,
-		Differ:      differ,
-		ImageTagger: opt.ImageTagger,
+		ImageStore:   dist.ImageStore,
+		ContentStore: store,
+		Differ:       differ,
+		ImageTagger:  opt.ImageTagger,
+		LeaseManager: lm,
 	})
 	if err != nil {
 		return nil, err

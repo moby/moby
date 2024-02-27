@@ -11,14 +11,15 @@ type MultiReader struct {
 	main        Reader
 	initialized bool
 	done        chan struct{}
-	writers     map[*progressWriter]func()
+	doneCause   error
+	writers     map[*progressWriter]func(error)
 	sent        []*Progress
 }
 
 func NewMultiReader(pr Reader) *MultiReader {
 	mr := &MultiReader{
 		main:    pr,
-		writers: make(map[*progressWriter]func()),
+		writers: make(map[*progressWriter]func(error)),
 		done:    make(chan struct{}),
 	}
 	return mr
@@ -46,9 +47,9 @@ func (mr *MultiReader) Reader(ctx context.Context) Reader {
 
 	go func() {
 		if isBehind {
-			close := func() {
+			close := func(err error) {
 				w.Close()
-				closeWriter()
+				closeWriter(err)
 			}
 			i := 0
 			for {
@@ -58,11 +59,11 @@ func (mr *MultiReader) Reader(ctx context.Context) Reader {
 				if count == 0 {
 					select {
 					case <-ctx.Done():
-						close()
+						close(context.Cause(ctx))
 						mr.mu.Unlock()
 						return
 					case <-mr.done:
-						close()
+						close(mr.doneCause)
 						mr.mu.Unlock()
 						return
 					default:
@@ -77,7 +78,7 @@ func (mr *MultiReader) Reader(ctx context.Context) Reader {
 					if i%100 == 0 {
 						select {
 						case <-ctx.Done():
-							close()
+							close(context.Cause(ctx))
 							return
 						default:
 						}
@@ -110,10 +111,12 @@ func (mr *MultiReader) handle() error {
 		if err != nil {
 			if err == io.EOF {
 				mr.mu.Lock()
+				cancelErr := context.Canceled
 				for w, c := range mr.writers {
 					w.Close()
-					c()
+					c(cancelErr)
 				}
+				mr.doneCause = cancelErr
 				close(mr.done)
 				mr.mu.Unlock()
 				return nil

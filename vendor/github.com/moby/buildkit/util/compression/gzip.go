@@ -38,15 +38,12 @@ func (c gzipType) NeedsConversion(ctx context.Context, cs content.Store, desc oc
 	return true, nil
 }
 
-func (c gzipType) NeedsComputeDiffBySelf() bool {
-	return false
+func (c gzipType) NeedsComputeDiffBySelf(comp Config) bool {
+	// we allow compressing it with a customized compression level that containerd differ doesn't support so we compress it by self.
+	return comp.Level != nil
 }
 
 func (c gzipType) OnlySupportOCITypes() bool {
-	return false
-}
-
-func (c gzipType) NeedsForceCompression() bool {
 	return false
 }
 

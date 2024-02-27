@@ -4,7 +4,7 @@ import (
 	"context"
 	"runtime/debug"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -63,14 +63,13 @@ func GetLogger(ctx context.Context) (l *logrus.Entry) {
 	return l
 }
 
-// LazyStackTrace lets you include a stack trace as a field's value in a log but only
-// call it when the log level is actually enabled.
-type LazyStackTrace struct{}
-
-func (LazyStackTrace) String() string {
-	return string(debug.Stack())
-}
-
-func (LazyStackTrace) MarshalText() ([]byte, error) {
-	return debug.Stack(), nil
+// TraceLevelOnlyStack returns a stack trace for the current goroutine only if
+// trace level logs are enabled; otherwise it returns an empty string. This ensure
+// we only pay the cost of generating a stack trace when the log entry will actually
+// be emitted.
+func TraceLevelOnlyStack() string {
+	if logrus.GetLevel() == logrus.TraceLevel {
+		return string(debug.Stack())
+	}
+	return ""
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
+	labelspkg "github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/mount"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
@@ -42,13 +43,26 @@ func (sr *immutableRef) tryComputeOverlayBlob(ctx context.Context, lower, upper 
 	if err != nil {
 		return emptyDesc, false, errors.Wrap(err, "failed to open writer")
 	}
+
 	defer func() {
 		if cw != nil {
+			// after commit success cw will be set to nil, if cw isn't nil, error
+			// happened before commit, we should abort this ingest, and because the
+			// error may incured by ctx cancel, use a new context here. And since
+			// cm.Close will unlock this ref in the content store, we invoke abort
+			// to remove the ingest root in advance.
+			if aerr := sr.cm.ContentStore.Abort(context.Background(), ref); aerr != nil {
+				bklog.G(ctx).WithError(aerr).Warnf("failed to abort writer %q", ref)
+			}
 			if cerr := cw.Close(); cerr != nil {
 				bklog.G(ctx).WithError(cerr).Warnf("failed to close writer %q", ref)
 			}
 		}
 	}()
+
+	if err = cw.Truncate(0); err != nil {
+		return emptyDesc, false, errors.Wrap(err, "failed to truncate writer")
+	}
 
 	bufW := bufio.NewWriterSize(cw, 128*1024)
 	var labels map[string]string
@@ -69,7 +83,7 @@ func (sr *immutableRef) tryComputeOverlayBlob(ctx context.Context, lower, upper 
 		if labels == nil {
 			labels = map[string]string{}
 		}
-		labels[containerdUncompressed] = dgstr.Digest().String()
+		labels[labelspkg.LabelUncompressed] = dgstr.Digest().String()
 	} else {
 		if err = overlay.WriteUpperdir(ctx, bufW, upperdir, lower); err != nil {
 			return emptyDesc, false, errors.Wrap(err, "failed to write diff")
@@ -101,9 +115,9 @@ func (sr *immutableRef) tryComputeOverlayBlob(ctx context.Context, lower, upper 
 		cinfo.Labels = make(map[string]string)
 	}
 	// Set uncompressed label if digest already existed without label
-	if _, ok := cinfo.Labels[containerdUncompressed]; !ok {
-		cinfo.Labels[containerdUncompressed] = labels[containerdUncompressed]
-		if _, err := sr.cm.ContentStore.Update(ctx, cinfo, "labels."+containerdUncompressed); err != nil {
+	if _, ok := cinfo.Labels[labelspkg.LabelUncompressed]; !ok {
+		cinfo.Labels[labelspkg.LabelUncompressed] = labels[labelspkg.LabelUncompressed]
+		if _, err := sr.cm.ContentStore.Update(ctx, cinfo, "labels."+labelspkg.LabelUncompressed); err != nil {
 			return emptyDesc, false, errors.Wrap(err, "error setting uncompressed label")
 		}
 	}

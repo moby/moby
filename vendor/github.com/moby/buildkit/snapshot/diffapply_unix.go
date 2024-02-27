@@ -1,5 +1,5 @@
-//go:build !windows
-// +build !windows
+//go:build !windows && !freebsd
+// +build !windows,!freebsd
 
 package snapshot
 
@@ -600,8 +600,10 @@ func (d *differ) doubleWalkingChanges(ctx context.Context, handle func(context.C
 		if prevErr != nil {
 			return prevErr
 		}
-		if ctx.Err() != nil {
-			return ctx.Err()
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		default:
 		}
 
 		if kind == fs.ChangeKindUnmodified {
@@ -689,8 +691,11 @@ func (d *differ) overlayChanges(ctx context.Context, handle func(context.Context
 		if prevErr != nil {
 			return prevErr
 		}
-		if ctx.Err() != nil {
-			return ctx.Err()
+
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		default:
 		}
 
 		if kind == fs.ChangeKindUnmodified {
@@ -719,7 +724,10 @@ func (d *differ) overlayChanges(ctx context.Context, handle func(context.Context
 				return errors.Errorf("unhandled stat type for %+v", srcfi)
 			}
 
-			if !srcfi.IsDir() && c.srcStat.Nlink > 1 {
+			// Changes with Delete kind may share the same inode even if they are unrelated.
+			// Skip them to avoid creating hardlinks between whiteouts as whiteouts are not
+			// always created and may leave the hardlink dangling.
+			if !srcfi.IsDir() && c.srcStat.Nlink > 1 && c.kind != fs.ChangeKindDelete {
 				if linkSubPath, ok := d.inodes[statInode(c.srcStat)]; ok {
 					c.linkSubPath = linkSubPath
 				} else {

@@ -60,7 +60,7 @@ func (s *SourceOp) instance(ctx context.Context) (source.SourceInstance, error) 
 	if s.src != nil {
 		return s.src, nil
 	}
-	id, err := source.FromLLB(s.op, s.platform)
+	id, err := s.sm.Identifier(s.op, s.platform)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (s *SourceOp) CacheMap(ctx context.Context, g session.Group, index int) (*s
 
 	dgst := digest.FromBytes([]byte(sourceCacheType + ":" + k))
 	if strings.HasPrefix(k, "session:") {
-		dgst = digest.Digest("random:" + strings.TrimPrefix(dgst.String(), dgst.Algorithm().String()+":"))
+		dgst = digest.Digest("random:" + dgst.Encoded())
 	}
 
 	return &solver.CacheMap{

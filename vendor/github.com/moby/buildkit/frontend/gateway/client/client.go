@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/solver/result"
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
@@ -26,8 +27,9 @@ func NewResult() *Result {
 }
 
 type Client interface {
+	sourceresolver.MetaResolver
 	Solve(ctx context.Context, req SolveRequest) (*Result, error)
-	ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (string, digest.Digest, []byte, error)
+	ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt) (string, digest.Digest, []byte, error)
 	BuildOpts() BuildOpts
 	Inputs(ctx context.Context) (map[string]llb.State, error)
 	NewContainer(ctx context.Context, req NewContainerRequest) (Container, error)

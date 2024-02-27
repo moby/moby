@@ -84,6 +84,11 @@ func (g *gatewayClientForBuild) ResolveImageConfig(ctx context.Context, in *gate
 	return g.gateway.ResolveImageConfig(ctx, in, opts...)
 }
 
+func (g *gatewayClientForBuild) ResolveSourceMeta(ctx context.Context, in *gatewayapi.ResolveSourceMetaRequest, opts ...grpc.CallOption) (*gatewayapi.ResolveSourceMetaResponse, error) {
+	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
+	return g.gateway.ResolveSourceMeta(ctx, in, opts...)
+}
+
 func (g *gatewayClientForBuild) Solve(ctx context.Context, in *gatewayapi.SolveRequest, opts ...grpc.CallOption) (*gatewayapi.SolveResponse, error) {
 	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
 	return g.gateway.Solve(ctx, in, opts...)

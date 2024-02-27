@@ -50,6 +50,9 @@ jobs:
     timeout-minutes: 120
     needs:
       - build
+    env:
+      TEST_IMAGE_BUILD: "0"
+      TEST_IMAGE_ID: "buildkit-tests"
     strategy:
       fail-fast: false
       matrix:
@@ -115,6 +118,14 @@ jobs:
           sudo service docker restart
           docker version
           docker info
+      -
+        name: Build test image
+        uses: docker/bake-action@v4
+        with:
+          workdir: ./buildkit
+          targets: integration-tests
+          set: |
+            *.output=type=docker,name=${{ env.TEST_IMAGE_ID }}
       -
         name: Test
         run: |

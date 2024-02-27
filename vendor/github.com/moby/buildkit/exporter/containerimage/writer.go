@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/platforms"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/moby/buildkit/cache"
@@ -27,10 +29,13 @@ import (
 	attestationTypes "github.com/moby/buildkit/util/attestation"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
+	"github.com/moby/buildkit/util/contentutil"
+	"github.com/moby/buildkit/util/converter"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/purl"
 	"github.com/moby/buildkit/util/system"
 	"github.com/moby/buildkit/util/tracing"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -56,7 +61,7 @@ type ImageWriter struct {
 	opt WriterOpt
 }
 
-func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, sessionID string, opts *ImageCommitOpts) (*ocispecs.Descriptor, error) {
+func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, sessionID string, inlineCache exptypes.InlineCache, opts *ImageCommitOpts) (*ocispecs.Descriptor, error) {
 	if _, ok := inp.Metadata[exptypes.ExporterPlatformsKey]; len(inp.Refs) > 0 && !ok {
 		return nil, errors.Errorf("unable to export multiple refs, missing platforms mapping")
 	}
@@ -111,19 +116,36 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 		}
 
 		var ref cache.ImmutableRef
-		var p exptypes.Platform
+		var p *exptypes.Platform
 		if len(ps.Platforms) > 0 {
-			p = ps.Platforms[0]
+			p = &ps.Platforms[0]
 			if r, ok := inp.FindRef(p.ID); ok {
 				ref = r
 			}
 		} else {
 			ref = inp.Ref
 		}
+		config := exptypes.ParseKey(inp.Metadata, exptypes.ExporterImageConfigKey, p)
+		baseImgConfig := exptypes.ParseKey(inp.Metadata, exptypes.ExporterImageBaseConfigKey, p)
+		var baseImg *dockerspec.DockerOCIImage
+		if len(baseImgConfig) > 0 {
+			var baseImgX dockerspec.DockerOCIImage
+			if err := json.Unmarshal(baseImgConfig, &baseImgX); err != nil {
+				return nil, errors.Wrap(err, "failed to unmarshal base image config")
+			}
+			baseImg = &baseImgX
+		}
 
 		remotes, err := ic.exportLayers(ctx, opts.RefCfg, session.NewGroup(sessionID), ref)
 		if err != nil {
 			return nil, err
+		}
+		remote := &remotes[0]
+		if opts.RewriteTimestamp {
+			remote, err = ic.rewriteRemoteWithEpoch(ctx, opts, remote, baseImg)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		annotations := opts.Annotations.Platform(nil)
@@ -131,9 +153,22 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 			return nil, errors.Errorf("index annotations not supported for single platform export")
 		}
 
-		config := exptypes.ParseKey(inp.Metadata, exptypes.ExporterImageConfigKey, p)
-		inlineCache := exptypes.ParseKey(inp.Metadata, exptypes.ExporterInlineCache, p)
-		mfstDesc, configDesc, err := ic.commitDistributionManifest(ctx, opts, ref, config, &remotes[0], annotations, inlineCache, opts.Epoch, session.NewGroup(sessionID))
+		var inlineCacheEntry *exptypes.InlineCacheEntry
+		if inlineCache != nil {
+			inlineCacheResult, err := inlineCache(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if inlineCacheResult != nil {
+				if p != nil {
+					inlineCacheEntry, _ = inlineCacheResult.FindRef(p.ID)
+				} else {
+					inlineCacheEntry = inlineCacheResult.Ref
+				}
+			}
+		}
+
+		mfstDesc, configDesc, err := ic.commitDistributionManifest(ctx, opts, ref, config, remote, annotations, inlineCacheEntry, opts.Epoch, session.NewGroup(sessionID), baseImg)
 		if err != nil {
 			return nil, err
 		}
@@ -168,6 +203,14 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 		return nil, err
 	}
 
+	var inlineCacheResult *result.Result[*exptypes.InlineCacheEntry]
+	if inlineCache != nil {
+		inlineCacheResult, err = inlineCache(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	idx := ocispecs.Index{
 		MediaType:   ocispecs.MediaTypeImageIndex,
 		Annotations: opts.Annotations.Platform(nil).Index,
@@ -189,8 +232,16 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 		if !ok {
 			return nil, errors.Errorf("failed to find ref for ID %s", p.ID)
 		}
-		config := exptypes.ParseKey(inp.Metadata, exptypes.ExporterImageConfigKey, p)
-		inlineCache := exptypes.ParseKey(inp.Metadata, exptypes.ExporterInlineCache, p)
+		config := exptypes.ParseKey(inp.Metadata, exptypes.ExporterImageConfigKey, &p)
+		baseImgConfig := exptypes.ParseKey(inp.Metadata, exptypes.ExporterImageBaseConfigKey, &p)
+		var baseImg *dockerspec.DockerOCIImage
+		if len(baseImgConfig) > 0 {
+			var baseImgX dockerspec.DockerOCIImage
+			if err := json.Unmarshal(baseImgConfig, &baseImgX); err != nil {
+				return nil, errors.Wrap(err, "failed to unmarshal base image config")
+			}
+			baseImg = &baseImgX
+		}
 
 		remote := &remotes[remotesMap[p.ID]]
 		if remote == nil {
@@ -198,8 +249,19 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 				Provider: ic.opt.ContentStore,
 			}
 		}
+		if opts.RewriteTimestamp {
+			remote, err = ic.rewriteRemoteWithEpoch(ctx, opts, remote, baseImg)
+			if err != nil {
+				return nil, err
+			}
+		}
 
-		desc, _, err := ic.commitDistributionManifest(ctx, opts, r, config, remote, opts.Annotations.Platform(&p.Platform), inlineCache, opts.Epoch, session.NewGroup(sessionID))
+		var inlineCacheEntry *exptypes.InlineCacheEntry
+		if inlineCacheResult != nil {
+			inlineCacheEntry, _ = inlineCacheResult.FindRef(p.ID)
+		}
+
+		desc, _, err := ic.commitDistributionManifest(ctx, opts, r, config, remote, opts.Annotations.Platform(&p.Platform), inlineCacheEntry, opts.Epoch, session.NewGroup(sessionID), baseImg)
 		if err != nil {
 			return nil, err
 		}
@@ -323,7 +385,74 @@ func (ic *ImageWriter) exportLayers(ctx context.Context, refCfg cacheconfig.RefC
 	return out, err
 }
 
-func (ic *ImageWriter) commitDistributionManifest(ctx context.Context, opts *ImageCommitOpts, ref cache.ImmutableRef, config []byte, remote *solver.Remote, annotations *Annotations, inlineCache []byte, epoch *time.Time, sg session.Group) (*ocispecs.Descriptor, *ocispecs.Descriptor, error) {
+// rewriteImageLayerWithEpoch rewrites the file timestamps in the layer blob to match the epoch, and returns a new descriptor that points to
+// the new blob.
+//
+// If no conversion is needed, this returns nil without error.
+func rewriteImageLayerWithEpoch(ctx context.Context, cs content.Store, desc ocispecs.Descriptor, comp compression.Config, epoch *time.Time, immDiffID digest.Digest) (*ocispecs.Descriptor, error) {
+	var immDiffIDs map[digest.Digest]struct{}
+	if immDiffID != "" {
+		immDiffIDs = map[digest.Digest]struct{}{
+			immDiffID: {},
+		}
+	}
+	converterFn, err := converter.NewWithRewriteTimestamp(ctx, cs, desc, comp, epoch, immDiffIDs)
+	if err != nil {
+		return nil, err
+	}
+	if converterFn == nil {
+		return nil, nil
+	}
+	return converterFn(ctx, cs, desc)
+}
+
+func (ic *ImageWriter) rewriteRemoteWithEpoch(ctx context.Context, opts *ImageCommitOpts, remote *solver.Remote, baseImg *dockerspec.DockerOCIImage) (*solver.Remote, error) {
+	if opts.Epoch == nil {
+		bklog.G(ctx).Warn("rewrite-timestamp is specified, but no source-date-epoch was found")
+		return remote, nil
+	}
+	remoteDescriptors := remote.Descriptors
+	cs := contentutil.NewStoreWithProvider(ic.opt.ContentStore, remote.Provider)
+	eg, ctx := errgroup.WithContext(ctx)
+	rewriteDone := progress.OneOff(ctx,
+		fmt.Sprintf("rewriting layers with source-date-epoch %d (%s)", opts.Epoch.Unix(), opts.Epoch.String()))
+	var divergedFromBase bool
+	for i, desc := range remoteDescriptors {
+		i, desc := i, desc
+		info, err := cs.Info(ctx, desc.Digest)
+		if err != nil {
+			return nil, err
+		}
+		diffID := digest.Digest(info.Labels[labels.LabelUncompressed]) // can be empty
+		var immDiffID digest.Digest
+		if !divergedFromBase && baseImg != nil && i < len(baseImg.RootFS.DiffIDs) {
+			immDiffID = baseImg.RootFS.DiffIDs[i]
+			if immDiffID == diffID {
+				bklog.G(ctx).WithField("blob", desc).Debugf("Not rewriting to apply epoch (immutable diffID %q)", diffID)
+				continue
+			}
+			divergedFromBase = true
+		}
+		eg.Go(func() error {
+			if rewrittenDesc, err := rewriteImageLayerWithEpoch(ctx, cs, desc, opts.RefCfg.Compression, opts.Epoch, immDiffID); err != nil {
+				bklog.G(ctx).WithError(err).Warnf("failed to rewrite layer %d/%d to match source-date-epoch %d (%s)",
+					i+1, len(remoteDescriptors), opts.Epoch.Unix(), opts.Epoch.String())
+			} else if rewrittenDesc != nil {
+				remoteDescriptors[i] = *rewrittenDesc
+			}
+			return nil
+		})
+	}
+	if err := rewriteDone(eg.Wait()); err != nil {
+		return nil, err
+	}
+	return &solver.Remote{
+		Provider:    cs,
+		Descriptors: remoteDescriptors,
+	}, nil
+}
+
+func (ic *ImageWriter) commitDistributionManifest(ctx context.Context, opts *ImageCommitOpts, ref cache.ImmutableRef, config []byte, remote *solver.Remote, annotations *Annotations, inlineCache *exptypes.InlineCacheEntry, epoch *time.Time, sg session.Group, baseImg *dockerspec.DockerOCIImage) (*ocispecs.Descriptor, *ocispecs.Descriptor, error) {
 	if len(config) == 0 {
 		var err error
 		config, err = defaultImageConfig()
@@ -342,7 +471,7 @@ func (ic *ImageWriter) commitDistributionManifest(ctx context.Context, opts *Ima
 		return nil, nil, err
 	}
 
-	config, err = patchImageConfig(config, remote.Descriptors, history, inlineCache, epoch)
+	config, err = patchImageConfig(config, remote.Descriptors, history, inlineCache, epoch, baseImg)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -443,8 +572,8 @@ func (ic *ImageWriter) commitAttestationsManifest(ctx context.Context, opts *Ima
 			Digest:    digest,
 			Size:      int64(len(data)),
 			Annotations: map[string]string{
-				"containerd.io/uncompressed": digest.String(),
-				"in-toto.io/predicate-type":  statement.PredicateType,
+				labels.LabelUncompressed:    digest.String(),
+				"in-toto.io/predicate-type": statement.PredicateType,
 			},
 		}
 
@@ -535,6 +664,8 @@ func defaultImageConfig() ([]byte, error) {
 	img := ocispecs.Image{}
 	img.Architecture = pl.Architecture
 	img.OS = pl.OS
+	img.OSVersion = pl.OSVersion
+	img.OSFeatures = pl.OSFeatures
 	img.Variant = pl.Variant
 	img.RootFS.Type = "layers"
 	img.Config.WorkingDir = "/"
@@ -552,7 +683,7 @@ func attestationsConfig(layers []ocispecs.Descriptor) ([]byte, error) {
 	img.Variant = intotoPlatform.Variant
 	img.RootFS.Type = "layers"
 	for _, layer := range layers {
-		img.RootFS.DiffIDs = append(img.RootFS.DiffIDs, digest.Digest(layer.Annotations["containerd.io/uncompressed"]))
+		img.RootFS.DiffIDs = append(img.RootFS.DiffIDs, digest.Digest(layer.Annotations[labels.LabelUncompressed]))
 	}
 	dt, err := json.Marshal(img)
 	return dt, errors.Wrap(err, "failed to create attestations image config")
@@ -568,7 +699,7 @@ func parseHistoryFromConfig(dt []byte) ([]ocispecs.History, error) {
 	return config.History, nil
 }
 
-func patchImageConfig(dt []byte, descs []ocispecs.Descriptor, history []ocispecs.History, cache []byte, epoch *time.Time) ([]byte, error) {
+func patchImageConfig(dt []byte, descs []ocispecs.Descriptor, history []ocispecs.History, cache *exptypes.InlineCacheEntry, epoch *time.Time, baseImg *dockerspec.DockerOCIImage) ([]byte, error) {
 	var img ocispecs.Image
 	if err := json.Unmarshal(dt, &img); err != nil {
 		return nil, errors.Wrap(err, "invalid image config for export")
@@ -593,7 +724,7 @@ func patchImageConfig(dt []byte, descs []ocispecs.Descriptor, history []ocispecs
 	var rootFS ocispecs.RootFS
 	rootFS.Type = "layers"
 	for _, desc := range descs {
-		rootFS.DiffIDs = append(rootFS.DiffIDs, digest.Digest(desc.Annotations["containerd.io/uncompressed"]))
+		rootFS.DiffIDs = append(rootFS.DiffIDs, digest.Digest(desc.Annotations[labels.LabelUncompressed]))
 	}
 	dt, err := json.Marshal(rootFS)
 	if err != nil {
@@ -602,7 +733,14 @@ func patchImageConfig(dt []byte, descs []ocispecs.Descriptor, history []ocispecs
 	m["rootfs"] = dt
 
 	if epoch != nil {
+		var divergedFromBase bool
 		for i, h := range history {
+			if !divergedFromBase && baseImg != nil && i < len(baseImg.History) && reflect.DeepEqual(h, baseImg.History[i]) {
+				// Retain the timestamp for the base image layers
+				// https://github.com/moby/buildkit/issues/4614
+				continue
+			}
+			divergedFromBase = true
 			if h.Created == nil || h.Created.After(*epoch) {
 				history[i].Created = epoch
 			}
@@ -645,7 +783,7 @@ func patchImageConfig(dt []byte, descs []ocispecs.Descriptor, history []ocispecs
 	}
 
 	if cache != nil {
-		dt, err := json.Marshal(cache)
+		dt, err := json.Marshal(cache.Data)
 		if err != nil {
 			return nil, err
 		}
@@ -751,7 +889,7 @@ func RemoveInternalLayerAnnotations(in map[string]string, oci bool) map[string]s
 	for k, v := range in {
 		// oci supports annotations but don't export internal annotations
 		switch k {
-		case "containerd.io/uncompressed", "buildkit/createdat":
+		case labels.LabelUncompressed, "buildkit/createdat":
 			continue
 		default:
 			if strings.HasPrefix(k, "containerd.io/distribution.source.") {

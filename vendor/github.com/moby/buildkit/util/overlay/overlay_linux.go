@@ -161,8 +161,10 @@ func Changes(ctx context.Context, changeFn fs.ChangeFunc, upperdir, upperdirView
 		if err != nil {
 			return err
 		}
-		if ctx.Err() != nil {
-			return ctx.Err()
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		default:
 		}
 
 		// Rebase path
