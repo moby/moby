@@ -47,7 +47,7 @@ func (m *mergeOp) CacheMap(ctx context.Context, group session.Group, index int) 
 	}
 
 	cm := &solver.CacheMap{
-		Digest: digest.Digest(dt),
+		Digest: digest.FromBytes(dt),
 		Deps: make([]struct {
 			Selector          digest.Digest
 			ComputeDigestFunc solver.ResultBasedCacheFunc

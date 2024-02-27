@@ -2,10 +2,12 @@ package leaseutil
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/pkg/errors"
 )
 
 func WithLease(ctx context.Context, ls leases.Manager, opts ...leases.Opt) (context.Context, func(context.Context) error, error) {
@@ -16,15 +18,66 @@ func WithLease(ctx context.Context, ls leases.Manager, opts ...leases.Opt) (cont
 		}, nil
 	}
 
-	l, err := ls.Create(ctx, append([]leases.Opt{leases.WithRandomID(), leases.WithExpiration(time.Hour)}, opts...)...)
+	lr, ctx, err := NewLease(ctx, ls, opts...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return ctx, func(ctx context.Context) error {
+		return ls.Delete(ctx, lr.l)
+	}, nil
+}
+
+func NewLease(ctx context.Context, lm leases.Manager, opts ...leases.Opt) (*LeaseRef, context.Context, error) {
+	l, err := lm.Create(ctx, append([]leases.Opt{leases.WithRandomID(), leases.WithExpiration(time.Hour)}, opts...)...)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	ctx = leases.WithLease(ctx, l.ID)
-	return ctx, func(ctx context.Context) error {
-		return ls.Delete(ctx, l)
-	}, nil
+	return &LeaseRef{lm: lm, l: l}, ctx, nil
+}
+
+type LeaseRef struct {
+	lm leases.Manager
+	l  leases.Lease
+
+	once      sync.Once
+	resources []leases.Resource
+	err       error
+}
+
+func (l *LeaseRef) Discard() error {
+	return l.lm.Delete(context.Background(), l.l)
+}
+
+func (l *LeaseRef) Adopt(ctx context.Context) error {
+	l.once.Do(func() {
+		resources, err := l.lm.ListResources(ctx, l.l)
+		if err != nil {
+			l.err = err
+			return
+		}
+		l.resources = resources
+	})
+	if l.err != nil {
+		return l.err
+	}
+	currentID, ok := leases.FromContext(ctx)
+	if !ok {
+		return errors.Errorf("missing lease requirement for adopt")
+	}
+	for _, r := range l.resources {
+		if err := l.lm.AddResource(ctx, leases.Lease{ID: currentID}, r); err != nil {
+			return err
+		}
+	}
+	if len(l.resources) == 0 {
+		l.Discard()
+		return nil
+	}
+	go l.Discard()
+	return nil
 }
 
 func MakeTemporary(l *leases.Lease) error {

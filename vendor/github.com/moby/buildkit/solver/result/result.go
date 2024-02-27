@@ -1,6 +1,7 @@
 package result
 
 import (
+	"maps"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -12,6 +13,15 @@ type Result[T comparable] struct {
 	Refs         map[string]T
 	Metadata     map[string][]byte
 	Attestations map[string][]Attestation[T]
+}
+
+func (r *Result[T]) Clone() *Result[T] {
+	return &Result[T]{
+		Ref:          r.Ref,
+		Refs:         maps.Clone(r.Refs),
+		Metadata:     maps.Clone(r.Metadata),
+		Attestations: maps.Clone(r.Attestations),
+	}
 }
 
 func (r *Result[T]) AddMeta(k string, v []byte) {
@@ -142,6 +152,10 @@ func EachRef[U comparable, V comparable](a *Result[U], b *Result[V], fn func(U, 
 	return err
 }
 
+// ConvertResult transforms a Result[U] into a Result[V], using a transfomer
+// function that converts a U to a V. Zero values of type U are converted to
+// zero values of type V directly, without passing through the transformer
+// function.
 func ConvertResult[U comparable, V comparable](r *Result[U], fn func(U) (V, error)) (*Result[V], error) {
 	var zero U
 
@@ -160,6 +174,8 @@ func ConvertResult[U comparable, V comparable](r *Result[U], fn func(U) (V, erro
 	}
 	for k, r := range r.Refs {
 		if r == zero {
+			var zero V
+			r2.Refs[k] = zero
 			continue
 		}
 		r2.Refs[k], err = fn(r)

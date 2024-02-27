@@ -436,9 +436,8 @@ func importTar(in io.ReaderAt) (*tarFile, error) {
 		if err != nil {
 			if err == io.EOF {
 				break
-			} else {
-				return nil, fmt.Errorf("failed to parse tar file, %w", err)
 			}
+			return nil, fmt.Errorf("failed to parse tar file, %w", err)
 		}
 		switch cleanEntryName(h.Name) {
 		case PrefetchLandmark, NoPrefetchLandmark:

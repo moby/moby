@@ -3,6 +3,7 @@ package shell
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 	"text/scanner"
 	"unicode"
@@ -100,7 +101,7 @@ type shellWord struct {
 }
 
 func (sw *shellWord) process(source string) (string, []string, error) {
-	word, words, err := sw.processStopOn(scanner.EOF)
+	word, words, err := sw.processStopOn(scanner.EOF, sw.rawEscapes)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to process %q", source)
 	}
@@ -154,7 +155,7 @@ func (w *wordsStruct) getWords() []string {
 
 // Process the word, starting at 'pos', and stop when we get to the
 // end of the word or the 'stopChar' character
-func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
+func (sw *shellWord) processStopOn(stopChar rune, rawEscapes bool) (string, []string, error) {
 	var result bytes.Buffer
 	var words wordsStruct
 
@@ -164,6 +165,14 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 	if !sw.skipProcessQuotes {
 		charFuncMapping['\''] = sw.processSingleQuote
 		charFuncMapping['"'] = sw.processDoubleQuote
+	}
+
+	// temporarily set sw.rawEscapes if needed
+	if rawEscapes != sw.rawEscapes {
+		sw.rawEscapes = rawEscapes
+		defer func() {
+			sw.rawEscapes = !rawEscapes
+		}()
 	}
 
 	for sw.scanner.Peek() != scanner.EOF {
@@ -351,8 +360,9 @@ func (sw *shellWord) processDollar() (string, error) {
 		ch = sw.scanner.Next()
 		chs += string(ch)
 		fallthrough
-	case '+', '-', '?':
-		word, _, err := sw.processStopOn('}')
+	case '+', '-', '?', '#', '%':
+		rawEscapes := ch == '#' || ch == '%'
+		word, _, err := sw.processStopOn('}', rawEscapes)
 		if err != nil {
 			if sw.scanner.Peek() == scanner.EOF {
 				return "", errors.New("syntax error: missing '}'")
@@ -394,9 +404,60 @@ func (sw *shellWord) processDollar() (string, error) {
 				return "", errors.Errorf("%s: %s", name, message)
 			}
 			return value, nil
+		case '%', '#':
+			// %/# matches the shortest pattern expansion, %%/## the longest
+			greedy := false
+			if word[0] == byte(ch) {
+				greedy = true
+				word = word[1:]
+			}
+
+			if ch == '%' {
+				return trimSuffix(word, value, greedy)
+			}
+			return trimPrefix(word, value, greedy)
 		default:
 			return "", errors.Errorf("unsupported modifier (%s) in substitution", chs)
 		}
+	case '/':
+		replaceAll := sw.scanner.Peek() == '/'
+		if replaceAll {
+			sw.scanner.Next()
+		}
+
+		pattern, _, err := sw.processStopOn('/', true)
+		if err != nil {
+			if sw.scanner.Peek() == scanner.EOF {
+				return "", errors.New("syntax error: missing '/' in ${}")
+			}
+			return "", err
+		}
+
+		replacement, _, err := sw.processStopOn('}', true)
+		if err != nil {
+			if sw.scanner.Peek() == scanner.EOF {
+				return "", errors.New("syntax error: missing '}'")
+			}
+			return "", err
+		}
+
+		value, set := sw.getEnv(name)
+		if sw.skipUnsetEnv && !set {
+			return fmt.Sprintf("${%s/%s/%s}", name, pattern, replacement), nil
+		}
+
+		re, err := convertShellPatternToRegex(pattern, true, false)
+		if err != nil {
+			return "", errors.Errorf("invalid pattern (%s) in substitution: %s", pattern, err)
+		}
+		if replaceAll {
+			value = re.ReplaceAllString(value, replacement)
+		} else {
+			if idx := re.FindStringIndex(value); idx != nil {
+				value = value[0:idx[0]] + replacement + value[idx[1]:]
+			}
+		}
+		return value, nil
 	default:
 		return "", errors.Errorf("unsupported modifier (%s) in substitution", chs)
 	}
@@ -471,4 +532,114 @@ func BuildEnvs(env []string) map[string]string {
 	}
 
 	return envs
+}
+
+// convertShellPatternToRegex converts a shell-like wildcard pattern
+// (? is a single char, * either the shortest or longest (greedy) string)
+// to an equivalent regular expression.
+//
+// Based on
+// https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_13
+// but without the bracket expressions (`[]`)
+func convertShellPatternToRegex(pattern string, greedy bool, anchored bool) (*regexp.Regexp, error) {
+	var s scanner.Scanner
+	s.Init(strings.NewReader(pattern))
+	var out strings.Builder
+	out.Grow(len(pattern) + 4)
+
+	// match only at the beginning of the string
+	if anchored {
+		out.WriteByte('^')
+	}
+
+	// default: non-greedy wildcards
+	starPattern := ".*?"
+	if greedy {
+		starPattern = ".*"
+	}
+
+	for tok := s.Next(); tok != scanner.EOF; tok = s.Next() {
+		switch tok {
+		case '*':
+			out.WriteString(starPattern)
+			continue
+		case '?':
+			out.WriteByte('.')
+			continue
+		case '\\':
+			// } and / as part of ${} need to be escaped, but the escape isn't part
+			// of the pattern
+			if s.Peek() == '}' || s.Peek() == '/' {
+				continue
+			}
+			out.WriteRune('\\')
+			tok = s.Next()
+			if tok != '*' && tok != '?' && tok != '\\' {
+				return nil, errors.Errorf("invalid escape '\\%c'", tok)
+			}
+		// regex characters that need to be escaped
+		// escaping closing is optional, but done for consistency
+		case '[', ']', '{', '}', '.', '+', '(', ')', '|', '^', '$':
+			out.WriteByte('\\')
+		}
+		out.WriteRune(tok)
+	}
+	return regexp.Compile(out.String())
+}
+
+func trimPrefix(word, value string, greedy bool) (string, error) {
+	re, err := convertShellPatternToRegex(word, greedy, true)
+	if err != nil {
+		return "", errors.Errorf("invalid pattern (%s) in substitution: %s", word, err)
+	}
+
+	if idx := re.FindStringIndex(value); idx != nil {
+		value = value[idx[1]:]
+	}
+	return value, nil
+}
+
+// reverse without avoid reversing escapes, i.e. a\*c -> c\*a
+func reversePattern(pattern string) string {
+	patternRunes := []rune(pattern)
+	out := make([]rune, len(patternRunes))
+	lastIdx := len(patternRunes) - 1
+	for i := 0; i <= lastIdx; {
+		tok := patternRunes[i]
+		outIdx := lastIdx - i
+		if tok == '\\' && i != lastIdx {
+			out[outIdx-1] = tok
+			// the pattern is taken from a ${var#pattern}, so the last
+			// character can't be an escape character
+			out[outIdx] = patternRunes[i+1]
+			i += 2
+		} else {
+			out[outIdx] = tok
+			i++
+		}
+	}
+	return string(out)
+}
+
+func reverseString(str string) string {
+	out := []rune(str)
+	outIdx := len(out) - 1
+	for i := 0; i < outIdx; i++ {
+		out[i], out[outIdx] = out[outIdx], out[i]
+		outIdx--
+	}
+	return string(out)
+}
+
+func trimSuffix(pattern, word string, greedy bool) (string, error) {
+	// regular expressions can't handle finding the shortest rightmost
+	// string so we reverse both search space and pattern to convert it
+	// to a leftmost search in both cases
+	pattern = reversePattern(pattern)
+	word = reverseString(word)
+	str, err := trimPrefix(pattern, word, greedy)
+	if err != nil {
+		return "", err
+	}
+	return reverseString(str), nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/pkg/epoch"
 	"github.com/containerd/containerd/platforms"
@@ -63,9 +64,10 @@ func New(opt Opt) (exporter.Exporter, error) {
 	return im, nil
 }
 
-func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exporter.ExporterInstance, error) {
+func (e *imageExporter) Resolve(ctx context.Context, id int, opt map[string]string) (exporter.ExporterInstance, error) {
 	i := &imageExporterInstance{
 		imageExporter: e,
+		id:            id,
 		opts: ImageCommitOpts{
 			RefCfg: cacheconfig.RefConfig{
 				Compression: compression.New(compression.Default),
@@ -166,6 +168,8 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 
 type imageExporterInstance struct {
 	*imageExporter
+	id int
+
 	opts                 ImageCommitOpts
 	push                 bool
 	pushByDigest         bool
@@ -178,6 +182,10 @@ type imageExporterInstance struct {
 	meta                 map[string][]byte
 }
 
+func (e *imageExporterInstance) ID() int {
+	return e.id
+}
+
 func (e *imageExporterInstance) Name() string {
 	return "exporting to image"
 }
@@ -186,7 +194,8 @@ func (e *imageExporterInstance) Config() *exporter.Config {
 	return exporter.NewConfigWithCompression(e.opts.RefCfg.Compression)
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source, sessionID string) (_ map[string]string, descref exporter.DescriptorReference, err error) {
+func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source, inlineCache exptypes.InlineCache, sessionID string) (_ map[string]string, descref exporter.DescriptorReference, err error) {
+	src = src.Clone()
 	if src.Metadata == nil {
 		src.Metadata = make(map[string][]byte)
 	}
@@ -211,7 +220,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 		}
 	}()
 
-	desc, err := e.opt.ImageWriter.Commit(ctx, src, sessionID, &opts)
+	desc, err := e.opt.ImageWriter.Commit(ctx, src, sessionID, inlineCache, &opts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -273,6 +282,13 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				tagDone(nil)
 
 				if e.unpack {
+					if opts.RewriteTimestamp {
+						// e.unpackImage cannot be used because src ref does not point to the rewritten image
+						///
+						// TODO: change e.unpackImage so that it takes Result[Remote] as parameter.
+						// https://github.com/moby/buildkit/pull/4057#discussion_r1324106088
+						return nil, nil, errors.New("exporter option \"rewrite-timestamp\" conflicts with \"unpack\"")
+					}
 					if err := e.unpackImage(ctx, img, src, session.NewGroup(sessionID)); err != nil {
 						return nil, nil, err
 					}
@@ -284,6 +300,9 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 						refs = append(refs, src.Ref)
 					}
 					for _, ref := range src.Refs {
+						if ref == nil {
+							continue
+						}
 						refs = append(refs, ref)
 					}
 					eg, ctx := errgroup.WithContext(ctx)
@@ -309,7 +328,18 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				}
 			}
 			if e.push {
-				err := e.pushImage(ctx, src, sessionID, targetName, desc.Digest)
+				if opts.RewriteTimestamp {
+					annotations := map[digest.Digest]map[string]string{}
+					addAnnotations(annotations, *desc)
+					// e.pushImage cannot be used because src ref does not point to the rewritten image
+					//
+					// TODO: change e.pushImage so that it takes Result[Remote] as parameter.
+					// https://github.com/moby/buildkit/pull/4057#discussion_r1324106088
+					err = push.Push(ctx, e.opt.SessionManager, sessionID, e.opt.ImageWriter.opt.ContentStore, e.opt.ImageWriter.ContentStore(),
+						desc.Digest, targetName, e.insecure, e.opt.RegistryHosts, e.pushByDigest, annotations)
+				} else {
+					err = e.pushImage(ctx, src, sessionID, targetName, desc.Digest)
+				}
 				if err != nil {
 					return nil, nil, errors.Wrapf(err, "failed to push %v", targetName)
 				}
@@ -339,6 +369,9 @@ func (e *imageExporterInstance) pushImage(ctx context.Context, src *exporter.Sou
 		refs = append(refs, src.Ref)
 	}
 	for _, ref := range src.Refs {
+		if ref == nil {
+			continue
+		}
 		refs = append(refs, ref)
 	}
 
@@ -454,7 +487,7 @@ func getLayers(ctx context.Context, descs []ocispecs.Descriptor, manifest ocispe
 	for i, desc := range descs {
 		layers[i].Diff = ocispecs.Descriptor{
 			MediaType: ocispecs.MediaTypeImageLayer,
-			Digest:    digest.Digest(desc.Annotations["containerd.io/uncompressed"]),
+			Digest:    digest.Digest(desc.Annotations[labels.LabelUncompressed]),
 		}
 		layers[i].Blob = manifest.Layers[i]
 	}

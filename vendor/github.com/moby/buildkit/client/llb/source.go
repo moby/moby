@@ -5,10 +5,12 @@ import (
 	_ "crypto/sha256" // for opencontainers/go-digest
 	"encoding/json"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
 	"github.com/moby/buildkit/util/gitutil"
@@ -135,10 +137,11 @@ func Image(ref string, opts ...ImageOption) State {
 				if p == nil {
 					p = c.Platform
 				}
-				_, _, dt, err := info.metaResolver.ResolveImageConfig(ctx, ref, ResolveImageConfigOpt{
-					Platform:     p,
-					ResolveMode:  info.resolveMode.String(),
-					ResolverType: ResolverTypeRegistry,
+				_, _, dt, err := info.metaResolver.ResolveImageConfig(ctx, ref, sourceresolver.Opt{
+					Platform: p,
+					ImageOpt: &sourceresolver.ResolveImageOpt{
+						ResolveMode: info.resolveMode.String(),
+					},
 				})
 				if err != nil {
 					return State{}, err
@@ -151,10 +154,11 @@ func Image(ref string, opts ...ImageOption) State {
 			if p == nil {
 				p = c.Platform
 			}
-			ref, dgst, dt, err := info.metaResolver.ResolveImageConfig(context.TODO(), ref, ResolveImageConfigOpt{
-				Platform:     p,
-				ResolveMode:  info.resolveMode.String(),
-				ResolverType: ResolverTypeRegistry,
+			ref, dgst, dt, err := info.metaResolver.ResolveImageConfig(context.TODO(), ref, sourceresolver.Opt{
+				Platform: p,
+				ImageOpt: &sourceresolver.ResolveImageOpt{
+					ResolveMode: info.resolveMode.String(),
+				},
 			})
 			if err != nil {
 				return State{}, err
@@ -226,7 +230,7 @@ type ImageInfo struct {
 // Git returns a state that represents a git repository.
 // Example:
 //
-//	st := llb.Git("https://github.com/moby/buildkit.git#v0.11.6")
+//	st := llb.Git("https://github.com/moby/buildkit.git", "v0.11.6")
 //
 // The example fetches the v0.11.6 tag of the buildkit repository.
 // You can also use a commit hash or a branch name.
@@ -237,29 +241,29 @@ type ImageInfo struct {
 //
 // By default the git repository is cloned with `--depth=1` to reduce the amount of data downloaded.
 // Additionally the ".git" directory is removed after the clone, you can keep ith with the [KeepGitDir] [GitOption].
-func Git(remote, ref string, opts ...GitOption) State {
-	url := strings.Split(remote, "#")[0]
-
-	var protocolType int
-	remote, protocolType = gitutil.ParseProtocol(remote)
-
-	var sshHost string
-	if protocolType == gitutil.SSHProtocol {
-		parts := strings.SplitN(remote, ":", 2)
-		if len(parts) == 2 {
-			sshHost = parts[0]
-			// keep remote consistent with http(s) version
-			remote = parts[0] + "/" + parts[1]
-		}
-	}
-	if protocolType == gitutil.UnknownProtocol {
+func Git(url, ref string, opts ...GitOption) State {
+	remote, err := gitutil.ParseURL(url)
+	if errors.Is(err, gitutil.ErrUnknownProtocol) {
 		url = "https://" + url
+		remote, err = gitutil.ParseURL(url)
+	}
+	if remote != nil {
+		url = remote.Remote
 	}
 
-	id := remote
-
-	if ref != "" {
-		id += "#" + ref
+	var id string
+	if err != nil {
+		// If we can't parse the URL, just use the full URL as the ID. The git
+		// operation will fail later on.
+		id = url
+	} else {
+		// We construct the ID manually here, so that we can create the same ID
+		// for different protocols (e.g. https and ssh) that have the same
+		// host/path/fragment combination.
+		id = remote.Host + path.Join("/", remote.Path)
+		if ref != "" {
+			id += "#" + ref
+		}
 	}
 
 	gi := &GitInfo{
@@ -290,11 +294,11 @@ func Git(remote, ref string, opts ...GitOption) State {
 			addCap(&gi.Constraints, pb.CapSourceGitHTTPAuth)
 		}
 	}
-	if protocolType == gitutil.SSHProtocol {
+	if remote != nil && remote.Scheme == gitutil.SSHProtocol {
 		if gi.KnownSSHHosts != "" {
 			attrs[pb.AttrKnownSSHHosts] = gi.KnownSSHHosts
-		} else if sshHost != "" {
-			keyscan, err := sshutil.SSHKeyScan(sshHost)
+		} else {
+			keyscan, err := sshutil.SSHKeyScan(remote.Host)
 			if err == nil {
 				// best effort
 				attrs[pb.AttrKnownSSHHosts] = keyscan

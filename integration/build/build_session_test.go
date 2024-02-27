@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/testutil/request"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/filesync"
+	"github.com/tonistiigi/fsutil"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -95,8 +96,11 @@ func testBuildWithSession(ctx context.Context, t *testing.T, client dclient.APIC
 	sess, err := session.NewSession(ctx, "foo1", "foo")
 	assert.Check(t, err)
 
+	fs, err := fsutil.NewFS(dir)
+	assert.NilError(t, err)
+
 	fsProvider := filesync.NewFSSyncProvider(filesync.StaticDirSource{
-		"": {Dir: dir},
+		"": fs,
 	})
 	sess.Allow(fsProvider)
 

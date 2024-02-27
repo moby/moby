@@ -25,9 +25,9 @@ else
 	tee "${ROOTDIR}/go.mod" >&2 <<- EOF
 		module github.com/docker/docker
 
-		go 1.20
+		go 1.21
 	EOF
 	trap 'rm -f "${ROOTDIR}/go.mod"' EXIT
 fi
 
-GO111MODULE=on "$@"
+GO111MODULE=on GOTOOLCHAIN=local "$@"

@@ -21,21 +21,26 @@ type CacheChains struct {
 	visited map[interface{}]struct{}
 }
 
+var _ solver.CacheExporterTarget = &CacheChains{}
+
 func (c *CacheChains) Add(dgst digest.Digest) solver.CacheExporterRecord {
 	if strings.HasPrefix(dgst.String(), "random:") {
+		// random digests will be different *every* run - so we shouldn't cache
+		// it, since there's a zero chance this random digest collides again
 		return &nopRecord{}
 	}
-	it := &item{c: c, dgst: dgst, backlinks: map[*item]struct{}{}}
+
+	it := &item{dgst: dgst, backlinks: map[*item]struct{}{}}
 	c.items = append(c.items, it)
 	return it
 }
 
-func (c *CacheChains) Visit(v interface{}) {
-	c.visited[v] = struct{}{}
+func (c *CacheChains) Visit(target any) {
+	c.visited[target] = struct{}{}
 }
 
-func (c *CacheChains) Visited(v interface{}) bool {
-	_, ok := c.visited[v]
+func (c *CacheChains) Visited(target any) bool {
+	_, ok := c.visited[target]
 	return ok
 }
 
@@ -76,6 +81,12 @@ func (c *CacheChains) normalize(ctx context.Context) error {
 	return nil
 }
 
+// Marshal converts the cache chains structure into a cache config and a
+// collection of providers for reading the results from.
+//
+// Marshal aims to validate, normalize and sort the output to ensure a
+// consistent digest (since cache configs are typically uploaded and stored in
+// content-addressable OCI registries).
 func (c *CacheChains) Marshal(ctx context.Context) (*CacheConfig, DescriptorProvider, error) {
 	if err := c.normalize(ctx); err != nil {
 		return nil, nil, err
@@ -109,19 +120,37 @@ type DescriptorProviderPair struct {
 	Provider   content.Provider
 }
 
+// item is an implementation of a record in the cache chain. After validation,
+// normalization and marshalling into the cache config, the item results form
+// into the "layers", while the digests and the links form into the "records".
 type item struct {
-	c    *CacheChains
+	// dgst is the unique identifier for each record.
+	// This *roughly* corresponds to an edge (vertex cachekey + index) in the
+	// solver - however, a single vertex can produce multiple unique cache keys
+	// (e.g. fast/slow), so it's a one-to-many relation.
 	dgst digest.Digest
 
+	// links are what connect records to each other (with an optional selector),
+	// organized by input index (which correspond to vertex inputs).
+	// We can have multiple links for each index, since *any* of these could be
+	// used to get to this item (e.g. we could retrieve by fast/slow key).
+	links []map[link]struct{}
+
+	// backlinks are the inverse of a link - these don't actually get directly
+	// exported, but they're internally used to help efficiently navigate the
+	// graph.
+	backlinks   map[*item]struct{}
+	backlinksMu sync.Mutex
+
+	// result is the result of computing the edge - this is the target of the
+	// data we actually want to store in the cache chain.
 	result     *solver.Remote
 	resultTime time.Time
 
-	links       []map[link]struct{}
-	backlinksMu sync.Mutex
-	backlinks   map[*item]struct{}
-	invalid     bool
+	invalid bool
 }
 
+// link is a pointer to an item, with an optional selector.
 type link struct {
 	src      *item
 	selector string
@@ -170,25 +199,46 @@ func (c *item) LinkFrom(rec solver.CacheExporterRecord, index int, selector stri
 	src.backlinksMu.Unlock()
 }
 
+// validate checks if an item is valid (i.e. each index has at least one link)
+// and marks it as such.
+//
+// Essentially, if an index has no links, it means that this cache record is
+// unreachable by the cache importer, so we should remove it. Once we've marked
+// an item as invalid, we remove it from it's backlinks and check it's
+// validity again - since now this linked item may be unreachable too.
 func (c *item) validate() {
+	if c.invalid {
+		// early exit, if the item is already invalid, we've already gone
+		// through the backlinks
+		return
+	}
+
 	for _, m := range c.links {
+		// if an index has no links, there's no way to access this record, so
+		// mark it as invalid
 		if len(m) == 0 {
 			c.invalid = true
-			for bl := range c.backlinks {
-				changed := false
-				for _, m := range bl.links {
-					for l := range m {
-						if l.src == c {
-							delete(m, l)
-							changed = true
-						}
+			break
+		}
+	}
+
+	if c.invalid {
+		for bl := range c.backlinks {
+			// remove ourselves from the backlinked item
+			changed := false
+			for _, m := range bl.links {
+				for l := range m {
+					if l.src == c {
+						delete(m, l)
+						changed = true
 					}
 				}
-				if changed {
-					bl.validate()
-				}
 			}
-			return
+
+			// if we've removed ourselves, we need to check it again
+			if changed {
+				bl.validate()
+			}
 		}
 	}
 }
@@ -211,6 +261,7 @@ func (c *item) walkAllResults(fn func(i *item) error, visited map[*item]struct{}
 	return nil
 }
 
+// nopRecord is used to discard cache results that we're not interested in storing.
 type nopRecord struct {
 }
 
@@ -219,5 +270,3 @@ func (c *nopRecord) AddResult(_ digest.Digest, _ int, createdAt time.Time, resul
 
 func (c *nopRecord) LinkFrom(rec solver.CacheExporterRecord, index int, selector string) {
 }
-
-var _ solver.CacheExporterTarget = &CacheChains{}

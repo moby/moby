@@ -10,15 +10,15 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/platforms"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/llb"
-	"github.com/moby/buildkit/exporter/containerimage/image"
 	"github.com/moby/buildkit/frontend/attestations"
-	"github.com/moby/buildkit/frontend/dockerfile/dockerignore"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
+	"github.com/moby/patternmatcher/ignorefile"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -80,7 +80,8 @@ type Client struct {
 	g           flightcontrol.Group[*buildContext]
 	bopts       client.BuildOpts
 
-	dockerignore []byte
+	dockerignore     []byte
+	dockerignoreName string
 }
 
 type SBOM struct {
@@ -94,7 +95,7 @@ type Source struct {
 
 type ContextOpt struct {
 	NoDockerignore bool
-	LocalOpts      []llb.LocalOption
+	AsyncLocalOpts func() []llb.LocalOption
 	Platform       *ocispecs.Platform
 	ResolveMode    string
 	CaptureDigest  *digest.Digest
@@ -375,6 +376,7 @@ func (bc *Client) ReadEntrypoint(ctx context.Context, lang string, opts ...llb.L
 	})
 	if err == nil {
 		bc.dockerignore = dt
+		bc.dockerignoreName = bctx.filename + ".dockerignore"
 	}
 
 	return &Source{
@@ -435,13 +437,14 @@ func (bc *Client) MainContext(ctx context.Context, opts ...llb.LocalOption) (*ll
 			dt = []byte{}
 		}
 		bc.dockerignore = dt
+		bc.dockerignoreName = DefaultDockerignoreName
 	}
 
 	var excludes []string
 	if len(bc.dockerignore) != 0 {
-		excludes, err = dockerignore.ReadAll(bytes.NewBuffer(bc.dockerignore))
+		excludes, err = ignorefile.ReadAll(bytes.NewBuffer(bc.dockerignore))
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse dockerignore")
+			return nil, errors.Wrapf(err, "failed parsing %s", bc.dockerignoreName)
 		}
 	}
 
@@ -457,7 +460,7 @@ func (bc *Client) MainContext(ctx context.Context, opts ...llb.LocalOption) (*ll
 	return &st, nil
 }
 
-func (bc *Client) NamedContext(ctx context.Context, name string, opt ContextOpt) (*llb.State, *image.Image, error) {
+func (bc *Client) NamedContext(ctx context.Context, name string, opt ContextOpt) (*llb.State, *dockerspec.DockerOCIImage, error) {
 	named, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "invalid context name %s", name)
@@ -470,11 +473,8 @@ func (bc *Client) NamedContext(ctx context.Context, name string, opt ContextOpt)
 	}
 	pname := name + "::" + platforms.Format(platforms.Normalize(pp))
 	st, img, err := bc.namedContext(ctx, name, pname, opt)
-	if err != nil {
-		return nil, nil, err
-	}
-	if st != nil {
-		return st, img, nil
+	if err != nil || st != nil {
+		return st, img, err
 	}
 	return bc.namedContext(ctx, name, name, opt)
 }
@@ -489,6 +489,15 @@ func (bc *Client) IsNoCache(name string) bool {
 		}
 	}
 	return false
+}
+
+func DefaultMainContext(opts ...llb.LocalOption) *llb.State {
+	opts = append([]llb.LocalOption{
+		llb.SharedKeyHint(DefaultLocalNameContext),
+		WithInternalName("load build context"),
+	}, opts...)
+	st := llb.Local(DefaultLocalNameContext, opts...)
+	return &st
 }
 
 func WithInternalName(name string) llb.ConstraintsOpt {

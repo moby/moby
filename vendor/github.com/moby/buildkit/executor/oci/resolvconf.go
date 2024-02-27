@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/pkg/errors"
 )
@@ -24,9 +25,13 @@ type DNSConfig struct {
 	SearchDomains []string
 }
 
-func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.IdentityMapping, dns *DNSConfig) (string, error) {
+func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.IdentityMapping, dns *DNSConfig, netMode pb.NetMode) (string, error) {
 	p := filepath.Join(stateDir, "resolv.conf")
-	_, err := g.Do(ctx, stateDir, func(ctx context.Context) (struct{}, error) {
+	if netMode == pb.NetMode_HOST {
+		p = filepath.Join(stateDir, "resolv-host.conf")
+	}
+
+	_, err := g.Do(ctx, p, func(ctx context.Context) (struct{}, error) {
 		generate := !notFirstRun
 		notFirstRun = true
 
@@ -65,7 +70,6 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 			return struct{}{}, err
 		}
 
-		var f *resolvconf.File
 		tmpPath := p + ".tmp"
 		if dns != nil {
 			var (
@@ -83,19 +87,22 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 				dnsOptions = resolvconf.GetOptions(dt)
 			}
 
-			f, err = resolvconf.Build(tmpPath, dnsNameservers, dnsSearchDomains, dnsOptions)
+			f, err := resolvconf.Build(tmpPath, dnsNameservers, dnsSearchDomains, dnsOptions)
 			if err != nil {
 				return struct{}{}, err
 			}
 			dt = f.Content
 		}
 
-		f, err = resolvconf.FilterResolvDNS(dt, true)
-		if err != nil {
-			return struct{}{}, err
+		if netMode != pb.NetMode_HOST || len(resolvconf.GetNameservers(dt, resolvconf.IP)) == 0 {
+			f, err := resolvconf.FilterResolvDNS(dt, true)
+			if err != nil {
+				return struct{}{}, err
+			}
+			dt = f.Content
 		}
 
-		if err := os.WriteFile(tmpPath, f.Content, 0644); err != nil {
+		if err := os.WriteFile(tmpPath, dt, 0644); err != nil {
 			return struct{}{}, err
 		}
 

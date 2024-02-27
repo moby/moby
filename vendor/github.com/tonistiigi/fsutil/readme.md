@@ -1,3 +1,8 @@
+[![PkgGoDev](https://img.shields.io/badge/go.dev-docs-007d9c?style=flat-square&logo=go&logoColor=white)](https://pkg.go.dev/github.com/tonistiigi/fsutil)
+[![CI Status](https://img.shields.io/github/actions/workflow/status/tonistiigi/fsutil/ci.yml?label=ci&logo=github&style=flat-square)](https://github.com/tonistiigi/fsutil/actions?query=workflow%3Aci)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tonistiigi/fsutil?style=flat-square)](https://goreportcard.com/report/github.com/tonistiigi/fsutil)
+[![Codecov](https://img.shields.io/codecov/c/github/tonistiigi/fsutil?logo=codecov&style=flat-square)](https://codecov.io/gh/tonistiigi/fsutil)
+
 Incremental file directory sync tools in golang.
 
 ```

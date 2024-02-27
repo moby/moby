@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 	"syscall"
 
@@ -144,7 +145,11 @@ func (s *sender) sendFile(h *sendHandle) error {
 
 func (s *sender) walk(ctx context.Context) error {
 	var i uint32 = 0
-	err := s.fs.Walk(ctx, func(path string, fi os.FileInfo, err error) error {
+	err := s.fs.Walk(ctx, "/", func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		fi, err := entry.Info()
 		if err != nil {
 			return err
 		}
@@ -152,7 +157,7 @@ func (s *sender) walk(ctx context.Context) error {
 		if !ok {
 			return errors.WithStack(&os.PathError{Path: path, Err: syscall.EBADMSG, Op: "fileinfo without stat info"})
 		}
-
+		stat.Path = filepath.ToSlash(stat.Path)
 		p := &types.Packet{
 			Type: types.PACKET_STAT,
 			Stat: stat,

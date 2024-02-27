@@ -242,7 +242,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	// Override BuildKit's default Resource so that it matches the semconv
 	// version that is used in our code.
-	detect.Resource = resource.Default()
+	detect.OverrideResource(resource.Default())
 	detect.Recorder = detect.NewTraceRecorder()
 
 	tp, err := detect.TracerProvider()
@@ -380,12 +380,20 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 // TODO: This can be removed after buildkit is updated to use http/protobuf as the default.
 func setOTLPProtoDefault() {
 	const (
-		tracesEnv = "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL"
-		protoEnv  = "OTEL_EXPORTER_OTLP_PROTOCOL"
+		tracesEnv  = "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL"
+		metricsEnv = "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL"
+		protoEnv   = "OTEL_EXPORTER_OTLP_PROTOCOL"
+
+		defaultProto = "http/protobuf"
 	)
 
-	if os.Getenv(tracesEnv) == "" && os.Getenv(protoEnv) == "" {
-		os.Setenv(tracesEnv, "http/protobuf")
+	if os.Getenv(protoEnv) == "" {
+		if os.Getenv(tracesEnv) == "" {
+			os.Setenv(tracesEnv, defaultProto)
+		}
+		if os.Getenv(metricsEnv) == "" {
+			os.Setenv(metricsEnv, defaultProto)
+		}
 	}
 }
 

@@ -5,23 +5,29 @@ import (
 )
 
 func (p *Platform) Spec() ocispecs.Platform {
-	return ocispecs.Platform{
+	result := ocispecs.Platform{
 		OS:           p.OS,
 		Architecture: p.Architecture,
 		Variant:      p.Variant,
 		OSVersion:    p.OSVersion,
-		OSFeatures:   p.OSFeatures,
 	}
+	if p.OSFeatures != nil {
+		result.OSFeatures = append([]string{}, p.OSFeatures...)
+	}
+	return result
 }
 
 func PlatformFromSpec(p ocispecs.Platform) Platform {
-	return Platform{
+	result := Platform{
 		OS:           p.OS,
 		Architecture: p.Architecture,
 		Variant:      p.Variant,
 		OSVersion:    p.OSVersion,
-		OSFeatures:   p.OSFeatures,
 	}
+	if p.OSFeatures != nil {
+		result.OSFeatures = append([]string{}, p.OSFeatures...)
+	}
+	return result
 }
 
 func ToSpecPlatforms(p []Platform) []ocispecs.Platform {

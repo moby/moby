@@ -91,7 +91,7 @@ func (j *Job) Status(ctx context.Context, ch chan *client.SolveStatus) error {
 
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 		case ch <- ss:
 		}
 	}

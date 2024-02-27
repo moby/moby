@@ -39,7 +39,7 @@ func Copy(ctx context.Context, conn io.ReadWriteCloser, stream Stream, closeStre
 			select {
 			case <-ctx.Done():
 				conn.Close()
-				return ctx.Err()
+				return context.Cause(ctx)
 			default:
 			}
 			if _, err := conn.Write(p.Data); err != nil {
@@ -65,7 +65,7 @@ func Copy(ctx context.Context, conn io.ReadWriteCloser, stream Stream, closeStre
 			}
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			default:
 			}
 			p := &BytesMessage{Data: buf[:n]}

@@ -11,7 +11,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/config"
-	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/executor/resources"
 	"github.com/moby/buildkit/exporter/containerimage"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
@@ -20,7 +20,6 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/ops"
 	"github.com/moby/buildkit/solver/llbsolver/provenance"
 	"github.com/moby/buildkit/solver/pb"
-	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -81,6 +80,9 @@ func (b *provenanceBridge) requests(r *frontend.Result) (*resultRequests, error)
 	}
 
 	for k, ref := range r.Refs {
+		if ref == nil {
+			continue
+		}
 		r, ok := b.findByResult(ref)
 		if !ok {
 			return nil, errors.Errorf("could not find request for ref %s", ref.ID())
@@ -131,21 +133,25 @@ func (b *provenanceBridge) findByResult(rp solver.ResultProxy) (*resultWithBridg
 	return nil, false
 }
 
-func (b *provenanceBridge) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (resolvedRef string, dgst digest.Digest, config []byte, err error) {
-	ref, dgst, config, err = b.llbBridge.ResolveImageConfig(ctx, ref, opt)
+func (b *provenanceBridge) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt sourceresolver.Opt) (*sourceresolver.MetaResponse, error) {
+	resp, err := b.llbBridge.ResolveSourceMetadata(ctx, op, opt)
 	if err != nil {
-		return "", "", nil, err
+		return nil, err
 	}
-
-	b.mu.Lock()
-	b.images = append(b.images, provenance.ImageSource{
-		Ref:      ref,
-		Platform: opt.Platform,
-		Digest:   dgst,
-		Local:    opt.ResolverType == llb.ResolverTypeOCILayout,
-	})
-	b.mu.Unlock()
-	return ref, dgst, config, nil
+	if img := resp.Image; img != nil {
+		local := !strings.HasPrefix(resp.Op.Identifier, "docker-image://")
+		ref := strings.TrimPrefix(resp.Op.Identifier, "docker-image://")
+		ref = strings.TrimPrefix(ref, "oci-layout://")
+		b.mu.Lock()
+		b.images = append(b.images, provenance.ImageSource{
+			Ref:      ref,
+			Platform: opt.Platform,
+			Digest:   img.Digest,
+			Local:    local,
+		})
+		b.mu.Unlock()
+	}
+	return resp, nil
 }
 
 func (b *provenanceBridge) Solve(ctx context.Context, req frontend.SolveRequest, sid string) (res *frontend.Result, err error) {
@@ -178,7 +184,7 @@ func (b *provenanceBridge) Solve(ctx context.Context, req frontend.SolveRequest,
 	}
 	if req.Evaluate {
 		err = res.EachRef(func(ref solver.ResultProxy) error {
-			_, err := res.Ref.Result(ctx)
+			_, err := ref.Result(ctx)
 			return err
 		})
 	}
@@ -270,70 +276,9 @@ func captureProvenance(ctx context.Context, res solver.CachedResultWithProvenanc
 		switch op := pp.(type) {
 		case *ops.SourceOp:
 			id, pin := op.Pin()
-			switch s := id.(type) {
-			case *source.ImageIdentifier:
-				dgst, err := digest.Parse(pin)
-				if err != nil {
-					return errors.Wrapf(err, "failed to parse image digest %s", pin)
-				}
-				c.AddImage(provenance.ImageSource{
-					Ref:      s.Reference.String(),
-					Platform: s.Platform,
-					Digest:   dgst,
-				})
-			case *source.LocalIdentifier:
-				c.AddLocal(provenance.LocalSource{
-					Name: s.Name,
-				})
-			case *source.GitIdentifier:
-				url := s.Remote
-				if s.Ref != "" {
-					url += "#" + s.Ref
-				}
-				c.AddGit(provenance.GitSource{
-					URL:    url,
-					Commit: pin,
-				})
-				if s.AuthTokenSecret != "" {
-					c.AddSecret(provenance.Secret{
-						ID:       s.AuthTokenSecret,
-						Optional: true,
-					})
-				}
-				if s.AuthHeaderSecret != "" {
-					c.AddSecret(provenance.Secret{
-						ID:       s.AuthHeaderSecret,
-						Optional: true,
-					})
-				}
-				if s.MountSSHSock != "" {
-					c.AddSSH(provenance.SSH{
-						ID:       s.MountSSHSock,
-						Optional: true,
-					})
-				}
-			case *source.HTTPIdentifier:
-				dgst, err := digest.Parse(pin)
-				if err != nil {
-					return errors.Wrapf(err, "failed to parse HTTP digest %s", pin)
-				}
-				c.AddHTTP(provenance.HTTPSource{
-					URL:    s.URL,
-					Digest: dgst,
-				})
-			case *source.OCIIdentifier:
-				dgst, err := digest.Parse(pin)
-				if err != nil {
-					return errors.Wrapf(err, "failed to parse OCI digest %s", pin)
-				}
-				c.AddImage(provenance.ImageSource{
-					Ref:      s.Reference.String(),
-					Platform: s.Platform,
-					Digest:   dgst,
-					Local:    true,
-				})
-			default:
-				return errors.Errorf("unknown source identifier %T", id)
+			err := id.Capture(c, pin)
+			if err != nil {
+				return err
 			}
 		case *ops.ExecOp:
 			pr := op.Proto()
@@ -552,12 +497,12 @@ func (ce *cacheExporter) Add(dgst digest.Digest) solver.CacheExporterRecord {
 	}
 }
 
-func (ce *cacheExporter) Visit(v interface{}) {
-	ce.m[v] = struct{}{}
+func (ce *cacheExporter) Visit(target any) {
+	ce.m[target] = struct{}{}
 }
 
-func (ce *cacheExporter) Visited(v interface{}) bool {
-	_, ok := ce.m[v]
+func (ce *cacheExporter) Visited(target any) bool {
+	_, ok := ce.m[target]
 	return ok
 }
 
@@ -579,7 +524,7 @@ func (c *cacheRecord) AddResult(dgst digest.Digest, idx int, createdAt time.Time
 		d.Annotations = containerimage.RemoveInternalLayerAnnotations(d.Annotations, true)
 		descs[i] = d
 	}
-	c.ce.layers[e] = append(c.ce.layers[e], descs)
+	c.ce.layers[e] = appendLayerChain(c.ce.layers[e], descs)
 }
 
 func (c *cacheRecord) LinkFrom(rec solver.CacheExporterRecord, index int, selector string) {
@@ -757,4 +702,26 @@ func walkDigests(dgsts []digest.Digest, ops map[digest.Digest]*pb.Op, dgst diges
 	}
 	dgsts = append(dgsts, dgst)
 	return dgsts, nil
+}
+
+// appendLayerChain appends a layer chain to the set of layers while checking for duplicate layer chains.
+func appendLayerChain(layers [][]ocispecs.Descriptor, descs []ocispecs.Descriptor) [][]ocispecs.Descriptor {
+	for _, layerDescs := range layers {
+		if len(layerDescs) != len(descs) {
+			continue
+		}
+
+		matched := true
+		for i, d := range layerDescs {
+			if d.Digest != descs[i].Digest {
+				matched = false
+				break
+			}
+		}
+
+		if matched {
+			return layers
+		}
+	}
+	return append(layers, descs)
 }

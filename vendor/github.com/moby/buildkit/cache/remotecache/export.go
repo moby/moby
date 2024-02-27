@@ -11,6 +11,7 @@ import (
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/progress"
@@ -183,6 +184,11 @@ func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string
 	config, descs, err := ce.chains.Marshal(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(config.Layers) == 0 {
+		bklog.G(ctx).Warn("failed to match any cache with layers")
+		return nil, progress.OneOff(ctx, "skipping cache export for empty result")(nil)
 	}
 
 	cache, err := NewExportableCache(ce.oci, ce.imageManifest)

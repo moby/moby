@@ -8,6 +8,7 @@ import (
 	"github.com/moby/buildkit/client/buildid"
 	"github.com/moby/buildkit/frontend/gateway"
 	gwapi "github.com/moby/buildkit/frontend/gateway/pb"
+	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
@@ -58,8 +59,9 @@ func (gwf *GatewayForwarder) lookupForwarder(ctx context.Context) (gateway.LLBBr
 		return nil, errors.New("no buildid found in context")
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
+	ctx, cancel := context.WithCancelCause(ctx)
+	ctx, _ = context.WithTimeoutCause(ctx, 3*time.Second, errors.WithStack(context.DeadlineExceeded))
+	defer cancel(errors.WithStack(context.Canceled))
 
 	go func() {
 		<-ctx.Done()
@@ -73,7 +75,7 @@ func (gwf *GatewayForwarder) lookupForwarder(ctx context.Context) (gateway.LLBBr
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, errors.Errorf("no such job %s", bid)
+			return nil, errdefs.NewUnknownJobError(bid)
 		default:
 		}
 		fwd, ok := gwf.builds[bid]
@@ -92,6 +94,15 @@ func (gwf *GatewayForwarder) ResolveImageConfig(ctx context.Context, req *gwapi.
 	}
 
 	return fwd.ResolveImageConfig(ctx, req)
+}
+
+func (gwf *GatewayForwarder) ResolveSourceMeta(ctx context.Context, req *gwapi.ResolveSourceMetaRequest) (*gwapi.ResolveSourceMetaResponse, error) {
+	fwd, err := gwf.lookupForwarder(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "forwarding ResolveSourceMeta")
+	}
+
+	return fwd.ResolveSourceMeta(ctx, req)
 }
 
 func (gwf *GatewayForwarder) Solve(ctx context.Context, req *gwapi.SolveRequest) (*gwapi.SolveResponse, error) {

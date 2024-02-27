@@ -56,8 +56,11 @@ func TestBuildkitHistoryTracePropagation(t *testing.T) {
 		<-sub.Context().Done()
 	}()
 
+	d, err := progressui.NewDisplay(&testWriter{t}, progressui.AutoMode, progressui.WithPhase("test"))
+	assert.NilError(t, err)
+
 	eg.Go(func() error {
-		_, err := progressui.DisplaySolveStatus(ctxGo, nil, &testWriter{t}, ch, progressui.WithPhase("test"))
+		_, err := d.UpdateFrom(ctxGo, ch)
 		return err
 	})
 
