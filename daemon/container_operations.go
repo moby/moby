@@ -790,12 +790,12 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 	if !container.Managed {
 		// add container name/alias to DNS
 		if err := daemon.ActivateContainerServiceBinding(container.Name); err != nil {
-			return fmt.Errorf("Activate container service binding for %s failed: %v", container.Name, err)
+			return fmt.Errorf("activate container service binding for %s failed: %v", container.Name, err)
 		}
 	}
 
 	if err := updateJoinInfo(container.NetworkSettings, n, ep); err != nil {
-		return fmt.Errorf("Updating join info failed: %v", err)
+		return fmt.Errorf("updating join info failed: %v", err)
 	}
 
 	container.NetworkSettings.Ports = getPortMapInfo(sb)

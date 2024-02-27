@@ -55,7 +55,7 @@ func EmptyFS(dir string) error {
 
 type zeroReader struct{}
 
-func (_ zeroReader) Read(p []byte) (n int, err error) {
+func (_ zeroReader) Read(p []byte) (int, error) {
 	l := len(p)
 	for idx := 0; idx < l; idx++ {
 		p[idx] = 0

@@ -19,7 +19,7 @@ import (
 
 // containerStatPath stats the filesystem resource at the specified path in this
 // container. Returns stat info about the resource.
-func (daemon *Daemon) containerStatPath(container *container.Container, path string) (stat *types.ContainerPathStat, err error) {
+func (daemon *Daemon) containerStatPath(container *container.Container, path string) (*types.ContainerPathStat, error) {
 	container.Lock()
 	defer container.Unlock()
 
@@ -28,12 +28,12 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 		return nil, err
 	}
 
-	if err = daemon.Mount(container); err != nil {
+	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}
 	defer daemon.Unmount(container)
 
-	err = daemon.mountVolumes(container)
+	err := daemon.mountVolumes(container)
 	defer container.DetachAndUnmount(daemon.LogVolumeEvent)
 	if err != nil {
 		return nil, err
@@ -53,11 +53,11 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 // containerArchivePath creates an archive of the filesystem resource at the specified
 // path in this container. Returns a tar archive of the resource and stat info
 // about the resource.
-func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
+func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *types.ContainerPathStat, retErr error) {
 	container.Lock()
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			// Wait to unlock the container until the archive is fully read
 			// (see the ReadCloseWrapper func below) or if there is an error
 			// before that occurs.
@@ -70,12 +70,12 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 		return nil, nil, err
 	}
 
-	if err = daemon.Mount(container); err != nil {
+	if err := daemon.Mount(container); err != nil {
 		return nil, nil, err
 	}
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			// unmount any volumes
 			container.DetachAndUnmount(daemon.LogVolumeEvent)
 			// unmount the container's rootfs
@@ -83,7 +83,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 		}
 	}()
 
-	if err = daemon.mountVolumes(container); err != nil {
+	if err := daemon.mountVolumes(container); err != nil {
 		return nil, nil, err
 	}
 
@@ -148,7 +148,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 // noOverwriteDirNonDir is true then it will be an error if unpacking the
 // given content would cause an existing directory to be replaced with a non-
 // directory and vice versa.
-func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) (err error) {
+func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -157,12 +157,12 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		return err
 	}
 
-	if err = daemon.Mount(container); err != nil {
+	if err := daemon.Mount(container); err != nil {
 		return err
 	}
 	defer daemon.Unmount(container)
 
-	err = daemon.mountVolumes(container)
+	err := daemon.mountVolumes(container)
 	defer container.DetachAndUnmount(daemon.LogVolumeEvent)
 	if err != nil {
 		return err
@@ -223,10 +223,11 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		}
 	} else {
 		baseRel, err = filepath.Rel(container.BaseFS, resolvedPath)
+		if err != nil {
+			return err
+		}
 	}
-	if err != nil {
-		return err
-	}
+
 	// Make it an absolute path.
 	absPath = filepath.Join(string(filepath.Separator), baseRel)
 
@@ -260,14 +261,14 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	return nil
 }
 
-func (daemon *Daemon) containerCopy(container *container.Container, resource string) (rc io.ReadCloser, err error) {
+func (daemon *Daemon) containerCopy(container *container.Container, resource string) (_ io.ReadCloser, retErr error) {
 	if resource[0] == '/' || resource[0] == '\\' {
 		resource = resource[1:]
 	}
 	container.Lock()
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			// Wait to unlock the container until the archive is fully read
 			// (see the ReadCloseWrapper func below) or if there is an error
 			// before that occurs.
@@ -285,7 +286,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	}
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			// unmount any volumes
 			container.DetachAndUnmount(daemon.LogVolumeEvent)
 			// unmount the container's rootfs

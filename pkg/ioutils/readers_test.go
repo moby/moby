@@ -62,7 +62,7 @@ func TestReaderErrWrapperRead(t *testing.T) {
 
 type perpetualReader struct{}
 
-func (p *perpetualReader) Read(buf []byte) (n int, err error) {
+func (p *perpetualReader) Read(buf []byte) (int, error) {
 	for i := 0; i != len(buf); i++ {
 		buf[i] = 'a'
 	}

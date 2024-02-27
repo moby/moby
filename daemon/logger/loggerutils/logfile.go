@@ -120,12 +120,12 @@ type GetTailReaderFunc func(ctx context.Context, f SizeReaderAt, nLogLines int) 
 
 // NewLogFile creates new LogFile
 func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, decodeFunc MakeDecoderFn, perms os.FileMode, getTailReader GetTailReaderFunc) (*LogFile, error) {
-	log, err := openFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, perms)
+	logFile, err := openFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, perms)
 	if err != nil {
 		return nil, err
 	}
 
-	size, err := log.Seek(0, io.SeekEnd)
+	size, err := logFile.Seek(0, io.SeekEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, dec
 	st <- logReadState{pos: pos}
 
 	return &LogFile{
-		f:             log,
+		f:             logFile,
 		read:          st,
 		pos:           pos,
 		closed:        make(chan struct{}),
@@ -475,7 +475,7 @@ func (w *LogFile) readLogsLocked(currentPos logPos, config logger.ReadConfig, wa
 // oldest to newest, and calls w.fsopMu.RUnlock() before returning.
 //
 // This method must only be called with w.fsopMu locked for reading.
-func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []readAtCloser, err error) {
+func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []readAtCloser, retErr error) {
 	type rotatedFile struct {
 		f          *os.File
 		compressed bool
@@ -483,22 +483,23 @@ func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []readAtClos
 
 	var q []rotatedFile
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			for _, qq := range q {
-				qq.f.Close()
+				_ = qq.f.Close()
 			}
 			for _, f := range files {
-				f.Close()
+				_ = f.Close()
 			}
 		}
 	}()
 
-	q, err = func() (q []rotatedFile, err error) {
+	q, err := func() (q []rotatedFile, _ error) {
 		defer w.fsopMu.RUnlock()
 
 		q = make([]rotatedFile, 0, w.maxFiles)
 		for i := w.maxFiles; i > 1; i-- {
 			var f rotatedFile
+			var err error
 			f.f, err = open(fmt.Sprintf("%s.%d", w.f.Name(), i-1))
 			if err != nil {
 				if !errors.Is(err, fs.ErrNotExist) {
@@ -521,11 +522,18 @@ func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []readAtClos
 		return nil, err
 	}
 
+	var openFiles []*os.File
+	defer func() {
+		for _, f := range openFiles {
+			_ = f.Close()
+		}
+	}()
+
 	for len(q) > 0 {
 		qq := q[0]
 		q = q[1:]
 		if qq.compressed {
-			defer qq.f.Close()
+			openFiles = append(openFiles, qq.f)
 			f, err := w.maybeDecompressFile(qq.f, config)
 			if err != nil {
 				return nil, err

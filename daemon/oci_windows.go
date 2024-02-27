@@ -478,7 +478,7 @@ func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig, daemonCfg *conf
 // listing only the methods we care about here.
 // It's mainly useful to easily allow mocking the registry in tests.
 type registryKey interface {
-	GetStringValue(name string) (val string, valtype uint32, err error)
+	GetStringValue(name string) (val string, valType uint32, err error)
 	Close() error
 }
 
@@ -526,7 +526,8 @@ func readCredentialSpecFile(id, root, location string) (string, error) {
 	return string(bcontents[:]), nil
 }
 
-func setupWindowsDevices(devices []containertypes.DeviceMapping) (specDevices []specs.WindowsDevice, err error) {
+func setupWindowsDevices(devices []containertypes.DeviceMapping) ([]specs.WindowsDevice, error) {
+	var specDevices []specs.WindowsDevice
 	for _, deviceMapping := range devices {
 		if strings.HasPrefix(deviceMapping.PathOnHost, "class/") {
 			specDevices = append(specDevices, specs.WindowsDevice{

@@ -148,7 +148,7 @@ func (daemon *Daemon) ContainerExecCreate(name string, config *types.ExecConfig)
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
 // If ctx is cancelled, the process is terminated.
-func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, options containertypes.ExecStartOptions) (err error) {
+func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, options containertypes.ExecStartOptions) (retErr error) {
 	var (
 		cStdin           io.ReadCloser
 		cStdout, cStderr io.Writer
@@ -162,13 +162,12 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	ec.Lock()
 	if ec.ExitCode != nil {
 		ec.Unlock()
-		err := fmt.Errorf("Error: Exec command %s has already run", ec.ID)
-		return errdefs.Conflict(err)
+		return errdefs.Conflict(fmt.Errorf("exec command %s has already run", ec.ID))
 	}
 
 	if ec.Running {
 		ec.Unlock()
-		return errdefs.Conflict(fmt.Errorf("Error: Exec command %s is already running", ec.ID))
+		return errdefs.Conflict(fmt.Errorf("exec command %s is already running", ec.ID))
 	}
 	ec.Running = true
 	ec.Unlock()
@@ -179,7 +178,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	})
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			ec.Lock()
 			ec.Container.ExecCommands.Delete(ec.ID)
 			ec.Running = false
@@ -195,9 +194,11 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	if ec.OpenStdin && options.Stdin != nil {
 		r, w := io.Pipe()
 		go func() {
-			defer w.Close()
-			defer log.G(ctx).Debug("Closing buffered stdin pipe")
-			pools.Copy(w, options.Stdin)
+			defer func() {
+				log.G(ctx).Debug("Closing buffered stdin pipe")
+				_ = w.Close()
+			}()
+			_, _ = pools.Copy(w, options.Stdin)
 		}()
 		cStdin = r
 	}
@@ -214,7 +215,12 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		ec.StreamConfig.NewNopInputPipe()
 	}
 
-	p := &specs.Process{}
+	p := &specs.Process{
+		Args:     append([]string{ec.Entrypoint}, ec.Args...),
+		Env:      ec.Env,
+		Cwd:      ec.WorkingDir,
+		Terminal: ec.Tty,
+	}
 	if runtime.GOOS != "windows" {
 		ctr, err := daemon.containerdClient.LoadContainer(ctx, ec.Container.ID)
 		if err != nil {
@@ -229,10 +235,6 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 			return err
 		}
 	}
-	p.Args = append([]string{ec.Entrypoint}, ec.Args...)
-	p.Env = ec.Env
-	p.Cwd = ec.WorkingDir
-	p.Terminal = ec.Tty
 
 	consoleSize := options.ConsoleSize
 	// If size isn't specified for start, use the one provided for create
@@ -293,15 +295,15 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 
 	select {
 	case <-ctx.Done():
-		log := log.G(ctx).
-			WithField("container", ec.Container.ID).
-			WithField("exec", ec.ID)
-		log.Debug("Sending KILL signal to container process")
+		logger := log.G(ctx).WithFields(log.Fields{
+			"container": ec.Container.ID,
+			"exeec":     ec.ID,
+		})
+		logger.Debug("Sending KILL signal to container process")
 		sigCtx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancelFunc()
-		err := ec.Process.Kill(sigCtx, signal.SignalMap["KILL"])
-		if err != nil {
-			log.WithError(err).Error("Could not send KILL signal to container process")
+		if err := ec.Process.Kill(sigCtx, signal.SignalMap["KILL"]); err != nil {
+			logger.WithError(err).Error("Could not send KILL signal to container process")
 		}
 		return ctx.Err()
 	case err := <-attachErr:

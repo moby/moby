@@ -239,7 +239,7 @@ func testLogger(t *testing.T) *logrus.Entry {
 
 type tlogWriter struct{ t *testing.T }
 
-func (w tlogWriter) Write(p []byte) (n int, err error) {
+func (w tlogWriter) Write(p []byte) (int, error) {
 	w.t.Logf("%s", p)
 	return len(p), nil
 }

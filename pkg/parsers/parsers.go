@@ -11,7 +11,7 @@ import (
 
 // ParseKeyValueOpt parses and validates the specified string as a key/value
 // pair (key=value).
-func ParseKeyValueOpt(opt string) (key string, value string, err error) {
+func ParseKeyValueOpt(opt string) (key string, value string, _ error) {
 	k, v, ok := strings.Cut(opt, "=")
 	if !ok {
 		return "", "", fmt.Errorf("unable to parse key/value option: %s", opt)

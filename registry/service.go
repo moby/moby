@@ -37,7 +37,7 @@ func (s *Service) ServiceConfig() *registry.ServiceConfig {
 
 // ReplaceConfig prepares a transaction which will atomically replace the
 // registry service's configuration when the returned commit function is called.
-func (s *Service) ReplaceConfig(options ServiceOptions) (commit func(), err error) {
+func (s *Service) ReplaceConfig(options ServiceOptions) (commit func(), _ error) {
 	config, err := newServiceConfig(options)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (s *Service) ReplaceConfig(options ServiceOptions) (commit func(), err erro
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
-func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (status, token string, err error) {
+func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (status, token string, _ error) {
 	// TODO Use ctx when searching for repositories
 	registryHostName := IndexHostname
 
@@ -79,7 +79,7 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 	for _, endpoint := range endpoints {
 		status, token, err = loginV2(authConfig, endpoint, userAgent)
 		if err == nil {
-			return
+			return status, token, err
 		}
 		if errdefs.IsUnauthorized(err) {
 			// Failed to authenticate; don't continue with (non-TLS) endpoints.
@@ -112,7 +112,7 @@ type APIEndpoint struct {
 
 // LookupPullEndpoints creates a list of v2 endpoints to try to pull from, in order of preference.
 // It gives preference to mirrors over the actual registry, and HTTPS over plain HTTP.
-func (s *Service) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
+func (s *Service) LookupPullEndpoints(hostname string) ([]APIEndpoint, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -121,16 +121,19 @@ func (s *Service) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint,
 
 // LookupPushEndpoints creates a list of v2 endpoints to try to push to, in order of preference.
 // It gives preference to HTTPS over plain HTTP. Mirrors are not included.
-func (s *Service) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
+func (s *Service) LookupPushEndpoints(hostname string) ([]APIEndpoint, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	allEndpoints, err := s.lookupV2Endpoints(hostname)
-	if err == nil {
-		for _, endpoint := range allEndpoints {
-			if !endpoint.Mirror {
-				endpoints = append(endpoints, endpoint)
-			}
+	if err != nil {
+		return nil, err
+	}
+
+	var endpoints []APIEndpoint
+	for _, endpoint := range allEndpoints {
+		if !endpoint.Mirror {
+			endpoints = append(endpoints, endpoint)
 		}
 	}
 	return endpoints, err

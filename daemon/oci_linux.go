@@ -510,7 +510,7 @@ func inSlice(slice []string, s string) bool {
 
 // withMounts sets the container's mounts
 func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, ms []container.Mount) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) (err error) {
+	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		sort.Sort(mounts(ms))
 
 		mounts := ms
@@ -1031,7 +1031,7 @@ func WithUser(c *container.Container) coci.SpecOpts {
 	}
 }
 
-func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container, mounts []container.Mount) (retSpec *specs.Spec, err error) {
+func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container, mounts []container.Mount) (retSpec *specs.Spec, _ error) {
 	var (
 		opts []coci.SpecOpts
 		s    = oci.DefaultSpec()

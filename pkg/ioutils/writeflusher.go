@@ -23,14 +23,14 @@ type flusher interface {
 
 var errWriteFlusherClosed = io.EOF
 
-func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
+func (wf *WriteFlusher) Write(b []byte) (int, error) {
 	select {
 	case <-wf.closed:
 		return 0, errWriteFlusherClosed
 	default:
 	}
 
-	n, err = wf.w.Write(b)
+	n, err := wf.w.Write(b)
 	wf.Flush() // every write is a flush.
 	return n, err
 }

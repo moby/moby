@@ -48,7 +48,7 @@ func (gr *grpcRouter) initRoutes() {
 func unaryInterceptor() grpc.UnaryServerInterceptor {
 	withTrace := otelgrpc.UnaryServerInterceptor() //nolint:staticcheck // TODO(thaJeztah): ignore SA1019 for deprecated options: see https://github.com/moby/moby/issues/47437
 
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		// This method is used by the clients to send their traces to buildkit so they can be included
 		// in the daemon trace and stored in the build history record. This method can not be traced because
 		// it would cause an infinite loop.

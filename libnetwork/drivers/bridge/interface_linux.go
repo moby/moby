@@ -70,7 +70,7 @@ func (i *bridgeInterface) addresses(family int) ([]netlink.Addr, error) {
 	return addrs, nil
 }
 
-func getRequiredIPv6Addrs(config *networkConfiguration) (requiredAddrs map[netip.Addr]netip.Prefix, err error) {
+func getRequiredIPv6Addrs(config *networkConfiguration) (requiredAddrs map[netip.Addr]netip.Prefix, _ error) {
 	requiredAddrs = make(map[netip.Addr]netip.Prefix)
 
 	// Always give the bridge 'fe80::1' - every interface is required to have an
@@ -79,15 +79,13 @@ func getRequiredIPv6Addrs(config *networkConfiguration) (requiredAddrs map[netip
 	// assigned address will not be a second address in the LL subnet.
 	ra, ok := netiputil.ToPrefix(bridgeIPv6)
 	if !ok {
-		err = fmt.Errorf("Failed to convert Link-Local IPv6 address to netip.Prefix")
-		return nil, err
+		return nil, fmt.Errorf("failed to convert Link-Local IPv6 address to netip.Prefix")
 	}
 	requiredAddrs[ra.Addr()] = ra
 
 	ra, ok = netiputil.ToPrefix(config.AddressIPv6)
 	if !ok {
-		err = fmt.Errorf("failed to convert bridge IPv6 address '%s' to netip.Prefix", config.AddressIPv6.String())
-		return nil, err
+		return nil, fmt.Errorf("failed to convert bridge IPv6 address '%s' to netip.Prefix", config.AddressIPv6.String())
 	}
 	requiredAddrs[ra.Addr()] = ra
 
@@ -114,14 +112,13 @@ func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) err
 	for _, existingAddr := range existingAddrs {
 		ea, ok := netip.AddrFromSlice(existingAddr.IP)
 		if !ok {
-			return errdefs.System(fmt.Errorf("Failed to convert IPv6 address '%s' to netip.Addr", config.AddressIPv6))
+			return errdefs.System(fmt.Errorf("failed to convert IPv6 address '%s' to netip.Addr", config.AddressIPv6))
 		}
 		// Ignore the prefix length when comparing addresses, it's informational
 		// (RFC-5942 section 4), and removing/re-adding an address that's still valid
 		// would disrupt traffic on live-restore.
 		if _, required := requiredAddrs[ea]; !required {
-			err := i.nlh.AddrDel(i.Link, &existingAddr) //#nosec G601 -- Memory aliasing is not an issue in practice as the &existingAddr pointer is not retained by the callee after the AddrDel() call returns.
-			if err != nil {
+			if err := i.nlh.AddrDel(i.Link, &existingAddr); err != nil { //#nosec G601 -- Memory aliasing is not an issue in practice as the &existingAddr pointer is not retained by the callee after the AddrDel() call returns.
 				log.G(context.TODO()).WithFields(log.Fields{"error": err, "address": existingAddr.IPNet}).Warnf("Failed to remove residual IPv6 address from bridge")
 			}
 		}
