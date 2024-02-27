@@ -11,6 +11,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/labels"
+	"github.com/containerd/containerd/platforms"
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log"
@@ -101,7 +102,6 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		layers = make(map[digest.Digest]int)
 	}
 
-	contentStore := i.content
 	uniqueImages := map[digest.Digest]images.Image{}
 	tagsByDigest := map[digest.Digest][]string{}
 	intermediateImages := map[digest.Digest]struct{}{}
@@ -154,98 +154,9 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 	}
 
 	for _, img := range uniqueImages {
-		var totalSize int64
-		var allChainsIDs []digest.Digest
-		var containersCount int64
-		var best *ImageManifest
-		var bestPlatform ocispec.Platform
-
-		err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
-			if isPseudo, err := img.IsPseudoImage(ctx); isPseudo || err != nil {
-				return err
-			}
-
-			available, err := img.CheckContentAvailable(ctx)
-			if err != nil {
-				log.G(ctx).WithFields(log.Fields{
-					"error":    err,
-					"manifest": img.Target(),
-					"image":    img.Name(),
-				}).Warn("checking availability of platform specific manifest failed")
-				return nil
-			}
-
-			if !available {
-				return nil
-			}
-
-			conf, err := img.Config(ctx)
-			if err != nil {
-				return err
-			}
-
-			var dockerImage dockerspec.DockerOCIImage
-			if err := readConfig(ctx, contentStore, conf, &dockerImage); err != nil {
-				return err
-			}
-
-			target := img.Target()
-
-			chainIDs, err := img.RootFS(ctx)
-			if err != nil {
-				return err
-			}
-
-			ts, _, err := i.singlePlatformSize(ctx, img)
-			if err != nil {
-				return err
-			}
-
-			totalSize += ts
-			allChainsIDs = append(allChainsIDs, chainIDs...)
-
-			if opts.ContainerCount {
-				i.containers.ApplyAll(func(c *container.Container) {
-					if c.ImageManifest != nil && c.ImageManifest.Digest == target.Digest {
-						containersCount++
-					}
-				})
-			}
-
-			var platform ocispec.Platform
-			if target.Platform != nil {
-				platform = *target.Platform
-			} else {
-				platform = dockerImage.Platform
-			}
-
-			if best == nil || platformMatcher.Less(platform, bestPlatform) {
-				best = img
-				bestPlatform = platform
-			}
-
-			return nil
-		})
-		if err != nil {
+		image, allChainsIDs, err := i.imageSummary(ctx, img, platformMatcher, opts, tagsByDigest)
+		if err != nil || image == nil {
 			return nil, err
-		}
-
-		if best == nil {
-			// TODO we should probably show *something* for images we've pulled
-			// but are 100% shallow or an empty manifest list/index
-			// ("tianon/scratch:index" is an empty example image index and
-			// "tianon/scratch:list" is an empty example manifest list)
-			continue
-		}
-
-		image, err := i.singlePlatformImage(ctx, contentStore, tagsByDigest[best.RealTarget.Digest], best)
-		if err != nil {
-			return nil, err
-		}
-		image.Size = totalSize
-
-		if opts.ContainerCount {
-			image.Containers = containersCount
 		}
 
 		summaries = append(summaries, image)
@@ -271,6 +182,116 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 	sort.Sort(sort.Reverse(byCreated(summaries)))
 
 	return summaries, nil
+}
+
+// imageSummary returns a summary of the image, including the total size of the image and all its platforms.
+// It also returns the chainIDs of all the layers of the image (including all its platforms).
+// All return values will be nil if the image should be skipped.
+func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platformMatcher platforms.MatchComparer,
+	opts imagetypes.ListOptions, tagsByDigest map[digest.Digest][]string,
+) (_ *imagetypes.Summary, allChainIDs []digest.Digest, _ error) {
+
+	// Total size of the image including all its platform
+	var totalSize int64
+
+	// ChainIDs of all the layers of the image (including all its platform)
+	var allChainsIDs []digest.Digest
+
+	// Count of containers using the image
+	var containersCount int64
+
+	// Single platform image manifest preferred by the platform matcher
+	var best *ImageManifest
+	var bestPlatform ocispec.Platform
+
+	err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
+		if isPseudo, err := img.IsPseudoImage(ctx); isPseudo || err != nil {
+			return nil
+		}
+
+		available, err := img.CheckContentAvailable(ctx)
+		if err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"error":    err,
+				"manifest": img.Target(),
+				"image":    img.Name(),
+			}).Warn("checking availability of platform specific manifest failed")
+			return nil
+		}
+
+		if !available {
+			return nil
+		}
+
+		conf, err := img.Config(ctx)
+		if err != nil {
+			return err
+		}
+
+		var dockerImage dockerspec.DockerOCIImage
+		if err := readConfig(ctx, i.content, conf, &dockerImage); err != nil {
+			return err
+		}
+
+		target := img.Target()
+
+		chainIDs, err := img.RootFS(ctx)
+		if err != nil {
+			return err
+		}
+
+		ts, _, err := i.singlePlatformSize(ctx, img)
+		if err != nil {
+			return err
+		}
+
+		totalSize += ts
+		allChainsIDs = append(allChainsIDs, chainIDs...)
+
+		if opts.ContainerCount {
+			i.containers.ApplyAll(func(c *container.Container) {
+				if c.ImageManifest != nil && c.ImageManifest.Digest == target.Digest {
+					containersCount++
+				}
+			})
+		}
+
+		var platform ocispec.Platform
+		if target.Platform != nil {
+			platform = *target.Platform
+		} else {
+			platform = dockerImage.Platform
+		}
+
+		if best == nil || platformMatcher.Less(platform, bestPlatform) {
+			best = img
+			bestPlatform = platform
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if best == nil {
+		// TODO we should probably show *something* for images we've pulled
+		// but are 100% shallow or an empty manifest list/index
+		// ("tianon/scratch:index" is an empty example image index and
+		// "tianon/scratch:list" is an empty example manifest list)
+		return nil, nil, nil
+	}
+
+	image, err := i.singlePlatformImage(ctx, i.content, tagsByDigest[best.RealTarget.Digest], best)
+	if err != nil {
+		return nil, nil, err
+	}
+	image.Size = totalSize
+
+	if opts.ContainerCount {
+		image.Containers = containersCount
+	}
+	return image, allChainsIDs, nil
 }
 
 func (i *ImageService) singlePlatformSize(ctx context.Context, imgMfst *ImageManifest) (totalSize int64, contentSize int64, _ error) {
