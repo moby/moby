@@ -21,7 +21,6 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
@@ -93,10 +92,9 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 	}
 
 	var (
-		allContainers []*container.Container
-		summaries     = make([]*imagetypes.Summary, 0, len(imgs))
-		root          []*[]digest.Digest
-		layers        map[digest.Digest]int
+		summaries = make([]*imagetypes.Summary, 0, len(imgs))
+		root      []*[]digest.Digest
+		layers    map[digest.Digest]int
 	)
 	if opts.SharedSize {
 		root = make([]*[]digest.Digest, 0, len(imgs))
@@ -155,10 +153,6 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		tagsByDigest[dgst] = append(tagsByDigest[dgst], reference.FamiliarString(ref))
 	}
 
-	if opts.ContainerCount {
-		allContainers = i.containers.List()
-	}
-
 	type tempImage struct {
 		img           *ImageManifest
 		indexPlatform *ocispec.Platform
@@ -169,6 +163,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		var presentImages []tempImage
 		var totalSize int64
 		var allChainsIDs []digest.Digest
+		var containersCount int64
 
 		err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
 			if isPseudo, err := img.IsPseudoImage(ctx); isPseudo || err != nil {
@@ -218,6 +213,14 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 			totalSize += ts
 			allChainsIDs = append(allChainsIDs, chainIDs...)
 
+			if opts.ContainerCount {
+				i.containers.ApplyAll(func(c *container.Container) {
+					if c.ImageManifest != nil && c.ImageManifest.Digest == img.Target().Digest {
+						containersCount++
+					}
+				})
+			}
+
 			return nil
 		})
 		if err != nil {
@@ -244,11 +247,15 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		})
 
 		best := presentImages[0].img
-		image, _, err := i.singlePlatformImage(ctx, contentStore, tagsByDigest[best.RealTarget.Digest], best, opts, allContainers)
+		image, err := i.singlePlatformImage(ctx, contentStore, tagsByDigest[best.RealTarget.Digest], best)
 		if err != nil {
 			return nil, err
 		}
 		image.Size = totalSize
+
+		if opts.ContainerCount {
+			image.Containers = containersCount
+		}
 
 		summaries = append(summaries, image)
 
@@ -307,7 +314,7 @@ func (i *ImageService) singlePlatformSize(ctx context.Context, imgMfst *ImageMan
 	return totalSize, contentSize, nil
 }
 
-func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest, opts imagetypes.ListOptions, allContainers []*container.Container) (*imagetypes.Summary, []digest.Digest, error) {
+func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest) (*imagetypes.Summary, error) {
 	var repoDigests []string
 	rawImg := imageManifest.Metadata()
 	target := rawImg.Target.Digest
@@ -339,16 +346,16 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 
 	cfgDesc, err := imageManifest.Image.Config(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	var cfg configLabels
 	if err := readConfig(ctx, contentStore, cfgDesc, &cfg); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	totalSize, _, err := i.singlePlatformSize(ctx, imageManifest)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to calculate size of image %s", imageManifest.Name())
+		return nil, errors.Wrapf(err, "failed to calculate size of image %s", imageManifest.Name())
 	}
 
 	summary := &imagetypes.Summary{
@@ -369,23 +376,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		summary.Created = cfg.Created.Unix()
 	}
 
-	if opts.ContainerCount {
-		// Get container count
-		var containers int64
-		for _, c := range allContainers {
-			if c.ImageID == image.ID(target.String()) {
-				containers++
-			}
-		}
-		summary.Containers = containers
-	}
-
-	diffIDs, err := imageManifest.RootFS(ctx)
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to get rootfs of image %s", imageManifest.Name())
-	}
-
-	return summary, identity.ChainIDs(diffIDs), nil
+	return summary, nil
 }
 
 type imageFilterFunc func(image images.Image) bool
