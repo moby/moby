@@ -424,9 +424,12 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 
 	switch v := manifest.(type) {
 	case *schema1.SignedManifest:
-		msg := DeprecatedSchema1ImageMessage(ref)
-		log.G(ctx).Warn(msg)
-		progress.Message(p.config.ProgressOutput, "", msg)
+		err := DeprecatedSchema1ImageError(ref)
+		log.G(ctx).Warn(err.Error())
+		if os.Getenv("DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE") == "" {
+			return false, err
+		}
+		progress.Message(p.config.ProgressOutput, "", err.Error())
 
 		id, manifestDigest, err = p.pullSchema1(ctx, ref, v, platform)
 		if err != nil {
@@ -857,9 +860,12 @@ func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfst
 
 		switch v := manifest.(type) {
 		case *schema1.SignedManifest:
-			msg := DeprecatedSchema1ImageMessage(ref)
-			log.G(ctx).Warn(msg)
-			progress.Message(p.config.ProgressOutput, "", msg)
+			err := DeprecatedSchema1ImageError(ref)
+			log.G(ctx).Warn(err.Error())
+			if os.Getenv("DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE") == "" {
+				return "", "", err
+			}
+			progress.Message(p.config.ProgressOutput, "", err.Error())
 
 			platform := toOCIPlatform(match.Platform)
 			id, _, err = p.pullSchema1(ctx, manifestRef, v, platform)

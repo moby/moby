@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
@@ -12,6 +13,7 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/registry"
+	distributionpkg "github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -153,6 +155,9 @@ func (s *distributionRouter) fetchManifest(ctx context.Context, distrepo distrib
 			}
 		}
 	case *schema1.SignedManifest:
+		if os.Getenv("DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE") == "" {
+			return registry.DistributionInspect{}, distributionpkg.DeprecatedSchema1ImageError(namedRef)
+		}
 		platform := ocispec.Platform{
 			Architecture: mnfstObj.Architecture,
 			OS:           "linux",
