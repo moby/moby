@@ -6,7 +6,9 @@ import (
 
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
+	// "github.com/pkg/errors" //imports from this is giving undefined 
+	"errors"
+
 )
 
 // errConnectionFailed implements an error returned when connection failed.
