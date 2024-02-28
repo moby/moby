@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/moby/buildkit/executor/resources/types"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/pkg/errors"
 )
 
@@ -24,7 +24,7 @@ const (
 	ioDiscardIOs   = "dios"
 )
 
-func getCgroupIOStat(cgroupPath string) (*types.IOStat, error) {
+func getCgroupIOStat(cgroupPath string) (*resourcestypes.IOStat, error) {
 	ioStatPath := filepath.Join(cgroupPath, ioStatFile)
 	data, err := os.ReadFile(ioStatPath)
 	if err != nil {
@@ -34,7 +34,7 @@ func getCgroupIOStat(cgroupPath string) (*types.IOStat, error) {
 		return nil, errors.Wrapf(err, "failed to read %s", ioStatPath)
 	}
 
-	ioStat := &types.IOStat{}
+	ioStat := &resourcestypes.IOStat{}
 	lines := strings.Split(string(data), "\n")
 	for _, line := range lines {
 		parts := strings.Fields(line)

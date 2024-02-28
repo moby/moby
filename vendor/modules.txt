@@ -204,6 +204,8 @@ github.com/aws/smithy-go/transport/http/internal/io
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
+# github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869
+## explicit
 # github.com/cenkalti/backoff/v4 v4.2.1
 ## explicit; go 1.18
 github.com/cenkalti/backoff/v4
@@ -533,7 +535,7 @@ github.com/gogo/protobuf/sortkeys
 github.com/gogo/protobuf/types
 github.com/gogo/protobuf/vanity
 github.com/gogo/protobuf/vanity/command
-# github.com/golang-jwt/jwt/v4 v4.4.2
+# github.com/golang-jwt/jwt/v4 v4.5.0
 ## explicit; go 1.16
 github.com/golang-jwt/jwt/v4
 # github.com/golang/gddo v0.0.0-20190904175337-72a348e765d2
@@ -700,7 +702,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.13.0-rc2
+# github.com/moby/buildkit v0.13.0-rc3
 ## explicit; go 1.21
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -784,6 +786,7 @@ github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes
 github.com/moby/buildkit/solver/llbsolver/ops/opsutils
 github.com/moby/buildkit/solver/llbsolver/proc
 github.com/moby/buildkit/solver/llbsolver/provenance
+github.com/moby/buildkit/solver/llbsolver/provenance/types
 github.com/moby/buildkit/solver/pb
 github.com/moby/buildkit/solver/result
 github.com/moby/buildkit/source
@@ -1045,7 +1048,7 @@ github.com/shibumi/go-pathspec
 # github.com/sirupsen/logrus v1.9.3
 ## explicit; go 1.13
 github.com/sirupsen/logrus
-# github.com/spdx/tools-golang v0.5.1
+# github.com/spdx/tools-golang v0.5.3
 ## explicit; go 1.13
 github.com/spdx/tools-golang/convert
 github.com/spdx/tools-golang/json
@@ -1072,8 +1075,8 @@ github.com/tinylib/msgp/msgp
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
 github.com/tonistiigi/fsutil/types
-# github.com/tonistiigi/go-actions-cache v0.0.0-20220404170428-0bdeb6e1eac7
-## explicit; go 1.16
+# github.com/tonistiigi/go-actions-cache v0.0.0-20240227172821-a0b64f338598
+## explicit; go 1.20
 github.com/tonistiigi/go-actions-cache
 # github.com/tonistiigi/go-archvariant v1.0.0
 ## explicit; go 1.17

@@ -100,7 +100,23 @@ func (d *Document) UnmarshalJSON(b []byte) error {
 
 	relationshipExists := map[string]bool{}
 	serializeRel := func(r *Relationship) string {
-		return fmt.Sprintf("%v-%v->%v", common.RenderDocElementID(r.RefA), r.Relationship, common.RenderDocElementID(r.RefB))
+		refA := r.RefA
+		refB := r.RefB
+		rel := r.Relationship
+
+		// we need to serialize the opposite for CONTAINED_BY and DESCRIBED_BY
+		// so that it will match when we try to de-duplicate during deserialization.
+		switch r.Relationship {
+		case common.TypeRelationshipContainedBy:
+			rel = common.TypeRelationshipContains
+			refA = r.RefB
+			refB = r.RefA
+		case common.TypeRelationshipDescribeBy:
+			rel = common.TypeRelationshipDescribe
+			refA = r.RefB
+			refB = r.RefA
+		}
+		return fmt.Sprintf("%v-%v->%v", common.RenderDocElementID(refA), rel, common.RenderDocElementID(refB))
 	}
 
 	// index current list of relationships to ensure no duplication

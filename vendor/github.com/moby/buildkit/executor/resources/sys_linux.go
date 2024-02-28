@@ -4,32 +4,32 @@ import (
 	"os"
 	"time"
 
-	"github.com/moby/buildkit/executor/resources/types"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/prometheus/procfs"
 )
 
-func newSysSampler() (*Sampler[*types.SysSample], error) {
+func newSysSampler() (*Sampler[*resourcestypes.SysSample], error) {
 	pfs, err := procfs.NewDefaultFS()
 	if err != nil {
 		return nil, err
 	}
 
-	return NewSampler(2*time.Second, 20, func(tm time.Time) (*types.SysSample, error) {
+	return NewSampler(2*time.Second, 20, func(tm time.Time) (*resourcestypes.SysSample, error) {
 		return sampleSys(pfs, tm)
 	}), nil
 }
 
-func sampleSys(proc procfs.FS, tm time.Time) (*types.SysSample, error) {
+func sampleSys(proc procfs.FS, tm time.Time) (*resourcestypes.SysSample, error) {
 	stat, err := proc.Stat()
 	if err != nil {
 		return nil, err
 	}
 
-	s := &types.SysSample{
+	s := &resourcestypes.SysSample{
 		Timestamp_: tm,
 	}
 
-	s.CPUStat = &types.SysCPUStat{
+	s.CPUStat = &resourcestypes.SysCPUStat{
 		User:      stat.CPUTotal.User,
 		Nice:      stat.CPUTotal.Nice,
 		System:    stat.CPUTotal.System,
@@ -42,7 +42,7 @@ func sampleSys(proc procfs.FS, tm time.Time) (*types.SysSample, error) {
 		GuestNice: stat.CPUTotal.GuestNice,
 	}
 
-	s.ProcStat = &types.ProcStat{
+	s.ProcStat = &resourcestypes.ProcStat{
 		ContextSwitches:  stat.ContextSwitches,
 		ProcessCreated:   stat.ProcessCreated,
 		ProcessesRunning: stat.ProcessesRunning,
@@ -53,7 +53,7 @@ func sampleSys(proc procfs.FS, tm time.Time) (*types.SysSample, error) {
 		return nil, err
 	}
 
-	s.MemoryStat = &types.SysMemoryStat{
+	s.MemoryStat = &resourcestypes.SysMemoryStat{
 		Total:     mem.MemTotal,
 		Free:      mem.MemFree,
 		Buffers:   mem.Buffers,

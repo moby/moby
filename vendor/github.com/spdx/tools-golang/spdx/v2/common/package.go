@@ -70,15 +70,13 @@ func (o *Originator) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	originatorFields := strings.SplitN(originatorStr, ": ", 2)
-
+	originatorFields := strings.SplitN(originatorStr, ":", 2)
 	if len(originatorFields) != 2 {
 		return fmt.Errorf("failed to parse Originator '%s'", originatorStr)
 	}
 
 	o.OriginatorType = originatorFields[0]
-	o.Originator = originatorFields[1]
-
+	o.Originator = strings.TrimLeft(originatorFields[1], " \t")
 	return nil
 }
 

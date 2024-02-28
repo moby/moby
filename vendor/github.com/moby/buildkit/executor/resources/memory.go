@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/moby/buildkit/executor/resources/types"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/pkg/errors"
 )
 
@@ -41,8 +41,8 @@ const (
 	memoryOomKill = "oom_kill"
 )
 
-func getCgroupMemoryStat(path string) (*types.MemoryStat, error) {
-	memoryStat := &types.MemoryStat{}
+func getCgroupMemoryStat(path string) (*resourcestypes.MemoryStat, error) {
+	memoryStat := &resourcestypes.MemoryStat{}
 
 	// Parse memory.stat
 	err := parseKeyValueFile(filepath.Join(path, memoryStatFile), func(key string, value uint64) {

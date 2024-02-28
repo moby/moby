@@ -60,7 +60,7 @@ require (
 	github.com/miekg/dns v1.1.43
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.13.0-rc2
+	github.com/moby/buildkit v0.13.0-rc3
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
@@ -132,6 +132,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.21.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.26.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cilium/ebpf v0.11.0 // indirect
@@ -155,7 +156,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogo/googleapis v1.4.1 // indirect
-	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/certificate-transparency-go v1.1.4 // indirect
@@ -184,10 +185,10 @@ require (
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.4.0 // indirect
 	github.com/shibumi/go-pathspec v1.3.0 // indirect
-	github.com/spdx/tools-golang v0.5.1 // indirect
+	github.com/spdx/tools-golang v0.5.3 // indirect
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/tinylib/msgp v1.1.8 // indirect
-	github.com/tonistiigi/go-actions-cache v0.0.0-20220404170428-0bdeb6e1eac7 // indirect
+	github.com/tonistiigi/go-actions-cache v0.0.0-20240227172821-a0b64f338598 // indirect
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
 	github.com/tonistiigi/vt100 v0.0.0-20230623042737-f9a4f7ef6531 // indirect
 	github.com/weppos/publicsuffix-go v0.15.1-0.20210511084619-b1f36a2d6c0b // indirect

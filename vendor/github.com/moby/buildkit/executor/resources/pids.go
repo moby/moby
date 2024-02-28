@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/moby/buildkit/executor/resources/types"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/pkg/errors"
 )
 
@@ -14,8 +14,8 @@ const (
 	pidsCurrentFile = "pids.current"
 )
 
-func getCgroupPIDsStat(path string) (*types.PIDsStat, error) {
-	pidsStat := &types.PIDsStat{}
+func getCgroupPIDsStat(path string) (*resourcestypes.PIDsStat, error) {
+	pidsStat := &resourcestypes.PIDsStat{}
 
 	v, err := parseSingleValueFile(filepath.Join(path, pidsCurrentFile))
 	if err != nil {

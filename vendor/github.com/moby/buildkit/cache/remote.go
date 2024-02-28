@@ -18,6 +18,7 @@ import (
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress/logs"
 	"github.com/moby/buildkit/util/pull/pullprogress"
+	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -85,7 +86,7 @@ func (sr *immutableRef) GetRemotes(ctx context.Context, createIfNeeded bool, ref
 	return res, nil
 }
 
-func appendRemote(parents []*solver.Remote, desc ocispecs.Descriptor, p content.Provider) (res []*solver.Remote) {
+func appendRemote(parents []*solver.Remote, desc ocispecs.Descriptor, p content.InfoReaderProvider) (res []*solver.Remote) {
 	for _, pRemote := range parents {
 		provider := contentutil.NewMultiProvider(pRemote.Provider)
 		provider.Add(desc.Digest, p)
@@ -276,6 +277,10 @@ func (mp *lazyMultiProvider) ReaderAt(ctx context.Context, desc ocispecs.Descrip
 	return mp.mprovider.ReaderAt(ctx, desc)
 }
 
+func (mp *lazyMultiProvider) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {
+	return mp.mprovider.Info(ctx, dgst)
+}
+
 func (mp *lazyMultiProvider) Unlazy(ctx context.Context) error {
 	eg, egctx := errgroup.WithContext(ctx)
 	for _, p := range mp.plist {
@@ -302,6 +307,16 @@ func (p lazyRefProvider) ReaderAt(ctx context.Context, desc ocispecs.Descriptor)
 		return nil, err
 	}
 	return p.ref.cm.ContentStore.ReaderAt(ctx, desc)
+}
+
+func (p lazyRefProvider) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {
+	if dgst != p.desc.Digest {
+		return content.Info{}, errdefs.ErrNotFound
+	}
+	if err := p.Unlazy(ctx); err != nil {
+		return content.Info{}, errdefs.ErrNotFound
+	}
+	return p.ref.cm.ContentStore.Info(ctx, dgst)
 }
 
 func (p lazyRefProvider) Unlazy(ctx context.Context) error {

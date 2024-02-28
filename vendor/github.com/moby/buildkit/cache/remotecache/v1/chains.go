@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
+	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 func NewCacheChains() *CacheChains {
@@ -118,6 +120,40 @@ type DescriptorProvider map[digest.Digest]DescriptorProviderPair
 type DescriptorProviderPair struct {
 	Descriptor ocispecs.Descriptor
 	Provider   content.Provider
+}
+
+func (p DescriptorProviderPair) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
+	return p.Provider.ReaderAt(ctx, desc)
+}
+
+func (p DescriptorProviderPair) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {
+	if dgst != p.Descriptor.Digest {
+		return content.Info{}, errors.Errorf("content not found %s", dgst)
+	}
+	return content.Info{
+		Digest: p.Descriptor.Digest,
+		Size:   p.Descriptor.Size,
+	}, nil
+}
+
+func (p DescriptorProviderPair) UnlazySession(desc ocispecs.Descriptor) session.Group {
+	type unlazySession interface {
+		UnlazySession(ocispecs.Descriptor) session.Group
+	}
+	if cd, ok := p.Provider.(unlazySession); ok {
+		return cd.UnlazySession(desc)
+	}
+	return nil
+}
+
+func (p DescriptorProviderPair) SnapshotLabels(descs []ocispecs.Descriptor, index int) map[string]string {
+	type snapshotLabels interface {
+		SnapshotLabels([]ocispecs.Descriptor, int) map[string]string
+	}
+	if cd, ok := p.Provider.(snapshotLabels); ok {
+		return cd.SnapshotLabels(descs, index)
+	}
+	return nil
 }
 
 // item is an implementation of a record in the cache chain. After validation,

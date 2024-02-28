@@ -6,58 +6,13 @@ import (
 	"github.com/containerd/containerd/platforms"
 	slsa "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common"
 	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
-	resourcetypes "github.com/moby/buildkit/executor/resources/types"
+	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
 	"github.com/moby/buildkit/util/purl"
 	"github.com/moby/buildkit/util/urlutil"
-	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/package-url/packageurl-go"
 )
 
-const (
-	BuildKitBuildType = "https://mobyproject.org/buildkit@v1"
-)
-
-type ProvenancePredicate struct {
-	slsa02.ProvenancePredicate
-	Invocation  ProvenanceInvocation `json:"invocation,omitempty"`
-	BuildConfig *BuildConfig         `json:"buildConfig,omitempty"`
-	Metadata    *ProvenanceMetadata  `json:"metadata,omitempty"`
-}
-
-type ProvenanceInvocation struct {
-	ConfigSource slsa02.ConfigSource `json:"configSource,omitempty"`
-	Parameters   Parameters          `json:"parameters,omitempty"`
-	Environment  Environment         `json:"environment,omitempty"`
-}
-
-type Parameters struct {
-	Frontend string            `json:"frontend,omitempty"`
-	Args     map[string]string `json:"args,omitempty"`
-	Secrets  []*Secret         `json:"secrets,omitempty"`
-	SSH      []*SSH            `json:"ssh,omitempty"`
-	Locals   []*LocalSource    `json:"locals,omitempty"`
-	// TODO: select export attributes
-	// TODO: frontend inputs
-}
-
-type Environment struct {
-	Platform string `json:"platform"`
-}
-
-type ProvenanceMetadata struct {
-	slsa02.ProvenanceMetadata
-	BuildKitMetadata BuildKitMetadata `json:"https://mobyproject.org/buildkit@v1#metadata,omitempty"`
-	Hermetic         bool             `json:"https://mobyproject.org/buildkit@v1#hermetic,omitempty"`
-}
-
-type BuildKitMetadata struct {
-	VCS      map[string]string                  `json:"vcs,omitempty"`
-	Source   *Source                            `json:"source,omitempty"`
-	Layers   map[string][][]ocispecs.Descriptor `json:"layers,omitempty"`
-	SysUsage []*resourcetypes.SysSample         `json:"sysUsage,omitempty"`
-}
-
-func slsaMaterials(srcs Sources) ([]slsa.ProvenanceMaterial, error) {
+func slsaMaterials(srcs provenancetypes.Sources) ([]slsa.ProvenanceMaterial, error) {
 	count := len(srcs.Images) + len(srcs.Git) + len(srcs.HTTP)
 	out := make([]slsa.ProvenanceMaterial, 0, count)
 
@@ -104,7 +59,7 @@ func slsaMaterials(srcs Sources) ([]slsa.ProvenanceMaterial, error) {
 	return out, nil
 }
 
-func findMaterial(srcs Sources, uri string) (*slsa.ProvenanceMaterial, bool) {
+func findMaterial(srcs provenancetypes.Sources, uri string) (*slsa.ProvenanceMaterial, bool) {
 	for _, s := range srcs.Git {
 		if s.URL == uri {
 			return &slsa.ProvenanceMaterial{
@@ -128,12 +83,12 @@ func findMaterial(srcs Sources, uri string) (*slsa.ProvenanceMaterial, bool) {
 	return nil, false
 }
 
-func NewPredicate(c *Capture) (*ProvenancePredicate, error) {
+func NewPredicate(c *Capture) (*provenancetypes.ProvenancePredicate, error) {
 	materials, err := slsaMaterials(c.Sources)
 	if err != nil {
 		return nil, err
 	}
-	inv := ProvenanceInvocation{}
+	inv := provenancetypes.ProvenanceInvocation{}
 
 	contextKey := "context"
 	if v, ok := c.Args["contextkey"]; ok && v != "" {
@@ -175,19 +130,19 @@ func NewPredicate(c *Capture) (*ProvenancePredicate, error) {
 	inv.Parameters.Args = c.Args
 
 	for _, s := range c.Secrets {
-		inv.Parameters.Secrets = append(inv.Parameters.Secrets, &Secret{
+		inv.Parameters.Secrets = append(inv.Parameters.Secrets, &provenancetypes.Secret{
 			ID:       s.ID,
 			Optional: s.Optional,
 		})
 	}
 	for _, s := range c.SSH {
-		inv.Parameters.SSH = append(inv.Parameters.SSH, &SSH{
+		inv.Parameters.SSH = append(inv.Parameters.SSH, &provenancetypes.SSH{
 			ID:       s.ID,
 			Optional: s.Optional,
 		})
 	}
 	for _, s := range c.Sources.Local {
-		inv.Parameters.Locals = append(inv.Parameters.Locals, &LocalSource{
+		inv.Parameters.Locals = append(inv.Parameters.Locals, &provenancetypes.LocalSource{
 			Name: s.Name,
 		})
 	}
@@ -199,13 +154,13 @@ func NewPredicate(c *Capture) (*ProvenancePredicate, error) {
 		}
 	}
 
-	pr := &ProvenancePredicate{
+	pr := &provenancetypes.ProvenancePredicate{
 		Invocation: inv,
 		ProvenancePredicate: slsa02.ProvenancePredicate{
-			BuildType: BuildKitBuildType,
+			BuildType: provenancetypes.BuildKitBuildType,
 			Materials: materials,
 		},
-		Metadata: &ProvenanceMetadata{
+		Metadata: &provenancetypes.ProvenanceMetadata{
 			ProvenanceMetadata: slsa02.ProvenanceMetadata{
 				Completeness: slsa02.ProvenanceComplete{
 					Parameters:  c.Frontend != "",

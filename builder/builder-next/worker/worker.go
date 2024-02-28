@@ -570,3 +570,7 @@ type emptyProvider struct{}
 func (p *emptyProvider) ReaderAt(ctx context.Context, dec ocispec.Descriptor) (content.ReaderAt, error) {
 	return nil, errors.Errorf("ReaderAt not implemented for empty provider")
 }
+
+func (p *emptyProvider) Info(ctx context.Context, d digest.Digest) (content.Info, error) {
+	return content.Info{}, errors.Errorf("Info not implemented for empty provider")
+}
