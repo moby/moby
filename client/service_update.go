@@ -16,18 +16,18 @@ import (
 // It should be the value as set *before* the update. You can find this value in the Meta field
 // of swarm.Service, which can be found using ServiceInspectWithRaw.
 func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options types.ServiceUpdateOptions) (swarm.ServiceUpdateResponse, error) {
+	response := swarm.ServiceUpdateResponse{}
+
 	// Make sure we negotiated (if the client is configured to do so),
 	// as code below contains API-version specific handling of options.
 	//
 	// Normally, version-negotiation (if enabled) would not happen until
 	// the API request is made.
-	cli.checkVersion(ctx)
+	if err := cli.checkVersion(ctx); err != nil {
+		return response, err
+	}
 
-	var (
-		query    = url.Values{}
-		response = swarm.ServiceUpdateResponse{}
-	)
-
+	query := url.Values{}
 	if options.RegistryAuthFrom != "" {
 		query.Set("registryAuthFrom", options.RegistryAuthFrom)
 	}

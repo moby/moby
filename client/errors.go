@@ -11,15 +11,16 @@ import (
 
 // errConnectionFailed implements an error returned when connection failed.
 type errConnectionFailed struct {
-	host string
+	error
 }
 
 // Error returns a string representation of an errConnectionFailed
-func (err errConnectionFailed) Error() string {
-	if err.host == "" {
-		return "Cannot connect to the Docker daemon. Is the docker daemon running on this host?"
-	}
-	return fmt.Sprintf("Cannot connect to the Docker daemon at %s. Is the docker daemon running?", err.host)
+func (e errConnectionFailed) Error() string {
+	return e.error.Error()
+}
+
+func (e errConnectionFailed) Unwrap() error {
+	return e.error
 }
 
 // IsErrConnectionFailed returns true if the error is caused by connection failed.
@@ -29,7 +30,13 @@ func IsErrConnectionFailed(err error) bool {
 
 // ErrorConnectionFailed returns an error with host in the error message when connection to docker daemon failed.
 func ErrorConnectionFailed(host string) error {
-	return errConnectionFailed{host: host}
+	var err error
+	if host == "" {
+		err = fmt.Errorf("Cannot connect to the Docker daemon. Is the docker daemon running on this host?")
+	} else {
+		err = fmt.Errorf("Cannot connect to the Docker daemon at %s. Is the docker daemon running?", host)
+	}
+	return errConnectionFailed{error: err}
 }
 
 // IsErrNotFound returns true if the error is a NotFound error, which is returned
@@ -60,7 +67,9 @@ func (cli *Client) NewVersionError(ctx context.Context, APIrequired, feature str
 	//
 	// Normally, version-negotiation (if enabled) would not happen until
 	// the API request is made.
-	cli.checkVersion(ctx)
+	if err := cli.checkVersion(ctx); err != nil {
+		return err
+	}
 	if cli.version != "" && versions.LessThan(cli.version, APIrequired) {
 		return fmt.Errorf("%q requires API version %s, but the Docker daemon API version is %s", feature, APIrequired, cli.version)
 	}

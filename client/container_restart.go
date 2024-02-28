@@ -23,7 +23,9 @@ func (cli *Client) ContainerRestart(ctx context.Context, containerID string, opt
 		//
 		// Normally, version-negotiation (if enabled) would not happen until
 		// the API request is made.
-		cli.checkVersion(ctx)
+		if err := cli.checkVersion(ctx); err != nil {
+			return err
+		}
 		if versions.GreaterThanOrEqualTo(cli.version, "1.42") {
 			query.Set("signal", options.Signal)
 		}

@@ -354,6 +354,19 @@ func TestNegotiateAPVersionOverride(t *testing.T) {
 	assert.Equal(t, client.ClientVersion(), expected)
 }
 
+// TestNegotiateAPVersionConnectionFailure asserts that we do not modify the
+// API version when failing to connect.
+func TestNegotiateAPVersionConnectionFailure(t *testing.T) {
+	const expected = "9.99"
+
+	client, err := NewClientWithOpts(WithHost("tcp://no-such-host.invalid"))
+	assert.NilError(t, err)
+
+	client.version = expected
+	client.NegotiateAPIVersion(context.Background())
+	assert.Equal(t, client.ClientVersion(), expected)
+}
+
 func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 	var pingVersion string
 	httpClient := newMockClient(func(req *http.Request) (*http.Response, error) {

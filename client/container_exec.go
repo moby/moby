@@ -18,7 +18,9 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, container string, co
 	//
 	// Normally, version-negotiation (if enabled) would not happen until
 	// the API request is made.
-	cli.checkVersion(ctx)
+	if err := cli.checkVersion(ctx); err != nil {
+		return response, err
+	}
 
 	if err := cli.NewVersionError(ctx, "1.25", "env"); len(config.Env) != 0 && err != nil {
 		return response, err

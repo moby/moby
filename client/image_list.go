@@ -12,14 +12,17 @@ import (
 
 // ImageList returns a list of images in the docker host.
 func (cli *Client) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+	var images []image.Summary
+
 	// Make sure we negotiated (if the client is configured to do so),
 	// as code below contains API-version specific handling of options.
 	//
 	// Normally, version-negotiation (if enabled) would not happen until
 	// the API request is made.
-	cli.checkVersion(ctx)
+	if err := cli.checkVersion(ctx); err != nil {
+		return images, err
+	}
 
-	var images []image.Summary
 	query := url.Values{}
 
 	optionFilters := options.Filters
