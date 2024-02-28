@@ -231,3 +231,52 @@ func TestInspectCfgdMAC(t *testing.T) {
 		})
 	}
 }
+
+// Regression test for https://github.com/moby/moby/issues/47441
+// Migration of a container-wide MAC address to the new per-endpoint setting,
+// where NetworkMode uses network id, and the key in endpoint settings is the
+// network name.
+func TestWatchtowerCreate(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no macvlan")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t, client.WithVersion("1.25"))
+	defer c.Close()
+
+	// Create a "/29" network, with a single address in iprange for IPAM to
+	// allocate, but no gateway address. So, the gateway will get the single
+	// free address. It'll only be possible to start a container by explicitly
+	// assigning an address.
+	const netName = "wtmvl"
+	netId := network.CreateNoError(ctx, t, c, netName,
+		network.WithIPAMRange("172.30.0.0/29", "172.30.0.1/32", ""),
+		network.WithDriver("macvlan"),
+	)
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	// Start a container, using the network's id in NetworkMode but its name
+	// in EndpointsConfig. (The container-wide MAC address must be merged with
+	// the endpoint config containing the preferred IP address, but the names
+	// don't match.)
+	const ctrName = "ctr1"
+	const ctrIP = "172.30.0.2"
+	const ctrMAC = "02:42:ac:11:00:42"
+	id := container.Run(ctx, t, c,
+		container.WithName(ctrName),
+		container.WithNetworkMode(netId),
+		container.WithContainerWideMacAddress(ctrMAC),
+		container.WithIPv4(netName, ctrIP),
+	)
+	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+	// Check that the container got the expected addresses.
+	inspect := container.Inspect(ctx, t, c, ctrName)
+	netSettings := inspect.NetworkSettings.Networks[netName]
+	assert.Check(t, is.Equal(netSettings.IPAddress, ctrIP))
+	assert.Check(t, is.Equal(netSettings.MacAddress, ctrMAC))
+}
