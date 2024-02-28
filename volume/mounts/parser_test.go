@@ -2,12 +2,77 @@ package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types/mount"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+type parseMountRawTestSet struct {
+	valid   []string
+	invalid map[string]string
+}
+
+func TestConvertTmpfsOptions(t *testing.T) {
+	type testCase struct {
+		opt                  mount.TmpfsOptions
+		readOnly             bool
+		expectedSubstrings   []string
+		unexpectedSubstrings []string
+		err                  bool
+	}
+	cases := []testCase{
+		{
+			opt:                  mount.TmpfsOptions{SizeBytes: 1024 * 1024, Mode: 0700},
+			readOnly:             false,
+			expectedSubstrings:   []string{"size=1m", "mode=700"},
+			unexpectedSubstrings: []string{"ro"},
+		},
+		{
+			opt:                  mount.TmpfsOptions{},
+			readOnly:             true,
+			expectedSubstrings:   []string{"ro"},
+			unexpectedSubstrings: []string{},
+		},
+		{
+			opt:                  mount.TmpfsOptions{Options: "exec"},
+			readOnly:             true,
+			expectedSubstrings:   []string{"ro", "exec"},
+			unexpectedSubstrings: []string{"noexec"},
+		},
+		{
+			opt: mount.TmpfsOptions{Options: "INVALID"},
+			err: true,
+		},
+	}
+	p := &linuxParser{}
+	for _, c := range cases {
+		data, err := p.ConvertTmpfsOptions(&c.opt, c.readOnly)
+		if c.err {
+			if err == nil {
+				t.Fatalf("expected error for %+v, got nil", c.opt)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("could not convert %+v (readOnly: %v) to string: %v",
+				c.opt, c.readOnly, err)
+		}
+		t.Logf("data=%q", data)
+		for _, s := range c.expectedSubstrings {
+			if !strings.Contains(data, s) {
+				t.Fatalf("expected substring: %s, got %v (case=%+v)", s, data, c)
+			}
+		}
+		for _, s := range c.unexpectedSubstrings {
+			if strings.Contains(data, s) {
+				t.Fatalf("unexpected substring: %s, got %v (case=%+v)", s, data, c)
+			}
+		}
+	}
+}
 
 type mockFiProvider struct{}
 

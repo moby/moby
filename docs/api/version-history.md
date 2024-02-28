@@ -19,6 +19,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 * `POST /containers/create` now supports `VolumeOptions.Subpath` which allows a
   subpath of a named volume to be mounted.
+* `POST /containers/create` now takes `Options` as part of `HostConfig.Mounts` to set options for tmpfs mounts.
 
 ## v1.44 API changes
 
