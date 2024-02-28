@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/moby/buildkit/executor/resources/types"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/network"
 	"github.com/prometheus/procfs"
@@ -30,15 +30,15 @@ var isCgroupV2 bool
 type cgroupRecord struct {
 	once         sync.Once
 	ns           string
-	sampler      *Sub[*types.Sample]
+	sampler      *Sub[*resourcestypes.Sample]
 	closeSampler func() error
-	samples      []*types.Sample
+	samples      []*resourcestypes.Sample
 	err          error
 	done         chan struct{}
 	monitor      *Monitor
 	netSampler   NetworkSampler
 	startCPUStat *procfs.CPUStat
-	sysCPUStat   *types.SysCPUStat
+	sysCPUStat   *resourcestypes.SysCPUStat
 }
 
 func (r *cgroupRecord) Wait() error {
@@ -90,7 +90,7 @@ func (r *cgroupRecord) close() {
 		if r.startCPUStat != nil {
 			stat, err := r.monitor.proc.Stat()
 			if err == nil {
-				cpu := &types.SysCPUStat{
+				cpu := &resourcestypes.SysCPUStat{
 					User:      stat.CPUTotal.User - r.startCPUStat.User,
 					Nice:      stat.CPUTotal.Nice - r.startCPUStat.Nice,
 					System:    stat.CPUTotal.System - r.startCPUStat.System,
@@ -108,7 +108,7 @@ func (r *cgroupRecord) close() {
 	})
 }
 
-func (r *cgroupRecord) sample(tm time.Time) (*types.Sample, error) {
+func (r *cgroupRecord) sample(tm time.Time) (*resourcestypes.Sample, error) {
 	cpu, err := getCgroupCPUStat(filepath.Join(defaultMountpoint, r.ns))
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func (r *cgroupRecord) sample(tm time.Time) (*types.Sample, error) {
 	if err != nil {
 		return nil, err
 	}
-	sample := &types.Sample{
+	sample := &resourcestypes.Sample{
 		Timestamp_: tm,
 		CPUStat:    cpu,
 		MemoryStat: memory,
@@ -142,12 +142,12 @@ func (r *cgroupRecord) sample(tm time.Time) (*types.Sample, error) {
 	return sample, nil
 }
 
-func (r *cgroupRecord) Samples() (*types.Samples, error) {
+func (r *cgroupRecord) Samples() (*resourcestypes.Samples, error) {
 	<-r.done
 	if r.err != nil {
 		return nil, r.err
 	}
-	return &types.Samples{
+	return &resourcestypes.Samples{
 		Samples:    r.samples,
 		SysCPUStat: r.sysCPUStat,
 	}, nil
@@ -160,7 +160,7 @@ func (r *nopRecord) Wait() error {
 	return nil
 }
 
-func (r *nopRecord) Samples() (*types.Samples, error) {
+func (r *nopRecord) Samples() (*resourcestypes.Samples, error) {
 	return nil, nil
 }
 
@@ -189,7 +189,7 @@ type RecordOpt struct {
 	NetworkSampler NetworkSampler
 }
 
-func (m *Monitor) RecordNamespace(ns string, opt RecordOpt) (types.Recorder, error) {
+func (m *Monitor) RecordNamespace(ns string, opt RecordOpt) (resourcestypes.Recorder, error) {
 	isClosed := false
 	select {
 	case <-m.closed:

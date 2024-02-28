@@ -8,7 +8,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/moby/buildkit/executor/resources/types"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/pkg/errors"
 )
 
@@ -21,8 +21,8 @@ const (
 	cpuThrottledUsec = "throttled_usec"
 )
 
-func getCgroupCPUStat(cgroupPath string) (*types.CPUStat, error) {
-	cpuStat := &types.CPUStat{}
+func getCgroupCPUStat(cgroupPath string) (*resourcestypes.CPUStat, error) {
+	cpuStat := &resourcestypes.CPUStat{}
 
 	// Read cpu.stat file
 	cpuStatFile, err := os.Open(filepath.Join(cgroupPath, "cpu.stat"))
@@ -79,7 +79,7 @@ func getCgroupCPUStat(cgroupPath string) (*types.CPUStat, error) {
 
 	return cpuStat, nil
 }
-func parsePressureFile(filename string) (*types.Pressure, error) {
+func parsePressureFile(filename string) (*resourcestypes.Pressure, error) {
 	content, err := os.ReadFile(filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTSUP) { // pressure file requires CONFIG_PSI
@@ -90,7 +90,7 @@ func parsePressureFile(filename string) (*types.Pressure, error) {
 
 	lines := strings.Split(string(content), "\n")
 
-	pressure := &types.Pressure{}
+	pressure := &resourcestypes.Pressure{}
 	for _, line := range lines {
 		// Skip empty lines
 		if len(strings.TrimSpace(line)) == 0 {
@@ -99,7 +99,7 @@ func parsePressureFile(filename string) (*types.Pressure, error) {
 
 		fields := strings.Fields(line)
 		prefix := fields[0]
-		pressureValues := &types.PressureValues{}
+		pressureValues := &resourcestypes.PressureValues{}
 
 		for i := 1; i < len(fields); i++ {
 			keyValue := strings.Split(fields[i], "=")

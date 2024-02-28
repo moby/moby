@@ -18,7 +18,7 @@ import (
 	"github.com/moby/buildkit/client"
 	controlgateway "github.com/moby/buildkit/control/gateway"
 	"github.com/moby/buildkit/executor/resources"
-	resourcetypes "github.com/moby/buildkit/executor/resources/types"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
@@ -90,7 +90,7 @@ type Solver struct {
 	sm                        *session.Manager
 	entitlements              []string
 	history                   *HistoryQueue
-	sysSampler                *resources.Sampler[*resourcetypes.SysSample]
+	sysSampler                *resources.Sampler[*resourcestypes.SysSample]
 }
 
 // Processor defines a processing function to be applied after solving, but
@@ -441,7 +441,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 
 	defer j.Discard()
 
-	var usage *resources.Sub[*resourcetypes.SysSample]
+	var usage *resources.Sub[*resourcestypes.SysSample]
 	if s.sysSampler != nil {
 		usage = s.sysSampler.Record()
 		defer usage.Close(false)

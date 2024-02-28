@@ -4,6 +4,7 @@ import (
 	"path"
 
 	"github.com/moby/buildkit/solver/llbsolver/provenance"
+	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
 	"github.com/moby/buildkit/source"
 	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/util/gitutil"
@@ -51,24 +52,24 @@ func (id *GitIdentifier) Capture(c *provenance.Capture, pin string) error {
 	if id.Ref != "" {
 		url += "#" + id.Ref
 	}
-	c.AddGit(provenance.GitSource{
+	c.AddGit(provenancetypes.GitSource{
 		URL:    url,
 		Commit: pin,
 	})
 	if id.AuthTokenSecret != "" {
-		c.AddSecret(provenance.Secret{
+		c.AddSecret(provenancetypes.Secret{
 			ID:       id.AuthTokenSecret,
 			Optional: true,
 		})
 	}
 	if id.AuthHeaderSecret != "" {
-		c.AddSecret(provenance.Secret{
+		c.AddSecret(provenancetypes.Secret{
 			ID:       id.AuthHeaderSecret,
 			Optional: true,
 		})
 	}
 	if id.MountSSHSock != "" {
-		c.AddSSH(provenance.SSH{
+		c.AddSSH(provenancetypes.SSH{
 			ID:       id.MountSSHSock,
 			Optional: true,
 		})

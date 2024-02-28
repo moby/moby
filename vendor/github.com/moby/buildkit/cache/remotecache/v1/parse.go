@@ -82,7 +82,7 @@ func parseRecord(cc CacheConfig, idx int, provider DescriptorProvider, t solver.
 			}
 
 			remote.Descriptors = append(remote.Descriptors, descPair.Descriptor)
-			mp.Add(descPair.Descriptor.Digest, descPair.Provider)
+			mp.Add(descPair.Descriptor.Digest, descPair)
 		}
 		if remote != nil {
 			remote.Provider = mp
@@ -123,12 +123,12 @@ func getRemoteChain(layers []CacheLayer, idx int, provider DescriptorProvider, v
 		}
 		r.Descriptors = append(r.Descriptors, descPair.Descriptor)
 		mp := contentutil.NewMultiProvider(r.Provider)
-		mp.Add(descPair.Descriptor.Digest, descPair.Provider)
+		mp.Add(descPair.Descriptor.Digest, descPair)
 		r.Provider = mp
 		return r, nil
 	}
 	return &solver.Remote{
 		Descriptors: []ocispecs.Descriptor{descPair.Descriptor},
-		Provider:    descPair.Provider,
+		Provider:    descPair,
 	}, nil
 }

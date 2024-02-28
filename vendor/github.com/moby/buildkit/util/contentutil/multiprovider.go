@@ -13,18 +13,18 @@ import (
 )
 
 // NewMultiProvider creates a new mutable provider with a base provider
-func NewMultiProvider(base content.Provider) *MultiProvider {
+func NewMultiProvider(base content.InfoReaderProvider) *MultiProvider {
 	return &MultiProvider{
 		base: base,
-		sub:  map[digest.Digest]content.Provider{},
+		sub:  map[digest.Digest]content.InfoReaderProvider{},
 	}
 }
 
 // MultiProvider is a provider backed by a mutable map of providers
 type MultiProvider struct {
 	mu   sync.RWMutex
-	base content.Provider
-	sub  map[digest.Digest]content.Provider
+	base content.InfoReaderProvider
+	sub  map[digest.Digest]content.InfoReaderProvider
 }
 
 func (mp *MultiProvider) SnapshotLabels(descs []ocispecs.Descriptor, index int) map[string]string {
@@ -85,8 +85,22 @@ func (mp *MultiProvider) ReaderAt(ctx context.Context, desc ocispecs.Descriptor)
 	return mp.base.ReaderAt(ctx, desc)
 }
 
+// Info returns a content.Info
+func (mp *MultiProvider) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {
+	mp.mu.RLock()
+	if p, ok := mp.sub[dgst]; ok {
+		mp.mu.RUnlock()
+		return p.Info(ctx, dgst)
+	}
+	mp.mu.RUnlock()
+	if mp.base == nil {
+		return content.Info{}, errors.Wrapf(errdefs.ErrNotFound, "content %v", dgst)
+	}
+	return mp.base.Info(ctx, dgst)
+}
+
 // Add adds a new child provider for a specific digest
-func (mp *MultiProvider) Add(dgst digest.Digest, p content.Provider) {
+func (mp *MultiProvider) Add(dgst digest.Digest, p content.InfoReaderProvider) {
 	mp.mu.Lock()
 	defer mp.mu.Unlock()
 	mp.sub[dgst] = p

@@ -33,16 +33,20 @@ func init() {
 }
 
 const (
-	attrScope = "scope"
-	attrToken = "token"
-	attrURL   = "url"
-	version   = "1"
+	attrScope   = "scope"
+	attrTimeout = "timeout"
+	attrToken   = "token"
+	attrURL     = "url"
+	version     = "1"
+
+	defaultTimeout = 10 * time.Minute
 )
 
 type Config struct {
-	Scope string
-	URL   string
-	Token string
+	Scope   string
+	URL     string
+	Token   string
+	Timeout time.Duration
 }
 
 func getConfig(attrs map[string]string) (*Config, error) {
@@ -58,10 +62,19 @@ func getConfig(attrs map[string]string) (*Config, error) {
 	if !ok {
 		return nil, errors.Errorf("token not set for github actions cache")
 	}
+	timeout := defaultTimeout
+	if v, ok := attrs[attrTimeout]; ok {
+		var err error
+		timeout, err = time.ParseDuration(v)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse timeout for github actions cache")
+		}
+	}
 	return &Config{
-		Scope: scope,
-		URL:   url,
-		Token: token,
+		Scope:   scope,
+		URL:     url,
+		Token:   token,
+		Timeout: timeout,
 	}, nil
 }
 
@@ -85,7 +98,10 @@ type exporter struct {
 
 func NewExporter(c *Config) (remotecache.Exporter, error) {
 	cc := v1.NewCacheChains()
-	cache, err := actionscache.New(c.Token, c.URL, actionscache.Opt{Client: tracing.DefaultClient})
+	cache, err := actionscache.New(c.Token, c.URL, actionscache.Opt{
+		Client:  tracing.DefaultClient,
+		Timeout: c.Timeout,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +228,10 @@ type importer struct {
 }
 
 func NewImporter(c *Config) (remotecache.Importer, error) {
-	cache, err := actionscache.New(c.Token, c.URL, actionscache.Opt{Client: tracing.DefaultClient})
+	cache, err := actionscache.New(c.Token, c.URL, actionscache.Opt{
+		Client:  tracing.DefaultClient,
+		Timeout: c.Timeout,
+	})
 	if err != nil {
 		return nil, err
 	}

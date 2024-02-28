@@ -142,7 +142,7 @@ type CacheExporterRecord interface {
 // TODO: add closer to keep referenced data from getting deleted
 type Remote struct {
 	Descriptors []ocispecs.Descriptor
-	Provider    content.Provider
+	Provider    content.InfoReaderProvider
 }
 
 // CacheLink is a link between two cache records

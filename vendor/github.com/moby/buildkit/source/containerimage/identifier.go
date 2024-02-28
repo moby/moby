@@ -4,6 +4,7 @@ import (
 	"github.com/containerd/containerd/reference"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/solver/llbsolver/provenance"
+	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
 	"github.com/moby/buildkit/source"
 	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/util/resolver"
@@ -43,7 +44,7 @@ func (id *ImageIdentifier) Capture(c *provenance.Capture, pin string) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse image digest %s", pin)
 	}
-	c.AddImage(provenance.ImageSource{
+	c.AddImage(provenancetypes.ImageSource{
 		Ref:      id.Reference.String(),
 		Platform: id.Platform,
 		Digest:   dgst,
@@ -82,7 +83,7 @@ func (id *OCIIdentifier) Capture(c *provenance.Capture, pin string) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse OCI digest %s", pin)
 	}
-	c.AddImage(provenance.ImageSource{
+	c.AddImage(provenancetypes.ImageSource{
 		Ref:      id.Reference.String(),
 		Platform: id.Platform,
 		Digest:   dgst,
