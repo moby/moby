@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/integration/daemon"
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -183,9 +182,7 @@ func TestConfigDaemonSeccompProfiles(t *testing.T) {
 func TestDaemonProxy(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "cannot start multiple daemons on windows")
 	skip.If(t, os.Getenv("DOCKER_ROOTLESS") != "", "cannot connect to localhost proxy in rootless environment")
-
-	// Don't setup OTEL here to avoid it hitting the HTTP proxy.
-	ctx := context.Background()
+	ctx := testutil.StartSpan(baseContext, t)
 
 	newProxy := func(rcvd *string, t *testing.T) *httptest.Server {
 		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -203,6 +200,7 @@ func TestDaemonProxy(t *testing.T) {
 	t.Run("environment variables", func(t *testing.T) {
 		t.Parallel()
 
+		ctx := testutil.StartSpan(ctx, t)
 		var received string
 		proxyServer := newProxy(&received, t)
 
@@ -210,6 +208,7 @@ func TestDaemonProxy(t *testing.T) {
 			"HTTP_PROXY="+proxyServer.URL,
 			"HTTPS_PROXY="+proxyServer.URL,
 			"NO_PROXY=example.com",
+			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
 		))
 		c := d.NewClientT(t)
 
@@ -235,6 +234,8 @@ func TestDaemonProxy(t *testing.T) {
 	t.Run("command-line options", func(t *testing.T) {
 		t.Parallel()
 
+		ctx := testutil.StartSpan(ctx, t)
+
 		var received string
 		proxyServer := newProxy(&received, t)
 
@@ -245,6 +246,7 @@ func TestDaemonProxy(t *testing.T) {
 			"https_proxy="+"https://"+userPass+"myuser:mypassword@from-env-https-invalid",
 			"NO_PROXY=ignore.invalid",
 			"no_proxy=ignore.invalid",
+			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
 		))
 		d.Start(t, "--iptables=false", "--http-proxy", proxyServer.URL, "--https-proxy", proxyServer.URL, "--no-proxy", "example.com")
 		defer d.Stop(t)
@@ -283,6 +285,7 @@ func TestDaemonProxy(t *testing.T) {
 	// Configure proxy through configuration file
 	t.Run("configuration file", func(t *testing.T) {
 		t.Parallel()
+		ctx := testutil.StartSpan(ctx, t)
 
 		var received string
 		proxyServer := newProxy(&received, t)
@@ -294,6 +297,7 @@ func TestDaemonProxy(t *testing.T) {
 			"https_proxy="+"https://"+userPass+"myuser:mypassword@from-env-https-invalid",
 			"NO_PROXY=ignore.invalid",
 			"no_proxy=ignore.invalid",
+			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
 		))
 		c := d.NewClientT(t)
 
@@ -331,6 +335,7 @@ func TestDaemonProxy(t *testing.T) {
 
 	// Conflicting options (passed both through command-line options and config file)
 	t.Run("conflicting options", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		const (
 			proxyRawURL = "https://" + userPass + "example.org"
 			proxyURL    = "https://xxxxx:xxxxx@example.org"
@@ -355,13 +360,16 @@ func TestDaemonProxy(t *testing.T) {
 	// Make sure values are sanitized when reloading the daemon-config
 	t.Run("reload sanitized", func(t *testing.T) {
 		t.Parallel()
+		ctx := testutil.StartSpan(ctx, t)
 
 		const (
 			proxyRawURL = "https://" + userPass + "example.org"
 			proxyURL    = "https://xxxxx:xxxxx@example.org"
 		)
 
-		d := daemon.New(t)
+		d := daemon.New(t, daemon.WithEnvVars(
+			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
+		))
 		d.Start(t, "--iptables=false", "--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com")
 		defer d.Stop(t)
 		err := d.Signal(syscall.SIGHUP)
