@@ -723,7 +723,7 @@ func (c *client) writeContent(ctx context.Context, mediaType, ref string, r io.R
 	}
 	return &types.Descriptor{
 		MediaType: mediaType,
-		Digest:    writer.Digest().Encoded(),
+		Digest:    writer.Digest().String(),
 		Size:      size,
 	}, nil
 }
