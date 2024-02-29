@@ -15,6 +15,7 @@
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns|implicit): the rootlesskit port driver. Defaults to "builtin".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX=(auto|true|false): whether to protect slirp4netns with a dedicated mount namespace. Defaults to "auto".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP=(auto|true|false): whether to protect slirp4netns with seccomp. Defaults to "auto".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK=(true|false): prohibit connections to 127.0.0.1 on the host (including via 10.0.2.2, in the case of slirp4netns). Defaults to "true".
 
 # To apply an environment variable via systemd, create ~/.config/systemd/user/docker.service.d/override.conf as follows,
 # and run `systemctl --user daemon-reload && systemctl --user restart docker`:
@@ -71,6 +72,7 @@ fi
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER:=builtin}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX:=auto}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP:=auto}"
+: "${DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK:=}"
 net=$DOCKERD_ROOTLESS_ROOTLESSKIT_NET
 mtu=$DOCKERD_ROOTLESS_ROOTLESSKIT_MTU
 if [ -z "$net" ]; then
@@ -96,6 +98,11 @@ if [ -z "$net" ]; then
 fi
 if [ -z "$mtu" ]; then
 	mtu=1500
+fi
+
+host_loopback="--disable-host-loopback"
+if [ "$DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK" = "false" ]; then
+	host_loopback=""
 fi
 
 dockerd="${DOCKERD:-dockerd}"
@@ -125,7 +132,7 @@ if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
 		--net=$net --mtu=$mtu \
 		--slirp4netns-sandbox=$DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX \
 		--slirp4netns-seccomp=$DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP \
-		--disable-host-loopback --port-driver=$DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER \
+		$host_loopback --port-driver=$DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER \
 		--copy-up=/etc --copy-up=/run \
 		--propagation=rslave \
 		$DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS \
