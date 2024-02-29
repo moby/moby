@@ -210,7 +210,8 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 			isRestore = true
 			opts := val.([]SandboxOption)
 			sb.processOptions(opts...)
-			sb.restorePath()
+			sb.restoreHostsPath()
+			sb.restoreResolvConfPath()
 			create = !sb.config.useDefaultSandBox
 		}
 		sb.osSbox, err = osl.NewSandbox(sb.Key(), create, isRestore)

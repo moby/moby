@@ -1,0 +1,7 @@
+nameserver 127.0.0.11
+options ndots:2
+
+# Based on host file: '/etc/resolv.conf' (internal resolver)
+# ExtServers: [host(127.0.0.53)]
+# Overrides: [options]
+# Option ndots from: override

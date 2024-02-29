@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -32,6 +33,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sync/errgroup"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 const (
@@ -1278,6 +1281,28 @@ func makeTesthostNetwork(t *testing.T, c *libnetwork.Controller) *libnetwork.Net
 	return n
 }
 
+func makeTestIPv6Network(t *testing.T, c *libnetwork.Controller) *libnetwork.Network {
+	t.Helper()
+	netOptions := options.Generic{
+		netlabel.EnableIPv6: true,
+		netlabel.GenericData: options.Generic{
+			"BridgeName": "testnetwork",
+		},
+	}
+	ipamV6ConfList := []*libnetwork.IpamConf{
+		{PreferredPool: "fd81:fb6e:38ba:abcd::/64", Gateway: "fd81:fb6e:38ba:abcd::9"},
+	}
+	n, err := createTestNetwork(c,
+		"bridge",
+		"testnetwork",
+		netOptions,
+		nil,
+		ipamV6ConfList,
+	)
+	assert.NilError(t, err)
+	return n
+}
+
 func TestHost(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
@@ -1790,295 +1815,92 @@ func reexecSetKey(key string, containerID string, controllerID string) error {
 	return cmd.Run()
 }
 
-func TestEnableIPv6(t *testing.T) {
-	defer netnsutils.SetupTestOSContext(t)()
-	controller := newController(t)
-
-	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n")
-	expectedResolvConf := []byte("search pommesfrites.fr\nnameserver 127.0.0.11\nnameserver 2001:4860:4860::8888\noptions ndots:0\n")
-	// take a copy of resolv.conf for restoring after test completes
-	resolvConfSystem, err := os.ReadFile("/etc/resolv.conf")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// cleanup
-	defer func() {
-		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	netOption := options.Generic{
-		netlabel.EnableIPv6: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork",
-		},
-	}
-	ipamV6ConfList := []*libnetwork.IpamConf{{PreferredPool: "fe99::/64", Gateway: "fe99::9"}}
-
-	n, err := createTestNetwork(controller, "bridge", "testnetwork", netOption, nil, ipamV6ConfList)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	ep1, err := n.CreateEndpoint("ep1")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
-	defer os.Remove(resolvConfPath)
-
-	sb, err := controller.NewSandbox(containerID, libnetwork.OptionResolvConfPath(resolvConfPath))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := sb.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	err = ep1.Join(sb)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	content, err := os.ReadFile(resolvConfPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Equal(content, expectedResolvConf) {
-		t.Fatalf("Expected:\n%s\nGot:\n%s", string(expectedResolvConf), string(content))
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestResolvConfHost(t *testing.T) {
-	defer netnsutils.SetupTestOSContext(t)()
-	controller := newController(t)
-
-	tmpResolvConf := []byte("search localhost.net\nnameserver 127.0.0.1\nnameserver 2001:4860:4860::8888\n")
-
-	// take a copy of resolv.conf for restoring after test completes
-	resolvConfSystem, err := os.ReadFile("/etc/resolv.conf")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// cleanup
-	defer func() {
-		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	n := makeTesthostNetwork(t, controller)
-	ep1, err := n.CreateEndpoint("ep1", libnetwork.CreateOptionDisableResolution())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
-	defer os.Remove(resolvConfPath)
-
-	sb, err := controller.NewSandbox(containerID,
-		libnetwork.OptionUseDefaultSandbox(),
-		libnetwork.OptionResolvConfPath(resolvConfPath),
-		libnetwork.OptionOriginResolvConfPath("/etc/resolv.conf"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := sb.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	err = ep1.Join(sb)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		err = ep1.Leave(sb)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	finfo, err := os.Stat(resolvConfPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fmode := (os.FileMode)(0o644)
-	if finfo.Mode() != fmode {
-		t.Fatalf("Expected file mode %s, got %s", fmode.String(), finfo.Mode().String())
-	}
-
-	content, err := os.ReadFile(resolvConfPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Equal(content, tmpResolvConf) {
-		t.Fatalf("Expected:\n%s\nGot:\n%s", string(tmpResolvConf), string(content))
-	}
-}
-
 func TestResolvConf(t *testing.T) {
-	defer netnsutils.SetupTestOSContext(t)()
-	controller := newController(t)
+	tmpDir := t.TempDir()
+	originResolvConfPath := filepath.Join(tmpDir, "origin_resolv.conf")
+	resolvConfPath := filepath.Join(tmpDir, "resolv.conf")
 
-	tmpResolvConf1 := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n")
-	tmpResolvConf2 := []byte("search pommesfrites.fr\nnameserver 112.34.56.78\nnameserver 2001:4860:4860::8888\n")
-	expectedResolvConf1 := []byte("search pommesfrites.fr\nnameserver 127.0.0.11\noptions ndots:0\n")
-	tmpResolvConf3 := []byte("search pommesfrites.fr\nnameserver 113.34.56.78\n")
+	// Strip comments that end in a newline (a comment with no newline at the end
+	// of the file will not be stripped).
+	stripCommentsRE := regexp.MustCompile(`(?m)^#.*\n`)
 
-	// take a copy of resolv.conf for restoring after test completes
-	resolvConfSystem, err := os.ReadFile("/etc/resolv.conf")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// cleanup
-	defer func() {
-		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	netOption := options.Generic{
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork",
+	testcases := []struct {
+		name             string
+		makeNet          func(t *testing.T, c *libnetwork.Controller) *libnetwork.Network
+		delNet           bool
+		epOpts           []libnetwork.EndpointOption
+		sbOpts           []libnetwork.SandboxOption
+		originResolvConf string
+		expResolvConf    string
+	}{
+		{
+			name:             "IPv6 network",
+			makeNet:          makeTestIPv6Network,
+			delNet:           true,
+			originResolvConf: "search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n",
+			expResolvConf:    "nameserver 127.0.0.11\nnameserver 2001:4860:4860::8888\nsearch pommesfrites.fr\noptions ndots:0",
+		},
+		{
+			name:             "host network",
+			makeNet:          makeTesthostNetwork,
+			epOpts:           []libnetwork.EndpointOption{libnetwork.CreateOptionDisableResolution()},
+			sbOpts:           []libnetwork.SandboxOption{libnetwork.OptionUseDefaultSandbox()},
+			originResolvConf: "search localhost.net\nnameserver 127.0.0.1\nnameserver 2001:4860:4860::8888\n",
+			expResolvConf:    "nameserver 127.0.0.1\nnameserver 2001:4860:4860::8888\nsearch localhost.net",
 		},
 	}
-	n, err := createTestNetwork(controller, "bridge", "testnetwork", netOption, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
 
-	ep, err := n.CreateEndpoint("ep")
-	if err != nil {
-		t.Fatal(err)
-	}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer netnsutils.SetupTestOSContext(t)()
+			c := newController(t)
 
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf1, 0o644); err != nil {
-		t.Fatal(err)
-	}
+			err := os.WriteFile(originResolvConfPath, []byte(tc.originResolvConf), 0o644)
+			assert.NilError(t, err)
 
-	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
-	defer os.Remove(resolvConfPath)
+			n := tc.makeNet(t, c)
+			if tc.delNet {
+				defer func() {
+					err := n.Delete()
+					assert.Check(t, err)
+				}()
+			}
 
-	sb1, err := controller.NewSandbox(containerID, libnetwork.OptionResolvConfPath(resolvConfPath))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := sb1.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
+			sbOpts := append(tc.sbOpts,
+				libnetwork.OptionResolvConfPath(resolvConfPath),
+				libnetwork.OptionOriginResolvConfPath(originResolvConfPath),
+			)
+			sb, err := c.NewSandbox(containerID, sbOpts...)
+			assert.NilError(t, err)
+			defer func() {
+				err := sb.Delete()
+				assert.Check(t, err)
+			}()
 
-	err = ep.Join(sb1)
-	if err != nil {
-		t.Fatal(err)
-	}
+			ep, err := n.CreateEndpoint("ep", tc.epOpts...)
+			assert.NilError(t, err)
+			defer func() {
+				err := ep.Delete(false)
+				assert.Check(t, err)
+			}()
 
-	finfo, err := os.Stat(resolvConfPath)
-	if err != nil {
-		t.Fatal(err)
-	}
+			err = ep.Join(sb)
+			assert.NilError(t, err)
+			defer func() {
+				err := ep.Leave(sb)
+				assert.Check(t, err)
+			}()
 
-	fmode := (os.FileMode)(0o644)
-	if finfo.Mode() != fmode {
-		t.Fatalf("Expected file mode %s, got %s", fmode.String(), finfo.Mode().String())
-	}
-
-	content, err := os.ReadFile(resolvConfPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Equal(content, expectedResolvConf1) {
-		fmt.Printf("\n%v\n%v\n", expectedResolvConf1, content)
-		t.Fatalf("Expected:\n%s\nGot:\n%s", string(expectedResolvConf1), string(content))
-	}
-
-	err = ep.Leave(sb1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf2, 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	sb2, err := controller.NewSandbox(containerID+"_2", libnetwork.OptionResolvConfPath(resolvConfPath))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := sb2.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	err = ep.Join(sb2)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	content, err = os.ReadFile(resolvConfPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Equal(content, expectedResolvConf1) {
-		t.Fatalf("Expected:\n%s\nGot:\n%s", string(expectedResolvConf1), string(content))
-	}
-
-	if err := os.WriteFile(resolvConfPath, tmpResolvConf3, 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	err = ep.Leave(sb2)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = ep.Join(sb2)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	content, err = os.ReadFile(resolvConfPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Equal(content, tmpResolvConf3) {
-		t.Fatalf("Expected:\n%s\nGot:\n%s", string(tmpResolvConf3), string(content))
+			finfo, err := os.Stat(resolvConfPath)
+			assert.NilError(t, err)
+			expFMode := (os.FileMode)(0o644)
+			assert.Check(t, is.Equal(finfo.Mode().String(), expFMode.String()))
+			content, err := os.ReadFile(resolvConfPath)
+			assert.NilError(t, err)
+			actual := stripCommentsRE.ReplaceAllString(string(content), "")
+			actual = strings.TrimSpace(actual)
+			assert.Check(t, is.Equal(actual, tc.expResolvConf))
+		})
 	}
 }
 
