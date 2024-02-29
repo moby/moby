@@ -364,7 +364,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				return
 			}
 
-			progress.Update(progressOutput, descriptor.ID(), "PullOptions complete")
+			progress.Update(progressOutput, descriptor.ID(), "Pull complete")
 
 			if withRegistered, ok := descriptor.(DigestRegisterer); ok {
 				withRegistered.Registered(d.layer.DiffID())
