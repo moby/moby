@@ -5,8 +5,9 @@ import (
 
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/testutils"
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestValidateDriver(t *testing.T) {
@@ -20,11 +21,11 @@ func TestValidateDriver(t *testing.T) {
 		{"Network", p.ValidateNetworkDriver},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.NoError(t, tt.validator(nil))
+			assert.Check(t, tt.validator(nil))
 
 			err := tt.validator(&api.Driver{Name: ""})
-			assert.Error(t, err)
-			assert.Equal(t, codes.InvalidArgument, testutils.ErrorCode(err))
+			assert.Check(t, is.ErrorContains(err, ""))
+			assert.Check(t, is.Equal(codes.InvalidArgument, testutils.ErrorCode(err)))
 		})
 	}
 }

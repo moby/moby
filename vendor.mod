@@ -86,7 +86,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.4
 	github.com/tonistiigi/go-archvariant v1.0.0
 	github.com/vbatts/tar-split v0.11.5
 	github.com/vishvananda/netlink v1.2.1-beta.2
@@ -187,6 +186,7 @@ require (
 	github.com/secure-systems-lab/go-securesystemslib v0.4.0 // indirect
 	github.com/shibumi/go-pathspec v1.3.0 // indirect
 	github.com/spdx/tools-golang v0.5.1 // indirect
+	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/tinylib/msgp v1.1.8 // indirect
 	github.com/tonistiigi/fsutil v0.0.0-20230629203738-36ef4d8c0dbb // indirect
