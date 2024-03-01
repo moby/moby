@@ -9,5 +9,13 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/go/src/github.com/docker/docker,type=bind,consistency=cached",
 
   "remoteUser": "root",
-  "runArgs": ["--privileged"]
+  "runArgs": ["--privileged"],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go"
+      ]
+    }
+  }
 }
