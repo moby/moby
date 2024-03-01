@@ -208,6 +208,7 @@ func TestDaemonProxy(t *testing.T) {
 			"HTTP_PROXY="+proxyServer.URL,
 			"HTTPS_PROXY="+proxyServer.URL,
 			"NO_PROXY=example.com",
+			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
 		))
 		c := d.NewClientT(t)
 
@@ -245,6 +246,7 @@ func TestDaemonProxy(t *testing.T) {
 			"https_proxy="+"https://"+userPass+"myuser:mypassword@from-env-https-invalid",
 			"NO_PROXY=ignore.invalid",
 			"no_proxy=ignore.invalid",
+			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
 		))
 		d.Start(t, "--iptables=false", "--http-proxy", proxyServer.URL, "--https-proxy", proxyServer.URL, "--no-proxy", "example.com")
 		defer d.Stop(t)
@@ -295,6 +297,7 @@ func TestDaemonProxy(t *testing.T) {
 			"https_proxy="+"https://"+userPass+"myuser:mypassword@from-env-https-invalid",
 			"NO_PROXY=ignore.invalid",
 			"no_proxy=ignore.invalid",
+			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
 		))
 		c := d.NewClientT(t)
 
@@ -364,7 +367,9 @@ func TestDaemonProxy(t *testing.T) {
 			proxyURL    = "https://xxxxx:xxxxx@example.org"
 		)
 
-		d := daemon.New(t)
+		d := daemon.New(t, daemon.WithEnvVars(
+			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
+		))
 		d.Start(t, "--iptables=false", "--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com")
 		defer d.Stop(t)
 		err := d.Signal(syscall.SIGHUP)
