@@ -500,6 +500,60 @@ func TestRCTransformForIntNS(t *testing.T) {
 	}
 }
 
+// Check that invalid ndots options in the host's file are ignored, unless
+// starting the internal resolver (which requires an ndots option), in which
+// case invalid ndots should be replaced.
+func TestRCTransformForIntNSInvalidNdots(t *testing.T) {
+	testcases := []struct {
+		name         string
+		options      string
+		reqdOptions  []string
+		expVal       string
+		expOptions   []string
+		expNDotsFrom string
+	}{
+		{
+			name:         "Negative value",
+			options:      "options ndots:-1",
+			expOptions:   []string{"ndots:-1"},
+			expVal:       "-1",
+			expNDotsFrom: "host",
+		},
+		{
+			name:         "Invalid values with reqd ndots",
+			options:      "options ndots:-1 foo:bar ndots ndots:",
+			reqdOptions:  []string{"ndots:2"},
+			expVal:       "2",
+			expNDotsFrom: "internal",
+			expOptions:   []string{"foo:bar", "ndots:2"},
+		},
+		{
+			name:         "Valid value with reqd ndots",
+			options:      "options ndots:1 foo:bar ndots ndots:",
+			reqdOptions:  []string{"ndots:2"},
+			expVal:       "1",
+			expNDotsFrom: "host",
+			expOptions:   []string{"ndots:1", "foo:bar"},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			content := "nameserver 8.8.8.8\n" + tc.options
+			rc, err := Parse(bytes.NewBuffer([]byte(content)), "/etc/resolv.conf")
+			assert.NilError(t, err)
+			_, err = rc.TransformForIntNS(false, netip.MustParseAddr("127.0.0.11"), tc.reqdOptions)
+			assert.NilError(t, err)
+
+			val, found := rc.Option("ndots")
+			assert.Check(t, is.Equal(found, true))
+			assert.Check(t, is.Equal(val, tc.expVal))
+			assert.Check(t, is.Equal(rc.md.NDotsFrom, tc.expNDotsFrom))
+			assert.Check(t, is.DeepEqual(rc.options, tc.expOptions))
+		})
+	}
+}
+
 func TestRCRead(t *testing.T) {
 	d := t.TempDir()
 	path := filepath.Join(d, "resolv.conf")
