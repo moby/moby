@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/stringid"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -116,6 +117,10 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		if desc.MediaType == images.MediaTypeDockerSchema1Manifest && !sentSchema1Deprecation {
 			progress.Message(out, "", distribution.DeprecatedSchema1ImageMessage(ref))
 			sentSchema1Deprecation = true
+		}
+		if images.IsLayerType(desc.MediaType) {
+			id := stringid.TruncateID(desc.Digest.String())
+			progress.Update(out, id, "Pulling fs layer")
 		}
 		if images.IsManifestType(desc.MediaType) {
 			if !sentPullingFrom {
