@@ -170,3 +170,28 @@ func Inspect(ctx context.Context, t *testing.T, apiClient client.APIClient, cont
 
 	return c
 }
+
+type ContainerOutput struct {
+	Stdout, Stderr string
+}
+
+// Output waits for the container to end running and returns its output.
+func Output(ctx context.Context, client client.APIClient, id string) (ContainerOutput, error) {
+	logs, err := client.ContainerLogs(ctx, id, container.LogsOptions{Follow: true, ShowStdout: true, ShowStderr: true})
+	if err != nil {
+		return ContainerOutput{}, err
+	}
+
+	defer logs.Close()
+
+	var stdoutBuf, stderrBuf bytes.Buffer
+	_, err = stdcopy.StdCopy(&stdoutBuf, &stderrBuf, logs)
+	if err != nil {
+		return ContainerOutput{}, err
+	}
+
+	return ContainerOutput{
+		Stdout: stdoutBuf.String(),
+		Stderr: stderrBuf.String(),
+	}, nil
+}

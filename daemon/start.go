@@ -68,7 +68,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 			if err := daemon.mergeAndVerifyLogConfig(&hostConfig.LogConfig); err != nil {
 				return errdefs.InvalidParameter(err)
 			}
-			if err := daemon.setHostConfig(ctr, hostConfig); err != nil {
+			if err := daemon.setHostConfig(ctr, hostConfig, true); err != nil {
 				return errdefs.InvalidParameter(err)
 			}
 			newNetworkMode := ctr.HostConfig.NetworkMode
