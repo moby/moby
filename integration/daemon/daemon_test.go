@@ -179,6 +179,74 @@ func TestConfigDaemonSeccompProfiles(t *testing.T) {
 	}
 }
 
+func TestDaemonConfigFeatures(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows")
+	ctx := testutil.StartSpan(baseContext, t)
+
+	d := daemon.New(t)
+	dockerBinary, err := d.BinaryPath()
+	assert.NilError(t, err)
+	params := []string{"--validate", "--config-file"}
+
+	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
+	if dest == "" {
+		dest = os.Getenv("DEST")
+	}
+	testdata := filepath.Join(dest, "..", "..", "integration", "daemon", "testdata")
+
+	const (
+		validOut  = "configuration OK"
+		failedOut = "unable to configure the Docker daemon with file"
+	)
+
+	tests := []struct {
+		name        string
+		args        []string
+		expectedOut string
+	}{
+		{
+			name:        "config with no content",
+			args:        append(params, filepath.Join(testdata, "empty-config-1.json")),
+			expectedOut: validOut,
+		},
+		{
+			name:        "config with {}",
+			args:        append(params, filepath.Join(testdata, "empty-config-2.json")),
+			expectedOut: validOut,
+		},
+		{
+			name:        "invalid config",
+			args:        append(params, filepath.Join(testdata, "invalid-config-1.json")),
+			expectedOut: failedOut,
+		},
+		{
+			name:        "malformed config",
+			args:        append(params, filepath.Join(testdata, "malformed-config.json")),
+			expectedOut: failedOut,
+		},
+		{
+			name:        "valid config",
+			args:        append(params, filepath.Join(testdata, "valid-config-1.json")),
+			expectedOut: validOut,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_ = testutil.StartSpan(ctx, t)
+			cmd := exec.Command(dockerBinary, tc.args...)
+			out, err := cmd.CombinedOutput()
+			assert.Check(t, is.Contains(string(out), tc.expectedOut))
+			if tc.expectedOut == failedOut {
+				assert.ErrorContains(t, err, "", "expected an error, but got none")
+			} else {
+				assert.NilError(t, err)
+			}
+		})
+	}
+}
+
 func TestDaemonProxy(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "cannot start multiple daemons on windows")
 	skip.If(t, os.Getenv("DOCKER_ROOTLESS") != "", "cannot connect to localhost proxy in rootless environment")

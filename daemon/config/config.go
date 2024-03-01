@@ -305,6 +305,7 @@ func New() (*Config, error) {
 			},
 			ContainerdNamespace:       DefaultContainersNamespace,
 			ContainerdPluginNamespace: DefaultPluginNamespace,
+			Features:                  make(map[string]bool),
 			DefaultRuntime:            StockRuntimeName,
 			MinAPIVersion:             defaultMinAPIVersion,
 		},
