@@ -452,18 +452,8 @@ func UserModified(rcPath, rcHashPath string) (bool, error) {
 func (rc *ResolvConf) processLine(line string) {
 	fields := strings.Fields(line)
 
-	// Strip comments.
-	// TODO(robmry) - ignore comment chars except in column 0.
-	//   This preserves old behaviour, but it's wrong. For example, resolvers
-	//   will honour the option in line "options # ndots:0" (and ignore the
-	//   "#" as an unknown option).
-	for i, s := range fields {
-		if s[0] == '#' || s[0] == ';' {
-			fields = fields[:i]
-			break
-		}
-	}
-	if len(fields) == 0 {
+	// Strip blank lines and comments.
+	if len(fields) == 0 || fields[0][0] == '#' || fields[0][0] == ';' {
 		return
 	}
 
