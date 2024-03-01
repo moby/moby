@@ -82,7 +82,7 @@ func (c *Controller) deleteEndpointNameResolution(svcName, svcID, nID, eID, cont
 
 	// Delete container resolution mappings
 	if err := c.delContainerNameResolution(nID, eID, containerName, taskAliases, ip, method); err != nil {
-		log.G(context.TODO()).WithError(err).Warn("Error delting container from resolver")
+		log.G(context.TODO()).WithError(err).Warn("Error deleting container from resolver")
 	}
 
 	serviceID := svcID
