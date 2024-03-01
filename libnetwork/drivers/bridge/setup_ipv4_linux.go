@@ -32,10 +32,6 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	//             are decoupled, we should assign it only when it's really needed.
 	i.bridgeIPv4 = config.AddressIPv4
 
-	if config.Internal {
-		return nil
-	}
-
 	if !config.InhibitIPv4 {
 		addrv4List, err := i.addresses(netlink.FAMILY_V4)
 		if err != nil {
@@ -57,8 +53,10 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 		}
 	}
 
-	// Store the default gateway
-	i.gatewayIPv4 = config.AddressIPv4.IP
+	if !config.Internal {
+		// Store the default gateway
+		i.gatewayIPv4 = config.AddressIPv4.IP
+	}
 
 	return nil
 }
