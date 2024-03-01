@@ -263,7 +263,7 @@ options opt1 opt2 opt3`,
 			input: `nameserver 1.2.3.4
 options opt1 opt2
 options opt3 opt4`,
-			result: []string{"opt3", "opt4"},
+			result: []string{"opt1", "opt2", "opt3", "opt4"},
 		},
 	} {
 		test := GetOptions([]byte(tc.input))

@@ -480,10 +480,8 @@ func (rc *ResolvConf) processLine(line string) {
 		if len(fields) < 2 {
 			return
 		}
-		// Replace options from earlier directives.
-		// TODO(robmry) - preserving incorrect behaviour, options should accumulate.
-		//     rc.options = append(rc.options, fields[1:]...)
-		rc.options = fields[1:]
+		// Accumulate options.
+		rc.options = append(rc.options, fields[1:]...)
 	default:
 		// Copy anything that's not a recognised directive.
 		rc.other = append(rc.other, line)
