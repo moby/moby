@@ -32,6 +32,7 @@ func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
 }
 
 func TestCopyFromContainerPathIsNotDir(t *testing.T) {
+	skip.If(t, testEnv.UsingSnapshotter(), "FIXME: https://github.com/moby/moby/issues/47107")
 	ctx := setupTest(t)
 
 	apiClient := testEnv.APIClient()
