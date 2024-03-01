@@ -19,6 +19,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 * `POST /containers/create` now supports `VolumeOptions.Subpath` which allows a
   subpath of a named volume to be mounted.
+* `POST /images/search` will always assume a `false` value for the `is-automated`
+  field. Consequently, searching for `is-automated=true` will yield no results,
+  while `is-automated=false` will be a no-op.
 
 ## v1.44 API changes
 

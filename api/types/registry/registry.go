@@ -94,7 +94,7 @@ type SearchResult struct {
 	Name string `json:"name"`
 	// IsAutomated indicates whether the result is automated.
 	//
-	// Deprecated: the "is_automated" field is deprecated and will always be "false" in the future.
+	// Deprecated: the "is_automated" field is deprecated and will always be "false".
 	IsAutomated bool `json:"is_automated"`
 	// Description is a textual description of the repository
 	Description string `json:"description"`
