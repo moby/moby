@@ -221,15 +221,15 @@ func TestRCModify(t *testing.T) {
 				rc.OverrideSearch(tc.overrideSearch)
 				rc.OverrideOptions(tc.overrideOptions)
 
-				assert.Check(t, is.DeepEqual(rc.NameServers(), overrideNS, cmpopts.EquateComparable(netip.Addr{})))
-				assert.Check(t, is.DeepEqual(rc.Search(), tc.overrideSearch))
-				assert.Check(t, is.DeepEqual(rc.Options(), tc.overrideOptions))
+				assert.Check(t, is.DeepEqual(rc.NameServers(), overrideNS, cmpopts.EquateEmpty(), cmpopts.EquateComparable(netip.Addr{})))
+				assert.Check(t, is.DeepEqual(rc.Search(), tc.overrideSearch, cmpopts.EquateEmpty()))
+				assert.Check(t, is.DeepEqual(rc.Options(), tc.overrideOptions, cmpopts.EquateEmpty()))
 			}
 
 			if tc.addOption != "" {
 				options := rc.Options()
 				rc.AddOption(tc.addOption)
-				assert.Check(t, is.DeepEqual(rc.Options(), append(options, tc.addOption)))
+				assert.Check(t, is.DeepEqual(rc.Options(), append(options, tc.addOption), cmpopts.EquateEmpty()))
 			}
 
 			d := t.TempDir()
