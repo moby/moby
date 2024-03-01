@@ -65,6 +65,7 @@ const (
 	TypeAPL        uint16 = 42
 	TypeDS         uint16 = 43
 	TypeSSHFP      uint16 = 44
+	TypeIPSECKEY   uint16 = 45
 	TypeRRSIG      uint16 = 46
 	TypeNSEC       uint16 = 47
 	TypeDNSKEY     uint16 = 48
@@ -98,6 +99,7 @@ const (
 	TypeURI        uint16 = 256
 	TypeCAA        uint16 = 257
 	TypeAVC        uint16 = 258
+	TypeAMTRELAY   uint16 = 260
 
 	TypeTKEY uint16 = 249
 	TypeTSIG uint16 = 250
@@ -159,6 +161,22 @@ const (
 	ZoneMDHashAlgSHA512 = 2
 )
 
+// Used in IPSEC https://datatracker.ietf.org/doc/html/rfc4025#section-2.3
+const (
+	IPSECGatewayNone uint8 = iota
+	IPSECGatewayIPv4
+	IPSECGatewayIPv6
+	IPSECGatewayHost
+)
+
+// Used in AMTRELAY https://datatracker.ietf.org/doc/html/rfc8777#section-4.2.3
+const (
+	AMTRELAYNone = IPSECGatewayNone
+	AMTRELAYIPv4 = IPSECGatewayIPv4
+	AMTRELAYIPv6 = IPSECGatewayIPv6
+	AMTRELAYHost = IPSECGatewayHost
+)
+
 // Header is the wire format for the DNS packet header.
 type Header struct {
 	Id                                 uint16
@@ -180,7 +198,7 @@ const (
 	_CD = 1 << 4  // checking disabled
 )
 
-// Various constants used in the LOC RR. See RFC 1887.
+// Various constants used in the LOC RR. See RFC 1876.
 const (
 	LOC_EQUATOR       = 1 << 31 // RFC 1876, Section 2.
 	LOC_PRIMEMERIDIAN = 1 << 31 // RFC 1876, Section 2.
@@ -217,6 +235,9 @@ var CertTypeToString = map[uint16]string{
 	CertURI:     "URI",
 	CertOID:     "OID",
 }
+
+// Prefix for IPv4 encoded as IPv6 address
+const ipv4InIPv6Prefix = "::ffff:"
 
 //go:generate go run types_generate.go
 
@@ -613,8 +634,8 @@ func nextByte(s string, offset int) (byte, int) {
 		return 0, 0
 	case 2, 3: // too short to be \ddd
 	default: // maybe \ddd
-		if isDigit(s[offset+1]) && isDigit(s[offset+2]) && isDigit(s[offset+3]) {
-			return dddStringToByte(s[offset+1:]), 4
+		if isDDD(s[offset+1:]) {
+			return dddToByte(s[offset+1:]), 4
 		}
 	}
 	// not \ddd, just an RFC 1035 "quoted" character
@@ -733,6 +754,11 @@ func (rr *AAAA) String() string {
 	if rr.AAAA == nil {
 		return rr.Hdr.String()
 	}
+
+	if rr.AAAA.To4() != nil {
+		return rr.Hdr.String() + ipv4InIPv6Prefix + rr.AAAA.String()
+	}
+
 	return rr.Hdr.String() + rr.AAAA.String()
 }
 
@@ -774,7 +800,10 @@ type LOC struct {
 
 // cmToM takes a cm value expressed in RFC 1876 SIZE mantissa/exponent
 // format and returns a string in m (two decimals for the cm).
-func cmToM(m, e uint8) string {
+func cmToM(x uint8) string {
+	m := x & 0xf0 >> 4
+	e := x & 0x0f
+
 	if e < 2 {
 		if e == 1 {
 			m *= 10
@@ -830,10 +859,9 @@ func (rr *LOC) String() string {
 		s += fmt.Sprintf("%.0fm ", alt)
 	}
 
-	s += cmToM(rr.Size&0xf0>>4, rr.Size&0x0f) + "m "
-	s += cmToM(rr.HorizPre&0xf0>>4, rr.HorizPre&0x0f) + "m "
-	s += cmToM(rr.VertPre&0xf0>>4, rr.VertPre&0x0f) + "m"
-
+	s += cmToM(rr.Size) + "m "
+	s += cmToM(rr.HorizPre) + "m "
+	s += cmToM(rr.VertPre) + "m"
 	return s
 }
 
@@ -992,6 +1020,69 @@ func (rr *DNSKEY) String() string {
 		" " + strconv.Itoa(int(rr.Protocol)) +
 		" " + strconv.Itoa(int(rr.Algorithm)) +
 		" " + rr.PublicKey
+}
+
+// IPSECKEY RR. See RFC 4025.
+type IPSECKEY struct {
+	Hdr         RR_Header
+	Precedence  uint8
+	GatewayType uint8
+	Algorithm   uint8
+	GatewayAddr net.IP `dns:"-"` // packing/unpacking/parsing/etc handled together with GatewayHost
+	GatewayHost string `dns:"ipsechost"`
+	PublicKey   string `dns:"base64"`
+}
+
+func (rr *IPSECKEY) String() string {
+	var gateway string
+	switch rr.GatewayType {
+	case IPSECGatewayIPv4, IPSECGatewayIPv6:
+		gateway = rr.GatewayAddr.String()
+	case IPSECGatewayHost:
+		gateway = rr.GatewayHost
+	case IPSECGatewayNone:
+		fallthrough
+	default:
+		gateway = "."
+	}
+
+	return rr.Hdr.String() + strconv.Itoa(int(rr.Precedence)) +
+		" " + strconv.Itoa(int(rr.GatewayType)) +
+		" " + strconv.Itoa(int(rr.Algorithm)) +
+		" " + gateway +
+		" " + rr.PublicKey
+}
+
+// AMTRELAY RR. See RFC 8777.
+type AMTRELAY struct {
+	Hdr         RR_Header
+	Precedence  uint8
+	GatewayType uint8  // discovery is packed in here at bit 0x80
+	GatewayAddr net.IP `dns:"-"` // packing/unpacking/parsing/etc handled together with GatewayHost
+	GatewayHost string `dns:"amtrelayhost"`
+}
+
+func (rr *AMTRELAY) String() string {
+	var gateway string
+	switch rr.GatewayType & 0x7f {
+	case AMTRELAYIPv4, AMTRELAYIPv6:
+		gateway = rr.GatewayAddr.String()
+	case AMTRELAYHost:
+		gateway = rr.GatewayHost
+	case AMTRELAYNone:
+		fallthrough
+	default:
+		gateway = "."
+	}
+	boolS := "0"
+	if rr.GatewayType&0x80 == 0x80 {
+		boolS = "1"
+	}
+
+	return rr.Hdr.String() + strconv.Itoa(int(rr.Precedence)) +
+		" " + boolS +
+		" " + strconv.Itoa(int(rr.GatewayType&0x7f)) +
+		" " + gateway
 }
 
 // RKEY RR. See https://www.iana.org/assignments/dns-parameters/RKEY/rkey-completed-template.
@@ -1434,7 +1525,7 @@ func (a *APLPrefix) str() string {
 	case net.IPv6len:
 		// add prefix for IPv4-mapped IPv6
 		if v4 := a.Network.IP.To4(); v4 != nil {
-			sb.WriteString("::ffff:")
+			sb.WriteString(ipv4InIPv6Prefix)
 		}
 		sb.WriteString(a.Network.IP.String())
 	}
@@ -1450,7 +1541,7 @@ func (a *APLPrefix) str() string {
 // equals reports whether two APL prefixes are identical.
 func (a *APLPrefix) equals(b *APLPrefix) bool {
 	return a.Negation == b.Negation &&
-		bytes.Equal(a.Network.IP, b.Network.IP) &&
+		a.Network.IP.Equal(b.Network.IP) &&
 		bytes.Equal(a.Network.Mask, b.Network.Mask)
 }
 
@@ -1518,21 +1609,19 @@ func euiToString(eui uint64, bits int) (hex string) {
 	return
 }
 
-// copyIP returns a copy of ip.
-func copyIP(ip net.IP) net.IP {
-	p := make(net.IP, len(ip))
-	copy(p, ip)
-	return p
+// cloneSlice returns a shallow copy of s.
+func cloneSlice[E any, S ~[]E](s S) S {
+	if s == nil {
+		return nil
+	}
+	return append(S(nil), s...)
 }
 
 // copyNet returns a copy of a subnet.
 func copyNet(n net.IPNet) net.IPNet {
-	m := make(net.IPMask, len(n.Mask))
-	copy(m, n.Mask)
-
 	return net.IPNet{
-		IP:   copyIP(n.IP),
-		Mask: m,
+		IP:   cloneSlice(n.IP),
+		Mask: cloneSlice(n.Mask),
 	}
 }
 

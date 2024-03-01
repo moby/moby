@@ -10,13 +10,13 @@ import (
 	"strings"
 )
 
-const maxTok = 2048 // Largest token we can return.
+const maxTok = 512 // Token buffer start size, and growth size amount.
 
 // The maximum depth of $INCLUDE directives supported by the
 // ZoneParser API.
 const maxIncludeDepth = 7
 
-// Tokinize a RFC 1035 zone file. The tokenizer will normalize it:
+// Tokenize a RFC 1035 zone file. The tokenizer will normalize it:
 // * Add ownernames if they are left blank;
 // * Suppress sequences of spaces;
 // * Make each RR fit on one line (_NEWLINE is send as last)
@@ -605,8 +605,6 @@ func (zp *ZoneParser) Next() (RR, bool) {
 			if !isPrivate && zp.c.Peek().token == "" {
 				// This is a dynamic update rr.
 
-				// TODO(tmthrgd): Previously slurpRemainder was only called
-				// for certain RR types, which may have been important.
 				if err := slurpRemainder(zp.c); err != nil {
 					return zp.setParseError(err.err, err.lex)
 				}
@@ -765,8 +763,8 @@ func (zl *zlexer) Next() (lex, bool) {
 	}
 
 	var (
-		str [maxTok]byte // Hold string text
-		com [maxTok]byte // Hold comment text
+		str = make([]byte, maxTok) // Hold string text
+		com = make([]byte, maxTok) // Hold comment text
 
 		stri int // Offset in str (0 means empty)
 		comi int // Offset in com (0 means empty)
@@ -785,14 +783,12 @@ func (zl *zlexer) Next() (lex, bool) {
 		l.line, l.column = zl.line, zl.column
 
 		if stri >= len(str) {
-			l.token = "token length insufficient for parsing"
-			l.err = true
-			return *l, true
+			// if buffer length is insufficient, increase it.
+			str = append(str[:], make([]byte, maxTok)...)
 		}
 		if comi >= len(com) {
-			l.token = "comment length insufficient for parsing"
-			l.err = true
-			return *l, true
+			// if buffer length is insufficient, increase it.
+			com = append(com[:], make([]byte, maxTok)...)
 		}
 
 		switch x {
@@ -816,7 +812,7 @@ func (zl *zlexer) Next() (lex, bool) {
 			if stri == 0 {
 				// Space directly in the beginning, handled in the grammar
 			} else if zl.owner {
-				// If we have a string and its the first, make it an owner
+				// If we have a string and it's the first, make it an owner
 				l.value = zOwner
 				l.token = string(str[:stri])
 
@@ -1218,42 +1214,34 @@ func stringToCm(token string) (e, m uint8, ok bool) {
 	if token[len(token)-1] == 'M' || token[len(token)-1] == 'm' {
 		token = token[0 : len(token)-1]
 	}
-	s := strings.SplitN(token, ".", 2)
-	var meters, cmeters, val int
-	var err error
-	switch len(s) {
-	case 2:
-		if cmeters, err = strconv.Atoi(s[1]); err != nil {
-			return
-		}
+
+	var (
+		meters, cmeters, val int
+		err                  error
+	)
+	mStr, cmStr, hasCM := strings.Cut(token, ".")
+	if hasCM {
 		// There's no point in having more than 2 digits in this part, and would rather make the implementation complicated ('123' should be treated as '12').
 		// So we simply reject it.
 		// We also make sure the first character is a digit to reject '+-' signs.
-		if len(s[1]) > 2 || s[1][0] < '0' || s[1][0] > '9' {
+		cmeters, err = strconv.Atoi(cmStr)
+		if err != nil || len(cmStr) > 2 || cmStr[0] < '0' || cmStr[0] > '9' {
 			return
 		}
-		if len(s[1]) == 1 {
+		if len(cmStr) == 1 {
 			// 'nn.1' must be treated as 'nn-meters and 10cm, not 1cm.
 			cmeters *= 10
 		}
-		if s[0] == "" {
-			// This will allow omitting the 'meter' part, like .01 (meaning 0.01m = 1cm).
-			break
-		}
-		fallthrough
-	case 1:
-		if meters, err = strconv.Atoi(s[0]); err != nil {
-			return
-		}
-		// RFC1876 states the max value is 90000000.00.  The latter two conditions enforce it.
-		if s[0][0] < '0' || s[0][0] > '9' || meters > 90000000 || (meters == 90000000 && cmeters != 0) {
-			return
-		}
-	case 0:
-		// huh?
-		return 0, 0, false
 	}
-	ok = true
+	// This slighly ugly condition will allow omitting the 'meter' part, like .01 (meaning 0.01m = 1cm).
+	if !hasCM || mStr != "" {
+		meters, err = strconv.Atoi(mStr)
+		// RFC1876 states the max value is 90000000.00.  The latter two conditions enforce it.
+		if err != nil || mStr[0] < '0' || mStr[0] > '9' || meters > 90000000 || (meters == 90000000 && cmeters != 0) {
+			return
+		}
+	}
+
 	if meters > 0 {
 		e = 2
 		val = meters
@@ -1265,8 +1253,7 @@ func stringToCm(token string) (e, m uint8, ok bool) {
 		e++
 		val /= 10
 	}
-	m = uint8(val)
-	return
+	return e, uint8(val), true
 }
 
 func toAbsoluteName(name, origin string) (absolute string, ok bool) {

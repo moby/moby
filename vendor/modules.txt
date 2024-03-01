@@ -687,8 +687,8 @@ github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/matttproud/golang_protobuf_extensions v1.0.4
 ## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
-# github.com/miekg/dns v1.1.43
-## explicit; go 1.14
+# github.com/miekg/dns v1.1.57
+## explicit; go 1.19
 github.com/miekg/dns
 # github.com/mistifyio/go-zfs/v3 v3.0.1
 ## explicit; go 1.14
