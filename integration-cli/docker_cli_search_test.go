@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 type DockerCLISearchSuite struct {
@@ -52,9 +53,9 @@ func (s *DockerCLISearchSuite) TestSearchCmdOptions(c *testing.T) {
 
 	outSearchCmdautomated := cli.DockerCmd(c, "search", "--filter", "is-automated=true", "busybox").Combined() // The busybox is a busybox base image, not an AUTOMATED image.
 	outSearchCmdautomatedSlice := strings.Split(outSearchCmdautomated, "\n")
-	for i := range outSearchCmdautomatedSlice {
-		assert.Assert(c, !strings.HasPrefix(outSearchCmdautomatedSlice[i], "busybox "), "The busybox is not an AUTOMATED image: %s", outSearchCmdautomated)
-	}
+
+	// is-automated=true should produce no results (only a header)
+	assert.Check(c, is.Len(outSearchCmdautomatedSlice, 2))
 
 	outSearchCmdNotOfficial := cli.DockerCmd(c, "search", "--filter", "is-official=false", "busybox").Combined() // The busybox is a busybox base image, official image.
 	outSearchCmdNotOfficialSlice := strings.Split(outSearchCmdNotOfficial, "\n")

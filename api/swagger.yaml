@@ -8774,8 +8774,7 @@ paths:
 
                     <p><br /></p>
 
-                    > **Deprecated**: This field is deprecated and will always
-                    > be "false" in future.
+                    > **Deprecated**: This field is deprecated and will always be "false".
                   type: "boolean"
                   example: false
                 name:
@@ -8818,13 +8817,8 @@ paths:
           description: |
             A JSON encoded value of the filters (a `map[string][]string`) to process on the images list. Available filters:
 
-            - `is-automated=(true|false)` (deprecated, see below)
             - `is-official=(true|false)`
             - `stars=<number>` Matches images that has at least 'number' stars.
-
-            The `is-automated` filter is deprecated. The `is_automated` field has
-            been deprecated by Docker Hub's search API. Consequently, searching
-            for `is-automated=true` will yield no results.
           type: "string"
       tags: ["Image"]
   /images/prune:
