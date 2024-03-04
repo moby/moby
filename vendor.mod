@@ -57,7 +57,7 @@ require (
 	github.com/hashicorp/serf v0.8.5
 	github.com/ishidawataru/sctp v0.0.0-20230406120618-7ff4192f6ff2
 	github.com/klauspost/compress v1.17.4
-	github.com/miekg/dns v1.1.43
+	github.com/miekg/dns v1.1.57
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/moby/buildkit v0.13.0-rc3

@@ -10,16 +10,13 @@ type MsgAcceptFunc func(dh Header) MsgAcceptAction
 //
 // * opcode isn't OpcodeQuery or OpcodeNotify
 //
-// * Zero bit isn't zero
-//
-// * has more than 1 question in the question section
+// * does not have exactly 1 question in the question section
 //
 // * has more than 1 RR in the Answer section
 //
 // * has more than 0 RRs in the Authority section
 //
 // * has more than 2 RRs in the Additional section
-//
 var DefaultMsgAcceptFunc MsgAcceptFunc = defaultMsgAcceptFunc
 
 // MsgAcceptAction represents the action to be taken.

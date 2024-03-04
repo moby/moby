@@ -13,28 +13,28 @@ names in a message will result in a packing failure.
 Resource records are native types. They are not stored in wire format. Basic
 usage pattern for creating a new resource record:
 
-     r := new(dns.MX)
-     r.Hdr = dns.RR_Header{Name: "miek.nl.", Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: 3600}
-     r.Preference = 10
-     r.Mx = "mx.miek.nl."
+	r := new(dns.MX)
+	r.Hdr = dns.RR_Header{Name: "miek.nl.", Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: 3600}
+	r.Preference = 10
+	r.Mx = "mx.miek.nl."
 
 Or directly from a string:
 
-     mx, err := dns.NewRR("miek.nl. 3600 IN MX 10 mx.miek.nl.")
+	mx, err := dns.NewRR("miek.nl. 3600 IN MX 10 mx.miek.nl.")
 
 Or when the default origin (.) and TTL (3600) and class (IN) suit you:
 
-     mx, err := dns.NewRR("miek.nl MX 10 mx.miek.nl")
+	mx, err := dns.NewRR("miek.nl MX 10 mx.miek.nl")
 
 Or even:
 
-     mx, err := dns.NewRR("$ORIGIN nl.\nmiek 1H IN MX 10 mx.miek")
+	mx, err := dns.NewRR("$ORIGIN nl.\nmiek 1H IN MX 10 mx.miek")
 
 In the DNS messages are exchanged, these messages contain resource records
 (sets). Use pattern for creating a message:
 
-     m := new(dns.Msg)
-     m.SetQuestion("miek.nl.", dns.TypeMX)
+	m := new(dns.Msg)
+	m.SetQuestion("miek.nl.", dns.TypeMX)
 
 Or when not certain if the domain name is fully qualified:
 
@@ -45,17 +45,17 @@ records for the miek.nl. zone.
 
 The following is slightly more verbose, but more flexible:
 
-     m1 := new(dns.Msg)
-     m1.Id = dns.Id()
-     m1.RecursionDesired = true
-     m1.Question = make([]dns.Question, 1)
-     m1.Question[0] = dns.Question{"miek.nl.", dns.TypeMX, dns.ClassINET}
+	m1 := new(dns.Msg)
+	m1.Id = dns.Id()
+	m1.RecursionDesired = true
+	m1.Question = make([]dns.Question, 1)
+	m1.Question[0] = dns.Question{"miek.nl.", dns.TypeMX, dns.ClassINET}
 
 After creating a message it can be sent. Basic use pattern for synchronous
 querying the DNS at a server configured on 127.0.0.1 and port 53:
 
-     c := new(dns.Client)
-     in, rtt, err := c.Exchange(m1, "127.0.0.1:53")
+	c := new(dns.Client)
+	in, rtt, err := c.Exchange(m1, "127.0.0.1:53")
 
 Suppressing multiple outstanding queries (with the same question, type and
 class) is as easy as setting:
@@ -72,7 +72,7 @@ and port to use for the connection:
 		Port: 12345,
 		Zone: "",
 	}
-	c.Dialer := &net.Dialer{
+	c.Dialer = &net.Dialer{
 		Timeout: 200 * time.Millisecond,
 		LocalAddr: &laddr,
 	}
@@ -96,7 +96,7 @@ the Answer section:
 		// do something with t.Txt
 	}
 
-Domain Name and TXT Character String Representations
+# Domain Name and TXT Character String Representations
 
 Both domain names and TXT character strings are converted to presentation form
 both when unpacked and when converted to strings.
@@ -108,7 +108,7 @@ be escaped. Bytes below 32 and above 127 will be converted to \DDD form.
 For domain names, in addition to the above rules brackets, periods, spaces,
 semicolons and the at symbol are escaped.
 
-DNSSEC
+# DNSSEC
 
 DNSSEC (DNS Security Extension) adds a layer of security to the DNS. It uses
 public key cryptography to sign resource records. The public keys are stored in
@@ -117,12 +117,12 @@ DNSKEY records and the signatures in RRSIG records.
 Requesting DNSSEC information for a zone is done by adding the DO (DNSSEC OK)
 bit to a request.
 
-     m := new(dns.Msg)
-     m.SetEdns0(4096, true)
+	m := new(dns.Msg)
+	m.SetEdns0(4096, true)
 
 Signature generation, signature verification and key generation are all supported.
 
-DYNAMIC UPDATES
+# DYNAMIC UPDATES
 
 Dynamic updates reuses the DNS message format, but renames three of the
 sections. Question is Zone, Answer is Prerequisite, Authority is Update, only
@@ -133,30 +133,30 @@ certain resource records or names in a zone to specify if resource records
 should be added or removed. The table from RFC 2136 supplemented with the Go
 DNS function shows which functions exist to specify the prerequisites.
 
- 3.2.4 - Table Of Metavalues Used In Prerequisite Section
+	3.2.4 - Table Of Metavalues Used In Prerequisite Section
 
-  CLASS    TYPE     RDATA    Meaning                    Function
-  --------------------------------------------------------------
-  ANY      ANY      empty    Name is in use             dns.NameUsed
-  ANY      rrset    empty    RRset exists (value indep) dns.RRsetUsed
-  NONE     ANY      empty    Name is not in use         dns.NameNotUsed
-  NONE     rrset    empty    RRset does not exist       dns.RRsetNotUsed
-  zone     rrset    rr       RRset exists (value dep)   dns.Used
+	 CLASS    TYPE     RDATA    Meaning                    Function
+	 --------------------------------------------------------------
+	 ANY      ANY      empty    Name is in use             dns.NameUsed
+	 ANY      rrset    empty    RRset exists (value indep) dns.RRsetUsed
+	 NONE     ANY      empty    Name is not in use         dns.NameNotUsed
+	 NONE     rrset    empty    RRset does not exist       dns.RRsetNotUsed
+	 zone     rrset    rr       RRset exists (value dep)   dns.Used
 
 The prerequisite section can also be left empty. If you have decided on the
 prerequisites you can tell what RRs should be added or deleted. The next table
 shows the options you have and what functions to call.
 
- 3.4.2.6 - Table Of Metavalues Used In Update Section
+	3.4.2.6 - Table Of Metavalues Used In Update Section
 
-  CLASS    TYPE     RDATA    Meaning                     Function
-  ---------------------------------------------------------------
-  ANY      ANY      empty    Delete all RRsets from name dns.RemoveName
-  ANY      rrset    empty    Delete an RRset             dns.RemoveRRset
-  NONE     rrset    rr       Delete an RR from RRset     dns.Remove
-  zone     rrset    rr       Add to an RRset             dns.Insert
+	 CLASS    TYPE     RDATA    Meaning                     Function
+	 ---------------------------------------------------------------
+	 ANY      ANY      empty    Delete all RRsets from name dns.RemoveName
+	 ANY      rrset    empty    Delete an RRset             dns.RemoveRRset
+	 NONE     rrset    rr       Delete an RR from RRset     dns.Remove
+	 zone     rrset    rr       Add to an RRset             dns.Insert
 
-TRANSACTION SIGNATURE
+# TRANSACTION SIGNATURE
 
 An TSIG or transaction signature adds a HMAC TSIG record to each message sent.
 The supported algorithms include: HmacSHA1, HmacSHA256 and HmacSHA512.
@@ -239,7 +239,7 @@ Basic use pattern validating and replying to a message that has TSIG set.
 		w.WriteMsg(m)
 	}
 
-PRIVATE RRS
+# PRIVATE RRS
 
 RFC 6895 sets aside a range of type codes for private use. This range is 65,280
 - 65,534 (0xFF00 - 0xFFFE). When experimenting with new Resource Records these
@@ -248,10 +248,10 @@ can be used, before requesting an official type code from IANA.
 See https://miek.nl/2014/september/21/idn-and-private-rr-in-go-dns/ for more
 information.
 
-EDNS0
+# EDNS0
 
 EDNS0 is an extension mechanism for the DNS defined in RFC 2671 and updated by
-RFC 6891. It defines an new RR type, the OPT RR, which is then completely
+RFC 6891. It defines a new RR type, the OPT RR, which is then completely
 abused.
 
 Basic use pattern for creating an (empty) OPT RR:
@@ -279,9 +279,9 @@ SIG(0)
 
 From RFC 2931:
 
-    SIG(0) provides protection for DNS transactions and requests ....
-    ... protection for glue records, DNS requests, protection for message headers
-    on requests and responses, and protection of the overall integrity of a response.
+	SIG(0) provides protection for DNS transactions and requests ....
+	... protection for glue records, DNS requests, protection for message headers
+	on requests and responses, and protection of the overall integrity of a response.
 
 It works like TSIG, except that SIG(0) uses public key cryptography, instead of
 the shared secret approach in TSIG. Supported algorithms: ECDSAP256SHA256,

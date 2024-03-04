@@ -22,8 +22,7 @@ func (dns *Msg) SetReply(request *Msg) *Msg {
 	}
 	dns.Rcode = RcodeSuccess
 	if len(request.Question) > 0 {
-		dns.Question = make([]Question, 1)
-		dns.Question[0] = request.Question[0]
+		dns.Question = []Question{request.Question[0]}
 	}
 	return dns
 }
@@ -208,7 +207,7 @@ func IsDomainName(s string) (labels int, ok bool) {
 			}
 
 			// check for \DDD
-			if i+3 < len(s) && isDigit(s[i+1]) && isDigit(s[i+2]) && isDigit(s[i+3]) {
+			if isDDD(s[i+1:]) {
 				i += 3
 				begin += 3
 			} else {
@@ -218,6 +217,11 @@ func IsDomainName(s string) (labels int, ok bool) {
 
 			wasDot = false
 		case '.':
+			if i == 0 && len(s) > 1 {
+				// leading dots are not legal except for the root zone
+				return labels, false
+			}
+
 			if wasDot {
 				// two dots back to back is not legal
 				return labels, false
@@ -267,40 +271,39 @@ func IsMsg(buf []byte) error {
 
 // IsFqdn checks if a domain name is fully qualified.
 func IsFqdn(s string) bool {
-	s2 := strings.TrimSuffix(s, ".")
-	if s == s2 {
+	// Check for (and remove) a trailing dot, returning if there isn't one.
+	if s == "" || s[len(s)-1] != '.' {
 		return false
 	}
+	s = s[:len(s)-1]
 
-	i := strings.LastIndexFunc(s2, func(r rune) bool {
+	// If we don't have an escape sequence before the final dot, we know it's
+	// fully qualified and can return here.
+	if s == "" || s[len(s)-1] != '\\' {
+		return true
+	}
+
+	// Otherwise we have to check if the dot is escaped or not by checking if
+	// there are an odd or even number of escape sequences before the dot.
+	i := strings.LastIndexFunc(s, func(r rune) bool {
 		return r != '\\'
 	})
-
-	// Test whether we have an even number of escape sequences before
-	// the dot or none.
-	return (len(s2)-i)%2 != 0
+	return (len(s)-i)%2 != 0
 }
 
-// IsRRset checks if a set of RRs is a valid RRset as defined by RFC 2181.
-// This means the RRs need to have the same type, name, and class. Returns true
-// if the RR set is valid, otherwise false.
+// IsRRset reports whether a set of RRs is a valid RRset as defined by RFC 2181.
+// This means the RRs need to have the same type, name, and class.
 func IsRRset(rrset []RR) bool {
 	if len(rrset) == 0 {
 		return false
 	}
-	if len(rrset) == 1 {
-		return true
-	}
-	rrHeader := rrset[0].Header()
-	rrType := rrHeader.Rrtype
-	rrClass := rrHeader.Class
-	rrName := rrHeader.Name
 
+	baseH := rrset[0].Header()
 	for _, rr := range rrset[1:] {
-		curRRHeader := rr.Header()
-		if curRRHeader.Rrtype != rrType || curRRHeader.Class != rrClass || curRRHeader.Name != rrName {
+		curH := rr.Header()
+		if curH.Rrtype != baseH.Rrtype || curH.Class != baseH.Class || curH.Name != baseH.Name {
 			// Mismatch between the records, so this is not a valid rrset for
-			//signing/verifying
+			// signing/verifying
 			return false
 		}
 	}
@@ -318,9 +321,15 @@ func Fqdn(s string) string {
 }
 
 // CanonicalName returns the domain name in canonical form. A name in canonical
-// form is lowercase and fully qualified. See Section 6.2 in RFC 4034.
+// form is lowercase and fully qualified. Only US-ASCII letters are affected. See
+// Section 6.2 in RFC 4034.
 func CanonicalName(s string) string {
-	return strings.ToLower(Fqdn(s))
+	return strings.Map(func(r rune) rune {
+		if r >= 'A' && r <= 'Z' {
+			r += 'a' - 'A'
+		}
+		return r
+	}, Fqdn(s))
 }
 
 // Copied from the official Go code.
