@@ -610,8 +610,8 @@ github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6L
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=
 github.com/rogpeppe/go-internal v1.10.0/go.mod h1:UQnix2H7Ngw/k4C5ijL5+65zddjncjaFoBhdsK/akog=
-github.com/rootless-containers/rootlesskit/v2 v2.0.1 h1:yMUDTn9dMWtTkccosPDJpMVxjhmEjSD6jYyaePCXshg=
-github.com/rootless-containers/rootlesskit/v2 v2.0.1/go.mod h1:ZwETpgA/DPizAF7Zdui4ZHOfYK5rZ4Z4SUO6omyZVfY=
+github.com/rootless-containers/rootlesskit/v2 v2.0.2 h1:wztWcDYFlk+EVAUuPJwlNMFXZIk1G14T45lv47WWGuA=
+github.com/rootless-containers/rootlesskit/v2 v2.0.2/go.mod h1:hE+ztevrQxNi+tdZyPKumzDk7VKDAf0E4seOzlOyBsY=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=
