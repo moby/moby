@@ -916,6 +916,13 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 
 	createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOptions))
 
+	// IPv6 may be enabled on the network, but disabled in the container.
+	if n.IPv6Enabled() {
+		if sbIPv6, ok := sb.IPv6Enabled(); ok && !sbIPv6 {
+			createOptions = append(createOptions, libnetwork.CreateOptionDisableIPv6())
+		}
+	}
+
 	return createOptions, nil
 }
 

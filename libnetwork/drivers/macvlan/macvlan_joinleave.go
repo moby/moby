@@ -67,7 +67,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 				ep.addr.IP.String(), v4gw.String(), n.config.MacvlanMode, n.config.Parent)
 		}
 		// parse and match the endpoint address with the available v6 subnets
-		if len(n.config.Ipv6Subnets) > 0 {
+		if ep.addrv6 != nil && len(n.config.Ipv6Subnets) > 0 {
 			s := n.getSubnetforIPv6(ep.addrv6)
 			if s == nil {
 				return fmt.Errorf("could not find a valid ipv6 subnet for endpoint %s", eid)

@@ -141,7 +141,7 @@ func (sb *Sandbox) buildHostsFile() error {
 
 	// Assume IPv6 support, unless it's definitely disabled.
 	buildf := etchosts.Build
-	if en, ok := sb.ipv6Enabled(); ok && !en {
+	if en, ok := sb.IPv6Enabled(); ok && !en {
 		buildf = etchosts.BuildNoIPv6
 	}
 	if err := buildf(sb.config.hostsPath, extraContent); err != nil {
@@ -186,7 +186,7 @@ func (sb *Sandbox) updateHostsFile(ctx context.Context, ifaceIPs []string) error
 
 func (sb *Sandbox) addHostsEntries(recs []etchosts.Record) {
 	// Assume IPv6 support, unless it's definitely disabled.
-	if en, ok := sb.ipv6Enabled(); ok && !en {
+	if en, ok := sb.IPv6Enabled(); ok && !en {
 		var filtered []etchosts.Record
 		for _, rec := range recs {
 			if addr, err := netip.ParseAddr(rec.IP); err == nil && !addr.Is6() {
