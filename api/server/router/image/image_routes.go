@@ -423,10 +423,17 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		sharedSize = httputils.BoolValue(r, "shared-size")
 	}
 
+	var containerCount bool
+	if versions.GreaterThanOrEqualTo(version, "1.47") {
+		// NOTE: Support for the "container-count" parameter was added in API 1.47.
+		containerCount = httputils.BoolValue(r, "container-count")
+	}
+
 	images, err := ir.backend.Images(ctx, imagetypes.ListOptions{
-		All:        httputils.BoolValue(r, "all"),
-		Filters:    imageFilters,
-		SharedSize: sharedSize,
+		All:            httputils.BoolValue(r, "all"),
+		Filters:        imageFilters,
+		SharedSize:     sharedSize,
+		ContainerCount: containerCount,
 	})
 	if err != nil {
 		return err
