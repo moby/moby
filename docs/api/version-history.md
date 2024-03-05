@@ -29,6 +29,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   query parameter to `true`.
   WARNING: This is experimental and may change at any time without any backward
   compatibility.
+* `GET /images/json` now accepts query parameter `container-count`. When set `true`,
+  images returned will include `Containers`, which provides the count of containers
+  using the image.
 
 ## v1.46 API changes
 
