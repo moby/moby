@@ -409,10 +409,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 	image.Manifests = summary.Manifests
 	target := img.Target
 	image.Descriptor = &target
-
-	if opts.ContainerCount {
-		image.Containers = summary.ContainersCount
-	}
+	image.Containers = summary.ContainersCount
 	return image, summary, nil
 }
 
