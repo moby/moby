@@ -17,6 +17,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.51](https://docs.docker.com/reference/api/engine/version/v1.51/) documentation
 
+* `GET /images/json` now accepts query parameter `container-count`. When set `true`,
+  images returned will include `Containers`, which provides the count of containers
+  using the image.
 
 ## v1.50 API changes
 
