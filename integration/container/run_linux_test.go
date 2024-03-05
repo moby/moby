@@ -353,6 +353,51 @@ func TestWorkingDirNormalization(t *testing.T) {
 
 			assert.Check(t, is.Equal(inspect.Config.WorkingDir, "/tmp"))
 		})
+	}
+}
 
+func TestSeccomp(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const confined = `{
+ "defaultAction": "SCMP_ACT_ALLOW",
+ "syscalls": [ { "names": [ "chown", "chown32", "fchownat" ], "action": "SCMP_ACT_ERRNO" } ]
+}
+`
+	type testCase struct {
+		ops              []func(*container.TestContainerConfig)
+		expectedExitCode int
+	}
+	testCases := []testCase{
+		{
+			ops:              nil,
+			expectedExitCode: 0,
+		},
+		{
+			ops:              []func(*container.TestContainerConfig){container.WithPrivileged(true)},
+			expectedExitCode: 0,
+		},
+		{
+			ops:              []func(*container.TestContainerConfig){container.WithSecurityOpt("seccomp=" + confined)},
+			expectedExitCode: 1,
+		},
+		{
+			// A custom profile should be still enabled, even when --privileged is set
+			// https://github.com/moby/moby/issues/47499
+			ops:              []func(*container.TestContainerConfig){container.WithPrivileged(true), container.WithSecurityOpt("seccomp=" + confined)},
+			expectedExitCode: 1,
+		},
+	}
+	for _, tc := range testCases {
+		cID := container.Run(ctx, t, apiClient, tc.ops...)
+		res, err := container.Exec(ctx, apiClient, cID, []string{"chown", "42", "/bin/true"})
+		assert.NilError(t, err)
+		assert.Equal(t, tc.expectedExitCode, res.ExitCode)
+		if tc.expectedExitCode != 0 {
+			assert.Check(t, is.Contains(res.Stderr(), "Operation not permitted"))
+		}
 	}
 }
