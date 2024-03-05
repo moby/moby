@@ -30,3 +30,8 @@ func (sb *Sandbox) populateNetworkResources(*Endpoint) error {
 	// not implemented on Windows (Sandbox.osSbox is always nil)
 	return nil
 }
+
+func (sb *Sandbox) IPv6Enabled() (enabled, ok bool) {
+	// None of the Windows container network drivers currently support IPv6.
+	return false, true
+}
