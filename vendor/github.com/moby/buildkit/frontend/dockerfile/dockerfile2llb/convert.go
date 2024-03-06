@@ -1252,16 +1252,28 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 				a = a.Copy(st, f, dest, opts...)
 			}
 		} else {
+			var patterns []string
+			if cfg.parents {
+				// detect optional pivot point
+				parent, pattern, ok := strings.Cut(src, "/./")
+				if !ok {
+					pattern = src
+					src = "/"
+				} else {
+					src = parent
+				}
+
+				pattern, err = system.NormalizePath("/", pattern, d.platform.OS, false)
+				if err != nil {
+					return errors.Wrap(err, "removing drive letter")
+				}
+
+				patterns = []string{strings.TrimPrefix(pattern, "/")}
+			}
+
 			src, err = system.NormalizePath("/", src, d.platform.OS, false)
 			if err != nil {
 				return errors.Wrap(err, "removing drive letter")
-			}
-
-			var patterns []string
-			if cfg.parents {
-				path := strings.TrimPrefix(src, "/")
-				patterns = []string{path}
-				src = "/"
 			}
 
 			opts := append([]llb.CopyOption{&llb.CopyInfo{

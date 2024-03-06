@@ -9,12 +9,12 @@ import (
 	"syscall"
 
 	"github.com/containernetworking/plugins/pkg/ns"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/util/bklog"
-	"github.com/moby/buildkit/util/network"
 	"github.com/pkg/errors"
 )
 
-func (ns *cniNS) sample() (*network.Sample, error) {
+func (ns *cniNS) sample() (*resourcestypes.NetworkSample, error) {
 	dirfd, err := syscall.Open(filepath.Join("/sys/class/net", ns.vethName, "statistics"), syscall.O_RDONLY, 0)
 	if err != nil {
 		if errors.Is(err, syscall.ENOENT) || errors.Is(err, syscall.ENOTDIR) {
@@ -25,7 +25,7 @@ func (ns *cniNS) sample() (*network.Sample, error) {
 	defer syscall.Close(dirfd)
 
 	buf := make([]byte, 32)
-	stat := &network.Sample{}
+	stat := &resourcestypes.NetworkSample{}
 
 	for _, name := range []string{"tx_bytes", "rx_bytes", "tx_packets", "rx_packets", "tx_errors", "rx_errors", "tx_dropped", "rx_dropped"} {
 		n, err := readFileAt(dirfd, name, buf)

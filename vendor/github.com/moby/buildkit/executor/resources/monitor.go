@@ -12,7 +12,6 @@ import (
 
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/util/bklog"
-	"github.com/moby/buildkit/util/network"
 	"github.com/prometheus/procfs"
 )
 
@@ -182,7 +181,7 @@ type Monitor struct {
 }
 
 type NetworkSampler interface {
-	Sample() (*network.Sample, error)
+	Sample() (*resourcestypes.NetworkSample, error)
 }
 
 type RecordOpt struct {

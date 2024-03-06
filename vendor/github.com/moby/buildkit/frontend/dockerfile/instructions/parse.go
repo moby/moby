@@ -334,17 +334,20 @@ func parseCopy(req parseRequest) (*CopyCommand, error) {
 	}
 
 	var flExcludes *Flag
+	var flParents *Flag
 
-	// silently ignore if not -labs
 	if excludePatternsEnabled {
 		flExcludes = req.flags.AddStrings("exclude")
+	}
+	if parentsEnabled {
+		flParents = req.flags.AddBool("parents", false)
 	}
 
 	flChown := req.flags.AddString("chown", "")
 	flFrom := req.flags.AddString("from", "")
 	flChmod := req.flags.AddString("chmod", "")
 	flLink := req.flags.AddBool("link", false)
-	flParents := req.flags.AddBool("parents", false)
+
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
@@ -361,7 +364,7 @@ func parseCopy(req parseRequest) (*CopyCommand, error) {
 		Chown:           flChown.Value,
 		Chmod:           flChmod.Value,
 		Link:            flLink.Value == "true",
-		Parents:         (flParents.Value == "true") && parentsEnabled, // silently ignore if not -labs
+		Parents:         flParents != nil && flParents.Value == "true",
 		ExcludePatterns: stringValuesFromFlagIfPossible(flExcludes),
 	}, nil
 }

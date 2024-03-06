@@ -10,6 +10,7 @@ import (
 
 	cni "github.com/containerd/go-cni"
 	"github.com/gofrs/flock"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/network"
@@ -333,8 +334,8 @@ type cniNS struct {
 	lastUsed     time.Time
 	vethName     string
 	canSample    bool
-	offsetSample *network.Sample
-	prevSample   *network.Sample
+	offsetSample *resourcestypes.NetworkSample
+	prevSample   *resourcestypes.NetworkSample
 }
 
 func (ns *cniNS) Set(s *specs.Spec) error {
@@ -352,11 +353,11 @@ func (ns *cniNS) Close() error {
 	return nil
 }
 
-func (ns *cniNS) Sample() (*network.Sample, error) {
+func (ns *cniNS) Sample() (*resourcestypes.NetworkSample, error) {
 	if !ns.canSample {
 		return nil, nil
 	}
-	var s *network.Sample
+	var s *resourcestypes.NetworkSample
 	fn := func(_ context.Context) error {
 		var err error
 		s, err = ns.sample()
