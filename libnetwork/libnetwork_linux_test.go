@@ -1838,7 +1838,7 @@ func TestResolvConf(t *testing.T) {
 			makeNet:          makeTestIPv6Network,
 			delNet:           true,
 			originResolvConf: "search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n",
-			expResolvConf:    "nameserver 127.0.0.11\nnameserver 2001:4860:4860::8888\nsearch pommesfrites.fr\noptions ndots:0",
+			expResolvConf:    "nameserver 127.0.0.11\nsearch pommesfrites.fr\noptions ndots:0",
 		},
 		{
 			name:             "host network",

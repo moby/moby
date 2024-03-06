@@ -351,16 +351,22 @@ func TestRCTransformForIntNS(t *testing.T) {
 			expExtServers: []ExtDNSEntry{mke("10.0.0.1", false)},
 		},
 		{
-			name:          "IPv4 and IPv6, ipv6 enabled",
-			input:         "nameserver 10.0.0.1\nnameserver fdb6:b8fe:b528::1",
-			ipv6:          true,
-			expExtServers: []ExtDNSEntry{mke("10.0.0.1", false)},
+			name:  "IPv4 and IPv6, ipv6 enabled",
+			input: "nameserver 10.0.0.1\nnameserver fdb6:b8fe:b528::1",
+			ipv6:  true,
+			expExtServers: []ExtDNSEntry{
+				mke("10.0.0.1", false),
+				mke("fdb6:b8fe:b528::1", false),
+			},
 		},
 		{
-			name:          "IPv4 and IPv6, ipv6 disabled",
-			input:         "nameserver 10.0.0.1\nnameserver fdb6:b8fe:b528::1",
-			ipv6:          false,
-			expExtServers: []ExtDNSEntry{mke("10.0.0.1", false)},
+			name:  "IPv4 and IPv6, ipv6 disabled",
+			input: "nameserver 10.0.0.1\nnameserver fdb6:b8fe:b528::1",
+			ipv6:  false,
+			expExtServers: []ExtDNSEntry{
+				mke("10.0.0.1", false),
+				mke("fdb6:b8fe:b528::1", true),
+			},
 		},
 		{
 			name:          "IPv4 localhost",
@@ -384,37 +390,46 @@ func TestRCTransformForIntNS(t *testing.T) {
 			expExtServers: []ExtDNSEntry{mke("127.0.0.53", true)},
 		},
 		{
-			name:  "IPv6 addr, IPv6 enabled",
-			input: "nameserver fd14:6e0e:f855::1",
+			name:          "IPv6 addr, IPv6 enabled",
+			input:         "nameserver fd14:6e0e:f855::1",
+			ipv6:          true,
+			expExtServers: []ExtDNSEntry{mke("fd14:6e0e:f855::1", false)},
+		},
+		{
+			name:  "IPv4 and IPv6 localhost, IPv6 disabled",
+			input: "nameserver 127.0.0.53\nnameserver ::1",
+			ipv6:  false,
+			expExtServers: []ExtDNSEntry{
+				mke("127.0.0.53", true),
+				mke("::1", true),
+			},
+		},
+		{
+			name:  "IPv4 and IPv6 localhost, ipv6 enabled",
+			input: "nameserver 127.0.0.53\nnameserver ::1",
 			ipv6:  true,
-			// Note that there are no ext servers in this case, the internal resolver
-			// will only look up container names. The default nameservers aren't added
-			// because the host's IPv6 nameserver remains in the container's resolv.conf,
-			// (because only IPv4 ext servers are currently allowed).
+			expExtServers: []ExtDNSEntry{
+				mke("127.0.0.53", true),
+				mke("::1", true),
+			},
 		},
 		{
-			name:          "IPv4 and IPv6 localhost, IPv6 disabled",
-			input:         "nameserver 127.0.0.53\nnameserver ::1",
-			ipv6:          false,
-			expExtServers: []ExtDNSEntry{mke("127.0.0.53", true)},
+			name:  "IPv4 localhost, IPv6 private, IPv6 enabled",
+			input: "nameserver 127.0.0.53\nnameserver fd3e:2d1a:1f5a::1",
+			ipv6:  true,
+			expExtServers: []ExtDNSEntry{
+				mke("127.0.0.53", true),
+				mke("fd3e:2d1a:1f5a::1", false),
+			},
 		},
 		{
-			name:          "IPv4 and IPv6 localhost, ipv6 enabled",
-			input:         "nameserver 127.0.0.53\nnameserver ::1",
-			ipv6:          true,
-			expExtServers: []ExtDNSEntry{mke("127.0.0.53", true)},
-		},
-		{
-			name:          "IPv4 localhost, IPv6 private, IPv6 enabled",
-			input:         "nameserver 127.0.0.53\nnameserver fd3e:2d1a:1f5a::1",
-			ipv6:          true,
-			expExtServers: []ExtDNSEntry{mke("127.0.0.53", true)},
-		},
-		{
-			name:          "IPv4 localhost, IPv6 private, IPv6 disabled",
-			input:         "nameserver 127.0.0.53\nnameserver fd3e:2d1a:1f5a::1",
-			ipv6:          false,
-			expExtServers: []ExtDNSEntry{mke("127.0.0.53", true)},
+			name:  "IPv4 localhost, IPv6 private, IPv6 disabled",
+			input: "nameserver 127.0.0.53\nnameserver fd3e:2d1a:1f5a::1",
+			ipv6:  false,
+			expExtServers: []ExtDNSEntry{
+				mke("127.0.0.53", true),
+				mke("fd3e:2d1a:1f5a::1", true),
+			},
 		},
 		{
 			name:  "No host nameserver, no iv6",
