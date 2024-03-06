@@ -15,7 +15,7 @@ import (
 
 // Join makes sure that the concatenation of path and subpath doesn't
 // resolve to a path outside of path and returns a path to a temporary file that is
-// a bind mount to the the exact same file/directory that was validated.
+// a bind mount to the exact same file/directory that was validated.
 //
 // After use, it is the caller's responsibility to call Close on the returned
 // SafePath object, which will unmount the temporary file/directory
