@@ -5,16 +5,18 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/leases"
+	"github.com/containerd/log"
 	distref "github.com/distribution/reference"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/layer"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
+	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -222,9 +224,17 @@ func (e *imageExporterInstance) newTempReference(ctx context.Context, config []b
 	lm := e.opt.LeaseManager
 
 	dgst := digest.FromBytes(config)
-	lease, err := lm.Create(ctx, leases.WithRandomID(), leases.WithExpiration(time.Hour))
+	leaseCtx, done, err := leaseutil.WithLease(ctx, lm, leaseutil.MakeTemporary)
 	if err != nil {
 		return nil, err
+	}
+
+	unlease := func(ctx context.Context) error {
+		err := done(compatcontext.WithoutCancel(ctx))
+		if err != nil {
+			log.G(ctx).WithError(err).Error("failed to delete descriptor reference lease")
+		}
+		return err
 	}
 
 	desc := ocispec.Descriptor{
@@ -233,11 +243,10 @@ func (e *imageExporterInstance) newTempReference(ctx context.Context, config []b
 		Size:      int64(len(config)),
 	}
 
-	if err := content.WriteBlob(ctx, e.opt.ContentStore, desc.Digest.String(), bytes.NewReader(config), desc); err != nil {
+	if err := content.WriteBlob(leaseCtx, e.opt.ContentStore, desc.Digest.String(), bytes.NewReader(config), desc); err != nil {
+		unlease(leaseCtx)
 		return nil, fmt.Errorf("failed to save temporary image config: %w", err)
 	}
 
-	return containerimage.NewDescriptorReference(desc, func(ctx context.Context) error {
-		return lm.Delete(ctx, lease)
-	}), nil
+	return containerimage.NewDescriptorReference(desc, unlease), nil
 }
