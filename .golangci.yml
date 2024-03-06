@@ -1,6 +1,7 @@
 linters:
   enable:
     - depguard
+    - dupword         # Checks for duplicate words in the source code.
     - goimports
     - gosec
     - gosimple
@@ -25,6 +26,11 @@ linters:
       - docs
 
 linters-settings:
+  dupword:
+    ignore:
+      - "true"    # some tests use this as expected output
+      - "false"   # some tests use this as expected output
+      - "root"    # for tests using "ls" output with files owned by "root:root"
   importas:
     # Do not allow unaliased imports of aliased packages.
     no-unaliased: true
