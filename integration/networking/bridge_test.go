@@ -3,6 +3,8 @@ package networking
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -593,4 +595,103 @@ func TestInternalNwConnectivity(t *testing.T) {
 	res = container.ExecT(execCtx, t, c, id, []string{"ping", "-c1", "-W3", "8.8.8.8"})
 	assert.Check(t, is.Equal(res.ExitCode, 1))
 	assert.Check(t, is.Contains(res.Stderr(), "Network is unreachable"))
+}
+
+// Check that the container's interface has no IPv6 address when IPv6 is
+// disabled in a container via sysctl.
+func TestDisableIPv6Addrs(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	testcases := []struct {
+		name    string
+		sysctls map[string]string
+		expIPv6 bool
+	}{
+		{
+			name:    "IPv6 enabled",
+			expIPv6: true,
+		},
+		{
+			name:    "IPv6 disabled",
+			sysctls: map[string]string{"net.ipv6.conf.all.disable_ipv6": "1"},
+		},
+	}
+
+	const netName = "testnet"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithIPv6(),
+		network.WithIPAM("fda0:ef3d:6430:abcd::/64", "fda0:ef3d:6430:abcd::1"),
+	)
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	inet6RE := regexp.MustCompile(`inet6[ \t]+[0-9a-f:]*`)
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			opts := []func(config *container.TestContainerConfig){
+				container.WithCmd("ip", "a"),
+				container.WithNetworkMode(netName),
+			}
+			if len(tc.sysctls) > 0 {
+				opts = append(opts, container.WithSysctls(tc.sysctls))
+			}
+
+			runRes := container.RunAttach(ctx, t, c, opts...)
+			defer c.ContainerRemove(ctx, runRes.ContainerID,
+				containertypes.RemoveOptions{Force: true},
+			)
+
+			stdout := runRes.Stdout.String()
+			inet6 := inet6RE.FindAllString(stdout, -1)
+			if tc.expIPv6 {
+				assert.Check(t, len(inet6) > 0, "Expected IPv6 addresses but found none.")
+			} else {
+				assert.Check(t, is.DeepEqual(inet6, []string{}, cmpopts.EquateEmpty()))
+			}
+		})
+	}
+}
+
+// Check that an interface to an '--ipv6=false' network has no IPv6
+// address - either IPAM assigned, or kernel-assigned LL, but the loopback
+// interface does still have an IPv6 address ('::1').
+func TestNonIPv6Network(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const netName = "testnet"
+	network.CreateNoError(ctx, t, c, netName)
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
+	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+	loRes := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "lo"})
+	assert.Check(t, is.Contains(loRes.Combined(), " inet "))
+	assert.Check(t, is.Contains(loRes.Combined(), " inet6 "))
+
+	eth0Res := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "eth0"})
+	assert.Check(t, is.Contains(eth0Res.Combined(), " inet "))
+	assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet6 "),
+		"result.Combined(): %s", eth0Res.Combined())
+
+	sysctlRes := container.ExecT(ctx, t, c, id, []string{"sysctl", "-n", "net.ipv6.conf.eth0.disable_ipv6"})
+	assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), "1"))
 }

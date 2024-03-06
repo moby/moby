@@ -90,8 +90,12 @@ func (sb *Sandbox) updateGateway(ep *Endpoint) error {
 		return fmt.Errorf("failed to set gateway while updating gateway: %v", err)
 	}
 
-	if err := osSbox.SetGatewayIPv6(joinInfo.gw6); err != nil {
-		return fmt.Errorf("failed to set IPv6 gateway while updating gateway: %v", err)
+	// If IPv6 has been disabled in the sandbox a gateway may still have been
+	// configured, don't attempt to apply it.
+	if ipv6, ok := sb.ipv6Enabled(); !ok || ipv6 {
+		if err := osSbox.SetGatewayIPv6(joinInfo.gw6); err != nil {
+			return fmt.Errorf("failed to set IPv6 gateway while updating gateway: %v", err)
+		}
 	}
 
 	return nil
@@ -279,7 +283,12 @@ func (sb *Sandbox) populateNetworkResources(ep *Endpoint) error {
 
 		ifaceOptions = append(ifaceOptions, osl.WithIPv4Address(i.addr), osl.WithRoutes(i.routes))
 		if i.addrv6 != nil && i.addrv6.IP.To16() != nil {
-			ifaceOptions = append(ifaceOptions, osl.WithIPv6Address(i.addrv6))
+			// If IPv6 has been disabled in the Sandbox, an IPv6 address will still have
+			// been allocated. Don't apply it, because doing so would enable IPv6 on the
+			// interface.
+			if ipv6, ok := sb.ipv6Enabled(); !ok || ipv6 {
+				ifaceOptions = append(ifaceOptions, osl.WithIPv6Address(i.addrv6))
+			}
 		}
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, osl.WithLinkLocalAddresses(i.llAddrs))
