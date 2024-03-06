@@ -634,42 +634,73 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 // networkingConfig to set the endpoint-specific MACAddress field introduced in API v1.44. It returns a warning message
 // or an error if the container-wide field was specified for API >= v1.44.
 func handleMACAddressBC(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, version string) (string, error) {
-	if config.MacAddress == "" { //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-		return "", nil
-	}
-
 	deprecatedMacAddress := config.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 
+	// For older versions of the API, migrate the container-wide MAC address to EndpointsConfig.
 	if versions.LessThan(version, "1.44") {
-		// The container-wide MacAddress parameter is deprecated and should now be specified in EndpointsConfig.
-		if hostConfig.NetworkMode.IsDefault() || hostConfig.NetworkMode.IsBridge() || hostConfig.NetworkMode.IsUserDefined() {
-			nwName := hostConfig.NetworkMode.NetworkName()
-			if _, ok := networkingConfig.EndpointsConfig[nwName]; !ok {
-				networkingConfig.EndpointsConfig[nwName] = &network.EndpointSettings{}
+		if deprecatedMacAddress == "" {
+			// If a MAC address is supplied in EndpointsConfig, discard it because the old API
+			// would have ignored it.
+			for _, ep := range networkingConfig.EndpointsConfig {
+				ep.MacAddress = ""
 			}
-			// Overwrite the config: either the endpoint's MacAddress was set by the user on API < v1.44, which
-			// must be ignored, or migrate the top-level MacAddress to the endpoint's config.
-			networkingConfig.EndpointsConfig[nwName].MacAddress = deprecatedMacAddress
+			return "", nil
 		}
 		if !hostConfig.NetworkMode.IsDefault() && !hostConfig.NetworkMode.IsBridge() && !hostConfig.NetworkMode.IsUserDefined() {
 			return "", runconfig.ErrConflictContainerNetworkAndMac
 		}
 
+		// There cannot be more than one entry in EndpointsConfig with API < 1.44.
+
+		// If there's no EndpointsConfig, create a place to store the configured address. It is
+		// safe to use NetworkMode as the network name, whether it's a name or id/short-id, as
+		// it will be normalised later and there is no other EndpointSettings object that might
+		// refer to this network/endpoint.
+		if len(networkingConfig.EndpointsConfig) == 0 {
+			nwName := hostConfig.NetworkMode.NetworkName()
+			networkingConfig.EndpointsConfig[nwName] = &network.EndpointSettings{}
+		}
+		// There's exactly one network in EndpointsConfig, either from the API or just-created.
+		// Migrate the container-wide setting to it.
+		// No need to check for a match between NetworkMode and the names/ids in EndpointsConfig,
+		// the old version of the API would have applied the address to this network anyway.
+		for _, ep := range networkingConfig.EndpointsConfig {
+			ep.MacAddress = deprecatedMacAddress
+		}
 		return "", nil
 	}
 
+	// The container-wide MacAddress parameter is deprecated and should now be specified in EndpointsConfig.
+	if deprecatedMacAddress == "" {
+		return "", nil
+	}
 	var warning string
 	if hostConfig.NetworkMode.IsDefault() || hostConfig.NetworkMode.IsBridge() || hostConfig.NetworkMode.IsUserDefined() {
 		nwName := hostConfig.NetworkMode.NetworkName()
-		if _, ok := networkingConfig.EndpointsConfig[nwName]; !ok {
-			networkingConfig.EndpointsConfig[nwName] = &network.EndpointSettings{}
-		}
-
-		ep := networkingConfig.EndpointsConfig[nwName]
-		if ep.MacAddress == "" {
-			ep.MacAddress = deprecatedMacAddress
-		} else if ep.MacAddress != deprecatedMacAddress {
-			return "", errdefs.InvalidParameter(errors.New("the container-wide MAC address should match the endpoint-specific MAC address for the main network or should be left empty"))
+		// If there's no endpoint config, create a place to store the configured address.
+		if len(networkingConfig.EndpointsConfig) == 0 {
+			networkingConfig.EndpointsConfig[nwName] = &network.EndpointSettings{
+				MacAddress: deprecatedMacAddress,
+			}
+		} else {
+			// There is existing endpoint config - if it's not indexed by NetworkMode.Name(), we
+			// can't tell which network the container-wide settings was intended for. NetworkMode,
+			// the keys in EndpointsConfig and the NetworkID in EndpointsConfig may mix network
+			// name/id/short-id. It's not safe to create EndpointsConfig under the NetworkMode
+			// name to store the container-wide MAC address, because that may result in two sets
+			// of EndpointsConfig for the same network and one set will be discarded later. So,
+			// reject the request ...
+			ep, ok := networkingConfig.EndpointsConfig[nwName]
+			if !ok {
+				return "", errdefs.InvalidParameter(errors.New("if a container-wide MAC address is supplied, HostConfig.NetworkMode must match the identity of a network in NetworkSettings.Networks"))
+			}
+			// ep is the endpoint that needs the container-wide MAC address; migrate the address
+			// to it, or bail out if there's a mismatch.
+			if ep.MacAddress == "" {
+				ep.MacAddress = deprecatedMacAddress
+			} else if ep.MacAddress != deprecatedMacAddress {
+				return "", errdefs.InvalidParameter(errors.New("the container-wide MAC address must match the endpoint-specific MAC address for the main network, or be left empty"))
+			}
 		}
 	}
 	warning = "The container-wide MacAddress field is now deprecated. It should be specified in EndpointsConfig instead."
