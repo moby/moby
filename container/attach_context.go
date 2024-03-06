@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-// attachContext is the context used for for attach calls.
+// attachContext is the context used for attach calls.
 type attachContext struct {
 	mu         sync.Mutex
 	ctx        context.Context

@@ -20,6 +20,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
+//nolint:dupword
 const mountsFixture = `142 78 0:38 / / rw,relatime - aufs none rw,si=573b861da0b3a05b,dio
 143 142 0:60 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
 144 142 0:67 / /dev rw,nosuid - tmpfs tmpfs rw,mode=755
@@ -58,6 +59,7 @@ const mountsFixture = `142 78 0:38 / / rw,relatime - aufs none rw,si=573b861da0b
 310 142 0:60 / /run/docker/netns/71a18572176b rw,nosuid,nodev,noexec,relatime - proc proc rw
 `
 
+//nolint:dupword
 const mountsFixtureOverlay2 = `23 28 0:22 / /sys rw,nosuid,nodev,noexec,relatime shared:7 - sysfs sysfs rw
 24 28 0:4 / /proc rw,nosuid,nodev,noexec,relatime shared:13 - proc proc rw
 25 28 0:6 / /dev rw,nosuid,relatime shared:2 - devtmpfs udev rw,size=491380k,nr_inodes=122845,mode=755

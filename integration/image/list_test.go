@@ -65,7 +65,7 @@ func TestImagesFilterUntil(t *testing.T) {
 	imgs := make([]string, 5)
 	for i := range imgs {
 		if i > 0 {
-			// Make really really sure each image has a distinct timestamp.
+			// Make sure each image has a distinct timestamp.
 			time.Sleep(time.Millisecond)
 		}
 		id, err := client.ContainerCommit(ctx, ctr, containertypes.CommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
@@ -109,7 +109,7 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 	imgs := make([]string, 5)
 	for i := range imgs {
 		if i > 0 {
-			// Make really really sure each image has a distinct timestamp.
+			// Make sure each image has a distinct timestamp.
 			time.Sleep(time.Millisecond)
 		}
 		id, err := client.ContainerCommit(ctx, ctr, containertypes.CommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})

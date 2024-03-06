@@ -34,7 +34,7 @@ func (a *allocator) RequestPool(addressSpace, requestedPool, requestedSubPool st
 		return "", nil, nil, types.InvalidParameterErrorf("null ipam driver does not handle specific address subpool requests")
 	}
 	if v6 {
-		return "", nil, nil, types.InvalidParameterErrorf("null ipam driver does not handle IPv6 address pool pool requests")
+		return "", nil, nil, types.InvalidParameterErrorf("null ipam driver does not handle IPv6 address pool requests")
 	}
 	return defaultPoolID, defaultPool, nil, nil
 }

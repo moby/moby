@@ -157,7 +157,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	// delete the network record from persistent cache
 	err := d.storeDelete(n.config)
 	if err != nil {
-		return fmt.Errorf("error deleting deleting id %s from datastore: %v", nid, err)
+		return fmt.Errorf("error deleting id %s from datastore: %v", nid, err)
 	}
 	return nil
 }

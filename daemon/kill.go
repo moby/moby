@@ -111,7 +111,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 				// We need to clean up this container but it is possible there is a case where we hit here before the exit event is processed
 				// but after it was fired off.
 				// So let's wait the container's stop timeout amount of time to see if the event is eventually processed.
-				// Doing this has the side effect that if no event was ever going to come we are waiting a a longer period of time uneccessarily.
+				// Doing this has the side effect that if no event was ever going to come we are waiting a longer period of time unnecessarily.
 				// But this prevents race conditions in processing the container.
 				ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(container.StopTimeout())*time.Second)
 				defer cancel()

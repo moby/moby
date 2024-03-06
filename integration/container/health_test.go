@@ -99,13 +99,13 @@ func TestHealthCheckProcessKilled(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.Config.Healthcheck = &containertypes.HealthConfig{
-			Test:     []string{"CMD", "sh", "-c", `echo "logs logs logs"; sleep 60`},
+			Test:     []string{"CMD", "sh", "-c", `echo "logs1 logs2 logs3"; sleep 60`},
 			Interval: 100 * time.Millisecond,
 			Timeout:  50 * time.Millisecond,
 			Retries:  1,
 		}
 	})
-	poll.WaitOn(t, pollForHealthCheckLog(ctx, apiClient, cID, "Health check exceeded timeout (50ms): logs logs logs\n"))
+	poll.WaitOn(t, pollForHealthCheckLog(ctx, apiClient, cID, "Health check exceeded timeout (50ms): logs1 logs2 logs3\n"))
 }
 
 func TestHealthStartInterval(t *testing.T) {

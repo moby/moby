@@ -807,6 +807,8 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 	//
 	//    pkts bytes target     prot opt in          out          source    destination
 	//       0     0 DROP       all  --  ext-bridge5 ext-bridge5  anywhere  anywhere
+	//
+	//nolint:dupword
 	cols := strings.Fields(out)
 
 	expected := []string{"0", "0", "DROP", "all", "--", bridgeName, bridgeName, "anywhere", "anywhere"}
@@ -856,6 +858,8 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *testing.T) {
 	//
 	//    pkts bytes target     prot opt in          out          source    destination
 	//       0     0 DROP       all  --  ext-bridge6 ext-bridge6  anywhere  anywhere
+	//
+	//nolint:dupword
 	cols := strings.Fields(out)
 
 	expected := []string{"0", "0", "DROP", "all", "--", bridgeName, bridgeName, "anywhere", "anywhere"}
@@ -2544,7 +2548,7 @@ func (s *DockerDaemonSuite) TestExecWithUserAfterLiveRestore(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	s.d.StartWithBusybox(testutil.GetContext(c), c, "--live-restore")
 
-	out, err := s.d.Cmd("run", "--init", "-d", "--name=top", "busybox", "sh", "-c", "addgroup -S test && adduser -S -G test test -D -s /bin/sh && touch /adduser_end && exec top")
+	out, err := s.d.Cmd("run", "--init", "-d", "--name=top", "busybox", "sh", "-c", "addgroup -S testgroup && adduser -S -G testgroup test -D -s /bin/sh && touch /adduser_end && exec top")
 	assert.NilError(c, err, "Output: %s", out)
 
 	s.d.WaitRun("top")
@@ -2554,7 +2558,7 @@ func (s *DockerDaemonSuite) TestExecWithUserAfterLiveRestore(c *testing.T) {
 	assert.Assert(c, err == nil, "Timeout waiting for shell command to be completed")
 
 	out1, err := s.d.Cmd("exec", "-u", "test", "top", "id")
-	// uid=100(test) gid=101(test) groups=101(test)
+	// uid=100(test) gid=101(testgroup) groups=101(testgroup)
 	assert.Assert(c, err == nil, "Output: %s", out1)
 
 	// restart daemon.

@@ -59,7 +59,7 @@ type LogFile struct {
 	// passing along ownership is expressed with function argument types.
 	// Methods which take a pointer *logReadState argument borrow the state,
 	// analogous to functions which require a lock to be held when calling.
-	// The caller retains ownership. Calling a method which which takes a
+	// The caller retains ownership. Calling a method which takes a
 	// value logFileState argument gives ownership to the callee.
 	read chan logReadState
 

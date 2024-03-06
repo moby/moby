@@ -64,7 +64,7 @@ func init() {
 	// Lock main() to the initial thread to exclude the goroutines executing
 	// func setDefaultVLAN() from being scheduled onto that thread. Changes to
 	// the network namespace of the initial thread alter /proc/self/ns/net,
-	// which would break any code which (incorrectly) assumes that that file is
+	// which would break any code which (incorrectly) assumes that the file is
 	// a handle to the network namespace for the thread it is currently
 	// executing on.
 	runtime.LockOSThread()

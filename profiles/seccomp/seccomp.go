@@ -24,7 +24,7 @@ type Seccomp struct {
 
 	// Syscalls contains lists of syscall rules. Rules can define conditions
 	// for them to be included or excluded in the resulting profile (based on
-	// on kernel version, architecture, capabilities, etc.). These lists are
+	// kernel version, architecture, capabilities, etc.). These lists are
 	// expanded to an specs.Syscall  When generating the profile, these lists
 	// are expanded to a []specs.LinuxSyscall.
 	Syscalls []*Syscall `json:"syscalls"`

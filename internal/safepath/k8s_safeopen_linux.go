@@ -29,7 +29,7 @@ import (
 
 // kubernetesSafeOpen open path formed by concatenation of the base directory
 // and its subpath and return its fd.
-// Symlinks are disallowed (pathname must already resolve symlinks) and the path
+// Symlinks are disallowed (pathname must already resolve symlinks) and the
 // path must be within the base directory.
 // This is minimally modified code from https://github.com/kubernetes/kubernetes/blob/55fb1805a1217b91b36fa8fe8f2bf3a28af2454d/pkg/volume/util/subpath/subpath_linux.go#L530
 func kubernetesSafeOpen(base, subpath string) (int, error) {

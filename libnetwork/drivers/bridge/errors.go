@@ -74,7 +74,7 @@ func (enip *ErrNoIPAddr) Error() string {
 // InternalError denotes the type of this error
 func (enip *ErrNoIPAddr) InternalError() {}
 
-// ErrInvalidGateway is returned when the user provided default gateway (v4/v6) is not not valid.
+// ErrInvalidGateway is returned when the user provided default gateway (v4/v6) is not valid.
 type ErrInvalidGateway struct{}
 
 func (eig *ErrInvalidGateway) Error() string {
