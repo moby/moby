@@ -264,7 +264,6 @@ func (ep *bridgeEndpoint) MarshalJSON() ([]byte, error) {
 	if ep.addrv6 != nil {
 		epMap["Addrv6"] = ep.addrv6.String()
 	}
-	epMap["Config"] = ep.config
 	epMap["ContainerConfig"] = ep.containerConfig
 	epMap["ExternalConnConfig"] = ep.extConnConfig
 	epMap["PortMapping"] = ep.portMapping
@@ -300,11 +299,7 @@ func (ep *bridgeEndpoint) UnmarshalJSON(b []byte) error {
 	ep.id = epMap["id"].(string)
 	ep.nid = epMap["nid"].(string)
 	ep.srcName = epMap["SrcName"].(string)
-	d, _ := json.Marshal(epMap["Config"])
-	if err := json.Unmarshal(d, &ep.config); err != nil {
-		log.G(context.TODO()).Warnf("Failed to decode endpoint config %v", err)
-	}
-	d, _ = json.Marshal(epMap["ContainerConfig"])
+	d, _ := json.Marshal(epMap["ContainerConfig"])
 	if err := json.Unmarshal(d, &ep.containerConfig); err != nil {
 		log.G(context.TODO()).Warnf("Failed to decode endpoint container config %v", err)
 	}

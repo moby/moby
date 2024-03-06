@@ -149,3 +149,12 @@ func IsV6Listenable() bool {
 	})
 	return v6ListenableCached
 }
+
+// MustParseMAC returns a net.HardwareAddr or panic.
+func MustParseMAC(s string) net.HardwareAddr {
+	mac, err := net.ParseMAC(s)
+	if err != nil {
+		panic(err)
+	}
+	return mac
+}

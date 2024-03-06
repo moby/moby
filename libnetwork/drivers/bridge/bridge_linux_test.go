@@ -35,7 +35,6 @@ func TestEndpointMarshalling(t *testing.T) {
 		addrv6:     ip2,
 		macAddress: mac,
 		srcName:    "veth123456",
-		config:     &endpointConfiguration{MacAddress: mac},
 		containerConfig: &containerConfiguration{
 			ParentEndpoints: []string{"one", "due", "three"},
 			ChildEndpoints:  []string{"four", "five", "six"},
@@ -90,22 +89,11 @@ func TestEndpointMarshalling(t *testing.T) {
 
 	if e.id != ee.id || e.nid != ee.nid || e.srcName != ee.srcName || !bytes.Equal(e.macAddress, ee.macAddress) ||
 		!types.CompareIPNet(e.addr, ee.addr) || !types.CompareIPNet(e.addrv6, ee.addrv6) ||
-		!compareEpConfig(e.config, ee.config) ||
 		!compareContainerConfig(e.containerConfig, ee.containerConfig) ||
 		!compareConnConfig(e.extConnConfig, ee.extConnConfig) ||
 		!compareBindings(e.portMapping, ee.portMapping) {
 		t.Fatalf("JSON marsh/unmarsh failed.\nOriginal:\n%#v\nDecoded:\n%#v", e, ee)
 	}
-}
-
-func compareEpConfig(a, b *endpointConfiguration) bool {
-	if a == b {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	return bytes.Equal(a.MacAddress, b.MacAddress)
 }
 
 func compareContainerConfig(a, b *containerConfiguration) bool {
@@ -385,10 +373,9 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 
 	// In short here we are testing --fixed-cidr-v6 daemon option
 	// plus --mac-address run option
-	mac, _ := net.ParseMAC("aa:bb:cc:dd:ee:ff")
-	epOptions := map[string]interface{}{netlabel.MacAddress: mac}
 	te := newTestEndpoint(ipdList[0].Pool, 20)
-	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), epOptions)
+	te.iface.mac = netutils.MustParseMAC("aa:bb:cc:dd:ee:ff")
+	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
