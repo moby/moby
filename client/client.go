@@ -179,13 +179,13 @@ func CheckRedirect(_ *http.Request, via []*http.Request) error {
 //		client.FromEnv,
 //		client.WithAPIVersionNegotiation(),
 //	)
-func NewClientWithOpts(ops ...Opt) (*Client, error) {
+func NewClientWithOpts(ctx context.Context, ops ...Opt) (*Client, error) {
 	hostURL, err := ParseHostURL(DefaultDockerHost)
 	if err != nil {
 		return nil, err
 	}
 
-	client, err := defaultHTTPClient(hostURL)
+	client, err := defaultHTTPClient(ctx, hostURL)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +215,7 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 		// Unfortunately, the model of having a host-ish/url-thingy as the connection
 		// string has us confusing protocol and transport layers. We continue doing
 		// this to avoid breaking existing clients but this should be addressed.
-		if c.tlsConfig() != nil {
+		if c.tlsConfig(ctx) != nil {
 			c.scheme = "https"
 		} else {
 			c.scheme = "http"
@@ -233,14 +233,14 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 	return c, nil
 }
 
-func (cli *Client) tlsConfig() *tls.Config {
+func (cli *Client) tlsConfig(_ context.Context) *tls.Config {
 	if cli.baseTransport == nil {
 		return nil
 	}
 	return cli.baseTransport.TLSClientConfig
 }
 
-func defaultHTTPClient(hostURL *url.URL) (*http.Client, error) {
+func defaultHTTPClient(_ context.Context, hostURL *url.URL) (*http.Client, error) {
 	transport := &http.Transport{}
 	err := sockets.ConfigureTransport(transport, hostURL.Scheme, hostURL.Host)
 	if err != nil {
@@ -253,7 +253,7 @@ func defaultHTTPClient(hostURL *url.URL) (*http.Client, error) {
 }
 
 // Close the transport used by the client
-func (cli *Client) Close() error {
+func (cli *Client) Close(_ context.Context) error {
 	if cli.baseTransport != nil {
 		cli.baseTransport.CloseIdleConnections()
 		return nil
@@ -271,7 +271,7 @@ func (cli *Client) checkVersion(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		cli.negotiateAPIVersionPing(ping)
+		cli.negotiateAPIVersionPing(ctx, ping)
 	}
 	return nil
 }
@@ -291,7 +291,7 @@ func (cli *Client) getAPIPath(ctx context.Context, p string, query url.Values) s
 }
 
 // ClientVersion returns the API version used by this client.
-func (cli *Client) ClientVersion() string {
+func (cli *Client) ClientVersion(_ context.Context) string {
 	return cli.version
 }
 
@@ -317,7 +317,7 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 			// FIXME(thaJeztah): Ping returns an error when failing to connect to the API; we should not swallow the error here, and instead returning it.
 			return
 		}
-		cli.negotiateAPIVersionPing(ping)
+		cli.negotiateAPIVersionPing(ctx, ping)
 	}
 }
 
@@ -334,15 +334,15 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 // we are connected with an old daemon without API version negotiation support,
 // and downgrade to the latest version of the API before version negotiation was
 // added (1.24).
-func (cli *Client) NegotiateAPIVersionPing(pingResponse types.Ping) {
+func (cli *Client) NegotiateAPIVersionPing(ctx context.Context, pingResponse types.Ping) {
 	if !cli.manualOverride {
-		cli.negotiateAPIVersionPing(pingResponse)
+		cli.negotiateAPIVersionPing(ctx, pingResponse)
 	}
 }
 
 // negotiateAPIVersionPing queries the API and updates the version to match the
 // API version from the ping response.
-func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
+func (cli *Client) negotiateAPIVersionPing(_ context.Context, pingResponse types.Ping) {
 	// default to the latest version before versioning headers existed
 	if pingResponse.APIVersion == "" {
 		pingResponse.APIVersion = fallbackAPIVersion
@@ -366,12 +366,12 @@ func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
 }
 
 // DaemonHost returns the host address used by the client
-func (cli *Client) DaemonHost() string {
+func (cli *Client) DaemonHost(_ context.Context) string {
 	return cli.host
 }
 
 // HTTPClient returns a copy of the HTTP client bound to the server
-func (cli *Client) HTTPClient() *http.Client {
+func (cli *Client) HTTPClient(_ context.Context) *http.Client {
 	c := *cli.client
 	return &c
 }
@@ -400,7 +400,7 @@ func ParseHostURL(host string) (*url.URL, error) {
 	}, nil
 }
 
-func (cli *Client) dialerFromTransport() func(context.Context, string, string) (net.Conn, error) {
+func (cli *Client) dialerFromTransport(_ context.Context) func(context.Context, string, string) (net.Conn, error) {
 	if cli.baseTransport == nil || cli.baseTransport.DialContext == nil {
 		return nil
 	}
@@ -419,9 +419,9 @@ func (cli *Client) dialerFromTransport() func(context.Context, string, string) (
 // ["docker dial-stdio"].
 //
 // ["docker dial-stdio"]: https://github.com/docker/cli/pull/1014
-func (cli *Client) Dialer() func(context.Context) (net.Conn, error) {
+func (cli *Client) Dialer(_ context.Context) func(context.Context) (net.Conn, error) {
 	return func(ctx context.Context) (net.Conn, error) {
-		if dialFn := cli.dialerFromTransport(); dialFn != nil {
+		if dialFn := cli.dialerFromTransport(ctx); dialFn != nil {
 			return dialFn(ctx, cli.proto, cli.addr)
 		}
 		switch cli.proto {
@@ -430,7 +430,7 @@ func (cli *Client) Dialer() func(context.Context) (net.Conn, error) {
 		case "npipe":
 			return sockets.DialPipe(cli.addr, 32*time.Second)
 		default:
-			if tlsConfig := cli.tlsConfig(); tlsConfig != nil {
+			if tlsConfig := cli.tlsConfig(ctx); tlsConfig != nil {
 				return tls.Dial(cli.proto, cli.addr, tlsConfig)
 			}
 			return net.Dial(cli.proto, cli.addr)

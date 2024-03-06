@@ -34,7 +34,7 @@ func TestServiceListWithStatuses(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	serviceCount := 3
 	// create some services.

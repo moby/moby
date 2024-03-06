@@ -24,10 +24,10 @@ import (
 )
 
 // NewAPIClient returns a docker API client configured from environment variables
-func NewAPIClient(t testing.TB, ops ...client.Opt) client.APIClient {
+func NewAPIClient(ctx context.Context, t testing.TB, ops ...client.Opt) client.APIClient {
 	t.Helper()
 	ops = append([]client.Opt{client.FromEnv}, ops...)
-	clt, err := client.NewClientWithOpts(ops...)
+	clt, err := client.NewClientWithOpts(ctx, ops...)
 	assert.NilError(t, err)
 	return clt
 }

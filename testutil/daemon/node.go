@@ -18,7 +18,7 @@ type NodeConstructor func(*swarm.Node)
 func (d *Daemon) GetNode(ctx context.Context, t testing.TB, id string, errCheck ...func(error) bool) *swarm.Node {
 	t.Helper()
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	node, _, err := cli.NodeInspectWithRaw(ctx, id)
 	if err != nil {
@@ -37,7 +37,7 @@ func (d *Daemon) GetNode(ctx context.Context, t testing.TB, id string, errCheck 
 func (d *Daemon) RemoveNode(ctx context.Context, t testing.TB, id string, force bool) {
 	t.Helper()
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	options := types.NodeRemoveOptions{
 		Force: force,
@@ -50,7 +50,7 @@ func (d *Daemon) RemoveNode(ctx context.Context, t testing.TB, id string, force 
 func (d *Daemon) UpdateNode(ctx context.Context, t testing.TB, id string, f ...NodeConstructor) {
 	t.Helper()
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	for i := 0; ; i++ {
 		node := d.GetNode(ctx, t, id)
@@ -72,7 +72,7 @@ func (d *Daemon) UpdateNode(ctx context.Context, t testing.TB, id string, f ...N
 func (d *Daemon) ListNodes(ctx context.Context, t testing.TB) []swarm.Node {
 	t.Helper()
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	nodes, err := cli.NodeList(ctx, types.NodeListOptions{})
 	assert.NilError(t, err)

@@ -24,7 +24,7 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	danglingID := specialimage.Load(ctx, t, client, specialimage.Dangling)
 

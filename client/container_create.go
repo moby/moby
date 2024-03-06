@@ -46,22 +46,22 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 	}
 
 	if hostConfig != nil {
-		if versions.LessThan(cli.ClientVersion(), "1.25") {
+		if versions.LessThan(cli.ClientVersion(ctx), "1.25") {
 			// When using API 1.24 and under, the client is responsible for removing the container
 			hostConfig.AutoRemove = false
 		}
-		if versions.GreaterThanOrEqualTo(cli.ClientVersion(), "1.42") || versions.LessThan(cli.ClientVersion(), "1.40") {
+		if versions.GreaterThanOrEqualTo(cli.ClientVersion(ctx), "1.42") || versions.LessThan(cli.ClientVersion(ctx), "1.40") {
 			// KernelMemory was added in API 1.40, and deprecated in API 1.42
 			hostConfig.KernelMemory = 0
 		}
-		if platform != nil && platform.OS == "linux" && versions.LessThan(cli.ClientVersion(), "1.42") {
+		if platform != nil && platform.OS == "linux" && versions.LessThan(cli.ClientVersion(ctx), "1.42") {
 			// When using API under 1.42, the Linux daemon doesn't respect the ConsoleSize
 			hostConfig.ConsoleSize = [2]uint{0, 0}
 		}
 	}
 
 	// Since API 1.44, the container-wide MacAddress is deprecated and will trigger a WARNING if it's specified.
-	if versions.GreaterThanOrEqualTo(cli.ClientVersion(), "1.44") {
+	if versions.GreaterThanOrEqualTo(cli.ClientVersion(ctx), "1.44") {
 		config.MacAddress = "" //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 	}
 

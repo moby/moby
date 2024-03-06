@@ -29,7 +29,7 @@ func TestSecretInspect(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	testName := t.Name()
 	secretID := createSecret(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
@@ -51,7 +51,7 @@ func TestSecretList(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	configs, err := c.SecretList(ctx, types.SecretListOptions{})
 	assert.NilError(t, err)
@@ -130,7 +130,7 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	testName := "test_secret_" + t.Name()
 	secretID := createSecret(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
@@ -177,7 +177,7 @@ func TestSecretsUpdate(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	testName := "test_secret_" + t.Name()
 	secretID := createSecret(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
@@ -229,7 +229,7 @@ func TestTemplatedSecret(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	referencedSecretName := "referencedsecret_" + t.Name()
 	referencedSecretSpec := swarmtypes.SecretSpec{
@@ -340,7 +340,7 @@ func TestSecretCreateResolve(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	testName := "test_secret_" + t.Name()
 	secretID := createSecret(ctx, t, c, testName, []byte("foo"), nil)

@@ -15,10 +15,13 @@ type SecretConstructor func(*swarm.Secret)
 // CreateSecret creates a secret given the specified spec
 func (d *Daemon) CreateSecret(t testing.TB, secretSpec swarm.SecretSpec) string {
 	t.Helper()
-	cli := d.NewClientT(t)
-	defer cli.Close()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 
-	scr, err := cli.SecretCreate(context.Background(), secretSpec)
+	cli := d.NewClientT(t)
+	defer cli.Close(ctx)
+
+	scr, err := cli.SecretCreate(ctx, secretSpec)
 	assert.NilError(t, err)
 
 	return scr.ID
@@ -27,10 +30,13 @@ func (d *Daemon) CreateSecret(t testing.TB, secretSpec swarm.SecretSpec) string 
 // ListSecrets returns the list of the current swarm secrets
 func (d *Daemon) ListSecrets(t testing.TB) []swarm.Secret {
 	t.Helper()
-	cli := d.NewClientT(t)
-	defer cli.Close()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 
-	secrets, err := cli.SecretList(context.Background(), types.SecretListOptions{})
+	cli := d.NewClientT(t)
+	defer cli.Close(ctx)
+
+	secrets, err := cli.SecretList(ctx, types.SecretListOptions{})
 	assert.NilError(t, err)
 	return secrets
 }
@@ -38,8 +44,11 @@ func (d *Daemon) ListSecrets(t testing.TB) []swarm.Secret {
 // GetSecret returns a swarm secret identified by the specified id
 func (d *Daemon) GetSecret(t testing.TB, id string) *swarm.Secret {
 	t.Helper()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	secret, _, err := cli.SecretInspectWithRaw(context.Background(), id)
 	assert.NilError(t, err)
@@ -49,10 +58,13 @@ func (d *Daemon) GetSecret(t testing.TB, id string) *swarm.Secret {
 // DeleteSecret removes the swarm secret identified by the specified id
 func (d *Daemon) DeleteSecret(t testing.TB, id string) {
 	t.Helper()
-	cli := d.NewClientT(t)
-	defer cli.Close()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 
-	err := cli.SecretRemove(context.Background(), id)
+	cli := d.NewClientT(t)
+	defer cli.Close(ctx)
+
+	err := cli.SecretRemove(ctx, id)
 	assert.NilError(t, err)
 }
 
@@ -60,15 +72,19 @@ func (d *Daemon) DeleteSecret(t testing.TB, id string) {
 // Currently, only label update is supported.
 func (d *Daemon) UpdateSecret(t testing.TB, id string, f ...SecretConstructor) {
 	t.Helper()
+
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	secret := d.GetSecret(t, id)
 	for _, fn := range f {
 		fn(secret)
 	}
 
-	err := cli.SecretUpdate(context.Background(), secret.ID, secret.Version, secret.Spec)
+	err := cli.SecretUpdate(ctx, secret.ID, secret.Version, secret.Spec)
 
 	assert.NilError(t, err)
 }

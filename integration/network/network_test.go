@@ -170,7 +170,7 @@ func TestHostIPv4BridgeLabel(t *testing.T) {
 	d.Start(t)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	ipv4SNATAddr := "172.0.0.172"
 	// Create a bridge network with --opt com.docker.network.host_ipv4=172.0.0.172
@@ -225,7 +225,7 @@ func TestDefaultNetworkOpts(t *testing.T) {
 			d.StartWithBusybox(ctx, t, tc.args...)
 			defer d.Stop(t)
 			c := d.NewClientT(t)
-			defer c.Close()
+			defer c.Close(ctx)
 
 			if tc.configFrom {
 				// Create a new network config
@@ -279,7 +279,7 @@ func TestForbidDuplicateNetworkNames(t *testing.T) {
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	network.CreateNoError(ctx, t, c, "testnet")
 

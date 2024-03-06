@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -72,11 +73,14 @@ func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
 
 func (s *DockerAPISuite) TestInspectAPIImageResponse(c *testing.T) {
 	cli.DockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
+	ctx, cancel := context.WithCancel(testutil.GetContext(c))
+	defer cancel()
 
-	imageJSON, _, err := apiClient.ImageInspectWithRaw(testutil.GetContext(c), "busybox")
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
+	assert.NilError(c, err)
+	defer apiClient.Close(ctx)
+
+	imageJSON, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox")
 	assert.NilError(c, err)
 
 	assert.Check(c, len(imageJSON.RepoTags) == 2)

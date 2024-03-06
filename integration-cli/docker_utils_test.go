@@ -239,11 +239,14 @@ func daemonTime(c *testing.T) time.Time {
 	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
+	ctx, cancel := context.WithCancel(testutil.GetContext(c))
+	defer cancel()
 
-	info, err := apiClient.Info(testutil.GetContext(c))
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
+	assert.NilError(c, err)
+	defer apiClient.Close(ctx)
+
+	info, err := apiClient.Info(ctx)
 	assert.NilError(c, err)
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
@@ -312,10 +315,13 @@ func waitInspect(name, expr, expected string, timeout time.Duration) error {
 
 func getInspectBody(c *testing.T, version, id string) []byte {
 	c.Helper()
-	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(version))
+	ctx, cancel := context.WithCancel(testutil.GetContext(c))
+	defer cancel()
+
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv, client.WithVersion(version))
 	assert.NilError(c, err)
-	defer apiClient.Close()
-	_, body, err := apiClient.ContainerInspectWithRaw(testutil.GetContext(c), id, false)
+	defer apiClient.Close(ctx)
+	_, body, err := apiClient.ContainerInspectWithRaw(ctx, id, false)
 	assert.NilError(c, err)
 	return body
 }

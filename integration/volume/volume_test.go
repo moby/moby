@@ -290,10 +290,10 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 2))
 
 	// Validate that older API versions still have the old behavior of pruning all local volumes
-	clientOld, err := clientpkg.NewClientWithOpts(clientpkg.FromEnv, clientpkg.WithVersion("1.41"))
+	clientOld, err := clientpkg.NewClientWithOpts(ctx, clientpkg.FromEnv, clientpkg.WithVersion("1.41"))
 	assert.NilError(t, err)
-	defer clientOld.Close()
-	assert.Equal(t, clientOld.ClientVersion(), "1.41")
+	defer clientOld.Close(ctx)
+	assert.Equal(t, clientOld.ClientVersion(ctx), "1.41")
 
 	v, err = client.VolumeCreate(ctx, volume.CreateOptions{})
 	assert.NilError(t, err)

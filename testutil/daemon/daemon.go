@@ -278,21 +278,24 @@ func (d *Daemon) ReadLogFile() ([]byte, error) {
 func (d *Daemon) NewClientT(t testing.TB, extraOpts ...client.Opt) *client.Client {
 	t.Helper()
 
-	c, err := d.NewClient(extraOpts...)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	c, err := d.NewClient(ctx, extraOpts...)
 	assert.NilError(t, err, "[%s] could not create daemon client", d.id)
-	t.Cleanup(func() { c.Close() })
+	t.Cleanup(func() { c.Close(ctx) })
 	return c
 }
 
 // NewClient creates new client based on daemon's socket path
-func (d *Daemon) NewClient(extraOpts ...client.Opt) (*client.Client, error) {
+func (d *Daemon) NewClient(ctx context.Context, extraOpts ...client.Opt) (*client.Client, error) {
 	clientOpts := []client.Opt{
 		client.FromEnv,
 		client.WithHost(d.Sock()),
 	}
 	clientOpts = append(clientOpts, extraOpts...)
 
-	return client.NewClientWithOpts(clientOpts...)
+	return client.NewClientWithOpts(ctx, clientOpts...)
 }
 
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
@@ -826,16 +829,16 @@ func (d *Daemon) ReloadConfig() error {
 // LoadBusybox image into the daemon
 func (d *Daemon) LoadBusybox(ctx context.Context, t testing.TB) {
 	t.Helper()
-	clientHost, err := client.NewClientWithOpts(client.FromEnv)
+	clientHost, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	assert.NilError(t, err, "[%s] failed to create client", d.id)
-	defer clientHost.Close()
+	defer clientHost.Close(ctx)
 
 	reader, err := clientHost.ImageSave(ctx, []string{"busybox:latest"})
 	assert.NilError(t, err, "[%s] failed to download busybox", d.id)
 	defer reader.Close()
 
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	resp, err := c.ImageLoad(ctx, reader, true)
 	assert.NilError(t, err, "[%s] failed to load busybox", d.id)
@@ -937,10 +940,13 @@ func (d *Daemon) queryRootDir() (string, error) {
 // Info returns the info struct for this daemon
 func (d *Daemon) Info(t testing.TB) system.Info {
 	t.Helper()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
 	c := d.NewClientT(t)
-	info, err := c.Info(context.Background())
+	info, err := c.Info(ctx)
 	assert.NilError(t, err)
-	assert.NilError(t, c.Close())
+	assert.NilError(t, c.Close(ctx))
 	return info
 }
 

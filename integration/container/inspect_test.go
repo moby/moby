@@ -14,7 +14,7 @@ import (
 
 func TestInspectAnnotations(t *testing.T) {
 	ctx := setupTest(t)
-	apiClient := request.NewAPIClient(t)
+	apiClient := request.NewAPIClient(ctx, t)
 
 	annotations := map[string]string{
 		"hello": "world",
@@ -40,7 +40,7 @@ func TestInspectAnnotations(t *testing.T) {
 // custom networks, except for the "Default Switch" network on Windows).
 func TestNetworkAliasesAreEmpty(t *testing.T) {
 	ctx := setupTest(t)
-	apiClient := request.NewAPIClient(t)
+	apiClient := request.NewAPIClient(ctx, t)
 
 	netModes := []string{"host", "bridge", "none"}
 	if runtime.GOOS == "windows" {

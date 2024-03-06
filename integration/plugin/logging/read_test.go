@@ -28,7 +28,7 @@ func TestReadPluginNoRead(t *testing.T) {
 	d.StartWithBusybox(ctx, t, "--iptables=false")
 	defer d.Stop(t)
 
-	client, err := d.NewClient()
+	client, err := d.NewClient(ctx)
 	assert.Assert(t, err)
 	createPlugin(ctx, t, client, "test", "discard", asLogDriver)
 

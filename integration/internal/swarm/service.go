@@ -70,7 +70,7 @@ func CreateService(ctx context.Context, t *testing.T, d *daemon.Daemon, opts ...
 	t.Helper()
 
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	spec := CreateServiceSpec(t, opts...)
 	resp, err := client.ServiceCreate(ctx, spec, types.ServiceCreateOptions{})
@@ -224,7 +224,7 @@ func GetRunningTasks(ctx context.Context, t *testing.T, c client.ServiceAPIClien
 func ExecTask(ctx context.Context, t *testing.T, d *daemon.Daemon, task swarmtypes.Task, config types.ExecConfig) types.HijackedResponse {
 	t.Helper()
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	resp, err := client.ContainerExecCreate(ctx, task.Status.ContainerStatus.ContainerID, config)
 	assert.NilError(t, err, "error creating exec")

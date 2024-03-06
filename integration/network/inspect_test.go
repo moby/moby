@@ -20,7 +20,7 @@ func TestInspectNetwork(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	networkName := "Overlay" + t.Name()
 	overlayID := network.CreateNoError(ctx, t, c, networkName,
