@@ -16,6 +16,7 @@ import (
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/executor/resources"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/executor/runcexecutor"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver/pb"
@@ -128,8 +129,8 @@ func (iface *lnInterface) init(c *libnetwork.Controller, n *libnetwork.Network) 
 }
 
 // TODO(neersighted): Unstub Sample(), and collect data from the libnetwork Endpoint.
-func (iface *lnInterface) Sample() (*network.Sample, error) {
-	return &network.Sample{}, nil
+func (iface *lnInterface) Sample() (*resourcestypes.NetworkSample, error) {
+	return &resourcestypes.NetworkSample{}, nil
 }
 
 func (iface *lnInterface) Set(s *specs.Spec) error {

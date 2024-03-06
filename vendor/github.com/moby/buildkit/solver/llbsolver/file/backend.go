@@ -196,7 +196,7 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 
 	for _, s := range m {
 		if action.AttemptUnpackDockerCompatibility {
-			if ok, err := unpack(ctx, src, s, dest, destPath, ch, timestampToTime(action.Timestamp)); err != nil {
+			if ok, err := unpack(src, s, dest, destPath, ch, timestampToTime(action.Timestamp), idmap); err != nil {
 				return err
 			} else if ok {
 				continue

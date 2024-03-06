@@ -27,7 +27,7 @@ func DefaultPathEnv(os string) string {
 
 // NormalizePath cleans the path based on the operating system the path is meant for.
 // It takes into account a potential parent path, and will join the path to the parent
-// if the path is relative. Additionally, it will apply the folliwing rules:
+// if the path is relative. Additionally, it will apply the following rules:
 //   - always return an absolute path
 //   - always strip drive letters for Windows paths
 //   - optionally keep the trailing slashes on paths

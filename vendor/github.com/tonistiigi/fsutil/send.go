@@ -43,13 +43,14 @@ type sendHandle struct {
 }
 
 type sender struct {
-	conn            Stream
-	fs              FS
-	files           map[uint32]string
-	mu              sync.RWMutex
-	progressCb      func(int, bool)
-	progressCurrent int
-	sendpipeline    chan *sendHandle
+	conn              Stream
+	fs                FS
+	files             map[uint32]string
+	mu                sync.RWMutex
+	progressCb        func(int, bool)
+	progressCurrent   int
+	progressCurrentMu sync.Mutex
+	sendpipeline      chan *sendHandle
 }
 
 func (s *sender) run(ctx context.Context) error {
@@ -112,6 +113,8 @@ func (s *sender) run(ctx context.Context) error {
 
 func (s *sender) updateProgress(size int, last bool) {
 	if s.progressCb != nil {
+		s.progressCurrentMu.Lock()
+		defer s.progressCurrentMu.Unlock()
 		s.progressCurrent += size
 		s.progressCb(s.progressCurrent, last)
 	}

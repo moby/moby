@@ -6,10 +6,10 @@ package cniprovider
 import (
 	"context"
 
-	"github.com/moby/buildkit/util/network"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 )
 
-func (ns *cniNS) sample() (*network.Sample, error) {
+func (ns *cniNS) sample() (*resourcestypes.NetworkSample, error) {
 	return nil, nil
 }
 

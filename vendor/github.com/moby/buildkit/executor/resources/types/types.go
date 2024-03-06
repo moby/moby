@@ -3,8 +3,6 @@ package types
 import (
 	"context"
 	"time"
-
-	"github.com/moby/buildkit/util/network"
 )
 
 type Recorder interface {
@@ -23,16 +21,27 @@ type Samples struct {
 // Sample represents a wrapper for sampled data of cgroupv2 controllers
 type Sample struct {
 	//nolint
-	Timestamp_ time.Time       `json:"timestamp"`
-	CPUStat    *CPUStat        `json:"cpuStat,omitempty"`
-	MemoryStat *MemoryStat     `json:"memoryStat,omitempty"`
-	IOStat     *IOStat         `json:"ioStat,omitempty"`
-	PIDsStat   *PIDsStat       `json:"pidsStat,omitempty"`
-	NetStat    *network.Sample `json:"netStat,omitempty"`
+	Timestamp_ time.Time      `json:"timestamp"`
+	CPUStat    *CPUStat       `json:"cpuStat,omitempty"`
+	MemoryStat *MemoryStat    `json:"memoryStat,omitempty"`
+	IOStat     *IOStat        `json:"ioStat,omitempty"`
+	PIDsStat   *PIDsStat      `json:"pidsStat,omitempty"`
+	NetStat    *NetworkSample `json:"netStat,omitempty"`
 }
 
 func (s *Sample) Timestamp() time.Time {
 	return s.Timestamp_
+}
+
+type NetworkSample struct {
+	RxBytes   int64 `json:"rxBytes,omitempty"`
+	RxPackets int64 `json:"rxPackets,omitempty"`
+	RxErrors  int64 `json:"rxErrors,omitempty"`
+	RxDropped int64 `json:"rxDropped,omitempty"`
+	TxBytes   int64 `json:"txBytes,omitempty"`
+	TxPackets int64 `json:"txPackets,omitempty"`
+	TxErrors  int64 `json:"txErrors,omitempty"`
+	TxDropped int64 `json:"txDropped,omitempty"`
 }
 
 // CPUStat represents the sampling state of the cgroupv2 CPU controller

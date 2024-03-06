@@ -78,6 +78,11 @@ func SupportedPlatforms(noCache bool) []ocispecs.Platform {
 			arr = append(arr, linux(p))
 		}
 	}
+	if p := "loong64"; def.Architecture != p {
+		if _, err := loong64Supported(); err == nil {
+			arr = append(arr, linux(p))
+		}
+	}
 	if p := "arm"; def.Architecture != p {
 		if _, err := armSupported(); err == nil {
 			p := linux("arm")
@@ -141,6 +146,11 @@ func WarnIfUnsupported(pfs []ocispecs.Platform) {
 			}
 			if p.Architecture == "mips64" {
 				if _, err := mips64Supported(); err != nil {
+					printPlatformWarning(p, err)
+				}
+			}
+			if p.Architecture == "loong64" {
+				if _, err := loong64Supported(); err != nil {
 					printPlatformWarning(p, err)
 				}
 			}
