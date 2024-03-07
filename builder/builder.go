@@ -4,7 +4,7 @@
 // This package allows for other implementations of Docker builders.
 package builder // import "github.com/docker/docker/builder"
 
-import (
+import ( "github.com/docker/docker/api/types/container"
 	"context"
 	"io"
 
