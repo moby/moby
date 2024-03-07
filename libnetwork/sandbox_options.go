@@ -46,14 +46,6 @@ func OptionExtraHost(name string, IP string) SandboxOption {
 	}
 }
 
-// OptionParentUpdate function returns an option setter for parent container
-// which needs to update the IP address for the linked container.
-func OptionParentUpdate(cid string, name, ip string) SandboxOption {
-	return func(sb *Sandbox) {
-		sb.config.parentUpdates = append(sb.config.parentUpdates, parentUpdate{cid: cid, name: name, ip: ip})
-	}
-}
-
 // OptionResolvConfPath function returns an option setter for resolvconfpath option to
 // be passed to net container methods.
 func OptionResolvConfPath(path string) SandboxOption {
@@ -107,20 +99,6 @@ func OptionUseDefaultSandbox() SandboxOption {
 func OptionUseExternalKey() SandboxOption {
 	return func(sb *Sandbox) {
 		sb.config.useExternalKey = true
-	}
-}
-
-// OptionGeneric function returns an option setter for Generic configuration
-// that is not managed by libNetwork but can be used by the Drivers during the call to
-// net container creation method. Container Labels are a good example.
-func OptionGeneric(generic map[string]interface{}) SandboxOption {
-	return func(sb *Sandbox) {
-		if sb.config.generic == nil {
-			sb.config.generic = make(map[string]interface{}, len(generic))
-		}
-		for k, v := range generic {
-			sb.config.generic[k] = v
-		}
 	}
 }
 

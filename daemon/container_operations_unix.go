@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"syscall"
@@ -17,12 +18,14 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/process"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/sys/unix"
 )
 
@@ -57,6 +60,90 @@ func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string,
 	}
 
 	return env, nil
+}
+
+func (daemon *Daemon) addLegacyLinks(
+	ctx context.Context,
+	cfg *config.Config,
+	ctr *container.Container,
+	epConfig *network.EndpointSettings,
+	sb *libnetwork.Sandbox,
+) error {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.addLegacyLinks")
+	defer span.End()
+
+	if epConfig.EndpointID == "" {
+		return nil
+	}
+
+	children := daemon.children(ctr)
+	var parents map[string]*container.Container
+	if !cfg.DisableBridge && ctr.HostConfig.NetworkMode.IsPrivate() {
+		parents = daemon.parents(ctr)
+	}
+	if len(children) == 0 && len(parents) == 0 {
+		return nil
+	}
+	for _, child := range children {
+		if !isLinkable(child) {
+			return fmt.Errorf("Cannot link to %s, as it does not belong to the default network", child.Name)
+		}
+	}
+
+	var (
+		childEndpoints []string
+		cEndpointID    string
+	)
+	for linkAlias, child := range children {
+		_, alias := path.Split(linkAlias)
+		// allow access to the linked container via the alias, real name, and container hostname
+		aliasList := alias + " " + child.Config.Hostname
+		// only add the name if alias isn't equal to the name
+		if alias != child.Name[1:] {
+			aliasList = aliasList + " " + child.Name[1:]
+		}
+		defaultNW := child.NetworkSettings.Networks[network.DefaultNetwork]
+		if defaultNW.IPAddress != "" {
+			if err := sb.AddHostsEntry(ctx, aliasList, defaultNW.IPAddress); err != nil {
+				return errors.Wrapf(err, "failed to add address to /etc/hosts for link to %s", child.Name)
+			}
+		}
+		if defaultNW.GlobalIPv6Address != "" {
+			if err := sb.AddHostsEntry(ctx, aliasList, defaultNW.GlobalIPv6Address); err != nil {
+				return errors.Wrapf(err, "failed to add IPv6 address to /etc/hosts for link to %s", child.Name)
+			}
+		}
+		cEndpointID = defaultNW.EndpointID
+		if cEndpointID != "" {
+			childEndpoints = append(childEndpoints, cEndpointID)
+		}
+	}
+
+	var parentEndpoints []string
+	for alias, parent := range parents {
+		_, alias = path.Split(alias)
+		// Update ctr's IP address in /etc/hosts files in containers with legacy-links to ctr.
+		log.G(context.TODO()).Debugf("Update /etc/hosts of %s for alias %s with ip %s", parent.ID, alias, epConfig.IPAddress)
+		if psb, _ := daemon.netController.GetSandbox(parent.ID); psb != nil {
+			if err := psb.UpdateHostsEntry(alias, epConfig.IPAddress); err != nil {
+				return errors.Wrapf(err, "failed to update /etc/hosts of %s for alias %s with IP %s",
+					parent.ID, alias, epConfig.IPAddress)
+			}
+			if epConfig.GlobalIPv6Address != "" {
+				if err := psb.UpdateHostsEntry(alias, epConfig.GlobalIPv6Address); err != nil {
+					return errors.Wrapf(err, "failed to update /etc/hosts of %s for alias %s with IP %s",
+						parent.ID, alias, epConfig.GlobalIPv6Address)
+				}
+			}
+		}
+		if cEndpointID != "" {
+			parentEndpoints = append(parentEndpoints, cEndpointID)
+		}
+	}
+
+	sb.UpdateLabels(bridge.LegacyContainerLinkOptions(parentEndpoints, childEndpoints))
+
+	return nil
 }
 
 func (daemon *Daemon) getIPCContainer(id string) (*container.Container, error) {
