@@ -235,7 +235,7 @@ func (rc *ResolvConf) TransformForLegacyNw(ipv6 bool) {
 // use in a network sandbox that has an internal DNS resolver.
 //   - Add internalNS as a nameserver.
 //   - Remove other nameservers, stashing them as ExtNameServers for the
-//     internal resolver to use. (Apart from IPv6 nameservers, if keepIPv6.)
+//     internal resolver to use.
 //   - Mark ExtNameServers that must be used in the host namespace.
 //   - If no ExtNameServer addresses are found, use the defaults.
 //   - Return an error if an "ndots" option inherited from the host's config, or
@@ -244,7 +244,7 @@ func (rc *ResolvConf) TransformForLegacyNw(ipv6 bool) {
 //     option includes a ':', and an option with a matching prefix exists, it
 //     is not modified.
 func (rc *ResolvConf) TransformForIntNS(
-	keepIPv6 bool,
+	ipv6 bool,
 	internalNS netip.Addr,
 	reqdOptions []string,
 ) ([]ExtDNSEntry, error) {
@@ -254,30 +254,16 @@ func (rc *ResolvConf) TransformForIntNS(
 	// internal nameserver.
 	rc.md.ExtNameServers = nil
 	for _, addr := range rc.nameServers {
-		// The internal resolver only uses IPv4 addresses so, keep IPv6 nameservers in
-		// the container's file if keepIPv6, else drop them.
-		if addr.Is6() {
-			if keepIPv6 {
-				newNSs = append(newNSs, addr)
-			}
-		} else {
-			// Extract this NS. Mark loopback addresses that did not come from an override as
-			// 'HostLoopback'. Upstream requests for these servers will be made in the host's
-			// network namespace. (So, '--dns 127.0.0.53' means use a nameserver listening on
-			// the container's loopback interface. But, if the host's resolv.conf contains
-			// 'nameserver 127.0.0.53', the host's resolver will be used.)
-			//
-			//  TODO(robmry) - why only loopback addresses?
-			//   Addresses from the host's resolv.conf must be usable in the host's namespace,
-			//   and a lookup from the container's namespace is more expensive? And, for
-			//   example, if the host has a nameserver with an IPv6 LL address with a zone-id,
-			//   it won't work from the container's namespace (now, while the address is left in
-			//   the container's resolv.conf, or in future for the internal resolver).
-			rc.md.ExtNameServers = append(rc.md.ExtNameServers, ExtDNSEntry{
-				Addr:         addr,
-				HostLoopback: addr.IsLoopback() && !rc.md.NSOverride,
-			})
-		}
+		// Extract this NS. Mark addresses that did not come from an override, but will
+		// definitely not work in the container's namespace as 'HostLoopback'. Upstream
+		// requests for these servers will be made in the host's network namespace. (So,
+		// '--dns 127.0.0.53' means use a nameserver listening on the container's
+		// loopback interface. But, if the host's resolv.conf contains 'nameserver
+		// 127.0.0.53', the host's resolver will be used.)
+		rc.md.ExtNameServers = append(rc.md.ExtNameServers, ExtDNSEntry{
+			Addr:         addr,
+			HostLoopback: !rc.md.NSOverride && (addr.IsLoopback() || (addr.Is6() && !ipv6) || addr.Zone() != ""),
+		})
 	}
 	rc.nameServers = newNSs
 
@@ -285,7 +271,7 @@ func (rc *ResolvConf) TransformForIntNS(
 	// internal resolver, use the defaults as ext nameservers.
 	if len(rc.md.ExtNameServers) == 0 && len(rc.nameServers) == 1 {
 		log.G(context.TODO()).Info("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers")
-		for _, addr := range defaultNSAddrs(keepIPv6) {
+		for _, addr := range defaultNSAddrs(ipv6) {
 			rc.md.ExtNameServers = append(rc.md.ExtNameServers, ExtDNSEntry{Addr: addr})
 		}
 		rc.md.UsedDefaultNS = true

@@ -327,20 +327,17 @@ func (sb *Sandbox) rebuildDNS() error {
 		return err
 	}
 
-	// Check for IPv6 endpoints in this sandbox. If there are any, IPv6 nameservers
-	// will be left in the container's 'resolv.conf'.
-	// TODO(robmry) - preserving old behaviour, but ...
-	//   IPv6 nameservers should be treated like IPv4 ones, and used as upstream
-	//   servers for the internal resolver (if it has IPv6 connectivity). This
-	//   doesn't need to depend on whether there are currently any IPv6 endpoints.
-	//   Removing IPv6 nameservers from the container's resolv.conf will avoid the
-	//   problem that musl-libc's resolver tries all nameservers in parallel, so an
-	//   external IPv6 resolver can return NXDOMAIN before the internal resolver
-	//   returns the address of a container.
+	// Check for IPv6 endpoints in this sandbox. If there are any, and the container has
+	// IPv6 enabled, upstream requests from the internal DNS resolver can be made from
+	// the container's namespace.
+	// TODO(robmry) - this can only check networks connected when the resolver is set up,
+	//  the configuration won't be updated if the container gets an IPv6 address later.
 	ipv6 := false
 	for _, ep := range sb.endpoints {
 		if ep.network.enableIPv6 {
-			ipv6 = true
+			if en, ok := sb.ipv6Enabled(); ok {
+				ipv6 = en
+			}
 			break
 		}
 	}
