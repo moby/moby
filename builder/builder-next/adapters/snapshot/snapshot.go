@@ -17,6 +17,7 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/leaseutil"
+	"github.com/moby/locker"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
@@ -51,10 +52,11 @@ type checksumCalculator interface {
 type snapshotter struct {
 	opt Opt
 
-	refs map[string]layer.Layer
-	db   *bolt.DB
-	mu   sync.Mutex
-	reg  graphIDRegistrar
+	refs              map[string]layer.Layer
+	db                *bolt.DB
+	mu                sync.Mutex
+	reg               graphIDRegistrar
+	layerCreateLocker *locker.Locker
 }
 
 // NewSnapshotter creates a new snapshotter
@@ -71,10 +73,11 @@ func NewSnapshotter(opt Opt, prevLM leases.Manager, ns string) (snapshot.Snapsho
 	}
 
 	s := &snapshotter{
-		opt:  opt,
-		db:   db,
-		refs: map[string]layer.Layer{},
-		reg:  reg,
+		opt:               opt,
+		db:                db,
+		refs:              map[string]layer.Layer{},
+		reg:               reg,
+		layerCreateLocker: locker.New(),
 	}
 
 	slm := newLeaseManager(s, prevLM)
