@@ -262,6 +262,14 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 			platform = dockerImage.Platform
 		}
 
+		// Filter out platforms that don't match the requested platform.  Do it
+		// after the size, container count and chainIDs are summed up to have
+		// the single combined entry still represent the whole multi-platform
+		// image.
+		if !platformMatcher.Match(platform) {
+			return nil
+		}
+
 		if best == nil || platformMatcher.Less(platform, bestPlatform) {
 			best = img
 			bestPlatform = platform
