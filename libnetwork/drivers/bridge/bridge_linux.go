@@ -1522,6 +1522,15 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	return nil
 }
 
+func LegacyContainerLinkOptions(parentEndpoints, childEndpoints []string) map[string]interface{} {
+	return options.Generic{
+		netlabel.GenericData: options.Generic{
+			"ParentEndpoints": parentEndpoints,
+			"ChildEndpoints":  childEndpoints,
+		},
+	}
+}
+
 func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable bool) (retErr error) {
 	cc := endpoint.containerConfig
 	ec := endpoint.extConnConfig

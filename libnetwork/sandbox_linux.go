@@ -168,9 +168,8 @@ func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
 		}
 	}
 
-	// Set up hosts and resolv.conf files.
 	osSbox.RefreshIPv6LoEnabled()
-	if err := sb.finishInitDNS(ctx); err != nil {
+	if err := sb.rebuildHostsFile(ctx); err != nil {
 		return err
 	}
 

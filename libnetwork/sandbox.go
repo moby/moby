@@ -67,13 +67,6 @@ type hostsPathConfig struct {
 	hostsPath       string
 	originHostsPath string
 	extraHosts      []extraHost
-	parentUpdates   []parentUpdate
-}
-
-type parentUpdate struct {
-	cid  string
-	name string
-	ip   string
 }
 
 type extraHost struct {
@@ -271,6 +264,15 @@ func (sb *Sandbox) Refresh(ctx context.Context, options ...SandboxOption) error 
 	}
 
 	return nil
+}
+
+func (sb *Sandbox) UpdateLabels(labels map[string]interface{}) {
+	if sb.config.generic == nil {
+		sb.config.generic = make(map[string]interface{}, len(labels))
+	}
+	for k, v := range labels {
+		sb.config.generic[k] = v
+	}
 }
 
 func (sb *Sandbox) MarshalJSON() ([]byte, error) {
