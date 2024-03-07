@@ -271,7 +271,7 @@ func (cli *Client) checkVersion(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		cli.negotiateAPIVersionPing(ctx, ping)
+		cli.negotiateAPIVersionPing(ping)
 	}
 	return nil
 }
@@ -317,7 +317,7 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 			// FIXME(thaJeztah): Ping returns an error when failing to connect to the API; we should not swallow the error here, and instead returning it.
 			return
 		}
-		cli.negotiateAPIVersionPing(ctx, ping)
+		cli.negotiateAPIVersionPing(ping)
 	}
 }
 
@@ -336,13 +336,13 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 // added (1.24).
 func (cli *Client) NegotiateAPIVersionPing(ctx context.Context, pingResponse types.Ping) {
 	if !cli.manualOverride {
-		cli.negotiateAPIVersionPing(ctx, pingResponse)
+		cli.negotiateAPIVersionPing(pingResponse)
 	}
 }
 
 // negotiateAPIVersionPing queries the API and updates the version to match the
 // API version from the ping response.
-func (cli *Client) negotiateAPIVersionPing(_ context.Context, pingResponse types.Ping) {
+func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
 	// default to the latest version before versioning headers existed
 	if pingResponse.APIVersion == "" {
 		pingResponse.APIVersion = fallbackAPIVersion
