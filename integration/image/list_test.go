@@ -2,13 +2,17 @@ package image // import "github.com/docker/docker/integration/image"
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil"
@@ -226,4 +230,73 @@ func TestAPIImagesListSizeShared(t *testing.T) {
 
 	_, err := client.ImageList(ctx, image.ListOptions{SharedSize: true})
 	assert.NilError(t, err)
+}
+
+func TestAPIImagesListManifests(t *testing.T) {
+	skip.If(t, !testEnv.UsingSnapshotter())
+	// Sub-daemons not supported on Windows
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.Start(t)
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+
+	testPlatforms := []ocispec.Platform{
+		{OS: "windows", Architecture: "amd64"},
+		{OS: "linux", Architecture: "arm", Variant: "v7"},
+		{OS: "darwin", Architecture: "arm64"},
+	}
+	specialimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
+		return specialimage.MultiPlatform(dir, "multiplatform:latest", testPlatforms)
+	})
+
+	t.Run("unsupported before 1.47", func(t *testing.T) {
+		// TODO: Remove when MinSupportedAPIVersion >= 1.47
+		c := d.NewClientT(t, client.WithVersion(api.MinSupportedAPIVersion))
+
+		images, err := c.ImageList(ctx, image.ListOptions{Manifests: true})
+		assert.NilError(t, err)
+
+		assert.Assert(t, is.Len(images, 1))
+		assert.Check(t, is.Nil(images[0].Manifests))
+	})
+
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.47"))
+
+	api147 := d.NewClientT(t, client.WithVersion("1.47"))
+
+	t.Run("no manifests if not requested", func(t *testing.T) {
+		images, err := api147.ImageList(ctx, image.ListOptions{})
+		assert.NilError(t, err)
+
+		assert.Assert(t, is.Len(images, 1))
+		assert.Check(t, is.Nil(images[0].Manifests))
+	})
+
+	images, err := api147.ImageList(ctx, image.ListOptions{Manifests: true})
+	assert.NilError(t, err)
+
+	assert.Check(t, is.Len(images, 1))
+	assert.Check(t, images[0].Manifests != nil)
+	assert.Check(t, is.Len(images[0].Manifests, 3))
+
+	for _, mfst := range images[0].Manifests {
+		// All manifests should be image manifests
+		assert.Check(t, is.Equal(mfst.Kind, image.ManifestKindImage))
+
+		// Full image was loaded so all manifests should be available
+		assert.Check(t, mfst.Available)
+
+		// The platform should be one of the test platforms
+		if assert.Check(t, is.Contains(testPlatforms, mfst.ImageData.Platform)) {
+			testPlatforms = slices.DeleteFunc(testPlatforms, func(p ocispec.Platform) bool {
+				op := mfst.ImageData.Platform
+				return p.OS == op.OS && p.Architecture == op.Architecture && p.Variant == op.Variant
+			})
+		}
+	}
 }

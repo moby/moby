@@ -123,6 +123,10 @@ func TestImageList(t *testing.T) {
 
 				assert.Check(t, is.Equal(all[0].ID, multilayer.Manifests[0].Digest.String()))
 				assert.Check(t, is.DeepEqual(all[0].RepoTags, []string{"multilayer:latest"}))
+
+				assert.Check(t, is.Len(all[0].Manifests, 1))
+				assert.Check(t, all[0].Manifests[0].Available)
+				assert.Check(t, is.Equal(all[0].Manifests[0].Kind, imagetypes.ManifestKindImage))
 			},
 		},
 		{
@@ -133,6 +137,18 @@ func TestImageList(t *testing.T) {
 
 				assert.Check(t, is.Equal(all[0].ID, twoplatform.Manifests[0].Digest.String()))
 				assert.Check(t, is.DeepEqual(all[0].RepoTags, []string{"twoplatform:latest"}))
+
+				i := all[0]
+				assert.Check(t, is.Len(i.Manifests, 2))
+
+				assert.Check(t, is.Equal(i.Manifests[0].Kind, imagetypes.ManifestKindImage))
+				if assert.Check(t, i.Manifests[0].ImageData != nil) {
+					assert.Check(t, is.Equal(i.Manifests[0].ImageData.Platform.Architecture, "arm64"))
+				}
+				assert.Check(t, is.Equal(i.Manifests[1].Kind, imagetypes.ManifestKindImage))
+				if assert.Check(t, i.Manifests[1].ImageData != nil) {
+					assert.Check(t, is.Equal(i.Manifests[1].ImageData.Platform.Architecture, "amd64"))
+				}
 			},
 		},
 		{
@@ -146,6 +162,14 @@ func TestImageList(t *testing.T) {
 
 				assert.Check(t, is.Equal(all[1].ID, twoplatform.Manifests[0].Digest.String()))
 				assert.Check(t, is.DeepEqual(all[1].RepoTags, []string{"twoplatform:latest"}))
+
+				assert.Check(t, is.Len(all[0].Manifests, 1))
+				assert.Check(t, is.Len(all[1].Manifests, 2))
+
+				assert.Check(t, is.Equal(all[0].Manifests[0].Kind, imagetypes.ManifestKindImage))
+
+				assert.Check(t, is.Equal(all[1].Manifests[0].Kind, imagetypes.ManifestKindImage))
+				assert.Check(t, is.Equal(all[1].Manifests[1].Kind, imagetypes.ManifestKindImage))
 			},
 		},
 		{
@@ -176,7 +200,9 @@ func TestImageList(t *testing.T) {
 				assert.NilError(t, err)
 			}
 
-			all, err := service.Images(ctx, tc.opts)
+			opts := tc.opts
+			opts.Manifests = true
+			all, err := service.Images(ctx, opts)
 			assert.NilError(t, err)
 
 			sort.Slice(all, func(i, j int) bool {

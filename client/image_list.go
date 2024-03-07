@@ -11,6 +11,11 @@ import (
 )
 
 // ImageList returns a list of images in the docker host.
+//
+// Experimental: Setting the [options.Manifest] will populate
+// [image.Summary.Manifests] with information about image manifests.
+// This is experimental and might change in the future without any backward
+// compatibility.
 func (cli *Client) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
 	var images []image.Summary
 
@@ -46,6 +51,9 @@ func (cli *Client) ImageList(ctx context.Context, options image.ListOptions) ([]
 	}
 	if options.SharedSize && versions.GreaterThanOrEqualTo(cli.version, "1.42") {
 		query.Set("shared-size", "1")
+	}
+	if options.Manifests && versions.GreaterThanOrEqualTo(cli.version, "1.47") {
+		query.Set("manifests", "1")
 	}
 
 	serverResp, err := cli.get(ctx, "/images/json", query, nil)
