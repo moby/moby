@@ -2265,6 +2265,19 @@ definitions:
         x-nullable: false
         type: "integer"
         example: 2
+      Manifests:
+        description: |
+          Manifests is a list of image manifests available in this image.  It
+          provides a more detailed view of the platform-specific image manifests or
+          other image-attached data like build attestations.
+
+          WARNING: This is experimental and may change at any time without any backward
+          compatibility.
+        type: "array"
+        x-nullable: false
+        x-omitempty: true
+        items:
+          $ref: "#/definitions/ImageManifestSummary"
 
   AuthConfig:
     type: "object"
@@ -6643,6 +6656,75 @@ definitions:
     type: "object"
     additionalProperties:
       type: "string"
+
+  ImageManifestSummary:
+    x-nullable: false
+    description: |
+      ImageManifestSummary represents a summary of an image manifest.
+    type: "object"
+    required: ["Id", "Descriptor", "Available", "ContentSize", "Kind"]
+    properties:
+      Id:
+        description: |
+          ID is the content-addressable ID of an image and is the same as the
+          digest of the image manifest.
+        type: "string"
+        example: "sha256:95869fbcf224d947ace8d61d0e931d49e31bb7fc67fffbbe9c3198c33aa8e93f"
+      Descriptor:
+        $ref: "#/definitions/OCIDescriptor"
+      Available:
+        description: Indicates whether all the child content (image config, layers) is available.
+        type: "boolean"
+        example: true
+      ContentSize:
+        description: |
+          The size of the available distributable (possibly compressed) image content
+          in bytes.
+        type: "integer"
+        format: "int64"
+        example: 3987495
+      Kind:
+        description: |
+          The kind of the manifest.
+        type: "string"
+        example: "image"
+        enum:
+          - "image"
+          - "attestation"
+      ImageData:
+        description: |
+          The image data for the image manifest.
+          This field is only populated when Kind is "image".
+        type: "object"
+        required: ["Platform", "Containers", "Size", "UnpackedSize"]
+        properties:
+          Platform:
+            $ref: "#/definitions/OCIPlatform"
+          Containers:
+            description: |
+              The number of containers that are using this specific platform image.
+            type: "integer"
+            format: "int64"
+            example: 2
+          UnpackedSize:
+            description: |
+              The size of the unpacked and uncompressed image content (needed for
+              the image to be useable by containers) in bytes.
+            type: "integer"
+            format: "int64"
+            example: 3987495
+      AttestationData:
+        description: |
+          The image data for the attestation manifest.
+          This field is only populated when Kind is "attestation".
+        type: "object"
+        required: ["For"]
+        properties:
+          For:
+            description: |
+              The digest of the image manifest that this attestation is for.
+            type: "string"
+            example: "sha256:95869fbcf224d947ace8d61d0e931d49e31bb7fc67fffbbe9c3198c33aa8e93f"
 
 paths:
   /containers/json:
