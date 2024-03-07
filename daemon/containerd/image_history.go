@@ -84,13 +84,12 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 		return imgs
 	}
 
-	is := i.client.ImageService()
 	currentImg := img
 	for _, h := range history {
 		dgst := currentImg.Target.Digest.String()
 		h.ID = dgst
 
-		imgs, err := is.List(ctx, "target.digest=="+dgst)
+		imgs, err := i.images.List(ctx, "target.digest=="+dgst)
 		if err != nil {
 			return nil, err
 		}
@@ -157,5 +156,5 @@ func (i *ImageService) getParentsByBuilderLabel(ctx context.Context, img contain
 		return nil, nil
 	}
 
-	return i.client.ImageService().List(ctx, "target.digest=="+dgst.String())
+	return i.images.List(ctx, "target.digest=="+dgst.String())
 }

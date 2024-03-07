@@ -178,7 +178,7 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 		platform = platforms.Only(*options.Platform)
 	}
 
-	cs := i.client.ContentStore()
+	cs := i.content
 
 	img, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
@@ -237,7 +237,7 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platform platforms.MatchComparer) (int64, error) {
 	var size int64
 
-	cs := i.client.ContentStore()
+	cs := i.content
 	handler := containerdimages.LimitManifests(containerdimages.ChildrenHandler(cs), platform, 1)
 
 	var wh containerdimages.HandlerFunc = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
@@ -360,7 +360,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 // pointing to the same repository as the given reference.
 func (i *ImageService) getAllImagesWithRepository(ctx context.Context, ref reference.Named) ([]containerdimages.Image, error) {
 	nameFilter := "^" + regexp.QuoteMeta(ref.Name()) + ":" + reference.TagRegexp.String() + "$"
-	return i.client.ImageService().List(ctx, "name~="+strconv.Quote(nameFilter))
+	return i.images.List(ctx, "name~="+strconv.Quote(nameFilter))
 }
 
 func imageFamiliarName(img containerdimages.Image) string {
@@ -378,7 +378,7 @@ func imageFamiliarName(img containerdimages.Image) string {
 // targeting the specified digest.
 // If images have different values, an errdefs.Conflict error will be returned.
 func (i *ImageService) getImageLabelByDigest(ctx context.Context, target digest.Digest, labelKey string) (string, error) {
-	imgs, err := i.client.ImageService().List(ctx, "target.digest=="+target.String()+",labels."+labelKey)
+	imgs, err := i.images.List(ctx, "target.digest=="+target.String()+",labels."+labelKey)
 	if err != nil {
 		return "", errdefs.System(err)
 	}

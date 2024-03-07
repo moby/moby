@@ -16,20 +16,20 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-func MultiLayer(dir string) error {
+func MultiLayer(dir string) (*ocispec.Index, error) {
 	const imageRef = "multilayer:latest"
 
 	layer1Desc, err := writeLayerWithOneFile(dir, "foo", []byte("1"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	layer2Desc, err := writeLayerWithOneFile(dir, "bar", []byte("2"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	layer3Desc, err := writeLayerWithOneFile(dir, "hello", []byte("world"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	configDesc, err := writeJsonBlob(dir, ocispec.MediaTypeImageConfig, ocispec.Image{
@@ -43,7 +43,7 @@ func MultiLayer(dir string) error {
 		},
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	manifest := ocispec.Manifest{
@@ -53,7 +53,7 @@ func MultiLayer(dir string) error {
 	}
 
 	legacyManifests := []manifestItem{
-		manifestItem{
+		{
 			Config:   blobPath(configDesc),
 			RepoTags: []string{imageRef},
 			Layers:   []string{blobPath(layer1Desc), blobPath(layer2Desc), blobPath(layer3Desc)},
@@ -62,7 +62,7 @@ func MultiLayer(dir string) error {
 
 	ref, err := reference.ParseNormalizedNamed(imageRef)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return singlePlatformImage(dir, ref, manifest, legacyManifests)
 }
@@ -74,10 +74,10 @@ type manifestItem struct {
 	Layers   []string
 }
 
-func singlePlatformImage(dir string, ref reference.Named, manifest ocispec.Manifest, legacyManifests []manifestItem) error {
+func singlePlatformImage(dir string, ref reference.Named, manifest ocispec.Manifest, legacyManifests []manifestItem) (*ocispec.Index, error) {
 	manifestDesc, err := writeJsonBlob(dir, ocispec.MediaTypeImageManifest, manifest)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if ref != nil {
@@ -90,25 +90,24 @@ func singlePlatformImage(dir string, ref reference.Named, manifest ocispec.Manif
 		}
 	}
 
-	if err := writeJson(ocispec.Index{
+	idx := ocispec.Index{
 		Versioned: specs.Versioned{SchemaVersion: 2},
 		MediaType: ocispec.MediaTypeImageIndex,
 		Manifests: []ocispec.Descriptor{manifestDesc},
-	}, filepath.Join(dir, "index.json")); err != nil {
-		return err
 	}
-	if err != nil {
-		return err
+	if err := writeJson(idx, filepath.Join(dir, "index.json")); err != nil {
+		return nil, err
 	}
-
 	if err := writeJson(legacyManifests, filepath.Join(dir, "manifest.json")); err != nil {
-		return err
-	}
-	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return os.WriteFile(filepath.Join(dir, "oci-layout"), []byte(`{"imageLayoutVersion": "1.0.0"}`), 0o644)
+	err = os.WriteFile(filepath.Join(dir, "oci-layout"), []byte(`{"imageLayoutVersion": "1.0.0"}`), 0o644)
+	if err != nil {
+		return nil, err
+	}
+
+	return &idx, nil
 }
 
 func fileArchive(dir string, name string, content []byte) (io.ReadCloser, error) {

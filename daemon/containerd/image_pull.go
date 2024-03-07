@@ -90,7 +90,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	})
 	opts = append(opts, containerd.WithImageHandler(h))
 
-	pp := pullProgress{store: i.client.ContentStore(), showExists: true}
+	pp := pullProgress{store: i.content, showExists: true}
 	finishProgress := jobs.showProgress(ctx, out, pp)
 
 	var outNewImg *containerd.Image
@@ -140,7 +140,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 				sentPullingFrom = true
 			}
 
-			available, _, _, missing, err := images.Check(ctx, i.client.ContentStore(), desc, p)
+			available, _, _, missing, err := images.Check(ctx, i.content, desc, p)
 			if err != nil {
 				return nil, err
 			}
@@ -187,7 +187,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	logger.Info("image pulled")
 
 	// The pull succeeded, so try to remove any dangling image we have for this target
-	err = i.client.ImageService().Delete(compatcontext.WithoutCancel(ctx), danglingImageName(img.Target().Digest))
+	err = i.images.Delete(compatcontext.WithoutCancel(ctx), danglingImageName(img.Target().Digest))
 	if err != nil && !cerrdefs.IsNotFound(err) {
 		// Image pull succeeded, but cleaning up the dangling image failed. Ignore the
 		// error to not mark the pull as failed.

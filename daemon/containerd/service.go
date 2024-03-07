@@ -27,17 +27,18 @@ import (
 
 // ImageService implements daemon.ImageService
 type ImageService struct {
-	client          *containerd.Client
-	images          images.Store
-	content         content.Store
-	containers      container.Store
-	snapshotter     string
-	registryHosts   docker.RegistryHosts
-	registryService registryResolver
-	eventsService   *daemonevents.Events
-	pruneRunning    atomic.Bool
-	refCountMounter snapshotter.Mounter
-	idMapping       idtools.IdentityMapping
+	client              *containerd.Client
+	images              images.Store
+	content             content.Store
+	containers          container.Store
+	snapshotterServices map[string]snapshots.Snapshotter
+	snapshotter         string
+	registryHosts       docker.RegistryHosts
+	registryService     registryResolver
+	eventsService       *daemonevents.Events
+	pruneRunning        atomic.Bool
+	refCountMounter     snapshotter.Mounter
+	idMapping           idtools.IdentityMapping
 }
 
 type registryResolver interface {
@@ -61,9 +62,12 @@ type ImageServiceConfig struct {
 // NewService creates a new ImageService.
 func NewService(config ImageServiceConfig) *ImageService {
 	return &ImageService{
-		client:          config.Client,
-		images:          config.Client.ImageService(),
-		content:         config.Client.ContentStore(),
+		client:  config.Client,
+		images:  config.Client.ImageService(),
+		content: config.Client.ContentStore(),
+		snapshotterServices: map[string]snapshots.Snapshotter{
+			config.Snapshotter: config.Client.SnapshotService(config.Snapshotter),
+		},
 		containers:      config.Containers,
 		snapshotter:     config.Snapshotter,
 		registryHosts:   config.RegistryHosts,
@@ -72,6 +76,16 @@ func NewService(config ImageServiceConfig) *ImageService {
 		refCountMounter: config.RefCountMounter,
 		idMapping:       config.IDMapping,
 	}
+}
+
+func (i *ImageService) snapshotterService(snapshotter string) snapshots.Snapshotter {
+	s, ok := i.snapshotterServices[snapshotter]
+	if !ok {
+		s = i.client.SnapshotService(snapshotter)
+		i.snapshotterServices[snapshotter] = s
+	}
+
+	return s
 }
 
 // DistributionServices return services controlling daemon image storage.

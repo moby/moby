@@ -473,7 +473,8 @@ func loadSpecialImage(c *testing.T, imageFunc specialimage.SpecialImageFunc) str
 	imgDir := filepath.Join(tmpDir, "image")
 	assert.NilError(c, os.Mkdir(imgDir, 0o755))
 
-	assert.NilError(c, imageFunc(imgDir))
+	_, err := imageFunc(imgDir)
+	assert.NilError(c, err)
 
 	rc, err := archive.TarWithOptions(imgDir, &archive.TarOptions{})
 	assert.NilError(c, err)

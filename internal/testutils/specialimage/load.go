@@ -12,15 +12,16 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/jsonmessage"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 )
 
-type SpecialImageFunc func(string) error
+type SpecialImageFunc func(string) (*ocispec.Index, error)
 
 func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFunc SpecialImageFunc) string {
 	tempDir := t.TempDir()
 
-	err := imageFunc(tempDir)
+	_, err := imageFunc(tempDir)
 	assert.NilError(t, err)
 
 	rc, err := archive.TarWithOptions(tempDir, &archive.TarOptions{})

@@ -11,6 +11,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/labels"
+	"github.com/containerd/containerd/platforms"
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log"
@@ -21,7 +22,6 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
@@ -59,7 +59,6 @@ func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 // Images returns a filtered list of images.
 //
-// TODO(thaJeztah): implement opts.ContainerCount (used for docker system df); see https://github.com/moby/moby/issues/43853
 // TODO(thaJeztah): verify behavior of `RepoDigests` and `RepoTags` for images without (untagged) or multiple tags; see https://github.com/moby/moby/issues/43861
 // TODO(thaJeztah): verify "Size" vs "VirtualSize" in images; see https://github.com/moby/moby/issues/43862
 func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) ([]*imagetypes.Summary, error) {
@@ -72,13 +71,13 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		return nil, err
 	}
 
-	imgs, err := i.client.ImageService().List(ctx)
+	imgs, err := i.images.List(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
-	snapshotter := i.client.SnapshotService(i.snapshotter)
+	snapshotter := i.snapshotterService(i.snapshotter)
 	sizeCache := make(map[digest.Digest]int64)
 	snapshotSizeFn := func(d digest.Digest) (int64, error) {
 		if s, ok := sizeCache[d]; ok {
@@ -93,17 +92,15 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 	}
 
 	var (
-		allContainers []*container.Container
-		summaries     = make([]*imagetypes.Summary, 0, len(imgs))
-		root          []*[]digest.Digest
-		layers        map[digest.Digest]int
+		summaries = make([]*imagetypes.Summary, 0, len(imgs))
+		root      []*[]digest.Digest
+		layers    map[digest.Digest]int
 	)
 	if opts.SharedSize {
 		root = make([]*[]digest.Digest, 0, len(imgs))
 		layers = make(map[digest.Digest]int)
 	}
 
-	contentStore := i.client.ContentStore()
 	uniqueImages := map[digest.Digest]images.Image{}
 	tagsByDigest := map[digest.Digest][]string{}
 	intermediateImages := map[digest.Digest]struct{}{}
@@ -155,88 +152,17 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		tagsByDigest[dgst] = append(tagsByDigest[dgst], reference.FamiliarString(ref))
 	}
 
-	if opts.ContainerCount {
-		allContainers = i.containers.List()
-	}
-
-	type tempImage struct {
-		img           *ImageManifest
-		indexPlatform *ocispec.Platform
-		dockerImage   *dockerspec.DockerOCIImage
-	}
-
 	for _, img := range uniqueImages {
-		var presentImages []tempImage
-		err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
-			if isPseudo, err := img.IsPseudoImage(ctx); isPseudo || err != nil {
-				return err
-			}
-
-			available, err := img.CheckContentAvailable(ctx)
-			if err != nil {
-				log.G(ctx).WithFields(log.Fields{
-					"error":    err,
-					"manifest": img.Target(),
-					"image":    img.Name(),
-				}).Warn("checking availability of platform specific manifest failed")
-				return nil
-			}
-
-			if !available {
-				return nil
-			}
-
-			conf, err := img.Config(ctx)
-			if err != nil {
-				return err
-			}
-
-			var dockerImage dockerspec.DockerOCIImage
-			if err := readConfig(ctx, contentStore, conf, &dockerImage); err != nil {
-				return err
-			}
-
-			presentImages = append(presentImages, tempImage{
-				img:           img,
-				indexPlatform: img.Target().Platform,
-				dockerImage:   &dockerImage,
-			})
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		if len(presentImages) == 0 {
-			// TODO we should probably show *something* for images we've pulled
-			// but are 100% shallow or an empty manifest list/index
-			// ("tianon/scratch:index" is an empty example image index and
-			// "tianon/scratch:list" is an empty example manifest list)
-			continue
-		}
-
-		sort.SliceStable(presentImages, func(i, j int) bool {
-			platformFromIndexOrConfig := func(idx int) ocispec.Platform {
-				if presentImages[i].indexPlatform != nil {
-					return *presentImages[i].indexPlatform
-				}
-				return presentImages[i].dockerImage.Platform
-			}
-
-			return platformMatcher.Less(platformFromIndexOrConfig(i), platformFromIndexOrConfig(j))
-		})
-
-		best := presentImages[0].img
-		image, chainIDs, err := i.singlePlatformImage(ctx, contentStore, tagsByDigest[best.RealTarget.Digest], best, opts, allContainers)
-		if err != nil {
+		image, allChainsIDs, err := i.imageSummary(ctx, img, platformMatcher, opts, tagsByDigest)
+		if err != nil || image == nil {
 			return nil, err
 		}
 
 		summaries = append(summaries, image)
 
 		if opts.SharedSize {
-			root = append(root, &chainIDs)
-			for _, id := range chainIDs {
+			root = append(root, &allChainsIDs)
+			for _, id := range allChainsIDs {
 				layers[id] = layers[id] + 1
 			}
 		}
@@ -257,36 +183,157 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 	return summaries, nil
 }
 
-func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest, opts imagetypes.ListOptions, allContainers []*container.Container) (*imagetypes.Summary, []digest.Digest, error) {
-	diffIDs, err := imageManifest.RootFS(ctx)
+// imageSummary returns a summary of the image, including the total size of the image and all its platforms.
+// It also returns the chainIDs of all the layers of the image (including all its platforms).
+// All return values will be nil if the image should be skipped.
+func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platformMatcher platforms.MatchComparer,
+	opts imagetypes.ListOptions, tagsByDigest map[digest.Digest][]string,
+) (_ *imagetypes.Summary, allChainIDs []digest.Digest, _ error) {
+
+	// Total size of the image including all its platform
+	var totalSize int64
+
+	// ChainIDs of all the layers of the image (including all its platform)
+	var allChainsIDs []digest.Digest
+
+	// Count of containers using the image
+	var containersCount int64
+
+	// Single platform image manifest preferred by the platform matcher
+	var best *ImageManifest
+	var bestPlatform ocispec.Platform
+
+	err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
+		if isPseudo, err := img.IsPseudoImage(ctx); isPseudo || err != nil {
+			return nil
+		}
+
+		available, err := img.CheckContentAvailable(ctx)
+		if err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"error":    err,
+				"manifest": img.Target(),
+				"image":    img.Name(),
+			}).Warn("checking availability of platform specific manifest failed")
+			return nil
+		}
+
+		if !available {
+			return nil
+		}
+
+		conf, err := img.Config(ctx)
+		if err != nil {
+			return err
+		}
+
+		var dockerImage dockerspec.DockerOCIImage
+		if err := readConfig(ctx, i.content, conf, &dockerImage); err != nil {
+			return err
+		}
+
+		target := img.Target()
+
+		chainIDs, err := img.RootFS(ctx)
+		if err != nil {
+			return err
+		}
+
+		ts, _, err := i.singlePlatformSize(ctx, img)
+		if err != nil {
+			return err
+		}
+
+		totalSize += ts
+		allChainsIDs = append(allChainsIDs, chainIDs...)
+
+		if opts.ContainerCount {
+			i.containers.ApplyAll(func(c *container.Container) {
+				if c.ImageManifest != nil && c.ImageManifest.Digest == target.Digest {
+					containersCount++
+				}
+			})
+		}
+
+		var platform ocispec.Platform
+		if target.Platform != nil {
+			platform = *target.Platform
+		} else {
+			platform = dockerImage.Platform
+		}
+
+		// Filter out platforms that don't match the requested platform.  Do it
+		// after the size, container count and chainIDs are summed up to have
+		// the single combined entry still represent the whole multi-platform
+		// image.
+		if !platformMatcher.Match(platform) {
+			return nil
+		}
+
+		if best == nil || platformMatcher.Less(platform, bestPlatform) {
+			best = img
+			bestPlatform = platform
+		}
+
+		return nil
+	})
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to get rootfs of image %s", imageManifest.Name())
+		return nil, nil, err
 	}
 
+	if best == nil {
+		// TODO we should probably show *something* for images we've pulled
+		// but are 100% shallow or an empty manifest list/index
+		// ("tianon/scratch:index" is an empty example image index and
+		// "tianon/scratch:list" is an empty example manifest list)
+		return nil, nil, nil
+	}
+
+	image, err := i.singlePlatformImage(ctx, i.content, tagsByDigest[best.RealTarget.Digest], best)
+	if err != nil {
+		return nil, nil, err
+	}
+	image.Size = totalSize
+
+	if opts.ContainerCount {
+		image.Containers = containersCount
+	}
+	return image, allChainsIDs, nil
+}
+
+func (i *ImageService) singlePlatformSize(ctx context.Context, imgMfst *ImageManifest) (totalSize int64, contentSize int64, _ error) {
 	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
-	snapshotter := i.client.SnapshotService(i.snapshotter)
+	snapshotter := i.snapshotterService(i.snapshotter)
+
+	diffIDs, err := imgMfst.RootFS(ctx)
+	if err != nil {
+		return -1, -1, errors.Wrapf(err, "failed to get rootfs of image %s", imgMfst.Name())
+	}
 
 	imageSnapshotID := identity.ChainID(diffIDs).String()
 	unpackedUsage, err := calculateSnapshotTotalUsage(ctx, snapshotter, imageSnapshotID)
 	if err != nil {
 		if !cerrdefs.IsNotFound(err) {
 			log.G(ctx).WithError(err).WithFields(log.Fields{
-				"image":      imageManifest.Name(),
+				"image":      imgMfst.Name(),
 				"snapshotID": imageSnapshotID,
 			}).Warn("failed to calculate unpacked size of image")
 		}
 		unpackedUsage = snapshots.Usage{Size: 0}
 	}
 
-	contentSize, err := imageManifest.Size(ctx)
+	contentSize, err = imgMfst.Size(ctx)
 	if err != nil {
-		return nil, nil, err
+		return -1, -1, err
 	}
 
 	// totalSize is the size of the image's packed layers and snapshots
 	// (unpacked layers) combined.
-	totalSize := contentSize + unpackedUsage.Size
+	totalSize = contentSize + unpackedUsage.Size
+	return totalSize, contentSize, nil
+}
 
+func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest) (*imagetypes.Summary, error) {
 	var repoDigests []string
 	rawImg := imageManifest.Metadata()
 	target := rawImg.Target.Digest
@@ -318,11 +365,16 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 
 	cfgDesc, err := imageManifest.Image.Config(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	var cfg configLabels
 	if err := readConfig(ctx, contentStore, cfgDesc, &cfg); err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+
+	totalSize, _, err := i.singlePlatformSize(ctx, imageManifest)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to calculate size of image %s", imageManifest.Name())
 	}
 
 	summary := &imagetypes.Summary{
@@ -343,18 +395,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		summary.Created = cfg.Created.Unix()
 	}
 
-	if opts.ContainerCount {
-		// Get container count
-		var containers int64
-		for _, c := range allContainers {
-			if c.ImageID == image.ID(target.String()) {
-				containers++
-			}
-		}
-		summary.Containers = containers
-	}
-
-	return summary, identity.ChainIDs(diffIDs), nil
+	return summary, nil
 }
 
 type imageFilterFunc func(image images.Image) bool
@@ -426,7 +467,7 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		return nil, err
 	}
 
-	labelFn, err := setupLabelFilter(i.client.ContentStore(), imageFilters)
+	labelFn, err := setupLabelFilter(i.content, imageFilters)
 	if err != nil {
 		return nil, err
 	}

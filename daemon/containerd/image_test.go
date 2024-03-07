@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/metadata"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log/logtest"
 	"github.com/distribution/reference"
 	dockerimages "github.com/docker/docker/daemon/images"
@@ -295,4 +296,16 @@ func newTestDB(ctx context.Context, t *testing.T) *metadata.DB {
 	}
 
 	return mdb
+}
+
+type testSnapshotterService struct {
+	snapshots.Snapshotter
+}
+
+func (s *testSnapshotterService) Stat(ctx context.Context, key string) (snapshots.Info, error) {
+	return snapshots.Info{}, nil
+}
+
+func (s *testSnapshotterService) Usage(ctx context.Context, key string) (snapshots.Usage, error) {
+	return snapshots.Usage{}, nil
 }
