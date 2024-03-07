@@ -162,7 +162,7 @@ func (sb *Sandbox) SetKey(basePath string) error {
 		}
 	}
 
-	if err := sb.finishInitDNS(); err != nil {
+	if err := sb.rebuildHostsFile(); err != nil {
 		return err
 	}
 
