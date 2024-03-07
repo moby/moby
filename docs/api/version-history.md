@@ -22,6 +22,13 @@ keywords: "API, Docker, rcli, REST, documentation"
   daemon has experimental features enabled.
 * `GET /networks/{id}` now returns an `EnableIPv4` field showing whether the
   network has IPv4 IPAM enabled.
+* `GET /images/json` response now includes `Manifests` field, which contains
+  information about the sub-manifests included in the image index. This
+  includes things like platform-specific manifests and build attestations.
+  The new field will only be populated if the request also sets the `manifests`
+  query parameter to `true`.
+  WARNING: This is experimental and may change at any time without any backward
+  compatibility.
 
 ## v1.46 API changes
 

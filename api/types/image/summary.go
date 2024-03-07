@@ -42,6 +42,14 @@ type Summary struct {
 	// Required: true
 	ParentID string `json:"ParentId"`
 
+	// Manifests is a list of image manifests available in this image.  It
+	// provides a more detailed view of the platform-specific image manifests or
+	// other image-attached data like build attestations.
+	//
+	// WARNING: This is experimental and may change at any time without any backward
+	// compatibility.
+	Manifests []ManifestSummary `json:"Manifests,omitempty"`
+
 	// List of content-addressable digests of locally available image manifests
 	// that the image is referenced from. Multiple manifests can refer to the
 	// same image.
