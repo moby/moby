@@ -23,26 +23,7 @@ import (
 
 // MakeImageCache creates a stateful image cache.
 func (i *ImageService) MakeImageCache(ctx context.Context, sourceRefs []string) (builder.ImageCache, error) {
-	adaptor := cacheAdaptor{i}
-	if len(sourceRefs) == 0 {
-		return cache.NewLocal(adaptor), nil
-	}
-
-	cache := cache.New(adaptor)
-
-	for _, ref := range sourceRefs {
-		img, err := i.GetImage(ctx, ref, backend.GetImageOpts{})
-		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return nil, err
-			}
-			log.G(ctx).Warnf("Could not look up %s for cache resolution, skipping: %+v", ref, err)
-			continue
-		}
-		cache.Populate(img)
-	}
-
-	return cache, nil
+	return cache.New(ctx, cacheAdaptor{i}, sourceRefs)
 }
 
 type cacheAdaptor struct {
@@ -126,6 +107,10 @@ func (c cacheAdaptor) Get(id image.ID) (*image.Image, error) {
 	}
 
 	return outImg, nil
+}
+
+func (c cacheAdaptor) GetByRef(ctx context.Context, refOrId string) (*image.Image, error) {
+	return c.is.GetImage(ctx, refOrId, backend.GetImageOpts{})
 }
 
 func (c cacheAdaptor) SetParent(target, parent image.ID) error {

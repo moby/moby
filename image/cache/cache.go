@@ -8,6 +8,7 @@ import (
 
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -17,6 +18,7 @@ import (
 
 type ImageCacheStore interface {
 	Get(image.ID) (*image.Image, error)
+	GetByRef(ctx context.Context, refOrId string) (*image.Image, error)
 	SetParent(target, parent image.ID) error
 	GetParent(target image.ID) (image.ID, error)
 	Create(parent *image.Image, image image.Image, extraLayer layer.DiffID) (image.ID, error)
@@ -24,11 +26,30 @@ type ImageCacheStore interface {
 	Children(id image.ID) []image.ID
 }
 
-// NewLocal returns a local image cache, based on parent chain
-func NewLocal(store ImageCacheStore) *LocalImageCache {
-	return &LocalImageCache{
-		store: store,
+func New(ctx context.Context, store ImageCacheStore, cacheFrom []string) (builder.ImageCache, error) {
+	local := &LocalImageCache{store: store}
+	if len(cacheFrom) == 0 {
+		return local, nil
 	}
+
+	cache := &ImageCache{
+		store:           store,
+		localImageCache: local,
+	}
+
+	for _, ref := range cacheFrom {
+		img, err := store.GetByRef(ctx, ref)
+		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return nil, err
+			}
+			log.G(ctx).Warnf("Could not look up %s for cache resolution, skipping: %+v", ref, err)
+			continue
+		}
+		cache.Populate(img)
+	}
+
+	return cache, nil
 }
 
 // LocalImageCache is cache based on parent chain.
@@ -39,14 +60,6 @@ type LocalImageCache struct {
 // GetCache returns the image id found in the cache
 func (lic *LocalImageCache) GetCache(imgID string, config *containertypes.Config, platform ocispec.Platform) (string, error) {
 	return getImageIDAndError(getLocalCachedImage(lic.store, image.ID(imgID), config, platform))
-}
-
-// New returns an image cache, based on history objects
-func New(store ImageCacheStore) *ImageCache {
-	return &ImageCache{
-		store:           store,
-		localImageCache: NewLocal(store),
-	}
 }
 
 // ImageCache is cache based on history objects. Requires initial set of images.
