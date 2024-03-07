@@ -36,7 +36,7 @@ func TestUntarWithMaliciousSymlinks(t *testing.T) {
 	err = os.WriteFile(filepath.Join(dir, "host-file"), []byte("I am a host file"), 0o644)
 	assert.NilError(t, err)
 
-	// Create some data which which will be copied into the "container" root into
+	// Create some data to copy into the "container" root into
 	// the symlinked path.
 	// Before this change, the copy would overwrite the "host" content.
 	// With this change it should not.

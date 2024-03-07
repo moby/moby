@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	testBuf     = []byte("Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo")
+	testBuf     = []byte("Buffalo1 buffalo2 Buffalo3 buffalo4 buffalo5 buffalo6 Buffalo7 buffalo8")
 	testBufSize = len(testBuf)
 )
 

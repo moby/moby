@@ -118,7 +118,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	assert.NilError(t, err)
 
 	// we can't just wait on no tasks for the service, counter-intuitively.
-	// Tasks may briefly exist but not show up, if they are are in the process
+	// Tasks may briefly exist but not show up, if they are in the process
 	// of being deallocated. To avoid this case, we should retry network remove
 	// a few times, to give tasks time to be deallcoated
 	poll.WaitOn(t, swarm.NoTasksForService(ctx, client, serviceID2), swarm.ServicePoll)

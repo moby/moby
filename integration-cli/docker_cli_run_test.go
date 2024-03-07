@@ -503,7 +503,7 @@ func (s *DockerCLIRunSuite) TestVolumesFromGetsProperMode(c *testing.T) {
 
 	cli.DockerCmd(c, "run", "--name", "parent", "-v", hostpath+":"+prefix+slash+"test:ro", "busybox", "true")
 
-	// Expect this "rw" mode to be be ignored since the inherited volume is "ro"
+	// Expect this "rw" mode to be ignored since the inherited volume is "ro"
 	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent:rw", "busybox", "touch", prefix+slash+"test"+slash+"file"); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `rw`")
 	}
@@ -4412,7 +4412,7 @@ func (s *DockerCLIRunSuite) TestRunMount(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunHostnameFQDN(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
-	expectedOutput := "foobar.example.com\nfoobar.example.com\nfoobar\nexample.com\nfoobar.example.com"
+	expectedOutput := "foobar.example.com\nfoobar.example.com\nfoobar\nexample.com\nfoobar.example.com" //nolint:dupword
 	out := cli.DockerCmd(c, "run", "--hostname=foobar.example.com", "busybox", "sh", "-c", `cat /etc/hostname && hostname && hostname -s && hostname -d && hostname -f`).Combined()
 	assert.Equal(c, strings.TrimSpace(out), expectedOutput)
 
@@ -4425,7 +4425,7 @@ func (s *DockerCLIRunSuite) TestRunHostnameFQDN(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunHostnameInHostMode(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
-	const expectedOutput = "foobar\nfoobar"
+	const expectedOutput = "foobar\nfoobar" //nolint:dupword
 	out := cli.DockerCmd(c, "run", "--net=host", "--hostname=foobar", "busybox", "sh", "-c", `echo $HOSTNAME && hostname`).Combined()
 	assert.Equal(c, strings.TrimSpace(out), expectedOutput)
 }

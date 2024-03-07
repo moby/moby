@@ -786,7 +786,7 @@ func Client(args []string) {
 		time.Sleep(1 * time.Hour)
 		os.Exit(0)
 	case "fail":
-		log.G(context.TODO()).Fatalf("Test error condition with message: error error error")
+		log.G(context.TODO()).Fatalf("Test error condition with message: error error error") //nolint:dupword
 	}
 
 	serviceName := args[1]

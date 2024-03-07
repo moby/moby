@@ -32,7 +32,7 @@ func init() {
 	// by func (*Namespace) InvokeFunc() or func setIPv6() below from
 	// being scheduled onto that thread. Changes to the network namespace of
 	// the initial thread alter /proc/self/ns/net, which would break any
-	// code which (incorrectly) assumes that that file is the network
+	// code which (incorrectly) assumes that the file is the network
 	// namespace for the thread it is currently executing on.
 	runtime.LockOSThread()
 }

@@ -63,7 +63,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 
 	// Build a image with multiple layers
 	dockerfile := `FROM busybox
-	RUN echo echo Running... > /run.sh`
+	RUN echo 'echo Running...' > /run.sh`
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
 	defer source.Close()
 	resp, err := client.ImageBuild(ctx,

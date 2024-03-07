@@ -304,6 +304,7 @@ func (s *DockerCLIBuildSuite) TestBuildOnBuildLowercase(c *testing.T) {
 		c.Fatalf("Did not receive the expected echo text, got %s", result.Combined())
 	}
 
+	//nolint:dupword
 	if strings.Contains(result.Combined(), "ONBUILD ONBUILD") {
 		c.Fatalf("Got an ONBUILD ONBUILD error with no error: got %s", result.Combined())
 	}
@@ -2136,14 +2137,14 @@ func (s *DockerCLIBuildSuite) TestBuildWithVolumeOwnership(c *testing.T) {
 	const name = "testbuildimg"
 
 	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox:latest
-        RUN mkdir /test && chown daemon:daemon /test && chmod 0600 /test
+        RUN mkdir /test && chown daemon:wheel /test && chmod 0600 /test
         VOLUME /test`))
 
 	out := cli.DockerCmd(c, "run", "--rm", "testbuildimg", "ls", "-la", "/test").Combined()
 	if expected := "drw-------"; !strings.Contains(out, expected) {
 		c.Fatalf("expected %s received %s", expected, out)
 	}
-	if expected := "daemon   daemon"; !strings.Contains(out, expected) {
+	if expected := "daemon   wheel"; !strings.Contains(out, expected) {
 		c.Fatalf("expected %s received %s", expected, out)
 	}
 }
@@ -5613,7 +5614,8 @@ func (s *DockerCLIBuildSuite) TestBuildWithExtraHostInvalidFormat(c *testing.T) 
 }
 
 func (s *DockerCLIBuildSuite) TestBuildMultiStageCopyFromSyntax(c *testing.T) {
-	dockerfile := `
+	//nolint:dupword
+	const dockerfile = `
 		FROM busybox AS first
 		COPY foo bar
 
@@ -5992,6 +5994,7 @@ func (s *DockerCLIBuildSuite) TestBuildOpaqueDirectory(c *testing.T) {
 func (s *DockerCLIBuildSuite) TestBuildWindowsUser(c *testing.T) {
 	testRequires(c, DaemonIsWindows)
 	const name = "testbuildwindowsuser"
+	//nolint:dupword
 	buildImage(name, build.WithDockerfile(`FROM `+testEnv.PlatformDefaults.BaseImage+`
 		RUN net user user /add
 		USER user
@@ -6155,7 +6158,7 @@ func (s *DockerCLIBuildSuite) TestBuildIidFile(c *testing.T) {
 	// Use a Dockerfile with multiple stages to ensure we get the last one
 	cli.BuildCmd(c, name,
 		build.WithDockerfile(`FROM `+minimalBaseImage()+` AS stage1
-ENV FOO FOO
+ENV FOO FOO1
 FROM `+minimalBaseImage()+`
 ENV BAR BAZ`),
 		cli.WithFlags("--iidfile", tmpIidFile))

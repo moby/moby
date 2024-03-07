@@ -138,7 +138,7 @@ type messageRing struct {
 	wait *sync.Cond
 
 	sizeBytes int64 // current buffer size
-	maxBytes  int64 // max buffer size size
+	maxBytes  int64 // max buffer size
 	queue     []*Message
 	closed    bool
 }

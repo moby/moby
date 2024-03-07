@@ -35,7 +35,7 @@ func (s *DockerCLIPluginLogDriverSuite) TestPluginLogDriver(c *testing.T) {
 
 	cli.DockerCmd(c, "start", "-a", "test")
 	out = cli.DockerCmd(c, "logs", "test").Combined()
-	assert.Equal(c, strings.TrimSpace(out), "hello\nhello")
+	assert.Equal(c, strings.TrimSpace(out), "hello\nhello") //nolint:dupword
 
 	cli.DockerCmd(c, "rm", "test")
 	cli.DockerCmd(c, "plugin", "disable", pluginName)

@@ -90,9 +90,9 @@ func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *testing.T) {
 	assert.NilError(c, err)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 
-	// i have heard anecdotal reports that logs may come back from the engine
-	// mis-ordered. if this tests fails, consider the possibility that that
-	// might be occurring
+	// I have heard anecdotal reports that logs may come back from the engine
+	// mis-ordered. If this test fails, then possibly that's what causing the
+	// failure.
 	for i, line := range lines {
 		assert.Assert(c, strings.Contains(line, fmt.Sprintf("log test %v", i)))
 	}

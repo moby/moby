@@ -108,7 +108,7 @@ func (fl *follow) nextPos(current logPos) (next logPos, ok bool) {
 	case st = <-fl.LogFile.read:
 	}
 
-	// Have any any logs been written since we last checked?
+	// Have any logs been written since we last checked?
 	if st.pos == current { // Nope.
 		// Add ourself to the notify list.
 		st.wait = append(st.wait, fl.c)
