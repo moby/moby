@@ -3,6 +3,7 @@ package networking
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -593,4 +595,69 @@ func TestInternalNwConnectivity(t *testing.T) {
 	res = container.ExecT(execCtx, t, c, id, []string{"ping", "-c1", "-W3", "8.8.8.8"})
 	assert.Check(t, is.Equal(res.ExitCode, 1))
 	assert.Check(t, is.Contains(res.Stderr(), "Network is unreachable"))
+}
+
+// Check that the container's interface has no IPv6 address when IPv6 is
+// disabled in a container via sysctl.
+func TestDisableIPv6Addrs(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	testcases := []struct {
+		name    string
+		sysctls map[string]string
+		expIPv6 bool
+	}{
+		{
+			name:    "IPv6 enabled",
+			expIPv6: true,
+		},
+		{
+			name:    "IPv6 disabled",
+			sysctls: map[string]string{"net.ipv6.conf.all.disable_ipv6": "1"},
+		},
+	}
+
+	const netName = "testnet"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithIPv6(),
+		network.WithIPAM("fda0:ef3d:6430:abcd::/64", "fda0:ef3d:6430:abcd::1"),
+	)
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	inet6RE := regexp.MustCompile(`inet6[ \t]+[0-9a-f:]*`)
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			opts := []func(config *container.TestContainerConfig){
+				container.WithCmd("ip", "a"),
+				container.WithNetworkMode(netName),
+			}
+			if len(tc.sysctls) > 0 {
+				opts = append(opts, container.WithSysctls(tc.sysctls))
+			}
+
+			runRes := container.RunAttach(ctx, t, c, opts...)
+			defer c.ContainerRemove(ctx, runRes.ContainerID,
+				containertypes.RemoveOptions{Force: true},
+			)
+
+			stdout := runRes.Stdout.String()
+			inet6 := inet6RE.FindAllString(stdout, -1)
+			if tc.expIPv6 {
+				assert.Check(t, len(inet6) > 0, "Expected IPv6 addresses but found none.")
+			} else {
+				assert.Check(t, is.DeepEqual(inet6, []string{}, cmpopts.EquateEmpty()))
+			}
+		})
+	}
 }
