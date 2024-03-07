@@ -149,16 +149,16 @@ func TestGetSearchDomains(t *testing.T) {
 			result: []string{"example.com"},
 		},
 		{
-			input:  `search example.com # ignored`,
-			result: []string{"example.com"},
+			input:  `search example.com # notignored`,
+			result: []string{"example.com", "#", "notignored"},
 		},
 		{
 			input:  `	  search	 example.com	  `,
 			result: []string{"example.com"},
 		},
 		{
-			input:  `	  search	 example.com	  # ignored`,
-			result: []string{"example.com"},
+			input:  `	  search	 example.com	  # notignored`,
+			result: []string{"example.com", "#", "notignored"},
 		},
 		{
 			input:  `search foo.example.com example.com`,
@@ -169,8 +169,8 @@ func TestGetSearchDomains(t *testing.T) {
 			result: []string{"foo.example.com", "example.com"},
 		},
 		{
-			input:  `	   search	   foo.example.com	 example.com	# ignored`,
-			result: []string{"foo.example.com", "example.com"},
+			input:  `	   search	   foo.example.com	 example.com	# notignored`,
+			result: []string{"foo.example.com", "example.com", "#", "notignored"},
 		},
 		{
 			input: `nameserver 1.2.3.4
@@ -213,6 +213,9 @@ func TestGetOptions(t *testing.T) {
 			input: `# ignored`,
 		},
 		{
+			input: `; ignored`,
+		},
+		{
 			input: `nameserver 1.2.3.4`,
 		},
 		{
@@ -220,32 +223,36 @@ func TestGetOptions(t *testing.T) {
 			result: []string{"opt1"},
 		},
 		{
-			input:  `options opt1 # ignored`,
-			result: []string{"opt1"},
+			input:  `options opt1 # notignored`,
+			result: []string{"opt1", "#", "notignored"},
+		},
+		{
+			input:  `options opt1 ; notignored`,
+			result: []string{"opt1", ";", "notignored"},
 		},
 		{
 			input:  `	  options	 opt1	  `,
 			result: []string{"opt1"},
 		},
 		{
-			input:  `	  options	 opt1	  # ignored`,
-			result: []string{"opt1"},
+			input:  `	  options	 opt1	  # notignored`,
+			result: []string{"opt1", "#", "notignored"},
 		},
 		{
 			input:  `options opt1 opt2 opt3`,
 			result: []string{"opt1", "opt2", "opt3"},
 		},
 		{
-			input:  `options opt1 opt2 opt3 # ignored`,
-			result: []string{"opt1", "opt2", "opt3"},
+			input:  `options opt1 opt2 opt3 # notignored`,
+			result: []string{"opt1", "opt2", "opt3", "#", "notignored"},
 		},
 		{
 			input:  `	   options	 opt1	 opt2	 opt3	`,
 			result: []string{"opt1", "opt2", "opt3"},
 		},
 		{
-			input:  `	   options	 opt1	 opt2	 opt3	# ignored`,
-			result: []string{"opt1", "opt2", "opt3"},
+			input:  `	   options	 opt1	 opt2	 opt3	# notignored`,
+			result: []string{"opt1", "opt2", "opt3", "#", "notignored"},
 		},
 		{
 			input: `nameserver 1.2.3.4
@@ -256,7 +263,7 @@ options opt1 opt2 opt3`,
 			input: `nameserver 1.2.3.4
 options opt1 opt2
 options opt3 opt4`,
-			result: []string{"opt3", "opt4"},
+			result: []string{"opt1", "opt2", "opt3", "opt4"},
 		},
 	} {
 		test := GetOptions([]byte(tc.input))

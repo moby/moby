@@ -291,21 +291,17 @@ func (rc *ResolvConf) TransformForIntNS(
 		rc.md.UsedDefaultNS = true
 	}
 
-	// Validate the ndots option from host config or overrides, if present.
-	// TODO(robmry) - pre-existing behaviour, but ...
-	//   Validating ndots from an override is good, but not-liking something in the
-	//   host's resolv.conf isn't a reason to fail - just remove? (And it'll be
-	//   replaced by the value in reqdOptions, if given.)
-	if ndots, exists := rc.Option("ndots"); exists {
-		if n, err := strconv.Atoi(ndots); err != nil || n < 0 {
-			return nil, errdefs.InvalidParameter(
-				fmt.Errorf("invalid number for ndots option: %v", ndots))
-		}
-	}
-	// For each option required by the nameserver, add it if not already
-	// present (if the option already has a value don't change it).
+	// For each option required by the nameserver, add it if not already present. If
+	// the option is already present, don't override it. Apart from ndots - if the
+	// ndots value is invalid and an ndots option is required, replace the existing
+	// value.
 	for _, opt := range reqdOptions {
 		optName, _, _ := strings.Cut(opt, ":")
+		if optName == "ndots" {
+			rc.options = removeInvalidNDots(rc.options)
+			// No need to update rc.md.NDotsFrom, if there is no ndots option remaining,
+			// it'll be set to "internal" when the required value is added.
+		}
 		if _, exists := rc.Option(optName); !exists {
 			rc.AddOption(opt)
 		}
@@ -450,18 +446,8 @@ func UserModified(rcPath, rcHashPath string) (bool, error) {
 func (rc *ResolvConf) processLine(line string) {
 	fields := strings.Fields(line)
 
-	// Strip comments.
-	// TODO(robmry) - ignore comment chars except in column 0.
-	//   This preserves old behaviour, but it's wrong. For example, resolvers
-	//   will honour the option in line "options # ndots:0" (and ignore the
-	//   "#" as an unknown option).
-	for i, s := range fields {
-		if s[0] == '#' || s[0] == ';' {
-			fields = fields[:i]
-			break
-		}
-	}
-	if len(fields) == 0 {
+	// Strip blank lines and comments.
+	if len(fields) == 0 || fields[0][0] == '#' || fields[0][0] == ';' {
 		return
 	}
 
@@ -488,10 +474,8 @@ func (rc *ResolvConf) processLine(line string) {
 		if len(fields) < 2 {
 			return
 		}
-		// Replace options from earlier directives.
-		// TODO(robmry) - preserving incorrect behaviour, options should accumulate.
-		//     rc.options = append(rc.options, fields[1:]...)
-		rc.options = fields[1:]
+		// Accumulate options.
+		rc.options = append(rc.options, fields[1:]...)
 	default:
 		// Copy anything that's not a recognised directive.
 		rc.other = append(rc.other, line)
@@ -505,4 +489,23 @@ func defaultNSAddrs(ipv6 bool) []netip.Addr {
 		addrs = append(addrs, defaultIPv6NSs...)
 	}
 	return addrs
+}
+
+// removeInvalidNDots filters ill-formed "ndots" settings from options.
+// The backing array of the options slice is reused.
+func removeInvalidNDots(options []string) []string {
+	n := 0
+	for _, opt := range options {
+		k, v, _ := strings.Cut(opt, ":")
+		if k == "ndots" {
+			ndots, err := strconv.Atoi(v)
+			if err != nil || ndots < 0 {
+				continue
+			}
+		}
+		options[n] = opt
+		n++
+	}
+	clear(options[n:]) // Zero out the obsolete elements, for GC.
+	return options[:n]
 }

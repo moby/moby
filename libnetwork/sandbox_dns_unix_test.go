@@ -77,11 +77,19 @@ func TestDNSOptions(t *testing.T) {
 	err = sb2.setupDNS()
 	assert.NilError(t, err)
 	err = sb2.rebuildDNS()
-	assert.Error(t, err, "invalid number for ndots option: foobar")
+	assert.NilError(t, err)
+	currRC, err = resolvconf.GetSpecific(sb2.config.resolvConfPath)
+	assert.NilError(t, err)
+	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
+	assert.Check(t, is.DeepEqual([]string{"ndots:0"}, dnsOptionsList))
 
 	sb2.config.dnsOptionsList = []string{"ndots:-1"}
 	err = sb2.setupDNS()
 	assert.NilError(t, err)
 	err = sb2.rebuildDNS()
-	assert.Error(t, err, "invalid number for ndots option: -1")
+	assert.NilError(t, err)
+	currRC, err = resolvconf.GetSpecific(sb2.config.resolvConfPath)
+	assert.NilError(t, err)
+	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
+	assert.Check(t, is.DeepEqual([]string{"ndots:0"}, dnsOptionsList))
 }
