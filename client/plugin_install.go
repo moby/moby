@@ -84,7 +84,7 @@ func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values,
 	resp, err := cli.tryPluginPrivileges(ctx, query, options.RegistryAuth)
 	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		// todo: do inspect before to check existing name before checking privileges
-		newAuthHeader, privilegeErr := options.PrivilegeFunc()
+		newAuthHeader, privilegeErr := options.PrivilegeFunc(ctx)
 		if privilegeErr != nil {
 			ensureReaderClosed(resp)
 			return nil, privilegeErr
@@ -105,7 +105,7 @@ func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values,
 	ensureReaderClosed(resp)
 
 	if !options.AcceptAllPermissions && options.AcceptPermissionsFunc != nil && len(privileges) > 0 {
-		accept, err := options.AcceptPermissionsFunc(privileges)
+		accept, err := options.AcceptPermissionsFunc(ctx, privileges)
 		if err != nil {
 			return nil, err
 		}
