@@ -251,6 +251,12 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         GOBIN=/build/ GO111MODULE=on go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
      && /build/shfmt --version
 
+FROM base AS gopls
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+        GOBIN=/build/ GO111MODULE=on go install "golang.org/x/tools/gopls@latest" \
+     && /build/gopls version
+
 FROM base AS dockercli
 WORKDIR /go/src/github.com/docker/cli
 ARG DOCKERCLI_REPOSITORY
@@ -654,6 +660,11 @@ RUN <<EOT
   file docker-proxy
   docker-proxy --version
 EOT
+
+# devcontainer is a stage used by .devcontainer/devcontainer.json
+FROM dev-base AS devcontainer
+COPY --link . .
+COPY --link --from=gopls         /build/ /usr/local/bin/
 
 # usage:
 # > make shell

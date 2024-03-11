@@ -3,11 +3,19 @@
   "build": {
     "context": "..",
     "dockerfile": "../Dockerfile",
-    "target": "dev"
+    "target": "devcontainer"
   },
   "workspaceFolder": "/go/src/github.com/docker/docker",
   "workspaceMount": "source=${localWorkspaceFolder},target=/go/src/github.com/docker/docker,type=bind,consistency=cached",
 
   "remoteUser": "root",
-  "runArgs": ["--privileged"]
+  "runArgs": ["--privileged"],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go"
+      ]
+    }
+  }
 }
