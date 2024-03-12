@@ -71,6 +71,42 @@ func WithUnaryClientInterceptor(i UnaryClientInterceptor) ClientOpts {
 	}
 }
 
+// WithChainUnaryClientInterceptor sets the provided chain of client interceptors
+func WithChainUnaryClientInterceptor(interceptors ...UnaryClientInterceptor) ClientOpts {
+	return func(c *Client) {
+		if len(interceptors) == 0 {
+			return
+		}
+		if c.interceptor != nil {
+			interceptors = append([]UnaryClientInterceptor{c.interceptor}, interceptors...)
+		}
+		c.interceptor = func(
+			ctx context.Context,
+			req *Request,
+			reply *Response,
+			info *UnaryClientInfo,
+			final Invoker,
+		) error {
+			return interceptors[0](ctx, req, reply, info,
+				chainUnaryInterceptors(interceptors[1:], final, info))
+		}
+	}
+}
+
+func chainUnaryInterceptors(interceptors []UnaryClientInterceptor, final Invoker, info *UnaryClientInfo) Invoker {
+	if len(interceptors) == 0 {
+		return final
+	}
+	return func(
+		ctx context.Context,
+		req *Request,
+		reply *Response,
+	) error {
+		return interceptors[0](ctx, req, reply, info,
+			chainUnaryInterceptors(interceptors[1:], final, info))
+	}
+}
+
 // NewClient creates a new ttrpc client using the given connection
 func NewClient(conn net.Conn, opts ...ClientOpts) *Client {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -85,11 +121,14 @@ func NewClient(conn net.Conn, opts ...ClientOpts) *Client {
 		ctx:             ctx,
 		userCloseFunc:   func() {},
 		userCloseWaitCh: make(chan struct{}),
-		interceptor:     defaultClientInterceptor,
 	}
 
 	for _, o := range opts {
 		o(c)
+	}
+
+	if c.interceptor == nil {
+		c.interceptor = defaultClientInterceptor
 	}
 
 	go c.run()
@@ -286,7 +325,7 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// UserOnCloseWait is used to blocks untils the user's on-close callback
+// UserOnCloseWait is used to block until the user's on-close callback
 // finishes.
 func (c *Client) UserOnCloseWait(ctx context.Context) error {
 	select {
