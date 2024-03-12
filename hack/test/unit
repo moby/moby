@@ -38,15 +38,38 @@ if [ -n "${base_pkg_list}" ]; then
 		${base_pkg_list}
 fi
 if [ -n "${libnetwork_pkg_list}" ]; then
+	rerun_flaky=1
+
+	gotest_extra_flags="-skip=TestFlaky.*"
+	# Custom -run passed, don't run flaky tests separately.
+	if echo "$TESTFLAGS" | grep -Eq '(-run|-test.run)[= ]'; then
+		rerun_flaky=0
+		gotest_extra_flags=""
+	fi
+
 	# libnetwork tests invoke iptables, and cannot be run in parallel. Execute
 	# tests within /libnetwork with '-p=1' to run them sequentially. See
 	# https://github.com/moby/moby/issues/42458#issuecomment-873216754 for details.
-	gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report-libnetwork.json --junitfile=bundles/junit-report-libnetwork.xml -- \
-		"${BUILDFLAGS[@]}" \
+	gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report-libnetwork.json --junitfile=bundles/junit-report-libnetwork.xml \
+		-- "${BUILDFLAGS[@]}" \
 		-cover \
 		-coverprofile=bundles/coverage-libnetwork.out \
 		-covermode=atomic \
 		-p=1 \
+		${gotest_extra_flags} \
 		${TESTFLAGS} \
 		${libnetwork_pkg_list}
+
+	if [ $rerun_flaky -eq 1 ]; then
+		gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report-libnetwork-flaky.json --junitfile=bundles/junit-report-libnetwork-flaky.xml \
+			--packages "${libnetwork_pkg_list}" \
+			--rerun-fails=4 \
+			-- "${BUILDFLAGS[@]}" \
+			-cover \
+			-coverprofile=bundles/coverage-libnetwork-flaky.out \
+			-covermode=atomic \
+			-p=1 \
+			-test.run 'TestFlaky.*' \
+			${TESTFLAGS}
+	fi
 fi
