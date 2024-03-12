@@ -48,6 +48,6 @@ func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, metaH
 	err := distribution.Push(ctx, ref, imagePushConfig)
 	close(progressChan)
 	<-writesDone
-	imageActions.WithValues("push").UpdateSince(start)
+	ImageActions.WithValues("push").UpdateSince(start)
 	return err
 }

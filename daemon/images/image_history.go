@@ -76,6 +76,6 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*image.
 			break
 		}
 	}
-	imageActions.WithValues("history").UpdateSince(start)
+	ImageActions.WithValues("history").UpdateSince(start)
 	return history, nil
 }

@@ -26,7 +26,7 @@ func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platf
 	start := time.Now()
 
 	err := i.pullImageWithReference(ctx, ref, platform, metaHeaders, authConfig, outStream)
-	imageActions.WithValues("pull").UpdateSince(start)
+	ImageActions.WithValues("pull").UpdateSince(start)
 	if err != nil {
 		return err
 	}
