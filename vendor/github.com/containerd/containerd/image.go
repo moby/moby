@@ -336,6 +336,14 @@ func WithUnpackDuplicationSuppressor(suppressor kmutex.KeyedLocker) UnpackOpt {
 	}
 }
 
+// WithUnpackApplyOpts appends new apply options on the UnpackConfig.
+func WithUnpackApplyOpts(opts ...diff.ApplyOpt) UnpackOpt {
+	return func(ctx context.Context, uc *UnpackConfig) error {
+		uc.ApplyOpts = append(uc.ApplyOpts, opts...)
+		return nil
+	}
+}
+
 func (i *image) Unpack(ctx context.Context, snapshotterName string, opts ...UnpackOpt) error {
 	ctx, done, err := i.client.WithLease(ctx)
 	if err != nil {
