@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/containerd/containerd"
 	cerrdefs "github.com/containerd/containerd/errdefs"
@@ -17,6 +18,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/compatcontext"
@@ -29,7 +31,13 @@ import (
 
 // PullImage initiates a pull operation. baseRef is the image to pull.
 // If reference is not tagged, all tags are pulled.
-func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, outStream io.Writer) (retErr error) {
+	start := time.Now()
+	defer func() {
+		if retErr == nil {
+			dimages.ImageActions.WithValues("pull").UpdateSince(start)
+		}
+	}()
 	out := streamformatter.NewJSONProgressOutput(outStream, false)
 
 	if !reference.IsNameOnly(baseRef) {

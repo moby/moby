@@ -173,7 +173,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		return nil, err
 	}
 
-	imageActions.WithValues("delete").UpdateSince(start)
+	ImageActions.WithValues("delete").UpdateSince(start)
 
 	return records, nil
 }

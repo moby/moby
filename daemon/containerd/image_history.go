@@ -2,12 +2,14 @@ package containerd
 
 import (
 	"context"
+	"time"
 
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
+	dimages "github.com/docker/docker/daemon/images"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/pkg/errors"
@@ -16,6 +18,7 @@ import (
 // ImageHistory returns a slice of HistoryResponseItem structures for the
 // specified image name by walking the image lineage.
 func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imagetype.HistoryResponseItem, error) {
+	start := time.Now()
 	img, err := i.resolveImage(ctx, name)
 	if err != nil {
 		return nil, err
@@ -113,6 +116,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 		}
 	}
 
+	dimages.ImageActions.WithValues("history").UpdateSince(start)
 	return history, nil
 }
 

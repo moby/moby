@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
@@ -19,6 +20,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
+	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/progress"
@@ -40,6 +42,12 @@ import (
 // to perform cross-repo mounts of the shared content when pushing to a different
 // repository on the same registry.
 func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) (retErr error) {
+	start := time.Now()
+	defer func() {
+		if retErr == nil {
+			dimages.ImageActions.WithValues("push").UpdateSince(start)
+		}
+	}()
 	out := streamformatter.NewJSONProgressOutput(outStream, false)
 	progress.Messagef(out, "", "The push refers to repository [%s]", sourceRef.Name())
 
