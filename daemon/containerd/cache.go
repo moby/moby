@@ -2,9 +2,12 @@ package containerd
 
 import (
 	"context"
-	"reflect"
-	"strings"
+	"encoding/json"
+	"errors"
+	"fmt"
 
+	"github.com/containerd/containerd/content"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -12,201 +15,213 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/cache"
+	"github.com/docker/docker/internal/multierror"
+	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MakeImageCache creates a stateful image cache.
-func (i *ImageService) MakeImageCache(ctx context.Context, cacheFrom []string) (builder.ImageCache, error) {
-	images := []*image.Image{}
-	if len(cacheFrom) == 0 {
-		return &localCache{
-			imageService: i,
-		}, nil
-	}
-
-	for _, c := range cacheFrom {
-		h, err := i.ImageHistory(ctx, c)
-		if err != nil {
-			continue
-		}
-		for _, hi := range h {
-			if hi.ID != "<missing>" {
-				im, err := i.GetImage(ctx, hi.ID, backend.GetImageOpts{})
-				if err != nil {
-					return nil, err
-				}
-				images = append(images, im)
-			}
-		}
-	}
-
-	return &imageCache{
-		lc: &localCache{
-			imageService: i,
-		},
-		images:       images,
-		imageService: i,
-	}, nil
+func (i *ImageService) MakeImageCache(ctx context.Context, sourceRefs []string) (builder.ImageCache, error) {
+	return cache.New(ctx, cacheAdaptor{i}, sourceRefs)
 }
 
-type localCache struct {
-	imageService *ImageService
+type cacheAdaptor struct {
+	is *ImageService
 }
 
-func (ic *localCache) GetCache(parentID string, cfg *container.Config, platform ocispec.Platform) (imageID string, err error) {
+func (c cacheAdaptor) Get(id image.ID) (*image.Image, error) {
 	ctx := context.TODO()
+	ref := id.String()
 
-	var children []image.ID
-
-	// FROM scratch
-	if parentID == "" {
-		c, err := ic.imageService.getImagesWithLabel(ctx, imageLabelClassicBuilderFromScratch, "1")
-		if err != nil {
-			return "", err
-		}
-		children = c
-	} else {
-		c, err := ic.imageService.Children(ctx, image.ID(parentID))
-		if err != nil {
-			return "", err
-		}
-		children = c
+	outImg, err := c.is.GetImage(ctx, id.String(), backend.GetImageOpts{})
+	if err != nil {
+		return nil, fmt.Errorf("GetImage: %w", err)
 	}
 
-	var match *image.Image
-	for _, child := range children {
-		ccDigestStr, err := ic.imageService.getImageLabelByDigest(ctx, child.Digest(), imageLabelClassicBuilderContainerConfig)
+	c8dImg, err := c.is.resolveImage(ctx, ref)
+	if err != nil {
+		return nil, fmt.Errorf("resolveImage: %w", err)
+	}
+
+	var errFound = errors.New("success")
+	err = c.is.walkImageManifests(ctx, c8dImg, func(img *ImageManifest) error {
+		desc, err := img.Config(ctx)
 		if err != nil {
-			return "", err
-		}
-		if ccDigestStr == "" {
-			continue
+			log.G(ctx).WithFields(log.Fields{
+				"image": img,
+				"error": err,
+			}).Warn("failed to get config descriptor for image")
+			return nil
 		}
 
-		dgst, err := digest.Parse(ccDigestStr)
+		info, err := c.is.content.Info(ctx, desc.Digest)
 		if err != nil {
-			log.G(ctx).WithError(err).Warnf("invalid container config digest: %q", ccDigestStr)
-			continue
-		}
-
-		var cc container.Config
-		if err := readConfig(ctx, ic.imageService.content, ocispec.Descriptor{Digest: dgst}, &cc); err != nil {
-			if errdefs.IsNotFound(err) {
-				log.G(ctx).WithError(err).WithField("image", child).Warnf("missing container config: %q", ccDigestStr)
-				continue
+			if !cerrdefs.IsNotFound(err) {
+				log.G(ctx).WithFields(log.Fields{
+					"image": img,
+					"desc":  desc,
+					"error": err,
+				}).Warn("failed to get info of image config")
 			}
-			return "", err
+			return nil
 		}
 
-		if cache.CompareConfig(&cc, cfg) {
-			childImage, err := ic.imageService.GetImage(ctx, child.String(), backend.GetImageOpts{Platform: &platform})
+		if dgstStr, ok := info.Labels[contentLabelGcRefContainerConfig]; ok {
+			dgst, err := digest.Parse(dgstStr)
 			if err != nil {
-				if errdefs.IsNotFound(err) {
-					continue
-				}
-				return "", err
+				log.G(ctx).WithFields(log.Fields{
+					"label":   contentLabelClassicBuilderImage,
+					"value":   dgstStr,
+					"content": desc.Digest,
+					"error":   err,
+				}).Warn("invalid digest in label")
+				return nil
 			}
 
-			if childImage.Created != nil && (match == nil || match.Created.Before(*childImage.Created)) {
-				match = childImage
+			configDesc := ocispec.Descriptor{
+				Digest: dgst,
 			}
+
+			var config container.Config
+			if err := readConfig(ctx, c.is.content, configDesc, &config); err != nil {
+				if !errdefs.IsNotFound(err) {
+					log.G(ctx).WithFields(log.Fields{
+						"configDigest": dgst,
+						"error":        err,
+					}).Warn("failed to read container config")
+				}
+				return nil
+			}
+
+			outImg.ContainerConfig = config
+
+			// We already have the config we looked for, so return an error to
+			// stop walking the image further. This error will be ignored.
+			return errFound
+		}
+		return nil
+	})
+	if err != nil && err != errFound {
+		return nil, err
+	}
+
+	return outImg, nil
+}
+
+func (c cacheAdaptor) GetByRef(ctx context.Context, refOrId string) (*image.Image, error) {
+	return c.is.GetImage(ctx, refOrId, backend.GetImageOpts{})
+}
+
+func (c cacheAdaptor) SetParent(target, parent image.ID) error {
+	ctx := context.TODO()
+	_, imgs, err := c.is.resolveAllReferences(ctx, target.String())
+	if err != nil {
+		return fmt.Errorf("failed to list images with digest %q", target)
+	}
+
+	var errs []error
+	is := c.is.images
+	for _, img := range imgs {
+		if img.Labels == nil {
+			img.Labels = make(map[string]string)
+		}
+		img.Labels[imageLabelClassicBuilderParent] = parent.String()
+		if _, err := is.Update(ctx, img, "labels."+imageLabelClassicBuilderParent); err != nil {
+			errs = append(errs, fmt.Errorf("failed to update parent label on image %v: %w", img, err))
 		}
 	}
 
-	if match == nil {
-		return "", nil
+	return multierror.Join(errs...)
+}
+
+func (c cacheAdaptor) GetParent(target image.ID) (image.ID, error) {
+	ctx := context.TODO()
+	value, err := c.is.getImageLabelByDigest(ctx, target.Digest(), imageLabelClassicBuilderParent)
+	if err != nil {
+		return "", fmt.Errorf("failed to read parent image: %w", err)
 	}
 
-	return match.ID().String(), nil
+	dgst, err := digest.Parse(value)
+	if err != nil {
+		return "", fmt.Errorf("invalid parent value: %q", value)
+	}
+
+	return image.ID(dgst), nil
 }
 
-type imageCache struct {
-	images       []*image.Image
-	imageService *ImageService
-	lc           *localCache
+func (c cacheAdaptor) Create(parent *image.Image, target image.Image, extraLayer layer.DiffID) (image.ID, error) {
+	ctx := context.TODO()
+	data, err := json.Marshal(target)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal image config: %w", err)
+	}
+
+	var layerDigest digest.Digest
+	if extraLayer != "" {
+		info, err := findContentByUncompressedDigest(ctx, c.is.client.ContentStore(), digest.Digest(extraLayer))
+		if err != nil {
+			return "", fmt.Errorf("failed to find content for diff ID %q: %w", extraLayer, err)
+		}
+		layerDigest = info.Digest
+	}
+
+	var parentRef string
+	if parent != nil {
+		parentRef = parent.ID().String()
+	}
+	img, err := c.is.CreateImage(ctx, data, parentRef, layerDigest)
+	if err != nil {
+		return "", fmt.Errorf("failed to created cached image: %w", err)
+	}
+
+	return image.ID(img.ImageID()), nil
 }
 
-func (ic *imageCache) GetCache(parentID string, cfg *container.Config, platform ocispec.Platform) (imageID string, err error) {
+func (c cacheAdaptor) IsBuiltLocally(target image.ID) (bool, error) {
+	ctx := context.TODO()
+	value, err := c.is.getImageLabelByDigest(ctx, target.Digest(), imageLabelClassicBuilderContainerConfig)
+	if err != nil {
+		return false, fmt.Errorf("failed to read container config label: %w", err)
+	}
+	return value != "", nil
+}
+
+func (c cacheAdaptor) Children(id image.ID) []image.ID {
 	ctx := context.TODO()
 
-	imgID, err := ic.lc.GetCache(parentID, cfg, platform)
-	if err != nil {
-		return "", err
-	}
-	if imgID != "" {
-		for _, s := range ic.images {
-			if ic.isParent(ctx, s, image.ID(imgID)) {
-				return imgID, nil
-			}
-		}
-	}
-
-	var parent *image.Image
-	lenHistory := 0
-
-	if parentID != "" {
-		parent, err = ic.imageService.GetImage(ctx, parentID, backend.GetImageOpts{Platform: &platform})
+	if id.String() == "" {
+		imgs, err := c.is.getImagesWithLabel(ctx, imageLabelClassicBuilderFromScratch, "1")
 		if err != nil {
-			return "", err
+			log.G(ctx).WithError(err).Error("failed to get from scratch images")
+			return nil
 		}
-		lenHistory = len(parent.History)
-	}
-	for _, target := range ic.images {
-		if !isValidParent(target, parent) || !isValidConfig(cfg, target.History[lenHistory]) {
-			continue
-		}
-		return target.ID().String(), nil
+		return imgs
 	}
 
-	return "", nil
-}
-
-func isValidConfig(cfg *container.Config, h image.History) bool {
-	// todo: make this format better than join that loses data
-	return strings.Join(cfg.Cmd, " ") == h.CreatedBy
-}
-
-func isValidParent(img, parent *image.Image) bool {
-	if len(img.History) == 0 {
-		return false
-	}
-	if parent == nil || len(parent.History) == 0 && len(parent.RootFS.DiffIDs) == 0 {
-		return true
-	}
-	if len(parent.History) >= len(img.History) {
-		return false
-	}
-	if len(parent.RootFS.DiffIDs) > len(img.RootFS.DiffIDs) {
-		return false
-	}
-
-	for i, h := range parent.History {
-		if !reflect.DeepEqual(h, img.History[i]) {
-			return false
-		}
-	}
-	for i, d := range parent.RootFS.DiffIDs {
-		if d != img.RootFS.DiffIDs[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func (ic *imageCache) isParent(ctx context.Context, img *image.Image, parentID image.ID) bool {
-	ii, err := ic.imageService.resolveImage(ctx, img.ImageID())
+	imgs, err := c.is.Children(ctx, id)
 	if err != nil {
-		return false
-	}
-	parent, ok := ii.Labels[imageLabelClassicBuilderParent]
-	if ok {
-		return parent == parentID.String()
+		log.G(ctx).WithError(err).Error("failed to get image children")
+		return nil
 	}
 
-	p, err := ic.imageService.GetImage(ctx, parentID.String(), backend.GetImageOpts{})
-	if err != nil {
-		return false
+	return imgs
+}
+
+func findContentByUncompressedDigest(ctx context.Context, cs content.Manager, uncompressed digest.Digest) (content.Info, error) {
+	var out content.Info
+
+	errStopWalk := errors.New("success")
+	err := cs.Walk(ctx, func(i content.Info) error {
+		out = i
+		return errStopWalk
+	}, `labels."containerd.io/uncompressed"==`+uncompressed.String())
+
+	if err != nil && err != errStopWalk {
+		return out, err
 	}
-	return ic.isParent(ctx, p, parentID)
+	if out.Digest == "" {
+		return out, errdefs.NotFound(errors.New("no content matches this uncompressed digest"))
+	}
+	return out, nil
 }
