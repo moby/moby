@@ -32,6 +32,24 @@ issues:
     - path: 'archive[\\/]tarheader[\\/]'
       # conversion is necessary on Linux, unnecessary on macOS
       text: "unnecessary conversion"
+    - linters:
+        - revive
+      text: "if-return"
+    - linters:
+        - revive
+      text: "empty-block"
+    - linters:
+        - revive
+      text: "superfluous-else"
+    - linters:
+        - revive
+      text: "unused-parameter"
+    - linters:
+        - revive
+      text: "unreachable-code"
+    - linters:
+        - revive
+      text: "redefines-builtin-id"
 
     # FIXME temporarily suppress deprecation warnings for the logs package. See https://github.com/containerd/containerd/pull/9086
     - text: "SA1019: log\\.(G|L|Fields|Entry|RFC3339NanoFixed|Level|TraceLevel|DebugLevel|InfoLevel|WarnLevel|ErrorLevel|FatalLevel|PanicLevel|SetLevel|GetLevel|OutputFormat|TextFormat|JSONFormat|SetFormat|WithLogger|GetLogger)"

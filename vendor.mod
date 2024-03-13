@@ -25,7 +25,7 @@ require (
 	github.com/aws/smithy-go v1.19.0
 	github.com/cloudflare/cfssl v1.6.4
 	github.com/containerd/cgroups/v3 v3.0.3
-	github.com/containerd/containerd v1.7.13
+	github.com/containerd/containerd v1.7.14
 	github.com/containerd/continuity v0.4.3
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
@@ -143,7 +143,7 @@ require (
 	github.com/containerd/go-runc v1.1.0 // indirect
 	github.com/containerd/nydus-snapshotter v0.13.7 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.15.1 // indirect
-	github.com/containerd/ttrpc v1.2.2 // indirect
+	github.com/containerd/ttrpc v1.2.3 // indirect
 	github.com/containernetworking/cni v1.1.2 // indirect
 	github.com/containernetworking/plugins v1.4.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
