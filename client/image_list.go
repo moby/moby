@@ -47,6 +47,9 @@ func (cli *Client) ImageList(ctx context.Context, options image.ListOptions) ([]
 	if options.SharedSize && versions.GreaterThanOrEqualTo(cli.version, "1.42") {
 		query.Set("shared-size", "1")
 	}
+	if options.ContainerCount && versions.GreaterThanOrEqualTo(cli.version, "1.45") {
+		query.Set("container-count", "1")
+	}
 
 	serverResp, err := cli.get(ctx, "/images/json", query, nil)
 	defer ensureReaderClosed(serverResp)

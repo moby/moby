@@ -22,6 +22,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /images/search` will always assume a `false` value for the `is-automated`
   field. Consequently, searching for `is-automated=true` will yield no results,
   while `is-automated=false` will be a no-op.
+* `GET /images/json` now accepts query parameter `container-count`. When set `true`,
+  images returned will include `Containers`, which provides the count of containers
+  using the image.
 
 ## v1.44 API changes
 
