@@ -57,9 +57,16 @@ func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfi
 		return nil, err
 	}
 
+	runcCmds := []string{"runc"}
+
+	// TODO: FIXME: testing env var, replace with something better or remove in a major version or two
+	if runcOverride := os.Getenv("DOCKER_BUILDKIT_RUNC_COMMAND"); runcOverride != "" {
+		runcCmds = []string{runcOverride}
+	}
+
 	return runcexecutor.New(runcexecutor.Opt{
 		Root:                filepath.Join(root, "executor"),
-		CommandCandidates:   []string{"runc"},
+		CommandCandidates:   runcCmds,
 		DefaultCgroupParent: cgroupParent,
 		Rootless:            rootless,
 		NoPivot:             os.Getenv("DOCKER_RAMDISK") != "",
