@@ -844,6 +844,7 @@ func loadListeners(cfg *config.Config, tlsConfig *tls.Config) ([]net.Listener, [
 		if proto == "tcp" && !authEnabled {
 			log.G(ctx).WithField("host", protoAddr).Warn("Binding to IP address without --tlsverify is insecure and gives root access on this machine to everyone who has access to your network.")
 			log.G(ctx).WithField("host", protoAddr).Warn("Binding to an IP address, even on localhost, can also give access to scripts run in a browser. Be safe out there!")
+			log.G(ctx).WithField("host", protoAddr).Warn("[DEPRECATION NOTICE] In future versions this will be a hard failure preventing the daemon from starting! Learn more at: https://docs.docker.com/go/api-security/")
 			time.Sleep(time.Second)
 
 			// If TLSVerify is explicitly set to false we'll take that as "Please let me shoot myself in the foot"

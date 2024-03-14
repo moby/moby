@@ -241,12 +241,13 @@ func (daemon *Daemon) fillAPIInfo(v *system.Info, cfg *config.Config) {
 		if proto != "tcp" {
 			continue
 		}
+		const removal = "In future versions this will be a hard failure preventing the daemon from starting! Learn more at: https://docs.docker.com/go/api-security/"
 		if cfg.TLS == nil || !*cfg.TLS {
-			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: API is accessible on http://%s without encryption.%s", addr, warn))
+			v.Warnings = append(v.Warnings, fmt.Sprintf("[DEPRECATION NOTICE]: API is accessible on http://%s without encryption.%s\n%s", addr, warn, removal))
 			continue
 		}
 		if cfg.TLSVerify == nil || !*cfg.TLSVerify {
-			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: API is accessible on https://%s without TLS client verification.%s", addr, warn))
+			v.Warnings = append(v.Warnings, fmt.Sprintf("[DEPRECATION NOTICE]: API is accessible on https://%s without TLS client verification.%s\n%s", addr, warn, removal))
 			continue
 		}
 	}
