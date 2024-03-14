@@ -1,10 +1,11 @@
-go 1.18
+go 1.19
 
 use (
 	.
 	./accessapproval
 	./accesscontextmanager
 	./advisorynotifications
+	./ai
 	./aiplatform
 	./alloydb
 	./analytics
@@ -17,6 +18,7 @@ use (
 	./artifactregistry
 	./asset
 	./assuredworkloads
+	./auth
 	./automl
 	./baremetalsolution
 	./batch
@@ -30,9 +32,11 @@ use (
 	./cloudbuild
 	./clouddms
 	./cloudtasks
+	./commerce
 	./compute
 	./compute/metadata
 	./confidentialcomputing
+	./config
 	./contactcenterinsights
 	./container
 	./containeranalysis
@@ -59,7 +63,6 @@ use (
 	./filestore
 	./firestore
 	./functions
-	./gaming
 	./gkebackup
 	./gkeconnect
 	./gkehub
@@ -90,7 +93,9 @@ use (
 	./mediatranslation
 	./memcache
 	./metastore
+	./migrationcenter
 	./monitoring
+	./netapp
 	./networkconnectivity
 	./networkmanagement
 	./networksecurity
@@ -101,6 +106,7 @@ use (
 	./osconfig
 	./oslogin
 	./phishingprotection
+	./policysimulator
 	./policytroubleshooter
 	./privatecatalog
 	./profiler
