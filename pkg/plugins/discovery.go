@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/pkg/userns"
+	"github.com/containerd/log"
 	"github.com/pkg/errors"
 )
 
@@ -56,10 +58,16 @@ func (l *LocalRegistry) Scan() ([]string, error) {
 
 	for _, p := range l.specsPaths {
 		dirEntries, err = os.ReadDir(p)
-		if err != nil && !os.IsNotExist(err) {
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			if os.IsPermission(err) && userns.RunningInUserNS() {
+				log.L.Debug(err.Error())
+				continue
+			}
 			return nil, errors.Wrap(err, "error reading dir entries")
 		}
-
 		for _, entry := range dirEntries {
 			if entry.IsDir() {
 				infos, err := os.ReadDir(filepath.Join(p, entry.Name()))
