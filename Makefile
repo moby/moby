@@ -255,9 +255,10 @@ swagger-docs: ## preview the API documentation
 .PHONY: generate-files
 generate-files:
 	$(eval $@_TMP_OUT := $(shell mktemp -d -t moby-output.XXXXXXXXXX))
-	ifeq ($($@_TMP_OUT),)
-		$(error Could not create temp directory.)
-	endif
+	@if [ -z "$($@_TMP_OUT)" ]; then \
+		echo "Temp dir is not set"; \
+		exit 1; \
+	fi
 	$(BUILD_CMD) --target "update" \
 		--output "type=local,dest=$($@_TMP_OUT)" \
 		--file "./hack/dockerfiles/generate-files.Dockerfile" .
