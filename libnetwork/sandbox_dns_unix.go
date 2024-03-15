@@ -4,6 +4,7 @@ package libnetwork
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"net/netip"
 	"os"
@@ -343,9 +344,9 @@ func (sb *Sandbox) rebuildDNS() error {
 		}
 	}
 
-	intNS, err := netip.ParseAddr(sb.resolver.NameServer())
-	if err != nil {
-		return err
+	intNS := sb.resolver.NameServer()
+	if !intNS.IsValid() {
+		return fmt.Errorf("no listen-address for internal resolver")
 	}
 
 	// Work out whether ndots has been set from host config or overrides.
