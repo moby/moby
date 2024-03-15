@@ -1,8 +1,10 @@
 package networking
 
 import (
+	"context"
 	"strings"
 	"testing"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
@@ -130,4 +132,28 @@ func TestInternalNetworkDNS(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(res.ExitCode, 0))
 	assert.Check(t, is.Contains(res.Stdout(), network.DNSRespAddr))
+}
+
+// TestNslookupWindows checks that nslookup gets results from external DNS.
+// Regression test for https://github.com/moby/moby/issues/46792
+func TestNslookupWindows(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
+
+	ctx := setupTest(t)
+	c := testEnv.APIClient()
+
+	attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	res := container.RunAttach(attachCtx, t, c,
+		container.WithCmd("nslookup", "docker.com"),
+	)
+	defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+
+	assert.Check(t, is.Equal(res.ExitCode, 0))
+	// Current default is to not-forward requests to external servers, which
+	// can only be changed in daemon.json using feature flag "windows-dns-proxy".
+	// So, expect the lookup to fail...
+	assert.Check(t, is.Contains(res.Stderr.String(), "Server failed"))
+	// When the default behaviour is changed, nslookup should succeed...
+	//assert.Check(t, is.Contains(res.Stdout.String(), "Addresses:"))
 }
