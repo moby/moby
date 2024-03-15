@@ -4,7 +4,7 @@ import (
 	"io"
 	"log"
 	"net"
-	"sync"
+	"time"
 )
 
 // TCPProxy is a proxy for TCP connections. It implements the Proxy interface to
@@ -35,52 +35,44 @@ func NewTCPProxy(frontendAddr, backendAddr *net.TCPAddr) (*TCPProxy, error) {
 	}, nil
 }
 
-func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
-	backend, err := net.DialTCP("tcp", nil, proxy.backendAddr)
+func (proxy *TCPProxy) clientLoop(client *net.TCPConn) {
+	conn, err := net.DialTimeout("tcp", proxy.backendAddr.String(), 5*time.Second)
 	if err != nil {
-		log.Printf("Can't forward traffic to backend tcp/%v: %s\n", proxy.backendAddr, err)
 		client.Close()
+		log.Printf("Can't forward traffic to backend tcp/%v: %s\n", proxy.backendAddr, err)
 		return
 	}
+	backend := conn.(*net.TCPConn)
 
-	var wg sync.WaitGroup
+	done := make(chan struct{}, 2)
+
 	broker := func(to, from *net.TCPConn) {
 		io.Copy(to, from)
-		from.CloseRead()
-		to.CloseWrite()
-		wg.Done()
+		done <- struct{}{}
 	}
 
-	wg.Add(2)
 	go broker(client, backend)
 	go broker(backend, client)
 
-	finish := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(finish)
-	}()
+	<-done
 
-	select {
-	case <-quit:
-	case <-finish:
-	}
-	client.Close()
+	// reduce close_wait states
+	backend.SetLinger(0)
+	backend.SetDeadline(time.Now().Add(time.Millisecond))
 	backend.Close()
-	<-finish
+
+	client.Close()
 }
 
 // Run starts forwarding the traffic using TCP.
 func (proxy *TCPProxy) Run() {
-	quit := make(chan bool)
-	defer close(quit)
 	for {
-		client, err := proxy.listener.Accept()
+		client, err := proxy.listener.AcceptTCP()
 		if err != nil {
 			log.Printf("Stopping proxy on tcp/%v for tcp/%v (%s)", proxy.frontendAddr, proxy.backendAddr, err)
 			return
 		}
-		go proxy.clientLoop(client.(*net.TCPConn), quit)
+		go proxy.clientLoop(client)
 	}
 }
 
