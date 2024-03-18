@@ -467,7 +467,7 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		return nil, err
 	}
 
-	labelFn, err := setupLabelFilter(i.content, imageFilters)
+	labelFn, err := setupLabelFilter(ctx, i.content, imageFilters)
 	if err != nil {
 		return nil, err
 	}
@@ -517,7 +517,7 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 // setupLabelFilter parses filter args for "label" and "label!" and returns a
 // filter func which will check if any image config from the given image has
 // labels that match given predicates.
-func setupLabelFilter(store content.Store, fltrs filters.Args) (func(image images.Image) bool, error) {
+func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Args) (func(image images.Image) bool, error) {
 	type labelCheck struct {
 		key        string
 		value      string
@@ -556,12 +556,11 @@ func setupLabelFilter(store content.Store, fltrs filters.Args) (func(image image
 	}
 
 	return func(image images.Image) bool {
-		ctx := context.TODO()
-
 		// This is not an error, but a signal to Dispatch that it should stop
 		// processing more content (otherwise it will run for all children).
 		// It will be returned once a matching config is found.
 		errFoundConfig := errors.New("success, found matching config")
+
 		err := images.Dispatch(ctx, presentChildrenHandler(store, images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, err error) {
 			if !images.IsConfigType(desc.MediaType) {
 				return nil, nil
