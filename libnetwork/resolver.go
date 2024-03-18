@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/containerd/log"
@@ -75,7 +76,7 @@ type Resolver struct {
 	tcpListen     *net.TCPListener
 	err           error
 	listenAddress string
-	proxyDNS      bool
+	proxyDNS      atomic.Bool
 	startCh       chan struct{}
 	logger        *log.Entry
 
@@ -85,15 +86,17 @@ type Resolver struct {
 
 // NewResolver creates a new instance of the Resolver
 func NewResolver(address string, proxyDNS bool, backend DNSBackend) *Resolver {
-	return &Resolver{
+	r := &Resolver{
 		backend:       backend,
-		proxyDNS:      proxyDNS,
 		listenAddress: address,
 		err:           fmt.Errorf("setup not done yet"),
 		startCh:       make(chan struct{}, 1),
 		fwdSem:        semaphore.NewWeighted(maxConcurrent),
 		logInverval:   rate.Sometimes{Interval: logInterval},
 	}
+	r.proxyDNS.Store(proxyDNS)
+
+	return r
 }
 
 func (r *Resolver) log(ctx context.Context) *log.Entry {
@@ -192,6 +195,12 @@ func (r *Resolver) SetExtServers(extDNS []extDNSEntry) {
 	for i := 0; i < l; i++ {
 		r.extDNSList[i] = extDNS[i]
 	}
+}
+
+// SetForwardingPolicy re-configures the embedded DNS resolver to either enable or disable forwarding DNS queries to
+// external servers.
+func (r *Resolver) SetForwardingPolicy(policy bool) {
+	r.proxyDNS.Store(policy)
 }
 
 // NameServer returns the IP of the DNS resolver for the containers.
@@ -421,7 +430,7 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 		return
 	}
 
-	if r.proxyDNS {
+	if r.proxyDNS.Load() {
 		// If the user sets ndots > 0 explicitly and the query is
 		// in the root domain don't forward it out. We will return
 		// failure and let the client retry with the search domain
