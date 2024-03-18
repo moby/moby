@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.21
+
 // Package resolvconf is used to generate a container's /etc/resolv.conf file.
 //
 // Constructor Load and Parse read a resolv.conf file from the filesystem or
