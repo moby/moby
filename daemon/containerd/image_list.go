@@ -568,6 +568,9 @@ func setupLabelFilter(store content.Store, fltrs filters.Args) (func(image image
 			}
 			var cfg configLabels
 			if err := readConfig(ctx, store, desc, &cfg); err != nil {
+				if errdefs.IsNotFound(err) {
+					return nil, nil
+				}
 				return nil, err
 			}
 
