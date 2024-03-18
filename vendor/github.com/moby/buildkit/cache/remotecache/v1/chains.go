@@ -122,6 +122,8 @@ type DescriptorProviderPair struct {
 	Provider   content.Provider
 }
 
+var _ withCheckDescriptor = DescriptorProviderPair{}
+
 func (p DescriptorProviderPair) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
 	return p.Provider.ReaderAt(ctx, desc)
 }
@@ -152,6 +154,13 @@ func (p DescriptorProviderPair) SnapshotLabels(descs []ocispecs.Descriptor, inde
 	}
 	if cd, ok := p.Provider.(snapshotLabels); ok {
 		return cd.SnapshotLabels(descs, index)
+	}
+	return nil
+}
+
+func (p DescriptorProviderPair) CheckDescriptor(ctx context.Context, desc ocispecs.Descriptor) error {
+	if cd, ok := p.Provider.(withCheckDescriptor); ok {
+		return cd.CheckDescriptor(ctx, desc)
 	}
 	return nil
 }
