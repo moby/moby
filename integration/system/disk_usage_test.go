@@ -18,7 +18,9 @@ import (
 func TestDiskUsage(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows") // d.Start fails on Windows with `protocol not available`
 
-	t.Parallel()
+	// TODO: If this helps, then fix the root cause.
+	// See: https://github.com/moby/moby/issues/47119
+	// t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)
 
