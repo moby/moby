@@ -551,6 +551,10 @@ func setupLabelFilter(store content.Store, fltrs filters.Args) (func(image image
 		}
 	}
 
+	if len(checks) == 0 {
+		return nil, nil
+	}
+
 	return func(image images.Image) bool {
 		ctx := context.TODO()
 
