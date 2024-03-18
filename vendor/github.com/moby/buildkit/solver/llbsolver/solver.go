@@ -125,8 +125,10 @@ func New(opt Opt) (*Solver, error) {
 
 func (s *Solver) Close() error {
 	s.solver.Close()
-	err := s.sysSampler.Close()
-	return err
+	if s.sysSampler != nil {
+		return s.sysSampler.Close()
+	}
+	return nil
 }
 
 func (s *Solver) resolver() solver.ResolveOpFunc {

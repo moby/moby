@@ -2,6 +2,7 @@ package oci
 
 import (
 	"context"
+	"os"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -197,8 +198,11 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 	}
 
 	if tracingSocket != "" {
-		if mount := getTracingSocketMount(tracingSocket); mount != nil {
-			s.Mounts = append(s.Mounts, *mount)
+		// moby/buildkit#4764
+		if _, err := os.Stat(tracingSocket); err == nil {
+			if mount := getTracingSocketMount(tracingSocket); mount != nil {
+				s.Mounts = append(s.Mounts, *mount)
+			}
 		}
 	}
 
