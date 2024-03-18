@@ -6,6 +6,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
@@ -43,6 +44,51 @@ func (i *ImageService) walkImageManifests(ctx context.Context, img containerdima
 
 	if containerdimages.IsIndexType(desc.MediaType) {
 		return i.walkPresentChildren(ctx, desc, handleManifest)
+	}
+
+	return errNotManifestOrIndex
+}
+
+// walkReachableImageManifests calls the handler for each manifest in the
+// multiplatform image that can be reached from the given image.
+// The image might not be present locally, but its descriptor is known.
+// The image implements the containerd.Image interface, but all operations act
+// on the specific manifest instead of the index.
+func (i *ImageService) walkReachableImageManifests(ctx context.Context, img containerdimages.Image, handler func(img *ImageManifest) error) error {
+	desc := img.Target
+
+	handleManifest := func(ctx context.Context, d ocispec.Descriptor) error {
+		platformImg, err := i.NewImageManifest(ctx, img, d)
+		if err != nil {
+			if err == errNotManifest {
+				return nil
+			}
+			return err
+		}
+		return handler(platformImg)
+	}
+
+	if containerdimages.IsManifestType(desc.MediaType) {
+		return handleManifest(ctx, desc)
+	}
+
+	if containerdimages.IsIndexType(desc.MediaType) {
+		return containerdimages.Walk(ctx, containerdimages.HandlerFunc(
+			func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+				err := handleManifest(ctx, desc)
+				if err != nil {
+					return nil, err
+				}
+
+				c, err := containerdimages.Children(ctx, i.content, desc)
+				if err != nil {
+					if cerrdefs.IsNotFound(err) {
+						return nil, nil
+					}
+					return nil, err
+				}
+				return c, nil
+			}), desc)
 	}
 
 	return errNotManifestOrIndex
@@ -93,6 +139,9 @@ func (im *ImageManifest) IsPseudoImage(ctx context.Context) (bool, error) {
 
 	mfst, err := im.Manifest(ctx)
 	if err != nil {
+		if cerrdefs.IsNotFound(err) {
+			return false, errdefs.NotFound(errors.Wrapf(err, "failed to read manifest %v", desc.Digest))
+		}
 		return true, err
 	}
 	if len(mfst.Layers) == 0 {

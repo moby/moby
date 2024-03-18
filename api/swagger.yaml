@@ -1988,6 +1988,16 @@ definitions:
         x-nullable: false
         type: "integer"
         example: 2
+      PlatformImages:
+        description: |
+          Platform-specific image references that are available for this image.
+
+          This field is only set if the Engine is multi-platform capable
+          (containerd integration enabled)
+        type: "array"
+        items:
+          $ref: "#/definitions/PlatformImage"
+        x-nullable: true
 
   AuthConfig:
     type: "object"
@@ -6199,6 +6209,48 @@ definitions:
     type: "object"
     additionalProperties:
       type: "string"
+
+  PlatformImage:
+    description: |
+      PlatformImage represents a platform-specific image that is part of a
+      multi-platform image.
+    type: "object"
+    properties:
+      Id:
+        description: |
+          Content-addressable ID of an image derived from the platform-specific
+          image manifest.
+        type: "string"
+        example: "sha256:95869fbcf224d947ace8d61d0e931d49e31bb7fc67fffbbe9c3198c33aa8e93f"
+      Descriptor:
+        $ref: "#/definitions/OCIDescriptor"
+      Available:
+        description: Indicates whether the image is locally available.
+        type: "boolean"
+        example: true
+      Platform:
+        $ref: "#/definitions/OCIPlatform"
+      ContentSize:
+        description: |
+          The size of the available distributable (possibly compressed) image content
+          in bytes.
+        type: "integer"
+        format: "int64"
+        example: 3987495
+      UnpackedSize:
+        description: |
+          The size of the unpacked and uncompressed image content (needed for
+          the image to be useable by containers) in bytes.
+        type: "integer"
+        format: "int64"
+        example: 3987495
+      Containers:
+        description: |
+          The number of containers that are using this specific platform image.
+        type: "integer"
+        format: "int64"
+        example: 2
+
 
 paths:
   /containers/json:

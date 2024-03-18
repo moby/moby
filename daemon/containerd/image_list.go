@@ -193,6 +193,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platformMatcher platforms.MatchComparer,
 	opts imagetypes.ListOptions, tagsByDigest map[digest.Digest][]string,
 ) (_ *imagetypes.Summary, allChainIDs []digest.Digest, _ error) {
+	var platformImages []imagetypes.PlatformImage
 
 	// Total size of the image including all its platform
 	var totalSize int64
@@ -207,9 +208,20 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 	var best *ImageManifest
 	var bestPlatform ocispec.Platform
 
-	err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
+	err := i.walkReachableImageManifests(ctx, img, func(img *ImageManifest) error {
+		target := img.Target()
+
 		if isPseudo, err := img.IsPseudoImage(ctx); isPseudo || err != nil {
-			return nil
+			log.G(ctx).WithFields(log.Fields{
+				"error":    err,
+				"image":    img.Name(),
+				"digest":   target.Digest,
+				"isPseudo": isPseudo,
+			}).Debug("skipping pseudo image")
+
+			if !errdefs.IsNotFound(err) {
+				return nil
+			}
 		}
 
 		available, err := img.CheckContentAvailable(ctx)
@@ -222,7 +234,19 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 			return nil
 		}
 
+		platformSummary := imagetypes.PlatformImage{
+			ID:         target.Digest.String(),
+			Available:  available,
+			Descriptor: target,
+			Containers: -1,
+		}
+
+		if target.Platform != nil {
+			platformSummary.Platform = *target.Platform
+		}
+
 		if !available {
+			platformImages = append(platformImages, platformSummary)
 			return nil
 		}
 
@@ -236,20 +260,25 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 			return err
 		}
 
-		target := img.Target()
+		if target.Platform == nil {
+			platformSummary.Platform = dockerImage.Platform
+		}
 
 		chainIDs, err := img.RootFS(ctx)
 		if err != nil {
 			return err
 		}
 
-		ts, _, err := i.singlePlatformSize(ctx, img)
+		unpackedSize, contentSize, err := i.singlePlatformSize(ctx, img)
 		if err != nil {
 			return err
 		}
 
-		totalSize += ts
+		totalSize += unpackedSize + contentSize
 		allChainsIDs = append(allChainsIDs, chainIDs...)
+
+		platformSummary.ContentSize = contentSize
+		platformSummary.UnpackedSize = unpackedSize
 
 		if opts.ContainerCount {
 			i.containers.ApplyAll(func(c *container.Container) {
@@ -257,26 +286,28 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 					containersCount++
 				}
 			})
-		}
-
-		var platform ocispec.Platform
-		if target.Platform != nil {
-			platform = *target.Platform
-		} else {
-			platform = dockerImage.Platform
+			platformSummary.Containers = containersCount
 		}
 
 		// Filter out platforms that don't match the requested platform.  Do it
 		// after the size, container count and chainIDs are summed up to have
 		// the single combined entry still represent the whole multi-platform
 		// image.
-		if !platformMatcher.Match(platform) {
+		if !platformMatcher.Match(platformSummary.Platform) {
 			return nil
 		}
 
-		if best == nil || platformMatcher.Less(platform, bestPlatform) {
+		// If the platform is available, prepend it to the list of platforms
+		// otherwise append it at the end.
+		if platformSummary.Available {
+			platformImages = append([]imagetypes.PlatformImage{platformSummary}, platformImages...)
+		} else {
+			platformImages = append(platformImages, platformSummary)
+		}
+
+		if best == nil || platformMatcher.Less(platformSummary.Platform, bestPlatform) {
 			best = img
-			bestPlatform = platform
+			bestPlatform = platformSummary.Platform
 		}
 
 		return nil
@@ -298,6 +329,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 		return nil, nil, err
 	}
 	image.Size = totalSize
+	image.PlatformImages = platformImages
 
 	if opts.ContainerCount {
 		image.Containers = containersCount
@@ -305,7 +337,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 	return image, allChainsIDs, nil
 }
 
-func (i *ImageService) singlePlatformSize(ctx context.Context, imgMfst *ImageManifest) (totalSize int64, contentSize int64, _ error) {
+func (i *ImageService) singlePlatformSize(ctx context.Context, imgMfst *ImageManifest) (unpackedSize int64, contentSize int64, _ error) {
 	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
 	snapshotter := i.snapshotterService(i.snapshotter)
 
@@ -331,10 +363,7 @@ func (i *ImageService) singlePlatformSize(ctx context.Context, imgMfst *ImageMan
 		return -1, -1, err
 	}
 
-	// totalSize is the size of the image's packed layers and snapshots
-	// (unpacked layers) combined.
-	totalSize = contentSize + unpackedUsage.Size
-	return totalSize, contentSize, nil
+	return unpackedUsage.Size, contentSize, nil
 }
 
 func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest) (*imagetypes.Summary, error) {
@@ -376,10 +405,14 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		return nil, err
 	}
 
-	totalSize, _, err := i.singlePlatformSize(ctx, imageManifest)
+	unpackedSize, contentSize, err := i.singlePlatformSize(ctx, imageManifest)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to calculate size of image %s", imageManifest.Name())
 	}
+
+	// totalSize is the size of the image's packed layers and snapshots
+	// (unpacked layers) combined.
+	totalSize := contentSize + unpackedSize
 
 	summary := &imagetypes.Summary{
 		ParentID:    rawImg.Labels[imageLabelClassicBuilderParent],
