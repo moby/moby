@@ -12,6 +12,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+type withCheckDescriptor interface {
+	// CheckDescriptor is additional method on Provider to check if the descriptor is available without opening the reader
+	CheckDescriptor(context.Context, ocispecs.Descriptor) error
+}
+
 // sortConfig sorts the config structure to make sure it is deterministic
 func sortConfig(cc *CacheConfig) {
 	type indexedLayer struct {
@@ -279,9 +284,7 @@ func marshalRemote(ctx context.Context, r *solver.Remote, state *marshalState) s
 		return ""
 	}
 
-	if cd, ok := r.Provider.(interface {
-		CheckDescriptor(context.Context, ocispecs.Descriptor) error
-	}); ok && len(r.Descriptors) > 0 {
+	if cd, ok := r.Provider.(withCheckDescriptor); ok && len(r.Descriptors) > 0 {
 		for _, d := range r.Descriptors {
 			if cd.CheckDescriptor(ctx, d) != nil {
 				return ""
