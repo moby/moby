@@ -48,6 +48,9 @@ func TestImageList(t *testing.T) {
 	twoplatform, err := specialimage.TwoPlatform(blobsDir)
 	assert.NilError(t, err)
 
+	emptyIndex, err := specialimage.EmptyIndex(blobsDir)
+	assert.NilError(t, err)
+
 	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
 
 	snapshotter := &testSnapshotterService{}
@@ -90,6 +93,13 @@ func TestImageList(t *testing.T) {
 
 				assert.Check(t, is.Equal(all[1].ID, twoplatform.Manifests[0].Digest.String()))
 				assert.Check(t, is.DeepEqual(all[1].RepoTags, []string{"twoplatform:latest"}))
+			},
+		},
+		{
+			name:   "three images, one is an empty index",
+			images: imagesFromIndex(multilayer, emptyIndex, twoplatform),
+			check: func(t *testing.T, all []*imagetypes.Summary) {
+				assert.Check(t, is.Len(all, 2))
 			},
 		},
 	} {
