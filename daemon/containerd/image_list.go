@@ -154,8 +154,12 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 
 	for _, img := range uniqueImages {
 		image, allChainsIDs, err := i.imageSummary(ctx, img, platformMatcher, opts, tagsByDigest)
-		if err != nil || image == nil {
+		if err != nil {
 			return nil, err
+		}
+		// No error, but image should be skipped.
+		if image == nil {
+			continue
 		}
 
 		summaries = append(summaries, image)
