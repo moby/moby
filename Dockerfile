@@ -27,6 +27,8 @@ ARG REGISTRY_VERSION=2.8.3
 # cross compilation helper
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 
+
+# we can run multiple docker container image in one dockerfile
 # dummy stage to make sure the image is built for deps that don't support some
 # architectures
 FROM --platform=$BUILDPLATFORM busybox AS build-dummy
