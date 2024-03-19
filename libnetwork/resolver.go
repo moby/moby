@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/docker/docker/libnetwork/types"
@@ -30,6 +31,9 @@ type Resolver interface {
 	// SetExtServers configures the external nameservers the resolver
 	// should use to forward queries
 	SetExtServers([]extDNSEntry)
+	// SetForwardingPolicy re-configures the embedded DNS resolver to either
+	// enable or disable forwarding DNS queries to external servers.
+	SetForwardingPolicy(policy bool)
 	// ResolverOptions returns resolv.conf options that should be set
 	ResolverOptions() []string
 }
@@ -89,21 +93,23 @@ type resolver struct {
 	tStamp        time.Time
 	queryLock     sync.Mutex
 	listenAddress string
-	proxyDNS      bool
+	proxyDNS      atomic.Bool
 	resolverKey   string
 	startCh       chan struct{}
 }
 
 // NewResolver creates a new instance of the Resolver
 func NewResolver(address string, proxyDNS bool, resolverKey string, backend DNSBackend) Resolver {
-	return &resolver{
+	r := &resolver{
 		backend:       backend,
-		proxyDNS:      proxyDNS,
 		listenAddress: address,
 		resolverKey:   resolverKey,
 		err:           fmt.Errorf("setup not done yet"),
 		startCh:       make(chan struct{}, 1),
 	}
+	r.proxyDNS.Store(proxyDNS)
+
+	return r
 }
 
 func (r *resolver) SetupFunc(port int) func() {
@@ -194,6 +200,10 @@ func (r *resolver) SetExtServers(extDNS []extDNSEntry) {
 	for i := 0; i < l; i++ {
 		r.extDNSList[i] = extDNS[i]
 	}
+}
+
+func (r *resolver) SetForwardingPolicy(policy bool) {
+	r.proxyDNS.Store(policy)
 }
 
 func (r *resolver) NameServer() string {
@@ -407,7 +417,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	if resp == nil {
 		// If the backend doesn't support proxying dns request
 		// fail the response
-		if !r.proxyDNS {
+		if !r.proxyDNS.Load() {
 			resp = new(dns.Msg)
 			resp.SetRcode(query, dns.RcodeServerFailure)
 			if err := w.WriteMsg(resp); err != nil {

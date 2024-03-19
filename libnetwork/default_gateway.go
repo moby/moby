@@ -186,3 +186,27 @@ func (sb *sandbox) getGatewayEndpoint() *endpoint {
 	}
 	return nil
 }
+
+// hasExternalConnectivity returns true if the sandbox is connected to any
+// endpoint which provides external connectivity.
+//
+// This function is only necessary on branches without
+// https://github.com/moby/moby/pull/46603. With that PR applied, this function
+// would be equivalent to sb.getGatewayEndpoint() != nil.
+func (sb *sandbox) hasExternalConnectivity() bool {
+	for _, ep := range sb.getConnectedEndpoints() {
+		n := ep.getNetwork()
+		switch n.Type() {
+		case "null", "host":
+			continue
+		case "bridge":
+			if n.Internal() {
+				continue
+			}
+		}
+		if len(ep.Gateway()) != 0 {
+			return true
+		}
+	}
+	return false
+}
