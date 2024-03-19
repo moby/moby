@@ -3,8 +3,10 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/containerd/content"
@@ -27,6 +29,7 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 )
 
 // Subset of ocispec.Image that only contains Labels
@@ -91,16 +94,6 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		return usage.Size, nil
 	}
 
-	var (
-		summaries = make([]*imagetypes.Summary, 0, len(imgs))
-		root      []*[]digest.Digest
-		layers    map[digest.Digest]int
-	)
-	if opts.SharedSize {
-		root = make([]*[]digest.Digest, 0, len(imgs))
-		layers = make(map[digest.Digest]int)
-	}
-
 	uniqueImages := map[digest.Digest]images.Image{}
 	tagsByDigest := map[digest.Digest][]string{}
 	intermediateImages := map[digest.Digest]struct{}{}
@@ -152,24 +145,48 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		tagsByDigest[dgst] = append(tagsByDigest[dgst], reference.FamiliarString(ref))
 	}
 
+	resultsMut := sync.Mutex{}
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.SetLimit(runtime.NumCPU() * 2)
+
+	var (
+		summaries = make([]*imagetypes.Summary, 0, len(imgs))
+		root      []*[]digest.Digest
+		layers    map[digest.Digest]int
+	)
+	if opts.SharedSize {
+		root = make([]*[]digest.Digest, 0, len(imgs))
+		layers = make(map[digest.Digest]int)
+	}
+
 	for _, img := range uniqueImages {
-		image, allChainsIDs, err := i.imageSummary(ctx, img, platformMatcher, opts, tagsByDigest)
-		if err != nil {
-			return nil, err
-		}
-		// No error, but image should be skipped.
-		if image == nil {
-			continue
-		}
-
-		summaries = append(summaries, image)
-
-		if opts.SharedSize {
-			root = append(root, &allChainsIDs)
-			for _, id := range allChainsIDs {
-				layers[id] = layers[id] + 1
+		img := img
+		eg.Go(func() error {
+			image, allChainsIDs, err := i.imageSummary(egCtx, img, platformMatcher, opts, tagsByDigest)
+			if err != nil {
+				return err
 			}
-		}
+			// No error, but image should be skipped.
+			if image == nil {
+				return nil
+			}
+
+			resultsMut.Lock()
+			summaries = append(summaries, image)
+
+			if opts.SharedSize {
+				root = append(root, &allChainsIDs)
+				for _, id := range allChainsIDs {
+					layers[id] = layers[id] + 1
+				}
+			}
+			resultsMut.Unlock()
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
 	}
 
 	if opts.SharedSize {

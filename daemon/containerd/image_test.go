@@ -280,7 +280,7 @@ func digestFor(i int64) digest.Digest {
 	return dgstr.Digest()
 }
 
-func newTestDB(ctx context.Context, t *testing.T) *metadata.DB {
+func newTestDB(ctx context.Context, t testing.TB) *metadata.DB {
 	t.Helper()
 
 	p := filepath.Join(t.TempDir(), "metadata")
