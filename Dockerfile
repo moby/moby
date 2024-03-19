@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.7
 
 ARG GO_VERSION=1.21.8
 ARG BASE_DEBIAN_DISTRO="bookworm"
@@ -23,6 +23,12 @@ ARG DOCKER_STATIC=1
 # the registry is used to test schema 2 manifests. Generally,  the version
 # specified here should match a current release.
 ARG REGISTRY_VERSION=2.8.3
+
+# delve is currently only supported on linux/amd64 and linux/arm64;
+# https://github.com/go-delve/delve/blob/v1.8.1/pkg/proc/native/support_sentinel.go#L1-L6
+ARG DELVE_SUPPORTED=${TARGETPLATFORM#linux/amd64} DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/arm64}
+ARG DELVE_SUPPORTED=${DELVE_SUPPORTED:+"unsupported"}
+ARG DELVE_SUPPORTED=${DELVE_SUPPORTED:-"supported"}
 
 # cross compilation helper
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
@@ -144,7 +150,7 @@ RUN git init . && git remote add origin "https://github.com/go-delve/delve.git"
 ARG DELVE_VERSION=v1.21.1
 RUN git fetch -q --depth 1 origin "${DELVE_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
-FROM base AS delve-build
+FROM base AS delve-supported
 WORKDIR /usr/src/delve
 ARG TARGETPLATFORM
 RUN --mount=from=delve-src,src=/usr/src/delve,rw \
@@ -155,16 +161,8 @@ RUN --mount=from=delve-src,src=/usr/src/delve,rw \
   xx-verify /build/dlv
 EOT
 
-# delve is currently only supported on linux/amd64 and linux/arm64;
-# https://github.com/go-delve/delve/blob/v1.8.1/pkg/proc/native/support_sentinel.go#L1-L6
-FROM binary-dummy AS delve-windows
-FROM binary-dummy AS delve-linux-arm
-FROM binary-dummy AS delve-linux-ppc64le
-FROM binary-dummy AS delve-linux-s390x
-FROM delve-build AS delve-linux-amd64
-FROM delve-build AS delve-linux-arm64
-FROM delve-linux-${TARGETARCH} AS delve-linux
-FROM delve-${TARGETOS} AS delve
+FROM binary-dummy AS delve-unsupported
+FROM delve-${DELVE_SUPPORTED} AS delve
 
 FROM base AS tomll
 # GOTOML_VERSION specifies the version of the tomll binary to build and install
