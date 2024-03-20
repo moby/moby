@@ -10,8 +10,10 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -209,4 +211,61 @@ func TestNslookupWindows(t *testing.T) {
 	// Current default is to forward requests to external servers, which
 	// can only be changed in daemon.json using feature flag "windows-dns-proxy".
 	assert.Check(t, is.Contains(res.Stdout.String(), "Addresses:"))
+}
+
+// Check that containers on the default bridge network can use a host's resolver
+// running on a loopback interface (via the internal resolver), but the internal
+// resolver is not populated with DNS names for containers (no service discovery
+// on the legacy/default bridge network).
+// (Assumes the host does not already have a DNS server on 127.0.0.1.)
+func TestDefaultBridgeDNS(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "No resolv.conf on Windows")
+	skip.If(t, testEnv.IsRootless, "Can't use resolver on host in rootless mode")
+	ctx := setupTest(t)
+
+	// Start a DNS server on the loopback interface.
+	network.StartDaftDNS(t, "127.0.0.1")
+
+	// Set up a temp resolv.conf pointing at that DNS server, and a daemon using it.
+	tmpFileName := network.WriteTempResolvConf(t, "127.0.0.1")
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_RESOLV_CONF_PATH="+tmpFileName))
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	// Create a container on the default bridge network.
+	const ctrName = "ctrname"
+	ctrId := container.Run(ctx, t, c, container.WithName(ctrName))
+	defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+
+	// Expect the external DNS server to respond to a request from the container.
+	t.Run("external dns", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		res, err := container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(res.ExitCode, 0))
+		assert.Check(t, is.Contains(res.Stdout(), network.DNSRespAddr))
+	})
+
+	// Expect the external DNS server to respond to a request from the container
+	// for the container's own name - it won't be recognised as a container name
+	// because there's no service resolution on the default bridge.
+	t.Run("no internal name resolution", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		res, err := container.Exec(ctx, c, ctrId, []string{"nslookup", ctrName})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(res.ExitCode, 0))
+		assert.Check(t, is.Contains(res.Stdout(), network.DNSRespAddr))
+	})
+
+	// Check that inspect output has no DNSNames for the container.
+	t.Run("no dnsnames in inspect", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		inspect := container.Inspect(ctx, t, c, ctrId)
+		net, ok := inspect.NetworkSettings.Networks[networktypes.NetworkBridge]
+		assert.Check(t, ok, "expected to find bridge network in inspect output")
+		assert.Check(t, is.Nil(net.DNSNames))
+	})
 }
