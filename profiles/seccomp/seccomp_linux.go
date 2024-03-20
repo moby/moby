@@ -41,6 +41,7 @@ var nativeToSeccomp = map[string]specs.Arch{
 	"ppc64le":     specs.ArchPPC64LE,
 	"s390":        specs.ArchS390,
 	"s390x":       specs.ArchS390X,
+	"loong64":     specs.ArchLOONGARCH64,
 }
 
 // GOARCH => libseccomp string
@@ -59,6 +60,7 @@ var goToNative = map[string]string{
 	"ppc64le":     "ppc64le",
 	"s390":        "s390",
 	"s390x":       "s390x",
+	"loong64":     "loong64",
 }
 
 // inSlice tests whether a string is contained in a slice of strings or not.
