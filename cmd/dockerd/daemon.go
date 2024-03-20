@@ -67,8 +67,8 @@ import (
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
-// DaemonCli represents the daemon CLI.
-type DaemonCli struct {
+// daemonCLI represents the daemon CLI.
+type daemonCLI struct {
 	*config.Config
 	configFile *string
 	flags      *pflag.FlagSet
@@ -76,42 +76,37 @@ type DaemonCli struct {
 	d               *daemon.Daemon
 	authzMiddleware *authorization.Middleware // authzMiddleware enables to dynamically reload the authorization plugins
 
-	stopOnce    sync.Once
-	apiShutdown chan struct{}
+	stopOnce     sync.Once
+	apiShutdown  chan struct{}
+	apiTLSConfig *tls.Config
 }
 
-// NewDaemonCli returns a daemon CLI
-func NewDaemonCli() *DaemonCli {
-	return &DaemonCli{
-		apiShutdown: make(chan struct{}),
-	}
-}
-
-func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
-	ctx := context.TODO()
-
-	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
-		return err
-	}
-
-	tlsConfig, err := newAPIServerTLSConfig(cli.Config)
+// newDaemonCLI returns a daemon CLI with the given options.
+func newDaemonCLI(opts *daemonOptions) (*daemonCLI, error) {
+	cfg, err := loadDaemonCliConfig(opts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if opts.Validate {
-		// If config wasn't OK we wouldn't have made it this far.
-		_, _ = fmt.Fprintln(os.Stderr, "configuration OK")
-		return nil
+	tlsConfig, err := newAPIServerTLSConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
 
+	return &daemonCLI{
+		Config:       cfg,
+		configFile:   &opts.configFile,
+		flags:        opts.flags,
+		apiShutdown:  make(chan struct{}),
+		apiTLSConfig: tlsConfig,
+	}, nil
+}
+
+func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	configureProxyEnv(cli.Config)
 	configureDaemonLogs(cli.Config)
 
 	log.G(ctx).Info("Starting up")
-
-	cli.configFile = &opts.configFile
-	cli.flags = opts.flags
 
 	if cli.Config.Debug {
 		debug.Enable()
@@ -175,7 +170,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		}
 	}
 
-	lss, hosts, err := loadListeners(cli.Config, tlsConfig)
+	lss, hosts, err := loadListeners(cli.Config, cli.apiTLSConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to load listeners")
 	}
@@ -456,7 +451,7 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 	}, nil
 }
 
-func (cli *DaemonCli) reloadConfig() {
+func (cli *daemonCLI) reloadConfig() {
 	ctx := context.TODO()
 	reload := func(c *config.Config) {
 		if err := validateAuthzPlugins(c.AuthorizationPlugins, cli.d.PluginStore); err != nil {
@@ -490,7 +485,7 @@ func (cli *DaemonCli) reloadConfig() {
 	}
 }
 
-func (cli *DaemonCli) stop() {
+func (cli *daemonCLI) stop() {
 	// Signal that the API server should shut down as soon as possible.
 	// This construct is used rather than directly shutting down the HTTP
 	// server to avoid any issues if this method is called before the server
@@ -571,6 +566,24 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		conf.TLSOptions = config.TLSOptions{}
 	}
 
+	if runtime.GOOS == "windows" && opts.configFile == "" {
+		// On Windows, the location of the config-file is relative to the
+		// daemon's data-root, which is configurable, so we cannot use a
+		// fixed default location. Instead, we set the location here, after
+		// we parsed command-line flags.
+		//
+		// Note, however, that the data-root is also configurable through the
+		// daemon.json file. Observant readers may see that we have a classic
+		// chicken-and-egg situation at hand here; we don't know where to look
+		// for the daemon.json file ... until we loaded the daemon.json file.
+		//
+		// We need a better solution for this, and a better default (which
+		// could be a fixed location, similar to how the Linux daemon works).
+		//
+		// FIXME(thaJeztah): find a better default on Windows that does not depend on "daemon.json" or the --data-root option.
+		opts.configFile = filepath.Join(conf.Root, "config", "daemon.json")
+	}
+
 	if opts.configFile != "" {
 		c, err := config.MergeDaemonConfigurations(conf, flags, opts.configFile)
 		if err != nil {
@@ -629,7 +642,7 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		conf.CDISpecDirs = nil
 	}
 
-	if err := loadCLIPlatformConfig(conf); err != nil {
+	if err := setPlatformOptions(conf); err != nil {
 		return nil, err
 	}
 
@@ -739,7 +752,7 @@ func initMiddlewares(s *apiserver.Server, cfg *config.Config, pluginStore plugin
 	return authzMiddleware, nil
 }
 
-func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
+func (cli *daemonCLI) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
 	var opts []supervisor.DaemonOpt
 	if cli.Debug {
 		opts = append(opts, supervisor.WithLogLevel("debug"))
@@ -897,7 +910,7 @@ func loadListeners(cfg *config.Config, tlsConfig *tls.Config) ([]net.Listener, [
 	return lss, hosts, nil
 }
 
-func createAndStartCluster(cli *DaemonCli, d *daemon.Daemon) (*cluster.Cluster, error) {
+func createAndStartCluster(cli *daemonCLI, d *daemon.Daemon) (*cluster.Cluster, error) {
 	name, _ := os.Hostname()
 
 	// Use a buffered channel to pass changes from store watch API to daemon

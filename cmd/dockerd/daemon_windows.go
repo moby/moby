@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/containerd/log"
@@ -12,13 +13,25 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func getDefaultDaemonConfigFile() (string, error) {
-	return "", nil
+// getDefaultDaemonConfigFile returns the default location of the daemon's
+// configuration file.
+//
+// On Windows, the location of the config-file is relative to the daemon's
+// data-root (config.Root), which is configurable, so we cannot use a fixed
+// default location, and this function always returns an empty string.
+func getDefaultDaemonConfigFile() string {
+	return ""
 }
 
-// loadCLIPlatformConfig loads the platform specific CLI configuration
-// there is none on windows, so this is a no-op
-func loadCLIPlatformConfig(conf *config.Config) error {
+// setPlatformOptions applies platform-specific CLI configuration options.
+func setPlatformOptions(conf *config.Config) error {
+	if conf.Pidfile == "" {
+		// On Windows, the pid-file location is relative to the daemon's data-root,
+		// which is configurable, so we cannot use a fixed default location.
+		// Instead, we set the location here, after we parsed command-line flags
+		// and loaded the configuration file (if any).
+		conf.Pidfile = filepath.Join(conf.Root, "docker.pid")
+	}
 	return nil
 }
 
@@ -58,7 +71,7 @@ func notifyShutdown(err error) {
 }
 
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
-func (cli *DaemonCli) setupConfigReloadTrap() {
+func (cli *daemonCLI) setupConfigReloadTrap() {
 	go func() {
 		sa := windows.SecurityAttributes{
 			Length: 0,
@@ -77,7 +90,7 @@ func (cli *DaemonCli) setupConfigReloadTrap() {
 
 // getSwarmRunRoot gets the root directory for swarm to store runtime state
 // For example, the control socket
-func (cli *DaemonCli) getSwarmRunRoot() string {
+func (cli *daemonCLI) getSwarmRunRoot() string {
 	return ""
 }
 
@@ -89,7 +102,7 @@ func newCgroupParent(config *config.Config) string {
 	return ""
 }
 
-func (cli *DaemonCli) initContainerd(_ context.Context) (func(time.Duration) error, error) {
+func (cli *daemonCLI) initContainerd(_ context.Context) (func(time.Duration) error, error) {
 	system.InitContainerdRuntime(cli.ContainerdAddr)
 	return nil, nil
 }
