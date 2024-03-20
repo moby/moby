@@ -432,24 +432,9 @@ func TestRCTransformForIntNS(t *testing.T) {
 			},
 		},
 		{
-			name:  "No host nameserver, no iv6",
-			input: "",
-			ipv6:  false,
-			expExtServers: []ExtDNSEntry{
-				mke("8.8.8.8", false),
-				mke("8.8.4.4", false),
-			},
-		},
-		{
-			name:  "No host nameserver, iv6",
+			name:  "No host nameserver",
 			input: "",
 			ipv6:  true,
-			expExtServers: []ExtDNSEntry{
-				mke("8.8.8.8", false),
-				mke("8.8.4.4", false),
-				mke("2001:4860:4860::8888", false),
-				mke("2001:4860:4860::8844", false),
-			},
 		},
 		{
 			name:          "ndots present and required",
