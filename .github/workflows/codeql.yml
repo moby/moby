@@ -1,0 +1,62 @@
+name: codeql
+
+on:
+  push:
+    branches: 
+      - 'master' 
+      - '[0-9]+.[0-9]+' 
+    tags: 
+      - 'v*' 
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ "master" ]
+  schedule:
+    #        ┌───────────── minute (0 - 59)
+    #        │ ┌───────────── hour (0 - 23)
+    #        │ │ ┌───────────── day of the month (1 - 31)
+    #        │ │ │ ┌───────────── month (1 - 12)
+    #        │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday)
+    #        │ │ │ │ │
+    #        │ │ │ │ │
+    #        │ │ │ │ │
+    #        * * * * *
+    - cron: '0 9 * * 4'
+
+jobs:
+  codeql:
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 360
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      -
+        name: Checkout HEAD on PR
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          git checkout HEAD^2
+      - 
+        name: Update Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.21.5
+      -
+        name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: go
+      -
+        name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      -
+        name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:go"
