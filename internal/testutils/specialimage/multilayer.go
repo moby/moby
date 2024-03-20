@@ -16,20 +16,32 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-func MultiLayer(dir string) (*ocispec.Index, error) {
-	const imageRef = "multilayer:latest"
+type SingleFileLayer struct {
+	Name    string
+	Content []byte
+}
 
-	layer1Desc, err := writeLayerWithOneFile(dir, "foo", []byte("1"))
-	if err != nil {
-		return nil, err
-	}
-	layer2Desc, err := writeLayerWithOneFile(dir, "bar", []byte("2"))
-	if err != nil {
-		return nil, err
-	}
-	layer3Desc, err := writeLayerWithOneFile(dir, "hello", []byte("world"))
-	if err != nil {
-		return nil, err
+func MultiLayer(dir string) (*ocispec.Index, error) {
+	return MultiLayerCustom(dir, "multilayer:latest", []SingleFileLayer{
+		{Name: "foo", Content: []byte("1")},
+		{Name: "bar", Content: []byte("2")},
+		{Name: "hello", Content: []byte("world")},
+	})
+}
+
+func MultiLayerCustom(dir string, imageRef string, layers []SingleFileLayer) (*ocispec.Index, error) {
+	var layerDescs []ocispec.Descriptor
+	var layerDgsts []digest.Digest
+	var layerBlobs []string
+	for _, layer := range layers {
+		layerDesc, err := writeLayerWithOneFile(dir, layer.Name, layer.Content)
+		if err != nil {
+			return nil, err
+		}
+
+		layerDescs = append(layerDescs, layerDesc)
+		layerDgsts = append(layerDgsts, layerDesc.Digest)
+		layerBlobs = append(layerBlobs, blobPath(layerDesc))
 	}
 
 	configDesc, err := writeJsonBlob(dir, ocispec.MediaTypeImageConfig, ocispec.Image{
@@ -39,7 +51,7 @@ func MultiLayer(dir string) (*ocispec.Index, error) {
 		},
 		RootFS: ocispec.RootFS{
 			Type:    "layers",
-			DiffIDs: []digest.Digest{layer1Desc.Digest, layer2Desc.Digest, layer3Desc.Digest},
+			DiffIDs: layerDgsts,
 		},
 	})
 	if err != nil {
@@ -49,14 +61,14 @@ func MultiLayer(dir string) (*ocispec.Index, error) {
 	manifest := ocispec.Manifest{
 		MediaType: ocispec.MediaTypeImageManifest,
 		Config:    configDesc,
-		Layers:    []ocispec.Descriptor{layer1Desc, layer2Desc, layer3Desc},
+		Layers:    layerDescs,
 	}
 
 	legacyManifests := []manifestItem{
 		{
 			Config:   blobPath(configDesc),
 			RepoTags: []string{imageRef},
-			Layers:   []string{blobPath(layer1Desc), blobPath(layer2Desc), blobPath(layer3Desc)},
+			Layers:   layerBlobs,
 		},
 	}
 
@@ -128,6 +140,7 @@ func writeLayerWithOneFile(dir string, filename string, content []byte) (ocispec
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
+	defer rd.Close()
 
 	return writeBlob(dir, ocispec.MediaTypeImageLayer, rd)
 }

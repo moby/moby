@@ -255,10 +255,12 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 
 		target := img.Target()
 
-		chainIDs, err := img.RootFS(ctx)
+		diffIDs, err := img.RootFS(ctx)
 		if err != nil {
 			return err
 		}
+
+		chainIDs := identity.ChainIDs(diffIDs)
 
 		ts, _, err := i.singlePlatformSize(ctx, img)
 		if err != nil {
@@ -650,6 +652,11 @@ func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, s
 		}
 		size, err := sizeFn(chainID)
 		if err != nil {
+			// Several images might share the same layer and neither of them
+			// might be unpacked (for example if it's a non-host platform).
+			if cerrdefs.IsNotFound(err) {
+				continue
+			}
 			return 0, err
 		}
 		sharedSize += size
