@@ -264,9 +264,9 @@ func TestCmd(t *testing.T) {
 
 	var expectedCommand strslice.StrSlice
 	if runtime.GOOS == "windows" {
-		expectedCommand = strslice.StrSlice(append([]string{"cmd"}, "/S", "/C", command))
+		expectedCommand = []string{"cmd", "/S", "/C", command}
 	} else {
-		expectedCommand = strslice.StrSlice(append([]string{"/bin/sh"}, "-c", command))
+		expectedCommand = []string{"/bin/sh", "-c", command}
 	}
 
 	assert.Check(t, is.DeepEqual(expectedCommand, sb.state.runConfig.Cmd))
@@ -322,9 +322,9 @@ func TestEntrypoint(t *testing.T) {
 
 	var expectedEntrypoint strslice.StrSlice
 	if runtime.GOOS == "windows" {
-		expectedEntrypoint = strslice.StrSlice(append([]string{"cmd"}, "/S", "/C", entrypointCmd))
+		expectedEntrypoint = []string{"cmd", "/S", "/C", entrypointCmd}
 	} else {
-		expectedEntrypoint = strslice.StrSlice(append([]string{"/bin/sh"}, "-c", entrypointCmd))
+		expectedEntrypoint = []string{"/bin/sh", "-c", entrypointCmd}
 	}
 	assert.Check(t, is.DeepEqual(expectedEntrypoint, sb.state.runConfig.Entrypoint))
 }
@@ -447,9 +447,9 @@ func TestRunWithBuildArgs(t *testing.T) {
 
 	var cmdWithShell strslice.StrSlice
 	if runtime.GOOS == "windows" {
-		cmdWithShell = strslice.StrSlice([]string{strings.Join(append(getShell(runConfig, runtime.GOOS), []string{"echo foo"}...), " ")})
+		cmdWithShell = []string{strings.Join(append(getShell(runConfig), []string{"echo foo"}...), " ")}
 	} else {
-		cmdWithShell = strslice.StrSlice(append(getShell(runConfig, runtime.GOOS), "echo foo"))
+		cmdWithShell = append(getShell(runConfig), "echo foo")
 	}
 
 	envVars := []string{"|1", "one=two"}
