@@ -5,25 +5,30 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/iptables"
 )
 
 const userChain = "DOCKER-USER"
 
-var ctrl *Controller
+func (c *Controller) setupFirewallReloadHandler() {
+	iptables.OnReloaded(c.handleFirewallReload)
+}
 
-func setupArrangeUserFilterRule(c *Controller) {
-	ctrl = c
-	iptables.OnReloaded(arrangeUserFilterRule)
+func (c *Controller) handleFirewallReload() {
+	arrangeUserFilterRule(c.enabledIptablesVersions()...)
+	c.drvRegistry.WalkDrivers(func(_ string, d driverapi.Driver, _ driverapi.Capability) bool {
+		if r, ok := d.(driverapi.FirewallReplayer); ok {
+			r.ReplayFirewallConfig()
+		}
+		return false // Walk all drivers.
+	})
 }
 
 // arrangeUserFilterRule sets up the DOCKER-USER chain for each iptables version
-// (IPv4, IPv6) that's enabled in the controller's configuration.
-func arrangeUserFilterRule() {
-	if ctrl == nil {
-		return
-	}
-	for _, ipVersion := range ctrl.enabledIptablesVersions() {
+// (IPv4, IPv6) specified in the arguments.
+func arrangeUserFilterRule(ipVersions ...iptables.IPVersion) {
+	for _, ipVersion := range ipVersions {
 		if err := setupUserChain(ipVersion); err != nil {
 			log.G(context.TODO()).WithError(err).Warn("arrangeUserFilterRule")
 		}

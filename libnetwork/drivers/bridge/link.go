@@ -40,15 +40,7 @@ func newLink(parentIP, childIP net.IP, ports []types.TransportPort, bridge strin
 }
 
 func (l *link) Enable() error {
-	linkFunction := func() error {
-		return linkContainers(iptables.Append, l.parentIP, l.childIP, l.ports, l.bridge, false)
-	}
-	if err := linkFunction(); err != nil {
-		return err
-	}
-
-	iptables.OnReloaded(func() { _ = linkFunction() })
-	return nil
+	return linkContainers(iptables.Append, l.parentIP, l.childIP, l.ports, l.bridge, false)
 }
 
 func (l *link) Disable() {

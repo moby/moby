@@ -125,7 +125,7 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 			if ep := sb.getGatewayEndpoint(); ep != nil {
 				gwIP = ep.Iface().Address().IP
 			}
-			if err := programIngress(gwIP, lb.service.ingressPorts, false); err != nil {
+			if err := programIngress(n.ctrlr, gwIP, lb.service.ingressPorts, false); err != nil {
 				log.G(context.TODO()).Errorf("Failed to add ingress: %v", err)
 				return
 			}
@@ -226,7 +226,7 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 			if ep := sb.getGatewayEndpoint(); ep != nil {
 				gwIP = ep.Iface().Address().IP
 			}
-			if err := programIngress(gwIP, lb.service.ingressPorts, true); err != nil {
+			if err := programIngress(n.ctrlr, gwIP, lb.service.ingressPorts, true); err != nil {
 				log.G(context.TODO()).Errorf("Failed to delete ingress: %v", err)
 			}
 		}
@@ -295,7 +295,7 @@ func filterPortConfigs(ingressPorts []*PortConfig, isDelete bool) []*PortConfig 
 	return iPorts
 }
 
-func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) error {
+func programIngress(c *Controller, gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) error {
 	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 
@@ -363,7 +363,7 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 			if err := iptable.RawCombinedOutput("-I", "FORWARD", "-j", ingressChain); err != nil {
 				return fmt.Errorf("failed to add jump rule to %s in filter table forward chain: %v", ingressChain, err)
 			}
-			arrangeUserFilterRule()
+			arrangeUserFilterRule(c.enabledIptablesVersions()...)
 		}
 
 		oifName, err := findOIFName(gwIP)

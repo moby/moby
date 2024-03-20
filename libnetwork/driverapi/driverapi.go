@@ -82,6 +82,15 @@ type Driver interface {
 	IsBuiltIn() bool
 }
 
+// FirewallReplayer needs to be implemented by drivers which depend on ephemeral
+// system firewall configuration to function.
+type FirewallReplayer interface {
+	// ReplayFirewallConfig replays all firewall configuration required
+	// to restore connectivity within the networks managed by the driver
+	// after the system firewall configuration has been flushed.
+	ReplayFirewallConfig()
+}
+
 // NetworkInfo provides a go interface for drivers to provide network
 // specific information to libnetwork.
 type NetworkInfo interface {
