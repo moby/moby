@@ -555,8 +555,6 @@ func (daemon *Daemon) setupSeccompProfile(*config.Config) error {
 	return nil
 }
 
-func setupResolvConf(config *config.Config) {}
-
 func getSysInfo(*config.Config) *sysinfo.SysInfo {
 	return sysinfo.New()
 }
