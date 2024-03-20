@@ -144,9 +144,11 @@ func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 func assertChainConfig(d *driver, t *testing.T) {
 	var err error
 
-	d.natChain, d.filterChain, d.isolationChain1, d.isolationChain2, err = setupIPChains(d.config, iptables.IPv4)
-	if err != nil {
-		t.Fatal(err)
+	if d.config.EnableIPTables {
+		d.natChain, d.filterChain, d.isolationChain1, d.isolationChain2, err = setupIPChains(d.config, iptables.IPv4)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	if d.config.EnableIP6Tables {
 		d.natChainV6, d.filterChainV6, d.isolationChain1V6, d.isolationChain2V6, err = setupIPChains(d.config, iptables.IPv6)
@@ -272,6 +274,22 @@ func TestOutgoingNATRules(t *testing.T) {
 			enableIPMasquerade: true,
 			hostIPv4:           hostIPv4,
 			wantIPv4Snat:       true,
+		},
+		{
+			// Regression test for https://github.com/moby/moby/issues/46467
+			desc:               "iptables disabled, IPv6 masquerade",
+			enableIP6Tables:    true,
+			enableIPv6:         true,
+			enableIPMasquerade: true,
+			wantIPv6Masq:       true,
+		},
+		{
+			desc:               "iptables disabled, IPv6 SNAT",
+			enableIP6Tables:    true,
+			enableIPv6:         true,
+			enableIPMasquerade: true,
+			hostIPv6:           hostIPv6,
+			wantIPv6Snat:       true,
 		},
 		{
 			desc:               "IPv4 masquerade, IPv6 masquerade",
