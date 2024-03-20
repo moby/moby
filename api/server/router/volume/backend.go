@@ -13,7 +13,7 @@ import (
 // Backend is the methods that need to be implemented to provide
 // volume specific functionality
 type Backend interface {
-	List(ctx context.Context, filter filters.Args) ([]*volume.Volume, []string, error)
+	List(ctx context.Context, opts ...opts.ListOption) ([]*volume.Volume, []string, error)
 	Get(ctx context.Context, name string, opts ...opts.GetOption) (*volume.Volume, error)
 	Create(ctx context.Context, name, driverName string, opts ...opts.CreateOption) (*volume.Volume, error)
 	Remove(ctx context.Context, name string, opts ...opts.RemoveOption) error
