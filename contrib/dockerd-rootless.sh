@@ -151,12 +151,18 @@ else
 	fi
 
 	if [ "$(stat -c %T -f /etc)" = "tmpfs" ] && [ -L "/etc/ssl" ]; then
-		# Workaround for "x509: certificate signed by unknown authority" on openSUSE Tumbleweed.
-		# https://github.com/rootless-containers/rootlesskit/issues/225
-		realpath_etc_ssl=$(realpath /etc/ssl)
+		# Mount host's certificate bundles. See https://github.com/rootless-containers/rootlesskit/issues/225
 		rm -f /etc/ssl
 		mkdir /etc/ssl
-		mount --rbind ${realpath_etc_ssl} /etc/ssl
+		if [[ -z ${REQUESTS_CA_BUNDLE} ]];			
+		then
+			realpath_etc_ssl=$(realpath /etc/ssl)
+			mount --rbind ${realpath_etc_ssl} /etc/ssl
+		else
+			mkdir /etc/ssl/certs
+			touch /etc/ssl/certs/ca-certificates.crt
+			mount --rbind ${REQUESTS_CA_BUNDLE} /etc/ssl/certs/ca-certificates.crt
+		fi
 	fi
 
 	exec "$dockerd" "$@"
