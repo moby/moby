@@ -10,10 +10,14 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 // Regression : #38171
@@ -191,4 +195,35 @@ func TestAPIImagesFilters(t *testing.T) {
 			assert.Check(t, is.Len(images[0].RepoTags, tc.expectedRepoTags))
 		})
 	}
+}
+
+// Verify that the size calculation operates on ChainIDs and not DiffIDs.
+// This test calls an image list with two images that share one, top layer.
+func TestAPIImagesListSizeShared(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	ctx := setupTest(t)
+
+	daemon := daemon.New(t)
+	daemon.Start(t)
+	defer daemon.Stop(t)
+
+	client := daemon.NewClientT(t)
+
+	specialimage.Load(ctx, t, client, func(dir string) (*ocispec.Index, error) {
+		return specialimage.MultiLayerCustom(dir, "multilayer:latest", []specialimage.SingleFileLayer{
+			{Name: "bar", Content: []byte("2")},
+			{Name: "foo", Content: []byte("1")},
+		})
+	})
+
+	specialimage.Load(ctx, t, client, func(dir string) (*ocispec.Index, error) {
+		return specialimage.MultiLayerCustom(dir, "multilayer2:latest", []specialimage.SingleFileLayer{
+			{Name: "asdf", Content: []byte("3")},
+			{Name: "foo", Content: []byte("1")},
+		})
+	})
+
+	_, err := client.ImageList(ctx, image.ListOptions{SharedSize: true})
+	assert.NilError(t, err)
 }
