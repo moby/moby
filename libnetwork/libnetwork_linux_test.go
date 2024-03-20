@@ -1435,7 +1435,7 @@ func TestBridgeIpv6FromMac(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	iface := ep.Info().Iface()
+	iface := ep.Iface()
 	if !bytes.Equal(iface.MacAddress(), mac) {
 		t.Fatalf("Unexpected mac address: %v", iface.MacAddress())
 	}
@@ -1455,7 +1455,7 @@ func TestBridgeIpv6FromMac(t *testing.T) {
 	}
 }
 
-func checkSandbox(t *testing.T, info libnetwork.EndpointInfo) {
+func checkSandbox(t *testing.T, info *libnetwork.Endpoint) {
 	key := info.Sandbox().Key()
 	sbNs, err := netns.GetFromPath(key)
 	if err != nil {
@@ -1517,8 +1517,7 @@ func TestEndpointJoin(t *testing.T) {
 	}()
 
 	// Validate if ep.Info() only gives me IP address info and not names and gateway during CreateEndpoint()
-	info := ep1.Info()
-	iface := info.Iface()
+	iface := ep1.Iface()
 	if iface.Address() != nil && iface.Address().IP.To4() == nil {
 		t.Fatalf("Invalid IP address returned: %v", iface.Address())
 	}
@@ -1526,15 +1525,15 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatalf("Invalid IPv6 address returned: %v", iface.Address())
 	}
 
-	if len(info.Gateway()) != 0 {
-		t.Fatalf("Expected empty gateway for an empty endpoint. Instead found a gateway: %v", info.Gateway())
+	if len(ep1.Gateway()) != 0 {
+		t.Fatalf("Expected empty gateway for an empty endpoint. Instead found a gateway: %v", ep1.Gateway())
 	}
-	if len(info.GatewayIPv6()) != 0 {
-		t.Fatalf("Expected empty gateway for an empty ipv6 endpoint. Instead found a gateway: %v", info.GatewayIPv6())
+	if len(ep1.GatewayIPv6()) != 0 {
+		t.Fatalf("Expected empty gateway for an empty ipv6 endpoint. Instead found a gateway: %v", ep1.GatewayIPv6())
 	}
 
-	if info.Sandbox() != nil {
-		t.Fatalf("Expected an empty sandbox key for an empty endpoint. Instead found a non-empty sandbox key: %s", info.Sandbox().Key())
+	if ep1.Sandbox() != nil {
+		t.Fatalf("Expected an empty sandbox key for an empty endpoint. Instead found a non-empty sandbox key: %s", ep1.Sandbox().Key())
 	}
 
 	// test invalid joins
@@ -1579,21 +1578,20 @@ func TestEndpointJoin(t *testing.T) {
 		}
 	}()
 
-	// Validate if ep.Info() only gives valid gateway and sandbox key after has container has joined.
-	info = ep1.Info()
-	if len(info.Gateway()) == 0 {
-		t.Fatalf("Expected a valid gateway for a joined endpoint. Instead found an invalid gateway: %v", info.Gateway())
+	// Validate if ep.Info() only gives valid gateway and sandbox key after has container has joined.=
+	if len(ep1.Gateway()) == 0 {
+		t.Fatalf("Expected a valid gateway for a joined endpoint. Instead found an invalid gateway: %v", ep1.Gateway())
 	}
-	if len(info.GatewayIPv6()) == 0 {
-		t.Fatalf("Expected a valid ipv6 gateway for a joined endpoint. Instead found an invalid gateway: %v", info.GatewayIPv6())
+	if len(ep1.GatewayIPv6()) == 0 {
+		t.Fatalf("Expected a valid ipv6 gateway for a joined endpoint. Instead found an invalid gateway: %v", ep1.GatewayIPv6())
 	}
 
-	if info.Sandbox() == nil {
+	if ep1.Sandbox() == nil {
 		t.Fatalf("Expected an non-empty sandbox key for a joined endpoint. Instead found an empty sandbox key")
 	}
 
 	// Check endpoint provided container information
-	if ep1.Info().Sandbox().Key() != sb.Key() {
+	if ep1.Sandbox().Key() != sb.Key() {
 		t.Fatalf("Endpoint Info returned unexpected sandbox key: %s", sb.Key())
 	}
 
@@ -1643,11 +1641,11 @@ func TestEndpointJoin(t *testing.T) {
 		}
 	}()
 
-	if ep1.Info().Sandbox().Key() != ep2.Info().Sandbox().Key() {
+	if ep1.Sandbox().Key() != ep2.Sandbox().Key() {
 		t.Fatalf("ep1 and ep2 returned different container sandbox key")
 	}
 
-	checkSandbox(t, info)
+	checkSandbox(t, ep1)
 }
 
 func TestExternalKey(t *testing.T) {
@@ -1732,7 +1730,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		}
 	}()
 
-	sbox := ep.Info().Sandbox()
+	sbox := ep.Sandbox()
 	if sbox == nil {
 		t.Fatalf("Expected to have a valid Sandbox")
 	}
@@ -1783,11 +1781,11 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		}
 	}()
 
-	if ep.Info().Sandbox().Key() != ep2.Info().Sandbox().Key() {
+	if ep.Sandbox().Key() != ep2.Sandbox().Key() {
 		t.Fatalf("ep1 and ep2 returned different container sandbox key")
 	}
 
-	checkSandbox(t, ep.Info())
+	checkSandbox(t, ep)
 }
 
 func reexecSetKey(key string, containerID string, controllerID string) error {

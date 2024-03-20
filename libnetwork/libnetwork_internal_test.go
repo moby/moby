@@ -421,7 +421,7 @@ func TestSRVServiceQuery(t *testing.T) {
 	c.svcRecords[n.ID()] = sr
 
 	ctx := context.Background()
-	_, ip := ep.Info().Sandbox().ResolveService(ctx, "_http._tcp.web.swarm")
+	_, ip := ep.Sandbox().ResolveService(ctx, "_http._tcp.web.swarm")
 
 	if len(ip) == 0 {
 		t.Fatal(err)
@@ -430,7 +430,7 @@ func TestSRVServiceQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, ip = ep.Info().Sandbox().ResolveService(ctx, "_host_http._tcp.web.swarm")
+	_, ip = ep.Sandbox().ResolveService(ctx, "_host_http._tcp.web.swarm")
 
 	if len(ip) == 0 {
 		t.Fatal(err)
@@ -440,7 +440,7 @@ func TestSRVServiceQuery(t *testing.T) {
 	}
 
 	// Service name with invalid protocol name. Should fail without error
-	_, ip = ep.Info().Sandbox().ResolveService(ctx, "_http._icmp.web.swarm")
+	_, ip = ep.Sandbox().ResolveService(ctx, "_http._icmp.web.swarm")
 	if len(ip) != 0 {
 		t.Fatal("Valid response for invalid service name")
 	}
@@ -629,8 +629,8 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	defer ep.Delete(false) //nolint:errcheck
 
 	expectedIP, _ := types.ParseCIDR("10.35.0.1/16")
-	if !types.CompareIPNet(ep.Info().Iface().Address(), expectedIP) {
-		t.Fatalf("Ipam release must have failed, endpoint has unexpected address: %v", ep.Info().Iface().Address())
+	if !types.CompareIPNet(ep.Iface().Address(), expectedIP) {
+		t.Fatalf("Ipam release must have failed, endpoint has unexpected address: %v", ep.Iface().Address())
 	}
 }
 

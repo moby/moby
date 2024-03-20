@@ -28,12 +28,8 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	// find the load balancer IP for the network.
 	var sourceVIP string
 	for _, e := range n.Endpoints() {
-		epInfo := e.Info()
-		if epInfo == nil {
-			continue
-		}
-		if epInfo.LoadBalancer() {
-			sourceVIP = epInfo.Iface().Address().IP.String()
+		if e.LoadBalancer() {
+			sourceVIP = e.Iface().Address().IP.String()
 			break
 		}
 	}

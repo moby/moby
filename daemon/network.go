@@ -632,15 +632,11 @@ func buildNetworkResource(nw *libnetwork.Network) types.NetworkResource {
 // detailed mode.
 func buildContainerAttachments(nw *libnetwork.Network) map[string]types.EndpointResource {
 	containers := make(map[string]types.EndpointResource)
-	for _, e := range nw.Endpoints() {
-		ei := e.Info()
-		if ei == nil {
-			continue
-		}
-		if sb := ei.Sandbox(); sb != nil {
-			containers[sb.ContainerID()] = buildEndpointResource(e, ei)
+	for _, ep := range nw.Endpoints() {
+		if sb := ep.Sandbox(); sb != nil {
+			containers[sb.ContainerID()] = buildEndpointResource(ep)
 		} else {
-			containers["ep-"+e.ID()] = buildEndpointResource(e, ei)
+			containers["ep-"+ep.ID()] = buildEndpointResource(ep)
 		}
 	}
 	return containers
@@ -756,12 +752,12 @@ func buildIPAMResources(nw *libnetwork.Network) network.IPAM {
 
 // buildEndpointResource combines information from the endpoint and additional
 // endpoint-info into a [types.EndpointResource].
-func buildEndpointResource(ep *libnetwork.Endpoint, info libnetwork.EndpointInfo) types.EndpointResource {
+func buildEndpointResource(ep *libnetwork.Endpoint) types.EndpointResource {
 	er := types.EndpointResource{
 		EndpointID: ep.ID(),
 		Name:       ep.Name(),
 	}
-	if iface := info.Iface(); iface != nil {
+	if iface := ep.Iface(); iface != nil {
 		if mac := iface.MacAddress(); mac != nil {
 			er.MacAddress = mac.String()
 		}
@@ -783,11 +779,7 @@ func (daemon *Daemon) clearAttachableNetworks() {
 			continue
 		}
 		for _, ep := range n.Endpoints() {
-			epInfo := ep.Info()
-			if epInfo == nil {
-				continue
-			}
-			sb := epInfo.Sandbox()
+			sb := ep.Sandbox()
 			if sb == nil {
 				continue
 			}
@@ -1039,12 +1031,6 @@ func buildEndpointInfo(networkSettings *internalnetwork.Settings, n *libnetwork.
 		return errors.New("network cannot be nil")
 	}
 
-	epInfo := ep.Info()
-	if epInfo == nil {
-		// It is not an error to get an empty endpoint info
-		return nil
-	}
-
 	nwName := n.Name()
 	if _, ok := networkSettings.Networks[nwName]; !ok {
 		networkSettings.Networks[nwName] = &internalnetwork.EndpointSettings{
@@ -1054,7 +1040,7 @@ func buildEndpointInfo(networkSettings *internalnetwork.Settings, n *libnetwork.
 	networkSettings.Networks[nwName].NetworkID = n.ID()
 	networkSettings.Networks[nwName].EndpointID = ep.ID()
 
-	iface := epInfo.Iface()
+	iface := ep.Iface()
 	if iface == nil {
 		return nil
 	}
