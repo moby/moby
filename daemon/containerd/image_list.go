@@ -255,10 +255,12 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 
 		target := img.Target()
 
-		chainIDs, err := img.RootFS(ctx)
+		diffIDs, err := img.RootFS(ctx)
 		if err != nil {
 			return err
 		}
+
+		chainIDs := identity.ChainIDs(diffIDs)
 
 		ts, _, err := i.singlePlatformSize(ctx, img)
 		if err != nil {
