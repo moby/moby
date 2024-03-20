@@ -42,6 +42,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		CapabilityAdd:  c.CapabilityAdd,
 		CapabilityDrop: c.CapabilityDrop,
 		Ulimits:        ulimitsFromGRPC(c.Ulimits),
+		Devices:        devicesFromGRPC(c.Devices),
 	}
 
 	if c.DNSConfig != nil {
@@ -301,6 +302,7 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		CapabilityAdd:  c.CapabilityAdd,
 		CapabilityDrop: c.CapabilityDrop,
 		Ulimits:        ulimitsToGRPC(c.Ulimits),
+		Devices:        devicesToGRPC(c.Devices),
 	}
 
 	if c.DNSConfig != nil {
@@ -563,4 +565,32 @@ func ulimitsToGRPC(u []*units.Ulimit) []*swarmapi.ContainerSpec_Ulimit {
 	}
 
 	return ulimits
+}
+
+func devicesFromGRPC(d []*swarmapi.ContainerSpec_DeviceMapping) []container.DeviceMapping {
+	devices := make([]container.DeviceMapping, len(d))
+
+	for i, device := range d {
+		devices[i] = container.DeviceMapping{
+			PathOnHost:        device.PathOnHost,
+			PathInContainer:   device.PathInContainer,
+			CgroupPermissions: device.CgroupPermissions,
+		}
+	}
+
+	return devices
+}
+
+func devicesToGRPC(d []container.DeviceMapping) []*swarmapi.ContainerSpec_DeviceMapping {
+	devices := make([]*swarmapi.ContainerSpec_DeviceMapping, len(d))
+
+	for i, device := range d {
+		devices[i] = &swarmapi.ContainerSpec_DeviceMapping{
+			PathOnHost:        device.PathOnHost,
+			PathInContainer:   device.PathInContainer,
+			CgroupPermissions: device.CgroupPermissions,
+		}
+	}
+
+	return devices
 }
