@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -22,11 +23,23 @@ import (
 // directory or the kernel enable CONFIG_OVERLAY_FS_REDIRECT_DIR.
 // When these exist naive diff should be used.
 //
-// When running in a user namespace, returns errRunningInUserNS
-// immediately.
+// When running in a user namespace before kernel 5.11, returns
+// errRunningInUserNS immediately. In kernel 5.11 and later, we
+// check support as usual with some user namespace differences.
 func doesSupportNativeDiff(d string) error {
+	userxattr := false
 	if userns.RunningInUserNS() {
-		return errors.New("running in a user namespace")
+		if !kernel.CheckKernelVersion(5, 11, 0) {
+			return errors.New("running in a user namespace")
+		}
+
+		needed, err := overlayutils.NeedsUserXAttr(d)
+		if err != nil {
+			return err
+		}
+		if needed {
+			userxattr = true
+		}
 	}
 
 	td, err := os.MkdirTemp(d, "opaque-bug-check")
@@ -60,11 +73,16 @@ func doesSupportNativeDiff(d string) error {
 	}
 
 	// Mark l2/d as opaque
-	if err := system.Lsetxattr(filepath.Join(td, "l2", "d"), "trusted.overlay.opaque", []byte("y"), 0); err != nil {
+	if err := system.Lsetxattr(filepath.Join(td, "l2", "d"), overlayutils.GetOverlayXattr("opaque"), []byte("y"), 0); err != nil {
 		return errors.Wrap(err, "failed to set opaque flag on middle layer")
 	}
 
-	opts := fmt.Sprintf("lowerdir=%s:%s,upperdir=%s,workdir=%s", path.Join(td, "l2"), path.Join(td, "l1"), path.Join(td, "l3"), path.Join(td, workDirName))
+	mountFlags := "lowerdir=%s:%s,upperdir=%s,workdir=%s"
+	if userxattr {
+		mountFlags = mountFlags + ",userxattr"
+	}
+
+	opts := fmt.Sprintf(mountFlags, path.Join(td, "l2"), path.Join(td, "l1"), path.Join(td, "l3"), path.Join(td, workDirName))
 	if err := unix.Mount("overlay", filepath.Join(td, mergedDirName), "overlay", 0, opts); err != nil {
 		return errors.Wrap(err, "failed to mount overlay")
 	}
@@ -80,7 +98,7 @@ func doesSupportNativeDiff(d string) error {
 	}
 
 	// Check l3/d does not have opaque flag
-	xattrOpaque, err := system.Lgetxattr(filepath.Join(td, "l3", "d"), "trusted.overlay.opaque")
+	xattrOpaque, err := system.Lgetxattr(filepath.Join(td, "l3", "d"), overlayutils.GetOverlayXattr("opaque"))
 	if err != nil {
 		return errors.Wrap(err, "failed to read opaque flag on upper layer")
 	}
@@ -97,7 +115,7 @@ func doesSupportNativeDiff(d string) error {
 		return errors.Wrap(err, "failed to rename dir in merged directory")
 	}
 	// get the xattr of "d2"
-	xattrRedirect, err := system.Lgetxattr(filepath.Join(td, "l3", "d2"), "trusted.overlay.redirect")
+	xattrRedirect, err := system.Lgetxattr(filepath.Join(td, "l3", "d2"), overlayutils.GetOverlayXattr("redirect"))
 	if err != nil {
 		return errors.Wrap(err, "failed to read redirect flag on upper layer")
 	}
