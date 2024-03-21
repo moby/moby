@@ -12,7 +12,6 @@ import (
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -29,16 +28,14 @@ import (
 func doesSupportNativeDiff(d string) error {
 	userxattr := false
 	if userns.RunningInUserNS() {
-		if !kernel.CheckKernelVersion(5, 11, 0) {
-			return errors.New("running in a user namespace")
-		}
-
 		needed, err := overlayutils.NeedsUserXAttr(d)
 		if err != nil {
 			return err
 		}
 		if needed {
 			userxattr = true
+		} else {
+			return errors.New("not supported in user namespace, consider updating to kernel 5.11 or later to fix")
 		}
 	}
 
@@ -103,7 +100,7 @@ func doesSupportNativeDiff(d string) error {
 		return errors.Wrap(err, "failed to read opaque flag on upper layer")
 	}
 	if string(xattrOpaque) == "y" {
-		return errors.New("opaque flag erroneously copied up, consider update to kernel 4.8 or later to fix")
+		return errors.New("opaque flag erroneously copied up, consider updating to kernel 4.8 or later to fix")
 	}
 
 	// rename "d1" to "d2"
