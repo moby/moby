@@ -22,9 +22,9 @@ import (
 // directory or the kernel enable CONFIG_OVERLAY_FS_REDIRECT_DIR.
 // When these exist naive diff should be used.
 //
-// When running in a user namespace before kernel 5.11, returns
-// errRunningInUserNS immediately. In kernel 5.11 and later, we
-// check support as usual with some user namespace differences.
+// When running in a user namespace it either immediately returns with an error
+// when userxattr is not supported, or performs the native diff checks as usual
+// with some minor user namespace differences, like adding userxattr.
 func doesSupportNativeDiff(d string) error {
 	userxattr := false
 	if userns.RunningInUserNS() {
