@@ -4,9 +4,6 @@ import (
 	"context"
 	"net"
 
-	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/identity"
 	"github.com/moby/swarmkit/v2/manager/allocator"
@@ -51,14 +48,14 @@ func validateIPAMConfiguration(ipamConf *api.IPAMConfig) error {
 	return nil
 }
 
-func validateIPAM(ipam *api.IPAMOptions, pg plugingetter.PluginGetter) error {
+func (s *Server) validateIPAM(ipam *api.IPAMOptions) error {
 	if ipam == nil {
 		// It is ok to not specify any IPAM configurations. We
 		// will choose good defaults.
 		return nil
 	}
 
-	if err := validateDriver(ipam.Driver, pg, ipamapi.PluginEndpointType); err != nil {
+	if err := s.netvalidator.ValidateIPAMDriver(ipam.Driver); err != nil {
 		return err
 	}
 
@@ -71,13 +68,9 @@ func validateIPAM(ipam *api.IPAMOptions, pg plugingetter.PluginGetter) error {
 	return nil
 }
 
-func validateNetworkSpec(spec *api.NetworkSpec, pg plugingetter.PluginGetter) error {
+func (s *Server) validateNetworkSpec(spec *api.NetworkSpec) error {
 	if spec == nil {
 		return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
-	}
-
-	if spec.Ingress && spec.DriverConfig != nil && spec.DriverConfig.Name != "overlay" {
-		return status.Errorf(codes.Unimplemented, "only overlay driver is currently supported for ingress network")
 	}
 
 	if spec.Attachable && spec.Ingress {
@@ -92,18 +85,25 @@ func validateNetworkSpec(spec *api.NetworkSpec, pg plugingetter.PluginGetter) er
 		return status.Errorf(codes.PermissionDenied, "label %s is for internally created predefined networks and cannot be applied by users",
 			networkallocator.PredefinedLabel)
 	}
-	if err := validateDriver(spec.DriverConfig, pg, driverapi.NetworkPluginEndpointType); err != nil {
+
+	var err error
+	if spec.Ingress {
+		err = s.netvalidator.ValidateIngressNetworkDriver(spec.DriverConfig)
+	} else {
+		err = s.netvalidator.ValidateNetworkDriver(spec.DriverConfig)
+	}
+	if err != nil {
 		return err
 	}
 
-	return validateIPAM(spec.IPAM, pg)
+	return s.validateIPAM(spec.IPAM)
 }
 
 // CreateNetwork creates and returns a Network based on the provided NetworkSpec.
 // - Returns `InvalidArgument` if the NetworkSpec is malformed.
 // - Returns an error if the creation fails.
 func (s *Server) CreateNetwork(ctx context.Context, request *api.CreateNetworkRequest) (*api.CreateNetworkResponse, error) {
-	if err := validateNetworkSpec(request.Spec, s.pg); err != nil {
+	if err := s.validateNetworkSpec(request.Spec); err != nil {
 		return nil, err
 	}
 

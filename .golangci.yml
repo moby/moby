@@ -51,6 +51,12 @@ linters-settings:
         deny:
           - pkg: io/ioutil
             desc: The io/ioutil package has been deprecated, see https://go.dev/doc/go1.16#ioutil
+          - pkg: "github.com/stretchr/testify/assert"
+            desc: Use "gotest.tools/v3/assert" instead
+          - pkg: "github.com/stretchr/testify/require"
+            desc: Use "gotest.tools/v3/assert" instead
+          - pkg: "github.com/stretchr/testify/suite"
+            desc: Do not use
   revive:
     rules:
       # FIXME make sure all packages have a description. Currently, there's many packages without.

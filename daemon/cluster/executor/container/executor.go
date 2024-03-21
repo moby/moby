@@ -52,7 +52,7 @@ func NewExecutor(b executorpkg.Backend, p plugin.Backend, i executorpkg.ImageBac
 		pluginBackend: p,
 		imageBackend:  i,
 		volumeBackend: v,
-		dependencies:  agent.NewDependencyManager(b.PluginGetter()),
+		dependencies:  agent.NewDependencyManager(convert.SwarmPluginGetter(b.PluginGetter())),
 	}
 }
 

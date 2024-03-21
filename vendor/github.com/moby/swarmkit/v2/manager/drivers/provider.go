@@ -3,17 +3,17 @@ package drivers
 import (
 	"fmt"
 
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/node/plugin"
 )
 
 // DriverProvider provides external drivers
 type DriverProvider struct {
-	pluginGetter plugingetter.PluginGetter
+	pluginGetter plugin.Getter
 }
 
 // New returns a new driver provider
-func New(pluginGetter plugingetter.PluginGetter) *DriverProvider {
+func New(pluginGetter plugin.Getter) *DriverProvider {
 	return &DriverProvider{pluginGetter: pluginGetter}
 }
 
@@ -26,7 +26,7 @@ func (m *DriverProvider) NewSecretDriver(driver *api.Driver) (*SecretDriver, err
 		return nil, fmt.Errorf("driver specification is nil")
 	}
 	// Search for the specified plugin
-	plugin, err := m.pluginGetter.Get(driver.Name, SecretsProviderCapability, plugingetter.Lookup)
+	plugin, err := m.pluginGetter.Get(driver.Name, SecretsProviderCapability)
 	if err != nil {
 		return nil, err
 	}
