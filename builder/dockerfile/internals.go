@@ -375,6 +375,8 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		Memory:       options.Memory,
 		MemorySwap:   options.MemorySwap,
 		Ulimits:      options.Ulimits,
+		CPUCount:     options.CPUCount,
+		CPUPercent:   options.CPUPercent,
 	}
 
 	hc := &container.HostConfig{
