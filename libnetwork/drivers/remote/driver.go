@@ -406,7 +406,7 @@ func parseStaticRoutes(r api.JoinResponse) ([]*types.StaticRoute, error) {
 	return routes, nil
 }
 
-// parseInterfaces validates all the parameters of an Interface and returns them.
+// parseInterface validates all the parameters of an Interface and returns them.
 func parseInterface(r api.CreateEndpointResponse) (*api.Interface, error) {
 	var outIf *api.Interface
 
