@@ -48,7 +48,7 @@ func (p *profileData) generateDefault(out io.Writer) error {
 	return compiled.Execute(out, p)
 }
 
-// macrosExists checks if the passed macro exists.
+// macroExists checks if the passed macro exists.
 func macroExists(m string) bool {
 	_, err := os.Stat(path.Join(profileDirectory, m))
 	return err == nil
