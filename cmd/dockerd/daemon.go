@@ -485,6 +485,13 @@ func (cli *DaemonCli) reloadConfig() {
 		}
 	}
 
+	// On Linux, we use sd_notify to indicate we're reloading config. We send
+	// this signal as early as possible to let systemd know we're reloading,
+	// but must signal "ready" after this completes (even on failure), which
+	// is done by the reload function defined above.
+	done := notifyReloading()
+	defer done()
+
 	if err := config.Reload(*cli.configFile, cli.flags, reload); err != nil {
 		log.G(ctx).Error(err)
 	}
