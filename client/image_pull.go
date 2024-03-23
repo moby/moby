@@ -36,7 +36,7 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options image.P
 
 	resp, err := cli.tryImageCreate(ctx, query, options.RegistryAuth)
 	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
-		newAuthHeader, privilegeErr := options.PrivilegeFunc()
+		newAuthHeader, privilegeErr := options.PrivilegeFunc(ctx)
 		if privilegeErr != nil {
 			return nil, privilegeErr
 		}

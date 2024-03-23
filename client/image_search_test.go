@@ -38,7 +38,7 @@ func TestImageSearchWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	privilegeFunc := func() (string, error) {
+	privilegeFunc := func(_ context.Context) (string, error) {
 		return "", fmt.Errorf("Error requesting privilege")
 	}
 	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{
@@ -53,7 +53,7 @@ func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	privilegeFunc := func() (string, error) {
+	privilegeFunc := func(_ context.Context) (string, error) {
 		return "a-auth-header", nil
 	}
 	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{
@@ -98,7 +98,7 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 			}, nil
 		}),
 	}
-	privilegeFunc := func() (string, error) {
+	privilegeFunc := func(_ context.Context) (string, error) {
 		return "IAmValid", nil
 	}
 	results, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{
