@@ -545,24 +545,36 @@ func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.
 	return nil
 }
 
-// IPv6LoEnabled checks whether the loopback interface has an IPv6 address ('::1'
-// is assigned by the kernel if IPv6 is enabled).
+// IPv6LoEnabled returns true if the loopback interface had an IPv6 address when
+// last checked. It's always checked on the first call, and by RefreshIPv6LoEnabled.
+// ('::1' is assigned by the kernel if IPv6 is enabled.)
 func (n *Namespace) IPv6LoEnabled() bool {
 	n.ipv6LoEnabledOnce.Do(func() {
-		// If anything goes wrong, assume no-IPv6.
-		iface, err := n.nlHandle.LinkByName("lo")
-		if err != nil {
-			log.G(context.TODO()).WithError(err).Warn("Unable to find 'lo' to determine IPv6 support")
-			return
-		}
-		addrs, err := n.nlHandle.AddrList(iface, nl.FAMILY_V6)
-		if err != nil {
-			log.G(context.TODO()).WithError(err).Warn("Unable to get 'lo' addresses to determine IPv6 support")
-			return
-		}
-		n.ipv6LoEnabledCached = len(addrs) > 0
+		n.RefreshIPv6LoEnabled()
 	})
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.ipv6LoEnabledCached
+}
+
+// RefreshIPv6LoEnabled refreshes the cached result returned by IPv6LoEnabled.
+func (n *Namespace) RefreshIPv6LoEnabled() {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	// If anything goes wrong, assume no-IPv6.
+	n.ipv6LoEnabledCached = false
+	iface, err := n.nlHandle.LinkByName("lo")
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Warn("Unable to find 'lo' to determine IPv6 support")
+		return
+	}
+	addrs, err := n.nlHandle.AddrList(iface, nl.FAMILY_V6)
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Warn("Unable to get 'lo' addresses to determine IPv6 support")
+		return
+	}
+	n.ipv6LoEnabledCached = len(addrs) > 0
 }
 
 // ApplyOSTweaks applies operating system specific knobs on the sandbox.

@@ -2,14 +2,12 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"fmt"
-
-	specs "github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/oci"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // initializeCreatedTask performs any initialization that needs to be done to
@@ -22,9 +20,7 @@ func (daemon *Daemon) initializeCreatedTask(ctx context.Context, tsk types.Task,
 			if err != nil {
 				return errdefs.System(err)
 			}
-			if err := sb.SetKey(fmt.Sprintf("/proc/%d/ns/net", tsk.Pid())); err != nil {
-				return errdefs.System(err)
-			}
+			return sb.FinishConfig()
 		}
 	}
 	return nil
