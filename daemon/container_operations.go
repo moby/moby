@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path"
+	"runtime"
 	"strings"
 	"time"
 
@@ -24,8 +24,6 @@ import (
 	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
@@ -152,64 +150,6 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 	}
 
 	sboxOptions = append(sboxOptions, libnetwork.OptionPortMapping(publishedPorts), libnetwork.OptionExposedPorts(exposedPorts))
-
-	// Legacy Link feature is supported only for the default bridge network.
-	// return if this call to build join options is not for default bridge network
-	// Legacy Link is only supported by docker run --link
-	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
-	bridgeSettings, ok := container.NetworkSettings.Networks[defaultNetName]
-	if !ok || bridgeSettings.EndpointSettings == nil || bridgeSettings.EndpointID == "" {
-		return sboxOptions, nil
-	}
-
-	var (
-		childEndpoints []string
-		cEndpointID    string
-	)
-	for linkAlias, child := range daemon.children(container) {
-		if !isLinkable(child) {
-			return nil, fmt.Errorf("Cannot link to %s, as it does not belong to the default network", child.Name)
-		}
-		_, alias := path.Split(linkAlias)
-		// allow access to the linked container via the alias, real name, and container hostname
-		aliasList := alias + " " + child.Config.Hostname
-		// only add the name if alias isn't equal to the name
-		if alias != child.Name[1:] {
-			aliasList = aliasList + " " + child.Name[1:]
-		}
-		defaultNW := child.NetworkSettings.Networks[defaultNetName]
-		if defaultNW.IPAddress != "" {
-			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, defaultNW.IPAddress))
-		}
-		if defaultNW.GlobalIPv6Address != "" {
-			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, defaultNW.GlobalIPv6Address))
-		}
-		cEndpointID = defaultNW.EndpointID
-		if cEndpointID != "" {
-			childEndpoints = append(childEndpoints, cEndpointID)
-		}
-	}
-
-	var parentEndpoints []string
-	for alias, parent := range daemon.parents(container) {
-		if cfg.DisableBridge || !container.HostConfig.NetworkMode.IsPrivate() {
-			continue
-		}
-
-		_, alias = path.Split(alias)
-		log.G(context.TODO()).Debugf("Update /etc/hosts of %s for alias %s with ip %s", parent.ID, alias, bridgeSettings.IPAddress)
-		sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(parent.ID, alias, bridgeSettings.IPAddress))
-		if cEndpointID != "" {
-			parentEndpoints = append(parentEndpoints, cEndpointID)
-		}
-	}
-
-	sboxOptions = append(sboxOptions, libnetwork.OptionGeneric(options.Generic{
-		netlabel.GenericData: options.Generic{
-			"ParentEndpoints": parentEndpoints,
-			"ChildEndpoints":  childEndpoints,
-		},
-	}))
 	return sboxOptions, nil
 }
 
@@ -487,79 +427,96 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 	}
 }
 
-func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.Container) (retErr error) {
-	if daemon.netController == nil {
-		return nil
+// initializeNetworking prepares network configuration for a new container.
+// If it creates a new libnetwork.Sandbox it's returned as newSandbox, for
+// the caller to Delete() if the container setup fails later in the process.
+func (daemon *Daemon) initializeNetworking(
+	cfg *config.Config,
+	container *container.Container,
+) (newSandbox *libnetwork.Sandbox, retErr error) {
+	if daemon.netController == nil || container.Config.NetworkDisabled {
+		return nil, nil
 	}
-
-	start := time.Now()
 
 	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
 	if err := daemon.netController.SandboxDestroy(container.ID); err != nil {
 		log.G(context.TODO()).WithError(err).Errorf("failed to cleanup up stale network sandbox for container %s", container.ID)
 	}
 
-	if container.Config.NetworkDisabled || container.HostConfig.NetworkMode.IsContainer() {
-		return nil
+	if container.HostConfig.NetworkMode.IsContainer() {
+		// we need to get the hosts files from the container to join
+		nc, err := daemon.getNetworkedContainer(container.ID, container.HostConfig.NetworkMode.ConnectedContainer())
+		if err != nil {
+			return nil, err
+		}
+
+		err = daemon.initializeNetworkingPaths(container, nc)
+		if err != nil {
+			return nil, err
+		}
+
+		container.Config.Hostname = nc.Config.Hostname
+		container.Config.Domainname = nc.Config.Domainname
+		return nil, nil
 	}
 
-	updateSettings := false
-	if len(container.NetworkSettings.Networks) == 0 {
-		daemon.updateContainerNetworkSettings(container, nil)
-		updateSettings = true
+	if container.HostConfig.NetworkMode.IsHost() && container.Config.Hostname == "" {
+		hn, err := os.Hostname()
+		if err != nil {
+			return nil, err
+		}
+		container.Config.Hostname = hn
 	}
 
-	// always connect default network first since only default
-	// network mode support link and we need do some setting
-	// on sandbox initialize for link, but the sandbox only be initialized
-	// on first network connecting.
-	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
-	if nConf, ok := container.NetworkSettings.Networks[defaultNetName]; ok {
-		cleanOperationalData(nConf)
-		if err := daemon.connectToNetwork(cfg, container, defaultNetName, nConf, updateSettings); err != nil {
-			return err
+	daemon.updateContainerNetworkSettings(container, nil)
+
+	sbOptions, err := daemon.buildSandboxOptions(cfg, container)
+	if err != nil {
+		return nil, err
+	}
+	sb, err := daemon.netController.NewSandbox(container.ID, sbOptions...)
+	if err != nil {
+		return nil, err
+	}
+
+	setNetworkSandbox(container, sb)
+
+	defer func() {
+		if retErr != nil {
+			sb.Delete()
+		}
+	}()
+
+	if err := container.BuildHostnameFile(); err != nil {
+		return nil, err
+	}
+
+	// TODO(robmry) - on Windows, running this after the task has been created does something
+	//  strange to the resolver ... addresses are assigned properly (including addresses
+	//  specified in the 'run' command), nslookup works, but 'ping' doesn't find the address
+	//  of a container. There's no query to our internal resolver from 'ping' (there is from
+	//  nslookup), so Windows must have squirreled away the address somewhere else.
+	if runtime.GOOS == "windows" {
+		if err := daemon.allocateNetwork(cfg, container); err != nil {
+			return nil, err
 		}
 	}
 
-	// the intermediate map is necessary because "connectToNetwork" modifies "container.NetworkSettings.Networks"
+	return newSandbox, nil
+}
+
+func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.Container) (retErr error) {
+	start := time.Now()
+
+	// An intermediate map is necessary because "connectToNetwork" modifies "container.NetworkSettings.Networks"
 	networks := make(map[string]*network.EndpointSettings)
 	for n, epConf := range container.NetworkSettings.Networks {
-		if n == defaultNetName {
-			continue
-		}
-
 		networks[n] = epConf
 	}
-
 	for netName, epConf := range networks {
 		cleanOperationalData(epConf)
-		if err := daemon.connectToNetwork(cfg, container, netName, epConf, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(cfg, container, netName, epConf); err != nil {
 			return err
-		}
-	}
-
-	// If the container is not to be connected to any network,
-	// create its network sandbox now if not present
-	if len(networks) == 0 {
-		if _, err := daemon.netController.GetSandbox(container.ID); err != nil {
-			if !errdefs.IsNotFound(err) {
-				return err
-			}
-
-			sbOptions, err := daemon.buildSandboxOptions(cfg, container)
-			if err != nil {
-				return err
-			}
-			sb, err := daemon.netController.NewSandbox(container.ID, sbOptions...)
-			if err != nil {
-				return err
-			}
-			setNetworkSandbox(container, sb)
-			defer func() {
-				if retErr != nil {
-					sb.Delete()
-				}
-			}()
 		}
 	}
 
@@ -648,7 +605,7 @@ func cleanOperationalData(es *network.EndpointSettings) {
 	}
 }
 
-func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings, updateSettings bool) error {
+func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings) error {
 	// Set up DNS names for a user defined network, and for the default 'nat'
 	// network on Windows (IsBridge() returns true for nat).
 	if containertypes.NetworkMode(n.Name()).IsUserDefined() ||
@@ -660,10 +617,8 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, n *lib
 		return errdefs.InvalidParameter(err)
 	}
 
-	if updateSettings {
-		if err := daemon.updateNetworkSettings(container, n, endpointConfig); err != nil {
-			return err
-		}
+	if err := daemon.updateNetworkSettings(container, n, endpointConfig); err != nil {
+		return err
 	}
 	return nil
 }
@@ -691,7 +646,7 @@ func buildEndpointDNSNames(ctr *container.Container, aliases []string) []string 
 	return sliceutil.Dedup(dnsNames)
 }
 
-func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.Container, idOrName string, endpointConfig *network.EndpointSettings, updateSettings bool) (retErr error) {
+func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.Container, idOrName string, endpointConfig *network.EndpointSettings) (retErr error) {
 	start := time.Now()
 	if container.HostConfig.NetworkMode.IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
@@ -734,12 +689,15 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 		}
 	}
 
-	if err := daemon.updateNetworkConfig(container, n, endpointConfig.EndpointSettings, updateSettings); err != nil {
+	if err := daemon.updateNetworkConfig(container, n, endpointConfig.EndpointSettings); err != nil {
 		return err
 	}
 
-	// TODO(thaJeztah): should this fail early if no sandbox was found?
-	sb, _ := daemon.netController.GetSandbox(container.ID)
+	sb, err := daemon.netController.GetSandbox(container.ID)
+	if err != nil {
+		return err
+	}
+
 	createOptions, err := buildCreateEndpointOptions(container, n, endpointConfig, sb, ipAddresses(cfg.DNS))
 	if err != nil {
 		return err
@@ -765,17 +723,10 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 		return err
 	}
 
-	if sb == nil {
-		sbOptions, err := daemon.buildSandboxOptions(cfg, container)
-		if err != nil {
+	if nwName == runconfig.DefaultDaemonNetworkMode().NetworkName() {
+		if err := daemon.addLegacyLinks(cfg, container, endpointConfig, sb); err != nil {
 			return err
 		}
-		sb, err = daemon.netController.NewSandbox(container.ID, sbOptions...)
-		if err != nil {
-			return err
-		}
-
-		setNetworkSandbox(container, sb)
 	}
 
 	joinOptions, err := buildJoinOptions(container.NetworkSettings, n)
@@ -932,39 +883,6 @@ func (daemon *Daemon) normalizeNetMode(container *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) initializeNetworking(cfg *config.Config, container *container.Container) error {
-	if container.HostConfig.NetworkMode.IsContainer() {
-		// we need to get the hosts files from the container to join
-		nc, err := daemon.getNetworkedContainer(container.ID, container.HostConfig.NetworkMode.ConnectedContainer())
-		if err != nil {
-			return err
-		}
-
-		err = daemon.initializeNetworkingPaths(container, nc)
-		if err != nil {
-			return err
-		}
-
-		container.Config.Hostname = nc.Config.Hostname
-		container.Config.Domainname = nc.Config.Domainname
-		return nil
-	}
-
-	if container.HostConfig.NetworkMode.IsHost() && container.Config.Hostname == "" {
-		hn, err := os.Hostname()
-		if err != nil {
-			return err
-		}
-		container.Config.Hostname = hn
-	}
-
-	if err := daemon.allocateNetwork(cfg, container); err != nil {
-		return err
-	}
-
-	return container.BuildHostnameFile()
-}
-
 func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID string) (*container.Container, error) {
 	nc, err := daemon.GetContainer(connectedContainerID)
 	if err != nil {
@@ -1052,7 +970,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 
 		n, err := daemon.FindNetwork(idOrName)
 		if err == nil && n != nil {
-			if err := daemon.updateNetworkConfig(container, n, endpointConfig, true); err != nil {
+			if err := daemon.updateNetworkConfig(container, n, endpointConfig); err != nil {
 				return err
 			}
 		} else {
@@ -1064,7 +982,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 		epc := &network.EndpointSettings{
 			EndpointSettings: endpointConfig,
 		}
-		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, epc, true); err != nil {
+		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, epc); err != nil {
 			return err
 		}
 	}

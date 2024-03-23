@@ -114,9 +114,15 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 
-	if err := daemon.initializeNetworking(&daemonCfg.Config, container); err != nil {
+	newSandbox, err := daemon.initializeNetworking(&daemonCfg.Config, container)
+	if err != nil {
 		return err
 	}
+	defer func() {
+		if retErr != nil && newSandbox != nil {
+			newSandbox.Delete()
+		}
+	}()
 
 	mnts, err := daemon.setupContainerDirs(container)
 	if err != nil {
@@ -195,7 +201,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		}
 	}()
 
-	if err := daemon.initializeCreatedTask(ctx, tsk, container, spec); err != nil {
+	if err := daemon.initializeCreatedTask(ctx, &daemonCfg.Config, tsk, container, spec); err != nil {
 		return err
 	}
 

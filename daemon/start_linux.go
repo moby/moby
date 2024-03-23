@@ -7,6 +7,7 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/oci"
@@ -14,7 +15,13 @@ import (
 
 // initializeCreatedTask performs any initialization that needs to be done to
 // prepare a freshly-created task to be started.
-func (daemon *Daemon) initializeCreatedTask(ctx context.Context, tsk types.Task, container *container.Container, spec *specs.Spec) error {
+func (daemon *Daemon) initializeCreatedTask(
+	ctx context.Context,
+	cfg *config.Config,
+	tsk types.Task,
+	container *container.Container,
+	spec *specs.Spec,
+) error {
 	if !container.Config.NetworkDisabled {
 		nspath, ok := oci.NamespacePath(spec, specs.NetworkNamespace)
 		if ok && nspath == "" { // the runtime has been instructed to create a new network namespace for tsk.
@@ -25,6 +32,9 @@ func (daemon *Daemon) initializeCreatedTask(ctx context.Context, tsk types.Task,
 			if err := sb.SetKey(fmt.Sprintf("/proc/%d/ns/net", tsk.Pid())); err != nil {
 				return errdefs.System(err)
 			}
+		}
+		if err := daemon.allocateNetwork(cfg, container); err != nil {
+			return err
 		}
 	}
 	return nil
