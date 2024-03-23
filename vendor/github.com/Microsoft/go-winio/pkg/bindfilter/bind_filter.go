@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -244,7 +243,7 @@ func getFinalPath(pth string) (string, error) {
 		}
 		buf = make([]uint16, n)
 	}
-	finalPath := syscall.UTF16ToString(buf)
+	finalPath := windows.UTF16ToString(buf)
 	// We got VOLUME_NAME_DOS, we need to strip away some leading slashes.
 	// Leave unchanged if we ended up requesting VOLUME_NAME_GUID
 	if len(finalPath) > 4 && finalPath[:4] == `\\?\` && flags == 0x0 {
