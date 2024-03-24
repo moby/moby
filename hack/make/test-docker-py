@@ -4,7 +4,8 @@ set -e
 source hack/make/.integration-test-helpers
 
 # The commit or tag to use for testing
-: "${DOCKER_PY_COMMIT:=7.0.0}"
+# TODO use tagged version again; https://github.com/docker/docker-py/compare/7.0.0...bd164f928ab82e798e30db455903578d06ba2070
+: "${DOCKER_PY_COMMIT:=bd164f928ab82e798e30db455903578d06ba2070}"
 
 # custom options to pass py.test
 #
