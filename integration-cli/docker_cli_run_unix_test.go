@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -1562,7 +1563,10 @@ func (s *DockerCLIRunSuite) TestRunWithNanoCPUs(c *testing.T) {
 	out := cli.DockerCmd(c, "run", "--cpus", "0.5", "--name", "test", "busybox", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2)).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "50000\n100000")
 
-	clt, err := client.NewClientWithOpts(client.FromEnv)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	clt, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	assert.NilError(c, err)
 	inspect, err := clt.ContainerInspect(testutil.GetContext(c), "test")
 	assert.NilError(c, err)

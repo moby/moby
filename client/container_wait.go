@@ -42,7 +42,7 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 		errC <- err
 		return resultC, errC
 	}
-	if versions.LessThan(cli.ClientVersion(), "1.30") {
+	if versions.LessThan(cli.ClientVersion(ctx), "1.30") {
 		return cli.legacyContainerWait(ctx, containerID)
 	}
 

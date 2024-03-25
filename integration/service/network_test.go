@@ -21,7 +21,7 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t, client.WithVersion("1.43"))
-	defer client.Close()
+	defer client.Close(ctx)
 
 	name := t.Name() + "test-alias"
 	net.CreateNoError(ctx, t, client, name,
@@ -83,7 +83,7 @@ func TestDockerNetworkReConnect(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	name := t.Name() + "dummyNet"
 	net.CreateNoError(ctx, t, client, name,

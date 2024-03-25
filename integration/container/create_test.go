@@ -596,6 +596,8 @@ func TestCreateInvalidHostConfig(t *testing.T) {
 
 func TestCreateWithMultipleEndpointSettings(t *testing.T) {
 	ctx := setupTest(t)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	testcases := []struct {
 		apiVersion  string
@@ -607,7 +609,10 @@ func TestCreateWithMultipleEndpointSettings(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run("with API v"+tc.apiVersion, func(t *testing.T) {
-			apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(tc.apiVersion))
+			ctx2, cancel2 := context.WithCancel(ctx)
+			defer cancel2()
+
+			apiClient, err := client.NewClientWithOpts(ctx2, client.FromEnv, client.WithVersion(tc.apiVersion))
 			assert.NilError(t, err)
 
 			config := container.Config{
@@ -620,7 +625,7 @@ func TestCreateWithMultipleEndpointSettings(t *testing.T) {
 					"net3": {},
 				},
 			}
-			_, err = apiClient.ContainerCreate(ctx, &config, &container.HostConfig{}, &networkingConfig, nil, "")
+			_, err = apiClient.ContainerCreate(ctx2, &config, &container.HostConfig{}, &networkingConfig, nil, "")
 			if tc.expectedErr == "" {
 				assert.NilError(t, err)
 			} else {

@@ -63,7 +63,7 @@ func TestPingSwarmHeader(t *testing.T) {
 	d.Start(t)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	t.Run("before swarm init", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
@@ -103,7 +103,7 @@ func TestPingBuilderHeader(t *testing.T) {
 	ctx := setupTest(t)
 	d := daemon.New(t)
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	t.Run("default config", func(t *testing.T) {
 		testutil.StartSpan(ctx, t)

@@ -80,7 +80,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 func TestStopContainerWithTimeoutCancel(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	t.Cleanup(func() { _ = apiClient.Close() })
+	t.Cleanup(func() { _ = apiClient.Close(ctx) })
 
 	t.Parallel()
 

@@ -22,7 +22,7 @@ func (d *Daemon) createServiceWithOptions(ctx context.Context, t testing.TB, opt
 	}
 
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -42,7 +42,7 @@ func (d *Daemon) CreateService(ctx context.Context, t testing.TB, f ...ServiceCo
 func (d *Daemon) GetService(ctx context.Context, t testing.TB, id string) *swarm.Service {
 	t.Helper()
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	service, _, err := cli.ServiceInspectWithRaw(ctx, id, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
@@ -53,7 +53,7 @@ func (d *Daemon) GetService(ctx context.Context, t testing.TB, id string) *swarm
 func (d *Daemon) GetServiceTasks(ctx context.Context, t testing.TB, service string, additionalFilters ...filters.KeyValuePair) []swarm.Task {
 	t.Helper()
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	filterArgs := filters.NewArgs(
 		filters.Arg("desired-state", "running"),
@@ -76,7 +76,7 @@ func (d *Daemon) GetServiceTasks(ctx context.Context, t testing.TB, service stri
 func (d *Daemon) UpdateService(ctx context.Context, t testing.TB, service *swarm.Service, f ...ServiceConstructor) {
 	t.Helper()
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	for _, fn := range f {
 		fn(service)
@@ -90,7 +90,7 @@ func (d *Daemon) UpdateService(ctx context.Context, t testing.TB, service *swarm
 func (d *Daemon) RemoveService(ctx context.Context, t testing.TB, id string) {
 	t.Helper()
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	err := cli.ServiceRemove(ctx, id)
 	assert.NilError(t, err)
@@ -100,7 +100,7 @@ func (d *Daemon) RemoveService(ctx context.Context, t testing.TB, id string) {
 func (d *Daemon) ListServices(ctx context.Context, t testing.TB) []swarm.Service {
 	t.Helper()
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	services, err := cli.ServiceList(ctx, types.ServiceListOptions{})
 	assert.NilError(t, err)
@@ -111,7 +111,7 @@ func (d *Daemon) ListServices(ctx context.Context, t testing.TB) []swarm.Service
 func (d *Daemon) GetTask(ctx context.Context, t testing.TB, id string) swarm.Task {
 	t.Helper()
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	task, _, err := cli.TaskInspectWithRaw(ctx, id)
 	assert.NilError(t, err)

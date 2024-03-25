@@ -40,7 +40,7 @@ func TestCheckpoint(t *testing.T) {
 	t.Logf("%s", stdoutStderr)
 	assert.NilError(t, err)
 
-	apiClient := request.NewAPIClient(t)
+	apiClient := request.NewAPIClient(ctx, t)
 
 	t.Log("Start a container")
 	cID := container.Run(ctx, t, apiClient, container.WithMount(mounttypes.Mount{

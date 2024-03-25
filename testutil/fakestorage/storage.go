@@ -108,25 +108,26 @@ func (f *remoteFileServer) CtxDir() string {
 }
 
 func (f *remoteFileServer) Close() error {
+	ctx := context.TODO()
 	defer func() {
 		if f.ctx != nil {
 			f.ctx.Close()
 		}
 		if f.image != "" {
-			if _, err := f.client.ImageRemove(context.Background(), f.image, image.RemoveOptions{
+			if _, err := f.client.ImageRemove(ctx, f.image, image.RemoveOptions{
 				Force: true,
 			}); err != nil {
 				fmt.Fprintf(os.Stderr, "Error closing remote file server : %v\n", err)
 			}
 		}
-		if err := f.client.Close(); err != nil {
+		if err := f.client.Close(ctx); err != nil {
 			fmt.Fprintf(os.Stderr, "Error closing remote file server : %v\n", err)
 		}
 	}()
 	if f.container == "" {
 		return nil
 	}
-	return f.client.ContainerRemove(context.Background(), f.container, containertypes.RemoveOptions{
+	return f.client.ContainerRemove(ctx, f.container, containertypes.RemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	})

@@ -55,11 +55,13 @@ func TestUsernsCommit(t *testing.T) {
 	skip.If(t, !testEnv.IsUserNamespaceInKernel())
 	skip.If(t, testEnv.IsRootless())
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
 	dUserRemap := daemon.New(t, daemon.WithUserNsRemap("default"))
 	dUserRemap.StartWithBusybox(ctx, t)
 	clientUserRemap := dUserRemap.NewClientT(t)
-	defer clientUserRemap.Close()
+	defer clientUserRemap.Close(ctx)
 
 	container.Run(ctx, t, clientUserRemap, container.WithName(t.Name()), container.WithImage("busybox"), container.WithCmd("sh", "-c", "echo hello world > /hello.txt && chown 1000:1000 /hello.txt"))
 	img, err := clientUserRemap.ContainerCommit(ctx, t.Name(), containertypes.CommitOptions{})

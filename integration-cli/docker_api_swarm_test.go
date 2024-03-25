@@ -409,7 +409,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *testing.T) {
 	simpleTestService(&service)
 	service.Spec.Name = "top2"
 	cli := d1.NewClientT(c)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	// d1 will eventually step down from leader because there is no longer an active quorum, wait for that to happen
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
@@ -889,7 +889,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateWithName(c *testing.T) {
 
 	setInstances(instances)(service)
 	cli := d.NewClientT(c)
-	defer cli.Close()
+	defer cli.Close(ctx)
 	_, err := cli.ServiceUpdate(ctx, service.Spec.Name, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(c, err)
 	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount(ctx), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))

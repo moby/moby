@@ -30,7 +30,7 @@ func TestEtcHostsIpv6(t *testing.T) {
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	testcases := []struct {
 		name           string

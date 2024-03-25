@@ -153,7 +153,7 @@ func TestUpdatePidsLimit(t *testing.T) {
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	oldAPIClient := request.NewAPIClient(t, client.WithVersion("1.24"))
+	oldAPIClient := request.NewAPIClient(ctx, t, client.WithVersion("1.24"))
 
 	intPtr := func(i int64) *int64 {
 		return &i

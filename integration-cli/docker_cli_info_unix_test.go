@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 
 	"github.com/docker/docker/client"
@@ -18,9 +19,12 @@ func (s *DockerCLIInfoSuite) TestInfoSecurityOptions(c *testing.T) {
 		c.Skip("test requires Seccomp and/or AppArmor")
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	assert.NilError(c, err)
-	defer apiClient.Close()
+	defer apiClient.Close(ctx)
 	info, err := apiClient.Info(testutil.GetContext(c))
 	assert.NilError(c, err)
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -38,9 +39,12 @@ func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	ctx, cancel := context.WithCancel(testutil.GetContext(c))
+	defer cancel()
+
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	assert.NilError(c, err)
-	defer apiClient.Close()
+	defer apiClient.Close(ctx)
 
 	if testEnv.DaemonInfo.OSType != "windows" {
 		testRequires(c, Network)
@@ -51,20 +55,23 @@ func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
 
 	cli.DockerCmd(c, "tag", name, "test:tag1")
 
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), id, image.RemoveOptions{})
+	_, err = apiClient.ImageRemove(ctx, id, image.RemoveOptions{})
 	assert.ErrorContains(c, err, "unable to delete")
 
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:noexist", image.RemoveOptions{})
+	_, err = apiClient.ImageRemove(ctx, "test:noexist", image.RemoveOptions{})
 	assert.ErrorContains(c, err, "No such image")
 
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:tag1", image.RemoveOptions{})
+	_, err = apiClient.ImageRemove(ctx, "test:tag1", image.RemoveOptions{})
 	assert.NilError(c, err)
 }
 
 func (s *DockerAPISuite) TestAPIImagesHistory(c *testing.T) {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	ctx, cancel := context.WithCancel(testutil.GetContext(c))
+	defer cancel()
+
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	assert.NilError(c, err)
-	defer apiClient.Close()
+	defer apiClient.Close(ctx)
 
 	if testEnv.DaemonInfo.OSType != "windows" {
 		testRequires(c, Network)
@@ -73,7 +80,7 @@ func (s *DockerAPISuite) TestAPIImagesHistory(c *testing.T) {
 	buildImageSuccessfully(c, name, build.WithDockerfile("FROM busybox\nENV FOO bar"))
 	id := getIDByName(c, name)
 
-	historydata, err := apiClient.ImageHistory(testutil.GetContext(c), id)
+	historydata, err := apiClient.ImageHistory(ctx, id)
 	assert.NilError(c, err)
 
 	assert.Assert(c, len(historydata) != 0)
@@ -126,21 +133,24 @@ func (s *DockerAPISuite) TestAPIImagesSearchJSONContentType(c *testing.T) {
 // Test case for 30027: image size reported as -1 in v1.12 client against v1.13 daemon.
 // This test checks to make sure both v1.12 and v1.13 client against v1.13 daemon get correct `Size` after the fix.
 func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
-	apiclient := testEnv.APIClient()
-	defer apiclient.Close()
+	ctx, cancel := context.WithCancel(testutil.GetContext(c))
+	defer cancel()
 
-	images, err := apiclient.ImageList(testutil.GetContext(c), image.ListOptions{})
+	apiclient := testEnv.APIClient()
+	defer apiclient.Close(ctx)
+
+	images, err := apiclient.ImageList(ctx, image.ListOptions{})
 	assert.NilError(c, err)
 	assert.Assert(c, len(images) != 0)
 	for _, img := range images {
 		assert.Assert(c, img.Size != int64(-1))
 	}
 
-	apiclient, err = client.NewClientWithOpts(client.FromEnv, client.WithVersion("v1.24"))
+	apiclient, err = client.NewClientWithOpts(ctx, client.FromEnv, client.WithVersion("v1.24"))
 	assert.NilError(c, err)
-	defer apiclient.Close()
+	defer apiclient.Close(ctx)
 
-	v124Images, err := apiclient.ImageList(testutil.GetContext(c), image.ListOptions{})
+	v124Images, err := apiclient.ImageList(ctx, image.ListOptions{})
 	assert.NilError(c, err)
 	assert.Assert(c, len(v124Images) != 0)
 	for _, img := range v124Images {

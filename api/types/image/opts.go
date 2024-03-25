@@ -1,6 +1,10 @@
 package image
 
-import "github.com/docker/docker/api/types/filters"
+import (
+	"context"
+
+	"github.com/docker/docker/api/types/filters"
+)
 
 // ImportOptions holds information to import images from the client host.
 type ImportOptions struct {
@@ -27,7 +31,7 @@ type PullOptions struct {
 	// privilege request fails.
 	//
 	// Also see [github.com/docker/docker/api/types.RequestPrivilegeFunc].
-	PrivilegeFunc func() (string, error)
+	PrivilegeFunc func(context.Context) (string, error)
 	Platform      string
 }
 

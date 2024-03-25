@@ -449,9 +449,12 @@ func (s *DockerCLIEventSuite) TestEventsResize(c *testing.T) {
 	cID := runSleepingContainer(c, "-d", "-t")
 	cli.WaitRun(c, cID)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	assert.NilError(c, err)
-	defer apiClient.Close()
+	defer apiClient.Close(ctx)
 
 	options := container.ResizeOptions{
 		Height: 80,

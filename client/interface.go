@@ -33,15 +33,15 @@ type CommonAPIClient interface {
 	SecretAPIClient
 	SystemAPIClient
 	VolumeAPIClient
-	ClientVersion() string
-	DaemonHost() string
-	HTTPClient() *http.Client
+	ClientVersion(context.Context) string
+	DaemonHost(context.Context) string
+	HTTPClient(context.Context) *http.Client
 	ServerVersion(ctx context.Context) (types.Version, error)
 	NegotiateAPIVersion(ctx context.Context)
-	NegotiateAPIVersionPing(types.Ping)
+	NegotiateAPIVersionPing(context.Context, types.Ping)
 	DialHijack(ctx context.Context, url, proto string, meta map[string][]string) (net.Conn, error)
-	Dialer() func(context.Context) (net.Conn, error)
-	Close() error
+	Dialer(context.Context) func(context.Context) (net.Conn, error)
+	Close(context.Context) error
 }
 
 // ContainerAPIClient defines API client methods for the containers

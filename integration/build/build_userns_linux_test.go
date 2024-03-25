@@ -42,7 +42,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	dUserRemap := daemon.New(t)
 	dUserRemap.Start(t, "--userns-remap", "default")
 	clientUserRemap := dUserRemap.NewClientT(t)
-	defer clientUserRemap.Close()
+	defer clientUserRemap.Close(ctx)
 
 	err = load.FrozenImagesLinux(ctx, clientUserRemap, "debian:bookworm-slim")
 	assert.NilError(t, err)
@@ -99,7 +99,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	}()
 
 	clientNoUserRemap := dNoUserRemap.NewClientT(t)
-	defer clientNoUserRemap.Close()
+	defer clientNoUserRemap.Close(ctx)
 
 	tarFile, err := os.Open(tmp + "/image.tar")
 	assert.NilError(t, err, "failed to open image tar file")

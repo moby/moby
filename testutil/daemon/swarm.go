@@ -88,7 +88,7 @@ func (d *Daemon) SwarmInit(ctx context.Context, t testing.TB, req swarm.InitRequ
 		req.DataPathPort = d.DataPathPort
 	}
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 	_, err := cli.SwarmInit(ctx, req)
 	assert.NilError(t, err, "initializing swarm")
 	d.CachedInfo = d.Info(t)
@@ -101,7 +101,7 @@ func (d *Daemon) SwarmJoin(ctx context.Context, t testing.TB, req swarm.JoinRequ
 		req.ListenAddr = fmt.Sprintf("%s:%d", d.swarmListenAddr, d.SwarmPort)
 	}
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 	err := cli.SwarmJoin(ctx, req)
 	assert.NilError(t, err, "[%s] joining swarm", d.id)
 	d.CachedInfo = d.Info(t)
@@ -114,7 +114,7 @@ func (d *Daemon) SwarmJoin(ctx context.Context, t testing.TB, req swarm.JoinRequ
 // the error to be returned.
 func (d *Daemon) SwarmLeave(ctx context.Context, t testing.TB, force bool) error {
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 	return cli.SwarmLeave(ctx, force)
 }
 
@@ -133,8 +133,11 @@ func (d *Daemon) SwarmInfo(ctx context.Context, t testing.TB) swarm.Info {
 // Some tests rely on error checking the result of the actual unlock, so allow
 // the error to be returned.
 func (d *Daemon) SwarmUnlock(t testing.TB, req swarm.UnlockRequest) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	err := cli.SwarmUnlock(context.Background(), req)
 	if err != nil {
@@ -146,8 +149,11 @@ func (d *Daemon) SwarmUnlock(t testing.TB, req swarm.UnlockRequest) error {
 // GetSwarm returns the current swarm object
 func (d *Daemon) GetSwarm(t testing.TB) swarm.Swarm {
 	t.Helper()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	sw, err := cli.SwarmInspect(context.Background())
 	assert.NilError(t, err)
@@ -157,8 +163,11 @@ func (d *Daemon) GetSwarm(t testing.TB) swarm.Swarm {
 // UpdateSwarm updates the current swarm object with the specified spec constructors
 func (d *Daemon) UpdateSwarm(t testing.TB, f ...SpecConstructor) {
 	t.Helper()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	sw := d.GetSwarm(t)
 	for _, fn := range f {
@@ -172,8 +181,11 @@ func (d *Daemon) UpdateSwarm(t testing.TB, f ...SpecConstructor) {
 // RotateTokens update the swarm to rotate tokens
 func (d *Daemon) RotateTokens(t testing.TB) {
 	t.Helper()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	sw, err := cli.SwarmInspect(context.Background())
 	assert.NilError(t, err)
@@ -190,8 +202,11 @@ func (d *Daemon) RotateTokens(t testing.TB) {
 // JoinTokens returns the current swarm join tokens
 func (d *Daemon) JoinTokens(t testing.TB) swarm.JoinTokens {
 	t.Helper()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	sw, err := cli.SwarmInspect(context.Background())
 	assert.NilError(t, err)

@@ -49,9 +49,12 @@ func (s *DockerCLIPluginLogDriverSuite) TestPluginLogDriverInfoList(c *testing.T
 
 	cli.DockerCmd(c, "plugin", "install", pluginName)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	assert.NilError(c, err)
-	defer apiClient.Close()
+	defer apiClient.Close(ctx)
 
 	info, err := apiClient.Info(testutil.GetContext(c))
 	assert.NilError(c, err)

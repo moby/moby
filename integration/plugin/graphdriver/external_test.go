@@ -423,7 +423,7 @@ func TestGraphdriverPluginV2(t *testing.T) {
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	// install the plugin
 	plugin := "cpuguy83/docker-overlay2-graphdriver-plugin"

@@ -15,10 +15,13 @@ type ConfigConstructor func(*swarm.Config)
 // CreateConfig creates a config given the specified spec
 func (d *Daemon) CreateConfig(t testing.TB, configSpec swarm.ConfigSpec) string {
 	t.Helper()
-	cli := d.NewClientT(t)
-	defer cli.Close()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 
-	scr, err := cli.ConfigCreate(context.Background(), configSpec)
+	cli := d.NewClientT(t)
+	defer cli.Close(ctx)
+
+	scr, err := cli.ConfigCreate(ctx, configSpec)
 	assert.NilError(t, err)
 	return scr.ID
 }
@@ -26,10 +29,13 @@ func (d *Daemon) CreateConfig(t testing.TB, configSpec swarm.ConfigSpec) string 
 // ListConfigs returns the list of the current swarm configs
 func (d *Daemon) ListConfigs(t testing.TB) []swarm.Config {
 	t.Helper()
-	cli := d.NewClientT(t)
-	defer cli.Close()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 
-	configs, err := cli.ConfigList(context.Background(), types.ConfigListOptions{})
+	cli := d.NewClientT(t)
+	defer cli.Close(ctx)
+
+	configs, err := cli.ConfigList(ctx, types.ConfigListOptions{})
 	assert.NilError(t, err)
 	return configs
 }
@@ -37,10 +43,13 @@ func (d *Daemon) ListConfigs(t testing.TB) []swarm.Config {
 // GetConfig returns a swarm config identified by the specified id
 func (d *Daemon) GetConfig(t testing.TB, id string) *swarm.Config {
 	t.Helper()
-	cli := d.NewClientT(t)
-	defer cli.Close()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 
-	config, _, err := cli.ConfigInspectWithRaw(context.Background(), id)
+	cli := d.NewClientT(t)
+	defer cli.Close(ctx)
+
+	config, _, err := cli.ConfigInspectWithRaw(ctx, id)
 	assert.NilError(t, err)
 	return &config
 }
@@ -48,10 +57,13 @@ func (d *Daemon) GetConfig(t testing.TB, id string) *swarm.Config {
 // DeleteConfig removes the swarm config identified by the specified id
 func (d *Daemon) DeleteConfig(t testing.TB, id string) {
 	t.Helper()
-	cli := d.NewClientT(t)
-	defer cli.Close()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 
-	err := cli.ConfigRemove(context.Background(), id)
+	cli := d.NewClientT(t)
+	defer cli.Close(ctx)
+
+	err := cli.ConfigRemove(ctx, id)
 	assert.NilError(t, err)
 }
 
@@ -59,14 +71,17 @@ func (d *Daemon) DeleteConfig(t testing.TB, id string) {
 // Currently, only label update is supported.
 func (d *Daemon) UpdateConfig(t testing.TB, id string, f ...ConfigConstructor) {
 	t.Helper()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	config := d.GetConfig(t, id)
 	for _, fn := range f {
 		fn(config)
 	}
 
-	err := cli.ConfigUpdate(context.Background(), config.ID, config.Version, config.Spec)
+	err := cli.ConfigUpdate(ctx, config.ID, config.Version, config.Spec)
 	assert.NilError(t, err)
 }

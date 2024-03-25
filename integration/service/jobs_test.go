@@ -26,7 +26,7 @@ func TestCreateJob(t *testing.T) {
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	for _, mode := range []swarmtypes.ServiceMode{
 		{ReplicatedJob: &swarmtypes.ReplicatedJob{}},
@@ -61,7 +61,7 @@ func TestReplicatedJob(t *testing.T) {
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	id := swarm.CreateService(ctx, t, d,
 		swarm.ServiceWithMode(swarmtypes.ServiceMode{
@@ -94,7 +94,7 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	// Create the job service
 	id := swarm.CreateService(ctx, t, d,

@@ -3772,15 +3772,18 @@ func (s *DockerCLIRunSuite) TestRunNamedVolumeNotRemoved(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunNamedVolumesFromNotRemoved(c *testing.T) {
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	cli.DockerCmd(c, "volume", "create", "test")
 	cid := cli.DockerCmd(c, "run", "-d", "--name=parent", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true").Stdout()
 	cli.DockerCmd(c, "run", "--name=child", "--volumes-from=parent", "busybox", "true")
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	assert.NilError(c, err)
-	defer apiClient.Close()
+	defer apiClient.Close(ctx)
 
 	container, err := apiClient.ContainerInspect(testutil.GetContext(c), strings.TrimSpace(cid))
 	assert.NilError(c, err)

@@ -72,7 +72,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *testing.T) {
 	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount(ctx), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	client := d.NewClientT(c)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	options := types.ServiceInspectOptions{InsertDefaults: true}
 

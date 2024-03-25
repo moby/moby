@@ -101,7 +101,7 @@ func (d *Daemon) CheckServiceTasks(ctx context.Context, service string) func(*te
 func (d *Daemon) CheckRunningTaskNetworks(ctx context.Context) func(t *testing.T) (interface{}, string) {
 	return func(t *testing.T) (interface{}, string) {
 		cli := d.NewClientT(t)
-		defer cli.Close()
+		defer cli.Close(ctx)
 
 		tasks, err := cli.TaskList(ctx, types.TaskListOptions{
 			Filters: filters.NewArgs(filters.Arg("desired-state", "running")),
@@ -122,7 +122,7 @@ func (d *Daemon) CheckRunningTaskNetworks(ctx context.Context) func(t *testing.T
 func (d *Daemon) CheckRunningTaskImages(ctx context.Context) func(t *testing.T) (interface{}, string) {
 	return func(t *testing.T) (interface{}, string) {
 		cli := d.NewClientT(t)
-		defer cli.Close()
+		defer cli.Close(ctx)
 
 		tasks, err := cli.TaskList(ctx, types.TaskListOptions{
 			Filters: filters.NewArgs(filters.Arg("desired-state", "running")),
@@ -174,7 +174,7 @@ func (d *Daemon) CheckControlAvailable(ctx context.Context) func(t *testing.T) (
 func (d *Daemon) CheckLeader(ctx context.Context) func(t *testing.T) (interface{}, string) {
 	return func(t *testing.T) (interface{}, string) {
 		cli := d.NewClientT(t)
-		defer cli.Close()
+		defer cli.Close(ctx)
 
 		errList := "could not get node list"
 

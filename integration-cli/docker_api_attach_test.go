@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"io"
 	"net"
 	"net/http"
@@ -102,6 +103,9 @@ func (s *DockerAPISuite) TestGetContainersWsAttachContainerNotFound(c *testing.T
 func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
+	ctx, cancel := context.WithCancel(testutil.GetContext(c))
+	defer cancel()
+
 	expectSuccess := func(wc io.WriteCloser, br *bufio.Reader, stream string, tty bool) {
 		defer wc.Close()
 		expected := []byte("success")
@@ -178,9 +182,9 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 	expectTimeout(wc, br, "stdout")
 
 	// Test the client API
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	assert.NilError(c, err)
-	defer apiClient.Close()
+	defer apiClient.Close(ctx)
 
 	cid = cli.DockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "echo hello; cat").Stdout()
 	cid = strings.TrimSpace(cid)
@@ -194,7 +198,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 		Logs:   false,
 	}
 
-	resp, err := apiClient.ContainerAttach(testutil.GetContext(c), cid, attachOpts)
+	resp, err := apiClient.ContainerAttach(ctx, cid, attachOpts)
 	assert.NilError(c, err)
 	mediaType, b := resp.MediaType()
 	assert.Check(c, b)

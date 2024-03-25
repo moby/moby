@@ -28,7 +28,7 @@ func DaemonIsLinux() bool {
 }
 
 func OnlyDefaultNetworks(ctx context.Context) bool {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	if err != nil {
 		return false
 	}

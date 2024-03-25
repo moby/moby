@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -59,9 +60,13 @@ func (s *DockerAPISuite) TestLogsAPIWithStdout(c *testing.T) {
 func (s *DockerAPISuite) TestLogsAPINoStdoutNorStderr(c *testing.T) {
 	const name = "logs_test"
 	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	assert.NilError(c, err)
-	defer apiClient.Close()
+	defer apiClient.Close(ctx)
 
 	_, err = apiClient.ContainerLogs(testutil.GetContext(c), name, container.LogsOptions{})
 	assert.ErrorContains(c, err, "Bad parameters: you must choose at least one stream")
@@ -101,7 +106,10 @@ func (s *DockerAPISuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 	assert.NilError(c, err)
 	until := daemonTime(c).Add(untilDur)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -166,7 +174,10 @@ func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
 	const name = "logsuntil"
 	cli.DockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; sleep 1; done")
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -203,7 +214,10 @@ func (s *DockerAPISuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
 	const name = "logsuntildefaultval"
 	cli.DockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; done")
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	if err != nil {
 		c.Fatal(err)
 	}

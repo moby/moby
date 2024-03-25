@@ -39,7 +39,10 @@ func TestContainerWaitError(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestContainerWaitConnectionError(t *testing.T) {
-	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	client, err := NewClientWithOpts(ctx, WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	resultC, errC := client.ContainerWait(context.Background(), "nothing", "")
@@ -181,7 +184,7 @@ func ExampleClient_ContainerWait_withTimeout() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	client, _ := NewClientWithOpts(FromEnv)
+	client, _ := NewClientWithOpts(ctx, FromEnv)
 	_, errC := client.ContainerWait(ctx, "container_id", "")
 	if err := <-errC; err != nil {
 		log.Fatal(err)

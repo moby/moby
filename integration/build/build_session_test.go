@@ -41,7 +41,7 @@ func TestBuildWithSession(t *testing.T) {
 	)
 	defer fctx.Close()
 
-	out := testBuildWithSession(ctx, t, client, client.DaemonHost(), fctx.Dir, dockerfile)
+	out := testBuildWithSession(ctx, t, client, client.DaemonHost(ctx), fctx.Dir, dockerfile)
 	assert.Check(t, is.Contains(out, "some content"))
 
 	fctx.Add("second", "contentcontent")
@@ -51,7 +51,7 @@ func TestBuildWithSession(t *testing.T) {
 	RUN cat /second
 	`
 
-	out = testBuildWithSession(ctx, t, client, client.DaemonHost(), fctx.Dir, dockerfile)
+	out = testBuildWithSession(ctx, t, client, client.DaemonHost(ctx), fctx.Dir, dockerfile)
 	assert.Check(t, is.Equal(strings.Count(out, "Using cache"), 2))
 	assert.Check(t, is.Contains(out, "contentcontent"))
 
@@ -59,7 +59,7 @@ func TestBuildWithSession(t *testing.T) {
 	assert.Check(t, err)
 	assert.Check(t, du.BuilderSize > 10)
 
-	out = testBuildWithSession(ctx, t, client, client.DaemonHost(), fctx.Dir, dockerfile)
+	out = testBuildWithSession(ctx, t, client, client.DaemonHost(ctx), fctx.Dir, dockerfile)
 	assert.Check(t, is.Equal(strings.Count(out, "Using cache"), 4))
 
 	du2, err := client.DiskUsage(ctx, types.DiskUsageOptions{})
@@ -71,7 +71,7 @@ func TestBuildWithSession(t *testing.T) {
 	// FIXME(vdemeester) use sock here
 	res, body, err := request.Do(ctx,
 		"/build",
-		request.Host(client.DaemonHost()),
+		request.Host(client.DaemonHost(ctx)),
 		request.Method(http.MethodPost),
 		request.RawContent(fctx.AsTarReader(t)),
 		request.ContentType("application/x-tar"))

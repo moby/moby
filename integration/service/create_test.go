@@ -41,7 +41,7 @@ func testServiceCreateInit(ctx context.Context, daemonEnabled bool) func(t *test
 		d := swarm.NewSwarm(ctx, t, testEnv, ops...)
 		defer d.Stop(t)
 		client := d.NewClientT(t)
-		defer client.Close()
+		defer client.Close(ctx)
 
 		booleanTrue := true
 		booleanFalse := false
@@ -84,7 +84,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	overlayName := "overlay1_" + t.Name()
 	overlayID := network.CreateNoError(ctx, t, client, overlayName,
@@ -156,7 +156,7 @@ func TestCreateServiceConflict(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	serviceName := "TestService_" + t.Name()
 	serviceSpec := []swarm.ServiceSpecOpt{
@@ -177,7 +177,7 @@ func TestCreateServiceMaxReplicas(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	var maxReplicas uint64 = 2
 	serviceSpec := []swarm.ServiceSpecOpt{
@@ -199,7 +199,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	secretName := "TestSecret_" + t.Name()
 	secretResp, err := client.SecretCreate(ctx, swarmtypes.SecretSpec{
@@ -256,7 +256,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	configName := "TestConfig_" + t.Name()
 	configResp, err := client.ConfigCreate(ctx, swarmtypes.ConfigSpec{
@@ -334,7 +334,7 @@ func TestCreateServiceSysctls(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	// run thie block twice, so that no matter what the default value of
 	// net.ipv4.ip_nonlocal_bind is, we can verify that setting the sysctl
@@ -409,7 +409,7 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	// store the map we're going to be using everywhere.
 	capAdd := []string{"CAP_SYS_CHROOT"}
