@@ -38,6 +38,11 @@ const (
 	userlandProxyBinary = "docker-proxy"
 )
 
+var builtinRuntimes = map[string]bool{
+	StockRuntimeName:   true,
+	LinuxV2RuntimeName: true,
+}
+
 // BridgeConfig stores all the parameters for both the bridge driver and the default bridge network.
 type BridgeConfig struct {
 	DefaultBridgeConfig

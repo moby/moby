@@ -30,7 +30,6 @@ const (
 	shutdownTimeout         = 15 * time.Second
 	startupTimeout          = 15 * time.Second
 	configFile              = "containerd.toml"
-	binaryName              = "containerd"
 	pidFile                 = "containerd.pid"
 )
 
@@ -41,9 +40,13 @@ type remote struct {
 	// file is saved.
 	configFile string
 
-	daemonPid int
-	pidFile   string
-	logger    *log.Entry
+	// daemonPath is the binary to execute, and can be either a basename (to use
+	// a binary installed in the system's $PATH), or the full path to the binary
+	// to use.
+	daemonPath string
+	daemonPid  int
+	pidFile    string
+	logger     *log.Entry
 
 	daemonWaitCh  chan struct{}
 	daemonStartCh chan error
@@ -78,6 +81,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 			State:   filepath.Join(stateDir, "daemon"),
 		},
 		configFile:    filepath.Join(stateDir, configFile),
+		daemonPath:    binaryName,
 		daemonPid:     -1,
 		pidFile:       filepath.Join(stateDir, pidFile),
 		logger:        log.G(ctx).WithField("module", "libcontainerd"),
@@ -165,7 +169,8 @@ func (r *remote) startContainerd() error {
 		args = append(args, "--log-level", r.logLevel)
 	}
 
-	cmd := exec.Command(binaryName, args...)
+	r.logger.WithField("binary", r.daemonPath).Debug("starting containerd binary")
+	cmd := exec.Command(r.daemonPath, args...)
 	// redirect containerd logs to docker logs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
