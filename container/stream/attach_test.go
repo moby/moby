@@ -9,7 +9,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-// Make sure when there is no I/O on a stream that the goroutines do not get blcoked after the container exits.
+// Make sure when there is no I/O on a stream that the goroutines do not get blocked after the container exits.
 func TestAttachNoIO(t *testing.T) {
 	t.Run("stdin only", func(t *testing.T) {
 		stdinR, _ := io.Pipe()
