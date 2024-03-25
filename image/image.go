@@ -1,6 +1,7 @@
 package image // import "github.com/docker/docker/image"
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -279,9 +280,9 @@ func NewHistory(author, comment, createdBy string, isEmptyLayer bool) History {
 
 // Exporter provides interface for loading and saving images
 type Exporter interface {
-	Load(io.ReadCloser, io.Writer, bool) error
+	Load(context.Context, io.ReadCloser, io.Writer, bool) error
 	// TODO: Load(net.Context, io.ReadCloser, <- chan StatusMessage) error
-	Save([]string, io.Writer) error
+	Save(context.Context, []string, io.Writer) error
 }
 
 // NewFromJSON creates an Image configuration from json.
