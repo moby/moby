@@ -1,7 +1,19 @@
-# Dear Packager,
+# For Users
+
+The Moby Project is widely packaged by many independent software distributors,
+generally under the name 'docker' or 'docker.io.'
+
+A non-exhuastive list of known software packagers and distributions includes:
+
+- [Docker Inc. - Docker CE](https://docs.docker.com/engine/)
+- [Mirantis - Mirantis Container Runtime](https://docs.mirantis.com/mcr/)
+- [Microsoft - CBL-Mariner Linux](https://microsoft.github.io/CBL-Mariner/docs/)
+- [AWS - Amazon Linux](https://aws.amazon.com/linux/)
+
+# For Packagers
 
 If you are looking to make Docker available on your favorite software
-distribution, this document is for you. It summarizes the requirements for
+distribution, the following is for you. It summarizes the requirements for
 building and running the Docker client and the Docker daemon.
 
 ## Package Name
@@ -34,6 +46,10 @@ whatever is in "./vendor".
 If you would rather (or must, due to distro policy) package these dependencies
 yourself, take a look at "vendor.mod" for an easy-to-parse list of the
 exact version for each.
+
+Note that this project is **not** a Go module. To properly build the project,
+`GOPATH` mode must be used. The project is migrating to Go modules, but `vendor.mod`
+should not be interchanged with `go.mod` until this transition is complete.
 
 ## Stripping Binaries
 
