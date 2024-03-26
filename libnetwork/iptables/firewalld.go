@@ -6,159 +6,218 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
 
 	"github.com/containerd/log"
 	dbus "github.com/godbus/dbus/v5"
 )
 
-// IPV defines the table string
-type IPV string
-
 const (
-	// Iptables point ipv4 table
-	Iptables IPV = "ipv4"
-	// IP6Tables point to ipv6 table
-	IP6Tables IPV = "ipv6"
+	// ipTables point ipv4 table
+	ipTables = "ipv4"
+	// ip6Tables point to ipv6 table
+	ip6Tables = "ipv6"
 )
 
 const (
+	// See https://github.com/firewalld/firewalld/blob/v1.3.3/doc/xml/firewalld.dbus.xml#L49-L64
 	dbusInterface  = "org.fedoraproject.FirewallD1"
 	dbusPath       = "/org/fedoraproject/FirewallD1"
 	dbusConfigPath = "/org/fedoraproject/FirewallD1/config"
 	dockerZone     = "docker"
 )
 
-// Conn is a connection to firewalld dbus endpoint.
-type Conn struct {
-	sysconn    *dbus.Conn
+// firewalldConnection is a connection to the firewalld dbus endpoint.
+type firewalldConnection struct {
+	conn       *dbus.Conn
+	running    atomic.Bool
 	sysObj     dbus.BusObject
 	sysConfObj dbus.BusObject
 	signal     chan *dbus.Signal
+
+	onReloaded []*func() // callbacks to run when Firewalld is reloaded.
 }
 
-var (
-	connection *Conn
-
-	firewalldRunning bool      // is Firewalld service running
-	onReloaded       []*func() // callbacks when Firewalld has been reloaded
-)
+var firewalld *firewalldConnection
 
 // firewalldInit initializes firewalld management code.
-func firewalldInit() error {
-	var err error
-
-	if connection, err = newConnection(); err != nil {
-		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
-	}
-	firewalldRunning = checkRunning()
-	if !firewalldRunning {
-		connection.sysconn.Close()
-		connection = nil
-	}
-	if connection != nil {
-		go signalHandler()
-		if err := setupDockerZone(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// newConnection establishes a connection to the system bus.
-func newConnection() (*Conn, error) {
-	c := &Conn{}
-
-	var err error
-	c.sysconn, err = dbus.SystemBus()
+func firewalldInit() (*firewalldConnection, error) {
+	fwd, err := newConnection()
 	if err != nil {
 		return nil, err
 	}
 
-	// This never fails, even if the service is not running atm.
-	c.sysObj = c.sysconn.Object(dbusInterface, dbusPath)
-	c.sysConfObj = c.sysconn.Object(dbusInterface, dbusConfigPath)
+	// start handling D-Bus signals that were registered.
+	fwd.handleSignals()
 
-	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'", dbusPath, dbusInterface, dbusInterface)
-	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
+	err = fwd.setupDockerZone()
+	if err != nil {
+		_ = fwd.conn.Close()
+		return nil, err
+	}
 
-	rule = fmt.Sprintf("type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',path='/org/freedesktop/DBus',sender='org.freedesktop.DBus',arg0='%s'", dbusInterface)
-	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
+	return fwd, nil
+}
 
-	c.signal = make(chan *dbus.Signal, 10)
-	c.sysconn.Signal(c.signal)
+// newConnection establishes a connection to the system D-Bus and registers
+// signals to listen on.
+//
+// It returns an error if it's unable to establish a D-Bus connection, or
+// if firewalld is not running.
+func newConnection() (*firewalldConnection, error) {
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to D-Bus system bus: %v", err)
+	}
+
+	c := &firewalldConnection{
+		conn:   conn,
+		signal: make(chan *dbus.Signal, 10),
+
+		// This never fails, even if the service is not running atm.
+		sysObj:     conn.Object(dbusInterface, dbusPath),
+		sysConfObj: conn.Object(dbusInterface, dbusConfigPath),
+	}
+
+	if !c.checkRunning() {
+		_ = c.conn.Close()
+		return nil, fmt.Errorf("firewalld is not running")
+	}
+
 	return c, nil
 }
 
-func signalHandler() {
-	for signal := range connection.signal {
-		switch {
-		case strings.Contains(signal.Name, "NameOwnerChanged"):
-			firewalldRunning = checkRunning()
-			dbusConnectionChanged(signal.Body)
+// handleSignals sets up handling for D-Bus signals (NameOwnerChanged, Reloaded),
+// to reload rules when firewalld is reloaded .
+func (fwd *firewalldConnection) handleSignals() {
+	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'", dbusPath, dbusInterface, dbusInterface)
+	fwd.conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
 
-		case strings.Contains(signal.Name, "Reloaded"):
-			reloaded()
+	rule = fmt.Sprintf("type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',path='/org/freedesktop/DBus',sender='org.freedesktop.DBus',arg0='%s'", dbusInterface)
+	fwd.conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
+	fwd.conn.Signal(fwd.signal)
+
+	// FIXME(thaJeztah): there's currently no way to terminate this goroutine.
+	// TODO(thaJeztah): should this be rewritten to use dbus.WithSignalHandler(), instead of a self-crafted solution?
+	go func() {
+		for signal := range fwd.signal {
+			switch {
+			case strings.Contains(signal.Name, "NameOwnerChanged"):
+				// re-check if firewalld is still running.
+				fwd.checkRunning()
+				fwd.onConnectionChange(signal.Body)
+
+			case strings.Contains(signal.Name, "Reloaded"):
+				fwd.onReload()
+			}
 		}
-	}
+	}()
 }
 
-func dbusConnectionChanged(args []interface{}) {
-	name := args[0].(string)
-	oldOwner := args[1].(string)
-	newOwner := args[2].(string)
-
-	if name != dbusInterface {
+func (fwd *firewalldConnection) onConnectionChange(args []any) {
+	if name := args[0].(string); name != dbusInterface {
 		return
 	}
-
+	oldOwner := args[1].(string)
+	newOwner := args[2].(string)
 	if len(newOwner) > 0 {
-		connectionEstablished()
+		fwd.onConnectionEstablished()
 	} else if len(oldOwner) > 0 {
-		connectionLost()
+		fwd.onConnectionLost()
 	}
 }
 
-func connectionEstablished() {
-	reloaded()
+func (fwd *firewalldConnection) onConnectionEstablished() {
+	fwd.onReload()
 }
 
-func connectionLost() {
+func (fwd *firewalldConnection) onConnectionLost() {
 	// Doesn't do anything for now. Libvirt also doesn't react to this.
 }
 
-// call all callbacks
-func reloaded() {
-	for _, pf := range onReloaded {
+// onReload executes all registered callbacks.
+func (fwd *firewalldConnection) onReload() {
+	// Note that we're not checking if firewalld is running here,
+	// as the previous code did not check for this, and (technically),
+	// the callbacks may not require firewalld. So we're assuming here
+	// that all callback can be executed if this onReload function
+	// is triggered (either from a D-Bus event, or otherwise).
+	//
+	// TODO(thaJeztah): verify if these should always be run, or only if firewalld is running.
+	if fwd == nil {
+		return
+	}
+	for _, pf := range fwd.onReloaded {
 		(*pf)()
 	}
 }
 
-// OnReloaded add callback
-func OnReloaded(callback func()) {
-	for _, pf := range onReloaded {
+// registerReloadCallback adds a callback to be executed when firewalld
+// is reloaded. Adding a callback is idempotent; it ignores the given
+// callback if it's already registered.
+//
+// It is a no-op if firewalld is not running or firewalldConnection is not
+// initialized.
+func (fwd *firewalldConnection) registerReloadCallback(callback func()) {
+	// Note that we're not checking if firewalld is running here,
+	// as the previous code did not check for this, and (technically),
+	// the callbacks may not require firewalld, or may be registered
+	// when firewalld is not running.
+	//
+	// We're assuming here that all callback can be executed if this
+	// onReload function is triggered (either from a D-Bus event, or
+	// otherwise).
+	//
+	// TODO(thaJeztah): verify if these should always be run, or only if firewalld is running at the moment the callback is registered.
+	if fwd == nil {
+		return
+	}
+	for _, pf := range fwd.onReloaded {
 		if pf == &callback {
 			return
 		}
 	}
-	onReloaded = append(onReloaded, &callback)
+	fwd.onReloaded = append(fwd.onReloaded, &callback)
 }
 
-// Call some remote method to see whether the service is actually running.
-func checkRunning() bool {
-	if connection == nil {
+// checkRunning checks if firewalld is running.
+//
+// It calls some remote method to see whether the service is actually running.
+func (fwd *firewalldConnection) checkRunning() bool {
+	var zone string
+	if err := fwd.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone); err != nil {
+		fwd.running.Store(false)
+	} else {
+		fwd.running.Store(true)
+	}
+	return fwd.running.Load()
+}
+
+// isRunning returns whether firewalld is running.
+func (fwd *firewalldConnection) isRunning() bool {
+	if fwd == nil {
 		return false
 	}
-	var zone string
-	err := connection.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-	return err == nil
+	return fwd.running.Load()
 }
 
-// Passthrough method simply passes args through to iptables/ip6tables
-func Passthrough(ipv IPV, args ...string) ([]byte, error) {
+// passthrough passes args through to iptables or ip6tables.
+//
+// It is a no-op if firewalld is not running or not initialized.
+func (fwd *firewalldConnection) passthrough(ipVersion IPVersion, args ...string) ([]byte, error) {
+	if !fwd.isRunning() {
+		return []byte(""), nil
+	}
+
+	// select correct IP version for firewalld
+	ipv := ipTables
+	if ipVersion == IPv6 {
+		ipv = ip6Tables
+	}
+
 	var output string
 	log.G(context.TODO()).Debugf("Firewalld passthrough: %s, %s", ipv, args)
-	if err := connection.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
+	if err := fwd.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
 		return nil, err
 	}
 	return []byte(output), nil
@@ -210,13 +269,13 @@ func (z firewalldZone) settings() []interface{} {
 	}
 }
 
-// setupDockerZone creates a zone called docker in firewalld which includes docker interfaces to allow
-// container networking
-func setupDockerZone() error {
+// setupDockerZone creates a zone called docker in firewalld which includes
+// docker interfaces to allow container networking.
+func (fwd *firewalldConnection) setupDockerZone() error {
 	var zones []string
 	// Check if zone exists
-	if err := connection.sysObj.Call(dbusInterface+".zone.getZones", 0).Store(&zones); err != nil {
-		return err
+	if err := fwd.sysObj.Call(dbusInterface+".zone.getZones", 0).Store(&zones); err != nil {
+		return fmt.Errorf("firewalld: failed to check if %s zone already exists: %v", dockerZone, err)
 	}
 	if contains(zones, dockerZone) {
 		log.G(context.TODO()).Infof("Firewalld: %s zone already exists, returning", dockerZone)
@@ -231,27 +290,27 @@ func setupDockerZone() error {
 		description: "zone for docker bridge network interfaces",
 		target:      "ACCEPT",
 	}
-	if err := connection.sysConfObj.Call(dbusInterface+".config.addZone", 0, dockerZone, dz.settings()).Err; err != nil {
-		return err
+	if err := fwd.sysConfObj.Call(dbusInterface+".config.addZone", 0, dockerZone, dz.settings()).Err; err != nil {
+		return fmt.Errorf("firewalld: failed to set up %s zone: %v", dockerZone, err)
 	}
 	// Reload for change to take effect
-	if err := connection.sysObj.Call(dbusInterface+".reload", 0).Err; err != nil {
-		return err
+	if err := fwd.sysObj.Call(dbusInterface+".reload", 0).Err; err != nil {
+		return fmt.Errorf("firewalld: failed to set up %s zone: %v", dockerZone, err)
 	}
 
 	return nil
 }
 
-// AddInterfaceFirewalld adds the interface to the trusted zone. It is a
-// no-op if firewalld is not running.
-func AddInterfaceFirewalld(intf string) error {
-	if !firewalldRunning {
+// addInterface adds the interface to the trusted zone. It is a no-op if
+// firewalld is not running or firewalldConnection not initialized.
+func (fwd *firewalldConnection) addInterface(intf string) error {
+	if !fwd.isRunning() {
 		return nil
 	}
 
 	var intfs []string
 	// Check if interface is already added to the zone
-	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
+	if err := fwd.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
 		return err
 	}
 	// Return if interface is already part of the zone
@@ -262,22 +321,22 @@ func AddInterfaceFirewalld(intf string) error {
 
 	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
-	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
+	if err := fwd.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
 		return err
 	}
 	return nil
 }
 
-// DelInterfaceFirewalld removes the interface from the trusted zone It is a
-// no-op if firewalld is not running.
-func DelInterfaceFirewalld(intf string) error {
-	if !firewalldRunning {
+// delInterface removes the interface from the trusted zone It is a no-op if
+// firewalld is not running or firewalldConnection not initialized.
+func (fwd *firewalldConnection) delInterface(intf string) error {
+	if !fwd.isRunning() {
 		return nil
 	}
 
 	var intfs []string
 	// Check if interface is part of the zone
-	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
+	if err := firewalld.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
 		return err
 	}
 	// Remove interface if it exists
@@ -287,7 +346,7 @@ func DelInterfaceFirewalld(intf string) error {
 
 	log.G(context.TODO()).Debugf("Firewalld: removing %s interface from %s zone", intf, dockerZone)
 	// Runtime
-	if err := connection.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err; err != nil {
+	if err := firewalld.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err; err != nil {
 		return err
 	}
 	return nil

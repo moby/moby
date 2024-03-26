@@ -138,7 +138,9 @@ func initFirewalld() {
 		log.G(context.TODO()).Info("skipping firewalld management for rootless mode")
 		return
 	}
-	if err := firewalldInit(); err != nil {
+	var err error
+	firewalld, err = firewalldInit()
+	if err != nil {
 		log.G(context.TODO()).WithError(err).Debugf("unable to initialize firewalld; using raw iptables instead")
 	}
 }
@@ -204,11 +206,11 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 
 	// Either add or remove the interface from the firewalld zone, if firewalld is running.
 	if enable {
-		if err := AddInterfaceFirewalld(bridgeName); err != nil {
+		if err := firewalld.addInterface(bridgeName); err != nil {
 			return err
 		}
 	} else {
-		if err := DelInterfaceFirewalld(bridgeName); err != nil && !errdefs.IsNotFound(err) {
+		if err := firewalld.delInterface(bridgeName); err != nil && !errdefs.IsNotFound(err) {
 			return err
 		}
 	}
@@ -516,15 +518,9 @@ func filterOutput(start time.Time, output []byte, args ...string) []byte {
 
 // Raw calls 'iptables' system command, passing supplied arguments.
 func (iptable IPTable) Raw(args ...string) ([]byte, error) {
-	if firewalldRunning {
-		// select correct IP version for firewalld
-		ipv := Iptables
-		if iptable.ipVersion == IPv6 {
-			ipv = IP6Tables
-		}
-
+	if firewalld.isRunning() {
 		startTime := time.Now()
-		output, err := Passthrough(ipv, args...)
+		output, err := firewalld.passthrough(iptable.ipVersion, args...)
 		if err == nil || !strings.Contains(err.Error(), "was not provided by any .service files") {
 			return filterOutput(startTime, output, args...), err
 		}
