@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image"
+	layerpkg "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/stringid"
@@ -113,7 +114,19 @@ func (b *Builder) exportImage(ctx context.Context, state *dispatchState, layer b
 	}
 
 	state.imageID = exportedImage.ImageID()
-	b.imageSources.Add(newImageMount(exportedImage, newLayer), platform)
+
+	// if new layer is empty, next build stage should base on the parent layer #40591
+	if layerpkg.IsEmpty(newLayer.DiffID()) {
+		parentImageMount, err := b.imageSources.Get(parentImage.ImageID(), true, b.platform)
+		if err != nil {
+			return errors.Wrap(err, "failed to get parent image mount")
+		}
+		parentLayer := parentImageMount.layer
+		b.imageSources.Add(newImageMount(exportedImage, parentLayer), platform)
+	} else {
+		b.imageSources.Add(newImageMount(exportedImage, newLayer), platform)
+	}
+
 	return nil
 }
 
