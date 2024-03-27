@@ -70,6 +70,7 @@ jobs:
         with:
           name: test-reports-unit-${{ inputs.storage }}
           path: /tmp/reports/*
+          retention-days: 1
 
   unit-report:
     runs-on: ubuntu-20.04
@@ -150,6 +151,7 @@ jobs:
         with:
           name: test-reports-docker-py-${{ inputs.storage }}
           path: /tmp/reports/*
+          retention-days: 1
 
   integration-flaky:
     runs-on: ubuntu-20.04
@@ -271,6 +273,7 @@ jobs:
         with:
           name: test-reports-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
+          retention-days: 1
 
   integration-report:
     runs-on: ubuntu-20.04
@@ -410,6 +413,7 @@ jobs:
         with:
           name: test-reports-integration-cli-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
+          retention-days: 1
 
   integration-cli-report:
     runs-on: ubuntu-20.04
