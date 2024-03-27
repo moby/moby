@@ -75,6 +75,8 @@ type Info struct {
 	DefaultAddressPools []NetworkAddressPool `json:",omitempty"`
 	CDISpecDirs         []string
 
+	Containerd *ContainerdInfo `json:",omitempty"`
+
 	// Legacy API fields for older API versions.
 	legacyFields
 
@@ -83,6 +85,20 @@ type Info struct {
 	// messages for the user, and are not intended to be parsed / used for
 	// other purposes, as they do not have a fixed format.
 	Warnings []string
+}
+
+// ContainerdInfo holds information about the containerd instance used by the daemon.
+type ContainerdInfo struct {
+	// Address is the path to the containerd socket.
+	Address string `json:",omitempty"`
+	// Namespaces is the containerd namespaces used by the daemon.
+	Namespaces ContainerdNamespaces
+}
+
+// ContainerdNamespaces reflects the containerd namespaces used by the daemon.
+type ContainerdNamespaces struct {
+	Containers string
+	Plugins    string
 }
 
 type legacyFields struct {

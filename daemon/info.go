@@ -227,6 +227,17 @@ func (daemon *Daemon) fillDebugInfo(ctx context.Context, v *system.Info) {
 	v.NFd = fileutils.GetTotalUsedFds(ctx)
 	v.NGoroutines = runtime.NumGoroutine()
 	v.NEventsListener = daemon.EventsService.SubscribersCount()
+
+	config := daemon.Config()
+	if config.ContainerdAddr != "" {
+		v.Containerd = &system.ContainerdInfo{
+			Address: config.ContainerdAddr,
+			Namespaces: system.ContainerdNamespaces{
+				Containers: config.ContainerdNamespace,
+				Plugins:    config.ContainerdPluginNamespace,
+			},
+		}
+	}
 }
 
 func (daemon *Daemon) fillAPIInfo(v *system.Info, cfg *config.Config) {
