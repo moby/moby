@@ -31,6 +31,9 @@ func CreateVlanInterface(ctx context.Context, t *testing.T, master, slave, id st
 
 // DeleteInterface deletes a network interface
 func DeleteInterface(ctx context.Context, t *testing.T, ifName string) {
+	if icmd.RunCommand(ctx, "ip", "link", "show", ifName).ExitCode != 0 {
+		return
+	}
 	testutil.RunCommand(ctx, "ip", "link", "delete", ifName).Assert(t, icmd.Success)
 	testutil.RunCommand(ctx, "iptables", "-t", "nat", "--flush").Assert(t, icmd.Success)
 	testutil.RunCommand(ctx, "iptables", "--flush").Assert(t, icmd.Success)
