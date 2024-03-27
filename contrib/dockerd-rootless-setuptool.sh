@@ -212,6 +212,33 @@ init() {
 		fi
 	fi
 
+	# instruction: Ubuntu 24 enables kernel.apparmor_restrict_unprivileged_userns by default and needs an AppArmor profile
+	if [ ! -e "/etc/apparmor.d/usr.local.bin.rootlesskit" ] && [ -e "/etc/apparmor.d/abi/4.0" ] && [ -e "/proc/sys/kernel/apparmor_restrict_unprivileged_userns" ]; then
+		instructions=$(
+			cat <<- EOI
+				${instructions}
+				cat >"/etc/apparmor.d/usr.local.bin.rootlesskit" <<EOT
+				# Ubuntu 23.10 introduced kernel.apparmor_restrict_unprivileged_userns
+				# to restrict unsharing user namespaces:
+				# https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
+				#
+				# kernel.apparmor_restrict_unprivileged_userns is still opt-in in Ubuntu 23.10,
+				# but it is expected to be enabled in future releases of Ubuntu.
+				abi <abi/4.0>,
+				include <tunables/global>
+
+				/usr/local/bin/rootlesskit flags=(unconfined) {
+				  userns,
+
+				  # Site-specific additions and overrides. See local/README for details.
+				  include if exists <local/usr.local.bin.rootlesskit>
+				}
+				EOT
+				systemctl restart apparmor.service
+			EOI
+		)
+	fi
+
 	# instruction: RHEL/CentOS 7 requires setting max_user_namespaces
 	if [ -f /proc/sys/user/max_user_namespaces ]; then
 		if [ "0" = "$(cat /proc/sys/user/max_user_namespaces)" ]; then
