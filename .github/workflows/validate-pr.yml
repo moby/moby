@@ -44,3 +44,16 @@ jobs:
 
           echo "This PR will be included in the release notes with the following note:"
           echo "$desc"
+
+  # If PR title starts with [{branch} backport] - make sure that it's opened against the {branch} branch
+  check-pr-title:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Check backport branch
+        if: startsWith(github.event.pull_request.title, '[') && contains(github.event.pull_request.title, ' backport]')
+        run: |
+          branch=$(echo "${{ github.event.pull_request.title }}" | sed -n 's/^\[\([0-9]*\.[0-9]*\) backport\].*/\1/p')
+          if [ "$branch" != "${{ github.event.pull_request.base.ref }}" ]; then
+            echo "PR title suggests backport to $branch, but PR is opened against ${{ github.event.pull_request.base.ref }}"
+            exit 1
+          fi
