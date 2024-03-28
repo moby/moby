@@ -12,14 +12,14 @@ const (
 )
 
 // Reset puts a container into a state where it can be restarted again.
-func (container *Container) Reset(lock bool) {
+func (container *Container) Reset(ctx context.Context, lock bool) {
 	if lock {
 		container.Lock()
 		defer container.Unlock()
 	}
 
-	if err := container.CloseStreams(); err != nil {
-		log.G(context.TODO()).Errorf("%s: %s", container.ID, err)
+	if err := container.CloseStreams(ctx); err != nil {
+		log.G(ctx).Errorf("%s: %s", container.ID, err)
 	}
 
 	// Re-create a brand new stdin pipe once the container exited
@@ -39,7 +39,7 @@ func (container *Container) Reset(lock bool) {
 			defer timer.Stop()
 			select {
 			case <-timer.C:
-				log.G(context.TODO()).Warn("Logger didn't exit in time: logs may be truncated")
+				log.G(ctx).Warn("Logger didn't exit in time: logs may be truncated")
 			case <-exit:
 			}
 		}

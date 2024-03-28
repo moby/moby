@@ -185,7 +185,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 			ec.Running = false
 			exitCode := 126
 			ec.ExitCode = &exitCode
-			if err := ec.CloseStreams(); err != nil {
+			if err := ec.CloseStreams(ctx); err != nil {
 				log.G(ctx).Errorf("failed to cleanup exec %s streams: %s", ec.Container.ID, err)
 			}
 			ec.Unlock()
