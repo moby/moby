@@ -34,6 +34,7 @@ func IsURL(str string) bool {
 //   - http://(.*).git(?:#.+)?$   same, but non-TLS
 //   - git://(.*)                 URLs using git:// scheme
 //   - git@(.*)
+//   - ssh://git@(.*)
 //   - github.com/                see description below
 //
 // The github.com/ prefix is a special case used to treat context-paths
@@ -77,7 +78,7 @@ func IsGitURL(str string) bool {
 	if IsURL(str) && urlPathWithFragmentSuffix.MatchString(str) {
 		return true
 	}
-	for _, prefix := range []string{"git://", "github.com/", "git@"} {
+	for _, prefix := range []string{"git://", "github.com/", "git@", "ssh://git@"} {
 		if strings.HasPrefix(str, prefix) {
 			return true
 		}
