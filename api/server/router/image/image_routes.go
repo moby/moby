@@ -547,6 +547,45 @@ func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWrite
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
 }
 
+func (ir *imageRouter) postImagesConvert(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	src := r.Form.Get("from")
+
+	var dstRefs []reference.NamedTagged
+	for _, t := range r.Form["to"] {
+		ref, err := reference.ParseNamed(t)
+		if err != nil {
+			return errdefs.InvalidParameter(fmt.Errorf("invalid 'to' parameter: %w", err))
+		}
+
+		tagged := reference.TagNameOnly(ref).(reference.NamedTagged)
+		dstRefs = append(dstRefs, tagged)
+	}
+
+	opts := imagetypes.ConvertOptions{
+		OnlyAvailablePlatforms: httputils.BoolValue(r, "only-available-platforms"),
+		NoAttestations:         httputils.BoolValue(r, "no-attestations"),
+	}
+
+	for _, p := range r.Form["platforms"] {
+		sp, err := platforms.Parse(p)
+		if err != nil {
+			return errdefs.InvalidParameter(fmt.Errorf("invalid platform: %w", err))
+		}
+		opts.Platforms = append(opts.Platforms, sp)
+	}
+
+	if err := ir.backend.ImageConvert(ctx, src, dstRefs, opts); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return err
+	}
+	w.WriteHeader(http.StatusCreated)
+	return nil
+}
+
 // validateRepoName validates the name of a repository.
 func validateRepoName(name reference.Named) error {
 	familiarName := reference.FamiliarName(name)
