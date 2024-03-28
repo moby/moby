@@ -294,27 +294,6 @@ func (sb *Sandbox) setupDNS() error {
 	return rc.WriteFile(sb.config.resolvConfPath, sb.config.resolvConfHashFile, filePerm)
 }
 
-// Called when an endpoint has joined the sandbox.
-func (sb *Sandbox) updateDNS(ipv6Enabled bool) error {
-	if mod, err := resolvconf.UserModified(sb.config.resolvConfPath, sb.config.resolvConfHashFile); err != nil || mod {
-		return err
-	}
-
-	// Load the host's resolv.conf as a starting point.
-	rc, err := sb.loadResolvConf(sb.config.getOriginResolvConfPath())
-	if err != nil {
-		return err
-	}
-	// For host-networking, no further change is needed.
-	if !sb.config.useDefaultSandBox {
-		// The legacy bridge network has no internal nameserver. So, strip localhost
-		// nameservers from the host's config, then add default nameservers if there
-		// are none remaining.
-		rc.TransformForLegacyNw(ipv6Enabled)
-	}
-	return rc.WriteFile(sb.config.resolvConfPath, sb.config.resolvConfHashFile, filePerm)
-}
-
 // Embedded DNS server has to be enabled for this sandbox. Rebuild the container's resolv.conf.
 func (sb *Sandbox) rebuildDNS() error {
 	// Don't touch the file if the user has modified it.
