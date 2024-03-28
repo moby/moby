@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/docker/docker/api/types/filters"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImportOptions holds information to import images from the client host.
@@ -36,7 +37,23 @@ type PullOptions struct {
 }
 
 // PushOptions holds information to push images.
-type PushOptions PullOptions
+type PushOptions struct {
+	All          bool
+	RegistryAuth string // RegistryAuth is the base64 encoded credentials for the registry
+
+	// PrivilegeFunc is a function that clients can supply to retry operations
+	// after getting an authorization error. This function returns the registry
+	// authentication header value in base64 encoded format, or an error if the
+	// privilege request fails.
+	//
+	// Also see [github.com/docker/docker/api/types.RequestPrivilegeFunc].
+	PrivilegeFunc func(context.Context) (string, error)
+
+	// Platform is an optional field that selects a specific platform to push
+	// when the image is a multi-platform image.
+	// Using this will only push a single platform-specific manifest.
+	Platform *ocispec.Platform `json:",omitempty"`
+}
 
 // ListOptions holds parameters to list images with.
 type ListOptions struct {

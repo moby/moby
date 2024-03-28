@@ -205,7 +205,21 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 		ref = r
 	}
 
-	if err := ir.backend.PushImage(ctx, ref, metaHeaders, authConfig, output); err != nil {
+	var platform *ocispec.Platform
+	if formPlatform := r.Form.Get("platform"); formPlatform != "" {
+		if versions.LessThan(httputils.VersionFromContext(ctx), "1.46") {
+			return errdefs.InvalidParameter(errors.New("selecting platform is not supported in API version < 1.46"))
+		}
+
+		p, err := httputils.DecodePlatform(formPlatform)
+		if err != nil {
+			return err
+		}
+
+		platform = p
+	}
+
+	if err := ir.backend.PushImage(ctx, ref, platform, metaHeaders, authConfig, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
