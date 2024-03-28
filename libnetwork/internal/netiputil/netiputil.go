@@ -51,3 +51,11 @@ func SubnetRange(network, subnet netip.Prefix) (start, end uint64) {
 	end = start + (1 << uint64(subnet.Addr().BitLen()-subnet.Bits())) - 1
 	return start, end
 }
+
+// AddrPortFromNet converts a net.Addr into a netip.AddrPort.
+func AddrPortFromNet(addr net.Addr) netip.AddrPort {
+	if a, ok := addr.(interface{ AddrPort() netip.AddrPort }); ok {
+		return a.AddrPort()
+	}
+	return netip.AddrPort{}
+}

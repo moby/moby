@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/miekg/dns"
 	"go.opentelemetry.io/otel"
@@ -65,17 +67,25 @@ type extDNSEntry struct {
 	HostLoopback bool
 }
 
+func (e extDNSEntry) String() string {
+	if e.HostLoopback {
+		return "host(" + e.IPStr + ")"
+	}
+	return e.IPStr
+}
+
 // Resolver is the embedded DNS server in Docker. It operates by listening on
 // the container's loopback interface for DNS queries.
 type Resolver struct {
 	backend       DNSBackend
-	extDNSList    [maxExtDNS]extDNSEntry
+	extDNSList    [maxExtDNS]extDNSEntry // Ext servers to use when there's no entry in ipToExtDNS.
+	ipToExtDNS    addrToExtDNSMap        // DNS query source IP -> ext servers.
 	server        *dns.Server
 	conn          *net.UDPConn
 	tcpServer     *dns.Server
 	tcpListen     *net.TCPListener
 	err           error
-	listenAddress string
+	listenAddress netip.Addr
 	proxyDNS      atomic.Bool
 	startCh       chan struct{}
 	logger        *log.Entry
@@ -87,16 +97,43 @@ type Resolver struct {
 // NewResolver creates a new instance of the Resolver
 func NewResolver(address string, proxyDNS bool, backend DNSBackend) *Resolver {
 	r := &Resolver{
-		backend:       backend,
-		listenAddress: address,
-		err:           fmt.Errorf("setup not done yet"),
-		startCh:       make(chan struct{}, 1),
-		fwdSem:        semaphore.NewWeighted(maxConcurrent),
-		logInverval:   rate.Sometimes{Interval: logInterval},
+		backend:     backend,
+		err:         fmt.Errorf("setup not done yet"),
+		startCh:     make(chan struct{}, 1),
+		fwdSem:      semaphore.NewWeighted(maxConcurrent),
+		logInverval: rate.Sometimes{Interval: logInterval},
 	}
+	r.listenAddress, _ = netip.ParseAddr(address)
 	r.proxyDNS.Store(proxyDNS)
 
 	return r
+}
+
+type addrToExtDNSMap struct {
+	mu   sync.Mutex
+	eMap map[netip.Addr][maxExtDNS]extDNSEntry
+}
+
+func (am *addrToExtDNSMap) get(addr netip.Addr) ([maxExtDNS]extDNSEntry, bool) {
+	am.mu.Lock()
+	defer am.mu.Unlock()
+	entries, ok := am.eMap[addr]
+	return entries, ok
+}
+
+func (am *addrToExtDNSMap) set(addr netip.Addr, entries []extDNSEntry) {
+	var e [maxExtDNS]extDNSEntry
+	copy(e[:], entries)
+	am.mu.Lock()
+	defer am.mu.Unlock()
+	if len(entries) > 0 {
+		if am.eMap == nil {
+			am.eMap = map[netip.Addr][maxExtDNS]extDNSEntry{}
+		}
+		am.eMap[addr] = e
+	} else {
+		delete(am.eMap, addr)
+	}
 }
 
 func (r *Resolver) log(ctx context.Context) *log.Entry {
@@ -108,25 +145,23 @@ func (r *Resolver) log(ctx context.Context) *log.Entry {
 
 // SetupFunc returns the setup function that should be run in the container's
 // network namespace.
-func (r *Resolver) SetupFunc(port int) func() {
+func (r *Resolver) SetupFunc(port uint16) func() {
 	return func() {
 		var err error
 
 		// DNS operates primarily on UDP
-		r.conn, err = net.ListenUDP("udp", &net.UDPAddr{
-			IP:   net.ParseIP(r.listenAddress),
-			Port: port,
-		})
+		r.conn, err = net.ListenUDP("udp", net.UDPAddrFromAddrPort(
+			netip.AddrPortFrom(r.listenAddress, port)),
+		)
 		if err != nil {
 			r.err = fmt.Errorf("error in opening name server socket %v", err)
 			return
 		}
 
 		// Listen on a TCP as well
-		r.tcpListen, err = net.ListenTCP("tcp", &net.TCPAddr{
-			IP:   net.ParseIP(r.listenAddress),
-			Port: port,
-		})
+		r.tcpListen, err = net.ListenTCP("tcp", net.TCPAddrFromAddrPort(
+			netip.AddrPortFrom(r.listenAddress, port)),
+		)
 		if err != nil {
 			r.err = fmt.Errorf("error in opening name TCP server socket %v", err)
 			return
@@ -186,7 +221,8 @@ func (r *Resolver) Stop() {
 }
 
 // SetExtServers configures the external nameservers the resolver should use
-// when forwarding queries.
+// when forwarding queries, unless SetExtServersForSrc has configured servers
+// for the DNS client making the request.
 func (r *Resolver) SetExtServers(extDNS []extDNSEntry) {
 	l := len(extDNS)
 	if l > maxExtDNS {
@@ -203,8 +239,17 @@ func (r *Resolver) SetForwardingPolicy(policy bool) {
 	r.proxyDNS.Store(policy)
 }
 
+// SetExtServersForSrc configures the external nameservers the resolver should
+// use when forwarding queries from srcAddr. If set, these servers will be used
+// in preference to servers set by SetExtServers. Supplying a nil or empty extDNS
+// deletes nameservers for srcAddr.
+func (r *Resolver) SetExtServersForSrc(srcAddr netip.Addr, extDNS []extDNSEntry) error {
+	r.ipToExtDNS.set(srcAddr, extDNS)
+	return nil
+}
+
 // NameServer returns the IP of the DNS resolver for the containers.
-func (r *Resolver) NameServer() string {
+func (r *Resolver) NameServer() netip.Addr {
 	return r.listenAddress
 }
 
@@ -439,7 +484,7 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 			!strings.Contains(strings.TrimSuffix(queryName, "."), ".") {
 			resp = createRespMsg(query)
 		} else {
-			resp = r.forwardExtDNS(ctx, w.LocalAddr().Network(), query)
+			resp = r.forwardExtDNS(ctx, w.LocalAddr().Network(), w.RemoteAddr(), query)
 		}
 	}
 
@@ -481,11 +526,11 @@ func (r *Resolver) dialExtDNS(proto string, server extDNSEntry) (net.Conn, error
 	return extConn, nil
 }
 
-func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, query *dns.Msg) *dns.Msg {
+func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, remoteAddr net.Addr, query *dns.Msg) *dns.Msg {
 	ctx, span := otel.Tracer("").Start(ctx, "resolver.forwardExtDNS")
 	defer span.End()
 
-	for _, extDNS := range r.extDNSList {
+	for _, extDNS := range r.extDNS(netiputil.AddrPortFromNet(remoteAddr)) {
 		if extDNS.IPStr == "" {
 			break
 		}
@@ -546,6 +591,13 @@ func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, query *dns.M
 
 	span.AddEvent("no response from upstream servers")
 	return nil
+}
+
+func (r *Resolver) extDNS(remoteAddr netip.AddrPort) []extDNSEntry {
+	if res, ok := r.ipToExtDNS.get(remoteAddr.Addr()); ok {
+		return res[:]
+	}
+	return r.extDNSList[:]
 }
 
 func (r *Resolver) exchange(ctx context.Context, proto string, extDNS extDNSEntry, query *dns.Msg) *dns.Msg {

@@ -1,8 +1,11 @@
-//go:build !linux
-
 package libnetwork
 
 import "github.com/docker/docker/libnetwork/osl"
+
+// Windows-specific container configuration flags.
+type containerConfigOS struct {
+	dnsNoProxy bool
+}
 
 func releaseOSSboxResources(*osl.Namespace, *Endpoint) {}
 
