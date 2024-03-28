@@ -44,3 +44,19 @@ jobs:
 
           echo "This PR will be included in the release notes with the following note:"
           echo "$desc"
+
+  check-pr-branch:
+    runs-on: ubuntu-20.04
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+    steps:
+      # Backports or PR that target a release branch directly should mention the target branch in the title, for example:
+      # [X.Y backport] Some change that needs backporting to X.Y
+      # [X.Y] Change directly targeting the X.Y branch
+      - name: Get branch from PR title
+        id: title_branch
+        run: echo "$PR_TITLE" | sed -n 's/^\[\([0-9]*\.[0-9]*\)[^]]*\].*/branch=\1/p' >> $GITHUB_OUTPUT
+
+      - name: Check release branch
+        if: github.event.pull_request.base.ref != steps.title_branch.outputs.branch && !(github.event.pull_request.base.ref == 'master' && steps.title_branch.outputs.branch == '')
+        run: echo "::error::PR title suggests targetting the ${{ steps.title_branch.outputs.branch }} branch, but is opened against ${{ github.event.pull_request.base.ref }}" && exit 1
