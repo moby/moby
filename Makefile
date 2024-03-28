@@ -31,7 +31,6 @@ DOCKER_ENVS := \
 	-e DOCKER_BUILD_OPTS \
 	-e DOCKER_BUILD_PKGS \
 	-e DOCKER_BUILDKIT \
-	-e DOCKER_BASH_COMPLETION_PATH \
 	-e DOCKER_CLI_PATH \
 	-e DOCKERCLI_VERSION \
 	-e DOCKERCLI_REPOSITORY \
@@ -99,7 +98,6 @@ DOCKER_MOUNT := $(if $(DOCKER_MOUNT),$(DOCKER_MOUNT),-v /go/src/github.com/docke
 
 DOCKER_MOUNT_CACHE := -v docker-dev-cache:/root/.cache -v docker-mod-cache:/go/pkg/mod/
 DOCKER_MOUNT_CLI := $(if $(DOCKER_CLI_PATH),-v $(shell dirname $(DOCKER_CLI_PATH)):/usr/local/cli,)
-DOCKER_MOUNT_BASH_COMPLETION := $(if $(DOCKER_BASH_COMPLETION_PATH),-v $(shell dirname $(DOCKER_BASH_COMPLETION_PATH)):/usr/local/completion/bash,)
 
 ifdef BIND_GIT
 	# Gets the common .git directory (even from inside a git worktree)
