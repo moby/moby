@@ -18,13 +18,13 @@ import (
 )
 
 // ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.
-func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerAttachConfig) error {
+func (daemon *Daemon) ContainerAttach(prefixOrName string, req *backend.ContainerAttachConfig) error {
 	keys := []byte{}
 	var err error
-	if c.DetachKeys != "" {
-		keys, err = term.ToBytes(c.DetachKeys)
+	if req.DetachKeys != "" {
+		keys, err = term.ToBytes(req.DetachKeys)
 		if err != nil {
-			return errdefs.InvalidParameter(errors.Errorf("Invalid detach keys (%s) provided", c.DetachKeys))
+			return errdefs.InvalidParameter(errors.Errorf("Invalid detach keys (%s) provided", req.DetachKeys))
 		}
 	}
 
@@ -42,20 +42,37 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	}
 
 	cfg := stream.AttachConfig{
-		UseStdin:   c.UseStdin,
-		UseStdout:  c.UseStdout,
-		UseStderr:  c.UseStderr,
+		UseStdin:   req.UseStdin,
+		UseStdout:  req.UseStdout,
+		UseStderr:  req.UseStderr,
 		TTY:        ctr.Config.Tty,
 		CloseStdin: ctr.Config.StdinOnce,
 		DetachKeys: keys,
 	}
 	ctr.StreamConfig.AttachStreams(&cfg)
 
-	multiplexed := !ctr.Config.Tty && c.MuxStreams
-	inStream, outStream, errStream, err := c.GetStreams(multiplexed)
+	multiplexed := !ctr.Config.Tty && req.MuxStreams
+
+	clientCtx, closeNotify := context.WithCancel(context.Background())
+	defer closeNotify()
+	go func() {
+		<-clientCtx.Done()
+		// The client has disconnected
+		// In this case we need to close the container's output streams so that the goroutines used to copy
+		// to the client streams are unblocked and can exit.
+		if cfg.CStdout != nil {
+			cfg.CStdout.Close()
+		}
+		if cfg.CStderr != nil {
+			cfg.CStderr.Close()
+		}
+	}()
+
+	inStream, outStream, errStream, err := req.GetStreams(multiplexed, closeNotify)
 	if err != nil {
 		return err
 	}
+
 	defer inStream.Close()
 
 	if multiplexed {
@@ -73,7 +90,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 		cfg.Stderr = errStream
 	}
 
-	if err := daemon.containerAttach(ctr, &cfg, c.Logs, c.Stream); err != nil {
+	if err := daemon.containerAttach(ctr, &cfg, req.Logs, req.Stream); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 	}
 	return nil

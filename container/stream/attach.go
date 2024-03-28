@@ -150,6 +150,14 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan erro
 				cfg.CStderr.Close()
 			}
 
+			if cfg.Stdin != nil {
+				// In this case, `cfg.Stdin` is a stream from the client.
+				// The way `io.Copy` works we may get stuck waiting to read from `cfg.Stdin` even if the container has exited.
+				// This will cause the `io.Copy` to never return and the `group.Wait()` to never return.
+				// By closing cfg.Stdin we will cause the `io.Copy` to return and the `group.Wait()` to return.
+				cfg.Stdin.Close()
+			}
+
 			// Now with these closed, wait should return.
 			if err := group.Wait(); err != nil {
 				errs <- err
