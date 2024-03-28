@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	imagetypes "github.com/docker/docker/api/types/image"
+	networktypes "github.com/docker/docker/api/types/network"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
@@ -371,6 +372,21 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 					baseLogger.Warn("migrated deprecated logentries logging driver")
 					c.HostConfig.LogConfig = containertypes.LogConfig{
 						Type: local.Name,
+					}
+				}
+
+				// Normalize the "default" network mode into the network mode
+				// it aliases ("bridge on Linux and "nat" on Windows). This is
+				// also done by the container router, for new containers. But
+				// we need to do it here too to handle containers that were
+				// created prior to v26.0.
+				//
+				// TODO(aker): remove this migration code once the next LTM version of MCR is released.
+				if c.HostConfig.NetworkMode.IsDefault() {
+					c.HostConfig.NetworkMode = runconfig.DefaultDaemonNetworkMode()
+					if nw, ok := c.NetworkSettings.Networks[networktypes.NetworkDefault]; ok {
+						c.NetworkSettings.Networks[c.HostConfig.NetworkMode.NetworkName()] = nw
+						delete(c.NetworkSettings.Networks, networktypes.NetworkDefault)
 					}
 				}
 			}

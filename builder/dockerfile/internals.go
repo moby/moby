@@ -15,11 +15,13 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -377,12 +379,21 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		Ulimits:      options.Ulimits,
 	}
 
+	// We need to make sure no empty string or "default" NetworkMode is
+	// provided to the daemon as it doesn't support them.
+	//
+	// This is in line with what the ContainerCreate API endpoint does.
+	networkMode := options.NetworkMode
+	if networkMode == "" || networkMode == network.NetworkDefault {
+		networkMode = runconfig.DefaultDaemonNetworkMode().NetworkName()
+	}
+
 	hc := &container.HostConfig{
 		SecurityOpt: options.SecurityOpt,
 		Isolation:   options.Isolation,
 		ShmSize:     options.ShmSize,
 		Resources:   resources,
-		NetworkMode: container.NetworkMode(options.NetworkMode),
+		NetworkMode: container.NetworkMode(networkMode),
 		// Set a log config to override any default value set on the daemon
 		LogConfig:  defaultLogConfig,
 		ExtraHosts: options.ExtraHosts,

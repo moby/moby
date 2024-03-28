@@ -420,9 +420,6 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 	}
 
 	networkName := mode.NetworkName()
-	if mode.IsDefault() {
-		networkName = daemon.netController.Config().DefaultNetwork
-	}
 
 	if mode.IsUserDefined() {
 		var err error
@@ -458,15 +455,6 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 		container.NetworkSettings.Networks = make(map[string]*network.EndpointSettings)
 		container.NetworkSettings.Networks[networkName] = &network.EndpointSettings{
 			EndpointSettings: &networktypes.EndpointSettings{},
-		}
-	}
-
-	// Convert any settings added by client in default name to
-	// engine's default network name key
-	if mode.IsDefault() {
-		if nConf, ok := container.NetworkSettings.Networks[mode.NetworkName()]; ok {
-			container.NetworkSettings.Networks[networkName] = nConf
-			delete(container.NetworkSettings.Networks, mode.NetworkName())
 		}
 	}
 
