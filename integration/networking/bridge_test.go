@@ -675,3 +675,31 @@ func TestDisableIPv6Addrs(t *testing.T) {
 		})
 	}
 }
+
+// Test that it's possible to set a sysctl on an interface in the container.
+// Regression test for https://github.com/moby/moby/issues/47619
+func TestSetInterfaceSysctl(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no sysctl on Windows")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const scName = "net.ipv4.conf.eth0.forwarding"
+	opts := []func(config *container.TestContainerConfig){
+		container.WithCmd("sysctl", scName),
+		container.WithSysctls(map[string]string{scName: "1"}),
+	}
+
+	runRes := container.RunAttach(ctx, t, c, opts...)
+	defer c.ContainerRemove(ctx, runRes.ContainerID,
+		containertypes.RemoveOptions{Force: true},
+	)
+
+	stdout := runRes.Stdout.String()
+	assert.Check(t, is.Contains(stdout, scName))
+}
