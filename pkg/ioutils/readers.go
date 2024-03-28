@@ -170,3 +170,22 @@ func subsequentCloseWarn(name string) {
 		log.G(context.TODO()).Errorf("stack trace: %s", string(debug.Stack()))
 	}
 }
+
+type readerCtx struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func NewCtxReader(ctx context.Context, r io.Reader) io.Reader {
+	return &readerCtx{
+		ctx: ctx,
+		r:   r,
+	}
+}
+
+func (r *readerCtx) Read(p []byte) (n int, err error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.r.Read(p)
+}
