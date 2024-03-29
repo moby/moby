@@ -12,6 +12,8 @@ var (
 		"http://github.com/docker/docker.git#branch",
 		"http://github.com/docker/docker.git#:dir",
 		"ssh://git@github.com/docker/docker.git",
+		"ssh://a_user@github.com/docker/docker.git",
+		"ssh://github.com/docker/docker.git",
 	}
 	incompleteGitUrls = []string{
 		"github.com/docker/docker",

@@ -78,7 +78,7 @@ func IsGitURL(str string) bool {
 	if IsURL(str) && urlPathWithFragmentSuffix.MatchString(str) {
 		return true
 	}
-	for _, prefix := range []string{"git://", "github.com/", "git@", "ssh://git@"} {
+	for _, prefix := range []string{"git://", "github.com/", "git@", "ssh://"} {
 		if strings.HasPrefix(str, prefix) {
 			return true
 		}
