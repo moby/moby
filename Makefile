@@ -1,5 +1,3 @@
-.PHONY: all binary dynbinary build cross help install manpages run shell test test-docker-py test-integration test-unit validate validate-% win
-
 DOCKER ?= docker
 BUILDX ?= $(DOCKER) buildx
 
@@ -157,18 +155,23 @@ BAKE_CMD := $(BUILDX) bake
 
 default: binary
 
+.PHONY: all
 all: build ## validate all checks, build linux binaries, run all tests,\ncross build non-linux binaries, and generate archives
 	$(DOCKER_RUN_DOCKER) bash -c 'hack/validate/default && hack/make.sh'
 
+.PHONY: binary
 binary: bundles ## build statically linked linux binaries
 	$(BAKE_CMD) binary
 
+.PHONY: dynbinary
 dynbinary: bundles ## build dynamically linked linux binaries
 	$(BAKE_CMD) dynbinary
 
+.PHONY: cross
 cross: bundles ## cross build the binaries
 	$(BAKE_CMD) binary-cross
 
+.PHONY: bundles
 bundles:
 	mkdir bundles
 
@@ -179,12 +182,15 @@ clean: clean-cache
 clean-cache: ## remove the docker volumes that are used for caching in the dev-container
 	docker volume rm -f docker-dev-cache docker-mod-cache
 
+.PHONY: help
 help: ## this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / {gsub("\\\\n",sprintf("\n%22c",""), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
+.PHONY: install
 install: ## install the linux binaries
 	KEEPBUNDLE=1 hack/make.sh install-binary
 
+.PHONY: run
 run: build ## run the docker daemon in a container
 	$(DOCKER_RUN_DOCKER) sh -c "KEEPBUNDLE=1 hack/make.sh install-binary run"
  
@@ -197,17 +203,22 @@ endif
 build: bundles
 	$(BUILD_CMD) $(BUILD_OPTS) $(shell_target) --load -t "$(DOCKER_IMAGE)" .
 
+.PHONY: shell
 shell: build  ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
+.PHONY: test
 test: build test-unit ## run the unit, integration and docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration test-docker-py
 
+.PHONY: test-docker-py
 test-docker-py: build ## run the docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-docker-py
 
+.PHONY: test-integration-cli
 test-integration-cli: test-integration ## (DEPRECATED) use test-integration
 
+.PHONY: test-integration
 ifneq ($(and $(TEST_SKIP_INTEGRATION),$(TEST_SKIP_INTEGRATION_CLI)),)
 test-integration:
 	@echo Both integrations suites skipped per environment variables
@@ -216,23 +227,29 @@ test-integration: build ## run the integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration
 endif
 
+.PHONY: test-integration-flaky
 test-integration-flaky: build ## run the stress test for all new integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration-flaky
 
+.PHONY: test-unit
 test-unit: build ## run the unit tests
 	$(DOCKER_RUN_DOCKER) hack/test/unit
 
+.PHONY: validate
 validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isolation, golint, tests, tomls, go vet and vendor
 	$(DOCKER_RUN_DOCKER) hack/validate/all
 
+.PHONY: validate-generate-files
 validate-generate-files:
 	$(BUILD_CMD) --target "validate" \
 		--output "type=cacheonly" \
 		--file "./hack/dockerfiles/generate-files.Dockerfile" .
 
+.PHONY: validate-%
 validate-%: build ## validate specific check
 	$(DOCKER_RUN_DOCKER) hack/validate/$*
 
+.PHONY: win
 win: bundles ## cross build the binary for windows
 	$(BAKE_CMD) --set *.platform=windows/amd64 binary
 
