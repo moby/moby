@@ -66,7 +66,7 @@ func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io
 		}
 
 		if msgLen != binary.BigEndian.Uint32(buf) {
-			return nil, 0, errdefs.DataLoss(errors.Wrap(err, "log message header and footer indicate different message sizes"))
+			return nil, 0, errdefs.DataLoss(errors.New("log message header and footer indicate different message sizes"))
 		}
 
 		found++
