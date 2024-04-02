@@ -26,6 +26,10 @@ const (
 	// DNSServers A list of DNS servers associated with the endpoint
 	DNSServers = Prefix + ".endpoint.dnsservers"
 
+	// EndpointSysctls is a comma separated list interface-specific sysctls
+	// where the interface name is represented by the string "IFNAME".
+	EndpointSysctls = Prefix + ".endpoint.sysctls"
+
 	// EnableIPv6 constant represents enabling IPV6 at network level
 	EnableIPv6 = Prefix + ".enable_ipv6"
 

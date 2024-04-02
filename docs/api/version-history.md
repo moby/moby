@@ -15,6 +15,18 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.46 API changes
 
+[Docker Engine API v1.46](https://docs.docker.com/engine/api/v1.46/) documentation
+
+* `POST /containers/create` field `NetworkingConfig.EndpointsConfig.DriverOpts`,
+  and `POST /networks/{id}/connect` field `EndpointsConfig.DriverOpts`, now
+  support label `com.docker.network.endpoint.sysctls` for setting per-interface
+  sysctls. The value is a comma separated list of sysctl assignments, the
+  interface name must be "IFNAME". For example, to set
+  `net.ipv4.config.eth0.log_martians=1`, use
+  `net.ipv4.config.IFNAME.log_martians=1`. In API versions up-to 1.46, top level
+  `--sysctl` settings for `eth0` will be migrated to `DriverOpts` when possible. 
+  This automatic migration will be removed for API versions 1.47 and greater.
+
 ## v1.45 API changes
 
 [Docker Engine API v1.45](https://docs.docker.com/engine/api/v1.45/) documentation

@@ -615,6 +615,21 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 		}
 	}
 
+	if sysctls, ok := epConfig.DriverOpts[netlabel.EndpointSysctls]; ok {
+		for _, sysctl := range strings.Split(sysctls, ",") {
+			scname := strings.SplitN(sysctl, ".", 5)
+			// Allow "ifname" as well as "IFNAME", because the CLI converts to lower case.
+			if len(scname) != 5 ||
+				(scname[1] != "ipv4" && scname[1] != "ipv6" && scname[1] != "mpls") ||
+				(scname[3] != "IFNAME" && scname[3] != "ifname") {
+				errs = append(errs,
+					fmt.Errorf(
+						"unrecognised network interface sysctl '%s'; represent 'net.X.Y.ethN.Z=V' as 'net.X.Y.IFNAME.Z=V', 'X' must be 'ipv4', 'ipv6' or 'mpls'",
+						sysctl))
+			}
+		}
+	}
+
 	if err := multierror.Join(errs...); err != nil {
 		return fmt.Errorf("invalid endpoint settings:\n%w", err)
 	}

@@ -4,12 +4,16 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -55,6 +59,7 @@ type Interface struct {
 	llAddrs     []*net.IPNet
 	routes      []*net.IPNet
 	bridge      bool
+	sysctls     []string
 	ns          *Namespace
 }
 
@@ -223,7 +228,7 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 	}
 
 	// Configure the interface now this is moved in the proper namespace.
-	if err := configureInterface(nlh, iface, i); err != nil {
+	if err := n.configureInterface(nlh, iface, i); err != nil {
 		// If configuring the device fails move it back to the host namespace
 		// and change the name back to the source name. This allows the caller
 		// to properly cleanup the interface. Its important especially for
@@ -312,7 +317,7 @@ func (n *Namespace) RemoveInterface(i *Interface) error {
 	return nil
 }
 
-func configureInterface(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func (n *Namespace) configureInterface(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
 	ifaceName := iface.Attrs().Name
 	ifaceConfigurators := []struct {
 		Fn         func(*netlink.Handle, netlink.Link, *Interface) error
@@ -331,6 +336,11 @@ func configureInterface(nlh *netlink.Handle, iface netlink.Link, i *Interface) e
 			return fmt.Errorf("%s: %v", config.ErrMessage, err)
 		}
 	}
+
+	if err := n.setSysctls(i.dstName, i.sysctls); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -388,6 +398,42 @@ func setInterfaceLinkLocalIPs(nlh *netlink.Handle, iface netlink.Link, i *Interf
 		ipAddr := &netlink.Addr{IPNet: llIP}
 		if err := nlh.AddrAdd(iface, ipAddr); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (n *Namespace) setSysctls(ifName string, sysctls []string) error {
+	for _, sc := range sysctls {
+		k, v, found := strings.Cut(sc, "=")
+		if !found {
+			return fmt.Errorf("expected sysctl '%s' to have format name=value", sc)
+		}
+		sk := strings.Split(k, ".")
+		if len(sk) != 5 {
+			return fmt.Errorf("expected sysctl '%s' to have format net.X.Y.IFNAME.Z", sc)
+		}
+
+		sysPath := filepath.Join(append([]string{"/proc/sys", sk[0], sk[1], sk[2], ifName}, sk[4:]...)...)
+		var errF error
+		f := func() {
+			if fi, err := os.Stat(sysPath); err != nil || !fi.Mode().IsRegular() {
+				errF = fmt.Errorf("%s is not a sysctl file", sysPath)
+			} else if curVal, err := os.ReadFile(sysPath); err != nil {
+				errF = errors.Wrapf(err, "unable to read '%s'", sysPath)
+			} else if strings.TrimSpace(string(curVal)) == v {
+				// The value is already correct, don't try to write the file in case
+				// "/proc/sys/net" is a read-only filesystem.
+			} else if err := os.WriteFile(sysPath, []byte(v), 0o644); err != nil {
+				errF = errors.Wrapf(err, "unable to write to '%s'", sysPath)
+			}
+		}
+
+		if err := n.InvokeFunc(f); err != nil {
+			return errors.Wrapf(err, "failed to run sysctl setter in network namespace")
+		}
+		if errF != nil {
+			return errF
 		}
 	}
 	return nil

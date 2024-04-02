@@ -315,6 +315,9 @@ func (sb *Sandbox) populateNetworkResources(ep *Endpoint) error {
 		if i.mac != nil {
 			ifaceOptions = append(ifaceOptions, osl.WithMACAddress(i.mac))
 		}
+		if sysctls := ep.getSysctls(); len(sysctls) > 0 {
+			ifaceOptions = append(ifaceOptions, osl.WithSysctls(sysctls))
+		}
 
 		if err := sb.osSbox.AddInterface(i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
 			return fmt.Errorf("failed to add interface %s to sandbox: %v", i.srcName, err)
