@@ -102,7 +102,7 @@ func TestHandleMACAddressBC(t *testing.T) {
 			ctrWideMAC:    "11:22:33:44:55:66",
 			networkMode:   "aNetId",
 			epConfig:      map[string]*network.EndpointSettings{"aNetName": {}},
-			expError:      "if a container-wide MAC address is supplied, HostConfig.NetworkMode must match the identity of a network in NetworkSettings.Networks",
+			expError:      "unable to migrate container-wide MAC address to a specific network: HostConfig.NetworkMode must match the identity of a network in NetworkSettings.Networks",
 			expCtrWideMAC: "11:22:33:44:55:66",
 		},
 		{
@@ -126,8 +126,8 @@ func TestHandleMACAddressBC(t *testing.T) {
 			}
 			epConfig := make(map[string]*network.EndpointSettings, len(tc.epConfig))
 			for k, v := range tc.epConfig {
-				v := v
-				epConfig[k] = v
+				v := *v
+				epConfig[k] = &v
 			}
 			netCfg := &network.NetworkingConfig{
 				EndpointsConfig: epConfig,
@@ -155,6 +155,76 @@ func TestHandleMACAddressBC(t *testing.T) {
 			}
 			gotCtrWideMAC := cfg.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 			assert.Check(t, is.Equal(gotCtrWideMAC, tc.expCtrWideMAC))
+		})
+	}
+}
+
+func TestEpConfigForNetMode(t *testing.T) {
+	testcases := []struct {
+		name        string
+		apiVersion  string
+		networkMode string
+		epConfig    map[string]*network.EndpointSettings
+		expEpId     string
+		expNumEps   int
+		expError    bool
+	}{
+		{
+			name:        "old api no eps",
+			apiVersion:  "1.43",
+			networkMode: "mynet",
+			expNumEps:   1,
+		},
+		{
+			name:        "new api no eps",
+			apiVersion:  "1.44",
+			networkMode: "mynet",
+			expNumEps:   1,
+		},
+		{
+			name:        "old api with ep",
+			apiVersion:  "1.43",
+			networkMode: "mynet",
+			epConfig: map[string]*network.EndpointSettings{
+				"anything": {EndpointID: "epone"},
+			},
+			expEpId:   "epone",
+			expNumEps: 1,
+		},
+		{
+			name:        "new api with matching ep",
+			apiVersion:  "1.44",
+			networkMode: "mynet",
+			epConfig: map[string]*network.EndpointSettings{
+				"mynet": {EndpointID: "epone"},
+			},
+			expEpId:   "epone",
+			expNumEps: 1,
+		},
+		{
+			name:        "new api with mismatched ep",
+			apiVersion:  "1.44",
+			networkMode: "mynet",
+			epConfig: map[string]*network.EndpointSettings{
+				"shortid": {EndpointID: "epone"},
+			},
+			expError: true,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			netConfig := &network.NetworkingConfig{
+				EndpointsConfig: tc.epConfig,
+			}
+			ep, err := epConfigForNetMode(tc.apiVersion, container.NetworkMode(tc.networkMode), netConfig)
+			if tc.expError {
+				assert.Check(t, is.ErrorContains(err, "HostConfig.NetworkMode must match the identity of a network in NetworkSettings.Networks"))
+			} else {
+				assert.Assert(t, err)
+				assert.Check(t, is.Equal(ep.EndpointID, tc.expEpId))
+				assert.Check(t, is.Len(netConfig.EndpointsConfig, tc.expNumEps))
+			}
 		})
 	}
 }
