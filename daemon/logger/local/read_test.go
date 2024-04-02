@@ -13,7 +13,7 @@ import (
 func TestDecode(t *testing.T) {
 	buf := make([]byte, 0)
 
-	err := marshal(&logger.Message{Line: []byte("hello")}, &buf)
+	_, err := marshal(&logger.Message{Line: []byte("hello")}, &buf)
 	assert.NilError(t, err)
 
 	for i := 0; i < len(buf); i++ {

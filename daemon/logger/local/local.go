@@ -99,7 +99,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	return newDriver(info.LogPath, cfg)
 }
 
-func marshal(m *logger.Message, buffer *[]byte) error {
+func marshal(m *logger.Message, buffer *[]byte) (int, error) {
 	proto := logdriver.LogEntry{}
 	md := logdriver.PartialLogEntryMetadata{}
 
@@ -124,13 +124,13 @@ func marshal(m *logger.Message, buffer *[]byte) error {
 	binary.BigEndian.PutUint32(buf[:encodeBinaryLen], uint32(protoSize))
 	n, err := proto.MarshalTo(buf[encodeBinaryLen:writeLen])
 	if err != nil {
-		return errors.Wrap(err, "error marshaling log entry")
+		return -1, errors.Wrap(err, "error marshaling log entry")
 	}
 	if n+(encodeBinaryLen*2) != writeLen {
-		return io.ErrShortWrite
+		return -1, io.ErrShortWrite
 	}
 	binary.BigEndian.PutUint32(buf[writeLen-encodeBinaryLen:writeLen], uint32(protoSize))
-	return nil
+	return writeLen, nil
 }
 
 func newDriver(logPath string, cfg *CreateConfig) (logger.Logger, error) {
@@ -156,13 +156,14 @@ func (d *driver) Log(msg *logger.Message) error {
 	defer buffersPool.Put(buf)
 
 	timestamp := msg.Timestamp
-	err := marshal(msg, buf)
+	n, err := marshal(msg, buf)
 	logger.PutMessage(msg)
 
 	if err != nil {
 		return errors.Wrap(err, "error marshalling logger.Message")
 	}
-	return d.logfile.WriteLogEntry(timestamp, *buf)
+	b := *buf
+	return d.logfile.WriteLogEntry(timestamp, b[:n])
 }
 
 func (d *driver) Close() error {
