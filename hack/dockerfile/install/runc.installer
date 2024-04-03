@@ -9,12 +9,12 @@ set -e
 # the containerd project first, and update both after that is merged.
 #
 # When updating RUNC_VERSION, consider updating runc in vendor.mod accordingly
-: "${RUNC_VERSION:=321aa20c49568ea2e2a3f708a50ccffb1bd67c79}"
+: "${RUNC_VERSION:=1950892f69597aa844cbf000fbdf77610dda3a44}"
 
 install_runc() {
-	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp"}"
+	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-""}"
 
-	echo "Install runc version $RUNC_VERSION (build tags: $RUNC_BUILDTAGS)"
+	echo "Install runc version $RUNC_VERSION (extra build tags: $RUNC_BUILDTAGS)"
 	git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"
 	cd "$GOPATH/src/github.com/opencontainers/runc"
 	git checkout -q "$RUNC_VERSION"
@@ -23,7 +23,7 @@ install_runc() {
 	else
 		target="$1"
 	fi
-	make BUILDTAGS="$RUNC_BUILDTAGS" "$target"
+	make EXTRA_BUILDTAGS="$RUNC_BUILDTAGS" "$target"
 	mkdir -p "${PREFIX}"
 	cp runc "${PREFIX}/runc"
 }
