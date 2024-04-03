@@ -456,14 +456,26 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	if hostConfig == nil {
 		hostConfig = &container.HostConfig{}
 	}
-	if hostConfig.NetworkMode == "" {
-		hostConfig.NetworkMode = "default"
-	}
 	if networkingConfig == nil {
 		networkingConfig = &network.NetworkingConfig{}
 	}
 	if networkingConfig.EndpointsConfig == nil {
 		networkingConfig.EndpointsConfig = make(map[string]*network.EndpointSettings)
+	}
+	// The NetworkMode "default" is used as a way to express a container should
+	// be attached to the OS-dependant default network, in an OS-independent
+	// way. Doing this conversion as soon as possible ensures we have less
+	// NetworkMode to handle down the path (including in the
+	// backward-compatibility layer we have just below).
+	//
+	// Note that this is not the only place where this conversion has to be
+	// done (as there are various other places where containers get created).
+	if hostConfig.NetworkMode == "" || hostConfig.NetworkMode.IsDefault() {
+		hostConfig.NetworkMode = runconfig.DefaultDaemonNetworkMode()
+		if nw, ok := networkingConfig.EndpointsConfig[network.NetworkDefault]; ok {
+			networkingConfig.EndpointsConfig[hostConfig.NetworkMode.NetworkName()] = nw
+			delete(networkingConfig.EndpointsConfig, network.NetworkDefault)
+		}
 	}
 
 	version := httputils.VersionFromContext(ctx)
@@ -646,7 +658,7 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 			}
 			return "", nil
 		}
-		if !hostConfig.NetworkMode.IsDefault() && !hostConfig.NetworkMode.IsBridge() && !hostConfig.NetworkMode.IsUserDefined() {
+		if !hostConfig.NetworkMode.IsBridge() && !hostConfig.NetworkMode.IsUserDefined() {
 			return "", runconfig.ErrConflictContainerNetworkAndMac
 		}
 
@@ -675,7 +687,7 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 		return "", nil
 	}
 	var warning string
-	if hostConfig.NetworkMode.IsDefault() || hostConfig.NetworkMode.IsBridge() || hostConfig.NetworkMode.IsUserDefined() {
+	if hostConfig.NetworkMode.IsBridge() || hostConfig.NetworkMode.IsUserDefined() {
 		nwName := hostConfig.NetworkMode.NetworkName()
 		// If there's no endpoint config, create a place to store the configured address.
 		if len(networkingConfig.EndpointsConfig) == 0 {
