@@ -569,12 +569,12 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 		return sb.setupDefaultGW()
 	}
 
-	currentExtEp := sb.getGatewayEndpoint()
 	// Enable upstream forwarding if the sandbox gained external connectivity.
 	if sb.resolver != nil {
-		sb.resolver.SetForwardingPolicy(currentExtEp != nil)
+		sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
 	}
 
+	currentExtEp := sb.getGatewayEndpoint()
 	moveExtConn := currentExtEp != extEp
 	if moveExtConn {
 		if extEp != nil {
@@ -767,13 +767,13 @@ func (ep *Endpoint) sbLeave(sb *Sandbox, force bool) error {
 		return sb.setupDefaultGW()
 	}
 
-	// New endpoint providing external connectivity for the sandbox
-	extEp = sb.getGatewayEndpoint()
 	// Disable upstream forwarding if the sandbox lost external connectivity.
 	if sb.resolver != nil {
-		sb.resolver.SetForwardingPolicy(extEp != nil)
+		sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
 	}
 
+	// New endpoint providing external connectivity for the sandbox
+	extEp = sb.getGatewayEndpoint()
 	if moveExtConn && extEp != nil {
 		log.G(context.TODO()).Debugf("Programming external connectivity on endpoint %s (%s)", extEp.Name(), extEp.ID())
 		extN, err := extEp.getNetworkFromStore()

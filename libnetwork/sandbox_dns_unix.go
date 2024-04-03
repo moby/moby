@@ -48,7 +48,7 @@ func (sb *Sandbox) startResolver(restore bool) {
 		// have a gateway. So, if the Sandbox is only connected to an 'internal' network,
 		// it will not forward DNS requests to external resolvers. The resolver's
 		// proxyDNS setting is then updated as network Endpoints are added/removed.
-		sb.resolver = NewResolver(resolverIPSandbox, sb.getGatewayEndpoint() != nil, sb)
+		sb.resolver = NewResolver(resolverIPSandbox, sb.hasExternalAccess(), sb)
 		defer func() {
 			if err != nil {
 				sb.resolver = nil
