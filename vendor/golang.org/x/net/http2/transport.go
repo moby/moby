@@ -2911,6 +2911,15 @@ func (rl *clientConnReadLoop) processWindowUpdate(f *WindowUpdateFrame) error {
 		fl = &cs.flow
 	}
 	if !fl.add(int32(f.Increment)) {
+		// For stream, the sender sends RST_STREAM with an error code of FLOW_CONTROL_ERROR
+		if cs != nil {
+			rl.endStreamError(cs, StreamError{
+				StreamID: f.StreamID,
+				Code:     ErrCodeFlowControl,
+			})
+			return nil
+		}
+
 		return ConnectionError(ErrCodeFlowControl)
 	}
 	cc.cond.Broadcast()
