@@ -101,6 +101,11 @@ type ProgramInfo struct {
 
 	maps  []MapID
 	insns []byte
+
+	lineInfos    []byte
+	numLineInfos uint32
+	funcInfos    []byte
+	numFuncInfos uint32
 }
 
 func newProgramInfoFromFd(fd *sys.FD) (*ProgramInfo, error) {
@@ -128,10 +133,13 @@ func newProgramInfoFromFd(fd *sys.FD) (*ProgramInfo, error) {
 	// Start with a clean struct for the second call, otherwise we may get EFAULT.
 	var info2 sys.ProgInfo
 
+	makeSecondCall := false
+
 	if info.NrMapIds > 0 {
 		pi.maps = make([]MapID, info.NrMapIds)
 		info2.NrMapIds = info.NrMapIds
 		info2.MapIds = sys.NewPointer(unsafe.Pointer(&pi.maps[0]))
+		makeSecondCall = true
 	} else if haveProgramInfoMapIDs() == nil {
 		// This program really has no associated maps.
 		pi.maps = make([]MapID, 0)
@@ -150,9 +158,28 @@ func newProgramInfoFromFd(fd *sys.FD) (*ProgramInfo, error) {
 		pi.insns = make([]byte, info.XlatedProgLen)
 		info2.XlatedProgLen = info.XlatedProgLen
 		info2.XlatedProgInsns = sys.NewSlicePointer(pi.insns)
+		makeSecondCall = true
 	}
 
-	if info.NrMapIds > 0 || info.XlatedProgLen > 0 {
+	if info.NrLineInfo > 0 {
+		pi.lineInfos = make([]byte, btf.LineInfoSize*info.NrLineInfo)
+		info2.LineInfo = sys.NewSlicePointer(pi.lineInfos)
+		info2.LineInfoRecSize = btf.LineInfoSize
+		info2.NrLineInfo = info.NrLineInfo
+		pi.numLineInfos = info.NrLineInfo
+		makeSecondCall = true
+	}
+
+	if info.NrFuncInfo > 0 {
+		pi.funcInfos = make([]byte, btf.FuncInfoSize*info.NrFuncInfo)
+		info2.FuncInfo = sys.NewSlicePointer(pi.funcInfos)
+		info2.FuncInfoRecSize = btf.FuncInfoSize
+		info2.NrFuncInfo = info.NrFuncInfo
+		pi.numFuncInfos = info.NrFuncInfo
+		makeSecondCall = true
+	}
+
+	if makeSecondCall {
 		if err := sys.ObjInfo(fd, &info2); err != nil {
 			return nil, err
 		}
@@ -245,7 +272,13 @@ func (pi *ProgramInfo) Runtime() (time.Duration, bool) {
 //
 // The first instruction is marked as a symbol using the Program's name.
 //
-// Available from 4.13. Requires CAP_BPF or equivalent.
+// If available, the instructions will be annotated with metadata from the
+// BTF. This includes line information and function information. Reading
+// this metadata requires CAP_SYS_ADMIN or equivalent. If capability is
+// unavailable, the instructions will be returned without metadata.
+//
+// Available from 4.13. Requires CAP_BPF or equivalent for plain instructions.
+// Requires CAP_SYS_ADMIN for instructions with metadata.
 func (pi *ProgramInfo) Instructions() (asm.Instructions, error) {
 	// If the calling process is not BPF-capable or if the kernel doesn't
 	// support getting xlated instructions, the field will be zero.
@@ -259,8 +292,55 @@ func (pi *ProgramInfo) Instructions() (asm.Instructions, error) {
 		return nil, fmt.Errorf("unmarshaling instructions: %w", err)
 	}
 
-	// Tag the first instruction with the name of the program, if available.
-	insns[0] = insns[0].WithSymbol(pi.Name)
+	if pi.btf != 0 {
+		btfh, err := btf.NewHandleFromID(pi.btf)
+		if err != nil {
+			// Getting a BTF handle requires CAP_SYS_ADMIN, if not available we get an -EPERM.
+			// Ignore it and fall back to instructions without metadata.
+			if !errors.Is(err, unix.EPERM) {
+				return nil, fmt.Errorf("unable to get BTF handle: %w", err)
+			}
+		}
+
+		// If we have a BTF handle, we can use it to assign metadata to the instructions.
+		if btfh != nil {
+			defer btfh.Close()
+
+			spec, err := btfh.Spec(nil)
+			if err != nil {
+				return nil, fmt.Errorf("unable to get BTF spec: %w", err)
+			}
+
+			lineInfos, err := btf.LoadLineInfos(
+				bytes.NewReader(pi.lineInfos),
+				internal.NativeEndian,
+				pi.numLineInfos,
+				spec,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("parse line info: %w", err)
+			}
+
+			funcInfos, err := btf.LoadFuncInfos(
+				bytes.NewReader(pi.funcInfos),
+				internal.NativeEndian,
+				pi.numFuncInfos,
+				spec,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("parse func info: %w", err)
+			}
+
+			btf.AssignMetadataToInstructions(insns, funcInfos, lineInfos, btf.CORERelocationInfos{})
+		}
+	}
+
+	fn := btf.FuncMetadata(&insns[0])
+	name := pi.Name
+	if fn != nil {
+		name = fn.Name
+	}
+	insns[0] = insns[0].WithSymbol(name)
 
 	return insns, nil
 }

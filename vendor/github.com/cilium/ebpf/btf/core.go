@@ -18,8 +18,8 @@ import (
 // COREFixup is the result of computing a CO-RE relocation for a target.
 type COREFixup struct {
 	kind   coreKind
-	local  uint32
-	target uint32
+	local  uint64
+	target uint64
 	// True if there is no valid fixup. The instruction is replaced with an
 	// invalid dummy.
 	poison bool
@@ -196,12 +196,12 @@ func CORERelocate(relos []*CORERelocation, target *Spec, bo binary.ByteOrder) ([
 
 			result[i] = COREFixup{
 				kind:  relo.kind,
-				local: uint32(relo.id),
+				local: uint64(relo.id),
 				// NB: Using relo.id as the target here is incorrect, since
 				// it doesn't match the BTF we generate on the fly. This isn't
 				// too bad for now since there are no uses of the local type ID
 				// in the kernel, yet.
-				target: uint32(relo.id),
+				target: uint64(relo.id),
 			}
 			continue
 		}
@@ -311,10 +311,10 @@ var errNoSignedness = errors.New("no signedness")
 // coreCalculateFixup calculates the fixup for a single local type, target type
 // and relocation.
 func coreCalculateFixup(relo *CORERelocation, target Type, targetID TypeID, bo binary.ByteOrder) (COREFixup, error) {
-	fixup := func(local, target uint32) (COREFixup, error) {
+	fixup := func(local, target uint64) (COREFixup, error) {
 		return COREFixup{kind: relo.kind, local: local, target: target}, nil
 	}
-	fixupWithoutValidation := func(local, target uint32) (COREFixup, error) {
+	fixupWithoutValidation := func(local, target uint64) (COREFixup, error) {
 		return COREFixup{kind: relo.kind, local: local, target: target, skipLocalValidation: true}, nil
 	}
 	poison := func() (COREFixup, error) {
@@ -346,7 +346,7 @@ func coreCalculateFixup(relo *CORERelocation, target Type, targetID TypeID, bo b
 			return fixup(1, 1)
 
 		case reloTypeIDTarget:
-			return fixup(uint32(relo.id), uint32(targetID))
+			return fixup(uint64(relo.id), uint64(targetID))
 
 		case reloTypeSize:
 			localSize, err := Sizeof(local)
@@ -359,7 +359,7 @@ func coreCalculateFixup(relo *CORERelocation, target Type, targetID TypeID, bo b
 				return zero, err
 			}
 
-			return fixup(uint32(localSize), uint32(targetSize))
+			return fixup(uint64(localSize), uint64(targetSize))
 		}
 
 	case reloEnumvalValue, reloEnumvalExists:
@@ -376,7 +376,7 @@ func coreCalculateFixup(relo *CORERelocation, target Type, targetID TypeID, bo b
 			return fixup(1, 1)
 
 		case reloEnumvalValue:
-			return fixup(uint32(localValue.Value), uint32(targetValue.Value))
+			return fixup(localValue.Value, targetValue.Value)
 		}
 
 	case reloFieldByteOffset, reloFieldByteSize, reloFieldExists, reloFieldLShiftU64, reloFieldRShiftU64, reloFieldSigned:
@@ -405,7 +405,7 @@ func coreCalculateFixup(relo *CORERelocation, target Type, targetID TypeID, bo b
 			return fixup(1, 1)
 
 		case reloFieldByteOffset:
-			return maybeSkipValidation(fixup(localField.offset, targetField.offset))
+			return maybeSkipValidation(fixup(uint64(localField.offset), uint64(targetField.offset)))
 
 		case reloFieldByteSize:
 			localSize, err := Sizeof(localField.Type)
@@ -417,24 +417,24 @@ func coreCalculateFixup(relo *CORERelocation, target Type, targetID TypeID, bo b
 			if err != nil {
 				return zero, err
 			}
-			return maybeSkipValidation(fixup(uint32(localSize), uint32(targetSize)))
+			return maybeSkipValidation(fixup(uint64(localSize), uint64(targetSize)))
 
 		case reloFieldLShiftU64:
-			var target uint32
+			var target uint64
 			if bo == binary.LittleEndian {
 				targetSize, err := targetField.sizeBits()
 				if err != nil {
 					return zero, err
 				}
 
-				target = uint32(64 - targetField.bitfieldOffset - targetSize)
+				target = uint64(64 - targetField.bitfieldOffset - targetSize)
 			} else {
 				loadWidth, err := Sizeof(targetField.Type)
 				if err != nil {
 					return zero, err
 				}
 
-				target = uint32(64 - Bits(loadWidth*8) + targetField.bitfieldOffset)
+				target = uint64(64 - Bits(loadWidth*8) + targetField.bitfieldOffset)
 			}
 			return fixupWithoutValidation(0, target)
 
@@ -444,7 +444,7 @@ func coreCalculateFixup(relo *CORERelocation, target Type, targetID TypeID, bo b
 				return zero, err
 			}
 
-			return fixupWithoutValidation(0, uint32(64-targetSize))
+			return fixupWithoutValidation(0, uint64(64-targetSize))
 
 		case reloFieldSigned:
 			switch local := UnderlyingType(localField.Type).(type) {
@@ -454,7 +454,7 @@ func coreCalculateFixup(relo *CORERelocation, target Type, targetID TypeID, bo b
 					return zero, fmt.Errorf("target isn't *Enum but %T", targetField.Type)
 				}
 
-				return fixup(boolToUint32(local.Signed), boolToUint32(target.Signed))
+				return fixup(boolToUint64(local.Signed), boolToUint64(target.Signed))
 			case *Int:
 				target, ok := as[*Int](targetField.Type)
 				if !ok {
@@ -462,8 +462,8 @@ func coreCalculateFixup(relo *CORERelocation, target Type, targetID TypeID, bo b
 				}
 
 				return fixup(
-					uint32(local.Encoding&Signed),
-					uint32(target.Encoding&Signed),
+					uint64(local.Encoding&Signed),
+					uint64(target.Encoding&Signed),
 				)
 			default:
 				return zero, fmt.Errorf("type %T: %w", local, errNoSignedness)
@@ -474,7 +474,7 @@ func coreCalculateFixup(relo *CORERelocation, target Type, targetID TypeID, bo b
 	return zero, ErrNotSupported
 }
 
-func boolToUint32(val bool) uint32 {
+func boolToUint64(val bool) uint64 {
 	if val {
 		return 1
 	}
@@ -799,7 +799,7 @@ func coreFindMember(typ composite, name string) (Member, bool, error) {
 		if visited[target] {
 			continue
 		}
-		if len(visited) >= maxTypeDepth {
+		if len(visited) >= maxResolveDepth {
 			// This check is different than libbpf, which restricts the entire
 			// path to BPF_CORE_SPEC_MAX_LEN items.
 			return Member{}, false, fmt.Errorf("type is nested too deep")
@@ -895,7 +895,7 @@ func coreAreTypesCompatible(localType Type, targetType Type) error {
 	)
 
 	for ; l != nil && t != nil; l, t = localTs.Shift(), targetTs.Shift() {
-		if depth >= maxTypeDepth {
+		if depth >= maxResolveDepth {
 			return errors.New("types are nested too deep")
 		}
 
