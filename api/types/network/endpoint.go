@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/internal/multierror"
+	"github.com/moby/moby/internal/multierror"
 )
 
 // EndpointSettings stores the network endpoint details
