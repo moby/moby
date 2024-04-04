@@ -5,10 +5,7 @@ package ipvlan // import "github.com/docker/docker/integration/network/ipvlan"
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -27,7 +24,7 @@ import (
 func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 	// verify the driver automatically provisions the 802.1q link (di-dummy0.70)
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, !ipvlanKernelSupport(t), "Kernel doesn't support ipvlan")
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -56,7 +53,7 @@ func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 
 func TestDockerNetworkIpvlan(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, !ipvlanKernelSupport(t), "Kernel doesn't support ipvlan")
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -442,27 +439,6 @@ func testIpvlanL3Addressing(t *testing.T, ctx context.Context, client dclient.AP
 	result, err = container.Exec(ctx, client, id, []string{"ip", "-6", "route"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(result.Combined(), "default dev eth0"))
-}
-
-var (
-	once            sync.Once
-	ipvlanSupported bool
-)
-
-// figure out if ipvlan is supported by the kernel
-func ipvlanKernelSupport(t *testing.T) bool {
-	once.Do(func() {
-		// this may have the side effect of enabling the ipvlan module
-		exec.Command("modprobe", "ipvlan").Run()
-		_, err := os.Stat("/sys/module/ipvlan")
-		if err == nil {
-			ipvlanSupported = true
-		} else if !os.IsNotExist(err) {
-			t.Logf("WARNING: ipvlanKernelSupport: stat failed: %v\n", err)
-		}
-	})
-
-	return ipvlanSupported
 }
 
 // TestIPVlanDNS checks whether DNS is forwarded, for combinations of l2/l3 mode,
