@@ -35,6 +35,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -121,6 +123,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -175,6 +179,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -229,6 +235,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -374,6 +382,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
