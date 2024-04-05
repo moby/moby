@@ -187,7 +187,7 @@ func buildLabelOptions(labels map[string]string, stages []instructions.Stage) {
 func (b *Builder) build(ctx context.Context, source builder.Source, dockerfile *parser.Result) (*builder.Result, error) {
 	defer b.imageSources.Unmount()
 
-	stages, metaArgs, err := instructions.Parse(dockerfile.AST)
+	stages, metaArgs, err := instructions.Parse(dockerfile.AST, nil)
 	if err != nil {
 		var uiErr *instructions.UnknownInstructionError
 		if errors.As(err, &uiErr) {
