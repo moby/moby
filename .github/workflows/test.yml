@@ -53,6 +53,10 @@ jobs:
             *.cache-from=type=gha,scope=dev${{ matrix.mode }}
             *.cache-to=type=gha,scope=dev${{ matrix.mode }},mode=max
             *.output=type=cacheonly
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   test:
     needs:
@@ -123,6 +127,10 @@ jobs:
         name: Validate
         run: |
           make -o build validate-${{ matrix.script }}
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   smoke-prepare:
     runs-on: ubuntu-20.04
@@ -175,3 +183,7 @@ jobs:
           targets: binary-smoketest
           set: |
             *.platform=${{ matrix.platform }}
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context

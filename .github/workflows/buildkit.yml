@@ -137,3 +137,7 @@ jobs:
           TESTPKGS: "./${{ matrix.pkg }}"
           TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=${{ matrix.worker }}$"
         working-directory: buildkit
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context

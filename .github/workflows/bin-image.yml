@@ -78,6 +78,10 @@ jobs:
         id: platforms
         run: |
           echo "matrix=$(docker buildx bake bin-image-cross --print | jq -cr '.target."bin-image-cross".platforms')" >>${GITHUB_OUTPUT}
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   build:
     runs-on: ubuntu-20.04
@@ -148,6 +152,10 @@ jobs:
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   merge:
     runs-on: ubuntu-20.04
@@ -189,3 +197,7 @@ jobs:
         run: |
           set -x
           docker buildx imagetools inspect ${{ env.MOBYBIN_REPO_SLUG }}:$(jq -cr '.target."docker-metadata-action".args.DOCKER_META_VERSION' /tmp/bake-meta.json)
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context

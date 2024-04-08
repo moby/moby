@@ -1,0 +1,76 @@
+# https://help.github.com/en/articles/metadata-syntax-for-github-actions
+name: 'Dump context'
+description: 'GitHub Action composite to dump context'
+
+runs:
+  using: "composite"
+  steps:
+    -
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+
+          await core.group(`Env vars`, async () => {
+            const envs = Object.keys(process.env).sort().reduce(
+              (obj, key) => {
+                obj[key] = process.env[key];
+                return obj;
+              }, {}
+            );
+            core.info(JSON.stringify(Object.fromEntries(Object.entries(envs).filter(([key]) => !key.startsWith('GHACTION_DCTX_') && !key.startsWith('INPUT_'))), null, 2));
+          });
+
+          await core.group(`GitHub context`, async () => {
+            core.info(JSON.stringify(JSON.parse(`${process.env.GHACTION_DCTX_GITHUB_CONTEXT}`), null, 2));
+          });
+          await core.group(`Job context`, async () => {
+            core.info(JSON.stringify(JSON.parse(`${process.env.GHACTION_DCTX_JOB_CONTEXT}`), null, 2));
+          });
+          await core.group(`Steps context`, async () => {
+            core.info(JSON.stringify(JSON.parse(`${process.env.GHACTION_DCTX_STEPS_CONTEXT}`), null, 2));
+          });
+          await core.group(`Runner context`, async () => {
+            core.info(JSON.stringify(JSON.parse(`${process.env.GHACTION_DCTX_RUNNER_CONTEXT}`), null, 2));
+          });
+          await core.group(`Strategy context`, async () => {
+            core.info(JSON.stringify(JSON.parse(`${process.env.GHACTION_DCTX_STRATEGY_CONTEXT}`), null, 2));
+          });
+          await core.group(`Matrix context`, async () => {
+            core.info(JSON.stringify(JSON.parse(`${process.env.GHACTION_DCTX_MATRIX_CONTEXT}`), null, 2));
+          });
+
+          if (`${process.env.RUNNER_OS}` == 'Linux') {
+            await core.group(`Print cpuinfo`, async () => {
+              await exec.exec('cat /proc/cpuinfo');
+            });
+            await core.group(`Print cpuid`, async () => {
+              const cpuid = await exec.getExecOutput('which cpuid', [], {silent: true, ignoreReturnCode: true})
+              if (cpuid.stdout != "") {
+                await exec.exec('cpuid');
+              } else {
+                core.info('cpuid not found')
+              }
+            });
+            await core.group(`File system`, async () => {
+              await exec.exec('df -ah');
+            });
+            await core.group(`Mounts`, async () => {
+              await exec.exec('mount');
+            });
+            await core.group(`Docker daemon conf`, async () => {
+              if ((fs.statSync('/etc/docker', {throwIfNoEntry: false}) != undefined) &&
+                  (fs.statSync('/etc/docker/daemon.json', {throwIfNoEntry: false}) != undefined)) {
+                core.info(JSON.stringify(JSON.parse(fs.readFileSync('/etc/docker/daemon.json', {encoding: 'utf-8'}).trim()), null, 2));
+              } else {
+                core.info('/etc/docker/daemon.json not present')
+              }
+            });
+          }
+      env:
+        GHACTION_DCTX_GITHUB_CONTEXT: ${{ toJson(github) }}
+        GHACTION_DCTX_JOB_CONTEXT: ${{ toJson(job) }}
+        GHACTION_DCTX_STEPS_CONTEXT: ${{ toJson(steps) }}
+        GHACTION_DCTX_RUNNER_CONTEXT: ${{ toJson(runner) }}
+        GHACTION_DCTX_STRATEGY_CONTEXT: ${{ toJson(strategy) }}
+        GHACTION_DCTX_MATRIX_CONTEXT: ${{ toJson(matrix) }}

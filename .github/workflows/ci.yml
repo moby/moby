@@ -51,6 +51,10 @@ jobs:
         name: Check artifacts
         run: |
           find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   prepare-cross:
     runs-on: ubuntu-latest
@@ -111,3 +115,7 @@ jobs:
         name: Check artifacts
         run: |
           find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
