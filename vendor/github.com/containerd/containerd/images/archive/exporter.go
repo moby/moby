@@ -471,6 +471,7 @@ func ociIndexRecord(manifests []ocispec.Descriptor) tarRecord {
 		Versioned: ocispecs.Versioned{
 			SchemaVersion: 2,
 		},
+		MediaType: ocispec.MediaTypeImageIndex,
 		Manifests: manifests,
 	}
 
