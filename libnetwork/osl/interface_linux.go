@@ -363,17 +363,24 @@ func setInterfaceIP(nlh *netlink.Handle, iface netlink.Link, i *Interface) error
 }
 
 func setInterfaceIPv6(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
-	if i.AddressIPv6() == nil {
+	addr := i.AddressIPv6()
+	// IPv6 must be enabled on the interface if and only if the network is
+	// IPv6-enabled. For an interface on an IPv4-only network, if IPv6 isn't
+	// disabled, the interface will be put into IPv6 multicast groups making
+	// it unexpectedly susceptible to NDP cache poisoning, route injection, etc.
+	// (At present, there will always be a pre-configured IPv6 address if the
+	// network is IPv6-enabled.)
+	if err := setIPv6(i.ns.path, i.DstName(), addr != nil); err != nil {
+		return fmt.Errorf("failed to configure ipv6: %v", err)
+	}
+	if addr == nil {
 		return nil
 	}
-	if err := checkRouteConflict(nlh, i.AddressIPv6(), netlink.FAMILY_V6); err != nil {
+	if err := checkRouteConflict(nlh, addr, netlink.FAMILY_V6); err != nil {
 		return err
 	}
-	if err := setIPv6(i.ns.path, i.DstName(), true); err != nil {
-		return fmt.Errorf("failed to enable ipv6: %v", err)
-	}
-	ipAddr := &netlink.Addr{IPNet: i.AddressIPv6(), Label: "", Flags: syscall.IFA_F_NODAD}
-	return nlh.AddrAdd(iface, ipAddr)
+	nlAddr := &netlink.Addr{IPNet: addr, Label: "", Flags: syscall.IFA_F_NODAD}
+	return nlh.AddrAdd(iface, nlAddr)
 }
 
 func setInterfaceLinkLocalIPs(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -611,8 +612,8 @@ func TestInternalNwConnectivity(t *testing.T) {
 	assert.Check(t, is.Contains(res.Stderr(), "Network is unreachable"))
 }
 
-// Check that the container's interface has no IPv6 address when IPv6 is
-// disabled in a container via sysctl.
+// Check that the container's interfaces have no IPv6 address when IPv6 is
+// disabled in a container via sysctl (including 'lo').
 func TestDisableIPv6Addrs(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
@@ -674,6 +675,40 @@ func TestDisableIPv6Addrs(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Check that an interface to an '--ipv6=false' network has no IPv6
+// address - either IPAM assigned, or kernel-assigned LL, but the loopback
+// interface does still have an IPv6 address ('::1').
+func TestNonIPv6Network(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const netName = "testnet"
+	network.CreateNoError(ctx, t, c, netName)
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
+	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+	loRes := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "lo"})
+	assert.Check(t, is.Contains(loRes.Combined(), " inet "))
+	assert.Check(t, is.Contains(loRes.Combined(), " inet6 "))
+
+	eth0Res := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "eth0"})
+	assert.Check(t, is.Contains(eth0Res.Combined(), " inet "))
+	assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet6 "),
+		"result.Combined(): %s", eth0Res.Combined())
+
+	sysctlRes := container.ExecT(ctx, t, c, id, []string{"sysctl", "-n", "net.ipv6.conf.eth0.disable_ipv6"})
+	assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), "1"))
 }
 
 // Test that it's possible to set a sysctl on an interface in the container.
