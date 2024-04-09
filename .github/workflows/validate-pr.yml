@@ -1,0 +1,46 @@
+name: validate-pr
+
+on:
+  pull_request:
+    types: [opened, edited, labeled, unlabeled]
+
+jobs:
+  check-area-label:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Missing `area/` label
+        if: contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') && !contains(join(github.event.pull_request.labels.*.name, ','), 'area/')
+        run: |
+          echo "Every PR with an \`impact/*\` label should also have an \`area/*\` label"
+          exit 1
+      - name: OK
+        run: exit 0
+
+  check-changelog:
+    if: contains(join(github.event.pull_request.labels.*.name, ','), 'impact/')
+    runs-on: ubuntu-20.04
+    env:
+      PR_BODY: |
+        ${{ github.event.pull_request.body }}
+    steps:
+      - name: Check changelog description
+        run: |
+          # Extract the `markdown changelog` note code block
+          block=$(echo -n "$PR_BODY" | tr -d '\r' | awk '/^```markdown changelog$/{flag=1;next}/^```$/{flag=0}flag')
+
+          # Strip empty lines
+          desc=$(echo "$block" |  awk NF)
+
+          if [ -z "$desc" ]; then
+            echo "Changelog section is empty. Please provide a description for the changelog."
+            exit 1
+          fi
+
+          len=$(echo -n "$desc" | wc -c)
+          if [[ $len -le 6 ]]; then
+            echo "Description looks too short: $desc"
+            exit 1
+          fi
+
+          echo "This PR will be included in the release notes with the following note:"
+          echo "$desc"
