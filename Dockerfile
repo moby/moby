@@ -306,7 +306,7 @@ RUN --mount=from=runc-src,src=/usr/src/runc,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=runc-build-$TARGETPLATFORM <<EOT
   set -e
   xx-go --wrap
-  CGO_ENABLED=1 make "$([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "runc")"
+  CGO_ENABLED=1 make BUILDTAGS="secccomp runc_nodmz" "$([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "runc")"
   xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") runc
   mkdir /build
   mv runc /build/
