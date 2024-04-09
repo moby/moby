@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -87,6 +88,9 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 		}, {
 			name: "Addressing",
 			test: testIpvlanAddressing,
+		}, {
+			name: "NoIPv6",
+			test: testIpvlanNoIPv6,
 		},
 	} {
 
@@ -419,4 +423,26 @@ func ipvlanKernelSupport(t *testing.T) bool {
 	})
 
 	return ipvlanSupported
+}
+
+// Check that an ipvlan interface with '--ipv6=false' doesn't get kernel-assigned
+// IPv6 addresses, but the loopback interface does still have an IPv6 address ('::1').
+func testIpvlanNoIPv6(t *testing.T, ctx context.Context, client dclient.APIClient) {
+	const netName = "ipvlannet"
+	net.CreateNoError(ctx, t, client, netName, net.WithIPvlan("", "l3"))
+	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+
+	id := container.Run(ctx, t, client, container.WithNetworkMode(netName))
+
+	loRes := container.ExecT(ctx, t, client, id, []string{"ip", "a", "show", "dev", "lo"})
+	assert.Check(t, is.Contains(loRes.Combined(), " inet "))
+	assert.Check(t, is.Contains(loRes.Combined(), " inet6 "))
+
+	eth0Res := container.ExecT(ctx, t, client, id, []string{"ip", "a", "show", "dev", "eth0"})
+	assert.Check(t, is.Contains(eth0Res.Combined(), " inet "))
+	assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet6 "),
+		"result.Combined(): %s", eth0Res.Combined())
+
+	sysctlRes := container.ExecT(ctx, t, client, id, []string{"sysctl", "-n", "net.ipv6.conf.eth0.disable_ipv6"})
+	assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), "1"))
 }
