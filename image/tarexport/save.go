@@ -223,8 +223,6 @@ func (s *saveSession) save(outStream io.Writer) error {
 			})
 		}
 
-		imgPlat := imageDescr.image.Platform()
-
 		m := ocispec.Manifest{
 			Versioned: specs.Versioned{
 				SchemaVersion: 2,
@@ -234,7 +232,6 @@ func (s *saveSession) save(outStream io.Writer) error {
 				MediaType: ocispec.MediaTypeImageConfig,
 				Digest:    digest.Digest(imageDescr.image.ID()),
 				Size:      int64(len(imageDescr.image.RawJSON())),
-				Platform:  &imgPlat,
 			},
 			Layers: foreign,
 		}
