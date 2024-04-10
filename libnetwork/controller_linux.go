@@ -1,11 +1,9 @@
 package libnetwork
 
 import (
-	"context"
 	"fmt"
 	"sync"
 
-	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
@@ -77,13 +75,6 @@ func (c *Controller) setupOSLSandbox(sb *Sandbox) error {
 
 	if sb.osSbox != nil {
 		// Apply operating specific knobs on the load balancer sandbox
-		err := sb.osSbox.InvokeFunc(func() {
-			sb.osSbox.ApplyOSTweaks(sb.oslTypes)
-		})
-		if err != nil {
-			log.G(context.TODO()).Errorf("Failed to apply performance tuning sysctls to the sandbox: %v", err)
-		}
-		// Keep this just so performance is not changed
 		sb.osSbox.ApplyOSTweaks(sb.oslTypes)
 	}
 	return nil

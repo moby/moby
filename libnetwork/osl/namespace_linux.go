@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"os"
 	"path/filepath"
@@ -576,21 +577,47 @@ func (n *Namespace) RefreshIPv6LoEnabled() {
 	n.ipv6LoEnabledCached = len(addrs) > 0
 }
 
+var (
+	ipvsTweaks = map[string]*kernel.OSValue{
+		// disables any special handling on port reuse of existing IPVS connection table entries
+		// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L32
+		"net.ipv4.vs.conn_reuse_mode": {Value: "0", CheckFn: nil},
+		// expires connection from the IPVS connection table when the backend is not available
+		// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L133
+		"net.ipv4.vs.expire_nodest_conn": {Value: "1", CheckFn: nil},
+		// expires persistent connections to destination servers with weights set to 0
+		// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L151
+		"net.ipv4.vs.expire_quiescent_template": {Value: "1", CheckFn: nil},
+	}
+	containerTweaks = map[string]*kernel.OSValue{
+		// Broadcast unsolicited neighbor advertisements when the containers' interfaces are brought up
+		// to inform neighbours of any changes to the MAC address associated with the IP
+		// so that connectivity can converge rapidly if the IP address was recently used by another container at a different MAC address.
+		"net.ipv4.conf.default.arp_notify":   {Value: "1"},
+		"net.ipv6.conf.default.ndisc_notify": {Value: "1"},
+	}
+)
+
 // ApplyOSTweaks applies operating system specific knobs on the sandbox.
 func (n *Namespace) ApplyOSTweaks(types SandboxType) {
+	toSbox, toDefault := make(map[string]*kernel.OSValue), make(map[string]*kernel.OSValue)
+
 	if types&(SandboxTypeLoadBalancer|SandboxTypeIngress) != 0 {
-		kernel.ApplyOSTweaks(map[string]*kernel.OSValue{
-			// disables any special handling on port reuse of existing IPVS connection table entries
-			// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L32
-			"net.ipv4.vs.conn_reuse_mode": {Value: "0", CheckFn: nil},
-			// expires connection from the IPVS connection table when the backend is not available
-			// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L133
-			"net.ipv4.vs.expire_nodest_conn": {Value: "1", CheckFn: nil},
-			// expires persistent connections to destination servers with weights set to 0
-			// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L151
-			"net.ipv4.vs.expire_quiescent_template": {Value: "1", CheckFn: nil},
-		})
+		maps.Copy(toSbox, ipvsTweaks)
+		// Also apply IPVS tweaks to the default network namespace just so performance is not changed.
+		maps.Copy(toDefault, ipvsTweaks)
 	}
+	if types == 0 {
+		maps.Copy(toSbox, containerTweaks)
+	}
+
+	if len(toSbox) > 0 && !n.isDefault {
+		err := n.InvokeFunc(func() { kernel.ApplyOSTweaks(toSbox) })
+		if err != nil {
+			log.G(context.TODO()).Errorf("Failed to apply performance tuning sysctls to the sandbox: %v", err)
+		}
+	}
+	kernel.ApplyOSTweaks(toDefault)
 }
 
 func setIPv6(nspath, iface string, enable bool) error {
