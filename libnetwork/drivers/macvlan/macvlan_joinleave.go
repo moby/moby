@@ -83,6 +83,10 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 			log.G(context.TODO()).Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s MacVlan_Mode: %s, Parent: %s",
 				ep.addrv6.IP.String(), n.config.MacvlanMode, n.config.Parent)
 		}
+		// If n.config.Internal was set locally by the driver because there's no parent
+		// interface, libnetwork doesn't know the network is internal. So, stop it from
+		// adding a gateway endpoint.
+		jinfo.DisableGatewayService()
 	}
 	iNames := jinfo.InterfaceName()
 	err = iNames.SetNames(vethName, containerVethPrefix)
