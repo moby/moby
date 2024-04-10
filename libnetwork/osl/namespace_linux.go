@@ -577,22 +577,19 @@ func (n *Namespace) RefreshIPv6LoEnabled() {
 }
 
 // ApplyOSTweaks applies operating system specific knobs on the sandbox.
-func (n *Namespace) ApplyOSTweaks(types []SandboxType) {
-	for _, t := range types {
-		switch t {
-		case SandboxTypeLoadBalancer, SandboxTypeIngress:
-			kernel.ApplyOSTweaks(map[string]*kernel.OSValue{
-				// disables any special handling on port reuse of existing IPVS connection table entries
-				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L32
-				"net.ipv4.vs.conn_reuse_mode": {Value: "0", CheckFn: nil},
-				// expires connection from the IPVS connection table when the backend is not available
-				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L133
-				"net.ipv4.vs.expire_nodest_conn": {Value: "1", CheckFn: nil},
-				// expires persistent connections to destination servers with weights set to 0
-				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L151
-				"net.ipv4.vs.expire_quiescent_template": {Value: "1", CheckFn: nil},
-			})
-		}
+func (n *Namespace) ApplyOSTweaks(types SandboxType) {
+	if types&(SandboxTypeLoadBalancer|SandboxTypeIngress) != 0 {
+		kernel.ApplyOSTweaks(map[string]*kernel.OSValue{
+			// disables any special handling on port reuse of existing IPVS connection table entries
+			// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L32
+			"net.ipv4.vs.conn_reuse_mode": {Value: "0", CheckFn: nil},
+			// expires connection from the IPVS connection table when the backend is not available
+			// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L133
+			"net.ipv4.vs.expire_nodest_conn": {Value: "1", CheckFn: nil},
+			// expires persistent connections to destination servers with weights set to 0
+			// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L151
+			"net.ipv4.vs.expire_quiescent_template": {Value: "1", CheckFn: nil},
+		})
 	}
 }
 
