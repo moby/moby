@@ -4,12 +4,12 @@ package ipvlan // import "github.com/docker/docker/integration/network/ipvlan"
 
 import (
 	"context"
-	"os"
-	"os/exec"
+	"fmt"
 	"strings"
-	"sync"
 	"testing"
 
+	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
@@ -17,13 +17,14 @@ import (
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
 func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 	// verify the driver automatically provisions the 802.1q link (di-dummy0.70)
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, !ipvlanKernelSupport(t), "Kernel doesn't support ipvlan")
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -52,7 +53,7 @@ func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 
 func TestDockerNetworkIpvlan(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, !ipvlanKernelSupport(t), "Kernel doesn't support ipvlan")
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -79,14 +80,20 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 			name: "L3InternalMode",
 			test: testIpvlanL3InternalMode,
 		}, {
-			name: "L2MultiSubnet",
-			test: testIpvlanL2MultiSubnet,
+			name: "L2MultiSubnetWithParent",
+			test: testIpvlanL2MultiSubnetWithParent,
+		}, {
+			name: "L2MultiSubnetNoParent",
+			test: testIpvlanL2MultiSubnetNoParent,
 		}, {
 			name: "L3MultiSubnet",
 			test: testIpvlanL3MultiSubnet,
 		}, {
-			name: "Addressing",
-			test: testIpvlanAddressing,
+			name: "L2Addressing",
+			test: testIpvlanL2Addressing,
+		}, {
+			name: "L3Addressing",
+			test: testIpvlanL3Addressing,
 		},
 	} {
 
@@ -225,10 +232,21 @@ func testIpvlanL3InternalMode(t *testing.T, ctx context.Context, client dclient.
 	assert.NilError(t, err)
 }
 
-func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, client dclient.APIClient) {
+func testIpvlanL2MultiSubnetWithParent(t *testing.T, ctx context.Context, client dclient.APIClient) {
+	const parentIfName = "di-dummy0"
+	n.CreateMasterDummy(ctx, t, parentIfName)
+	defer n.DeleteInterface(ctx, t, parentIfName)
+	testIpvlanL2MultiSubnet(t, ctx, client, parentIfName)
+}
+
+func testIpvlanL2MultiSubnetNoParent(t *testing.T, ctx context.Context, client dclient.APIClient) {
+	testIpvlanL2MultiSubnet(t, ctx, client, "")
+}
+
+func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, client dclient.APIClient, parent string) {
 	netName := "dualstackl2"
 	net.CreateNoError(ctx, t, client, netName,
-		net.WithIPvlan("", ""),
+		net.WithIPvlan(parent, ""),
 		net.WithIPv6(),
 		net.WithIPAM("172.28.200.0/24", ""),
 		net.WithIPAM("172.28.202.0/24", "172.28.202.254"),
@@ -250,11 +268,22 @@ func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 	)
 	c1, err := client.ContainerInspect(ctx, id1)
 	assert.NilError(t, err)
+	if parent == "" {
+		// Inspect the v4 gateway to ensure no default GW was assigned
+		assert.Check(t, is.Equal(c1.NetworkSettings.Networks[netName].Gateway, ""))
+		// Inspect the v6 gateway to ensure no default GW was assigned
+		assert.Check(t, is.Equal(c1.NetworkSettings.Networks[netName].IPv6Gateway, ""))
+	} else {
+		// Inspect the v4 gateway to ensure the proper default GW was assigned
+		assert.Check(t, is.Equal(c1.NetworkSettings.Networks[netName].Gateway, "172.28.200.1"))
+		// Inspect the v6 gateway to ensure the proper default GW was assigned
+		assert.Check(t, is.Equal(c1.NetworkSettings.Networks[netName].IPv6Gateway, "2001:db8:abc8::1"))
+	}
 
-	// verify ipv4 connectivity to the explicit --ipv address second to first
+	// verify ipv4 connectivity to the explicit --ip address second to first
 	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.NetworkSettings.Networks[netName].IPAddress})
 	assert.NilError(t, err)
-	// verify ipv6 connectivity to the explicit --ipv6 address second to first
+	// verify ipv6 connectivity to the explicit --ip6 address second to first
 	_, err = container.Exec(ctx, client, id2, []string{"ping6", "-c", "1", c1.NetworkSettings.Networks[netName].GlobalIPv6Address})
 	assert.NilError(t, err)
 
@@ -271,22 +300,24 @@ func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 	)
 	c3, err := client.ContainerInspect(ctx, id3)
 	assert.NilError(t, err)
+	if parent == "" {
+		// Inspect the v4 gateway to ensure no default GW was assigned
+		assert.Check(t, is.Equal(c3.NetworkSettings.Networks[netName].Gateway, ""))
+		// Inspect the v6 gateway to ensure no default GW was assigned
+		assert.Check(t, is.Equal(c3.NetworkSettings.Networks[netName].IPv6Gateway, ""))
+	} else {
+		// Inspect the v4 gateway to ensure the proper explicitly assigned default GW was assigned
+		assert.Check(t, is.Equal(c3.NetworkSettings.Networks[netName].Gateway, "172.28.202.254"))
+		// Inspect the v6 gateway to ensure the proper explicitly assigned default GW was assigned
+		assert.Check(t, is.Equal(c3.NetworkSettings.Networks[netName].IPv6Gateway, "2001:db8:abc6::254"))
+	}
 
-	// verify ipv4 connectivity to the explicit --ipv address from third to fourth
+	// verify ipv4 connectivity to the explicit --ip address from third to fourth
 	_, err = container.Exec(ctx, client, id4, []string{"ping", "-c", "1", c3.NetworkSettings.Networks[netName].IPAddress})
 	assert.NilError(t, err)
-	// verify ipv6 connectivity to the explicit --ipv6 address from third to fourth
+	// verify ipv6 connectivity to the explicit --ip6 address from third to fourth
 	_, err = container.Exec(ctx, client, id4, []string{"ping6", "-c", "1", c3.NetworkSettings.Networks[netName].GlobalIPv6Address})
 	assert.NilError(t, err)
-
-	// Inspect the v4 gateway to ensure the proper default GW was assigned
-	assert.Equal(t, c1.NetworkSettings.Networks[netName].Gateway, "172.28.200.1")
-	// Inspect the v6 gateway to ensure the proper default GW was assigned
-	assert.Equal(t, c1.NetworkSettings.Networks[netName].IPv6Gateway, "2001:db8:abc8::1")
-	// Inspect the v4 gateway to ensure the proper explicitly assigned default GW was assigned
-	assert.Equal(t, c3.NetworkSettings.Networks[netName].Gateway, "172.28.202.254")
-	// Inspect the v6 gateway to ensure the proper explicitly assigned default GW was assigned
-	assert.Equal(t, c3.NetworkSettings.Networks[netName].IPv6Gateway, "2001:db8:abc6::254")
 }
 
 func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, client dclient.APIClient) {
@@ -353,70 +384,141 @@ func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 	assert.Equal(t, c3.NetworkSettings.Networks[netName].IPv6Gateway, "")
 }
 
-func testIpvlanAddressing(t *testing.T, ctx context.Context, client dclient.APIClient) {
-	// Verify ipvlan l2 mode sets the proper default gateway routes via netlink
-	// for either an explicitly set route by the user or inferred via default IPAM
+// Verify ipvlan l2 mode sets the proper default gateway routes via netlink
+// for either an explicitly set route by the user or inferred via default IPAM
+func testIpvlanL2Addressing(t *testing.T, ctx context.Context, client dclient.APIClient) {
+	const parentIfName = "di-dummy0"
+	n.CreateMasterDummy(ctx, t, parentIfName)
+	defer n.DeleteInterface(ctx, t, parentIfName)
+
 	netNameL2 := "dualstackl2"
 	net.CreateNoError(ctx, t, client, netNameL2,
-		net.WithIPvlan("", "l2"),
+		net.WithIPvlan(parentIfName, "l2"),
 		net.WithIPv6(),
 		net.WithIPAM("172.28.140.0/24", "172.28.140.254"),
 		net.WithIPAM("2001:db8:abcb::/64", ""),
 	)
 	assert.Check(t, n.IsNetworkAvailable(ctx, client, netNameL2))
 
-	id1 := container.Run(ctx, t, client,
+	id := container.Run(ctx, t, client,
 		container.WithNetworkMode(netNameL2),
 	)
 	// Validate ipvlan l2 mode defaults gateway sets the default IPAM next-hop inferred from the subnet
-	result, err := container.Exec(ctx, client, id1, []string{"ip", "route"})
+	result, err := container.Exec(ctx, client, id, []string{"ip", "route"})
 	assert.NilError(t, err)
-	assert.Check(t, strings.Contains(result.Combined(), "default via 172.28.140.254 dev eth0"))
+	assert.Check(t, is.Contains(result.Combined(), "default via 172.28.140.254 dev eth0"))
 	// Validate ipvlan l2 mode sets the v6 gateway to the user specified default gateway/next-hop
-	result, err = container.Exec(ctx, client, id1, []string{"ip", "-6", "route"})
+	result, err = container.Exec(ctx, client, id, []string{"ip", "-6", "route"})
 	assert.NilError(t, err)
-	assert.Check(t, strings.Contains(result.Combined(), "default via 2001:db8:abcb::1 dev eth0"))
+	assert.Check(t, is.Contains(result.Combined(), "default via 2001:db8:abcb::1 dev eth0"))
+}
 
-	// Validate ipvlan l3 mode sets the v4 gateway to dev eth0 and disregards any explicit or inferred next-hops
+// Validate ipvlan l3 mode sets the v4 gateway to dev eth0 and disregards any explicit or inferred next-hops
+func testIpvlanL3Addressing(t *testing.T, ctx context.Context, client dclient.APIClient) {
+	const parentIfName = "di-dummy0"
+	n.CreateMasterDummy(ctx, t, parentIfName)
+	defer n.DeleteInterface(ctx, t, parentIfName)
+
 	netNameL3 := "dualstackl3"
 	net.CreateNoError(ctx, t, client, netNameL3,
-		net.WithIPvlan("", "l3"),
+		net.WithIPvlan(parentIfName, "l3"),
 		net.WithIPv6(),
 		net.WithIPAM("172.28.160.0/24", "172.28.160.254"),
 		net.WithIPAM("2001:db8:abcd::/64", "2001:db8:abcd::254"),
 	)
 	assert.Check(t, n.IsNetworkAvailable(ctx, client, netNameL3))
 
-	id2 := container.Run(ctx, t, client,
+	id := container.Run(ctx, t, client,
 		container.WithNetworkMode(netNameL3),
 	)
 	// Validate ipvlan l3 mode sets the v4 gateway to dev eth0 and disregards any explicit or inferred next-hops
-	result, err = container.Exec(ctx, client, id2, []string{"ip", "route"})
+	result, err := container.Exec(ctx, client, id, []string{"ip", "route"})
 	assert.NilError(t, err)
-	assert.Check(t, strings.Contains(result.Combined(), "default dev eth0"))
+	assert.Check(t, is.Contains(result.Combined(), "default dev eth0"))
 	// Validate ipvlan l3 mode sets the v6 gateway to dev eth0 and disregards any explicit or inferred next-hops
-	result, err = container.Exec(ctx, client, id2, []string{"ip", "-6", "route"})
+	result, err = container.Exec(ctx, client, id, []string{"ip", "-6", "route"})
 	assert.NilError(t, err)
-	assert.Check(t, strings.Contains(result.Combined(), "default dev eth0"))
+	assert.Check(t, is.Contains(result.Combined(), "default dev eth0"))
 }
 
-var (
-	once            sync.Once
-	ipvlanSupported bool
-)
+// TestIPVlanDNS checks whether DNS is forwarded, for combinations of l2/l3 mode,
+// with/without a parent interface, and with '--internal'. Note that, there's no
+// attempt here to give the ipvlan network external connectivity - when this test
+// supplies a parent interface, it's a dummy. External DNS lookups only work
+// because the daemon is configured to see a host resolver on a loopback
+// interface, so the external DNS lookup happens in the host's namespace. The
+// test is checking that an automatically configured dummy interface causes the
+// network to behave as if it was '--internal'. Regression test for
+// https://github.com/moby/moby/issues/47662
+func TestIPVlanDNS(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
-// figure out if ipvlan is supported by the kernel
-func ipvlanKernelSupport(t *testing.T) bool {
-	once.Do(func() {
-		// this may have the side effect of enabling the ipvlan module
-		exec.Command("modprobe", "ipvlan").Run()
-		_, err := os.Stat("/sys/module/ipvlan")
-		if err == nil {
-			ipvlanSupported = true
-		} else if !os.IsNotExist(err) {
-			t.Logf("WARNING: ipvlanKernelSupport: stat failed: %v\n", err)
+	ctx := testutil.StartSpan(baseContext, t)
+
+	net.StartDaftDNS(t, "127.0.0.1")
+
+	tmpFileName := net.WriteTempResolvConf(t, "127.0.0.1")
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_RESOLV_CONF_PATH="+tmpFileName))
+	d.StartWithBusybox(ctx, t)
+	t.Cleanup(func() { d.Stop(t) })
+	c := d.NewClientT(t)
+
+	const parentIfName = "di-dummy0"
+	n.CreateMasterDummy(ctx, t, parentIfName)
+	defer n.DeleteInterface(ctx, t, parentIfName)
+
+	const netName = "ipvlan-dns-net"
+
+	testcases := []struct {
+		name     string
+		parent   string
+		internal bool
+		expDNS   bool
+	}{
+		{
+			name:   "with parent",
+			parent: parentIfName,
+			// External DNS should be used (even though the network has no external connectivity).
+			expDNS: true,
+		},
+		{
+			name: "no parent",
+			// External DNS should not be used, equivalent to '--internal'.
+		},
+		{
+			name:     "with parent, internal",
+			parent:   parentIfName,
+			internal: true,
+			// External DNS should not be used.
+		},
+	}
+
+	for _, mode := range []string{"l2", "l3"} {
+		for _, tc := range testcases {
+			name := fmt.Sprintf("Mode=%v/HasParent=%v/Internal=%v", mode, tc.parent != "", tc.internal)
+			t.Run(name, func(t *testing.T) {
+				ctx := testutil.StartSpan(ctx, t)
+				createOpts := []func(*types.NetworkCreate){
+					net.WithIPvlan(tc.parent, mode),
+				}
+				if tc.internal {
+					createOpts = append(createOpts, net.WithInternal())
+				}
+				net.CreateNoError(ctx, t, c, netName, createOpts...)
+				defer c.NetworkRemove(ctx, netName)
+
+				ctrId := container.Run(ctx, t, c, container.WithNetworkMode(netName))
+				defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+				res, err := container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
+				assert.NilError(t, err)
+				if tc.expDNS {
+					assert.Check(t, is.Equal(res.ExitCode, 0))
+					assert.Check(t, is.Contains(res.Stdout(), net.DNSRespAddr))
+				} else {
+					assert.Check(t, is.Equal(res.ExitCode, 1))
+					assert.Check(t, is.Contains(res.Stdout(), "SERVFAIL"))
+				}
+			})
 		}
-	})
-
-	return ipvlanSupported
+	}
 }

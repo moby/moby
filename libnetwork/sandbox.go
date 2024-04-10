@@ -507,6 +507,21 @@ func (sb *Sandbox) resolveName(ctx context.Context, nameOrAlias string, networkN
 	return nil, ipv6Miss
 }
 
+// hasExternalAccess returns true if any of sb's Endpoints appear to have external
+// network access.
+func (sb *Sandbox) hasExternalAccess() bool {
+	for _, ep := range sb.Endpoints() {
+		nw := ep.getNetwork()
+		if nw.Internal() || nw.Type() == "null" || nw.Type() == "host" {
+			continue
+		}
+		if ep.hasGatewayOrDefaultRoute() {
+			return true
+		}
+	}
+	return false
+}
+
 // EnableService makes a managed container's service available by adding the
 // endpoint to the service load balancer and service discovery.
 func (sb *Sandbox) EnableService() (err error) {
