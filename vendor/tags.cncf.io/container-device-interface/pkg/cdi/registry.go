@@ -29,6 +29,11 @@ import (
 //
 // The most commonly used Registry functions are for refreshing the
 // registry and injecting CDI devices into an OCI Spec.
+//
+// Deprecated: Registry is deprecated and will be removed in a future
+// version. Please update your code to use the corresponding package-
+// level functions Configure(), Refresh(), InjectDevices(), GetErrors(),
+// and GetDefaultCache().
 type Registry interface {
 	RegistryResolver
 	RegistryRefresher
@@ -54,6 +59,10 @@ type Registry interface {
 //
 // GetSpecDirErrors returns any errors related to the configured
 // Spec directories.
+//
+// Deprecated: RegistryRefresher is deprecated and will be removed
+// in a future version. Please use the default cache and its related
+// package-level functions instead.
 type RegistryRefresher interface {
 	Configure(...Option) error
 	Refresh() error
@@ -68,6 +77,10 @@ type RegistryRefresher interface {
 // InjectDevices takes an OCI Spec and injects into it a set of
 // CDI devices given by qualified name. It returns the names of
 // any unresolved devices and an error if injection fails.
+//
+// Deprecated: RegistryRefresher is deprecated and will be removed
+// in a future version. Please use the default cache and its related
+// package-level functions instead.
 type RegistryResolver interface {
 	InjectDevices(spec *oci.Spec, device ...string) (unresolved []string, err error)
 }
@@ -79,6 +92,12 @@ type RegistryResolver interface {
 //
 // ListDevices returns a slice with the names of qualified device
 // known. The returned slice is sorted.
+//
+// Deprecated: RegistryDeviceDB is deprecated and will be removed
+// in a future version. Please use the default cache and its related
+// package-level functions instead.
+// and will be removed in a future version. Please use the default
+// cache and its related package-level functions instead.
 type RegistryDeviceDB interface {
 	GetDevice(device string) *Device
 	ListDevices() []string
@@ -99,6 +118,10 @@ type RegistryDeviceDB interface {
 //
 // WriteSpec writes the Spec with the given content and name to the
 // last Spec directory.
+//
+// Deprecated: RegistrySpecDB is deprecated and will be removed
+// in a future version. Please use the default cache and its related
+// package-level functions instead.
 type RegistrySpecDB interface {
 	ListVendors() []string
 	ListClasses() []string
@@ -121,30 +144,35 @@ var (
 
 // GetRegistry returns the CDI registry. If any options are given, those
 // are applied to the registry.
+//
+// Deprecated: GetRegistry is deprecated and will be removed in a future
+// version. Please use the default cache and its related package-level
+// functions instead.
 func GetRegistry(options ...Option) Registry {
-	var new bool
 	initOnce.Do(func() {
-		reg, _ = getRegistry(options...)
-		new = true
+		reg = &registry{GetDefaultCache()}
 	})
-	if !new && len(options) > 0 {
-		reg.Configure(options...)
-		reg.Refresh()
+	if len(options) > 0 {
+		// We don't care about errors here
+		_ = reg.Configure(options...)
 	}
 	return reg
 }
 
 // DeviceDB returns the registry interface for querying devices.
+//
+// Deprecated: DeviceDB is deprecated and will be removed in a future
+// version. Please use the default cache and its related package-level
+// functions instead.
 func (r *registry) DeviceDB() RegistryDeviceDB {
 	return r
 }
 
 // SpecDB returns the registry interface for querying Specs.
+//
+// Deprecated: SpecDB is deprecated and will be removed in a future
+// version. Please use the default cache and its related package-level
+// functions instead.
 func (r *registry) SpecDB() RegistrySpecDB {
 	return r
-}
-
-func getRegistry(options ...Option) (*registry, error) {
-	c, err := NewCache(options...)
-	return &registry{c}, err
 }
