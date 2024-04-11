@@ -323,7 +323,7 @@ func (d *driver) peerAddOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 	}
 
 	// Add neighbor entry for the peer IP
-	if err := sbox.AddNeighbor(peerIP, peerMac, false, osl.WithLinkName(s.vxlanName)); err != nil {
+	if err := sbox.AddNeighbor(peerIP, peerMac, osl.WithLinkName(s.vxlanName)); err != nil {
 		if _, ok := err.(osl.NeighborSearchError); ok && dbEntries > 1 {
 			// We are in the transient case so only the first configuration is programmed into the kernel
 			// Upon deletion if the active configuration is deleted the next one from the database will be restored
@@ -334,7 +334,7 @@ func (d *driver) peerAddOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 	}
 
 	// Add fdb entry to the bridge for the peer mac
-	if err := sbox.AddNeighbor(vtep, peerMac, false, osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
+	if err := sbox.AddNeighbor(vtep, peerMac, osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
 		return fmt.Errorf("could not add fdb entry for nid:%s eid:%s into the sandbox:%v", nid, eid, err)
 	}
 
