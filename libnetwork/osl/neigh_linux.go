@@ -110,22 +110,16 @@ func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr) error 
 }
 
 // AddNeighbor adds a neighbor entry into the sandbox.
-func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, force bool, options ...NeighOption) error {
+func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options ...NeighOption) error {
 	var (
-		iface                  netlink.Link
-		err                    error
-		neighborAlreadyPresent bool
+		iface netlink.Link
+		err   error
 	)
 
-	// If the namespace already has the neighbor entry but the AddNeighbor is called
-	// because of a miss notification (force flag) program the kernel anyway.
 	nh := n.findNeighbor(dstIP, dstMac)
 	if nh != nil {
-		neighborAlreadyPresent = true
-		log.G(context.TODO()).Warnf("Neighbor entry already present for IP %v, mac %v neighbor:%+v forceUpdate:%t", dstIP, dstMac, nh, force)
-		if !force {
-			return NeighborSearchError{dstIP, dstMac, true}
-		}
+		log.G(context.TODO()).Warnf("Neighbor entry already present for IP %v, mac %v neighbor:%+v", dstIP, dstMac, nh)
+		return NeighborSearchError{dstIP, dstMac, true}
 	}
 
 	nh = &neigh{
@@ -170,10 +164,6 @@ func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, force boo
 
 	if err := nlh.NeighSet(nlnh); err != nil {
 		return fmt.Errorf("could not add neighbor entry:%+v error:%v", nlnh, err)
-	}
-
-	if neighborAlreadyPresent {
-		return nil
 	}
 
 	n.mu.Lock()
