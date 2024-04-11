@@ -111,11 +111,6 @@ func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr) error 
 
 // AddNeighbor adds a neighbor entry into the sandbox.
 func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options ...NeighOption) error {
-	var (
-		iface netlink.Link
-		err   error
-	)
-
 	nh := n.findNeighbor(dstIP, dstMac)
 	if nh != nil {
 		log.G(context.TODO()).Warnf("Neighbor entry already present for IP %v, mac %v neighbor:%+v", dstIP, dstMac, nh)
@@ -129,23 +124,9 @@ func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options .
 
 	nh.processNeighOptions(options...)
 
-	if nh.linkName != "" {
-		nh.linkDst = n.findDst(nh.linkName, false)
-		if nh.linkDst == "" {
-			return fmt.Errorf("could not find the interface with name %s", nh.linkName)
-		}
-	}
-
 	n.mu.Lock()
 	nlh := n.nlHandle
 	n.mu.Unlock()
-
-	if nh.linkDst != "" {
-		iface, err = nlh.LinkByName(nh.linkDst)
-		if err != nil {
-			return fmt.Errorf("could not find interface with destination name %s: %v", nh.linkDst, err)
-		}
-	}
 
 	nlnh := &netlink.Neigh{
 		IP:           dstIP,
@@ -158,7 +139,16 @@ func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options .
 		nlnh.Flags = netlink.NTF_SELF
 	}
 
-	if nh.linkDst != "" {
+	if nh.linkName != "" {
+		nh.linkDst = n.findDst(nh.linkName, false)
+		if nh.linkDst == "" {
+			return fmt.Errorf("could not find the interface with name %s", nh.linkName)
+		}
+
+		iface, err := nlh.LinkByName(nh.linkDst)
+		if err != nil {
+			return fmt.Errorf("could not find interface with destination name %s: %v", nh.linkDst, err)
+		}
 		nlnh.LinkIndex = iface.Attrs().Index
 	}
 
