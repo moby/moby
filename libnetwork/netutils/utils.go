@@ -14,7 +14,9 @@ import (
 	"github.com/containerd/log"
 )
 
-func genMAC(ip net.IP) net.HardwareAddr {
+// GenerateMACFromIP returns a locally administered MAC address where the 4 least
+// significant bytes are derived from the IPv4 address.
+func GenerateMACFromIP(ip net.IP) net.HardwareAddr {
 	hw := make(net.HardwareAddr, 6)
 	// The first byte of the MAC address has to comply with these rules:
 	// 1. Unicast: Set the least-significant bit to 0.
@@ -34,14 +36,13 @@ func genMAC(ip net.IP) net.HardwareAddr {
 }
 
 // GenerateRandomMAC returns a new 6-byte(48-bit) hardware address (MAC)
+// that is not multicast and has the local assignment bit set.
 func GenerateRandomMAC() net.HardwareAddr {
-	return genMAC(nil)
-}
-
-// GenerateMACFromIP returns a locally administered MAC address where the 4 least
-// significant bytes are derived from the IPv4 address.
-func GenerateMACFromIP(ip net.IP) net.HardwareAddr {
-	return genMAC(ip)
+	hw := make(net.HardwareAddr, 6)
+	rand.Read(hw)
+	hw[0] &= 0xfe // Unicast: clear multicast bit
+	hw[0] |= 0x02 // Locally administered: set local assignment bit
+	return hw
 }
 
 // GenerateRandomName returns a string of the specified length, created by joining the prefix to random hex characters.
