@@ -120,8 +120,9 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 
 		if m.VolumeOptions != nil {
 			mount.VolumeOptions = &mounttypes.VolumeOptions{
-				NoCopy: m.VolumeOptions.NoCopy,
-				Labels: m.VolumeOptions.Labels,
+				NoCopy:  m.VolumeOptions.NoCopy,
+				Labels:  m.VolumeOptions.Labels,
+				Subpath: m.VolumeOptions.Subpath,
 			}
 			if m.VolumeOptions.DriverConfig != nil {
 				mount.VolumeOptions.DriverConfig = &mounttypes.Driver{
@@ -406,8 +407,9 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 
 		if m.VolumeOptions != nil {
 			mount.VolumeOptions = &swarmapi.Mount_VolumeOptions{
-				NoCopy: m.VolumeOptions.NoCopy,
-				Labels: m.VolumeOptions.Labels,
+				NoCopy:  m.VolumeOptions.NoCopy,
+				Labels:  m.VolumeOptions.Labels,
+				Subpath: m.VolumeOptions.Subpath,
 			}
 			if m.VolumeOptions.DriverConfig != nil {
 				mount.VolumeOptions.DriverConfig = &swarmapi.Driver{

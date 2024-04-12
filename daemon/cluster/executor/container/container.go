@@ -338,7 +338,8 @@ func convertMount(m api.Mount) enginemount.Mount {
 
 	if m.VolumeOptions != nil {
 		mount.VolumeOptions = &enginemount.VolumeOptions{
-			NoCopy: m.VolumeOptions.NoCopy,
+			NoCopy:  m.VolumeOptions.NoCopy,
+			Subpath: m.VolumeOptions.Subpath,
 		}
 		if m.VolumeOptions.Labels != nil {
 			mount.VolumeOptions.Labels = make(map[string]string, len(m.VolumeOptions.Labels))
