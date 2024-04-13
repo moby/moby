@@ -67,7 +67,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 	veth, err := nlh.LinkByName(overlayIfName)
 	if err != nil {
-		return fmt.Errorf("cound not find link by name %s: %v", overlayIfName, err)
+		return fmt.Errorf("could not find link by name %s: %v", overlayIfName, err)
 	}
 	err = nlh.LinkSetMTU(veth, mtu)
 	if err != nil {
