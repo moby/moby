@@ -22,24 +22,63 @@ const (
 // Allocator provides per address space ipv4/ipv6 book keeping
 type Allocator struct {
 	// The address spaces
-	local, global *addrSpace
+	local4, local6, global4, global6 *addrSpace
 }
 
 // NewAllocator returns an instance of libnetwork ipam
 func NewAllocator(lcAs, glAs []*net.IPNet) (*Allocator, error) {
 	var (
-		a   Allocator
-		err error
+		a                          Allocator
+		err                        error
+		lcAs4, lcAs6, glAs4, glAs6 []netip.Prefix
 	)
-	a.local, err = newAddrSpace(lcAs)
+
+	lcAs4, lcAs6, err = splitByIPFamily(lcAs)
 	if err != nil {
 		return nil, fmt.Errorf("could not construct local address space: %w", err)
 	}
-	a.global, err = newAddrSpace(glAs)
+
+	glAs4, glAs6, err = splitByIPFamily(glAs)
 	if err != nil {
 		return nil, fmt.Errorf("could not construct global address space: %w", err)
 	}
+
+	a.local4, err = newAddrSpace(lcAs4)
+	if err != nil {
+		return nil, fmt.Errorf("could not construct local v4 address space: %w", err)
+	}
+	a.local6, err = newAddrSpace(lcAs6)
+	if err != nil {
+		return nil, fmt.Errorf("could not construct local v6 address space: %w", err)
+	}
+	a.global4, err = newAddrSpace(glAs4)
+	if err != nil {
+		return nil, fmt.Errorf("could not construct global v4 address space: %w", err)
+	}
+	a.global6, err = newAddrSpace(glAs6)
+	if err != nil {
+		return nil, fmt.Errorf("could not construct global v6 address space: %w", err)
+	}
 	return &a, nil
+}
+
+func splitByIPFamily(s []*net.IPNet) ([]netip.Prefix, []netip.Prefix, error) {
+	var v4, v6 []netip.Prefix
+
+	for i, n := range s {
+		p, ok := netiputil.ToPrefix(n)
+		if !ok {
+			return []netip.Prefix{}, []netip.Prefix{}, fmt.Errorf("network at index %d (%v) is not in canonical form", i, n)
+		}
+
+		if p.Addr().Is4() {
+			v4 = append(v4, p)
+		} else {
+			v6 = append(v6, p)
+		}
+	}
+
+	return v4, v6, nil
 }
 
 // GetDefaultAddressSpaces returns the local and global default address spaces
@@ -62,7 +101,7 @@ func (a *Allocator) RequestPool(addressSpace, requestedPool, requestedSubPool st
 	if addressSpace == "" {
 		return "", nil, nil, parseErr(ipamapi.ErrInvalidAddressSpace)
 	}
-	aSpace, err := a.getAddrSpace(addressSpace)
+	aSpace, err := a.getAddrSpace(addressSpace, v6)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -115,7 +154,7 @@ func (a *Allocator) ReleasePool(poolID string) error {
 		return types.InvalidParameterErrorf("invalid pool id: %s", poolID)
 	}
 
-	aSpace, err := a.getAddrSpace(k.AddressSpace)
+	aSpace, err := a.getAddrSpace(k.AddressSpace, k.Is6())
 	if err != nil {
 		return err
 	}
@@ -125,12 +164,18 @@ func (a *Allocator) ReleasePool(poolID string) error {
 
 // Given the address space, returns the local or global PoolConfig based on whether the
 // address space is local or global. AddressSpace locality is registered with IPAM out of band.
-func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
+func (a *Allocator) getAddrSpace(as string, v6 bool) (*addrSpace, error) {
 	switch as {
 	case localAddressSpace:
-		return a.local, nil
+		if v6 {
+			return a.local6, nil
+		}
+		return a.local4, nil
 	case globalAddressSpace:
-		return a.global, nil
+		if v6 {
+			return a.global6, nil
+		}
+		return a.global4, nil
 	}
 	return nil, types.InvalidParameterErrorf("cannot find address space %s", as)
 }
@@ -170,7 +215,7 @@ func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[s
 		return nil, nil, types.InvalidParameterErrorf("invalid pool id: %s", poolID)
 	}
 
-	aSpace, err := a.getAddrSpace(k.AddressSpace)
+	aSpace, err := a.getAddrSpace(k.AddressSpace, k.Is6())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -200,7 +245,7 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 		return types.InvalidParameterErrorf("invalid pool id: %s", poolID)
 	}
 
-	aSpace, err := a.getAddrSpace(k.AddressSpace)
+	aSpace, err := a.getAddrSpace(k.AddressSpace, k.Is6())
 	if err != nil {
 		return err
 	}

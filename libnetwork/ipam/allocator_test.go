@@ -132,7 +132,7 @@ func TestAddReleasePoolID(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	_, err = a.getAddrSpace(localAddressSpace)
+	_, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	aSpace, err := a.getAddrSpace(localAddressSpace)
+	aSpace, err := a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatalf("Incorrect poolIDs returned %s, %s", pid0, pid1)
 	}
 
-	aSpace, err = a.getAddrSpace(localAddressSpace)
+	aSpace, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatalf("Expected failure in adding sub pool: %v", err)
 	}
 
-	aSpace, err = a.getAddrSpace(localAddressSpace)
+	aSpace, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	aSpace, err = a.getAddrSpace(localAddressSpace)
+	aSpace, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +219,7 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Errorf("main pool should still exist. Got poolID %q, want %q", pid00, pid0)
 	}
 
-	aSpace, err = a.getAddrSpace(localAddressSpace)
+	aSpace, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +232,7 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Error(err)
 	}
 
-	aSpace, err = a.getAddrSpace(localAddressSpace)
+	aSpace, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +246,7 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Errorf("Unexpected failure in adding pool: %v", err)
 	}
 
-	aSpace, err = a.getAddrSpace(localAddressSpace)
+	aSpace, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +295,7 @@ func TestRemoveSubnet(t *testing.T) {
 		{localAddressSpace, "192.168.0.0/16", false},
 		{localAddressSpace, "172.17.0.0/16", false},
 		{localAddressSpace, "10.0.0.0/8", false},
-		{localAddressSpace, "2001:db8:1:2:3:4:ffff::/112", false},
+		{localAddressSpace, "2001:db8:1:2:3:4:ffff::/112", true},
 		{globalAddressSpace, "172.17.0.0/16", false},
 		{globalAddressSpace, "10.0.0.0/8", false},
 		{globalAddressSpace, "2001:db8:1:2:3:4:5::/112", true},
@@ -929,7 +929,7 @@ func TestRelease(t *testing.T) {
 	for i, inp := range toRelease {
 		ip0 := net.ParseIP(inp.address)
 		a.ReleaseAddress(pid, ip0)
-		bm := a.local.subnets[netip.MustParsePrefix(subnet)].addrs
+		bm := a.local4.subnets[netip.MustParsePrefix(subnet)].addrs
 		if bm.Unselected() != 1 {
 			t.Fatalf("Failed to update free address count after release. Expected %d, Found: %d", i+1, bm.Unselected())
 		}

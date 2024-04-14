@@ -29,6 +29,10 @@ type SubnetKey struct {
 	Subnet, ChildSubnet netip.Prefix
 }
 
+func (k SubnetKey) Is6() bool {
+	return k.Subnet.Addr().Is6()
+}
+
 // PoolIDFromString creates a new PoolID and populates the SubnetKey object
 // reading it from the given string.
 func PoolIDFromString(str string) (pID PoolID, err error) {

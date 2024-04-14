@@ -3,7 +3,6 @@ package ipam
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/netip"
 	"sync"
 
@@ -25,18 +24,10 @@ type addrSpace struct {
 	mu sync.Mutex
 }
 
-func newAddrSpace(predefined []*net.IPNet) (*addrSpace, error) {
-	pdf := make([]netip.Prefix, len(predefined))
-	for i, n := range predefined {
-		var ok bool
-		pdf[i], ok = netiputil.ToPrefix(n)
-		if !ok {
-			return nil, fmt.Errorf("network at index %d (%v) is not in canonical form", i, n)
-		}
-	}
+func newAddrSpace(predefined []netip.Prefix) (*addrSpace, error) {
 	return &addrSpace{
 		subnets:    map[netip.Prefix]*PoolData{},
-		predefined: pdf,
+		predefined: predefined,
 	}, nil
 }
 
