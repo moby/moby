@@ -202,8 +202,8 @@ func (aSpace *addrSpace) updatePredefinedStartIndex(amt int) {
 }
 
 func (aSpace *addrSpace) allocatePredefinedPool(ipV6 bool) (netip.Prefix, error) {
-	aSpace.Lock()
-	defer aSpace.Unlock()
+	aSpace.mu.Lock()
+	defer aSpace.mu.Unlock()
 
 	for i, nw := range aSpace.getPredefineds() {
 		if ipV6 != nw.Addr().Is6() {
@@ -263,8 +263,8 @@ func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[s
 }
 
 func (aSpace *addrSpace) requestAddress(nw, sub netip.Prefix, prefAddress netip.Addr, opts map[string]string) (netip.Addr, error) {
-	aSpace.Lock()
-	defer aSpace.Unlock()
+	aSpace.mu.Lock()
+	defer aSpace.mu.Unlock()
 
 	p, ok := aSpace.subnets[nw]
 	if !ok {
@@ -314,8 +314,8 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 }
 
 func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr) error {
-	aSpace.Lock()
-	defer aSpace.Unlock()
+	aSpace.mu.Lock()
+	defer aSpace.mu.Unlock()
 
 	p, ok := aSpace.subnets[nw]
 	if !ok {
@@ -390,8 +390,8 @@ func (a *Allocator) DumpDatabase() string {
 }
 
 func (aSpace *addrSpace) DumpDatabase() string {
-	aSpace.Lock()
-	defer aSpace.Unlock()
+	aSpace.mu.Lock()
+	defer aSpace.mu.Unlock()
 
 	var b strings.Builder
 	for k, config := range aSpace.subnets {

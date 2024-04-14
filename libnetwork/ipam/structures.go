@@ -40,7 +40,7 @@ type addrSpace struct {
 	predefined           []netip.Prefix
 	predefinedStartIndex int
 
-	sync.Mutex
+	mu sync.Mutex
 }
 
 // PoolIDFromString creates a new PoolID and populates the SubnetKey object
@@ -85,8 +85,8 @@ func (p *PoolData) String() string {
 
 // allocateSubnet adds the subnet k to the address space.
 func (aSpace *addrSpace) allocateSubnet(nw, sub netip.Prefix) error {
-	aSpace.Lock()
-	defer aSpace.Unlock()
+	aSpace.mu.Lock()
+	defer aSpace.mu.Unlock()
 
 	// Check if already allocated
 	if pool, ok := aSpace.subnets[nw]; ok {
@@ -133,8 +133,8 @@ func (aSpace *addrSpace) allocateSubnetL(nw, sub netip.Prefix) error {
 }
 
 func (aSpace *addrSpace) releaseSubnet(nw, sub netip.Prefix) error {
-	aSpace.Lock()
-	defer aSpace.Unlock()
+	aSpace.mu.Lock()
+	defer aSpace.mu.Unlock()
 
 	p, ok := aSpace.subnets[nw]
 	if !ok {
