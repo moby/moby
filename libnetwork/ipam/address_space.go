@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"strings"
 	"sync"
 
 	"github.com/containerd/log"
@@ -235,19 +234,4 @@ func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr
 	defer log.G(context.TODO()).Debugf("Released address Address:%v Sequence:%s", address, p.addrs)
 
 	return p.addrs.Unset(netiputil.HostID(address, uint(nw.Bits())))
-}
-
-func (aSpace *addrSpace) DumpDatabase() string {
-	aSpace.mu.Lock()
-	defer aSpace.mu.Unlock()
-
-	var b strings.Builder
-	for k, config := range aSpace.subnets {
-		fmt.Fprintf(&b, "%v: %v\n", k, config)
-		fmt.Fprintf(&b, "  Bitmap: %v\n", config.addrs)
-		for k := range config.children {
-			fmt.Fprintf(&b, "  - Subpool: %v\n", k)
-		}
-	}
-	return b.String()
 }

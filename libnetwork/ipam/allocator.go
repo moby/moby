@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"strings"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/bitmap"
@@ -246,21 +245,6 @@ func getAddress(base netip.Prefix, bitmask *bitmap.Bitmap, prefAddress netip.Add
 	default:
 		return netip.Addr{}, err
 	}
-}
-
-// DumpDatabase dumps the internal info
-func (a *Allocator) DumpDatabase() string {
-	aspaces := map[string]*addrSpace{
-		localAddressSpace:  a.local,
-		globalAddressSpace: a.global,
-	}
-
-	var b strings.Builder
-	for _, as := range []string{localAddressSpace, globalAddressSpace} {
-		fmt.Fprintf(&b, "\n### %s\n", as)
-		b.WriteString(aspaces[as].DumpDatabase())
-	}
-	return b.String()
 }
 
 // IsBuiltIn returns true for builtin drivers
