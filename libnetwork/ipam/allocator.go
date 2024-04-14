@@ -43,21 +43,6 @@ func NewAllocator(lcAs, glAs []*net.IPNet) (*Allocator, error) {
 	return &a, nil
 }
 
-func newAddrSpace(predefined []*net.IPNet) (*addrSpace, error) {
-	pdf := make([]netip.Prefix, len(predefined))
-	for i, n := range predefined {
-		var ok bool
-		pdf[i], ok = netiputil.ToPrefix(n)
-		if !ok {
-			return nil, fmt.Errorf("network at index %d (%v) is not in canonical form", i, n)
-		}
-	}
-	return &addrSpace{
-		subnets:    map[netip.Prefix]*PoolData{},
-		predefined: pdf,
-	}, nil
-}
-
 // GetDefaultAddressSpaces returns the local and global default address spaces
 func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 	return localAddressSpace, globalAddressSpace, nil
@@ -178,60 +163,6 @@ func newPoolData(pool netip.Prefix) *PoolData {
 	return &PoolData{addrs: h, children: map[netip.Prefix]struct{}{}}
 }
 
-// getPredefineds returns the predefined subnets for the address space.
-//
-// It should not be called concurrently with any other method on the addrSpace.
-func (aSpace *addrSpace) getPredefineds() []netip.Prefix {
-	i := aSpace.predefinedStartIndex
-	// defensive in case the list changed since last update
-	if i >= len(aSpace.predefined) {
-		i = 0
-	}
-	return append(aSpace.predefined[i:], aSpace.predefined[:i]...)
-}
-
-// updatePredefinedStartIndex rotates the predefined subnet list by amt.
-//
-// It should not be called concurrently with any other method on the addrSpace.
-func (aSpace *addrSpace) updatePredefinedStartIndex(amt int) {
-	i := aSpace.predefinedStartIndex + amt
-	if i < 0 || i >= len(aSpace.predefined) {
-		i = 0
-	}
-	aSpace.predefinedStartIndex = i
-}
-
-func (aSpace *addrSpace) allocatePredefinedPool(ipV6 bool) (netip.Prefix, error) {
-	aSpace.mu.Lock()
-	defer aSpace.mu.Unlock()
-
-	for i, nw := range aSpace.getPredefineds() {
-		if ipV6 != nw.Addr().Is6() {
-			continue
-		}
-		// Checks whether pool has already been allocated
-		if _, ok := aSpace.subnets[nw]; ok {
-			continue
-		}
-		// Shouldn't be necessary, but check prevents IP collisions should
-		// predefined pools overlap for any reason.
-		if !aSpace.overlaps(nw) {
-			aSpace.updatePredefinedStartIndex(i + 1)
-			err := aSpace.allocateSubnetL(nw, netip.Prefix{})
-			if err != nil {
-				return netip.Prefix{}, err
-			}
-			return nw, nil
-		}
-	}
-
-	v := 4
-	if ipV6 {
-		v = 6
-	}
-	return netip.Prefix{}, types.NotFoundErrorf("could not find an available, non-overlapping IPv%d address pool among the defaults to assign to the network", v)
-}
-
 // RequestAddress returns an address from the specified pool ID
 func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[string]string) (*net.IPNet, map[string]string, error) {
 	log.G(context.TODO()).Debugf("RequestAddress(%s, %v, %v)", poolID, prefAddress, opts)
@@ -262,36 +193,6 @@ func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[s
 	}, nil, nil
 }
 
-func (aSpace *addrSpace) requestAddress(nw, sub netip.Prefix, prefAddress netip.Addr, opts map[string]string) (netip.Addr, error) {
-	aSpace.mu.Lock()
-	defer aSpace.mu.Unlock()
-
-	p, ok := aSpace.subnets[nw]
-	if !ok {
-		return netip.Addr{}, types.NotFoundErrorf("cannot find address pool for poolID:%v/%v", nw, sub)
-	}
-
-	if prefAddress != (netip.Addr{}) && !nw.Contains(prefAddress) {
-		return netip.Addr{}, ipamapi.ErrIPOutOfRange
-	}
-
-	if sub != (netip.Prefix{}) {
-		if _, ok := p.children[sub]; !ok {
-			return netip.Addr{}, types.NotFoundErrorf("cannot find address pool for poolID:%v/%v", nw, sub)
-		}
-	}
-
-	// In order to request for a serial ip address allocation, callers can pass in the option to request
-	// IP allocation serially or first available IP in the subnet
-	serial := opts[ipamapi.AllocSerialPrefix] == "true"
-	ip, err := getAddress(nw, p.addrs, prefAddress, sub, serial)
-	if err != nil {
-		return netip.Addr{}, err
-	}
-
-	return ip, nil
-}
-
 // ReleaseAddress releases the address from the specified pool ID
 func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 	log.G(context.TODO()).Debugf("ReleaseAddress(%s, %v)", poolID, address)
@@ -311,33 +212,6 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 	}
 
 	return aSpace.releaseAddress(k.Subnet, k.ChildSubnet, addr.Unmap())
-}
-
-func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr) error {
-	aSpace.mu.Lock()
-	defer aSpace.mu.Unlock()
-
-	p, ok := aSpace.subnets[nw]
-	if !ok {
-		return types.NotFoundErrorf("cannot find address pool for %v/%v", nw, sub)
-	}
-	if sub != (netip.Prefix{}) {
-		if _, ok := p.children[sub]; !ok {
-			return types.NotFoundErrorf("cannot find address pool for poolID:%v/%v", nw, sub)
-		}
-	}
-
-	if !address.IsValid() {
-		return types.InvalidParameterErrorf("invalid address")
-	}
-
-	if !nw.Contains(address) {
-		return ipamapi.ErrIPOutOfRange
-	}
-
-	defer log.G(context.TODO()).Debugf("Released address Address:%v Sequence:%s", address, p.addrs)
-
-	return p.addrs.Unset(netiputil.HostID(address, uint(nw.Bits())))
 }
 
 func getAddress(base netip.Prefix, bitmask *bitmap.Bitmap, prefAddress netip.Addr, ipr netip.Prefix, serial bool) (netip.Addr, error) {
@@ -385,21 +259,6 @@ func (a *Allocator) DumpDatabase() string {
 	for _, as := range []string{localAddressSpace, globalAddressSpace} {
 		fmt.Fprintf(&b, "\n### %s\n", as)
 		b.WriteString(aspaces[as].DumpDatabase())
-	}
-	return b.String()
-}
-
-func (aSpace *addrSpace) DumpDatabase() string {
-	aSpace.mu.Lock()
-	defer aSpace.mu.Unlock()
-
-	var b strings.Builder
-	for k, config := range aSpace.subnets {
-		fmt.Fprintf(&b, "%v: %v\n", k, config)
-		fmt.Fprintf(&b, "  Bitmap: %v\n", config.addrs)
-		for k := range config.children {
-			fmt.Fprintf(&b, "  - Subpool: %v\n", k)
-		}
 	}
 	return b.String()
 }
