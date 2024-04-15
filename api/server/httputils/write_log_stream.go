@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"sort"
 
@@ -17,9 +18,14 @@ import (
 // WriteLogStream writes an encoded byte stream of log messages from the
 // messages channel, multiplexing them with a stdcopy.Writer if mux is true
 func WriteLogStream(_ context.Context, w io.Writer, msgs <-chan *backend.LogMessage, config *container.LogsOptions, mux bool) {
+	// Used before the Flush(), so we don't set the header twice because of the otel wrapper
+	// see here: https://github.com/moby/moby/issues/47448
+	if rw, ok := w.(http.ResponseWriter); ok {
+		rw.WriteHeader(http.StatusOK)
+	}
+
 	wf := ioutils.NewWriteFlusher(w)
 	defer wf.Close()
-
 	wf.Flush()
 
 	outStream := io.Writer(wf)

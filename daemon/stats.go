@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"runtime"
 	"time"
 
@@ -46,6 +47,12 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 
 	outStream := config.OutStream
 	if config.Stream {
+		// Used before the Flush(), so we don't set the header twice because of the otel wrapper
+		// see here: https://github.com/moby/moby/issues/47448
+		if rw, ok := outStream.(http.ResponseWriter); ok {
+			rw.WriteHeader(http.StatusOK)
+		}
+
 		wf := ioutils.NewWriteFlusher(outStream)
 		defer wf.Close()
 		wf.Flush()
