@@ -490,8 +490,8 @@ github.com/moby/patternmatcher v0.6.0 h1:GmP9lR19aU5GqSSFko+5pRqHi+Ohk1O69aFiKkV
 github.com/moby/patternmatcher v0.6.0/go.mod h1:hDPoyOpDY7OrrMDLaYoY3hf52gNCR/YOUYxkhApJIxc=
 github.com/moby/pubsub v1.0.0 h1:jkp/imWsmJz2f6LyFsk7EkVeN2HxR/HTTOY8kHrsxfA=
 github.com/moby/pubsub v1.0.0/go.mod h1:bXSO+3h5MNXXCaEG+6/NlAIk7MMZbySZlnB+cUQhKKc=
-github.com/moby/swarmkit/v2 v2.0.0-20240227173239-911c97650f2e h1:4FRRm/5kOaCc+ssRBPmmcQM7b0KHdOgqKob93VnvHPs=
-github.com/moby/swarmkit/v2 v2.0.0-20240227173239-911c97650f2e/go.mod h1:kNy225f/gWAnF8wPftteMc5nbAHhrH+HUfvyjmhFjeQ=
+github.com/moby/swarmkit/v2 v2.0.0-20240412154004-f3ffc0881d0e h1:ZCx3cYIxF6OdZkiSbesvyJyJetMmICNvMGVHFop+Mec=
+github.com/moby/swarmkit/v2 v2.0.0-20240412154004-f3ffc0881d0e/go.mod h1:kNy225f/gWAnF8wPftteMc5nbAHhrH+HUfvyjmhFjeQ=
 github.com/moby/sys/mount v0.3.3 h1:fX1SVkXFJ47XWDoeFW4Sq7PdQJnV2QIDZAqjNqgEjUs=
 github.com/moby/sys/mount v0.3.3/go.mod h1:PBaEorSNTLG5t/+4EgukEQVlAvVEc6ZjTySwKdqp5K0=
 github.com/moby/sys/mountinfo v0.6.2/go.mod h1:IJb6JQeOklcdMU9F5xQ8ZALD+CUr5VlGpwtX+VE0rpI=

@@ -4,11 +4,13 @@ import (
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/swarm/runtime"
 	google_protobuf3 "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestServiceConvertFromGRPCRuntimeContainer(t *testing.T) {
@@ -610,4 +612,33 @@ func TestServiceConvertToGRPCConfigs(t *testing.T) {
 			assert.DeepEqual(t, taskRuntime.Container.Configs[0], tc.to)
 		})
 	}
+}
+
+func TestServiceConvertToGRPCVolumeSubpath(t *testing.T) {
+	s := swarmtypes.ServiceSpec{
+		TaskTemplate: swarmtypes.TaskSpec{
+			ContainerSpec: &swarmtypes.ContainerSpec{
+				Mounts: []mount.Mount{
+					{
+						Source:   "/foo/bar",
+						Target:   "/baz",
+						Type:     mount.TypeVolume,
+						ReadOnly: false,
+						VolumeOptions: &mount.VolumeOptions{
+							Subpath: "sub",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	g, err := ServiceSpecToGRPC(s)
+	assert.NilError(t, err)
+
+	v, ok := g.Task.Runtime.(*swarmapi.TaskSpec_Container)
+	assert.Assert(t, ok)
+
+	assert.Check(t, is.Len(v.Container.Mounts, 1))
+	assert.Check(t, is.Equal(v.Container.Mounts[0].VolumeOptions.Subpath, "sub"))
 }
