@@ -83,7 +83,13 @@ func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
 	if s.Hooks == nil {
 		s.Hooks = &specs.Hooks{}
 	}
-	s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
+
+	// This implementation uses prestart hooks, which are deprecated.
+	// CreateRuntime is the closest equivalent, and executed in the same
+	// locations as prestart-hooks, but depending on what these hooks do,
+	// possibly one of the other hooks could be used instead (such as
+	// CreateContainer or StartContainer).
+	s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{ //nolint:staticcheck // FIXME(thaJeztah); replace prestart hook with a non-deprecated one.
 		Path: path,
 		Args: []string{
 			nvidiaHook,
