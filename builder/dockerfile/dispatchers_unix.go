@@ -22,7 +22,7 @@ func normalizeWorkdir(_ string, current string, requested string) (string, error
 	if !filepath.IsAbs(requested) {
 		return filepath.Join(string(os.PathSeparator), current, requested), nil
 	}
-	return requested, nil
+	return filepath.Clean(requested), nil
 }
 
 // resolveCmdLine takes a command line arg set and optionally prepends a platform-specific
