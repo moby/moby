@@ -14,7 +14,6 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/types"
 )
 
 var (
@@ -43,26 +42,6 @@ func CheckNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
 // NetworkOverlaps detects overlap between one IPNet and another
 func NetworkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
 	return netX.Contains(netY.IP) || netY.Contains(netX.IP)
-}
-
-// NetworkRange calculates the first and last IP addresses in an IPNet
-func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
-	if network == nil {
-		return nil, nil
-	}
-
-	firstIP := network.IP.Mask(network.Mask)
-	lastIP := types.GetIPCopy(firstIP)
-	for i := 0; i < len(firstIP); i++ {
-		lastIP[i] = firstIP[i] | ^network.Mask[i]
-	}
-
-	if network.IP.To4() != nil {
-		firstIP = firstIP.To4()
-		lastIP = lastIP.To4()
-	}
-
-	return firstIP, lastIP
 }
 
 func genMAC(ip net.IP) net.HardwareAddr {
