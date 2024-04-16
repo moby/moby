@@ -326,3 +326,33 @@ func TestStaticIPOutsideSubpool(t *testing.T) {
 
 	assert.Check(t, is.Contains(b.String(), "inet 10.42.1.3/16"))
 }
+
+func TestWorkingDirNormalization(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	for _, tc := range []struct {
+		name    string
+		workdir string
+	}{
+		{name: "trailing slash", workdir: "/tmp/"},
+		{name: "no trailing slash", workdir: "/tmp"},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cID := container.Run(ctx, t, apiClient,
+				container.WithImage("busybox"),
+				container.WithWorkingDir(tc.workdir),
+			)
+
+			defer container.Remove(ctx, t, apiClient, cID, containertypes.RemoveOptions{Force: true})
+
+			inspect := container.Inspect(ctx, t, apiClient, cID)
+
+			assert.Check(t, is.Equal(inspect.Config.WorkingDir, "/tmp"))
+		})
+
+	}
+}
