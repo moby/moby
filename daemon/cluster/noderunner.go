@@ -13,7 +13,8 @@ import (
 	"github.com/docker/docker/daemon/cluster/executor/container"
 	lncluster "github.com/docker/docker/libnetwork/cluster"
 	swarmapi "github.com/moby/swarmkit/v2/api"
-	swarmallocator "github.com/moby/swarmkit/v2/manager/allocator/cnmallocator"
+	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
+
 	swarmnode "github.com/moby/swarmkit/v2/node"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -123,7 +124,7 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		ListenControlAPI:   control,
 		ListenRemoteAPI:    conf.ListenAddr,
 		AdvertiseRemoteAPI: conf.AdvertiseAddr,
-		NetworkConfig: &swarmallocator.NetworkConfig{
+		NetworkConfig: &networkallocator.Config{
 			DefaultAddrPool: conf.DefaultAddressPool,
 			SubnetSize:      conf.SubnetSize,
 			VXLANUDPPort:    conf.DataPathPort,
