@@ -224,13 +224,7 @@ func (r *Resolver) Stop() {
 // when forwarding queries, unless SetExtServersForSrc has configured servers
 // for the DNS client making the request.
 func (r *Resolver) SetExtServers(extDNS []extDNSEntry) {
-	l := len(extDNS)
-	if l > maxExtDNS {
-		l = maxExtDNS
-	}
-	for i := 0; i < l; i++ {
-		r.extDNSList[i] = extDNS[i]
-	}
+	copy(r.extDNSList[:], r.filterExtServers(extDNS))
 }
 
 // SetForwardingPolicy re-configures the embedded DNS resolver to either enable or disable forwarding DNS queries to
@@ -244,7 +238,7 @@ func (r *Resolver) SetForwardingPolicy(policy bool) {
 // in preference to servers set by SetExtServers. Supplying a nil or empty extDNS
 // deletes nameservers for srcAddr.
 func (r *Resolver) SetExtServersForSrc(srcAddr netip.Addr, extDNS []extDNSEntry) error {
-	r.ipToExtDNS.set(srcAddr, extDNS)
+	r.ipToExtDNS.set(srcAddr, r.filterExtServers(extDNS))
 	return nil
 }
 
@@ -256,6 +250,23 @@ func (r *Resolver) NameServer() netip.Addr {
 // ResolverOptions returns resolv.conf options that should be set.
 func (r *Resolver) ResolverOptions() []string {
 	return []string{"ndots:0"}
+}
+
+// filterExtServers removes the resolver's own address from extDNS if present,
+// and returns the result.
+func (r *Resolver) filterExtServers(extDNS []extDNSEntry) []extDNSEntry {
+	result := make([]extDNSEntry, 0, len(extDNS))
+	for _, e := range extDNS {
+		if !e.HostLoopback {
+			if ra, _ := netip.ParseAddr(e.IPStr); ra == r.listenAddress {
+				log.G(context.TODO()).Infof("[resolver] not using own address (%s) as an external DNS server",
+					r.listenAddress)
+				continue
+			}
+		}
+		result = append(result, e)
+	}
+	return result
 }
 
 //nolint:gosec // The RNG is not used in a security-sensitive context.
