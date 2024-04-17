@@ -4,6 +4,7 @@ package null
 
 import (
 	"net"
+	"net/netip"
 
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/types"
@@ -15,7 +16,7 @@ const (
 	defaultPoolID       = defaultAddressSpace + "/" + defaultPoolCIDR
 )
 
-var defaultPool, _ = types.ParseCIDR(defaultPoolCIDR)
+var defaultPool = netip.MustParsePrefix(defaultPoolCIDR)
 
 type allocator struct{}
 
@@ -23,20 +24,23 @@ func (a *allocator) GetDefaultAddressSpaces() (string, string, error) {
 	return defaultAddressSpace, defaultAddressSpace, nil
 }
 
-func (a *allocator) RequestPool(addressSpace, requestedPool, requestedSubPool string, _ map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
-	if addressSpace != defaultAddressSpace {
-		return "", nil, nil, types.InvalidParameterErrorf("unknown address space: %s", addressSpace)
+func (a *allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool, error) {
+	if req.AddressSpace != defaultAddressSpace {
+		return ipamapi.AllocatedPool{}, types.InvalidParameterErrorf("unknown address space: %s", req.AddressSpace)
 	}
-	if requestedPool != "" {
-		return "", nil, nil, types.InvalidParameterErrorf("null ipam driver does not handle specific address pool requests")
+	if req.Pool != "" {
+		return ipamapi.AllocatedPool{}, types.InvalidParameterErrorf("null ipam driver does not handle specific address pool requests")
 	}
-	if requestedSubPool != "" {
-		return "", nil, nil, types.InvalidParameterErrorf("null ipam driver does not handle specific address subpool requests")
+	if req.SubPool != "" {
+		return ipamapi.AllocatedPool{}, types.InvalidParameterErrorf("null ipam driver does not handle specific address subpool requests")
 	}
-	if v6 {
-		return "", nil, nil, types.InvalidParameterErrorf("null ipam driver does not handle IPv6 address pool requests")
+	if req.V6 {
+		return ipamapi.AllocatedPool{}, types.InvalidParameterErrorf("null ipam driver does not handle IPv6 address pool requests")
 	}
-	return defaultPoolID, defaultPool, nil, nil
+	return ipamapi.AllocatedPool{
+		PoolID: defaultPoolID,
+		Pool:   defaultPool,
+	}, nil
 }
 
 func (a *allocator) ReleasePool(poolID string) error {

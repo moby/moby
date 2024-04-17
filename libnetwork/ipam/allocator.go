@@ -91,41 +91,39 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 // If requestedPool is the empty string then the default predefined pool for addressSpace will be used, otherwise pool must be a valid IP address and length in CIDR notation.
 // If requestedSubPool is not empty, it must be a valid IP address and length in CIDR notation which is a sub-range of requestedPool.
 // requestedSubPool must be empty if requestedPool is empty.
-func (a *Allocator) RequestPool(addressSpace, requestedPool, requestedSubPool string, _ map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, err error) {
-	log.G(context.TODO()).Debugf("RequestPool(%s, %s, %s, _, %t)", addressSpace, requestedPool, requestedSubPool, v6)
+func (a *Allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool, error) {
+	log.G(context.TODO()).Debugf("RequestPool: %+v", req)
 
 	parseErr := func(err error) error {
-		return types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, requestedPool, requestedSubPool, err)
+		return types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", req.AddressSpace, req.Pool, req.SubPool, err)
 	}
 
-	if addressSpace == "" {
-		return "", nil, nil, parseErr(ipamapi.ErrInvalidAddressSpace)
+	if req.AddressSpace == "" {
+		return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidAddressSpace)
 	}
-	aSpace, err := a.getAddrSpace(addressSpace, v6)
+	aSpace, err := a.getAddrSpace(req.AddressSpace, req.V6)
 	if err != nil {
-		return "", nil, nil, err
+		return ipamapi.AllocatedPool{}, err
 	}
-	if requestedPool == "" && requestedSubPool != "" {
-		return "", nil, nil, parseErr(ipamapi.ErrInvalidSubPool)
+	if req.Pool == "" && req.SubPool != "" {
+		return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidSubPool)
 	}
 
-	k := PoolID{AddressSpace: addressSpace}
-	if requestedPool == "" {
-		k.Subnet, err = aSpace.allocatePredefinedPool(v6)
-		if err != nil {
-			return "", nil, nil, err
+	k := PoolID{AddressSpace: req.AddressSpace}
+	if req.Pool == "" {
+		if k.Subnet, err = aSpace.allocatePredefinedPool(req.V6); err != nil {
+			return ipamapi.AllocatedPool{}, err
 		}
-		return k.String(), netiputil.ToIPNet(k.Subnet), nil, nil
+		return ipamapi.AllocatedPool{PoolID: k.String(), Pool: k.Subnet}, nil
 	}
 
-	if k.Subnet, err = netip.ParsePrefix(requestedPool); err != nil {
-		return "", nil, nil, parseErr(ipamapi.ErrInvalidPool)
+	if k.Subnet, err = netip.ParsePrefix(req.Pool); err != nil {
+		return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidPool)
 	}
 
-	if requestedSubPool != "" {
-		k.ChildSubnet, err = netip.ParsePrefix(requestedSubPool)
-		if err != nil {
-			return "", nil, nil, parseErr(ipamapi.ErrInvalidSubPool)
+	if req.SubPool != "" {
+		if k.ChildSubnet, err = netip.ParsePrefix(req.SubPool); err != nil {
+			return ipamapi.AllocatedPool{}, types.InternalErrorf("invalid pool request: %v", ipamapi.ErrInvalidSubPool)
 		}
 	}
 
@@ -140,10 +138,10 @@ func (a *Allocator) RequestPool(addressSpace, requestedPool, requestedSubPool st
 
 	err = aSpace.allocateSubnet(k.Subnet, k.ChildSubnet)
 	if err != nil {
-		return "", nil, nil, err
+		return ipamapi.AllocatedPool{}, types.ForbiddenErrorf("invalid pool request: %v", err)
 	}
 
-	return k.String(), netiputil.ToIPNet(k.Subnet), nil, nil
+	return ipamapi.AllocatedPool{PoolID: k.String(), Pool: k.Subnet}, nil
 }
 
 // ReleasePool releases the address pool identified by the passed id
