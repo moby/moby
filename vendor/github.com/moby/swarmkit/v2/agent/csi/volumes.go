@@ -6,12 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/plugingetter"
-
 	"github.com/moby/swarmkit/v2/agent/csi/plugin"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/log"
+	mobyplugin "github.com/moby/swarmkit/v2/node/plugin"
 	"github.com/moby/swarmkit/v2/volumequeue"
 )
 
@@ -46,7 +45,7 @@ type volumes struct {
 }
 
 // NewManager returns a place to store volumes.
-func NewManager(pg plugingetter.PluginGetter, secrets exec.SecretGetter) exec.VolumesManager {
+func NewManager(pg mobyplugin.Getter, secrets exec.SecretGetter) exec.VolumesManager {
 	r := &volumes{
 		volumes:        map[string]volumeState{},
 		plugins:        plugin.NewManager(pg, secrets),
