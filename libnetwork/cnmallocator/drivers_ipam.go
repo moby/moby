@@ -32,14 +32,12 @@ func initIPAMDrivers(r ipamapi.Registerer, netConfig *networkallocator.Config) e
 		str.WriteString(strconv.Itoa(int(netConfig.SubnetSize)))
 
 	}
-	if err := ipamutils.ConfigGlobalScopeDefaultNetworks(addressPool); err != nil {
-		return err
-	}
-	if addressPool != nil {
+
+	if len(addressPool) > 0 {
 		log.G(context.TODO()).Infof("Swarm initialized global default address pool to: " + str.String())
 	}
 
-	if err := ipams.Register(r, nil, []*ipamutils.NetworkToSplit(nil)); err != nil {
+	if err := ipams.Register(r, nil, nil, addressPool); err != nil {
 		return err
 	}
 

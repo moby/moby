@@ -21,19 +21,28 @@ const (
 )
 
 // Register registers the default ipam driver with libnetwork. It takes
-// an optional addressPools containing the list of user-defined address pools
-// used by the local address space (ie. daemon's default-address-pools parameter).
-func Register(ic ipamapi.Registerer, addressPools []*ipamutils.NetworkToSplit) error {
+// two optional address pools respectively containing the list of user-defined
+// address pools for 'local' and 'global' address spaces.
+func Register(ic ipamapi.Registerer, lAddrPools, gAddrPools []*ipamutils.NetworkToSplit) error {
 	localAddressPools := ipamutils.GetLocalScopeDefaultNetworks()
-	if len(addressPools) > 0 {
+	if len(lAddrPools) > 0 {
 		var err error
-		localAddressPools, err = ipamutils.SplitNetworks(addressPools)
+		localAddressPools, err = ipamutils.SplitNetworks(lAddrPools)
 		if err != nil {
 			return err
 		}
 	}
 
-	a, err := NewAllocator(localAddressPools, ipamutils.GetGlobalScopeDefaultNetworks())
+	globalAddressPools := ipamutils.GetGlobalScopeDefaultNetworks()
+	if len(gAddrPools) > 0 {
+		var err error
+		globalAddressPools, err = ipamutils.SplitNetworks(gAddrPools)
+		if err != nil {
+			return err
+		}
+	}
+
+	a, err := NewAllocator(localAddressPools, globalAddressPools)
 	if err != nil {
 		return err
 	}

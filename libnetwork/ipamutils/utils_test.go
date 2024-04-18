@@ -32,17 +32,6 @@ func initGranularPredefinedNetworks() []*net.IPNet {
 	return pl
 }
 
-func initGlobalScopeNetworks() []*net.IPNet {
-	pl := make([]*net.IPNet, 0, 256*256)
-	mask := []byte{255, 255, 255, 0}
-	for i := 0; i < 256; i++ {
-		for j := 0; j < 256; j++ {
-			pl = append(pl, &net.IPNet{IP: []byte{30, byte(i), byte(j), 0}, Mask: mask})
-		}
-	}
-	return pl
-}
-
 func TestDefaultNetwork(t *testing.T) {
 	for _, nw := range GetGlobalScopeDefaultNetworks() {
 		if ones, bits := nw.Mask.Size(); bits != 32 || ones != 24 {
@@ -73,24 +62,6 @@ func TestDefaultNetwork(t *testing.T) {
 
 	m = make(map[string]bool)
 	for _, v := range originalGranularNets {
-		m[v.String()] = true
-	}
-	for _, nw := range GetGlobalScopeDefaultNetworks() {
-		_, ok := m[nw.String()]
-		assert.Check(t, ok)
-		delete(m, nw.String())
-	}
-
-	assert.Check(t, is.Len(m, 0))
-}
-
-func TestConfigGlobalScopeDefaultNetworks(t *testing.T) {
-	err := ConfigGlobalScopeDefaultNetworks([]*NetworkToSplit{{"30.0.0.0/8", 24}})
-	assert.NilError(t, err)
-
-	originalGlobalScopeNetworks := initGlobalScopeNetworks()
-	m := make(map[string]bool)
-	for _, v := range originalGlobalScopeNetworks {
 		m[v.String()] = true
 	}
 	for _, nw := range GetGlobalScopeDefaultNetworks() {

@@ -7,7 +7,6 @@ import (
 
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipams"
-	"github.com/docker/docker/libnetwork/ipamutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -15,7 +14,7 @@ import (
 func getNewIPAMs(t *testing.T) *IPAMs {
 	r := &IPAMs{}
 
-	assert.Assert(t, ipams.Register(r, nil, []*ipamutils.NetworkToSplit(nil)))
+	assert.Assert(t, ipams.Register(r, nil, nil, nil))
 
 	return r
 }
