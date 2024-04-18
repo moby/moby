@@ -1,4 +1,4 @@
-package ipam
+package defaultipam
 
 import (
 	"context"
@@ -357,7 +357,7 @@ func TestPoolAllocationReuse(t *testing.T) {
 	// Verify that we don't see any repeat networks even though
 	// we have freed them.
 	seen := map[string]bool{}
-	for i := 0; i < len(allocs); i++ {
+	for range allocs {
 		alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
 		if err != nil {
 			t.Fatal(err)

@@ -1,8 +1,8 @@
 package builtin
 
 import (
-	"github.com/docker/docker/libnetwork/ipam"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/ipamutils"
 )
 
@@ -19,7 +19,7 @@ func registerBuiltin(ic ipamapi.Registerer, addressPools []*ipamutils.NetworkToS
 		}
 	}
 
-	a, err := ipam.NewAllocator(localAddressPools, ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := defaultipam.NewAllocator(localAddressPools, ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		return err
 	}

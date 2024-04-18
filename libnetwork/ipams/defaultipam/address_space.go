@@ -1,4 +1,4 @@
-package ipam
+package defaultipam
 
 import (
 	"context"
