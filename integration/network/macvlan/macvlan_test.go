@@ -77,6 +77,9 @@ func TestDockerNetworkMacvlan(t *testing.T) {
 		}, {
 			name: "Addressing",
 			test: testMacvlanAddressing,
+		}, {
+			name: "NoIPv6",
+			test: testMacvlanNoIPv6,
 		},
 	} {
 		tc := tc
@@ -296,6 +299,32 @@ func testMacvlanAddressing(t *testing.T, ctx context.Context, client client.APIC
 	result, err = container.Exec(ctx, client, id1, []string{"ip", "-6", "route"})
 	assert.NilError(t, err)
 	assert.Check(t, strings.Contains(result.Combined(), "default via 2001:db8:abca::254 dev eth0"))
+}
+
+// Check that a macvlan interface with '--ipv6=false' doesn't get kernel-assigned
+// IPv6 addresses, but the loopback interface does still have an IPv6 address ('::1').
+func testMacvlanNoIPv6(t *testing.T, ctx context.Context, client client.APIClient) {
+	const netName = "macvlannet"
+
+	net.CreateNoError(ctx, t, client, netName,
+		net.WithMacvlan(""),
+		net.WithOption("macvlan_mode", "bridge"),
+	)
+	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+
+	id := container.Run(ctx, t, client, container.WithNetworkMode(netName))
+
+	loRes := container.ExecT(ctx, t, client, id, []string{"ip", "a", "show", "dev", "lo"})
+	assert.Check(t, is.Contains(loRes.Combined(), " inet "))
+	assert.Check(t, is.Contains(loRes.Combined(), " inet6 "))
+
+	eth0Res := container.ExecT(ctx, t, client, id, []string{"ip", "a", "show", "dev", "eth0"})
+	assert.Check(t, is.Contains(eth0Res.Combined(), " inet "))
+	assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet6 "),
+		"result.Combined(): %s", eth0Res.Combined())
+
+	sysctlRes := container.ExecT(ctx, t, client, id, []string{"sysctl", "-n", "net.ipv6.conf.eth0.disable_ipv6"})
+	assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), "1"))
 }
 
 // TestMACVlanDNS checks whether DNS is forwarded, with/without a parent
