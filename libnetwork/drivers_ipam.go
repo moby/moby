@@ -10,21 +10,11 @@ import (
 )
 
 func initIPAMDrivers(r ipamapi.Registerer, pg plugingetter.PluginGetter, addressPool []*ipamutils.NetworkToSplit) error {
-	// TODO: pass address pools as arguments to builtinIpam.Init instead of
-	// indirectly through global mutable state. Swarmkit references that
-	// function so changing its signature breaks the build.
-	if err := builtinIpam.SetDefaultIPAddressPool(addressPool); err != nil {
+	if err := builtinIpam.Register(r, addressPool); err != nil {
 		return err
 	}
-
-	for _, fn := range [](func(ipamapi.Registerer) error){
-		builtinIpam.Register,
-		nullIpam.Register,
-	} {
-		if err := fn(r); err != nil {
-			return err
-		}
+	if err := nullIpam.Register(r); err != nil {
+		return err
 	}
-
 	return remoteIpam.Register(r, pg)
 }

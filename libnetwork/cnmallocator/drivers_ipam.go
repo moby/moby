@@ -40,13 +40,11 @@ func initIPAMDrivers(r ipamapi.Registerer, netConfig *networkallocator.Config) e
 		log.G(context.TODO()).Infof("Swarm initialized global default address pool to: " + str.String())
 	}
 
-	for _, fn := range [](func(ipamapi.Registerer) error){
-		builtinIpam.Register,
-		nullIpam.Register,
-	} {
-		if err := fn(r); err != nil {
-			return err
-		}
+	if err := builtinIpam.Register(r, []*ipamutils.NetworkToSplit(nil)); err != nil {
+		return err
+	}
+	if err := nullIpam.Register(r); err != nil {
+		return err
 	}
 
 	return nil

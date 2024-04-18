@@ -1,26 +1,25 @@
 package builtin
 
 import (
-	"net"
-
 	"github.com/docker/docker/libnetwork/ipam"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipamutils"
 )
 
-// defaultAddressPool Stores user configured subnet list
-var defaultAddressPool []*net.IPNet
-
-// registerBuiltin registers the built-in ipam driver with libnetwork.
-func registerBuiltin(ic ipamapi.Registerer) error {
-	var localAddressPool []*net.IPNet
-	if len(defaultAddressPool) > 0 {
-		localAddressPool = append([]*net.IPNet(nil), defaultAddressPool...)
-	} else {
-		localAddressPool = ipamutils.GetLocalScopeDefaultNetworks()
+// registerBuiltin registers the built-in ipam driver with libnetwork. It takes
+// an optional addressPools containing the list of user-defined address pools
+// used by the local address space (ie. daemon's default-address-pools parameter).
+func registerBuiltin(ic ipamapi.Registerer, addressPools []*ipamutils.NetworkToSplit) error {
+	localAddressPools := ipamutils.GetLocalScopeDefaultNetworks()
+	if len(addressPools) > 0 {
+		var err error
+		localAddressPools, err = ipamutils.SplitNetworks(addressPools)
+		if err != nil {
+			return err
+		}
 	}
 
-	a, err := ipam.NewAllocator(localAddressPool, ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := ipam.NewAllocator(localAddressPools, ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		return err
 	}
@@ -28,14 +27,4 @@ func registerBuiltin(ic ipamapi.Registerer) error {
 	cps := &ipamapi.Capability{RequiresRequestReplay: true}
 
 	return ic.RegisterIpamDriverWithCapabilities(ipamapi.DefaultIPAM, a, cps)
-}
-
-// SetDefaultIPAddressPool stores default address pool.
-func SetDefaultIPAddressPool(addressPool []*ipamutils.NetworkToSplit) error {
-	nets, err := ipamutils.SplitNetworks(addressPool)
-	if err != nil {
-		return err
-	}
-	defaultAddressPool = nets
-	return nil
 }
