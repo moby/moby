@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/ipamapi"
-	builtinIpam "github.com/docker/docker/libnetwork/ipams/builtin"
+	builtinIpam "github.com/docker/docker/libnetwork/ipams"
 	nullIpam "github.com/docker/docker/libnetwork/ipams/null"
 	remoteIpam "github.com/docker/docker/libnetwork/ipams/remote"
 	"github.com/docker/docker/libnetwork/ipamutils"

@@ -1,6 +1,6 @@
 //go:build windows
 
-package builtin
+package ipams
 
 import (
 	"github.com/docker/docker/libnetwork/ipamapi"

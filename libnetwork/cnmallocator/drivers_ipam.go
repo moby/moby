@@ -7,7 +7,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	builtinIpam "github.com/docker/docker/libnetwork/ipams/builtin"
+	builtinIpam "github.com/docker/docker/libnetwork/ipams"
 	nullIpam "github.com/docker/docker/libnetwork/ipams/null"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"

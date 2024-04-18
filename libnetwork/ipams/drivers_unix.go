@@ -1,6 +1,6 @@
 //go:build linux || freebsd || darwin
 
-package builtin
+package ipams
 
 import (
 	"github.com/docker/docker/libnetwork/ipamapi"
