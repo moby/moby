@@ -24,8 +24,8 @@ var defaultPool = netip.MustParsePrefix("0.0.0.0/0")
 type allocator struct{}
 
 // Register registers the built-in ipam service with libnetwork
-func Register(ipamName string, r ipamapi.Registerer) error {
-	return r.RegisterIpamDriver(ipamName, &allocator{})
+func Register(r ipamapi.Registerer) error {
+	return r.RegisterIpamDriver(DefaultIPAM, &allocator{})
 }
 
 func (a *allocator) GetDefaultAddressSpaces() (string, string, error) {

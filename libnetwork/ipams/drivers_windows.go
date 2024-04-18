@@ -15,5 +15,5 @@ func Register(r ipamapi.Registerer, addressPools []*ipamutils.NetworkToSplit) er
 		return err
 	}
 
-	return windowsipam.Register(windowsipam.DefaultIPAM, r)
+	return windowsipam.Register(r)
 }
