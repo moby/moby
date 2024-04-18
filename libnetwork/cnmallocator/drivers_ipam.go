@@ -7,8 +7,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	builtinIpam "github.com/docker/docker/libnetwork/ipams"
-	nullIpam "github.com/docker/docker/libnetwork/ipams/null"
+	"github.com/docker/docker/libnetwork/ipams"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 )
@@ -40,10 +39,7 @@ func initIPAMDrivers(r ipamapi.Registerer, netConfig *networkallocator.Config) e
 		log.G(context.TODO()).Infof("Swarm initialized global default address pool to: " + str.String())
 	}
 
-	if err := builtinIpam.Register(r, []*ipamutils.NetworkToSplit(nil)); err != nil {
-		return err
-	}
-	if err := nullIpam.Register(r); err != nil {
+	if err := ipams.Register(r, nil, []*ipamutils.NetworkToSplit(nil)); err != nil {
 		return err
 	}
 
