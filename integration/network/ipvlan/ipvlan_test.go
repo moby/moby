@@ -94,6 +94,9 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 		}, {
 			name: "L3Addressing",
 			test: testIpvlanL3Addressing,
+		}, {
+			name: "NoIPv6",
+			test: testIpvlanNoIPv6,
 		},
 	} {
 
@@ -441,6 +444,28 @@ func testIpvlanL3Addressing(t *testing.T, ctx context.Context, client dclient.AP
 	assert.Check(t, is.Contains(result.Combined(), "default dev eth0"))
 }
 
+// Check that an ipvlan interface with '--ipv6=false' doesn't get kernel-assigned
+// IPv6 addresses, but the loopback interface does still have an IPv6 address ('::1').
+func testIpvlanNoIPv6(t *testing.T, ctx context.Context, client dclient.APIClient) {
+	const netName = "ipvlannet"
+	net.CreateNoError(ctx, t, client, netName, net.WithIPvlan("", "l3"))
+	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+
+	id := container.Run(ctx, t, client, container.WithNetworkMode(netName))
+
+	loRes := container.ExecT(ctx, t, client, id, []string{"ip", "a", "show", "dev", "lo"})
+	assert.Check(t, is.Contains(loRes.Combined(), " inet "))
+	assert.Check(t, is.Contains(loRes.Combined(), " inet6 "))
+
+	eth0Res := container.ExecT(ctx, t, client, id, []string{"ip", "a", "show", "dev", "eth0"})
+	assert.Check(t, is.Contains(eth0Res.Combined(), " inet "))
+	assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet6 "),
+		"result.Combined(): %s", eth0Res.Combined())
+
+	sysctlRes := container.ExecT(ctx, t, client, id, []string{"sysctl", "-n", "net.ipv6.conf.eth0.disable_ipv6"})
+	assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), "1"))
+}
+
 // TestIPVlanDNS checks whether DNS is forwarded, for combinations of l2/l3 mode,
 // with/without a parent interface, and with '--internal'. Note that, there's no
 // attempt here to give the ipvlan network external connectivity - when this test
@@ -452,7 +477,6 @@ func testIpvlanL3Addressing(t *testing.T, ctx context.Context, client dclient.AP
 // https://github.com/moby/moby/issues/47662
 func TestIPVlanDNS(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
-
 	ctx := testutil.StartSpan(baseContext, t)
 
 	net.StartDaftDNS(t, "127.0.0.1")
