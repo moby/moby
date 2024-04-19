@@ -12,6 +12,9 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
+// Linux-specific container configuration flags.
+type containerConfigOS struct{} //nolint:nolintlint,unused // only populated on windows
+
 func releaseOSSboxResources(ns *osl.Namespace, ep *Endpoint) {
 	for _, i := range ns.Interfaces() {
 		// Only remove the interfaces owned by this endpoint from the sandbox.

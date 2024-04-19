@@ -54,7 +54,8 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseExternalKey())
 	}
 
-	if err := setupPathsAndSandboxOptions(container, cfg, &sboxOptions); err != nil {
+	// Add platform-specific Sandbox options.
+	if err := buildSandboxPlatformOptions(container, cfg, &sboxOptions); err != nil {
 		return nil, err
 	}
 

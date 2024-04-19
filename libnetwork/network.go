@@ -192,7 +192,6 @@ type Network struct {
 	dbExists         bool
 	persist          bool
 	drvOnce          *sync.Once
-	resolverOnce     sync.Once //nolint:nolintlint,unused // only used on windows
 	resolver         []*Resolver
 	internal         bool
 	attachable       bool
@@ -204,6 +203,7 @@ type Network struct {
 	configFrom       string
 	loadBalancerIP   net.IP
 	loadBalancerMode string
+	platformNetwork  //nolint:nolintlint,unused // only populated on windows
 	mu               sync.Mutex
 }
 
@@ -242,6 +242,13 @@ func (n *Network) Type() string {
 	defer n.mu.Unlock()
 
 	return n.networkType
+}
+
+func (n *Network) Resolvers() []*Resolver {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	return n.resolver
 }
 
 func (n *Network) Key() []string {
@@ -2095,10 +2102,6 @@ func (n *Network) ResolveService(ctx context.Context, name string) ([]*net.SRV, 
 	}
 
 	return srv, ip
-}
-
-func (n *Network) ExecFunc(f func()) error {
-	return types.NotImplementedErrorf("ExecFunc not supported by network")
 }
 
 func (n *Network) NdotsSet() bool {

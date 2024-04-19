@@ -417,7 +417,7 @@ func serviceDiscoveryOnDefaultNetwork() bool {
 	return false
 }
 
-func setupPathsAndSandboxOptions(container *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
+func buildSandboxPlatformOptions(container *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
 	var err error
 	var originResolvConfPath string
 
@@ -481,6 +481,7 @@ func setupPathsAndSandboxOptions(container *container.Container, cfg *config.Con
 		return err
 	}
 	*sboxOptions = append(*sboxOptions, libnetwork.OptionResolvConfPath(container.ResolvConfPath))
+
 	return nil
 }
 
