@@ -299,8 +299,8 @@ func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity)
 		return nil
 	}
 
-	container.Config.WorkingDir = filepath.Clean(container.Config.WorkingDir)
-	pth, err := container.GetResourcePath(container.Config.WorkingDir)
+	workdir := filepath.Clean(container.Config.WorkingDir)
+	pth, err := container.GetResourcePath(workdir)
 	if err != nil {
 		return err
 	}

@@ -4296,7 +4296,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgExpansion(c *testing.T) {
 	imgName := "bldvarstest"
 
 	wdVar := "WDIR"
-	wdVal := "/tmp/"
+	wdVal := "/tmp"
 	addVar := "AFILE"
 	addVal := "addFile"
 	copyVar := "CFILE"

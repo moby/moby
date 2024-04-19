@@ -364,6 +364,6 @@ func translateWorkingDir(config *containertypes.Config) error {
 	if !system.IsAbs(wd) {
 		return fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
 	}
-	config.WorkingDir = wd
+	config.WorkingDir = filepath.Clean(wd)
 	return nil
 }

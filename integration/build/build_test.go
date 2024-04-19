@@ -689,6 +689,72 @@ func TestBuildPlatformInvalid(t *testing.T) {
 	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 }
 
+// TestBuildWorkdirNoCacheMiss is a regression test for https://github.com/moby/moby/issues/47627
+func TestBuildWorkdirNoCacheMiss(t *testing.T) {
+	ctx := setupTest(t)
+
+	for _, tc := range []struct {
+		name       string
+		dockerfile string
+	}{
+		{name: "trailing slash", dockerfile: "FROM busybox\nWORKDIR /foo/"},
+		{name: "no trailing slash", dockerfile: "FROM busybox\nWORKDIR /foo"},
+	} {
+		dockerfile := tc.dockerfile
+		t.Run(tc.name, func(t *testing.T) {
+			source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
+			defer source.Close()
+
+			apiClient := testEnv.APIClient()
+
+			buildAndGetID := func() string {
+				resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), types.ImageBuildOptions{
+					Version: types.BuilderV1,
+				})
+				assert.NilError(t, err)
+				defer resp.Body.Close()
+
+				id := readBuildImageIDs(t, resp.Body)
+				assert.Check(t, id != "")
+				return id
+			}
+
+			firstId := buildAndGetID()
+			secondId := buildAndGetID()
+
+			assert.Check(t, is.Equal(firstId, secondId), "expected cache to be used")
+		})
+	}
+}
+
+func readBuildImageIDs(t *testing.T, rd io.Reader) string {
+	t.Helper()
+	decoder := json.NewDecoder(rd)
+	for {
+		var jm jsonmessage.JSONMessage
+		if err := decoder.Decode(&jm); err != nil {
+			if err == io.EOF {
+				break
+			}
+			assert.NilError(t, err)
+		}
+
+		if jm.Aux == nil {
+			continue
+		}
+
+		var auxId struct {
+			ID string `json:"ID"`
+		}
+
+		if json.Unmarshal(*jm.Aux, &auxId); auxId.ID != "" {
+			return auxId.ID
+		}
+	}
+
+	return ""
+}
+
 func writeTarRecord(t *testing.T, w *tar.Writer, fn, contents string) {
 	err := w.WriteHeader(&tar.Header{
 		Name:     fn,
