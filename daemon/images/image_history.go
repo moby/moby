@@ -43,9 +43,14 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*image.
 			layerCounter++
 		}
 
+		var created int64
+		if h.Created != nil {
+			created = h.Created.Unix()
+		}
+
 		history = append([]*image.HistoryResponseItem{{
 			ID:        "<missing>",
-			Created:   h.Created.Unix(),
+			Created:   created,
 			CreatedBy: h.CreatedBy,
 			Comment:   h.Comment,
 			Size:      layerSize,
