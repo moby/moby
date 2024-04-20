@@ -45,7 +45,7 @@ func (i *ImageService) walkImageManifests(ctx context.Context, img containerdima
 		return i.walkPresentChildren(ctx, desc, handleManifest)
 	}
 
-	return errNotManifestOrIndex
+	return errors.Wrapf(errNotManifestOrIndex, "error walking manifest for %s", img.Name)
 }
 
 type ImageManifest struct {
