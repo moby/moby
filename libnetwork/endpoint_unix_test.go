@@ -3,6 +3,7 @@
 package libnetwork
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -42,7 +43,7 @@ fe90::2	somehost.example.com somehost
 		t.Fatal(err)
 	}
 
-	ep1, err := nws[0].CreateEndpoint("ep1")
+	ep1, err := nws[0].CreateEndpoint(context.Background(), "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}

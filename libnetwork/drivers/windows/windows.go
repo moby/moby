@@ -28,6 +28,9 @@ import (
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // networkConfiguration for network specific configuration
@@ -605,7 +608,12 @@ func ParseEndpointConnectivity(epOptions map[string]interface{}) (*EndpointConne
 	return ec, nil
 }
 
-func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+	ctx, span := otel.Tracer("").Start(ctx, fmt.Sprintf("libnetwork.drivers.windows_%s.CreateEndpoint", d.name), trace.WithAttributes(
+		attribute.String("nid", nid),
+		attribute.String("eid", eid)))
+	defer span.End()
+
 	n, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -675,13 +683,13 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	// overwrite the ep DisableDNS option if DisableGatewayDNS was set to true during the network creation option
 	if n.config.DisableGatewayDNS {
-		log.G(context.TODO()).Debugf("n.config.DisableGatewayDNS[%v] overwrites epOption.DisableDNS[%v]", n.config.DisableGatewayDNS, epOption.DisableDNS)
+		log.G(ctx).Debugf("n.config.DisableGatewayDNS[%v] overwrites epOption.DisableDNS[%v]", n.config.DisableGatewayDNS, epOption.DisableDNS)
 		epOption.DisableDNS = n.config.DisableGatewayDNS
 	}
 
 	if n.driver.name == "nat" && !epOption.DisableDNS {
 		endpointStruct.EnableInternalDNS = true
-		log.G(context.TODO()).Debugf("endpointStruct.EnableInternalDNS =[%v]", endpointStruct.EnableInternalDNS)
+		log.G(ctx).Debugf("endpointStruct.EnableInternalDNS =[%v]", endpointStruct.EnableInternalDNS)
 	}
 
 	endpointStruct.DisableICC = epOption.DisableICC
@@ -749,7 +757,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	if err = d.storeUpdate(endpoint); err != nil {
-		log.G(context.TODO()).Errorf("Failed to save endpoint %.7s to store: %v", endpoint.id, err)
+		log.G(ctx).Errorf("Failed to save endpoint %.7s to store: %v", endpoint.id, err)
 	}
 
 	return nil

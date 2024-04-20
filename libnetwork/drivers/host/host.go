@@ -1,6 +1,7 @@
 package host
 
 import (
+	"context"
 	"sync"
 
 	"github.com/docker/docker/libnetwork/driverapi"
@@ -54,7 +55,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return types.ForbiddenErrorf("network of type %q cannot be deleted", NetworkType)
 }
 
-func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	return nil
 }
 

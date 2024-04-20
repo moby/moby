@@ -113,7 +113,7 @@ func (iface *lnInterface) init(c *libnetwork.Controller, n *libnetwork.Network) 
 	defer close(iface.ready)
 	id := identity.NewID()
 
-	ep, err := n.CreateEndpoint(id, libnetwork.CreateOptionDisableResolution())
+	ep, err := n.CreateEndpoint(context.TODO(), id, libnetwork.CreateOptionDisableResolution())
 	if err != nil {
 		iface.err = err
 		return

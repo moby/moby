@@ -71,7 +71,7 @@ func (sb *Sandbox) setupDefaultGW() error {
 		createOptions = append(createOptions, epOption)
 	}
 
-	newEp, err := n.CreateEndpoint(gwName, createOptions...)
+	newEp, err := n.CreateEndpoint(context.TODO(), gwName, createOptions...)
 	if err != nil {
 		return fmt.Errorf("container %s: endpoint create on GW Network failed: %v", sb.containerID, err)
 	}

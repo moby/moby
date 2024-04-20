@@ -24,7 +24,7 @@ create network namespaces and allocate interfaces for containers to use.
 	// settings will be used for container infos (inspect and such), as well as
 	// iptables rules for port publishing. This info is contained or accessible
 	// from the returned endpoint.
-	ep, err := network.CreateEndpoint("Endpoint1")
+	ep, err := network.CreateEndpoint(context.TODO(), "Endpoint1")
 	if err != nil {
 		return
 	}

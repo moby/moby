@@ -1107,13 +1107,13 @@ func (n *Network) deleteNetwork() error {
 	return nil
 }
 
-func (n *Network) addEndpoint(ep *Endpoint) error {
+func (n *Network) addEndpoint(ctx context.Context, ep *Endpoint) error {
 	d, err := n.driver(true)
 	if err != nil {
 		return fmt.Errorf("failed to add endpoint: %v", err)
 	}
 
-	err = d.CreateEndpoint(n.id, ep.id, ep.Iface(), ep.generic)
+	err = d.CreateEndpoint(ctx, n.id, ep.id, ep.Iface(), ep.generic)
 	if err != nil {
 		return types.InternalErrorf("failed to create endpoint %s on network %s: %v",
 			ep.Name(), n.Name(), err)
@@ -1124,7 +1124,7 @@ func (n *Network) addEndpoint(ep *Endpoint) error {
 
 // CreateEndpoint creates a new endpoint to this network symbolically identified by the
 // specified unique name. The options parameter carries driver specific options.
-func (n *Network) CreateEndpoint(name string, options ...EndpointOption) (*Endpoint, error) {
+func (n *Network) CreateEndpoint(ctx context.Context, name string, options ...EndpointOption) (*Endpoint, error) {
 	var err error
 	if strings.TrimSpace(name) == "" {
 		return nil, ErrInvalidName(name)
@@ -1141,10 +1141,10 @@ func (n *Network) CreateEndpoint(name string, options ...EndpointOption) (*Endpo
 	n.ctrlr.networkLocker.Lock(n.id)
 	defer n.ctrlr.networkLocker.Unlock(n.id) //nolint:errcheck
 
-	return n.createEndpoint(name, options...)
+	return n.createEndpoint(ctx, name, options...)
 }
 
-func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpoint, error) {
+func (n *Network) createEndpoint(ctx context.Context, name string, options ...EndpointOption) (*Endpoint, error) {
 	var err error
 
 	ep := &Endpoint{name: name, generic: make(map[string]interface{}), iface: &EndpointInterface{}}
@@ -1155,7 +1155,7 @@ func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpo
 	ep.network = n
 	ep.network, err = ep.getNetworkFromStore()
 	if err != nil {
-		log.G(context.TODO()).Errorf("failed to get network during CreateEndpoint: %v", err)
+		log.G(ctx).Errorf("failed to get network during CreateEndpoint: %v", err)
 		return nil, err
 	}
 	n = ep.network
@@ -1198,13 +1198,13 @@ func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpo
 		}
 	}()
 
-	if err = n.addEndpoint(ep); err != nil {
+	if err = n.addEndpoint(ctx, ep); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
 			if e := ep.deleteEndpoint(false); e != nil {
-				log.G(context.TODO()).Warnf("cleaning up endpoint failed %s : %v", name, e)
+				log.G(ctx).Warnf("cleaning up endpoint failed %s : %v", name, e)
 			}
 		}
 	}()
@@ -1217,7 +1217,7 @@ func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpo
 	defer func() {
 		if err != nil {
 			if e := n.getController().deleteFromStore(ep); e != nil {
-				log.G(context.TODO()).Warnf("error rolling back endpoint %s from store: %v", name, e)
+				log.G(ctx).Warnf("error rolling back endpoint %s from store: %v", name, e)
 			}
 		}
 	}()
@@ -2128,7 +2128,7 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 		CreateOptionIpam(n.loadBalancerIP, nil, nil, nil),
 		CreateOptionLoadBalancer(),
 	}
-	ep, err := n.createEndpoint(endpointName, epOptions...)
+	ep, err := n.createEndpoint(context.TODO(), endpointName, epOptions...)
 	if err != nil {
 		return err
 	}

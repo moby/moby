@@ -41,7 +41,7 @@ type Backend interface {
 	ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error
 	ContainerStop(ctx context.Context, name string, config container.StopOptions) error
 	ContainerLogs(ctx context.Context, name string, config *container.LogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
-	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
+	ConnectContainerToNetwork(ctx context.Context, containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	ActivateContainerServiceBinding(containerName string) error
 	DeactivateContainerServiceBinding(containerName string) error
 	UpdateContainerServiceConfig(containerName string, serviceConfig *clustertypes.ServiceConfig) error

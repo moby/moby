@@ -3,6 +3,7 @@
 package libnetwork
 
 import (
+	"context"
 	"strconv"
 	"testing"
 
@@ -129,15 +130,15 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 	}
 	sid := sbx.ID()
 
-	ep1, err := nws[0].CreateEndpoint("ep1")
+	ep1, err := nws[0].CreateEndpoint(context.Background(), "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep2, err := nws[1].CreateEndpoint("ep2")
+	ep2, err := nws[1].CreateEndpoint(context.Background(), "ep2")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep3, err := nws[2].CreateEndpoint("ep3")
+	ep3, err := nws[2].CreateEndpoint(context.Background(), "ep3")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,21 +215,21 @@ func TestSandboxAddSamePrio(t *testing.T) {
 	}
 	sid := sbx.ID()
 
-	epNw1, err := nws[1].CreateEndpoint("ep1")
+	epNw1, err := nws[1].CreateEndpoint(context.Background(), "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	epIPv6, err := nws[2].CreateEndpoint("ep2")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	epInternal, err := nws[3].CreateEndpoint("ep3")
+	epIPv6, err := nws[2].CreateEndpoint(context.Background(), "ep2")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	epNw0, err := nws[0].CreateEndpoint("ep4")
+	epInternal, err := nws[3].CreateEndpoint(context.Background(), "ep3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	epNw0, err := nws[0].CreateEndpoint(context.Background(), "ep4")
 	if err != nil {
 		t.Fatal(err)
 	}

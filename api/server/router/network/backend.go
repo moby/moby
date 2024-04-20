@@ -13,7 +13,7 @@ import (
 type Backend interface {
 	GetNetworks(filters.Args, backend.NetworkListConfig) ([]network.Inspect, error)
 	CreateNetwork(nc network.CreateRequest) (*network.CreateResponse, error)
-	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
+	ConnectContainerToNetwork(ctx context.Context, containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error
 	DeleteNetwork(networkID string) error
 	NetworksPrune(ctx context.Context, pruneFilters filters.Args) (*network.PruneReport, error)

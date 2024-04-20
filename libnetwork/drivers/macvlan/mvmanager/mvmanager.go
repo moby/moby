@@ -1,6 +1,8 @@
 package mvmanager
 
 import (
+	"context"
+
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
@@ -41,7 +43,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 

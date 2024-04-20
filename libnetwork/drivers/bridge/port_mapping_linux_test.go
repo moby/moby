@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -52,7 +53,7 @@ func TestPortMappingConfig(t *testing.T) {
 	}
 
 	te := newTestEndpoint(ipdList4[0].Pool, 11)
-	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())
 	}
@@ -137,7 +138,7 @@ func TestPortMappingV6Config(t *testing.T) {
 	}
 
 	te := newTestEndpoint(ipdList4[0].Pool, 11)
-	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())
 	}

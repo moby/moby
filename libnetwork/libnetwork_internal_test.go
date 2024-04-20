@@ -372,7 +372,7 @@ func TestSRVServiceQuery(t *testing.T) {
 		}
 	}()
 
-	ep, err := n.CreateEndpoint("testep")
+	ep, err := n.CreateEndpoint(context.Background(), "testep")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -471,7 +471,7 @@ func TestServiceVIPReuse(t *testing.T) {
 		}
 	}()
 
-	ep, err := n.CreateEndpoint("testep")
+	ep, err := n.CreateEndpoint(context.Background(), "testep")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -610,7 +610,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 		}
 	}()
 
-	if _, err := bnw.CreateEndpoint("ep0"); err == nil {
+	if _, err := bnw.CreateEndpoint(context.Background(), "ep0"); err == nil {
 		t.Fatalf("bad network driver should have failed endpoint creation")
 	}
 
@@ -626,7 +626,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 		}
 	}()
 
-	ep, err := gnw.CreateEndpoint("ep1")
+	ep, err := gnw.CreateEndpoint(context.Background(), "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -661,7 +661,7 @@ func (b *badDriver) DeleteNetwork(nid string) error {
 	return nil
 }
 
-func (b *badDriver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, options map[string]interface{}) error {
+func (b *badDriver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, options map[string]interface{}) error {
 	return fmt.Errorf("I will not create any endpoint")
 }
 

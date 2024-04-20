@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/net/websocket"
 )
 
@@ -188,6 +189,9 @@ func (s *containerRouter) getContainersExport(ctx context.Context, w http.Respon
 }
 
 func (s *containerRouter) postContainersStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	ctx, span := otel.Tracer("").Start(ctx, "containerRouter.postContainersStart")
+	defer span.End()
+
 	// If contentLength is -1, we can assumed chunked encoding
 	// or more technically that the length is unknown
 	// https://golang.org/src/pkg/net/http/request.go#L139

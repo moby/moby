@@ -114,7 +114,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 
-	if err := daemon.initializeNetworking(&daemonCfg.Config, container); err != nil {
+	if err := daemon.initializeNetworking(ctx, &daemonCfg.Config, container); err != nil {
 		return err
 	}
 

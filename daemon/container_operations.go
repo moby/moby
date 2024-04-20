@@ -32,6 +32,9 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func ipAddresses(ips []net.IP) []string {
@@ -476,7 +479,7 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 	}
 }
 
-func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.Container) (retErr error) {
+func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, container *container.Container) (retErr error) {
 	if daemon.netController == nil {
 		return nil
 	}
@@ -485,7 +488,7 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 
 	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
 	if err := daemon.netController.SandboxDestroy(container.ID); err != nil {
-		log.G(context.TODO()).WithError(err).Errorf("failed to cleanup up stale network sandbox for container %s", container.ID)
+		log.G(ctx).WithError(err).Errorf("failed to cleanup up stale network sandbox for container %s", container.ID)
 	}
 
 	if container.Config.NetworkDisabled || container.HostConfig.NetworkMode.IsContainer() {
@@ -505,7 +508,7 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
 	if nConf, ok := container.NetworkSettings.Networks[defaultNetName]; ok {
 		cleanOperationalData(nConf)
-		if err := daemon.connectToNetwork(cfg, container, defaultNetName, nConf, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(ctx, cfg, container, defaultNetName, nConf, updateSettings); err != nil {
 			return err
 		}
 	}
@@ -522,7 +525,7 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 
 	for netName, epConf := range networks {
 		cleanOperationalData(epConf)
-		if err := daemon.connectToNetwork(cfg, container, netName, epConf, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(ctx, cfg, container, netName, epConf, updateSettings); err != nil {
 			return err
 		}
 	}
@@ -695,8 +698,16 @@ func buildEndpointDNSNames(ctr *container.Container, aliases []string) []string 
 	return sliceutil.Dedup(dnsNames)
 }
 
-func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.Container, idOrName string, endpointConfig *network.EndpointSettings, updateSettings bool) (retErr error) {
+func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, container *container.Container, idOrName string, endpointConfig *network.EndpointSettings, updateSettings bool) (retErr error) {
+	containerName := strings.TrimPrefix(container.Name, "/")
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.connectToNetwork", trace.WithAttributes(
+		attribute.String("container.ID", container.ID),
+		attribute.String("container.name", containerName),
+		attribute.String("network.idOrName", idOrName)))
+	defer span.End()
+
 	start := time.Now()
+
 	if container.HostConfig.NetworkMode.IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
 	}
@@ -749,15 +760,14 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 		return err
 	}
 
-	endpointName := strings.TrimPrefix(container.Name, "/")
-	ep, err := n.CreateEndpoint(endpointName, createOptions...)
+	ep, err := n.CreateEndpoint(ctx, containerName, createOptions...)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if retErr != nil {
 			if err := ep.Delete(false); err != nil {
-				log.G(context.TODO()).Warnf("Could not rollback container connection to network %s", idOrName)
+				log.G(ctx).Warnf("Could not rollback container connection to network %s", idOrName)
 			}
 		}
 	}()
@@ -936,7 +946,7 @@ func (daemon *Daemon) normalizeNetMode(container *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) initializeNetworking(cfg *config.Config, container *container.Container) error {
+func (daemon *Daemon) initializeNetworking(ctx context.Context, cfg *config.Config, container *container.Container) error {
 	if container.HostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
 		nc, err := daemon.getNetworkedContainer(container.ID, container.HostConfig.NetworkMode.ConnectedContainer())
@@ -962,7 +972,7 @@ func (daemon *Daemon) initializeNetworking(cfg *config.Config, container *contai
 		container.Config.Hostname = hn
 	}
 
-	if err := daemon.allocateNetwork(cfg, container); err != nil {
+	if err := daemon.allocateNetwork(ctx, cfg, container); err != nil {
 		return err
 	}
 
@@ -1042,7 +1052,7 @@ func errRemovalContainer(containerID string) error {
 }
 
 // ConnectToNetwork connects a container to a network
-func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
+func (daemon *Daemon) ConnectToNetwork(ctx context.Context, container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
 	if endpointConfig == nil {
 		endpointConfig = &networktypes.EndpointSettings{}
 	}
@@ -1068,7 +1078,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 		epc := &network.EndpointSettings{
 			EndpointSettings: endpointConfig,
 		}
-		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, epc, true); err != nil {
+		if err := daemon.connectToNetwork(ctx, &daemon.config().Config, container, idOrName, epc, true); err != nil {
 			return err
 		}
 	}
