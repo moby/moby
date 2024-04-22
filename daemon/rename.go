@@ -78,7 +78,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 		daemon.linkIndex.unlink(oldName+k, v, container)
 		daemon.containersReplica.ReleaseName(oldName + k)
 	}
-	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+	if err := container.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
 		return err
 	}
 
@@ -92,7 +92,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 	defer func() {
 		if retErr != nil {
 			container.Name = oldName
-			if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+			if err := container.CheckpointTo(context.WithoutCancel(context.TODO()), daemon.containersReplica); err != nil {
 				log.G(context.TODO()).WithFields(log.Fields{
 					"containerID": container.ID,
 					"error":       err,

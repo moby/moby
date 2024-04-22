@@ -117,7 +117,7 @@ func (daemon *Daemon) Register(c *container.Container) error {
 	defer c.Unlock()
 
 	daemon.containers.Add(c.ID, c)
-	return c.CheckpointTo(daemon.containersReplica)
+	return c.CheckpointTo(context.TODO(), daemon.containersReplica)
 }
 
 func (daemon *Daemon) newContainer(name string, operatingSystem string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {

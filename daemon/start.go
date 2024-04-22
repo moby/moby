@@ -93,7 +93,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 			if container.ExitCode() == 0 {
 				container.SetExitCode(exitUnknown)
 			}
-			if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+			if err := container.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
 				log.G(ctx).Errorf("%s: failed saving state on start failure: %v", container.ID, err)
 			}
 			container.Reset(false)
@@ -211,7 +211,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 
 	daemon.initHealthMonitor(container)
 
-	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+	if err := container.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
 		log.G(ctx).WithError(err).WithField("container", container.ID).
 			Errorf("failed to store container")
 	}
