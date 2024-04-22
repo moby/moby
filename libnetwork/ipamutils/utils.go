@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	// predefinedLocalScopeDefaultNetworks contains a list of 31 IPv4 private networks with host size 16 and 12
-	// (172.17-31.x.x/16, 192.168.x.x/20) which do not overlap with the networks in `PredefinedGlobalScopeDefaultNetworks`
+	// predefinedLocalScopeDefaultNetworks contains a list of 257 IPv4 private networks with host size 16 and 24
+	// (172.17.x.x/16, 172.18.x.x/24) which do not overlap with the networks in `PredefinedGlobalScopeDefaultNetworks`
 	predefinedLocalScopeDefaultNetworks []*net.IPNet
 	// predefinedGlobalScopeDefaultNetworks contains a list of 64K IPv4 private networks with host size 8
 	// (10.x.x.x/24) which do not overlap with the networks in `PredefinedLocalScopeDefaultNetworks`
@@ -17,12 +17,7 @@ var (
 	mutex                                sync.Mutex
 	localScopeDefaultNetworks            = []*NetworkToSplit{
 		{"172.17.0.0/16", 16},
-		{"172.18.0.0/16", 16},
-		{"172.19.0.0/16", 16},
-		{"172.20.0.0/14", 16},
-		{"172.24.0.0/14", 16},
-		{"172.28.0.0/14", 16},
-		{"192.168.0.0/16", 20},
+		{"172.18.0.0/16", 24},
 	}
 	globalScopeDefaultNetworks = []*NetworkToSplit{{"10.0.0.0/8", 24}}
 )

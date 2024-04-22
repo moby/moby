@@ -9,14 +9,14 @@ import (
 )
 
 func initBroadPredefinedNetworks() []*net.IPNet {
-	pl := make([]*net.IPNet, 0, 31)
-	mask := []byte{255, 255, 0, 0}
-	for i := 17; i < 32; i++ {
-		pl = append(pl, &net.IPNet{IP: []byte{172, byte(i), 0, 0}, Mask: mask})
+	pl := make([]*net.IPNet, 0, 257)
+	mask16 := []byte{255, 255, 0, 0}
+	for i := 17; i < 18; i++ {
+		pl = append(pl, &net.IPNet{IP: []byte{172, byte(i), 0, 0}, Mask: mask16})
 	}
-	mask20 := []byte{255, 255, 240, 0}
-	for i := 0; i < 16; i++ {
-		pl = append(pl, &net.IPNet{IP: []byte{192, 168, byte(i << 4), 0}, Mask: mask20})
+	mask24 := []byte{255, 255, 255, 0}
+	for i := 0; i < 256; i++ {
+		pl = append(pl, &net.IPNet{IP: []byte{172, 18, byte(i), 0}, Mask: mask24})
 	}
 	return pl
 }
@@ -51,7 +51,7 @@ func TestDefaultNetwork(t *testing.T) {
 	}
 
 	for _, nw := range GetLocalScopeDefaultNetworks() {
-		if ones, bits := nw.Mask.Size(); bits != 32 || (ones != 20 && ones != 16) {
+		if ones, bits := nw.Mask.Size(); bits != 32 || (ones != 24 && ones != 16) {
 			t.Fatalf("Unexpected size for network in broad list: %v", nw)
 		}
 	}
