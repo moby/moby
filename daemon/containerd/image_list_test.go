@@ -101,6 +101,9 @@ func TestImageList(t *testing.T) {
 	emptyIndex, err := specialimage.EmptyIndex(blobsDir)
 	assert.NilError(t, err)
 
+	configTarget, err := specialimage.ConfigTarget(blobsDir)
+	assert.NilError(t, err)
+
 	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
 
 	for _, tc := range []struct {
@@ -148,6 +151,16 @@ func TestImageList(t *testing.T) {
 			images: imagesFromIndex(multilayer, emptyIndex, twoplatform),
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 2))
+			},
+		},
+		{
+			// Make sure an invalid image target doesn't break the whole operation
+			name:   "one good image, second has config as a target",
+			images: imagesFromIndex(multilayer, configTarget),
+			check: func(t *testing.T, all []*imagetypes.Summary) {
+				assert.Check(t, is.Len(all, 1))
+
+				assert.Check(t, is.Equal(all[0].ID, multilayer.Manifests[0].Digest.String()))
 			},
 		},
 	} {

@@ -102,19 +102,24 @@ func singlePlatformImage(dir string, ref reference.Named, manifest ocispec.Manif
 		}
 	}
 
-	idx := ocispec.Index{
-		Versioned: specs.Versioned{SchemaVersion: 2},
-		MediaType: ocispec.MediaTypeImageIndex,
-		Manifests: []ocispec.Descriptor{manifestDesc},
-	}
-	if err := writeJson(idx, filepath.Join(dir, "index.json")); err != nil {
-		return nil, err
-	}
 	if err := writeJson(legacyManifests, filepath.Join(dir, "manifest.json")); err != nil {
 		return nil, err
 	}
 
-	err = os.WriteFile(filepath.Join(dir, "oci-layout"), []byte(`{"imageLayoutVersion": "1.0.0"}`), 0o644)
+	return ociImage(dir, ref, manifestDesc)
+}
+
+func ociImage(dir string, ref reference.Named, target ocispec.Descriptor) (*ocispec.Index, error) {
+	idx := ocispec.Index{
+		Versioned: specs.Versioned{SchemaVersion: 2},
+		MediaType: ocispec.MediaTypeImageIndex,
+		Manifests: []ocispec.Descriptor{target},
+	}
+	if err := writeJson(idx, filepath.Join(dir, "index.json")); err != nil {
+		return nil, err
+	}
+
+	err := os.WriteFile(filepath.Join(dir, "oci-layout"), []byte(`{"imageLayoutVersion": "1.0.0"}`), 0o644)
 	if err != nil {
 		return nil, err
 	}

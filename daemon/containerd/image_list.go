@@ -301,6 +301,13 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, errNotManifestOrIndex) {
+			log.G(ctx).WithFields(log.Fields{
+				"error": err,
+				"image": img.Name,
+			}).Warn("unexpected image target (neither a manifest nor index)")
+			return nil, nil, nil
+		}
 		return nil, nil, err
 	}
 
