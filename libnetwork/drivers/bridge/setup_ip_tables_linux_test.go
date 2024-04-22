@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"fmt"
 	"net"
 	"testing"
 
@@ -214,13 +215,15 @@ func TestOutgoingNATRules(t *testing.T) {
 	hostIPv4 := net.ParseIP("192.0.2.2")
 	hostIPv6 := net.ParseIP("2001:db8:1::1")
 	for _, tc := range []struct {
-		desc               string
-		enableIPTables     bool
-		enableIP6Tables    bool
-		enableIPv6         bool
-		enableIPMasquerade bool
-		hostIPv4           net.IP
-		hostIPv6           net.IP
+		desc                string
+		enableIPTables      bool
+		enableIP6Tables     bool
+		enableIPv6          bool
+		enableIPMasquerade  bool
+		enableIP4Masquerade bool
+		enableIP6Masquerade bool
+		hostIPv4            net.IP
+		hostIPv6            net.IP
 		// Hairpin NAT rules are not tested here because they are orthogonal to outgoing NAT.  They
 		// exist to support the port forwarding DNAT rules: without any port forwarding there would be
 		// no need for any hairpin NAT rules, and when there is port forwarding then hairpin NAT rules
@@ -235,16 +238,18 @@ func TestOutgoingNATRules(t *testing.T) {
 			desc: "everything disabled",
 		},
 		{
-			desc:               "iptables/ip6tables disabled",
-			enableIPv6:         true,
-			enableIPMasquerade: true,
+			desc:                "iptables/ip6tables disabled",
+			enableIPv6:          true,
+			enableIPMasquerade:  true,
+			enableIP4Masquerade: true,
 		},
 		{
-			desc:               "host IP with iptables/ip6tables disabled",
-			enableIPv6:         true,
-			enableIPMasquerade: true,
-			hostIPv4:           hostIPv4,
-			hostIPv6:           hostIPv6,
+			desc:                "host IP with iptables/ip6tables disabled",
+			enableIPv6:          true,
+			enableIPMasquerade:  true,
+			enableIP4Masquerade: true,
+			hostIPv4:            hostIPv4,
+			hostIPv6:            hostIPv6,
 		},
 		{
 			desc:            "masquerade disabled, no host IP",
@@ -261,57 +266,85 @@ func TestOutgoingNATRules(t *testing.T) {
 			hostIPv6:        hostIPv6,
 		},
 		{
-			desc:               "IPv4 masquerade, IPv6 disabled",
-			enableIPTables:     true,
-			enableIPMasquerade: true,
-			wantIPv4Masq:       true,
+			desc:                "IPv4 masquerade, IPv6 disabled",
+			enableIPTables:      true,
+			enableIPMasquerade:  true,
+			enableIP4Masquerade: true,
+			wantIPv4Masq:        true,
 		},
 		{
-			desc:               "IPv4 SNAT, IPv6 disabled",
-			enableIPTables:     true,
-			enableIPMasquerade: true,
-			hostIPv4:           hostIPv4,
-			wantIPv4Snat:       true,
+			desc:                "IPv4 SNAT, IPv6 disabled",
+			enableIPTables:      true,
+			enableIPMasquerade:  true,
+			enableIP4Masquerade: true,
+			hostIPv4:            hostIPv4,
+			wantIPv4Snat:        true,
 		},
 		{
-			desc:               "IPv4 masquerade, IPv6 masquerade",
-			enableIPTables:     true,
-			enableIP6Tables:    true,
-			enableIPv6:         true,
-			enableIPMasquerade: true,
-			wantIPv4Masq:       true,
-			wantIPv6Masq:       true,
+			desc:                "IPv4 masquerade, IPv6 masquerade",
+			enableIPTables:      true,
+			enableIP6Tables:     true,
+			enableIPv6:          true,
+			enableIPMasquerade:  true,
+			enableIP4Masquerade: true,
+			enableIP6Masquerade: true,
+			wantIPv4Masq:        true,
+			wantIPv6Masq:        true,
 		},
 		{
-			desc:               "IPv4 masquerade, IPv6 SNAT",
-			enableIPTables:     true,
-			enableIP6Tables:    true,
-			enableIPv6:         true,
-			enableIPMasquerade: true,
-			hostIPv6:           hostIPv6,
-			wantIPv4Masq:       true,
-			wantIPv6Snat:       true,
+			desc:                "IPv4 masquerade, IPv6 SNAT",
+			enableIPTables:      true,
+			enableIP6Tables:     true,
+			enableIPv6:          true,
+			enableIPMasquerade:  true,
+			enableIP4Masquerade: true,
+			enableIP6Masquerade: true,
+			hostIPv6:            hostIPv6,
+			wantIPv4Masq:        true,
+			wantIPv6Snat:        true,
 		},
 		{
-			desc:               "IPv4 SNAT, IPv6 masquerade",
-			enableIPTables:     true,
-			enableIP6Tables:    true,
-			enableIPv6:         true,
-			enableIPMasquerade: true,
-			hostIPv4:           hostIPv4,
-			wantIPv4Snat:       true,
-			wantIPv6Masq:       true,
+			desc:                "IPv4 SNAT, IPv6 masquerade",
+			enableIPTables:      true,
+			enableIP6Tables:     true,
+			enableIPv6:          true,
+			enableIPMasquerade:  true,
+			enableIP4Masquerade: true,
+			enableIP6Masquerade: true,
+			hostIPv4:            hostIPv4,
+			wantIPv4Snat:        true,
+			wantIPv6Masq:        true,
 		},
 		{
-			desc:               "IPv4 SNAT, IPv6 SNAT",
-			enableIPTables:     true,
-			enableIP6Tables:    true,
-			enableIPv6:         true,
-			enableIPMasquerade: true,
-			hostIPv4:           hostIPv4,
-			hostIPv6:           hostIPv6,
-			wantIPv4Snat:       true,
-			wantIPv6Snat:       true,
+			desc:                "IPv4 SNAT, IPv6 SNAT",
+			enableIPTables:      true,
+			enableIP6Tables:     true,
+			enableIPv6:          true,
+			enableIPMasquerade:  true,
+			enableIP4Masquerade: true,
+			enableIP6Masquerade: true,
+			hostIPv4:            hostIPv4,
+			hostIPv6:            hostIPv6,
+			wantIPv4Snat:        true,
+			wantIPv6Snat:        true,
+		},
+		{
+			desc:                "IPv4 masquerade, IPv6 none",
+			enableIPTables:      true,
+			enableIP6Tables:     true,
+			enableIPv6:          true,
+			enableIPMasquerade:  true,
+			enableIP4Masquerade: true,
+			wantIPv4Masq:        true,
+		},
+		{
+			desc:                "IPv4 none, IPv6 masquerade",
+			enableIPTables:      true,
+			enableIP6Tables:     true,
+			enableIPv6:          true,
+			enableIPMasquerade:  true,
+			enableIP6Masquerade: true,
+			wantIPv6Masq:        true,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -328,13 +361,15 @@ func TestOutgoingNATRules(t *testing.T) {
 				t.Fatal("testRegisterer.RegisterDriver never called")
 			}
 			nc := &networkConfiguration{
-				BridgeName:         br,
-				AddressIPv4:        brIPv4,
-				AddressIPv6:        brIPv6,
-				EnableIPv6:         tc.enableIPv6,
-				EnableIPMasquerade: tc.enableIPMasquerade,
-				HostIPv4:           tc.hostIPv4,
-				HostIPv6:           tc.hostIPv6,
+				BridgeName:          br,
+				AddressIPv4:         brIPv4,
+				AddressIPv6:         brIPv6,
+				EnableIPv6:          tc.enableIPv6,
+				EnableIPMasquerade:  tc.enableIPMasquerade,
+				EnableIP4Masquerade: tc.enableIP4Masquerade,
+				EnableIP6Masquerade: tc.enableIP6Masquerade,
+				HostIPv4:            tc.hostIPv4,
+				HostIPv6:            tc.hostIPv6,
 			}
 			ipv4Data := []driverapi.IPAMData{{Pool: maskedBrIPv4, Gateway: brIPv4}}
 			ipv6Data := []driverapi.IPAMData{{Pool: maskedBrIPv6, Gateway: brIPv6}}
@@ -372,7 +407,7 @@ func TestOutgoingNATRules(t *testing.T) {
 				{tc.wantIPv6Masq, iptRule{iptables.IPv6, iptables.Nat, "POSTROUTING", []string{"-s", maskedBrIPv6.String(), "!", "-o", br, "-j", "MASQUERADE"}}},
 				{tc.wantIPv6Snat, iptRule{iptables.IPv6, iptables.Nat, "POSTROUTING", []string{"-s", maskedBrIPv6.String(), "!", "-o", br, "-j", "SNAT", "--to-source", hostIPv6.String()}}},
 			} {
-				assert.Equal(t, rc.rule.Exists(), rc.want)
+				assert.Equal(t, rc.rule.Exists(), rc.want, fmt.Sprintf("Rule: %v", rc.rule))
 			}
 		})
 	}

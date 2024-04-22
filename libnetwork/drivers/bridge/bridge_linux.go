@@ -61,7 +61,9 @@ type networkConfiguration struct {
 	ID                   string
 	BridgeName           string
 	EnableIPv6           bool
-	EnableIPMasquerade   bool
+	EnableIPMasquerade   bool // false => no v4 or v6 masquerading
+	EnableIP4Masquerade  bool
+	EnableIP6Masquerade  bool
 	EnableICC            bool
 	InhibitIPv4          bool
 	Mtu                  int
@@ -290,6 +292,14 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 			if c.EnableIPMasquerade, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
+		case EnableIP4Masquerade:
+			if c.EnableIP4Masquerade, err = strconv.ParseBool(value); err != nil {
+				return parseErr(label, value, err.Error())
+			}
+		case EnableIP6Masquerade:
+			if c.EnableIP6Masquerade, err = strconv.ParseBool(value); err != nil {
+				return parseErr(label, value, err.Error())
+			}
 		case EnableICC:
 			if c.EnableICC, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
@@ -512,8 +522,10 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 		config = opt
 	case map[string]string:
 		config = &networkConfiguration{
-			EnableICC:          true,
-			EnableIPMasquerade: true,
+			EnableICC:           true,
+			EnableIPMasquerade:  true,
+			EnableIP4Masquerade: true,
+			EnableIP6Masquerade: true,
 		}
 		err = config.fromLabels(opt)
 	case options.Generic:

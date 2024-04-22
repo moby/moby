@@ -5,7 +5,9 @@ const (
 	BridgeName = "com.docker.network.bridge.name"
 
 	// EnableIPMasquerade label for bridge driver
-	EnableIPMasquerade = "com.docker.network.bridge.enable_ip_masquerade"
+	EnableIPMasquerade  = "com.docker.network.bridge.enable_ip_masquerade"
+	EnableIP4Masquerade = "com.docker.network.bridge.enable_ip4_masquerade"
+	EnableIP6Masquerade = "com.docker.network.bridge.enable_ip6_masquerade"
 
 	// EnableICC label
 	EnableICC = "com.docker.network.bridge.enable_icc"

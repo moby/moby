@@ -2,7 +2,9 @@ package networking
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
@@ -12,6 +14,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -827,4 +830,107 @@ func TestReadOnlySlashProc(t *testing.T) {
 			defer c.ContainerRemove(ctx, id6, containertypes.RemoveOptions{Force: true})
 		})
 	}
+}
+
+// Check that masquerading can be disabled for IPv4/IPv6/both on a bridge
+// network, and that the choice is preserved over a daemon restart.
+func TestDisableMasquerade(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no iptables on Windows")
+	skip.If(t, testEnv.IsRootless(), "can't see iptables in rootless mode")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--experimental", "--ip6tables")
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	testcases := []struct {
+		name string
+		dOpt string
+		exp4 bool
+		exp6 bool
+	}{
+		{
+			name: "default",
+			exp4: true,
+			exp6: true,
+		},
+		{
+			name: "disable both",
+			dOpt: "com.docker.network.bridge.enable_ip_masquerade",
+		},
+		{
+			name: "disable 4",
+			dOpt: "com.docker.network.bridge.enable_ip4_masquerade",
+			exp6: true,
+		},
+		{
+			name: "disable 6",
+			dOpt: "com.docker.network.bridge.enable_ip6_masquerade",
+			exp4: true,
+		},
+	}
+
+	// Generate test config - a bridge network per test, subnet number is the test's index.
+	type ipam struct {
+		netName      string
+		subnet4, gw4 string
+		subnet6, gw6 string
+	}
+	td := make([]*ipam, len(testcases))
+	for i := range testcases {
+		td[i] = &ipam{
+			netName: fmt.Sprintf("testnet%d", i),
+			subnet4: fmt.Sprintf("172.24.%d.0/24", i),
+			gw4:     fmt.Sprintf("172.24.%d.1", i),
+			subnet6: fmt.Sprintf("fdc3:8049:23e9:%d::/64", i),
+			gw6:     fmt.Sprintf("fdc3:8049:23e9:%d::1", i),
+		}
+	}
+
+	// Create networks.
+	for i, tc := range testcases {
+		nOpts := []func(*types.NetworkCreate){
+			network.WithIPv6(),
+			network.WithIPAM(td[i].subnet4, td[i].gw4),
+			network.WithIPAM(td[i].subnet6, td[i].gw6),
+			network.WithOption(bridge.BridgeName, td[i].netName),
+		}
+		if tc.dOpt != "" {
+			nOpts = append(nOpts, network.WithOption(tc.dOpt, "0"))
+		}
+		network.CreateNoError(ctx, t, c, td[i].netName, nOpts...)
+		defer network.RemoveNoError(ctx, t, c, td[i].netName)
+	}
+
+	// Function to check for expected presence/absence of masquerade rules for each network.
+	checkAllNetworks := func(when string) {
+		for i, tc := range testcases {
+			t.Run(when+"/"+tc.name, func(t *testing.T) {
+				checkRule := func(cmd, netName, subnet, ipv string, expRule bool) {
+					t.Helper()
+					args := []string{
+						"-t", "nat", "-C",
+						"POSTROUTING", "-s", subnet, "!", "-o", netName, "-j", "MASQUERADE",
+					}
+					err := exec.Command(cmd, args...).Run()
+					if expRule {
+						assert.Check(t, err, ipv+" masquerade rule expected: "+strings.Join(args, " "))
+					} else {
+						var ee *exec.ExitError
+						assert.Check(t, errors.As(err, &ee) && ee.ExitCode() == 1,
+							ipv+" masquerade rule unexpected: "+strings.Join(args, " "))
+					}
+				}
+				checkRule("iptables", td[i].netName, td[i].subnet4, "IPv4", tc.exp4)
+				checkRule("ip6tables", td[i].netName, td[i].subnet6, "IPv6", tc.exp6)
+			})
+		}
+	}
+
+	checkAllNetworks("initial")
+	d.Restart(t, "--experimental", "--ip6tables")
+	checkAllNetworks("restarted")
 }

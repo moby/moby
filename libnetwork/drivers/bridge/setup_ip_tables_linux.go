@@ -258,10 +258,15 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 		outRule   = iptRule{ipv: ipVer, table: iptables.Filter, chain: "FORWARD", args: []string{"-i", config.BridgeName, "!", "-o", config.BridgeName, "-j", "ACCEPT"}}
 		natArgs   []string
 		hpNatArgs []string
+		hostIP    net.IP
+		masq      bool
 	)
-	hostIP := config.HostIPv4
 	if ipVer == iptables.IPv6 {
 		hostIP = config.HostIPv6
+		masq = config.EnableIPMasquerade && config.EnableIP6Masquerade
+	} else {
+		hostIP = config.HostIPv4
+		masq = config.EnableIPMasquerade && config.EnableIP4Masquerade
 	}
 	// If hostIP is set, the user wants IPv4/IPv6 SNAT with the given address.
 	if hostIP != nil {
@@ -278,16 +283,11 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 	hpNatRule := iptRule{ipv: ipVer, table: iptables.Nat, chain: "POSTROUTING", args: hpNatArgs}
 
 	// Set NAT.
-	if config.EnableIPMasquerade {
-		if err := programChainRule(natRule, "NAT", enable); err != nil {
-			return err
-		}
+	if err := programChainRule(natRule, "NAT", masq && enable); err != nil {
+		return err
 	}
-
-	if config.EnableIPMasquerade && !hairpin {
-		if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
-			return err
-		}
+	if err := programChainRule(skipDNAT, "SKIP DNAT", masq && !hairpin && enable); err != nil {
+		return err
 	}
 
 	// In hairpin mode, masquerade traffic from localhost. If hairpin is disabled or if we're tearing down
