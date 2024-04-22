@@ -94,17 +94,14 @@ func (daemon *Daemon) mergeLegacyConfig(host string, hosts []docker.RegistryHost
 		}
 		if daemon.registryService.IsInsecureRegistry(hosts[i].Host) {
 			if t.TLSClientConfig != nil {
-				isLocalhost, err := docker.MatchLocalhost(hosts[i].Host)
-				if err != nil {
-					continue
-				}
-				if isLocalhost {
-					hosts[i].Client.Transport = docker.NewHTTPFallback(hosts[i].Client.Transport)
-				}
 				t.TLSClientConfig.InsecureSkipVerify = true
 			} else {
-				hosts[i].Scheme = "http"
+				t.TLSClientConfig = &tls.Config{
+					InsecureSkipVerify: true,
+				}
 			}
+
+			hosts[i].Client.Transport = docker.NewHTTPFallback(hosts[i].Client.Transport)
 		}
 	}
 	return hosts, nil
