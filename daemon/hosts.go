@@ -31,23 +31,21 @@ func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) 
 		// TODO: Also check containerd path when updating containerd to use multiple host directories
 		HostDir: hostconfig.HostDirFromRoot(registry.CertsDir()),
 	})(host)
-	if err != nil {
-		return nil, err
-	}
-
-	// Merge in legacy configuration if provided and only a single configuration
-	if sc := daemon.registryService.ServiceConfig(); len(hosts) == 1 && sc != nil {
-		hosts, err = daemon.mergeLegacyConfig(host, hosts)
-		if err != nil {
-			return nil, err
+	if err == nil {
+		// Merge in legacy configuration if provided
+		if cfg := daemon.Config(); len(cfg.Mirrors) > 0 || len(cfg.InsecureRegistries) > 0 {
+			hosts, err = daemon.mergeLegacyConfig(host, hosts)
 		}
 	}
 
-	return hosts, nil
+	return hosts, err
 }
 
 func (daemon *Daemon) mergeLegacyConfig(host string, hosts []docker.RegistryHost) ([]docker.RegistryHost, error) {
-	if len(hosts) == 0 {
+	// If no hosts provided, nothing to do.
+	// If multiple hosts provided, then a mirror configuration is already provided and
+	// should not overwrite with legacy config.
+	if len(hosts) == 0 || len(hosts) > 1 {
 		return hosts, nil
 	}
 	sc := daemon.registryService.ServiceConfig()
