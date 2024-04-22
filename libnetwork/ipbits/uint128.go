@@ -24,6 +24,12 @@ func (x uint128) add(y uint128) uint128 {
 	return uint128{hi: hi, lo: lo}
 }
 
+func (x uint128) sub(y uint128) uint128 {
+	lo, carry := bits.Sub64(x.lo, y.lo, 0)
+	hi, _ := bits.Sub64(x.hi, y.hi, carry)
+	return uint128{hi: hi, lo: lo}
+}
+
 func (x uint128) lsh(n uint) uint128 {
 	if n > 64 {
 		return uint128{hi: x.lo << (n - 64)}

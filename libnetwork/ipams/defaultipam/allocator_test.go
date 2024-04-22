@@ -336,40 +336,39 @@ func TestGetSameAddress(t *testing.T) {
 	}
 }
 
-func TestPoolAllocationReuse(t *testing.T) {
+// TestRequestFromSamePool verify the allocator implements the validation
+// inconsistencies described in https://github.com/moby/moby/issues/46756.
+func TestRequestFromSamePool(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	// First get all pools until they are exhausted to
-	allocs := []ipamapi.AllocatedPool{}
-	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
-	for err == nil {
-		allocs = append(allocs, alloc)
-		alloc, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
-	}
-	for _, alloc := range allocs {
-		if err := a.ReleasePool(alloc.PoolID); err != nil {
-			t.Fatal(err)
-		}
-	}
+	_, err = a.RequestPool(ipamapi.PoolRequest{
+		AddressSpace: localAddressSpace,
+		Pool:         "10.0.0.0/8",
+		SubPool:      "10.10.0.0/16",
+	})
+	assert.NilError(t, err)
 
-	// Now try to allocate then free nPool pools sequentially.
-	// Verify that we don't see any repeat networks even though
-	// we have freed them.
-	seen := map[string]bool{}
-	for range allocs {
-		alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, ok := seen[alloc.Pool.String()]; ok {
-			t.Fatalf("Network %s was reused before exhausing the pool list", alloc.Pool.String())
-		}
-		seen[alloc.Pool.String()] = true
-		if err := a.ReleasePool(alloc.PoolID); err != nil {
-			t.Fatal(err)
-		}
-	}
+	_, err = a.RequestPool(ipamapi.PoolRequest{
+		AddressSpace: localAddressSpace,
+		Pool:         "10.0.0.0/8",
+		SubPool:      "10.10.0.0/16",
+	})
+	assert.ErrorContains(t, err, "invalid pool request")
+
+	_, err = a.RequestPool(ipamapi.PoolRequest{
+		AddressSpace: localAddressSpace,
+		Pool:         "10.0.0.0/8",
+		SubPool:      "10.10.0.0/17",
+	})
+	assert.NilError(t, err)
+
+	_, err = a.RequestPool(ipamapi.PoolRequest{
+		AddressSpace: localAddressSpace,
+		Pool:         "10.0.0.0/8",
+		SubPool:      "10.11.0.0/16",
+	})
+	assert.NilError(t, err)
 }
 
 func TestGetAddressSubPoolEqualPool(t *testing.T) {

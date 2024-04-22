@@ -35,6 +35,7 @@ var (
 	ErrIPOutOfRange        = types.InvalidParameterErrorf("requested address is out of range")
 	ErrPoolOverlap         = types.ForbiddenErrorf("Pool overlaps with other one on this address space")
 	ErrBadPool             = types.InvalidParameterErrorf("address space does not contain specified address pool")
+	ErrNoMoreSubnets       = types.InvalidParameterErrorf("all predefined address pools have been fully subnetted")
 )
 
 // Ipam represents the interface the IPAM service plugins must implement
@@ -73,6 +74,10 @@ type PoolRequest struct {
 	// Options is a map of opaque k/v passed to the driver. It's non-mandatory.
 	// Drivers are free to ignore it.
 	Options map[string]string
+	// Exclude is a list of prefixes the requester wish to not be dynamically
+	// allocated (ie. when Pool isn't specified). It's up to the IPAM driver to
+	// take it into account, or totally ignore it. It's required to be sorted.
+	Exclude []netip.Prefix
 	// V6 indicates which address family should be used to dynamically allocate
 	// a prefix (ie. when Pool isn't specified).
 	V6 bool

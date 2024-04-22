@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -15,34 +14,6 @@ import (
 
 	"github.com/containerd/log"
 )
-
-var (
-	// ErrNetworkOverlapsWithNameservers preformatted error
-	ErrNetworkOverlapsWithNameservers = errors.New("requested network overlaps with nameserver")
-	// ErrNetworkOverlaps preformatted error
-	ErrNetworkOverlaps = errors.New("requested network overlaps with existing network")
-)
-
-// CheckNameserverOverlaps checks whether the passed network overlaps with any of the nameservers
-func CheckNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
-	if len(nameservers) > 0 {
-		for _, ns := range nameservers {
-			_, nsNetwork, err := net.ParseCIDR(ns)
-			if err != nil {
-				return err
-			}
-			if NetworkOverlaps(toCheck, nsNetwork) {
-				return ErrNetworkOverlapsWithNameservers
-			}
-		}
-	}
-	return nil
-}
-
-// NetworkOverlaps detects overlap between one IPNet and another
-func NetworkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
-	return netX.Contains(netY.IP) || netY.Contains(netX.IP)
-}
 
 func genMAC(ip net.IP) net.HardwareAddr {
 	hw := make(net.HardwareAddr, 6)

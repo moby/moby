@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"runtime"
 	"strings"
 	"sync"
@@ -1517,66 +1518,6 @@ func (n *Network) ipamAllocate() error {
 	return err
 }
 
-func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
-	var tmpPoolLeases []string
-	defer func() {
-		// Prevent repeated lock/unlock in the loop.
-		nwName := n.Name()
-		// Release all pools we held on to.
-		for _, pID := range tmpPoolLeases {
-			if err := ipam.ReleasePool(pID); err != nil {
-				log.G(context.TODO()).Warnf("Failed to release overlapping pool while returning from pool request helper for network %s", nwName)
-			}
-		}
-	}()
-
-	for {
-		alloc, err := ipam.RequestPool(ipamapi.PoolRequest{
-			AddressSpace: addressSpace,
-			Pool:         requestedPool,
-			SubPool:      requestedSubPool,
-			Options:      options,
-			V6:           v6,
-		})
-		if err != nil {
-			return "", nil, nil, err
-		}
-
-		// If the network pool was explicitly chosen, the network belongs to
-		// global scope, or it is invalid ("0.0.0.0/0"), then we don't perform
-		// check for overlaps.
-		//
-		// FIXME(thaJeztah): why are we ignoring invalid pools here?
-		//
-		// The "invalid" conditions was added in [libnetwork#1095][1], which
-		// moved code to reduce os-specific dependencies in the ipam package,
-		// but also introduced a types.IsIPNetValid() function, which considers
-		// "0.0.0.0/0" invalid, and added it to the conditions below.
-		//
-		// Unfortunately review does not mention this change, so there's no
-		// context why. Possibly this was done to prevent errors further down
-		// the line (when checking for overlaps), but returning an error here
-		// instead would likely have avoided that as well, so we can only guess.
-		//
-		// [1]: https://github.com/moby/libnetwork/commit/5ca79d6b87873264516323a7b76f0af7d0298492#diff-bdcd879439d041827d334846f9aba01de6e3683ed8fdd01e63917dae6df23846
-		if requestedPool != "" || n.Scope() == scope.Global || alloc.Pool.String() == "0.0.0.0/0" {
-			return alloc.PoolID, netiputil.ToIPNet(alloc.Pool), alloc.Meta, nil
-		}
-
-		// Check for overlap and if none found, we have found the right pool.
-		if _, err := netutils.FindAvailableNetwork([]*net.IPNet{netiputil.ToIPNet(alloc.Pool)}); err == nil {
-			return alloc.PoolID, netiputil.ToIPNet(alloc.Pool), alloc.Meta, nil
-		}
-
-		// Pool obtained in this iteration is overlapping. Hold onto the pool
-		// and don't release it yet, because we don't want IPAM to give us back
-		// the same pool over again. But make sure we still do a deferred release
-		// when we have either obtained a non-overlapping pool or ran out of
-		// pre-defined pools.
-		tmpPoolLeases = append(tmpPoolLeases, alloc.PoolID)
-	}
-}
-
 func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 	var (
 		cfgList  *[]*IpamConf
@@ -1611,10 +1552,27 @@ func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		(*infoList)[i] = d
 
 		d.AddressSpace = n.addrSpace
-		d.PoolID, d.Pool, d.Meta, err = n.requestPoolHelper(ipam, n.addrSpace, cfg.PreferredPool, cfg.SubPool, n.ipamOptions, ipVer == 6)
+
+		var reserved []netip.Prefix
+		if n.Scope() != scope.Global {
+			reserved = netutils.InferReservedNetworks(ipVer == 6)
+		}
+
+		alloc, err := ipam.RequestPool(ipamapi.PoolRequest{
+			AddressSpace: n.addrSpace,
+			Pool:         cfg.PreferredPool,
+			SubPool:      cfg.SubPool,
+			Options:      n.ipamOptions,
+			Exclude:      reserved,
+			V6:           ipVer == 6,
+		})
 		if err != nil {
 			return err
 		}
+
+		d.PoolID = alloc.PoolID
+		d.Pool = netiputil.ToIPNet(alloc.Pool)
+		d.Meta = alloc.Meta
 
 		defer func() {
 			if err != nil {
