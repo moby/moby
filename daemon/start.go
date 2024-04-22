@@ -12,6 +12,9 @@ import (
 	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // validateState verifies if the container is in a non-conflicting state.
@@ -67,6 +70,11 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoin
 // between containers. The container is left waiting for a signal to
 // begin running.
 func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.containerStart", trace.WithAttributes(
+		attribute.String("container.ID", container.ID),
+		attribute.String("container.Name", container.Name)))
+	defer span.End()
+
 	start := time.Now()
 	container.Lock()
 	defer container.Unlock()

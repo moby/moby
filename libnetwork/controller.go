@@ -949,7 +949,7 @@ func (c *Controller) NewSandbox(ctx context.Context, containerID string, options
 		}
 	}()
 
-	if err := sb.setupResolutionFiles(); err != nil {
+	if err := sb.setupResolutionFiles(ctx); err != nil {
 		return nil, err
 	}
 	if err := c.setupOSLSandbox(sb); err != nil {
