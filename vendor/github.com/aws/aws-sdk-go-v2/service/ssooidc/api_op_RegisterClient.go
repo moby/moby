@@ -4,6 +4,7 @@ package ssooidc
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -40,8 +41,8 @@ type RegisterClientInput struct {
 	// This member is required.
 	ClientType *string
 
-	// The list of scopes that are defined by the client. Upon authorization, this list
-	// is used to restrict permissions when granting an access token.
+	// The list of scopes that are defined by the client. Upon authorization, this
+	// list is used to restrict permissions when granting an access token.
 	Scopes []string
 
 	noSmithyDocumentSerde
@@ -49,7 +50,7 @@ type RegisterClientInput struct {
 
 type RegisterClientOutput struct {
 
-	// The endpoint where the client can request authorization.
+	// An endpoint that the client can use to request authorization.
 	AuthorizationEndpoint *string
 
 	// The unique identifier string for each client. This client uses this identifier
@@ -59,14 +60,14 @@ type RegisterClientOutput struct {
 	// Indicates the time at which the clientId and clientSecret were issued.
 	ClientIdIssuedAt int64
 
-	// A secret string generated for the client. The client will use this string to get
-	// authenticated by the service in subsequent calls.
+	// A secret string generated for the client. The client will use this string to
+	// get authenticated by the service in subsequent calls.
 	ClientSecret *string
 
 	// Indicates the time at which the clientId and clientSecret will become invalid.
 	ClientSecretExpiresAt int64
 
-	// The endpoint where the client can get an access token.
+	// An endpoint that the client can use to create tokens.
 	TokenEndpoint *string
 
 	// Metadata pertaining to the operation's result.
@@ -76,12 +77,22 @@ type RegisterClientOutput struct {
 }
 
 func (c *Client) addOperationRegisterClientMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestjson1_serializeOpRegisterClient{}, middleware.After)
 	if err != nil {
 		return err
 	}
 	err = stack.Deserialize.Add(&awsRestjson1_deserializeOpRegisterClient{}, middleware.After)
 	if err != nil {
+		return err
+	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "RegisterClient"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
 		return err
 	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
@@ -105,7 +116,7 @@ func (c *Client) addOperationRegisterClientMiddlewares(stack *middleware.Stack, 
 	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -114,10 +125,16 @@ func (c *Client) addOperationRegisterClientMiddlewares(stack *middleware.Stack, 
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
 	if err = addOpRegisterClientValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opRegisterClient(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -127,6 +144,9 @@ func (c *Client) addOperationRegisterClientMiddlewares(stack *middleware.Stack, 
 		return err
 	}
 	if err = addRequestResponseLogging(stack, options); err != nil {
+		return err
+	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
 	return nil

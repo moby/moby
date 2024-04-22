@@ -54,7 +54,7 @@ type Retryer interface {
 	MaxAttempts() int
 
 	// RetryDelay returns the delay that should be used before retrying the
-	// attempt. Will return error if the if the delay could not be determined.
+	// attempt. Will return error if the delay could not be determined.
 	RetryDelay(attempt int, opErr error) (time.Duration, error)
 
 	// GetRetryToken attempts to deduct the retry cost from the retry token pool.

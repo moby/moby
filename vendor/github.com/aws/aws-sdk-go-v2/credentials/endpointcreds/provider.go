@@ -36,6 +36,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials/endpointcreds/internal/client"
@@ -81,7 +82,37 @@ type Options struct {
 
 	// Optional authorization token value if set will be used as the value of
 	// the Authorization header of the endpoint credential request.
+	//
+	// When constructed from environment, the provider will use the value of
+	// AWS_CONTAINER_AUTHORIZATION_TOKEN environment variable as the token
+	//
+	// Will be overridden if AuthorizationTokenProvider is configured
 	AuthorizationToken string
+
+	// Optional auth provider func to dynamically load the auth token from a file
+	// everytime a credential is retrieved
+	//
+	// When constructed from environment, the provider will read and use the content
+	// of the file pointed to by AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE environment variable
+	// as the auth token everytime credentials are retrieved
+	//
+	// Will override AuthorizationToken if configured
+	AuthorizationTokenProvider AuthTokenProvider
+}
+
+// AuthTokenProvider defines an interface to dynamically load a value to be passed
+// for the Authorization header of a credentials request.
+type AuthTokenProvider interface {
+	GetToken() (string, error)
+}
+
+// TokenProviderFunc is a func type implementing AuthTokenProvider interface
+// and enables customizing token provider behavior
+type TokenProviderFunc func() (string, error)
+
+// GetToken func retrieves auth token according to TokenProviderFunc implementation
+func (p TokenProviderFunc) GetToken() (string, error) {
+	return p()
 }
 
 // New returns a credentials Provider for retrieving AWS credentials
@@ -132,5 +163,30 @@ func (p *Provider) Retrieve(ctx context.Context) (aws.Credentials, error) {
 }
 
 func (p *Provider) getCredentials(ctx context.Context) (*client.GetCredentialsOutput, error) {
-	return p.client.GetCredentials(ctx, &client.GetCredentialsInput{AuthorizationToken: p.options.AuthorizationToken})
+	authToken, err := p.resolveAuthToken()
+	if err != nil {
+		return nil, fmt.Errorf("resolve auth token: %v", err)
+	}
+
+	return p.client.GetCredentials(ctx, &client.GetCredentialsInput{
+		AuthorizationToken: authToken,
+	})
+}
+
+func (p *Provider) resolveAuthToken() (string, error) {
+	authToken := p.options.AuthorizationToken
+
+	var err error
+	if p.options.AuthorizationTokenProvider != nil {
+		authToken, err = p.options.AuthorizationTokenProvider.GetToken()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if strings.ContainsAny(authToken, "\r\n") {
+		return "", fmt.Errorf("authorization token contains invalid newline sequence")
+	}
+
+	return authToken, nil
 }

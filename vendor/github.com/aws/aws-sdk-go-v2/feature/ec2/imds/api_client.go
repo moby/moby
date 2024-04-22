@@ -119,6 +119,7 @@ func NewFromConfig(cfg aws.Config, optFns ...func(*Options)) *Client {
 	resolveClientEnableState(cfg, &opts)
 	resolveEndpointConfig(cfg, &opts)
 	resolveEndpointModeConfig(cfg, &opts)
+	resolveEnableFallback(cfg, &opts)
 
 	return New(opts, optFns...)
 }
@@ -173,6 +174,16 @@ type Options struct {
 
 	// The logger writer interface to write logging messages to.
 	Logger logging.Logger
+
+	// Configure IMDSv1 fallback behavior. By default, the client will attempt
+	// to fall back to IMDSv1 as needed for backwards compatibility. When set to [aws.FalseTernary]
+	// the client will return any errors encountered from attempting to fetch a token
+	// instead of silently using the insecure data flow of IMDSv1.
+	//
+	// See [configuring IMDS] for more information.
+	//
+	// [configuring IMDS]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
+	EnableFallback aws.Ternary
 
 	// provides the caching of API tokens used for operation calls. If unset,
 	// the API token will not be retrieved for the operation.
@@ -317,4 +328,21 @@ func resolveEndpointConfig(cfg aws.Config, options *Options) error {
 	}
 	options.Endpoint = value
 	return nil
+}
+
+func resolveEnableFallback(cfg aws.Config, options *Options) {
+	if options.EnableFallback != aws.UnknownTernary {
+		return
+	}
+
+	disabled, ok := internalconfig.ResolveV1FallbackDisabled(cfg.ConfigSources)
+	if !ok {
+		return
+	}
+
+	if disabled {
+		options.EnableFallback = aws.FalseTernary
+	} else {
+		options.EnableFallback = aws.TrueTernary
+	}
 }

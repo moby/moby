@@ -36,8 +36,8 @@ func (e *AccessDeniedException) ErrorCode() string {
 }
 func (e *AccessDeniedException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
-// Indicates that a request to authorize a client with an access user session token
-// is pending.
+// Indicates that a request to authorize a client with an access user session
+// token is pending.
 type AuthorizationPendingException struct {
 	Message *string
 
@@ -128,7 +128,7 @@ func (e *InternalServerException) ErrorFault() smithy.ErrorFault { return smithy
 
 // Indicates that the clientId or clientSecret in the request is invalid. For
 // example, this can occur when a client sends an incorrect clientId or an expired
-// clientSecret.
+// clientSecret .
 type InvalidClientException struct {
 	Message *string
 
@@ -157,8 +157,8 @@ func (e *InvalidClientException) ErrorCode() string {
 }
 func (e *InvalidClientException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
-// Indicates that the client information sent in the request during registration is
-// invalid.
+// Indicates that the client information sent in the request during registration
+// is invalid.
 type InvalidClientMetadataException struct {
 	Message *string
 
@@ -246,6 +246,38 @@ func (e *InvalidRequestException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *InvalidRequestException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+
+// Indicates that a token provided as input to the request was issued by and is
+// only usable by calling IAM Identity Center endpoints in another region.
+type InvalidRequestRegionException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	Error_            *string
+	Error_description *string
+	Endpoint          *string
+	Region            *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *InvalidRequestRegionException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *InvalidRequestRegionException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *InvalidRequestRegionException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "InvalidRequestRegionException"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *InvalidRequestRegionException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
 // Indicates that the scope provided in the request is invalid.
 type InvalidScopeException struct {

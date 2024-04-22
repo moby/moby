@@ -41,6 +41,12 @@ func (o *Object) Key(name string) Value {
 	return o.key(name, false)
 }
 
+// KeyWithValues adds the given named key to the Query object.
+// Returns a Value encoder that should be used to encode a Query list of values.
+func (o *Object) KeyWithValues(name string) Value {
+	return o.keyWithValues(name, false)
+}
+
 // FlatKey adds the given named key to the Query object.
 // Returns a Value encoder that should be used to encode a Query value type. The
 // value will be flattened if it is a map or array.
@@ -53,4 +59,11 @@ func (o *Object) key(name string, flatValue bool) Value {
 		return newValue(o.values, fmt.Sprintf("%s.%s", o.prefix, name), flatValue)
 	}
 	return newValue(o.values, name, flatValue)
+}
+
+func (o *Object) keyWithValues(name string, flatValue bool) Value {
+	if o.prefix != "" {
+		return newAppendValue(o.values, fmt.Sprintf("%s.%s", o.prefix, name), flatValue)
+	}
+	return newAppendValue(o.values, name, flatValue)
 }

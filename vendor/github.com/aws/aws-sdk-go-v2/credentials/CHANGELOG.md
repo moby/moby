@@ -1,3 +1,197 @@
+# v1.16.16 (2024-01-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.15 (2024-01-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.14 (2024-01-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.13 (2023-12-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.12 (2023-12-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.11 (2023-12-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.10 (2023-12-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.9 (2023-12-01)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.8 (2023-11-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.7 (2023-11-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.6 (2023-11-28.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.5 (2023-11-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.4 (2023-11-21)
+
+* **Bug Fix**: Don't expect error responses to have a JSON payload in the endpointcreds provider.
+
+# v1.16.3 (2023-11-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.2 (2023-11-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.1 (2023-11-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.0 (2023-11-14)
+
+* **Feature**: Add support for dynamic auth token from file and EKS container host in absolute/relative URIs in the HTTP credential provider.
+
+# v1.15.2 (2023-11-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.1 (2023-11-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.0 (2023-11-01)
+
+* **Feature**: Adds support for configured endpoints via environment variables and the AWS shared configuration file.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.0 (2023-10-31)
+
+* **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.43 (2023-10-12)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.42 (2023-10-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.41 (2023-10-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.40 (2023-09-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.39 (2023-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.38 (2023-09-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.37 (2023-09-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.36 (2023-08-31)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.35 (2023-08-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.34 (2023-08-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.33 (2023-08-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.32 (2023-08-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.31 (2023-08-01)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.30 (2023-07-31)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.29 (2023-07-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.28 (2023-07-25)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.27 (2023-07-13)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.26 (2023-06-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.25 (2023-06-13)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.24 (2023-05-09)
+
+* No change notes available for this release.
+
+# v1.13.23 (2023-05-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.22 (2023-05-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.21 (2023-04-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.20 (2023-04-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.19 (2023-04-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.18 (2023-03-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.17 (2023-03-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.13.16 (2023-03-10)
 
 * **Dependency Update**: Updated to the latest SDK module versions

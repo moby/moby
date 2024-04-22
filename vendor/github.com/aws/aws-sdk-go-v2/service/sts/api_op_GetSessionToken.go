@@ -4,6 +4,7 @@ package sts
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
@@ -11,59 +12,46 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns a set of temporary credentials for an Amazon Web Services account or IAM
-// user. The credentials consist of an access key ID, a secret access key, and a
-// security token. Typically, you use GetSessionToken if you want to use MFA to
+// Returns a set of temporary credentials for an Amazon Web Services account or
+// IAM user. The credentials consist of an access key ID, a secret access key, and
+// a security token. Typically, you use GetSessionToken if you want to use MFA to
 // protect programmatic calls to specific Amazon Web Services API operations like
-// Amazon EC2 StopInstances. MFA-enabled IAM users would need to call
-// GetSessionToken and submit an MFA code that is associated with their MFA device.
-// Using the temporary security credentials that are returned from the call, IAM
-// users can then make programmatic calls to API operations that require MFA
-// authentication. If you do not supply a correct MFA code, then the API returns an
-// access denied error. For a comparison of GetSessionToken with the other API
-// operations that produce temporary credentials, see Requesting Temporary Security
-// Credentials
-// (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html)
-// and Comparing the Amazon Web Services STS API operations
-// (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#stsapi_comparison)
+// Amazon EC2 StopInstances . MFA-enabled IAM users must call GetSessionToken and
+// submit an MFA code that is associated with their MFA device. Using the temporary
+// security credentials that the call returns, IAM users can then make programmatic
+// calls to API operations that require MFA authentication. An incorrect MFA code
+// causes the API to return an access denied error. For a comparison of
+// GetSessionToken with the other API operations that produce temporary
+// credentials, see Requesting Temporary Security Credentials (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html)
+// and Comparing the Amazon Web Services STS API operations (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#stsapi_comparison)
 // in the IAM User Guide. No permissions are required for users to perform this
 // operation. The purpose of the sts:GetSessionToken operation is to authenticate
 // the user using MFA. You cannot use policies to control authentication
-// operations. For more information, see Permissions for GetSessionToken
-// (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_getsessiontoken.html)
+// operations. For more information, see Permissions for GetSessionToken (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_getsessiontoken.html)
 // in the IAM User Guide. Session Duration The GetSessionToken operation must be
-// called by using the long-term Amazon Web Services security credentials of the
-// Amazon Web Services account root user or an IAM user. Credentials that are
-// created by IAM users are valid for the duration that you specify. This duration
-// can range from 900 seconds (15 minutes) up to a maximum of 129,600 seconds (36
-// hours), with a default of 43,200 seconds (12 hours). Credentials based on
-// account credentials can range from 900 seconds (15 minutes) up to 3,600 seconds
-// (1 hour), with a default of 1 hour. Permissions The temporary security
-// credentials created by GetSessionToken can be used to make API calls to any
-// Amazon Web Services service with the following exceptions:
+// called by using the long-term Amazon Web Services security credentials of an IAM
+// user. Credentials that are created by IAM users are valid for the duration that
+// you specify. This duration can range from 900 seconds (15 minutes) up to a
+// maximum of 129,600 seconds (36 hours), with a default of 43,200 seconds (12
+// hours). Credentials based on account credentials can range from 900 seconds (15
+// minutes) up to 3,600 seconds (1 hour), with a default of 1 hour. Permissions The
+// temporary security credentials created by GetSessionToken can be used to make
+// API calls to any Amazon Web Services service with the following exceptions:
+//   - You cannot call any IAM API operations unless MFA authentication
+//     information is included in the request.
+//   - You cannot call any STS API except AssumeRole or GetCallerIdentity .
 //
-// * You cannot call
-// any IAM API operations unless MFA authentication information is included in the
-// request.
-//
-// * You cannot call any STS API except AssumeRole or
-// GetCallerIdentity.
-//
-// We recommend that you do not call GetSessionToken with
-// Amazon Web Services account root user credentials. Instead, follow our best
-// practices
-// (https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#create-iam-users)
-// by creating one or more IAM users, giving them the necessary permissions, and
-// using IAM users for everyday interaction with Amazon Web Services. The
-// credentials that are returned by GetSessionToken are based on permissions
-// associated with the user whose credentials were used to call the operation. If
-// GetSessionToken is called using Amazon Web Services account root user
-// credentials, the temporary credentials have root user permissions. Similarly, if
-// GetSessionToken is called using the credentials of an IAM user, the temporary
-// credentials have the same permissions as the IAM user. For more information
-// about using GetSessionToken to create temporary credentials, go to Temporary
-// Credentials for Users in Untrusted Environments
-// (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_getsessiontoken)
+// The credentials that GetSessionToken returns are based on permissions
+// associated with the IAM user whose credentials were used to call the operation.
+// The temporary credentials have the same permissions as the IAM user. Although it
+// is possible to call GetSessionToken using the security credentials of an Amazon
+// Web Services account root user rather than an IAM user, we do not recommend it.
+// If GetSessionToken is called using root user credentials, the temporary
+// credentials have root user permissions. For more information, see Safeguard
+// your root user credentials and don't use them for everyday tasks (https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#lock-away-credentials)
+// in the IAM User Guide For more information about using GetSessionToken to
+// create temporary credentials, see Temporary Credentials for Users in Untrusted
+// Environments (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_getsessiontoken)
 // in the IAM User Guide.
 func (c *Client) GetSessionToken(ctx context.Context, params *GetSessionTokenInput, optFns ...func(*Options)) (*GetSessionTokenOutput, error) {
 	if params == nil {
@@ -90,25 +78,25 @@ type GetSessionTokenInput struct {
 	// Services account owners defaults to one hour.
 	DurationSeconds *int32
 
-	// The identification number of the MFA device that is associated with the IAM user
-	// who is making the GetSessionToken call. Specify this value if the IAM user has a
-	// policy that requires MFA authentication. The value is either the serial number
-	// for a hardware device (such as GAHT12345678) or an Amazon Resource Name (ARN)
-	// for a virtual device (such as arn:aws:iam::123456789012:mfa/user). You can find
-	// the device for an IAM user by going to the Amazon Web Services Management
-	// Console and viewing the user's security credentials. The regex used to validate
-	// this parameter is a string of characters consisting of upper- and lower-case
-	// alphanumeric characters with no spaces. You can also include underscores or any
-	// of the following characters: =,.@:/-
+	// The identification number of the MFA device that is associated with the IAM
+	// user who is making the GetSessionToken call. Specify this value if the IAM user
+	// has a policy that requires MFA authentication. The value is either the serial
+	// number for a hardware device (such as GAHT12345678 ) or an Amazon Resource Name
+	// (ARN) for a virtual device (such as arn:aws:iam::123456789012:mfa/user ). You
+	// can find the device for an IAM user by going to the Amazon Web Services
+	// Management Console and viewing the user's security credentials. The regex used
+	// to validate this parameter is a string of characters consisting of upper- and
+	// lower-case alphanumeric characters with no spaces. You can also include
+	// underscores or any of the following characters: =,.@:/-
 	SerialNumber *string
 
-	// The value provided by the MFA device, if MFA is required. If any policy requires
-	// the IAM user to submit an MFA code, specify this value. If MFA authentication is
-	// required, the user must provide a code when requesting a set of temporary
-	// security credentials. A user who fails to provide the code receives an "access
-	// denied" response when requesting resources that require MFA authentication. The
-	// format for this parameter, as described by its regex pattern, is a sequence of
-	// six numeric digits.
+	// The value provided by the MFA device, if MFA is required. If any policy
+	// requires the IAM user to submit an MFA code, specify this value. If MFA
+	// authentication is required, the user must provide a code when requesting a set
+	// of temporary security credentials. A user who fails to provide the code receives
+	// an "access denied" response when requesting resources that require MFA
+	// authentication. The format for this parameter, as described by its regex
+	// pattern, is a sequence of six numeric digits.
 	TokenCode *string
 
 	noSmithyDocumentSerde
@@ -132,12 +120,22 @@ type GetSessionTokenOutput struct {
 }
 
 func (c *Client) addOperationGetSessionTokenMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpGetSessionToken{}, middleware.After)
 	if err != nil {
 		return err
 	}
 	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpGetSessionToken{}, middleware.After)
 	if err != nil {
+		return err
+	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "GetSessionToken"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
 		return err
 	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
@@ -158,16 +156,13 @@ func (c *Client) addOperationGetSessionTokenMiddlewares(stack *middleware.Stack,
 	if err = addRetryMiddlewares(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
-		return err
-	}
 	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
 		return err
 	}
 	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -176,7 +171,13 @@ func (c *Client) addOperationGetSessionTokenMiddlewares(stack *middleware.Stack,
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetSessionToken(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -188,6 +189,9 @@ func (c *Client) addOperationGetSessionTokenMiddlewares(stack *middleware.Stack,
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -195,7 +199,6 @@ func newServiceMetadataMiddleware_opGetSessionToken(region string) *awsmiddlewar
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "sts",
 		OperationName: "GetSessionToken",
 	}
 }

@@ -1,3 +1,52 @@
+# Release (2023-12-07)
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.19.0
+  * **Feature**: Support modeled request compression.
+
+# Release (2023-11-30)
+
+* No change notes available for this release.
+
+# Release (2023-11-29)
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.18.0
+  * **Feature**: Expose Options() method on generated service clients.
+
+# Release (2023-11-15)
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.17.0
+  * **Feature**: Support identity/auth components of client reference architecture.
+
+# Release (2023-10-31)
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.16.0
+  * **Feature**: **LANG**: Bump minimum go version to 1.19.
+
+# Release (2023-10-06)
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.15.0
+  * **Feature**: Add `http.WithHeaderComment` middleware.
+
+# Release (2023-08-18)
+
+* No change notes available for this release.
+
+# Release (2023-08-07)
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.14.1
+  * **Bug Fix**: Prevent duplicated error returns in EndpointResolverV2 default implementation.
+
+# Release (2023-07-31)
+
+## General Highlights
+* **Feature**: Adds support for smithy-modeled endpoint resolution.
+
 # Release (2022-12-02)
 
 * No change notes available for this release.
