@@ -16,8 +16,11 @@ var (
 	predefinedGlobalScopeDefaultNetworks []*net.IPNet
 	mutex                                sync.Mutex
 	localScopeDefaultNetworks            = []*NetworkToSplit{
-		{"172.17.0.0/16", 16},
-		{"172.18.0.0/16", 24},
+		{"172.17.0.0/16", 22},
+		{"172.18.0.0/15", 22},
+		{"172.20.0.0/14", 22},
+		{"172.24.0.0/13", 22},
+		{"192.168.0.0/16", 22},
 	}
 	globalScopeDefaultNetworks = []*NetworkToSplit{{"10.0.0.0/8", 24}}
 )

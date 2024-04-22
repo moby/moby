@@ -9,14 +9,15 @@ import (
 )
 
 func initBroadPredefinedNetworks() []*net.IPNet {
-	pl := make([]*net.IPNet, 0, 257)
-	mask16 := []byte{255, 255, 0, 0}
-	for i := 17; i < 18; i++ {
-		pl = append(pl, &net.IPNet{IP: []byte{172, byte(i), 0, 0}, Mask: mask16})
+	pl := make([]*net.IPNet, 0, 1024)
+	mask22 := []byte{255, 255, 252, 0}
+	for i := 17; i < 32; i++ {
+		for j := 0; j < 256; j += 4 {
+			pl = append(pl, &net.IPNet{IP: []byte{172, byte(i), byte(j), 0}, Mask: mask22})
+		}
 	}
-	mask24 := []byte{255, 255, 255, 0}
-	for i := 0; i < 256; i++ {
-		pl = append(pl, &net.IPNet{IP: []byte{172, 18, byte(i), 0}, Mask: mask24})
+	for j := 0; j < 256; j += 4 {
+		pl = append(pl, &net.IPNet{IP: []byte{192, 168, byte(j), 0}, Mask: mask22})
 	}
 	return pl
 }
