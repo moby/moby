@@ -5,7 +5,7 @@ import (
 	"github.com/cilium/ebpf/internal/unix"
 )
 
-//go:generate stringer -output types_string.go -type=MapType,ProgramType,PinType
+//go:generate go run golang.org/x/tools/cmd/stringer@latest -output types_string.go -type=MapType,ProgramType,PinType
 
 // MapType indicates the type map structure
 // that will be initialized in the kernel.
@@ -44,7 +44,7 @@ const (
 	// if an skb is from a socket belonging to a specific cgroup
 	CGroupArray
 	// LRUHash - This allows you to create a small hash structure that will purge the
-	// least recently used items rather than thow an error when you run out of memory
+	// least recently used items rather than throw an error when you run out of memory
 	LRUHash
 	// LRUCPUHash - This is NOT like PerCPUHash, this structure is shared among the CPUs,
 	// it has more to do with including the CPU id with the LRU calculation so that if a
@@ -100,6 +100,12 @@ const (
 // hasPerCPUValue returns true if the Map stores a value per CPU.
 func (mt MapType) hasPerCPUValue() bool {
 	return mt == PerCPUHash || mt == PerCPUArray || mt == LRUCPUHash || mt == PerCPUCGroupStorage
+}
+
+// canStoreMapOrProgram returns true if the Map stores references to another Map
+// or Program.
+func (mt MapType) canStoreMapOrProgram() bool {
+	return mt.canStoreMap() || mt.canStoreProgram()
 }
 
 // canStoreMap returns true if the map type accepts a map fd
@@ -158,7 +164,7 @@ const (
 // Will cause invalid argument (EINVAL) at program load time if set incorrectly.
 type AttachType uint32
 
-//go:generate stringer -type AttachType -trimprefix Attach
+//go:generate go run golang.org/x/tools/cmd/stringer@latest -type AttachType -trimprefix Attach
 
 // AttachNone is an alias for AttachCGroupInetIngress for readability reasons.
 const AttachNone AttachType = 0
@@ -213,7 +219,7 @@ const (
 type AttachFlags uint32
 
 // PinType determines whether a map is pinned into a BPFFS.
-type PinType int
+type PinType uint32
 
 // Valid pin types.
 //

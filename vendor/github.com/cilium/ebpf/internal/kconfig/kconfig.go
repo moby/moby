@@ -250,7 +250,20 @@ func putValueNumber(data []byte, typ btf.Type, value string) error {
 		return fmt.Errorf("cannot parse value: %w", err)
 	}
 
-	switch size {
+	return PutInteger(data, integer, n)
+}
+
+// PutInteger writes n into data.
+//
+// integer determines how much is written into data and what the valid values
+// are.
+func PutInteger(data []byte, integer *btf.Int, n uint64) error {
+	// This function should match set_kcfg_value_num in libbpf.
+	if integer.Encoding == btf.Bool && n > 1 {
+		return fmt.Errorf("invalid boolean value: %d", n)
+	}
+
+	switch integer.Size {
 	case 1:
 		data[0] = byte(n)
 	case 2:
@@ -260,7 +273,7 @@ func putValueNumber(data []byte, typ btf.Type, value string) error {
 	case 8:
 		internal.NativeEndian.PutUint64(data, uint64(n))
 	default:
-		return fmt.Errorf("size (%d) is not valid, expected: 1, 2, 4 or 8", size)
+		return fmt.Errorf("size (%d) is not valid, expected: 1, 2, 4 or 8", integer.Size)
 	}
 
 	return nil

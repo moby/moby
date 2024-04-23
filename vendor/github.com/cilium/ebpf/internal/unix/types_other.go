@@ -89,6 +89,8 @@ const (
 	BPF_FS_MAGIC
 	TRACEFS_MAGIC
 	DEBUGFS_MAGIC
+	BPF_RB_NO_WAKEUP
+	BPF_RB_FORCE_WAKEUP
 )
 
 type Statfs_t struct {

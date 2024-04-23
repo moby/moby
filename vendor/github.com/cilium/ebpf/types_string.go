@@ -111,7 +111,7 @@ const _PinType_name = "PinNonePinByName"
 var _PinType_index = [...]uint8{0, 7, 16}
 
 func (i PinType) String() string {
-	if i < 0 || i >= PinType(len(_PinType_index)-1) {
+	if i >= PinType(len(_PinType_index)-1) {
 		return "PinType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _PinType_name[_PinType_index[i]:_PinType_index[i+1]]
