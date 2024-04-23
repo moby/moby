@@ -6,11 +6,7 @@ import (
 	"github.com/agext/levenshtein"
 )
 
-// WrapError wraps error with a suggestion for fixing it
-func WrapError(err error, val string, options []string, caseSensitive bool) error {
-	if err == nil {
-		return nil
-	}
+func Search(val string, options []string, caseSensitive bool) (string, bool) {
 	orig := val
 	if !caseSensitive {
 		val = strings.ToLower(val)
@@ -23,7 +19,7 @@ func WrapError(err error, val string, options []string, caseSensitive bool) erro
 		}
 		if val == opt {
 			// exact match means error was unrelated to the value
-			return err
+			return "", false
 		}
 		dist := levenshtein.Distance(val, opt, nil)
 		if dist < mindist {
@@ -35,12 +31,25 @@ func WrapError(err error, val string, options []string, caseSensitive bool) erro
 			mindist = dist
 		}
 	}
+	return match, match != ""
+}
 
-	if match == "" {
-		return err
+// WrapError wraps error with a suggestion for fixing it
+func WrapError(err error, val string, options []string, caseSensitive bool) error {
+	_, err = WrapErrorMaybe(err, val, options, caseSensitive)
+	return err
+}
+
+func WrapErrorMaybe(err error, val string, options []string, caseSensitive bool) (bool, error) {
+	if err == nil {
+		return false, nil
+	}
+	match, ok := Search(val, options, caseSensitive)
+	if match == "" || !ok {
+		return false, err
 	}
 
-	return &suggestError{
+	return true, &suggestError{
 		err:   err,
 		match: match,
 	}

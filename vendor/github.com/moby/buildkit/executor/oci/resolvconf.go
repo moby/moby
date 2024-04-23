@@ -53,10 +53,8 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 						generate = true
 						lastNotEmpty = false
 					}
-				} else {
-					if fi.ModTime().Before(fiMain.ModTime()) {
-						generate = true
-					}
+				} else if fi.ModTime().Before(fiMain.ModTime()) {
+					generate = true
 				}
 			}
 		}

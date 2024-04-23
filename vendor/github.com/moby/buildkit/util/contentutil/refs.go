@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/version"
 	"github.com/moby/locker"
 	digest "github.com/opencontainers/go-digest"
@@ -70,7 +70,7 @@ func (w *ingester) Writer(ctx context.Context, opts ...content.WriterOpt) (conte
 		}
 	}
 	if wo.Ref == "" {
-		return nil, errors.Wrap(errdefs.ErrInvalidArgument, "ref must not be empty")
+		return nil, errors.Wrap(cerrdefs.ErrInvalidArgument, "ref must not be empty")
 	}
 	w.locker.Lock(wo.Ref)
 	var once sync.Once

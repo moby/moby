@@ -66,7 +66,7 @@ func (c *Connection) StartConnection(ctx context.Context) error {
 	c.disconnectedCh = make(chan bool, 1)
 	c.backgroundConnectionDoneCh = make(chan struct{})
 
-	if err := c.connect(ctx); err == nil {
+	if err := c.connect(); err == nil {
 		c.setStateConnected()
 	} else {
 		c.SetStateDisconnected(err)
@@ -148,7 +148,7 @@ func (c *Connection) indefiniteBackgroundConnection() {
 			// Normal scenario that we'll wait for
 		}
 
-		if err := c.connect(context.Background()); err == nil {
+		if err := c.connect(); err == nil {
 			c.setStateConnected()
 		} else {
 			// this code is unreachable in most cases
@@ -168,7 +168,7 @@ func (c *Connection) indefiniteBackgroundConnection() {
 	}
 }
 
-func (c *Connection) connect(ctx context.Context) error {
+func (c *Connection) connect() error {
 	c.newConnectionHandler(c.cc)
 	return nil
 }

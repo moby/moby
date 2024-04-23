@@ -1,3 +1,6 @@
+//go:build linux
+// +build linux
+
 package runcexecutor
 
 import (
@@ -445,7 +448,7 @@ func (w *runcExecutor) Exec(ctx context.Context, id string, process executor.Pro
 		spec.Process.Env = process.Meta.Env
 	}
 
-	err = w.exec(ctx, id, state.Bundle, spec.Process, process, nil)
+	err = w.exec(ctx, id, spec.Process, process, nil)
 	return exitError(ctx, err)
 }
 
@@ -476,7 +479,7 @@ func (s *forwardIO) Stderr() io.ReadCloser {
 	return nil
 }
 
-// newRuncProcKiller returns an abstraction for sending SIGKILL to the
+// newRunProcKiller returns an abstraction for sending SIGKILL to the
 // process inside the container initiated from `runc run`.
 func newRunProcKiller(runC *runc.Runc, id string) procKiller {
 	return procKiller{runC: runC, id: id}

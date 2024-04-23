@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Source wraps a a protobuf source in order to store cached state such as the compiled regexes.
+// Source wraps a protobuf source in order to store cached state such as the compiled regexes.
 type selectorCache struct {
 	*spb.Selector
 

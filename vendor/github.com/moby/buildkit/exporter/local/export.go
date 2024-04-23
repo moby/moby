@@ -142,7 +142,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 				if e.opts.PlatformSplit {
 					st := fstypes.Stat{
 						Mode: uint32(os.ModeDir | 0755),
-						Path: strings.Replace(k, "/", "_", -1),
+						Path: strings.ReplaceAll(k, "/", "_"),
 					}
 					if e.opts.Epoch != nil {
 						st.ModTime = e.opts.Epoch.UnixNano()

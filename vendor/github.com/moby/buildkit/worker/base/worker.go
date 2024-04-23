@@ -245,10 +245,14 @@ func (w *Worker) Labels() map[string]string {
 
 func (w *Worker) Platforms(noCache bool) []ocispecs.Platform {
 	if noCache {
+		matchers := make([]platforms.MatchComparer, len(w.WorkerOpt.Platforms))
+		for i, p := range w.WorkerOpt.Platforms {
+			matchers[i] = platforms.Only(p)
+		}
 		for _, p := range archutil.SupportedPlatforms(noCache) {
 			exists := false
-			for _, pp := range w.WorkerOpt.Platforms {
-				if platforms.Only(pp).Match(p) {
+			for _, m := range matchers {
+				if m.Match(p) {
 					exists = true
 					break
 				}
@@ -472,14 +476,12 @@ func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, 
 }
 
 func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (ref cache.ImmutableRef, err error) {
-	if cd, ok := remote.Provider.(interface {
-		CheckDescriptor(context.Context, ocispecs.Descriptor) error
-	}); ok && len(remote.Descriptors) > 0 {
+	if len(remote.Descriptors) > 0 {
 		var eg errgroup.Group
 		for _, desc := range remote.Descriptors {
 			desc := desc
 			eg.Go(func() error {
-				if err := cd.CheckDescriptor(ctx, desc); err != nil {
+				if _, err := remote.Provider.Info(ctx, desc.Digest); err != nil {
 					return err
 				}
 				return nil

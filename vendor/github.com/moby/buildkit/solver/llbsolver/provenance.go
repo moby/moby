@@ -411,9 +411,10 @@ func NewProvenanceCreator(ctx context.Context, cp *provenance.Capture, res solve
 			}
 
 			if _, err := r.CacheKeys()[0].Exporter.ExportTo(ctx, e, solver.CacheExportOpt{
-				ResolveRemotes: resolveRemotes,
-				Mode:           solver.CacheExportModeRemoteOnly,
-				ExportRoots:    true,
+				ResolveRemotes:  resolveRemotes,
+				Mode:            solver.CacheExportModeRemoteOnly,
+				ExportRoots:     true,
+				IgnoreBacklinks: true,
 			}); err != nil {
 				return err
 			}

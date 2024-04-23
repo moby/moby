@@ -6,7 +6,6 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/moby/buildkit/util/iohelper"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -22,8 +21,7 @@ func (c uncompressedType) Decompress(ctx context.Context, cs content.Store, desc
 	if err != nil {
 		return nil, err
 	}
-	rdr := io.NewSectionReader(ra, 0, ra.Size())
-	return ioutils.NewReadCloserWrapper(rdr, ra.Close), nil
+	return iohelper.ReadCloser(ra), nil
 }
 
 func (c uncompressedType) NeedsConversion(ctx context.Context, cs content.Store, desc ocispecs.Descriptor) (bool, error) {

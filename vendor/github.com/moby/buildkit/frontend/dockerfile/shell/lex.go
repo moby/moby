@@ -32,10 +32,12 @@ func NewLex(escapeToken rune) *Lex {
 }
 
 // ProcessWord will use the 'env' list of environment variables,
-// and replace any env var references in 'word'.
-func (s *Lex) ProcessWord(word string, env []string) (string, error) {
-	word, _, err := s.process(word, BuildEnvs(env))
-	return word, err
+// and replace any env var references in 'word'. It will also
+// return variables in word which were not found in the 'env' list,
+// which is useful in later linting.
+func (s *Lex) ProcessWord(word string, env []string) (string, map[string]struct{}, error) {
+	result, err := s.process(word, BuildEnvs(env))
+	return result.Result, result.Unmatched, err
 }
 
 // ProcessWords will use the 'env' list of environment variables,
@@ -46,28 +48,40 @@ func (s *Lex) ProcessWord(word string, env []string) (string, error) {
 // Note, each one is trimmed to remove leading and trailing spaces (unless
 // they are quoted", but ProcessWord retains spaces between words.
 func (s *Lex) ProcessWords(word string, env []string) ([]string, error) {
-	_, words, err := s.process(word, BuildEnvs(env))
-	return words, err
+	result, err := s.process(word, BuildEnvs(env))
+	return result.Words, err
 }
 
 // ProcessWordWithMap will use the 'env' list of environment variables,
 // and replace any env var references in 'word'.
 func (s *Lex) ProcessWordWithMap(word string, env map[string]string) (string, error) {
-	word, _, err := s.process(word, env)
-	return word, err
+	result, err := s.process(word, env)
+	return result.Result, err
+}
+
+type ProcessWordResult struct {
+	Result    string
+	Words     []string
+	Matched   map[string]struct{}
+	Unmatched map[string]struct{}
 }
 
 // ProcessWordWithMatches will use the 'env' list of environment variables,
 // replace any env var references in 'word' and return the env that were used.
-func (s *Lex) ProcessWordWithMatches(word string, env map[string]string) (string, map[string]struct{}, error) {
+func (s *Lex) ProcessWordWithMatches(word string, env map[string]string) (ProcessWordResult, error) {
 	sw := s.init(word, env)
-	word, _, err := sw.process(word)
-	return word, sw.matches, err
+	word, words, err := sw.process(word)
+	return ProcessWordResult{
+		Result:    word,
+		Words:     words,
+		Matched:   sw.matches,
+		Unmatched: sw.nonmatches,
+	}, err
 }
 
 func (s *Lex) ProcessWordsWithMap(word string, env map[string]string) ([]string, error) {
-	_, words, err := s.process(word, env)
-	return words, err
+	result, err := s.process(word, env)
+	return result.Words, err
 }
 
 func (s *Lex) init(word string, env map[string]string) *shellWord {
@@ -79,14 +93,21 @@ func (s *Lex) init(word string, env map[string]string) *shellWord {
 		rawQuotes:         s.RawQuotes,
 		rawEscapes:        s.RawEscapes,
 		matches:           make(map[string]struct{}),
+		nonmatches:        make(map[string]struct{}),
 	}
 	sw.scanner.Init(strings.NewReader(word))
 	return sw
 }
 
-func (s *Lex) process(word string, env map[string]string) (string, []string, error) {
+func (s *Lex) process(word string, env map[string]string) (*ProcessWordResult, error) {
 	sw := s.init(word, env)
-	return sw.process(word)
+	word, words, err := sw.process(word)
+	return &ProcessWordResult{
+		Result:    word,
+		Words:     words,
+		Matched:   sw.matches,
+		Unmatched: sw.nonmatches,
+	}, err
 }
 
 type shellWord struct {
@@ -98,6 +119,7 @@ type shellWord struct {
 	skipUnsetEnv      bool
 	skipProcessQuotes bool
 	matches           map[string]struct{}
+	nonmatches        map[string]struct{}
 }
 
 func (sw *shellWord) process(source string) (string, []string, error) {
@@ -511,6 +533,7 @@ func (sw *shellWord) getEnv(name string) (string, bool) {
 			return value, true
 		}
 	}
+	sw.nonmatches[name] = struct{}{}
 	return "", false
 }
 

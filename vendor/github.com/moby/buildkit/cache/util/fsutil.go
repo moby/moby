@@ -23,7 +23,7 @@ type FileRange struct {
 	Length int
 }
 
-func withMount(ctx context.Context, mount snapshot.Mountable, cb func(string) error) error {
+func withMount(mount snapshot.Mountable, cb func(string) error) error {
 	lm := snapshot.LocalMounter(mount)
 
 	root, err := lm.Mount()
@@ -51,7 +51,7 @@ func withMount(ctx context.Context, mount snapshot.Mountable, cb func(string) er
 func ReadFile(ctx context.Context, mount snapshot.Mountable, req ReadRequest) ([]byte, error) {
 	var dt []byte
 
-	err := withMount(ctx, mount, func(root string) error {
+	err := withMount(mount, func(root string) error {
 		fp, err := fs.RootPath(root, req.Filename)
 		if err != nil {
 			return errors.WithStack(err)
@@ -95,7 +95,7 @@ func ReadDir(ctx context.Context, mount snapshot.Mountable, req ReadDirRequest) 
 	if req.IncludePattern != "" {
 		fo.IncludePatterns = append(fo.IncludePatterns, req.IncludePattern)
 	}
-	err := withMount(ctx, mount, func(root string) error {
+	err := withMount(mount, func(root string) error {
 		fp, err := fs.RootPath(root, req.Path)
 		if err != nil {
 			return errors.WithStack(err)
@@ -122,7 +122,7 @@ func ReadDir(ctx context.Context, mount snapshot.Mountable, req ReadDirRequest) 
 
 func StatFile(ctx context.Context, mount snapshot.Mountable, path string) (*fstypes.Stat, error) {
 	var st *fstypes.Stat
-	err := withMount(ctx, mount, func(root string) error {
+	err := withMount(mount, func(root string) error {
 		fp, err := fs.RootPath(root, path)
 		if err != nil {
 			return errors.WithStack(err)

@@ -423,7 +423,7 @@ func (e *ExecOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		return nil, err
 	}
 
-	emu, err := getEmulator(ctx, e.platform, e.cm.IdentityMapping())
+	emu, err := getEmulator(ctx, e.platform)
 	if err != nil {
 		return nil, err
 	}

@@ -200,6 +200,7 @@ func (v *VT100) Resize(y, x int) {
 		v.Height = y
 	} else if y < v.Height {
 		v.Content = v.Content[:y]
+		v.Format = v.Format[:y]
 		v.Height = y
 	}
 

@@ -15,24 +15,15 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
+var otlpExporter = otlpExporterDetector{}
+
 func init() {
 	Register("otlp", otlpExporter, 10)
 }
 
-func otlpExporter() (sdktrace.SpanExporter, sdkmetric.Exporter, error) {
-	texp, err := otlpSpanExporter()
-	if err != nil {
-		return nil, nil, err
-	}
+type otlpExporterDetector struct{}
 
-	mexp, err := otlpMetricExporter()
-	if err != nil {
-		return nil, nil, err
-	}
-	return texp, mexp, nil
-}
-
-func otlpSpanExporter() (sdktrace.SpanExporter, error) {
+func (otlpExporterDetector) DetectTraceExporter() (sdktrace.SpanExporter, error) {
 	set := os.Getenv("OTEL_TRACES_EXPORTER") == "otlp" || os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" || os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") != ""
 	if !set {
 		return nil, nil
@@ -61,7 +52,7 @@ func otlpSpanExporter() (sdktrace.SpanExporter, error) {
 	return otlptrace.New(context.Background(), c)
 }
 
-func otlpMetricExporter() (sdkmetric.Exporter, error) {
+func (otlpExporterDetector) DetectMetricExporter() (sdkmetric.Exporter, error) {
 	set := os.Getenv("OTEL_METRICS_EXPORTER") == "otlp" || os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" || os.Getenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT") != ""
 	if !set {
 		return nil, nil

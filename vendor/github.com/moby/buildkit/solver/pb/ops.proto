@@ -340,6 +340,8 @@ message FileActionCopy {
 	repeated string include_patterns = 12;
 	// exclude files/dir matching any of these patterns (even if they match an include pattern)
 	repeated string exclude_patterns = 13;
+	// alwaysReplaceExistingDestPaths results in an existing dest path that differs in type from the src path being replaced rather than the default of returning an error
+	bool alwaysReplaceExistingDestPaths = 14;
 }
 
 message FileActionMkFile {

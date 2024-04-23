@@ -3,9 +3,8 @@ package instructions
 import (
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -155,7 +154,7 @@ type MaintainerCommand struct {
 }
 
 // NewLabelCommand creates a new 'LABEL' command
-func NewLabelCommand(k string, v string, NoExp bool) *LabelCommand {
+func NewLabelCommand(k string, v string, noExp bool) *LabelCommand {
 	kvp := KeyValuePair{Key: k, Value: v}
 	c := "LABEL "
 	c += kvp.String()
@@ -165,7 +164,7 @@ func NewLabelCommand(k string, v string, NoExp bool) *LabelCommand {
 		Labels: KeyValuePairs{
 			kvp,
 		},
-		noExpand: NoExp,
+		noExpand: noExp,
 	}
 	return cmd
 }
@@ -325,7 +324,7 @@ type ShellInlineFile struct {
 
 // ShellDependantCmdLine represents a cmdline optionally prepended with the shell
 type ShellDependantCmdLine struct {
-	CmdLine      strslice.StrSlice
+	CmdLine      []string
 	Files        []ShellInlineFile
 	PrependShell bool
 }
@@ -368,7 +367,7 @@ type CmdCommand struct {
 //	HEALTHCHECK <health-config>
 type HealthCheckCommand struct {
 	withNameAndCode
-	Health *container.HealthConfig
+	Health *dockerspec.HealthcheckConfig
 }
 
 // EntrypointCommand sets the default entrypoint of the container to use the
@@ -479,7 +478,7 @@ func (c *ArgCommand) Expand(expander SingleWordExpander) error {
 //	SHELL bash -e -c
 type ShellCommand struct {
 	withNameAndCode
-	Shell strslice.StrSlice
+	Shell []string
 }
 
 // Stage represents a bundled collection of commands.

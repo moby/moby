@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func readSchema1Config(ctx context.Context, ref string, desc ocispecs.Descriptor, fetcher remotes.Fetcher, cache ContentCache) (digest.Digest, []byte, error) {
+func readSchema1Config(ctx context.Context, desc ocispecs.Descriptor, fetcher remotes.Fetcher) (digest.Digest, []byte, error) {
 	rc, err := fetcher.Fetch(ctx, desc)
 	if err != nil {
 		return "", nil, err

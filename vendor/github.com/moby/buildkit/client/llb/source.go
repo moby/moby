@@ -227,6 +227,11 @@ type ImageInfo struct {
 	RecordType    string
 }
 
+const (
+	GitAuthHeaderKey = "GIT_AUTH_HEADER"
+	GitAuthTokenKey  = "GIT_AUTH_TOKEN"
+)
+
 // Git returns a state that represents a git repository.
 // Example:
 //
@@ -267,8 +272,8 @@ func Git(url, ref string, opts ...GitOption) State {
 	}
 
 	gi := &GitInfo{
-		AuthHeaderSecret: "GIT_AUTH_HEADER",
-		AuthTokenSecret:  "GIT_AUTH_TOKEN",
+		AuthHeaderSecret: GitAuthHeaderKey,
+		AuthTokenSecret:  GitAuthTokenKey,
 	}
 	for _, o := range opts {
 		o.SetGitOption(gi)

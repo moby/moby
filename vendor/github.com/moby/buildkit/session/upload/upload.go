@@ -37,8 +37,8 @@ type Upload struct {
 	cc Upload_PullClient
 }
 
-func (u *Upload) WriteTo(w io.Writer) (int, error) {
-	n := 0
+func (u *Upload) WriteTo(w io.Writer) (int64, error) {
+	var n int64
 	for {
 		var bm BytesMessage
 		if err := u.cc.RecvMsg(&bm); err != nil {
@@ -48,7 +48,7 @@ func (u *Upload) WriteTo(w io.Writer) (int, error) {
 			return n, errors.WithStack(err)
 		}
 		nn, err := w.Write(bm.Data)
-		n += nn
+		n += int64(nn)
 		if err != nil {
 			return n, errors.WithStack(err)
 		}

@@ -290,7 +290,7 @@ func keyPath(p string) string {
 // HandleChange notifies the source about a modification operation
 func (cc *cacheContext) HandleChange(kind fsutil.ChangeKind, p string, fi os.FileInfo, err error) (retErr error) {
 	p = keyPath(p)
-	k := convertPathToKey([]byte(p))
+	k := convertPathToKey(p)
 
 	deleteDir := func(cr *CacheRecord) {
 		if cr.Type == CacheRecordTypeDir {
@@ -369,7 +369,7 @@ func (cc *cacheContext) HandleChange(kind fsutil.ChangeKind, p string, fi os.Fil
 	// note that the source may be called later because data writing is async
 	if fi.Mode()&os.ModeSymlink == 0 && stat.Linkname != "" {
 		ln := path.Join("/", filepath.ToSlash(stat.Linkname))
-		v, ok := cc.txn.Get(convertPathToKey([]byte(ln)))
+		v, ok := cc.txn.Get(convertPathToKey(ln))
 		if ok {
 			cp := *v.(*CacheRecord)
 			cr = &cp
@@ -536,7 +536,7 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 		}
 	} else {
 		origPrefix = p
-		k = convertPathToKey([]byte(origPrefix))
+		k = convertPathToKey(origPrefix)
 
 		// We need to resolve symlinks here, in case the base path
 		// involves a symlink. That will match fsutil behavior of
@@ -554,7 +554,7 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 			iter.SeekLowerBound(append(append([]byte{}, k...), 0))
 		}
 
-		resolvedPrefix = string(convertKeyToPath(k))
+		resolvedPrefix = convertKeyToPath(k)
 	} else {
 		k, _, keyOk = iter.Next()
 	}
@@ -565,7 +565,7 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 	)
 
 	for keyOk {
-		fn := string(convertKeyToPath(k))
+		fn := convertKeyToPath(k)
 
 		// Convert the path prefix from what we found in the prefix
 		// tree to what the argument specified.
@@ -752,7 +752,7 @@ func wildcardPrefix(root *iradix.Node, p string) (string, []byte, bool, error) {
 	}
 
 	linksWalked := 0
-	k, cr, err := getFollowLinksWalk(root, convertPathToKey([]byte(d1)), true, &linksWalked)
+	k, cr, err := getFollowLinksWalk(root, convertPathToKey(d1), true, &linksWalked)
 	if err != nil {
 		return "", k, false, err
 	}
@@ -761,7 +761,7 @@ func wildcardPrefix(root *iradix.Node, p string) (string, []byte, bool, error) {
 		// getFollowLinks only handles symlinks in path
 		// components before the last component, so
 		// handle last component in d1 specially.
-		resolved := string(convertKeyToPath(k))
+		resolved := convertKeyToPath(k)
 		for {
 			v, ok := root.Get(k)
 
@@ -778,7 +778,7 @@ func wildcardPrefix(root *iradix.Node, p string) (string, []byte, bool, error) {
 			}
 
 			resolved := cleanLink(resolved, v.(*CacheRecord).Linkname)
-			k = convertPathToKey([]byte(resolved))
+			k = convertPathToKey(resolved)
 		}
 	}
 	return d1, k, cr != nil, nil
@@ -823,7 +823,7 @@ func (cc *cacheContext) checksumNoFollow(ctx context.Context, m *mount, p string
 	if cc.txn == nil {
 		root := cc.tree.Root()
 		cc.mu.RUnlock()
-		v, ok := root.Get(convertPathToKey([]byte(p)))
+		v, ok := root.Get(convertPathToKey(p))
 		if ok {
 			cr := v.(*CacheRecord)
 			if cr.Digest != "" {
@@ -856,7 +856,7 @@ func (cc *cacheContext) commitActiveTransaction() {
 		addParentToMap(d, cc.dirtyMap)
 	}
 	for d := range cc.dirtyMap {
-		k := convertPathToKey([]byte(d))
+		k := convertPathToKey(d)
 		if _, ok := cc.txn.Get(k); ok {
 			cc.txn.Insert(k, &CacheRecord{Type: CacheRecordTypeDir})
 		}
@@ -878,7 +878,7 @@ func (cc *cacheContext) lazyChecksum(ctx context.Context, m *mount, p string) (*
 			return nil, err
 		}
 	}
-	k := convertPathToKey([]byte(p))
+	k := convertPathToKey(p)
 	txn := cc.tree.Txn()
 	root = txn.Root()
 	cr, updated, err := cc.checksum(ctx, root, txn, m, k, true)
@@ -935,7 +935,7 @@ func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node, txn *ir
 		dgst = digest.NewDigest(digest.SHA256, h)
 
 	default:
-		p := string(convertKeyToPath(bytes.TrimSuffix(k, []byte{0})))
+		p := convertKeyToPath(bytes.TrimSuffix(k, []byte{0}))
 
 		target, err := m.mount(ctx)
 		if err != nil {
@@ -978,7 +978,7 @@ func (cc *cacheContext) needsScanFollow(root *iradix.Node, p string, linksWalked
 	if p == "/" {
 		p = ""
 	}
-	v, ok := root.Get(convertPathToKey([]byte(p)))
+	v, ok := root.Get(convertPathToKey(p))
 	if !ok {
 		if p == "" {
 			return true, nil
@@ -1017,9 +1017,8 @@ func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string) (retEr
 			Type:     CacheRecordTypeSymlink,
 			Linkname: filepath.ToSlash(link),
 		}
-		k := []byte(path.Join("/", filepath.ToSlash(p)))
-		k = convertPathToKey(k)
-		txn.Insert(k, cr)
+		p = path.Join("/", filepath.ToSlash(p))
+		txn.Insert(convertPathToKey(p), cr)
 		return nil
 	})
 	if err != nil {
@@ -1034,11 +1033,11 @@ func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string) (retEr
 		if err != nil {
 			return err
 		}
-		k := []byte(path.Join("/", filepath.ToSlash(rel)))
-		if string(k) == "/" {
-			k = []byte{}
+		p := path.Join("/", filepath.ToSlash(rel))
+		if p == "/" {
+			p = ""
 		}
-		k = convertPathToKey(k)
+		k := convertPathToKey(p)
 		if _, ok := n.Get(k); !ok {
 			cr := &CacheRecord{
 				Type: CacheRecordTypeFile,
@@ -1098,8 +1097,8 @@ func getFollowLinksWalk(root *iradix.Node, k []byte, follow bool, linksWalked *i
 				return nil, nil, errors.Errorf("too many links")
 			}
 
-			link := cleanLink(string(convertKeyToPath(dir)), parent.Linkname)
-			return getFollowLinksWalk(root, append(convertPathToKey([]byte(link)), file...), follow, linksWalked)
+			link := cleanLink(convertKeyToPath(dir), parent.Linkname)
+			return getFollowLinksWalk(root, append(convertPathToKey(link), file...), follow, linksWalked)
 		}
 	}
 	k = append(k, file...)
@@ -1176,12 +1175,12 @@ func poolsCopy(dst io.Writer, src io.Reader) (written int64, err error) {
 	return
 }
 
-func convertPathToKey(p []byte) []byte {
-	return bytes.Replace([]byte(p), []byte("/"), []byte{0}, -1)
+func convertPathToKey(p string) []byte {
+	return bytes.ReplaceAll([]byte(p), []byte("/"), []byte{0})
 }
 
-func convertKeyToPath(p []byte) []byte {
-	return bytes.Replace([]byte(p), []byte{0}, []byte("/"), -1)
+func convertKeyToPath(p []byte) string {
+	return string(bytes.ReplaceAll(p, []byte{0}, []byte("/")))
 }
 
 func splitKey(k []byte) ([]byte, []byte) {

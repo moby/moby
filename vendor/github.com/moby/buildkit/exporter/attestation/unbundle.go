@@ -59,7 +59,7 @@ func Unbundle(ctx context.Context, s session.Group, bundled []exporter.Attestati
 				}
 				defer lm.Unmount()
 
-				atts, err := unbundle(ctx, src, att)
+				atts, err := unbundle(src, att)
 				if err != nil {
 					return err
 				}
@@ -116,7 +116,7 @@ func sort(atts []exporter.Attestation) []exporter.Attestation {
 	return result
 }
 
-func unbundle(ctx context.Context, root string, bundle exporter.Attestation) ([]exporter.Attestation, error) {
+func unbundle(root string, bundle exporter.Attestation) ([]exporter.Attestation, error) {
 	dir, err := fs.RootPath(root, bundle.Path)
 	if err != nil {
 		return nil, err

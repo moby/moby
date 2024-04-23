@@ -61,10 +61,11 @@ const (
 	CapExecCgroupsMounted                apicaps.CapID = "exec.cgroup"
 	CapExecSecretEnv                     apicaps.CapID = "exec.secretenv"
 
-	CapFileBase                       apicaps.CapID = "file.base"
-	CapFileRmWildcard                 apicaps.CapID = "file.rm.wildcard"
-	CapFileCopyIncludeExcludePatterns apicaps.CapID = "file.copy.includeexcludepatterns"
-	CapFileRmNoFollowSymlink          apicaps.CapID = "file.rm.nofollowsymlink"
+	CapFileBase                               apicaps.CapID = "file.base"
+	CapFileRmWildcard                         apicaps.CapID = "file.rm.wildcard"
+	CapFileCopyIncludeExcludePatterns         apicaps.CapID = "file.copy.includeexcludepatterns"
+	CapFileRmNoFollowSymlink                  apicaps.CapID = "file.rm.nofollowsymlink"
+	CapFileCopyAlwaysReplaceExistingDestPaths apicaps.CapID = "file.copy.alwaysreplaceexistingdestpaths"
 
 	CapConstraints apicaps.CapID = "constraints"
 	CapPlatform    apicaps.CapID = "platform"
@@ -380,6 +381,12 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapFileCopyIncludeExcludePatterns,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapFileCopyAlwaysReplaceExistingDestPaths,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

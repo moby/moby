@@ -9,8 +9,8 @@ import (
 	"io"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/labels"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/compression"
 	digest "github.com/opencontainers/go-digest"
@@ -95,7 +95,7 @@ func MergeNydus(ctx context.Context, ref ImmutableRef, comp compression.Config, 
 	if err := cw.Commit(ctx, 0, compressedDgst, content.WithLabels(map[string]string{
 		labels.LabelUncompressed: uncompressedDgst.Digest().String(),
 	})); err != nil {
-		if !errdefs.IsAlreadyExists(err) {
+		if !cerrdefs.IsAlreadyExists(err) {
 			return nil, errors.Wrap(err, "commit to content store")
 		}
 	}

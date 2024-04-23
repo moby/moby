@@ -18,7 +18,7 @@ func errNotJSON(command, original string) error {
 	// double backslash and a [] pair. No, this is not perfect, but it doesn't
 	// have to be. It's simply a hint to make life a little easier.
 	extra := ""
-	original = filepath.FromSlash(strings.ToLower(strings.Replace(strings.ToLower(original), strings.ToLower(command)+" ", "", -1)))
+	original = filepath.FromSlash(strings.ToLower(strings.ReplaceAll(strings.ToLower(original), strings.ToLower(command)+" ", "")))
 	if len(regexp.MustCompile(`"[a-z]:\\.*`).FindStringSubmatch(original)) > 0 &&
 		!strings.Contains(original, `\\`) &&
 		strings.Contains(original, "[") &&

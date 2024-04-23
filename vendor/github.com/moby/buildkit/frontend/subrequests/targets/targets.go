@@ -72,10 +72,8 @@ func PrintTargets(dt []byte, w io.Writer) error {
 		name := t.Name
 		if name == "" && t.Default {
 			name = "(default)"
-		} else {
-			if t.Default {
-				name = fmt.Sprintf("%s (default)", name)
-			}
+		} else if t.Default {
+			name = fmt.Sprintf("%s (default)", name)
 		}
 		fmt.Fprintf(tw, "%s\t%s\n", name, t.Description)
 	}
