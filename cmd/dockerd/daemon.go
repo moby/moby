@@ -998,3 +998,39 @@ func overrideProxyEnv(name, val string) {
 	}
 	_ = os.Setenv(name, val)
 }
+
+func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
+	if cli.ContainerdAddr != "" {
+		// use system containerd at the given address.
+		system.InitContainerdRuntime(cli.ContainerdAddr)
+		return nil, nil
+	}
+	if runtime.GOOS == "windows" && cli.DefaultRuntime != config.WindowsV2RuntimeName {
+		return nil, nil
+	}
+
+	systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
+	}
+	if ok {
+		// detected a system containerd at the given address.
+		cli.ContainerdAddr = systemContainerdAddr
+		return nil, nil
+	}
+
+	log.G(ctx).Info("containerd not running, starting managed containerd")
+	opts, err := cli.getContainerdDaemonOpts()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate containerd options")
+	}
+
+	r, err := supervisor.Start(ctx, filepath.Join(cli.Root, "containerd"), filepath.Join(cli.ExecRoot, "containerd"), opts...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to start containerd")
+	}
+	cli.ContainerdAddr = r.Address()
+
+	// Try to wait for containerd to shutdown
+	return r.WaitTimeout, nil
+}
