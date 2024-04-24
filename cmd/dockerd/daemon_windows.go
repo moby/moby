@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/libcontainerd/supervisor"
 	"golang.org/x/sys/windows"
 	"os"
 )
@@ -53,17 +52,6 @@ func notifyShutdown(err error) {
 		}
 		service.stopped(err)
 	}
-}
-
-func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
-	opts := []supervisor.DaemonOpt{
-		// On Windows, it first checks if a containerd binary is found in the same
-		// directory as the dockerd binary. If found, this binary takes precedence
-		// over containerd binaries installed in $PATH.
-		supervisor.WithDetectLocalBinary(),
-	}
-
-	return opts, nil
 }
 
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.

@@ -759,6 +759,10 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 		opts = append(opts, supervisor.WithCRIDisabled())
 	}
 
+	if runtime.GOOS == "windows" {
+		opts = append(opts, supervisor.WithDetectLocalBinary())
+	}
+
 	return opts, nil
 }
 
@@ -1005,6 +1009,7 @@ func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) e
 		system.InitContainerdRuntime(cli.ContainerdAddr)
 		return nil, nil
 	}
+
 	if runtime.GOOS == "windows" && cli.DefaultRuntime != config.WindowsV2RuntimeName {
 		return nil, nil
 	}

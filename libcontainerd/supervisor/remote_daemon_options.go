@@ -62,7 +62,8 @@ func WithDetectLocalBinary() DaemonOpt {
 			return errors.Errorf("local containerd path found (%s), but is a directory", localBinary)
 		}
 		r.daemonPath = localBinary
-		r.logger.WithError(err).WithField("binary", localBinary).Debug("failed to look up local containerd binary; using default binary")
+		r.logger.WithField("daemon path", r.daemonPath).Debug("Local containerd daemon found.")
+
 		return nil
 	}
 }
