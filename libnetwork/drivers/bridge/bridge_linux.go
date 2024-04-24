@@ -824,7 +824,8 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		{d.config.EnableIPTables || d.config.EnableIP6Tables, setupNetworkIsolationRules},
 
 		// Configure bridge networking filtering if ICC is off and IP tables are enabled
-		{!config.EnableICC && d.config.EnableIPTables, setupBridgeNetFiltering},
+		{!config.EnableICC && d.config.EnableIPTables, setupIPv4BridgeNetFiltering},
+		{!config.EnableICC && d.config.EnableIP6Tables, setupIPv6BridgeNetFiltering},
 	} {
 		if step.Condition {
 			bridgeSetup.queueStep(step.Fn)
