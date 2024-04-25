@@ -40,10 +40,11 @@ type LogConfig struct {
 }
 
 type GRPCConfig struct {
-	Address      []string `toml:"address"`
-	DebugAddress string   `toml:"debugAddress"`
-	UID          *int     `toml:"uid"`
-	GID          *int     `toml:"gid"`
+	Address            []string `toml:"address"`
+	DebugAddress       string   `toml:"debugAddress"`
+	UID                *int     `toml:"uid"`
+	GID                *int     `toml:"gid"`
+	SecurityDescriptor string   `toml:"securityDescriptor"`
 
 	TLS TLSConfig `toml:"tls"`
 	// MaxRecvMsgSize int    `toml:"max_recv_message_size"`

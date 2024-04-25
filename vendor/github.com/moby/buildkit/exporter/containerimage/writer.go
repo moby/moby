@@ -419,11 +419,16 @@ func (ic *ImageWriter) rewriteRemoteWithEpoch(ctx context.Context, opts *ImageCo
 	var divergedFromBase bool
 	for i, desc := range remoteDescriptors {
 		i, desc := i, desc
-		info, err := cs.Info(ctx, desc.Digest)
-		if err != nil {
-			return nil, err
+		// Usually we get non-empty diffID here, but if the content was ingested via a third-party containerd client,
+		// diffID here can be empty, and will be computed by the converter.
+		diffID := digest.Digest(desc.Annotations[labels.LabelUncompressed])
+		if diffID == "" {
+			info, err := cs.Info(ctx, desc.Digest)
+			if err != nil {
+				return nil, err
+			}
+			diffID = digest.Digest(info.Labels[labels.LabelUncompressed]) // can be still empty
 		}
-		diffID := digest.Digest(info.Labels[labels.LabelUncompressed]) // can be empty
 		var immDiffID digest.Digest
 		if !divergedFromBase && baseImg != nil && i < len(baseImg.RootFS.DiffIDs) {
 			immDiffID = baseImg.RootFS.DiffIDs[i]
