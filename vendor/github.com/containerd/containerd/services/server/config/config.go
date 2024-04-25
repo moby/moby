@@ -164,8 +164,10 @@ type CgroupConfig struct {
 
 // ProxyPlugin provides a proxy plugin configuration
 type ProxyPlugin struct {
-	Type    string `toml:"type"`
-	Address string `toml:"address"`
+	Type     string            `toml:"type"`
+	Address  string            `toml:"address"`
+	Platform string            `toml:"platform"`
+	Exports  map[string]string `toml:"exports"`
 }
 
 // Decode unmarshals a plugin specific configuration by plugin id
@@ -251,13 +253,18 @@ func loadConfigFile(path string) (*Config, error) {
 }
 
 // resolveImports resolves import strings list to absolute paths list:
-// - If path contains *, glob pattern matching applied
 // - Non abs path is relative to parent config file directory
+// - If path contains *, glob pattern matching applied
 // - Abs paths returned as is
 func resolveImports(parent string, imports []string) ([]string, error) {
 	var out []string
 
 	for _, path := range imports {
+		path := filepath.Clean(path)
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(filepath.Dir(parent), path)
+		}
+
 		if strings.Contains(path, "*") {
 			matches, err := filepath.Glob(path)
 			if err != nil {
@@ -266,11 +273,6 @@ func resolveImports(parent string, imports []string) ([]string, error) {
 
 			out = append(out, matches...)
 		} else {
-			path = filepath.Clean(path)
-			if !filepath.IsAbs(path) {
-				path = filepath.Join(filepath.Dir(parent), path)
-			}
-
 			out = append(out, path)
 		}
 	}
