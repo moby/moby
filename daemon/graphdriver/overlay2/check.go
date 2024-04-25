@@ -35,7 +35,7 @@ func doesSupportNativeDiff(d string) error {
 		if needed {
 			userxattr = true
 		} else {
-			return errors.New("not supported in user namespace, consider updating to kernel 5.11 or later to fix")
+			return errors.New("native diff is not supported in user namespace, consider updating to kernel 5.11 or later to fix")
 		}
 	}
 
