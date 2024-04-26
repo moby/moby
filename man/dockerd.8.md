@@ -286,7 +286,7 @@ unix://[/path/to/socket] to use.
   This setting will also enable IPv6 forwarding if you have both
   **--ip-forward=true** and **--fixed-cidr-v6** set. Note that this may reject
   Router Advertisements and interfere with the host's existing IPv6
-  configuration. For more information, please consult the documentation about
+  configuration. For more information, consult the documentation about
   "Advanced Networking - IPv6".
 
 **--ip-masq**=**true**|**false**
@@ -301,7 +301,7 @@ unix://[/path/to/socket] to use.
   containers. Use together with **--fixed-cidr-v6** to provide globally routable
   IPv6 addresses. IPv6 forwarding will be enabled if not used with
   **--ip-forward=false**. This may collide with your host's current IPv6
-  settings. For more information please consult the documentation about
+  settings. For more information consult the documentation about
   "Advanced Networking - IPv6".
 
 **--isolation**="*default*"
