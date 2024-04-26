@@ -25,7 +25,7 @@ require (
 	github.com/aws/smithy-go v1.19.0
 	github.com/cloudflare/cfssl v1.6.4
 	github.com/containerd/cgroups/v3 v3.0.3
-	github.com/containerd/containerd v1.7.15
+	github.com/containerd/containerd v1.7.16
 	github.com/containerd/continuity v0.4.3
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
@@ -110,7 +110,7 @@ require (
 	google.golang.org/protobuf v1.33.0
 	gotest.tools/v3 v3.5.1
 	resenje.org/singleflight v0.4.1
-	tags.cncf.io/container-device-interface v0.7.1
+	tags.cncf.io/container-device-interface v0.7.2
 )
 
 require (

@@ -261,7 +261,7 @@ github.com/containerd/cgroups/v3/cgroup2/stats
 # github.com/containerd/console v1.0.4
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd v1.7.15
+# github.com/containerd/containerd v1.7.16
 ## explicit; go 1.21
 github.com/containerd/containerd
 github.com/containerd/containerd/api/events
@@ -1600,7 +1600,7 @@ resenje.org/singleflight
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
-# tags.cncf.io/container-device-interface v0.7.1
+# tags.cncf.io/container-device-interface v0.7.2
 ## explicit; go 1.20
 tags.cncf.io/container-device-interface/internal/validation
 tags.cncf.io/container-device-interface/internal/validation/k8s
