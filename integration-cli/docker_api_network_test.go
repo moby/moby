@@ -267,6 +267,8 @@ func getNetworkResource(c *testing.T, id string) *types.NetworkResource {
 }
 
 func createNetwork(c *testing.T, config types.NetworkCreateRequest, expectedStatusCode int) string {
+	c.Helper()
+
 	resp, body, err := request.Post(testutil.GetContext(c), "/networks/create", request.JSONBody(config))
 	assert.NilError(c, err)
 	defer resp.Body.Close()

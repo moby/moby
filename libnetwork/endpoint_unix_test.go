@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/osl"
 )
 
@@ -24,7 +24,7 @@ ff02::2	ip6-allrouters
 fe90::2	somehost.example.com somehost
 `
 
-	opts := []NetworkOption{NetworkOptionEnableIPv6(true), NetworkOptionIpam(ipamapi.DefaultIPAM, "",
+	opts := []NetworkOption{NetworkOptionEnableIPv6(true), NetworkOptionIpam(defaultipam.DriverName, "",
 		[]*IpamConf{{PreferredPool: "192.168.222.0/24", Gateway: "192.168.222.1"}},
 		[]*IpamConf{{PreferredPool: "fe90::/64", Gateway: "fe90::1"}},
 		nil)}

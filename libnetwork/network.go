@@ -17,8 +17,10 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/etchosts"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/internal/setmatrix"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/networkdb"
@@ -642,7 +644,7 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := netMap["ipamType"]; ok {
 		n.ipamType = v.(string)
 	} else {
-		n.ipamType = ipamapi.DefaultIPAM
+		n.ipamType = defaultipam.DriverName
 	}
 	if v, ok := netMap["addrSpace"]; ok {
 		n.addrSpace = v.(string)
@@ -784,7 +786,7 @@ func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ip
 	return func(n *Network) {
 		if ipamDriver != "" {
 			n.ipamType = ipamDriver
-			if ipamDriver == ipamapi.DefaultIPAM {
+			if ipamDriver == defaultipam.DriverName {
 				n.ipamType = defaultIpamForNetworkType(n.Type())
 			}
 		}
@@ -1515,7 +1517,7 @@ func (n *Network) ipamAllocate() error {
 	return err
 }
 
-func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, err error) {
+func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
 	var tmpPoolLeases []string
 	defer func() {
 		// Prevent repeated lock/unlock in the loop.
@@ -1523,13 +1525,19 @@ func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPo
 		// Release all pools we held on to.
 		for _, pID := range tmpPoolLeases {
 			if err := ipam.ReleasePool(pID); err != nil {
-				log.G(context.TODO()).Warnf("Failed to release overlapping pool %s while returning from pool request helper for network %s", pool, nwName)
+				log.G(context.TODO()).Warnf("Failed to release overlapping pool while returning from pool request helper for network %s", nwName)
 			}
 		}
 	}()
 
 	for {
-		poolID, pool, meta, err = ipam.RequestPool(addressSpace, requestedPool, requestedSubPool, options, v6)
+		alloc, err := ipam.RequestPool(ipamapi.PoolRequest{
+			AddressSpace: addressSpace,
+			Pool:         requestedPool,
+			SubPool:      requestedSubPool,
+			Options:      options,
+			V6:           v6,
+		})
 		if err != nil {
 			return "", nil, nil, err
 		}
@@ -1551,13 +1559,13 @@ func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPo
 		// instead would likely have avoided that as well, so we can only guess.
 		//
 		// [1]: https://github.com/moby/libnetwork/commit/5ca79d6b87873264516323a7b76f0af7d0298492#diff-bdcd879439d041827d334846f9aba01de6e3683ed8fdd01e63917dae6df23846
-		if requestedPool != "" || n.Scope() == scope.Global || pool.String() == "0.0.0.0/0" {
-			return poolID, pool, meta, nil
+		if requestedPool != "" || n.Scope() == scope.Global || alloc.Pool.String() == "0.0.0.0/0" {
+			return alloc.PoolID, netiputil.ToIPNet(alloc.Pool), alloc.Meta, nil
 		}
 
 		// Check for overlap and if none found, we have found the right pool.
-		if _, err := netutils.FindAvailableNetwork([]*net.IPNet{pool}); err == nil {
-			return poolID, pool, meta, nil
+		if _, err := netutils.FindAvailableNetwork([]*net.IPNet{netiputil.ToIPNet(alloc.Pool)}); err == nil {
+			return alloc.PoolID, netiputil.ToIPNet(alloc.Pool), alloc.Meta, nil
 		}
 
 		// Pool obtained in this iteration is overlapping. Hold onto the pool
@@ -1565,7 +1573,7 @@ func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPo
 		// the same pool over again. But make sure we still do a deferred release
 		// when we have either obtained a non-overlapping pool or ran out of
 		// pre-defined pools.
-		tmpPoolLeases = append(tmpPoolLeases, poolID)
+		tmpPoolLeases = append(tmpPoolLeases, alloc.PoolID)
 	}
 }
 

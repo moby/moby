@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/ipamapi"
@@ -116,14 +117,25 @@ func (a *allocator) GetDefaultAddressSpaces() (string, string, error) {
 }
 
 // RequestPool requests an address pool in the specified address space
-func (a *allocator) RequestPool(addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
-	req := &api.RequestPoolRequest{AddressSpace: addressSpace, Pool: requestedPool, SubPool: requestedSubPool, Options: options, V6: v6}
-	res := &api.RequestPoolResponse{}
-	if err := a.call("RequestPool", req, res); err != nil {
-		return "", nil, nil, err
+func (a *allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool, error) {
+	remoteReq := &api.RequestPoolRequest{
+		AddressSpace: req.AddressSpace,
+		Pool:         req.Pool,
+		SubPool:      req.SubPool,
+		Options:      req.Options,
+		V6:           req.V6,
 	}
-	retPool, err := types.ParseCIDR(res.Pool)
-	return res.PoolID, retPool, res.Data, err
+	res := &api.RequestPoolResponse{}
+	if err := a.call("RequestPool", remoteReq, res); err != nil {
+		return ipamapi.AllocatedPool{}, err
+	}
+
+	retPool, err := netip.ParsePrefix(res.Pool)
+	return ipamapi.AllocatedPool{
+		PoolID: res.PoolID,
+		Pool:   retPool,
+		Meta:   res.Data,
+	}, err
 }
 
 // ReleasePool removes an address pool from the specified address space

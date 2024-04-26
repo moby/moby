@@ -63,6 +63,7 @@ import (
 	remotedriver "github.com/docker/docker/libnetwork/drivers/remote"
 	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/scope"
@@ -132,7 +133,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	if err := initIPAMDrivers(&c.ipamRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool); err != nil {
+	if err := ipams.Register(&c.ipamRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool, nil); err != nil {
 		return nil, err
 	}
 

@@ -1,3 +1,5 @@
+//go:build windows
+
 package windowsipam
 
 import (
@@ -7,40 +9,41 @@ import (
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestWindowsIPAM(t *testing.T) {
 	a := &allocator{}
+
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(alloc.PoolID, defaultPool.String()))
+	assert.Check(t, is.Equal(alloc.Pool, defaultPool))
+
+	alloc, err = a.RequestPool(ipamapi.PoolRequest{
+		AddressSpace: localAddressSpace,
+		Pool:         "192.168.0.0/16",
+	})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(alloc.PoolID, "192.168.0.0/16"))
+	assert.Check(t, is.Equal(alloc.Pool.String(), "192.168.0.0/16"))
+
+	_, err = a.RequestPool(ipamapi.PoolRequest{
+		AddressSpace: localAddressSpace,
+		Pool:         "192.168.0.0/16",
+		SubPool:      "192.168.0.0/16",
+	})
+	assert.ErrorContains(t, err, "this request is not supported by the 'windows' ipam driver")
+
+	_, err = a.RequestPool(ipamapi.PoolRequest{
+		AddressSpace: localAddressSpace,
+		V6:           true,
+	})
+	assert.ErrorContains(t, err, "this request is not supported by the 'windows' ipam driver")
+
 	requestPool, _ := types.ParseCIDR("192.168.0.0/16")
 	requestAddress := net.ParseIP("192.168.1.1")
-
-	pid, pool, _, err := a.RequestPool(localAddressSpace, "", "", nil, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !types.CompareIPNet(defaultPool, pool) ||
-		pid != pool.String() {
-		t.Fatalf("Unexpected data returned. Expected %v : %s. Got: %v : %s", defaultPool, pid, pool, pool.String())
-	}
-
-	pid, pool, _, err = a.RequestPool(localAddressSpace, requestPool.String(), "", nil, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !types.CompareIPNet(requestPool, pool) ||
-		pid != requestPool.String() {
-		t.Fatalf("Unexpected data returned. Expected %v : %s. Got: %v : %s", requestPool, requestPool.String(), pool, pool.String())
-	}
-
-	_, _, _, err = a.RequestPool(localAddressSpace, requestPool.String(), requestPool.String(), nil, false)
-	if err == nil {
-		t.Fatal("Unexpected success for subpool request")
-	}
-
-	_, _, _, err = a.RequestPool(localAddressSpace, requestPool.String(), "", nil, true)
-	if err == nil {
-		t.Fatal("Unexpected success for v6 request")
-	}
 
 	err = a.ReleasePool(requestPool.String())
 	if err != nil {

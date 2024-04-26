@@ -125,68 +125,6 @@ func TestNetworkOverlaps(t *testing.T) {
 	AssertNoOverlap("172.16.1.1/25", "172.16.2.1/24", t)
 }
 
-func TestNetworkRange(t *testing.T) {
-	// Simple class C test
-	_, network, _ := net.ParseCIDR("192.168.0.1/24")
-	first, last := NetworkRange(network)
-	if !first.Equal(net.ParseIP("192.168.0.0")) {
-		t.Error(first.String())
-	}
-	if !last.Equal(net.ParseIP("192.168.0.255")) {
-		t.Error(last.String())
-	}
-
-	// Class A test
-	_, network, _ = net.ParseCIDR("10.0.0.1/8")
-	first, last = NetworkRange(network)
-	if !first.Equal(net.ParseIP("10.0.0.0")) {
-		t.Error(first.String())
-	}
-	if !last.Equal(net.ParseIP("10.255.255.255")) {
-		t.Error(last.String())
-	}
-
-	// Class A, random IP address
-	_, network, _ = net.ParseCIDR("10.1.2.3/8")
-	first, last = NetworkRange(network)
-	if !first.Equal(net.ParseIP("10.0.0.0")) {
-		t.Error(first.String())
-	}
-	if !last.Equal(net.ParseIP("10.255.255.255")) {
-		t.Error(last.String())
-	}
-
-	// 32bit mask
-	_, network, _ = net.ParseCIDR("10.1.2.3/32")
-	first, last = NetworkRange(network)
-	if !first.Equal(net.ParseIP("10.1.2.3")) {
-		t.Error(first.String())
-	}
-	if !last.Equal(net.ParseIP("10.1.2.3")) {
-		t.Error(last.String())
-	}
-
-	// 31bit mask
-	_, network, _ = net.ParseCIDR("10.1.2.3/31")
-	first, last = NetworkRange(network)
-	if !first.Equal(net.ParseIP("10.1.2.2")) {
-		t.Error(first.String())
-	}
-	if !last.Equal(net.ParseIP("10.1.2.3")) {
-		t.Error(last.String())
-	}
-
-	// 26bit mask
-	_, network, _ = net.ParseCIDR("10.1.2.3/26")
-	first, last = NetworkRange(network)
-	if !first.Equal(net.ParseIP("10.1.2.0")) {
-		t.Error(first.String())
-	}
-	if !last.Equal(net.ParseIP("10.1.2.63")) {
-		t.Error(last.String())
-	}
-}
-
 // Test veth name generation "veth"+rand (e.g.veth0f60e2c)
 func TestGenerateRandomName(t *testing.T) {
 	const vethPrefix = "veth"

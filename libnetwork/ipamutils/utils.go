@@ -4,7 +4,6 @@ package ipamutils
 import (
 	"fmt"
 	"net"
-	"sync"
 )
 
 var (
@@ -14,7 +13,6 @@ var (
 	// predefinedGlobalScopeDefaultNetworks contains a list of 64K IPv4 private networks with host size 8
 	// (10.x.x.x/24) which do not overlap with the networks in `PredefinedLocalScopeDefaultNetworks`
 	predefinedGlobalScopeDefaultNetworks []*net.IPNet
-	mutex                                sync.Mutex
 	localScopeDefaultNetworks            = []*NetworkToSplit{
 		{"172.17.0.0/16", 16},
 		{"172.18.0.0/16", 16},
@@ -48,26 +46,8 @@ func init() {
 	}
 }
 
-// ConfigGlobalScopeDefaultNetworks configures global default pool.
-// Ideally this will be called from SwarmKit as part of swarm init
-func ConfigGlobalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) error {
-	if defaultAddressPool == nil {
-		return nil
-	}
-	mutex.Lock()
-	defer mutex.Unlock()
-	defaultNetworks, err := SplitNetworks(defaultAddressPool)
-	if err != nil {
-		return err
-	}
-	predefinedGlobalScopeDefaultNetworks = defaultNetworks
-	return nil
-}
-
 // GetGlobalScopeDefaultNetworks returns a copy of the global-sopce network list.
 func GetGlobalScopeDefaultNetworks() []*net.IPNet {
-	mutex.Lock()
-	defer mutex.Unlock()
 	return append([]*net.IPNet(nil), predefinedGlobalScopeDefaultNetworks...)
 }
 
