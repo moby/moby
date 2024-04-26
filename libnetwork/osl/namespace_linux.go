@@ -646,17 +646,47 @@ func setIPv6(nspath, iface string, enable bool) error {
 			value = '0'
 		}
 
-		if _, err := os.Stat(path); err != nil {
+		if curVal, err := os.ReadFile(path); err != nil {
 			if os.IsNotExist(err) {
-				log.G(context.TODO()).WithError(err).Warn("Cannot configure IPv6 forwarding on container interface. Has IPv6 been disabled in this node's kernel?")
+				if enable {
+					log.G(context.TODO()).WithError(err).Warn("Cannot enable IPv6 on container interface. Has IPv6 been disabled in this node's kernel?")
+				} else {
+					log.G(context.TODO()).WithError(err).Debug("Not disabling IPv6 on container interface. Has IPv6 been disabled in this node's kernel?")
+				}
 				return
 			}
 			errCh <- err
 			return
+		} else if len(curVal) > 0 && curVal[0] == value {
+			// Nothing to do, the setting is already correct.
+			return
 		}
 
-		if err = os.WriteFile(path, []byte{value, '\n'}, 0o644); err != nil {
-			errCh <- fmt.Errorf("failed to %s IPv6 forwarding for container's interface %s: %w", action, iface, err)
+		if err = os.WriteFile(path, []byte{value, '\n'}, 0o644); err != nil || os.Getenv("DOCKER_TEST_RO_DISABLE_IPV6") != "" {
+			logger := log.G(context.TODO()).WithFields(log.Fields{
+				"error":     err,
+				"interface": iface,
+			})
+			if enable {
+				// The user asked for IPv6 on the interface, and we can't give it to them.
+				// But, in line with the IsNotExist case above, just log.
+				logger.Warn("Cannot enable IPv6 on container interface, continuing.")
+			} else if os.Getenv("DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE") == "1" {
+				// TODO(robmry) - remove this escape hatch for https://github.com/moby/moby/issues/47751
+				//   If the "/proc" file exists but isn't writable, we can't disable IPv6, which is
+				//   https://github.com/moby/moby/security/advisories/GHSA-x84c-p2g9-rqv9 ... so,
+				//   the user is required to override the error (or configure IPv6, or disable IPv6
+				//   by default in the OS, or make the "/proc" file writable). Once it's possible
+				//   to enable IPv6 without having to configure IPAM etc, the env var should be
+				//   removed. Then the user will have to explicitly enable IPv6 if it can't be
+				//   disabled on the interface.
+				logger.Info("Cannot disable IPv6 on container interface but DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1, continuing.")
+			} else {
+				logger.Error("Cannot disable IPv6 on container interface. Set env var DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1 to ignore.")
+				errCh <- fmt.Errorf(
+					"failed to %s IPv6 on container's interface %s, set env var DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1 to ignore this error",
+					action, iface)
+			}
 			return
 		}
 	}()

@@ -738,3 +738,78 @@ func TestSetInterfaceSysctl(t *testing.T) {
 	stdout := runRes.Stdout.String()
 	assert.Check(t, is.Contains(stdout, scName))
 }
+
+// With a read-only "/proc/sys/net" filesystem (simulated using env var
+// DOCKER_TEST_RO_DISABLE_IPV6), check that if IPv6 can't be disabled on a
+// container interface, container creation fails - unless the error is ignored by
+// setting env var DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1.
+// Regression test for https://github.com/moby/moby/issues/47751
+func TestReadOnlySlashProc(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+
+	testcases := []struct {
+		name      string
+		daemonEnv []string
+		expErr    string
+	}{
+		{
+			name: "Normality",
+		},
+		{
+			name: "Read only no workaround",
+			daemonEnv: []string{
+				"DOCKER_TEST_RO_DISABLE_IPV6=1",
+			},
+			expErr: "failed to disable IPv6 on container's interface eth0, set env var DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1 to ignore this error",
+		},
+		{
+			name: "Read only with workaround",
+			daemonEnv: []string{
+				"DOCKER_TEST_RO_DISABLE_IPV6=1",
+				"DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1",
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			d := daemon.New(t, daemon.WithEnvVars(tc.daemonEnv...))
+			d.StartWithBusybox(ctx, t)
+			defer d.Stop(t)
+			c := d.NewClientT(t)
+
+			const net4Name = "testnet4"
+			network.CreateNoError(ctx, t, c, net4Name)
+			defer network.RemoveNoError(ctx, t, c, net4Name)
+			id4 := container.Create(ctx, t, c,
+				container.WithNetworkMode(net4Name),
+				container.WithCmd("ls"),
+			)
+			defer c.ContainerRemove(ctx, id4, containertypes.RemoveOptions{Force: true})
+			err := c.ContainerStart(ctx, id4, containertypes.StartOptions{})
+			if tc.expErr == "" {
+				assert.Check(t, err)
+			} else {
+				assert.Check(t, is.ErrorContains(err, tc.expErr))
+			}
+
+			// It should always be possible to create a container on an IPv6 network (IPv6
+			// doesn't need to be disabled on the interface).
+			const net6Name = "testnet6"
+			network.CreateNoError(ctx, t, c, net6Name,
+				network.WithIPv6(),
+				network.WithIPAM("fd5c:15e3:0b62:5395::/64", "fd5c:15e3:0b62:5395::1"),
+			)
+			defer network.RemoveNoError(ctx, t, c, net6Name)
+			id6 := container.Run(ctx, t, c,
+				container.WithNetworkMode(net6Name),
+				container.WithCmd("ls"),
+			)
+			defer c.ContainerRemove(ctx, id6, containertypes.RemoveOptions{Force: true})
+		})
+	}
+}
