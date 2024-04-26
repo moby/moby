@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/libnetwork/drivers/remote"
 	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	remoteipam "github.com/docker/docker/libnetwork/ipams/remote"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/scope"
@@ -803,7 +804,7 @@ func (na *cnmNetworkAllocator) loadDriver(name string) error {
 
 // Resolve the IPAM driver
 func (na *cnmNetworkAllocator) resolveIPAM(n *api.Network) (ipamapi.Ipam, string, map[string]string, error) {
-	dName := ipamapi.DefaultIPAM
+	dName := defaultipam.DriverName
 	if n.Spec.IPAM != nil && n.Spec.IPAM.Driver != nil && n.Spec.IPAM.Driver.Name != "" {
 		dName = n.Spec.IPAM.Driver.Name
 	}

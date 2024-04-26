@@ -15,7 +15,7 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/drivers/windows"
-	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/ipams/windowsipam"
 	"github.com/pkg/errors"
 )
@@ -247,5 +247,5 @@ func defaultIpamForNetworkType(networkType string) string {
 	if windows.IsBuiltinLocalDriver(networkType) {
 		return windowsipam.DefaultIPAM
 	}
-	return ipamapi.DefaultIPAM
+	return defaultipam.DriverName
 }

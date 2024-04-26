@@ -16,6 +16,9 @@ import (
 )
 
 const (
+	// DriverName is the name of the built-in default IPAM driver.
+	DriverName = "default"
+
 	localAddressSpace  = "LocalDefault"
 	globalAddressSpace = "GlobalDefault"
 )
@@ -49,7 +52,7 @@ func Register(ic ipamapi.Registerer, lAddrPools, gAddrPools []*ipamutils.Network
 
 	cps := &ipamapi.Capability{RequiresRequestReplay: true}
 
-	return ic.RegisterIpamDriverWithCapabilities(ipamapi.DefaultIPAM, a, cps)
+	return ic.RegisterIpamDriverWithCapabilities(DriverName, a, cps)
 }
 
 // Allocator provides per address space ipv4/ipv6 book keeping

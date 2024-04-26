@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/internal/setmatrix"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/networkdb"
@@ -643,7 +644,7 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := netMap["ipamType"]; ok {
 		n.ipamType = v.(string)
 	} else {
-		n.ipamType = ipamapi.DefaultIPAM
+		n.ipamType = defaultipam.DriverName
 	}
 	if v, ok := netMap["addrSpace"]; ok {
 		n.addrSpace = v.(string)
@@ -785,7 +786,7 @@ func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ip
 	return func(n *Network) {
 		if ipamDriver != "" {
 			n.ipamType = ipamDriver
-			if ipamDriver == ipamapi.DefaultIPAM {
+			if ipamDriver == defaultipam.DriverName {
 				n.ipamType = defaultIpamForNetworkType(n.Type())
 			}
 		}

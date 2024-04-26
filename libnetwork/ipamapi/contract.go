@@ -10,8 +10,6 @@ import (
 
 // IPAM plugin types
 const (
-	// DefaultIPAM is the name of the built-in default ipam driver
-	DefaultIPAM = "default"
 	// NullIPAM is the name of the built-in null ipam driver
 	NullIPAM = "null"
 	// PluginEndpointType represents the Endpoint Type used by Plugin system

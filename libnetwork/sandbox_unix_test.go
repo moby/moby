@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/config"
-	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
@@ -114,7 +114,7 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
 	opts := [][]NetworkOption{
-		{NetworkOptionEnableIPv6(true), NetworkOptionIpam(ipamapi.DefaultIPAM, "", nil, []*IpamConf{{PreferredPool: "fe90::/64"}}, nil)},
+		{NetworkOptionEnableIPv6(true), NetworkOptionIpam(defaultipam.DriverName, "", nil, []*IpamConf{{PreferredPool: "fe90::/64"}}, nil)},
 		{NetworkOptionInternalNetwork()},
 		{},
 	}
@@ -200,7 +200,7 @@ func TestSandboxAddSamePrio(t *testing.T) {
 	opts := [][]NetworkOption{
 		{},
 		{},
-		{NetworkOptionEnableIPv6(true), NetworkOptionIpam(ipamapi.DefaultIPAM, "", nil, []*IpamConf{{PreferredPool: "fe90::/64"}}, nil)},
+		{NetworkOptionEnableIPv6(true), NetworkOptionIpam(defaultipam.DriverName, "", nil, []*IpamConf{{PreferredPool: "fe90::/64"}}, nil)},
 		{NetworkOptionInternalNetwork()},
 	}
 
