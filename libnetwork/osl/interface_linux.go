@@ -20,6 +20,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/sys/unix"
 )
 
 // newInterface creates a new interface in the given namespace using the
@@ -163,20 +164,19 @@ func (n *Namespace) findDst(srcName string, isBridge bool) string {
 	return ""
 }
 
-func moveLink(ctx context.Context, nlhHost nlwrap.Handle, iface netlink.Link, i *Interface, path string) error {
+func moveLink(ctx context.Context, nlhHost nlwrap.Handle, iface netlink.Link, i *Interface, path string) (netns.NsHandle, error) {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.moveLink", trace.WithAttributes(
 		attribute.String("ifaceName", i.DstName())))
 	defer span.End()
 
 	newNs, err := netns.GetFromPath(path)
 	if err != nil {
-		return fmt.Errorf("failed get network namespace %q: %v", path, err)
+		return netns.None(), fmt.Errorf("failed get network namespace %q: %v", path, err)
 	}
-	defer newNs.Close()
 	if err := nlhHost.LinkSetNsFd(iface, int(newNs)); err != nil {
-		return fmt.Errorf("failed to set namespace on link %q: %v", i.srcName, err)
+		return netns.None(), fmt.Errorf("failed to set namespace on link %q: %v", i.srcName, err)
 	}
-	return nil
+	return newNs, nil
 }
 
 // AddInterface adds an existing Interface to the sandbox. The operation will rename
@@ -209,6 +209,8 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string,
 	nlhHost := ns.NlHandle()
 	n.mu.Unlock()
 
+	newNs := netns.None()
+
 	// If it is a bridge interface we have to create the bridge inside
 	// the namespace so don't try to lookup the interface using srcName
 	if i.bridge {
@@ -230,9 +232,12 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string,
 		// namespace only if the namespace is not a default
 		// type
 		if !isDefault {
-			if err := moveLink(ctx, nlhHost, iface, i, path); err != nil {
+			var err error
+			newNs, err = moveLink(ctx, nlhHost, iface, i, path)
+			if err != nil {
 				return err
 			}
+			defer newNs.Close()
 		}
 	}
 
@@ -262,6 +267,13 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string,
 		return err
 	}
 
+	// Get notified when the interface is up and running (or after a timeout) so that
+	// the gratuitous ARP/NA workaround can be applied below.
+	upped, err := waitForIfUpped(ctx, newNs, iface.Attrs().Index)
+	if err != nil {
+		return err
+	}
+
 	// Up the interface.
 	cnt := 0
 	for err = nlh.LinkSetUp(iface); err != nil && cnt < 3; cnt++ {
@@ -276,10 +288,43 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string,
 	if err != nil {
 		return fmt.Errorf("failed to set link up: %v", err)
 	}
+	log.G(ctx).Debug("link has been set to up")
 
 	// Set the routes on the interface. This can only be done when the interface is up.
 	if err := setInterfaceRoutes(ctx, nlh, iface, i); err != nil {
 		return fmt.Errorf("error setting interface %q routes to %q: %v", iface.Attrs().Name, i.Routes(), err)
+	}
+
+	// When the net.ipv4.conf.[iface].arp_notify sysctl is set to 1, the
+	// kernel is supposed to send a gratuitous ARP when the interface is
+	// brought up. However, this functionality is broken on at least the
+	// Ubuntu 20.04 kernel
+	// https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1989187
+	// and Docker Desktop's 6.6.16-linuxkit kernel. One option would be to
+	// send the gratuitous ARP ourselves from userspace using a raw socket,
+	// but that would not respect the arp_notify sysctl setting. Instead,
+	// we will trigger the kernel to send a gratuitous ARP using the other
+	// event: setting the interface's MAC address after the kernel has
+	// finished bringing up the link asynchronously.
+	// Do this even if there's no IPv4 address, it also means an IPv6
+	// Neighbour Advertisement is sent immediately.
+	<-upped
+	err = func() error {
+		uppedIface, err := nlh.LinkByIndex(iface.Attrs().Index)
+		if err != nil {
+			return fmt.Errorf("failed to refresh link attributes: %w", err)
+		}
+		log.G(ctx).WithFields(log.Fields{
+			"iface": uppedIface.Attrs().Name,
+			"ifi":   uppedIface.Attrs().Index,
+			"mac":   uppedIface.Attrs().HardwareAddr,
+			"ip":    i.Address(),
+			"ip6":   i.AddressIPv6(),
+		}).Debug("applying gratuitous ARP workaround")
+		return setInterfaceMAC(ctx, nlh, uppedIface, i)
+	}()
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("could not apply gratuitous ARP workaround")
 	}
 
 	n.mu.Lock()
@@ -287,6 +332,71 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string,
 	n.mu.Unlock()
 
 	return nil
+}
+
+func waitForIfUpped(ctx context.Context, ns netns.NsHandle, ifIndex int) (chan struct{}, error) {
+	update := make(chan netlink.LinkUpdate, 100)
+	upped := make(chan struct{})
+	opts := netlink.LinkSubscribeOptions{
+		ListExisting: true, // in case the link has NO_CARRIER, so no events are sent
+		ErrorCallback: func(err error) {
+			select {
+			case <-upped:
+				// Ignore errors sent after the upped channel is closed, the netlink
+				// package sends an EAGAIN after it closes its netlink socket when it
+				// sees this channel is closed. (No message is ever sent on upped.)
+				return
+			default:
+			}
+			log.G(ctx).WithFields(log.Fields{
+				"ifi":   ifIndex,
+				"error": err,
+			}).Info("netlink error while waiting for interface up")
+		},
+	}
+	if ns.IsOpen() {
+		opts.Namespace = &ns
+	}
+	if err := nlwrap.LinkSubscribeWithOptions(update, upped, opts); err != nil {
+		return nil, fmt.Errorf("failed to subscribe to link updates: %w", err)
+	}
+
+	go func() {
+		timer := time.NewTimer(5 * time.Second)
+		defer timer.Stop()
+		defer close(upped)
+
+		const wantedFlags = unix.IFF_UP | unix.IFF_RUNNING | unix.IFF_LOWER_UP
+		for {
+			select {
+			case <-timer.C:
+				return
+			case u, ok := <-update:
+				if !ok {
+					// The netlink package failed to read from its netlink socket. It will
+					// already have called the ErrorCallback, so the issue has been logged.
+					return
+				}
+				if u.Attrs().Index != ifIndex {
+					continue
+				}
+				log.G(ctx).WithFields(log.Fields{
+					"iface": u.Attrs().Name,
+					"ifi":   u.Attrs().Index,
+					"flags": deviceFlags(u.Flags),
+				}).Debug("link update")
+				if u.Flags&unix.IFF_NO_CARRIER != 0 {
+					// The link will never be ready.
+					return
+				}
+				if u.Flags&wantedFlags == wantedFlags {
+					return
+				}
+			}
+		}
+	}()
+
+	return upped, nil
 }
 
 // RemoveInterface removes an interface from the namespace by renaming to
