@@ -1340,11 +1340,10 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 		copyOpts := []llb.ConstraintsOpt{
 			llb.Platform(*d.platform),
 		}
-		copy(copyOpts, fileOpt)
+		copyOpts = append(copyOpts, fileOpt...)
 		copyOpts = append(copyOpts, llb.ProgressGroup(pgID, pgName, true))
 
-		var mergeOpts []llb.ConstraintsOpt
-		copy(mergeOpts, fileOpt)
+		mergeOpts := append([]llb.ConstraintsOpt{}, fileOpt...)
 		d.cmdIndex--
 		mergeOpts = append(mergeOpts, llb.ProgressGroup(pgID, pgName, false), llb.WithCustomName(prefixCommand(d, "LINK "+name, d.prefixPlatform, &platform, env)))
 
