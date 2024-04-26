@@ -22,8 +22,8 @@ import (
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipams/defaultipam"
+	"github.com/docker/docker/libnetwork/ipams/null"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
@@ -2119,7 +2119,7 @@ func TestNullIpam(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
-	_, err := controller.NewNetwork(bridgeNetType, "testnetworkinternal", "", libnetwork.NetworkOptionIpam(ipamapi.NullIPAM, "", nil, nil, nil))
+	_, err := controller.NewNetwork(bridgeNetType, "testnetworkinternal", "", libnetwork.NetworkOptionIpam(null.DriverName, "", nil, nil, nil))
 	if err == nil || err.Error() != "ipv4 pool is empty" {
 		t.Fatal("bridge network should complain empty pool")
 	}

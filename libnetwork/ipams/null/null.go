@@ -11,6 +11,9 @@ import (
 )
 
 const (
+	// DriverName is the name of the built-in null ipam driver
+	DriverName = "null"
+
 	defaultAddressSpace = "null"
 	defaultPoolCIDR     = "0.0.0.0/0"
 	defaultPoolID       = defaultAddressSpace + "/" + defaultPoolCIDR
@@ -67,5 +70,5 @@ func (a *allocator) IsBuiltIn() bool {
 
 // Register registers the null ipam driver with r.
 func Register(r ipamapi.Registerer) error {
-	return r.RegisterIpamDriver(ipamapi.NullIPAM, &allocator{})
+	return r.RegisterIpamDriver(DriverName, &allocator{})
 }

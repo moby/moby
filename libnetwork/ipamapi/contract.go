@@ -10,8 +10,6 @@ import (
 
 // IPAM plugin types
 const (
-	// NullIPAM is the name of the built-in null ipam driver
-	NullIPAM = "null"
 	// PluginEndpointType represents the Endpoint Type used by Plugin system
 	PluginEndpointType = "IpamDriver"
 	// RequestAddressType represents the Address Type used when requesting an address
