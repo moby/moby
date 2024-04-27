@@ -50,29 +50,7 @@ func (daemon *Daemon) mergeLegacyConfig(host string, hosts []docker.RegistryHost
 	}
 	sc := daemon.registryService.ServiceConfig()
 	if host == "docker.io" && len(sc.Mirrors) > 0 {
-		var mirrorHosts []docker.RegistryHost
-		for _, mirror := range sc.Mirrors {
-			h := hosts[0]
-			h.Capabilities = docker.HostCapabilityPull | docker.HostCapabilityResolve
-
-			u, err := url.Parse(mirror)
-			if err != nil || u.Host == "" {
-				u, err = url.Parse(fmt.Sprintf("//%s", mirror))
-			}
-			if err == nil && u.Host != "" {
-				h.Host = u.Host
-				h.Path = strings.TrimRight(u.Path, "/")
-				if !strings.HasSuffix(h.Path, defaultPath) {
-					h.Path = path.Join(defaultPath, h.Path)
-				}
-			} else {
-				h.Host = mirror
-				h.Path = defaultPath
-			}
-
-			mirrorHosts = append(mirrorHosts, h)
-		}
-		hosts = append(mirrorHosts, hosts[0])
+		hosts = mirrorsToRegistryHosts(sc.Mirrors, hosts[0])
 	}
 	hostDir := hostconfig.HostDirFromRoot(registry.CertsDir())
 	for i := range hosts {
@@ -93,18 +71,48 @@ func (daemon *Daemon) mergeLegacyConfig(host string, hosts []docker.RegistryHost
 			}
 		}
 		if daemon.registryService.IsInsecureRegistry(hosts[i].Host) {
-			if t.TLSClientConfig != nil {
-				t.TLSClientConfig.InsecureSkipVerify = true
-			} else {
-				t.TLSClientConfig = &tls.Config{
-					InsecureSkipVerify: true,
-				}
+			if t.TLSClientConfig == nil {
+				t.TLSClientConfig = &tls.Config{} //nolint: gosec // G402: TLS MinVersion too low.
 			}
+			t.TLSClientConfig.InsecureSkipVerify = true
 
 			hosts[i].Client.Transport = docker.NewHTTPFallback(hosts[i].Client.Transport)
 		}
 	}
 	return hosts, nil
+}
+
+func mirrorsToRegistryHosts(mirrors []string, dHost docker.RegistryHost) []docker.RegistryHost {
+	var mirrorHosts []docker.RegistryHost
+	for _, mirror := range mirrors {
+		h := dHost
+		h.Capabilities = docker.HostCapabilityPull | docker.HostCapabilityResolve
+
+		u, err := url.Parse(mirror)
+		if err != nil || u.Host == "" {
+			u, err = url.Parse(fmt.Sprintf("dummy://%s", mirror))
+		}
+		if err == nil && u.Host != "" {
+			h.Host = u.Host
+			h.Path = strings.TrimSuffix(u.Path, "/")
+
+			// For compatibility with legacy mirrors, ensure ends with /v2
+			// NOTE: Use newer configuration to completely override the path
+			if !strings.HasSuffix(h.Path, defaultPath) {
+				h.Path = path.Join(h.Path, defaultPath)
+			}
+			if u.Scheme != "dummy" {
+				h.Scheme = u.Scheme
+			}
+		} else {
+			h.Host = mirror
+			h.Path = defaultPath
+		}
+
+		mirrorHosts = append(mirrorHosts, h)
+	}
+	return append(mirrorHosts, dHost)
+
 }
 
 func loadTLSConfig(d string) (*tls.Config, error) {
@@ -121,10 +129,10 @@ func loadTLSConfig(d string) (*tls.Config, error) {
 		keyPairs []keyPair
 	)
 	for _, f := range fs {
-		if strings.HasSuffix(f.Name(), ".crt") {
+		switch filepath.Ext(f.Name()) {
+		case ".crt":
 			rootCAs = append(rootCAs, filepath.Join(d, f.Name()))
-		}
-		if strings.HasSuffix(f.Name(), ".cert") {
+		case ".cert":
 			keyPairs = append(keyPairs, keyPair{
 				Certificate: filepath.Join(d, f.Name()),
 				Key:         filepath.Join(d, strings.TrimSuffix(f.Name(), ".cert")+".key"),
@@ -150,7 +158,7 @@ func loadTLSConfig(d string) (*tls.Config, error) {
 	for _, p := range rootCAs {
 		dt, err := os.ReadFile(p)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to read %s", p)
+			return nil, err
 		}
 		tc.RootCAs.AppendCertsFromPEM(dt)
 	}
