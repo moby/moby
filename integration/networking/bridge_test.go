@@ -469,7 +469,6 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	ctx := setupTest(t)
-	d := daemon.New(t)
 
 	type testStep struct {
 		stepName    string
@@ -487,13 +486,13 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 				{
 					stepName:    "Set up initial UL prefix",
 					fixedCIDRV6: "fd1c:f1a0:5d8d:aaaa::/64",
-					expAddrs:    []string{"fd1c:f1a0:5d8d:aaaa::1/64", "fe80::1/64"},
+					expAddrs:    []string{"fd1c:f1a0:5d8d:aaaa::1/64", "fe80::"},
 				},
 				{
 					// Modify that prefix, the default bridge's address must be deleted and re-added.
 					stepName:    "Modify UL prefix - address change",
 					fixedCIDRV6: "fd1c:f1a0:5d8d:bbbb::/64",
-					expAddrs:    []string{"fd1c:f1a0:5d8d:bbbb::1/64", "fe80::1/64"},
+					expAddrs:    []string{"fd1c:f1a0:5d8d:bbbb::1/64", "fe80::"},
 				},
 				{
 					// Modify the prefix length, the default bridge's address should not change.
@@ -501,7 +500,7 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 					fixedCIDRV6: "fd1c:f1a0:5d8d:bbbb::/80",
 					// The prefix length displayed by 'ip a' is not updated - it's informational, and
 					// can't be changed without unnecessarily deleting and re-adding the address.
-					expAddrs: []string{"fd1c:f1a0:5d8d:bbbb::1/64", "fe80::1/64"},
+					expAddrs: []string{"fd1c:f1a0:5d8d:bbbb::1/64", "fe80::"},
 				},
 			},
 		},
@@ -511,14 +510,14 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 				{
 					stepName:    "Standard LL subnet prefix",
 					fixedCIDRV6: "fe80::/64",
-					expAddrs:    []string{"fe80::1/64"},
+					expAddrs:    []string{"fe80::"},
 				},
 				{
 					// Modify that prefix, the default bridge's address must be deleted and re-added.
 					// The bridge must still have an address in the required (standard) LL subnet.
 					stepName:    "Nonstandard LL prefix - address change",
 					fixedCIDRV6: "fe80:1234::/32",
-					expAddrs:    []string{"fe80:1234::1/32", "fe80::1/64"},
+					expAddrs:    []string{"fe80:1234::1/32", "fe80::"},
 				},
 				{
 					// Modify the prefix length, the addresses should not change.
@@ -526,32 +525,48 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 					fixedCIDRV6: "fe80:1234::/64",
 					// The prefix length displayed by 'ip a' is not updated - it's informational, and
 					// can't be changed without unnecessarily deleting and re-adding the address.
-					expAddrs: []string{"fe80:1234::1/", "fe80::1/64"},
+					expAddrs: []string{"fe80:1234::1/", "fe80::"},
 				},
 			},
 		},
 	}
 
-	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			for _, step := range tc.steps {
-				// Check that the daemon starts - regression test for:
-				//   https://github.com/moby/moby/issues/46829
-				d.Start(t, "--experimental", "--ipv6", "--ip6tables", "--fixed-cidr-v6="+step.fixedCIDRV6)
-				d.Stop(t)
+	for _, preserveKernelLL := range []bool{false, true} {
+		var dopts []daemon.Option
+		if preserveKernelLL {
+			dopts = append(dopts, daemon.WithEnvVars("DOCKER_BRIDGE_PRESERVE_KERNEL_LL=1"))
+		}
+		d := daemon.New(t, dopts...)
+		c := d.NewClientT(t)
 
-				// Check that the expected addresses have been applied to the bridge. (Skip in
-				// rootless mode, because the bridge is in a different network namespace.)
-				if !testEnv.IsRootless() {
-					res := testutil.RunCommand(ctx, "ip", "-6", "addr", "show", "docker0")
-					assert.Equal(t, res.ExitCode, 0, step.stepName)
-					stdout := res.Stdout()
-					for _, expAddr := range step.expAddrs {
-						assert.Check(t, is.Contains(stdout, expAddr))
+		for _, tc := range testcases {
+			for _, step := range tc.steps {
+				tcName := fmt.Sprintf("kernel_ll_%v/%s/%s", preserveKernelLL, tc.name, step.stepName)
+				t.Run(tcName, func(t *testing.T) {
+					ctx := testutil.StartSpan(ctx, t)
+					// Check that the daemon starts - regression test for:
+					//   https://github.com/moby/moby/issues/46829
+					d.StartWithBusybox(ctx, t, "--experimental", "--ipv6", "--ip6tables", "--fixed-cidr-v6="+step.fixedCIDRV6)
+
+					// Start a container, so that the bridge is set "up" and gets a kernel_ll address.
+					cID := container.Run(ctx, t, c)
+					defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+
+					d.Stop(t)
+
+					// Check that the expected addresses have been applied to the bridge. (Skip in
+					// rootless mode, because the bridge is in a different network namespace.)
+					if !testEnv.IsRootless() {
+						res := testutil.RunCommand(ctx, "ip", "-6", "addr", "show", "docker0")
+						assert.Equal(t, res.ExitCode, 0, step.stepName)
+						stdout := res.Stdout()
+						for _, expAddr := range step.expAddrs {
+							assert.Check(t, is.Contains(stdout, expAddr))
+						}
 					}
-				}
+				})
 			}
-		})
+		}
 	}
 }
 
