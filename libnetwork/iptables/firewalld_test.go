@@ -27,9 +27,11 @@ func skipIfNoFirewalld(t *testing.T) {
 
 func TestFirewalldInit(t *testing.T) {
 	skipIfNoFirewalld(t)
-	if err := firewalldInit(); err != nil {
+	fwd, err := firewalldInit()
+	if err != nil {
 		t.Fatal(err)
 	}
+	_ = fwd.conn.Close()
 }
 
 func TestReloaded(t *testing.T) {
@@ -51,12 +53,17 @@ func TestReloaded(t *testing.T) {
 	const port = 1234
 	const proto = "tcp"
 
+	// create a dummy firewalldConnection and mark it as "running", because
+	// OnReloaded (registerReloadCallback),
+	fwd := &firewalldConnection{}
+	fwd.running.Store(true)
+
 	err = fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName)
 	if err != nil {
 		t.Fatal(err)
 	} else {
 		// to be re-called again later
-		OnReloaded(func() { fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName) })
+		fwd.registerReloadCallback(func() { fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName) })
 	}
 
 	rule1 := []string{
@@ -76,7 +83,7 @@ func TestReloaded(t *testing.T) {
 	// flush all rules
 	fwdChain.Remove()
 
-	reloaded()
+	fwd.onReload()
 
 	// make sure the rules have been recreated
 	if !iptable.Exists(fwdChain.Table, fwdChain.Name, rule1...) {
@@ -86,6 +93,13 @@ func TestReloaded(t *testing.T) {
 
 func TestPassthrough(t *testing.T) {
 	skipIfNoFirewalld(t)
+
+	fwd, err := newConnection()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fwd.conn.Close()
+
 	rule1 := []string{
 		"-i", "lo",
 		"-p", "udp",
@@ -93,11 +107,34 @@ func TestPassthrough(t *testing.T) {
 		"-j", "ACCEPT",
 	}
 
-	_, err := Passthrough(Iptables, append([]string{"-A"}, rule1...)...)
+	_, err = fwd.passthrough(IPv4, append([]string{"-A"}, rule1...)...)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	if !GetIptable(IPv4).Exists(Filter, "INPUT", rule1...) {
-		t.Fatal("rule1 does not exist")
+		t.Error("rule1 does not exist")
+	}
+}
+
+// TestFirewalldUninitialized checks that calling methods, such as isRunning()
+// on an empty, uninitialized firewalldConnection doesn't panic, and returns
+// the expected status.
+func TestFirewalldUninitialized(t *testing.T) {
+	var fwd *firewalldConnection
+	if fwd.isRunning() {
+		t.Error("did not expect an uninitialized firewalldConnection to be running")
+	}
+	err := fwd.addInterface("anything")
+	if err != nil {
+		t.Errorf("unexpected error when calling addInterface on an uninitialized firewalldConnection: %v", err)
+	}
+	err = fwd.delInterface("anything")
+	if err != nil {
+		t.Errorf("unexpected error when calling delInterface on an uninitialized firewalldConnection: %v", err)
+	}
+	fwd.registerReloadCallback(func() {})
+	_, err = fwd.passthrough(IPv4)
+	if err != nil {
+		t.Errorf("unexpected error when calling passthrough on an uninitialized firewalldConnection: %v", err)
 	}
 }
