@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
@@ -73,18 +74,20 @@ func (i *bridgeInterface) addresses(family int) ([]netlink.Addr, error) {
 func getRequiredIPv6Addrs(config *networkConfiguration) (requiredAddrs map[netip.Addr]netip.Prefix, err error) {
 	requiredAddrs = make(map[netip.Addr]netip.Prefix)
 
-	// Always give the bridge 'fe80::1' - every interface is required to have an
-	// address in 'fe80::/64'. Linux may assign an address, but we'll replace it with
-	// 'fe80::1'. Then, if the configured prefix is 'fe80::/64', the IPAM pool
-	// assigned address will not be a second address in the LL subnet.
-	ra, ok := netiputil.ToPrefix(bridgeIPv6)
-	if !ok {
-		err = fmt.Errorf("Failed to convert Link-Local IPv6 address to netip.Prefix")
-		return nil, err
+	if os.Getenv("DOCKER_BRIDGE_PRESERVE_KERNEL_LL") != "1" {
+		// Always give the bridge 'fe80::1' - every interface is required to have an
+		// address in 'fe80::/64'. Linux may assign an address, but we'll replace it with
+		// 'fe80::1'. Then, if the configured prefix is 'fe80::/64', the IPAM pool
+		// assigned address will not be a second address in the LL subnet.
+		ra, ok := netiputil.ToPrefix(bridgeIPv6)
+		if !ok {
+			err = fmt.Errorf("Failed to convert Link-Local IPv6 address to netip.Prefix")
+			return nil, err
+		}
+		requiredAddrs[ra.Addr()] = ra
 	}
-	requiredAddrs[ra.Addr()] = ra
 
-	ra, ok = netiputil.ToPrefix(config.AddressIPv6)
+	ra, ok := netiputil.ToPrefix(config.AddressIPv6)
 	if !ok {
 		err = fmt.Errorf("failed to convert bridge IPv6 address '%s' to netip.Prefix", config.AddressIPv6.String())
 		return nil, err
@@ -115,6 +118,14 @@ func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) err
 		ea, ok := netip.AddrFromSlice(existingAddr.IP)
 		if !ok {
 			return errdefs.System(fmt.Errorf("Failed to convert IPv6 address '%s' to netip.Addr", config.AddressIPv6))
+		}
+		// Optionally, avoid deleting the kernel-assigned link local address.
+		// (Don't delete fe80::1 either - if it was previously assigned to the bridge, and the
+		// kernel_ll address was deleted, the bridge won't get a new kernel_ll address.)
+		if os.Getenv("DOCKER_BRIDGE_PRESERVE_KERNEL_LL") == "1" {
+			if p, _ := ea.Prefix(64); p == linkLocalPrefix {
+				continue
+			}
 		}
 		// Ignore the prefix length when comparing addresses, it's informational
 		// (RFC-5942 section 4), and removing/re-adding an address that's still valid
