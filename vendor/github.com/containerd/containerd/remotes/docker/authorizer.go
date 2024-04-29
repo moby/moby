@@ -148,9 +148,11 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 	defer a.mu.Unlock()
 	for _, c := range auth.ParseAuthHeader(last.Header) {
 		if c.Scheme == auth.BearerAuth {
-			if err := invalidAuthorization(c, responses); err != nil {
+			if retry, err := invalidAuthorization(ctx, c, responses); err != nil {
 				delete(a.handlers, host)
 				return err
+			} else if retry {
+				delete(a.handlers, host)
 			}
 
 			// reuse existing handler
@@ -328,18 +330,24 @@ func (ah *authHandler) doBearerAuth(ctx context.Context) (token, refreshToken st
 	return resp.Token, resp.RefreshToken, nil
 }
 
-func invalidAuthorization(c auth.Challenge, responses []*http.Response) error {
+func invalidAuthorization(ctx context.Context, c auth.Challenge, responses []*http.Response) (retry bool, _ error) {
 	errStr := c.Parameters["error"]
 	if errStr == "" {
-		return nil
+		return retry, nil
 	}
 
 	n := len(responses)
 	if n == 1 || (n > 1 && !sameRequest(responses[n-2].Request, responses[n-1].Request)) {
-		return nil
+		limitedErr := errStr
+		errLenghLimit := 64
+		if len(limitedErr) > errLenghLimit {
+			limitedErr = limitedErr[:errLenghLimit] + "..."
+		}
+		log.G(ctx).WithField("error", limitedErr).Debug("authorization error using bearer token, retrying")
+		return true, nil
 	}
 
-	return fmt.Errorf("server message: %s: %w", errStr, ErrInvalidAuthorization)
+	return retry, fmt.Errorf("server message: %s: %w", errStr, ErrInvalidAuthorization)
 }
 
 func sameRequest(r1, r2 *http.Request) bool {
