@@ -1,6 +1,9 @@
 package client
 
-import "net/http"
+import (
+	"context"
+	"net/http"
+)
 
 // NewClient initializes a new API client for the given host and API version.
 // It uses the given http client as transport.
@@ -15,7 +18,7 @@ import "net/http"
 // version negotiation by passing the [WithAPIVersionNegotiation] option instead
 // of WithVersion.
 func NewClient(host string, version string, client *http.Client, httpHeaders map[string]string) (*Client, error) {
-	return NewClientWithOpts(WithHost(host), WithVersion(version), WithHTTPClient(client), WithHTTPHeaders(httpHeaders))
+	return NewClientWithOpts(context.Background(), WithHost(host), WithVersion(version), WithHTTPClient(client), WithHTTPHeaders(httpHeaders))
 }
 
 // NewEnvClient initializes a new API client based on environment variables.
@@ -23,5 +26,5 @@ func NewClient(host string, version string, client *http.Client, httpHeaders map
 //
 // Deprecated: use [NewClientWithOpts] passing the [FromEnv] option.
 func NewEnvClient() (*Client, error) {
-	return NewClientWithOpts(FromEnv)
+	return NewClientWithOpts(context.Background(), FromEnv)
 }

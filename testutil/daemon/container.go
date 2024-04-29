@@ -12,7 +12,7 @@ import (
 func (d *Daemon) ActiveContainers(ctx context.Context, t testing.TB) []string {
 	t.Helper()
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	containers, err := cli.ContainerList(context.Background(), container.ListOptions{})
 	assert.NilError(t, err)
@@ -27,8 +27,11 @@ func (d *Daemon) ActiveContainers(ctx context.Context, t testing.TB) []string {
 // FindContainerIP returns the ip of the specified container
 func (d *Daemon) FindContainerIP(t testing.TB, id string) string {
 	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	i, err := cli.ContainerInspect(context.Background(), id)
 	assert.NilError(t, err)

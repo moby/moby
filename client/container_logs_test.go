@@ -152,7 +152,7 @@ func ExampleClient_ContainerLogs_withTimeout() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	client, _ := NewClientWithOpts(FromEnv)
+	client, _ := NewClientWithOpts(ctx, FromEnv)
 	reader, err := client.ContainerLogs(ctx, "container_id", container.LogsOptions{})
 	if err != nil {
 		log.Fatal(err)

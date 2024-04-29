@@ -50,7 +50,7 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", proto)
 
-	dialer := cli.Dialer()
+	dialer := cli.Dialer(ctx)
 	conn, err := dialer(ctx)
 	if err != nil {
 		return nil, "", errors.Wrap(err, "cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
@@ -97,7 +97,7 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 	}
 
 	var mediaType string
-	if versions.GreaterThanOrEqualTo(cli.ClientVersion(), "1.42") {
+	if versions.GreaterThanOrEqualTo(cli.ClientVersion(ctx), "1.42") {
 		// Prior to 1.42, Content-Type is always set to raw-stream and not relevant
 		mediaType = resp.Header.Get("Content-Type")
 	}

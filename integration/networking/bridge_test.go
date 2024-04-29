@@ -33,7 +33,7 @@ func TestBridgeICC(t *testing.T) {
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	testcases := []struct {
 		name           string
@@ -279,7 +279,7 @@ func TestBridgeINC(t *testing.T) {
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	type bridgesOpts struct {
 		bridge1Opts []func(*types.NetworkCreate)
@@ -433,7 +433,7 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 			defer d.Stop(t)
 
 			c := d.NewClientT(t)
-			defer c.Close()
+			defer c.Close(ctx)
 
 			cID := container.Run(ctx, t, c,
 				container.WithImage("busybox:latest"),
@@ -569,7 +569,7 @@ func TestInternalNwConnectivity(t *testing.T) {
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	const bridgeName = "intnw"
 	const gw4 = "172.30.0.1"

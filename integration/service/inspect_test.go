@@ -22,7 +22,7 @@ func TestInspect(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
-	defer client.Close()
+	defer client.Close(ctx)
 
 	now := time.Now()
 	var instances uint64 = 2

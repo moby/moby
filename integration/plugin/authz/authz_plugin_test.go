@@ -136,7 +136,7 @@ func TestAuthZPluginTLS(t *testing.T) {
 	ctrl.reqRes.Allow = true
 	ctrl.resRes.Allow = true
 
-	c, err := newTLSAPIClient(testDaemonHTTPSAddr, cacertPath, clientCertPath, clientKeyPath)
+	c, err := newTLSAPIClient(ctx, testDaemonHTTPSAddr, cacertPath, clientCertPath, clientKeyPath)
 	assert.NilError(t, err)
 
 	_, err = c.ServerVersion(ctx)
@@ -146,12 +146,12 @@ func TestAuthZPluginTLS(t *testing.T) {
 	assert.Equal(t, "client", ctrl.resUser)
 }
 
-func newTLSAPIClient(host, cacertPath, certPath, keyPath string) (client.APIClient, error) {
+func newTLSAPIClient(ctx context.Context, host, cacertPath, certPath, keyPath string) (client.APIClient, error) {
 	dialer := &net.Dialer{
 		KeepAlive: 30 * time.Second,
 		Timeout:   30 * time.Second,
 	}
-	return client.NewClientWithOpts(
+	return client.NewClientWithOpts(ctx,
 		client.WithTLSClientConfig(cacertPath, certPath, keyPath),
 		client.WithDialContext(dialer.DialContext),
 		client.WithHost(host))

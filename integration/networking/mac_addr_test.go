@@ -33,7 +33,7 @@ func TestMACAddrOnRestart(t *testing.T) {
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	const netName = "testmacaddrs"
 	network.CreateNoError(ctx, t, c, netName,
@@ -93,7 +93,7 @@ func TestCfgdMACAddrOnRestart(t *testing.T) {
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	const netName = "testcfgmacaddr"
 	network.CreateNoError(ctx, t, c, netName,
@@ -191,7 +191,7 @@ func TestInspectCfgdMAC(t *testing.T) {
 				copts = append(copts, client.WithVersion("1.43"))
 			}
 			c := d.NewClientT(t, copts...)
-			defer c.Close()
+			defer c.Close(ctx)
 
 			if tc.netName != "bridge" {
 				const netName = "inspectcfgmac"

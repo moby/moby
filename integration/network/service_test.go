@@ -37,7 +37,7 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 	d.Start(t)
 
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	// Verify bridge network's subnet
 	out, err := c.NetworkInspect(ctx, "bridge", types.NetworkInspectOptions{})
@@ -73,7 +73,7 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 	)
 
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	// Verify bridge network's subnet
 	out, err := c.NetworkInspect(ctx, "bridge", types.NetworkInspectOptions{})
@@ -111,7 +111,7 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	d.Start(t)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	// Create a bridge network
 	name := "elango" + t.Name()
@@ -147,7 +147,7 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	d.Start(t)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	// Create a bridge network
 	name := "elango" + t.Name()
@@ -205,7 +205,7 @@ func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 	)
 
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	// Verify bridge network's subnet
 	out, err := c.NetworkInspect(ctx, "bridge", types.NetworkInspectOptions{})
@@ -223,7 +223,7 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	hostName := "host"
 	var instances uint64 = 1
@@ -256,7 +256,7 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	poll.WaitOn(t, swarmIngressReady(ctx, c), swarm.NetworkPoll)
 
@@ -367,7 +367,7 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 	poll.WaitOn(t, swarm.NoTasks(ctx, c), swarm.ServicePoll)
 	err = c.NetworkRemove(ctx, overlayID)
 	assert.NilError(t, err)
-	c.Close()
+	c.Close(ctx)
 	err = d.SwarmLeave(ctx, t, true)
 	assert.NilError(t, err)
 	d.Stop(t)
@@ -377,7 +377,7 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 	d = swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	nc := d.NewClientT(t)
-	defer nc.Close()
+	defer nc.Close(ctx)
 	// Create a overlay network
 	name = "not-saanvisthira" + t.Name()
 	overlayID = network.CreateNoError(ctx, t, nc, name,
@@ -414,7 +414,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 		daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
 	defer d.Stop(t)
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	// Create a overlay network
 	name := "sthira" + t.Name()

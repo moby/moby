@@ -30,7 +30,7 @@ func TestConfigInspect(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	testName := t.Name()
 	configID := createConfig(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
@@ -53,7 +53,7 @@ func TestConfigList(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	// This test case is ported from the original TestConfigsEmptyList
 	configs, err := c.ConfigList(ctx, types.ConfigListOptions{})
@@ -139,7 +139,7 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	testName := "test_config-" + t.Name()
 	configID := createConfig(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
@@ -177,7 +177,7 @@ func TestConfigsUpdate(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	testName := "test_config-" + t.Name()
 	configID := createConfig(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
@@ -228,7 +228,7 @@ func TestTemplatedConfig(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	referencedSecretName := "referencedsecret-" + t.Name()
 	referencedSecretSpec := swarmtypes.SecretSpec{
@@ -341,7 +341,7 @@ func TestConfigCreateResolve(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
-	defer c.Close()
+	defer c.Close(ctx)
 
 	configName := "test_config_" + t.Name()
 	configID := createConfig(ctx, t, c, configName, []byte("foo"), nil)

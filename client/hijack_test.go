@@ -18,6 +18,8 @@ import (
 
 func TestTLSCloseWriter(t *testing.T) {
 	t.Parallel()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 
 	var chErr chan error
 	ts := &httptest.Server{Config: &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -78,10 +80,10 @@ func TestTLSCloseWriter(t *testing.T) {
 	serverURL, err := url.Parse(ts.URL)
 	assert.NilError(t, err)
 
-	client, err := NewClientWithOpts(WithHost("tcp://"+serverURL.Host), WithHTTPClient(ts.Client()))
+	client, err := NewClientWithOpts(ctx, WithHost("tcp://"+serverURL.Host), WithHTTPClient(ts.Client()))
 	assert.NilError(t, err)
 
-	resp, err := client.postHijacked(context.Background(), "/asdf", url.Values{}, nil, map[string][]string{"Content-Type": {"text/plain"}})
+	resp, err := client.postHijacked(ctx, "/asdf", url.Values{}, nil, map[string][]string{"Content-Type": {"text/plain"}})
 	assert.NilError(t, err)
 	defer resp.Close()
 

@@ -17,7 +17,7 @@ import (
 func TestWaitNonBlocked(t *testing.T) {
 	ctx := setupTest(t)
 
-	cli := request.NewAPIClient(t)
+	cli := request.NewAPIClient(ctx, t)
 
 	testCases := []struct {
 		doc          string
@@ -61,7 +61,7 @@ func TestWaitBlocked(t *testing.T) {
 	// granularity. It will always exit 0x40010004.
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	ctx := setupTest(t)
-	cli := request.NewAPIClient(t)
+	cli := request.NewAPIClient(ctx, t)
 
 	testCases := []struct {
 		doc          string
@@ -104,7 +104,7 @@ func TestWaitBlocked(t *testing.T) {
 
 func TestWaitConditions(t *testing.T) {
 	ctx := setupTest(t)
-	cli := request.NewAPIClient(t)
+	cli := request.NewAPIClient(ctx, t)
 
 	testCases := []struct {
 		doc      string
@@ -179,7 +179,7 @@ func TestWaitConditions(t *testing.T) {
 
 func TestWaitRestartedContainer(t *testing.T) {
 	ctx := setupTest(t)
-	cli := request.NewAPIClient(t)
+	cli := request.NewAPIClient(ctx, t)
 
 	testCases := []struct {
 		doc      string

@@ -24,7 +24,7 @@ func TestServiceUpdateLabel(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	serviceName := "TestService_" + t.Name()
 	serviceID := swarm.CreateService(ctx, t, d, swarm.ServiceWithName(serviceName))
@@ -80,7 +80,7 @@ func TestServiceUpdateSecrets(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	secretName := "TestSecret_" + t.Name()
 	secretTarget := "targetName"
@@ -142,7 +142,7 @@ func TestServiceUpdateConfigs(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	configName := "TestConfig_" + t.Name()
 	configTarget := "targetName"
@@ -204,7 +204,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	cli := d.NewClientT(t)
-	defer cli.Close()
+	defer cli.Close(ctx)
 
 	// Create a overlay network
 	testNet := "testNet" + t.Name()
@@ -279,7 +279,7 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	cli := d.NewClientT(t)
-	defer func() { _ = cli.Close() }()
+	defer func() { _ = cli.Close(ctx) }()
 	var (
 		serviceID string
 		service   swarmtypes.Service

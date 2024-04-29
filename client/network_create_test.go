@@ -30,7 +30,10 @@ func TestNetworkCreateError(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestNetworkCreateConnectionError(t *testing.T) {
-	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	client, err := NewClientWithOpts(ctx, WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	_, err = client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{})

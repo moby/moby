@@ -61,14 +61,17 @@ func (s *DockerAPISuite) TestExecAPICreateContainerPaused(c *testing.T) {
 
 	cli.DockerCmd(c, "pause", name)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	ctx, cancel := context.WithCancel(testutil.GetContext(c))
+	defer cancel()
+
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	assert.NilError(c, err)
-	defer apiClient.Close()
+	defer apiClient.Close(ctx)
 
 	config := types.ExecConfig{
 		Cmd: []string{"true"},
 	}
-	_, err = apiClient.ContainerExecCreate(testutil.GetContext(c), name, config)
+	_, err = apiClient.ContainerExecCreate(ctx, name, config)
 	assert.ErrorContains(c, err, "Container "+name+" is paused, unpause the container before exec", "Expected message when creating exec command with Container %s is paused", name)
 }
 
@@ -131,9 +134,9 @@ func (s *DockerAPISuite) TestExecAPIStartWithDetach(c *testing.T) {
 		AttachStderr: true,
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(ctx, client.FromEnv)
 	assert.NilError(c, err)
-	defer apiClient.Close()
+	defer apiClient.Close(ctx)
 
 	createResp, err := apiClient.ContainerExecCreate(ctx, name, config)
 	assert.NilError(c, err)
