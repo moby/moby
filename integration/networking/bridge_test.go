@@ -30,7 +30,7 @@ func TestBridgeICC(t *testing.T) {
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "-D", "--experimental", "--ip6tables")
+	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
@@ -276,7 +276,7 @@ func TestBridgeINC(t *testing.T) {
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "-D", "--experimental", "--ip6tables")
+	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
@@ -426,8 +426,6 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 
 			d := daemon.New(t)
 			d.StartWithBusybox(ctx, t,
-				"--experimental",
-				"--ip6tables",
 				"--ipv6",
 				"--fixed-cidr-v6", tc.fixed_cidr_v6,
 			)
@@ -542,7 +540,7 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 				ctx := testutil.StartSpan(ctx, t)
 				// Check that the daemon starts - regression test for:
 				//   https://github.com/moby/moby/issues/46829
-				d.StartWithBusybox(ctx, t, "--experimental", "--ipv6", "--ip6tables", "--fixed-cidr-v6="+step.fixedCIDRV6)
+				d.StartWithBusybox(ctx, t, "--ipv6", "--fixed-cidr-v6="+step.fixedCIDRV6)
 
 				// Start a container, so that the bridge is set "up" and gets a kernel_ll address.
 				cID := container.Run(ctx, t, c)
@@ -575,7 +573,7 @@ func TestInternalNwConnectivity(t *testing.T) {
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "-D", "--experimental", "--ip6tables")
+	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)

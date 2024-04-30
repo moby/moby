@@ -24,8 +24,6 @@ func TestEtcHostsIpv6(t *testing.T) {
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t,
 		"--ipv6",
-		"--ip6tables",
-		"--experimental",
 		"--fixed-cidr-v6=fdc8:ffe2:d8d7:1234::/64")
 	defer d.Stop(t)
 
