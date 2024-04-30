@@ -11,7 +11,7 @@ set -eo pipefail
 # scope, but may not accept contributions beyond that.
 #
 # For users who have a similar need but require more flexibility/functionality,
-# refer the the discussion on GitHub, which mentions various alternatives that
+# refer to the discussion on GitHub, which mentions various alternatives that
 # are more suitable for other uses: https://github.com/moby/moby/issues/40857
 
 # hello-world                      latest              ef872312fe1b        3 months ago        910 B
