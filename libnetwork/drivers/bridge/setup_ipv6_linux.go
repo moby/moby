@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 
 	"github.com/containerd/log"
@@ -12,6 +13,9 @@ import (
 
 // bridgeIPv6 is the default, link-local IPv6 address for the bridge (fe80::1/64)
 var bridgeIPv6 = &net.IPNet{IP: net.ParseIP("fe80::1"), Mask: net.CIDRMask(64, 128)}
+
+// Standard link local prefix
+var linkLocalPrefix = netip.MustParsePrefix("fe80::/64")
 
 const (
 	ipv6ForwardConfPerm    = 0o644
