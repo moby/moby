@@ -82,7 +82,9 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 			if err != nil {
 				return &errMountConfig{mnt, err}
 			}
-			if !exists {
+
+			createMountpoint := mnt.BindOptions != nil && mnt.BindOptions.CreateMountpoint
+			if !exists && !createMountpoint {
 				return &errMountConfig{mnt, errBindSourceDoesNotExist(mnt.Source)}
 			}
 		}
