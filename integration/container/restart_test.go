@@ -85,7 +85,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 					d := daemon.New(t)
 					apiClient := d.NewClientT(t)
 
-					args := []string{"--iptables=false"}
+					args := []string{"--iptables=false", "--ip6tables=false"}
 					if liveRestoreEnabled {
 						args = append(args, "--live-restore")
 					}

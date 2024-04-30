@@ -25,7 +25,7 @@ func TestReadPluginNoRead(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	client, err := d.NewClient()
@@ -50,7 +50,7 @@ func TestReadPluginNoRead(t *testing.T) {
 	} {
 		t.Run(desc, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
-			d.Start(t, append([]string{"--iptables=false"}, test.dOpts...)...)
+			d.Start(t, append([]string{"--iptables=false", "--ip6tables=false"}, test.dOpts...)...)
 			defer d.Stop(t)
 			c, err := client.ContainerCreate(ctx,
 				cfg,

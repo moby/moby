@@ -26,7 +26,7 @@ func TestContainerKillOnDaemonStart(t *testing.T) {
 	d := daemon.New(t)
 	defer d.Cleanup(t)
 
-	d.StartWithBusybox(ctx, t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
@@ -44,7 +44,7 @@ func TestContainerKillOnDaemonStart(t *testing.T) {
 	assert.Assert(t, inspect.State.Running)
 
 	assert.NilError(t, d.Kill())
-	d.Start(t, "--iptables=false")
+	d.Start(t, "--iptables=false", "--ip6tables=false")
 
 	inspect, err = apiClient.ContainerInspect(ctx, id)
 	assert.Check(t, is.Nil(err))

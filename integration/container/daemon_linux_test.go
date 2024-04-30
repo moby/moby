@@ -41,7 +41,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
@@ -66,7 +66,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	err = unix.Kill(ppid, unix.SIGKILL)
 	assert.Check(t, err, "failed to kill containerd-shim")
 
-	d.Start(t, "--iptables=false")
+	d.Start(t, "--iptables=false", "--ip6tables=false")
 
 	err = c.ContainerStart(ctx, cID, containertypes.StartOptions{})
 	assert.Check(t, err, "failed to start test container")
@@ -95,7 +95,7 @@ func TestDaemonRestartIpcMode(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "--iptables=false", "--default-ipc-mode=private")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false", "--default-ipc-mode=private")
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
@@ -112,7 +112,7 @@ func TestDaemonRestartIpcMode(t *testing.T) {
 	assert.Check(t, is.Equal(string(inspect.HostConfig.IpcMode), "private"))
 
 	// restart the daemon with shareable default ipc mode
-	d.Restart(t, "--iptables=false", "--default-ipc-mode=shareable")
+	d.Restart(t, "--iptables=false", "--ip6tables=false", "--default-ipc-mode=shareable")
 
 	// check the container is still having private ipc mode
 	inspect, err = c.ContainerInspect(ctx, cID)
@@ -144,7 +144,7 @@ func TestDaemonHostGatewayIP(t *testing.T) {
 	// Verify the IP in /etc/hosts is same as host-gateway-ip
 	d := daemon.New(t)
 	// Verify the IP in /etc/hosts is same as the default bridge's IP
-	d.StartWithBusybox(ctx, t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	c := d.NewClientT(t)
 	cID := container.Run(ctx, t, c,
 		container.WithExtraHost("host.docker.internal:host-gateway"),
@@ -160,7 +160,7 @@ func TestDaemonHostGatewayIP(t *testing.T) {
 	d.Stop(t)
 
 	// Verify the IP in /etc/hosts is same as host-gateway-ip
-	d.StartWithBusybox(ctx, t, "--iptables=false", "--host-gateway-ip=6.7.8.9")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false", "--host-gateway-ip=6.7.8.9")
 	cID = container.Run(ctx, t, c,
 		container.WithExtraHost("host.docker.internal:host-gateway"),
 	)
@@ -195,7 +195,7 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 	d := daemon.New(t)
 	defer d.Cleanup(t)
 
-	d.StartWithBusybox(ctx, t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
@@ -212,7 +212,7 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 		c.HasBeenStartedBefore = true
 	})
 
-	d.Start(t, "--iptables=false")
+	d.Start(t, "--iptables=false", "--ip6tables=false")
 
 	ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -241,7 +241,7 @@ func TestHardRestartWhenContainerIsRunning(t *testing.T) {
 	d := daemon.New(t)
 	defer d.Cleanup(t)
 
-	d.StartWithBusybox(ctx, t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
@@ -261,7 +261,7 @@ func TestHardRestartWhenContainerIsRunning(t *testing.T) {
 		})
 	}
 
-	d.Start(t, "--iptables=false")
+	d.Start(t, "--iptables=false", "--ip6tables=false")
 
 	t.Run("RestartPolicy=none", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
