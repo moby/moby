@@ -737,11 +737,13 @@ func verifyDaemonSettings(conf *config.Config) error {
 	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP != "" {
 		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one")
 	}
-	if !conf.BridgeConfig.EnableIPTables && !conf.BridgeConfig.InterContainerCommunication {
-		return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
-	}
-	if conf.BridgeConfig.EnableIP6Tables && !conf.Experimental {
-		return fmt.Errorf("ip6tables rules are only available if experimental features are enabled")
+	if !conf.BridgeConfig.InterContainerCommunication {
+		if !conf.BridgeConfig.EnableIPTables {
+			return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
+		}
+		if conf.BridgeConfig.EnableIPv6 && !conf.BridgeConfig.EnableIP6Tables {
+			return fmt.Errorf("You specified --ip6tables=false with --icc=false. ICC=false uses ip6tables to function. Please set --icc or --ip6tables to true")
+		}
 	}
 	if !conf.BridgeConfig.EnableIPTables && conf.BridgeConfig.EnableIPMasq {
 		conf.BridgeConfig.EnableIPMasq = false
