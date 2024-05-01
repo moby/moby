@@ -130,13 +130,15 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 }
 
 func (s *DockerSwarmSuite) TestSwarmInitIPv6(c *testing.T) {
-	testRequires(c, IPv6)
 	ctx := testutil.GetContext(c)
 	d1 := s.AddDaemon(ctx, c, false, false)
-	cli.Docker(cli.Args("swarm", "init", "--listen-add", "::1"), cli.Daemon(d1)).Assert(c, icmd.Success)
+	cli.Docker(cli.Args("swarm", "init", "--listen-addr", "::1"),
+		cli.Daemon(d1)).Assert(c, icmd.Success)
 
+	token := s.daemons[0].JoinTokens(c).Worker
 	d2 := s.AddDaemon(ctx, c, false, false)
-	cli.Docker(cli.Args("swarm", "join", "::1"), cli.Daemon(d2)).Assert(c, icmd.Success)
+	cli.Docker(cli.Args("swarm", "join", "[::1]", "--token", token),
+		cli.Daemon(d2)).Assert(c, icmd.Success)
 
 	out := cli.Docker(cli.Args("info"), cli.Daemon(d2)).Assert(c, icmd.Success).Combined()
 	assert.Assert(c, strings.Contains(out, "Swarm: active"))
