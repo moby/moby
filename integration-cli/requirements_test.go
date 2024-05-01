@@ -97,11 +97,6 @@ func containerdSnapshotterEnabled() bool {
 	return false
 }
 
-func IPv6() bool {
-	cmd := exec.Command("test", "-f", "/proc/net/if_inet6")
-	return cmd.Run() != nil
-}
-
 func UserNamespaceROMount() bool {
 	// quick case--userns not enabled in this test run
 	if os.Getenv("DOCKER_REMAP_ROOT") == "" {
