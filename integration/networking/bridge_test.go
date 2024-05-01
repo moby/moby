@@ -531,41 +531,35 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 		},
 	}
 
-	for _, preserveKernelLL := range []bool{false, true} {
-		var dopts []daemon.Option
-		if preserveKernelLL {
-			dopts = append(dopts, daemon.WithEnvVars("DOCKER_BRIDGE_PRESERVE_KERNEL_LL=1"))
-		}
-		d := daemon.New(t, dopts...)
-		c := d.NewClientT(t)
+	d := daemon.New(t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
 
-		for _, tc := range testcases {
-			for _, step := range tc.steps {
-				tcName := fmt.Sprintf("kernel_ll_%v/%s/%s", preserveKernelLL, tc.name, step.stepName)
-				t.Run(tcName, func(t *testing.T) {
-					ctx := testutil.StartSpan(ctx, t)
-					// Check that the daemon starts - regression test for:
-					//   https://github.com/moby/moby/issues/46829
-					d.StartWithBusybox(ctx, t, "--experimental", "--ipv6", "--ip6tables", "--fixed-cidr-v6="+step.fixedCIDRV6)
+	for _, tc := range testcases {
+		for _, step := range tc.steps {
+			t.Run(tc.name+"/"+step.stepName, func(t *testing.T) {
+				ctx := testutil.StartSpan(ctx, t)
+				// Check that the daemon starts - regression test for:
+				//   https://github.com/moby/moby/issues/46829
+				d.StartWithBusybox(ctx, t, "--experimental", "--ipv6", "--ip6tables", "--fixed-cidr-v6="+step.fixedCIDRV6)
 
-					// Start a container, so that the bridge is set "up" and gets a kernel_ll address.
-					cID := container.Run(ctx, t, c)
-					defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+				// Start a container, so that the bridge is set "up" and gets a kernel_ll address.
+				cID := container.Run(ctx, t, c)
+				defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
-					d.Stop(t)
+				d.Stop(t)
 
-					// Check that the expected addresses have been applied to the bridge. (Skip in
-					// rootless mode, because the bridge is in a different network namespace.)
-					if !testEnv.IsRootless() {
-						res := testutil.RunCommand(ctx, "ip", "-6", "addr", "show", "docker0")
-						assert.Equal(t, res.ExitCode, 0, step.stepName)
-						stdout := res.Stdout()
-						for _, expAddr := range step.expAddrs {
-							assert.Check(t, is.Contains(stdout, expAddr))
-						}
+				// Check that the expected addresses have been applied to the bridge. (Skip in
+				// rootless mode, because the bridge is in a different network namespace.)
+				if !testEnv.IsRootless() {
+					res := testutil.RunCommand(ctx, "ip", "-6", "addr", "show", "docker0")
+					assert.Equal(t, res.ExitCode, 0, step.stepName)
+					stdout := res.Stdout()
+					for _, expAddr := range step.expAddrs {
+						assert.Check(t, is.Contains(stdout, expAddr))
 					}
-				})
-			}
+				}
+			})
 		}
 	}
 }

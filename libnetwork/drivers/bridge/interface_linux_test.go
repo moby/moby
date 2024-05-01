@@ -2,12 +2,9 @@ package bridge
 
 import (
 	"net"
-	"net/netip"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/google/go-cmp/cmp"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -96,48 +93,6 @@ func TestAddressesNonEmptyInterface(t *testing.T) {
 	assert.Equal(t, addrs[0].IPNet.String(), expAddrV6)
 }
 
-func TestGetRequiredIPv6Addrs(t *testing.T) {
-	testcases := []struct {
-		name         string
-		addressIPv6  string
-		expReqdAddrs []string
-	}{
-		{
-			name:         "Regular address, expect default link local",
-			addressIPv6:  "2000:3000::1/80",
-			expReqdAddrs: []string{"fe80::1/64", "2000:3000::1/80"},
-		},
-		{
-			name:         "Standard link local address only",
-			addressIPv6:  "fe80::1/64",
-			expReqdAddrs: []string{"fe80::1/64"},
-		},
-		{
-			name:         "Nonstandard link local address",
-			addressIPv6:  "fe80:abcd::1/42",
-			expReqdAddrs: []string{"fe80:abcd::1/42", "fe80::1/64"},
-		},
-	}
-
-	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			config := &networkConfiguration{
-				AddressIPv6: cidrToIPNet(t, tc.addressIPv6),
-			}
-
-			expResult := map[netip.Addr]netip.Prefix{}
-			for _, addr := range tc.expReqdAddrs {
-				expResult[netip.MustParseAddr(strings.Split(addr, "/")[0])] = netip.MustParsePrefix(addr)
-			}
-
-			reqd, err := getRequiredIPv6Addrs(config)
-			assert.Check(t, is.Nil(err))
-			assert.Check(t, is.DeepEqual(reqd, expResult,
-				cmp.Comparer(func(a, b netip.Prefix) bool { return a == b })))
-		})
-	}
-}
-
 func TestProgramIPv6Addresses(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
@@ -159,11 +114,11 @@ func TestProgramIPv6Addresses(t *testing.T) {
 	i := prepTestBridge(t, nc)
 
 	// The bridge has no addresses, ask for a regular IPv6 network and expect it to
-	// be added to the bridge, with the default link local address.
+	// be added to the bridge.
 	nc.AddressIPv6 = cidrToIPNet(t, "2000:3000::1/64")
 	err := i.programIPv6Addresses(nc)
 	assert.NilError(t, err)
-	checkAddrs(i, nc, []string{"2000:3000::1/64", "fe80::1/64"})
+	checkAddrs(i, nc, []string{"2000:3000::1/64"})
 
 	// Shrink the subnet of that regular address, the prefix length of the address
 	// will not be modified - but it's informational-only, the address itself has
@@ -171,7 +126,7 @@ func TestProgramIPv6Addresses(t *testing.T) {
 	nc.AddressIPv6 = cidrToIPNet(t, "2000:3000::1/80")
 	err = i.programIPv6Addresses(nc)
 	assert.NilError(t, err)
-	checkAddrs(i, nc, []string{"2000:3000::1/64", "fe80::1/64"})
+	checkAddrs(i, nc, []string{"2000:3000::1/64"})
 
 	// Ask for link-local only, by specifying an address with the Link Local prefix.
 	// The regular address should be removed.
@@ -180,9 +135,16 @@ func TestProgramIPv6Addresses(t *testing.T) {
 	assert.NilError(t, err)
 	checkAddrs(i, nc, []string{"fe80::1/64"})
 
-	// Swap the standard link local address for a nonstandard one.
+	// Swap the standard link local address for a nonstandard one. The standard LL
+	// address will not be removed.
 	nc.AddressIPv6 = cidrToIPNet(t, "fe80:5555::1/55")
 	err = i.programIPv6Addresses(nc)
 	assert.NilError(t, err)
 	checkAddrs(i, nc, []string{"fe80:5555::1/55", "fe80::1/64"})
+
+	// Back to the original address, expect the nonstandard LL address to be replaced.
+	nc.AddressIPv6 = cidrToIPNet(t, "2000:3000::1/64")
+	err = i.programIPv6Addresses(nc)
+	assert.NilError(t, err)
+	checkAddrs(i, nc, []string{"2000:3000::1/64", "fe80::1/64"})
 }
