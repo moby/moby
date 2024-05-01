@@ -2,10 +2,12 @@ package bridge
 
 import (
 	"net"
+	"sort"
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -98,14 +100,16 @@ func TestProgramIPv6Addresses(t *testing.T) {
 
 	checkAddrs := func(i *bridgeInterface, nc *networkConfiguration, expAddrs []string) {
 		t.Helper()
-		exp := []netlink.Addr{}
-		for _, a := range expAddrs {
-			ipNet := cidrToIPNet(t, a)
-			exp = append(exp, netlink.Addr{IPNet: ipNet})
+		nladdrs, err := i.addresses(netlink.FAMILY_V6)
+		actual := []string{}
+		for _, a := range nladdrs {
+			actual = append(actual, a.String())
 		}
-		actual, err := i.addresses(netlink.FAMILY_V6)
 		assert.NilError(t, err)
-		assert.DeepEqual(t, exp, actual)
+		exp := append([]string(nil), expAddrs...)
+		sort.Strings(exp)
+		sort.Strings(actual)
+		assert.DeepEqual(t, actual, exp)
 		assert.Check(t, is.DeepEqual(i.bridgeIPv6, nc.AddressIPv6))
 		assert.Check(t, is.DeepEqual(i.gatewayIPv6, nc.AddressIPv6.IP))
 	}
@@ -147,4 +151,14 @@ func TestProgramIPv6Addresses(t *testing.T) {
 	err = i.programIPv6Addresses(nc)
 	assert.NilError(t, err)
 	checkAddrs(i, nc, []string{"2000:3000::1/64", "fe80::1/64"})
+
+	// Add a multicast address to the bridge and check it's not removed.
+	mcNlAddr, err := netlink.ParseAddr("ff05::db8:0:1234/96")
+	assert.NilError(t, err)
+	mcNlAddr.Flags = unix.IFA_F_MCAUTOJOIN
+	err = i.nlh.AddrAdd(i.Link, mcNlAddr)
+	assert.NilError(t, err)
+	err = i.programIPv6Addresses(nc)
+	assert.NilError(t, err)
+	checkAddrs(i, nc, []string{"2000:3000::1/64", "fe80::1/64", "ff05::db8:0:1234/96"})
 }

@@ -102,6 +102,10 @@ func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) err
 		if p, _ := ea.Prefix(64); p == linkLocalPrefix {
 			continue
 		}
+		// Don't delete multicast addresses as they're never added by the daemon.
+		if ea.IsMulticast() {
+			continue
+		}
 		// Ignore the prefix length when comparing addresses, it's informational
 		// (RFC-5942 section 4), and removing/re-adding an address that's still valid
 		// would disrupt traffic on live-restore.
