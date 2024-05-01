@@ -1046,6 +1046,11 @@ func TestValidateFixedCIDRV6(t *testing.T) {
 			input:       "nonsense",
 			expectedErr: "invalid fixed-cidr-v6: netip.ParsePrefix(\"nonsense\"): no '/'",
 		},
+		{
+			doc:         "multicast IPv6 subnet",
+			input:       "ff05::/64",
+			expectedErr: "invalid fixed-cidr-v6: multicast subnet 'ff05::/64' is not allowed",
+		},
 	}
 	for _, tc := range tests {
 		tc := tc

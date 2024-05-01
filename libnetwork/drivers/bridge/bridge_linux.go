@@ -193,6 +193,9 @@ func validateIPv6Subnet(addr netip.Prefix) error {
 	if !addr.Addr().Is6() || addr.Addr().Is4In6() {
 		return fmt.Errorf("'%s' is not a valid IPv6 subnet", addr)
 	}
+	if addr.Addr().IsMulticast() {
+		return fmt.Errorf("multicast subnet '%s' is not allowed", addr)
+	}
 	if addr.Masked() != linkLocalPrefix && linkLocalPrefix.Overlaps(addr) {
 		return fmt.Errorf("'%s' clashes with the Link-Local prefix 'fe80::/64'", addr)
 	}
