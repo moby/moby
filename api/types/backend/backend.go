@@ -89,7 +89,7 @@ type LogSelector struct {
 type ContainerStatsConfig struct {
 	Stream    bool
 	OneShot   bool
-	OutStream io.Writer
+	OutStream func() io.Writer
 }
 
 // ExecInspect holds information about a running process started
