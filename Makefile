@@ -171,7 +171,6 @@ dynbinary: bundles ## build dynamically linked linux binaries
 cross: bundles ## cross build the binaries
 	$(BAKE_CMD) binary-cross
 
-.PHONY: bundles
 bundles:
 	mkdir bundles
 
