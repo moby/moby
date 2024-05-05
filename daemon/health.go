@@ -33,6 +33,10 @@ const (
 	// the container unstable. Defaults to none.
 	defaultStartPeriod = 0 * time.Second
 
+	// defaultStartInterval is the default interval between health checks during
+	// the start period.
+	defaultStartInterval = 5 * time.Second
+
 	// Default number of consecutive failures of the health check
 	// for the container to be considered unhealthy.
 	defaultProbeRetries = 3
@@ -251,7 +255,7 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 // There is never more than one monitor thread running per container at a time.
 func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe) {
 	probeInterval := timeoutWithDefault(c.Config.Healthcheck.Interval, defaultProbeInterval)
-	startInterval := timeoutWithDefault(c.Config.Healthcheck.StartInterval, probeInterval)
+	startInterval := timeoutWithDefault(c.Config.Healthcheck.StartInterval, defaultStartInterval)
 	startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
 
 	c.Lock()
