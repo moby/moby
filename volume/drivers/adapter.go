@@ -12,7 +12,6 @@ import (
 
 var errNoSuchVolume = errors.New("no such volume")
 
-
 type volumeDriverAdapter struct {
 	name         string
 	scopePath    func(s string) string
