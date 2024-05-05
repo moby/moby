@@ -12,6 +12,7 @@ import (
 
 var errNoSuchVolume = errors.New("no such volume")
 
+
 type volumeDriverAdapter struct {
 	name         string
 	scopePath    func(s string) string
@@ -24,6 +25,11 @@ func (a *volumeDriverAdapter) Name() string {
 }
 
 func (a *volumeDriverAdapter) Create(name string, opts map[string]string) (volume.Volume, error) {
+	v, err := a.proxy.Get(name)
+	if err == nil {
+		return nil, errors.New("A volume named " + name + " already exists with the " + v.Driver.Name() + " driver. Choose a different volume name.")
+	}
+
 	if err := a.proxy.Create(name, opts); err != nil {
 		return nil, err
 	}

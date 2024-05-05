@@ -75,6 +75,8 @@ func (s *VolumesService) Create(ctx context.Context, name, driverName string, op
 		name = stringid.GenerateRandomID()
 		options = append(options, opts.WithCreateLabel(AnonymousLabel, ""))
 	}
+
+
 	v, err := s.vs.Create(ctx, name, driverName, options...)
 	if err != nil {
 		return nil, err
