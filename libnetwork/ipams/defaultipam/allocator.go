@@ -96,6 +96,8 @@ func splitByIPFamily(s []*ipamutils.NetworkToSplit) ([]*ipamutils.NetworkToSplit
 			return []*ipamutils.NetworkToSplit{}, []*ipamutils.NetworkToSplit{}, fmt.Errorf("network at index %d (%v) is not in canonical form", i, n)
 		}
 
+		n.Base, _ = n.Base.Addr().Unmap().Prefix(n.Base.Bits())
+
 		if n.Base.Addr().Is4() {
 			v4 = append(v4, n)
 		} else {

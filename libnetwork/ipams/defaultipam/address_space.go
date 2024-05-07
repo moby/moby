@@ -2,7 +2,6 @@ package defaultipam
 
 import (
 	"context"
-	"errors"
 	"net/netip"
 	"slices"
 	"sync"
@@ -31,14 +30,6 @@ type addrSpace struct {
 }
 
 func newAddrSpace(predefined []*ipamutils.NetworkToSplit) (*addrSpace, error) {
-	for i, p := range predefined {
-		if !p.Base.IsValid() {
-			return nil, errors.New("newAddrSpace: prefix zero found")
-		}
-
-		predefined[i].Base = p.Base.Masked()
-	}
-
 	slices.SortFunc(predefined, func(a, b *ipamutils.NetworkToSplit) int {
 		return netiputil.PrefixCompare(a.Base, b.Base)
 	})
