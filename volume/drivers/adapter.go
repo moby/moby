@@ -25,8 +25,8 @@ func (a *volumeDriverAdapter) Name() string {
 
 func (a *volumeDriverAdapter) Create(name string, opts map[string]string) (volume.Volume, error) {
 	v, err := a.proxy.Get(name)
-	if err == nil {
-		return nil, errors.New("A volume named " + name + " already exists with the " + v.Driver.Name() + " driver. Choose a different volume name.")
+	if err == nil && v.DriverName() != a.Name() {
+		return nil, errors.New("A volume named " + name + " already exists with the " + v.DriverName() + " driver. Choose a different volume name.")
 	}
 
 	if err := a.proxy.Create(name, opts); err != nil {

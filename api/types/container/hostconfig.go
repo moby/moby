@@ -409,8 +409,6 @@ type UpdateConfig struct {
 	// Contains container's resources (cgroups, ulimits)
 	Resources
 	RestartPolicy RestartPolicy
-	// Added portbindings to the container
-	PortBindings nat.PortMap // Port mapping between the exposed port (container) and the host
 }
 
 // HostConfig the non-portable Config structure of a container.
