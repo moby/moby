@@ -95,6 +95,9 @@ func splitByIPFamily(s []*ipamutils.NetworkToSplit) ([]*ipamutils.NetworkToSplit
 		if !n.Base.IsValid() || n.Size == 0 {
 			return []*ipamutils.NetworkToSplit{}, []*ipamutils.NetworkToSplit{}, fmt.Errorf("network at index %d (%v) is not in canonical form", i, n)
 		}
+		if n.Base.Bits() > n.Size {
+			return []*ipamutils.NetworkToSplit{}, []*ipamutils.NetworkToSplit{}, fmt.Errorf("network at index %d (%v) has a smaller prefix (/%d) than the target size of that pool (/%d)", i, n, n.Base.Bits(), n.Size)
+		}
 
 		n.Base, _ = n.Base.Addr().Unmap().Prefix(n.Base.Bits())
 
