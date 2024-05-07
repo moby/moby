@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -52,7 +53,7 @@ func TestContainerDelete(t *testing.T) {
 			errMsg: "container is restarting: stop the container before removing or force remove",
 			initContainer: func() *container.Container {
 				c := newContainerWithState(container.NewState())
-				c.SetRunning(nil, nil, true)
+				c.SetRunning(nil, nil, time.Now())
 				c.SetRestarting(&container.ExitStatus{})
 				return c
 			},

@@ -268,13 +268,23 @@ func (s *State) SetExitCode(ec int) {
 	s.ExitCodeValue = ec
 }
 
-// SetRunning sets the state of the container to "running".
-func (s *State) SetRunning(ctr libcontainerdtypes.Container, tsk libcontainerdtypes.Task, initial bool) {
+// SetRunning sets the running state along with StartedAt time.
+func (s *State) SetRunning(ctr libcontainerdtypes.Container, tsk libcontainerdtypes.Task, start time.Time) {
+	s.setRunning(ctr, tsk, &start)
+}
+
+// SetRunningExternal sets the running state without setting the `StartedAt` time (used for containers not started by Docker instead of SetRunning).
+func (s *State) SetRunningExternal(ctr libcontainerdtypes.Container, tsk libcontainerdtypes.Task) {
+	s.setRunning(ctr, tsk, nil)
+}
+
+// setRunning sets the state of the container to "running".
+func (s *State) setRunning(ctr libcontainerdtypes.Container, tsk libcontainerdtypes.Task, start *time.Time) {
 	s.ErrorMsg = ""
 	s.Paused = false
 	s.Running = true
 	s.Restarting = false
-	if initial {
+	if start != nil {
 		s.Paused = false
 	}
 	s.ExitCodeValue = 0
@@ -286,8 +296,8 @@ func (s *State) SetRunning(ctr libcontainerdtypes.Container, tsk libcontainerdty
 		s.Pid = 0
 	}
 	s.OOMKilled = false
-	if initial {
-		s.StartedAt = time.Now().UTC()
+	if start != nil {
+		s.StartedAt = start.UTC()
 	}
 }
 
