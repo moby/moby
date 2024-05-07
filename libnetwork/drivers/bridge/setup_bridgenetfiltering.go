@@ -29,7 +29,7 @@ func setupIPv4BridgeNetFiltering(*networkConfiguration, *bridgeInterface) error 
 // bridge and, if it is, sets kernel param "bridge-nf-call-ip6tables=1" so that
 // packets traversing the bridge are filtered.
 func setupIPv6BridgeNetFiltering(config *networkConfiguration, _ *bridgeInterface) error {
-	if !config.EnableIPv6 || config.AddressIPv6 == nil {
+	if !config.EnableIPv6 {
 		return nil
 	}
 	bn := config.BridgeName
