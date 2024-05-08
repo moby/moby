@@ -2495,6 +2495,17 @@ definitions:
         example:
           - "server_x"
           - "server_y"
+      DriverOpts:
+        description: |
+          DriverOpts is a mapping of driver options and values. These options
+          are passed directly to the driver and are driver specific.
+        type: "object"
+        x-nullable: true
+        additionalProperties:
+          type: "string"
+        example:
+          com.example.some-label: "some-value"
+          com.example.some-other-label: "some-other-value"
 
       # Operational data
       NetworkID:
@@ -2538,17 +2549,6 @@ definitions:
         type: "integer"
         format: "int64"
         example: 64
-      DriverOpts:
-        description: |
-          DriverOpts is a mapping of driver options and values. These options
-          are passed directly to the driver and are driver specific.
-        type: "object"
-        x-nullable: true
-        additionalProperties:
-          type: "string"
-        example:
-          com.example.some-label: "some-value"
-          com.example.some-other-label: "some-other-value"
       DNSNames:
         description: |
           List of all DNS names an endpoint has on a specific network. This
