@@ -70,6 +70,8 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 			}
 		}
 
+		// TODO: Options for which artifacts to pull
+
 		// Special case: "pull -a" may send an image name with a
 		// trailing :. This is ugly, but let's not break API
 		// compatibility.

@@ -11,6 +11,9 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/pkg/snapshotters"
+	"github.com/containerd/containerd/pkg/transfer"
+	"github.com/containerd/containerd/pkg/transfer/image"
+	"github.com/containerd/containerd/pkg/transfer/registry"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes/docker"
 	cerrdefs "github.com/containerd/errdefs"
@@ -71,7 +74,87 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 	return nil
 }
 
+type authConfigCreds struct {
+	*registrytypes.AuthConfig
+}
+
+func (c authConfigCreds) GetCredentials(ctx context.Context, ref, host string) (registry.Credentials, error) {
+	if host == c.ServerAddress {
+		if c.RegistryToken != "" {
+			return registry.Credentials{
+				Host:   c.ServerAddress,
+				Header: fmt.Sprintf("Bearer %s", c.RegistryToken),
+			}, nil
+		}
+		if c.IdentityToken != "" {
+			return registry.Credentials{
+				Host:   c.ServerAddress,
+				Secret: c.IdentityToken,
+			}, nil
+		}
+		if c.Password != "" {
+			return registry.Credentials{
+				Host:     c.ServerAddress,
+				Username: c.Username,
+				Secret:   c.Password,
+			}, nil
+		}
+	}
+
+	return registry.Credentials{}, nil
+}
+
+func progressHandler(out progress.Output) transfer.ProgressFunc {
+	return func(p transfer.Progress) {
+		out.WriteProgress(progress.Progress{
+			ID: p.Name,
+			// Message:
+			Action:  p.Event,
+			Current: p.Progress,
+			Total:   p.Total,
+			// Aux: parents?
+			// LastUpdate ?
+		})
+	}
+}
+
+func (i *ImageService) pullWithTransfer(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
+	var sopts []image.StoreOpt
+
+	if platform == nil {
+		var p = platforms.DefaultSpec()
+		platform = &p
+
+	}
+	// TODO: If sync, pull with all platforms
+	//sopts = append(sopts, image.WithPlatforms(*platform))
+
+	// Set unpack configuration
+	sopts = append(sopts, image.WithUnpack(*platform, i.snapshotter))
+
+	// TODO: Support pull for all platforms but unpack for only one?
+
+	// TODO: Support unpack for all platforms..?
+	// Pass in a *?
+
+	//sopts = append(sopts, image.WithAllMetadata)
+
+	//opts := []registry.Opt{registry.WithCredentials(ch), registry.WithHostDir("/etc/docker/hosts.d")}
+	// TODO: Interface improved in 2.0
+	reg := registry.NewOCIRegistry(ref.String(), metaHeaders, authConfigCreds{authConfig})
+	is := image.NewStore(ref.String(), sopts...)
+
+	pf := progressHandler(out)
+
+	return i.transfer.Transfer(ctx, reg, is, transfer.WithProgress(pf))
+}
+
 func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
+	// IF sync option, use transfer service
+	if err := i.pullWithTransfer(ctx, ref, platform, metaHeaders, authConfig, out); !cerrdefs.IsNotImplemented(err) {
+		return err
+	}
+
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.Format(*platform)))

@@ -331,7 +331,11 @@ github.com/containerd/containerd/pkg/shutdown
 github.com/containerd/containerd/pkg/snapshotters
 github.com/containerd/containerd/pkg/streaming
 github.com/containerd/containerd/pkg/transfer
+github.com/containerd/containerd/pkg/transfer/image
+github.com/containerd/containerd/pkg/transfer/local
+github.com/containerd/containerd/pkg/transfer/plugins
 github.com/containerd/containerd/pkg/transfer/proxy
+github.com/containerd/containerd/pkg/transfer/registry
 github.com/containerd/containerd/pkg/transfer/streaming
 github.com/containerd/containerd/pkg/ttrpcutil
 github.com/containerd/containerd/pkg/unpack
