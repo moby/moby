@@ -2,6 +2,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
@@ -24,7 +25,9 @@ func (daemon *Daemon) initializeCreatedTask(ctx context.Context, tsk types.Task,
 			if err != nil {
 				return errdefs.System(err)
 			}
-			return sb.FinishConfig(ctx)
+			if err := sb.SetKey(ctx, fmt.Sprintf("/proc/%d/ns/net", tsk.Pid())); err != nil {
+				return errdefs.System(err)
+			}
 		}
 	}
 	return nil
