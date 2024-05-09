@@ -495,11 +495,7 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 		return nil
 	}
 
-	updateSettings := false
-	if len(ctr.NetworkSettings.Networks) == 0 {
-		daemon.updateContainerNetworkSettings(ctr, nil)
-		updateSettings = true
-	}
+	daemon.updateContainerNetworkSettings(ctr, nil)
 
 	// always connect default network first since only default
 	// network mode support link and we need do some setting
@@ -508,7 +504,7 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 	defaultNetName := network.DefaultNetwork
 	if nConf, ok := ctr.NetworkSettings.Networks[defaultNetName]; ok {
 		cleanOperationalData(nConf)
-		if err := daemon.connectToNetwork(ctx, cfg, ctr, defaultNetName, nConf, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(ctx, cfg, ctr, defaultNetName, nConf); err != nil {
 			return err
 		}
 	}
@@ -525,7 +521,7 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 
 	for netName, epConf := range networks {
 		cleanOperationalData(epConf)
-		if err := daemon.connectToNetwork(ctx, cfg, ctr, netName, epConf, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(ctx, cfg, ctr, netName, epConf); err != nil {
 			return err
 		}
 	}
@@ -655,7 +651,7 @@ func cleanOperationalData(es *network.EndpointSettings) {
 	}
 }
 
-func (daemon *Daemon) updateNetworkConfig(ctr *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings, updateSettings bool) error {
+func (daemon *Daemon) updateNetworkConfig(ctr *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings) error {
 	// Set up DNS names for a user defined network, and for the default 'nat'
 	// network on Windows (IsBridge() returns true for nat).
 	if containertypes.NetworkMode(n.Name()).IsUserDefined() ||
@@ -667,12 +663,7 @@ func (daemon *Daemon) updateNetworkConfig(ctr *container.Container, n *libnetwor
 		return errdefs.InvalidParameter(err)
 	}
 
-	if updateSettings {
-		if err := daemon.updateNetworkSettings(ctr, n, endpointConfig); err != nil {
-			return err
-		}
-	}
-	return nil
+	return daemon.updateNetworkSettings(ctr, n, endpointConfig)
 }
 
 // buildEndpointDNSNames constructs the list of DNSNames that should be assigned to a given endpoint. The order within
@@ -698,7 +689,7 @@ func buildEndpointDNSNames(ctr *container.Container, aliases []string) []string 
 	return sliceutil.Dedup(dnsNames)
 }
 
-func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, ctr *container.Container, idOrName string, endpointConfig *network.EndpointSettings, updateSettings bool) (retErr error) {
+func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, ctr *container.Container, idOrName string, endpointConfig *network.EndpointSettings) (retErr error) {
 	containerName := strings.TrimPrefix(ctr.Name, "/")
 	ctx, span := otel.Tracer("").Start(ctx, "daemon.connectToNetwork", trace.WithAttributes(
 		attribute.String("container.ID", ctr.ID),
@@ -749,7 +740,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 		}
 	}
 
-	if err := daemon.updateNetworkConfig(ctr, n, endpointConfig.EndpointSettings, updateSettings); err != nil {
+	if err := daemon.updateNetworkConfig(ctr, n, endpointConfig.EndpointSettings); err != nil {
 		return err
 	}
 
@@ -1070,7 +1061,7 @@ func (daemon *Daemon) ConnectToNetwork(ctx context.Context, ctr *container.Conta
 
 		n, err := daemon.FindNetwork(idOrName)
 		if err == nil && n != nil {
-			if err := daemon.updateNetworkConfig(ctr, n, endpointConfig, true); err != nil {
+			if err := daemon.updateNetworkConfig(ctr, n, endpointConfig); err != nil {
 				return err
 			}
 		} else {
@@ -1082,7 +1073,7 @@ func (daemon *Daemon) ConnectToNetwork(ctx context.Context, ctr *container.Conta
 		epc := &network.EndpointSettings{
 			EndpointSettings: endpointConfig,
 		}
-		if err := daemon.connectToNetwork(ctx, &daemon.config().Config, ctr, idOrName, epc, true); err != nil {
+		if err := daemon.connectToNetwork(ctx, &daemon.config().Config, ctr, idOrName, epc); err != nil {
 			return err
 		}
 	}
