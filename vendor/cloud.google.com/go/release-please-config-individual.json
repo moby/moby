@@ -5,6 +5,9 @@
   "separate-pull-requests": true,
   "tag-separator": "/",
   "packages": {
+    "auth": {
+      "component": "auth"
+    },
     "bigquery": {
       "component": "bigquery"
     },
