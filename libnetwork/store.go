@@ -46,9 +46,6 @@ func (c *Controller) getNetworks() ([]*Network, error) {
 	var nl []*Network
 
 	store := c.getStore()
-	if store == nil {
-		return nil, nil
-	}
 
 	kvol, err := store.List(&Network{ctrlr: c})
 	if err != nil && err != datastore.ErrKeyNotFound {
@@ -147,9 +144,6 @@ func (n *Network) getEndpointsFromStore() ([]*Endpoint, error) {
 
 func (c *Controller) updateToStore(kvObject datastore.KVObject) error {
 	cs := c.getStore()
-	if cs == nil {
-		return fmt.Errorf("datastore is not initialized")
-	}
 
 	if err := cs.PutObjectAtomic(kvObject); err != nil {
 		if err == datastore.ErrKeyModified {
@@ -163,9 +157,6 @@ func (c *Controller) updateToStore(kvObject datastore.KVObject) error {
 
 func (c *Controller) deleteFromStore(kvObject datastore.KVObject) error {
 	cs := c.getStore()
-	if cs == nil {
-		return fmt.Errorf("datastore is not initialized")
-	}
 
 retry:
 	if err := cs.DeleteObjectAtomic(kvObject); err != nil {

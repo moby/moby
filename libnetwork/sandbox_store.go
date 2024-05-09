@@ -174,9 +174,6 @@ func (sb *Sandbox) storeDelete() error {
 
 func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) error {
 	store := c.getStore()
-	if store == nil {
-		return fmt.Errorf("could not find local scope store")
-	}
 
 	sandboxStates, err := store.List(&sbState{c: c})
 	if err != nil {
