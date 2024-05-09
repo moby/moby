@@ -175,7 +175,8 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 type Network struct {
 	ctrlr            *Controller
 	name             string
-	networkType      string // networkType is the name of the netdriver used by this network
+	networkType      string               // networkType is the name of the netdriver used by this network
+	driverCaps       driverapi.Capability // driverCaps is a list of capabilities the associated networkType has.
 	id               string
 	created          time.Time
 	scope            string // network data scope
@@ -890,46 +891,31 @@ func NetworkDeleteOptionRemoveLB(p *networkDeleteParams) {
 	p.rmLBEndpoint = true
 }
 
-func (n *Network) resolveDriver(name string, load bool) (driverapi.Driver, driverapi.Capability, error) {
-	c := n.getController()
-
-	// Check if a driver for the specified network type is available
-	d, capabilities := c.drvRegistry.Driver(name)
-	if d == nil {
-		if load {
-			err := c.loadDriver(name)
-			if err != nil {
-				return nil, driverapi.Capability{}, err
-			}
-
-			d, capabilities = c.drvRegistry.Driver(name)
-			if d == nil {
-				return nil, driverapi.Capability{}, fmt.Errorf("could not resolve driver %s in registry", name)
-			}
-		} else {
-			// don't fail if driver loading is not required
-			return nil, driverapi.Capability{}, nil
-		}
-	}
-
-	return d, capabilities, nil
-}
-
 func (n *Network) driverIsMultihost() bool {
-	_, capabilities, err := n.resolveDriver(n.networkType, true)
+	_, err := n.driver(true)
 	if err != nil {
 		return false
 	}
-	return capabilities.ConnectivityScope == scope.Global
+	return n.driverCaps.ConnectivityScope == scope.Global
 }
 
+// driver returns the network [driverapi.Driver] used by this Network. If load
+// is false and the appropriate driver can't be found, it will return a nil
+// driver and no error.
 func (n *Network) driver(load bool) (driverapi.Driver, error) {
-	d, capabilities, err := n.resolveDriver(n.networkType, load)
+	d, capabilities, err := n.ctrlr.resolveDriver(n.networkType, load)
 	if err != nil {
 		return nil, err
 	}
 
 	n.mu.Lock()
+	// n.driverCaps is initialized here for two reasons: 1. resolveDriver is
+	// called early by NewNetwork; 2. networks restored after introducing this
+	// new field need to have it set.
+	// TODO(aker): move this to NewNetwork once the next MCR LTS is published.
+	if n.driverCaps == (driverapi.Capability{}) {
+		n.driverCaps = capabilities
+	}
 	// If load is not required, driver, cap and err may all be nil
 	if n.scope == "" {
 		n.scope = capabilities.DataScope
@@ -1108,7 +1094,7 @@ func (n *Network) deleteNetwork() error {
 }
 
 func (n *Network) addEndpoint(ep *Endpoint) error {
-	d, err := n.driver(true)
+	d, err := ep.driver(true)
 	if err != nil {
 		return fmt.Errorf("failed to add endpoint: %v", err)
 	}
@@ -1159,6 +1145,17 @@ func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpo
 		return nil, err
 	}
 	n = ep.network
+
+	if !n.hasEndpointCapability() {
+		if err = n.getController().updateToStore(ep); err != nil {
+			return nil, err
+		}
+		// Increment endpoint count to indicate completion of endpoint creation.
+		if err = n.getEpCnt().IncEndpointCnt(); err != nil {
+			return nil, err
+		}
+		return ep, nil
+	}
 
 	ep.processOptions(options...)
 

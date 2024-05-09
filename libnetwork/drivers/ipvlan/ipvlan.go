@@ -12,6 +12,9 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
+// ipvlan driver must implement EndpointDriver API.
+var _ driverapi.EndpointDriver = (*driver)(nil)
+
 const (
 	containerVethPrefix = "eth"
 	vethPrefix          = "veth"
@@ -72,6 +75,7 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
 		DataScope:         scope.Local,
 		ConnectivityScope: scope.Global,
+		EndpointDriver:    true,
 	})
 }
 

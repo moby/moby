@@ -28,6 +28,9 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+// bridge driver must implement EndpointDriver API.
+var _ driverapi.EndpointDriver = (*driver)(nil)
+
 const (
 	NetworkType                = "bridge"
 	vethPrefix                 = "veth"
@@ -165,6 +168,7 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
 		DataScope:         scope.Local,
 		ConnectivityScope: scope.Local,
+		EndpointDriver:    true,
 	})
 }
 

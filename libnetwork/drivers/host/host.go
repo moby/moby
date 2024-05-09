@@ -54,28 +54,6 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return types.ForbiddenErrorf("network of type %q cannot be deleted", NetworkType)
 }
 
-func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
-	return nil
-}
-
-func (d *driver) DeleteEndpoint(nid, eid string) error {
-	return nil
-}
-
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
-	return make(map[string]interface{}), nil
-}
-
-// Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
-	return nil
-}
-
-// Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
-	return nil
-}
-
 func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
 	return nil
 }
