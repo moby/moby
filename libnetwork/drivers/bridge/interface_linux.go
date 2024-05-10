@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
@@ -71,90 +70,70 @@ func (i *bridgeInterface) addresses(family int) ([]netlink.Addr, error) {
 	return addrs, nil
 }
 
-func getRequiredIPv6Addrs(config *networkConfiguration) (requiredAddrs map[netip.Addr]netip.Prefix, err error) {
-	requiredAddrs = make(map[netip.Addr]netip.Prefix)
-
-	if os.Getenv("DOCKER_BRIDGE_PRESERVE_KERNEL_LL") != "1" {
-		// Always give the bridge 'fe80::1' - every interface is required to have an
-		// address in 'fe80::/64'. Linux may assign an address, but we'll replace it with
-		// 'fe80::1'. Then, if the configured prefix is 'fe80::/64', the IPAM pool
-		// assigned address will not be a second address in the LL subnet.
-		ra, ok := netiputil.ToPrefix(bridgeIPv6)
-		if !ok {
-			err = fmt.Errorf("Failed to convert Link-Local IPv6 address to netip.Prefix")
-			return nil, err
-		}
-		requiredAddrs[ra.Addr()] = ra
-	}
-
-	ra, ok := netiputil.ToPrefix(config.AddressIPv6)
-	if !ok {
-		err = fmt.Errorf("failed to convert bridge IPv6 address '%s' to netip.Prefix", config.AddressIPv6.String())
-		return nil, err
-	}
-	requiredAddrs[ra.Addr()] = ra
-
-	return requiredAddrs, nil
-}
-
 func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) error {
+	// Remember the configured addresses.
+	i.bridgeIPv6 = config.AddressIPv6
+	i.gatewayIPv6 = config.AddressIPv6.IP
+
+	addrPrefix, ok := netiputil.ToPrefix(config.AddressIPv6)
+	if !ok {
+		return errdefs.System(
+			fmt.Errorf("failed to convert bridge IPv6 address '%s' to netip.Prefix",
+				config.AddressIPv6.String()))
+	}
+
 	// Get the IPv6 addresses currently assigned to the bridge, if any.
 	existingAddrs, err := i.addresses(netlink.FAMILY_V6)
 	if err != nil {
 		return errdefs.System(err)
 	}
-
-	// Get the list of required IPv6 addresses for this bridge.
-	var requiredAddrs map[netip.Addr]netip.Prefix
-	requiredAddrs, err = getRequiredIPv6Addrs(config)
-	if err != nil {
-		return errdefs.System(err)
-	}
-	i.bridgeIPv6 = config.AddressIPv6
-	i.gatewayIPv6 = config.AddressIPv6.IP
-
 	// Remove addresses that aren't required.
 	for _, existingAddr := range existingAddrs {
 		ea, ok := netip.AddrFromSlice(existingAddr.IP)
 		if !ok {
-			return errdefs.System(fmt.Errorf("Failed to convert IPv6 address '%s' to netip.Addr", config.AddressIPv6))
+			return errdefs.System(
+				fmt.Errorf("Failed to convert IPv6 address '%s' to netip.Addr", config.AddressIPv6))
 		}
-		// Optionally, avoid deleting the kernel-assigned link local address.
-		// (Don't delete fe80::1 either - if it was previously assigned to the bridge, and the
-		// kernel_ll address was deleted, the bridge won't get a new kernel_ll address.)
-		if os.Getenv("DOCKER_BRIDGE_PRESERVE_KERNEL_LL") == "1" {
-			if p, _ := ea.Prefix(64); p == linkLocalPrefix {
-				continue
-			}
+		// Don't delete the kernel-assigned link local address (or fe80::1 - if it was
+		// assigned to the bridge by an older version of the daemon that deleted the
+		// kernel_ll address, the bridge won't get a new kernel_ll address.) But, do
+		// delete unexpected link-local addresses (fe80::/10) that aren't in fe80::/64,
+		// those have been IPAM-assigned.
+		if p, _ := ea.Prefix(64); p == linkLocalPrefix {
+			continue
+		}
+		// Don't delete multicast addresses as they're never added by the daemon.
+		if ea.IsMulticast() {
+			continue
 		}
 		// Ignore the prefix length when comparing addresses, it's informational
 		// (RFC-5942 section 4), and removing/re-adding an address that's still valid
 		// would disrupt traffic on live-restore.
-		if _, required := requiredAddrs[ea]; !required {
+		if ea != addrPrefix.Addr() {
 			err := i.nlh.AddrDel(i.Link, &existingAddr) //#nosec G601 -- Memory aliasing is not an issue in practice as the &existingAddr pointer is not retained by the callee after the AddrDel() call returns.
 			if err != nil {
-				log.G(context.TODO()).WithFields(log.Fields{"error": err, "address": existingAddr.IPNet}).Warnf("Failed to remove residual IPv6 address from bridge")
+				log.G(context.TODO()).WithFields(log.Fields{
+					"error":   err,
+					"address": existingAddr.IPNet},
+				).Warnf("Failed to remove residual IPv6 address from bridge")
 			}
 		}
 	}
-	// Add or update required addresses.
-	for _, addrPrefix := range requiredAddrs {
-		// Using AddrReplace(), rather than AddrAdd(). When the subnet is changed for an
-		// existing bridge in a way that doesn't affect the bridge's assigned address,
-		// the old address has not been removed at this point - because that would be
-		// service-affecting for a running container.
-		//
-		// But if, for example, 'fixed-cidr-v6' is changed from '2000:dbe::/64' to
-		// '2000:dbe::/80', the default bridge will still be assigned address
-		// '2000:dbe::1'. In the output of 'ip a', the prefix length is displayed - and
-		// the user is likely to expect to see it updated from '64' to '80'.
-		// Unfortunately, 'netlink.AddrReplace()' ('RTM_NEWADDR' with 'NLM_F_REPLACE')
-		// doesn't update the prefix length. This is a cosmetic problem, the prefix
-		// length of an assigned address is not used to determine whether an address is
-		// "on-link" (RFC-5942).
-		if err := i.nlh.AddrReplace(i.Link, &netlink.Addr{IPNet: netiputil.ToIPNet(addrPrefix)}); err != nil {
-			return errdefs.System(fmt.Errorf("failed to add IPv6 address %s to bridge: %v", i.bridgeIPv6, err))
-		}
+	// Using AddrReplace(), rather than AddrAdd(). When the subnet is changed for an
+	// existing bridge in a way that doesn't affect the bridge's assigned address,
+	// the old address has not been removed at this point - because that would be
+	// service-affecting for a running container.
+	//
+	// But if, for example, 'fixed-cidr-v6' is changed from '2000:dbe::/64' to
+	// '2000:dbe::/80', the default bridge will still be assigned address
+	// '2000:dbe::1'. In the output of 'ip a', the prefix length is displayed - and
+	// the user is likely to expect to see it updated from '64' to '80'.
+	// Unfortunately, 'netlink.AddrReplace()' ('RTM_NEWADDR' with 'NLM_F_REPLACE')
+	// doesn't update the prefix length. This is a cosmetic problem, the prefix
+	// length of an assigned address is not used to determine whether an address is
+	// "on-link" (RFC-5942).
+	if err := i.nlh.AddrReplace(i.Link, &netlink.Addr{IPNet: netiputil.ToIPNet(addrPrefix)}); err != nil {
+		return errdefs.System(fmt.Errorf("failed to add IPv6 address %s to bridge: %v", i.bridgeIPv6, err))
 	}
 	return nil
 }

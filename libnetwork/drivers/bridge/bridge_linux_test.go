@@ -1012,39 +1012,44 @@ func TestValidateFixedCIDRV6(t *testing.T) {
 			// Overlapping with the standard LL prefix isn't allowed.
 			doc:         "overlapping link-local prefix fe80::/63",
 			input:       "fe80::/63",
-			expectedErr: "clash with the Link-Local prefix 'fe80::/64'",
+			expectedErr: "invalid fixed-cidr-v6: 'fe80::/63' clashes with the Link-Local prefix 'fe80::/64'",
 		},
 		{
 			// Overlapping with the standard LL prefix isn't allowed.
 			doc:         "overlapping link-local subnet fe80::/65",
 			input:       "fe80::/65",
-			expectedErr: "clash with the Link-Local prefix 'fe80::/64'",
+			expectedErr: "invalid fixed-cidr-v6: 'fe80::/65' clashes with the Link-Local prefix 'fe80::/64'",
 		},
 		{
 			// The address has to be valid IPv6 subnet.
 			doc:         "invalid IPv6 subnet",
 			input:       "2000:db8::",
-			expectedErr: "invalid CIDR address: 2000:db8::",
+			expectedErr: "invalid fixed-cidr-v6: netip.ParsePrefix(\"2000:db8::\"): no '/'",
 		},
 		{
 			doc:         "non-IPv6 subnet",
 			input:       "10.3.4.5/24",
-			expectedErr: "fixed-cidr-v6 is not an IPv6 subnet",
+			expectedErr: "invalid fixed-cidr-v6: '10.3.4.5/24' is not a valid IPv6 subnet",
 		},
 		{
 			doc:         "IPv4-mapped subnet 1",
 			input:       "::ffff:10.2.4.0/24",
-			expectedErr: "fixed-cidr-v6 is not an IPv6 subnet",
+			expectedErr: "invalid fixed-cidr-v6: '::ffff:10.2.4.0/24' is not a valid IPv6 subnet",
 		},
 		{
 			doc:         "IPv4-mapped subnet 2",
 			input:       "::ffff:a01:203/24",
-			expectedErr: "fixed-cidr-v6 is not an IPv6 subnet",
+			expectedErr: "invalid fixed-cidr-v6: '::ffff:10.1.2.3/24' is not a valid IPv6 subnet",
 		},
 		{
 			doc:         "invalid subnet",
 			input:       "nonsense",
-			expectedErr: "invalid CIDR address: nonsense",
+			expectedErr: "invalid fixed-cidr-v6: netip.ParsePrefix(\"nonsense\"): no '/'",
+		},
+		{
+			doc:         "multicast IPv6 subnet",
+			input:       "ff05::/64",
+			expectedErr: "invalid fixed-cidr-v6: multicast subnet 'ff05::/64' is not allowed",
 		},
 	}
 	for _, tc := range tests {

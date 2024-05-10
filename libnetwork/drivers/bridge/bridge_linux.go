@@ -1,10 +1,10 @@
 package bridge
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"os/exec"
 	"strconv"
@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
@@ -188,9 +189,15 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 // added to the interface's Prefix List (RFC-5942), differing prefix lengths
 // would be confusing and have been disallowed by earlier implementations of
 // bridge address assignment.
-func validateIPv6Subnet(addr *net.IPNet) error {
-	if addr != nil && bridgeIPv6.Contains(addr.IP) && !bytes.Equal(bridgeIPv6.Mask, addr.Mask) {
-		return errdefs.InvalidParameter(errors.New("clash with the Link-Local prefix 'fe80::/64'"))
+func validateIPv6Subnet(addr netip.Prefix) error {
+	if !addr.Addr().Is6() || addr.Addr().Is4In6() {
+		return fmt.Errorf("'%s' is not a valid IPv6 subnet", addr)
+	}
+	if addr.Addr().IsMulticast() {
+		return fmt.Errorf("multicast subnet '%s' is not allowed", addr)
+	}
+	if addr.Masked() != linkLocalPrefix && linkLocalPrefix.Overlaps(addr) {
+		return fmt.Errorf("'%s' clashes with the Link-Local prefix 'fe80::/64'", addr)
 	}
 	return nil
 }
@@ -201,14 +208,11 @@ func ValidateFixedCIDRV6(val string) error {
 	if val == "" {
 		return nil
 	}
-	ip, ipNet, err := net.ParseCIDR(val)
-	if err != nil {
-		return errdefs.InvalidParameter(err)
+	prefix, err := netip.ParsePrefix(val)
+	if err == nil {
+		err = validateIPv6Subnet(prefix)
 	}
-	if ip.To4() != nil {
-		return errdefs.InvalidParameter(errors.New("fixed-cidr-v6 is not an IPv6 subnet"))
-	}
-	return validateIPv6Subnet(ipNet)
+	return errdefs.InvalidParameter(errors.Wrap(err, "invalid fixed-cidr-v6"))
 }
 
 // Validate performs a static validation on the network configuration parameters.
@@ -234,8 +238,12 @@ func (c *networkConfiguration) Validate() error {
 			return errdefs.System(errors.New("no IPv6 address was allocated for the bridge"))
 		}
 		// AddressIPv6 must be IPv6, and not overlap with the LL subnet prefix.
-		if err := validateIPv6Subnet(c.AddressIPv6); err != nil {
-			return err
+		addr, ok := netiputil.ToPrefix(c.AddressIPv6)
+		if !ok {
+			return errdefs.InvalidParameter(fmt.Errorf("invalid IPv6 address '%s'", c.AddressIPv6))
+		}
+		if err := validateIPv6Subnet(addr); err != nil {
+			return errdefs.InvalidParameter(err)
 		}
 		// If a default gw is specified, it must belong to AddressIPv6's subnet
 		if c.DefaultGatewayIPv6 != nil && !c.AddressIPv6.Contains(c.DefaultGatewayIPv6) {
