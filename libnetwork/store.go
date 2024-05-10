@@ -10,19 +10,6 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 )
 
-func (c *Controller) initStores() error {
-	if c.cfg == nil {
-		return nil
-	}
-	var err error
-	c.store, err = datastore.New(c.cfg.Scope)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (c *Controller) closeStores() {
 	if store := c.store; store != nil {
 		store.Close()
