@@ -1089,7 +1089,7 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 
 // Stop stops the network controller.
 func (c *Controller) Stop() {
-	c.closeStores()
+	c.store.Close()
 	c.stopExternalKeyListener()
 	osl.GC()
 }

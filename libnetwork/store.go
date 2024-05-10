@@ -10,12 +10,6 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 )
 
-func (c *Controller) closeStores() {
-	if store := c.store; store != nil {
-		store.Close()
-	}
-}
-
 func (c *Controller) getStore() *datastore.Store {
 	return c.store
 }
