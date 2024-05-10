@@ -41,7 +41,7 @@ func TestNoPersist(t *testing.T) {
 	defer testController.Stop()
 
 	nwKVObject := &Network{id: nw.ID()}
-	err = testController.getStore().GetObject(nwKVObject)
+	err = testController.store.GetObject(nwKVObject)
 	if !errors.Is(err, store.ErrKeyNotFound) {
 		t.Errorf("Expected %q error when retrieving network from store, got: %q", store.ErrKeyNotFound, err)
 	}
@@ -50,7 +50,7 @@ func TestNoPersist(t *testing.T) {
 	}
 
 	epKVObject := &Endpoint{network: nw, id: ep.ID()}
-	err = testController.getStore().GetObject(epKVObject)
+	err = testController.store.GetObject(epKVObject)
 	if !errors.Is(err, store.ErrKeyNotFound) {
 		t.Errorf("Expected %v error when retrieving endpoint from store, got: %v", store.ErrKeyNotFound, err)
 	}

@@ -37,7 +37,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	}
 
 	nwKVObject := &Network{id: nw.ID()}
-	err = testController.getStore().GetObject(nwKVObject)
+	err = testController.store.GetObject(nwKVObject)
 	if err != nil {
 		t.Errorf("Error when retrieving network key from store: %v", err)
 	}
@@ -46,7 +46,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	}
 
 	epKVObject := &Endpoint{network: nw, id: ep.ID()}
-	err = testController.getStore().GetObject(epKVObject)
+	err = testController.store.GetObject(epKVObject)
 	if err != nil {
 		t.Errorf("Error when retrieving Endpoint key from store: %v", err)
 	}

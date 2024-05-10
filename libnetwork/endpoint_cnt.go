@@ -105,15 +105,15 @@ func (ec *endpointCnt) EndpointCnt() uint64 {
 }
 
 func (ec *endpointCnt) updateStore() error {
-	store := ec.n.getController().getStore()
+	c := ec.n.getController()
 	// make a copy of count and n to avoid being overwritten by store.GetObject
 	count := ec.EndpointCnt()
 	n := ec.n
 	for {
-		if err := ec.n.getController().updateToStore(ec); err == nil || err != datastore.ErrKeyModified {
+		if err := c.updateToStore(ec); err == nil || err != datastore.ErrKeyModified {
 			return err
 		}
-		if err := store.GetObject(ec); err != nil {
+		if err := c.store.GetObject(ec); err != nil {
 			return fmt.Errorf("could not update the kvobject to latest on endpoint count update: %v", err)
 		}
 		ec.Lock()
@@ -131,7 +131,7 @@ func (ec *endpointCnt) setCnt(cnt uint64) error {
 }
 
 func (ec *endpointCnt) atomicIncDecEpCnt(inc bool) error {
-	store := ec.n.getController().getStore()
+	store := ec.n.getController().store
 
 	tmp := &endpointCnt{n: ec.n}
 	if err := store.GetObject(tmp); err != nil {
