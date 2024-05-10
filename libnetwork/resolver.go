@@ -486,17 +486,15 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 		return
 	}
 
-	if r.proxyDNS.Load() {
-		// If the user sets ndots > 0 explicitly and the query is
-		// in the root domain don't forward it out. We will return
-		// failure and let the client retry with the search domain
-		// attached.
-		if (queryType == dns.TypeA || queryType == dns.TypeAAAA) && r.backend.NdotsSet() &&
-			!strings.Contains(strings.TrimSuffix(queryName, "."), ".") {
-			resp = createRespMsg(query)
-		} else {
-			resp = r.forwardExtDNS(ctx, w.LocalAddr().Network(), w.RemoteAddr(), query)
-		}
+	// If the user sets ndots > 0 explicitly and the query is
+	// in the root domain don't forward it out. We will return
+	// failure and let the client retry with the search domain
+	// attached.
+	if (queryType == dns.TypeA || queryType == dns.TypeAAAA) && r.backend.NdotsSet() &&
+		!strings.Contains(strings.TrimSuffix(queryName, "."), ".") {
+		resp = createRespMsg(query)
+	} else {
+		resp = r.forwardExtDNS(ctx, w.LocalAddr().Network(), w.RemoteAddr(), query)
 	}
 
 	if resp == nil {
@@ -541,9 +539,17 @@ func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, remoteAddr n
 	ctx, span := otel.Tracer("").Start(ctx, "resolver.forwardExtDNS")
 	defer span.End()
 
+	proxyDNS := r.proxyDNS.Load()
 	for _, extDNS := range r.extDNS(netiputil.AddrPortFromNet(remoteAddr)) {
 		if extDNS.IPStr == "" {
 			break
+		}
+		// If proxyDNS is false, do not forward the request from the host's namespace
+		// (don't access an external DNS server from an internal network). But, it is
+		// safe to make the request from the container's network namespace - it'll fail
+		// if the DNS server is not accessible, but the server may be on-net.
+		if !proxyDNS && extDNS.HostLoopback {
+			continue
 		}
 
 		// limits the number of outstanding concurrent queries.

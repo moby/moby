@@ -2,11 +2,14 @@ package networking
 
 import (
 	"context"
+	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil/daemon"
@@ -132,6 +135,59 @@ func TestInternalNetworkDNS(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(res.ExitCode, 0))
 	assert.Check(t, is.Contains(res.Stdout(), network.DNSRespAddr))
+}
+
+// Check that '--dns' can be used to name a server inside a '--internal' network.
+// Regression test for https://github.com/moby/moby/issues/47822
+func TestInternalNetworkLocalDNS(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "No internal networks on Windows")
+	skip.If(t, testEnv.IsRootless, "Can't write an accessible dnsd.conf in rootless mode")
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	intNetName := "intnet"
+	network.CreateNoError(ctx, t, c, intNetName,
+		network.WithDriver("bridge"),
+		network.WithInternal(),
+	)
+	defer network.RemoveNoError(ctx, t, c, intNetName)
+
+	// Write a config file for busybox's dnsd.
+	td := t.TempDir()
+	fname := path.Join(td, "dnsd.conf")
+	err := os.WriteFile(fname, []byte("foo.example 192.0.2.42\n"), 0644)
+	assert.NilError(t, err)
+
+	// Start a DNS server on the internal network.
+	serverId := container.Run(ctx, t, c,
+		container.WithNetworkMode(intNetName),
+		container.WithMount(mount.Mount{
+			Type:   mount.TypeBind,
+			Source: fname,
+			Target: "/etc/dnsd.conf",
+		}),
+		container.WithCmd("dnsd"),
+	)
+	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
+
+	// Get the DNS server's address.
+	inspect := container.Inspect(ctx, t, c, serverId)
+	serverIP := inspect.NetworkSettings.Networks[intNetName].IPAddress
+
+	// Query the internal network's DNS server (via the daemon's internal DNS server).
+	res := container.RunAttach(ctx, t, c,
+		container.WithNetworkMode(intNetName),
+		container.WithDNS([]string{serverIP}),
+		container.WithCmd("nslookup", "-type=A", "foo.example"),
+	)
+	defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+	assert.Check(t, is.Contains(res.Stdout.String(), "192.0.2.42"))
 }
 
 // TestNslookupWindows checks that nslookup gets results from external DNS.
