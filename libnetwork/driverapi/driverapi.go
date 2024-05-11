@@ -56,7 +56,7 @@ type Driver interface {
 
 	// ProgramExternalConnectivity invokes the driver method which does the necessary
 	// programming to allow the external connectivity dictated by the passed options
-	ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error
+	ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}) error
 
 	// RevokeExternalConnectivity asks the driver to remove any external connectivity
 	// programming that was done so far

@@ -689,7 +689,7 @@ func (b *badDriver) IsBuiltIn() bool {
 	return false
 }
 
-func (b *badDriver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
+func (b *badDriver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
 	return nil
 }
 

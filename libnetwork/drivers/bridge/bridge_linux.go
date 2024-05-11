@@ -1391,7 +1391,12 @@ func (d *driver) Leave(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
+func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.bridge.ProgramExternalConnectivity", trace.WithAttributes(
+		attribute.String("nid", nid),
+		attribute.String("eid", eid)))
+	defer span.End()
+
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -1427,7 +1432,7 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 	defer func() {
 		if err != nil {
 			if e := network.releasePorts(endpoint); e != nil {
-				log.G(context.TODO()).Errorf("Failed to release ports allocated for the bridge endpoint %s on failure %v because of %v",
+				log.G(ctx).Errorf("Failed to release ports allocated for the bridge endpoint %s on failure %v because of %v",
 					eid, err, e)
 			}
 			endpoint.portMapping = nil
