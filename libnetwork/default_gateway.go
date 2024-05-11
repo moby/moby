@@ -85,7 +85,7 @@ func (sb *Sandbox) setupDefaultGW() error {
 		}
 	}()
 
-	if err = newEp.sbJoin(sb); err != nil {
+	if err = newEp.sbJoin(context.TODO(), sb); err != nil {
 		return fmt.Errorf("container %s: endpoint join on GW Network failed: %v", sb.containerID, err)
 	}
 

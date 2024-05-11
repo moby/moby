@@ -16,7 +16,7 @@ func (sb *Sandbox) restoreHostsPath() {}
 
 func (sb *Sandbox) restoreResolvConfPath() {}
 
-func (sb *Sandbox) updateHostsFile(ifaceIP []string) error {
+func (sb *Sandbox) updateHostsFile(_ context.Context, ifaceIP []string) error {
 	return nil
 }
 

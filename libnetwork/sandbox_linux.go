@@ -10,6 +10,9 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Linux-specific container configuration flags.
@@ -165,12 +168,12 @@ func (sb *Sandbox) SetKey(basePath string) error {
 	// determined yet, as sysctls haven't been applied by the runtime. Calling
 	// FinishInit after the container task has been created, when sysctls have been
 	// applied will regenerate these files.
-	if err := sb.finishInitDNS(); err != nil {
+	if err := sb.finishInitDNS(context.TODO()); err != nil {
 		return err
 	}
 
 	for _, ep := range sb.Endpoints() {
-		if err = sb.populateNetworkResources(ep); err != nil {
+		if err = sb.populateNetworkResources(context.TODO(), ep); err != nil {
 			return err
 		}
 	}
@@ -181,7 +184,7 @@ func (sb *Sandbox) SetKey(basePath string) error {
 // FinishConfig completes Sandbox configuration. If called after the container task has been
 // created, and sysctl settings applied, the configuration will be based on the container's
 // IPv6 support.
-func (sb *Sandbox) FinishConfig() error {
+func (sb *Sandbox) FinishConfig(ctx context.Context) error {
 	if sb.config.useDefaultSandBox {
 		return nil
 	}
@@ -196,7 +199,7 @@ func (sb *Sandbox) FinishConfig() error {
 	// If sysctl changes have been made, IPv6 may have been enabled/disabled since last checked.
 	osSbox.RefreshIPv6LoEnabled()
 
-	return sb.finishInitDNS()
+	return sb.finishInitDNS(ctx)
 }
 
 // IPv6 support can always be determined for host networking. For other network
@@ -283,7 +286,11 @@ func (sb *Sandbox) restoreOslSandbox() error {
 	return sb.osSbox.Restore(interfaces, routes, gwep.joinInfo.gw, gwep.joinInfo.gw6)
 }
 
-func (sb *Sandbox) populateNetworkResources(ep *Endpoint) error {
+func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.populateNetworkResources", trace.WithAttributes(
+		attribute.String("endpoint.Name", ep.Name())))
+	defer span.End()
+
 	sb.mu.Lock()
 	if sb.osSbox == nil {
 		sb.mu.Unlock()
@@ -319,7 +326,7 @@ func (sb *Sandbox) populateNetworkResources(ep *Endpoint) error {
 			ifaceOptions = append(ifaceOptions, osl.WithSysctls(sysctls))
 		}
 
-		if err := sb.osSbox.AddInterface(i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
+		if err := sb.osSbox.AddInterface(ctx, i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
 			return fmt.Errorf("failed to add interface %s to sandbox: %v", i.srcName, err)
 		}
 

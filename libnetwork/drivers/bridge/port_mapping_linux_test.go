@@ -58,7 +58,7 @@ func TestPortMappingConfig(t *testing.T) {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())
 	}
 
-	if err = d.Join("dummy", "ep1", "sbox", te, sbOptions); err != nil {
+	if err = d.Join(context.Background(), "dummy", "ep1", "sbox", te, sbOptions); err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
@@ -143,7 +143,7 @@ func TestPortMappingV6Config(t *testing.T) {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())
 	}
 
-	if err = d.Join("dummy", "ep1", "sbox", te, sbOptions); err != nil {
+	if err = d.Join(context.Background(), "dummy", "ep1", "sbox", te, sbOptions); err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 

@@ -49,7 +49,7 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
 
-	err = d.Join("dummy", "ep", "sbox", te, nil)
+	err = d.Join(context.Background(), "dummy", "ep", "sbox", te, nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}

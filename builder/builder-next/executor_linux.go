@@ -126,7 +126,7 @@ func (iface *lnInterface) init(c *libnetwork.Controller, n *libnetwork.Network) 
 		return
 	}
 
-	if err := ep.Join(sbx); err != nil {
+	if err := ep.Join(context.TODO(), sbx); err != nil {
 		iface.err = err
 		return
 	}

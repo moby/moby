@@ -1227,10 +1227,10 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 	}
 
 	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
-		n.updateSvcRecord(ep, true)
+		n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
 		defer func() {
 			if err != nil {
-				n.updateSvcRecord(ep, false)
+				n.updateSvcRecord(context.WithoutCancel(ctx), ep, false)
 			}
 		}()
 	}
@@ -1302,7 +1302,12 @@ func (n *Network) EndpointByID(id string) (*Endpoint, error) {
 }
 
 // updateSvcRecord adds or deletes local DNS records for a given Endpoint.
-func (n *Network) updateSvcRecord(ep *Endpoint, isAdd bool) {
+func (n *Network) updateSvcRecord(ctx context.Context, ep *Endpoint, isAdd bool) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.updateSvcRecord", trace.WithAttributes(
+		attribute.String("ep.name", ep.name),
+		attribute.Bool("isAdd", isAdd)))
+	defer span.End()
+
 	iface := ep.Iface()
 	if iface == nil || iface.Address() == nil {
 		return
@@ -2140,7 +2145,7 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 		}
 	}()
 
-	if err := ep.Join(sb, nil); err != nil {
+	if err := ep.Join(context.TODO(), sb, nil); err != nil {
 		return err
 	}
 

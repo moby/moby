@@ -387,7 +387,7 @@ func TestSRVServiceQuery(t *testing.T) {
 		}
 	}()
 
-	err = ep.Join(sb)
+	err = ep.Join(context.Background(), sb)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -486,7 +486,7 @@ func TestServiceVIPReuse(t *testing.T) {
 		}
 	}()
 
-	err = ep.Join(sb)
+	err = ep.Join(context.Background(), sb)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -673,7 +673,7 @@ func (b *badDriver) EndpointOperInfo(nid, eid string) (map[string]interface{}, e
 	return nil, nil
 }
 
-func (b *badDriver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (b *badDriver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
 	return fmt.Errorf("I will not allow any join")
 }
 

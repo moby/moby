@@ -272,7 +272,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 			if !c.isAgent() {
 				n := ep.getNetwork()
 				if !c.isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
-					n.updateSvcRecord(ep, true)
+					n.updateSvcRecord(context.WithoutCancel(context.TODO()), ep, true)
 				}
 			}
 		}

@@ -49,7 +49,7 @@ type Driver interface {
 	EndpointOperInfo(nid, eid string) (map[string]interface{}, error)
 
 	// Join method is invoked when a Sandbox is attached to an endpoint.
-	Join(nid, eid string, sboxKey string, jinfo JoinInfo, options map[string]interface{}) error
+	Join(ctx context.Context, nid, eid string, sboxKey string, jinfo JoinInfo, options map[string]interface{}) error
 
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
 	Leave(nid, eid string) error

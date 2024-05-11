@@ -51,7 +51,7 @@ func TestDNSIPQuery(t *testing.T) {
 
 	// we need the endpoint only to populate ep_list for the sandbox as part of resolve_name
 	// it is not set as a target for name resolution and does not serve any other purpose
-	err = ep.Join(sb)
+	err = ep.Join(context.Background(), sb)
 	if err != nil {
 		t.Fatal(err)
 	}

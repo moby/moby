@@ -452,7 +452,7 @@ func TestRemoteDriver(t *testing.T) {
 	}
 
 	joinOpts := map[string]interface{}{"foo": "fooValue"}
-	err = d.Join(netID, endID, "sandbox-key", ep, joinOpts)
+	err = d.Join(context.Background(), netID, endID, "sandbox-key", ep, joinOpts)
 	if err != nil {
 		t.Fatal(err)
 	}

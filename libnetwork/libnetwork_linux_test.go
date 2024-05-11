@@ -115,7 +115,7 @@ func TestNull(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ep.Join(cnt)
+	err = ep.Join(context.Background(), cnt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -888,7 +888,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 		}
 	}()
 
-	err = ep.Join(cnt)
+	err = ep.Join(context.Background(), cnt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -961,7 +961,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 		}
 	}()
 
-	err = ep.Join(sbx1)
+	err = ep.Join(context.Background(), sbx1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -972,7 +972,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 		}
 	}()
 
-	err = ep.Join(sbx2)
+	err = ep.Join(context.Background(), sbx2)
 	if err == nil {
 		t.Fatal("Expected to fail multiple joins for the same endpoint")
 	}
@@ -1030,12 +1030,12 @@ func TestLeaveAll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ep1.Join(cnt)
+	err = ep1.Join(context.Background(), cnt)
 	if err != nil {
 		t.Fatalf("Failed to join ep1: %v", err)
 	}
 
-	err = ep2.Join(cnt)
+	err = ep2.Join(context.Background(), cnt)
 	if err != nil {
 		t.Fatalf("Failed to join ep2: %v", err)
 	}
@@ -1166,12 +1166,12 @@ func TestEndpointUpdateParent(t *testing.T) {
 		}
 	}()
 
-	err = ep1.Join(sbx1)
+	err = ep1.Join(context.Background(), sbx1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = ep2.Join(sbx2)
+	err = ep2.Join(context.Background(), sbx2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1344,7 +1344,7 @@ func TestHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ep1.Join(sbx1); err != nil {
+	if err := ep1.Join(context.Background(), sbx1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1353,7 +1353,7 @@ func TestHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ep2.Join(sbx2); err != nil {
+	if err := ep2.Join(context.Background(), sbx2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1393,7 +1393,7 @@ func TestHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ep3.Join(sbx2); err != nil {
+	if err := ep3.Join(context.Background(), sbx2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1541,7 +1541,7 @@ func TestEndpointJoin(t *testing.T) {
 	}
 
 	// test invalid joins
-	err = ep1.Join(nil)
+	err = ep1.Join(context.Background(), nil)
 	if err == nil {
 		t.Fatalf("Expected to fail join with nil Sandbox")
 	}
@@ -1550,7 +1550,7 @@ func TestEndpointJoin(t *testing.T) {
 	}
 
 	fsbx := &libnetwork.Sandbox{}
-	if err = ep1.Join(fsbx); err == nil {
+	if err = ep1.Join(context.Background(), fsbx); err == nil {
 		t.Fatalf("Expected to fail join with invalid Sandbox")
 	}
 	if _, ok := err.(types.InvalidParameterError); !ok {
@@ -1571,7 +1571,7 @@ func TestEndpointJoin(t *testing.T) {
 		}
 	}()
 
-	err = ep1.Join(sb)
+	err = ep1.Join(context.Background(), sb)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1635,7 +1635,7 @@ func TestEndpointJoin(t *testing.T) {
 		}
 	}()
 
-	err = ep2.Join(sb)
+	err = ep2.Join(context.Background(), sb)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1724,7 +1724,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	}()
 
 	// Join endpoint to sandbox before SetKey
-	err = ep.Join(cnt)
+	err = ep.Join(context.Background(), cnt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1775,7 +1775,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	}
 
 	// Join endpoint to sandbox after SetKey
-	err = ep2.Join(sbox)
+	err = ep2.Join(context.Background(), sbox)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1887,7 +1887,7 @@ func TestResolvConf(t *testing.T) {
 				assert.Check(t, err)
 			}()
 
-			err = ep.Join(sb)
+			err = ep.Join(context.Background(), sb)
 			assert.NilError(t, err)
 			defer func() {
 				err := ep.Leave(sb)
@@ -1942,7 +1942,7 @@ func (pt parallelTester) Do(t *testing.T, thrNumber int) error {
 	}
 
 	for i := 0; i < pt.iterCnt; i++ {
-		if err := ep.Join(sb); err != nil {
+		if err := ep.Join(context.Background(), sb); err != nil {
 			if _, ok := err.(types.ForbiddenError); !ok {
 				return errors.Wrapf(err, "thread %d", thrNumber)
 			}
@@ -2069,7 +2069,7 @@ func TestBridge(t *testing.T) {
 		}
 	}()
 
-	err = ep.Join(sb)
+	err = ep.Join(context.Background(), sb)
 	if err != nil {
 		t.Fatal(err)
 	}

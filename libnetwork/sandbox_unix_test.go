@@ -143,15 +143,15 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ep1.Join(sbx, JoinOptionPriority(1)); err != nil {
+	if err := ep1.Join(context.Background(), sbx, JoinOptionPriority(1)); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep2.Join(sbx, JoinOptionPriority(2)); err != nil {
+	if err := ep2.Join(context.Background(), sbx, JoinOptionPriority(2)); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep3.Join(sbx, JoinOptionPriority(3)); err != nil {
+	if err := ep3.Join(context.Background(), sbx, JoinOptionPriority(3)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -178,7 +178,7 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 	}
 
 	// Re-add ep3 back
-	if err := ep3.Join(sbx, JoinOptionPriority(3)); err != nil {
+	if err := ep3.Join(context.Background(), sbx, JoinOptionPriority(3)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -234,19 +234,19 @@ func TestSandboxAddSamePrio(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := epNw1.Join(sbx); err != nil {
+	if err := epNw1.Join(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := epIPv6.Join(sbx); err != nil {
+	if err := epIPv6.Join(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := epInternal.Join(sbx); err != nil {
+	if err := epInternal.Join(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := epNw0.Join(sbx); err != nil {
+	if err := epNw0.Join(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 

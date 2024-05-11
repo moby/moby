@@ -266,7 +266,7 @@ func (sb *Sandbox) Refresh(options ...SandboxOption) error {
 
 	// Re-connect to all endpoints
 	for _, ep := range epList {
-		if err := ep.Join(sb); err != nil {
+		if err := ep.Join(context.WithoutCancel(context.TODO()), sb); err != nil {
 			log.G(context.TODO()).Warnf("Failed attach sandbox %s to endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
 	}
