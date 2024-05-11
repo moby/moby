@@ -38,7 +38,7 @@ fe90::2	somehost.example.com somehost
 	}
 	defer os.Remove(hostsFile.Name())
 
-	sbx, err := ctrlr.NewSandbox("sandbox1", OptionHostsPath(hostsFile.Name()), OptionHostname("somehost.example.com"))
+	sbx, err := ctrlr.NewSandbox(context.Background(), "sandbox1", OptionHostsPath(hostsFile.Name()), OptionHostname("somehost.example.com"))
 	if err != nil {
 		t.Fatal(err)
 	}

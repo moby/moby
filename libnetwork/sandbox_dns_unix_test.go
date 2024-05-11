@@ -3,6 +3,7 @@
 package libnetwork
 
 import (
+	"context"
 	"runtime"
 	"testing"
 
@@ -18,7 +19,7 @@ func TestDNSOptions(t *testing.T) {
 	c, err := New(OptionBoltdbWithRandomDBFile(t))
 	assert.NilError(t, err)
 
-	sb, err := c.NewSandbox("cnt1", nil)
+	sb, err := c.NewSandbox(context.Background(), "cnt1", nil)
 	assert.NilError(t, err)
 
 	cleanup := func(s *Sandbox) {
@@ -57,7 +58,7 @@ func TestDNSOptions(t *testing.T) {
 	assert.Check(t, is.Len(dnsOptionsList, 1))
 	assert.Check(t, is.Equal("ndots:5", dnsOptionsList[0]))
 
-	sb2, err := c.NewSandbox("cnt2", nil)
+	sb2, err := c.NewSandbox(context.Background(), "cnt2", nil)
 	assert.NilError(t, err)
 	defer cleanup(sb2)
 	sb2.startResolver(false)

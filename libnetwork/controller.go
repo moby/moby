@@ -73,6 +73,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 )
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -871,10 +872,13 @@ func (c *Controller) NetworkByID(id string) (*Network, error) {
 }
 
 // NewSandbox creates a new sandbox for containerID.
-func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (_ *Sandbox, retErr error) {
+func (c *Controller) NewSandbox(ctx context.Context, containerID string, options ...SandboxOption) (_ *Sandbox, retErr error) {
 	if containerID == "" {
 		return nil, types.InvalidParameterErrorf("invalid container ID")
 	}
+
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Controller.NewSandbox")
+	defer span.End()
 
 	var sb *Sandbox
 	c.mu.Lock()

@@ -542,7 +542,7 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 			if err != nil {
 				return err
 			}
-			sb, err := daemon.netController.NewSandbox(container.ID, sbOptions...)
+			sb, err := daemon.netController.NewSandbox(ctx, container.ID, sbOptions...)
 			if err != nil {
 				return err
 			}
@@ -784,7 +784,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 		if err != nil {
 			return err
 		}
-		sb, err = daemon.netController.NewSandbox(container.ID, sbOptions...)
+		sb, err = daemon.netController.NewSandbox(ctx, container.ID, sbOptions...)
 		if err != nil {
 			return err
 		}

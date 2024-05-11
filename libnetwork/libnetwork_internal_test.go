@@ -377,7 +377,7 @@ func TestSRVServiceQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sb, err := c.NewSandbox("c1")
+	sb, err := c.NewSandbox(context.Background(), "c1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -476,7 +476,7 @@ func TestServiceVIPReuse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sb, err := c.NewSandbox("c1")
+	sb, err := c.NewSandbox(context.Background(), "c1")
 	if err != nil {
 		t.Fatal(err)
 	}
