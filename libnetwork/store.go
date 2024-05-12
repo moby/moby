@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/scope"
+	"go.opentelemetry.io/otel"
 )
 
 func (c *Controller) getNetworkFromStore(nid string) (*Network, error) {
@@ -114,7 +115,10 @@ func (n *Network) getEndpointsFromStore() ([]*Endpoint, error) {
 	return epl, nil
 }
 
-func (c *Controller) updateToStore(kvObject datastore.KVObject) error {
+func (c *Controller) updateToStore(ctx context.Context, kvObject datastore.KVObject) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Controller.updateToStore")
+	defer span.End()
+
 	if err := c.store.PutObjectAtomic(kvObject); err != nil {
 		if err == datastore.ErrKeyModified {
 			return err

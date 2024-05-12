@@ -1016,7 +1016,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 
 	// Mark the network for deletion
 	n.inDelete = true
-	if err = c.updateToStore(n); err != nil {
+	if err = c.updateToStore(context.TODO(), n); err != nil {
 		return fmt.Errorf("error marking network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
 	}
 
@@ -1211,7 +1211,7 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 
 	// We should perform updateToStore call right after addEndpoint
 	// in order to have iface properly configured
-	if err = n.getController().updateToStore(ep); err != nil {
+	if err = n.getController().updateToStore(ctx, ep); err != nil {
 		return nil, err
 	}
 	defer func() {

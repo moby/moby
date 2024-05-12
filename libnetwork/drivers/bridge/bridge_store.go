@@ -12,6 +12,9 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -95,9 +98,13 @@ func (d *driver) populateEndpoints() error {
 	return nil
 }
 
-func (d *driver) storeUpdate(kvObject datastore.KVObject) error {
+func (d *driver) storeUpdate(ctx context.Context, kvObject datastore.KVObject) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.bridge.storeUpdate", trace.WithAttributes(
+		attribute.String("kvObject", fmt.Sprintf("%+v", kvObject.Key()))))
+	defer span.End()
+
 	if d.store == nil {
-		log.G(context.TODO()).Warnf("bridge store not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
+		log.G(ctx).Warnf("bridge store not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
 		return nil
 	}
 

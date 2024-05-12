@@ -750,7 +750,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		return err
 	}
 
-	return d.storeUpdate(config)
+	return d.storeUpdate(context.TODO(), config)
 }
 
 func (d *driver) checkConflict(config *networkConfiguration) error {
@@ -1183,7 +1183,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		}
 	}
 
-	if err = d.storeUpdate(endpoint); err != nil {
+	if err = d.storeUpdate(ctx, endpoint); err != nil {
 		return fmt.Errorf("failed to save bridge endpoint %.7s to store: %v", endpoint.id, err)
 	}
 
@@ -1443,7 +1443,7 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 	// be bound to the local proxy, or to the host (for UDP packets), and won't be redirected to the new endpoints.
 	clearConntrackEntries(d.nlh, endpoint)
 
-	if err = d.storeUpdate(endpoint); err != nil {
+	if err = d.storeUpdate(ctx, endpoint); err != nil {
 		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
 	}
 
@@ -1481,7 +1481,7 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	// to bad NATing.
 	clearConntrackEntries(d.nlh, endpoint)
 
-	if err = d.storeUpdate(endpoint); err != nil {
+	if err = d.storeUpdate(context.TODO(), endpoint); err != nil {
 		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
 	}
 

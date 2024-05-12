@@ -638,7 +638,7 @@ func (sb *Sandbox) clearNetworkResources(origEp *Endpoint) error {
 	// not bother updating the store. The sandbox object will be
 	// deleted anyway
 	if !inDelete {
-		return sb.storeUpdate()
+		return sb.storeUpdate(context.TODO())
 	}
 
 	return nil

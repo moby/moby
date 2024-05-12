@@ -122,7 +122,7 @@ func (sbs *sbState) CopyTo(o datastore.KVObject) error {
 	return nil
 }
 
-func (sb *Sandbox) storeUpdate() error {
+func (sb *Sandbox) storeUpdate(ctx context.Context) error {
 	sbs := &sbState{
 		c:          sb.controller,
 		ID:         sb.id,
@@ -146,7 +146,7 @@ retry:
 		})
 	}
 
-	err := sb.controller.updateToStore(sbs)
+	err := sb.controller.updateToStore(ctx, sbs)
 	if err == datastore.ErrKeyModified {
 		// When we get ErrKeyModified it is sufficient to just
 		// go back and retry.  No need to get the object from

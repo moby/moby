@@ -375,7 +375,7 @@ func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) e
 	// not bother updating the store. The sandbox object will be
 	// deleted anyway
 	if !inDelete {
-		return sb.storeUpdate()
+		return sb.storeUpdate(ctx)
 	}
 
 	return nil

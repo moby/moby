@@ -656,7 +656,7 @@ addToStore:
 	// end up with a datastore containing a network and not an epCnt,
 	// in case of an ungraceful shutdown during this function call.
 	epCnt := &endpointCnt{n: nw}
-	if err := c.updateToStore(epCnt); err != nil {
+	if err := c.updateToStore(context.TODO(), epCnt); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -668,7 +668,7 @@ addToStore:
 	}()
 
 	nw.epCnt = epCnt
-	if err := c.updateToStore(nw); err != nil {
+	if err := c.updateToStore(context.TODO(), nw); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -967,7 +967,7 @@ func (c *Controller) NewSandbox(ctx context.Context, containerID string, options
 		}
 	}()
 
-	if err := sb.storeUpdate(); err != nil {
+	if err := sb.storeUpdate(ctx); err != nil {
 		return nil, fmt.Errorf("failed to update the store state of sandbox: %v", err)
 	}
 
