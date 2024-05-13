@@ -2,10 +2,12 @@ package network
 
 import (
 	"context"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	ctr "github.com/docker/docker/integration/internal/container"
@@ -42,4 +44,28 @@ func TestCreateWithMultiNetworks(t *testing.T) {
 	// interfaces for testnet1 and testnet2, plus lo.
 	ifacesWithAddress := strings.Count(res.Stdout.String(), "\n")
 	assert.Equal(t, ifacesWithAddress, 3)
+}
+
+func TestCreateWithIPv6DefaultsToULAPrefix(t *testing.T) {
+	// On Windows, network creation fails with this error message: Error response from daemon: this request is not supported by the 'windows' ipam driver
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const nwName = "testnetula"
+	network.CreateNoError(ctx, t, apiClient, nwName, network.WithIPv6())
+	defer network.RemoveNoError(ctx, t, apiClient, nwName)
+
+	nw, err := apiClient.NetworkInspect(ctx, "testnetula", types.NetworkInspectOptions{})
+	assert.NilError(t, err)
+
+	for _, ipam := range nw.IPAM.Config {
+		ipr := netip.MustParsePrefix(ipam.Subnet)
+		if netip.MustParsePrefix("fd00::/8").Overlaps(ipr) {
+			return
+		}
+	}
+
+	t.Fatalf("Network %s has no ULA prefix, expected one.", nwName)
 }
