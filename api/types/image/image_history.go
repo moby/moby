@@ -6,8 +6,19 @@ package image // import "github.com/docker/docker/api/types/image"
 // See hack/generate-swagger-api.sh
 // ----------------------------------------------------------------------------
 
+import (
+	"context"
+
+	"github.com/docker/docker/api/types"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
+	"github.com/go-openapi/validate"
+)
+
 // HistoryResponseItem individual image layer information in response to ImageHistory operation
 // swagger:model HistoryResponseItem
+
 type HistoryResponseItem struct {
 
 	// comment
@@ -33,4 +44,115 @@ type HistoryResponseItem struct {
 	// tags
 	// Required: true
 	Tags []string `json:"Tags"`
+}
+
+// Validate validates this history response item
+func (o *HistoryResponseItem) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.validateComment(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := o.validateCreated(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := o.validateCreatedBy(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := o.validateID(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := o.validateSize(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := o.validateTags(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *HistoryResponseItem) validateComment(formats strfmt.Registry) error {
+
+	if err := validate.RequiredString("Comment", "body", o.Comment); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *HistoryResponseItem) validateCreated(formats strfmt.Registry) error {
+
+	if err := validate.Required("Created", "body", int64(o.Created)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *HistoryResponseItem) validateCreatedBy(formats strfmt.Registry) error {
+
+	if err := validate.RequiredString("CreatedBy", "body", o.CreatedBy); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *HistoryResponseItem) validateID(formats strfmt.Registry) error {
+
+	if err := validate.RequiredString("Id", "body", o.ID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *HistoryResponseItem) validateSize(formats strfmt.Registry) error {
+
+	if err := validate.Required("Size", "body", int64(o.Size)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *HistoryResponseItem) validateTags(formats strfmt.Registry) error {
+
+	if err := validate.Required("Tags", "body", o.Tags); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ContextValidate validates this history response item based on context it is used
+func (o *HistoryResponseItem) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *HistoryResponseItem) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *HistoryResponseItem) UnmarshalBinary(b []byte) error {
+	var res HistoryResponseItem
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
+	return nil
 }
