@@ -230,7 +230,8 @@ func processMetaArg(meta instructions.ArgCommand, shlex *shell.Lex, args *BuildA
 	// shell.Lex currently only support the concatenated string format
 	envs := convertMapToEnvList(args.GetAllAllowed())
 	if err := meta.Expand(func(word string) (string, error) {
-		return shlex.ProcessWord(word, envs)
+		newword, _, err := shlex.ProcessWord(word, envs)
+		return newword, err
 	}); err != nil {
 		return err
 	}
