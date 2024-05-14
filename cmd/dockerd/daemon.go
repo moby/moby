@@ -64,6 +64,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
@@ -240,18 +241,12 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	setOTLPProtoDefault()
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 
-	// Override BuildKit's default Resource so that it matches the semconv
-	// version that is used in our code.
-	detect.OverrideResource(resource.Default())
+	// Initialize the trace recorder for buildkit.
 	detect.Recorder = detect.NewTraceRecorder()
 
-	tp, err := detect.TracerProvider()
-	if err != nil {
-		log.G(ctx).WithError(err).Warn("Failed to initialize tracing, skipping")
-	} else {
-		otel.SetTracerProvider(tp)
-		log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
-	}
+	tp := newTracerProvider(ctx)
+	otel.SetTracerProvider(tp)
+	log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
 
 	pluginStore := plugin.NewStore()
 
@@ -368,7 +363,9 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return errors.Wrap(err, "shutting down due to ServeAPI error")
 	}
 
-	detect.Shutdown(context.Background())
+	if err := tp.Shutdown(context.Background()); err != nil {
+		log.G(ctx).WithError(err).Error("Failed to shutdown OTEL tracing")
+	}
 
 	log.G(ctx).Info("Daemon shutdown complete")
 	return nil
@@ -395,6 +392,20 @@ func setOTLPProtoDefault() {
 			os.Setenv(metricsEnv, defaultProto)
 		}
 	}
+}
+
+func newTracerProvider(ctx context.Context) *sdktrace.TracerProvider {
+	opts := []sdktrace.TracerProviderOption{
+		sdktrace.WithResource(resource.Default()),
+		sdktrace.WithSyncer(detect.Recorder),
+	}
+
+	if exp, err := detect.NewSpanExporter(ctx); err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to initialize tracing, skipping")
+	} else if !detect.IsNoneSpanExporter(exp) {
+		opts = append(opts, sdktrace.WithBatcher(exp))
+	}
+	return sdktrace.NewTracerProvider(opts...)
 }
 
 type routerOptions struct {
