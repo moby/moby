@@ -26,8 +26,9 @@ swagger generate model -f api/swagger.yaml \
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/image --skip-validator -C api/swagger-gen.yaml \
-	-n ImageDeleteResponseItem \
-	-n ImageSummary
+	-n ImageDeleteResponseItem
+#-n ImageSummary TODO: Restore when go-swagger is updated
+# See https://github.com/moby/moby/pull/47526#discussion_r1551800022
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/network --skip-validator -C api/swagger-gen.yaml \
