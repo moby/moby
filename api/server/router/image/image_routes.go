@@ -70,6 +70,15 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 			}
 		}
 
+		var allPlatforms bool
+		if s := r.Form.Get("allPlatforms"); s != "" {
+			var err error
+			allPlatforms, err = strconv.ParseBool(s)
+			if err != nil {
+				return err
+			}
+
+		}
 		// TODO: Options for which artifacts to pull
 
 		// Special case: "pull -a" may send an image name with a
@@ -104,7 +113,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		// For a pull it is not an error if no auth was given. Ignore invalid
 		// AuthConfig to increase compatibility with the existing API.
 		authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
-		progressErr = ir.backend.PullImage(ctx, ref, platform, metaHeaders, authConfig, output)
+		progressErr = ir.backend.PullImage(ctx, ref, platform, allPlatforms, metaHeaders, authConfig, output)
 	} else { // import
 		src := r.Form.Get("fromSrc")
 
