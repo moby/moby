@@ -323,6 +323,7 @@ func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, re
 		bopts   = []snapshots.Opt{
 			snapshots.WithLabels(snapshots.FilterInheritedLabels(base.Labels)),
 		}
+		rerr error
 	)
 
 	if err := update(ctx, s.db, func(tx *bolt.Tx) error {
@@ -334,12 +335,20 @@ func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, re
 		// Check if target exists, if so, return already exists
 		if target != "" {
 			if tbkt := bkt.Bucket([]byte(target)); tbkt != nil {
-				return fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
+				rerr = fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
+				if err := addSnapshotLease(ctx, tx, s.name, target); err != nil {
+					return err
+				}
+				return nil
 			}
 		}
 
 		if bbkt := bkt.Bucket([]byte(key)); bbkt != nil {
-			return fmt.Errorf("snapshot %q: %w", key, errdefs.ErrAlreadyExists)
+			rerr = fmt.Errorf("snapshot %q: %w", key, errdefs.ErrAlreadyExists)
+			if err := addSnapshotLease(ctx, tx, s.name, key); err != nil {
+				return err
+			}
+			return nil
 		}
 
 		if parent != "" {
@@ -360,11 +369,14 @@ func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, re
 	}); err != nil {
 		return nil, err
 	}
+	// Already exists and lease successfully added in transaction
+	if rerr != nil {
+		return nil, rerr
+	}
 
 	var (
 		m       []mount.Mount
 		created string
-		rerr    error
 	)
 	if readonly {
 		m, err = s.Snapshotter.View(ctx, bkey, bparent, bopts...)
@@ -527,7 +539,10 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		return err
 	}
 
-	var bname string
+	var (
+		bname string
+		rerr  error
+	)
 	if err := update(ctx, s.db, func(tx *bolt.Tx) error {
 		bkt := getSnapshotterBucket(tx, ns, s.name)
 		if bkt == nil {
@@ -535,14 +550,15 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 				s.name, errdefs.ErrNotFound)
 		}
 
+		if err := addSnapshotLease(ctx, tx, s.name, name); err != nil {
+			return err
+		}
 		bbkt, err := bkt.CreateBucket([]byte(name))
 		if err != nil {
 			if err == bolt.ErrBucketExists {
-				err = fmt.Errorf("snapshot %q: %w", name, errdefs.ErrAlreadyExists)
+				rerr = fmt.Errorf("snapshot %q: %w", name, errdefs.ErrAlreadyExists)
+				return nil
 			}
-			return err
-		}
-		if err := addSnapshotLease(ctx, tx, s.name, name); err != nil {
 			return err
 		}
 
@@ -634,7 +650,7 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		return err
 	}
 
-	if s.db.dbopts.publisher != nil {
+	if rerr == nil && s.db.dbopts.publisher != nil {
 		if err := s.db.dbopts.publisher.Publish(ctx, "/snapshot/commit", &eventstypes.SnapshotCommit{
 			Key:         key,
 			Name:        name,
@@ -644,7 +660,7 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		}
 	}
 
-	return nil
+	return rerr
 
 }
 

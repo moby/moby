@@ -15,7 +15,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0
 	github.com/Microsoft/go-winio v0.6.2
-	github.com/Microsoft/hcsshim v0.11.4
+	github.com/Microsoft/hcsshim v0.11.5
 	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 	github.com/aws/aws-sdk-go-v2 v1.24.1
 	github.com/aws/aws-sdk-go-v2/config v1.26.6
@@ -25,7 +25,7 @@ require (
 	github.com/aws/smithy-go v1.19.0
 	github.com/cloudflare/cfssl v1.6.4
 	github.com/containerd/cgroups/v3 v3.0.3
-	github.com/containerd/containerd v1.7.16
+	github.com/containerd/containerd v1.7.17
 	github.com/containerd/continuity v0.4.3
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
@@ -76,7 +76,7 @@ require (
 	github.com/moby/term v0.5.0
 	github.com/morikuni/aec v1.0.0
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0-rc5
+	github.com/opencontainers/image-spec v1.1.0
 	github.com/opencontainers/runc v1.1.12
 	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/opencontainers/selinux v1.11.0
@@ -144,7 +144,7 @@ require (
 	github.com/containerd/go-runc v1.1.0 // indirect
 	github.com/containerd/nydus-snapshotter v0.13.7 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.15.1 // indirect
-	github.com/containerd/ttrpc v1.2.3 // indirect
+	github.com/containerd/ttrpc v1.2.4 // indirect
 	github.com/containernetworking/cni v1.1.2 // indirect
 	github.com/containernetworking/plugins v1.4.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect

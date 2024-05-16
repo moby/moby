@@ -81,7 +81,7 @@ func DiffCompression(ctx context.Context, mediaType string) (string, error) {
 			return "", nil
 		}
 		return "gzip", nil
-	case ocispec.MediaTypeImageLayer, ocispec.MediaTypeImageLayerNonDistributable:
+	case ocispec.MediaTypeImageLayer, ocispec.MediaTypeImageLayerNonDistributable: //nolint:staticcheck // Non-distributable layers are deprecated
 		if len(ext) > 0 {
 			switch ext[len(ext)-1] {
 			case "gzip":
