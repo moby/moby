@@ -1,12 +1,21 @@
 package defaultipam
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/netip"
 	"strings"
 
 	"github.com/docker/docker/libnetwork/bitmap"
 	"github.com/docker/docker/libnetwork/types"
+)
+
+const (
+	poolIDV2Prefix = "PoolID"
+
+	addressSpaceField = "AddressSpace"
+	subnetField       = "Subnet"
+	childSubnetField  = "ChildSubnet"
 )
 
 // PoolID is the pointer to the configured pools in each address space
@@ -36,6 +45,15 @@ func (k SubnetKey) Is6() bool {
 // PoolIDFromString creates a new PoolID and populates the SubnetKey object
 // reading it from the given string.
 func PoolIDFromString(str string) (pID PoolID, err error) {
+	if strings.HasPrefix(str, poolIDV2Prefix) {
+		return parsePoolIDV2(str)
+	}
+
+	// TODO(aker): drop support for this 'v1' format once the next major MCR LTS is released.
+	return parsePoolIDV1(str)
+}
+
+func parsePoolIDV1(str string) (pID PoolID, err error) {
 	if str == "" {
 		return pID, types.InvalidParameterErrorf("invalid string form for subnetkey: %s", str)
 	}
@@ -59,13 +77,53 @@ func PoolIDFromString(str string) (pID PoolID, err error) {
 	return pID, nil
 }
 
+func parsePoolIDV2(str string) (pID PoolID, err error) {
+	data := strings.TrimPrefix(str, poolIDV2Prefix)
+
+	var fields map[string]string
+	if err := json.Unmarshal([]byte(data), &fields); err != nil {
+		return PoolID{}, err
+	}
+
+	pID.AddressSpace = fields[addressSpaceField]
+
+	if v, ok := fields[subnetField]; ok && v != "" {
+		if pID.Subnet, err = netip.ParsePrefix(v); err != nil {
+			return PoolID{}, types.InvalidParameterErrorf("invalid string form for subnetkey %s: %w", str, err)
+		}
+	}
+
+	if v, ok := fields[childSubnetField]; ok && v != "" {
+		if pID.ChildSubnet, err = netip.ParsePrefix(v); err != nil {
+			return PoolID{}, types.InvalidParameterErrorf("invalid string form for subnetkey %s: %w", str, err)
+		}
+	}
+
+	if pID.AddressSpace == "" || pID.Subnet == (netip.Prefix{}) {
+		return PoolID{}, types.InvalidParameterErrorf("invalid string form for subnetkey %s: missing AddressSpace or Subnet", str)
+	}
+
+	return pID, nil
+}
+
 // String returns the string form of the SubnetKey object
 func (s *PoolID) String() string {
-	if s.ChildSubnet == (netip.Prefix{}) {
-		return s.AddressSpace + "/" + s.Subnet.String()
-	} else {
-		return s.AddressSpace + "/" + s.Subnet.String() + "/" + s.ChildSubnet.String()
+	fields := map[string]string{
+		addressSpaceField: s.AddressSpace,
+		subnetField:       s.Subnet.String(),
 	}
+
+	// ChildSubnet is optional
+	if s.ChildSubnet != (netip.Prefix{}) {
+		fields[childSubnetField] = s.ChildSubnet.String()
+	}
+
+	b, err := json.Marshal(fields)
+	if err != nil {
+		panic(err)
+	}
+
+	return "PoolID" + string(b)
 }
 
 // String returns the string form of the PoolData object
