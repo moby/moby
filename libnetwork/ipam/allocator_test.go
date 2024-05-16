@@ -52,6 +52,80 @@ func TestKeyString(t *testing.T) {
 	}
 }
 
+// TestPoolIDV2FormatDeserialization tests a few instances of PoolID's V2
+// serialization format.
+func TestPoolIDV2FormatDeserialization(t *testing.T) {
+	testcases := []struct {
+		serialized string
+		expPoolID  PoolID
+		expErr     string
+	}{
+		{
+			serialized: `PoolID{"AddressSpace":"default"}`,
+			expErr:     `invalid string form for subnetkey PoolID{"AddressSpace":"default"}: missing AddressSpace or Subnet`,
+		},
+		{
+			serialized: `PoolID{"AddressSpace":"default","Subnet":""}`,
+			expErr:     `invalid string form for subnetkey PoolID{"AddressSpace":"default","Subnet":""}: missing AddressSpace or Subnet`,
+		},
+		{
+			serialized: `PoolID{"AddressSpace":"default","ChildSubnet":"172.27.0.0/16"}`,
+			expErr:     `invalid string form for subnetkey PoolID{"AddressSpace":"default","ChildSubnet":"172.27.0.0/16"}: missing AddressSpace or Subnet`,
+		},
+		{
+			serialized: `PoolID{"AddressSpace":"default","Subnet":"172.16.0.0/12"}`,
+			expPoolID: PoolID{
+				AddressSpace: "default",
+				SubnetKey:    SubnetKey{Subnet: netip.MustParsePrefix("172.16.0.0/12")},
+			},
+		},
+		{
+			serialized: `PoolID{"AddressSpace":"default","Subnet":"172.16.0.0/12","ChildSubnet":"172.16.10.0/16"}`,
+			expPoolID: PoolID{
+				AddressSpace: "default",
+				SubnetKey: SubnetKey{
+					Subnet:      netip.MustParsePrefix("172.16.0.0/12"),
+					ChildSubnet: netip.MustParsePrefix("172.16.10.0/16"),
+				},
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		pID, err := PoolIDFromString(tc.serialized)
+
+		if tc.expErr != "" {
+			assert.Check(t, is.Error(err, tc.expErr))
+		} else {
+			assert.Check(t, is.Equal(pID, tc.expPoolID))
+		}
+	}
+}
+
+// TestPoolIDFormatCompatibility tests whether PoolIDFromString correctly deserializes the 'v1' format correctly.
+func TestPoolIDFormatCompatibility(t *testing.T) {
+	k, err := PoolIDFromString(`PoolID{"AddressSpace":"default","Subnet":"172.27.0.0/16"}`)
+	assert.NilError(t, err)
+	assert.Equal(t, k.String(), `default/172.27.0.0/16`)
+	assert.Equal(t, k, PoolID{
+		AddressSpace: "default",
+		SubnetKey: SubnetKey{
+			Subnet: netip.MustParsePrefix("172.27.0.0/16"),
+		},
+	})
+
+	k, err = PoolIDFromString(`PoolID{"AddressSpace":"default","Subnet":"172.27.0.0/16","ChildSubnet":"172.27.10.0/24"}`)
+	assert.NilError(t, err)
+	assert.Equal(t, k.String(), "default/172.27.0.0/16/172.27.10.0/24")
+	assert.Equal(t, k, PoolID{
+		AddressSpace: "default",
+		SubnetKey: SubnetKey{
+			Subnet:      netip.MustParsePrefix("172.27.0.0/16"),
+			ChildSubnet: netip.MustParsePrefix("172.27.10.0/24"),
+		},
+	})
+}
+
 func TestAddSubnets(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {

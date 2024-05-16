@@ -1,6 +1,7 @@
 package ipam
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -9,6 +10,14 @@ import (
 	"github.com/docker/docker/libnetwork/bitmap"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/types"
+)
+
+const (
+	poolIDV2Prefix = "PoolID"
+
+	addressSpaceField = "AddressSpace"
+	subnetField       = "Subnet"
+	childSubnetField  = "ChildSubnet"
 )
 
 // PoolID is the pointer to the configured pools in each address space
@@ -46,6 +55,14 @@ type addrSpace struct {
 // PoolIDFromString creates a new PoolID and populates the SubnetKey object
 // reading it from the given string.
 func PoolIDFromString(str string) (pID PoolID, err error) {
+	if strings.HasPrefix(str, poolIDV2Prefix) {
+		return parsePoolIDV2(str)
+	}
+
+	return parsePoolIDV1(str)
+}
+
+func parsePoolIDV1(str string) (pID PoolID, err error) {
 	if str == "" {
 		return pID, types.InvalidParameterErrorf("invalid string form for subnetkey: %s", str)
 	}
@@ -64,6 +81,37 @@ func PoolIDFromString(str string) (pID PoolID, err error) {
 		if err != nil {
 			return pID, types.InvalidParameterErrorf("invalid string form for subnetkey: %s", str)
 		}
+	}
+
+	return pID, nil
+}
+
+// parsePoolIDV2 parses a PoolID encoded in v2 format. This new format has been introduced in v27.0 but has been
+// backported to v26.2 to allow users to downgrade without breaking their networks.
+func parsePoolIDV2(str string) (pID PoolID, err error) {
+	data := strings.TrimPrefix(str, poolIDV2Prefix)
+
+	var fields map[string]string
+	if err := json.Unmarshal([]byte(data), &fields); err != nil {
+		return PoolID{}, err
+	}
+
+	pID.AddressSpace = fields[addressSpaceField]
+
+	if v, ok := fields[subnetField]; ok && v != "" {
+		if pID.Subnet, err = netip.ParsePrefix(v); err != nil {
+			return PoolID{}, types.InvalidParameterErrorf("invalid string form for subnetkey %s: %w", str, err)
+		}
+	}
+
+	if v, ok := fields[childSubnetField]; ok && v != "" {
+		if pID.ChildSubnet, err = netip.ParsePrefix(v); err != nil {
+			return PoolID{}, types.InvalidParameterErrorf("invalid string form for subnetkey %s: %w", str, err)
+		}
+	}
+
+	if pID.AddressSpace == "" || pID.Subnet == (netip.Prefix{}) {
+		return PoolID{}, types.InvalidParameterErrorf("invalid string form for subnetkey %s: missing AddressSpace or Subnet", str)
 	}
 
 	return pID, nil
