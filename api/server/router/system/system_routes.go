@@ -263,6 +263,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 	output.Flush()
