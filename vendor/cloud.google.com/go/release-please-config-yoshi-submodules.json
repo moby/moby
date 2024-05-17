@@ -21,6 +21,12 @@
         "apigeeconnect": {
             "component": "apigeeconnect"
         },
+        "apigeeregistry": {
+            "component": "apigeeregistry"
+        },
+        "apikeys": {
+            "component": "apikeys"
+        },
         "appengine": {
             "component": "appengine"
         },
@@ -44,6 +50,9 @@
         },
         "batch": {
             "component": "batch"
+        },
+        "beyondcorp": {
+            "component": "beyondcorp"
         },
         "billing": {
             "component": "billing"
@@ -69,6 +78,9 @@
         "compute": {
             "component": "compute"
         },
+        "compute/metadata": {
+            "component": "compute/metadata"
+        },
         "contactcenterinsights": {
             "component": "contactcenterinsights"
         },
@@ -83,6 +95,9 @@
         },
         "dataflow": {
             "component": "dataflow"
+        },
+        "dataform": {
+            "component": "dataform"
         },
         "datafusion": {
             "component": "datafusion"
@@ -116,6 +131,9 @@
         },
         "domains": {
             "component": "domains"
+        },
+        "edgecontainer": {
+            "component": "edgecontainer"
         },
         "essentialcontacts": {
             "component": "essentialcontacts"
@@ -171,8 +189,14 @@
         "lifesciences": {
             "component": "lifesciences"
         },
+        "longrunning": {
+            "component": "longrunning"
+        },
         "managedidentities": {
             "component": "managedidentities"
+        },
+        "maps": {
+            "component": "maps"
         },
         "mediatranslation": {
             "component": "mediatranslation"
@@ -306,6 +330,9 @@
         "vmmigration": {
             "component": "vmmigration"
         },
+        "vmwareengine": {
+            "component": "vmwareengine"
+        },
         "vpcaccess": {
             "component": "vpcaccess"
         },
@@ -318,5 +345,6 @@
         "workflows": {
             "component": "workflows"
         }
-    }
+    },
+    "plugins": ["sentence-case"]
 }

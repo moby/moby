@@ -1,0 +1,13 @@
+{
+  "bigquery": "1.46.0",
+  "bigtable": "1.18.1",
+  "datastore": "1.10.0",
+  "errorreporting": "0.3.0",
+  "firestore": "1.9.0",
+  "logging": "1.6.1",
+  "profiler": "0.3.1",
+  "pubsub": "1.28.0",
+  "pubsublite": "1.6.0",
+  "spanner": "1.44.0",
+  "storage": "1.29.0"
+}
