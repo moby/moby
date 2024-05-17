@@ -82,8 +82,10 @@ func methodName(fullname string) string {
 // statsHandleRPC processes the RPC events.
 func statsHandleRPC(ctx context.Context, s stats.RPCStats) {
 	switch st := s.(type) {
-	case *stats.Begin, *stats.OutHeader, *stats.InHeader, *stats.InTrailer, *stats.OutTrailer:
+	case *stats.OutHeader, *stats.InHeader, *stats.InTrailer, *stats.OutTrailer:
 		// do nothing for client
+	case *stats.Begin:
+		handleRPCBegin(ctx, st)
 	case *stats.OutPayload:
 		handleRPCOutPayload(ctx, st)
 	case *stats.InPayload:
@@ -92,6 +94,25 @@ func statsHandleRPC(ctx context.Context, s stats.RPCStats) {
 		handleRPCEnd(ctx, st)
 	default:
 		grpclog.Infof("unexpected stats: %T", st)
+	}
+}
+
+func handleRPCBegin(ctx context.Context, s *stats.Begin) {
+	d, ok := ctx.Value(rpcDataKey).(*rpcData)
+	if !ok {
+		if grpclog.V(2) {
+			grpclog.Infoln("Failed to retrieve *rpcData from context.")
+		}
+	}
+
+	if s.IsClient() {
+		ocstats.RecordWithOptions(ctx,
+			ocstats.WithTags(tag.Upsert(KeyClientMethod, methodName(d.method))),
+			ocstats.WithMeasurements(ClientStartedRPCs.M(1)))
+	} else {
+		ocstats.RecordWithOptions(ctx,
+			ocstats.WithTags(tag.Upsert(KeyClientMethod, methodName(d.method))),
+			ocstats.WithMeasurements(ServerStartedRPCs.M(1)))
 	}
 }
 

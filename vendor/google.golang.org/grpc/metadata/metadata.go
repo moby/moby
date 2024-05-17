@@ -41,10 +41,11 @@ type MD map[string][]string
 // New creates an MD from a given key-value map.
 //
 // Only the following ASCII characters are allowed in keys:
-//  - digits: 0-9
-//  - uppercase letters: A-Z (normalized to lower)
-//  - lowercase letters: a-z
-//  - special characters: -_.
+//   - digits: 0-9
+//   - uppercase letters: A-Z (normalized to lower)
+//   - lowercase letters: a-z
+//   - special characters: -_.
+//
 // Uppercase letters are automatically converted to lowercase.
 //
 // Keys beginning with "grpc-" are reserved for grpc-internal use only and may
@@ -62,10 +63,11 @@ func New(m map[string]string) MD {
 // Pairs panics if len(kv) is odd.
 //
 // Only the following ASCII characters are allowed in keys:
-//  - digits: 0-9
-//  - uppercase letters: A-Z (normalized to lower)
-//  - lowercase letters: a-z
-//  - special characters: -_.
+//   - digits: 0-9
+//   - uppercase letters: A-Z (normalized to lower)
+//   - lowercase letters: a-z
+//   - special characters: -_.
+//
 // Uppercase letters are automatically converted to lowercase.
 //
 // Keys beginning with "grpc-" are reserved for grpc-internal use only and may
@@ -89,7 +91,11 @@ func (md MD) Len() int {
 
 // Copy returns a copy of md.
 func (md MD) Copy() MD {
-	return Join(md)
+	out := make(MD, len(md))
+	for k, v := range md {
+		out[k] = copyOf(v)
+	}
+	return out
 }
 
 // Get obtains the values for a given key.
@@ -169,8 +175,11 @@ func AppendToOutgoingContext(ctx context.Context, kv ...string) context.Context 
 	md, _ := ctx.Value(mdOutgoingKey{}).(rawMD)
 	added := make([][]string, len(md.added)+1)
 	copy(added, md.added)
-	added[len(added)-1] = make([]string, len(kv))
-	copy(added[len(added)-1], kv)
+	kvCopy := make([]string, 0, len(kv))
+	for i := 0; i < len(kv); i += 2 {
+		kvCopy = append(kvCopy, strings.ToLower(kv[i]), kv[i+1])
+	}
+	added[len(added)-1] = kvCopy
 	return context.WithValue(ctx, mdOutgoingKey{}, rawMD{md: md.md, added: added})
 }
 
@@ -196,7 +205,7 @@ func FromIncomingContext(ctx context.Context) (MD, bool) {
 // ValueFromIncomingContext returns the metadata value corresponding to the metadata
 // key from the incoming metadata if it exists. Key must be lower-case.
 //
-// Experimental
+// # Experimental
 //
 // Notice: This API is EXPERIMENTAL and may be changed or removed in a
 // later release.

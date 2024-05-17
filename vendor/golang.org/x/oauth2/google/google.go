@@ -26,6 +26,9 @@ var Endpoint = oauth2.Endpoint{
 	AuthStyle: oauth2.AuthStyleInParams,
 }
 
+// MTLSTokenURL is Google's OAuth 2.0 default mTLS endpoint.
+const MTLSTokenURL = "https://oauth2.mtls.googleapis.com/token"
+
 // JWTTokenURL is Google's OAuth 2.0 token URL to use with the JWT flow.
 const JWTTokenURL = "https://oauth2.googleapis.com/token"
 
@@ -172,7 +175,11 @@ func (f *credentialsFile) tokenSource(ctx context.Context, params CredentialsPar
 			cfg.Endpoint.AuthURL = Endpoint.AuthURL
 		}
 		if cfg.Endpoint.TokenURL == "" {
-			cfg.Endpoint.TokenURL = Endpoint.TokenURL
+			if params.TokenURL != "" {
+				cfg.Endpoint.TokenURL = params.TokenURL
+			} else {
+				cfg.Endpoint.TokenURL = Endpoint.TokenURL
+			}
 		}
 		tok := &oauth2.Token{RefreshToken: f.RefreshToken}
 		return cfg.TokenSource(ctx, tok), nil
@@ -224,7 +231,11 @@ func (f *credentialsFile) tokenSource(ctx context.Context, params CredentialsPar
 // Further information about retrieving access tokens from the GCE metadata
 // server can be found at https://cloud.google.com/compute/docs/authentication.
 func ComputeTokenSource(account string, scope ...string) oauth2.TokenSource {
-	return oauth2.ReuseTokenSource(nil, computeSource{account: account, scopes: scope})
+	return computeTokenSource(account, 0, scope...)
+}
+
+func computeTokenSource(account string, earlyExpiry time.Duration, scope ...string) oauth2.TokenSource {
+	return oauth2.ReuseTokenSourceWithExpiry(nil, computeSource{account: account, scopes: scope}, earlyExpiry)
 }
 
 type computeSource struct {
