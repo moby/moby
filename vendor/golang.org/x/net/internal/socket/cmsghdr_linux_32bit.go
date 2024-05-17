@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (arm || mips || mipsle || 386 || ppc) && linux
-// +build arm mips mipsle 386 ppc
-// +build linux
 
 package socket
 
