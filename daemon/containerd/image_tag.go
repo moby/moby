@@ -27,7 +27,15 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 		Labels: targetImage.Labels,
 	}
 
-	_, err = i.images.Create(ctx, newImg)
+	return i.forceCreateImage(ctx, newImg)
+}
+
+// forceCreateImage creates a new image with the given name and target descriptor.
+// If an image with the same name already exists, it will be replaced.
+// Overwritten image will be persisted as a dangling image if it's a last
+// reference to that image.
+func (i *ImageService) forceCreateImage(ctx context.Context, newImg containerdimages.Image) error {
+	_, err := i.images.Create(ctx, newImg)
 	if err != nil {
 		if !cerrdefs.IsAlreadyExists(err) {
 			return errdefs.System(errors.Wrapf(err, "failed to create image with name %s and target %s", newImg.Name, newImg.Target.Digest.String()))
@@ -42,8 +50,8 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 
 		// Check if image we would replace already resolves to the same target.
 		// No need to do anything.
-		if replacedImg.Target.Digest == targetImage.Target.Digest {
-			i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
+		if replacedImg.Target.Digest == newImg.Target.Digest {
+			i.LogImageEvent(newImg.Name, imageFamiliarName(newImg), events.ActionTag)
 			return nil
 		}
 
@@ -54,20 +62,20 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 
 		if _, err = i.images.Create(context.WithoutCancel(ctx), newImg); err != nil {
 			return errdefs.System(errors.Wrapf(err, "failed to create an image %s with target %s after deleting the existing one",
-				newImg.Name, imageID.String()))
+				newImg.Name, newImg.Target.Digest))
 		}
 	}
 
 	logger := log.G(ctx).WithFields(log.Fields{
-		"imageID": imageID.String(),
-		"tag":     newTag.String(),
+		"imageID": newImg.Target,
+		"tag":     newImg.Name,
 	})
 	logger.Info("image created")
 
-	defer i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
+	defer i.LogImageEvent(newImg.Name, imageFamiliarName(newImg), events.ActionTag)
 
 	// Delete the source dangling image, as it's no longer dangling.
-	if err := i.images.Delete(context.WithoutCancel(ctx), danglingImageName(targetImage.Target.Digest)); err != nil {
+	if err := i.images.Delete(context.WithoutCancel(ctx), danglingImageName(newImg.Target.Digest)); err != nil {
 		logger.WithError(err).Warn("unexpected error when deleting dangling image")
 	}
 
