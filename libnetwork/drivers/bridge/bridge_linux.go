@@ -92,11 +92,6 @@ const (
 	ifaceCreatedByUser
 )
 
-// endpointConfiguration represents the user specified configuration for the sandbox endpoint
-type endpointConfiguration struct {
-	MacAddress net.HardwareAddr
-}
-
 // containerConfiguration represents the user specified configuration for a container
 type containerConfiguration struct {
 	ParentEndpoints []string
@@ -116,7 +111,6 @@ type bridgeEndpoint struct {
 	addr            *net.IPNet
 	addrv6          *net.IPNet
 	macAddress      net.HardwareAddr
-	config          *endpointConfiguration // User specified parameters
 	containerConfig *containerConfiguration
 	extConnConfig   *connectivityConfiguration
 	portMapping     []types.PortBinding // Operation port bindings
@@ -934,7 +928,7 @@ func setHairpinMode(nlh *netlink.Handle, link netlink.Link, enable bool) error {
 	return nil
 }
 
-func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, _ map[string]interface{}) error {
 	if ifInfo == nil {
 		return errors.New("invalid interface info passed")
 	}
@@ -971,15 +965,9 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return driverapi.ErrEndpointExists(eid)
 	}
 
-	// Try to convert the options to endpoint configuration
-	epConfig, err := parseEndpointOptions(epOptions)
-	if err != nil {
-		return err
-	}
-
 	// Create and add the endpoint
 	n.Lock()
-	endpoint := &bridgeEndpoint{id: eid, nid: nid, config: epConfig}
+	endpoint := &bridgeEndpoint{id: eid, nid: nid}
 	n.endpoints[eid] = endpoint
 	n.Unlock()
 
@@ -1073,10 +1061,12 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	endpoint.addr = ifInfo.Address()
 	endpoint.addrv6 = ifInfo.AddressIPv6()
 
-	// Set the sbox's MAC if not provided. If specified, use the one configured by user, otherwise generate one based on IP.
+	// We assign a default MAC address derived from the IP address to make sure
+	// that if a container is disconnected and reconnected in a short timeframe,
+	// stale ARP entries will still point to the right container.
 	if endpoint.macAddress == nil {
-		endpoint.macAddress = electMacAddress(epConfig, endpoint.addr.IP)
-		if err = ifInfo.SetMacAddress(endpoint.macAddress); err != nil {
+		endpoint.macAddress = netutils.GenerateMACFromIP(endpoint.addr.IP)
+		if err := ifInfo.SetMacAddress(endpoint.macAddress); err != nil {
 			return err
 		}
 	}
@@ -1471,24 +1461,6 @@ func (d *driver) IsBuiltIn() bool {
 	return true
 }
 
-func parseEndpointOptions(epOptions map[string]interface{}) (*endpointConfiguration, error) {
-	if epOptions == nil {
-		return nil, nil
-	}
-
-	ec := &endpointConfiguration{}
-
-	if opt, ok := epOptions[netlabel.MacAddress]; ok {
-		if mac, ok := opt.(net.HardwareAddr); ok {
-			ec.MacAddress = mac
-		} else {
-			return nil, &ErrInvalidEndpointConfig{}
-		}
-	}
-
-	return ec, nil
-}
-
 func parseContainerOptions(cOptions map[string]interface{}) (*containerConfiguration, error) {
 	if cOptions == nil {
 		return nil, nil
@@ -1535,11 +1507,4 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 	}
 
 	return cc, nil
-}
-
-func electMacAddress(epConfig *endpointConfiguration, ip net.IP) net.HardwareAddr {
-	if epConfig != nil && epConfig.MacAddress != nil {
-		return epConfig.MacAddress
-	}
-	return netutils.GenerateMACFromIP(ip)
 }
