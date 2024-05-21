@@ -106,19 +106,22 @@ type Controller struct {
 
 // New creates a new instance of network controller.
 func New(cfgOptions ...config.Option) (*Controller, error) {
+	cfg := config.New(cfgOptions...)
+	store, err := datastore.New(cfg.Scope)
+	if err != nil {
+		return nil, fmt.Errorf("libnet controller initialization: %w", err)
+	}
+
 	c := &Controller{
 		id:               stringid.GenerateRandomID(),
-		cfg:              config.New(cfgOptions...),
+		cfg:              cfg,
+		store:            store,
 		sandboxes:        map[string]*Sandbox{},
 		svcRecords:       make(map[string]*svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
 		agentInitDone:    make(chan struct{}),
 		networkLocker:    locker.New(),
 		DiagnosticServer: diagnostic.New(),
-	}
-
-	if err := c.initStores(); err != nil {
-		return nil, err
 	}
 
 	c.drvRegistry.Notify = c
@@ -1086,7 +1089,7 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 
 // Stop stops the network controller.
 func (c *Controller) Stop() {
-	c.closeStores()
+	c.store.Close()
 	c.stopExternalKeyListener()
 	osl.GC()
 }
