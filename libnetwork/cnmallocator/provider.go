@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
@@ -35,7 +36,7 @@ func (p *Provider) ValidateIPAMDriver(driver *api.Driver) error {
 	if driver.Name == "" {
 		return status.Errorf(codes.InvalidArgument, "driver name: if driver is specified name is required")
 	}
-	if strings.ToLower(driver.Name) == ipamapi.DefaultIPAM {
+	if strings.ToLower(driver.Name) == defaultipam.DriverName {
 		return nil
 	}
 	return p.validatePluginDriver(driver, ipamapi.PluginEndpointType)

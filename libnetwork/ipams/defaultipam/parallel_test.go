@@ -1,4 +1,4 @@
-package ipam
+package defaultipam
 
 import (
 	"context"
@@ -45,7 +45,7 @@ func newTestContext(t *testing.T, mask int, options map[string]string) *testCont
 	// total ips 2^(32-mask) - 2 (network and broadcast)
 	totalIps := 1<<uint(32-mask) - 2
 
-	pid, _, _, err := a.RequestPool(localAddressSpace, network, "", nil, false)
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: network})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func newTestContext(t *testing.T, mask int, options map[string]string) *testCont
 		opts:   options,
 		ipList: make([]*net.IPNet, 0, totalIps),
 		ipMap:  make(map[string]bool),
-		pid:    pid,
+		pid:    alloc.PoolID,
 		maxIP:  totalIps,
 	}
 }
@@ -93,21 +93,21 @@ func TestRequestPoolParallel(t *testing.T) {
 
 	for i := 0; i < 120; i++ {
 		group.Go(func() error {
-			name, _, _, err := a.RequestPool("GlobalDefault", "", "", nil, false)
+			alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: "GlobalDefault"})
 			if err != nil {
 				t.Log(err) // log so we can see the error in real time rather than at the end when we actually call "Wait".
 				return fmt.Errorf("request error %v", err)
 			}
 			idx := atomic.AddInt32(&operationIndex, 1)
-			ch <- &op{idx, true, name}
+			ch <- &op{idx, true, alloc.PoolID}
 			time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
 			idx = atomic.AddInt32(&operationIndex, 1)
-			err = a.ReleasePool(name)
+			err = a.ReleasePool(alloc.PoolID)
 			if err != nil {
 				t.Log(err) // log so we can see the error in real time rather than at the end when we actually call "Wait".
 				return fmt.Errorf("release error %v", err)
 			}
-			ch <- &op{idx, false, name}
+			ch <- &op{idx, false, alloc.PoolID}
 			return nil
 		})
 	}

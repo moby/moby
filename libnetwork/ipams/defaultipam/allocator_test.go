@@ -1,4 +1,4 @@
-package ipam
+package defaultipam
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/libnetwork/bitmap"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/types"
@@ -58,55 +59,55 @@ func TestAddSubnets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+	alloc1, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.0.0.0/8"})
 	if err != nil {
 		t.Fatal("Unexpected failure in adding subnet")
 	}
 
-	pid1, _, _, err := a.RequestPool(globalAddressSpace, "10.0.0.0/8", "", nil, false)
+	alloc2, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: globalAddressSpace, Pool: "10.0.0.0/8"})
 	if err != nil {
 		t.Fatalf("Unexpected failure in adding overlapping subnets to different address spaces: %v", err)
 	}
 
-	if pid0 == pid1 {
+	if alloc1.PoolID == alloc2.PoolID {
 		t.Fatal("returned same pool id for same subnets in different namespaces")
 	}
 
-	_, _, _, err = a.RequestPool(globalAddressSpace, "10.0.0.0/8", "", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: globalAddressSpace, Pool: "10.0.0.0/8"})
 	if err == nil {
 		t.Fatalf("Expected failure requesting existing subnet")
 	}
 
-	_, _, _, err = a.RequestPool(globalAddressSpace, "10.128.0.0/9", "", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: globalAddressSpace, Pool: "10.128.0.0/9"})
 	if err == nil {
 		t.Fatal("Expected failure on adding overlapping base subnet")
 	}
 
-	_, _, _, err = a.RequestPool(globalAddressSpace, "10.0.0.0/8", "10.128.0.0/9", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: globalAddressSpace, Pool: "10.0.0.0/8", SubPool: "10.128.0.0/9"})
 	if err != nil {
 		t.Fatalf("Unexpected failure on adding sub pool: %v", err)
 	}
-	_, _, _, err = a.RequestPool(globalAddressSpace, "10.0.0.0/8", "10.128.0.0/9", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: globalAddressSpace, Pool: "10.0.0.0/8", SubPool: "10.128.0.0/9"})
 	if err == nil {
 		t.Fatalf("Expected failure on adding overlapping sub pool")
 	}
 
-	_, _, _, err = a.RequestPool(localAddressSpace, "10.20.2.0/24", "", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.20.2.0/24"})
 	if err == nil {
 		t.Fatal("Failed to detect overlapping subnets")
 	}
 
-	_, _, _, err = a.RequestPool(localAddressSpace, "10.128.0.0/9", "", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.128.0.0/9"})
 	if err == nil {
 		t.Fatal("Failed to detect overlapping subnets")
 	}
 
-	_, _, _, err = a.RequestPool(localAddressSpace, "1003:1:2:3:4:5:6::/112", "", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "1003:1:2:3:4:5:6::/112"})
 	if err != nil {
 		t.Fatalf("Failed to add v6 subnet: %s", err.Error())
 	}
 
-	_, _, _, err = a.RequestPool(localAddressSpace, "1003:1:2:3::/64", "", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "1003:1:2:3::/64"})
 	if err == nil {
 		t.Fatal("Failed to detect overlapping v6 subnet")
 	}
@@ -118,13 +119,13 @@ func TestDoublePoolRelease(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+	alloc1, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.0.0.0/8"})
 	assert.NilError(t, err)
 
-	err = a.ReleasePool(pid0)
+	err = a.ReleasePool(alloc1.PoolID)
 	assert.NilError(t, err)
 
-	err = a.ReleasePool(pid0)
+	err = a.ReleasePool(alloc1.PoolID)
 	assert.Check(t, is.ErrorContains(err, ""))
 }
 
@@ -132,21 +133,21 @@ func TestAddReleasePoolID(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	_, err = a.getAddrSpace(localAddressSpace)
+	_, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+	alloc1, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.0.0.0/8"})
 	if err != nil {
 		t.Fatalf("Unexpected failure in adding pool: %v", err)
 	}
-	k0, err := PoolIDFromString(pid0)
+	k0, err := PoolIDFromString(alloc1.PoolID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	aSpace, err := a.getAddrSpace(localAddressSpace)
+	aSpace, err := a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,20 +156,20 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Errorf("Unexpected autoRelease value for %s: %v", k0, got)
 	}
 
-	pid1, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "10.0.0.0/16", nil, false)
+	alloc2, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.0.0.0/8", SubPool: "10.0.0.0/16"})
 	if err != nil {
 		t.Fatalf("Unexpected failure in adding sub pool: %v", err)
 	}
-	k1, err := PoolIDFromString(pid1)
+	k1, err := PoolIDFromString(alloc2.PoolID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if pid0 == pid1 {
-		t.Fatalf("Incorrect poolIDs returned %s, %s", pid0, pid1)
+	if alloc1.PoolID == alloc2.PoolID {
+		t.Fatalf("Incorrect poolIDs returned %s, %s", alloc1.PoolID, alloc2.PoolID)
 	}
 
-	aSpace, err = a.getAddrSpace(localAddressSpace)
+	aSpace, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,12 +178,12 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Errorf("Unexpected autoRelease value for %s: %v", k1, got)
 	}
 
-	_, _, _, err = a.RequestPool(localAddressSpace, "10.0.0.0/8", "10.0.0.0/16", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.0.0.0/8", SubPool: "10.0.0.0/16"})
 	if err == nil {
 		t.Fatalf("Expected failure in adding sub pool: %v", err)
 	}
 
-	aSpace, err = a.getAddrSpace(localAddressSpace)
+	aSpace, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,11 +192,11 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Errorf("Unexpected autoRelease value for %s: %v", k0, got)
 	}
 
-	if err := a.ReleasePool(pid1); err != nil {
+	if err := a.ReleasePool(alloc2.PoolID); err != nil {
 		t.Fatal(err)
 	}
 
-	aSpace, err = a.getAddrSpace(localAddressSpace)
+	aSpace, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +204,7 @@ func TestAddReleasePoolID(t *testing.T) {
 	if got := aSpace.subnets[k0.Subnet].autoRelease; got != false {
 		t.Errorf("Unexpected autoRelease value for %s: %v", k0, got)
 	}
-	if err := a.ReleasePool(pid0); err != nil {
+	if err := a.ReleasePool(alloc1.PoolID); err != nil {
 		t.Error(err)
 	}
 
@@ -211,15 +212,15 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Error("Pool should have been deleted when released")
 	}
 
-	pid00, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+	alloc10, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.0.0.0/8"})
 	if err != nil {
 		t.Errorf("Unexpected failure in adding pool: %v", err)
 	}
-	if pid00 != pid0 {
-		t.Errorf("main pool should still exist. Got poolID %q, want %q", pid00, pid0)
+	if alloc10.PoolID != alloc1.PoolID {
+		t.Errorf("main pool should still exist. Got poolID %q, want %q", alloc10.PoolID, alloc1.PoolID)
 	}
 
-	aSpace, err = a.getAddrSpace(localAddressSpace)
+	aSpace, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,11 +229,11 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Errorf("Unexpected autoRelease value for %s: %v", k0, got)
 	}
 
-	if err := a.ReleasePool(pid00); err != nil {
+	if err := a.ReleasePool(alloc10.PoolID); err != nil {
 		t.Error(err)
 	}
 
-	aSpace, err = a.getAddrSpace(localAddressSpace)
+	aSpace, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,12 +242,12 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Errorf("Base pool %s is still present: %v", k0, bp)
 	}
 
-	_, _, _, err = a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.0.0.0/8"})
 	if err != nil {
 		t.Errorf("Unexpected failure in adding pool: %v", err)
 	}
 
-	aSpace, err = a.getAddrSpace(localAddressSpace)
+	aSpace, err = a.getAddrSpace(localAddressSpace, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,25 +261,25 @@ func TestPredefinedPool(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	pid, nw, _, err := a.RequestPool(localAddressSpace, "", "", nil, false)
+	alloc1, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pid2, nw2, _, err := a.RequestPool(localAddressSpace, "", "", nil, false)
+	alloc2, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if types.CompareIPNet(nw, nw2) {
-		t.Fatalf("Unexpected default network returned: %s = %s", nw2, nw)
+	if alloc1.Pool == alloc2.Pool {
+		t.Fatalf("Unexpected default network returned: %s = %s", alloc2.Pool, alloc1.Pool)
 	}
 
-	if err := a.ReleasePool(pid); err != nil {
+	if err := a.ReleasePool(alloc1.PoolID); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := a.ReleasePool(pid2); err != nil {
+	if err := a.ReleasePool(alloc2.PoolID); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -287,32 +288,29 @@ func TestRemoveSubnet(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	input := []struct {
-		addrSpace string
-		subnet    string
-		v6        bool
-	}{
-		{localAddressSpace, "192.168.0.0/16", false},
-		{localAddressSpace, "172.17.0.0/16", false},
-		{localAddressSpace, "10.0.0.0/8", false},
-		{localAddressSpace, "2001:db8:1:2:3:4:ffff::/112", false},
-		{globalAddressSpace, "172.17.0.0/16", false},
-		{globalAddressSpace, "10.0.0.0/8", false},
-		{globalAddressSpace, "2001:db8:1:2:3:4:5::/112", true},
-		{globalAddressSpace, "2001:db8:1:2:3:4:ffff::/112", true},
+	reqs := []ipamapi.PoolRequest{
+		{AddressSpace: localAddressSpace, Pool: "192.168.0.0/16"},
+		{AddressSpace: localAddressSpace, Pool: "172.17.0.0/16"},
+		{AddressSpace: localAddressSpace, Pool: "10.0.0.0/8"},
+		{AddressSpace: localAddressSpace, Pool: "2001:db8:1:2:3:4:ffff::/112", V6: true},
+		{AddressSpace: globalAddressSpace, Pool: "172.17.0.0/16"},
+		{AddressSpace: globalAddressSpace, Pool: "10.0.0.0/8"},
+		{AddressSpace: globalAddressSpace, Pool: "2001:db8:1:2:3:4:5::/112", V6: true},
+		{AddressSpace: globalAddressSpace, Pool: "2001:db8:1:2:3:4:ffff::/112", V6: true},
 	}
+	allocs := make([]ipamapi.AllocatedPool, 0, len(reqs))
 
-	poolIDs := make([]string, len(input))
-
-	for ind, i := range input {
-		if poolIDs[ind], _, _, err = a.RequestPool(i.addrSpace, i.subnet, "", nil, i.v6); err != nil {
+	for _, req := range reqs {
+		alloc, err := a.RequestPool(req)
+		if err != nil {
 			t.Fatalf("Failed to apply input. Can't proceed: %s", err.Error())
 		}
+		allocs = append(allocs, alloc)
 	}
 
-	for ind, id := range poolIDs {
-		if err := a.ReleasePool(id); err != nil {
-			t.Fatalf("Failed to release poolID %s (%d)", id, ind)
+	for idx, alloc := range allocs {
+		if err := a.ReleasePool(alloc.PoolID); err != nil {
+			t.Fatalf("Failed to release poolID %s (%d)", alloc.PoolID, idx)
 		}
 	}
 }
@@ -321,18 +319,18 @@ func TestGetSameAddress(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	pid, _, _, err := a.RequestPool(localAddressSpace, "192.168.100.0/24", "", nil, false)
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "192.168.100.0/24"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	ip := net.ParseIP("192.168.100.250")
-	_, _, err = a.RequestAddress(pid, ip, nil)
+	_, _, err = a.RequestAddress(alloc.PoolID, ip, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, _, err = a.RequestAddress(pid, ip, nil)
+	_, _, err = a.RequestAddress(alloc.PoolID, ip, nil)
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -343,15 +341,14 @@ func TestPoolAllocationReuse(t *testing.T) {
 	assert.NilError(t, err)
 
 	// First get all pools until they are exhausted to
-	pList := []string{}
-	pool, _, _, err := a.RequestPool(localAddressSpace, "", "", nil, false)
+	allocs := []ipamapi.AllocatedPool{}
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
 	for err == nil {
-		pList = append(pList, pool)
-		pool, _, _, err = a.RequestPool(localAddressSpace, "", "", nil, false)
+		allocs = append(allocs, alloc)
+		alloc, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
 	}
-	nPools := len(pList)
-	for _, pool := range pList {
-		if err := a.ReleasePool(pool); err != nil {
+	for _, alloc := range allocs {
+		if err := a.ReleasePool(alloc.PoolID); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -360,16 +357,16 @@ func TestPoolAllocationReuse(t *testing.T) {
 	// Verify that we don't see any repeat networks even though
 	// we have freed them.
 	seen := map[string]bool{}
-	for i := 0; i < nPools; i++ {
-		pool, nw, _, err := a.RequestPool(localAddressSpace, "", "", nil, false)
+	for range allocs {
+		alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, ok := seen[nw.String()]; ok {
-			t.Fatalf("Network %s was reused before exhausing the pool list", nw.String())
+		if _, ok := seen[alloc.Pool.String()]; ok {
+			t.Fatalf("Network %s was reused before exhausing the pool list", alloc.Pool.String())
 		}
-		seen[nw.String()] = true
-		if err := a.ReleasePool(pool); err != nil {
+		seen[alloc.Pool.String()] = true
+		if err := a.ReleasePool(alloc.PoolID); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -380,12 +377,12 @@ func TestGetAddressSubPoolEqualPool(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Requesting a subpool of same size of the master pool should not cause any problem on ip allocation
-	pid, _, _, err := a.RequestPool(localAddressSpace, "172.18.0.0/16", "172.18.0.0/16", nil, false)
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "172.18.0.0/16", SubPool: "172.18.0.0/16"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, _, err = a.RequestAddress(pid, nil, nil)
+	_, _, err = a.RequestAddress(alloc.PoolID, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,7 +392,7 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	poolID, _, _, err := a.RequestPool(localAddressSpace, "172.28.0.0/16", "172.28.30.0/24", nil, false)
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "172.28.0.0/16", SubPool: "172.28.30.0/24"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -404,7 +401,7 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 	expected := &net.IPNet{IP: net.IP{172, 28, 30, 255}, Mask: net.IPMask{255, 255, 0, 0}}
 	for err == nil {
 		var c *net.IPNet
-		if c, _, err = a.RequestAddress(poolID, nil, nil); err == nil {
+		if c, _, err = a.RequestAddress(alloc.PoolID, nil, nil); err == nil {
 			ip = c
 		}
 	}
@@ -415,28 +412,28 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatalf("Unexpected last IP from subpool. Expected: %s. Got: %v.", expected, ip)
 	}
 	rp := &net.IPNet{IP: net.IP{172, 28, 30, 97}, Mask: net.IPMask{255, 255, 0, 0}}
-	if err = a.ReleaseAddress(poolID, rp.IP); err != nil {
+	if err = a.ReleaseAddress(alloc.PoolID, rp.IP); err != nil {
 		t.Fatal(err)
 	}
-	if ip, _, err = a.RequestAddress(poolID, nil, nil); err != nil {
+	if ip, _, err = a.RequestAddress(alloc.PoolID, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(rp, ip) {
 		t.Fatalf("Unexpected IP from subpool. Expected: %s. Got: %v.", rp, ip)
 	}
 
-	_, _, _, err = a.RequestPool(localAddressSpace, "10.0.0.0/8", "10.0.0.0/16", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.0.0.0/8", SubPool: "10.0.0.0/16"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	poolID, _, _, err = a.RequestPool(localAddressSpace, "10.0.0.0/16", "10.0.0.0/24", nil, false)
+	alloc, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.0.0.0/16", SubPool: "10.0.0.0/24"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	expected = &net.IPNet{IP: net.IP{10, 0, 0, 255}, Mask: net.IPMask{255, 255, 0, 0}}
 	for err == nil {
 		var c *net.IPNet
-		if c, _, err = a.RequestAddress(poolID, nil, nil); err == nil {
+		if c, _, err = a.RequestAddress(alloc.PoolID, nil, nil); err == nil {
 			ip = c
 		}
 	}
@@ -447,10 +444,10 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatalf("Unexpected last IP from subpool. Expected: %s. Got: %v.", expected, ip)
 	}
 	rp = &net.IPNet{IP: net.IP{10, 0, 0, 79}, Mask: net.IPMask{255, 255, 0, 0}}
-	if err = a.ReleaseAddress(poolID, rp.IP); err != nil {
+	if err = a.ReleaseAddress(alloc.PoolID, rp.IP); err != nil {
 		t.Fatal(err)
 	}
-	if ip, _, err = a.RequestAddress(poolID, nil, nil); err != nil {
+	if ip, _, err = a.RequestAddress(alloc.PoolID, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(rp, ip) {
@@ -462,10 +459,10 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 	dueExp, _ := types.ParseCIDR("10.2.2.2/16")
 	treExp, _ := types.ParseCIDR("10.2.2.1/16")
 
-	if poolID, _, _, err = a.RequestPool(localAddressSpace, "10.2.0.0/16", "10.2.2.0/24", nil, false); err != nil {
+	if alloc, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.2.0.0/16", SubPool: "10.2.2.0/24"}); err != nil {
 		t.Fatal(err)
 	}
-	tre, _, err := a.RequestAddress(poolID, treExp.IP, nil)
+	tre, _, err := a.RequestAddress(alloc.PoolID, treExp.IP, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -473,7 +470,7 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatalf("Unexpected address: want %v, got %v", treExp, tre)
 	}
 
-	uno, _, err := a.RequestAddress(poolID, nil, nil)
+	uno, _, err := a.RequestAddress(alloc.PoolID, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -481,7 +478,7 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatalf("Unexpected address: %v", uno)
 	}
 
-	due, _, err := a.RequestAddress(poolID, nil, nil)
+	due, _, err := a.RequestAddress(alloc.PoolID, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -489,10 +486,10 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatalf("Unexpected address: %v", due)
 	}
 
-	if err = a.ReleaseAddress(poolID, uno.IP); err != nil {
+	if err = a.ReleaseAddress(alloc.PoolID, uno.IP); err != nil {
 		t.Fatal(err)
 	}
-	uno, _, err = a.RequestAddress(poolID, nil, nil)
+	uno, _, err = a.RequestAddress(alloc.PoolID, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,10 +497,10 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatalf("Unexpected address: %v", uno)
 	}
 
-	if err = a.ReleaseAddress(poolID, tre.IP); err != nil {
+	if err = a.ReleaseAddress(alloc.PoolID, tre.IP); err != nil {
 		t.Fatal(err)
 	}
-	tre, _, err = a.RequestAddress(poolID, nil, nil)
+	tre, _, err = a.RequestAddress(alloc.PoolID, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -519,7 +516,7 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	poolID, _, _, err := a.RequestPool(localAddressSpace, "172.28.0.0/16", "172.28.30.0/24", nil, false)
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "172.28.0.0/16", SubPool: "172.28.30.0/24"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -528,7 +525,7 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 	expected := &net.IPNet{IP: net.IP{172, 28, 30, 255}, Mask: net.IPMask{255, 255, 0, 0}}
 	for err == nil {
 		var c *net.IPNet
-		if c, _, err = a.RequestAddress(poolID, nil, opts); err == nil {
+		if c, _, err = a.RequestAddress(alloc.PoolID, nil, opts); err == nil {
 			ip = c
 		}
 	}
@@ -539,28 +536,28 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatalf("Unexpected last IP from subpool. Expected: %s. Got: %v.", expected, ip)
 	}
 	rp := &net.IPNet{IP: net.IP{172, 28, 30, 97}, Mask: net.IPMask{255, 255, 0, 0}}
-	if err = a.ReleaseAddress(poolID, rp.IP); err != nil {
+	if err = a.ReleaseAddress(alloc.PoolID, rp.IP); err != nil {
 		t.Fatal(err)
 	}
-	if ip, _, err = a.RequestAddress(poolID, nil, opts); err != nil {
+	if ip, _, err = a.RequestAddress(alloc.PoolID, nil, opts); err != nil {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(rp, ip) {
 		t.Fatalf("Unexpected IP from subpool. Expected: %s. Got: %v.", rp, ip)
 	}
 
-	_, _, _, err = a.RequestPool(localAddressSpace, "10.0.0.0/8", "10.0.0.0/16", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.0.0.0/8", SubPool: "10.0.0.0/16"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	poolID, _, _, err = a.RequestPool(localAddressSpace, "10.0.0.0/16", "10.0.0.0/24", nil, false)
+	alloc, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.0.0.0/16", SubPool: "10.0.0.0/24"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	expected = &net.IPNet{IP: net.IP{10, 0, 0, 255}, Mask: net.IPMask{255, 255, 0, 0}}
 	for err == nil {
 		var c *net.IPNet
-		if c, _, err = a.RequestAddress(poolID, nil, opts); err == nil {
+		if c, _, err = a.RequestAddress(alloc.PoolID, nil, opts); err == nil {
 			ip = c
 		}
 	}
@@ -571,10 +568,10 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatalf("Unexpected last IP from subpool. Expected: %s. Got: %v.", expected, ip)
 	}
 	rp = &net.IPNet{IP: net.IP{10, 0, 0, 79}, Mask: net.IPMask{255, 255, 0, 0}}
-	if err = a.ReleaseAddress(poolID, rp.IP); err != nil {
+	if err = a.ReleaseAddress(alloc.PoolID, rp.IP); err != nil {
 		t.Fatal(err)
 	}
-	if ip, _, err = a.RequestAddress(poolID, nil, opts); err != nil {
+	if ip, _, err = a.RequestAddress(alloc.PoolID, nil, opts); err != nil {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(rp, ip) {
@@ -587,10 +584,10 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 	treExp, _ := types.ParseCIDR("10.2.2.1/16")
 	quaExp, _ := types.ParseCIDR("10.2.2.3/16")
 	fivExp, _ := types.ParseCIDR("10.2.2.4/16")
-	if poolID, _, _, err = a.RequestPool(localAddressSpace, "10.2.0.0/16", "10.2.2.0/24", nil, false); err != nil {
+	if alloc, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "10.2.0.0/16", SubPool: "10.2.2.0/24"}); err != nil {
 		t.Fatal(err)
 	}
-	tre, _, err := a.RequestAddress(poolID, treExp.IP, opts)
+	tre, _, err := a.RequestAddress(alloc.PoolID, treExp.IP, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -598,7 +595,7 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatalf("Unexpected address: want %v, got %v", treExp, tre)
 	}
 
-	uno, _, err := a.RequestAddress(poolID, nil, opts)
+	uno, _, err := a.RequestAddress(alloc.PoolID, nil, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -606,7 +603,7 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatalf("Unexpected address: %v", uno)
 	}
 
-	due, _, err := a.RequestAddress(poolID, nil, opts)
+	due, _, err := a.RequestAddress(alloc.PoolID, nil, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -614,10 +611,10 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatalf("Unexpected address: %v", due)
 	}
 
-	if err = a.ReleaseAddress(poolID, uno.IP); err != nil {
+	if err = a.ReleaseAddress(alloc.PoolID, uno.IP); err != nil {
 		t.Fatal(err)
 	}
-	uno, _, err = a.RequestAddress(poolID, nil, opts)
+	uno, _, err = a.RequestAddress(alloc.PoolID, nil, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -625,10 +622,10 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatalf("Unexpected address: %v", uno)
 	}
 
-	if err = a.ReleaseAddress(poolID, tre.IP); err != nil {
+	if err = a.ReleaseAddress(alloc.PoolID, tre.IP); err != nil {
 		t.Fatal(err)
 	}
-	tre, _, err = a.RequestAddress(poolID, nil, opts)
+	tre, _, err = a.RequestAddress(alloc.PoolID, nil, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -659,22 +656,22 @@ func TestRequestSyntaxCheck(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	_, _, _, err = a.RequestPool("", pool, "", nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{Pool: pool})
 	if err == nil {
 		t.Fatal("Failed to detect wrong request: empty address space")
 	}
 
-	_, _, _, err = a.RequestPool("", pool, subPool, nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{Pool: pool, SubPool: subPool})
 	if err == nil {
 		t.Fatal("Failed to detect wrong request: empty address space")
 	}
 
-	_, _, _, err = a.RequestPool(localAddressSpace, "", subPool, nil, false)
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, SubPool: subPool})
 	if err == nil {
 		t.Fatal("Failed to detect wrong request: subPool specified and no pool")
 	}
 
-	pid, _, _, err := a.RequestPool(localAddressSpace, pool, subPool, nil, false)
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: pool, SubPool: subPool})
 	if err != nil {
 		t.Fatalf("Unexpected failure: %v", err)
 	}
@@ -685,13 +682,13 @@ func TestRequestSyntaxCheck(t *testing.T) {
 	}
 
 	ip := net.ParseIP("172.17.0.23")
-	_, _, err = a.RequestAddress(pid, ip, nil)
+	_, _, err = a.RequestAddress(alloc.PoolID, ip, nil)
 	if err == nil {
 		t.Fatal("Failed to detect wrong request: requested IP from different subnet")
 	}
 
 	ip = net.ParseIP("192.168.0.50")
-	_, _, err = a.RequestAddress(pid, ip, nil)
+	_, _, err = a.RequestAddress(alloc.PoolID, ip, nil)
 	if err != nil {
 		t.Fatalf("Unexpected failure: %v", err)
 	}
@@ -701,14 +698,14 @@ func TestRequestSyntaxCheck(t *testing.T) {
 		t.Fatal("Failed to detect wrong request: no pool id specified")
 	}
 
-	err = a.ReleaseAddress(pid, nil)
+	err = a.ReleaseAddress(alloc.PoolID, nil)
 	if err == nil {
 		t.Fatal("Failed to detect wrong request: no pool id specified")
 	}
 
-	err = a.ReleaseAddress(pid, ip)
+	err = a.ReleaseAddress(alloc.PoolID, ip)
 	if err != nil {
-		t.Fatalf("Unexpected failure: %v: %s, %s", err, pid, ip)
+		t.Fatalf("Unexpected failure: %v: %s, %s", err, alloc.PoolID, ip)
 	}
 }
 
@@ -807,12 +804,12 @@ func TestOverlappingRequests(t *testing.T) {
 
 		// Set up some existing allocations.  This should always succeed.
 		for _, env := range tc.environment {
-			_, _, _, err = a.RequestPool(localAddressSpace, env, "", nil, false)
+			_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: env})
 			assert.NilError(t, err)
 		}
 
 		// Make the test allocation.
-		_, _, _, err = a.RequestPool(localAddressSpace, tc.subnet, "", nil, false)
+		_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: tc.subnet})
 		if tc.ok {
 			assert.NilError(t, err)
 		} else {
@@ -848,7 +845,7 @@ func TestUnusualSubnets(t *testing.T) {
 	// IPv4 /31 blocks.  See RFC 3021.
 	//
 
-	pool, _, _, err := allocator.RequestPool(localAddressSpace, subnet, "", nil, false)
+	alloc, err := allocator.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: subnet})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -856,7 +853,7 @@ func TestUnusualSubnets(t *testing.T) {
 	// Outside-the-range
 
 	for _, outside := range outsideTheRangeAddresses {
-		_, _, errx := allocator.RequestAddress(pool, net.ParseIP(outside.address), nil)
+		_, _, errx := allocator.RequestAddress(alloc.PoolID, net.ParseIP(outside.address), nil)
 		if errx != ipamapi.ErrIPOutOfRange {
 			t.Fatalf("Address %s failed to throw expected error: %s", outside.address, errx.Error())
 		}
@@ -865,7 +862,7 @@ func TestUnusualSubnets(t *testing.T) {
 	// Should get just these two IPs followed by exhaustion on the next request
 
 	for _, expected := range expectedAddresses {
-		got, _, errx := allocator.RequestAddress(pool, nil, nil)
+		got, _, errx := allocator.RequestAddress(alloc.PoolID, nil, nil)
 		if errx != nil {
 			t.Fatalf("Failed to obtain the address: %s", errx.Error())
 		}
@@ -876,7 +873,7 @@ func TestUnusualSubnets(t *testing.T) {
 		}
 	}
 
-	_, _, err = allocator.RequestAddress(pool, nil, nil)
+	_, _, err = allocator.RequestAddress(alloc.PoolID, nil, nil)
 	if err != ipamapi.ErrNoAvailableIPs {
 		t.Fatal("Did not get expected error when pool is exhausted.")
 	}
@@ -888,14 +885,14 @@ func TestRelease(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	pid, _, _, err := a.RequestPool(localAddressSpace, subnet, "", nil, false)
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: subnet})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Allocate all addresses
 	for err != ipamapi.ErrNoAvailableIPs {
-		_, _, err = a.RequestAddress(pid, nil, nil)
+		_, _, err = a.RequestAddress(alloc.PoolID, nil, nil)
 	}
 
 	toRelease := []struct {
@@ -928,13 +925,13 @@ func TestRelease(t *testing.T) {
 	// One by one, release the address and request again. We should get the same IP
 	for i, inp := range toRelease {
 		ip0 := net.ParseIP(inp.address)
-		a.ReleaseAddress(pid, ip0)
-		bm := a.local.subnets[netip.MustParsePrefix(subnet)].addrs
+		a.ReleaseAddress(alloc.PoolID, ip0)
+		bm := a.local4.subnets[netip.MustParsePrefix(subnet)].addrs
 		if bm.Unselected() != 1 {
 			t.Fatalf("Failed to update free address count after release. Expected %d, Found: %d", i+1, bm.Unselected())
 		}
 
-		nw, _, err := a.RequestAddress(pid, nil, nil)
+		nw, _, err := a.RequestAddress(alloc.PoolID, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to obtain the address: %s", err.Error())
 		}
@@ -988,7 +985,7 @@ func assertNRequests(t *testing.T, subnet string, numReq int, lastExpectedIP str
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	pid, _, _, err := a.RequestPool(localAddressSpace, subnet, "", nil, false)
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: subnet})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -996,7 +993,7 @@ func assertNRequests(t *testing.T, subnet string, numReq int, lastExpectedIP str
 	i := 0
 	start := time.Now()
 	for ; i < numReq; i++ {
-		nw, _, err = a.RequestAddress(pid, nil, nil)
+		nw, _, err = a.RequestAddress(alloc.PoolID, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1011,9 +1008,9 @@ func assertNRequests(t *testing.T, subnet string, numReq int, lastExpectedIP str
 }
 
 func benchmarkRequest(b *testing.B, a *Allocator, subnet string) {
-	pid, _, _, err := a.RequestPool(localAddressSpace, subnet, "", nil, false)
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: subnet})
 	for err != ipamapi.ErrNoAvailableIPs {
-		_, _, err = a.RequestAddress(pid, nil, nil)
+		_, _, err = a.RequestAddress(alloc.PoolID, nil, nil)
 	}
 }
 
@@ -1046,7 +1043,7 @@ func testAllocateRandomDeallocate(t *testing.T, pool, subPool string, num int, s
 		t.Fatal(err)
 	}
 
-	pid, _, _, err := a.RequestPool(localAddressSpace, pool, subPool, nil, false)
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: pool, SubPool: subPool})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1055,7 +1052,7 @@ func testAllocateRandomDeallocate(t *testing.T, pool, subPool string, num int, s
 	indices := make(map[int]*net.IPNet, num)
 	allocated := make(map[string]bool, num)
 	for i := 0; i < num; i++ {
-		ip, _, err := a.RequestAddress(pid, nil, nil)
+		ip, _, err := a.RequestAddress(alloc.PoolID, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1078,7 +1075,7 @@ func testAllocateRandomDeallocate(t *testing.T, pool, subPool string, num int, s
 	for i := 0; i < num/2; i++ {
 		idx := pattern[i]
 		ip := indices[idx]
-		err := a.ReleaseAddress(pid, ip.IP)
+		err := a.ReleaseAddress(alloc.PoolID, ip.IP)
 		if err != nil {
 			t.Fatalf("Unexpected failure on deallocation of %s: %v.\nSeed: %d.", ip, err, seed)
 		}
@@ -1088,7 +1085,7 @@ func testAllocateRandomDeallocate(t *testing.T, pool, subPool string, num int, s
 
 	// Request a quarter of addresses
 	for i := 0; i < num/2; i++ {
-		ip, _, err := a.RequestAddress(pid, nil, nil)
+		ip, _, err := a.RequestAddress(alloc.PoolID, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1148,7 +1145,8 @@ func runParallelTests(t *testing.T, instance int) {
 		defer done.Done()
 	}
 
-	_, pools[instance], _, err = allocator.RequestPool(localAddressSpace, "", "", nil, false)
+	alloc, err := allocator.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
+	pools[instance] = netiputil.ToIPNet(alloc.Pool)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1183,7 +1181,7 @@ func TestRequestReleaseAddressDuplicate(t *testing.T) {
 	}
 	var l sync.Mutex
 
-	poolID, _, _, err := a.RequestPool(localAddressSpace, "198.168.0.0/23", "", nil, false)
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "198.168.0.0/23"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1203,7 +1201,7 @@ outer:
 				break outer
 			default:
 			}
-			if c, _, err = a.RequestAddress(poolID, nil, opts); err == nil {
+			if c, _, err = a.RequestAddress(alloc.PoolID, nil, opts); err == nil {
 				break
 			}
 			// No addresses available. Spin until one is.
@@ -1236,7 +1234,7 @@ outer:
 				l.Lock()
 				ips = append(ips, IP{ip, -1})
 				l.Unlock()
-				return a.ReleaseAddress(poolID, ip.IP)
+				return a.ReleaseAddress(alloc.PoolID, ip.IP)
 			})
 		}
 	}

@@ -54,7 +54,7 @@ func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	privilegeFunc := func() (string, error) {
+	privilegeFunc := func(_ context.Context) (string, error) {
 		return "", fmt.Errorf("Error requesting privilege")
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{
@@ -69,7 +69,7 @@ func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	privilegeFunc := func() (string, error) {
+	privilegeFunc := func(_ context.Context) (string, error) {
 		return "a-auth-header", nil
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{
@@ -106,7 +106,7 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 			}, nil
 		}),
 	}
-	privilegeFunc := func() (string, error) {
+	privilegeFunc := func(_ context.Context) (string, error) {
 		return "IAmValid", nil
 	}
 	resp, err := client.ImagePush(context.Background(), "myimage:tag", image.PushOptions{

@@ -112,9 +112,18 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 	}
 
 	return s.backend.ContainerStats(ctx, vars["name"], &backend.ContainerStatsConfig{
-		Stream:    stream,
-		OneShot:   oneShot,
-		OutStream: w,
+		Stream:  stream,
+		OneShot: oneShot,
+		OutStream: func() io.Writer {
+			// Assume that when this is called the request is OK.
+			w.WriteHeader(http.StatusOK)
+			if !stream {
+				return w
+			}
+			wf := ioutils.NewWriteFlusher(w)
+			wf.Flush()
+			return wf
+		},
 	})
 }
 

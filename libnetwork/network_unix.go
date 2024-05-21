@@ -5,7 +5,7 @@ package libnetwork
 import (
 	"context"
 
-	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 )
 
 type platformNetwork struct{} //nolint:nolintlint,unused // only populated on windows
@@ -30,5 +30,5 @@ func deleteEpFromResolver(epName string, epIface *EndpointInterface, resolvers [
 }
 
 func defaultIpamForNetworkType(networkType string) string {
-	return ipamapi.DefaultIPAM
+	return defaultipam.DriverName
 }

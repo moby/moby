@@ -256,7 +256,7 @@ func TestHardRestartWhenContainerIsRunning(t *testing.T) {
 
 	for _, id := range []string{noPolicy, onFailure} {
 		d.TamperWithContainerConfig(t, id, func(c *realcontainer.Container) {
-			c.SetRunning(nil, nil, true)
+			c.SetRunning(nil, nil, time.Now())
 			c.HasBeenStartedBefore = true
 		})
 	}

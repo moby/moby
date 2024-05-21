@@ -18,8 +18,11 @@ var (
 	uprobeRefCtrOffsetShift = 32
 	haveRefCtrOffsetPMU     = internal.NewFeatureTest("RefCtrOffsetPMU", "4.20", func() error {
 		_, err := os.Stat(uprobeRefCtrOffsetPMUPath)
-		if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
 			return internal.ErrNotSupported
+		}
+		if err != nil {
+			return err
 		}
 		return nil
 	})

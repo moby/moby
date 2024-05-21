@@ -3,9 +3,10 @@ package cnmallocator
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"gotest.tools/v3/assert"
@@ -728,11 +729,14 @@ func (a *mockIpam) GetDefaultAddressSpaces() (string, string, error) {
 	return "defaultAS", "defaultAS", nil
 }
 
-func (a *mockIpam) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
-	a.actualIpamOptions = options
+func (a *mockIpam) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool, error) {
+	a.actualIpamOptions = req.Options
 
-	poolCidr, _ := types.ParseCIDR(pool)
-	return fmt.Sprintf("%s/%s", "defaultAS", pool), poolCidr, nil, nil
+	poolCidr := netip.MustParsePrefix(req.Pool)
+	return ipamapi.AllocatedPool{
+		PoolID: fmt.Sprintf("defaultAS/%s", req.Pool),
+		Pool:   poolCidr,
+	}, nil
 }
 
 func (a *mockIpam) ReleasePool(poolID string) error {

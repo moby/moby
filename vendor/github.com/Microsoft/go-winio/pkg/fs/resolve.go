@@ -20,28 +20,9 @@ import (
 // It is intended to address short-comings of [filepath.EvalSymlinks], which does not work
 // well on Windows.
 func ResolvePath(path string) (string, error) {
-	// We are not able to use builtin Go functionality for opening a directory path:
-	//   - os.Open on a directory returns a os.File where Fd() is a search handle from FindFirstFile.
-	//   - syscall.Open does not provide a way to specify FILE_FLAG_BACKUP_SEMANTICS, which is needed to
-	//     open a directory.
-	//
-	// We could use os.Open if the path is a file, but it's easier to just use the same code for both.
-	// Therefore, we call windows.CreateFile directly.
-	h, err := fs.CreateFile(
-		path,
-		fs.FILE_ANY_ACCESS, // access
-		fs.FILE_SHARE_READ|fs.FILE_SHARE_WRITE|fs.FILE_SHARE_DELETE,
-		nil, // security attributes
-		fs.OPEN_EXISTING,
-		fs.FILE_FLAG_BACKUP_SEMANTICS, // Needed to open a directory handle.
-		fs.NullHandle,                 // template file
-	)
+	h, err := openMetadata(path)
 	if err != nil {
-		return "", &os.PathError{
-			Op:   "CreateFile",
-			Path: path,
-			Err:  err,
-		}
+		return "", err
 	}
 	defer windows.CloseHandle(h) //nolint:errcheck
 
@@ -125,4 +106,34 @@ func ResolvePath(path string) (string, error) {
 		rPath = `\\` + rPath[len(`\\?\UNC\`):]
 	}
 	return rPath, err
+}
+
+// openMetadata takes a path, opens it with only meta-data access, and returns the resulting handle.
+// It works for both file and directory paths.
+func openMetadata(path string) (windows.Handle, error) {
+	// We are not able to use builtin Go functionality for opening a directory path:
+	//   - os.Open on a directory returns a os.File where Fd() is a search handle from FindFirstFile.
+	//   - syscall.Open does not provide a way to specify FILE_FLAG_BACKUP_SEMANTICS, which is needed to
+	//     open a directory.
+	//
+	// We could use os.Open if the path is a file, but it's easier to just use the same code for both.
+	// Therefore, we call windows.CreateFile directly.
+	h, err := fs.CreateFile(
+		path,
+		fs.FILE_ANY_ACCESS,
+		fs.FILE_SHARE_READ|fs.FILE_SHARE_WRITE|fs.FILE_SHARE_DELETE,
+		nil, // security attributes
+		fs.OPEN_EXISTING,
+		fs.FILE_FLAG_BACKUP_SEMANTICS, // Needed to open a directory handle.
+		fs.NullHandle,
+	)
+
+	if err != nil {
+		return 0, &os.PathError{
+			Op:   "CreateFile",
+			Path: path,
+			Err:  err,
+		}
+	}
+	return h, nil
 }

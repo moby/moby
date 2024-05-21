@@ -18,6 +18,8 @@ type MarshalOptions struct {
 	Order binary.ByteOrder
 	// Remove function linkage information for compatibility with <5.6 kernels.
 	StripFuncLinkage bool
+	// Replace Enum64 with a placeholder for compatibility with <6.0 kernels.
+	ReplaceEnum64 bool
 }
 
 // KernelMarshalOptions will generate BTF suitable for the current kernel.
@@ -25,6 +27,7 @@ func KernelMarshalOptions() *MarshalOptions {
 	return &MarshalOptions{
 		Order:            internal.NativeEndian,
 		StripFuncLinkage: haveFuncLinkage() != nil,
+		ReplaceEnum64:    haveEnum64() != nil,
 	}
 }
 
@@ -328,21 +331,13 @@ func (e *encoder) deflateType(typ Type) (err error) {
 		raw.data, err = e.convertMembers(&raw.btfType, v.Members)
 
 	case *Union:
-		raw.SetKind(kindUnion)
-		raw.SetSize(v.Size)
-		raw.data, err = e.convertMembers(&raw.btfType, v.Members)
+		err = e.deflateUnion(&raw, v)
 
 	case *Enum:
-		raw.SetSize(v.size())
-		raw.SetVlen(len(v.Values))
-		raw.SetSigned(v.Signed)
-
-		if v.has64BitValues() {
-			raw.SetKind(kindEnum64)
-			raw.data, err = e.deflateEnum64Values(v.Values)
+		if v.Size == 8 {
+			err = e.deflateEnum64(&raw, v)
 		} else {
-			raw.SetKind(kindEnum)
-			raw.data, err = e.deflateEnumValues(v.Values)
+			err = e.deflateEnum(&raw, v)
 		}
 
 	case *Fwd:
@@ -415,6 +410,13 @@ func (e *encoder) deflateType(typ Type) (err error) {
 	return raw.Marshal(e.buf, e.Order)
 }
 
+func (e *encoder) deflateUnion(raw *rawType, union *Union) (err error) {
+	raw.SetKind(kindUnion)
+	raw.SetSize(union.Size)
+	raw.data, err = e.convertMembers(&raw.btfType, union.Members)
+	return
+}
+
 func (e *encoder) convertMembers(header *btfType, members []Member) ([]btfMember, error) {
 	bms := make([]btfMember, 0, len(members))
 	isBitfield := false
@@ -443,16 +445,32 @@ func (e *encoder) convertMembers(header *btfType, members []Member) ([]btfMember
 	return bms, nil
 }
 
-func (e *encoder) deflateEnumValues(values []EnumValue) ([]btfEnum, error) {
-	bes := make([]btfEnum, 0, len(values))
-	for _, value := range values {
+func (e *encoder) deflateEnum(raw *rawType, enum *Enum) (err error) {
+	raw.SetKind(kindEnum)
+	raw.SetSize(enum.Size)
+	raw.SetVlen(len(enum.Values))
+	// Signedness appeared together with ENUM64 support.
+	raw.SetSigned(enum.Signed && !e.ReplaceEnum64)
+	raw.data, err = e.deflateEnumValues(enum)
+	return
+}
+
+func (e *encoder) deflateEnumValues(enum *Enum) ([]btfEnum, error) {
+	bes := make([]btfEnum, 0, len(enum.Values))
+	for _, value := range enum.Values {
 		nameOff, err := e.strings.Add(value.Name)
 		if err != nil {
 			return nil, err
 		}
 
-		if value.Value > math.MaxUint32 {
-			return nil, fmt.Errorf("value of enum %q exceeds 32 bits", value.Name)
+		if enum.Signed {
+			if signedValue := int64(value.Value); signedValue < math.MinInt32 || signedValue > math.MaxInt32 {
+				return nil, fmt.Errorf("value %d of enum %q exceeds 32 bits", signedValue, value.Name)
+			}
+		} else {
+			if value.Value > math.MaxUint32 {
+				return nil, fmt.Errorf("value %d of enum %q exceeds 32 bits", value.Value, value.Name)
+			}
 		}
 
 		bes = append(bes, btfEnum{
@@ -462,6 +480,41 @@ func (e *encoder) deflateEnumValues(values []EnumValue) ([]btfEnum, error) {
 	}
 
 	return bes, nil
+}
+
+func (e *encoder) deflateEnum64(raw *rawType, enum *Enum) (err error) {
+	if e.ReplaceEnum64 {
+		// Replace the ENUM64 with a union of fields with the correct size.
+		// This matches libbpf behaviour on purpose.
+		placeholder := &Int{
+			"enum64_placeholder",
+			enum.Size,
+			Unsigned,
+		}
+		if enum.Signed {
+			placeholder.Encoding = Signed
+		}
+		if err := e.allocateID(placeholder); err != nil {
+			return fmt.Errorf("add enum64 placeholder: %w", err)
+		}
+
+		members := make([]Member, 0, len(enum.Values))
+		for _, v := range enum.Values {
+			members = append(members, Member{
+				Name: v.Name,
+				Type: placeholder,
+			})
+		}
+
+		return e.deflateUnion(raw, &Union{enum.Name, enum.Size, members})
+	}
+
+	raw.SetKind(kindEnum64)
+	raw.SetSize(enum.Size)
+	raw.SetVlen(len(enum.Values))
+	raw.SetSigned(enum.Signed)
+	raw.data, err = e.deflateEnum64Values(enum.Values)
+	return
 }
 
 func (e *encoder) deflateEnum64Values(values []EnumValue) ([]btfEnum64, error) {

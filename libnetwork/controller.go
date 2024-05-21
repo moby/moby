@@ -63,6 +63,7 @@ import (
 	remotedriver "github.com/docker/docker/libnetwork/drivers/remote"
 	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/scope"
@@ -105,19 +106,22 @@ type Controller struct {
 
 // New creates a new instance of network controller.
 func New(cfgOptions ...config.Option) (*Controller, error) {
+	cfg := config.New(cfgOptions...)
+	store, err := datastore.New(cfg.Scope)
+	if err != nil {
+		return nil, fmt.Errorf("libnet controller initialization: %w", err)
+	}
+
 	c := &Controller{
 		id:               stringid.GenerateRandomID(),
-		cfg:              config.New(cfgOptions...),
+		cfg:              cfg,
+		store:            store,
 		sandboxes:        map[string]*Sandbox{},
 		svcRecords:       make(map[string]*svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
 		agentInitDone:    make(chan struct{}),
 		networkLocker:    locker.New(),
 		DiagnosticServer: diagnostic.New(),
-	}
-
-	if err := c.initStores(); err != nil {
-		return nil, err
 	}
 
 	c.drvRegistry.Notify = c
@@ -132,7 +136,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	if err := initIPAMDrivers(&c.ipamRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool); err != nil {
+	if err := ipams.Register(&c.ipamRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool, nil); err != nil {
 		return nil, err
 	}
 
@@ -1085,7 +1089,7 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 
 // Stop stops the network controller.
 func (c *Controller) Stop() {
-	c.closeStores()
+	c.store.Close()
 	c.stopExternalKeyListener()
 	osl.GC()
 }

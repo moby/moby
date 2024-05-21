@@ -11,12 +11,14 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/tracing"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/image"
 	v1 "github.com/docker/docker/image/v1"
+	"github.com/docker/docker/internal/ioutils"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
@@ -42,20 +44,20 @@ type saveSession struct {
 	savedConfigs map[string]struct{}
 }
 
-func (l *tarexporter) Save(names []string, outStream io.Writer) error {
-	images, err := l.parseNames(names)
+func (l *tarexporter) Save(ctx context.Context, names []string, outStream io.Writer) error {
+	images, err := l.parseNames(ctx, names)
 	if err != nil {
 		return err
 	}
 
 	// Release all the image top layer references
 	defer l.releaseLayerReferences(images)
-	return (&saveSession{tarexporter: l, images: images}).save(outStream)
+	return (&saveSession{tarexporter: l, images: images}).save(ctx, outStream)
 }
 
 // parseNames will parse the image names to a map which contains image.ID to *imageDescriptor.
 // Each imageDescriptor holds an image top layer reference named 'layerRef'. It is taken here, should be released later.
-func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescriptor, rErr error) {
+func (l *tarexporter) parseNames(ctx context.Context, names []string) (desc map[image.ID]*imageDescriptor, rErr error) {
 	imgDescr := make(map[image.ID]*imageDescriptor)
 	defer func() {
 		if rErr != nil {
@@ -92,6 +94,12 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 	}
 
 	for _, name := range names {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		ref, err := reference.ParseAnyReference(name)
 		if err != nil {
 			return nil, err
@@ -179,7 +187,7 @@ func (l *tarexporter) releaseLayerReferences(imgDescr map[image.ID]*imageDescrip
 	return nil
 }
 
-func (s *saveSession) save(outStream io.Writer) error {
+func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 	s.savedConfigs = make(map[string]struct{})
 	s.savedLayers = make(map[layer.DiffID]distribution.Descriptor)
 
@@ -199,7 +207,13 @@ func (s *saveSession) save(outStream io.Writer) error {
 	var manifestDescriptors []ocispec.Descriptor
 
 	for id, imageDescr := range s.images {
-		foreignSrcs, err := s.saveImage(id)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		foreignSrcs, err := s.saveImage(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -370,17 +384,34 @@ func (s *saveSession) save(outStream io.Writer) error {
 		return errors.Wrap(err, "error writing oci index file")
 	}
 
+	return s.writeTar(ctx, tempDir, outStream)
+}
+
+func (s *saveSession) writeTar(ctx context.Context, tempDir string, outStream io.Writer) error {
+	ctx, span := tracing.StartSpan(ctx, "writeTar")
+	defer span.End()
+
 	fs, err := archive.Tar(tempDir, archive.Uncompressed)
 	if err != nil {
+		span.SetStatus(err)
 		return err
 	}
 	defer fs.Close()
 
-	_, err = io.Copy(outStream, fs)
+	_, err = ioutils.CopyCtx(ctx, outStream, fs)
+
+	span.SetStatus(err)
 	return err
 }
 
-func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Descriptor, error) {
+func (s *saveSession) saveImage(ctx context.Context, id image.ID) (_ map[layer.DiffID]distribution.Descriptor, outErr error) {
+	ctx, span := tracing.StartSpan(ctx, "saveImage")
+	span.SetAttributes(tracing.Attribute("image.id", id.String()))
+	defer span.End()
+	defer func() {
+		span.SetStatus(outErr)
+	}()
+
 	img := s.images[id].image
 	if len(img.RootFS.DiffIDs) == 0 {
 		return nil, fmt.Errorf("empty export - not implemented")
@@ -390,6 +421,11 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 	var layers []layer.DiffID
 	var foreignSrcs map[layer.DiffID]distribution.Descriptor
 	for i, diffID := range img.RootFS.DiffIDs {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
 		v1ImgCreated := time.Unix(0, 0)
 		v1Img := image.V1Image{
 			// This is for backward compatibility used for
@@ -412,7 +448,7 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 		}
 
 		v1Img.OS = img.OS
-		src, err := s.saveConfigAndLayer(rootFS.ChainID(), v1Img, img.Created)
+		src, err := s.saveConfigAndLayer(ctx, rootFS.ChainID(), v1Img, img.Created)
 		if err != nil {
 			return nil, err
 		}
@@ -457,7 +493,17 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 	return foreignSrcs, nil
 }
 
-func (s *saveSession) saveConfigAndLayer(id layer.ChainID, legacyImg image.V1Image, createdTime *time.Time) (distribution.Descriptor, error) {
+func (s *saveSession) saveConfigAndLayer(ctx context.Context, id layer.ChainID, legacyImg image.V1Image, createdTime *time.Time) (_ distribution.Descriptor, outErr error) {
+	ctx, span := tracing.StartSpan(ctx, "saveConfigAndLayer")
+	span.SetAttributes(
+		tracing.Attribute("layer.id", id.String()),
+		tracing.Attribute("image.id", legacyImg.ID),
+	)
+	defer span.End()
+	defer func() {
+		span.SetStatus(outErr)
+	}()
+
 	outDir := filepath.Join(s.outDir, ocispec.ImageBlobsDir)
 
 	if _, ok := s.savedConfigs[legacyImg.ID]; !ok {
@@ -512,7 +558,7 @@ func (s *saveSession) saveConfigAndLayer(id layer.ChainID, legacyImg image.V1Ima
 	digester := digest.Canonical.Digester()
 	digestedArch := io.TeeReader(arch, digester.Hash())
 
-	tarSize, err := io.Copy(tarFile, digestedArch)
+	tarSize, err := ioutils.CopyCtx(ctx, tarFile, digestedArch)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}

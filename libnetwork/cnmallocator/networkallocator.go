@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/libnetwork/drivers/remote"
 	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	remoteipam "github.com/docker/docker/libnetwork/ipams/remote"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/scope"
@@ -803,7 +804,7 @@ func (na *cnmNetworkAllocator) loadDriver(name string) error {
 
 // Resolve the IPAM driver
 func (na *cnmNetworkAllocator) resolveIPAM(n *api.Network) (ipamapi.Ipam, string, map[string]string, error) {
-	dName := ipamapi.DefaultIPAM
+	dName := defaultipam.DriverName
 	if n.Spec.IPAM != nil && n.Spec.IPAM.Driver != nil && n.Spec.IPAM.Driver.Name != "" {
 		dName = n.Spec.IPAM.Driver.Name
 	}
@@ -884,13 +885,18 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string,
 	}
 
 	for i, ic := range ipamConfigs {
-		poolID, poolIP, meta, err := ipam.RequestPool(asName, ic.Subnet, ic.Range, dOptions, false)
+		alloc, err := ipam.RequestPool(ipamapi.PoolRequest{
+			AddressSpace: asName,
+			Pool:         ic.Subnet,
+			SubPool:      ic.Range,
+			Options:      dOptions,
+		})
 		if err != nil {
 			// Rollback by releasing all the resources allocated so far.
 			releasePools(ipam, ipamConfigs[:i], pools)
 			return nil, err
 		}
-		pools[poolIP.String()] = poolID
+		pools[alloc.Pool.String()] = alloc.PoolID
 
 		// The IPAM contract allows the IPAM driver to autonomously
 		// provide a network gateway in response to the pool request.
@@ -902,7 +908,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string,
 			gwIP *net.IPNet
 			ip   net.IP
 		)
-		if gws, ok := meta[netlabel.Gateway]; ok {
+		if gws, ok := alloc.Meta[netlabel.Gateway]; ok {
 			if ip, gwIP, err = net.ParseCIDR(gws); err != nil {
 				return nil, fmt.Errorf("failed to parse gateway address (%v) returned by ipam driver: %v", gws, err)
 			}
@@ -917,7 +923,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string,
 		defer delete(dOptions, ipamapi.RequestAddressType)
 
 		if ic.Gateway != "" || gwIP == nil {
-			gwIP, _, err = ipam.RequestAddress(poolID, net.ParseIP(ic.Gateway), dOptions)
+			gwIP, _, err = ipam.RequestAddress(alloc.PoolID, net.ParseIP(ic.Gateway), dOptions)
 			if err != nil {
 				// Rollback by releasing all the resources allocated so far.
 				releasePools(ipam, ipamConfigs[:i], pools)
@@ -926,7 +932,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string,
 		}
 
 		if ic.Subnet == "" {
-			ic.Subnet = poolIP.String()
+			ic.Subnet = alloc.Pool.String()
 		}
 
 		if ic.Gateway == "" {

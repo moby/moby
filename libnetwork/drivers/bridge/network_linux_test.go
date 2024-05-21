@@ -90,7 +90,7 @@ func TestLinkCreate(t *testing.T) {
 
 	ip6 := te.iface.addrv6.IP
 	if !n.bridge.bridgeIPv6.Contains(ip6) {
-		t.Fatalf("IP %s is not a valid ip in the subnet %s", ip6.String(), bridgeIPv6.String())
+		t.Fatalf("IP %s is not a valid ip in the subnet %s", ip6.String(), n.bridge.bridgeIPv6.String())
 	}
 
 	if !te.gw.Equal(n.bridge.bridgeIPv4.IP) {

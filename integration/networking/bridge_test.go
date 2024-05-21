@@ -469,7 +469,6 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	ctx := setupTest(t)
-	d := daemon.New(t)
 
 	type testStep struct {
 		stepName    string
@@ -487,13 +486,13 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 				{
 					stepName:    "Set up initial UL prefix",
 					fixedCIDRV6: "fd1c:f1a0:5d8d:aaaa::/64",
-					expAddrs:    []string{"fd1c:f1a0:5d8d:aaaa::1/64", "fe80::1/64"},
+					expAddrs:    []string{"fd1c:f1a0:5d8d:aaaa::1/64", "fe80::"},
 				},
 				{
 					// Modify that prefix, the default bridge's address must be deleted and re-added.
 					stepName:    "Modify UL prefix - address change",
 					fixedCIDRV6: "fd1c:f1a0:5d8d:bbbb::/64",
-					expAddrs:    []string{"fd1c:f1a0:5d8d:bbbb::1/64", "fe80::1/64"},
+					expAddrs:    []string{"fd1c:f1a0:5d8d:bbbb::1/64", "fe80::"},
 				},
 				{
 					// Modify the prefix length, the default bridge's address should not change.
@@ -501,7 +500,7 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 					fixedCIDRV6: "fd1c:f1a0:5d8d:bbbb::/80",
 					// The prefix length displayed by 'ip a' is not updated - it's informational, and
 					// can't be changed without unnecessarily deleting and re-adding the address.
-					expAddrs: []string{"fd1c:f1a0:5d8d:bbbb::1/64", "fe80::1/64"},
+					expAddrs: []string{"fd1c:f1a0:5d8d:bbbb::1/64", "fe80::"},
 				},
 			},
 		},
@@ -511,14 +510,14 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 				{
 					stepName:    "Standard LL subnet prefix",
 					fixedCIDRV6: "fe80::/64",
-					expAddrs:    []string{"fe80::1/64"},
+					expAddrs:    []string{"fe80::"},
 				},
 				{
 					// Modify that prefix, the default bridge's address must be deleted and re-added.
 					// The bridge must still have an address in the required (standard) LL subnet.
 					stepName:    "Nonstandard LL prefix - address change",
 					fixedCIDRV6: "fe80:1234::/32",
-					expAddrs:    []string{"fe80:1234::1/32", "fe80::1/64"},
+					expAddrs:    []string{"fe80:1234::1/32", "fe80::"},
 				},
 				{
 					// Modify the prefix length, the addresses should not change.
@@ -526,18 +525,28 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 					fixedCIDRV6: "fe80:1234::/64",
 					// The prefix length displayed by 'ip a' is not updated - it's informational, and
 					// can't be changed without unnecessarily deleting and re-adding the address.
-					expAddrs: []string{"fe80:1234::1/", "fe80::1/64"},
+					expAddrs: []string{"fe80:1234::1/", "fe80::"},
 				},
 			},
 		},
 	}
 
+	d := daemon.New(t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+
 	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			for _, step := range tc.steps {
+		for _, step := range tc.steps {
+			t.Run(tc.name+"/"+step.stepName, func(t *testing.T) {
+				ctx := testutil.StartSpan(ctx, t)
 				// Check that the daemon starts - regression test for:
 				//   https://github.com/moby/moby/issues/46829
-				d.Start(t, "--experimental", "--ipv6", "--ip6tables", "--fixed-cidr-v6="+step.fixedCIDRV6)
+				d.StartWithBusybox(ctx, t, "--experimental", "--ipv6", "--ip6tables", "--fixed-cidr-v6="+step.fixedCIDRV6)
+
+				// Start a container, so that the bridge is set "up" and gets a kernel_ll address.
+				cID := container.Run(ctx, t, c)
+				defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+
 				d.Stop(t)
 
 				// Check that the expected addresses have been applied to the bridge. (Skip in
@@ -550,8 +559,8 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 						assert.Check(t, is.Contains(stdout, expAddr))
 					}
 				}
-			}
-		})
+			})
+		}
 	}
 }
 
@@ -737,4 +746,79 @@ func TestSetInterfaceSysctl(t *testing.T) {
 
 	stdout := runRes.Stdout.String()
 	assert.Check(t, is.Contains(stdout, scName))
+}
+
+// With a read-only "/proc/sys/net" filesystem (simulated using env var
+// DOCKER_TEST_RO_DISABLE_IPV6), check that if IPv6 can't be disabled on a
+// container interface, container creation fails - unless the error is ignored by
+// setting env var DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1.
+// Regression test for https://github.com/moby/moby/issues/47751
+func TestReadOnlySlashProc(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+
+	testcases := []struct {
+		name      string
+		daemonEnv []string
+		expErr    string
+	}{
+		{
+			name: "Normality",
+		},
+		{
+			name: "Read only no workaround",
+			daemonEnv: []string{
+				"DOCKER_TEST_RO_DISABLE_IPV6=1",
+			},
+			expErr: "failed to disable IPv6 on container's interface eth0, set env var DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1 to ignore this error",
+		},
+		{
+			name: "Read only with workaround",
+			daemonEnv: []string{
+				"DOCKER_TEST_RO_DISABLE_IPV6=1",
+				"DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1",
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			d := daemon.New(t, daemon.WithEnvVars(tc.daemonEnv...))
+			d.StartWithBusybox(ctx, t)
+			defer d.Stop(t)
+			c := d.NewClientT(t)
+
+			const net4Name = "testnet4"
+			network.CreateNoError(ctx, t, c, net4Name)
+			defer network.RemoveNoError(ctx, t, c, net4Name)
+			id4 := container.Create(ctx, t, c,
+				container.WithNetworkMode(net4Name),
+				container.WithCmd("ls"),
+			)
+			defer c.ContainerRemove(ctx, id4, containertypes.RemoveOptions{Force: true})
+			err := c.ContainerStart(ctx, id4, containertypes.StartOptions{})
+			if tc.expErr == "" {
+				assert.Check(t, err)
+			} else {
+				assert.Check(t, is.ErrorContains(err, tc.expErr))
+			}
+
+			// It should always be possible to create a container on an IPv6 network (IPv6
+			// doesn't need to be disabled on the interface).
+			const net6Name = "testnet6"
+			network.CreateNoError(ctx, t, c, net6Name,
+				network.WithIPv6(),
+				network.WithIPAM("fd5c:15e3:0b62:5395::/64", "fd5c:15e3:0b62:5395::1"),
+			)
+			defer network.RemoveNoError(ctx, t, c, net6Name)
+			id6 := container.Run(ctx, t, c,
+				container.WithNetworkMode(net6Name),
+				container.WithCmd("ls"),
+			)
+			defer c.ContainerRemove(ctx, id6, containertypes.RemoveOptions{Force: true})
+		})
+	}
 }

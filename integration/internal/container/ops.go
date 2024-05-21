@@ -47,6 +47,13 @@ func WithNetworkMode(mode string) func(*TestContainerConfig) {
 	}
 }
 
+// WithDNS sets external DNS servers for the container
+func WithDNS(dns []string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.DNS = append([]string(nil), dns...)
+	}
+}
+
 // WithSysctls sets sysctl options for the container
 func WithSysctls(sysctls map[string]string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {

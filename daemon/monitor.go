@@ -254,7 +254,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 				}
 				return err
 			}
-			c.SetRunning(ctr, tsk, false)
+			c.SetRunningExternal(ctr, tsk)
 			c.HasBeenManuallyStopped = false
 			c.HasBeenStartedBefore = true
 			daemon.setStateCounter(c)

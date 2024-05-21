@@ -2,6 +2,7 @@ package types // import "github.com/docker/docker/api/types"
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"net"
 
@@ -176,7 +177,7 @@ type ImageLoadResponse struct {
 // This function returns the registry authentication
 // header value in base 64 format, or an error
 // if the privilege request fails.
-type RequestPrivilegeFunc func() (string, error)
+type RequestPrivilegeFunc func(context.Context) (string, error)
 
 // ImageSearchOptions holds parameters to search images with.
 type ImageSearchOptions struct {
@@ -289,7 +290,7 @@ type PluginInstallOptions struct {
 	RegistryAuth          string // RegistryAuth is the base64 encoded credentials for the registry
 	RemoteRef             string // RemoteRef is the plugin name on the registry
 	PrivilegeFunc         RequestPrivilegeFunc
-	AcceptPermissionsFunc func(PluginPrivileges) (bool, error)
+	AcceptPermissionsFunc func(context.Context, PluginPrivileges) (bool, error)
 	Args                  []string
 }
 

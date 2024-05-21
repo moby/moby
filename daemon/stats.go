@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/ioutils"
 )
 
 // ContainerStats writes information about the container to the stream
@@ -27,9 +26,11 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		return errdefs.InvalidParameter(errors.New("cannot have stream=true and one-shot=true"))
 	}
 
+	enc := json.NewEncoder(config.OutStream())
+
 	// If the container is either not running or restarting and requires no stream, return an empty stats.
 	if (!ctr.IsRunning() || ctr.IsRestarting()) && !config.Stream {
-		return json.NewEncoder(config.OutStream).Encode(&types.StatsJSON{
+		return enc.Encode(&types.StatsJSON{
 			Name: ctr.Name,
 			ID:   ctr.ID,
 		})
@@ -41,15 +42,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		if err != nil {
 			return err
 		}
-		return json.NewEncoder(config.OutStream).Encode(stats)
-	}
-
-	outStream := config.OutStream
-	if config.Stream {
-		wf := ioutils.NewWriteFlusher(outStream)
-		defer wf.Close()
-		wf.Flush()
-		outStream = wf
+		return enc.Encode(stats)
 	}
 
 	var preCPUStats types.CPUStats
@@ -65,12 +58,11 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		return &ss
 	}
 
-	enc := json.NewEncoder(outStream)
-
 	updates := daemon.subscribeToContainerStats(ctr)
 	defer daemon.unsubscribeToContainerStats(ctr, updates)
 
 	noStreamFirstFrame := !config.OneShot
+
 	for {
 		select {
 		case v, ok := <-updates:

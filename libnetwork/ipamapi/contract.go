@@ -3,16 +3,13 @@ package ipamapi
 
 import (
 	"net"
+	"net/netip"
 
 	"github.com/docker/docker/libnetwork/types"
 )
 
 // IPAM plugin types
 const (
-	// DefaultIPAM is the name of the built-in default ipam driver
-	DefaultIPAM = "default"
-	// NullIPAM is the name of the built-in null ipam driver
-	NullIPAM = "null"
 	// PluginEndpointType represents the Endpoint Type used by Plugin system
 	PluginEndpointType = "IpamDriver"
 	// RequestAddressType represents the Address Type used when requesting an address
@@ -45,13 +42,9 @@ var (
 type Ipam interface {
 	// GetDefaultAddressSpaces returns the default local and global address spaces for this ipam
 	GetDefaultAddressSpaces() (string, string, error)
-	// RequestPool returns an address pool along with its unique id. Address space is a mandatory field
-	// which denotes a set of non-overlapping pools. requestedPool describes the pool of addresses in CIDR notation.
-	// requestedSubPool indicates a smaller range of addresses from the pool, for now it is specified in CIDR notation.
-	// Both requestedPool and requestedSubPool are non-mandatory fields. When they are not specified, Ipam driver may choose to
-	// return a self chosen pool for this request. In such case the v6 flag needs to be set appropriately so
-	// that the driver would return the expected ip version pool.
-	RequestPool(addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, err error)
+	// RequestPool allocate an address pool either statically or dynamically
+	// based on req.
+	RequestPool(req PoolRequest) (AllocatedPool, error)
 	// ReleasePool releases the address pool identified by the passed id
 	ReleasePool(poolID string) error
 	// RequestAddress request an address from the specified pool ID. Input options or required IP can be passed.
@@ -61,6 +54,41 @@ type Ipam interface {
 
 	// IsBuiltIn returns true if it is a built-in driver.
 	IsBuiltIn() bool
+}
+
+type PoolRequest struct {
+	// AddressSpace is a mandatory field which denotes which block of pools
+	// should be used to make the allocation. This value is opaque, and only
+	// the IPAM driver can interpret it. Each driver might support a different
+	// set of AddressSpace.
+	AddressSpace string
+	// Pool is a prefix in CIDR notation. It's non-mandatory. When specified
+	// the Pool will be statically allocated. The Pool is used for dynamic
+	// address allocation -- except when SubPool is specified.
+	Pool string
+	// SubPool is a subnet from Pool, in CIDR notation too. It's non-mandatory.
+	// When specified, it represents the subnet where addresses will be
+	// dynamically allocated. It can't be specified if Pool isn't specified.
+	SubPool string
+	// Options is a map of opaque k/v passed to the driver. It's non-mandatory.
+	// Drivers are free to ignore it.
+	Options map[string]string
+	// V6 indicates which address family should be used to dynamically allocate
+	// a prefix (ie. when Pool isn't specified).
+	V6 bool
+}
+
+type AllocatedPool struct {
+	// PoolID represents the ID of the allocated pool. Its value is opaque and
+	// shouldn't be interpreted by anything but the IPAM driver that generated
+	// it.
+	PoolID string
+	// Pool is the allocated prefix.
+	Pool netip.Prefix
+	// Meta represents a list of extra IP addresses automatically reserved
+	// during the pool allocation. These are generally keyed by well-known
+	// strings defined in the netlabel package.
+	Meta map[string]string
 }
 
 // Capability represents the requirements and capabilities of the IPAM driver
