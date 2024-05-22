@@ -282,6 +282,19 @@ func (n *nodeRunner) handleNodeExit(node *swarmnode.Node) {
 	close(n.done)
 	select {
 	case <-n.ready:
+		// there is a case where a node can be promoted to manager while
+		// another node is leaving the cluster. the node being promoted, by
+		// random chance, picks the IP of the node being demoted as the one it
+		// tries to connect to. in this case, the promotion will fail, and the
+		// whole swarm Node object packs it in.
+		//
+		// when the Node object is relaunched by this code, because it has
+		// joinAddr in the config, it attempts again to connect to the same
+		// no-longer-manager node, and crashes again. this continues forever.
+		//
+		// to avoid this case, in this block, we remove JoinAddr from the
+		// config.
+		n.config.joinAddr = ""
 		n.enableReconnectWatcher()
 	default:
 		if n.repeatedRun {
