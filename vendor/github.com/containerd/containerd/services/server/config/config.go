@@ -99,9 +99,15 @@ func (c *Config) GetVersion() int {
 func (c *Config) ValidateV2() error {
 	version := c.GetVersion()
 	if version < 2 {
-		logrus.Warnf("containerd config version `%d` has been deprecated and will be removed in containerd v2.0, please switch to version `2`, "+
-			"see https://github.com/containerd/containerd/blob/main/docs/PLUGINS.md#version-header", version)
+		logrus.Warnf("containerd config version `%d` has been deprecated and will be converted on each startup in containerd v2.0, "+
+			"use `containerd config migrate` after upgrading to containerd 2.0 to avoid conversion on startup", version)
 		return nil
+	}
+	if version > 2 {
+		logrus.Errorf("containerd config version `%d` is not supported, the max version is `2`, "+
+			"use `containerd config default` to generate a new config or manually revert to version `2`", version)
+		return fmt.Errorf("unsupported config version `%d`", version)
+
 	}
 	for _, p := range c.DisabledPlugins {
 		if !strings.HasPrefix(p, "io.containerd.") || len(strings.SplitN(p, ".", 4)) < 4 {

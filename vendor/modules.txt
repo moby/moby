@@ -51,8 +51,8 @@ github.com/Microsoft/go-winio/pkg/etwlogrus
 github.com/Microsoft/go-winio/pkg/fs
 github.com/Microsoft/go-winio/pkg/guid
 github.com/Microsoft/go-winio/vhd
-# github.com/Microsoft/hcsshim v0.11.4
-## explicit; go 1.18
+# github.com/Microsoft/hcsshim v0.11.5
+## explicit; go 1.21
 github.com/Microsoft/hcsshim
 github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options
 github.com/Microsoft/hcsshim/computestorage
@@ -261,7 +261,7 @@ github.com/containerd/cgroups/v3/cgroup2/stats
 # github.com/containerd/console v1.0.4
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd v1.7.16
+# github.com/containerd/containerd v1.7.17
 ## explicit; go 1.21
 github.com/containerd/containerd
 github.com/containerd/containerd/api/events
@@ -397,7 +397,7 @@ github.com/containerd/nydus-snapshotter/pkg/label
 ## explicit; go 1.19
 github.com/containerd/stargz-snapshotter/estargz
 github.com/containerd/stargz-snapshotter/estargz/errorutil
-# github.com/containerd/ttrpc v1.2.3
+# github.com/containerd/ttrpc v1.2.4
 ## explicit; go 1.19
 github.com/containerd/ttrpc
 # github.com/containerd/typeurl/v2 v2.1.1
@@ -981,7 +981,7 @@ github.com/morikuni/aec
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
 github.com/opencontainers/go-digest/digestset
-# github.com/opencontainers/image-spec v1.1.0-rc5
+# github.com/opencontainers/image-spec v1.1.0
 ## explicit; go 1.18
 github.com/opencontainers/image-spec/identity
 github.com/opencontainers/image-spec/specs-go
