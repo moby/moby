@@ -130,3 +130,56 @@ func (s *PoolID) String() string {
 func (p *PoolData) String() string {
 	return fmt.Sprintf("PoolData[Children: %d]", len(p.children))
 }
+
+// mergeIter is used to iterate on both 'a' and 'b' at the same time while
+// maintaining the total order that would arise if both were merged and then
+// sorted. Both 'a' and 'b' have to be sorted beforehand.
+type mergeIter struct {
+	a, b   []netip.Prefix
+	ia, ib int
+	cmp    func(a, b netip.Prefix) int
+	lastA  bool
+}
+
+func newMergeIter(a, b []netip.Prefix, cmp func(a, b netip.Prefix) int) *mergeIter {
+	iter := &mergeIter{
+		a:   a,
+		b:   b,
+		cmp: cmp,
+	}
+	iter.lastA = iter.nextA()
+
+	return iter
+}
+
+func (it *mergeIter) Get() netip.Prefix {
+	if it.ia+it.ib >= len(it.a)+len(it.b) {
+		return netip.Prefix{}
+	}
+
+	if it.lastA {
+		return it.a[it.ia]
+	}
+
+	return it.b[it.ib]
+}
+
+func (it *mergeIter) Inc() {
+	if it.lastA {
+		it.ia++
+	} else {
+		it.ib++
+	}
+
+	it.lastA = it.nextA()
+}
+
+func (it *mergeIter) nextA() bool {
+	if it.ia < len(it.a) && it.ib < len(it.b) && it.cmp(it.a[it.ia], it.b[it.ib]) <= 0 {
+		return true
+	} else if it.ia < len(it.a) && it.ib >= len(it.b) {
+		return true
+	}
+
+	return false
+}

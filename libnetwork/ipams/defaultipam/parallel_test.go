@@ -3,13 +3,11 @@ package defaultipam
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"net"
-	"sort"
+	"net/netip"
+	"slices"
 	"sync"
-	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipamutils"
@@ -66,77 +64,46 @@ func TestDebug(t *testing.T) {
 	tctx.a.RequestAddress(tctx.pid, nil, map[string]string{ipamapi.AllocSerialPrefix: "true"})
 }
 
-type op struct {
-	id   int32
-	add  bool
-	name string
-}
-
-func (o *op) String() string {
-	return fmt.Sprintf("%+v", *o)
-}
-
 func TestRequestPoolParallel(t *testing.T) {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
-	if err != nil {
-		t.Fatal(err)
-	}
-	var operationIndex int32
-	ch := make(chan *op, 240)
+	a, err := NewAllocator([]*ipamutils.NetworkToSplit{
+		{Base: netip.MustParsePrefix("10.0.0.0/10"), Size: 24},
+	}, nil)
+	assert.NilError(t, err)
 
-	group := new(errgroup.Group)
-	defer func() {
-		if err := group.Wait(); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	var expected []string
+	var eg errgroup.Group
+	imax := 1 << (a.local4.predefined[0].Size - a.local4.predefined[0].Base.Bits())
+	allocCh := make(chan string, imax)
 
-	for i := 0; i < 120; i++ {
-		group.Go(func() error {
-			alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: "GlobalDefault"})
+	for i := 0; i < imax; i++ {
+		expected = append(expected, fmt.Sprintf("10.%d.%d.0/24", uint(i/256), i%256))
+
+		eg.Go(func() error {
+			t.Helper()
+
+			alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
 			if err != nil {
-				t.Log(err) // log so we can see the error in real time rather than at the end when we actually call "Wait".
-				return fmt.Errorf("request error %v", err)
+				return err
 			}
-			idx := atomic.AddInt32(&operationIndex, 1)
-			ch <- &op{idx, true, alloc.PoolID}
-			time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
-			idx = atomic.AddInt32(&operationIndex, 1)
-			err = a.ReleasePool(alloc.PoolID)
-			if err != nil {
-				t.Log(err) // log so we can see the error in real time rather than at the end when we actually call "Wait".
-				return fmt.Errorf("release error %v", err)
-			}
-			ch <- &op{idx, false, alloc.PoolID}
+
+			allocCh <- alloc.Pool.String()
+
 			return nil
 		})
 	}
 
-	// map of events
-	m := make(map[string][]*op)
-	for i := 0; i < 240; i++ {
-		x := <-ch
-		ops, ok := m[x.name]
-		if !ok {
-			ops = make([]*op, 0, 10)
-		}
-		ops = append(ops, x)
-		m[x.name] = ops
+	assert.NilError(t, eg.Wait())
+	close(allocCh)
+
+	var allocated []string
+	for alloc := range allocCh {
+		allocated = append(allocated, alloc)
 	}
 
-	// Post processing to avoid event reordering on the channel
-	for pool, ops := range m {
-		sort.Slice(ops[:], func(i, j int) bool {
-			return ops[i].id < ops[j].id
-		})
-		expected := true
-		for _, op := range ops {
-			if op.add != expected {
-				t.Fatalf("Operations for %v not valid %v, operations %v", pool, op, ops)
-			}
-			expected = !expected
-		}
+	for _, exp := range expected {
+		assert.Check(t, slices.Contains(allocated, exp) == true)
 	}
+	assert.Equal(t, len(allocated), len(expected))
 }
 
 func TestFullAllocateRelease(t *testing.T) {

@@ -2,6 +2,7 @@ package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"encoding/json"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -157,7 +158,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	emptyConfigFile := makeConfigFile(t, `{}`)
 	configFile := makeConfigFile(t, `{"default-address-pools":[{"base": "10.123.0.0/16", "size": 24 }]}`)
 
-	expected := []*ipamutils.NetworkToSplit{{Base: "10.123.0.0/16", Size: 24}}
+	expected := []*ipamutils.NetworkToSplit{{Base: netip.MustParsePrefix("10.123.0.0/16"), Size: 24}}
 
 	t.Run("empty config file", func(t *testing.T) {
 		conf := Config{}
@@ -167,7 +168,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 
 		config, err := MergeDaemonConfigurations(&conf, flags, emptyConfigFile)
 		assert.NilError(t, err)
-		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected)
+		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected, cmpopts.EquateComparable(netip.Prefix{}))
 	})
 
 	t.Run("config file", func(t *testing.T) {
@@ -177,7 +178,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 
 		config, err := MergeDaemonConfigurations(&conf, flags, configFile)
 		assert.NilError(t, err)
-		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected)
+		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected, cmpopts.EquateComparable(netip.Prefix{}))
 	})
 
 	t.Run("with conflicting options", func(t *testing.T) {

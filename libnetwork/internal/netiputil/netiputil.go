@@ -59,3 +59,32 @@ func AddrPortFromNet(addr net.Addr) netip.AddrPort {
 	}
 	return netip.AddrPort{}
 }
+
+// LastAddr returns the last address of prefix 'p'.
+func LastAddr(p netip.Prefix) netip.Addr {
+	return ipbits.Add(p.Addr().Prev(), 1, uint(p.Addr().BitLen()-p.Bits()))
+}
+
+// PrefixCompare two prefixes and return a negative, 0, or a positive integer as
+// required by [slices.SortFunc]. When two prefixes with the same address is
+// provided, the shortest one will be sorted first.
+func PrefixCompare(a, b netip.Prefix) int {
+	cmp := a.Addr().Compare(b.Addr())
+	if cmp != 0 {
+		return cmp
+	}
+	return a.Bits() - b.Bits()
+}
+
+// PrefixAfter returns the prefix of size 'sz' right after 'prev'.
+func PrefixAfter(prev netip.Prefix, sz int) netip.Prefix {
+	s := sz
+	if prev.Bits() < sz {
+		s = prev.Bits()
+	}
+	addr := ipbits.Add(prev.Addr(), 1, uint(prev.Addr().BitLen()-s))
+	if addr.IsUnspecified() {
+		return netip.Prefix{}
+	}
+	return netip.PrefixFrom(addr, sz).Masked()
+}

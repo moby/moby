@@ -258,7 +258,7 @@ func (daemon *Daemon) fillDefaultAddressPools(ctx context.Context, v *system.Inf
 	defer span.End()
 	for _, pool := range cfg.DefaultAddressPools.Value() {
 		v.DefaultAddressPools = append(v.DefaultAddressPools, system.NetworkAddressPool{
-			Base: pool.Base,
+			Base: pool.Base.String(),
 			Size: pool.Size,
 		})
 	}

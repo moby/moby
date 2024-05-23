@@ -2,6 +2,8 @@ package cnmallocator
 
 import (
 	"context"
+	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -22,8 +24,12 @@ func initIPAMDrivers(r ipamapi.Registerer, netConfig *networkallocator.Config) e
 	// happens with default address pool option
 	if netConfig != nil {
 		for _, p := range netConfig.DefaultAddrPool {
+			base, err := netip.ParsePrefix(p)
+			if err != nil {
+				return fmt.Errorf("invalid prefix %q: %w", p, err)
+			}
 			addressPool = append(addressPool, &ipamutils.NetworkToSplit{
-				Base: p,
+				Base: base,
 				Size: int(netConfig.SubnetSize),
 			})
 			str.WriteString(p + ",")

@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -39,7 +40,11 @@ func (p *PoolsOpt) Set(value string) error {
 
 		switch key {
 		case "base":
-			poolsDef.Base = val
+			base, err := netip.ParsePrefix(val)
+			if err != nil {
+				return fmt.Errorf("invalid base prefix %q: %w", val, err)
+			}
+			poolsDef.Base = base
 		case "size":
 			size, err := strconv.Atoi(val)
 			if err != nil {

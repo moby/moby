@@ -24,6 +24,27 @@ func Add(ip netip.Addr, x uint64, shift uint) netip.Addr {
 	}
 }
 
+// SubnetsBetween computes the number of subnets of size 'sz' available between 'a1'
+// and 'a2'. The result is capped at [math.MaxUint64]. It returns 0 when one of
+// 'a1' or 'a2' is invalid, if both aren't of the same family, or when 'a2' is
+// less than 'a1'.
+func SubnetsBetween(a1 netip.Addr, a2 netip.Addr, sz int) uint64 {
+	if !a1.IsValid() || !a2.IsValid() || a1.Is4() != a2.Is4() || a2.Less(a1) {
+		return 0
+	}
+
+	p1, _ := a1.Prefix(sz)
+	p2, _ := a2.Prefix(sz)
+
+	return subAddr(p2.Addr(), p1.Addr()).rsh(uint(a1.BitLen() - sz)).uint64()
+}
+
+// subAddr returns 'ip1 - ip2'. Both netip.Addr have to be of the same address
+// family. 'ip1' as to be greater than or equal to 'ip2'.
+func subAddr(ip1 netip.Addr, ip2 netip.Addr) uint128 {
+	return uint128From16(ip1.As16()).sub(uint128From16(ip2.As16()))
+}
+
 // Field returns the value of the bitfield [u, v] in ip as an integer,
 // where bit 0 is the most-significant bit of ip.
 //

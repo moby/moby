@@ -3,127 +3,17 @@ package netutils
 import (
 	"bytes"
 	"fmt"
-	"net"
+	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork/ipamutils"
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
-
-func TestNonOverlappingNameservers(t *testing.T) {
-	network := &net.IPNet{
-		IP:   []byte{192, 168, 0, 1},
-		Mask: []byte{255, 255, 255, 0},
-	}
-	nameservers := []string{
-		"127.0.0.1/32",
-	}
-
-	if err := CheckNameserverOverlaps(nameservers, network); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestOverlappingNameservers(t *testing.T) {
-	network := &net.IPNet{
-		IP:   []byte{192, 168, 0, 1},
-		Mask: []byte{255, 255, 255, 0},
-	}
-	nameservers := []string{
-		"192.168.0.1/32",
-	}
-
-	if err := CheckNameserverOverlaps(nameservers, network); err == nil {
-		t.Fatalf("Expected error %s got %s", ErrNetworkOverlapsWithNameservers, err)
-	}
-}
-
-func TestCheckRouteOverlaps(t *testing.T) {
-	networkGetRoutesFct = func(netlink.Link, int) ([]netlink.Route, error) {
-		routesData := []string{"10.0.2.0/32", "10.0.3.0/24", "10.0.42.0/24", "172.16.42.0/24", "192.168.142.0/24"}
-		routes := []netlink.Route{}
-		for _, addr := range routesData {
-			_, netX, _ := net.ParseCIDR(addr)
-			routes = append(routes, netlink.Route{Dst: netX, Scope: netlink.SCOPE_LINK})
-		}
-		// Add a route with a scope which should not overlap
-		_, netX, _ := net.ParseCIDR("10.0.5.0/24")
-		routes = append(routes, netlink.Route{Dst: netX, Scope: netlink.SCOPE_UNIVERSE})
-		return routes, nil
-	}
-	defer func() { networkGetRoutesFct = nil }()
-
-	_, netX, _ := net.ParseCIDR("172.16.0.1/24")
-	if err := CheckRouteOverlaps(netX); err != nil {
-		t.Fatal(err)
-	}
-
-	_, netX, _ = net.ParseCIDR("10.0.2.0/24")
-	if err := CheckRouteOverlaps(netX); err == nil {
-		t.Fatal("10.0.2.0/24 and 10.0.2.0 should overlap but it doesn't")
-	}
-
-	_, netX, _ = net.ParseCIDR("10.0.5.0/24")
-	if err := CheckRouteOverlaps(netX); err != nil {
-		t.Fatal("10.0.5.0/24 and 10.0.5.0 with scope UNIVERSE should not overlap but it does")
-	}
-}
-
-func TestCheckNameserverOverlaps(t *testing.T) {
-	nameservers := []string{"10.0.2.3/32", "192.168.102.1/32"}
-
-	_, netX, _ := net.ParseCIDR("10.0.2.3/32")
-
-	if err := CheckNameserverOverlaps(nameservers, netX); err == nil {
-		t.Fatalf("%s should overlap 10.0.2.3/32 but doesn't", netX)
-	}
-
-	_, netX, _ = net.ParseCIDR("192.168.102.2/32")
-
-	if err := CheckNameserverOverlaps(nameservers, netX); err != nil {
-		t.Fatalf("%s should not overlap %v but it does", netX, nameservers)
-	}
-}
-
-func AssertOverlap(CIDRx string, CIDRy string, t *testing.T) {
-	_, netX, _ := net.ParseCIDR(CIDRx)
-	_, netY, _ := net.ParseCIDR(CIDRy)
-	if !NetworkOverlaps(netX, netY) {
-		t.Errorf("%v and %v should overlap", netX, netY)
-	}
-}
-
-func AssertNoOverlap(CIDRx string, CIDRy string, t *testing.T) {
-	_, netX, _ := net.ParseCIDR(CIDRx)
-	_, netY, _ := net.ParseCIDR(CIDRy)
-	if NetworkOverlaps(netX, netY) {
-		t.Errorf("%v and %v should not overlap", netX, netY)
-	}
-}
-
-func TestNetworkOverlaps(t *testing.T) {
-	// netY starts at same IP and ends within netX
-	AssertOverlap("172.16.0.1/24", "172.16.0.1/25", t)
-	// netY starts within netX and ends at same IP
-	AssertOverlap("172.16.0.1/24", "172.16.0.128/25", t)
-	// netY starts and ends within netX
-	AssertOverlap("172.16.0.1/24", "172.16.0.64/25", t)
-	// netY starts at same IP and ends outside of netX
-	AssertOverlap("172.16.0.1/24", "172.16.0.1/23", t)
-	// netY starts before and ends at same IP of netX
-	AssertOverlap("172.16.1.1/24", "172.16.0.1/23", t)
-	// netY starts before and ends outside of netX
-	AssertOverlap("172.16.1.1/24", "172.16.0.1/22", t)
-	// netY starts and ends before netX
-	AssertNoOverlap("172.16.1.1/25", "172.16.0.1/24", t)
-	// netX starts and ends before netY
-	AssertNoOverlap("172.16.1.1/25", "172.16.2.1/24", t)
-}
 
 // Test veth name generation "veth"+rand (e.g.veth0f60e2c)
 func TestGenerateRandomName(t *testing.T) {
@@ -184,83 +74,53 @@ func TestUtilGenerateRandomMAC(t *testing.T) {
 	}
 }
 
-func TestNetworkRequest(t *testing.T) {
+func TestInferReservedNetworksV4(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	nw, err := FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
-	if err != nil {
-		t.Fatal(err)
-	}
+	ifaceID := createInterface(t, "foobar")
+	addRoute(t, ifaceID, netlink.SCOPE_LINK, netip.MustParsePrefix("100.0.0.0/24"))
+	addRoute(t, ifaceID, netlink.SCOPE_LINK, netip.MustParsePrefix("10.0.0.0/8"))
+	addRoute(t, ifaceID, netlink.SCOPE_UNIVERSE, netip.MustParsePrefix("20.0.0.0/8"))
 
-	var found bool
-	for _, exp := range ipamutils.GetLocalScopeDefaultNetworks() {
-		if types.CompareIPNet(exp, nw) {
-			found = true
-			break
-		}
-	}
+	reserved := InferReservedNetworks(false)
+	t.Logf("reserved: %+v", reserved)
 
-	if !found {
-		t.Fatalf("Found unexpected broad network %s", nw)
-	}
-
-	nw, err = FindAvailableNetwork(ipamutils.GetGlobalScopeDefaultNetworks())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	found = false
-	for _, exp := range ipamutils.GetGlobalScopeDefaultNetworks() {
-		if types.CompareIPNet(exp, nw) {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		t.Fatalf("Found unexpected granular network %s", nw)
-	}
-
-	// Add iface and ssert returned address on request
-	createInterface(t, "test", "172.17.42.1/16")
-
-	_, exp, err := net.ParseCIDR("172.18.0.0/16")
-	if err != nil {
-		t.Fatal(err)
-	}
-	nw, err = FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !types.CompareIPNet(exp, nw) {
-		t.Fatalf("expected %s. got %s", exp, nw)
-	}
+	// We don't check the size of 'reserved' here because it also includes
+	// nameservers set in /etc/resolv.conf. This file might change from one test
+	// env to another, and it'd be unnecessarily complex to set up a mount
+	// namespace just to check that. Current implementation uses a function
+	// which is properly tested, so everything should be good.
+	assert.Check(t, slices.Contains(reserved, netip.MustParsePrefix("100.0.0.0/24")))
+	assert.Check(t, slices.Contains(reserved, netip.MustParsePrefix("10.0.0.0/8")))
+	assert.Check(t, !slices.Contains(reserved, netip.MustParsePrefix("20.0.0.0/8")))
 }
 
-func createInterface(t *testing.T, name string, nws ...string) {
-	// Add interface
-	link := &netlink.Bridge{
+func createInterface(t *testing.T, name string) int {
+	t.Helper()
+
+	link := &netlink.Dummy{
 		LinkAttrs: netlink.LinkAttrs{
-			Name: "test",
+			Name: name,
 		},
 	}
-	bips := []*net.IPNet{}
-	for _, nw := range nws {
-		bip, err := types.ParseCIDR(nw)
-		if err != nil {
-			t.Fatal(err)
-		}
-		bips = append(bips, bip)
-	}
 	if err := netlink.LinkAdd(link); err != nil {
-		t.Fatalf("Failed to create interface via netlink: %v", err)
-	}
-	for _, bip := range bips {
-		if err := netlink.AddrAdd(link, &netlink.Addr{IPNet: bip}); err != nil {
-			t.Fatal(err)
-		}
+		t.Fatalf("failed to create interface %s: %v", name, err)
 	}
 	if err := netlink.LinkSetUp(link); err != nil {
 		t.Fatal(err)
+	}
+
+	return link.Attrs().Index
+}
+
+func addRoute(t *testing.T, linkID int, scope netlink.Scope, prefix netip.Prefix) {
+	t.Helper()
+
+	if err := netlink.RouteAdd(&netlink.Route{
+		Scope:     scope,
+		LinkIndex: linkID,
+		Dst:       netiputil.ToIPNet(prefix),
+	}); err != nil {
+		t.Fatalf("failed to add on-link route %s: %v", prefix, err)
 	}
 }
