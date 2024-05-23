@@ -40,23 +40,10 @@ func doesSupportNativeDiff(d string) error {
 	}()
 
 	// Make directories l1/d, l1/d1, l2/d, l3, work, merged
-	if err := os.MkdirAll(filepath.Join(td, "l1", "d"), 0o755); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Join(td, "l1", "d1"), 0o755); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Join(td, "l2", "d"), 0o755); err != nil {
-		return err
-	}
-	if err := os.Mkdir(filepath.Join(td, "l3"), 0o755); err != nil {
-		return err
-	}
-	if err := os.Mkdir(filepath.Join(td, workDirName), 0o755); err != nil {
-		return err
-	}
-	if err := os.Mkdir(filepath.Join(td, mergedDirName), 0o755); err != nil {
-		return err
+	for _, dir := range []string{"l1", "l2", "l3", workDirName, mergedDirName} {
+		if err := os.MkdirAll(filepath.Join(td, dir), 0o755); err != nil {
+			return err
+		}
 	}
 
 	// Mark l2/d as opaque
