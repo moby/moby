@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -29,7 +28,7 @@ func TestExecWithCloseStdin(t *testing.T) {
 		types.ExecConfig{
 			AttachStdin:  true,
 			AttachStdout: true,
-			Cmd:          strslice.StrSlice([]string{"sh", "-c", "cat && echo " + expected}),
+			Cmd:          []string{"sh", "-c", "cat && echo " + expected},
 		},
 	)
 	assert.NilError(t, err)
@@ -90,9 +89,9 @@ func TestExec(t *testing.T) {
 	id, err := apiClient.ContainerExecCreate(ctx, cID,
 		types.ExecConfig{
 			WorkingDir:   "/tmp",
-			Env:          strslice.StrSlice([]string{"FOO=BAR"}),
+			Env:          []string{"FOO=BAR"},
 			AttachStdout: true,
-			Cmd:          strslice.StrSlice([]string{"sh", "-c", "env"}),
+			Cmd:          []string{"sh", "-c", "env"},
 		},
 	)
 	assert.NilError(t, err)
