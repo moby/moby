@@ -23,7 +23,7 @@ func TestDaemonStartWithLogOpt(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
-	d.Start(t, "--iptables=false")
+	d.Start(t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
@@ -34,5 +34,5 @@ func TestDaemonStartWithLogOpt(t *testing.T) {
 	defer c.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})
 
 	d.Stop(t)
-	d.Start(t, "--iptables=false", "--log-driver=test", "--log-opt=foo=bar")
+	d.Start(t, "--iptables=false", "--ip6tables=false", "--log-driver=test", "--log-opt=foo=bar")
 }

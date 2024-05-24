@@ -24,7 +24,7 @@ func TestContinueAfterPluginCrash(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "--iptables=false", "--init")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false", "--init")
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)

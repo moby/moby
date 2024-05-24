@@ -3,6 +3,7 @@ package networking
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
@@ -29,7 +30,7 @@ func TestBridgeICC(t *testing.T) {
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "-D", "--experimental", "--ip6tables")
+	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
@@ -275,7 +276,7 @@ func TestBridgeINC(t *testing.T) {
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "-D", "--experimental", "--ip6tables")
+	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
@@ -425,8 +426,6 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 
 			d := daemon.New(t)
 			d.StartWithBusybox(ctx, t,
-				"--experimental",
-				"--ip6tables",
 				"--ipv6",
 				"--fixed-cidr-v6", tc.fixed_cidr_v6,
 			)
@@ -541,7 +540,7 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 				ctx := testutil.StartSpan(ctx, t)
 				// Check that the daemon starts - regression test for:
 				//   https://github.com/moby/moby/issues/46829
-				d.StartWithBusybox(ctx, t, "--experimental", "--ipv6", "--ip6tables", "--fixed-cidr-v6="+step.fixedCIDRV6)
+				d.StartWithBusybox(ctx, t, "--ipv6", "--fixed-cidr-v6="+step.fixedCIDRV6)
 
 				// Start a container, so that the bridge is set "up" and gets a kernel_ll address.
 				cID := container.Run(ctx, t, c)
@@ -574,7 +573,7 @@ func TestInternalNwConnectivity(t *testing.T) {
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "-D", "--experimental", "--ip6tables")
+	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
@@ -718,6 +717,69 @@ func TestNonIPv6Network(t *testing.T) {
 
 	sysctlRes := container.ExecT(ctx, t, c, id, []string{"sysctl", "-n", "net.ipv6.conf.eth0.disable_ipv6"})
 	assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), "1"))
+}
+
+// Check that starting the daemon with '--ip6tables=false' means no ip6tables
+// rules get set up for an IPv6 bridge network.
+func TestNoIP6Tables(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.IsRootless)
+
+	ctx := setupTest(t)
+
+	testcases := []struct {
+		name        string
+		option      string
+		expIPTables bool
+	}{
+		{
+			name:        "ip6tables on",
+			option:      "--ip6tables=true",
+			expIPTables: true,
+		},
+		{
+			name:   "ip6tables off",
+			option: "--ip6tables=false",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			d := daemon.New(t)
+			d.StartWithBusybox(ctx, t, tc.option)
+			defer d.Stop(t)
+
+			c := d.NewClientT(t)
+			defer c.Close()
+
+			const netName = "testnet"
+			const bridgeName = "testbr"
+			const subnet = "fdb3:2511:e851:34a9::/64"
+			network.CreateNoError(ctx, t, c, netName,
+				network.WithIPv6(),
+				network.WithOption("com.docker.network.bridge.name", bridgeName),
+				network.WithIPAM(subnet, "fdb3:2511:e851:34a9::1"),
+			)
+			defer network.RemoveNoError(ctx, t, c, netName)
+
+			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
+			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+			res, err := exec.Command("/usr/sbin/ip6tables-save").CombinedOutput()
+			assert.NilError(t, err)
+			if tc.expIPTables {
+				assert.Check(t, is.Contains(string(res), subnet))
+				assert.Check(t, is.Contains(string(res), bridgeName))
+			} else {
+				assert.Check(t, !strings.Contains(string(res), subnet),
+					fmt.Sprintf("Didn't expect to find '%s' in '%s'", subnet, string(res)))
+				assert.Check(t, !strings.Contains(string(res), bridgeName),
+					fmt.Sprintf("Didn't expect to find '%s' in '%s'", bridgeName, string(res)))
+			}
+		})
+	}
 }
 
 // Test that it's possible to set a sysctl on an interface in the container.

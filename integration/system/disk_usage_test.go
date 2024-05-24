@@ -22,7 +22,7 @@ func TestDiskUsage(t *testing.T) {
 
 	d := daemon.New(t)
 	defer d.Cleanup(t)
-	d.Start(t, "--iptables=false")
+	d.Start(t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 	client := d.NewClientT(t)
 

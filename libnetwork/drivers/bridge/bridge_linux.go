@@ -815,10 +815,11 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		{config.DefaultGatewayIPv6 != nil, setupGatewayIPv6},
 
 		// Add inter-network communication rules.
-		{d.config.EnableIPTables, setupNetworkIsolationRules},
+		{d.config.EnableIPTables || d.config.EnableIP6Tables, setupNetworkIsolationRules},
 
 		// Configure bridge networking filtering if ICC is off and IP tables are enabled
-		{!config.EnableICC && d.config.EnableIPTables, setupBridgeNetFiltering},
+		{!config.EnableICC && d.config.EnableIPTables, setupIPv4BridgeNetFiltering},
+		{!config.EnableICC && d.config.EnableIP6Tables, setupIPv6BridgeNetFiltering},
 	} {
 		if step.Condition {
 			bridgeSetup.queueStep(step.Fn)

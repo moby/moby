@@ -861,7 +861,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *testing.T) {
 		for _, d := range nodes {
 			go func(daemon *daemon.Daemon) {
 				defer wg.Done()
-				if err := daemon.StartWithError("--iptables=false"); err != nil {
+				if err := daemon.StartWithError("--iptables=false", "--ip6tables=false"); err != nil {
 					errs <- err
 				}
 			}(d)
