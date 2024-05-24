@@ -311,6 +311,18 @@ func (ep *bridgeEndpoint) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(d, &ep.portMapping); err != nil {
 		log.G(context.TODO()).Warnf("Failed to decode endpoint port mapping %v", err)
 	}
+	// Until release 27.0, HostPortEnd in PortMapping (operational data) was left at
+	// the value it had in ExternalConnConfig.PortBindings (configuration). So, for
+	// example, if the configured host port range was 8000-8009 and the allocated
+	// port was 8004, the stored range was 8004-8009. Also, if allocation for an
+	// explicit (non-ephemeral) range failed because some other process had a port
+	// bound, there was no attempt to retry (because HostPort!=0). Now that's fixed,
+	// on live-restore we don't want to allocate different ports - so, remove the range
+	// from the operational data.
+	// TODO(robmry) - remove once direct upgrade from moby 26.x is no longer supported.
+	for i := range ep.portMapping {
+		ep.portMapping[i].HostPortEnd = ep.portMapping[i].HostPort
+	}
 
 	return nil
 }

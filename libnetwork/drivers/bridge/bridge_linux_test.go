@@ -93,9 +93,21 @@ func TestEndpointMarshalling(t *testing.T) {
 	if e.id != ee.id || e.nid != ee.nid || e.srcName != ee.srcName || !bytes.Equal(e.macAddress, ee.macAddress) ||
 		!types.CompareIPNet(e.addr, ee.addr) || !types.CompareIPNet(e.addrv6, ee.addrv6) ||
 		!compareContainerConfig(e.containerConfig, ee.containerConfig) ||
-		!compareConnConfig(e.extConnConfig, ee.extConnConfig) ||
-		!compareBindings(e.portMapping, ee.portMapping) {
+		!compareConnConfig(e.extConnConfig, ee.extConnConfig) {
 		t.Fatalf("JSON marsh/unmarsh failed.\nOriginal:\n%#v\nDecoded:\n%#v", e, ee)
+	}
+
+	// On restore, the HostPortEnd in portMapping is set to HostPort (so that
+	// a different port cannot be selected on live-restore if the original is
+	// already in-use). So, fix up portMapping in the original before running
+	// the comparison.
+	epms := make([]types.PortBinding, len(e.portMapping))
+	for i, pb := range e.portMapping {
+		epms[i] = pb
+		epms[i].HostPortEnd = epms[i].HostPort
+	}
+	if !compareBindings(epms, ee.portMapping) {
+		t.Fatalf("JSON marsh/unmarsh failed.\nOriginal portMapping:\n%#v\nDecoded portMapping:\n%#v", e, ee)
 	}
 }
 

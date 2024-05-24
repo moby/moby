@@ -157,7 +157,7 @@ func (n *bridgeNetwork) allocatePort(bnd *types.PortBinding, ulPxyEnabled bool) 
 			break
 		}
 		// There is no point in immediately retrying to map an explicitly chosen port.
-		if bnd.HostPort != 0 {
+		if bnd.HostPort != 0 && bnd.HostPort == bnd.HostPortEnd {
 			log.G(context.TODO()).Warnf("Failed to allocate and map port %d-%d: %s", bnd.HostPort, bnd.HostPortEnd, err)
 			break
 		}
