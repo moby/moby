@@ -118,7 +118,7 @@ func (p *PortBinding) GetCopy() PortBinding {
 }
 
 // String returns the PortBinding structure in string form
-func (p *PortBinding) String() string {
+func (p PortBinding) String() string {
 	ret := fmt.Sprintf("%s/", p.Proto)
 	if p.IP != nil {
 		ret += p.IP.String()

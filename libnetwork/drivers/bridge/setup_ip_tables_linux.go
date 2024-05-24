@@ -186,12 +186,6 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 		n.registerIptCleanFunc(func() error {
 			return iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
 		})
-
-		if ipVersion == iptables.IPv4 {
-			n.portMapper.SetIptablesChain(natChain, n.getNetworkBridgeName())
-		} else {
-			n.portMapperV6.SetIptablesChain(natChain, n.getNetworkBridgeName())
-		}
 	}
 
 	d.Lock()

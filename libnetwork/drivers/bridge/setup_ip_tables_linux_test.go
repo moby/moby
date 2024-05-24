@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 )
@@ -159,9 +158,7 @@ func assertChainConfig(d *driver, t *testing.T) {
 // Assert function which pushes chains based on bridge config parameters.
 func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, d *driver, t *testing.T) {
 	nw := bridgeNetwork{
-		portMapper:   portmapper.New(),
-		portMapperV6: portmapper.New(),
-		config:       config,
+		config: config,
 	}
 	nw.driver = d
 

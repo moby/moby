@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/portallocator"
-	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/pkg/errors"
@@ -113,7 +112,7 @@ type bridgeEndpoint struct {
 	macAddress      net.HardwareAddr
 	containerConfig *containerConfiguration
 	extConnConfig   *connectivityConfiguration
-	portMapping     []types.PortBinding // Operation port bindings
+	portMapping     []portBinding // Operational port bindings
 	dbIndex         uint64
 	dbExists        bool
 }
@@ -123,9 +122,7 @@ type bridgeNetwork struct {
 	bridge        *bridgeInterface // The bridge's L3 interface
 	config        *networkConfiguration
 	endpoints     map[string]*bridgeEndpoint // key: endpoint id
-	portMapper    *portmapper.PortMapper
-	portMapperV6  *portmapper.PortMapper
-	driver        *driver // The network's driver
+	driver        *driver                    // The network's driver
 	iptCleanFuncs iptablesCleanFuncs
 	sync.Mutex
 }
@@ -355,6 +352,15 @@ func (n *bridgeNetwork) getNetworkBridgeName() string {
 	return config.BridgeName
 }
 
+func (n *bridgeNetwork) userlandProxyPath() string {
+	n.Lock()
+	defer n.Unlock()
+	if n.driver == nil {
+		return ""
+	}
+	return n.driver.userlandProxyPath()
+}
+
 func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 	if eid == "" {
 		return nil, InvalidEndpointIDError(eid)
@@ -506,6 +512,16 @@ func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
 	}
 
 	return nil, types.NotFoundErrorf("network not found: %s", id)
+}
+
+func (d *driver) userlandProxyPath() string {
+	d.Lock()
+	defer d.Unlock()
+
+	if d.config.EnableUserlandProxy {
+		return d.config.UserlandProxyPath
+	}
+	return ""
 }
 
 func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error) {
@@ -714,13 +730,11 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 
 	// Create and set network handler in driver
 	network := &bridgeNetwork{
-		id:           config.ID,
-		endpoints:    make(map[string]*bridgeEndpoint),
-		config:       config,
-		portMapper:   portmapper.NewWithPortAllocator(d.portAllocator, d.config.UserlandProxyPath),
-		portMapperV6: portmapper.NewWithPortAllocator(d.portAllocator, d.config.UserlandProxyPath),
-		bridge:       bridgeIface,
-		driver:       d,
+		id:        config.ID,
+		endpoints: make(map[string]*bridgeEndpoint),
+		config:    config,
+		bridge:    bridgeIface,
+		driver:    d,
 	}
 
 	d.Lock()
@@ -1221,7 +1235,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 		// Return a copy of the operational data
 		pmc := make([]types.PortBinding, 0, len(ep.portMapping))
 		for _, pm := range ep.portMapping {
-			pmc = append(pmc, pm.GetCopy())
+			pmc = append(pmc, pm.PortBinding.GetCopy())
 		}
 		m[netlabel.PortMap] = pmc
 	}
@@ -1321,9 +1335,16 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 	}
 
 	// Program any required port mapping and store them in the endpoint
-	endpoint.portMapping, err = network.allocatePorts(endpoint, network.config.DefaultBindingIP, d.config.EnableUserlandProxy)
-	if err != nil {
-		return err
+	if endpoint.extConnConfig != nil && endpoint.extConnConfig.PortBindings != nil {
+		endpoint.portMapping, err = network.addPortMappings(
+			endpoint.addr,
+			endpoint.addrv6,
+			endpoint.extConnConfig.PortBindings,
+			network.config.DefaultBindingIP,
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	defer func() {

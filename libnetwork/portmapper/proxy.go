@@ -8,11 +8,6 @@ import (
 	"github.com/ishidawataru/sctp"
 )
 
-type userlandProxy interface {
-	Start() error
-	Stop() error
-}
-
 // ipVersion refers to IP version - v4 or v6
 type ipVersion string
 
@@ -32,28 +27,31 @@ type dummyProxy struct {
 	ipVersion ipVersion
 }
 
-func newDummyProxy(proto string, hostIP net.IP, hostPort int) (userlandProxy, error) {
+func newDummyProxy(proto string, hostIP net.IP, hostPort int) (stop func() error, retErr error) {
 	// detect version of hostIP to bind only to correct version
 	version := ipv4
 	if hostIP.To4() == nil {
 		version = ipv6
 	}
+	var addr net.Addr
 	switch proto {
 	case "tcp":
-		addr := &net.TCPAddr{IP: hostIP, Port: hostPort}
-		return &dummyProxy{addr: addr, ipVersion: version}, nil
+		addr = &net.TCPAddr{IP: hostIP, Port: hostPort}
 	case "udp":
-		addr := &net.UDPAddr{IP: hostIP, Port: hostPort}
-		return &dummyProxy{addr: addr, ipVersion: version}, nil
+		addr = &net.UDPAddr{IP: hostIP, Port: hostPort}
 	case "sctp":
-		addr := &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: hostIP}}, Port: hostPort}
-		return &dummyProxy{addr: addr, ipVersion: version}, nil
+		addr = &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: hostIP}}, Port: hostPort}
 	default:
 		return nil, fmt.Errorf("Unknown addr type: %s", proto)
 	}
+	p := &dummyProxy{addr: addr, ipVersion: version}
+	if err := p.start(); err != nil {
+		return nil, err
+	}
+	return p.stop, nil
 }
 
-func (p *dummyProxy) Start() error {
+func (p *dummyProxy) start() error {
 	switch addr := p.addr.(type) {
 	case *net.TCPAddr:
 		l, err := net.ListenTCP("tcp"+string(p.ipVersion), addr)
@@ -79,7 +77,7 @@ func (p *dummyProxy) Start() error {
 	return nil
 }
 
-func (p *dummyProxy) Stop() error {
+func (p *dummyProxy) stop() error {
 	if p.listener != nil {
 		return p.listener.Close()
 	}

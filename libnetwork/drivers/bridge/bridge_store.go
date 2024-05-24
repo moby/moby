@@ -374,17 +374,30 @@ func (ep *bridgeEndpoint) CopyTo(o datastore.KVObject) error {
 	return nil
 }
 
+// restorePortAllocations is used during live-restore. It re-creates iptables
+// forwarding/NAT rules, and restarts docker-proxy, as needed.
+//
+// TODO(robmry) - if any previously-mapped host ports are no longer available, all
+// iptables forwarding/NAT rules get removed and there will be no docker-proxy
+// processes. So, the container will be left running, but inaccessible.
 func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	if ep.extConnConfig == nil ||
 		ep.extConnConfig.ExposedPorts == nil ||
 		ep.extConnConfig.PortBindings == nil {
 		return
 	}
-	tmp := ep.extConnConfig.PortBindings
-	ep.extConnConfig.PortBindings = ep.portMapping
-	_, err := n.allocatePorts(ep, n.config.DefaultBindingIP, n.driver.config.EnableUserlandProxy)
+
+	// ep.portMapping has HostPort=HostPortEnd, the host port allocated last
+	// time around ... use that in place of ep.extConnConfig.PortBindings, which
+	// may specify host port ranges.
+	cfg := make([]types.PortBinding, len(ep.portMapping))
+	for i, b := range ep.portMapping {
+		cfg[i] = b.PortBinding
+	}
+
+	var err error
+	ep.portMapping, err = n.addPortMappings(ep.addr, ep.addrv6, cfg, n.config.DefaultBindingIP)
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to reserve existing port mapping for endpoint %.7s:%v", ep.id, err)
 	}
-	ep.extConnConfig.PortBindings = tmp
 }

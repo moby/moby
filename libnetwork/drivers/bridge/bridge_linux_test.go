@@ -59,22 +59,26 @@ func TestEndpointMarshalling(t *testing.T) {
 				},
 			},
 		},
-		portMapping: []types.PortBinding{
+		portMapping: []portBinding{
 			{
-				Proto:       17,
-				IP:          net.ParseIP("172.33.9.56"),
-				Port:        uint16(99),
-				HostIP:      net.ParseIP("10.10.100.2"),
-				HostPort:    uint16(9900),
-				HostPortEnd: uint16(10000),
+				PortBinding: types.PortBinding{
+					Proto:       17,
+					IP:          net.ParseIP("172.33.9.56"),
+					Port:        uint16(99),
+					HostIP:      net.ParseIP("10.10.100.2"),
+					HostPort:    uint16(9900),
+					HostPortEnd: uint16(10000),
+				},
 			},
 			{
-				Proto:       6,
-				IP:          net.ParseIP("171.33.9.56"),
-				Port:        uint16(55),
-				HostIP:      net.ParseIP("10.11.100.2"),
-				HostPort:    uint16(5500),
-				HostPortEnd: uint16(55000),
+				PortBinding: types.PortBinding{
+					Proto:       6,
+					IP:          net.ParseIP("171.33.9.56"),
+					Port:        uint16(55),
+					HostIP:      net.ParseIP("10.11.100.2"),
+					HostPort:    uint16(5500),
+					HostPortEnd: uint16(55000),
+				},
 			},
 		},
 	}
@@ -101,9 +105,9 @@ func TestEndpointMarshalling(t *testing.T) {
 	// a different port cannot be selected on live-restore if the original is
 	// already in-use). So, fix up portMapping in the original before running
 	// the comparison.
-	epms := make([]types.PortBinding, len(e.portMapping))
-	for i, pb := range e.portMapping {
-		epms[i] = pb
+	epms := make([]portBinding, len(e.portMapping))
+	for i, p := range e.portMapping {
+		epms[i] = p
 		epms[i].HostPortEnd = epms[i].HostPort
 	}
 	if !compareBindings(epms, ee.portMapping) {
@@ -197,12 +201,12 @@ func comparePortBinding(p *types.PortBinding, o *types.PortBinding) bool {
 	return true
 }
 
-func compareBindings(a, b []types.PortBinding) bool {
+func compareBindings(a, b []portBinding) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for i := 0; i < len(a); i++ {
-		if !comparePortBinding(&a[i], &b[i]) {
+		if !comparePortBinding(&a[i].PortBinding, &b[i].PortBinding) {
 			return false
 		}
 	}
@@ -732,7 +736,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		t.Fatal("Incomplete data for port mapping in endpoint operational data")
 	}
 	for i, pb := range ep.portMapping {
-		if !comparePortBinding(&pb, &pm[i]) {
+		if !comparePortBinding(&pb.PortBinding, &pm[i]) {
 			t.Fatal("Unexpected data for port mapping in endpoint operational data")
 		}
 	}
