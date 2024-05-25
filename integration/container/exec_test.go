@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -24,22 +23,15 @@ func TestExecWithCloseStdin(t *testing.T) {
 	// run top with detached mode
 	cID := container.Run(ctx, t, apiClient)
 
-	expected := "closeIO"
-	execResp, err := apiClient.ContainerExecCreate(ctx, cID,
-		types.ExecConfig{
-			AttachStdin:  true,
-			AttachStdout: true,
-			Cmd:          strslice.StrSlice([]string{"sh", "-c", "cat && echo " + expected}),
-		},
-	)
+	const expected = "closeIO"
+	execResp, err := apiClient.ContainerExecCreate(ctx, cID, types.ExecConfig{
+		AttachStdin:  true,
+		AttachStdout: true,
+		Cmd:          []string{"sh", "-c", "cat && echo " + expected},
+	})
 	assert.NilError(t, err)
 
-	resp, err := apiClient.ContainerExecAttach(ctx, execResp.ID,
-		types.ExecStartCheck{
-			Detach: false,
-			Tty:    false,
-		},
-	)
+	resp, err := apiClient.ContainerExecAttach(ctx, execResp.ID, types.ExecStartCheck{})
 	assert.NilError(t, err)
 	defer resp.Close()
 
@@ -87,26 +79,19 @@ func TestExec(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithWorkingDir("/root"))
 
-	id, err := apiClient.ContainerExecCreate(ctx, cID,
-		types.ExecConfig{
-			WorkingDir:   "/tmp",
-			Env:          strslice.StrSlice([]string{"FOO=BAR"}),
-			AttachStdout: true,
-			Cmd:          strslice.StrSlice([]string{"sh", "-c", "env"}),
-		},
-	)
+	id, err := apiClient.ContainerExecCreate(ctx, cID, types.ExecConfig{
+		WorkingDir:   "/tmp",
+		Env:          []string{"FOO=BAR"},
+		AttachStdout: true,
+		Cmd:          []string{"sh", "-c", "env"},
+	})
 	assert.NilError(t, err)
 
 	inspect, err := apiClient.ContainerExecInspect(ctx, id.ID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.ExecID, id.ID))
 
-	resp, err := apiClient.ContainerExecAttach(ctx, id.ID,
-		types.ExecStartCheck{
-			Detach: false,
-			Tty:    false,
-		},
-	)
+	resp, err := apiClient.ContainerExecAttach(ctx, id.ID, types.ExecStartCheck{})
 	assert.NilError(t, err)
 	defer resp.Close()
 	r, err := io.ReadAll(resp.Reader)
@@ -117,8 +102,8 @@ func TestExec(t *testing.T) {
 	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = "PWD=C:/tmp"
 	}
-	assert.Assert(t, is.Contains(out, expected), "exec command not running in expected /tmp working directory")
-	assert.Assert(t, is.Contains(out, "FOO=BAR"), "exec command not running with expected environment variable FOO")
+	assert.Check(t, is.Contains(out, expected), "exec command not running in expected /tmp working directory")
+	assert.Check(t, is.Contains(out, "FOO=BAR"), "exec command not running with expected environment variable FOO")
 }
 
 func TestExecUser(t *testing.T) {
@@ -131,7 +116,7 @@ func TestExecUser(t *testing.T) {
 	result, err := container.Exec(ctx, apiClient, cID, []string{"id"})
 	assert.NilError(t, err)
 
-	assert.Assert(t, is.Contains(result.Stdout(), "uid=1(daemon) gid=1(daemon)"), "exec command not running as uid/gid 1")
+	assert.Check(t, is.Contains(result.Stdout(), "uid=1(daemon) gid=1(daemon)"), "exec command not running as uid/gid 1")
 }
 
 // Test that additional groups set with `--group-add` are kept on exec when the container
@@ -148,7 +133,6 @@ func TestExecWithGroupAdd(t *testing.T) {
 	result, err := container.Exec(ctx, apiClient, cID, []string{"id"})
 	assert.NilError(t, err)
 
-	assert.Assert(t,
-		is.Equal(strings.TrimSpace(result.Stdout()), "uid=0(root) gid=0(root) groups=0(root),10(wheel),29(audio),50(staff),777"),
-		"exec command not keeping additional groups w/ user")
+	const expected = "uid=0(root) gid=0(root) groups=0(root),10(wheel),29(audio),50(staff),777"
+	assert.Check(t, is.Equal(strings.TrimSpace(result.Stdout()), expected), "exec command not keeping additional groups w/ user")
 }
