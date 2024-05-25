@@ -38,16 +38,6 @@ func NetworkPoll(config *poll.Settings) {
 	}
 }
 
-// ContainerPoll tweaks the pollSettings for `container`
-func ContainerPoll(config *poll.Settings) {
-	// Override the default pollSettings for `container` resource here ...
-
-	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
-		config.Timeout = 30 * time.Second
-		config.Delay = 100 * time.Millisecond
-	}
-}
-
 // NewSwarm creates a swarm daemon for testing
 func NewSwarm(ctx context.Context, t *testing.T, testEnv *environment.Execution, ops ...daemon.Option) *daemon.Daemon {
 	t.Helper()
