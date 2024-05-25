@@ -39,9 +39,16 @@ func doesSupportNativeDiff(d string) error {
 		}
 	}()
 
-	// Make directories l1/d, l1/d1, l2/d, l3, work, merged
-	for _, dir := range []string{"l1", "l2", "l3", workDirName, mergedDirName} {
+	// Make directories l1/d, l1/d1, l2/d
+	for _, dir := range []string{filepath.Join("l1", "d"), filepath.Join("l1", "d1"), filepath.Join("l2", "d")} {
 		if err := os.MkdirAll(filepath.Join(td, dir), 0o755); err != nil {
+			return err
+		}
+	}
+
+	// Make directories l3, work, merged
+	for _, dir := range []string{"l3", workDirName, mergedDirName} {
+		if err := os.Mkdir(filepath.Join(td, dir), 0o755); err != nil {
 			return err
 		}
 	}
