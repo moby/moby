@@ -77,8 +77,8 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		stdout, stderr, outStream io.Writer
 	)
 
-	execStartCheck := &types.ExecStartCheck{}
-	if err := httputils.ReadJSON(r, execStartCheck); err != nil {
+	options := &types.ExecStartCheck{}
+	if err := httputils.ReadJSON(r, options); err != nil {
 		return err
 	}
 
@@ -86,21 +86,21 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		return err
 	}
 
-	if execStartCheck.ConsoleSize != nil {
+	if options.ConsoleSize != nil {
 		version := httputils.VersionFromContext(ctx)
 
 		// Not supported before 1.42
 		if versions.LessThan(version, "1.42") {
-			execStartCheck.ConsoleSize = nil
+			options.ConsoleSize = nil
 		}
 
 		// No console without tty
-		if !execStartCheck.Tty {
-			execStartCheck.ConsoleSize = nil
+		if !options.Tty {
+			options.ConsoleSize = nil
 		}
 	}
 
-	if !execStartCheck.Detach {
+	if !options.Detach {
 		var err error
 		// Setting up the streaming http interface.
 		inStream, outStream, err = httputils.HijackConnection(w)
@@ -111,42 +111,43 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 
 		if _, ok := r.Header["Upgrade"]; ok {
 			contentType := types.MediaTypeRawStream
-			if !execStartCheck.Tty && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+			if !options.Tty && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
 				contentType = types.MediaTypeMultiplexedStream
 			}
-			fmt.Fprint(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: "+contentType+"\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n")
+			_, _ = fmt.Fprint(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: "+contentType+"\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n")
 		} else {
-			fmt.Fprint(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n")
+			_, _ = fmt.Fprint(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n")
 		}
 
 		// copy headers that were removed as part of hijack
 		if err := w.Header().WriteSubset(outStream, nil); err != nil {
 			return err
 		}
-		fmt.Fprint(outStream, "\r\n")
+		_, _ = fmt.Fprint(outStream, "\r\n")
 
 		stdin = inStream
-		stdout = outStream
-		if !execStartCheck.Tty {
+		if options.Tty {
+			stdout = outStream
+		} else {
 			stderr = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
 			stdout = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 		}
 	}
 
-	options := container.ExecStartOptions{
+	// Now run the user process in container.
+	//
+	// TODO: Maybe we should we pass ctx here if we're not detaching?
+	err := s.backend.ContainerExecStart(context.Background(), execName, container.ExecStartOptions{
 		Stdin:       stdin,
 		Stdout:      stdout,
 		Stderr:      stderr,
-		ConsoleSize: execStartCheck.ConsoleSize,
-	}
-
-	// Now run the user process in container.
-	// Maybe we should we pass ctx here if we're not detaching?
-	if err := s.backend.ContainerExecStart(context.Background(), execName, options); err != nil {
-		if execStartCheck.Detach {
+		ConsoleSize: options.ConsoleSize,
+	})
+	if err != nil {
+		if options.Detach {
 			return err
 		}
-		stdout.Write([]byte(err.Error() + "\r\n"))
+		_, _ = fmt.Fprintf(stdout, "%v\r\n", err)
 		log.G(ctx).Errorf("Error running exec %s in container: %v", execName, err)
 	}
 	return nil
