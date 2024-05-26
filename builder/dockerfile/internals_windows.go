@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"golang.org/x/sys/windows"
@@ -62,7 +63,7 @@ func lookupNTAccount(ctx context.Context, builder *Builder, accountName string, 
 
 	optionsPlatform, err := platforms.Parse(builder.options.Platform)
 	if err != nil {
-		return idtools.Identity{}, err
+		return idtools.Identity{}, errdefs.InvalidParameter(err)
 	}
 
 	runConfig := copyRunConfig(state.runConfig,
