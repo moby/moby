@@ -255,8 +255,10 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 		hpNatArgs []string
 	)
 	hostIP := config.HostIPv4
+	nat := !config.GwModeIPv4.natDisabled()
 	if ipVer == iptables.IPv6 {
 		hostIP = config.HostIPv6
+		nat = !config.GwModeIPv6.natDisabled()
 	}
 	// If hostIP is set, the user wants IPv4/IPv6 SNAT with the given address.
 	if hostIP != nil {
@@ -273,15 +275,14 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 	hpNatRule := iptRule{ipv: ipVer, table: iptables.Nat, chain: "POSTROUTING", args: hpNatArgs}
 
 	// Set NAT.
-	if config.EnableIPMasquerade {
+	if nat && config.EnableIPMasquerade {
 		if err := programChainRule(natRule, "NAT", enable); err != nil {
 			return err
 		}
-	}
-
-	if config.EnableIPMasquerade && !hairpin {
-		if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
-			return err
+		if !hairpin {
+			if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
+				return err
+			}
 		}
 	}
 

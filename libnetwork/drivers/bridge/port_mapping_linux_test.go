@@ -181,18 +181,22 @@ func loopbackUp() error {
 }
 
 func TestBindHostPortsError(t *testing.T) {
-	cfg := []types.PortBinding{
+	cfg := []portBindingReq{
 		{
-			Proto:       types.TCP,
-			Port:        80,
-			HostPort:    8080,
-			HostPortEnd: 8080,
+			PortBinding: types.PortBinding{
+				Proto:       types.TCP,
+				Port:        80,
+				HostPort:    8080,
+				HostPortEnd: 8080,
+			},
 		},
 		{
-			Proto:       types.TCP,
-			Port:        80,
-			HostPort:    8080,
-			HostPortEnd: 8081,
+			PortBinding: types.PortBinding{
+				Proto:       types.TCP,
+				Port:        80,
+				HostPort:    8080,
+				HostPortEnd: 8081,
+			},
 		},
 	}
 	pbs, err := bindHostPorts(cfg, "")
@@ -218,6 +222,8 @@ func TestAddPortMappings(t *testing.T) {
 		name         string
 		epAddrV4     *net.IPNet
 		epAddrV6     *net.IPNet
+		gwMode4      gwMode
+		gwMode6      gwMode
 		cfg          []types.PortBinding
 		defHostIP    net.IP
 		proxyPath    string
@@ -252,6 +258,18 @@ func TestAddPortMappings(t *testing.T) {
 			epAddrV4: ctrIP4,
 			epAddrV6: ctrIP6,
 			cfg:      []types.PortBinding{{Proto: types.TCP, Port: 80, HostPort: 8080}},
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080, HostPortEnd: 8080},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080, HostPortEnd: 8080},
+			},
+		},
+		{
+			name:     "nat explicitly enabled",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg:      []types.PortBinding{{Proto: types.TCP, Port: 80, HostPort: 8080}},
+			gwMode4:  gwModeNAT,
+			gwMode6:  gwModeNAT,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080, HostPortEnd: 8080},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080, HostPortEnd: 8080},
@@ -430,6 +448,55 @@ func TestAddPortMappings(t *testing.T) {
 				"failed to stop docker-proxy for port mapping tcp/172.19.0.2:22/0.0.0.0:2222: can't stop now\n" +
 				"failed to stop docker-proxy for port mapping tcp/fdf8:b88e:bb5c:3483::2:22/:::2222: can't stop now",
 		},
+		{
+			name:     "disable nat6",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 22},
+				{Proto: types.TCP, Port: 80},
+			},
+			gwMode6: gwModeRouted,
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: firstEphemPort},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort + 1},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero},
+			},
+		},
+		{
+			name:     "disable nat4",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 22},
+				{Proto: types.TCP, Port: 80},
+			},
+			gwMode4: gwModeRouted,
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero, HostPort: firstEphemPort},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: firstEphemPort + 1},
+			},
+		},
+		{
+			name:     "disable nat",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 22},
+				{Proto: types.TCP, Port: 80},
+			},
+			gwMode4: gwModeRouted,
+			gwMode6: gwModeRouted,
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero},
+			},
+		},
 	}
 
 	for _, tc := range testcases {
@@ -470,6 +537,8 @@ func TestAddPortMappings(t *testing.T) {
 				config: &networkConfiguration{
 					BridgeName: "dummybridge",
 					EnableIPv6: tc.epAddrV6 != nil,
+					GwModeIPv4: tc.gwMode4,
+					GwModeIPv6: tc.gwMode6,
 				},
 				driver: newDriver(),
 			}
@@ -497,14 +566,17 @@ func TestAddPortMappings(t *testing.T) {
 
 			// Check the iptables rules.
 			for _, expPB := range tc.expPBs {
+				var disableNAT bool
 				var addrM, addrD, addrH string
 				var ipv iptables.IPVersion
 				if expPB.IP.To4() == nil {
+					disableNAT = tc.gwMode6.natDisabled()
 					ipv = iptables.IPv6
 					addrM = ctrIP6.IP.String() + "/128"
 					addrD = "[" + ctrIP6.IP.String() + "]"
 					addrH = expPB.HostIP.String() + "/128"
 				} else {
+					disableNAT = tc.gwMode4.natDisabled()
 					ipv = iptables.IPv4
 					addrM = ctrIP4.IP.String() + "/32"
 					addrD = ctrIP4.IP.String()
@@ -518,7 +590,11 @@ func TestAddPortMappings(t *testing.T) {
 				masqRule := fmt.Sprintf("-s %s -d %s -p %s -m %s --dport %d -j MASQUERADE",
 					addrM, addrM, expPB.Proto, expPB.Proto, expPB.Port)
 				ir := iptRule{ipv: ipv, table: iptables.Nat, chain: "POSTROUTING", args: strings.Split(masqRule, " ")}
-				assert.Check(t, ir.Exists(), fmt.Sprintf("expected rule %s", ir))
+				if disableNAT {
+					assert.Check(t, !ir.Exists(), fmt.Sprintf("unexpected rule %s", ir))
+				} else {
+					assert.Check(t, ir.Exists(), fmt.Sprintf("expected rule %s", ir))
+				}
 
 				// Check the DNAT rule.
 				dnatRule := ""
@@ -529,7 +605,11 @@ func TestAddPortMappings(t *testing.T) {
 				dnatRule += fmt.Sprintf("-d %s -p %s -m %s --dport %d -j DNAT --to-destination %s:%d",
 					addrH, expPB.Proto, expPB.Proto, expPB.HostPort, addrD, expPB.Port)
 				ir = iptRule{ipv: ipv, table: iptables.Nat, chain: "DOCKER", args: strings.Split(dnatRule, " ")}
-				assert.Check(t, ir.Exists(), fmt.Sprintf("expected rule %s", ir))
+				if disableNAT {
+					assert.Check(t, !ir.Exists(), fmt.Sprintf("unexpected rule %s", ir))
+				} else {
+					assert.Check(t, ir.Exists(), fmt.Sprintf("expected rule %s", ir))
+				}
 
 				// Check that the container's port is open.
 				filterRule := fmt.Sprintf("-d %s ! -i dummybridge -o dummybridge -p %s -m %s --dport %d -j ACCEPT",
@@ -549,6 +629,10 @@ func TestAddPortMappings(t *testing.T) {
 			// Check a docker-proxy was started and stopped for each expected port binding.
 			expProxies := map[proxyCall]bool{}
 			for _, expPB := range tc.expPBs {
+				is4 := expPB.HostIP.To4() != nil
+				if (is4 && tc.gwMode4.natDisabled()) || (!is4 && tc.gwMode6.natDisabled()) {
+					continue
+				}
 				p := newProxyCall(expPB.Proto.String(),
 					expPB.HostIP, int(expPB.HostPort),
 					expPB.IP, int(expPB.Port), tc.proxyPath)

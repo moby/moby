@@ -62,6 +62,8 @@ type networkConfiguration struct {
 	BridgeName           string
 	EnableIPv6           bool
 	EnableIPMasquerade   bool
+	GwModeIPv4           gwMode
+	GwModeIPv6           gwMode
 	EnableICC            bool
 	InhibitIPv4          bool
 	Mtu                  int
@@ -144,6 +146,14 @@ type driver struct {
 	portAllocator     *portallocator.PortAllocator // Overridable for tests.
 	sync.Mutex
 }
+
+type gwMode string
+
+const (
+	gwModeDefault gwMode = ""
+	gwModeNAT     gwMode = "nat"
+	gwModeRouted  gwMode = "routed"
+)
 
 // New constructs a new bridge driver
 func newDriver() *driver {
@@ -289,6 +299,14 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 			if c.EnableIPMasquerade, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
+		case IPv4GatewayMode:
+			if c.GwModeIPv4, err = newGwMode(value); err != nil {
+				return parseErr(label, value, err.Error())
+			}
+		case IPv6GatewayMode:
+			if c.GwModeIPv6, err = newGwMode(value); err != nil {
+				return parseErr(label, value, err.Error())
+			}
 		case EnableICC:
 			if c.EnableICC, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
@@ -319,6 +337,20 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 	}
 
 	return nil
+}
+
+func newGwMode(gwMode string) (gwMode, error) {
+	switch gwMode {
+	case "nat":
+		return gwModeNAT, nil
+	case "routed":
+		return gwModeRouted, nil
+	}
+	return gwModeDefault, fmt.Errorf("unknown gateway mode %s", gwMode)
+}
+
+func (m gwMode) natDisabled() bool {
+	return m == gwModeRouted
 }
 
 func parseErr(label, value, errString string) error {
@@ -365,6 +397,12 @@ func (n *bridgeNetwork) getNetworkBridgeName() string {
 	n.Unlock()
 
 	return config.BridgeName
+}
+
+func (n *bridgeNetwork) getNATDisabled() (ipv4, ipv6 bool) {
+	n.Lock()
+	defer n.Unlock()
+	return n.config.GwModeIPv4.natDisabled(), n.config.GwModeIPv6.natDisabled()
 }
 
 func (n *bridgeNetwork) userlandProxyPath() string {

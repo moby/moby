@@ -20,6 +20,11 @@ type portBinding struct {
 	stopProxy func() error
 }
 
+type portBindingReq struct {
+	types.PortBinding
+	disableNAT bool
+}
+
 // addPortMappings takes cfg, the configuration for port mappings, selects host
 // ports when ranges are given, starts docker-proxy or its dummy to reserve
 // host ports, and sets up iptables NAT/forwarding rules as necessary. If
@@ -60,9 +65,10 @@ func (n *bridgeNetwork) addPortMappings(
 	}()
 
 	proxyPath := n.userlandProxyPath()
+	disableNAT4, disableNAT6 := n.getNATDisabled()
 	for _, c := range cfg {
-		toBind := make([]types.PortBinding, 0, 2)
-		if bindingIPv4, ok := configurePortBindingIPv4(c, containerIPv4, defHostIP); ok {
+		toBind := make([]portBindingReq, 0, 2)
+		if bindingIPv4, ok := configurePortBindingIPv4(disableNAT4, c, containerIPv4, defHostIP); ok {
 			toBind = append(toBind, bindingIPv4)
 		}
 
@@ -78,7 +84,7 @@ func (n *bridgeNetwork) addPortMappings(
 		if proxyPath != "" && (containerIPv6 == nil) {
 			containerIP = containerIPv4
 		}
-		if bindingIPv6, ok := configurePortBindingIPv6(c, containerIP, defHostIP); ok {
+		if bindingIPv6, ok := configurePortBindingIPv6(disableNAT6, c, containerIP, defHostIP); ok {
 			toBind = append(toBind, bindingIPv6)
 		}
 
@@ -100,19 +106,19 @@ func (n *bridgeNetwork) addPortMappings(
 
 // configurePortBindingIPv4 returns a new port binding with the HostIP field populated
 // if a binding is required, else nil.
-func configurePortBindingIPv4(bnd types.PortBinding, containerIPv4, defHostIP net.IP) (types.PortBinding, bool) {
+func configurePortBindingIPv4(disableNAT bool, bnd types.PortBinding, containerIPv4, defHostIP net.IP) (portBindingReq, bool) {
 	if len(containerIPv4) == 0 {
-		return types.PortBinding{}, false
+		return portBindingReq{}, false
 	}
 	if len(bnd.HostIP) > 0 && bnd.HostIP.To4() == nil {
 		// The mapping is explicitly IPv6.
-		return types.PortBinding{}, false
+		return portBindingReq{}, false
 	}
 	// If there's no host address, use the default.
 	if len(bnd.HostIP) == 0 {
 		if defHostIP.To4() == nil {
 			// The default binding address is IPv6.
-			return types.PortBinding{}, false
+			return portBindingReq{}, false
 		}
 		bnd.HostIP = defHostIP
 	}
@@ -123,18 +129,21 @@ func configurePortBindingIPv4(bnd types.PortBinding, containerIPv4, defHostIP ne
 	if bnd.HostPortEnd == 0 {
 		bnd.HostPortEnd = bnd.HostPort
 	}
-	return bnd, true
+	return portBindingReq{
+		PortBinding: bnd,
+		disableNAT:  disableNAT,
+	}, true
 }
 
 // configurePortBindingIPv6 returns a new port binding with the HostIP field populated
 // if a binding is required, else nil.
-func configurePortBindingIPv6(bnd types.PortBinding, containerIP, defHostIP net.IP) (types.PortBinding, bool) {
+func configurePortBindingIPv6(disableNAT bool, bnd types.PortBinding, containerIP, defHostIP net.IP) (portBindingReq, bool) {
 	if containerIP == nil {
-		return types.PortBinding{}, false
+		return portBindingReq{}, false
 	}
 	if len(bnd.HostIP) > 0 && bnd.HostIP.To4() != nil {
 		// The mapping is explicitly IPv4.
-		return types.PortBinding{}, false
+		return portBindingReq{}, false
 	}
 
 	// If there's no host address, use the default.
@@ -142,7 +151,7 @@ func configurePortBindingIPv6(bnd types.PortBinding, containerIP, defHostIP net.
 		if defHostIP.Equal(net.IPv4zero) {
 			if !netutils.IsV6Listenable() {
 				// No implicit binding if the host has no IPv6 support.
-				return types.PortBinding{}, false
+				return portBindingReq{}, false
 			}
 			// Implicit binding to "::", no explicit HostIP and the default is 0.0.0.0
 			bnd.HostIP = net.IPv6zero
@@ -151,7 +160,7 @@ func configurePortBindingIPv6(bnd types.PortBinding, containerIP, defHostIP net.
 			bnd.HostIP = defHostIP
 		} else {
 			// The default binding IP is an IPv4 address, nothing to do here.
-			return types.PortBinding{}, false
+			return portBindingReq{}, false
 		}
 	}
 	bnd.IP = containerIP
@@ -159,13 +168,16 @@ func configurePortBindingIPv6(bnd types.PortBinding, containerIP, defHostIP net.
 	if bnd.HostPortEnd == 0 {
 		bnd.HostPortEnd = bnd.HostPort
 	}
-	return bnd, true
+	return portBindingReq{
+		PortBinding: bnd,
+		disableNAT:  disableNAT,
+	}, true
 }
 
 // bindHostPorts allocates ports and starts docker-proxy for the given cfg. The
 // caller is responsible for ensuring that all entries in cfg map the same proto,
 // container port, and host port range (their host addresses must differ).
-func bindHostPorts(cfg []types.PortBinding, proxyPath string) ([]portBinding, error) {
+func bindHostPorts(cfg []portBindingReq, proxyPath string) ([]portBinding, error) {
 	if len(cfg) == 0 {
 		return nil, nil
 	}
@@ -208,45 +220,60 @@ var startProxy = portmapper.StartProxy
 // already bound the port), all resources are released and an error is returned.
 // When ports are successfully reserved, a portBinding is returned for each
 // mapping.
+//
+// If NAT is disabled for any of the bindings, no host port reservation is
+// needed. These bindings are included in results, as the container port itself
+// needs to be opened in the firewall.
 func attemptBindHostPorts(
-	cfg []types.PortBinding,
+	cfg []portBindingReq,
 	proto string,
 	hostPortStart, hostPortEnd uint16,
 	proxyPath string,
 ) (_ []portBinding, retErr error) {
+	var err error
+	var port int
+
 	addrs := make([]net.IP, 0, len(cfg))
 	for _, c := range cfg {
-		addrs = append(addrs, c.HostIP)
+		if !c.disableNAT {
+			addrs = append(addrs, c.HostIP)
+		}
 	}
 
-	pa := portallocator.Get()
-	port, err := pa.RequestPortsInRange(addrs, proto, int(hostPortStart), int(hostPortEnd))
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if retErr != nil {
-			for _, a := range addrs {
-				pa.ReleasePort(a, proto, port)
-			}
+	if len(addrs) > 0 {
+		pa := portallocator.Get()
+		port, err = pa.RequestPortsInRange(addrs, proto, int(hostPortStart), int(hostPortEnd))
+		if err != nil {
+			return nil, err
 		}
-	}()
+		defer func() {
+			if retErr != nil {
+				for _, a := range addrs {
+					pa.ReleasePort(a, proto, port)
+				}
+			}
+		}()
+	}
 
 	res := make([]portBinding, 0, len(cfg))
 	for _, c := range cfg {
 		pb := portBinding{PortBinding: c.GetCopy()}
-		pb.stopProxy, err = startProxy(c.Proto.String(), c.HostIP, port, c.IP, int(c.Port), proxyPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to bind port %s:%d/%s: %w", c.HostIP, port, c.Proto, err)
-		}
-		defer func() {
-			if retErr != nil {
-				if err := pb.stopProxy(); err != nil {
-					log.G(context.TODO()).Warnf("Failed to stop userland proxy for port mapping %s: %s", pb, err)
-				}
+		if c.disableNAT {
+			pb.HostPort = 0
+		} else {
+			pb.stopProxy, err = startProxy(c.Proto.String(), c.HostIP, port, c.IP, int(c.Port), proxyPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to bind port %s:%d/%s: %w", c.HostIP, port, c.Proto, err)
 			}
-		}()
-		pb.HostPort = uint16(port)
+			defer func() {
+				if retErr != nil {
+					if err := pb.stopProxy(); err != nil {
+						log.G(context.TODO()).Warnf("Failed to stop userland proxy for port mapping %s: %s", pb, err)
+					}
+				}
+			}()
+			pb.HostPort = uint16(port)
+		}
 		pb.HostPortEnd = pb.HostPort
 		res = append(res, pb)
 	}
@@ -266,15 +293,20 @@ func (n *bridgeNetwork) releasePorts(ep *bridgeEndpoint) error {
 func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 	var errs []error
 	for _, pb := range pbs {
-		errP := pb.stopProxy()
-		if errP != nil {
-			errP = fmt.Errorf("failed to stop docker-proxy for port mapping %s: %w", pb, errP)
+		var errP error
+		if pb.stopProxy != nil {
+			errP = pb.stopProxy()
+			if errP != nil {
+				errP = fmt.Errorf("failed to stop docker-proxy for port mapping %s: %w", pb, errP)
+			}
 		}
 		errN := n.setPerPortIptables(pb, false)
 		if errN != nil {
 			errN = fmt.Errorf("failed to remove iptables rules for port mapping %s: %w", pb, errN)
 		}
-		portallocator.Get().ReleasePort(pb.HostIP, pb.Proto.String(), int(pb.HostPort))
+		if pb.HostPort > 0 {
+			portallocator.Get().ReleasePort(pb.HostIP, pb.Proto.String(), int(pb.HostPort))
+		}
 		errs = append(errs, errP, errN)
 	}
 	return errors.Join(errs...)
@@ -309,6 +341,10 @@ func (n *bridgeNetwork) setPerPortIptables(b portBinding, enable bool) error {
 }
 
 func setPerPortNAT(b portBinding, ipv iptables.IPVersion, proxyPath string, bridgeName string, enable bool) error {
+	if b.HostPort == 0 {
+		// NAT is disabled.
+		return nil
+	}
 	// iptables interprets "0.0.0.0" as "0.0.0.0/32", whereas we
 	// want "0.0.0.0/0". "0/0" is correctly interpreted as "any
 	// value" by both iptables and ip6tables.
