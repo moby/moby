@@ -11,10 +11,12 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -133,7 +135,8 @@ func TestImportWithCustomPlatform(t *testing.T) {
 				reference,
 				types.ImageImportOptions{Platform: tc.platform})
 			if tc.expectedErr != "" {
-				assert.ErrorContains(t, err, tc.expectedErr)
+				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+				assert.Check(t, is.ErrorContains(err, tc.expectedErr))
 			} else {
 				assert.NilError(t, err)
 
