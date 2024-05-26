@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -331,6 +332,7 @@ func (v *View) transform(container *Container) *Snapshot {
 
 	if container.HostConfig != nil {
 		snapshot.Container.HostConfig.NetworkMode = string(container.HostConfig.NetworkMode)
+		snapshot.Container.HostConfig.Annotations = maps.Clone(container.HostConfig.Annotations)
 		snapshot.HostConfig.Isolation = string(container.HostConfig.Isolation)
 		for binding := range container.HostConfig.PortBindings {
 			snapshot.PortBindings[binding] = struct{}{}

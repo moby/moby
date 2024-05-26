@@ -4741,6 +4741,12 @@ definitions:
         properties:
           NetworkMode:
             type: "string"
+          Annotations:
+            description: "Arbitrary key-value metadata attached to container"
+            type: "object"
+            x-nullable: true
+            additionalProperties:
+              type: "string"
       NetworkSettings:
         description: "A summary of the container's network settings"
         type: "object"
@@ -6390,6 +6396,8 @@ paths:
                 SizeRootFs: 0
                 HostConfig:
                   NetworkMode: "default"
+                  Annotations:
+                    io.kubernetes.docker.type: "container"
                 NetworkSettings:
                   Networks:
                     bridge:
@@ -6425,6 +6433,9 @@ paths:
                 SizeRootFs: 0
                 HostConfig:
                   NetworkMode: "default"
+                  Annotations:
+                    io.kubernetes.docker.type: "container"
+                    io.kubernetes.sandbox.id: "3befe639bed0fd6afdd65fd1fa84506756f59360ec4adc270b0fdac9be22b4d3"
                 NetworkSettings:
                   Networks:
                     bridge:
@@ -6453,6 +6464,9 @@ paths:
                 SizeRootFs: 0
                 HostConfig:
                   NetworkMode: "default"
+                  Annotations:
+                    io.kubernetes.image.id: "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82"
+                    io.kubernetes.image.name: "ubuntu:latest"
                 NetworkSettings:
                   Networks:
                     bridge:
@@ -6481,6 +6495,8 @@ paths:
                 SizeRootFs: 0
                 HostConfig:
                   NetworkMode: "default"
+                  Annotations:
+                    io.kubernetes.config.source: "api"
                 NetworkSettings:
                   Networks:
                     bridge:

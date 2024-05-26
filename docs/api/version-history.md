@@ -27,6 +27,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   `--sysctl` settings for `eth0` will be migrated to `DriverOpts` when possible. 
   This automatic migration will be removed for API versions 1.47 and greater.
 
+* `GET /containers/json` now returns the annotations of containers.
+
 ## v1.45 API changes
 
 [Docker Engine API v1.45](https://docs.docker.com/engine/api/v1.45/) documentation
