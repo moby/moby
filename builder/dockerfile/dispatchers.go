@@ -166,17 +166,17 @@ func initializeStage(ctx context.Context, d dispatchRequest, cmd *instructions.S
 
 		p, err := platforms.Parse(v)
 		if err != nil {
-			return errors.Wrapf(err, "failed to parse platform %s", v)
+			return errors.Wrapf(errdefs.InvalidParameter(err), "failed to parse platform %s", v)
 		}
 		platform = &p
 	}
 
-	image, err := d.getFromImage(ctx, d.shlex, cmd.BaseName, platform)
+	img, err := d.getFromImage(ctx, d.shlex, cmd.BaseName, platform)
 	if err != nil {
 		return err
 	}
 	state := d.state
-	if err := state.beginStage(cmd.Name, image); err != nil {
+	if err := state.beginStage(cmd.Name, img); err != nil {
 		return err
 	}
 	if len(state.runConfig.OnBuild) > 0 {
