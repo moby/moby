@@ -2206,7 +2206,7 @@ definitions:
           The name of the driver used to create the network (e.g. `bridge`,
           `overlay`).
         type: "string"
-        example: "bridge"
+        example: "overlay"
       EnableIPv6:
         description: |
           Whether the network was created with IPv6 enabled.
@@ -2278,6 +2278,15 @@ definitions:
         example:
           com.example.some-label: "some-value"
           com.example.some-other-label: "some-other-value"
+      Peers:
+        description: |
+          List of peer nodes for an overlay network. This field is only present
+          for overlay networks, and omitted for other network types.
+        type: "array"
+        items:
+          $ref: "#/definitions/PeerInfo"
+        x-nullable: true
+      # TODO: Add Services (only present when "verbose" is set).
 
   ConfigReference:
     description: |
@@ -2354,6 +2363,22 @@ definitions:
       IPv6Address:
         type: "string"
         example: ""
+
+  PeerInfo:
+    description: |
+      PeerInfo represents one peer of an overlay network.
+    type: "object"
+    properties:
+      Name:
+        description:
+          ID of the peer-node in the Swarm cluster.
+        type: "string"
+        example: "6869d7c1732b"
+      IP:
+        description:
+          IP-address of the peer-node in the Swarm cluster.
+        type: "string"
+        example: "10.133.77.91"
 
   BuildInfo:
     type: "object"
