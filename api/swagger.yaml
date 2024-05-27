@@ -10174,6 +10174,11 @@ paths:
                 type: "string"
                 default: "bridge"
                 example: "bridge"
+              Scope:
+                description: |
+                  The level at which the network exists (e.g. `swarm` for cluster-wide
+                  or `local` for machine level).
+                type: "string"
               Internal:
                 description: "Restrict external access to the network."
                 type: "boolean"
@@ -10189,6 +10194,21 @@ paths:
                   in swarm mode.
                 type: "boolean"
                 example: false
+              ConfigOnly:
+                description: |
+                  Creates a config-only network. Config-only networks are placeholder
+                  networks for network configurations to be used by other networks.
+                  Config-only networks cannot be used directly to run containers
+                  or services.
+                type: "boolean"
+                default: false
+                example: false
+              ConfigFrom:
+                description: |
+                  Specifies the source which will provide the configuration for
+                  this network. The specified network must be an existing
+                  config-only network; see ConfigOnly.
+                $ref: "#/definitions/ConfigReference"
               IPAM:
                 description: "Optional custom IP scheme for the network."
                 $ref: "#/definitions/IPAM"
