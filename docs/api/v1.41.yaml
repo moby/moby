@@ -2178,6 +2178,7 @@ definitions:
         description: "Name of the IPAM driver to use."
         type: "string"
         default: "default"
+        example: "default"
       Config:
         description: |
           List of IPAM configuration options, specified as a map:
@@ -2193,16 +2194,21 @@ definitions:
         type: "object"
         additionalProperties:
           type: "string"
+        example:
+          foo: "bar"
 
   IPAMConfig:
     type: "object"
     properties:
       Subnet:
         type: "string"
+        example: "172.20.0.0/16"
       IPRange:
         type: "string"
+        example: "172.20.10.0/24"
       Gateway:
         type: "string"
+        example: "172.20.10.11"
       AuxiliaryAddresses:
         type: "object"
         additionalProperties:
@@ -9536,6 +9542,7 @@ paths:
               Name:
                 description: "The network's name."
                 type: "string"
+                example: "my_network"
               CheckDuplicate:
                 description: |
                   Check for networks with duplicate names. Since Network is
@@ -9546,10 +9553,12 @@ paths:
                   a best effort checking of any networks which has the same name
                   but it is not guaranteed to catch all name collisions.
                 type: "boolean"
+                example: true
               Driver:
                 description: "Name of the network driver plugin to use."
                 type: "string"
                 default: "bridge"
+                example: "bridge"
               Internal:
                 description: "Restrict external access to the network."
                 type: "boolean"
@@ -9558,55 +9567,40 @@ paths:
                   Globally scoped network is manually attachable by regular
                   containers from workers in swarm mode.
                 type: "boolean"
+                example: true
               Ingress:
                 description: |
                   Ingress network is the network which provides the routing-mesh
                   in swarm mode.
                 type: "boolean"
+                example: false
               IPAM:
                 description: "Optional custom IP scheme for the network."
                 $ref: "#/definitions/IPAM"
               EnableIPv6:
                 description: "Enable IPv6 on the network."
                 type: "boolean"
+                example: true
               Options:
                 description: "Network specific options to be used by the drivers."
                 type: "object"
                 additionalProperties:
                   type: "string"
+                example:
+                  com.docker.network.bridge.default_bridge: "true"
+                  com.docker.network.bridge.enable_icc: "true"
+                  com.docker.network.bridge.enable_ip_masquerade: "true"
+                  com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
+                  com.docker.network.bridge.name: "docker0"
+                  com.docker.network.driver.mtu: "1500"
               Labels:
                 description: "User-defined key/value metadata."
                 type: "object"
                 additionalProperties:
                   type: "string"
-            example:
-              Name: "isolated_nw"
-              CheckDuplicate: false
-              Driver: "bridge"
-              EnableIPv6: true
-              IPAM:
-                Driver: "default"
-                Config:
-                  - Subnet: "172.20.0.0/16"
-                    IPRange: "172.20.10.0/24"
-                    Gateway: "172.20.10.11"
-                  - Subnet: "2001:db8:abcd::/64"
-                    Gateway: "2001:db8:abcd::1011"
-                Options:
-                  foo: "bar"
-              Internal: true
-              Attachable: false
-              Ingress: false
-              Options:
-                com.docker.network.bridge.default_bridge: "true"
-                com.docker.network.bridge.enable_icc: "true"
-                com.docker.network.bridge.enable_ip_masquerade: "true"
-                com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
-                com.docker.network.bridge.name: "docker0"
-                com.docker.network.driver.mtu: "1500"
-              Labels:
-                com.example.some-label: "some-value"
-                com.example.some-other-label: "some-other-value"
+                example:
+                  com.example.some-label: "some-value"
+                  com.example.some-other-label: "some-other-value"
       tags: ["Network"]
 
   /networks/{id}/connect:
