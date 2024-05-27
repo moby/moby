@@ -29,7 +29,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/klauspost/compress/zstd"
 )
 
