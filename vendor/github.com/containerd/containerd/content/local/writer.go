@@ -27,8 +27,8 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/errdefs"
+	"github.com/containerd/log"
 	"github.com/opencontainers/go-digest"
 )
 

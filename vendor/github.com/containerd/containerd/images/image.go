@@ -24,9 +24,9 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/errdefs"
+	"github.com/containerd/log"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -268,6 +268,9 @@ func Platforms(ctx context.Context, provider content.Provider, image ocispec.Des
 	var platformSpecs []ocispec.Platform
 	return platformSpecs, Walk(ctx, Handlers(HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if desc.Platform != nil {
+			if desc.Platform.OS == "unknown" || desc.Platform.Architecture == "unknown" {
+				return nil, ErrSkipDesc
+			}
 			platformSpecs = append(platformSpecs, *desc.Platform)
 			return nil, ErrSkipDesc
 		}
