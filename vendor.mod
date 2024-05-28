@@ -4,12 +4,13 @@
 
 module github.com/docker/docker
 
-go 1.22.0
-
-toolchain go1.22.2
+go 1.21
 
 // FIXME(thaJeztah); testing https://github.com/containerd/containerd/pull/10189
 replace github.com/containerd/containerd => github.com/dmcgowan/containerd v1.7.16-0.20240528144541-4a2ca38f6508
+
+// FIXME(thaJeztah); testing https://github.com/containerd/containerd/pull/10276
+replace github.com/containerd/containerd/api => github.com/dmcgowan/containerd/api v1.8.0-rc.0.0.20240528200503-359d84351d53
 
 require (
 	cloud.google.com/go/compute/metadata v0.2.3
