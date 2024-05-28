@@ -195,10 +195,12 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 			Name:    create.Driver,
 			Options: create.Options,
 		},
-		Ipv6Enabled: create.EnableIPv6,
-		Internal:    create.Internal,
-		Attachable:  create.Attachable,
-		Ingress:     create.Ingress,
+		Internal:   create.Internal,
+		Attachable: create.Attachable,
+		Ingress:    create.Ingress,
+	}
+	if create.EnableIPv6 != nil {
+		ns.Ipv6Enabled = *create.EnableIPv6
 	}
 	if create.IPAM != nil {
 		driver := create.IPAM.Driver

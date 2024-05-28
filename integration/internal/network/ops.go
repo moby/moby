@@ -15,7 +15,8 @@ func WithDriver(driver string) func(*types.NetworkCreate) {
 // WithIPv6 Enables IPv6 on the network
 func WithIPv6() func(*types.NetworkCreate) {
 	return func(n *types.NetworkCreate) {
-		n.EnableIPv6 = true
+		enableIPv6 := true
+		n.EnableIPv6 = &enableIPv6
 	}
 }
 

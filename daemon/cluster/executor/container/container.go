@@ -621,13 +621,14 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		return clustertypes.NetworkCreateRequest{}, errors.New("container: unknown network referenced")
 	}
 
+	ipv6Enabled := na.Network.Spec.Ipv6Enabled
 	options := types.NetworkCreate{
 		// ID:     na.Network.ID,
 		Labels:     na.Network.Spec.Annotations.Labels,
 		Internal:   na.Network.Spec.Internal,
 		Attachable: na.Network.Spec.Attachable,
 		Ingress:    convert.IsIngressNetwork(na.Network),
-		EnableIPv6: na.Network.Spec.Ipv6Enabled,
+		EnableIPv6: &ipv6Enabled,
 		Scope:      scope.Swarm,
 	}
 
