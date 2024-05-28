@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/iptables"
@@ -291,24 +292,96 @@ func (n *bridgeNetwork) setPerPortIptables(b portBinding, enable bool) error {
 		v = iptables.IPv6
 	}
 
-	natChain, _, _, _, err := n.getDriverChains(v)
-	if err != nil || natChain == nil {
+	if enabled, err := n.iptablesEnabled(v); err != nil || !enabled {
 		// Nothing to do, iptables/ip6tables is not enabled.
 		return nil
 	}
-	action := iptables.Delete
-	if enable {
-		action = iptables.Insert
+
+	bridgeName := n.getNetworkBridgeName()
+	proxyPath := n.userlandProxyPath()
+	if err := setPerPortNAT(b, v, proxyPath, bridgeName, enable); err != nil {
+		return err
 	}
-	return natChain.Forward(
-		action,
-		b.HostIP,
-		int(b.HostPort),
-		b.Proto.String(),
-		b.IP.String(),
-		int(b.Port),
-		n.getNetworkBridgeName(),
-	)
+	if err := setPerPortForwarding(b, v, bridgeName, enable); err != nil {
+		return err
+	}
+	return nil
+}
+
+func setPerPortNAT(b portBinding, ipv iptables.IPVersion, proxyPath string, bridgeName string, enable bool) error {
+	// iptables interprets "0.0.0.0" as "0.0.0.0/32", whereas we
+	// want "0.0.0.0/0". "0/0" is correctly interpreted as "any
+	// value" by both iptables and ip6tables.
+	hostIP := "0/0"
+	if !b.HostIP.IsUnspecified() {
+		hostIP = b.HostIP.String()
+	}
+	args := []string{
+		"-p", b.Proto.String(),
+		"-d", hostIP,
+		"--dport", strconv.Itoa(int(b.HostPort)),
+		"-j", "DNAT",
+		"--to-destination", net.JoinHostPort(b.IP.String(), strconv.Itoa(int(b.Port))),
+	}
+	hairpinMode := proxyPath == ""
+	if !hairpinMode {
+		args = append(args, "!", "-i", bridgeName)
+	}
+	rule := iptRule{ipv: ipv, table: iptables.Nat, chain: DockerChain, args: args}
+	if err := programChainRule(rule, "DNAT", enable); err != nil {
+		return err
+	}
+
+	args = []string{
+		"-p", b.Proto.String(),
+		"-s", b.IP.String(),
+		"-d", b.IP.String(),
+		"--dport", strconv.Itoa(int(b.Port)),
+		"-j", "MASQUERADE",
+	}
+	rule = iptRule{ipv: ipv, table: iptables.Nat, chain: "POSTROUTING", args: args}
+	if err := programChainRule(rule, "MASQUERADE", enable); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName string, enable bool) error {
+	args := []string{
+		"!", "-i", bridgeName,
+		"-o", bridgeName,
+		"-p", b.Proto.String(),
+		"-d", b.IP.String(),
+		"--dport", strconv.Itoa(int(b.Port)),
+		"-j", "ACCEPT",
+	}
+	rule := iptRule{ipv: ipv, table: iptables.Filter, chain: DockerChain, args: args}
+	if err := programChainRule(rule, "MASQUERADE", enable); err != nil {
+		return err
+	}
+
+	if b.Proto == types.SCTP {
+		// Linux kernel v4.9 and below enables NETIF_F_SCTP_CRC for veth by
+		// the following commit.
+		// This introduces a problem when combined with a physical NIC without
+		// NETIF_F_SCTP_CRC. As for a workaround, here we add an iptables entry
+		// to fill the checksum.
+		//
+		// https://github.com/torvalds/linux/commit/c80fafbbb59ef9924962f83aac85531039395b18
+		args = []string{
+			"-p", b.Proto.String(),
+			"--sport", strconv.Itoa(int(b.Port)),
+			"-j", "CHECKSUM",
+			"--checksum-fill",
+		}
+		rule := iptRule{ipv: ipv, table: iptables.Mangle, chain: "POSTROUTING", args: args}
+		if err := programChainRule(rule, "MASQUERADE", enable); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (n *bridgeNetwork) reapplyPerPortIptables4() {

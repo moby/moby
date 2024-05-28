@@ -34,7 +34,7 @@ func TestFirewalldInit(t *testing.T) {
 
 func TestReloaded(t *testing.T) {
 	iptable := GetIptable(IPv4)
-	fwdChain, err := iptable.NewChain("FWD", Filter, false)
+	fwdChain, err := iptable.NewChain("FWD", Filter)
 	if err != nil {
 		t.Fatal(err)
 	}

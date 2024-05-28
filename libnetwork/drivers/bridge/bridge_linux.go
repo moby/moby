@@ -329,6 +329,21 @@ func (n *bridgeNetwork) registerIptCleanFunc(clean iptableCleanFunc) {
 	n.iptCleanFuncs = append(n.iptCleanFuncs, clean)
 }
 
+func (n *bridgeNetwork) iptablesEnabled(version iptables.IPVersion) (bool, error) {
+	n.Lock()
+	defer n.Unlock()
+	if n.driver == nil {
+		return false, types.InvalidParameterErrorf("no driver found")
+	}
+
+	n.driver.Lock()
+	defer n.driver.Unlock()
+	if version == iptables.IPv6 {
+		return n.driver.config.EnableIP6Tables, nil
+	}
+	return n.driver.config.EnableIPTables, nil
+}
+
 func (n *bridgeNetwork) getDriverChains(version iptables.IPVersion) (*iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, error) {
 	n.Lock()
 	defer n.Unlock()

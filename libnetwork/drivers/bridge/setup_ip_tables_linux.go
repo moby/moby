@@ -41,11 +41,9 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		return nil, nil, nil, nil, errors.New("cannot create new chains, ip6tables is disabled")
 	}
 
-	hairpinMode := !config.EnableUserlandProxy
-
 	iptable := iptables.GetIptable(version)
 
-	natChain, err := iptable.NewChain(DockerChain, iptables.Nat, hairpinMode)
+	natChain, err := iptable.NewChain(DockerChain, iptables.Nat)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create NAT chain %s: %v", DockerChain, err)
 	}
@@ -57,7 +55,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		}
 	}()
 
-	filterChain, err = iptable.NewChain(DockerChain, iptables.Filter, false)
+	filterChain, err = iptable.NewChain(DockerChain, iptables.Filter)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER chain %s: %v", DockerChain, err)
 	}
@@ -69,7 +67,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		}
 	}()
 
-	isolationChain1, err = iptable.NewChain(IsolationChain1, iptables.Filter, false)
+	isolationChain1, err = iptable.NewChain(IsolationChain1, iptables.Filter)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER isolation chain: %v", err)
 	}
@@ -81,7 +79,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		}
 	}()
 
-	isolationChain2, err = iptable.NewChain(IsolationChain2, iptables.Filter, false)
+	isolationChain2, err = iptable.NewChain(IsolationChain2, iptables.Filter)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER isolation chain: %v", err)
 	}
