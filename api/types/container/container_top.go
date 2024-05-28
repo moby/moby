@@ -6,17 +6,52 @@ package container // import "github.com/docker/docker/api/types/container"
 // See hack/generate-swagger-api.sh
 // ----------------------------------------------------------------------------
 
+import (
+	"context"
+
+	"github.com/docker/docker/api/types"
+	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
+)
+
 // ContainerTopOKBody OK response to ContainerTop operation
 // swagger:model ContainerTopOKBody
+
 type ContainerTopOKBody struct {
 
 	// Each process running in the container, where each is process
 	// is an array of values corresponding to the titles.
 	//
-	// Required: true
 	Processes [][]string `json:"Processes"`
 
 	// The ps column titles
-	// Required: true
 	Titles []string `json:"Titles"`
+}
+
+// Validate validates this container top o k body
+func (o *ContainerTopOKBody) Validate(formats strfmt.Registry) error {
+	return nil
+}
+
+// ContextValidate validates this container top o k body based on context it is used
+func (o *ContainerTopOKBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *ContainerTopOKBody) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *ContainerTopOKBody) UnmarshalBinary(b []byte) error {
+	var res ContainerTopOKBody
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
+	return nil
 }

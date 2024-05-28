@@ -6,11 +6,201 @@ package container // import "github.com/docker/docker/api/types/container"
 // See hack/generate-swagger-api.sh
 // ----------------------------------------------------------------------------
 
+import (
+	"context"
+
+	"github.com/docker/docker/api/types"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/strfmt"
+
+	types "github.com/docker/docker/api/restapi/types"
+)
+
+// ContainerUpdateBody
+// swagger:model ContainerUpdateBody
+
+type ContainerUpdateBody struct {
+	types.Resources
+
+	// restart policy
+	RestartPolicy *types.RestartPolicy `json:"RestartPolicy,omitempty"`
+}
+
+// UnmarshalJSON unmarshals this object from a JSON structure
+func (o *ContainerUpdateBody) UnmarshalJSON(raw []byte) error {
+	// ContainerUpdateParamsBodyAO0
+	var containerUpdateParamsBodyAO0 types.Resources
+	if err := swag.ReadJSON(raw, &containerUpdateParamsBodyAO0); err != nil {
+		return err
+	}
+	o.Resources = containerUpdateParamsBodyAO0
+
+	// ContainerUpdateParamsBodyAO1
+	var dataContainerUpdateParamsBodyAO1 struct {
+		RestartPolicy *types.RestartPolicy `json:"RestartPolicy,omitempty"`
+	}
+	if err := swag.ReadJSON(raw, &dataContainerUpdateParamsBodyAO1); err != nil {
+		return err
+	}
+
+	o.RestartPolicy = dataContainerUpdateParamsBodyAO1.RestartPolicy
+
+	return nil
+}
+
+// MarshalJSON marshals this object to a JSON structure
+func (o ContainerUpdateBody) MarshalJSON() ([]byte, error) {
+	_parts := make([][]byte, 0, 2)
+
+	containerUpdateParamsBodyAO0, err := swag.WriteJSON(o.Resources)
+	if err != nil {
+		return nil, err
+	}
+	_parts = append(_parts, containerUpdateParamsBodyAO0)
+	var dataContainerUpdateParamsBodyAO1 struct {
+		RestartPolicy *types.RestartPolicy `json:"RestartPolicy,omitempty"`
+	}
+
+	dataContainerUpdateParamsBodyAO1.RestartPolicy = o.RestartPolicy
+
+	jsonDataContainerUpdateParamsBodyAO1, errContainerUpdateParamsBodyAO1 := swag.WriteJSON(dataContainerUpdateParamsBodyAO1)
+	if errContainerUpdateParamsBodyAO1 != nil {
+		return nil, errContainerUpdateParamsBodyAO1
+	}
+	_parts = append(_parts, jsonDataContainerUpdateParamsBodyAO1)
+	return swag.ConcatJSON(_parts...), nil
+}
+
+// Validate validates this container update body
+func (o *ContainerUpdateBody) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	// validation for a type composition with types.Resources
+	if err := o.Resources.Validate(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := o.validateRestartPolicy(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *ContainerUpdateBody) validateRestartPolicy(formats strfmt.Registry) error {
+
+	if swag.IsZero(o.RestartPolicy) { // not required
+		return nil
+	}
+
+	if o.RestartPolicy != nil {
+		if err := o.RestartPolicy.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("update" + "." + "RestartPolicy")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("update" + "." + "RestartPolicy")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ContextValidate validate this container update body based on the context it is used
+func (o *ContainerUpdateBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	// validation for a type composition with types.Resources
+	if err := o.Resources.ContextValidate(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := o.contextValidateRestartPolicy(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *ContainerUpdateBody) contextValidateRestartPolicy(ctx context.Context, formats strfmt.Registry) error {
+
+	if o.RestartPolicy != nil {
+
+		if swag.IsZero(o.RestartPolicy) { // not required
+			return nil
+		}
+
+		if err := o.RestartPolicy.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("update" + "." + "RestartPolicy")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("update" + "." + "RestartPolicy")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *ContainerUpdateBody) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *ContainerUpdateBody) UnmarshalBinary(b []byte) error {
+	var res ContainerUpdateBody
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
+	return nil
+}
+
 // ContainerUpdateOKBody OK response to ContainerUpdate operation
 // swagger:model ContainerUpdateOKBody
+
 type ContainerUpdateOKBody struct {
 
 	// warnings
-	// Required: true
 	Warnings []string `json:"Warnings"`
+}
+
+// Validate validates this container update o k body
+func (o *ContainerUpdateOKBody) Validate(formats strfmt.Registry) error {
+	return nil
+}
+
+// ContextValidate validates this container update o k body based on context it is used
+func (o *ContainerUpdateOKBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *ContainerUpdateOKBody) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *ContainerUpdateOKBody) UnmarshalBinary(b []byte) error {
+	var res ContainerUpdateOKBody
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
+	return nil
 }
