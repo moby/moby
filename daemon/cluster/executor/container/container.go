@@ -28,6 +28,7 @@ import (
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/genericresource"
 	"github.com/moby/swarmkit/v2/template"
+	"github.com/moznion/go-optional"
 )
 
 const (
@@ -627,7 +628,7 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		Internal:   na.Network.Spec.Internal,
 		Attachable: na.Network.Spec.Attachable,
 		Ingress:    convert.IsIngressNetwork(na.Network),
-		EnableIPv6: na.Network.Spec.Ipv6Enabled,
+		EnableIPv6: optional.Some(na.Network.Spec.Ipv6Enabled),
 		Scope:      scope.Swarm,
 	}
 

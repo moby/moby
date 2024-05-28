@@ -977,6 +977,9 @@ github.com/moby/term/windows
 # github.com/morikuni/aec v1.0.0
 ## explicit
 github.com/morikuni/aec
+# github.com/moznion/go-optional v0.11.0
+## explicit; go 1.19
+github.com/moznion/go-optional
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest

@@ -3,6 +3,7 @@ package network
 import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
+	"github.com/moznion/go-optional"
 )
 
 // WithDriver sets the driver of the network
@@ -15,7 +16,7 @@ func WithDriver(driver string) func(*types.NetworkCreate) {
 // WithIPv6 Enables IPv6 on the network
 func WithIPv6() func(*types.NetworkCreate) {
 	return func(n *types.NetworkCreate) {
-		n.EnableIPv6 = true
+		n.EnableIPv6 = optional.Some(true)
 	}
 }
 

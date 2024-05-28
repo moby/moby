@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/moznion/go-optional"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -67,7 +68,7 @@ func TestNetworkCreate(t *testing.T) {
 
 	networkResponse, err := client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{
 		Driver:     "mydriver",
-		EnableIPv6: true,
+		EnableIPv6: optional.Some(true),
 		Internal:   true,
 		Options: map[string]string{
 			"opt-key": "opt-value",

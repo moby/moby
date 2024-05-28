@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/go-connections/nat"
+	"github.com/moznion/go-optional"
 )
 
 const (
@@ -451,7 +452,7 @@ type NetworkCreate struct {
 	CheckDuplicate bool                     `json:",omitempty"`
 	Driver         string                   // Driver is the driver-name used to create the network (e.g. `bridge`, `overlay`)
 	Scope          string                   // Scope describes the level at which the network exists (e.g. `swarm` for cluster-wide or `local` for machine level).
-	EnableIPv6     bool                     // EnableIPv6 represents whether to enable IPv6.
+	EnableIPv6     optional.Option[bool]    `json:",omitempty"` // EnableIPv6 represents whether to enable IPv6.
 	IPAM           *network.IPAM            // IPAM is the network's IP Address Management.
 	Internal       bool                     // Internal represents if the network is used internal only.
 	Attachable     bool                     // Attachable represents if the global scope is manually attachable by regular containers from workers in swarm mode.
