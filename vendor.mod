@@ -4,7 +4,12 @@
 
 module github.com/docker/docker
 
-go 1.21
+go 1.22.0
+
+toolchain go1.22.2
+
+// FIXME(thaJeztah); testing https://github.com/containerd/containerd/pull/10189
+replace github.com/containerd/containerd => github.com/dmcgowan/containerd v1.7.16-0.20240528144541-4a2ca38f6508
 
 require (
 	cloud.google.com/go/compute/metadata v0.2.3
@@ -25,7 +30,8 @@ require (
 	github.com/aws/smithy-go v1.19.0
 	github.com/cloudflare/cfssl v1.6.4
 	github.com/containerd/cgroups/v3 v3.0.3
-	github.com/containerd/containerd v1.7.18
+	github.com/containerd/containerd v1.7.18 // release/1.7 head (1.7.18-dev)
+	github.com/containerd/containerd/api v1.8.0-rc.0
 	github.com/containerd/continuity v0.4.3
 	github.com/containerd/errdefs v0.1.0
 	github.com/containerd/fifo v1.1.0
@@ -223,7 +229,7 @@ require (
 	google.golang.org/api v0.128.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20231016165738-49dd2c1f3d0b // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.90.1 // indirect

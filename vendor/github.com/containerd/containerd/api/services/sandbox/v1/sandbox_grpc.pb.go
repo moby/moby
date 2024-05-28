@@ -259,6 +259,7 @@ type ControllerClient interface {
 	Wait(ctx context.Context, in *ControllerWaitRequest, opts ...grpc.CallOption) (*ControllerWaitResponse, error)
 	Status(ctx context.Context, in *ControllerStatusRequest, opts ...grpc.CallOption) (*ControllerStatusResponse, error)
 	Shutdown(ctx context.Context, in *ControllerShutdownRequest, opts ...grpc.CallOption) (*ControllerShutdownResponse, error)
+	Metrics(ctx context.Context, in *ControllerMetricsRequest, opts ...grpc.CallOption) (*ControllerMetricsResponse, error)
 }
 
 type controllerClient struct {
@@ -332,6 +333,15 @@ func (c *controllerClient) Shutdown(ctx context.Context, in *ControllerShutdownR
 	return out, nil
 }
 
+func (c *controllerClient) Metrics(ctx context.Context, in *ControllerMetricsRequest, opts ...grpc.CallOption) (*ControllerMetricsResponse, error) {
+	out := new(ControllerMetricsResponse)
+	err := c.cc.Invoke(ctx, "/containerd.services.sandbox.v1.Controller/Metrics", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ControllerServer is the server API for Controller service.
 // All implementations must embed UnimplementedControllerServer
 // for forward compatibility
@@ -343,6 +353,7 @@ type ControllerServer interface {
 	Wait(context.Context, *ControllerWaitRequest) (*ControllerWaitResponse, error)
 	Status(context.Context, *ControllerStatusRequest) (*ControllerStatusResponse, error)
 	Shutdown(context.Context, *ControllerShutdownRequest) (*ControllerShutdownResponse, error)
+	Metrics(context.Context, *ControllerMetricsRequest) (*ControllerMetricsResponse, error)
 	mustEmbedUnimplementedControllerServer()
 }
 
@@ -370,6 +381,9 @@ func (UnimplementedControllerServer) Status(context.Context, *ControllerStatusRe
 }
 func (UnimplementedControllerServer) Shutdown(context.Context, *ControllerShutdownRequest) (*ControllerShutdownResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Shutdown not implemented")
+}
+func (UnimplementedControllerServer) Metrics(context.Context, *ControllerMetricsRequest) (*ControllerMetricsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Metrics not implemented")
 }
 func (UnimplementedControllerServer) mustEmbedUnimplementedControllerServer() {}
 
@@ -510,6 +524,24 @@ func _Controller_Shutdown_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Controller_Metrics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ControllerMetricsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControllerServer).Metrics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/containerd.services.sandbox.v1.Controller/Metrics",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControllerServer).Metrics(ctx, req.(*ControllerMetricsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Controller_ServiceDesc is the grpc.ServiceDesc for Controller service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -544,6 +576,10 @@ var Controller_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Shutdown",
 			Handler:    _Controller_Shutdown_Handler,
+		},
+		{
+			MethodName: "Metrics",
+			Handler:    _Controller_Metrics_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
