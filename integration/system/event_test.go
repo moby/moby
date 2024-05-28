@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -35,7 +34,7 @@ func TestEventsExecDie(t *testing.T) {
 
 	id, err := client.ContainerExecCreate(ctx, cID,
 		types.ExecConfig{
-			Cmd: strslice.StrSlice([]string{"echo", "hello"}),
+			Cmd: []string{"echo", "hello"},
 		},
 	)
 	assert.NilError(t, err)
@@ -47,12 +46,10 @@ func TestEventsExecDie(t *testing.T) {
 		),
 	})
 
-	err = client.ContainerExecStart(ctx, id.ID,
-		types.ExecStartCheck{
-			Detach: true,
-			Tty:    false,
-		},
-	)
+	err = client.ContainerExecStart(ctx, id.ID, types.ExecStartCheck{
+		Detach: true,
+		Tty:    false,
+	})
 	assert.NilError(t, err)
 
 	select {
@@ -115,7 +112,7 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 		}
 	}
 
-	assert.Check(t, containerCreateEvent != nil)
+	assert.Assert(t, containerCreateEvent != nil)
 	assert.Check(t, is.Equal("create", containerCreateEvent.Status))
 	assert.Check(t, is.Equal(cID, containerCreateEvent.ID))
 	assert.Check(t, is.Equal("busybox", containerCreateEvent.From))
