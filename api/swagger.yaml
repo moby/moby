@@ -2179,72 +2179,129 @@ definitions:
     type: "object"
     properties:
       Name:
+        description: |
+          Name of the network.
         type: "string"
+        example: "my_network"
       Id:
+        description: |
+          ID that uniquely identifies a network on a single machine.
         type: "string"
+        example: "7d86d31b1478e7cca9ebed7e73aa0fdeec46c5ca29497431d3007d2d9e15ed99"
       Created:
+        description: |
+          Date and time at which the network was created in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
         type: "string"
         format: "dateTime"
+        example: "2016-10-19T04:33:30.360899459Z"
       Scope:
+        description: |
+          The level at which the network exists (e.g. `swarm` for cluster-wide
+          or `local` for machine level)
         type: "string"
+        example: "local"
       Driver:
+        description: |
+          The name of the driver used to create the network (e.g. `bridge`,
+          `overlay`).
         type: "string"
+        example: "overlay"
       EnableIPv6:
+        description: |
+          Whether the network was created with IPv6 enabled.
         type: "boolean"
+        example: false
       IPAM:
         $ref: "#/definitions/IPAM"
       Internal:
+        description: |
+          Whether the network is created to only allow internal networking
+          connectivity.
         type: "boolean"
+        default: false
+        example: false
       Attachable:
+        description: |
+          Wheter a global / swarm scope network is manually attachable by regular
+          containers from workers in swarm mode.
         type: "boolean"
+        default: false
+        example: false
       Ingress:
+        description: |
+          Whether the network is providing the routing-mesh for the swarm cluster.
         type: "boolean"
+        default: false
+        example: false
+      ConfigFrom:
+        $ref: "#/definitions/ConfigReference"
+      ConfigOnly:
+        description: |
+          Whether the network is a config-only network. Config-only networks are
+          placeholder networks for network configurations to be used by other
+          networks. Config-only networks cannot be used directly to run containers
+          or services.
+        type: "boolean"
+        default: false
       Containers:
+        description: |
+          Contains endpoints attached to the network.
         type: "object"
         additionalProperties:
           $ref: "#/definitions/NetworkContainer"
+        example:
+          19a4d5d687db25203351ed79d478946f861258f018fe384f229f2efa4b23513c:
+            Name: "test"
+            EndpointID: "628cadb8bcb92de107b2a1e516cbffe463e321f548feb37697cce00ad694f21a"
+            MacAddress: "02:42:ac:13:00:02"
+            IPv4Address: "172.19.0.2/16"
+            IPv6Address: ""
       Options:
+        description: |
+          Network-specific options uses when creating the network.
         type: "object"
         additionalProperties:
           type: "string"
+        example:
+          com.docker.network.bridge.default_bridge: "true"
+          com.docker.network.bridge.enable_icc: "true"
+          com.docker.network.bridge.enable_ip_masquerade: "true"
+          com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
+          com.docker.network.bridge.name: "docker0"
+          com.docker.network.driver.mtu: "1500"
       Labels:
+        description: "User-defined key/value metadata."
         type: "object"
         additionalProperties:
           type: "string"
-    example:
-      Name: "net01"
-      Id: "7d86d31b1478e7cca9ebed7e73aa0fdeec46c5ca29497431d3007d2d9e15ed99"
-      Created: "2016-10-19T04:33:30.360899459Z"
-      Scope: "local"
-      Driver: "bridge"
-      EnableIPv6: false
-      IPAM:
-        Driver: "default"
-        Config:
-          - Subnet: "172.19.0.0/16"
-            Gateway: "172.19.0.1"
-        Options:
-          foo: "bar"
-      Internal: false
-      Attachable: false
-      Ingress: false
-      Containers:
-        19a4d5d687db25203351ed79d478946f861258f018fe384f229f2efa4b23513c:
-          Name: "test"
-          EndpointID: "628cadb8bcb92de107b2a1e516cbffe463e321f548feb37697cce00ad694f21a"
-          MacAddress: "02:42:ac:13:00:02"
-          IPv4Address: "172.19.0.2/16"
-          IPv6Address: ""
-      Options:
-        com.docker.network.bridge.default_bridge: "true"
-        com.docker.network.bridge.enable_icc: "true"
-        com.docker.network.bridge.enable_ip_masquerade: "true"
-        com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
-        com.docker.network.bridge.name: "docker0"
-        com.docker.network.driver.mtu: "1500"
-      Labels:
-        com.example.some-label: "some-value"
-        com.example.some-other-label: "some-other-value"
+        example:
+          com.example.some-label: "some-value"
+          com.example.some-other-label: "some-other-value"
+      Peers:
+        description: |
+          List of peer nodes for an overlay network. This field is only present
+          for overlay networks, and omitted for other network types.
+        type: "array"
+        items:
+          $ref: "#/definitions/PeerInfo"
+        x-nullable: true
+      # TODO: Add Services (only present when "verbose" is set).
+
+  ConfigReference:
+    description: |
+      The config-only network source to provide the configuration for
+      this network.
+    type: "object"
+    properties:
+      Network:
+        description: |
+          The name of the config-only network that provides the network's
+          configuration. The specified network must be an existing config-only
+          network. Only network names are allowed, not network IDs.
+        type: "string"
+        example: "config_only_network_01"
+
   IPAM:
     type: "object"
     properties:
@@ -2252,6 +2309,7 @@ definitions:
         description: "Name of the IPAM driver to use."
         type: "string"
         default: "default"
+        example: "default"
       Config:
         description: |
           List of IPAM configuration options, specified as a map:
@@ -2267,16 +2325,21 @@ definitions:
         type: "object"
         additionalProperties:
           type: "string"
+        example:
+          foo: "bar"
 
   IPAMConfig:
     type: "object"
     properties:
       Subnet:
         type: "string"
+        example: "172.20.0.0/16"
       IPRange:
         type: "string"
+        example: "172.20.10.0/24"
       Gateway:
         type: "string"
+        example: "172.20.10.11"
       AuxiliaryAddresses:
         type: "object"
         additionalProperties:
@@ -2287,14 +2350,35 @@ definitions:
     properties:
       Name:
         type: "string"
+        example: "container_1"
       EndpointID:
         type: "string"
+        example: "628cadb8bcb92de107b2a1e516cbffe463e321f548feb37697cce00ad694f21a"
       MacAddress:
         type: "string"
+        example: "02:42:ac:13:00:02"
       IPv4Address:
         type: "string"
+        example: "172.19.0.2/16"
       IPv6Address:
         type: "string"
+        example: ""
+
+  PeerInfo:
+    description: |
+      PeerInfo represents one peer of an overlay network.
+    type: "object"
+    properties:
+      Name:
+        description:
+          ID of the peer-node in the Swarm cluster.
+        type: "string"
+        example: "6869d7c1732b"
+      IP:
+        description:
+          IP-address of the peer-node in the Swarm cluster.
+        type: "string"
+        example: "10.133.77.91"
 
   BuildInfo:
     type: "object"
@@ -10104,14 +10188,22 @@ paths:
               Name:
                 description: "The network's name."
                 type: "string"
+                example: "my_network"
               CheckDuplicate:
                 description: |
                   Deprecated: CheckDuplicate is now always enabled.
                 type: "boolean"
+                example: true
               Driver:
                 description: "Name of the network driver plugin to use."
                 type: "string"
                 default: "bridge"
+                example: "bridge"
+              Scope:
+                description: |
+                  The level at which the network exists (e.g. `swarm` for cluster-wide
+                  or `local` for machine level).
+                type: "string"
               Internal:
                 description: "Restrict external access to the network."
                 type: "boolean"
@@ -10120,55 +10212,55 @@ paths:
                   Globally scoped network is manually attachable by regular
                   containers from workers in swarm mode.
                 type: "boolean"
+                example: true
               Ingress:
                 description: |
                   Ingress network is the network which provides the routing-mesh
                   in swarm mode.
                 type: "boolean"
+                example: false
+              ConfigOnly:
+                description: |
+                  Creates a config-only network. Config-only networks are placeholder
+                  networks for network configurations to be used by other networks.
+                  Config-only networks cannot be used directly to run containers
+                  or services.
+                type: "boolean"
+                default: false
+                example: false
+              ConfigFrom:
+                description: |
+                  Specifies the source which will provide the configuration for
+                  this network. The specified network must be an existing
+                  config-only network; see ConfigOnly.
+                $ref: "#/definitions/ConfigReference"
               IPAM:
                 description: "Optional custom IP scheme for the network."
                 $ref: "#/definitions/IPAM"
               EnableIPv6:
                 description: "Enable IPv6 on the network."
                 type: "boolean"
+                example: true
               Options:
                 description: "Network specific options to be used by the drivers."
                 type: "object"
                 additionalProperties:
                   type: "string"
+                example:
+                  com.docker.network.bridge.default_bridge: "true"
+                  com.docker.network.bridge.enable_icc: "true"
+                  com.docker.network.bridge.enable_ip_masquerade: "true"
+                  com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
+                  com.docker.network.bridge.name: "docker0"
+                  com.docker.network.driver.mtu: "1500"
               Labels:
                 description: "User-defined key/value metadata."
                 type: "object"
                 additionalProperties:
                   type: "string"
-            example:
-              Name: "isolated_nw"
-              CheckDuplicate: false
-              Driver: "bridge"
-              EnableIPv6: true
-              IPAM:
-                Driver: "default"
-                Config:
-                  - Subnet: "172.20.0.0/16"
-                    IPRange: "172.20.10.0/24"
-                    Gateway: "172.20.10.11"
-                  - Subnet: "2001:db8:abcd::/64"
-                    Gateway: "2001:db8:abcd::1011"
-                Options:
-                  foo: "bar"
-              Internal: true
-              Attachable: false
-              Ingress: false
-              Options:
-                com.docker.network.bridge.default_bridge: "true"
-                com.docker.network.bridge.enable_icc: "true"
-                com.docker.network.bridge.enable_ip_masquerade: "true"
-                com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
-                com.docker.network.bridge.name: "docker0"
-                com.docker.network.driver.mtu: "1500"
-              Labels:
-                com.example.some-label: "some-value"
-                com.example.some-other-label: "some-other-value"
+                example:
+                  com.example.some-label: "some-value"
+                  com.example.some-other-label: "some-other-value"
       tags: ["Network"]
 
   /networks/{id}/connect:
