@@ -286,11 +286,11 @@ func (daemon *Daemon) CreateManagedNetwork(create clustertypes.NetworkCreateRequ
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
-func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
+func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*network.CreateResponse, error) {
 	return daemon.createNetwork(&daemon.config().Config, create, "", false)
 }
 
-func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCreateRequest, id string, agent bool) (*types.NetworkCreateResponse, error) {
+func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCreateRequest, id string, agent bool) (*network.CreateResponse, error) {
 	if runconfig.IsPreDefinedNetwork(create.Name) {
 		return nil, PredefinedNetworkError(create.Name)
 	}
@@ -396,9 +396,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 	}
 	daemon.LogNetworkEvent(n, events.ActionCreate)
 
-	return &types.NetworkCreateResponse{
-		ID: n.ID(),
-	}, nil
+	return &network.CreateResponse{ID: n.ID()}, nil
 }
 
 func (daemon *Daemon) pluginRefCount(driver, capability string, mode int) {

@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/network"
 )
 
 // ImageImportOptions holds information to import images from the client host.
@@ -33,3 +34,8 @@ type ImageListOptions = image.ListOptions
 //
 // Deprecated: use [image.RemoveOptions].
 type ImageRemoveOptions = image.RemoveOptions
+
+// NetworkCreateResponse is the response message sent by the server for network create call.
+//
+// Deprecated: use [network.CreateResponse].
+type NetworkCreateResponse = network.CreateResponse

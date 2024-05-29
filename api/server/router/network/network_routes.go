@@ -226,7 +226,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		if err != nil {
 			return err
 		}
-		nw = &types.NetworkCreateResponse{
+		nw = &network.CreateResponse{
 			ID: id,
 		}
 	}

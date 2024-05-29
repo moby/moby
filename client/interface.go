@@ -108,7 +108,7 @@ type ImageAPIClient interface {
 // NetworkAPIClient defines API client methods for the networks
 type NetworkAPIClient interface {
 	NetworkConnect(ctx context.Context, network, container string, config *network.EndpointSettings) error
-	NetworkCreate(ctx context.Context, name string, options types.NetworkCreate) (types.NetworkCreateResponse, error)
+	NetworkCreate(ctx context.Context, name string, options types.NetworkCreate) (network.CreateResponse, error)
 	NetworkDisconnect(ctx context.Context, network, container string, force bool) error
 	NetworkInspect(ctx context.Context, network string, options types.NetworkInspectOptions) (types.NetworkResource, error)
 	NetworkInspectWithRaw(ctx context.Context, network string, options types.NetworkInspectOptions) (types.NetworkResource, []byte, error)

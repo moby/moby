@@ -477,12 +477,6 @@ type NetworkCreateRequest struct {
 	Name string // Name is the requested name of the network.
 }
 
-// NetworkCreateResponse is the response message sent by the server for network create call
-type NetworkCreateResponse struct {
-	ID      string `json:"Id"`
-	Warning string
-}
-
 // NetworkConnect represents the data to be used to connect a container to the network
 type NetworkConnect struct {
 	Container      string

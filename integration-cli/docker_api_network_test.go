@@ -280,7 +280,7 @@ func createNetwork(c *testing.T, config types.NetworkCreateRequest, expectedStat
 	}
 
 	if expectedStatusCode == http.StatusCreated || expectedStatusCode < 0 {
-		var nr types.NetworkCreateResponse
+		var nr network.CreateResponse
 		err = json.NewDecoder(body).Decode(&nr)
 		assert.NilError(c, err)
 
