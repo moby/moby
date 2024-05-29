@@ -169,7 +169,7 @@ func (c *Controller) processExternalKey(conn net.Conn) error {
 	if err != nil {
 		return types.InvalidParameterErrorf("failed to get sandbox for %s", s.ContainerID)
 	}
-	return sb.SetKey(s.Key)
+	return sb.SetKey(context.TODO(), s.Key)
 }
 
 func (c *Controller) stopExternalKeyListener() {

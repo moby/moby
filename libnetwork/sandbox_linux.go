@@ -114,10 +114,10 @@ func (sb *Sandbox) ExecFunc(f func()) error {
 }
 
 // SetKey updates the Sandbox Key.
-func (sb *Sandbox) SetKey(basePath string) error {
+func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
 	start := time.Now()
 	defer func() {
-		log.G(context.TODO()).Debugf("sandbox set key processing took %s for container %s", time.Since(start), sb.ContainerID())
+		log.G(ctx).Debugf("sandbox set key processing took %s for container %s", time.Since(start), sb.ContainerID())
 	}()
 
 	if basePath == "" {
@@ -137,7 +137,7 @@ func (sb *Sandbox) SetKey(basePath string) error {
 		// and destroy the OS snab. We are moving into a new home further down. Note that none
 		// of the network resources gets destroyed during the move.
 		if err := sb.releaseOSSbox(); err != nil {
-			log.G(context.TODO()).WithError(err).Error("Error destroying os sandbox")
+			log.G(ctx).WithError(err).Error("Error destroying os sandbox")
 		}
 	}
 
@@ -157,10 +157,10 @@ func (sb *Sandbox) SetKey(basePath string) error {
 
 		if err := sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err == nil {
 			if err := sb.resolver.Start(); err != nil {
-				log.G(context.TODO()).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+				log.G(ctx).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
 			}
 		} else {
-			log.G(context.TODO()).Errorf("Resolver Setup Function failed for container %s, %q", sb.ContainerID(), err)
+			log.G(ctx).Errorf("Resolver Setup Function failed for container %s, %q", sb.ContainerID(), err)
 		}
 	}
 
@@ -168,12 +168,12 @@ func (sb *Sandbox) SetKey(basePath string) error {
 	// determined yet, as sysctls haven't been applied by the runtime. Calling
 	// FinishInit after the container task has been created, when sysctls have been
 	// applied will regenerate these files.
-	if err := sb.finishInitDNS(context.TODO()); err != nil {
+	if err := sb.finishInitDNS(ctx); err != nil {
 		return err
 	}
 
 	for _, ep := range sb.Endpoints() {
-		if err = sb.populateNetworkResources(context.TODO(), ep); err != nil {
+		if err = sb.populateNetworkResources(ctx, ep); err != nil {
 			return err
 		}
 	}
