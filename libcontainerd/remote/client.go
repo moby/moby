@@ -34,6 +34,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -153,6 +154,9 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 		rio            cio.IO
 		stdinCloseSync = make(chan containerd.Process, 1)
 	)
+
+	ctx, span := otel.Tracer("").Start(ctx, "libcontainerd.remote.NewTask")
+	defer span.End()
 
 	if checkpointDir != "" {
 		// write checkpoint to the content store

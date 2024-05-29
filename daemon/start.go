@@ -189,7 +189,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 
 	startupTime := time.Now()
 	// TODO(mlaventure): we need to specify checkpoint options here
-	tsk, err := ctr.NewTask(context.TODO(), // Passing ctx caused integration tests to be stuck in the cleanup phase
+	tsk, err := ctr.NewTask(context.WithoutCancel(ctx), // passing a cancelable ctx caused integration tests to be stuck in the cleanup phase
 		checkpointDir, container.StreamConfig.Stdin() != nil || container.Config.Tty,
 		container.InitializeStdio)
 	if err != nil {
