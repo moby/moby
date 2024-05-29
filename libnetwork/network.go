@@ -2139,7 +2139,7 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 	}
 	defer func() {
 		if retErr != nil {
-			if e := ep.Delete(true); e != nil {
+			if e := ep.Delete(context.WithoutCancel(context.TODO()), true); e != nil {
 				log.G(context.TODO()).Warnf("could not delete endpoint %s on failure on failure (%v): %v", endpointName, retErr, e)
 			}
 		}
@@ -2176,7 +2176,7 @@ func (n *Network) deleteLoadBalancerSandbox() error {
 			}
 		}
 
-		if err := endpoint.Delete(true); err != nil {
+		if err := endpoint.Delete(context.TODO(), true); err != nil {
 			log.G(context.TODO()).Warnf("Failed to delete endpoint %s (%s) in %s: %v", endpoint.Name(), endpoint.ID(), sandboxName, err)
 			// Ignore error and attempt to delete the sandbox.
 		}

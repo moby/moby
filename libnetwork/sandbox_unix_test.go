@@ -163,14 +163,14 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 		t.Fatal("Expected 3 endpoints to be connected to the sandbox.")
 	}
 
-	if err := ep3.Leave(sbx); err != nil {
+	if err := ep3.Leave(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 	if ctrlr.sandboxes[sid].endpoints[0].ID() != ep2.ID() {
 		t.Fatal("Expected ep2 to be at the top of the heap after removing ep3. But did not find ep2 at the top of the heap")
 	}
 
-	if err := ep2.Leave(sbx); err != nil {
+	if err := ep2.Leave(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 	if ctrlr.sandboxes[sid].endpoints[0].ID() != ep1.ID() {
@@ -265,7 +265,7 @@ func TestSandboxAddSamePrio(t *testing.T) {
 		t.Fatal("Expected epInternal to be at the bottom of the heap. But did not find epInternal at the bottom of the heap")
 	}
 
-	if err := epIPv6.Leave(sbx); err != nil {
+	if err := epIPv6.Leave(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -274,7 +274,7 @@ func TestSandboxAddSamePrio(t *testing.T) {
 		t.Fatal("Expected epNw0 to be at the top of the heap after removing epIPv6. But did not find epNw0 at the top of the heap")
 	}
 
-	if err := epNw1.Leave(sbx); err != nil {
+	if err := epNw1.Leave(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 

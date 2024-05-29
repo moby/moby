@@ -486,7 +486,7 @@ func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, netwo
 		}
 		return err
 	}
-	return daemon.DisconnectFromNetwork(ctr, networkName, force)
+	return daemon.DisconnectFromNetwork(context.TODO(), ctr, networkName, force)
 }
 
 // GetNetworkDriverList returns the list of plugins drivers

@@ -171,12 +171,12 @@ func (sb *Sandbox) delete(force bool) error {
 		}
 
 		if !force {
-			if err := ep.Leave(sb); err != nil {
+			if err := ep.Leave(context.WithoutCancel(context.TODO()), sb); err != nil {
 				log.G(context.TODO()).Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 			}
 		}
 
-		if err := ep.Delete(force); err != nil {
+		if err := ep.Delete(context.WithoutCancel(context.TODO()), force); err != nil {
 			log.G(context.TODO()).Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
 		}
 	}
@@ -244,14 +244,14 @@ func (sb *Sandbox) Rename(name string) error {
 
 // Refresh leaves all the endpoints, resets and re-applies the options,
 // re-joins all the endpoints without destroying the osl sandbox
-func (sb *Sandbox) Refresh(options ...SandboxOption) error {
+func (sb *Sandbox) Refresh(ctx context.Context, options ...SandboxOption) error {
 	// Store connected endpoints
 	epList := sb.Endpoints()
 
 	// Detach from all endpoints
 	for _, ep := range epList {
-		if err := ep.Leave(sb); err != nil {
-			log.G(context.TODO()).Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+		if err := ep.Leave(context.WithoutCancel(ctx), sb); err != nil {
+			log.G(ctx).Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
 	}
 
@@ -266,8 +266,8 @@ func (sb *Sandbox) Refresh(options ...SandboxOption) error {
 
 	// Re-connect to all endpoints
 	for _, ep := range epList {
-		if err := ep.Join(context.WithoutCancel(context.TODO()), sb); err != nil {
-			log.G(context.TODO()).Warnf("Failed attach sandbox %s to endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+		if err := ep.Join(context.WithoutCancel(ctx), sb); err != nil {
+			log.G(ctx).Warnf("Failed attach sandbox %s to endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
 	}
 

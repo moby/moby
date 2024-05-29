@@ -312,7 +312,7 @@ func (daemon *Daemon) updateNetwork(cfg *config.Config, container *container.Con
 		return fmt.Errorf("Update network failed: %v", err)
 	}
 
-	if err := sb.Refresh(sbOptions...); err != nil {
+	if err := sb.Refresh(context.TODO(), sbOptions...); err != nil {
 		return fmt.Errorf("Update network failed: Failure in refresh sandbox %s: %v", sid, err)
 	}
 
@@ -766,7 +766,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 	}
 	defer func() {
 		if retErr != nil {
-			if err := ep.Delete(false); err != nil {
+			if err := ep.Delete(context.WithoutCancel(ctx), false); err != nil {
 				log.G(ctx).Warnf("Could not rollback container connection to network %s", idOrName)
 			}
 		}
@@ -861,10 +861,10 @@ func (daemon *Daemon) ForceEndpointDelete(name string, networkName string) error
 	if err != nil {
 		return err
 	}
-	return ep.Delete(true)
+	return ep.Delete(context.TODO(), true)
 }
 
-func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n *libnetwork.Network, force bool) error {
+func (daemon *Daemon) disconnectFromNetwork(ctx context.Context, container *container.Container, n *libnetwork.Network, force bool) error {
 	var (
 		ep   *libnetwork.Endpoint
 		sbox *libnetwork.Sandbox
@@ -891,18 +891,18 @@ func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n *l
 			if err != nil {
 				return err
 			}
-			return ep.Delete(force)
+			return ep.Delete(ctx, force)
 		}
 		return fmt.Errorf("container %s is not connected to network %s", container.ID, n.Name())
 	}
 
-	if err := ep.Leave(sbox); err != nil {
+	if err := ep.Leave(ctx, sbox); err != nil {
 		return fmt.Errorf("container %s failed to leave network %s: %v", container.ID, n.Name(), err)
 	}
 
 	container.NetworkSettings.Ports = getPortMapInfo(sbox)
 
-	if err := ep.Delete(false); err != nil {
+	if err := ep.Delete(ctx, false); err != nil {
 		return fmt.Errorf("endpoint delete failed for container %s on network %s: %v", container.ID, n.Name(), err)
 	}
 
@@ -1087,7 +1087,7 @@ func (daemon *Daemon) ConnectToNetwork(ctx context.Context, container *container
 }
 
 // DisconnectFromNetwork disconnects container from network n.
-func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, networkName string, force bool) error {
+func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, container *container.Container, networkName string, force bool) error {
 	n, err := daemon.FindNetwork(networkName)
 	container.Lock()
 	defer container.Unlock()
@@ -1110,7 +1110,7 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, netw
 			return runconfig.ErrConflictHostNetwork
 		}
 
-		if err := daemon.disconnectFromNetwork(container, n, false); err != nil {
+		if err := daemon.disconnectFromNetwork(ctx, container, n, false); err != nil {
 			return err
 		}
 	} else {

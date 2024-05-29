@@ -120,12 +120,12 @@ func TestNull(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ep.Leave(cnt)
+	err = ep.Leave(context.Background(), cnt)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep.Delete(false); err != nil {
+	if err := ep.Delete(context.Background(), false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -288,7 +288,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 	}
 
 	// Done testing. Now cleanup.
-	if err := ep.Delete(false); err != nil {
+	if err := ep.Delete(context.Background(), false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -459,7 +459,7 @@ func TestUnknownEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ep.Delete(false)
+	err = ep.Delete(context.Background(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -496,7 +496,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep11.Delete(false); err != nil {
+		if err := ep11.Delete(context.Background(), false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -506,7 +506,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep12.Delete(false); err != nil {
+		if err := ep12.Delete(context.Background(), false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -624,7 +624,7 @@ func TestDuplicateEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep.Delete(false); err != nil {
+		if err := ep.Delete(context.Background(), false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -633,7 +633,7 @@ func TestDuplicateEndpoint(t *testing.T) {
 	defer func() {
 		// Cleanup ep2 as well, else network cleanup might fail for failure cases
 		if ep2 != nil {
-			if err := ep2.Delete(false); err != nil {
+			if err := ep2.Delete(context.Background(), false); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -774,7 +774,7 @@ func TestNetworkQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep11.Delete(false); err != nil {
+		if err := ep11.Delete(context.Background(), false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -784,7 +784,7 @@ func TestNetworkQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep12.Delete(false); err != nil {
+		if err := ep12.Delete(context.Background(), false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -872,7 +872,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = ep.Delete(false)
+		err = ep.Delete(context.Background(), false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -893,13 +893,13 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = ep.Leave(cnt)
+		err = ep.Leave(context.Background(), cnt)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	err = ep.Delete(false)
+	err = ep.Delete(context.Background(), false)
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
@@ -932,7 +932,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep.Delete(false); err != nil {
+		if err := ep.Delete(context.Background(), false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -966,7 +966,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = ep.Leave(sbx1)
+		err = ep.Leave(context.Background(), sbx1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1069,7 +1069,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep.Delete(false); err != nil {
+		if err := ep.Delete(context.Background(), false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -1087,7 +1087,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 		}
 	}()
 
-	err = ep.Leave(cnt)
+	err = ep.Leave(context.Background(), cnt)
 	if err == nil {
 		t.Fatal("Expected to fail leave from an endpoint which has no active join")
 	}
@@ -1095,7 +1095,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 		t.Fatalf("Failed with unexpected error type: %T. Desc: %s", err, err.Error())
 	}
 
-	if err = ep.Leave(nil); err == nil {
+	if err = ep.Leave(context.Background(), nil); err == nil {
 		t.Fatalf("Expected to fail leave nil Sandbox")
 	}
 	if _, ok := err.(types.InvalidParameterError); !ok {
@@ -1103,7 +1103,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 	}
 
 	fsbx := &libnetwork.Sandbox{}
-	if err = ep.Leave(fsbx); err == nil {
+	if err = ep.Leave(context.Background(), fsbx); err == nil {
 		t.Fatalf("Expected to fail leave with invalid Sandbox")
 	}
 	if _, ok := err.(types.InvalidParameterError); !ok {
@@ -1357,19 +1357,19 @@ func TestHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ep1.Leave(sbx1); err != nil {
+	if err := ep1.Leave(context.Background(), sbx1); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep2.Leave(sbx2); err != nil {
+	if err := ep2.Leave(context.Background(), sbx2); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep1.Delete(false); err != nil {
+	if err := ep1.Delete(context.Background(), false); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep2.Delete(false); err != nil {
+	if err := ep2.Delete(context.Background(), false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1397,11 +1397,11 @@ func TestHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ep3.Leave(sbx2); err != nil {
+	if err := ep3.Leave(context.Background(), sbx2); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep3.Delete(false); err != nil {
+	if err := ep3.Delete(context.Background(), false); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1449,7 +1449,7 @@ func TestBridgeIpv6FromMac(t *testing.T) {
 		t.Fatalf("Expected %v. Got: %v", expIP, iface.AddressIPv6())
 	}
 
-	if err := ep.Delete(false); err != nil {
+	if err := ep.Delete(context.Background(), false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1514,7 +1514,7 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep1.Delete(false); err != nil {
+		if err := ep1.Delete(context.Background(), false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -1576,7 +1576,7 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = ep1.Leave(sb)
+		err = ep1.Leave(context.Background(), sb)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1630,7 +1630,7 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep2.Delete(false); err != nil {
+		if err := ep2.Delete(context.Background(), false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -1640,7 +1640,7 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = ep2.Leave(sb)
+		err = ep2.Leave(context.Background(), sb)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1694,7 +1694,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = ep.Delete(false)
+		err = ep.Delete(context.Background(), false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1705,7 +1705,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = ep2.Delete(false)
+		err = ep2.Delete(context.Background(), false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1729,7 +1729,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = ep.Leave(cnt)
+		err = ep.Leave(context.Background(), cnt)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1780,7 +1780,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = ep2.Leave(sbox)
+		err = ep2.Leave(context.Background(), sbox)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1883,14 +1883,14 @@ func TestResolvConf(t *testing.T) {
 			ep, err := n.CreateEndpoint(context.Background(), "ep", tc.epOpts...)
 			assert.NilError(t, err)
 			defer func() {
-				err := ep.Delete(false)
+				err := ep.Delete(context.Background(), false)
 				assert.Check(t, err)
 			}()
 
 			err = ep.Join(context.Background(), sb)
 			assert.NilError(t, err)
 			defer func() {
-				err := ep.Leave(sb)
+				err := ep.Leave(context.Background(), sb)
 				assert.Check(t, err)
 			}()
 
@@ -1947,7 +1947,7 @@ func (pt parallelTester) Do(t *testing.T, thrNumber int) error {
 				return errors.Wrapf(err, "thread %d", thrNumber)
 			}
 		}
-		if err := ep.Leave(sb); err != nil {
+		if err := ep.Leave(context.Background(), sb); err != nil {
 			if _, ok := err.(types.ForbiddenError); !ok {
 				return errors.Wrapf(err, "thread %d", thrNumber)
 			}
@@ -1957,7 +1957,7 @@ func (pt parallelTester) Do(t *testing.T, thrNumber int) error {
 	if err := errors.WithStack(sb.Delete()); err != nil {
 		return err
 	}
-	return errors.WithStack(ep.Delete(false))
+	return errors.WithStack(ep.Delete(context.Background(), false))
 }
 
 func TestParallel(t *testing.T) {
