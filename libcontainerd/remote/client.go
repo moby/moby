@@ -244,6 +244,8 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 }
 
 func (t *task) Start(ctx context.Context) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libcontainerd.remote.task.Start")
+	defer span.End()
 	return wrapError(t.Task.Start(ctx))
 
 }
