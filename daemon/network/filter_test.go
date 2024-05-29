@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 )
 
 func TestFilterNetworks(t *testing.T) {
@@ -46,7 +47,7 @@ func TestFilterNetworks(t *testing.T) {
 			Name:   "networkwithcontainer",
 			Driver: "nwc",
 			Scope:  "local",
-			Containers: map[string]types.EndpointResource{
+			Containers: map[string]network.EndpointResource{
 				"customcontainer": {
 					Name: "customendpoint",
 				},

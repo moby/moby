@@ -65,6 +65,16 @@ type ServiceInfo struct {
 	Tasks        []Task
 }
 
+// EndpointResource contains network resources allocated and used for a
+// container in a network.
+type EndpointResource struct {
+	Name        string
+	EndpointID  string
+	MacAddress  string
+	IPv4Address string
+	IPv6Address string
+}
+
 // NetworkingConfig represents the container's networking configuration for each of its interfaces
 // Carries the networking configs specified in the `docker run` and `docker network connect` commands
 type NetworkingConfig struct {

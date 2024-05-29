@@ -54,3 +54,8 @@ type NetworkConnect = network.ConnectOptions
 //
 // Deprecated: use [network.DisconnectOptions].
 type NetworkDisconnect = network.DisconnectOptions
+
+// EndpointResource contains network resources allocated and used for a container in a network.
+//
+// Deprecated: use [network.EndpointResource].
+type EndpointResource = network.EndpointResource
