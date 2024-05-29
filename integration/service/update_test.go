@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	networktypes "github.com/docker/docker/api/types/network"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/network"
@@ -221,7 +222,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, cli, serviceID, instances), swarm.ServicePoll)
 	service := getService(ctx, t, cli, serviceID)
-	netInfo, err := cli.NetworkInspect(ctx, testNet, types.NetworkInspectOptions{
+	netInfo, err := cli.NetworkInspect(ctx, testNet, networktypes.InspectOptions{
 		Verbose: true,
 		Scope:   "swarm",
 	})
@@ -234,7 +235,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 	assert.NilError(t, err)
 	poll.WaitOn(t, serviceIsUpdated(ctx, cli, serviceID), swarm.ServicePoll)
 
-	netInfo, err = cli.NetworkInspect(ctx, testNet, types.NetworkInspectOptions{
+	netInfo, err = cli.NetworkInspect(ctx, testNet, networktypes.InspectOptions{
 		Verbose: true,
 		Scope:   "swarm",
 	})

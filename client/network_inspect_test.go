@@ -69,16 +69,16 @@ func TestNetworkInspect(t *testing.T) {
 
 	t.Run("empty ID", func(t *testing.T) {
 		// verify that the client does not create a request if the network-ID/name is empty.
-		_, err := client.NetworkInspect(context.Background(), "", types.NetworkInspectOptions{})
+		_, err := client.NetworkInspect(context.Background(), "", network.InspectOptions{})
 		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	})
 	t.Run("no options", func(t *testing.T) {
-		r, err := client.NetworkInspect(context.Background(), "network_id", types.NetworkInspectOptions{})
+		r, err := client.NetworkInspect(context.Background(), "network_id", network.InspectOptions{})
 		assert.NilError(t, err)
 		assert.Equal(t, r.Name, "mynetwork")
 	})
 	t.Run("verbose", func(t *testing.T) {
-		r, err := client.NetworkInspect(context.Background(), "network_id", types.NetworkInspectOptions{Verbose: true})
+		r, err := client.NetworkInspect(context.Background(), "network_id", network.InspectOptions{Verbose: true})
 		assert.NilError(t, err)
 		assert.Equal(t, r.Name, "mynetwork")
 		_, ok := r.Services["web"]
@@ -87,18 +87,18 @@ func TestNetworkInspect(t *testing.T) {
 		}
 	})
 	t.Run("global scope", func(t *testing.T) {
-		_, err := client.NetworkInspect(context.Background(), "network_id", types.NetworkInspectOptions{Scope: "global"})
+		_, err := client.NetworkInspect(context.Background(), "network_id", network.InspectOptions{Scope: "global"})
 		assert.Check(t, is.ErrorContains(err, "Error: No such network: network_id"))
 		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	})
 	t.Run("unknown network", func(t *testing.T) {
-		_, err := client.NetworkInspect(context.Background(), "unknown", types.NetworkInspectOptions{})
+		_, err := client.NetworkInspect(context.Background(), "unknown", network.InspectOptions{})
 		assert.Check(t, is.ErrorContains(err, "Error: No such network: unknown"))
 		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	})
 	t.Run("server error", func(t *testing.T) {
 		// Just testing that an internal server error is converted correctly by the client
-		_, err := client.NetworkInspect(context.Background(), "test-500-response", types.NetworkInspectOptions{})
+		_, err := client.NetworkInspect(context.Background(), "test-500-response", network.InspectOptions{})
 		assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 	})
 }

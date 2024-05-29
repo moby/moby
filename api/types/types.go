@@ -477,12 +477,6 @@ type NetworkCreateRequest struct {
 	Name string // Name is the requested name of the network.
 }
 
-// NetworkInspectOptions holds parameters to inspect network
-type NetworkInspectOptions struct {
-	Scope   string
-	Verbose bool
-}
-
 // DiskUsageObject represents an object type used for disk usage query filtering.
 type DiskUsageObject string
 

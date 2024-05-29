@@ -17,6 +17,12 @@ const (
 	NetworkNat = "nat"
 )
 
+// InspectOptions holds parameters to inspect network.
+type InspectOptions struct {
+	Scope   string
+	Verbose bool
+}
+
 // ConnectOptions represents the data to be used to connect a container to the
 // network.
 type ConnectOptions struct {

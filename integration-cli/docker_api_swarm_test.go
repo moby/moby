@@ -20,6 +20,7 @@ import (
 	"github.com/cloudflare/cfssl/initca"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration-cli/checker"
@@ -1026,11 +1027,11 @@ func (s *DockerSwarmSuite) TestAPINetworkInspectWithScope(c *testing.T) {
 	resp, err := apiclient.NetworkCreate(ctx, name, types.NetworkCreate{Driver: "overlay"})
 	assert.NilError(c, err)
 
-	network, err := apiclient.NetworkInspect(ctx, name, types.NetworkInspectOptions{})
+	nw, err := apiclient.NetworkInspect(ctx, name, network.InspectOptions{})
 	assert.NilError(c, err)
-	assert.Check(c, is.Equal("swarm", network.Scope))
-	assert.Check(c, is.Equal(resp.ID, network.ID))
+	assert.Check(c, is.Equal("swarm", nw.Scope))
+	assert.Check(c, is.Equal(resp.ID, nw.ID))
 
-	_, err = apiclient.NetworkInspect(ctx, name, types.NetworkInspectOptions{Scope: "local"})
+	_, err = apiclient.NetworkInspect(ctx, name, network.InspectOptions{Scope: "local"})
 	assert.Check(c, is.ErrorType(err, errdefs.IsNotFound))
 }

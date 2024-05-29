@@ -3,7 +3,7 @@ package network // import "github.com/docker/docker/integration/network"
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/testutil"
@@ -41,33 +41,33 @@ func TestInspectNetwork(t *testing.T) {
 	tests := []struct {
 		name    string
 		network string
-		opts    types.NetworkInspectOptions
+		opts    networktypes.InspectOptions
 	}{
 		{
 			name:    "full network id",
 			network: overlayID,
-			opts: types.NetworkInspectOptions{
+			opts: networktypes.InspectOptions{
 				Verbose: true,
 			},
 		},
 		{
 			name:    "partial network id",
 			network: overlayID[0:11],
-			opts: types.NetworkInspectOptions{
+			opts: networktypes.InspectOptions{
 				Verbose: true,
 			},
 		},
 		{
 			name:    "network name",
 			network: networkName,
-			opts: types.NetworkInspectOptions{
+			opts: networktypes.InspectOptions{
 				Verbose: true,
 			},
 		},
 		{
 			name:    "network name and swarm scope",
 			network: networkName,
-			opts: types.NetworkInspectOptions{
+			opts: networktypes.InspectOptions{
 				Verbose: true,
 				Scope:   "swarm",
 			},

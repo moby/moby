@@ -40,6 +40,11 @@ type ImageRemoveOptions = image.RemoveOptions
 // Deprecated: use [network.CreateResponse].
 type NetworkCreateResponse = network.CreateResponse
 
+// NetworkInspectOptions holds parameters to inspect network.
+//
+// Deprecated: use [network.InspectOptions].
+type NetworkInspectOptions = network.InspectOptions
+
 // NetworkConnect represents the data to be used to connect a container to the network
 //
 // Deprecated: use [network.ConnectOptions].
