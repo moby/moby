@@ -161,7 +161,7 @@ func (iface *lnInterface) Close() error {
 	<-iface.ready
 	if iface.sbx != nil {
 		go func() {
-			if err := iface.sbx.Delete(); err != nil {
+			if err := iface.sbx.Delete(context.TODO()); err != nil {
 				log.G(context.TODO()).WithError(err).Errorf("failed to delete builder network sandbox")
 			}
 			if err := os.RemoveAll(filepath.Join(iface.provider.Root, iface.sbx.ContainerID())); err != nil {

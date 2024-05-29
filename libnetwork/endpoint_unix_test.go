@@ -61,7 +61,7 @@ fe90::2	somehost.example.com somehost
 		t.Fatalf("expected the hosts file to read:\n%q\nbut instead got the following:\n%q\n", expectedHostsFile, string(data))
 	}
 
-	if err := sbx.Delete(); err != nil {
+	if err := sbx.Delete(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 

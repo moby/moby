@@ -249,7 +249,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 
 		if _, ok := activeSandboxes[sb.ID()]; !ok {
 			log.G(context.TODO()).Infof("Removing stale sandbox %s (%s)", sb.id, sb.containerID)
-			if err := sb.delete(true); err != nil {
+			if err := sb.delete(context.WithoutCancel(context.TODO()), true); err != nil {
 				log.G(context.TODO()).Errorf("Failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)
 			}
 			continue

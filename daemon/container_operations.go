@@ -487,7 +487,7 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 	start := time.Now()
 
 	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
-	if err := daemon.netController.SandboxDestroy(container.ID); err != nil {
+	if err := daemon.netController.SandboxDestroy(ctx, container.ID); err != nil {
 		log.G(ctx).WithError(err).Errorf("failed to cleanup up stale network sandbox for container %s", container.ID)
 	}
 
@@ -549,7 +549,7 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 			setNetworkSandbox(container, sb)
 			defer func() {
 				if retErr != nil {
-					sb.Delete()
+					sb.Delete(context.WithoutCancel(ctx))
 				}
 			}()
 		}
@@ -996,7 +996,9 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID st
 	return nc, nil
 }
 
-func (daemon *Daemon) releaseNetwork(container *container.Container) {
+func (daemon *Daemon) releaseNetwork(ctx context.Context, container *container.Container) {
+	ctx = context.WithoutCancel(ctx)
+
 	start := time.Now()
 	// If live-restore is enabled, the daemon cleans up dead containers when it starts up. In that case, the
 	// netController hasn't been initialized yet and so we can't proceed.
@@ -1033,12 +1035,12 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 
 	sb, err := daemon.netController.SandboxByID(sid)
 	if err != nil {
-		log.G(context.TODO()).Warnf("error locating sandbox id %s: %v", sid, err)
+		log.G(ctx).Warnf("error locating sandbox id %s: %v", sid, err)
 		return
 	}
 
-	if err := sb.Delete(); err != nil {
-		log.G(context.TODO()).Errorf("Error deleting sandbox id %s for container %s: %v", sid, container.ID, err)
+	if err := sb.Delete(ctx); err != nil {
+		log.G(ctx).Errorf("Error deleting sandbox id %s for container %s: %v", sid, container.ID, err)
 	}
 
 	for _, nw := range networks {

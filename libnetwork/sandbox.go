@@ -131,11 +131,11 @@ func (sb *Sandbox) Labels() map[string]interface{} {
 }
 
 // Delete destroys this container after detaching it from all connected endpoints.
-func (sb *Sandbox) Delete() error {
-	return sb.delete(false)
+func (sb *Sandbox) Delete(ctx context.Context) error {
+	return sb.delete(ctx, false)
 }
 
-func (sb *Sandbox) delete(force bool) error {
+func (sb *Sandbox) delete(ctx context.Context, force bool) error {
 	sb.mu.Lock()
 	if sb.inDelete {
 		sb.mu.Unlock()
@@ -166,18 +166,18 @@ func (sb *Sandbox) delete(force bool) error {
 			if !c.isSwarmNode() {
 				retain = true
 			}
-			log.G(context.TODO()).Warnf("Failed getting network for ep %s during sandbox %s delete: %v", ep.ID(), sb.ID(), err)
+			log.G(ctx).Warnf("Failed getting network for ep %s during sandbox %s delete: %v", ep.ID(), sb.ID(), err)
 			continue
 		}
 
 		if !force {
-			if err := ep.Leave(context.WithoutCancel(context.TODO()), sb); err != nil {
-				log.G(context.TODO()).Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+			if err := ep.Leave(context.WithoutCancel(ctx), sb); err != nil {
+				log.G(ctx).Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 			}
 		}
 
-		if err := ep.Delete(context.WithoutCancel(context.TODO()), force); err != nil {
-			log.G(context.TODO()).Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
+		if err := ep.Delete(context.WithoutCancel(ctx), force); err != nil {
+			log.G(ctx).Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
 		}
 	}
 
@@ -197,12 +197,12 @@ func (sb *Sandbox) delete(force bool) error {
 
 	if sb.osSbox != nil && !sb.config.useDefaultSandBox {
 		if err := sb.osSbox.Destroy(); err != nil {
-			log.G(context.TODO()).WithError(err).Warn("error destroying network sandbox")
+			log.G(ctx).WithError(err).Warn("error destroying network sandbox")
 		}
 	}
 
 	if err := sb.storeDelete(); err != nil {
-		log.G(context.TODO()).Warnf("Failed to delete sandbox %s from store: %v", sb.ID(), err)
+		log.G(ctx).Warnf("Failed to delete sandbox %s from store: %v", sb.ID(), err)
 	}
 
 	c.mu.Lock()

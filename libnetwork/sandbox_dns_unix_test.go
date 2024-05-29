@@ -23,7 +23,7 @@ func TestDNSOptions(t *testing.T) {
 	assert.NilError(t, err)
 
 	cleanup := func(s *Sandbox) {
-		if err := s.Delete(); err != nil {
+		if err := s.Delete(context.Background()); err != nil {
 			t.Error(err)
 		}
 	}

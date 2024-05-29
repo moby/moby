@@ -1016,7 +1016,7 @@ func (c *Controller) SandboxByID(id string) (*Sandbox, error) {
 }
 
 // SandboxDestroy destroys a sandbox given a container ID.
-func (c *Controller) SandboxDestroy(id string) error {
+func (c *Controller) SandboxDestroy(ctx context.Context, id string) error {
 	var sb *Sandbox
 	c.mu.Lock()
 	for _, s := range c.sandboxes {
@@ -1032,7 +1032,7 @@ func (c *Controller) SandboxDestroy(id string) error {
 		return nil
 	}
 
-	return sb.Delete()
+	return sb.Delete(ctx)
 }
 
 func (c *Controller) loadDriver(networkType string) error {

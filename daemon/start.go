@@ -233,7 +233,7 @@ func (daemon *Daemon) Cleanup(ctx context.Context, container *container.Containe
 		}
 	}
 
-	daemon.releaseNetwork(container)
+	daemon.releaseNetwork(ctx, container)
 
 	if err := container.UnmountIpcMount(); err != nil {
 		log.G(ctx).Warnf("%s cleanup: failed to unmount IPC: %s", container.ID, err)
