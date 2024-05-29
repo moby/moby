@@ -83,7 +83,7 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 			SecondaryIPAddresses:   ctr.NetworkSettings.SecondaryIPAddresses,
 			SecondaryIPv6Addresses: ctr.NetworkSettings.SecondaryIPv6Addresses,
 		},
-		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(ctr.NetworkSettings.Networks),
+		DefaultNetworkSettings: getDefaultNetworkSettings(ctr.NetworkSettings.Networks),
 		Networks:               apiNetworks,
 	}
 
@@ -247,18 +247,20 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 
 // getDefaultNetworkSettings creates the deprecated structure that holds the information
 // about the bridge network for a container.
-func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings {
-	var settings types.DefaultNetworkSettings
-
-	if defaultNetwork, ok := networks[networktypes.NetworkBridge]; ok && defaultNetwork.EndpointSettings != nil {
-		settings.EndpointID = defaultNetwork.EndpointID
-		settings.Gateway = defaultNetwork.Gateway
-		settings.GlobalIPv6Address = defaultNetwork.GlobalIPv6Address
-		settings.GlobalIPv6PrefixLen = defaultNetwork.GlobalIPv6PrefixLen
-		settings.IPAddress = defaultNetwork.IPAddress
-		settings.IPPrefixLen = defaultNetwork.IPPrefixLen
-		settings.IPv6Gateway = defaultNetwork.IPv6Gateway
-		settings.MacAddress = defaultNetwork.MacAddress
+func getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings {
+	nw, ok := networks[networktypes.NetworkBridge]
+	if !ok || nw.EndpointSettings == nil {
+		return types.DefaultNetworkSettings{}
 	}
-	return settings
+
+	return types.DefaultNetworkSettings{
+		EndpointID:          nw.EndpointSettings.EndpointID,
+		Gateway:             nw.EndpointSettings.Gateway,
+		GlobalIPv6Address:   nw.EndpointSettings.GlobalIPv6Address,
+		GlobalIPv6PrefixLen: nw.EndpointSettings.GlobalIPv6PrefixLen,
+		IPAddress:           nw.EndpointSettings.IPAddress,
+		IPPrefixLen:         nw.EndpointSettings.IPPrefixLen,
+		IPv6Gateway:         nw.EndpointSettings.IPv6Gateway,
+		MacAddress:          nw.EndpointSettings.MacAddress,
+	}
 }
