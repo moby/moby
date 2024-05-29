@@ -60,6 +60,7 @@ import (
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/cluster"
 	nwconfig "github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
@@ -1474,9 +1475,12 @@ func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.Plugin
 		driverOptions(conf),
 	}
 
+	defaultAddressPools := ipamutils.GetLocalScopeDefaultNetworks()
 	if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 {
-		options = append(options, nwconfig.OptionDefaultAddressPoolConfig(conf.NetworkConfig.DefaultAddressPools.Value()))
+		defaultAddressPools = conf.NetworkConfig.DefaultAddressPools.Value()
 	}
+	options = append(options, nwconfig.OptionDefaultAddressPoolConfig(defaultAddressPools))
+
 	if conf.LiveRestoreEnabled && len(activeSandboxes) != 0 {
 		options = append(options, nwconfig.OptionActiveSandboxes(activeSandboxes))
 	}

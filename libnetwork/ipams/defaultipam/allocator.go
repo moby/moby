@@ -27,10 +27,6 @@ const (
 // two optional address pools respectively containing the list of user-defined
 // address pools for 'local' and 'global' address spaces.
 func Register(ic ipamapi.Registerer, lAddrPools, gAddrPools []*ipamutils.NetworkToSplit) error {
-	if len(lAddrPools) == 0 {
-		lAddrPools = ipamutils.GetLocalScopeDefaultNetworks()
-	}
-
 	if len(gAddrPools) == 0 {
 		gAddrPools = ipamutils.GetGlobalScopeDefaultNetworks()
 	}
