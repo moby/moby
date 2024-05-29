@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/runconfig"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -628,6 +629,12 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		warnings = append(warnings, warn)
 	}
 
+	if warn, err := handleSysctlBC(hostConfig, networkingConfig, version); err != nil {
+		return err
+	} else if warn != "" {
+		warnings = append(warnings, warn)
+	}
+
 	if hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
 		// Don't set a limit if either no limit was specified, or "unlimited" was
 		// explicitly set.
@@ -671,23 +678,11 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 			return "", runconfig.ErrConflictContainerNetworkAndMac
 		}
 
-		// There cannot be more than one entry in EndpointsConfig with API < 1.44.
-
-		// If there's no EndpointsConfig, create a place to store the configured address. It is
-		// safe to use NetworkMode as the network name, whether it's a name or id/short-id, as
-		// it will be normalised later and there is no other EndpointSettings object that might
-		// refer to this network/endpoint.
-		if len(networkingConfig.EndpointsConfig) == 0 {
-			nwName := hostConfig.NetworkMode.NetworkName()
-			networkingConfig.EndpointsConfig[nwName] = &network.EndpointSettings{}
+		epConfig, err := epConfigForNetMode(version, hostConfig.NetworkMode, networkingConfig)
+		if err != nil {
+			return "", err
 		}
-		// There's exactly one network in EndpointsConfig, either from the API or just-created.
-		// Migrate the container-wide setting to it.
-		// No need to check for a match between NetworkMode and the names/ids in EndpointsConfig,
-		// the old version of the API would have applied the address to this network anyway.
-		for _, ep := range networkingConfig.EndpointsConfig {
-			ep.MacAddress = deprecatedMacAddress
-		}
+		epConfig.MacAddress = deprecatedMacAddress
 		return "", nil
 	}
 
@@ -697,37 +692,162 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 	}
 	var warning string
 	if hostConfig.NetworkMode.IsBridge() || hostConfig.NetworkMode.IsUserDefined() {
-		nwName := hostConfig.NetworkMode.NetworkName()
-		// If there's no endpoint config, create a place to store the configured address.
-		if len(networkingConfig.EndpointsConfig) == 0 {
-			networkingConfig.EndpointsConfig[nwName] = &network.EndpointSettings{
-				MacAddress: deprecatedMacAddress,
-			}
-		} else {
-			// There is existing endpoint config - if it's not indexed by NetworkMode.Name(), we
-			// can't tell which network the container-wide settings was intended for. NetworkMode,
-			// the keys in EndpointsConfig and the NetworkID in EndpointsConfig may mix network
-			// name/id/short-id. It's not safe to create EndpointsConfig under the NetworkMode
-			// name to store the container-wide MAC address, because that may result in two sets
-			// of EndpointsConfig for the same network and one set will be discarded later. So,
-			// reject the request ...
-			ep, ok := networkingConfig.EndpointsConfig[nwName]
-			if !ok {
-				return "", errdefs.InvalidParameter(errors.New("if a container-wide MAC address is supplied, HostConfig.NetworkMode must match the identity of a network in NetworkSettings.Networks"))
-			}
-			// ep is the endpoint that needs the container-wide MAC address; migrate the address
-			// to it, or bail out if there's a mismatch.
-			if ep.MacAddress == "" {
-				ep.MacAddress = deprecatedMacAddress
-			} else if ep.MacAddress != deprecatedMacAddress {
-				return "", errdefs.InvalidParameter(errors.New("the container-wide MAC address must match the endpoint-specific MAC address for the main network, or be left empty"))
-			}
+		ep, err := epConfigForNetMode(version, hostConfig.NetworkMode, networkingConfig)
+		if err != nil {
+			return "", errors.Wrap(err, "unable to migrate container-wide MAC address to a specific network")
+		}
+		// ep is the endpoint that needs the container-wide MAC address; migrate the address
+		// to it, or bail out if there's a mismatch.
+		if ep.MacAddress == "" {
+			ep.MacAddress = deprecatedMacAddress
+		} else if ep.MacAddress != deprecatedMacAddress {
+			return "", errdefs.InvalidParameter(errors.New("the container-wide MAC address must match the endpoint-specific MAC address for the main network, or be left empty"))
 		}
 	}
 	warning = "The container-wide MacAddress field is now deprecated. It should be specified in EndpointsConfig instead."
 	config.MacAddress = "" //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 
 	return warning, nil
+}
+
+// handleSysctlBC migrates top level network endpoint-specific '--sysctl'
+// settings to an DriverOpts for an endpoint. This is necessary because sysctls
+// are applied during container task creation, but sysctls that name an interface
+// (for example 'net.ipv6.conf.eth0.forwarding') cannot be applied until the
+// interface has been created. So, these settings are removed from hostConfig.Sysctls
+// and added to DriverOpts[netlabel.EndpointSysctls].
+//
+// Because interface names ('ethN') are allocated sequentially, and the order of
+// network connections is not deterministic on container restart, only 'eth0'
+// would work reliably in a top-level '--sysctl' option, and then only when
+// there's a single initial network connection. So, settings for 'eth0' are
+// migrated to the primary interface, identified by 'hostConfig.NetworkMode'.
+// Settings for other interfaces are treated as errors.
+//
+// In the DriverOpts, because the interface name cannot be determined in advance, the
+// interface name is replaced by "IFNAME". For example, 'net.ipv6.conf.eth0.forwarding'
+// becomes 'net.ipv6.conf.IFNAME.forwarding'. The value in DriverOpts is a
+// comma-separated list.
+//
+// A warning is generated when settings are migrated.
+func handleSysctlBC(
+	hostConfig *container.HostConfig,
+	netConfig *network.NetworkingConfig,
+	version string,
+) (string, error) {
+	if !hostConfig.NetworkMode.IsPrivate() {
+		return "", nil
+	}
+
+	var ep *network.EndpointSettings
+	var toDelete []string
+	var netIfSysctls []string
+	for k, v := range hostConfig.Sysctls {
+		// If the sysctl name matches "net.*.*.eth0.*" ...
+		if spl := strings.SplitN(k, ".", 5); len(spl) == 5 && spl[0] == "net" && strings.HasPrefix(spl[3], "eth") {
+			netIfSysctl := fmt.Sprintf("net.%s.%s.IFNAME.%s=%s", spl[1], spl[2], spl[4], v)
+			// Find the EndpointConfig to migrate settings to, if not already found.
+			if ep == nil {
+				// Per-endpoint sysctls were introduced in API version 1.46. Migration is
+				// needed, but refuse to do it automatically for newer versions of the API.
+				if versions.GreaterThan(version, "1.46") {
+					return "", fmt.Errorf("interface specific sysctl setting %q must be supplied using driver option '%s'",
+						k, netlabel.EndpointSysctls)
+				}
+				var err error
+				ep, err = epConfigForNetMode(version, hostConfig.NetworkMode, netConfig)
+				if err != nil {
+					return "", fmt.Errorf("unable to find a network for sysctl %s: %w", k, err)
+				}
+			}
+			// Only try to migrate settings for "eth0", anything else would always
+			// have behaved unpredictably.
+			if spl[3] != "eth0" {
+				return "", fmt.Errorf(`unable to determine network endpoint for sysctl %s, use driver option '%s' to set per-interface sysctls`,
+					k, netlabel.EndpointSysctls)
+			}
+			// Prepare the migration.
+			toDelete = append(toDelete, k)
+			netIfSysctls = append(netIfSysctls, netIfSysctl)
+		}
+	}
+	if ep == nil {
+		return "", nil
+	}
+
+	newDriverOpt := strings.Join(netIfSysctls, ",")
+	warning := fmt.Sprintf(`Migrated sysctl %q to DriverOpts{%q:%q}.`,
+		strings.Join(toDelete, ","),
+		netlabel.EndpointSysctls, newDriverOpt)
+
+	// Append existing per-endpoint sysctls to the migrated sysctls (give priority
+	// to per-endpoint settings).
+	if ep.DriverOpts == nil {
+		ep.DriverOpts = map[string]string{}
+	}
+	if oldDriverOpt, ok := ep.DriverOpts[netlabel.EndpointSysctls]; ok {
+		newDriverOpt += "," + oldDriverOpt
+	}
+	ep.DriverOpts[netlabel.EndpointSysctls] = newDriverOpt
+
+	// Delete migrated settings from the top-level sysctls.
+	for _, k := range toDelete {
+		delete(hostConfig.Sysctls, k)
+	}
+
+	return warning, nil
+}
+
+// epConfigForNetMode finds, or creates, an entry in netConfig.EndpointsConfig
+// corresponding to nwMode.
+//
+// nwMode.NetworkName() may be the network's name, its id, or its short-id.
+//
+// The corresponding endpoint in netConfig.EndpointsConfig may be keyed on a
+// different one of name/id/short-id. If there's any ambiguity (there are
+// endpoints but the names don't match), return an error and do not create a new
+// endpoint, because it might be a duplicate.
+func epConfigForNetMode(
+	version string,
+	nwMode container.NetworkMode,
+	netConfig *network.NetworkingConfig,
+) (*network.EndpointSettings, error) {
+	nwName := nwMode.NetworkName()
+
+	// It's always safe to create an EndpointsConfig entry under nwName if there are
+	// no entries already (because there can't be an entry for this network nwName
+	// refers to under any other name/short-id/id).
+	if len(netConfig.EndpointsConfig) == 0 {
+		es := &network.EndpointSettings{}
+		netConfig.EndpointsConfig = map[string]*network.EndpointSettings{
+			nwName: es,
+		}
+		return es, nil
+	}
+
+	// There cannot be more than one entry in EndpointsConfig with API < 1.44.
+	if versions.LessThan(version, "1.44") {
+		// No need to check for a match between NetworkMode and the names/ids in EndpointsConfig,
+		// the old version of the API would pick this network anyway.
+		for _, ep := range netConfig.EndpointsConfig {
+			return ep, nil
+		}
+	}
+
+	// There is existing endpoint config - if it's not indexed by NetworkMode.Name(), we
+	// can't tell which network the container-wide settings are intended for. NetworkMode,
+	// the keys in EndpointsConfig and the NetworkID in EndpointsConfig may mix network
+	// name/id/short-id. It's not safe to create EndpointsConfig under the NetworkMode
+	// name to store the container-wide setting, because that may result in two sets
+	// of EndpointsConfig for the same network and one set will be discarded later. So,
+	// reject the request ...
+	ep, ok := netConfig.EndpointsConfig[nwName]
+	if !ok {
+		return nil, errdefs.InvalidParameter(
+			errors.New("HostConfig.NetworkMode must match the identity of a network in NetworkSettings.Networks"))
+	}
+
+	return ep, nil
 }
 
 func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

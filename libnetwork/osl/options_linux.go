@@ -81,3 +81,11 @@ func WithRoutes(routes []*net.IPNet) IfaceOption {
 		return nil
 	}
 }
+
+// WithSysctls sets the interface sysctls.
+func WithSysctls(sysctls []string) IfaceOption {
+	return func(i *Interface) error {
+		i.sysctls = sysctls
+		return nil
+	}
+}

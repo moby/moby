@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/containerd/log"
@@ -399,6 +400,18 @@ func (ep *Endpoint) Value() []byte {
 		return nil
 	}
 	return b
+}
+
+func (ep *Endpoint) getSysctls() []string {
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
+
+	if s, ok := ep.generic[netlabel.EndpointSysctls]; ok {
+		if ss, ok := s.(string); ok {
+			return strings.Split(ss, ",")
+		}
+	}
+	return nil
 }
 
 func (ep *Endpoint) SetValue(value []byte) error {

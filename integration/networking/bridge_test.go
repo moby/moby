@@ -11,8 +11,10 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	apinetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -882,5 +884,40 @@ func TestReadOnlySlashProc(t *testing.T) {
 			)
 			defer c.ContainerRemove(ctx, id6, containertypes.RemoveOptions{Force: true})
 		})
+	}
+}
+
+// Test that it's possible to set a sysctl on an interface in the container
+// using DriverOpts.
+func TestSetEndpointSysctl(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no sysctl on Windows")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const scName = "net.ipv4.conf.eth0.forwarding"
+	for _, ifname := range []string{"IFNAME", "ifname"} {
+		for _, val := range []string{"0", "1"} {
+			t.Run("ifname="+ifname+"/val="+val, func(t *testing.T) {
+				ctx := testutil.StartSpan(ctx, t)
+				runRes := container.RunAttach(ctx, t, c,
+					container.WithCmd("sysctl", "-qn", scName),
+					container.WithEndpointSettings(apinetwork.NetworkBridge, &apinetwork.EndpointSettings{
+						DriverOpts: map[string]string{
+							netlabel.EndpointSysctls: "net.ipv4.conf." + ifname + ".forwarding=" + val,
+						},
+					}),
+				)
+				defer c.ContainerRemove(ctx, runRes.ContainerID, containertypes.RemoveOptions{Force: true})
+
+				stdout := runRes.Stdout.String()
+				assert.Check(t, is.Equal(strings.TrimSpace(stdout), val))
+			})
+		}
 	}
 }
