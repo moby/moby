@@ -17,6 +17,20 @@ const (
 	NetworkNat = "nat"
 )
 
+// ConnectOptions represents the data to be used to connect a container to the
+// network.
+type ConnectOptions struct {
+	Container      string
+	EndpointConfig *EndpointSettings `json:",omitempty"`
+}
+
+// DisconnectOptions represents the data to be used to disconnect a container
+// from the network.
+type DisconnectOptions struct {
+	Container string
+	Force     bool
+}
+
 // Address represents an IP address
 type Address struct {
 	Addr      string

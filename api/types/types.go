@@ -477,18 +477,6 @@ type NetworkCreateRequest struct {
 	Name string // Name is the requested name of the network.
 }
 
-// NetworkConnect represents the data to be used to connect a container to the network
-type NetworkConnect struct {
-	Container      string
-	EndpointConfig *network.EndpointSettings `json:",omitempty"`
-}
-
-// NetworkDisconnect represents the data to be used to disconnect a container from the network
-type NetworkDisconnect struct {
-	Container string
-	Force     bool
-}
-
 // NetworkInspectOptions holds parameters to inspect network
 type NetworkInspectOptions struct {
 	Scope   string

@@ -39,3 +39,13 @@ type ImageRemoveOptions = image.RemoveOptions
 //
 // Deprecated: use [network.CreateResponse].
 type NetworkCreateResponse = network.CreateResponse
+
+// NetworkConnect represents the data to be used to connect a container to the network
+//
+// Deprecated: use [network.ConnectOptions].
+type NetworkConnect = network.ConnectOptions
+
+// NetworkDisconnect represents the data to be used to disconnect a container from the network
+//
+// Deprecated: use [network.DisconnectOptions].
+type NetworkDisconnect = network.DisconnectOptions
