@@ -2160,14 +2160,11 @@ func (n *Network) deleteLoadBalancerSandbox() error {
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to find load balancer endpoint %s on network %s: %v", endpointName, name, err)
 	} else {
-		info := endpoint.Info()
-		if info != nil {
-			sb := info.Sandbox()
-			if sb != nil {
-				if err := sb.DisableService(); err != nil {
-					log.G(context.TODO()).Warnf("Failed to disable service on sandbox %s: %v", sandboxName, err)
-					// Ignore error and attempt to delete the load balancer endpoint
-				}
+		sb := endpoint.Sandbox()
+		if sb != nil {
+			if err := sb.DisableService(); err != nil {
+				log.G(context.TODO()).Warnf("Failed to disable service on sandbox %s: %v", sandboxName, err)
+				// Ignore error and attempt to delete the load balancer endpoint
 			}
 		}
 

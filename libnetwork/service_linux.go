@@ -43,8 +43,7 @@ func (n *Network) findLBEndpointSandbox() (*Endpoint, *Sandbox, error) {
 	var ep *Endpoint
 	// Find this node's LB sandbox endpoint:  there should be exactly one
 	for _, e := range n.Endpoints() {
-		epi := e.Info()
-		if epi != nil && epi.LoadBalancer() {
+		if e.LoadBalancer() {
 			ep = e
 			break
 		}

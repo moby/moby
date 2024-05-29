@@ -826,16 +826,11 @@ func updateJoinInfo(networkSettings *network.Settings, n *libnetwork.Network, ep
 		networkSettings.Ports = pm
 	}
 
-	epInfo := ep.Info()
-	if epInfo == nil {
-		// It is not an error to get an empty endpoint info
-		return nil
+	if ep.Gateway() != nil {
+		networkSettings.Networks[n.Name()].Gateway = ep.Gateway().String()
 	}
-	if epInfo.Gateway() != nil {
-		networkSettings.Networks[n.Name()].Gateway = epInfo.Gateway().String()
-	}
-	if epInfo.GatewayIPv6().To16() != nil {
-		networkSettings.Networks[n.Name()].IPv6Gateway = epInfo.GatewayIPv6().String()
+	if ep.GatewayIPv6().To16() != nil {
+		networkSettings.Networks[n.Name()].IPv6Gateway = ep.GatewayIPv6().String()
 	}
 	return nil
 }
@@ -860,11 +855,7 @@ func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n *l
 		sbox *libnetwork.Sandbox
 	)
 	n.WalkEndpoints(func(current *libnetwork.Endpoint) bool {
-		epInfo := current.Info()
-		if epInfo == nil {
-			return false
-		}
-		if sb := epInfo.Sandbox(); sb != nil {
+		if sb := ep.Sandbox(); sb != nil {
 			if sb.ContainerID() == container.ID {
 				ep = current
 				sbox = sb
