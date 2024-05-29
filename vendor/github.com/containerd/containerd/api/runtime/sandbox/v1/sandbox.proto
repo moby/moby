@@ -23,7 +23,6 @@ import "google/protobuf/timestamp.proto";
 
 import "github.com/containerd/containerd/api/types/mount.proto";
 import "github.com/containerd/containerd/api/types/platform.proto";
-import "github.com/containerd/containerd/api/types/metrics.proto";
 
 option go_package = "github.com/containerd/containerd/api/runtime/sandbox/v1;sandbox";
 
@@ -35,7 +34,7 @@ service Sandbox {
 	// It is a good place to initialize sandbox environment.
 	rpc CreateSandbox(CreateSandboxRequest) returns (CreateSandboxResponse);
 
-	// StartSandbox will start a previously created sandbox.
+	// StartSandbox will start previsouly created sandbox.
 	rpc StartSandbox(StartSandboxRequest) returns (StartSandboxResponse);
 
 	// Platform queries the platform the sandbox is going to run containers on.
@@ -45,7 +44,7 @@ service Sandbox {
 	// StopSandbox will stop existing sandbox instance
 	rpc StopSandbox(StopSandboxRequest) returns (StopSandboxResponse);
 
-	// WaitSandbox blocks until sandbox exits.
+	// WaitSandbox blocks until sanbox exits.
 	rpc WaitSandbox(WaitSandboxRequest) returns (WaitSandboxResponse);
 
 	// SandboxStatus will return current status of the running sandbox instance
@@ -56,9 +55,6 @@ service Sandbox {
 
 	// ShutdownSandbox must shutdown shim instance.
 	rpc ShutdownSandbox(ShutdownSandboxRequest) returns (ShutdownSandboxResponse);
-
-	// SandboxMetrics retrieves metrics about a sandbox instance.
-	rpc SandboxMetrics(SandboxMetricsRequest) returns (SandboxMetricsResponse);
 }
 
 message CreateSandboxRequest {
@@ -67,7 +63,6 @@ message CreateSandboxRequest {
 	repeated containerd.types.Mount rootfs = 3;
 	google.protobuf.Any options = 4;
 	string netns_path = 5;
-	map<string, string> annotations = 6;
 }
 
 message CreateSandboxResponse {}
@@ -139,11 +134,3 @@ message ShutdownSandboxRequest {
 }
 
 message ShutdownSandboxResponse {}
-
-message SandboxMetricsRequest {
-	string sandbox_id = 1;
-}
-
-message SandboxMetricsResponse {
-	containerd.types.Metric metrics = 1;
-}

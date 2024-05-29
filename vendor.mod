@@ -6,11 +6,11 @@ module github.com/docker/docker
 
 go 1.21
 
-// FIXME(thaJeztah); testing https://github.com/containerd/containerd/pull/10189
-replace github.com/containerd/containerd => github.com/dmcgowan/containerd v1.7.16-0.20240528144541-4a2ca38f6508
+// FIXME(thaJeztah); testing https://github.com/containerd/containerd/pull/10189 / https://github.com/containerd/containerd/pull/10278
+replace github.com/containerd/containerd => github.com/dmcgowan/containerd v1.7.16-0.20240528224140-9df456d83c75
 
-// FIXME(thaJeztah); testing https://github.com/containerd/containerd/pull/10276
-replace github.com/containerd/containerd/api => github.com/dmcgowan/containerd/api v1.8.0-rc.0.0.20240528200503-359d84351d53
+// FIXME(thaJeztah); testing https://github.com/containerd/containerd/pull/10276 / https://github.com/containerd/containerd/pull/10279
+replace github.com/containerd/containerd/api => github.com/dmcgowan/containerd/api v0.0.0-20240528224140-9df456d83c75
 
 require (
 	cloud.google.com/go/compute/metadata v0.2.3

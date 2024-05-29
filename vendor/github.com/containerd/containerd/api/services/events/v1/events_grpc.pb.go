@@ -8,7 +8,6 @@ package events
 
 import (
 	context "context"
-	types "github.com/containerd/containerd/api/types"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -87,7 +86,7 @@ func (c *eventsClient) Subscribe(ctx context.Context, in *SubscribeRequest, opts
 }
 
 type Events_SubscribeClient interface {
-	Recv() (*types.Envelope, error)
+	Recv() (*Envelope, error)
 	grpc.ClientStream
 }
 
@@ -95,8 +94,8 @@ type eventsSubscribeClient struct {
 	grpc.ClientStream
 }
 
-func (x *eventsSubscribeClient) Recv() (*types.Envelope, error) {
-	m := new(types.Envelope)
+func (x *eventsSubscribeClient) Recv() (*Envelope, error) {
+	m := new(Envelope)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -200,7 +199,7 @@ func _Events_Subscribe_Handler(srv interface{}, stream grpc.ServerStream) error 
 }
 
 type Events_SubscribeServer interface {
-	Send(*types.Envelope) error
+	Send(*Envelope) error
 	grpc.ServerStream
 }
 
@@ -208,7 +207,7 @@ type eventsSubscribeServer struct {
 	grpc.ServerStream
 }
 
-func (x *eventsSubscribeServer) Send(m *types.Envelope) error {
+func (x *eventsSubscribeServer) Send(m *Envelope) error {
 	return x.ServerStream.SendMsg(m)
 }
 

@@ -261,7 +261,7 @@ github.com/containerd/cgroups/v3/cgroup2/stats
 # github.com/containerd/console v1.0.4
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd v1.7.18 => github.com/dmcgowan/containerd v1.7.16-0.20240528144541-4a2ca38f6508
+# github.com/containerd/containerd v1.7.18 => github.com/dmcgowan/containerd v1.7.16-0.20240528224140-9df456d83c75
 ## explicit; go 1.21
 github.com/containerd/containerd
 github.com/containerd/containerd/archive
@@ -345,7 +345,7 @@ github.com/containerd/containerd/sys
 github.com/containerd/containerd/sys/reaper
 github.com/containerd/containerd/tracing
 github.com/containerd/containerd/version
-# github.com/containerd/containerd/api v1.8.0-rc.0 => github.com/dmcgowan/containerd/api v1.8.0-rc.0.0.20240528200503-359d84351d53
+# github.com/containerd/containerd/api v1.8.0-rc.0 => github.com/dmcgowan/containerd/api v0.0.0-20240528224140-9df456d83c75
 ## explicit; go 1.21
 github.com/containerd/containerd/api/events
 github.com/containerd/containerd/api/runtime/sandbox/v1
@@ -1612,5 +1612,5 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v0.7.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
-# github.com/containerd/containerd => github.com/dmcgowan/containerd v1.7.16-0.20240528144541-4a2ca38f6508
-# github.com/containerd/containerd/api => github.com/dmcgowan/containerd/api v1.8.0-rc.0.0.20240528200503-359d84351d53
+# github.com/containerd/containerd => github.com/dmcgowan/containerd v1.7.16-0.20240528224140-9df456d83c75
+# github.com/containerd/containerd/api => github.com/dmcgowan/containerd/api v0.0.0-20240528224140-9df456d83c75

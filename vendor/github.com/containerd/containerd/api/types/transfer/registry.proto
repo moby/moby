@@ -35,10 +35,9 @@ message RegistryResolver {
 	// Headers
 	map<string, string> headers = 2;
 
-	string host_dir = 3;
-
-	string default_scheme = 4;
+	// Allow custom hosts dir?
 	// Force skip verify
+	// Force HTTP
 	// CA callback? Client TLS callback?
 }
 

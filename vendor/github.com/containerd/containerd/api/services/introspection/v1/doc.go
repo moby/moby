@@ -15,3 +15,9 @@
 */
 
 package introspection
+
+// Not implemented types introduced in later versions and included for API compatibility
+// Use of these types should only use not implemented errors
+
+type PluginInfoRequest struct{}
+type PluginInfoResponse struct{}

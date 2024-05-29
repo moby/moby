@@ -25,14 +25,14 @@ type SandboxClient interface {
 	// CreateSandbox will be called right after sandbox shim instance launched.
 	// It is a good place to initialize sandbox environment.
 	CreateSandbox(ctx context.Context, in *CreateSandboxRequest, opts ...grpc.CallOption) (*CreateSandboxResponse, error)
-	// StartSandbox will start a previously created sandbox.
+	// StartSandbox will start previsouly created sandbox.
 	StartSandbox(ctx context.Context, in *StartSandboxRequest, opts ...grpc.CallOption) (*StartSandboxResponse, error)
 	// Platform queries the platform the sandbox is going to run containers on.
 	// containerd will use this to generate a proper OCI spec.
 	Platform(ctx context.Context, in *PlatformRequest, opts ...grpc.CallOption) (*PlatformResponse, error)
 	// StopSandbox will stop existing sandbox instance
 	StopSandbox(ctx context.Context, in *StopSandboxRequest, opts ...grpc.CallOption) (*StopSandboxResponse, error)
-	// WaitSandbox blocks until sandbox exits.
+	// WaitSandbox blocks until sanbox exits.
 	WaitSandbox(ctx context.Context, in *WaitSandboxRequest, opts ...grpc.CallOption) (*WaitSandboxResponse, error)
 	// SandboxStatus will return current status of the running sandbox instance
 	SandboxStatus(ctx context.Context, in *SandboxStatusRequest, opts ...grpc.CallOption) (*SandboxStatusResponse, error)
@@ -40,8 +40,6 @@ type SandboxClient interface {
 	PingSandbox(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
 	// ShutdownSandbox must shutdown shim instance.
 	ShutdownSandbox(ctx context.Context, in *ShutdownSandboxRequest, opts ...grpc.CallOption) (*ShutdownSandboxResponse, error)
-	// SandboxMetrics retrieves metrics about a sandbox instance.
-	SandboxMetrics(ctx context.Context, in *SandboxMetricsRequest, opts ...grpc.CallOption) (*SandboxMetricsResponse, error)
 }
 
 type sandboxClient struct {
@@ -124,15 +122,6 @@ func (c *sandboxClient) ShutdownSandbox(ctx context.Context, in *ShutdownSandbox
 	return out, nil
 }
 
-func (c *sandboxClient) SandboxMetrics(ctx context.Context, in *SandboxMetricsRequest, opts ...grpc.CallOption) (*SandboxMetricsResponse, error) {
-	out := new(SandboxMetricsResponse)
-	err := c.cc.Invoke(ctx, "/containerd.runtime.sandbox.v1.Sandbox/SandboxMetrics", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // SandboxServer is the server API for Sandbox service.
 // All implementations must embed UnimplementedSandboxServer
 // for forward compatibility
@@ -140,14 +129,14 @@ type SandboxServer interface {
 	// CreateSandbox will be called right after sandbox shim instance launched.
 	// It is a good place to initialize sandbox environment.
 	CreateSandbox(context.Context, *CreateSandboxRequest) (*CreateSandboxResponse, error)
-	// StartSandbox will start a previously created sandbox.
+	// StartSandbox will start previsouly created sandbox.
 	StartSandbox(context.Context, *StartSandboxRequest) (*StartSandboxResponse, error)
 	// Platform queries the platform the sandbox is going to run containers on.
 	// containerd will use this to generate a proper OCI spec.
 	Platform(context.Context, *PlatformRequest) (*PlatformResponse, error)
 	// StopSandbox will stop existing sandbox instance
 	StopSandbox(context.Context, *StopSandboxRequest) (*StopSandboxResponse, error)
-	// WaitSandbox blocks until sandbox exits.
+	// WaitSandbox blocks until sanbox exits.
 	WaitSandbox(context.Context, *WaitSandboxRequest) (*WaitSandboxResponse, error)
 	// SandboxStatus will return current status of the running sandbox instance
 	SandboxStatus(context.Context, *SandboxStatusRequest) (*SandboxStatusResponse, error)
@@ -155,8 +144,6 @@ type SandboxServer interface {
 	PingSandbox(context.Context, *PingRequest) (*PingResponse, error)
 	// ShutdownSandbox must shutdown shim instance.
 	ShutdownSandbox(context.Context, *ShutdownSandboxRequest) (*ShutdownSandboxResponse, error)
-	// SandboxMetrics retrieves metrics about a sandbox instance.
-	SandboxMetrics(context.Context, *SandboxMetricsRequest) (*SandboxMetricsResponse, error)
 	mustEmbedUnimplementedSandboxServer()
 }
 
@@ -187,9 +174,6 @@ func (UnimplementedSandboxServer) PingSandbox(context.Context, *PingRequest) (*P
 }
 func (UnimplementedSandboxServer) ShutdownSandbox(context.Context, *ShutdownSandboxRequest) (*ShutdownSandboxResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ShutdownSandbox not implemented")
-}
-func (UnimplementedSandboxServer) SandboxMetrics(context.Context, *SandboxMetricsRequest) (*SandboxMetricsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SandboxMetrics not implemented")
 }
 func (UnimplementedSandboxServer) mustEmbedUnimplementedSandboxServer() {}
 
@@ -348,24 +332,6 @@ func _Sandbox_ShutdownSandbox_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Sandbox_SandboxMetrics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SandboxMetricsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(SandboxServer).SandboxMetrics(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/containerd.runtime.sandbox.v1.Sandbox/SandboxMetrics",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SandboxServer).SandboxMetrics(ctx, req.(*SandboxMetricsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // Sandbox_ServiceDesc is the grpc.ServiceDesc for Sandbox service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -404,10 +370,6 @@ var Sandbox_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ShutdownSandbox",
 			Handler:    _Sandbox_ShutdownSandbox_Handler,
-		},
-		{
-			MethodName: "SandboxMetrics",
-			Handler:    _Sandbox_SandboxMetrics_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
