@@ -4,16 +4,20 @@ package registry // import "github.com/docker/docker/registry"
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ThalesIgnite/crypto11"
 	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/pkg/errors"
 )
 
 // HostCertsDir returns the config directory for a specific host.
@@ -34,6 +38,71 @@ func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 		if err := ReadCertsDirectory(tlsConfig, hostDir); err != nil {
 			return nil, err
 		}
+	}
+
+	// PKCS11 support: You MUST compile with `make dynbinary`
+	// for this to work. You can then put your locally built
+	// binary into service with:
+	//   sudo systemctl stop docker.service && sudo cp bundles/dynbinary-daemon/dockerd /usr/sbin/dockerd 
+	//
+	// We put the configuration into environment variables as a quick
+	// and dirty way to demonstrate that this works.
+	//
+	// The docker.service file on Debian installs includes:
+	//   EnvironmentFile=-/etc/default/docker
+	//
+	// So you can put something like the following into /etc/default/docker:
+	//
+	//   PKCS11_LABEL=my.cert.name
+	//   PKCS11_PIN=112233
+	//   PKCS11_MODULE=/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so
+	//
+	// You can use only one of PKCS11_SERIAL, PKCS11_SLOT or
+	// PKCS11_LABEL.
+	//
+	// Then `systemctl restart docker.service` to make it take effect.	
+	pkcs11_module := os.Getenv("PKCS11_MODULE")
+	if pkcs11_module != "" {
+		cfg := &crypto11.Config{
+			Path:       pkcs11_module,
+			TokenSerial: os.Getenv("PKCS11_SERIAL"),
+			TokenLabel: os.Getenv("PKCS11_LABEL"),
+			Pin:        os.Getenv("PKCS11_PIN"),
+		}
+		if os.Getenv("PKCS11_SLOT") != "" {
+			slot, err := strconv.Atoi(os.Getenv("PKCS11_SLOT"))
+			if err != nil {
+				return nil, err
+			}
+			cfg.SlotNumber = &slot
+		}
+
+		ctx11, err := crypto11.Configure(cfg)
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Warn("Could not open PKCS11 context.")
+			return nil, err
+		}
+
+		certificates, err := ctx11.FindAllPairedCertificates()
+		if err != nil {
+			return nil, err
+		}
+
+		if len(certificates) == 0 {
+			return nil, errors.New("no certificate found in your pkcs11 device")
+		}
+
+		if len(certificates) > 1 {
+			return nil, errors.New("got more than one certificate")
+		}
+
+		theCert, err := x509.ParseCertificate(certificates[0].Certificate[0])
+		if err != nil {
+			return nil, err
+		}
+		log.G(context.TODO()).Debugf("Certificate: %v", theCert)
+
+		tlsConfig.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) { return &certificates[0], nil }
 	}
 
 	return tlsConfig, nil
