@@ -280,7 +280,7 @@ func createNetwork(c *testing.T, config types.NetworkCreateRequest, expectedStat
 	}
 
 	if expectedStatusCode == http.StatusCreated || expectedStatusCode < 0 {
-		var nr types.NetworkCreateResponse
+		var nr network.CreateResponse
 		err = json.NewDecoder(body).Decode(&nr)
 		assert.NilError(c, err)
 
@@ -290,23 +290,21 @@ func createNetwork(c *testing.T, config types.NetworkCreateRequest, expectedStat
 }
 
 func connectNetwork(c *testing.T, nid, cid string) {
-	config := types.NetworkConnect{
+	resp, _, err := request.Post(testutil.GetContext(c), "/networks/"+nid+"/connect", request.JSONBody(network.ConnectOptions{
 		Container: cid,
-	}
-
-	resp, _, err := request.Post(testutil.GetContext(c), "/networks/"+nid+"/connect", request.JSONBody(config))
-	assert.Equal(c, resp.StatusCode, http.StatusOK)
+	}))
 	assert.NilError(c, err)
+	assert.Equal(c, resp.StatusCode, http.StatusOK)
 }
 
 func disconnectNetwork(c *testing.T, nid, cid string) {
-	config := types.NetworkConnect{
+	config := network.ConnectOptions{
 		Container: cid,
 	}
 
 	resp, _, err := request.Post(testutil.GetContext(c), "/networks/"+nid+"/disconnect", request.JSONBody(config))
-	assert.Equal(c, resp.StatusCode, http.StatusOK)
 	assert.NilError(c, err)
+	assert.Equal(c, resp.StatusCode, http.StatusOK)
 }
 
 func deleteNetwork(c *testing.T, id string, shouldSucceed bool) {

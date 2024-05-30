@@ -226,7 +226,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		if err != nil {
 			return err
 		}
-		nw = &types.NetworkCreateResponse{
+		nw = &network.CreateResponse{
 			ID: id,
 		}
 	}
@@ -239,7 +239,7 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 		return err
 	}
 
-	var connect types.NetworkConnect
+	var connect network.ConnectOptions
 	if err := httputils.ReadJSON(r, &connect); err != nil {
 		return err
 	}
@@ -256,7 +256,7 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 		return err
 	}
 
-	var disconnect types.NetworkDisconnect
+	var disconnect network.DisconnectOptions
 	if err := httputils.ReadJSON(r, &disconnect); err != nil {
 		return err
 	}

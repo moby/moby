@@ -27,6 +27,10 @@ swagger generate model -f api/swagger.yaml \
 	-n ImageSummary
 
 swagger generate model -f api/swagger.yaml \
+	-t api -m types/network --skip-validator -C api/swagger-gen.yaml \
+	-n NetworkCreateResponse
+
+swagger generate model -f api/swagger.yaml \
 	-t api -m types/volume --skip-validator -C api/swagger-gen.yaml \
 	-n Volume \
 	-n VolumeCreateOptions \

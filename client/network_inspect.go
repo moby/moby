@@ -8,16 +8,17 @@ import (
 	"net/url"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 )
 
 // NetworkInspect returns the information for a specific network configured in the docker host.
-func (cli *Client) NetworkInspect(ctx context.Context, networkID string, options types.NetworkInspectOptions) (types.NetworkResource, error) {
+func (cli *Client) NetworkInspect(ctx context.Context, networkID string, options network.InspectOptions) (types.NetworkResource, error) {
 	networkResource, _, err := cli.NetworkInspectWithRaw(ctx, networkID, options)
 	return networkResource, err
 }
 
 // NetworkInspectWithRaw returns the information for a specific network configured in the docker host and its raw representation.
-func (cli *Client) NetworkInspectWithRaw(ctx context.Context, networkID string, options types.NetworkInspectOptions) (types.NetworkResource, []byte, error) {
+func (cli *Client) NetworkInspectWithRaw(ctx context.Context, networkID string, options network.InspectOptions) (types.NetworkResource, []byte, error) {
 	if networkID == "" {
 		return types.NetworkResource{}, nil, objectNotFoundError{object: "network", id: networkID}
 	}

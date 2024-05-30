@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -50,7 +51,7 @@ func TestNetworkCreate(t *testing.T) {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
-			content, err := json.Marshal(types.NetworkCreateResponse{
+			content, err := json.Marshal(network.CreateResponse{
 				ID:      "network_id",
 				Warning: "warning",
 			})

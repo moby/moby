@@ -2380,6 +2380,24 @@ definitions:
         type: "string"
         example: "10.133.77.91"
 
+  NetworkCreateResponse:
+    description: "OK response to NetworkCreate operation"
+    type: "object"
+    title: "NetworkCreateResponse"
+    x-go-name: "CreateResponse"
+    required: [Id, Warning]
+    properties:
+      Id:
+        description: "The ID of the created network."
+        type: "string"
+        x-nullable: false
+        example: "b5c4fc71e8022147cd25de22b22173de4e3b170134117172eb595cb91b4e7e5d"
+      Warning:
+        description: "Warnings encountered when creating the container"
+        type: "string"
+        x-nullable: false
+        example: ""
+
   BuildInfo:
     type: "object"
     properties:
@@ -10144,19 +10162,9 @@ paths:
         - "application/json"
       responses:
         201:
-          description: "No error"
+          description: "Network created successfully"
           schema:
-            type: "object"
-            title: "NetworkCreateResponse"
-            properties:
-              Id:
-                description: "The ID of the created network."
-                type: "string"
-              Warning:
-                type: "string"
-            example:
-              Id: "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30"
-              Warning: ""
+            $ref: "#/definitions/NetworkCreateResponse"
         400:
           description: "bad parameter"
           schema:

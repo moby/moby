@@ -286,11 +286,11 @@ func (daemon *Daemon) CreateManagedNetwork(create clustertypes.NetworkCreateRequ
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
-func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
+func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*network.CreateResponse, error) {
 	return daemon.createNetwork(&daemon.config().Config, create, "", false)
 }
 
-func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCreateRequest, id string, agent bool) (*types.NetworkCreateResponse, error) {
+func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCreateRequest, id string, agent bool) (*network.CreateResponse, error) {
 	if runconfig.IsPreDefinedNetwork(create.Name) {
 		return nil, PredefinedNetworkError(create.Name)
 	}
@@ -396,9 +396,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 	}
 	daemon.LogNetworkEvent(n, events.ActionCreate)
 
-	return &types.NetworkCreateResponse{
-		ID: n.ID(),
-	}, nil
+	return &network.CreateResponse{ID: n.ID()}, nil
 }
 
 func (daemon *Daemon) pluginRefCount(driver, capability string, mode int) {
@@ -620,7 +618,7 @@ func buildNetworkResource(nw *libnetwork.Network) types.NetworkResource {
 		Ingress:    nw.Ingress(),
 		ConfigFrom: network.ConfigReference{Network: nw.ConfigFrom()},
 		ConfigOnly: nw.ConfigOnly(),
-		Containers: map[string]types.EndpointResource{},
+		Containers: map[string]network.EndpointResource{},
 		Options:    nw.DriverOptions(),
 		Labels:     nw.Labels(),
 		Peers:      buildPeerInfoResources(nw.Peers()),
@@ -630,8 +628,8 @@ func buildNetworkResource(nw *libnetwork.Network) types.NetworkResource {
 // buildContainerAttachments creates a [types.EndpointResource] map of all
 // containers attached to the network. It is used when listing networks in
 // detailed mode.
-func buildContainerAttachments(nw *libnetwork.Network) map[string]types.EndpointResource {
-	containers := make(map[string]types.EndpointResource)
+func buildContainerAttachments(nw *libnetwork.Network) map[string]network.EndpointResource {
+	containers := make(map[string]network.EndpointResource)
 	for _, e := range nw.Endpoints() {
 		ei := e.Info()
 		if ei == nil {
@@ -756,8 +754,8 @@ func buildIPAMResources(nw *libnetwork.Network) network.IPAM {
 
 // buildEndpointResource combines information from the endpoint and additional
 // endpoint-info into a [types.EndpointResource].
-func buildEndpointResource(ep *libnetwork.Endpoint, info libnetwork.EndpointInfo) types.EndpointResource {
-	er := types.EndpointResource{
+func buildEndpointResource(ep *libnetwork.Endpoint, info libnetwork.EndpointInfo) network.EndpointResource {
+	er := network.EndpointResource{
 		EndpointID: ep.ID(),
 		Name:       ep.Name(),
 	}

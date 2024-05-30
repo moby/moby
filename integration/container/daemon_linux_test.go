@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	realcontainer "github.com/docker/docker/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
@@ -153,7 +154,7 @@ func TestDaemonHostGatewayIP(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(res.Stderr(), 0))
 	assert.Equal(t, 0, res.ExitCode)
-	inspect, err := c.NetworkInspect(ctx, "bridge", types.NetworkInspectOptions{})
+	inspect, err := c.NetworkInspect(ctx, "bridge", network.InspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(res.Stdout(), inspect.IPAM.Config[0].Gateway))
 	c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
