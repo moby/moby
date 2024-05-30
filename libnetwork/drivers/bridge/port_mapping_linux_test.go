@@ -31,9 +31,9 @@ func TestPortMappingConfig(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	binding1 := types.PortBinding{Proto: types.UDP, Port: uint16(400), HostPort: uint16(54000)}
-	binding2 := types.PortBinding{Proto: types.TCP, Port: uint16(500), HostPort: uint16(65000)}
-	binding3 := types.PortBinding{Proto: types.SCTP, Port: uint16(300), HostPort: uint16(65000)}
+	binding1 := types.PortBinding{Proto: types.SCTP, Port: uint16(300), HostPort: uint16(65000)}
+	binding2 := types.PortBinding{Proto: types.UDP, Port: uint16(400), HostPort: uint16(54000)}
+	binding3 := types.PortBinding{Proto: types.TCP, Port: uint16(500), HostPort: uint16(65000)}
 	portBindings := []types.PortBinding{binding1, binding2, binding3}
 
 	sbOptions := make(map[string]interface{})
@@ -180,6 +180,57 @@ func loopbackUp() error {
 	return nlHandle.LinkSetUp(iface)
 }
 
+func TestCmpPortBindings(t *testing.T) {
+	pb := types.PortBinding{
+		Proto:       types.TCP,
+		IP:          net.ParseIP("172.17.0.2"),
+		Port:        80,
+		HostIP:      net.ParseIP("192.168.1.2"),
+		HostPort:    8080,
+		HostPortEnd: 8080,
+	}
+	var pbA, pbB types.PortBinding
+
+	assert.Check(t, cmpPortBinding(pb, pb) == 0)
+
+	pbA, pbB = pb, pb
+	pbA.Port = 22
+	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+
+	pbA, pbB = pb, pb
+	pbB.Proto = types.UDP
+	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+
+	pbA, pbB = pb, pb
+	pbA.Port = 22
+	pbA.Proto = types.UDP
+	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+
+	pbA, pbB = pb, pb
+	pbB.HostPort = 8081
+	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+
+	pbA, pbB = pb, pb
+	pbB.HostPort, pbB.HostPortEnd = 0, 0
+	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+
+	pbA, pbB = pb, pb
+	pbB.HostPortEnd = 8081
+	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+
+	pbA, pbB = pb, pb
+	pbA.HostPortEnd = 8080
+	pbB.HostPortEnd = 8081
+	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+}
+
 func TestBindHostPortsError(t *testing.T) {
 	cfg := []portBindingReq{
 		{
@@ -323,9 +374,8 @@ func TestAddPortMappings(t *testing.T) {
 			},
 			busyPortIPv4: 8080,
 			expPBs: []types.PortBinding{
-				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8081, HostPortEnd: 8081},
-				// Note that, unlike the previous test, IPv4/IPv6 get different host ports.
-				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080, HostPortEnd: 8080},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8081},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8081},
 			},
 		},
 		{
@@ -344,14 +394,14 @@ func TestAddPortMappings(t *testing.T) {
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080, HostPortEnd: 8080},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080, HostPortEnd: 8080},
-				{Proto: types.TCP, IP: ctrIP4.IP, Port: 81, HostIP: net.IPv4zero, HostPort: 8081, HostPortEnd: 8081},
-				{Proto: types.TCP, IP: ctrIP6.IP, Port: 81, HostIP: net.IPv6zero, HostPort: 8081, HostPortEnd: 8081},
-				{Proto: types.TCP, IP: ctrIP4.IP, Port: 82, HostIP: net.IPv4zero, HostPort: 8083, HostPortEnd: 8083},
-				{Proto: types.TCP, IP: ctrIP6.IP, Port: 82, HostIP: net.IPv6zero, HostPort: 8083, HostPortEnd: 8083},
 				{Proto: types.UDP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080, HostPortEnd: 8080},
 				{Proto: types.UDP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080, HostPortEnd: 8080},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 81, HostIP: net.IPv4zero, HostPort: 8081, HostPortEnd: 8081},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 81, HostIP: net.IPv6zero, HostPort: 8081, HostPortEnd: 8081},
 				{Proto: types.UDP, IP: ctrIP4.IP, Port: 81, HostIP: net.IPv4zero, HostPort: 8081, HostPortEnd: 8081},
 				{Proto: types.UDP, IP: ctrIP6.IP, Port: 81, HostIP: net.IPv6zero, HostPort: 8081, HostPortEnd: 8081},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 82, HostIP: net.IPv4zero, HostPort: 8083, HostPortEnd: 8083},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 82, HostIP: net.IPv6zero, HostPort: 8083, HostPortEnd: 8083},
 				{Proto: types.UDP, IP: ctrIP4.IP, Port: 82, HostIP: net.IPv4zero, HostPort: 8083, HostPortEnd: 8083},
 				{Proto: types.UDP, IP: ctrIP6.IP, Port: 82, HostIP: net.IPv6zero, HostPort: 8083, HostPortEnd: 8083},
 			},
@@ -436,17 +486,20 @@ func TestAddPortMappings(t *testing.T) {
 			name:     "error releasing bindings",
 			epAddrV4: ctrIP4,
 			epAddrV6: ctrIP6,
-			cfg:      []types.PortBinding{{Proto: types.TCP, Port: 80, HostPort: 8080}, {Proto: types.TCP, Port: 22, HostPort: 2222}},
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 80, HostPort: 8080},
+				{Proto: types.TCP, Port: 22, HostPort: 2222},
+			},
 			expPBs: []types.PortBinding{
-				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080},
-				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080},
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: 2222},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero, HostPort: 2222},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080},
 			},
-			expReleaseErr: "failed to stop docker-proxy for port mapping tcp/172.19.0.2:80/0.0.0.0:8080: can't stop now\n" +
-				"failed to stop docker-proxy for port mapping tcp/fdf8:b88e:bb5c:3483::2:80/:::8080: can't stop now\n" +
-				"failed to stop docker-proxy for port mapping tcp/172.19.0.2:22/0.0.0.0:2222: can't stop now\n" +
-				"failed to stop docker-proxy for port mapping tcp/fdf8:b88e:bb5c:3483::2:22/:::2222: can't stop now",
+			expReleaseErr: "failed to stop docker-proxy for port mapping tcp/172.19.0.2:22/0.0.0.0:2222: can't stop now\n" +
+				"failed to stop docker-proxy for port mapping tcp/fdf8:b88e:bb5c:3483::2:22/:::2222: can't stop now\n" +
+				"failed to stop docker-proxy for port mapping tcp/172.19.0.2:80/0.0.0.0:8080: can't stop now\n" +
+				"failed to stop docker-proxy for port mapping tcp/fdf8:b88e:bb5c:3483::2:80/:::8080: can't stop now",
 		},
 		{
 			name:     "disable nat6",
@@ -495,6 +548,35 @@ func TestAddPortMappings(t *testing.T) {
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero},
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero},
+			},
+		},
+		{
+			name:     "same ports for matching mappings with different host addresses",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg: []types.PortBinding{
+				// These two should both get the same host port.
+				{Proto: types.TCP, Port: 80, HostIP: newIPNet(t, "fd0c:9167:5b11::2/64").IP},
+				{Proto: types.TCP, Port: 80, HostIP: newIPNet(t, "192.168.1.2/24").IP},
+				// These three should all get the same host port.
+				{Proto: types.TCP, Port: 22, HostIP: newIPNet(t, "fd0c:9167:5b11::2/64").IP},
+				{Proto: types.TCP, Port: 22, HostIP: newIPNet(t, "fd0c:9167:5b11::3/64").IP},
+				{Proto: types.TCP, Port: 22, HostIP: newIPNet(t, "192.168.1.2/24").IP},
+				// These two should get different host ports, and the exact-port should be allocated
+				// before the range.
+				{Proto: types.TCP, Port: 12345, HostPort: 12345, HostPortEnd: 12346},
+				{Proto: types.TCP, Port: 12345, HostPort: 12345},
+			},
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 12345, HostIP: net.IPv4zero, HostPort: 12345},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 12345, HostIP: net.IPv6zero, HostPort: 12345},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: newIPNet(t, "192.168.1.2/24").IP, HostPort: firstEphemPort},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: newIPNet(t, "fd0c:9167:5b11::2/64").IP, HostPort: firstEphemPort},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: newIPNet(t, "fd0c:9167:5b11::3/64").IP, HostPort: firstEphemPort},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: newIPNet(t, "192.168.1.2/24").IP, HostPort: firstEphemPort + 1},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: newIPNet(t, "fd0c:9167:5b11::2/64").IP, HostPort: firstEphemPort + 1},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 12345, HostIP: net.IPv4zero, HostPort: 12346},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 12345, HostIP: net.IPv6zero, HostPort: 12346},
 			},
 		},
 	}

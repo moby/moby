@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
+	"slices"
 	"strconv"
 
 	"github.com/containerd/log"
@@ -64,10 +66,23 @@ func (n *bridgeNetwork) addPortMappings(
 		}
 	}()
 
+	sortedCfg := slices.Clone(cfg)
+	sortAndNormPBs(sortedCfg)
+
 	proxyPath := n.userlandProxyPath()
 	disableNAT4, disableNAT6 := n.getNATDisabled()
-	for _, c := range cfg {
-		toBind := make([]portBindingReq, 0, 2)
+
+	// toBind accumulates port bindings that should be allocated the same host port
+	// (if required by NAT config). If the host address is unspecified, and defHostIP
+	// is 0.0.0.0, one iteration of the loop may generate bindings for v4 and v6. If
+	// a host address is specified, it'll either be IPv4 or IPv6, and only one
+	// binding will be added per iteration. Config for bindings that only differ in
+	// host IP are sorted next to each other, the loop continues until toBind has
+	// collected them all, for both v4 and v6. The addresses may be 0.0.0.0 and [::],
+	// or multiple addresses of both address families. Once there are no more
+	// bindings to collect, they're applied and toBind is reset.
+	var toBind []portBindingReq
+	for i, c := range sortedCfg {
 		if bindingIPv4, ok := configurePortBindingIPv4(disableNAT4, c, containerIPv4, defHostIP); ok {
 			toBind = append(toBind, bindingIPv4)
 		}
@@ -88,11 +103,22 @@ func (n *bridgeNetwork) addPortMappings(
 			toBind = append(toBind, bindingIPv6)
 		}
 
+		if i < len(sortedCfg)-1 && needSamePort(c, sortedCfg[i+1]) {
+			// This port binding matches the next, apart from host IP. So, continue
+			// collecting bindings, then allocate the same host port for all addresses.
+			continue
+		}
+
+		// Allocate a host port, and reserve it by starting docker-proxy for each host
+		// address in toBind.
 		newB, err := bindHostPorts(toBind, proxyPath)
 		if err != nil {
 			return nil, err
 		}
 		bindings = append(bindings, newB...)
+
+		// Reset the collection of bindings now they're bound.
+		toBind = toBind[:0]
 	}
 
 	for _, b := range bindings {
@@ -102,6 +128,70 @@ func (n *bridgeNetwork) addPortMappings(
 	}
 
 	return bindings, nil
+}
+
+// sortAndNormPBs normalises cfg by making HostPortEnd=HostPort (rather than 0) if the
+// host port isn't a range - and sorts it into the ordering defined by cmpPortBinding.
+func sortAndNormPBs(cfg []types.PortBinding) {
+	for i := range cfg {
+		if cfg[i].HostPortEnd == 0 {
+			cfg[i].HostPortEnd = cfg[i].HostPort
+		}
+	}
+	slices.SortFunc(cfg, cmpPortBinding)
+}
+
+// cmpPortBinding defines an ordering over PortBinding such that bindings that differ
+// only in host IP are adjacent (those bindings should be allocated the same port).
+//
+// Exact host ports are placed before ranges (in case exact ports fall within ranges,
+// giving a better chance of allocating the exact ports), then PortBindings with the:
+// - same container port are adjacent (lowest ports first), then
+// - same protocols are adjacent (tcp < udp < sctp), then
+// - same host ports or ranges are adjacent, then
+// - ordered by container IP (then host IP, if set).
+func cmpPortBinding(a, b types.PortBinding) int {
+	// Exact host port < host port range.
+	aIsRange := a.HostPort == 0 || a.HostPort != a.HostPortEnd
+	bIsRange := b.HostPort == 0 || b.HostPort != b.HostPortEnd
+	if aIsRange != bIsRange {
+		if aIsRange {
+			return 1
+		}
+		return -1
+	}
+	if a.Port != b.Port {
+		return int(a.Port) - int(b.Port)
+	}
+	if a.Proto != b.Proto {
+		return int(a.Proto) - int(b.Proto)
+	}
+	if a.HostPort != b.HostPort {
+		return int(a.HostPort) - int(b.HostPort)
+	}
+	if a.HostPortEnd != b.HostPortEnd {
+		return int(a.HostPortEnd) - int(b.HostPortEnd)
+	}
+	aHostIP, _ := netip.AddrFromSlice(a.HostIP)
+	bHostIP, _ := netip.AddrFromSlice(b.HostIP)
+	if c := aHostIP.Unmap().Compare(bHostIP.Unmap()); c != 0 {
+		return c
+	}
+	aIP, _ := netip.AddrFromSlice(a.IP)
+	bIP, _ := netip.AddrFromSlice(b.IP)
+	return aIP.Unmap().Compare(bIP.Unmap())
+}
+
+// needSamePort returns true iff a and b only differ in the host IP address,
+// meaning they should be allocated the same host port (so that, if v4/v6
+// addresses are returned in a DNS response or similar, clients can bind without
+// needing to adjust the port number depending on which address is used).
+func needSamePort(a, b types.PortBinding) bool {
+	return a.Port == b.Port &&
+		a.Proto == b.Proto &&
+		a.HostPort == b.HostPort &&
+		a.HostPortEnd == b.HostPortEnd &&
+		a.IP.Equal(b.IP)
 }
 
 // configurePortBindingIPv4 returns a new port binding with the HostIP field populated
@@ -125,10 +215,6 @@ func configurePortBindingIPv4(disableNAT bool, bnd types.PortBinding, containerI
 	// Unmap the addresses if they're IPv4-mapped IPv6.
 	bnd.HostIP = bnd.HostIP.To4()
 	bnd.IP = containerIPv4.To4()
-	// Adjust HostPortEnd if this is not a range.
-	if bnd.HostPortEnd == 0 {
-		bnd.HostPortEnd = bnd.HostPort
-	}
 	return portBindingReq{
 		PortBinding: bnd,
 		disableNAT:  disableNAT,
@@ -164,10 +250,6 @@ func configurePortBindingIPv6(disableNAT bool, bnd types.PortBinding, containerI
 		}
 	}
 	bnd.IP = containerIP
-	// Adjust HostPortEnd if this is not a range.
-	if bnd.HostPortEnd == 0 {
-		bnd.HostPortEnd = bnd.HostPort
-	}
 	return portBindingReq{
 		PortBinding: bnd,
 		disableNAT:  disableNAT,
