@@ -184,10 +184,10 @@ func (cli *Client) doRequest(req *http.Request) (serverResponse, error) {
 		// `open //./pipe/docker_engine: Le fichier spécifié est introuvable.`
 		if strings.Contains(err.Error(), `open //./pipe/docker_engine`) {
 			// Checks if client is running with elevated privileges
-			if f, elevatedErr := os.Open("\\\\.\\PHYSICALDRIVE0"); elevatedErr == nil {
+			if f, elevatedErr := os.Open(`\\.\PHYSICALDRIVE0`); elevatedErr != nil {
 				err = errors.Wrap(err, "in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect")
 			} else {
-				f.Close()
+				_ = f.Close()
 				err = errors.Wrap(err, "this error may indicate that the docker daemon is not running")
 			}
 		}
