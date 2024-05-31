@@ -22,11 +22,6 @@ func (cli *Client) NetworkInspectWithRaw(ctx context.Context, networkID string, 
 	if networkID == "" {
 		return types.NetworkResource{}, nil, objectNotFoundError{object: "network", id: networkID}
 	}
-	var (
-		networkResource types.NetworkResource
-		resp            serverResponse
-		err             error
-	)
 	query := url.Values{}
 	if options.Verbose {
 		query.Set("verbose", "true")
@@ -34,17 +29,19 @@ func (cli *Client) NetworkInspectWithRaw(ctx context.Context, networkID string, 
 	if options.Scope != "" {
 		query.Set("scope", options.Scope)
 	}
-	resp, err = cli.get(ctx, "/networks/"+networkID, query, nil)
+
+	resp, err := cli.get(ctx, "/networks/"+networkID, query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return networkResource, nil, err
+		return types.NetworkResource{}, nil, err
 	}
 
-	body, err := io.ReadAll(resp.body)
+	raw, err := io.ReadAll(resp.body)
 	if err != nil {
-		return networkResource, nil, err
+		return types.NetworkResource{}, nil, err
 	}
-	rdr := bytes.NewReader(body)
-	err = json.NewDecoder(rdr).Decode(&networkResource)
-	return networkResource, body, err
+
+	var nw types.NetworkResource
+	err = json.NewDecoder(bytes.NewReader(raw)).Decode(&nw)
+	return nw, raw, err
 }
