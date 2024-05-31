@@ -33,3 +33,8 @@ type NetworkDisconnect = network.DisconnectOptions
 //
 // Deprecated: use [network.EndpointResource].
 type EndpointResource = network.EndpointResource
+
+// NetworkResource is the body of the "get network" http response message/
+//
+// Deprecated: use [network.Inspect] or [network.Summary] (for list operations).
+type NetworkResource = network.Inspect

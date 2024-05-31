@@ -6,13 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 )
 
 func TestFilterNetworks(t *testing.T) {
-	networks := []types.NetworkResource{
+	networks := []network.Inspect{
 		{
 			Name:   "host",
 			Driver: "host",
@@ -134,7 +133,7 @@ func TestFilterNetworks(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			ls := make([]types.NetworkResource, 0, len(networks))
+			ls := make([]network.Inspect, 0, len(networks))
 			ls = append(ls, networks...)
 			result, err := FilterNetworks(ls, testCase.filter)
 			if testCase.err != "" {

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -47,12 +46,12 @@ func TestNetworkInspect(t *testing.T) {
 				s := map[string]network.ServiceInfo{
 					"web": {},
 				}
-				content, err = json.Marshal(types.NetworkResource{
+				content, err = json.Marshal(network.Inspect{
 					Name:     "mynetwork",
 					Services: s,
 				})
 			} else {
-				content, err = json.Marshal(types.NetworkResource{
+				content, err = json.Marshal(network.Inspect{
 					Name: "mynetwork",
 				})
 			}

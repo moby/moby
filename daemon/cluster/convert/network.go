@@ -137,7 +137,7 @@ func swarmPortConfigToAPIPortConfig(portConfig *swarmapi.PortConfig) types.PortC
 }
 
 // BasicNetworkFromGRPC converts a grpc Network to a NetworkResource.
-func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
+func BasicNetworkFromGRPC(n swarmapi.Network) networktypes.Inspect {
 	spec := n.Spec
 	var ipam networktypes.IPAM
 	if n.IPAM != nil {
@@ -157,7 +157,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 		}
 	}
 
-	nr := basictypes.NetworkResource{
+	nr := networktypes.Inspect{
 		ID:         n.ID,
 		Name:       n.Spec.Annotations.Name,
 		Scope:      scope.Swarm,

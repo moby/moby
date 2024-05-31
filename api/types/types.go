@@ -423,27 +423,6 @@ type MountPoint struct {
 	Propagation mount.Propagation
 }
 
-// NetworkResource is the body of the "get network" http response message
-type NetworkResource struct {
-	Name       string                              // Name is the requested name of the network
-	ID         string                              `json:"Id"` // ID uniquely identifies a network on a single machine
-	Created    time.Time                           // Created is the time the network created
-	Scope      string                              // Scope describes the level at which the network exists (e.g. `swarm` for cluster-wide or `local` for machine level)
-	Driver     string                              // Driver is the Driver name used to create the network (e.g. `bridge`, `overlay`)
-	EnableIPv6 bool                                // EnableIPv6 represents whether to enable IPv6
-	IPAM       network.IPAM                        // IPAM is the network's IP Address Management
-	Internal   bool                                // Internal represents if the network is used internal only
-	Attachable bool                                // Attachable represents if the global scope is manually attachable by regular containers from workers in swarm mode.
-	Ingress    bool                                // Ingress indicates the network is providing the routing-mesh for the swarm cluster.
-	ConfigFrom network.ConfigReference             // ConfigFrom specifies the source which will provide the configuration for this network.
-	ConfigOnly bool                                // ConfigOnly networks are place-holder networks for network configurations to be used by other networks. ConfigOnly networks cannot be used directly to run containers or services.
-	Containers map[string]network.EndpointResource // Containers contains endpoints belonging to the network
-	Options    map[string]string                   // Options holds the network specific options to use for when creating the network
-	Labels     map[string]string                   // Labels holds metadata specific to the network being created
-	Peers      []network.PeerInfo                  `json:",omitempty"` // List of peer nodes for an overlay network
-	Services   map[string]network.ServiceInfo      `json:",omitempty"`
-}
-
 // NetworkCreate is the expected body of the "create network" http request message
 type NetworkCreate struct {
 	// Deprecated: CheckDuplicate is deprecated since API v1.44, but it defaults to true when sent by the client

@@ -110,9 +110,9 @@ type NetworkAPIClient interface {
 	NetworkConnect(ctx context.Context, network, container string, config *network.EndpointSettings) error
 	NetworkCreate(ctx context.Context, name string, options types.NetworkCreate) (network.CreateResponse, error)
 	NetworkDisconnect(ctx context.Context, network, container string, force bool) error
-	NetworkInspect(ctx context.Context, network string, options network.InspectOptions) (types.NetworkResource, error)
-	NetworkInspectWithRaw(ctx context.Context, network string, options network.InspectOptions) (types.NetworkResource, []byte, error)
-	NetworkList(ctx context.Context, options network.ListOptions) ([]types.NetworkResource, error)
+	NetworkInspect(ctx context.Context, network string, options network.InspectOptions) (network.Inspect, error)
+	NetworkInspectWithRaw(ctx context.Context, network string, options network.InspectOptions) (network.Inspect, []byte, error)
+	NetworkList(ctx context.Context, options network.ListOptions) ([]network.Summary, error)
 	NetworkRemove(ctx context.Context, network string) error
 	NetworksPrune(ctx context.Context, pruneFilter filters.Args) (types.NetworksPruneReport, error)
 }
