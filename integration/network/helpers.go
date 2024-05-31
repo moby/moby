@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert/cmp"
@@ -45,7 +45,7 @@ func LinkExists(ctx context.Context, t *testing.T, master string) {
 // IsNetworkAvailable provides a comparison to check if a docker network is available
 func IsNetworkAvailable(ctx context.Context, c client.NetworkAPIClient, name string) cmp.Comparison {
 	return func() cmp.Result {
-		networks, err := c.NetworkList(ctx, types.NetworkListOptions{})
+		networks, err := c.NetworkList(ctx, network.ListOptions{})
 		if err != nil {
 			return cmp.ResultFromError(err)
 		}
@@ -61,7 +61,7 @@ func IsNetworkAvailable(ctx context.Context, c client.NetworkAPIClient, name str
 // IsNetworkNotAvailable provides a comparison to check if a docker network is not available
 func IsNetworkNotAvailable(ctx context.Context, c client.NetworkAPIClient, name string) cmp.Comparison {
 	return func() cmp.Result {
-		networks, err := c.NetworkList(ctx, types.NetworkListOptions{})
+		networks, err := c.NetworkList(ctx, network.ListOptions{})
 		if err != nil {
 			return cmp.ResultFromError(err)
 		}
