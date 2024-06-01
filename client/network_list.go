@@ -7,10 +7,11 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 )
 
 // NetworkList returns the list of networks configured in the docker host.
-func (cli *Client) NetworkList(ctx context.Context, options types.NetworkListOptions) ([]types.NetworkResource, error) {
+func (cli *Client) NetworkList(ctx context.Context, options network.ListOptions) ([]types.NetworkResource, error) {
 	query := url.Values{}
 	if options.Filters.Len() > 0 {
 		//nolint:staticcheck // ignore SA1019 for old code

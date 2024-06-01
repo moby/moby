@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/plugin"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
@@ -32,7 +32,7 @@ func OnlyDefaultNetworks(ctx context.Context) bool {
 	if err != nil {
 		return false
 	}
-	networks, err := apiClient.NetworkList(ctx, types.NetworkListOptions{})
+	networks, err := apiClient.NetworkList(ctx, network.ListOptions{})
 	if err != nil || len(networks) > 0 {
 		return false
 	}

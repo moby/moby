@@ -35,11 +35,6 @@ type EventsOptions struct {
 	Filters filters.Args
 }
 
-// NetworkListOptions holds parameters to filter the list of networks with.
-type NetworkListOptions struct {
-	Filters filters.Args
-}
-
 // NewHijackedResponse intializes a HijackedResponse type
 func NewHijackedResponse(conn net.Conn, mediaType string) HijackedResponse {
 	return HijackedResponse{Conn: conn, Reader: bufio.NewReader(conn), mediaType: mediaType}
