@@ -697,7 +697,7 @@ func (e *exitError) ExitCode() int {
 	return e.code
 }
 
-func (e *exitError) Cause() error {
+func (e *exitError) Unwrap() error {
 	return e.cause
 }
 

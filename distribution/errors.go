@@ -32,10 +32,10 @@ type fallbackError struct {
 
 // Error renders the FallbackError as a string.
 func (f fallbackError) Error() string {
-	return f.Cause().Error()
+	return f.Unwrap().Error()
 }
 
-func (f fallbackError) Cause() error {
+func (f fallbackError) Unwrap() error {
 	return f.err
 }
 
@@ -60,7 +60,7 @@ func (e notFoundError) Error() string {
 
 func (e notFoundError) NotFound() {}
 
-func (e notFoundError) Cause() error {
+func (e notFoundError) Unwrap() error {
 	return e.cause
 }
 

@@ -6,10 +6,6 @@ type errNotFound struct{ error }
 
 func (errNotFound) NotFound() {}
 
-func (e errNotFound) Cause() error {
-	return e.error
-}
-
 func (e errNotFound) Unwrap() error {
 	return e.error
 }
@@ -25,10 +21,6 @@ func NotFound(err error) error {
 type errInvalidParameter struct{ error }
 
 func (errInvalidParameter) InvalidParameter() {}
-
-func (e errInvalidParameter) Cause() error {
-	return e.error
-}
 
 func (e errInvalidParameter) Unwrap() error {
 	return e.error
@@ -46,10 +38,6 @@ type errConflict struct{ error }
 
 func (errConflict) Conflict() {}
 
-func (e errConflict) Cause() error {
-	return e.error
-}
-
 func (e errConflict) Unwrap() error {
 	return e.error
 }
@@ -65,10 +53,6 @@ func Conflict(err error) error {
 type errUnauthorized struct{ error }
 
 func (errUnauthorized) Unauthorized() {}
-
-func (e errUnauthorized) Cause() error {
-	return e.error
-}
 
 func (e errUnauthorized) Unwrap() error {
 	return e.error
@@ -86,10 +70,6 @@ type errUnavailable struct{ error }
 
 func (errUnavailable) Unavailable() {}
 
-func (e errUnavailable) Cause() error {
-	return e.error
-}
-
 func (e errUnavailable) Unwrap() error {
 	return e.error
 }
@@ -105,10 +85,6 @@ func Unavailable(err error) error {
 type errForbidden struct{ error }
 
 func (errForbidden) Forbidden() {}
-
-func (e errForbidden) Cause() error {
-	return e.error
-}
 
 func (e errForbidden) Unwrap() error {
 	return e.error
@@ -126,10 +102,6 @@ type errSystem struct{ error }
 
 func (errSystem) System() {}
 
-func (e errSystem) Cause() error {
-	return e.error
-}
-
 func (e errSystem) Unwrap() error {
 	return e.error
 }
@@ -145,10 +117,6 @@ func System(err error) error {
 type errNotModified struct{ error }
 
 func (errNotModified) NotModified() {}
-
-func (e errNotModified) Cause() error {
-	return e.error
-}
 
 func (e errNotModified) Unwrap() error {
 	return e.error
@@ -166,10 +134,6 @@ type errNotImplemented struct{ error }
 
 func (errNotImplemented) NotImplemented() {}
 
-func (e errNotImplemented) Cause() error {
-	return e.error
-}
-
 func (e errNotImplemented) Unwrap() error {
 	return e.error
 }
@@ -185,10 +149,6 @@ func NotImplemented(err error) error {
 type errUnknown struct{ error }
 
 func (errUnknown) Unknown() {}
-
-func (e errUnknown) Cause() error {
-	return e.error
-}
 
 func (e errUnknown) Unwrap() error {
 	return e.error
@@ -206,10 +166,6 @@ type errCancelled struct{ error }
 
 func (errCancelled) Cancelled() {}
 
-func (e errCancelled) Cause() error {
-	return e.error
-}
-
 func (e errCancelled) Unwrap() error {
 	return e.error
 }
@@ -226,10 +182,6 @@ type errDeadline struct{ error }
 
 func (errDeadline) DeadlineExceeded() {}
 
-func (e errDeadline) Cause() error {
-	return e.error
-}
-
 func (e errDeadline) Unwrap() error {
 	return e.error
 }
@@ -245,10 +197,6 @@ func Deadline(err error) error {
 type errDataLoss struct{ error }
 
 func (errDataLoss) DataLoss() {}
-
-func (e errDataLoss) Cause() error {
-	return e.error
-}
 
 func (e errDataLoss) Unwrap() error {
 	return e.error

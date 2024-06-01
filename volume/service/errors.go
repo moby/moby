@@ -58,8 +58,8 @@ func (e *OpErr) Error() string {
 	return s
 }
 
-// Cause returns the error the caused this error
-func (e *OpErr) Cause() error {
+// Unwrap returns the error which caused this error using standard library interface
+func (e *OpErr) Unwrap() error {
 	return e.Err
 }
 
@@ -80,16 +80,19 @@ func IsNameConflict(err error) bool {
 	return isErr(err, errNameConflict)
 }
 
-type causal interface {
-	Cause() error
-}
-
 func isErr(err error, expected error) bool {
 	switch pe := err.(type) {
 	case nil:
 		return false
-	case causal:
-		return isErr(pe.Cause(), expected)
+	case interface{ Unwrap() error }:
+		return isErr(pe.Unwrap(), expected)
+	case interface{ Unwrap() []error }:
+		for _, ue := range pe.Unwrap() {
+			if isErr(ue, expected) {
+				return true
+			}
+		}
+		return false
 	}
 	return err == expected
 }

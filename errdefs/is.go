@@ -24,7 +24,7 @@ var IsConflict = cerrdefs.IsConflict
 
 // IsUnauthorized returns if the passed in error is an ErrUnauthorized
 //
-// Deprecated: use containerd [errdefs.IsUnavailable]
+// Deprecated: use containerd [errdefs.IsUnauthorized]
 var IsUnauthorized = cerrdefs.IsUnauthorized
 
 // IsUnavailable returns if the passed in error is an ErrUnavailable

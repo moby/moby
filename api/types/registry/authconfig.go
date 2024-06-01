@@ -94,6 +94,4 @@ type errInvalidParameter struct{ error }
 
 func (errInvalidParameter) InvalidParameter() {}
 
-func (e errInvalidParameter) Cause() error { return e.error }
-
 func (e errInvalidParameter) Unwrap() error { return e.error }
