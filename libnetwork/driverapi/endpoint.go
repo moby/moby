@@ -5,17 +5,17 @@ type EndpointDriver interface {
 	Driver
 
 	// CreateEndpoint invokes the driver method to create an endpoint
-	// passing the network id, endpoint id endpoint information and driver
+	// passing the network id, endpoint id, endpoint information and driver
 	// specific config. The endpoint information can be either consumed by
-	// the driver or populated by the driver. The config mechanism will
-	// eventually be replaced with labels which are yet to be introduced.
+	// the driver or populated by the driver.
 	CreateEndpoint(nid, eid string, ifInfo InterfaceInfo, options map[string]interface{}) error
 
-	// DeleteEndpoint invokes the driver method to delete an endpoint
-	// passing the network id and endpoint id.
+	// DeleteEndpoint invokes the driver method to delete an endpoint passing
+	// the network id and endpoint id.
 	DeleteEndpoint(nid, eid string) error
 
-	// EndpointOperInfo retrieves from the driver the operational data related to the specified endpoint
+	// EndpointOperInfo retrieves from the driver the operational data related
+	// to the specified endpoint.
 	EndpointOperInfo(nid, eid string) (map[string]interface{}, error)
 
 	// Join method is invoked when a Sandbox is attached to an endpoint.
