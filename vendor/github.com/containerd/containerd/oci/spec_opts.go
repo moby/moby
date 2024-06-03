@@ -457,6 +457,7 @@ func WithImageConfigArgs(image Image, args []string) SpecOpts {
 				return errors.New("no arguments specified")
 			}
 
+			//nolint:staticcheck // ArgsEscaped is deprecated
 			if config.ArgsEscaped && (len(config.Entrypoint) > 0 || cmdFromImage) {
 				s.Process.Args = nil
 				s.Process.CommandLine = cmd[0]
