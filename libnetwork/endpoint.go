@@ -600,10 +600,6 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 		return nil
 	}
 
-	if sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
-		return sb.setupDefaultGW()
-	}
-
 	// Enable upstream forwarding if the sandbox gained external connectivity.
 	if sb.resolver != nil {
 		sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
@@ -643,13 +639,6 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 					"driver failed programming external connectivity on endpoint %s (%s): %v",
 					ep.Name(), ep.ID(), err)
 			}
-		}
-	}
-
-	if !sb.needDefaultGW() {
-		if e := sb.clearDefaultGW(); e != nil {
-			log.G(context.TODO()).Warnf("Failure while disconnecting sandbox %s (%s) from gateway network: %v",
-				sb.ID(), sb.ContainerID(), e)
 		}
 	}
 
@@ -802,9 +791,6 @@ func (ep *Endpoint) sbLeave(sb *Sandbox, force bool) error {
 	}
 
 	sb.deleteHostsEntries(n.getSvcRecords(ep))
-	if !sb.inDelete && sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
-		return sb.setupDefaultGW()
-	}
 
 	// Disable upstream forwarding if the sandbox lost external connectivity.
 	if sb.resolver != nil {
@@ -826,13 +812,6 @@ func (ep *Endpoint) sbLeave(sb *Sandbox, force bool) error {
 		if err := extD.ProgramExternalConnectivity(extEp.network.ID(), extEp.ID(), sb.Labels()); err != nil {
 			log.G(context.TODO()).Warnf("driver failed programming external connectivity on endpoint %s: (%s) %v",
 				extEp.Name(), extEp.ID(), err)
-		}
-	}
-
-	if !sb.needDefaultGW() {
-		if err := sb.clearDefaultGW(); err != nil {
-			log.G(context.TODO()).Warnf("Failure while disconnecting sandbox %s (%s) from gateway network: %v",
-				sb.ID(), sb.ContainerID(), err)
 		}
 	}
 

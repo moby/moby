@@ -16,7 +16,7 @@ const (
 )
 
 /*
-   libnetwork creates a bridge network "docker_gw_bridge" for providing
+   libnetwork creates a bridge network "docker_gwbridge" for providing
    default gateway for the containers if none of the container's endpoints
    have GW set by the driver. ICC is set to false for the GW_bridge network.
 
@@ -29,21 +29,11 @@ const (
    - its deleted when an endpoint with GW joins the container
 */
 
-func (sb *Sandbox) setupDefaultGW() error {
-	// check if the container already has a GW endpoint
-	if ep := sb.getEndpointInGWNetwork(); ep != nil {
-		return nil
-	}
-
-	c := sb.controller
-
-	// Look for default gw network. In case of error (includes not found),
-	// retry and create it if needed in a serialized execution.
-	n, err := c.NetworkByName(libnGWNetwork)
+func (c *Controller) ConnectToDefaultGw(sb *Sandbox) error {
+	// Look for default gw network, and create it if it doesn't exist.
+	n, err := c.defaultGwNetwork()
 	if err != nil {
-		if n, err = c.defaultGwNetwork(); err != nil {
-			return err
-		}
+		return err
 	}
 
 	createOptions := []EndpointOption{}
@@ -91,11 +81,12 @@ func (sb *Sandbox) setupDefaultGW() error {
 	return nil
 }
 
-// If present, detach and remove the endpoint connecting the sandbox to the default gw network.
-func (sb *Sandbox) clearDefaultGW() error {
-	var ep *Endpoint
-
-	if ep = sb.getEndpointInGWNetwork(); ep == nil {
+// DisconnectFromDefaultGw disconnect sb from the default gw network. It
+// returns an error if it fails to disconnect. No error is returned if sb isn't
+// connected to that network.
+func (c *Controller) DisconnectFromDefaultGw(sb *Sandbox) error {
+	ep := sb.getEndpointInGWNetwork()
+	if ep == nil {
 		return nil
 	}
 	if err := ep.sbLeave(sb, false); err != nil {
@@ -107,11 +98,11 @@ func (sb *Sandbox) clearDefaultGW() error {
 	return nil
 }
 
-// needDefaultGW evaluates whether the sandbox needs to be connected to the
+// NeedDefaultGW evaluates whether the sandbox needs to be connected to the
 // 'docker_gwbridge' network based on the endpoints to which it is connected
 // to (ie. at least one endpoint should require it, and no other endpoint
 // should provide a gateway).
-func (sb *Sandbox) needDefaultGW() bool {
+func (sb *Sandbox) NeedDefaultGW() bool {
 	for _, ep := range sb.Endpoints() {
 		if ep.endpointInGWNetwork() {
 			// There's already an endpoint attached to docker_gwbridge. This sandbox doesn't need to be attached to it
