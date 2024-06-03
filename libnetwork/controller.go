@@ -692,12 +692,6 @@ addToStore:
 		}
 	}()
 
-	if nw.hasLoadBalancerEndpoint() {
-		if err := nw.createLoadBalancerSandbox(); err != nil {
-			return nil, err
-		}
-	}
-
 	if c.isSwarmNode() {
 		c.mu.Lock()
 		arrangeIngressFilterRule()

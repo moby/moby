@@ -386,15 +386,6 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create network.CreateReq
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionConfigFrom(create.ConfigFrom.Network))
 	}
 
-	if agent && driver == "overlay" {
-		nodeIP, exists := daemon.GetAttachmentStore().GetIPForNetwork(id)
-		if !exists {
-			return nil, fmt.Errorf("failed to find a load balancer IP to use for network: %v", id)
-		}
-
-		nwOptions = append(nwOptions, libnetwork.NetworkOptionLBEndpoint(nodeIP))
-	}
-
 	n, err := c.NewNetwork(driver, create.Name, id, nwOptions...)
 	if err != nil {
 		return nil, err
@@ -404,6 +395,18 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create network.CreateReq
 	if create.IPAM != nil {
 		daemon.pluginRefCount(create.IPAM.Driver, ipamapi.PluginEndpointType, plugingetter.Acquire)
 	}
+
+	if agent && driver == "overlay" {
+		nodeIP, exists := daemon.GetAttachmentStore().GetIPForNetwork(id)
+		if !exists {
+			return nil, fmt.Errorf("failed to find a load balancer IP to use for network: %v", id)
+		}
+
+		if err := daemon.netController.CreateLoadBalancer(n, nodeIP); err != nil {
+			return nil, err
+		}
+	}
+
 	daemon.LogNetworkEvent(n, events.ActionCreate)
 
 	return &network.CreateResponse{ID: n.ID()}, nil
