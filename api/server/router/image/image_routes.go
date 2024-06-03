@@ -49,7 +49,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		if p := r.FormValue("platform"); p != "" {
 			sp, err := platforms.Parse(p)
 			if err != nil {
-				return err
+				return errdefs.InvalidParameter(err)
 			}
 			platform = &sp
 		}

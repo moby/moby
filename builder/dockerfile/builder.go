@@ -156,7 +156,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, er
 	if config.Platform != "" {
 		sp, err := platforms.Parse(config.Platform)
 		if err != nil {
-			return nil, err
+			return nil, errdefs.InvalidParameter(err)
 		}
 		b.platform = &sp
 	}
