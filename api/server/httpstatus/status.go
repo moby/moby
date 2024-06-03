@@ -24,42 +24,37 @@ func FromError(err error) int {
 		return http.StatusInternalServerError
 	}
 
-	var statusCode int
-
 	// Stop right there
 	// Are you sure you should be adding a new error class here? Do one of the existing ones work?
 
 	// Note that the below functions are already checking the error causal chain for matches.
 	switch {
 	case errdefs.IsNotFound(err):
-		statusCode = http.StatusNotFound
+		return http.StatusNotFound
 	case errdefs.IsInvalidParameter(err):
-		statusCode = http.StatusBadRequest
+		return http.StatusBadRequest
 	case errdefs.IsConflict(err):
-		statusCode = http.StatusConflict
+		return http.StatusConflict
 	case errdefs.IsUnauthorized(err):
-		statusCode = http.StatusUnauthorized
+		return http.StatusUnauthorized
 	case errdefs.IsUnavailable(err):
-		statusCode = http.StatusServiceUnavailable
+		return http.StatusServiceUnavailable
 	case errdefs.IsForbidden(err):
-		statusCode = http.StatusForbidden
+		return http.StatusForbidden
 	case errdefs.IsNotModified(err):
-		statusCode = http.StatusNotModified
+		return http.StatusNotModified
 	case errdefs.IsNotImplemented(err):
-		statusCode = http.StatusNotImplemented
+		return http.StatusNotImplemented
 	case errdefs.IsSystem(err) || errdefs.IsUnknown(err) || errdefs.IsDataLoss(err) || errdefs.IsDeadline(err) || errdefs.IsCancelled(err):
-		statusCode = http.StatusInternalServerError
+		return http.StatusInternalServerError
 	default:
-		statusCode = statusCodeFromGRPCError(err)
-		if statusCode != http.StatusInternalServerError {
+		if statusCode := statusCodeFromGRPCError(err); statusCode != http.StatusInternalServerError {
 			return statusCode
 		}
-		statusCode = statusCodeFromContainerdError(err)
-		if statusCode != http.StatusInternalServerError {
+		if statusCode := statusCodeFromContainerdError(err); statusCode != http.StatusInternalServerError {
 			return statusCode
 		}
-		statusCode = statusCodeFromDistributionError(err)
-		if statusCode != http.StatusInternalServerError {
+		if statusCode := statusCodeFromDistributionError(err); statusCode != http.StatusInternalServerError {
 			return statusCode
 		}
 		if e, ok := err.(causer); ok {
@@ -71,13 +66,9 @@ func FromError(err error) int {
 			"error":      err,
 			"error_type": fmt.Sprintf("%T", err),
 		}).Debug("FIXME: Got an API for which error does not match any expected type!!!")
-	}
 
-	if statusCode == 0 {
-		statusCode = http.StatusInternalServerError
+		return http.StatusInternalServerError
 	}
-
-	return statusCode
 }
 
 // statusCodeFromGRPCError returns status code according to gRPC error
