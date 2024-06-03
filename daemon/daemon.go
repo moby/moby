@@ -10,12 +10,16 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -60,6 +64,8 @@ import (
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/cluster"
 	nwconfig "github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/libnetwork/ipamutils"
+	"github.com/docker/docker/libnetwork/ipbits"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
@@ -1461,7 +1467,7 @@ func isBridgeNetworkDisabled(conf *config.Config) bool {
 	return conf.BridgeConfig.Iface == config.DisableNetworkBridge
 }
 
-func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.PluginGetter, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
+func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.PluginGetter, hostID string, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
 	dd := runconfig.DefaultDaemonNetworkMode()
 
 	options := []nwconfig.Option{
@@ -1474,9 +1480,21 @@ func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.Plugin
 		driverOptions(conf),
 	}
 
+	defaultAddressPools := ipamutils.GetLocalScopeDefaultNetworks()
 	if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 {
-		options = append(options, nwconfig.OptionDefaultAddressPoolConfig(conf.NetworkConfig.DefaultAddressPools.Value()))
+		defaultAddressPools = conf.NetworkConfig.DefaultAddressPools.Value()
 	}
+	// If the Engine admin don't configure default-address-pools or if they
+	// don't provide any IPv6 prefix, we derive a ULA prefix from the daemon's
+	// hostID and add it to the pools. This makes dynamic IPv6 subnet
+	// allocation possible out-of-the-box.
+	if !slices.ContainsFunc(defaultAddressPools, func(nw *ipamutils.NetworkToSplit) bool {
+		return nw.Base.Addr().Is6() && !nw.Base.Addr().Is4In6()
+	}) {
+		defaultAddressPools = append(defaultAddressPools, deriveULABaseNetwork(hostID))
+	}
+	options = append(options, nwconfig.OptionDefaultAddressPoolConfig(defaultAddressPools))
+
 	if conf.LiveRestoreEnabled && len(activeSandboxes) != 0 {
 		options = append(options, nwconfig.OptionActiveSandboxes(activeSandboxes))
 	}
@@ -1485,6 +1503,23 @@ func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.Plugin
 	}
 
 	return options, nil
+}
+
+// deriveULABaseNetwork derives a Global ID from the provided hostID and
+// appends it to the ULA prefix (with L bit set) to generate a ULA prefix
+// unique to this host. The returned ipamutils.NetworkToSplit is stable over
+// time if hostID doesn't change.
+//
+// This is loosely based on the algorithm described in https://datatracker.ietf.org/doc/html/rfc4193#section-3.2.2.
+func deriveULABaseNetwork(hostID string) *ipamutils.NetworkToSplit {
+	sha := sha256.Sum256([]byte(hostID))
+	gid := binary.BigEndian.Uint64(sha[:]) & (1<<40 - 1) // Keep the 40 least significant bits.
+	addr := ipbits.Add(netip.MustParseAddr("fd00::"), gid, 80)
+
+	return &ipamutils.NetworkToSplit{
+		Base: netip.PrefixFrom(addr, 48),
+		Size: 64,
+	}
 }
 
 // GetCluster returns the cluster

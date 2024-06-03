@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/ipams/defaultipam"
+	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
@@ -24,6 +25,7 @@ func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network)
 		config.OptionDriverConfig(netType, map[string]any{
 			netlabel.GenericData: options.Generic{"EnableIPForwarding": true},
 		}),
+		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()),
 	)
 	if err != nil {
 		t.Fatal(err)

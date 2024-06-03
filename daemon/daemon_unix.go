@@ -835,7 +835,7 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 // network settings. If there's active sandboxes, configuration changes will not
 // take effect.
 func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes map[string]interface{}) error {
-	netOptions, err := daemon.networkOptions(cfg, daemon.PluginStore, activeSandboxes)
+	netOptions, err := daemon.networkOptions(cfg, daemon.PluginStore, daemon.id, activeSandboxes)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"net/netip"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -311,5 +312,32 @@ func TestFindNetworkErrorType(t *testing.T) {
 	ok := errors.As(err, &nsn)
 	if !errdefs.IsNotFound(err) || !ok {
 		t.Error("The FindNetwork method MUST always return an error that implements the NotFound interface and is ErrNoSuchNetwork")
+	}
+}
+
+// TestDeriveULABaseNetwork checks that for a given hostID, the derived prefix is stable over time.
+func TestDeriveULABaseNetwork(t *testing.T) {
+	testcases := []struct {
+		name      string
+		hostID    string
+		expPrefix netip.Prefix
+	}{
+		{
+			name:      "Empty hostID",
+			expPrefix: netip.MustParsePrefix("fd42:98fc:1c14::/48"),
+		},
+		{
+			name:      "499d4bc0-b0b3-416f-b1ee-cf6486315593",
+			hostID:    "499d4bc0-b0b3-416f-b1ee-cf6486315593",
+			expPrefix: netip.MustParsePrefix("fd62:fb69:18af::/48"),
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			nw := deriveULABaseNetwork(tc.hostID)
+			assert.Equal(t, nw.Base, tc.expPrefix)
+			assert.Equal(t, nw.Size, 64)
+		})
 	}
 }

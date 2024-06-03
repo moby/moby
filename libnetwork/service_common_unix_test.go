@@ -7,12 +7,15 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/libnetwork/ipamutils"
 	"gotest.tools/v3/assert"
 )
 
 func TestCleanupServiceDiscovery(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	c, err := New(OptionBoltdbWithRandomDBFile(t))
+	c, err := New(OptionBoltdbWithRandomDBFile(t),
+		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	assert.NilError(t, err)
 	defer c.Stop()
 

@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/ipams/null"
+	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
@@ -58,6 +59,7 @@ func newController(t *testing.T) *libnetwork.Controller {
 				"EnableIPForwarding": true,
 			},
 		}),
+		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()),
 	)
 	if err != nil {
 		t.Fatal(err)

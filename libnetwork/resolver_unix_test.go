@@ -7,13 +7,16 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/miekg/dns"
 )
 
 // test only works on linux
 func TestDNSIPQuery(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	c, err := New(OptionBoltdbWithRandomDBFile(t))
+	c, err := New(OptionBoltdbWithRandomDBFile(t),
+		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +113,8 @@ func TestDNSProxyServFail(t *testing.T) {
 	osctx := netnsutils.SetupTestOSContextEx(t)
 	defer osctx.Cleanup(t)
 
-	c, err := New(OptionBoltdbWithRandomDBFile(t))
+	c, err := New(OptionBoltdbWithRandomDBFile(t),
+		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)
 	}
