@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -13,8 +14,6 @@ import (
 const (
 	gwEPlen = 12
 )
-
-var procGwNetwork = make(chan (bool), 1)
 
 /*
    libnetwork creates a bridge network "docker_gw_bridge" for providing
@@ -160,15 +159,21 @@ func (ep *Endpoint) endpointInGWNetwork() bool {
 	return false
 }
 
-// Looks for the default gw network and creates it if not there.
-// Parallel executions are serialized.
+// defaultGwNetwork looks for the 'docker_gwbridge' network and creates it if
+// it doesn't exist. It's safe for concurrent use.
 func (c *Controller) defaultGwNetwork() (*Network, error) {
-	procGwNetwork <- true
-	defer func() { <-procGwNetwork }()
-
 	n, err := c.NetworkByName(libnGWNetwork)
 	if _, ok := err.(types.NotFoundError); ok {
 		n, err = c.createGWNetwork()
+		// If two concurrent calls to this method are made, they will both try
+		// to create the 'docker_gwbridge' network concurrently, but ultimately
+		// the Controller will serialize 'NewNetwork' calls. The first call to
+		// win the race will create the network, and other racing calls will
+		// find out it already exists and return a 'NetworkNameError'. Instead
+		// of barfing out, just try to retrieve it once more.
+		if errors.Is(err, NetworkNameError(libnGWNetwork)) {
+			return c.NetworkByName(libnGWNetwork)
+		}
 	}
 	return n, err
 }
