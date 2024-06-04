@@ -43,7 +43,7 @@ func (c *Cluster) GetConfigs(options apitypes.ConfigListOptions) ([]types.Config
 	}
 
 	ctx := context.TODO()
-	ctx, cancel := c.getRequestContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
 	defer cancel()
 
 	r, err := state.controlClient.ListConfigs(ctx,

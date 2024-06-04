@@ -68,7 +68,7 @@ func (c *Cluster) GetServices(options types.ServiceListOptions) ([]swarm.Service
 	}
 
 	ctx := context.TODO()
-	ctx, cancel := c.getRequestContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
 	defer cancel()
 
 	r, err := state.controlClient.ListServices(
@@ -267,7 +267,7 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 				// if the registry is slow or unresponsive.
 				var cancel func()
 				ctx = compatcontext.WithoutCancel(ctx)
-				ctx, cancel = c.getRequestContext(ctx)
+				ctx, cancel = context.WithTimeout(ctx, swarmRequestTimeout)
 				defer cancel()
 			}
 
@@ -383,7 +383,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 				// if the registry is slow or unresponsive.
 				var cancel func()
 				ctx = compatcontext.WithoutCancel(ctx)
-				ctx, cancel = c.getRequestContext(ctx)
+				ctx, cancel = context.WithTimeout(ctx, swarmRequestTimeout)
 				defer cancel()
 			}
 		}

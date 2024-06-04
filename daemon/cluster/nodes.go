@@ -27,7 +27,7 @@ func (c *Cluster) GetNodes(options apitypes.NodeListOptions) ([]types.Node, erro
 	}
 
 	ctx := context.TODO()
-	ctx, cancel := c.getRequestContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
 	defer cancel()
 
 	r, err := state.controlClient.ListNodes(
@@ -74,7 +74,7 @@ func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) 
 		}
 
 		ctx := context.TODO()
-		ctx, cancel := c.getRequestContext(ctx)
+		ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
 		defer cancel()
 
 		currentNode, err := getNode(ctx, state.controlClient, input)
