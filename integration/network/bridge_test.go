@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	ctr "github.com/docker/docker/integration/internal/container"
@@ -57,7 +56,7 @@ func TestCreateWithIPv6DefaultsToULAPrefix(t *testing.T) {
 	network.CreateNoError(ctx, t, apiClient, nwName, network.WithIPv6())
 	defer network.RemoveNoError(ctx, t, apiClient, nwName)
 
-	nw, err := apiClient.NetworkInspect(ctx, "testnetula", types.NetworkInspectOptions{})
+	nw, err := apiClient.NetworkInspect(ctx, "testnetula", networktypes.InspectOptions{})
 	assert.NilError(t, err)
 
 	for _, ipam := range nw.IPAM.Config {
