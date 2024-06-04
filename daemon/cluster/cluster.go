@@ -233,7 +233,7 @@ func (c *Cluster) newNodeRunner(conf nodeStartConfig) (*nodeRunner, error) {
 			}
 			localHostPort := conn.LocalAddr().String()
 			actualLocalAddr, _, _ = net.SplitHostPort(localHostPort)
-			conn.Close()
+			_ = conn.Close()
 		}
 	}
 
@@ -247,10 +247,6 @@ func (c *Cluster) newNodeRunner(conf nodeStartConfig) (*nodeRunner, error) {
 	c.config.Backend.DaemonJoinsCluster(c)
 
 	return nr, nil
-}
-
-func (c *Cluster) getRequestContext(ctx context.Context) (context.Context, func()) { // TODO: not needed when requests don't block on qourum lost
-	return context.WithTimeout(ctx, swarmRequestTimeout)
 }
 
 // IsManager returns true if Cluster is participating as a manager.
@@ -444,7 +440,7 @@ func (c *Cluster) lockedManagerAction(fn func(ctx context.Context, state nodeSta
 	}
 
 	ctx := context.TODO()
-	ctx, cancel := c.getRequestContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
 	defer cancel()
 
 	return fn(ctx, state)

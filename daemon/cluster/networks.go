@@ -70,7 +70,7 @@ func (c *Cluster) getNetworks(filters *swarmapi.ListNetworksRequest_Filters) ([]
 	}
 
 	ctx := context.TODO()
-	ctx, cancel := c.getRequestContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
 	defer cancel()
 
 	r, err := state.controlClient.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: filters})
@@ -206,7 +206,7 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 	c.mu.Unlock()
 
 	ctx := context.TODO()
-	ctx, cancel := c.getRequestContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
 	defer cancel()
 
 	taskID, err := agent.ResourceAllocator().AttachNetwork(ctx, containerID, target, addresses)
@@ -226,7 +226,7 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 
 	release := func() {
 		ctx := compatcontext.WithoutCancel(ctx)
-		ctx, cancel := c.getRequestContext(ctx)
+		ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
 		defer cancel()
 		if err := agent.ResourceAllocator().DetachNetwork(ctx, taskID); err != nil {
 			log.G(ctx).Errorf("Failed remove network attachment %s to network %s on allocation failure: %v",
