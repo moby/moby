@@ -18,6 +18,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/auxprogress"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	dimages "github.com/docker/docker/daemon/images"
@@ -186,10 +187,10 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 				err = remotes.PushContent(ctx, pusher, target, store, limiter, platforms.All, handlerWrapper)
 
 				if err == nil {
-					progress.Aux(out, map[string]string{
-						"Stripped": "true",
-						"Index":    img.Target.Digest.String(),
-						"Manifest": target.Digest.String(),
+					progress.Aux(out, auxprogress.ManifestPushedInsteadOfIndex{
+						ManifestPushedInsteadOfIndex: true,
+						OriginalIndex:                target,
+						SelectedManifest:             newTarget,
 					})
 				}
 			}
@@ -199,14 +200,11 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 			if !cerrdefs.IsNotFound(err) {
 				return errdefs.System(err)
 			}
-			return errdefs.NotFound(fmt.Errorf(
-				"missing content: %w\n"+
-					"Note: You're trying to push a manifest list/index which "+
-					"references multiple platform specific manifests, but not all of them are available locally "+
-					"or available to the remote repository.\n\n"+
-					"Make sure you have all the referenced content and try again.\n"+
-					"You can also push only a single platform specific manifest directly by specifying the platform you want to push.",
-				err))
+			progress.Aux(out, auxprogress.ContentMissing{
+				ContentMissing: true,
+				Desc:           target,
+			})
+			return errdefs.NotFound(err)
 		}
 	}
 
