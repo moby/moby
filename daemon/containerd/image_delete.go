@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	containerdimages "github.com/containerd/containerd/images"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"

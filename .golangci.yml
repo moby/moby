@@ -38,7 +38,7 @@ linters-settings:
     alias:
       # Enforce alias to prevent it accidentally being used instead of our
       # own errdefs package (or vice-versa).
-      - pkg: github.com/containerd/containerd/errdefs
+      - pkg: github.com/containerd/errdefs
         alias: cerrdefs
       - pkg: github.com/opencontainers/image-spec/specs-go/v1
         alias: ocispec
@@ -57,6 +57,10 @@ linters-settings:
             desc: Use "gotest.tools/v3/assert" instead
           - pkg: "github.com/stretchr/testify/suite"
             desc: Do not use
+          - pkg: github.com/containerd/containerd/errdefs
+            desc: The errdefs package has moved to a separate module, https://github.com/containerd/errdefs
+          - pkg: github.com/containerd/containerd/log
+            desc: The logs package has moved to a separate module, https://github.com/containerd/log
   revive:
     rules:
       # FIXME make sure all packages have a description. Currently, there's many packages without.

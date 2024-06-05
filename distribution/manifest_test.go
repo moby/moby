@@ -10,8 +10,8 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/content/local"
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
