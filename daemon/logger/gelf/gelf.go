@@ -23,6 +23,7 @@ type gelfLogger struct {
 	info     logger.Info
 	hostname string
 	rawExtra json.RawMessage
+	rawJSON  bool
 }
 
 func init() {
@@ -42,6 +43,9 @@ func New(info logger.Info) (logger.Logger, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	v, ok := info.Config["gelf-raw-json"]
+	rawJSON := ok && v == "true"
 
 	// collect extra data for GELF message
 	hostname, err := info.Hostname()
@@ -102,6 +106,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		info:     info,
 		hostname: hostname,
 		rawExtra: rawExtra,
+		rawJSON:  rawJSON,
 	}, nil
 }
 
@@ -172,14 +177,35 @@ func (s *gelfLogger) Log(msg *logger.Message) error {
 		level = gelf.LOG_ERR
 	}
 
+	shortMessage := string(msg.Line)
+	var additionalFields map[string]interface{}
+
+	if s.rawJSON {
+		if err := json.Unmarshal(msg.Line, &additionalFields); err == nil {
+			if val, ok := additionalFields["message"].(string); ok {
+				shortMessage = val
+			} else {
+				shortMessage = "-"
+			}
+		}
+	}
+
 	m := gelf.Message{
 		Version:  "1.1",
 		Host:     s.hostname,
-		Short:    string(msg.Line),
+		Short:    shortMessage,
 		TimeUnix: float64(msg.Timestamp.UnixNano()/int64(time.Millisecond)) / 1000.0,
 		Level:    int32(level),
 		RawExtra: s.rawExtra,
 	}
+
+	if s.rawJSON {
+		m.Extra = make(map[string]interface{})
+		for k, v := range additionalFields {
+			m.Extra["_"+k] = v
+		}
+	}
+
 	logger.PutMessage(msg)
 
 	if err := s.writer.WriteMessage(&m); err != nil {
@@ -205,6 +231,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 
 	for key, val := range cfg {
 		switch key {
+		case "gelf-raw-json":
 		case "gelf-address":
 		case "tag":
 		case "labels":
