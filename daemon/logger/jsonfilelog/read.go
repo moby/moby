@@ -79,6 +79,6 @@ func decodeFunc(rdr io.Reader) loggerutils.Decoder {
 	}
 }
 
-func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io.Reader, int, error) {
+func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (loggerutils.SizeReaderAt, int, error) {
 	return tailfile.NewTailReader(ctx, r, req)
 }

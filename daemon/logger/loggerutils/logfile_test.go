@@ -52,11 +52,19 @@ func TestTailFiles(t *testing.T) {
 	s2 := strings.NewReader("I'm serious.\nDon't call me Shirley!\n")
 	s3 := strings.NewReader("Roads?\nWhere we're going we don't need roads.\n")
 
-	files := []SizeReaderAt{s1, s2, s3}
+	makeLZO := func(ls ...SizeReaderAt) []fileOpener {
+		out := make([]fileOpener, 0, len(ls))
+		for _, rdr := range ls {
+			out = append(out, &sizeReaderAtOpener{rdr})
+		}
+		return out
+	}
+
+	files := makeLZO(s1, s2, s3)
 	watcher := logger.NewLogWatcher()
 	defer watcher.ConsumerGone()
 
-	tailReader := func(ctx context.Context, r SizeReaderAt, lines int) (io.Reader, int, error) {
+	tailReader := func(ctx context.Context, r SizeReaderAt, lines int) (SizeReaderAt, int, error) {
 		return tailfile.NewTailReader(ctx, r, lines)
 	}
 	dec := &testDecoder{}
@@ -116,7 +124,7 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 	dir := t.TempDir()
 
 	logPath := filepath.Join(dir, "log")
-	getTailReader := func(ctx context.Context, r SizeReaderAt, lines int) (io.Reader, int, error) {
+	getTailReader := func(ctx context.Context, r SizeReaderAt, lines int) (SizeReaderAt, int, error) {
 		return tailfile.NewTailReader(ctx, r, lines)
 	}
 	createDecoder := func(io.Reader) Decoder {
