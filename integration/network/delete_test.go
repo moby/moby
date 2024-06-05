@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	networktypes "github.com/docker/docker/api/types/network"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/network"
@@ -13,7 +12,7 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func containsNetwork(nws []types.NetworkResource, networkID string) bool {
+func containsNetwork(nws []networktypes.Inspect, networkID string) bool {
 	for _, n := range nws {
 		if n.ID == networkID {
 			return true

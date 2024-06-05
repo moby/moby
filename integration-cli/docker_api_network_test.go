@@ -218,7 +218,7 @@ func isNetworkAvailable(c *testing.T, name string) bool {
 	defer resp.Body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
 
-	var nJSON []types.NetworkResource
+	var nJSON []network.Inspect
 	err = json.NewDecoder(body).Decode(&nJSON)
 	assert.NilError(c, err)
 
@@ -240,7 +240,7 @@ func getNetworkIDByName(c *testing.T, name string) string {
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
 	assert.NilError(c, err)
 
-	var nJSON []types.NetworkResource
+	var nJSON []network.Inspect
 	err = json.NewDecoder(body).Decode(&nJSON)
 	assert.NilError(c, err)
 	var res string
@@ -255,11 +255,11 @@ func getNetworkIDByName(c *testing.T, name string) string {
 	return res
 }
 
-func getNetworkResource(c *testing.T, id string) *types.NetworkResource {
+func getNetworkResource(c *testing.T, id string) *network.Inspect {
 	_, obj, err := request.Get(testutil.GetContext(c), "/networks/"+id)
 	assert.NilError(c, err)
 
-	nr := types.NetworkResource{}
+	nr := network.Inspect{}
 	err = json.NewDecoder(obj).Decode(&nr)
 	assert.NilError(c, err)
 

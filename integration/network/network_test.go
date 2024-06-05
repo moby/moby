@@ -152,7 +152,7 @@ func TestNetworkList(t *testing.T) {
 
 			buf, err := request.ReadBody(body)
 			assert.NilError(t, err)
-			var nws []types.NetworkResource
+			var nws []ntypes.Inspect
 			err = json.Unmarshal(buf, &nws)
 			assert.NilError(t, err)
 			assert.Assert(t, len(nws) > 0)

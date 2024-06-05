@@ -565,14 +565,14 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 }
 
 // GetNetworks returns a list of all networks
-func (daemon *Daemon) GetNetworks(filter filters.Args, config backend.NetworkListConfig) (networks []types.NetworkResource, err error) {
+func (daemon *Daemon) GetNetworks(filter filters.Args, config backend.NetworkListConfig) (networks []network.Inspect, err error) {
 	var idx map[string]*libnetwork.Network
 	if config.Detailed {
 		idx = make(map[string]*libnetwork.Network)
 	}
 
 	allNetworks := daemon.getAllNetworks()
-	networks = make([]types.NetworkResource, 0, len(allNetworks))
+	networks = make([]network.Inspect, 0, len(allNetworks))
 	for _, n := range allNetworks {
 		nr := buildNetworkResource(n)
 		networks = append(networks, nr)
@@ -600,12 +600,12 @@ func (daemon *Daemon) GetNetworks(filter filters.Args, config backend.NetworkLis
 
 // buildNetworkResource builds a [types.NetworkResource] from the given
 // [libnetwork.Network], to be returned by the API.
-func buildNetworkResource(nw *libnetwork.Network) types.NetworkResource {
+func buildNetworkResource(nw *libnetwork.Network) network.Inspect {
 	if nw == nil {
-		return types.NetworkResource{}
+		return network.Inspect{}
 	}
 
-	return types.NetworkResource{
+	return network.Inspect{
 		Name:       nw.Name(),
 		ID:         nw.ID(),
 		Created:    nw.Created(),
