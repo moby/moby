@@ -25,8 +25,8 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/sirupsen/logrus"
 
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/plugin"
+	"github.com/containerd/errdefs"
 )
 
 // NOTE: Any new map fields added also need to be handled in mergeConfig.
