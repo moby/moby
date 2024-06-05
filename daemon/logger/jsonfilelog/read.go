@@ -3,6 +3,7 @@ package jsonfilelog // import "github.com/docker/docker/daemon/logger/jsonfilelo
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 
 	"github.com/docker/docker/api/types/backend"
@@ -14,13 +15,17 @@ import (
 
 // ReadLogs implements the logger's LogReader interface for the logs
 // created by this driver.
-func (l *JSONFileLogger) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
-	return l.writer.ReadLogs(config)
+func (l *JSONFileLogger) ReadLogs(ctx context.Context, config logger.ReadConfig) *logger.LogWatcher {
+	return l.writer.ReadLogs(ctx, config)
 }
 
 func decodeLogLine(dec *json.Decoder, l *jsonlog.JSONLog) (*logger.Message, error) {
 	l.Reset()
 	if err := dec.Decode(l); err != nil {
+		var as *json.SyntaxError
+		if errors.As(err, &as) {
+			return nil, &loggerutils.SyntaxError{Offset: as.Offset, Err: err}
+		}
 		return nil, err
 	}
 
@@ -79,6 +84,6 @@ func decodeFunc(rdr io.Reader) loggerutils.Decoder {
 	}
 }
 
-func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io.Reader, int, error) {
+func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (loggerutils.SizeReaderAt, int, error) {
 	return tailfile.NewTailReader(ctx, r, req)
 }

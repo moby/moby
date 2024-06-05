@@ -3,6 +3,7 @@ package jsonfilelog // import "github.com/docker/docker/daemon/logger/jsonfilelo
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggertest"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 )
 
@@ -62,7 +64,8 @@ func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {
 		}
 	}()
 
-	lw := jsonlogger.(*JSONFileLogger).ReadLogs(logger.ReadConfig{Follow: true})
+	ctx := testutil.StartSpan(context.Background(), b)
+	lw := jsonlogger.(*JSONFileLogger).ReadLogs(ctx, logger.ReadConfig{Follow: true})
 	for {
 		select {
 		case _, ok := <-lw.Msg:

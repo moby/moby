@@ -56,7 +56,7 @@ func TestTailFiles(t *testing.T) {
 	watcher := logger.NewLogWatcher()
 	defer watcher.ConsumerGone()
 
-	tailReader := func(ctx context.Context, r SizeReaderAt, lines int) (io.Reader, int, error) {
+	tailReader := func(ctx context.Context, r SizeReaderAt, lines int) (SizeReaderAt, int, error) {
 		return tailfile.NewTailReader(ctx, r, lines)
 	}
 	dec := &testDecoder{}
@@ -116,7 +116,7 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 	dir := t.TempDir()
 
 	logPath := filepath.Join(dir, "log")
-	getTailReader := func(ctx context.Context, r SizeReaderAt, lines int) (io.Reader, int, error) {
+	getTailReader := func(ctx context.Context, r SizeReaderAt, lines int) (SizeReaderAt, int, error) {
 		return tailfile.NewTailReader(ctx, r, lines)
 	}
 	createDecoder := func(io.Reader) Decoder {

@@ -18,18 +18,18 @@ import (
 // logger.defaultBufSize caps the size of Line field.
 const maxMsgLen int = 1e6 // 1MB.
 
-func (d *driver) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
-	return d.logfile.ReadLogs(config)
+func (d *driver) ReadLogs(ctx context.Context, config logger.ReadConfig) *logger.LogWatcher {
+	return d.logfile.ReadLogs(ctx, config)
 }
 
-func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io.Reader, int, error) {
+func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (loggerutils.SizeReaderAt, int, error) {
 	size := r.Size()
 	if req < 0 {
 		return nil, 0, errdefs.InvalidParameter(errors.Errorf("invalid number of lines to tail: %d", req))
 	}
 
 	if size < (encodeBinaryLen*2)+1 {
-		return bytes.NewReader(nil), 0, nil
+		return io.NewSectionReader(bytes.NewReader(nil), 0, 0), 0, nil
 	}
 
 	const encodeBinaryLen64 = int64(encodeBinaryLen)
@@ -90,7 +90,7 @@ type decoder struct {
 	buf []byte
 	// offset is the position in buf.
 	// If offset > 0, buf[offset:] has bytes which are read but haven't used.
-	offset int
+	offset int64
 	// nextMsgLen is the length of the next log message.
 	// If nextMsgLen = 0, a new value must be read from rdr.
 	nextMsgLen int
@@ -101,7 +101,7 @@ func (d *decoder) readRecord(size int) error {
 	for i := 0; i < maxDecodeRetry; i++ {
 		var n int
 		n, err = io.ReadFull(d.rdr, d.buf[d.offset:size])
-		d.offset += n
+		d.offset += int64(n)
 		if err != nil {
 			if err != io.ErrUnexpectedEOF {
 				return err
@@ -134,7 +134,7 @@ func (d *decoder) Decode() (*logger.Message, error) {
 		}
 
 		if msgLen > maxMsgLen {
-			return nil, fmt.Errorf("log message is too large (%d > %d)", msgLen, maxMsgLen)
+			return nil, &loggerutils.SyntaxError{Offset: d.offset, Err: fmt.Errorf("log message is too large (%d > %d)", msgLen, maxMsgLen)}
 		}
 
 		if len(d.buf) < msgLen+encodeBinaryLen {
@@ -198,7 +198,7 @@ func (d *decoder) decodeLogEntry() (*logger.Message, error) {
 	d.nextMsgLen = 0
 
 	if err := d.proto.Unmarshal(d.buf[:msgLen]); err != nil {
-		return nil, errors.Wrapf(err, "error unmarshalling log entry (size=%d)", msgLen)
+		return nil, &loggerutils.SyntaxError{Offset: d.offset, Err: errors.Wrapf(err, "error unmarshalling log entry (size=%d)", msgLen)}
 	}
 
 	msg := protoToMessage(d.proto)

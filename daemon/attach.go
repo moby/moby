@@ -108,6 +108,7 @@ func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadClose
 }
 
 func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.AttachConfig, logs, doStream bool) error {
+
 	if logs {
 		logDriver, logCreated, err := daemon.getLogger(c)
 		if err != nil {
@@ -124,7 +125,8 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		if !ok {
 			return logger.ErrReadLogsNotSupported{}
 		}
-		logs := cLog.ReadLogs(logger.ReadConfig{Tail: -1})
+		ctx := context.TODO()
+		logs := cLog.ReadLogs(ctx, logger.ReadConfig{Tail: -1})
 		defer logs.ConsumerGone()
 
 	LogLoop:

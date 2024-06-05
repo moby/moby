@@ -1,6 +1,7 @@
 package loggertest // import "github.com/docker/docker/daemon/logger/loggertest"
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"strings"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/testutil"
 )
 
 type syncer interface {
@@ -70,6 +72,9 @@ func makeTestMessages() []*logger.Message {
 }
 
 func (tr Reader) testTail(t *testing.T, live bool) {
+	ctx := context.TODO()
+	ctx = testutil.StartSpan(ctx, t)
+
 	t.Parallel()
 	factory := tr.Factory(t, logger.Info{
 		ContainerID:   "tailtest0000",
@@ -93,69 +98,72 @@ func (tr Reader) testTail(t *testing.T, live bool) {
 
 	t.Run("Exact", func(t *testing.T) {
 		t.Parallel()
-		lw := lr.ReadLogs(logger.ReadConfig{Tail: len(mm)})
+		lw := lr.ReadLogs(ctx, logger.ReadConfig{Tail: len(mm)})
 		defer lw.ConsumerGone()
 		assert.DeepEqual(t, readAll(t, lw), expected, compareLog)
 	})
 
 	t.Run("LessThanAvailable", func(t *testing.T) {
 		t.Parallel()
-		lw := lr.ReadLogs(logger.ReadConfig{Tail: 2})
+		lw := lr.ReadLogs(ctx, logger.ReadConfig{Tail: 2})
 		defer lw.ConsumerGone()
 		assert.DeepEqual(t, readAll(t, lw), expected[len(mm)-2:], compareLog)
 	})
 
 	t.Run("MoreThanAvailable", func(t *testing.T) {
 		t.Parallel()
-		lw := lr.ReadLogs(logger.ReadConfig{Tail: 100})
+		lw := lr.ReadLogs(ctx, logger.ReadConfig{Tail: 100})
 		defer lw.ConsumerGone()
 		assert.DeepEqual(t, readAll(t, lw), expected, compareLog)
 	})
 
 	t.Run("All", func(t *testing.T) {
 		t.Parallel()
-		lw := lr.ReadLogs(logger.ReadConfig{Tail: -1})
+		lw := lr.ReadLogs(ctx, logger.ReadConfig{Tail: -1})
 		defer lw.ConsumerGone()
 		assert.DeepEqual(t, readAll(t, lw), expected, compareLog)
 	})
 
 	t.Run("Since", func(t *testing.T) {
 		t.Parallel()
-		lw := lr.ReadLogs(logger.ReadConfig{Tail: -1, Since: mm[1].Timestamp.Truncate(time.Millisecond)})
+		lw := lr.ReadLogs(ctx, logger.ReadConfig{Tail: -1, Since: mm[1].Timestamp.Truncate(time.Millisecond)})
 		defer lw.ConsumerGone()
 		assert.DeepEqual(t, readAll(t, lw), expected[1:], compareLog)
 	})
 
 	t.Run("MoreThanSince", func(t *testing.T) {
 		t.Parallel()
-		lw := lr.ReadLogs(logger.ReadConfig{Tail: len(mm), Since: mm[1].Timestamp.Truncate(time.Millisecond)})
+		lw := lr.ReadLogs(ctx, logger.ReadConfig{Tail: len(mm), Since: mm[1].Timestamp.Truncate(time.Millisecond)})
 		defer lw.ConsumerGone()
 		assert.DeepEqual(t, readAll(t, lw), expected[1:], compareLog)
 	})
 
 	t.Run("LessThanSince", func(t *testing.T) {
 		t.Parallel()
-		lw := lr.ReadLogs(logger.ReadConfig{Tail: len(mm) - 2, Since: mm[1].Timestamp.Truncate(time.Millisecond)})
+		lw := lr.ReadLogs(ctx, logger.ReadConfig{Tail: len(mm) - 2, Since: mm[1].Timestamp.Truncate(time.Millisecond)})
 		defer lw.ConsumerGone()
 		assert.DeepEqual(t, readAll(t, lw), expected[2:], compareLog)
 	})
 
 	t.Run("Until", func(t *testing.T) {
 		t.Parallel()
-		lw := lr.ReadLogs(logger.ReadConfig{Tail: -1, Until: mm[2].Timestamp.Add(-time.Millisecond)})
+		lw := lr.ReadLogs(ctx, logger.ReadConfig{Tail: -1, Until: mm[2].Timestamp.Add(-time.Millisecond)})
 		defer lw.ConsumerGone()
 		assert.DeepEqual(t, readAll(t, lw), expected[:2], compareLog)
 	})
 
 	t.Run("SinceAndUntil", func(t *testing.T) {
 		t.Parallel()
-		lw := lr.ReadLogs(logger.ReadConfig{Tail: -1, Since: mm[1].Timestamp.Truncate(time.Millisecond), Until: mm[1].Timestamp.Add(time.Millisecond)})
+		lw := lr.ReadLogs(ctx, logger.ReadConfig{Tail: -1, Since: mm[1].Timestamp.Truncate(time.Millisecond), Until: mm[1].Timestamp.Add(time.Millisecond)})
 		defer lw.ConsumerGone()
 		assert.DeepEqual(t, readAll(t, lw), expected[1:2], compareLog)
 	})
 }
 
 func (tr Reader) testTailEmptyLogs(t *testing.T, live bool) {
+	ctx := context.TODO()
+	ctx = testutil.StartSpan(ctx, t)
+
 	t.Parallel()
 	factory := tr.Factory(t, logger.Info{
 		ContainerID:   "tailemptytest",
@@ -182,7 +190,7 @@ func (tr Reader) testTailEmptyLogs(t *testing.T, live bool) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{})
+			lw := l.(logger.LogReader).ReadLogs(ctx, logger.ReadConfig{})
 			defer lw.ConsumerGone()
 			assert.DeepEqual(t, readAll(t, lw), ([]*logger.Message)(nil), cmpopts.EquateEmpty())
 		})
@@ -194,6 +202,9 @@ func (tr Reader) testTailEmptyLogs(t *testing.T, live bool) {
 // The LogReader is expected to be able to follow an arbitrary number of
 // messages at a high rate with no dropped messages.
 func (tr Reader) TestFollow(t *testing.T) {
+	ctx := context.TODO()
+	ctx = testutil.StartSpan(ctx, t)
+
 	// Reader sends all logs and closes after logger is closed
 	// - Starting from empty log (like run)
 	for i, tail := range []int{-1, 0, 1, 42} {
@@ -204,7 +215,7 @@ func (tr Reader) TestFollow(t *testing.T) {
 				ContainerID:   fmt.Sprintf("followstart%d", i),
 				ContainerName: fmt.Sprintf("logloglog%d", i),
 			})(t)
-			lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: tail, Follow: true})
+			lw := l.(logger.LogReader).ReadLogs(ctx, logger.ReadConfig{Tail: tail, Follow: true})
 			defer lw.ConsumerGone()
 
 			doneReading := make(chan struct{})
@@ -232,7 +243,7 @@ func (tr Reader) TestFollow(t *testing.T) {
 		mm := makeTestMessages()
 		expected := logMessages(t, l, mm[0:1])
 
-		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: -1, Follow: true})
+		lw := l.(logger.LogReader).ReadLogs(ctx, logger.ReadConfig{Tail: -1, Follow: true})
 		defer lw.ConsumerGone()
 
 		doneReading := make(chan struct{})
@@ -257,7 +268,7 @@ func (tr Reader) TestFollow(t *testing.T) {
 
 		mm := makeTestMessages()
 
-		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: -1, Follow: true, Since: mm[2].Timestamp.Truncate(time.Millisecond)})
+		lw := l.(logger.LogReader).ReadLogs(ctx, logger.ReadConfig{Tail: -1, Follow: true, Since: mm[2].Timestamp.Truncate(time.Millisecond)})
 		defer lw.ConsumerGone()
 
 		doneReading := make(chan struct{})
@@ -282,7 +293,7 @@ func (tr Reader) TestFollow(t *testing.T) {
 
 		mm := makeTestMessages()
 
-		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: -1, Follow: true, Until: mm[2].Timestamp.Add(-time.Millisecond)})
+		lw := l.(logger.LogReader).ReadLogs(ctx, logger.ReadConfig{Tail: -1, Follow: true, Until: mm[2].Timestamp.Add(-time.Millisecond)})
 		defer lw.ConsumerGone()
 
 		doneReading := make(chan struct{})
@@ -307,7 +318,7 @@ func (tr Reader) TestFollow(t *testing.T) {
 
 		mm := makeTestMessages()
 
-		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: -1, Follow: true, Since: mm[1].Timestamp.Add(-time.Millisecond), Until: mm[2].Timestamp.Add(-time.Millisecond)})
+		lw := l.(logger.LogReader).ReadLogs(ctx, logger.ReadConfig{Tail: -1, Follow: true, Since: mm[1].Timestamp.Add(-time.Millisecond), Until: mm[2].Timestamp.Add(-time.Millisecond)})
 		defer lw.ConsumerGone()
 
 		doneReading := make(chan struct{})
@@ -334,7 +345,7 @@ func (tr Reader) TestFollow(t *testing.T) {
 		logMessages(t, l, mm[0:2])
 		syncLogger(t, l)
 
-		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: 0, Follow: true})
+		lw := l.(logger.LogReader).ReadLogs(ctx, logger.ReadConfig{Tail: 0, Follow: true})
 		defer lw.ConsumerGone()
 
 		doneReading := make(chan struct{})
@@ -361,7 +372,7 @@ func (tr Reader) TestFollow(t *testing.T) {
 		expected := logMessages(t, l, mm[0:2])[1:]
 		syncLogger(t, l)
 
-		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: 1, Follow: true})
+		lw := l.(logger.LogReader).ReadLogs(ctx, logger.ReadConfig{Tail: 1, Follow: true})
 		defer lw.ConsumerGone()
 
 		doneReading := make(chan struct{})
@@ -390,7 +401,7 @@ func (tr Reader) TestFollow(t *testing.T) {
 		assert.NilError(t, l.Close())
 
 		l = factory(t)
-		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: -1, Follow: true})
+		lw := l.(logger.LogReader).ReadLogs(ctx, logger.ReadConfig{Tail: -1, Follow: true})
 		defer lw.ConsumerGone()
 
 		doneReading := make(chan struct{})
@@ -412,6 +423,9 @@ func (tr Reader) TestFollow(t *testing.T) {
 // TestConcurrent tests the Logger and its LogReader implementation for
 // race conditions when logging from multiple goroutines concurrently.
 func (tr Reader) TestConcurrent(t *testing.T) {
+	ctx := context.TODO()
+	ctx = testutil.StartSpan(ctx, t)
+
 	t.Parallel()
 	l := tr.Factory(t, logger.Info{
 		ContainerID:   "logconcurrent0",
@@ -430,7 +444,7 @@ func (tr Reader) TestConcurrent(t *testing.T) {
 	}
 
 	// Follow all logs
-	lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Follow: true, Tail: -1})
+	lw := l.(logger.LogReader).ReadLogs(ctx, logger.ReadConfig{Follow: true, Tail: -1})
 	defer lw.ConsumerGone()
 
 	// Log concurrently from two sources and close log

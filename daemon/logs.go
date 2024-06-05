@@ -96,7 +96,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		Follow: follow,
 	}
 
-	logs := logReader.ReadLogs(readConfig)
+	logs := logReader.ReadLogs(ctx, readConfig)
 
 	// past this point, we can't possibly return any errors, so we can just
 	// start a goroutine and return to tell the caller not to expect errors

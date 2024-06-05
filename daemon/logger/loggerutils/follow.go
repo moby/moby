@@ -49,7 +49,9 @@ func (fl *follow) Do(f *os.File, read logPos) {
 				fl.Watcher.Err <- err
 				return
 			}
-			if !fl.forward(f) {
+
+			cont, _ := fl.forward(f)
+			if !cont {
 				return
 			}
 
@@ -91,7 +93,7 @@ func (fl *follow) Do(f *os.File, read logPos) {
 			read.size = 0
 		}
 
-		if !fl.forward(io.NewSectionReader(f, read.size, wrote.size-read.size)) {
+		if ok, _ := fl.forward(io.NewSectionReader(f, read.size, wrote.size-read.size)); !ok {
 			return
 		}
 		read = wrote
@@ -135,7 +137,8 @@ func (fl *follow) nextPos(current logPos) (next logPos, ok bool) {
 // forward decodes log messages from r and forwards them to the log watcher.
 //
 // The return value, cont, signals whether following should continue.
-func (fl *follow) forward(r io.Reader) (cont bool) {
+func (fl *follow) forward(r io.Reader) (cont bool, _ *SyntaxError) {
+	ctx := context.TODO()
 	fl.Decoder.Reset(r)
-	return fl.Forwarder.Do(fl.Watcher, fl.Decoder)
+	return fl.Forwarder.Do(ctx, fl.Watcher, fl.Decoder)
 }
