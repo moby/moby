@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 var tempMountLocation = getTempDir()

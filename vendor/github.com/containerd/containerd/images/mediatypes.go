@@ -22,7 +22,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
