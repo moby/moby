@@ -453,16 +453,21 @@ func (d *driver) configure(option map[string]interface{}) error {
 
 		natChainV6, filterChainV6, isolationChain1V6, isolationChain2V6, err = setupIPChains(config, iptables.IPv6)
 		if err != nil {
-			return err
+			// If the chains couldn't be set up, it's probably because the kernel has no IPv6
+			// support, or it doesn't have module ip6_tables loaded. It won't be possible to
+			// create IPv6 networks without enabling ip6_tables in the kernel, or disabling
+			// ip6tables in the daemon config. But, allow the daemon to start because IPv4
+			// will work. So, log the problem, and continue.
+			log.G(context.TODO()).WithError(err).Warn("ip6tables is enabled, but cannot set up ip6tables chains")
+		} else {
+			// Make sure on firewall reload, first thing being re-played is chains creation
+			iptables.OnReloaded(func() {
+				log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
+				if _, _, _, _, err := setupIPChains(config, iptables.IPv6); err != nil {
+					log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
+				}
+			})
 		}
-
-		// Make sure on firewall reload, first thing being re-played is chains creation
-		iptables.OnReloaded(func() {
-			log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
-			if _, _, _, _, err := setupIPChains(config, iptables.IPv6); err != nil {
-				log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
-			}
-		})
 	}
 
 	if config.EnableIPForwarding {
