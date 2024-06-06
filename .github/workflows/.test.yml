@@ -35,6 +35,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -71,6 +73,10 @@ jobs:
           name: test-reports-unit-${{ inputs.storage }}
           path: /tmp/reports/*
           retention-days: 1
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   unit-report:
     runs-on: ubuntu-20.04
@@ -117,6 +123,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -152,6 +160,10 @@ jobs:
           name: test-reports-docker-py-${{ inputs.storage }}
           path: /tmp/reports/*
           retention-days: 1
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   integration-flaky:
     runs-on: ubuntu-20.04
@@ -167,6 +179,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -221,6 +235,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -274,6 +290,10 @@ jobs:
           name: test-reports-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
           retention-days: 1
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   integration-report:
     runs-on: ubuntu-20.04
@@ -362,6 +382,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -414,6 +436,10 @@ jobs:
           name: test-reports-integration-cli-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
           retention-days: 1
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   integration-cli-report:
     runs-on: ubuntu-20.04

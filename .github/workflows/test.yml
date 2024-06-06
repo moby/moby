@@ -44,6 +44,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -53,6 +55,10 @@ jobs:
             *.cache-from=type=gha,scope=dev${{ matrix.mode }}
             *.cache-to=type=gha,scope=dev${{ matrix.mode }},mode=max
             *.output=type=cacheonly
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   test:
     needs:
@@ -112,6 +118,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -123,6 +131,10 @@ jobs:
         name: Validate
         run: |
           make -o build validate-${{ matrix.script }}
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   smoke-prepare:
     runs-on: ubuntu-20.04
@@ -168,6 +180,8 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
       -
         name: Test
         uses: docker/bake-action@v4
@@ -175,3 +189,7 @@ jobs:
           targets: binary-smoketest
           set: |
             *.platform=${{ matrix.platform }}
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context

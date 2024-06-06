@@ -109,6 +109,10 @@ jobs:
           path: ${{ env.BIN_OUT }}/*
           if-no-files-found: error
           retention-days: 2
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   unit-test:
     runs-on: ${{ inputs.os }}
@@ -191,6 +195,10 @@ jobs:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
           retention-days: 1
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   unit-test-report:
     runs-on: ubuntu-latest
@@ -510,6 +518,10 @@ jobs:
           name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
           retention-days: 1
+      -
+        name: Dump context
+        if: always()
+        uses: ./.github/actions/dump-context
 
   integration-test-report:
     runs-on: ubuntu-latest
