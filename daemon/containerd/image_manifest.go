@@ -135,11 +135,22 @@ func (im *ImageManifest) IsAttestation() bool {
 	return false
 }
 
-// IsPseudoImage returns false if the manifest has no layers or any of its layers is a known image layer.
+// IsPseudoImage returns false when any of the below is true:
+// - The manifest has no layers
+// - None of its layers is a known image layer.
+// - The manifest has unknown/unknown platform.
+//
 // Some manifests use the image media type for compatibility, even if they are not a real image.
 func (im *ImageManifest) IsPseudoImage(ctx context.Context) (bool, error) {
 	if im.IsAttestation() {
 		return true, nil
+	}
+
+	plat := im.Target().Platform
+	if plat != nil {
+		if plat.OS == "unknown" && plat.Architecture == "unknown" {
+			return true, nil
+		}
 	}
 
 	mfst, err := im.Manifest(ctx)
