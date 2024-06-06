@@ -13,7 +13,7 @@ import (
 // to provide network specific functionality.
 type Backend interface {
 	GetNetworks(filters.Args, backend.NetworkListConfig) ([]network.Inspect, error)
-	CreateNetwork(nc types.NetworkCreateRequest) (*network.CreateResponse, error)
+	CreateNetwork(nc network.CreateRequest) (*network.CreateResponse, error)
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error
 	DeleteNetwork(networkID string) error
@@ -26,6 +26,6 @@ type ClusterBackend interface {
 	GetNetworks(filters.Args) ([]network.Inspect, error)
 	GetNetwork(name string) (network.Inspect, error)
 	GetNetworksByName(name string) ([]network.Inspect, error)
-	CreateNetwork(nc types.NetworkCreateRequest) (string, error)
+	CreateNetwork(nc network.CreateRequest) (string, error)
 	RemoveNetwork(name string) error
 }

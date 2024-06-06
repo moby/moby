@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 )
 
 // NetworkCreate creates a new network in the docker host.
-func (cli *Client) NetworkCreate(ctx context.Context, name string, options types.NetworkCreate) (network.CreateResponse, error) {
+func (cli *Client) NetworkCreate(ctx context.Context, name string, options network.CreateOptions) (network.CreateResponse, error) {
 	var response network.CreateResponse
 
 	// Make sure we negotiated (if the client is configured to do so),
@@ -22,8 +21,8 @@ func (cli *Client) NetworkCreate(ctx context.Context, name string, options types
 		return response, err
 	}
 
-	networkCreateRequest := types.NetworkCreateRequest{
-		NetworkCreate: options,
+	networkCreateRequest := network.CreateRequest{
+		CreateOptions: options,
 		Name:          name,
 	}
 	if versions.LessThan(cli.version, "1.44") {

@@ -1024,7 +1024,7 @@ func (s *DockerSwarmSuite) TestAPINetworkInspectWithScope(c *testing.T) {
 	name := "test-scoped-network"
 	apiclient := d.NewClientT(c)
 
-	resp, err := apiclient.NetworkCreate(ctx, name, types.NetworkCreate{Driver: "overlay"})
+	resp, err := apiclient.NetworkCreate(ctx, name, network.CreateOptions{Driver: "overlay"})
 	assert.NilError(c, err)
 
 	nw, err := apiclient.NetworkInspect(ctx, name, network.InspectOptions{})

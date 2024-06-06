@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
@@ -204,7 +203,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	var create types.NetworkCreateRequest
+	var create network.CreateRequest
 	if err := httputils.ReadJSON(r, &create); err != nil {
 		return err
 	}
