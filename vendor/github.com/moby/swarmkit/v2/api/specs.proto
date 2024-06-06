@@ -137,6 +137,8 @@ message TaskSpec {
 	// Placement specifies node selection constraints
 	Placement placement = 5;
 
+
+
 	// LogDriver specifies the log driver to use for the task. Any runtime will
 	// direct logs into the specified driver for the duration of the task.
 	Driver log_driver = 6;
@@ -370,6 +372,9 @@ message ContainerSpec {
 	// Ulimits defines the list of ulimits to set in the container. This option
 	// is equivalent to passing --ulimit to docker run.
 	repeated Ulimit ulimits = 29;
+	// OOmScoreAdj defines the relative value used for destroying a container during an OOM
+	// Values are between -1000 and 1000
+	int64 oom_score_adj = 30;
 }
 
 // EndpointSpec defines the properties that can be configured to

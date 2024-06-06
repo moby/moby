@@ -13,6 +13,7 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+
 ## v1.46 API changes
 
 [Docker Engine API v1.46](https://docs.docker.com/engine/api/v1.46/) documentation
@@ -26,6 +27,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   `net.ipv4.config.IFNAME.log_martians=1`. In API versions up-to 1.46, top level
   `--sysctl` settings for `eth0` will be migrated to `DriverOpts` when possible. 
   This automatic migration will be removed for API versions 1.47 and greater.
+
+* `POST /services/create` and `POST /services/{id}/update` now support OomScoreAdj
 
 ## v1.45 API changes
 

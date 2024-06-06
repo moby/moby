@@ -116,4 +116,5 @@ type ContainerSpec struct {
 	CapabilityAdd  []string            `json:",omitempty"`
 	CapabilityDrop []string            `json:",omitempty"`
 	Ulimits        []*units.Ulimit     `json:",omitempty"`
+	OomScoreAdj    int64               `json:",omitempty"`
 }

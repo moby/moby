@@ -3822,6 +3822,13 @@ definitions:
                     but this is just provided for lookup/display purposes. The
                     secret in the reference will be identified by its ID.
                   type: "string"
+          OomScoreAdj:
+            type: "integer"
+            format: "int64"
+            description: |
+              An integer value containing the score given to the container in
+              order to tune OOM killer preferences.
+            example: 0
           Configs:
             description: |
               Configs contains references to zero or more configs that will be
@@ -11374,6 +11381,7 @@ paths:
                             Mode: 384
                           SecretID: "fpjqlhnwb19zds35k8wn80lq9"
                           SecretName: "example_org_domain_key"
+                      OomScoreAdj: 0
                     LogDriver:
                       Name: "json-file"
                       Options:
@@ -11526,6 +11534,7 @@ paths:
                       Image: "busybox"
                       Args:
                         - "top"
+                      OomScoreAdj: 0
                     Resources:
                       Limits: {}
                       Reservations: {}

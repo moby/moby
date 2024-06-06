@@ -883,7 +883,7 @@ github.com/moby/patternmatcher/ignorefile
 # github.com/moby/pubsub v1.0.0
 ## explicit; go 1.19
 github.com/moby/pubsub
-# github.com/moby/swarmkit/v2 v2.0.0-20240412154004-f3ffc0881d0e
+# github.com/moby/swarmkit/v2 v2.0.0-20240611172349-ea1a7cec35cb
 ## explicit; go 1.18
 github.com/moby/swarmkit/v2/agent
 github.com/moby/swarmkit/v2/agent/configs
