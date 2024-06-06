@@ -9,7 +9,7 @@ import (
 )
 
 func resetPortAllocator() {
-	instance = NewInstance()
+	instance = newInstance()
 }
 
 func TestRequestNewPort(t *testing.T) {

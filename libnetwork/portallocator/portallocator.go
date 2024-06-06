@@ -77,21 +77,16 @@ type (
 	protoMap map[string]*portMap
 )
 
-// Get returns the default instance of PortAllocator
+// Get returns the PortAllocator
 func Get() *PortAllocator {
 	// Port Allocator is a singleton
-	// Note: Long term solution will be each PortAllocator will have access to
-	// the OS so that it can have up to date view of the OS port allocation.
-	// When this happens singleton behavior will be removed. Clients do not
-	// need to worry about this, they will not see a change in behavior.
 	once.Do(func() {
-		instance = NewInstance()
+		instance = newInstance()
 	})
 	return instance
 }
 
-// NewInstance is meant for use by libnetwork tests. It is not meant to be called directly.
-func NewInstance() *PortAllocator {
+func newInstance() *PortAllocator {
 	start, end, err := getDynamicPortRange()
 	if err != nil {
 		log.G(context.TODO()).WithError(err).Infof("falling back to default port range %d-%d", defaultPortRangeStart, defaultPortRangeEnd)

@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/options"
-	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/pkg/errors"
@@ -143,7 +142,6 @@ type driver struct {
 	store             *datastore.Store
 	nlh               *netlink.Handle
 	configNetwork     sync.Mutex
-	portAllocator     *portallocator.PortAllocator // Overridable for tests.
 	sync.Mutex
 }
 
@@ -158,8 +156,7 @@ const (
 // New constructs a new bridge driver
 func newDriver() *driver {
 	return &driver{
-		networks:      map[string]*bridgeNetwork{},
-		portAllocator: portallocator.Get(),
+		networks: map[string]*bridgeNetwork{},
 	}
 }
 

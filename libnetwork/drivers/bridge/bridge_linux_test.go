@@ -661,7 +661,7 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
-	d.portAllocator = portallocator.NewInstance()
+	portallocator.Get().ReleaseAll()
 
 	var proxyBinary string
 	var err error
@@ -1235,7 +1235,7 @@ func TestCreateParallel(t *testing.T) {
 	defer c.Cleanup(t)
 
 	d := newDriver()
-	d.portAllocator = portallocator.NewInstance()
+	portallocator.Get().ReleaseAll()
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
