@@ -10,6 +10,7 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver/errdefs"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/progress/controller"
@@ -149,7 +150,7 @@ func (s *state) getEdge(index Index) *edge {
 	}
 
 	if s.op == nil {
-		s.op = newSharedOp(s.opts.ResolveOpFunc, s.opts.DefaultCache, s)
+		s.op = newSharedOp(s.opts.ResolveOpFunc, s)
 	}
 
 	e := newEdge(Edge{Index: index, Vertex: s.vtx}, s.op, s.index)
@@ -175,10 +176,57 @@ func (s *state) setEdge(index Index, targetEdge *edge, targetState *state) {
 	targetEdge.takeOwnership(e)
 
 	if targetState != nil {
+		targetState.addJobs(s, map[*state]struct{}{})
+
 		if _, ok := targetState.allPw[s.mpw]; !ok {
 			targetState.mpw.Add(s.mpw)
 			targetState.allPw[s.mpw] = struct{}{}
 		}
+	}
+}
+
+// addJobs recursively adds jobs to state and all its ancestors. currently
+// only used during edge merges to add jobs from the source of the merge to the
+// target and its ancestors.
+// requires that Solver.mu is read-locked and srcState.mu is locked
+func (s *state) addJobs(srcState *state, memo map[*state]struct{}) {
+	if _, ok := memo[s]; ok {
+		return
+	}
+	memo[s] = struct{}{}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for j := range srcState.jobs {
+		s.jobs[j] = struct{}{}
+	}
+
+	for _, inputEdge := range s.vtx.Inputs() {
+		inputState, ok := s.solver.actives[inputEdge.Vertex.Digest()]
+		if !ok {
+			bklog.G(context.TODO()).
+				WithField("vertex_digest", inputEdge.Vertex.Digest()).
+				Error("input vertex not found during addJobs")
+			continue
+		}
+		inputState.addJobs(srcState, memo)
+
+		// tricky case: if the inputState's edge was *already* merged we should
+		// also add jobs to the merged edge's state
+		mergedInputEdge := inputState.getEdge(inputEdge.Index)
+		if mergedInputEdge == nil || mergedInputEdge.edge.Vertex.Digest() == inputEdge.Vertex.Digest() {
+			// not merged
+			continue
+		}
+		mergedInputState, ok := s.solver.actives[mergedInputEdge.edge.Vertex.Digest()]
+		if !ok {
+			bklog.G(context.TODO()).
+				WithField("vertex_digest", mergedInputEdge.edge.Vertex.Digest()).
+				Error("merged input vertex not found during addJobs")
+			continue
+		}
+		mergedInputState.addJobs(srcState, memo)
 	}
 }
 
@@ -350,7 +398,23 @@ func (jl *Solver) getState(e Edge) *state {
 	return st
 }
 
-func (jl *Solver) getEdge(e Edge) *edge {
+func (jl *Solver) getEdge(e Edge) (redge *edge) {
+	if debugScheduler {
+		defer func() {
+			lg := bklog.G(context.TODO()).
+				WithField("edge_vertex_name", e.Vertex.Name()).
+				WithField("edge_vertex_digest", e.Vertex.Digest()).
+				WithField("edge_index", e.Index)
+			if redge != nil {
+				lg = lg.
+					WithField("return_edge_vertex_name", redge.edge.Vertex.Name()).
+					WithField("return_edge_vertex_digest", redge.edge.Vertex.Digest()).
+					WithField("return_edge_index", redge.edge.Index)
+			}
+			lg.Debug("getEdge return")
+		}()
+	}
+
 	jl.mu.RLock()
 	defer jl.mu.RUnlock()
 
@@ -362,7 +426,7 @@ func (jl *Solver) getEdge(e Edge) *edge {
 }
 
 func (jl *Solver) subBuild(ctx context.Context, e Edge, parent Vertex) (CachedResult, error) {
-	v, err := jl.load(e.Vertex, parent, nil)
+	v, err := jl.load(ctx, e.Vertex, parent, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -374,16 +438,17 @@ func (jl *Solver) Close() {
 	jl.s.Stop()
 }
 
-func (jl *Solver) load(v, parent Vertex, j *Job) (Vertex, error) {
+func (jl *Solver) load(ctx context.Context, v, parent Vertex, j *Job) (Vertex, error) {
 	jl.mu.Lock()
 	defer jl.mu.Unlock()
 
 	cache := map[Vertex]Vertex{}
 
-	return jl.loadUnlocked(v, parent, j, cache)
+	return jl.loadUnlocked(ctx, v, parent, j, cache)
 }
 
-func (jl *Solver) loadUnlocked(v, parent Vertex, j *Job, cache map[Vertex]Vertex) (Vertex, error) {
+// called with solver lock
+func (jl *Solver) loadUnlocked(ctx context.Context, v, parent Vertex, j *Job, cache map[Vertex]Vertex) (Vertex, error) {
 	if v, ok := cache[v]; ok {
 		return v, nil
 	}
@@ -391,7 +456,7 @@ func (jl *Solver) loadUnlocked(v, parent Vertex, j *Job, cache map[Vertex]Vertex
 
 	inputs := make([]Edge, len(v.Inputs()))
 	for i, e := range v.Inputs() {
-		v, err := jl.loadUnlocked(e.Vertex, parent, j, cache)
+		v, err := jl.loadUnlocked(ctx, e.Vertex, parent, j, cache)
 		if err != nil {
 			return nil, err
 		}
@@ -448,6 +513,33 @@ func (jl *Solver) loadUnlocked(v, parent Vertex, j *Job, cache map[Vertex]Vertex
 			origDigest:   origVtx.Digest(),
 		}
 		jl.actives[dgst] = st
+
+		if debugScheduler {
+			lg := bklog.G(ctx).
+				WithField("vertex_name", v.Name()).
+				WithField("vertex_digest", v.Digest()).
+				WithField("actives_digest_key", dgst)
+			if j != nil {
+				lg = lg.WithField("job", j.id)
+			}
+			lg.Debug("adding active vertex")
+			for i, inp := range v.Inputs() {
+				lg.WithField("input_index", i).
+					WithField("input_vertex_name", inp.Vertex.Name()).
+					WithField("input_vertex_digest", inp.Vertex.Digest()).
+					WithField("input_edge_index", inp.Index).
+					Debug("new active vertex input")
+			}
+		}
+	} else if debugScheduler {
+		lg := bklog.G(ctx).
+			WithField("vertex_name", v.Name()).
+			WithField("vertex_digest", v.Digest()).
+			WithField("actives_digest_key", dgst)
+		if j != nil {
+			lg = lg.WithField("job", j.id)
+		}
+		lg.Debug("reusing active vertex")
 	}
 
 	st.mu.Lock()
@@ -563,6 +655,21 @@ func (jl *Solver) Get(id string) (*Job, error) {
 // called with solver lock
 func (jl *Solver) deleteIfUnreferenced(k digest.Digest, st *state) {
 	if len(st.jobs) == 0 && len(st.parents) == 0 {
+		if debugScheduler {
+			bklog.G(context.TODO()).
+				WithField("vertex_name", st.vtx.Name()).
+				WithField("vertex_digest", st.vtx.Digest()).
+				WithField("actives_key", k).
+				Debug("deleting unreferenced active vertex")
+			for _, e := range st.edges {
+				bklog.G(context.TODO()).
+					WithField("vertex_name", e.edge.Vertex.Name()).
+					WithField("vertex_digest", e.edge.Vertex.Digest()).
+					WithField("index", e.edge.Index).
+					WithField("state", e.state).
+					Debug("edge in deleted unreferenced state")
+			}
+		}
 		for chKey := range st.childVtx {
 			chState := jl.actives[chKey]
 			delete(chState.parents, k)
@@ -570,6 +677,17 @@ func (jl *Solver) deleteIfUnreferenced(k digest.Digest, st *state) {
 		}
 		st.Release()
 		delete(jl.actives, k)
+	} else if debugScheduler {
+		var jobIDs []string
+		for j := range st.jobs {
+			jobIDs = append(jobIDs, j.id)
+		}
+		bklog.G(context.TODO()).
+			WithField("vertex_name", st.vtx.Name()).
+			WithField("vertex_digest", st.vtx.Digest()).
+			WithField("actives_key", k).
+			WithField("jobs", jobIDs).
+			Debug("not deleting referenced active vertex")
 	}
 }
 
@@ -578,7 +696,7 @@ func (j *Job) Build(ctx context.Context, e Edge) (CachedResultWithProvenance, er
 		j.span = span
 	}
 
-	v, err := j.list.load(e.Vertex, nil, j)
+	v, err := j.list.load(ctx, e.Vertex, nil, j)
 	if err != nil {
 		return nil, err
 	}
@@ -589,8 +707,6 @@ func (j *Job) Build(ctx context.Context, e Edge) (CachedResultWithProvenance, er
 		return nil, err
 	}
 
-	j.list.mu.Lock()
-	defer j.list.mu.Unlock()
 	return &withProvenance{CachedResult: res, j: j, e: e}, nil
 }
 
@@ -610,6 +726,7 @@ func (wp *withProvenance) WalkProvenance(ctx context.Context, f func(ProvenanceP
 	return wp.j.walkProvenance(ctx, wp.e, f, m)
 }
 
+// called with solver lock
 func (j *Job) walkProvenance(ctx context.Context, e Edge, f func(ProvenanceProvider) error, visited map[digest.Digest]struct{}) error {
 	if _, ok := visited[e.Vertex.Digest()]; ok {
 		return nil
@@ -647,6 +764,14 @@ func (j *Job) Discard() error {
 	for k, st := range j.list.actives {
 		st.mu.Lock()
 		if _, ok := st.jobs[j]; ok {
+			if debugScheduler {
+				bklog.G(context.TODO()).
+					WithField("job", j.id).
+					WithField("vertex_name", st.vtx.Name()).
+					WithField("vertex_digest", st.vtx.Digest()).
+					WithField("actives_key", k).
+					Debug("deleting job from state")
+			}
 			delete(st.jobs, j)
 			j.list.deleteIfUnreferenced(k, st)
 		}
@@ -709,7 +834,7 @@ type activeOp interface {
 	CalcSlowCache(context.Context, Index, PreprocessFunc, ResultBasedCacheFunc, Result) (digest.Digest, error)
 }
 
-func newSharedOp(resolver ResolveOpFunc, cacheManager CacheManager, st *state) *sharedOp {
+func newSharedOp(resolver ResolveOpFunc, st *state) *sharedOp {
 	so := &sharedOp{
 		resolver:     resolver,
 		st:           st,

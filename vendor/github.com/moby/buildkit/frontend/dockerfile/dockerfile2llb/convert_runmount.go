@@ -130,11 +130,9 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 		}
 		if src := path.Join("/", mount.Source); src != "/" {
 			mountOpts = append(mountOpts, llb.SourcePath(src))
-		} else {
-			if mount.UID != nil || mount.GID != nil || mount.Mode != nil {
-				st = setCacheUIDGID(mount, st)
-				mountOpts = append(mountOpts, llb.SourcePath("/cache"))
-			}
+		} else if mount.UID != nil || mount.GID != nil || mount.Mode != nil {
+			st = setCacheUIDGID(mount, st)
+			mountOpts = append(mountOpts, llb.SourcePath("/cache"))
 		}
 
 		out = append(out, llb.AddMount(target, st, mountOpts...))

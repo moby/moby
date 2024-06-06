@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/pkg/errors"
 )
 
@@ -103,4 +104,26 @@ func stripQuotes(s string) string {
 		return s[1 : len(s)-1]
 	}
 	return s
+}
+
+func DetectDefaultGCCap() DiskSpace {
+	return DiskSpace{Percentage: DiskSpacePercentage}
+}
+
+func (d DiskSpace) AsBytes(root string) int64 {
+	if d.Bytes != 0 {
+		return d.Bytes
+	}
+	if d.Percentage == 0 {
+		return 0
+	}
+
+	diskSize, err := getDiskSize(root)
+	if err != nil {
+		bklog.L.Warnf("failed to get disk size: %v", err)
+		return defaultCap
+	}
+	avail := diskSize * d.Percentage / 100
+	rounded := (avail/(1<<30) + 1) * 1e9 // round up
+	return rounded
 }

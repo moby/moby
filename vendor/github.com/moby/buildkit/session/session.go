@@ -3,12 +3,11 @@ package session
 import (
 	"context"
 	"net"
-	"strings"
 	"sync"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/util/grpcerrors"
+	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/propagation"
@@ -53,29 +52,17 @@ type Session struct {
 func NewSession(ctx context.Context, name, sharedKey string) (*Session, error) {
 	id := identity.NewID()
 
-	var unary []grpc.UnaryServerInterceptor
-	var stream []grpc.StreamServerInterceptor
-
-	serverOpts := []grpc.ServerOption{}
+	serverOpts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(grpcerrors.UnaryServerInterceptor),
+		grpc.StreamInterceptor(grpcerrors.StreamServerInterceptor),
+	}
 
 	if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
-		unary = append(unary, filterServer(otelgrpc.UnaryServerInterceptor(otelgrpc.WithTracerProvider(span.TracerProvider()), otelgrpc.WithPropagators(propagators)))) //nolint:staticcheck // TODO(thaJeztah): ignore SA1019 for deprecated options: see https://github.com/moby/buildkit/issues/4681
-		stream = append(stream, otelgrpc.StreamServerInterceptor(otelgrpc.WithTracerProvider(span.TracerProvider()), otelgrpc.WithPropagators(propagators)))            //nolint:staticcheck // TODO(thaJeztah): ignore SA1019 for deprecated options: see https://github.com/moby/buildkit/issues/4681
-	}
-
-	unary = append(unary, grpcerrors.UnaryServerInterceptor)
-	stream = append(stream, grpcerrors.StreamServerInterceptor)
-
-	if len(unary) == 1 {
-		serverOpts = append(serverOpts, grpc.UnaryInterceptor(unary[0]))
-	} else if len(unary) > 1 {
-		serverOpts = append(serverOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unary...)))
-	}
-
-	if len(stream) == 1 {
-		serverOpts = append(serverOpts, grpc.StreamInterceptor(stream[0]))
-	} else if len(stream) > 1 {
-		serverOpts = append(serverOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(stream...)))
+		statsHandler := tracing.ServerStatsHandler(
+			otelgrpc.WithTracerProvider(span.TracerProvider()),
+			otelgrpc.WithPropagators(propagators),
+		)
+		serverOpts = append(serverOpts, grpc.StatsHandler(statsHandler))
 	}
 
 	s := &Session{
@@ -166,23 +153,4 @@ func (s *Session) closed() bool {
 // MethodURL returns a gRPC method URL for service and method name
 func MethodURL(s, m string) string {
 	return "/" + s + "/" + m
-}
-
-// updates needed in opentelemetry-contrib to avoid this
-func filterServer(intercept grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-		if strings.HasSuffix(info.FullMethod, "Health/Check") {
-			return handler(ctx, req)
-		}
-		return intercept(ctx, req, info, handler)
-	}
-}
-
-func filterClient(intercept grpc.UnaryClientInterceptor) grpc.UnaryClientInterceptor {
-	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		if strings.HasSuffix(method, "Health/Check") {
-			return invoker(ctx, method, req, reply, cc, opts...)
-		}
-		return intercept(ctx, method, req, reply, cc, invoker, opts...)
-	}
 }

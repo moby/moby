@@ -115,7 +115,7 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	}
 
 	if desc.MediaType == images.MediaTypeDockerSchema1Manifest {
-		dgst, dt, err := readSchema1Config(ctx, ref.String(), desc, fetcher, cache)
+		dgst, dt, err := readSchema1Config(ctx, desc, fetcher)
 		return dgst, dt, err
 	}
 

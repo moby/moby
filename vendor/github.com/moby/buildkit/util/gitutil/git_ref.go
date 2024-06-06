@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -58,7 +58,7 @@ func ParseGitRef(ref string) (*GitRef, error) {
 	)
 
 	if strings.HasPrefix(ref, "./") || strings.HasPrefix(ref, "../") {
-		return nil, errdefs.ErrInvalidArgument
+		return nil, cerrdefs.ErrInvalidArgument
 	} else if strings.HasPrefix(ref, "github.com/") {
 		res.IndistinguishableFromLocal = true // Deprecated
 		remote = fromURL(&url.URL{
@@ -69,7 +69,7 @@ func ParseGitRef(ref string) (*GitRef, error) {
 	} else {
 		remote, err = ParseURL(ref)
 		if errors.Is(err, ErrUnknownProtocol) {
-			remote, err = ParseURL("https://" + ref)
+			return nil, err
 		}
 		if err != nil {
 			return nil, err
@@ -84,7 +84,7 @@ func ParseGitRef(ref string) (*GitRef, error) {
 		// An HTTP(S) URL is considered to be a valid git ref only when it has the ".git[...]" suffix.
 		case HTTPProtocol, HTTPSProtocol:
 			if !strings.HasSuffix(remote.Path, ".git") {
-				return nil, errdefs.ErrInvalidArgument
+				return nil, cerrdefs.ErrInvalidArgument
 			}
 		}
 	}

@@ -3,44 +3,26 @@ package detect
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
-	"sync"
 
-	"github.com/moby/buildkit/util/bklog"
 	"github.com/pkg/errors"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/prometheus"
-	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
-	"go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/trace/noop"
 )
 
-type ExporterDetector func() (sdktrace.SpanExporter, sdkmetric.Exporter, error)
+type ExporterDetector interface {
+	DetectTraceExporter() (sdktrace.SpanExporter, error)
+	DetectMetricExporter() (sdkmetric.Exporter, error)
+}
 
 type detector struct {
 	f        ExporterDetector
 	priority int
 }
 
-var ServiceName string
-var Recorder *TraceRecorder
-
 var detectors map[string]detector
-var once sync.Once
-var tp trace.TracerProvider
-var mp metric.MeterProvider
-var exporter struct {
-	SpanExporter   sdktrace.SpanExporter
-	MetricExporter sdkmetric.Exporter
-}
-var closers []func(context.Context) error
-var err error
 
 func Register(name string, exp ExporterDetector, priority int) {
 	if detectors == nil {
@@ -52,17 +34,34 @@ func Register(name string, exp ExporterDetector, priority int) {
 	}
 }
 
-func detectExporter() (texp sdktrace.SpanExporter, mexp sdkmetric.Exporter, err error) {
-	if n := os.Getenv("OTEL_TRACES_EXPORTER"); n != "" {
+type TraceExporterDetector func() (sdktrace.SpanExporter, error)
+
+func (fn TraceExporterDetector) DetectTraceExporter() (sdktrace.SpanExporter, error) {
+	return fn()
+}
+
+func (fn TraceExporterDetector) DetectMetricExporter() (sdkmetric.Exporter, error) {
+	return nil, nil
+}
+
+func detectExporter[T any](envVar string, fn func(d ExporterDetector) (T, bool, error)) (exp T, err error) {
+	ignoreErrors, _ := strconv.ParseBool("OTEL_IGNORE_ERROR")
+
+	if n := os.Getenv(envVar); n != "" {
 		d, ok := detectors[n]
 		if !ok {
-			if n == "none" {
-				return nil, nil, nil
+			if !ignoreErrors {
+				err = errors.Errorf("unsupported opentelemetry exporter %v", n)
 			}
-			return nil, nil, errors.Errorf("unsupported opentelemetry tracer %v", n)
+			return exp, err
 		}
-		return d.f()
+		exp, _, err = fn(d.f)
+		if err != nil && ignoreErrors {
+			err = nil
+		}
+		return exp, err
 	}
+
 	arr := make([]detector, 0, len(detectors))
 	for _, d := range detectors {
 		arr = append(arr, d)
@@ -71,185 +70,89 @@ func detectExporter() (texp sdktrace.SpanExporter, mexp sdkmetric.Exporter, err 
 		return arr[i].priority < arr[j].priority
 	})
 
+	var ok bool
 	for _, d := range arr {
-		t, m, err := d.f()
-		if err != nil {
-			return nil, nil, err
-		}
-		if texp == nil {
-			texp = t
-		}
-		if mexp == nil {
-			mexp = m
+		exp, ok, err = fn(d.f)
+		if err != nil && !ignoreErrors {
+			return exp, err
 		}
 
-		// Found a candidate for both exporters so just return now.
-		if texp != nil && mexp != nil {
-			return texp, mexp, nil
+		if ok {
+			break
 		}
 	}
-	return texp, mexp, nil
+	return exp, nil
 }
 
-func getExporters() (sdktrace.SpanExporter, sdkmetric.Exporter, error) {
-	texp, mexp, err := detectExporter()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if Recorder != nil {
-		Recorder.SpanExporter = texp
-		texp = Recorder
-	}
-
-	return texp, mexp, nil
+func NewSpanExporter(_ context.Context) (sdktrace.SpanExporter, error) {
+	return detectExporter("OTEL_TRACES_EXPORTER", func(d ExporterDetector) (sdktrace.SpanExporter, bool, error) {
+		exp, err := d.DetectTraceExporter()
+		return exp, exp != nil, err
+	})
 }
 
-func detect() error {
-	tp = noop.NewTracerProvider()
-	mp = sdkmetric.NewMeterProvider()
+func NewMetricExporter(_ context.Context) (sdkmetric.Exporter, error) {
+	return detectExporter("OTEL_METRICS_EXPORTER", func(d ExporterDetector) (sdkmetric.Exporter, bool, error) {
+		exp, err := d.DetectMetricExporter()
+		return exp, exp != nil, err
+	})
+}
 
-	texp, mexp, err := getExporters()
-	if err != nil || (texp == nil && mexp == nil) {
-		return err
-	}
+type noneDetector struct{}
 
-	res := Resource()
+func (n noneDetector) DetectTraceExporter() (sdktrace.SpanExporter, error) {
+	return noneSpanExporter{}, nil
+}
 
-	// enable log with traceID when valid exporter
-	if texp != nil {
-		bklog.EnableLogWithTraceID(true)
+func (n noneDetector) DetectMetricExporter() (sdkmetric.Exporter, error) {
+	return noneMetricExporter{}, nil
+}
 
-		sp := sdktrace.NewBatchSpanProcessor(texp)
+type noneSpanExporter struct{}
 
-		if Recorder != nil {
-			Recorder.flush = sp.ForceFlush
-		}
-
-		sdktp := sdktrace.NewTracerProvider(
-			sdktrace.WithSpanProcessor(sp),
-			sdktrace.WithResource(res),
-		)
-		closers = append(closers, sdktp.Shutdown)
-
-		exporter.SpanExporter = texp
-		tp = sdktp
-	}
-
-	var readers []sdkmetric.Reader
-	if mexp != nil {
-		// Create a new periodic reader using any configured metric exporter.
-		readers = append(readers, sdkmetric.NewPeriodicReader(mexp))
-	}
-
-	if r, err := prometheus.New(); err != nil {
-		// Log the error but do not fail if we could not configure the prometheus metrics.
-		bklog.G(context.Background()).
-			WithError(err).
-			Error("failed prometheus metrics configuration")
-	} else {
-		// Register the prometheus reader if there was no error.
-		readers = append(readers, r)
-	}
-
-	if len(readers) > 0 {
-		opts := make([]sdkmetric.Option, 0, len(readers)+1)
-		opts = append(opts, sdkmetric.WithResource(res))
-		for _, r := range readers {
-			opts = append(opts, sdkmetric.WithReader(r))
-		}
-		sdkmp := sdkmetric.NewMeterProvider(opts...)
-		closers = append(closers, sdkmp.Shutdown)
-
-		exporter.MetricExporter = mexp
-		mp = sdkmp
-	}
+func (n noneSpanExporter) ExportSpans(_ context.Context, _ []sdktrace.ReadOnlySpan) error {
 	return nil
 }
 
-func TracerProvider() (trace.TracerProvider, error) {
-	if err := detectOnce(); err != nil {
-		return nil, err
-	}
-	return tp, nil
-}
-
-func MeterProvider() (metric.MeterProvider, error) {
-	if err := detectOnce(); err != nil {
-		return nil, err
-	}
-	return mp, nil
-}
-
-func detectOnce() error {
-	once.Do(func() {
-		if err1 := detect(); err1 != nil {
-			b, _ := strconv.ParseBool(os.Getenv("OTEL_IGNORE_ERROR"))
-			if !b {
-				err = err1
-			}
-		}
-	})
-	return err
-}
-
-func Exporter() (sdktrace.SpanExporter, sdkmetric.Exporter, error) {
-	_, err := TracerProvider()
-	if err != nil {
-		return nil, nil, err
-	}
-	return exporter.SpanExporter, exporter.MetricExporter, nil
-}
-
-func Shutdown(ctx context.Context) error {
-	for _, c := range closers {
-		if err := c(ctx); err != nil {
-			return err
-		}
-	}
+func (n noneSpanExporter) Shutdown(_ context.Context) error {
 	return nil
 }
 
-var (
-	detectedResource     *resource.Resource
-	detectedResourceOnce sync.Once
-)
-
-func Resource() *resource.Resource {
-	detectedResourceOnce.Do(func() {
-		res, err := resource.New(context.Background(),
-			resource.WithDetectors(serviceNameDetector{}),
-			resource.WithFromEnv(),
-			resource.WithTelemetrySDK(),
-		)
-		if err != nil {
-			otel.Handle(err)
-		}
-		detectedResource = res
-	})
-	return detectedResource
+func IsNoneSpanExporter(exp sdktrace.SpanExporter) bool {
+	_, ok := exp.(noneSpanExporter)
+	return ok
 }
 
-// OverrideResource overrides the resource returned from Resource.
-//
-// This must be invoked before Resource is called otherwise it is a no-op.
-func OverrideResource(res *resource.Resource) {
-	detectedResourceOnce.Do(func() {
-		detectedResource = res
-	})
+type noneMetricExporter struct{}
+
+func (n noneMetricExporter) Temporality(kind sdkmetric.InstrumentKind) metricdata.Temporality {
+	return sdkmetric.DefaultTemporalitySelector(kind)
 }
 
-type serviceNameDetector struct{}
+func (n noneMetricExporter) Aggregation(kind sdkmetric.InstrumentKind) sdkmetric.Aggregation {
+	return sdkmetric.DefaultAggregationSelector(kind)
+}
 
-func (serviceNameDetector) Detect(ctx context.Context) (*resource.Resource, error) {
-	return resource.StringDetector(
-		semconv.SchemaURL,
-		semconv.ServiceNameKey,
-		func() (string, error) {
-			if ServiceName != "" {
-				return ServiceName, nil
-			}
-			return filepath.Base(os.Args[0]), nil
-		},
-	).Detect(ctx)
+func (n noneMetricExporter) Export(_ context.Context, _ *metricdata.ResourceMetrics) error {
+	return nil
+}
+
+func (n noneMetricExporter) ForceFlush(_ context.Context) error {
+	return nil
+}
+
+func (n noneMetricExporter) Shutdown(_ context.Context) error {
+	return nil
+}
+
+func IsNoneMetricExporter(exp sdkmetric.Exporter) bool {
+	_, ok := exp.(noneMetricExporter)
+	return ok
+}
+
+func init() {
+	// Register a none detector. This will never be chosen if there's another suitable
+	// exporter that can be detected, but exists to allow telemetry to be explicitly
+	// disabled.
+	Register("none", noneDetector{}, 1000)
 }

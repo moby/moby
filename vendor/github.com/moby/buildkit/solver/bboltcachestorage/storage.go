@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 
+	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/bklog"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
@@ -23,10 +26,12 @@ type Store struct {
 }
 
 func NewStore(dbPath string) (*Store, error) {
-	db, err := bolt.Open(dbPath, 0600, nil)
+	db, err := safeOpenDB(dbPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to open database file %s", dbPath)
+		return nil, err
 	}
+
+	// Initialize the database with the needed buckets if they do not exist.
 	if err := db.Update(func(tx *bolt.Tx) error {
 		for _, b := range []string{resultBucket, linksBucket, byResultBucket, backlinksBucket} {
 			if _, err := tx.CreateBucketIfNotExists([]byte(b)); err != nil {
@@ -454,4 +459,52 @@ func isEmptyBucket(b *bolt.Bucket) bool {
 	}
 	k, _ := b.Cursor().First()
 	return k == nil
+}
+
+// safeOpenDB opens a bolt database and recovers from panic that
+// can be caused by a corrupted database file.
+func safeOpenDB(dbPath string) (db *bolt.DB, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Errorf("%v", r)
+		}
+
+		// If we get an error when opening the database, but we have
+		// access to the file and the file looks like it has content,
+		// then fallback to resetting the database since the database
+		// may be corrupt.
+		if err != nil && fileHasContent(dbPath) {
+			db, err = fallbackOpenDB(dbPath, err)
+		}
+	}()
+	return openDB(dbPath)
+}
+
+// fallbackOpenDB performs database recovery and opens the new database
+// file when the database fails to open. Called after the first database
+// open fails.
+func fallbackOpenDB(dbPath string, openErr error) (*bolt.DB, error) {
+	backupPath := dbPath + "." + identity.NewID() + ".bak"
+	bklog.L.Errorf("failed to open database file %s, resetting to empty. Old database is backed up to %s. "+
+		"This error signifies that buildkitd likely crashed or was sigkilled abrubtly, leaving the database corrupted. "+
+		"If you see logs from a previous panic then please report in the issue tracker at https://github.com/moby/buildkit . %+v", dbPath, backupPath, openErr)
+	if err := os.Rename(dbPath, backupPath); err != nil {
+		return nil, errors.Wrapf(err, "failed to rename database file %s to %s", dbPath, backupPath)
+	}
+
+	// Attempt to open the database again. This should be a new database.
+	// If this fails, it is a permanent error.
+	return openDB(dbPath)
+}
+
+// openDB opens a bolt database in user-only read/write mode.
+func openDB(dbPath string) (*bolt.DB, error) {
+	return bolt.Open(dbPath, 0600, nil)
+}
+
+// fileHasContent checks if we have access to the file with appropriate
+// permissions and the file has a non-zero size.
+func fileHasContent(dbPath string) bool {
+	st, err := os.Stat(dbPath)
+	return err == nil && st.Size() > 0
 }

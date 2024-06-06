@@ -7,6 +7,7 @@ import (
 
 	"github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/frontend/subrequests"
+	"github.com/moby/buildkit/frontend/subrequests/lint"
 	"github.com/moby/buildkit/frontend/subrequests/outline"
 	"github.com/moby/buildkit/frontend/subrequests/targets"
 	"github.com/moby/buildkit/solver/errdefs"
@@ -19,6 +20,7 @@ const (
 type RequestHandler struct {
 	Outline     func(context.Context) (*outline.Outline, error)
 	ListTargets func(context.Context) (*targets.List, error)
+	Lint        func(context.Context) (*lint.LintResults, error)
 	AllowOther  bool
 }
 
@@ -53,6 +55,18 @@ func (bc *Client) HandleSubrequest(ctx context.Context, h RequestHandler) (*clie
 				return nil, true, nil
 			}
 			res, err := targets.ToResult()
+			return res, true, err
+		}
+	case lint.SubrequestLintDefinition.Name:
+		if f := h.Lint; f != nil {
+			warnings, err := f(ctx)
+			if err != nil {
+				return nil, false, err
+			}
+			if warnings == nil {
+				return nil, true, nil
+			}
+			res, err := warnings.ToResult()
 			return res, true, err
 		}
 	}

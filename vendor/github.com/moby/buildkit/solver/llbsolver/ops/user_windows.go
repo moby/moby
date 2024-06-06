@@ -18,7 +18,7 @@ func getReadUserFn(worker worker.Worker) func(chopt *pb.ChownOpt, mu, mg snapsho
 	}
 }
 
-func readUser(chopt *pb.ChownOpt, mu, mg snapshot.Mountable, worker worker.Worker) (*copy.User, error) {
+func readUser(chopt *pb.ChownOpt, mu, _ snapshot.Mountable, worker worker.Worker) (*copy.User, error) {
 	if chopt == nil {
 		return nil, nil
 	}

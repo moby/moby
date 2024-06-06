@@ -12,9 +12,9 @@ import (
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/diff"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/mount"
+	cerrdefs "github.com/containerd/errdefs"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -49,7 +49,7 @@ func (s *winApplier) Apply(ctx context.Context, desc ocispecs.Descriptor, mounts
 
 	compressed, err := images.DiffCompression(ctx, desc.MediaType)
 	if err != nil {
-		return ocispecs.Descriptor{}, errors.Wrapf(errdefs.ErrNotImplemented, "unsupported diff media type: %v", desc.MediaType)
+		return ocispecs.Descriptor{}, errors.Wrapf(cerrdefs.ErrNotImplemented, "unsupported diff media type: %v", desc.MediaType)
 	}
 
 	var ocidesc ocispecs.Descriptor
@@ -148,12 +148,10 @@ func filter(in io.Reader, f func(*tar.Header) bool) (io.Reader, func(error)) {
 							return err
 						}
 					}
-				} else {
-					if h.Size > 0 {
-						//nolint:gosec // never read into memory
-						if _, err := io.Copy(io.Discard, tarReader); err != nil {
-							return err
-						}
+				} else if h.Size > 0 {
+					//nolint:gosec // never read into memory
+					if _, err := io.Copy(io.Discard, tarReader); err != nil {
+						return err
 					}
 				}
 			}

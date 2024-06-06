@@ -12,6 +12,7 @@ import (
 	"github.com/moby/buildkit/session"
 	sessioncontent "github.com/moby/buildkit/session/content"
 	"github.com/moby/buildkit/util/imageutil"
+	"github.com/moby/buildkit/util/iohelper"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -51,7 +52,7 @@ func (r *ociLayoutResolver) Fetch(ctx context.Context, desc ocispecs.Descriptor)
 		if err != nil {
 			return err
 		}
-		rc = &readerAtWrapper{readerAt: readerAt}
+		rc = iohelper.ReadCloser(readerAt)
 		return nil
 	})
 	return rc, err
@@ -136,19 +137,4 @@ func (r *ociLayoutResolver) withCaller(ctx context.Context, f func(context.Conte
 	return r.sm.Any(ctx, r.g, func(ctx context.Context, _ string, caller session.Caller) error {
 		return f(ctx, caller)
 	})
-}
-
-// readerAtWrapper wraps a ReaderAt to give a Reader
-type readerAtWrapper struct {
-	offset   int64
-	readerAt content.ReaderAt
-}
-
-func (r *readerAtWrapper) Read(p []byte) (n int, err error) {
-	n, err = r.readerAt.ReadAt(p, r.offset)
-	r.offset += int64(n)
-	return
-}
-func (r *readerAtWrapper) Close() error {
-	return r.readerAt.Close()
 }

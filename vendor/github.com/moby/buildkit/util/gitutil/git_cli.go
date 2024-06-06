@@ -210,13 +210,23 @@ func (cli *GitCLI) Run(ctx context.Context, args ...string) (_ []byte, err error
 		}
 
 		if err != nil {
+			select {
+			case <-ctx.Done():
+				cerr := context.Cause(ctx)
+				if cerr != nil {
+					return buf.Bytes(), errors.Wrapf(cerr, "context completed: git stderr:\n%s", errbuf.String())
+				}
+			default:
+			}
+
 			if strings.Contains(errbuf.String(), "--depth") || strings.Contains(errbuf.String(), "shallow") {
 				if newArgs := argsNoDepth(args); len(args) > len(newArgs) {
 					args = newArgs
 					continue
 				}
 			}
-			return buf.Bytes(), errors.Errorf("git error: %s\nstderr:\n%s", err, errbuf.String())
+
+			return buf.Bytes(), errors.Wrapf(err, "git stderr:\n%s", errbuf.String())
 		}
 		return buf.Bytes(), nil
 	}

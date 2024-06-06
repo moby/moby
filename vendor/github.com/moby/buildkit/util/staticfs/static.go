@@ -71,9 +71,9 @@ func (fs *FS) Open(p string) (io.ReadCloser, error) {
 }
 
 func convertPathToKey(p string) string {
-	return strings.Replace(p, "/", "\x00", -1)
+	return strings.ReplaceAll(p, "/", "\x00")
 }
 
 func convertKeyToPath(p string) string {
-	return strings.Replace(p, "\x00", "/", -1)
+	return strings.ReplaceAll(p, "\x00", "/")
 }

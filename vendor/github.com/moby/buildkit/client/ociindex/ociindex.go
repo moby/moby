@@ -102,6 +102,7 @@ func (s StoreIndex) Put(tag string, desc ocispecs.Descriptor) error {
 		}
 	}
 
+	setOCIIndexDefaults(&idx)
 	if err = insertDesc(&idx, desc, tag); err != nil {
 		return err
 	}
@@ -145,6 +146,19 @@ func (s StoreIndex) GetSingle() (*ocispecs.Descriptor, error) {
 	return nil, nil
 }
 
+// setOCIIndexDefaults updates zero values in index to their default values.
+func setOCIIndexDefaults(index *ocispecs.Index) {
+	if index == nil {
+		return
+	}
+	if index.SchemaVersion == 0 {
+		index.SchemaVersion = 2
+	}
+	if index.MediaType == "" {
+		index.MediaType = ocispecs.MediaTypeImageIndex
+	}
+}
+
 // insertDesc puts desc to index with tag.
 // Existing manifests with the same tag will be removed from the index.
 func insertDesc(index *ocispecs.Index, desc ocispecs.Descriptor, tag string) error {
@@ -152,9 +166,6 @@ func insertDesc(index *ocispecs.Index, desc ocispecs.Descriptor, tag string) err
 		return nil
 	}
 
-	if index.SchemaVersion == 0 {
-		index.SchemaVersion = 2
-	}
 	if tag != "" {
 		if desc.Annotations == nil {
 			desc.Annotations = make(map[string]string)

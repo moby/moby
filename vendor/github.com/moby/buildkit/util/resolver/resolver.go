@@ -10,12 +10,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/pkg/errors"
+
 	"github.com/moby/buildkit/util/resolver/config"
 	"github.com/moby/buildkit/util/tracing"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -46,6 +48,8 @@ func fillInsecureOpts(host string, c config.RegistryConfig, h docker.RegistryHos
 
 		var transport http.RoundTripper = httpsTransport
 		if isHTTP {
+			// TODO: Replace this with [docker.NewHTTPFallback] once
+			// backported to vendored version of containerd
 			transport = &httpFallback{super: transport}
 		}
 		h2.Client = &http.Client{
@@ -217,10 +221,7 @@ func (f *httpFallback) RoundTrip(r *http.Request) (*http.Response, error) {
 	// only fall back if the same host had previously fell back
 	if f.host != r.URL.Host {
 		resp, err := f.super.RoundTrip(r)
-		var tlsErr tls.RecordHeaderError
-		if errors.As(err, &tlsErr) && string(tlsErr.RecordHeader[:]) == "HTTP/" {
-			f.host = r.URL.Host
-		} else {
+		if !isTLSError(err) && !isPortError(err, r.URL.Host) {
 			return resp, err
 		}
 	}
@@ -231,5 +232,45 @@ func (f *httpFallback) RoundTrip(r *http.Request) (*http.Response, error) {
 	plainHTTPRequest := *r
 	plainHTTPRequest.URL = &plainHTTPUrl
 
+	if f.host != r.URL.Host {
+		f.host = r.URL.Host
+
+		// update body on the second attempt
+		if r.Body != nil && r.GetBody != nil {
+			body, err := r.GetBody()
+			if err != nil {
+				return nil, err
+			}
+			plainHTTPRequest.Body = body
+		}
+	}
+
 	return f.super.RoundTrip(&plainHTTPRequest)
+}
+
+func isTLSError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var tlsErr tls.RecordHeaderError
+	if errors.As(err, &tlsErr) && string(tlsErr.RecordHeader[:]) == "HTTP/" {
+		return true
+	}
+	if strings.Contains(err.Error(), "TLS handshake timeout") {
+		return true
+	}
+
+	return false
+}
+
+func isPortError(err error, host string) bool {
+	if errors.Is(err, syscall.ECONNREFUSED) || os.IsTimeout(err) {
+		if _, port, _ := net.SplitHostPort(host); port != "" {
+			// Port is specified, will not retry on different port with scheme change
+			return false
+		}
+		return true
+	}
+
+	return false
 }

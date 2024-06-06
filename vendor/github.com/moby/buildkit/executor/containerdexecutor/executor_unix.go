@@ -102,7 +102,7 @@ func (w *containerdExecutor) prepareExecutionEnv(ctx context.Context, rootMount 
 	return resolvConf, hostsFile, releaseAll, nil
 }
 
-func (w *containerdExecutor) ensureCWD(ctx context.Context, details *containerState, meta executor.Meta) error {
+func (w *containerdExecutor) ensureCWD(_ context.Context, details *containerState, meta executor.Meta) error {
 	newp, err := fs.RootPath(details.rootfsPath, meta.Cwd)
 	if err != nil {
 		return errors.Wrapf(err, "working dir %s points to invalid target", newp)

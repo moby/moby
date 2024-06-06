@@ -8,19 +8,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-func createNetNS(c *cniProvider, id string) (string, error) {
+func createNetNS(_ *cniProvider, _ string) (string, error) {
 	return "", errors.New("creating netns for cni not supported")
 }
 
-func setNetNS(s *specs.Spec, nativeID string) error {
+func setNetNS(_ *specs.Spec, _ string) error {
 	return errors.New("enabling netns for cni not supported")
 }
 
-func unmountNetNS(nativeID string) error {
+func unmountNetNS(_ string) error {
 	return errors.New("unmounting netns for cni not supported")
 }
 
-func deleteNetNS(nativeID string) error {
+func deleteNetNS(_ string) error {
 	return errors.New("deleting netns for cni not supported")
 }
 

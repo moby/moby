@@ -224,7 +224,7 @@ func (d *dispatchRequest) getExpandedString(shlex *shell.Lex, str string) (strin
 		substitutionArgs = append(substitutionArgs, key+"="+value)
 	}
 
-	name, err := shlex.ProcessWord(str, substitutionArgs)
+	name, _, err := shlex.ProcessWord(str, substitutionArgs)
 	if err != nil {
 		return "", err
 	}

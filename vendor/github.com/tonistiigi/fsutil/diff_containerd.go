@@ -111,7 +111,7 @@ func doubleWalkDiff(ctx context.Context, changeFn ChangeFunc, a, b walkerFn, fil
 				if filter != nil {
 					filter(f2.path, &statCopy)
 				}
-				f2copy = &currentPath{path: filepath.FromSlash(f2.path), stat: &statCopy}
+				f2copy = &currentPath{path: f2.path, stat: &statCopy}
 			}
 			k, p := pathChange(f1, f2copy)
 			switch k {

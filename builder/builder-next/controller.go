@@ -46,6 +46,7 @@ import (
 	"github.com/moby/buildkit/util/archutil"
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/network/netproviders"
+	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/buildkit/util/tracing/detect"
 	"github.com/moby/buildkit/worker"
 	"github.com/moby/buildkit/worker/containerd"
@@ -67,11 +68,17 @@ func newController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control
 }
 
 func getTraceExporter(ctx context.Context) trace.SpanExporter {
-	span, _, err := detect.Exporter()
-	if err != nil {
-		log.G(ctx).WithError(err).Error("Failed to detect trace exporter for buildkit controller")
+	tc := make(tracing.MultiSpanExporter, 0, 2)
+	if detect.Recorder != nil {
+		tc = append(tc, detect.Recorder)
 	}
-	return span
+
+	if exp, err := detect.NewSpanExporter(ctx); err != nil {
+		log.G(ctx).WithError(err).Error("Failed to detect trace exporter for buildkit controller")
+	} else if !detect.IsNoneSpanExporter(exp) {
+		tc = append(tc, exp)
+	}
+	return tc
 }
 
 func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
@@ -142,9 +149,15 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	if err != nil {
 		return nil, err
 	}
+
+	gwf, err := gateway.NewGatewayFrontend(wc.Infos(), nil)
+	if err != nil {
+		return nil, err
+	}
+
 	frontends := map[string]frontend.Frontend{
 		"dockerfile.v0": forwarder.NewGatewayForwarder(wc.Infos(), dockerfile.Build),
-		"gateway.v0":    gateway.NewGatewayFrontend(wc.Infos()),
+		"gateway.v0":    gwf,
 	}
 
 	return control.NewController(control.Opt{
@@ -366,9 +379,14 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	}
 	wc.Add(w)
 
+	gwf, err := gateway.NewGatewayFrontend(wc.Infos(), nil)
+	if err != nil {
+		return nil, err
+	}
+
 	frontends := map[string]frontend.Frontend{
 		"dockerfile.v0": forwarder.NewGatewayForwarder(wc.Infos(), dockerfile.Build),
-		"gateway.v0":    gateway.NewGatewayFrontend(wc.Infos()),
+		"gateway.v0":    gwf,
 	}
 
 	return control.NewController(control.Opt{

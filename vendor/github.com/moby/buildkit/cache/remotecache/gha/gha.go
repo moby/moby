@@ -33,20 +33,24 @@ func init() {
 }
 
 const (
-	attrScope   = "scope"
-	attrTimeout = "timeout"
-	attrToken   = "token"
-	attrURL     = "url"
-	version     = "1"
+	attrScope      = "scope"
+	attrTimeout    = "timeout"
+	attrToken      = "token"
+	attrURL        = "url"
+	attrRepository = "repository"
+	attrGHToken    = "ghtoken"
+	version        = "1"
 
 	defaultTimeout = 10 * time.Minute
 )
 
 type Config struct {
-	Scope   string
-	URL     string
-	Token   string
-	Timeout time.Duration
+	Scope      string
+	URL        string
+	Token      string // token for the Github Cache runtime API
+	GHToken    string // token for the Github REST API
+	Repository string
+	Timeout    time.Duration
 }
 
 func getConfig(attrs map[string]string) (*Config, error) {
@@ -62,6 +66,7 @@ func getConfig(attrs map[string]string) (*Config, error) {
 	if !ok {
 		return nil, errors.Errorf("token not set for github actions cache")
 	}
+
 	timeout := defaultTimeout
 	if v, ok := attrs[attrTimeout]; ok {
 		var err error
@@ -71,10 +76,12 @@ func getConfig(attrs map[string]string) (*Config, error) {
 		}
 	}
 	return &Config{
-		Scope:   scope,
-		URL:     url,
-		Token:   token,
-		Timeout: timeout,
+		Scope:      scope,
+		URL:        url,
+		Token:      token,
+		Timeout:    timeout,
+		GHToken:    attrs[attrGHToken],
+		Repository: attrs[attrRepository],
 	}, nil
 }
 
@@ -91,9 +98,11 @@ func ResolveCacheExporterFunc() remotecache.ResolveCacheExporterFunc {
 
 type exporter struct {
 	solver.CacheExporterTarget
-	chains *v1.CacheChains
-	cache  *actionscache.Cache
-	config *Config
+	chains     *v1.CacheChains
+	cache      *actionscache.Cache
+	config     *Config
+	keyMapOnce sync.Once
+	keyMap     map[string]struct{}
 }
 
 func NewExporter(c *Config) (remotecache.Exporter, error) {
@@ -118,8 +127,12 @@ func (ce *exporter) Config() remotecache.Config {
 	}
 }
 
+func (ce *exporter) blobKeyPrefix() string {
+	return "buildkit-blob-" + version + "-"
+}
+
 func (ce *exporter) blobKey(dgst digest.Digest) string {
-	return "buildkit-blob-" + version + "-" + dgst.String()
+	return ce.blobKeyPrefix() + dgst.String()
 }
 
 func (ce *exporter) indexKey() string {
@@ -131,6 +144,35 @@ func (ce *exporter) indexKey() string {
 	}
 	scope = digest.FromBytes([]byte(scope)).Hex()[:8]
 	return "index-" + ce.config.Scope + "-" + version + "-" + scope
+}
+
+func (ce *exporter) initActiveKeyMap(ctx context.Context) {
+	ce.keyMapOnce.Do(func() {
+		if ce.config.Repository == "" || ce.config.GHToken == "" {
+			return
+		}
+		m, err := ce.initActiveKeyMapOnce(ctx)
+		if err != nil {
+			bklog.G(ctx).Errorf("error initializing active key map: %v", err)
+			return
+		}
+		ce.keyMap = m
+	})
+}
+
+func (ce *exporter) initActiveKeyMapOnce(ctx context.Context) (map[string]struct{}, error) {
+	api, err := actionscache.NewRestAPI(ce.config.Repository, ce.config.GHToken, actionscache.Opt{
+		Client:  tracing.DefaultClient,
+		Timeout: ce.config.Timeout,
+	})
+	if err != nil {
+		return nil, err
+	}
+	keys, err := ce.cache.AllKeys(ctx, api, ce.blobKeyPrefix())
+	if err != nil {
+		return nil, err
+	}
+	return keys, nil
 }
 
 func (ce *exporter) Finalize(ctx context.Context) (map[string]string, error) {
@@ -159,13 +201,25 @@ func (ce *exporter) Finalize(ctx context.Context) (map[string]string, error) {
 			return nil, errors.Wrapf(err, "failed to parse uncompressed annotation")
 		}
 		diffID = dgst
+		ce.initActiveKeyMap(ctx)
 
 		key := ce.blobKey(dgstPair.Descriptor.Digest)
-		b, err := ce.cache.Load(ctx, key)
-		if err != nil {
-			return nil, err
+
+		exists := false
+		if ce.keyMap != nil {
+			if _, ok := ce.keyMap[key]; ok {
+				exists = true
+			}
+		} else {
+			b, err := ce.cache.Load(ctx, key)
+			if err != nil {
+				return nil, err
+			}
+			if b != nil {
+				exists = true
+			}
 		}
-		if b == nil {
+		if !exists {
 			layerDone := progress.OneOff(ctx, fmt.Sprintf("writing layer %s", l.Blob))
 			ra, err := dgstPair.Provider.ReaderAt(ctx, dgstPair.Descriptor)
 			if err != nil {
@@ -260,9 +314,11 @@ func (ci *importer) makeDescriptorProviderPair(l v1.CacheLayer) (*v1.DescriptorP
 		Size:        l.Annotations.Size,
 		Annotations: annotations,
 	}
+	p := &ciProvider{desc: desc, ci: ci}
 	return &v1.DescriptorProviderPair{
-		Descriptor: desc,
-		Provider:   &ciProvider{desc: desc, ci: ci},
+		Descriptor:   desc,
+		Provider:     p,
+		InfoProvider: p,
 	}, nil
 }
 
@@ -347,13 +403,18 @@ type ciProvider struct {
 	entries map[digest.Digest]*actionscache.Entry
 }
 
-func (p *ciProvider) CheckDescriptor(ctx context.Context, desc ocispecs.Descriptor) error {
-	if desc.Digest != p.desc.Digest {
-		return nil
+func (p *ciProvider) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {
+	if dgst != p.desc.Digest {
+		return content.Info{}, errors.Errorf("content not found %s", dgst)
 	}
 
-	_, err := p.loadEntry(ctx, desc)
-	return err
+	if _, err := p.loadEntry(ctx, p.desc); err != nil {
+		return content.Info{}, err
+	}
+	return content.Info{
+		Digest: p.desc.Digest,
+		Size:   p.desc.Size,
+	}, nil
 }
 
 func (p *ciProvider) loadEntry(ctx context.Context, desc ocispecs.Descriptor) (*actionscache.Entry, error) {

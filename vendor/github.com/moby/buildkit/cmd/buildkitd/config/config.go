@@ -33,6 +33,19 @@ type Config struct {
 	DNS *DNSConfig `toml:"dns"`
 
 	History *HistoryConfig `toml:"history"`
+
+	Frontends struct {
+		Dockerfile DockerfileFrontendConfig `toml:"dockerfile.v0"`
+		Gateway    GatewayFrontendConfig    `toml:"gateway.v0"`
+	} `toml:"frontend"`
+
+	System *SystemConfig `toml:"system"`
+}
+
+type SystemConfig struct {
+	// PlatformCacheMaxAge controls how often supported platforms
+	// are refreshed by rescanning the system.
+	PlatformsCacheMaxAge *Duration `toml:"platformsCacheMaxAge"`
 }
 
 type LogConfig struct {
@@ -40,10 +53,11 @@ type LogConfig struct {
 }
 
 type GRPCConfig struct {
-	Address      []string `toml:"address"`
-	DebugAddress string   `toml:"debugAddress"`
-	UID          *int     `toml:"uid"`
-	GID          *int     `toml:"gid"`
+	Address            []string `toml:"address"`
+	DebugAddress       string   `toml:"debugAddress"`
+	UID                *int     `toml:"uid"`
+	GID                *int     `toml:"gid"`
+	SecurityDescriptor string   `toml:"securityDescriptor"`
 
 	TLS TLSConfig `toml:"tls"`
 	// MaxRecvMsgSize int    `toml:"max_recv_message_size"`
@@ -153,4 +167,13 @@ type DNSConfig struct {
 type HistoryConfig struct {
 	MaxAge     Duration `toml:"maxAge"`
 	MaxEntries int64    `toml:"maxEntries"`
+}
+
+type DockerfileFrontendConfig struct {
+	Enabled *bool `toml:"enabled"`
+}
+
+type GatewayFrontendConfig struct {
+	Enabled             *bool    `toml:"enabled"`
+	AllowedRepositories []string `toml:"allowedRepositories"`
 }

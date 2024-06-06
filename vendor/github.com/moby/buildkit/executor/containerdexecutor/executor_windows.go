@@ -19,13 +19,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-func getUserSpec(user, rootfsPath string) (specs.User, error) {
+func getUserSpec(user, _ string) (specs.User, error) {
 	return specs.User{
 		Username: user,
 	}, nil
 }
 
-func (w *containerdExecutor) prepareExecutionEnv(ctx context.Context, rootMount executor.Mount, mounts []executor.Mount, meta executor.Meta, details *containerState, netMode pb.NetMode) (string, string, func(), error) {
+func (w *containerdExecutor) prepareExecutionEnv(ctx context.Context, rootMount executor.Mount, _ []executor.Mount, _ executor.Meta, details *containerState, _ pb.NetMode) (string, string, func(), error) {
 	var releasers []func() error
 	releaseAll := func() {
 		for _, release := range releasers {
@@ -75,7 +75,7 @@ func (w *containerdExecutor) ensureCWD(ctx context.Context, details *containerSt
 	return nil
 }
 
-func (w *containerdExecutor) createOCISpec(ctx context.Context, id, resolvConf, hostsFile string, namespace network.Namespace, mounts []executor.Mount, meta executor.Meta, details *containerState) (*specs.Spec, func(), error) {
+func (w *containerdExecutor) createOCISpec(ctx context.Context, id, _, _ string, namespace network.Namespace, mounts []executor.Mount, meta executor.Meta, _ *containerState) (*specs.Spec, func(), error) {
 	var releasers []func()
 	releaseAll := func() {
 		for _, release := range releasers {

@@ -29,7 +29,7 @@ type Stream interface {
 func Send(ctx context.Context, conn Stream, fs FS, progressCb func(int, bool)) error {
 	s := &sender{
 		conn:         &syncStream{Stream: conn},
-		fs:           fs,
+		fs:           WithHardlinkReset(fs),
 		files:        make(map[uint32]string),
 		progressCb:   progressCb,
 		sendpipeline: make(chan *sendHandle, 128),
@@ -161,6 +161,7 @@ func (s *sender) walk(ctx context.Context) error {
 			return errors.WithStack(&os.PathError{Path: path, Err: syscall.EBADMSG, Op: "fileinfo without stat info"})
 		}
 		stat.Path = filepath.ToSlash(stat.Path)
+		stat.Linkname = filepath.ToSlash(stat.Linkname)
 		p := &types.Packet{
 			Type: types.PACKET_STAT,
 			Stat: stat,

@@ -1,14 +1,13 @@
 package sourcepolicy
 
 import (
-	"context"
 	"regexp"
 
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/pkg/errors"
 )
 
-func match(ctx context.Context, src *selectorCache, ref string, attrs map[string]string) (bool, error) {
+func match(src *selectorCache, ref string, attrs map[string]string) (bool, error) {
 	for _, c := range src.Constraints {
 		if c == nil {
 			return false, errors.Errorf("invalid nil constraint for %v", src)

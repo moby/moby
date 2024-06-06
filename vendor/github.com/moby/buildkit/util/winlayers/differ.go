@@ -13,9 +13,9 @@ import (
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/diff"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/mount"
+	cerrdefs "github.com/containerd/errdefs"
 	log "github.com/moby/buildkit/util/bklog"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -66,7 +66,7 @@ func (s *winDiffer) Compare(ctx context.Context, lower, upper []mount.Mount, opt
 	case ocispecs.MediaTypeImageLayerGzip:
 		isCompressed = true
 	default:
-		return emptyDesc, errors.Wrapf(errdefs.ErrNotImplemented, "unsupported diff media type: %v", config.MediaType)
+		return emptyDesc, errors.Wrapf(cerrdefs.ErrNotImplemented, "unsupported diff media type: %v", config.MediaType)
 	}
 
 	var ocidesc ocispecs.Descriptor

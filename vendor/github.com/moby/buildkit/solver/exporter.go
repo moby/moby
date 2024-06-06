@@ -199,9 +199,11 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 			}
 		}
 
-		for cm, id := range k.ids {
-			if _, err := addBacklinks(t, rec, cm, id, bkm); err != nil {
-				return nil, err
+		if !opt.IgnoreBacklinks {
+			for cm, id := range k.ids {
+				if _, err := addBacklinks(t, rec, cm, id, bkm); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}

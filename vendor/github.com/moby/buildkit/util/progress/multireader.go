@@ -95,6 +95,7 @@ func (mr *MultiReader) Reader(ctx context.Context) Reader {
 		mr.mu.Lock()
 		defer mr.mu.Unlock()
 		delete(mr.writers, w)
+		closeWriter(context.Cause(ctx))
 	}()
 
 	if !mr.initialized {

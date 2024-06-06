@@ -13,12 +13,14 @@ import (
 
 const (
 	keySyntax = "syntax"
+	keyCheck  = "check"
 	keyEscape = "escape"
 )
 
 var validDirectives = map[string]struct{}{
 	keySyntax: {},
 	keyEscape: {},
+	keyCheck:  {},
 }
 
 type Directive struct {
@@ -110,6 +112,10 @@ func (d *DirectiveParser) ParseAll(data []byte) ([]*Directive, error) {
 // This allows for a flexible range of input formats, and appropriate syntax
 // selection.
 func DetectSyntax(dt []byte) (string, string, []Range, bool) {
+	return ParseDirective(keySyntax, dt)
+}
+
+func ParseDirective(key string, dt []byte) (string, string, []Range, bool) {
 	dt, hadShebang, err := discardShebang(dt)
 	if err != nil {
 		return "", "", nil, false
@@ -119,42 +125,38 @@ func DetectSyntax(dt []byte) (string, string, []Range, bool) {
 		line++
 	}
 
-	// use default directive parser, and search for #syntax=
+	// use default directive parser, and search for #key=
 	directiveParser := DirectiveParser{line: line}
-	if syntax, cmdline, loc, ok := detectSyntaxFromParser(dt, directiveParser); ok {
+	if syntax, cmdline, loc, ok := detectDirectiveFromParser(key, dt, directiveParser); ok {
 		return syntax, cmdline, loc, true
 	}
 
-	// use directive with different comment prefix, and search for //syntax=
+	// use directive with different comment prefix, and search for //key=
 	directiveParser = DirectiveParser{line: line}
 	directiveParser.setComment("//")
-	if syntax, cmdline, loc, ok := detectSyntaxFromParser(dt, directiveParser); ok {
+	if syntax, cmdline, loc, ok := detectDirectiveFromParser(key, dt, directiveParser); ok {
 		return syntax, cmdline, loc, true
 	}
 
-	// search for possible json directives
-	var directive struct {
-		Syntax string `json:"syntax"`
-	}
-	if err := json.Unmarshal(dt, &directive); err == nil {
-		if directive.Syntax != "" {
+	// use json directive, and search for { "key": "..." }
+	jsonDirective := map[string]string{}
+	if err := json.Unmarshal(dt, &jsonDirective); err == nil {
+		if v, ok := jsonDirective[key]; ok {
 			loc := []Range{{
 				Start: Position{Line: line},
 				End:   Position{Line: line},
 			}}
-			return directive.Syntax, directive.Syntax, loc, true
+			return v, v, loc, true
 		}
 	}
 
 	return "", "", nil, false
 }
 
-func detectSyntaxFromParser(dt []byte, parser DirectiveParser) (string, string, []Range, bool) {
+func detectDirectiveFromParser(key string, dt []byte, parser DirectiveParser) (string, string, []Range, bool) {
 	directives, _ := parser.ParseAll(dt)
 	for _, d := range directives {
-		// check for syntax directive before erroring out, since the error
-		// might have occurred *after* the syntax directive
-		if d.Name == keySyntax {
+		if d.Name == key {
 			p, _, _ := strings.Cut(d.Value, " ")
 			return p, d.Value, d.Location, true
 		}

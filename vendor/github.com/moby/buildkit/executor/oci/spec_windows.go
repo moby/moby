@@ -51,14 +51,14 @@ func withGetUserInfoMount() oci.SpecOpts {
 	}
 }
 
-func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
+func generateMountOpts(_, _ string) ([]oci.SpecOpts, error) {
 	return []oci.SpecOpts{
 		withGetUserInfoMount(),
 	}, nil
 }
 
 // generateSecurityOpts may affect mounts, so must be called after generateMountOpts
-func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string, selinuxB bool) ([]oci.SpecOpts, error) {
+func generateSecurityOpts(mode pb.SecurityMode, _ string, _ bool) ([]oci.SpecOpts, error) {
 	if mode == pb.SecurityMode_INSECURE {
 		return nil, errors.New("no support for running in insecure mode on Windows")
 	}
