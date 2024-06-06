@@ -65,9 +65,10 @@ func TestNetworkCreate(t *testing.T) {
 		}),
 	}
 
+	enableIPv6 := true
 	networkResponse, err := client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{
 		Driver:     "mydriver",
-		EnableIPv6: true,
+		EnableIPv6: &enableIPv6,
 		Internal:   true,
 		Options: map[string]string{
 			"opt-key": "opt-value",

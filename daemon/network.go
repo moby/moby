@@ -318,8 +318,19 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 		}
 	}
 
+	var enableIPv6 bool
+	if create.EnableIPv6 != nil {
+		enableIPv6 = *create.EnableIPv6
+	} else {
+		var err error
+		v, ok := networkOptions[netlabel.EnableIPv6]
+		if enableIPv6, err = strconv.ParseBool(v); ok && err != nil {
+			return nil, errdefs.InvalidParameter(fmt.Errorf("driver-opt %q is not a valid bool", netlabel.EnableIPv6))
+		}
+	}
+
 	nwOptions := []libnetwork.NetworkOption{
-		libnetwork.NetworkOptionEnableIPv6(create.EnableIPv6),
+		libnetwork.NetworkOptionEnableIPv6(enableIPv6),
 		libnetwork.NetworkOptionDriverOpts(networkOptions),
 		libnetwork.NetworkOptionLabels(create.Labels),
 		libnetwork.NetworkOptionAttachable(create.Attachable),
@@ -331,7 +342,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionConfigOnly())
 	}
 
-	if err := network.ValidateIPAM(create.IPAM, create.EnableIPv6); err != nil {
+	if err := network.ValidateIPAM(create.IPAM, enableIPv6); err != nil {
 		if agent {
 			// This function is called with agent=false for all networks. For swarm-scoped
 			// networks, the configuration is validated but ManagerRedirectError is returned
