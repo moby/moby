@@ -831,9 +831,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// Do we have a disabled network?
 	config.DisableBridge = isBridgeNetworkDisabled(config)
 
-	// Setup the resolv.conf
-	setupResolvConf(config)
-
 	idMapping, err := setupRemappedRoot(config)
 	if err != nil {
 		return nil, err

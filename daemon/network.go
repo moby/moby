@@ -868,7 +868,8 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		createOptions = append(createOptions, libnetwork.CreateOptionService(svcCfg.Name, svcCfg.ID, vip, portConfigs, svcCfg.Aliases[nwID]))
 	}
 
-	if !containertypes.NetworkMode(nwName).IsUserDefined() {
+	// Don't run an internal DNS resolver for host/container/none networks.
+	if nm := containertypes.NetworkMode(nwName); nm.IsHost() || nm.IsContainer() || nm.IsNone() {
 		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
 	}
 

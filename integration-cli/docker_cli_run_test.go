@@ -27,7 +27,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/internal/testutils/specialimage"
-	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
@@ -1249,45 +1248,8 @@ func (s *DockerCLIRunSuite) TestRunDisallowBindMountingRootToRoot(c *testing.T) 
 	}
 }
 
-// Verify that a container gets default DNS when only localhost resolvers exist
-func (s *DockerCLIRunSuite) TestRunDNSDefaultOptions(c *testing.T) {
-	// Not applicable on Windows as this is testing Unix specific functionality
-	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
-
-	// preserve original resolv.conf for restoring after test
-	origResolvConf, err := os.ReadFile("/etc/resolv.conf")
-	if os.IsNotExist(err) {
-		c.Fatalf("/etc/resolv.conf does not exist")
-	}
-	// defer restored original conf
-	defer func() {
-		if err := os.WriteFile("/etc/resolv.conf", origResolvConf, 0o644); err != nil {
-			c.Fatal(err)
-		}
-	}()
-
-	// test 3 cases: standard IPv4 localhost, commented out localhost, and IPv6 localhost
-	// 2 are removed from the file at container start, and the 3rd (commented out) one is ignored by
-	// GetNameservers(), leading to a replacement of nameservers with the default set
-	tmpResolvConf := []byte("nameserver 127.0.0.1\n#nameserver 127.0.2.1\nnameserver ::1")
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0o644); err != nil {
-		c.Fatal(err)
-	}
-
-	actual := cli.DockerCmd(c, "run", "busybox", "cat", "/etc/resolv.conf").Combined()
-	actual = regexp.MustCompile("(?m)^#.*$").ReplaceAllString(actual, "")
-	actual = strings.ReplaceAll(strings.Trim(actual, "\r\n"), "\n", " ")
-	// NOTE: if we ever change the defaults from google dns, this will break
-	expected := "nameserver 8.8.8.8 nameserver 8.8.4.4"
-
-	if actual != expected {
-		c.Fatalf("expected resolv.conf be: %q, but was: %q", expected, actual)
-	}
-}
-
 func (s *DockerCLIRunSuite) TestRunDNSOptions(c *testing.T) {
-	// Not applicable on Windows as Windows does not support --dns*, or
-	// the Unix-specific functionality of resolv.conf.
+	// Not applicable on Windows as Windows does not support the Unix-specific functionality of resolv.conf.
 	testRequires(c, DaemonIsLinux)
 	result := cli.DockerCmd(c, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "--dns-opt=ndots:9", "busybox", "cat", "/etc/resolv.conf")
 
@@ -1298,16 +1260,22 @@ func (s *DockerCLIRunSuite) TestRunDNSOptions(c *testing.T) {
 
 	actual := regexp.MustCompile("(?m)^#.*$").ReplaceAllString(result.Stdout(), "")
 	actual = strings.ReplaceAll(strings.Trim(actual, "\r\n"), "\n", " ")
-	if actual != "nameserver 127.0.0.1 search mydomain options ndots:9" {
-		c.Fatalf("nameserver 127.0.0.1 expected 'search mydomain options ndots:9', but says: %q", actual)
+	if actual != "nameserver 127.0.0.11 search mydomain options ndots:9" {
+		c.Fatalf("nameserver 127.0.0.11 expected 'search mydomain options ndots:9', but says: %q", actual)
+	}
+	if !strings.Contains(result.Stdout(), "ExtServers: [127.0.0.1]") {
+		c.Fatalf("expected 'ExtServers: [127.0.0.1]' was not found in %q", result.Stdout())
 	}
 
 	out := cli.DockerCmd(c, "run", "--dns=1.1.1.1", "--dns-search=.", "--dns-opt=ndots:3", "busybox", "cat", "/etc/resolv.conf").Combined()
 
 	actual = regexp.MustCompile("(?m)^#.*$").ReplaceAllString(out, "")
 	actual = strings.ReplaceAll(strings.Trim(strings.Trim(actual, "\r\n"), " "), "\n", " ")
-	if actual != "nameserver 1.1.1.1 options ndots:3" {
-		c.Fatalf("expected 'nameserver 1.1.1.1 options ndots:3', but says: %q", actual)
+	if actual != "nameserver 127.0.0.11 options ndots:3" {
+		c.Fatalf("expected 'nameserver 127.0.0.11 options ndots:3', but says: %q", actual)
+	}
+	if !strings.Contains(out, "ExtServers: [1.1.1.1]") {
+		c.Fatalf("expected 'ExtServers: [1.1.1.1]' was not found in %q", out)
 	}
 }
 
@@ -1317,87 +1285,11 @@ func (s *DockerCLIRunSuite) TestRunDNSRepeatOptions(c *testing.T) {
 
 	actual := regexp.MustCompile("(?m)^#.*$").ReplaceAllString(out, "")
 	actual = strings.ReplaceAll(strings.Trim(actual, "\r\n"), "\n", " ")
-	if actual != "nameserver 1.1.1.1 nameserver 2.2.2.2 search mydomain mydomain2 options ndots:9 timeout:3" {
-		c.Fatalf("expected 'nameserver 1.1.1.1 nameserver 2.2.2.2 search mydomain mydomain2 options ndots:9 timeout:3', but says: %q", actual)
+	if actual != "nameserver 127.0.0.11 search mydomain mydomain2 options ndots:9 timeout:3" {
+		c.Fatalf("expected 'nameserver 127.0.0.11 search mydomain mydomain2 options ndots:9 timeout:3', but says: %q", actual)
 	}
-}
-
-func (s *DockerCLIRunSuite) TestRunDNSOptionsBasedOnHostResolvConf(c *testing.T) {
-	// Not applicable on Windows as testing Unix specific functionality
-	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
-
-	origResolvConf, err := os.ReadFile("/etc/resolv.conf")
-	if os.IsNotExist(err) {
-		c.Fatalf("/etc/resolv.conf does not exist")
-	}
-
-	hostNameservers := resolvconf.GetNameservers(origResolvConf, resolvconf.IP)
-	hostSearch := resolvconf.GetSearchDomains(origResolvConf)
-
-	out := cli.DockerCmd(c, "run", "--dns=127.0.0.1", "busybox", "cat", "/etc/resolv.conf").Combined()
-
-	if actualNameservers := resolvconf.GetNameservers([]byte(out), resolvconf.IP); actualNameservers[0] != "127.0.0.1" {
-		c.Fatalf("expected '127.0.0.1', but says: %q", actualNameservers[0])
-	}
-
-	actualSearch := resolvconf.GetSearchDomains([]byte(out))
-	if len(actualSearch) != len(hostSearch) {
-		c.Fatalf("expected %q search domain(s), but it has: %q", len(hostSearch), len(actualSearch))
-	}
-	for i := range actualSearch {
-		if actualSearch[i] != hostSearch[i] {
-			c.Fatalf("expected %q domain, but says: %q", actualSearch[i], hostSearch[i])
-		}
-	}
-
-	out = cli.DockerCmd(c, "run", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf").Combined()
-
-	actualNameservers := resolvconf.GetNameservers([]byte(out), resolvconf.IP)
-	if len(actualNameservers) != len(hostNameservers) {
-		c.Fatalf("expected %q nameserver(s), but it has: %q", len(hostNameservers), len(actualNameservers))
-	}
-	for i := range actualNameservers {
-		if actualNameservers[i] != hostNameservers[i] {
-			c.Fatalf("expected %q nameserver, but says: %q", actualNameservers[i], hostNameservers[i])
-		}
-	}
-
-	if actualSearch = resolvconf.GetSearchDomains([]byte(out)); actualSearch[0] != "mydomain" {
-		c.Fatalf("expected 'mydomain', but says: %q", actualSearch[0])
-	}
-
-	// test with file
-	tmpResolvConf := []byte("search example.com\nnameserver 12.34.56.78\nnameserver 127.0.0.1")
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0o644); err != nil {
-		c.Fatal(err)
-	}
-	// put the old resolvconf back
-	defer func() {
-		if err := os.WriteFile("/etc/resolv.conf", origResolvConf, 0o644); err != nil {
-			c.Fatal(err)
-		}
-	}()
-
-	resolvConf, err := os.ReadFile("/etc/resolv.conf")
-	if os.IsNotExist(err) {
-		c.Fatalf("/etc/resolv.conf does not exist")
-	}
-
-	hostSearch = resolvconf.GetSearchDomains(resolvConf)
-
-	out = cli.DockerCmd(c, "run", "busybox", "cat", "/etc/resolv.conf").Combined()
-	if actualNameservers = resolvconf.GetNameservers([]byte(out), resolvconf.IP); actualNameservers[0] != "12.34.56.78" || len(actualNameservers) != 1 {
-		c.Fatalf("expected '12.34.56.78', but has: %v", actualNameservers)
-	}
-
-	actualSearch = resolvconf.GetSearchDomains([]byte(out))
-	if len(actualSearch) != len(hostSearch) {
-		c.Fatalf("expected %q search domain(s), but it has: %q", len(hostSearch), len(actualSearch))
-	}
-	for i := range actualSearch {
-		if actualSearch[i] != hostSearch[i] {
-			c.Fatalf("expected %q domain, but says: %q", actualSearch[i], hostSearch[i])
-		}
+	if !strings.Contains(out, "ExtServers: [1.1.1.1 2.2.2.2]") {
+		c.Fatalf("expected 'ExtServers: [1.1.1.1 2.2.2.2]' was not found in %q", out)
 	}
 }
 

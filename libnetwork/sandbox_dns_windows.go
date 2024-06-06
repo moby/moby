@@ -21,7 +21,3 @@ func (sb *Sandbox) updateHostsFile(ifaceIP []string) error {
 }
 
 func (sb *Sandbox) deleteHostsEntries(recs []etchosts.Record) {}
-
-func (sb *Sandbox) updateDNS(ipv6Enabled bool) error {
-	return nil
-}
