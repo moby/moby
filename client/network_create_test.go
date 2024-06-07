@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -22,7 +21,7 @@ func TestNetworkCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{})
+	_, err := client.NetworkCreate(context.Background(), "mynetwork", network.CreateOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -34,7 +33,7 @@ func TestNetworkCreateConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	_, err = client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{})
+	_, err = client.NetworkCreate(context.Background(), "mynetwork", network.CreateOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -66,7 +65,7 @@ func TestNetworkCreate(t *testing.T) {
 	}
 
 	enableIPv6 := true
-	networkResponse, err := client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{
+	networkResponse, err := client.NetworkCreate(context.Background(), "mynetwork", network.CreateOptions{
 		Driver:     "mydriver",
 		EnableIPv6: &enableIPv6,
 		Internal:   true,

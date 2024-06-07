@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"gotest.tools/v3/assert"
 )
 
-func createNetwork(ctx context.Context, client client.APIClient, name string, ops ...func(*types.NetworkCreate)) (string, error) {
-	config := types.NetworkCreate{}
+func createNetwork(ctx context.Context, client client.APIClient, name string, ops ...func(*network.CreateOptions)) (string, error) {
+	config := network.CreateOptions{}
 
 	for _, op := range ops {
 		op(&config)
@@ -21,12 +21,12 @@ func createNetwork(ctx context.Context, client client.APIClient, name string, op
 }
 
 // Create creates a network with the specified options
-func Create(ctx context.Context, client client.APIClient, name string, ops ...func(*types.NetworkCreate)) (string, error) {
+func Create(ctx context.Context, client client.APIClient, name string, ops ...func(*network.CreateOptions)) (string, error) {
 	return createNetwork(ctx, client, name, ops...)
 }
 
 // CreateNoError creates a network with the specified options and verifies there were no errors
-func CreateNoError(ctx context.Context, t *testing.T, client client.APIClient, name string, ops ...func(*types.NetworkCreate)) string {
+func CreateNoError(ctx context.Context, t *testing.T, client client.APIClient, name string, ops ...func(*network.CreateOptions)) string {
 	t.Helper()
 
 	name, err := createNetwork(ctx, client, name, ops...)

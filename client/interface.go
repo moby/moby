@@ -108,13 +108,13 @@ type ImageAPIClient interface {
 // NetworkAPIClient defines API client methods for the networks
 type NetworkAPIClient interface {
 	NetworkConnect(ctx context.Context, network, container string, config *network.EndpointSettings) error
-	NetworkCreate(ctx context.Context, name string, options types.NetworkCreate) (network.CreateResponse, error)
+	NetworkCreate(ctx context.Context, name string, options network.CreateOptions) (network.CreateResponse, error)
 	NetworkDisconnect(ctx context.Context, network, container string, force bool) error
 	NetworkInspect(ctx context.Context, network string, options network.InspectOptions) (network.Inspect, error)
 	NetworkInspectWithRaw(ctx context.Context, network string, options network.InspectOptions) (network.Inspect, []byte, error)
 	NetworkList(ctx context.Context, options network.ListOptions) ([]network.Summary, error)
 	NetworkRemove(ctx context.Context, network string) error
-	NetworksPrune(ctx context.Context, pruneFilter filters.Args) (types.NetworksPruneReport, error)
+	NetworksPrune(ctx context.Context, pruneFilter filters.Args) (network.PruneReport, error)
 }
 
 // NodeAPIClient defines API client methods for the nodes

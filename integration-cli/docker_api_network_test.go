@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration-cli/cli"
@@ -66,9 +65,9 @@ func (s *DockerAPISuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
 		Driver: "default",
 		Config: []network.IPAMConfig{{Subnet: "172.28.0.0/16", IPRange: "172.28.5.0/24", Gateway: "172.28.5.254"}},
 	}
-	config := types.NetworkCreateRequest{
+	config := network.CreateRequest{
 		Name: "br0",
-		NetworkCreate: types.NetworkCreate{
+		CreateOptions: network.CreateOptions{
 			Driver:  "bridge",
 			IPAM:    ipam,
 			Options: map[string]string{"foo": "bar", "opts": "dopts"},
@@ -94,7 +93,7 @@ func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Create test network
 	name := "testnetwork"
-	config := types.NetworkCreateRequest{
+	config := network.CreateRequest{
 		Name: name,
 	}
 	id := createNetwork(c, config, http.StatusCreated)
@@ -139,9 +138,9 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 		Driver: "default",
 		Config: []network.IPAMConfig{{Subnet: "192.178.0.0/16", IPRange: "192.178.128.0/17", Gateway: "192.178.138.100"}},
 	}
-	config0 := types.NetworkCreateRequest{
+	config0 := network.CreateRequest{
 		Name: "test0",
-		NetworkCreate: types.NetworkCreate{
+		CreateOptions: network.CreateOptions{
 			Driver: "bridge",
 			IPAM:   ipam0,
 		},
@@ -154,9 +153,9 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 		Config: []network.IPAMConfig{{Subnet: "192.178.128.0/17", Gateway: "192.178.128.1"}},
 	}
 	// test1 bridge network overlaps with test0
-	config1 := types.NetworkCreateRequest{
+	config1 := network.CreateRequest{
 		Name: "test1",
-		NetworkCreate: types.NetworkCreate{
+		CreateOptions: network.CreateOptions{
 			Driver: "bridge",
 			IPAM:   ipam1,
 		},
@@ -169,9 +168,9 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 		Config: []network.IPAMConfig{{Subnet: "192.169.0.0/16", Gateway: "192.169.100.100"}},
 	}
 	// test2 bridge network does not overlap
-	config2 := types.NetworkCreateRequest{
+	config2 := network.CreateRequest{
 		Name: "test2",
-		NetworkCreate: types.NetworkCreate{
+		CreateOptions: network.CreateOptions{
 			Driver: "bridge",
 			IPAM:   ipam2,
 		},
@@ -185,11 +184,11 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 	assert.Assert(c, isNetworkAvailable(c, "test1"))
 
 	// for networks w/o ipam specified, docker will choose proper non-overlapping subnets
-	createNetwork(c, types.NetworkCreateRequest{Name: "test3"}, http.StatusCreated)
+	createNetwork(c, network.CreateRequest{Name: "test3"}, http.StatusCreated)
 	assert.Assert(c, isNetworkAvailable(c, "test3"))
-	createNetwork(c, types.NetworkCreateRequest{Name: "test4"}, http.StatusCreated)
+	createNetwork(c, network.CreateRequest{Name: "test4"}, http.StatusCreated)
 	assert.Assert(c, isNetworkAvailable(c, "test4"))
-	createNetwork(c, types.NetworkCreateRequest{Name: "test5"}, http.StatusCreated)
+	createNetwork(c, network.CreateRequest{Name: "test5"}, http.StatusCreated)
 	assert.Assert(c, isNetworkAvailable(c, "test5"))
 
 	for i := 1; i < 6; i++ {
@@ -206,7 +205,7 @@ func (s *DockerAPISuite) TestAPICreateDeletePredefinedNetworks(c *testing.T) {
 
 func createDeletePredefinedNetwork(c *testing.T, name string) {
 	// Create pre-defined network
-	config := types.NetworkCreateRequest{Name: name}
+	config := network.CreateRequest{Name: name}
 	expectedStatus := http.StatusForbidden
 	createNetwork(c, config, expectedStatus)
 	deleteNetwork(c, name, false)
@@ -266,7 +265,7 @@ func getNetworkResource(c *testing.T, id string) *network.Inspect {
 	return &nr
 }
 
-func createNetwork(c *testing.T, config types.NetworkCreateRequest, expectedStatusCode int) string {
+func createNetwork(c *testing.T, config network.CreateRequest, expectedStatusCode int) string {
 	c.Helper()
 
 	resp, body, err := request.Post(testutil.GetContext(c), "/networks/create", request.JSONBody(config))

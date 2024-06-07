@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
@@ -522,7 +522,7 @@ func TestIPVlanDNS(t *testing.T) {
 			name := fmt.Sprintf("Mode=%v/HasParent=%v/Internal=%v", mode, tc.parent != "", tc.internal)
 			t.Run(name, func(t *testing.T) {
 				ctx := testutil.StartSpan(ctx, t)
-				createOpts := []func(*types.NetworkCreate){
+				createOpts := []func(*network.CreateOptions){
 					net.WithIPvlan(tc.parent, mode),
 				}
 				if tc.internal {

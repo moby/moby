@@ -10,7 +10,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	enginecontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -622,7 +621,7 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 	}
 
 	ipv6Enabled := na.Network.Spec.Ipv6Enabled
-	options := types.NetworkCreate{
+	options := network.CreateOptions{
 		// ID:     na.Network.ID,
 		Labels:     na.Network.Spec.Annotations.Labels,
 		Internal:   na.Network.Spec.Internal,
@@ -659,9 +658,9 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 
 	return clustertypes.NetworkCreateRequest{
 		ID: na.Network.ID,
-		NetworkCreateRequest: types.NetworkCreateRequest{
+		CreateRequest: network.CreateRequest{
 			Name:          name,
-			NetworkCreate: options,
+			CreateOptions: options,
 		},
 	}, nil
 }

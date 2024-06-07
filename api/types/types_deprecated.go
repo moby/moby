@@ -4,6 +4,16 @@ import (
 	"github.com/docker/docker/api/types/network"
 )
 
+// NetworkCreateRequest is the request message sent to the server for network create call.
+//
+// Deprecated: use [network.CreateRequest].
+type NetworkCreateRequest = network.CreateRequest
+
+// NetworkCreate is the expected body of the "create network" http request message
+//
+// Deprecated: use [network.CreateOptions].
+type NetworkCreate = network.CreateOptions
+
 // NetworkListOptions holds parameters to filter the list of networks with.
 //
 // Deprecated: use [network.ListOptions].
@@ -38,3 +48,9 @@ type EndpointResource = network.EndpointResource
 //
 // Deprecated: use [network.Inspect] or [network.Summary] (for list operations).
 type NetworkResource = network.Inspect
+
+// NetworksPruneReport contains the response for Engine API:
+// POST "/networks/prune"
+//
+// Deprecated: use [network.PruneReport].
+type NetworksPruneReport = network.PruneReport

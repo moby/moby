@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
@@ -381,7 +381,7 @@ func TestMACVlanDNS(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
-			createOpts := []func(*types.NetworkCreate){
+			createOpts := []func(*network.CreateOptions){
 				net.WithMacvlan(tc.parent),
 			}
 			if tc.internal {

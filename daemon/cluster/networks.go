@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
-	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
@@ -270,7 +269,7 @@ func (c *Cluster) DetachNetwork(target string, containerID string) error {
 }
 
 // CreateNetwork creates a new cluster managed network.
-func (c *Cluster) CreateNetwork(s apitypes.NetworkCreateRequest) (string, error) {
+func (c *Cluster) CreateNetwork(s network.CreateRequest) (string, error) {
 	if runconfig.IsPreDefinedNetwork(s.Name) {
 		err := notAllowedError(fmt.Sprintf("%s is a pre-defined network and cannot be created", s.Name))
 		return "", errors.WithStack(err)

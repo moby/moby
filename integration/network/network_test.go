@@ -9,9 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
-	ntypes "github.com/docker/docker/api/types/network"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil"
@@ -152,7 +151,7 @@ func TestNetworkList(t *testing.T) {
 
 			buf, err := request.ReadBody(body)
 			assert.NilError(t, err)
-			var nws []ntypes.Inspect
+			var nws []networktypes.Inspect
 			err = json.Unmarshal(buf, &nws)
 			assert.NilError(t, err)
 			assert.Assert(t, len(nws) > 0)
@@ -180,7 +179,7 @@ func TestHostIPv4BridgeLabel(t *testing.T) {
 		network.WithOption("com.docker.network.host_ipv4", ipv4SNATAddr),
 		network.WithOption("com.docker.network.bridge.name", bridgeName),
 	)
-	out, err := c.NetworkInspect(ctx, bridgeName, ntypes.InspectOptions{Verbose: true})
+	out, err := c.NetworkInspect(ctx, bridgeName, networktypes.InspectOptions{Verbose: true})
 	assert.NilError(t, err)
 	assert.Assert(t, len(out.IPAM.Config) > 0)
 	// Make sure the SNAT rule exists
@@ -229,7 +228,7 @@ func TestDefaultNetworkOpts(t *testing.T) {
 
 			if tc.configFrom {
 				// Create a new network config
-				network.CreateNoError(ctx, t, c, "from-net", func(create *types.NetworkCreate) {
+				network.CreateNoError(ctx, t, c, "from-net", func(create *networktypes.CreateOptions) {
 					create.ConfigOnly = true
 					create.Options = map[string]string{
 						"com.docker.network.driver.mtu": fmt.Sprint(tc.mtu),
@@ -240,9 +239,9 @@ func TestDefaultNetworkOpts(t *testing.T) {
 
 			// Create a new network
 			networkName := "testnet"
-			networkId := network.CreateNoError(ctx, t, c, networkName, func(create *types.NetworkCreate) {
+			networkId := network.CreateNoError(ctx, t, c, networkName, func(create *networktypes.CreateOptions) {
 				if tc.configFrom {
-					create.ConfigFrom = &ntypes.ConfigReference{
+					create.ConfigFrom = &networktypes.ConfigReference{
 						Network: "from-net",
 					}
 				}
@@ -283,6 +282,6 @@ func TestForbidDuplicateNetworkNames(t *testing.T) {
 
 	network.CreateNoError(ctx, t, c, "testnet")
 
-	_, err := c.NetworkCreate(ctx, "testnet", types.NetworkCreate{})
+	_, err := c.NetworkCreate(ctx, "testnet", networktypes.CreateOptions{})
 	assert.Error(t, err, "Error response from daemon: network with name testnet already exists", "2nd NetworkCreate call should have failed")
 }
