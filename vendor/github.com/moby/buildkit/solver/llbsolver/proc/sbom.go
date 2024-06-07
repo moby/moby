@@ -12,6 +12,7 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/result"
+	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 )
 
@@ -21,6 +22,9 @@ func SBOMProcessor(scannerRef string, useCache bool, resolveMode string) llbsolv
 		if sbom.HasSBOM(res.Result) {
 			return res, nil
 		}
+
+		span, ctx := tracing.StartSpan(ctx, "create sbom attestation")
+		defer span.End()
 
 		ps, err := exptypes.ParsePlatforms(res.Metadata)
 		if err != nil {

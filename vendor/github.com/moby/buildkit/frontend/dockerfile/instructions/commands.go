@@ -13,8 +13,9 @@ import (
 // This is useful for commands containing key-value maps that want to preserve
 // the order of insertion, instead of map[string]string which does not.
 type KeyValuePair struct {
-	Key   string
-	Value string
+	Key     string
+	Value   string
+	NoDelim bool
 }
 
 func (kvp *KeyValuePair) String() string {
@@ -108,8 +109,9 @@ func expandKvp(kvp KeyValuePair, expander SingleWordExpander) (KeyValuePair, err
 	if err != nil {
 		return KeyValuePair{}, err
 	}
-	return KeyValuePair{Key: key, Value: value}, nil
+	return KeyValuePair{Key: key, Value: value, NoDelim: kvp.NoDelim}, nil
 }
+
 func expandKvpsInPlace(kvps KeyValuePairs, expander SingleWordExpander) error {
 	for i, kvp := range kvps {
 		newKvp, err := expandKvp(kvp, expander)

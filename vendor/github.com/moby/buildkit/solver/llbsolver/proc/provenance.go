@@ -12,11 +12,15 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/result"
+	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 )
 
 func ProvenanceProcessor(attrs map[string]string) llbsolver.Processor {
 	return func(ctx context.Context, res *llbsolver.Result, s *llbsolver.Solver, j *solver.Job, usage *resources.SysSampler) (*llbsolver.Result, error) {
+		span, ctx := tracing.StartSpan(ctx, "create provenance attestation")
+		defer span.End()
+
 		ps, err := exptypes.ParsePlatforms(res.Metadata)
 		if err != nil {
 			return nil, err
