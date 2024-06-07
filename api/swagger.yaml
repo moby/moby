@@ -10197,11 +10197,6 @@ paths:
                 description: "The network's name."
                 type: "string"
                 example: "my_network"
-              CheckDuplicate:
-                description: |
-                  Deprecated: CheckDuplicate is now always enabled.
-                type: "boolean"
-                example: true
               Driver:
                 description: "Name of the network driver plugin to use."
                 type: "string"
