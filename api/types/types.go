@@ -483,12 +483,6 @@ type BuildCachePruneReport struct {
 	SpaceReclaimed uint64
 }
 
-// NetworksPruneReport contains the response for Engine API:
-// POST "/networks/prune"
-type NetworksPruneReport struct {
-	NetworksDeleted []string
-}
-
 // SecretCreateResponse contains the information returned to a client
 // on the creation of a new secret.
 type SecretCreateResponse struct {

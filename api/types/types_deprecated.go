@@ -48,3 +48,9 @@ type EndpointResource = network.EndpointResource
 //
 // Deprecated: use [network.Inspect] or [network.Summary] (for list operations).
 type NetworkResource = network.Inspect
+
+// NetworksPruneReport contains the response for Engine API:
+// POST "/networks/prune"
+//
+// Deprecated: use [network.PruneReport].
+type NetworksPruneReport = network.PruneReport

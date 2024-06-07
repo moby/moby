@@ -158,3 +158,9 @@ var acceptedFilters = map[string]bool{
 func ValidateFilters(filter filters.Args) error {
 	return filter.Validate(acceptedFilters)
 }
+
+// PruneReport contains the response for Engine API:
+// POST "/networks/prune"
+type PruneReport struct {
+	NetworksDeleted []string
+}

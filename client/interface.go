@@ -114,7 +114,7 @@ type NetworkAPIClient interface {
 	NetworkInspectWithRaw(ctx context.Context, network string, options network.InspectOptions) (network.Inspect, []byte, error)
 	NetworkList(ctx context.Context, options network.ListOptions) ([]network.Summary, error)
 	NetworkRemove(ctx context.Context, network string) error
-	NetworksPrune(ctx context.Context, pruneFilter filters.Args) (types.NetworksPruneReport, error)
+	NetworksPrune(ctx context.Context, pruneFilter filters.Args) (network.PruneReport, error)
 }
 
 // NodeAPIClient defines API client methods for the nodes
