@@ -24,101 +24,33 @@ import (
 )
 
 func TestKeyString(t *testing.T) {
-	k := PoolID{AddressSpace: "default", SubnetKey: SubnetKey{Subnet: netip.MustParsePrefix("172.27.0.0/16")}}
-	expected := `PoolID{"AddressSpace":"default","Subnet":"172.27.0.0/16"}`
-	assert.Equal(t, k.String(), expected)
+	k := &PoolID{AddressSpace: "default", SubnetKey: SubnetKey{Subnet: netip.MustParsePrefix("172.27.0.0/16")}}
+	expected := "default/172.27.0.0/16"
+	if expected != k.String() {
+		t.Fatalf("Unexpected key string: %s", k.String())
+	}
 
 	k2, err := PoolIDFromString(expected)
-	assert.NilError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if k2.AddressSpace != k.AddressSpace || k2.Subnet != k.Subnet {
+		t.Fatalf("SubnetKey.FromString() failed. Expected %v. Got %v", k, k2)
+	}
 
-	assert.Check(t, is.Equal(k, k2))
-
+	expected = fmt.Sprintf("%s/%s", expected, "172.27.3.0/24")
 	k.ChildSubnet = netip.MustParsePrefix("172.27.3.0/24")
-	assert.Check(t, is.Contains(k.String(), `"AddressSpace":"default"`))
-	assert.Check(t, is.Contains(k.String(), `"Subnet":"172.27.0.0/16"`))
-	assert.Check(t, is.Contains(k.String(), `"ChildSubnet":"172.27.3.0/24"`))
-
-	k2, err = PoolIDFromString(`PoolID{"AddressSpace":"default","Subnet":"172.27.0.0/16","ChildSubnet":"172.27.3.0/24"}`)
-	assert.NilError(t, err)
-
-	assert.Check(t, is.Equal(k, k2))
-}
-
-// TestPoolIDV2FormatDeserialization tests a few instances of PoolID's V2
-// serialization format.
-func TestPoolIDV2FormatDeserialization(t *testing.T) {
-	testcases := []struct {
-		serialized string
-		expPoolID  PoolID
-		expErr     string
-	}{
-		{
-			serialized: `PoolID{"AddressSpace":"default"}`,
-			expErr:     `invalid string form for subnetkey PoolID{"AddressSpace":"default"}: missing AddressSpace or Subnet`,
-		},
-		{
-			serialized: `PoolID{"AddressSpace":"default","Subnet":""}`,
-			expErr:     `invalid string form for subnetkey PoolID{"AddressSpace":"default","Subnet":""}: missing AddressSpace or Subnet`,
-		},
-		{
-			serialized: `PoolID{"AddressSpace":"default","ChildSubnet":"172.27.0.0/16"}`,
-			expErr:     `invalid string form for subnetkey PoolID{"AddressSpace":"default","ChildSubnet":"172.27.0.0/16"}: missing AddressSpace or Subnet`,
-		},
-		{
-			serialized: `PoolID{"AddressSpace":"default","Subnet":"172.16.0.0/12"}`,
-			expPoolID: PoolID{
-				AddressSpace: "default",
-				SubnetKey:    SubnetKey{Subnet: netip.MustParsePrefix("172.16.0.0/12")},
-			},
-		},
-		{
-			serialized: `PoolID{"AddressSpace":"default","Subnet":"172.16.0.0/12","ChildSubnet":"172.16.10.0/16"}`,
-			expPoolID: PoolID{
-				AddressSpace: "default",
-				SubnetKey: SubnetKey{
-					Subnet:      netip.MustParsePrefix("172.16.0.0/12"),
-					ChildSubnet: netip.MustParsePrefix("172.16.10.0/16"),
-				},
-			},
-		},
+	if expected != k.String() {
+		t.Fatalf("Unexpected key string: %s", k.String())
 	}
 
-	for _, tc := range testcases {
-		pID, err := PoolIDFromString(tc.serialized)
-
-		if tc.expErr != "" {
-			assert.Check(t, is.Error(err, tc.expErr))
-		} else {
-			assert.Check(t, is.Equal(pID, tc.expPoolID))
-		}
+	k2, err = PoolIDFromString(expected)
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-// TestPoolIDFormatCompatibility tests whether PoolIDFromString correctly deserializes the 'v1' format correctly.
-func TestPoolIDFormatCompatibility(t *testing.T) {
-	k, err := PoolIDFromString("default/172.27.0.0/16")
-	assert.NilError(t, err)
-	assert.Check(t, is.Contains(k.String(), `"AddressSpace":"default"`))
-	assert.Check(t, is.Contains(k.String(), `"Subnet":"172.27.0.0/16"`))
-	assert.Equal(t, k, PoolID{
-		AddressSpace: "default",
-		SubnetKey: SubnetKey{
-			Subnet: netip.MustParsePrefix("172.27.0.0/16"),
-		},
-	})
-
-	k, err = PoolIDFromString("default/172.27.0.0/16/172.27.10.0/24")
-	assert.NilError(t, err)
-	assert.Check(t, is.Contains(k.String(), `"AddressSpace":"default"`))
-	assert.Check(t, is.Contains(k.String(), `"Subnet":"172.27.0.0/16"`))
-	assert.Check(t, is.Contains(k.String(), `"ChildSubnet":"172.27.10.0/24"`))
-	assert.Equal(t, k, PoolID{
-		AddressSpace: "default",
-		SubnetKey: SubnetKey{
-			Subnet:      netip.MustParsePrefix("172.27.0.0/16"),
-			ChildSubnet: netip.MustParsePrefix("172.27.10.0/24"),
-		},
-	})
+	if k2.AddressSpace != k.AddressSpace || k2.Subnet != k.Subnet || k2.ChildSubnet != k.ChildSubnet {
+		t.Fatalf("SubnetKey.FromString() failed. Expected %v. Got %v", k, k2)
+	}
 }
 
 func TestAddSubnets(t *testing.T) {
