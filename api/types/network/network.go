@@ -23,14 +23,14 @@ const (
 type CreateRequest struct {
 	CreateOptions
 	Name string // Name is the requested name of the network.
+
+	// Deprecated: CheckDuplicate is deprecated since API v1.44, but it defaults to true when sent by the client
+	// package to older daemons.
+	CheckDuplicate *bool `json:",omitempty"`
 }
 
 // CreateOptions holds options to create a network.
 type CreateOptions struct {
-	// Deprecated: CheckDuplicate is deprecated since API v1.44, but it defaults to true when sent by the client
-	// package to older daemons.
-	CheckDuplicate bool `json:",omitempty"`
-
 	Driver     string            // Driver is the driver-name used to create the network (e.g. `bridge`, `overlay`)
 	Scope      string            // Scope describes the level at which the network exists (e.g. `swarm` for cluster-wide or `local` for machine level).
 	EnableIPv6 *bool             `json:",omitempty"` // EnableIPv6 represents whether to enable IPv6.

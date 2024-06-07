@@ -26,7 +26,8 @@ func (cli *Client) NetworkCreate(ctx context.Context, name string, options netwo
 		Name:          name,
 	}
 	if versions.LessThan(cli.version, "1.44") {
-		networkCreateRequest.CheckDuplicate = true //nolint:staticcheck // ignore SA1019: CheckDuplicate is deprecated since API v1.44.
+		enabled := true
+		networkCreateRequest.CheckDuplicate = &enabled //nolint:staticcheck // ignore SA1019: CheckDuplicate is deprecated since API v1.44.
 	}
 
 	serverResp, err := cli.post(ctx, "/networks/create", nil, networkCreateRequest, nil)
