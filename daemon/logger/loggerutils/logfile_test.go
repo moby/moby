@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -16,35 +17,58 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/tailfile"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 )
 
 type testDecoder struct {
-	rdr        io.Reader
 	scanner    *bufio.Scanner
 	resetCount int
 }
 
-func (d *testDecoder) Decode() (*logger.Message, error) {
-	if d.scanner == nil {
-		d.scanner = bufio.NewScanner(d.rdr)
-	}
+func (d *testDecoder) Decode() (retMsg *logger.Message, retErr error) {
 	if !d.scanner.Scan() {
-		return nil, d.scanner.Err()
+		err := d.scanner.Err()
+		if err == nil {
+			err = io.EOF
+		}
+		return nil, err
 	}
+
 	// some comment
 	return &logger.Message{Line: d.scanner.Bytes(), Timestamp: time.Now()}, nil
 }
 
 func (d *testDecoder) Reset(rdr io.Reader) {
-	d.rdr = rdr
 	d.scanner = bufio.NewScanner(rdr)
 	d.resetCount++
 }
 
 func (d *testDecoder) Close() {
-	d.rdr = nil
 	d.scanner = nil
+}
+
+// tetsJSONStreamDecoder is used as an easy way to test how [SyntaxError]s are
+// handled in the log reader.
+type testJSONStreamDecoder struct {
+	dec *json.Decoder
+}
+
+func (d *testJSONStreamDecoder) Decode() (*logger.Message, error) {
+	var m logger.Message
+	if err := d.dec.Decode(&m); err != nil {
+		return nil, err
+	}
+
+	return &m, nil
+}
+
+func (d *testJSONStreamDecoder) Reset(rdr io.Reader) {
+	d.dec = json.NewDecoder(rdr)
+}
+
+func (d *testJSONStreamDecoder) Close() {
+	d.dec = nil
 }
 
 func TestTailFiles(t *testing.T) {
@@ -52,7 +76,7 @@ func TestTailFiles(t *testing.T) {
 	s2 := strings.NewReader("I'm serious.\nDon't call me Shirley!\n")
 	s3 := strings.NewReader("Roads?\nWhere we're going we don't need roads.\n")
 
-	makeLZO := func(ls ...SizeReaderAt) []fileOpener {
+	makeOpener := func(ls ...SizeReaderAt) []fileOpener {
 		out := make([]fileOpener, 0, len(ls))
 		for _, rdr := range ls {
 			out = append(out, &sizeReaderAtOpener{rdr})
@@ -60,7 +84,7 @@ func TestTailFiles(t *testing.T) {
 		return out
 	}
 
-	files := makeLZO(s1, s2, s3)
+	files := makeOpener(s1, s2, s3)
 	watcher := logger.NewLogWatcher()
 	defer watcher.ConsumerGone()
 
@@ -68,18 +92,6 @@ func TestTailFiles(t *testing.T) {
 		return tailfile.NewTailReader(ctx, r, lines)
 	}
 	dec := &testDecoder{}
-
-	for desc, config := range map[string]logger.ReadConfig{} {
-		t.Run(desc, func(t *testing.T) {
-			started := make(chan struct{})
-			fwd := newForwarder(config)
-			go func() {
-				close(started)
-				tailFiles(files, watcher, dec, tailReader, config.Tail, fwd)
-			}()
-			<-started
-		})
-	}
 
 	config := logger.ReadConfig{Tail: 2}
 	fwd := newForwarder(config)
@@ -90,25 +102,94 @@ func TestTailFiles(t *testing.T) {
 	}()
 	<-started
 
-	select {
-	case <-time.After(60 * time.Second):
-		t.Fatal("timeout waiting for tail line")
-	case err := <-watcher.Err:
-		assert.NilError(t, err)
-	case msg := <-watcher.Msg:
-		assert.Assert(t, msg != nil)
-		assert.Assert(t, string(msg.Line) == "Roads?", string(msg.Line))
-	}
+	waitForMsg(t, watcher, "Roads?", 10*time.Second)
+	waitForMsg(t, watcher, "Where we're going we don't need roads.", 10*time.Second)
 
-	select {
-	case <-time.After(60 * time.Second):
-		t.Fatal("timeout waiting for tail line")
-	case err := <-watcher.Err:
+	t.Run("handle corrupted data", func(t *testing.T) {
+		// Here we'll use the test json decoder to test injecting garbage data
+		// in the middle of otherwise valid json streams
+		// The log reader should be able to skip over that data.
+
+		writeMsg := func(buf *bytes.Buffer, s string) {
+			t.Helper()
+
+			msg := &logger.Message{Line: []byte(s)}
+			dt, err := json.Marshal(msg)
+			assert.NilError(t, err)
+
+			_, err = buf.Write(dt)
+			assert.NilError(t, err)
+			_, err = buf.WriteString("\n")
+			assert.NilError(t, err)
+		}
+
+		msg1 := "Hello"
+		msg2 := "World!"
+		msg3 := "And again!"
+		msg4 := "One more time!"
+		msg5 := "This is the end!"
+
+		f1 := bytes.NewBuffer(nil)
+		writeMsg(f1, msg1)
+
+		_, err := f1.WriteString("some randome garbage")
+		assert.NilError(t, err, "error writing garbage to log stream")
+
+		writeMsg(f1, msg2) // This won't be seen due to garbage written above
+
+		f2 := bytes.NewBuffer(nil)
+		writeMsg(f2, msg3)
+
+		// Write what looks like the start of a new log message
+		_, err = f2.WriteString("{\"Line\": ")
 		assert.NilError(t, err)
-	case msg := <-watcher.Msg:
-		assert.Assert(t, msg != nil)
-		assert.Assert(t, string(msg.Line) == "Where we're going we don't need roads.", string(msg.Line))
-	}
+
+		writeMsg(f2, msg4) // This won't be seen due to garbage written above
+
+		f3 := bytes.NewBuffer(nil)
+		writeMsg(f3, msg5)
+
+		// [bytes.Buffer] is not a SizeReaderAt, so we need to convert it here
+		files := makeOpener(bytes.NewReader(f1.Bytes()), bytes.NewReader(f2.Bytes()), bytes.NewReader(f3.Bytes()))
+
+		// At this point we our log "files" should have 4 log messages in it
+		// intersperesed with some junk that is invalid json
+
+		// We need a zero size watcher so that we can tell the decoder to give us
+		// a syntax error
+		watcher := logger.NewLogWatcher()
+
+		config := logger.ReadConfig{Tail: 4}
+		fwd := newForwarder(config)
+
+		started := make(chan struct{})
+		done := make(chan struct{})
+		go func() {
+			close(started)
+			tailFiles(files, watcher, &testJSONStreamDecoder{}, tailReader, config.Tail, fwd)
+			close(done)
+		}()
+
+		waitOrTimeout := func(ch <-chan struct{}) {
+			t.Helper()
+			timer := time.NewTimer(10 * time.Second)
+			defer timer.Stop()
+
+			select {
+			case <-timer.C:
+				t.Fatal("timeout waiting for channel")
+			case <-ch:
+			}
+		}
+
+		waitOrTimeout(started)
+
+		// Note that due to how the json decoder works, we won't see anything in f1
+		waitForMsg(t, watcher, msg3, 10*time.Second)
+		waitForMsg(t, watcher, msg5, 10*time.Second)
+
+		waitOrTimeout(done)
+	})
 }
 
 type dummyDecoder struct{}
@@ -171,9 +252,9 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 		lw := l.ReadLogs(logger.ReadConfig{Follow: true, Tail: 1000})
 		defer lw.ConsumerGone()
 
-		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 0!")), ls)
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 0!\n")), ls)
 		// make sure the log reader is primed
-		waitForMsg(t, lw, 30*time.Second)
+		waitForMsg(t, lw, "", 30*time.Second)
 
 		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 1!")), ls)
 		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 2!")), ls)
@@ -183,17 +264,18 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 	})
 }
 
-func waitForMsg(t *testing.T, lw *logger.LogWatcher, timeout time.Duration) {
+func waitForMsg(t *testing.T, lw *logger.LogWatcher, expected string, timeout time.Duration) {
 	t.Helper()
 
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
 	select {
-	case _, ok := <-lw.Msg:
-		assert.Assert(t, ok, "log producer gone before log message arrived")
 	case err := <-lw.Err:
 		assert.NilError(t, err)
+	case msg, ok := <-lw.Msg:
+		assert.Assert(t, ok, "log producer gone before log message arrived")
+		assert.Check(t, cmp.Equal(string(msg.Line), expected))
 	case <-timer.C:
 		t.Fatal("timeout waiting for log message")
 	}
