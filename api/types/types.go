@@ -155,7 +155,8 @@ type Container struct {
 	State      string
 	Status     string
 	HostConfig struct {
-		NetworkMode string `json:",omitempty"`
+		NetworkMode string            `json:",omitempty"`
+		Annotations map[string]string `json:",omitempty"`
 	}
 	NetworkSettings *SummaryNetworkSettings
 	Mounts          []MountPoint

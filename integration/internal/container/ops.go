@@ -283,6 +283,13 @@ func WithConsoleSize(width, height uint) func(*TestContainerConfig) {
 	}
 }
 
+// WithAnnotations set the annotations for the container.
+func WithAnnotations(annotations map[string]string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.Annotations = annotations
+	}
+}
+
 // WithRuntime sets the runtime to use to start the container
 func WithRuntime(name string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {

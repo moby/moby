@@ -95,6 +95,15 @@ func (s *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		return err
 	}
 
+	version := httputils.VersionFromContext(ctx)
+
+	if versions.LessThan(version, "1.46") {
+		for _, c := range containers {
+			// Ignore HostConfig.Annotations because it was added in API v1.46.
+			c.HostConfig.Annotations = nil
+		}
+	}
+
 	return httputils.WriteJSON(w, http.StatusOK, containers)
 }
 
