@@ -29,7 +29,7 @@ import (
 
 func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	testCases := []struct {
 		doc           string
@@ -58,7 +58,7 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
-			_, err := client.ContainerCreate(ctx,
+			_, err := apiClient.ContainerCreate(ctx,
 				&container.Config{Image: tc.image},
 				&container.HostConfig{},
 				&network.NetworkingConfig{},
@@ -96,7 +96,7 @@ func TestCreateLinkToNonExistingContainer(t *testing.T) {
 
 func TestCreateWithInvalidEnv(t *testing.T) {
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	testCases := []struct {
 		env           string
@@ -121,7 +121,7 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 		t.Run(strconv.Itoa(index), func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
-			_, err := client.ContainerCreate(ctx,
+			_, err := apiClient.ContainerCreate(ctx,
 				&container.Config{
 					Image: "busybox",
 					Env:   []string{tc.env},
@@ -142,7 +142,7 @@ func TestCreateTmpfsMountsTarget(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	ctx := setupTest(t)
 
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	testCases := []struct {
 		target        string
@@ -167,7 +167,7 @@ func TestCreateTmpfsMountsTarget(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		_, err := client.ContainerCreate(ctx,
+		_, err := apiClient.ContainerCreate(ctx,
 			&container.Config{
 				Image: "busybox",
 			},
@@ -221,7 +221,7 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 		maskedPaths, ok := cfg["MaskedPaths"].([]interface{})
 		assert.Check(t, is.Equal(true, ok), name)
 
-		mps := []string{}
+		var mps = make([]string, 0, len(maskedPaths))
 		for _, mp := range maskedPaths {
 			mps = append(mps, mp.(string))
 		}
@@ -302,7 +302,7 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 		readonlyPaths, ok := cfg["ReadonlyPaths"].([]interface{})
 		assert.Check(t, is.Equal(true, ok), name)
 
-		rops := []string{}
+		var rops = make([]string, 0, len(readonlyPaths))
 		for _, rop := range readonlyPaths {
 			rops = append(rops, rop.(string))
 		}
@@ -428,7 +428,7 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 	}
 }
 
-// Make sure that anonymous volumes can be overritten by tmpfs
+// Make sure that anonymous volumes can be overwritten by tmpfs
 // https://github.com/moby/moby/issues/40446
 func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "windows does not support tmpfs")
