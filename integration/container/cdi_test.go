@@ -2,7 +2,6 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -75,31 +74,31 @@ func TestCDISpecDirsAreInSystemInfo(t *testing.T) {
 
 	testCases := []struct {
 		description             string
-		config                  map[string]interface{}
+		config                  string
 		specDirs                []string
 		expectedInfoCDISpecDirs []string
 	}{
 		{
 			description:             "CDI enabled with no spec dirs specified returns default",
-			config:                  map[string]interface{}{"features": map[string]bool{"cdi": true}},
+			config:                  `{"features": {"cdi": true}}`,
 			specDirs:                nil,
 			expectedInfoCDISpecDirs: []string{"/etc/cdi", "/var/run/cdi"},
 		},
 		{
 			description:             "CDI enabled with specified spec dirs are returned",
-			config:                  map[string]interface{}{"features": map[string]bool{"cdi": true}},
+			config:                  `{"features": {"cdi": true}}`,
 			specDirs:                []string{"/foo/bar", "/baz/qux"},
 			expectedInfoCDISpecDirs: []string{"/foo/bar", "/baz/qux"},
 		},
 		{
 			description:             "CDI enabled with empty string as spec dir returns empty slice",
-			config:                  map[string]interface{}{"features": map[string]bool{"cdi": true}},
+			config:                  `{"features": {"cdi": true}}`,
 			specDirs:                []string{""},
 			expectedInfoCDISpecDirs: []string{},
 		},
 		{
 			description:             "CDI enabled with empty config option returns empty slice",
-			config:                  map[string]interface{}{"features": map[string]bool{"cdi": true}, "cdi-spec-dirs": []string{}},
+			config:                  `{"features": {"cdi": true}, "cdi-spec-dirs": []}`,
 			expectedInfoCDISpecDirs: []string{},
 		},
 		{
@@ -119,7 +118,7 @@ func TestCDISpecDirsAreInSystemInfo(t *testing.T) {
 		},
 		{
 			description:             "CDI disabled with empty config option returns empty slice",
-			config:                  map[string]interface{}{"cdi-spec-dirs": []string{}},
+			config:                  `{"cdi-spec-dirs": []}`,
 			expectedInfoCDISpecDirs: []string{},
 		},
 	}
@@ -133,14 +132,10 @@ func TestCDISpecDirsAreInSystemInfo(t *testing.T) {
 			for _, specDir := range tc.specDirs {
 				args = append(args, "--cdi-spec-dir="+specDir)
 			}
-			if tc.config != nil {
+			if tc.config != "" {
 				configPath := filepath.Join(t.TempDir(), "daemon.json")
 
-				configFile, err := os.Create(configPath)
-				assert.NilError(t, err)
-				defer configFile.Close()
-
-				err = json.NewEncoder(configFile).Encode(tc.config)
+				err := os.WriteFile(configPath, []byte(tc.config), 0o644)
 				assert.NilError(t, err)
 
 				args = append(args, "--config-file="+configPath)
