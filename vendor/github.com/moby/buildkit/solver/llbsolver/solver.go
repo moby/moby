@@ -37,6 +37,7 @@ import (
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/buildkit/util/tracing/detect"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
@@ -190,6 +191,9 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		en := time.Now()
 		rec.CompletedAt = &en
 
+		span, ctx := tracing.StartSpan(ctx, "create history record")
+		defer span.End()
+
 		j.CloseProgress()
 
 		if res != nil && len(res.Metadata) > 0 {
@@ -222,7 +226,10 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			}
 		}
 
-		makeProvenance := func(res solver.ResultProxy, cap *provenance.Capture) (*controlapi.Descriptor, func(), error) {
+		makeProvenance := func(name string, res solver.ResultProxy, cap *provenance.Capture) (*controlapi.Descriptor, func(), error) {
+			span, ctx := tracing.StartSpan(ctx, fmt.Sprintf("create %s history provenance", name))
+			defer span.End()
+
 			prc, err := NewProvenanceCreator(ctx2, cap, res, attrs, j, usage)
 			if err != nil {
 				return nil, nil, err
@@ -265,7 +272,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		if res != nil {
 			if res.Ref != nil {
 				eg.Go(func() error {
-					desc, release, err := makeProvenance(res.Ref, res.Provenance.Ref)
+					desc, release, err := makeProvenance("default", res.Ref, res.Provenance.Ref)
 					if err != nil {
 						return err
 					}
@@ -288,7 +295,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 				k, r := k, r
 				cp := res.Provenance.Refs[k]
 				eg.Go(func() error {
-					desc, release, err := makeProvenance(r, cp)
+					desc, release, err := makeProvenance(k, r, cp)
 					if err != nil {
 						return err
 					}
@@ -744,6 +751,9 @@ func (s *Solver) runExporters(ctx context.Context, exporters []exporter.Exporter
 		eg.Go(func() error {
 			id := fmt.Sprint(job.SessionID, "-export-", i)
 			return inBuilderContext(ctx, job, exp.Name(), id, func(ctx context.Context, _ session.Group) error {
+				span, ctx := tracing.StartSpan(ctx, exp.Name())
+				defer span.End()
+
 				if i == 0 && len(warnings) > 0 {
 					pw, _, _ := progress.NewFromContext(ctx)
 					for _, w := range warnings {

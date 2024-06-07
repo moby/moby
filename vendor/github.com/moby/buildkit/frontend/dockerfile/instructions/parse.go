@@ -78,13 +78,13 @@ func ParseInstructionWithLinter(node *parser.Node, lint *linter.Linter) (v inter
 	req := newParseRequestFromNode(node)
 	switch strings.ToLower(node.Value) {
 	case command.Env:
-		return parseEnv(req, lint)
+		return parseEnv(req)
 	case command.Maintainer:
 		msg := linter.RuleMaintainerDeprecated.Format()
 		lint.Run(&linter.RuleMaintainerDeprecated, node.Location(), msg)
 		return parseMaintainer(req)
 	case command.Label:
-		return parseLabel(req, lint)
+		return parseLabel(req)
 	case command.Add:
 		return parseAdd(req)
 	case command.Copy:
@@ -193,7 +193,7 @@ func Parse(ast *parser.Node, lint *linter.Linter) (stages []Stage, metaArgs []Ar
 	return stages, metaArgs, nil
 }
 
-func parseKvps(args []string, cmdName string, location []parser.Range, lint *linter.Linter) (KeyValuePairs, error) {
+func parseKvps(args []string, cmdName string) (KeyValuePairs, error) {
 	if len(args) == 0 {
 		return nil, errAtLeastOneArgument(cmdName)
 	}
@@ -206,21 +206,17 @@ func parseKvps(args []string, cmdName string, location []parser.Range, lint *lin
 		if len(args[j]) == 0 {
 			return nil, errBlankCommandNames(cmdName)
 		}
-		name, value, sep := args[j], args[j+1], args[j+2]
-		if sep == "" {
-			msg := linter.RuleLegacyKeyValueFormat.Format(cmdName)
-			lint.Run(&linter.RuleLegacyKeyValueFormat, location, msg)
-		}
-		res = append(res, KeyValuePair{Key: name, Value: value})
+		name, value, delim := args[j], args[j+1], args[j+2]
+		res = append(res, KeyValuePair{Key: name, Value: value, NoDelim: delim == ""})
 	}
 	return res, nil
 }
 
-func parseEnv(req parseRequest, lint *linter.Linter) (*EnvCommand, error) {
+func parseEnv(req parseRequest) (*EnvCommand, error) {
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
-	envs, err := parseKvps(req.args, "ENV", req.location, lint)
+	envs, err := parseKvps(req.args, "ENV")
 	if err != nil {
 		return nil, err
 	}
@@ -244,12 +240,12 @@ func parseMaintainer(req parseRequest) (*MaintainerCommand, error) {
 	}, nil
 }
 
-func parseLabel(req parseRequest, lint *linter.Linter) (*LabelCommand, error) {
+func parseLabel(req parseRequest) (*LabelCommand, error) {
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
 
-	labels, err := parseKvps(req.args, "LABEL", req.location, lint)
+	labels, err := parseKvps(req.args, "LABEL")
 	if err != nil {
 		return nil, err
 	}
