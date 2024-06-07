@@ -23,9 +23,11 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
 	dimage "github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
@@ -533,11 +535,14 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 		}
 	}
 
+	id := image.ID(createdImage.Target.Digest)
+	i.LogImageEvent(id.String(), id.String(), events.ActionCreate)
+
 	if err := i.unpackImage(ctx, i.StorageDriver(), img, manifestDesc); err != nil {
 		return "", err
 	}
 
-	return dimage.ID(createdImage.Target.Digest), nil
+	return id, nil
 }
 
 // writeContentsForImage will commit oci image config and manifest into containerd's content store.

@@ -3,6 +3,7 @@ package cli // import "github.com/docker/docker/integration-cli/cli"
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -161,7 +162,10 @@ func WithTimeout(timeout time.Duration) func(cmd *icmd.Cmd) func() {
 // WithEnvironmentVariables sets the specified environment variables for the command to run
 func WithEnvironmentVariables(envs ...string) func(cmd *icmd.Cmd) func() {
 	return func(cmd *icmd.Cmd) func() {
-		cmd.Env = envs
+		if cmd.Env == nil {
+			cmd.Env = os.Environ()
+		}
+		cmd.Env = append(cmd.Env, envs...)
 		return nil
 	}
 }
