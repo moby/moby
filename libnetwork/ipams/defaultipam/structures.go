@@ -55,22 +55,22 @@ func PoolIDFromString(str string) (pID PoolID, err error) {
 
 func parsePoolIDV1(str string) (pID PoolID, err error) {
 	if str == "" {
-		return pID, types.InternalErrorf("invalid string form for subnetkey: %s", str)
+		return pID, types.InvalidParameterErrorf("invalid string form for subnetkey: %s", str)
 	}
 
 	p := strings.Split(str, "/")
 	if len(p) != 3 && len(p) != 5 {
-		return pID, types.InternalErrorf("invalid string form for subnetkey: %s", str)
+		return pID, types.InvalidParameterErrorf("invalid string form for subnetkey: %s", str)
 	}
 	pID.AddressSpace = p[0]
 	pID.Subnet, err = netip.ParsePrefix(p[1] + "/" + p[2])
 	if err != nil {
-		return pID, types.InternalErrorf("invalid string form for subnetkey: %s", str)
+		return pID, types.InvalidParameterErrorf("invalid string form for subnetkey: %s", str)
 	}
 	if len(p) == 5 {
 		pID.ChildSubnet, err = netip.ParsePrefix(p[3] + "/" + p[4])
 		if err != nil {
-			return pID, types.InternalErrorf("invalid string form for subnetkey: %s", str)
+			return pID, types.InvalidParameterErrorf("invalid string form for subnetkey: %s", str)
 		}
 	}
 
@@ -89,18 +89,18 @@ func parsePoolIDV2(str string) (pID PoolID, err error) {
 
 	if v, ok := fields[subnetField]; ok && v != "" {
 		if pID.Subnet, err = netip.ParsePrefix(v); err != nil {
-			return PoolID{}, types.InternalErrorf("invalid string form for subnetkey %s: %v", str, err)
+			return PoolID{}, types.InvalidParameterErrorf("invalid string form for subnetkey %s: %w", str, err)
 		}
 	}
 
 	if v, ok := fields[childSubnetField]; ok && v != "" {
 		if pID.ChildSubnet, err = netip.ParsePrefix(v); err != nil {
-			return PoolID{}, types.InternalErrorf("invalid string form for subnetkey %s: %v", str, err)
+			return PoolID{}, types.InvalidParameterErrorf("invalid string form for subnetkey %s: %w", str, err)
 		}
 	}
 
 	if pID.AddressSpace == "" || pID.Subnet == (netip.Prefix{}) {
-		return PoolID{}, types.InternalErrorf("invalid string form for subnetkey %s: missing AddressSpace or Subnet", str)
+		return PoolID{}, types.InvalidParameterErrorf("invalid string form for subnetkey %s: missing AddressSpace or Subnet", str)
 	}
 
 	return pID, nil
