@@ -491,7 +491,7 @@ func (w *LogFile) readLogsLocked(currentPos logPos, config logger.ReadConfig, wa
 		Watcher:   watcher,
 		Decoder:   dec,
 		Forwarder: fwd,
-	}).Do(currentFile, currentPos)
+	}).Do(context.TODO(), currentFile, currentPos)
 }
 
 type fileOpener interface {
@@ -684,7 +684,9 @@ func getTailFiles(ctx context.Context, files []fileOpener, nLines int, getTailRe
 
 		tail, n, err := getTailReader(ctx, ra, nLines)
 		if err != nil {
-			return nil, errors.Wrap(err, "error finding file position to start log tailing")
+			ra.Close()
+			log.G(ctx).WithError(err).Warn("Error scanning log file for tail file request, skipping")
+			continue
 		}
 		nLines -= n
 		out = append(out, &sizeReaderAtWithCloser{tail, ra.Close})
@@ -720,18 +722,39 @@ func tailFiles(files []fileOpener, watcher *logger.LogWatcher, dec Decoder, getT
 		if !cont {
 			for _, r := range readers[idx:] {
 				if err := r.Close(); err != nil {
-					log.G(ctx).WithError(err).Warn("Error closing log reader")
+					log.G(ctx).WithError(err).Debug("Error closing log reader")
 				}
 			}
 		}
 	}()
 
 	for _, ra := range readers {
+		select {
+		case <-watcher.WatchConsumerGone():
+			return false
+		case <-ctx.Done():
+			return false
+		default:
+		}
+
 		dec.Reset(ra)
 
-		ok := fwd.Do(watcher, dec)
+		ok := fwd.Do(ctx, watcher, func() (*logger.Message, error) {
+			msg, err := dec.Decode()
+			if err != nil && !errors.Is(err, io.EOF) {
+				// We have an error decoding the stream, but we don't want to error out
+				// the whole log reader.
+				// If we return anything other than EOF then the forwarder will return
+				// false and we'll exit the loop.
+				// Instead just log the error here and return an EOF so we can move to
+				// the next file.
+				log.G(ctx).WithError(err).Warn("Error decoding log file")
+				return nil, io.EOF
+			}
+			return msg, err
+		})
 		if err := ra.Close(); err != nil {
-			log.G(ctx).WithError(err).Warn("Error closing log reader")
+			log.G(ctx).WithError(err).Debug("Error closing log reader")
 		}
 		idx++
 
@@ -755,16 +778,25 @@ func newForwarder(config logger.ReadConfig) *forwarder {
 // conditions to watcher. Do returns cont=true iff it has read all messages from
 // dec without encountering a message with a timestamp which is after the
 // configured until time.
-func (fwd *forwarder) Do(watcher *logger.LogWatcher, dec Decoder) (cont bool) {
+func (fwd *forwarder) Do(ctx context.Context, watcher *logger.LogWatcher, next func() (*logger.Message, error)) (cont bool) {
 	for {
-		msg, err := dec.Decode()
+		select {
+		case <-watcher.WatchConsumerGone():
+			return false
+		case <-ctx.Done():
+			return false
+		default:
+		}
+
+		msg, err := next()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return true
 			}
-			watcher.Err <- err
+			log.G(ctx).WithError(err).Debug("Error while decoding log entry, not continuing")
 			return false
 		}
+
 		if !fwd.since.IsZero() {
 			if msg.Timestamp.Before(fwd.since) {
 				continue
@@ -776,9 +808,12 @@ func (fwd *forwarder) Do(watcher *logger.LogWatcher, dec Decoder) (cont bool) {
 			fwd.since = time.Time{}
 		}
 		if !fwd.until.IsZero() && msg.Timestamp.After(fwd.until) {
+			log.G(ctx).Debug("Log is newer than requested window, skipping remaining logs")
 			return false
 		}
 		select {
+		case <-ctx.Done():
+			return false
 		case <-watcher.WatchConsumerGone():
 			return false
 		case watcher.Msg <- msg:
