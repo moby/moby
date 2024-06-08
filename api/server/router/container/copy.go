@@ -10,12 +10,12 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	gddohttputil "github.com/golang/gddo/httputil"
 )
 
 // setContainerPathStatHeader encodes the stat to JSON, base64 encode, and place in a header.
-func setContainerPathStatHeader(stat *types.ContainerPathStat, header http.Header) error {
+func setContainerPathStatHeader(stat *container.PathStat, header http.Header) error {
 	statJSON, err := json.Marshal(stat)
 	if err != nil {
 		return err

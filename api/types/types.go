@@ -2,7 +2,6 @@ package types // import "github.com/docker/docker/api/types"
 
 import (
 	"io"
-	"os"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -160,17 +159,6 @@ type Container struct {
 	}
 	NetworkSettings *SummaryNetworkSettings
 	Mounts          []MountPoint
-}
-
-// ContainerPathStat is used to encode the header from
-// GET "/containers/{name:.*}/archive"
-// "Name" is the file or directory name.
-type ContainerPathStat struct {
-	Name       string      `json:"name"`
-	Size       int64       `json:"size"`
-	Mode       os.FileMode `json:"mode"`
-	Mtime      time.Time   `json:"mtime"`
-	LinkTarget string      `json:"linkTarget"`
 }
 
 // ContainerStats contains response of Engine API:

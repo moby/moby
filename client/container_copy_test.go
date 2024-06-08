@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -64,7 +65,7 @@ func TestContainerStatPath(t *testing.T) {
 			if path != expectedPath {
 				return nil, fmt.Errorf("path not set in URL query properly")
 			}
-			content, err := json.Marshal(types.ContainerPathStat{
+			content, err := json.Marshal(container.PathStat{
 				Name: "name",
 				Mode: 0o700,
 			})
@@ -188,7 +189,7 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 func TestCopyFromContainerEmptyResponse(t *testing.T) {
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			content, err := json.Marshal(types.ContainerPathStat{
+			content, err := json.Marshal(container.PathStat{
 				Name: "path/to/file",
 				Mode: 0o700,
 			})
@@ -242,7 +243,7 @@ func TestCopyFromContainer(t *testing.T) {
 				return nil, fmt.Errorf("path not set in URL query properly, expected '%s', got %s", expectedPath, path)
 			}
 
-			headercontent, err := json.Marshal(types.ContainerPathStat{
+			headercontent, err := json.Marshal(container.PathStat{
 				Name: "name",
 				Mode: 0o700,
 			})

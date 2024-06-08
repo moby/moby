@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
@@ -19,7 +18,7 @@ import (
 
 // containerStatPath stats the filesystem resource at the specified path in this
 // container. Returns stat info about the resource.
-func (daemon *Daemon) containerStatPath(container *container.Container, path string) (stat *types.ContainerPathStat, err error) {
+func (daemon *Daemon) containerStatPath(container *container.Container, path string) (stat *containertypes.PathStat, err error) {
 	container.Lock()
 	defer container.Unlock()
 
@@ -53,7 +52,7 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 // containerArchivePath creates an archive of the filesystem resource at the specified
 // path in this container. Returns a tar archive of the resource and stat info
 // about the resource.
-func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
+func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *containertypes.PathStat, err error) {
 	container.Lock()
 
 	defer func() {

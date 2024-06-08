@@ -66,7 +66,7 @@ type ContainerAPIClient interface {
 	ContainerRename(ctx context.Context, container, newContainerName string) error
 	ContainerResize(ctx context.Context, container string, options container.ResizeOptions) error
 	ContainerRestart(ctx context.Context, container string, options container.StopOptions) error
-	ContainerStatPath(ctx context.Context, container, path string) (types.ContainerPathStat, error)
+	ContainerStatPath(ctx context.Context, container, path string) (container.PathStat, error)
 	ContainerStats(ctx context.Context, container string, stream bool) (types.ContainerStats, error)
 	ContainerStatsOneShot(ctx context.Context, container string) (types.ContainerStats, error)
 	ContainerStart(ctx context.Context, container string, options container.StartOptions) error
@@ -75,7 +75,7 @@ type ContainerAPIClient interface {
 	ContainerUnpause(ctx context.Context, container string) error
 	ContainerUpdate(ctx context.Context, container string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error)
 	ContainerWait(ctx context.Context, container string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
-	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, types.ContainerPathStat, error)
+	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, container.PathStat, error)
 	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error
 	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (container.PruneReport, error)
 }

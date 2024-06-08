@@ -23,10 +23,10 @@ type execBackend interface {
 
 // copyBackend includes functions to implement to provide container copy functionality.
 type copyBackend interface {
-	ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error)
+	ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *container.PathStat, err error)
 	ContainerExport(ctx context.Context, name string, out io.Writer) error
 	ContainerExtractToDir(name, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error
-	ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error)
+	ContainerStatPath(name string, path string) (stat *container.PathStat, err error)
 }
 
 // stateBackend includes functions to implement to provide container state lifecycle functionality.

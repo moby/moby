@@ -78,3 +78,10 @@ type ContainerExecInspect = container.ExecInspect
 //
 // Deprecated: use [container.PruneReport].
 type ContainersPruneReport = container.PruneReport
+
+// ContainerPathStat is used to encode the header from
+// GET "/containers/{name:.*}/archive"
+// "Name" is the file or directory name.
+//
+// Deprecated: use [container.PathStat].
+type ContainerPathStat = container.PathStat
