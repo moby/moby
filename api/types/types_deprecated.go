@@ -85,3 +85,9 @@ type ContainersPruneReport = container.PruneReport
 //
 // Deprecated: use [container.PathStat].
 type ContainerPathStat = container.PathStat
+
+// CopyToContainerOptions holds information
+// about files to copy into a container.
+//
+// Deprecated: use [container.CopyToContainerOptions],
+type CopyToContainerOptions = container.CopyToContainerOptions

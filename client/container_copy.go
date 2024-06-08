@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 )
 
@@ -31,7 +30,7 @@ func (cli *Client) ContainerStatPath(ctx context.Context, containerID, path stri
 
 // CopyToContainer copies content into the container filesystem.
 // Note that `content` must be a Reader for a TAR archive
-func (cli *Client) CopyToContainer(ctx context.Context, containerID, dstPath string, content io.Reader, options types.CopyToContainerOptions) error {
+func (cli *Client) CopyToContainer(ctx context.Context, containerID, dstPath string, content io.Reader, options container.CopyToContainerOptions) error {
 	query := url.Values{}
 	query.Set("path", filepath.ToSlash(dstPath)) // Normalize the paths used in the API.
 	// Do not allow for an existing directory to be overwritten by a non-directory and vice versa.

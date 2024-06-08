@@ -12,13 +12,6 @@ import (
 	units "github.com/docker/go-units"
 )
 
-// CopyToContainerOptions holds information
-// about files to copy into a container
-type CopyToContainerOptions struct {
-	AllowOverwriteDirWithFile bool
-	CopyUIDGID                bool
-}
-
 // EventsOptions holds parameters to filter events with.
 type EventsOptions struct {
 	Since   string

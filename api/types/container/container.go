@@ -22,3 +22,10 @@ type PathStat struct {
 	Mtime      time.Time   `json:"mtime"`
 	LinkTarget string      `json:"linkTarget"`
 }
+
+// CopyToContainerOptions holds information
+// about files to copy into a container
+type CopyToContainerOptions struct {
+	AllowOverwriteDirWithFile bool
+	CopyUIDGID                bool
+}
