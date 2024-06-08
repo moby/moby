@@ -91,3 +91,9 @@ type ContainerPathStat = container.PathStat
 //
 // Deprecated: use [container.CopyToContainerOptions],
 type CopyToContainerOptions = container.CopyToContainerOptions
+
+// ContainerStats contains response of Engine API:
+// GET "/stats"
+//
+// Deprecated: use [container.StatsResponse].
+type ContainerStats = container.StatsResponse

@@ -1,6 +1,7 @@
 package container
 
 import (
+	"io"
 	"os"
 	"time"
 )
@@ -28,4 +29,11 @@ type PathStat struct {
 type CopyToContainerOptions struct {
 	AllowOverwriteDirWithFile bool
 	CopyUIDGID                bool
+}
+
+// StatsResponse contains response of Engine API:
+// GET "/stats"
+type StatsResponse struct {
+	Body   io.ReadCloser `json:"body"`
+	OSType string        `json:"ostype"`
 }

@@ -1,7 +1,6 @@
 package types // import "github.com/docker/docker/api/types"
 
 import (
-	"io"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -159,13 +158,6 @@ type Container struct {
 	}
 	NetworkSettings *SummaryNetworkSettings
 	Mounts          []MountPoint
-}
-
-// ContainerStats contains response of Engine API:
-// GET "/stats"
-type ContainerStats struct {
-	Body   io.ReadCloser `json:"body"`
-	OSType string        `json:"ostype"`
 }
 
 // Ping contains response of Engine API:
