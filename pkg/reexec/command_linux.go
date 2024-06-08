@@ -5,12 +5,6 @@ import (
 	"syscall"
 )
 
-// Self returns the path to the current process's binary.
-// Returns "/proc/self/exe".
-func Self() string {
-	return "/proc/self/exe"
-}
-
 // Command returns *exec.Cmd which has Path as current binary. Also it setting
 // SysProcAttr.Pdeathsig to SIGTERM.
 // This will use the in-memory version (/proc/self/exe) of the current binary,

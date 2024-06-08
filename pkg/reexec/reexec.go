@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 )
 
 var registeredInitializers = make(map[string]func())
@@ -32,6 +33,17 @@ func Init() bool {
 		return true
 	}
 	return false
+}
+
+// Self returns the path to the current process's binary. On Linux, it
+// returns "/proc/self/exe", which provides the in-memory version of the
+// current binary, whereas on other platforms it attempts to looks up the
+// absolute path for os.Args[0], or otherwise returns os.Args[0] as-is.
+func Self() string {
+	if runtime.GOOS == "linux" {
+		return "/proc/self/exe"
+	}
+	return naiveSelf()
 }
 
 func naiveSelf() string {
