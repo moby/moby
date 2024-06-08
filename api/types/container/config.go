@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/api/types/container"
 
 import (
-	"io"
 	"time"
 
 	"github.com/docker/docker/api/types/strslice"
@@ -35,14 +34,6 @@ type StopOptions struct {
 
 // HealthConfig holds configuration settings for the HEALTHCHECK feature.
 type HealthConfig = dockerspec.HealthcheckConfig
-
-// ExecStartOptions holds the options to start container's exec.
-type ExecStartOptions struct {
-	Stdin       io.Reader
-	Stdout      io.Writer
-	Stderr      io.Writer
-	ConsoleSize *[2]uint `json:",omitempty"`
-}
 
 // Config contains the configuration data about a container.
 // It should hold only portable information about the container.

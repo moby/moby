@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
@@ -137,7 +138,7 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 	// Now run the user process in container.
 	//
 	// TODO: Maybe we should we pass ctx here if we're not detaching?
-	err := s.backend.ContainerExecStart(context.Background(), execName, container.ExecStartOptions{
+	err := s.backend.ContainerExecStart(context.Background(), execName, backend.ExecStartConfig{
 		Stdin:       stdin,
 		Stdout:      stdout,
 		Stderr:      stderr,

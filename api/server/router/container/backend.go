@@ -17,7 +17,7 @@ type execBackend interface {
 	ContainerExecCreate(name string, options *container.ExecOptions) (string, error)
 	ContainerExecInspect(id string) (*backend.ExecInspect, error)
 	ContainerExecResize(name string, height, width int) error
-	ContainerExecStart(ctx context.Context, name string, options container.ExecStartOptions) error
+	ContainerExecStart(ctx context.Context, name string, options backend.ExecStartConfig) error
 	ExecExists(name string) (bool, error)
 }
 
