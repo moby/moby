@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
@@ -21,7 +21,7 @@ func TestExecConsoleSize(t *testing.T) {
 	cID := container.Run(ctx, t, apiClient, container.WithImage("busybox"))
 
 	result, err := container.Exec(ctx, apiClient, cID, []string{"stty", "size"},
-		func(ec *types.ExecConfig) {
+		func(ec *containertypes.ExecOptions) {
 			ec.Tty = true
 			ec.ConsoleSize = &[2]uint{57, 123}
 		},

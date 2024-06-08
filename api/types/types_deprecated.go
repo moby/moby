@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 )
 
@@ -54,3 +55,9 @@ type NetworkResource = network.Inspect
 //
 // Deprecated: use [network.PruneReport].
 type NetworksPruneReport = network.PruneReport
+
+// ExecConfig is a small subset of the Config struct that holds the configuration
+// for the exec feature of docker.
+//
+// Deprecated: use [container.ExecOptions].
+type ExecConfig = container.ExecOptions

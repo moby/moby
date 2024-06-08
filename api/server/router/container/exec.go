@@ -38,7 +38,7 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 		return err
 	}
 
-	execConfig := &types.ExecConfig{}
+	execConfig := &container.ExecOptions{}
 	if err := httputils.ReadJSON(r, execConfig); err != nil {
 		return err
 	}

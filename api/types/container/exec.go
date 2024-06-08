@@ -1,8 +1,8 @@
-package types // import "github.com/docker/docker/api/types"
+package container
 
-// ExecConfig is a small subset of the Config struct that holds the configuration
+// ExecOptions is a small subset of the Config struct that holds the configuration
 // for the exec feature of docker.
-type ExecConfig struct {
+type ExecOptions struct {
 	User         string   // User that will run the command
 	Privileged   bool     // Is the container in privileged mode
 	Tty          bool     // Attach standard streams to a tty.

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
@@ -313,7 +314,7 @@ func TestTemplatedConfig(t *testing.T) {
 	tasks := swarm.GetRunningTasks(ctx, t, c, serviceID)
 	assert.Assert(t, len(tasks) > 0, "no running tasks found for service %s", serviceID)
 
-	attach := swarm.ExecTask(ctx, t, d, tasks[0], types.ExecConfig{
+	attach := swarm.ExecTask(ctx, t, d, tasks[0], container.ExecOptions{
 		Cmd:          []string{"/bin/cat", "/templated_config"},
 		AttachStdout: true,
 		AttachStderr: true,
@@ -324,7 +325,7 @@ func TestTemplatedConfig(t *testing.T) {
 		"this is a config\n"
 	assertAttachedStream(t, attach, expect)
 
-	attach = swarm.ExecTask(ctx, t, d, tasks[0], types.ExecConfig{
+	attach = swarm.ExecTask(ctx, t, d, tasks[0], container.ExecOptions{
 		Cmd:          []string{"mount"},
 		AttachStdout: true,
 		AttachStderr: true,
