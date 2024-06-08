@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
@@ -32,7 +31,7 @@ func TestExecWithCloseStdin(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	resp, err := apiClient.ContainerExecAttach(ctx, execResp.ID, types.ExecStartCheck{})
+	resp, err := apiClient.ContainerExecAttach(ctx, execResp.ID, containertypes.ExecAttachOptions{})
 	assert.NilError(t, err)
 	defer resp.Close()
 
@@ -92,7 +91,7 @@ func TestExec(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.ExecID, id.ID))
 
-	resp, err := apiClient.ContainerExecAttach(ctx, id.ID, types.ExecStartCheck{})
+	resp, err := apiClient.ContainerExecAttach(ctx, id.ID, containertypes.ExecAttachOptions{})
 	assert.NilError(t, err)
 	defer resp.Close()
 	r, err := io.ReadAll(resp.Reader)

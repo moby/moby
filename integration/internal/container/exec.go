@@ -5,7 +5,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
@@ -67,7 +66,7 @@ func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []stri
 	execID := cresp.ID
 
 	// run it, with stdout/stderr attached
-	aresp, err := apiClient.ContainerExecAttach(ctx, execID, types.ExecStartCheck{})
+	aresp, err := apiClient.ContainerExecAttach(ctx, execID, container.ExecAttachOptions{})
 	if err != nil {
 		return ExecResult{}, err
 	}

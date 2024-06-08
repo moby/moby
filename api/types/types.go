@@ -225,17 +225,6 @@ type Version struct {
 	BuildTime     string `json:",omitempty"`
 }
 
-// ExecStartCheck is a temp struct used by execStart
-// Config fields is part of ExecConfig in runconfig package
-type ExecStartCheck struct {
-	// ExecStart will first check if it's detached
-	Detach bool
-	// Check if there's a tty
-	Tty bool
-	// Terminal size [height, width], unused if Tty == false
-	ConsoleSize *[2]uint `json:",omitempty"`
-}
-
 // HealthcheckResult stores information about a single run of a healthcheck probe
 type HealthcheckResult struct {
 	Start    time.Time // Start is the time this check started

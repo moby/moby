@@ -61,3 +61,9 @@ type NetworksPruneReport = network.PruneReport
 //
 // Deprecated: use [container.ExecOptions].
 type ExecConfig = container.ExecOptions
+
+// ExecStartCheck is a temp struct used by execStart
+// Config fields is part of ExecConfig in runconfig package
+//
+// Deprecated: use [container.ExecStartOptions] or [container.ExecAttachOptions].
+type ExecStartCheck = container.ExecStartOptions

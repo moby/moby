@@ -45,7 +45,7 @@ func TestEventsExecDie(t *testing.T) {
 		),
 	})
 
-	err = client.ContainerExecStart(ctx, id.ID, types.ExecStartCheck{
+	err = client.ContainerExecStart(ctx, id.ID, containertypes.ExecStartOptions{
 		Detach: true,
 		Tty:    false,
 	})

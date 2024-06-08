@@ -86,7 +86,7 @@ func TestContainerExecStartError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.ContainerExecStart(context.Background(), "nothing", types.ExecStartCheck{})
+	err := client.ContainerExecStart(context.Background(), "nothing", container.ExecStartOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -100,12 +100,12 @@ func TestContainerExecStart(t *testing.T) {
 			if err := req.ParseForm(); err != nil {
 				return nil, err
 			}
-			execStartCheck := &types.ExecStartCheck{}
-			if err := json.NewDecoder(req.Body).Decode(execStartCheck); err != nil {
+			options := &container.ExecStartOptions{}
+			if err := json.NewDecoder(req.Body).Decode(options); err != nil {
 				return nil, err
 			}
-			if execStartCheck.Tty || !execStartCheck.Detach {
-				return nil, fmt.Errorf("expected execStartCheck{Detach:true,Tty:false}, got %v", execStartCheck)
+			if options.Tty || !options.Detach {
+				return nil, fmt.Errorf("expected ExecStartOptions{Detach:true,Tty:false}, got %v", options)
 			}
 
 			return &http.Response{
@@ -115,7 +115,7 @@ func TestContainerExecStart(t *testing.T) {
 		}),
 	}
 
-	err := client.ContainerExecStart(context.Background(), "exec_id", types.ExecStartCheck{
+	err := client.ContainerExecStart(context.Background(), "exec_id", container.ExecStartOptions{
 		Detach: true,
 		Tty:    false,
 	})

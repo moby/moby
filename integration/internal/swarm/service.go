@@ -220,7 +220,7 @@ func ExecTask(ctx context.Context, t *testing.T, d *daemon.Daemon, task swarmtyp
 	resp, err := apiClient.ContainerExecCreate(ctx, task.Status.ContainerStatus.ContainerID, options)
 	assert.NilError(t, err, "error creating exec")
 
-	attach, err := apiClient.ContainerExecAttach(ctx, resp.ID, types.ExecStartCheck{})
+	attach, err := apiClient.ContainerExecAttach(ctx, resp.ID, container.ExecAttachOptions{})
 	assert.NilError(t, err, "error attaching to exec")
 	return attach
 }
