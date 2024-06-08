@@ -72,3 +72,9 @@ type ExecStartCheck = container.ExecStartOptions
 //
 // Deprecated: use [container.ExecInspect].
 type ContainerExecInspect = container.ExecInspect
+
+// ContainersPruneReport contains the response for Engine API:
+// POST "/containers/prune"
+//
+// Deprecated: use [container.PruneReport].
+type ContainersPruneReport = container.PruneReport
