@@ -67,3 +67,8 @@ type ExecConfig = container.ExecOptions
 //
 // Deprecated: use [container.ExecStartOptions] or [container.ExecAttachOptions].
 type ExecStartCheck = container.ExecStartOptions
+
+// ContainerExecInspect holds information returned by exec inspect.
+//
+// Deprecated: use [container.ExecInspect].
+type ContainerExecInspect = container.ExecInspect

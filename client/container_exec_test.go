@@ -139,7 +139,7 @@ func TestContainerExecInspect(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			b, err := json.Marshal(types.ContainerExecInspect{
+			b, err := json.Marshal(container.ExecInspect{
 				ExecID:      "exec_id",
 				ContainerID: "container_id",
 			})

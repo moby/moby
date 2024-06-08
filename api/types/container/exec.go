@@ -32,3 +32,12 @@ type ExecStartOptions struct {
 //
 // TODO(thaJeztah): make this a separate type; ContainerExecAttach does not use the Detach option, and cannot run detached.
 type ExecAttachOptions = ExecStartOptions
+
+// ExecInspect holds information returned by exec inspect.
+type ExecInspect struct {
+	ExecID      string `json:"ID"`
+	ContainerID string
+	Running     bool
+	ExitCode    int
+	Pid         int
+}

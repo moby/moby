@@ -12,15 +12,6 @@ import (
 	units "github.com/docker/go-units"
 )
 
-// ContainerExecInspect holds information returned by exec inspect.
-type ContainerExecInspect struct {
-	ExecID      string `json:"ID"`
-	ContainerID string
-	Running     bool
-	ExitCode    int
-	Pid         int
-}
-
 // CopyToContainerOptions holds information
 // about files to copy into a container
 type CopyToContainerOptions struct {
