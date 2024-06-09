@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
@@ -204,7 +203,7 @@ func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*volumetypes.V
 // Prune removes (local) volumes which match the past in filter arguments.
 // Note that this intentionally skips volumes with mount options as there would
 // be no space reclaimed in this case.
-func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*types.VolumesPruneReport, error) {
+func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*volumetypes.PruneReport, error) {
 	if !atomic.CompareAndSwapInt32(&s.pruneRunning, 0, 1) {
 		return nil, errdefs.Conflict(errors.New("a prune operation is already running"))
 	}
@@ -226,7 +225,7 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*types
 		return nil, err
 	}
 
-	rep := &types.VolumesPruneReport{VolumesDeleted: make([]string, 0, len(ls))}
+	rep := &volumetypes.PruneReport{VolumesDeleted: make([]string, 0, len(ls))}
 	for _, v := range ls {
 		select {
 		case <-ctx.Done():
