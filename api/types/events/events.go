@@ -1,4 +1,5 @@
 package events // import "github.com/docker/docker/api/types/events"
+import "github.com/docker/docker/api/types/filters"
 
 // Type is used for event-types.
 type Type string
@@ -124,4 +125,11 @@ type Message struct {
 
 	Time     int64 `json:"time,omitempty"`
 	TimeNano int64 `json:"timeNano,omitempty"`
+}
+
+// ListOptions holds parameters to filter events with.
+type ListOptions struct {
+	Since   string
+	Until   string
+	Filters filters.Args
 }

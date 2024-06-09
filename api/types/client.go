@@ -12,13 +12,6 @@ import (
 	units "github.com/docker/go-units"
 )
 
-// EventsOptions holds parameters to filter events with.
-type EventsOptions struct {
-	Since   string
-	Until   string
-	Filters filters.Args
-}
-
 // NewHijackedResponse intializes a HijackedResponse type
 func NewHijackedResponse(conn net.Conn, mediaType string) HijackedResponse {
 	return HijackedResponse{Conn: conn, Reader: bufio.NewReader(conn), mediaType: mediaType}

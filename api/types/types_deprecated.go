@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/volume"
@@ -111,3 +112,8 @@ type CopyToContainerOptions = container.CopyToContainerOptions
 //
 // Deprecated: use [container.StatsResponse].
 type ContainerStats = container.StatsResponse
+
+// EventsOptions holds parameters to filter events with.
+//
+// Deprecated: use [events.ListOptions].
+type EventsOptions = events.ListOptions
