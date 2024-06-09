@@ -130,13 +130,6 @@ type ImageBuildResponse struct {
 	OSType string
 }
 
-// ImageLoadResponse returns information to the client about a load process.
-type ImageLoadResponse struct {
-	// Body must be closed to avoid a resource leak
-	Body io.ReadCloser
-	JSON bool
-}
-
 // RequestPrivilegeFunc is a function interface that
 // clients can supply to retry operations after
 // getting an authorization error.

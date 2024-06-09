@@ -128,3 +128,8 @@ type ImageSearchOptions = registry.SearchOptions
 //
 // Deprecated: use [image.ImportSource].
 type ImageImportSource image.ImportSource
+
+// ImageLoadResponse returns information to the client about a load process.
+//
+// Deprecated: use [image.LoadResponse].
+type ImageLoadResponse = image.LoadResponse

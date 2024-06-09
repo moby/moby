@@ -95,7 +95,7 @@ type ImageAPIClient interface {
 	ImageImport(ctx context.Context, source image.ImportSource, ref string, options image.ImportOptions) (io.ReadCloser, error)
 	ImageInspectWithRaw(ctx context.Context, image string) (types.ImageInspect, []byte, error)
 	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (types.ImageLoadResponse, error)
+	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (image.LoadResponse, error)
 	ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
 	ImagePush(ctx context.Context, ref string, options image.PushOptions) (io.ReadCloser, error)
 	ImageRemove(ctx context.Context, image string, options image.RemoveOptions) ([]image.DeleteResponse, error)
