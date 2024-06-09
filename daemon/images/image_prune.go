@@ -9,7 +9,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -33,7 +32,7 @@ var imagesAcceptedFilters = map[string]bool{
 var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
 
 // ImagesPrune removes unused images
-func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
+func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*imagetypes.PruneReport, error) {
 	if !atomic.CompareAndSwapInt32(&i.pruneRunning, 0, 1) {
 		return nil, errPruneRunning
 	}
@@ -45,7 +44,7 @@ func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Arg
 		return nil, err
 	}
 
-	rep := &types.ImagesPruneReport{}
+	rep := &imagetypes.PruneReport{}
 
 	danglingOnly, err := pruneFilters.GetBoolOrDefault("dangling", true)
 	if err != nil {

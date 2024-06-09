@@ -419,13 +419,6 @@ type DiskUsage struct {
 	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
 }
 
-// ImagesPruneReport contains the response for Engine API:
-// POST "/images/prune"
-type ImagesPruneReport struct {
-	ImagesDeleted  []image.DeleteResponse
-	SpaceReclaimed uint64
-}
-
 // BuildCachePruneReport contains the response for Engine API:
 // POST "/build/prune"
 type BuildCachePruneReport struct {

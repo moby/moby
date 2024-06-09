@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -37,7 +36,7 @@ type ImageService interface {
 	Images(ctx context.Context, opts imagetype.ListOptions) ([]*imagetype.Summary, error)
 	LogImageEvent(imageID, refName string, action events.Action)
 	CountImages(ctx context.Context) int
-	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
+	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*imagetype.PruneReport, error)
 	ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error)
 	TagImage(ctx context.Context, imageID image.ID, newTag reference.Named) error
 	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*image.Image, error)

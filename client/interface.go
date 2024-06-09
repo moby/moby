@@ -102,7 +102,7 @@ type ImageAPIClient interface {
 	ImageSearch(ctx context.Context, term string, options types.ImageSearchOptions) ([]registry.SearchResult, error)
 	ImageSave(ctx context.Context, images []string) (io.ReadCloser, error)
 	ImageTag(ctx context.Context, image, ref string) error
-	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (types.ImagesPruneReport, error)
+	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)
 }
 
 // NetworkAPIClient defines API client methods for the networks
