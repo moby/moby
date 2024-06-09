@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration/internal/container"
@@ -32,7 +31,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	reference := "repo/" + strings.ToLower(t.Name()) + ":v1"
 	exportResp, err := apiClient.ContainerExport(ctx, cID)
 	assert.NilError(t, err)
-	importResp, err := apiClient.ImageImport(ctx, types.ImageImportSource{
+	importResp, err := apiClient.ImageImport(ctx, image.ImportSource{
 		Source:     exportResp,
 		SourceName: "-",
 	}, reference, image.ImportOptions{})

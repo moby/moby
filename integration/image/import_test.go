@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -48,7 +47,7 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 	reference := strings.ToLower(t.Name()) + ":v42"
 
 	_, err = client.ImageImport(ctx,
-		types.ImageImportSource{Source: imageRdr, SourceName: "-"},
+		imagetypes.ImportSource{Source: imageRdr, SourceName: "-"},
 		reference,
 		imagetypes.ImportOptions{})
 	assert.NilError(t, err)
@@ -111,7 +110,7 @@ func TestImportWithCustomPlatform(t *testing.T) {
 			reference := "import-with-platform:tc-" + strconv.Itoa(i)
 
 			_, err = client.ImageImport(ctx,
-				types.ImageImportSource{Source: imageRdr, SourceName: "-"},
+				imagetypes.ImportSource{Source: imageRdr, SourceName: "-"},
 				reference,
 				imagetypes.ImportOptions{Platform: tc.platform})
 			assert.NilError(t, err)
@@ -177,7 +176,7 @@ func TestImportWithCustomPlatformReject(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			reference := "import-with-platform:tc-" + strconv.Itoa(i)
 			_, err = client.ImageImport(ctx,
-				types.ImageImportSource{Source: imageRdr, SourceName: "-"},
+				imagetypes.ImportSource{Source: imageRdr, SourceName: "-"},
 				reference,
 				imagetypes.ImportOptions{Platform: tc.platform})
 

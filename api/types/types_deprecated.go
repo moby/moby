@@ -123,3 +123,8 @@ type EventsOptions = events.ListOptions
 //
 // Deprecated: use [registry.SearchOptions].
 type ImageSearchOptions = registry.SearchOptions
+
+// ImageImportSource holds source information for ImageImport
+//
+// Deprecated: use [image.ImportSource].
+type ImageImportSource image.ImportSource

@@ -130,12 +130,6 @@ type ImageBuildResponse struct {
 	OSType string
 }
 
-// ImageImportSource holds source information for ImageImport
-type ImageImportSource struct {
-	Source     io.Reader // Source is the data to send to the server to create this image from. You must set SourceName to "-" to leverage this.
-	SourceName string    // SourceName is the name of the image to pull. Set to "-" to leverage the Source attribute.
-}
-
 // ImageLoadResponse returns information to the client about a load process.
 type ImageLoadResponse struct {
 	// Body must be closed to avoid a resource leak

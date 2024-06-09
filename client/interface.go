@@ -92,7 +92,7 @@ type ImageAPIClient interface {
 	BuildCancel(ctx context.Context, id string) error
 	ImageCreate(ctx context.Context, parentReference string, options image.CreateOptions) (io.ReadCloser, error)
 	ImageHistory(ctx context.Context, image string) ([]image.HistoryResponseItem, error)
-	ImageImport(ctx context.Context, source types.ImageImportSource, ref string, options image.ImportOptions) (io.ReadCloser, error)
+	ImageImport(ctx context.Context, source image.ImportSource, ref string, options image.ImportOptions) (io.ReadCloser, error)
 	ImageInspectWithRaw(ctx context.Context, image string) (types.ImageInspect, []byte, error)
 	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
 	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (types.ImageLoadResponse, error)
