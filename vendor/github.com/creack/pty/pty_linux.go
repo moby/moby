@@ -40,7 +40,7 @@ func open() (pty, tty *os.File, err error) {
 
 func ptsname(f *os.File) (string, error) {
 	var n _C_uint
-	err := ioctl(f.Fd(), syscall.TIOCGPTN, uintptr(unsafe.Pointer(&n))) //nolint:gosec // Expected unsafe pointer for Syscall call.
+	err := ioctl(f, syscall.TIOCGPTN, uintptr(unsafe.Pointer(&n))) //nolint:gosec // Expected unsafe pointer for Syscall call.
 	if err != nil {
 		return "", err
 	}
@@ -49,6 +49,6 @@ func ptsname(f *os.File) (string, error) {
 
 func unlockpt(f *os.File) error {
 	var u _C_int
-	// use TIOCSPTLCK with a pointer to zero to clear the lock
-	return ioctl(f.Fd(), syscall.TIOCSPTLCK, uintptr(unsafe.Pointer(&u))) //nolint:gosec // Expected unsafe pointer for Syscall call.
+	// use TIOCSPTLCK with a pointer to zero to clear the lock.
+	return ioctl(f, syscall.TIOCSPTLCK, uintptr(unsafe.Pointer(&u))) //nolint:gosec // Expected unsafe pointer for Syscall call.
 }

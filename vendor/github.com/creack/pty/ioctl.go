@@ -1,19 +1,28 @@
-//go:build !windows && !solaris && !aix
-// +build !windows,!solaris,!aix
+//go:build !windows && go1.12
+// +build !windows,go1.12
 
 package pty
 
-import "syscall"
+import "os"
 
-const (
-	TIOCGWINSZ = syscall.TIOCGWINSZ
-	TIOCSWINSZ = syscall.TIOCSWINSZ
-)
+func ioctl(f *os.File, cmd, ptr uintptr) error {
+	return ioctlInner(f.Fd(), cmd, ptr) // Fall back to blocking io.
+}
 
-func ioctl(fd, cmd, ptr uintptr) error {
-	_, _, e := syscall.Syscall(syscall.SYS_IOCTL, fd, cmd, ptr)
-	if e != 0 {
+// NOTE: Unused. Keeping for reference.
+func ioctlNonblock(f *os.File, cmd, ptr uintptr) error {
+	sc, e := f.SyscallConn()
+	if e != nil {
+		return ioctlInner(f.Fd(), cmd, ptr) // Fall back to blocking io (old behavior).
+	}
+
+	ch := make(chan error, 1)
+	defer close(ch)
+
+	e = sc.Control(func(fd uintptr) { ch <- ioctlInner(fd, cmd, ptr) })
+	if e != nil {
 		return e
 	}
-	return nil
+	e = <-ch
+	return e
 }

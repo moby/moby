@@ -46,7 +46,7 @@ func open() (pty, tty *os.File, err error) {
 func ptsname(f *os.File) (string, error) {
 	n := make([]byte, _IOC_PARM_LEN(syscall.TIOCPTYGNAME))
 
-	err := ioctl(f.Fd(), syscall.TIOCPTYGNAME, uintptr(unsafe.Pointer(&n[0])))
+	err := ioctl(f, syscall.TIOCPTYGNAME, uintptr(unsafe.Pointer(&n[0])))
 	if err != nil {
 		return "", err
 	}
@@ -60,9 +60,9 @@ func ptsname(f *os.File) (string, error) {
 }
 
 func grantpt(f *os.File) error {
-	return ioctl(f.Fd(), syscall.TIOCPTYGRANT, 0)
+	return ioctl(f, syscall.TIOCPTYGRANT, 0)
 }
 
 func unlockpt(f *os.File) error {
-	return ioctl(f.Fd(), syscall.TIOCPTYUNLK, 0)
+	return ioctl(f, syscall.TIOCPTYUNLK, 0)
 }
