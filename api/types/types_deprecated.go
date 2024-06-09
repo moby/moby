@@ -5,6 +5,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/volume"
 )
 
@@ -117,3 +118,8 @@ type ContainerStats = container.StatsResponse
 //
 // Deprecated: use [events.ListOptions].
 type EventsOptions = events.ListOptions
+
+// ImageSearchOptions holds parameters to search images with.
+//
+// Deprecated: use [registry.SearchOptions].
+type ImageSearchOptions = registry.SearchOptions

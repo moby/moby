@@ -151,14 +151,6 @@ type ImageLoadResponse struct {
 // if the privilege request fails.
 type RequestPrivilegeFunc func(context.Context) (string, error)
 
-// ImageSearchOptions holds parameters to search images with.
-type ImageSearchOptions struct {
-	RegistryAuth  string
-	PrivilegeFunc RequestPrivilegeFunc
-	Filters       filters.Args
-	Limit         int
-}
-
 // NodeListOptions holds parameters to list nodes with.
 type NodeListOptions struct {
 	Filters filters.Args
