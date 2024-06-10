@@ -1355,6 +1355,277 @@ definitions:
           type: "string"
         example: ["/bin/sh", "-c"]
 
+  ImageConfig:
+    description: |
+      Configuration of the image. These fields are used as defaults
+      when starting a container from the image.
+    type: "object"
+    properties:
+      Hostname:
+        description: |
+          The hostname to use for the container, as a valid RFC 1123 hostname.
+
+          <p><br /></p>
+
+          > **Note**: this field is always empty and must not be used.
+        type: "string"
+        example: ""
+      Domainname:
+        description: |
+          The domain name to use for the container.
+
+          <p><br /></p>
+
+          > **Note**: this field is always empty and must not be used.
+        type: "string"
+        example: ""
+      User:
+        description: "The user that commands are run as inside the container."
+        type: "string"
+        example: "web:web"
+      AttachStdin:
+        description: |
+          Whether to attach to `stdin`.
+
+          <p><br /></p>
+
+          > **Note**: this field is always false and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+      AttachStdout:
+        description: |
+          Whether to attach to `stdout`.
+
+          <p><br /></p>
+
+          > **Note**: this field is always false and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+      AttachStderr:
+        description: |
+          Whether to attach to `stderr`.
+
+          <p><br /></p>
+
+          > **Note**: this field is always false and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+      ExposedPorts:
+        description: |
+          An object mapping ports to an empty object in the form:
+
+          `{"<port>/<tcp|udp|sctp>": {}}`
+        type: "object"
+        x-nullable: true
+        additionalProperties:
+          type: "object"
+          enum:
+            - {}
+          default: {}
+        example: {
+          "80/tcp": {},
+          "443/tcp": {}
+        }
+      Tty:
+        description: |
+          Attach standard streams to a TTY, including `stdin` if it is not closed.
+
+          <p><br /></p>
+
+          > **Note**: this field is always false and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+      OpenStdin:
+        description: |
+          Open `stdin`
+
+          <p><br /></p>
+
+          > **Note**: this field is always false and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+      StdinOnce:
+        description: |
+          Close `stdin` after one attached client disconnects.
+
+          <p><br /></p>
+
+          > **Note**: this field is always false and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+      Env:
+        description: |
+          A list of environment variables to set inside the container in the
+          form `["VAR=value", ...]`. A variable without `=` is removed from the
+          environment, rather than to have an empty value.
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      Cmd:
+        description: |
+          Command to run specified as a string or an array of strings.
+        type: "array"
+        items:
+          type: "string"
+        example: ["/bin/sh"]
+      Healthcheck:
+        $ref: "#/definitions/HealthConfig"
+      ArgsEscaped:
+        description: "Command is already escaped (Windows only)"
+        type: "boolean"
+        default: false
+        example: false
+        x-nullable: true
+      Image:
+        description: |
+          The name (or reference) of the image to use when creating the container,
+          or which was used when the container was created.
+
+          <p><br /></p>
+
+          > **Note**: this field is always empty and must not be used.
+        type: "string"
+        default: ""
+        example: ""
+      Volumes:
+        description: |
+          An object mapping mount point paths inside the container to empty
+          objects.
+        type: "object"
+        additionalProperties:
+          type: "object"
+          enum:
+            - {}
+          default: {}
+        example:
+          "/app/data": {}
+          "/app/config": {}
+      WorkingDir:
+        description: "The working directory for commands to run in."
+        type: "string"
+        example: "/public/"
+      Entrypoint:
+        description: |
+          The entry point for the container as a string or an array of strings.
+
+          If the array consists of exactly one empty string (`[""]`) then the
+          entry point is reset to system default (i.e., the entry point used by
+          docker when there is no `ENTRYPOINT` instruction in the `Dockerfile`).
+        type: "array"
+        items:
+          type: "string"
+        example: []
+      NetworkDisabled:
+        description: |
+          Disable networking for the container.
+
+          <p><br /></p>
+
+          > **Note**: this field is always omitted and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+        x-nullable: true
+      MacAddress:
+        description: |
+          MAC address of the container.
+
+          <p><br /></p>
+
+          > **Deprecated**: this field is deprecated in API v1.44 and up. It is always omitted.
+        type: "string"
+        default: ""
+        example: ""
+        x-nullable: true
+      OnBuild:
+        description: |
+          `ONBUILD` metadata that were defined in the image's `Dockerfile`.
+        type: "array"
+        x-nullable: true
+        items:
+          type: "string"
+        example: []
+      Labels:
+        description: "User-defined key/value metadata."
+        type: "object"
+        additionalProperties:
+          type: "string"
+        example:
+          com.example.some-label: "some-value"
+          com.example.some-other-label: "some-other-value"
+      StopSignal:
+        description: |
+          Signal to stop a container as a string or unsigned integer.
+        type: "string"
+        example: "SIGTERM"
+        x-nullable: true
+      StopTimeout:
+        description: |
+          Timeout to stop a container in seconds.
+
+          <p><br /></p>
+
+          > **Note**: this field is always omitted and must not be used.
+        type: "integer"
+        default: 10
+        x-nullable: true
+      Shell:
+        description: |
+          Shell for when `RUN`, `CMD`, and `ENTRYPOINT` uses a shell.
+        type: "array"
+        x-nullable: true
+        items:
+          type: "string"
+        example: ["/bin/sh", "-c"]
+    # FIXME(thaJeztah): temporarily using a full example to remove some "omitempty" fields. Remove once the fields are removed.
+    example:
+      "Hostname": ""
+      "Domainname": ""
+      "User": "web:web"
+      "AttachStdin": false
+      "AttachStdout": false
+      "AttachStderr": false
+      "ExposedPorts": {
+        "80/tcp": {},
+        "443/tcp": {}
+      }
+      "Tty": false
+      "OpenStdin": false
+      "StdinOnce": false
+      "Env": ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]
+      "Cmd": ["/bin/sh"]
+      "Healthcheck": {
+        "Test": ["string"],
+        "Interval": 0,
+        "Timeout": 0,
+        "Retries": 0,
+        "StartPeriod": 0,
+        "StartInterval": 0
+      }
+      "ArgsEscaped": true
+      "Image": ""
+      "Volumes": {
+        "/app/data": {},
+        "/app/config": {}
+      }
+      "WorkingDir": "/public/"
+      "Entrypoint": []
+      "OnBuild": []
+      "Labels": {
+        "com.example.some-label": "some-value",
+        "com.example.some-other-label": "some-other-value"
+      }
+      "StopSignal": "SIGTERM"
+      "Shell": ["/bin/sh", "-c"]
+
   NetworkingConfig:
     description: |
       NetworkingConfig represents the container's networking configuration for
@@ -1781,7 +2052,7 @@ definitions:
         x-nullable: false
         example: ""
       Config:
-        $ref: "#/definitions/ContainerConfig"
+        $ref: "#/definitions/ImageConfig"
       Architecture:
         description: |
           Hardware CPU architecture that the image runs on.
