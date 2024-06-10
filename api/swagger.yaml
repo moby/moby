@@ -1368,7 +1368,8 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: this field is always empty and must not be used.
+          > **Deprecated**: this field is not part of the image specification and is
+          > always empty. It must not be used, and will be removed in API v1.47.
         type: "string"
         example: ""
       Domainname:
@@ -1377,7 +1378,8 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: this field is always empty and must not be used.
+          > **Deprecated**: this field is not part of the image specification and is
+          > always empty. It must not be used, and will be removed in API v1.47.
         type: "string"
         example: ""
       User:
@@ -1390,7 +1392,8 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: this field is always false and must not be used.
+          > **Deprecated**: this field is not part of the image specification and is
+          > always false. It must not be used, and will be removed in API v1.47.
         type: "boolean"
         default: false
         example: false
@@ -1400,7 +1403,8 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: this field is always false and must not be used.
+          > **Deprecated**: this field is not part of the image specification and is
+          > always false. It must not be used, and will be removed in API v1.47.
         type: "boolean"
         default: false
         example: false
@@ -1410,7 +1414,8 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: this field is always false and must not be used.
+          > **Deprecated**: this field is not part of the image specification and is
+          > always false. It must not be used, and will be removed in API v1.47.
         type: "boolean"
         default: false
         example: false
@@ -1436,7 +1441,8 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: this field is always false and must not be used.
+          > **Deprecated**: this field is not part of the image specification and is
+          > always false. It must not be used, and will be removed in API v1.47.
         type: "boolean"
         default: false
         example: false
@@ -1446,7 +1452,8 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: this field is always false and must not be used.
+          > **Deprecated**: this field is not part of the image specification and is
+          > always false. It must not be used, and will be removed in API v1.47.
         type: "boolean"
         default: false
         example: false
@@ -1456,7 +1463,8 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: this field is always false and must not be used.
+          > **Deprecated**: this field is not part of the image specification and is
+          > always false. It must not be used, and will be removed in API v1.47.
         type: "boolean"
         default: false
         example: false
@@ -1492,7 +1500,8 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: this field is always empty and must not be used.
+          > **Deprecated**: this field is not part of the image specification and is
+          > always empty. It must not be used, and will be removed in API v1.47.
         type: "string"
         default: ""
         example: ""
@@ -1530,7 +1539,8 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: this field is always omitted and must not be used.
+          > **Deprecated**: this field is not part of the image specification and is
+          > always omitted. It must not be used, and will be removed in API v1.47.
         type: "boolean"
         default: false
         example: false
@@ -1541,7 +1551,8 @@ definitions:
 
           <p><br /></p>
 
-          > **Deprecated**: this field is deprecated in API v1.44 and up. It is always omitted.
+          > **Deprecated**: this field is not part of the image specification and is
+          > always omitted. It must not be used, and will be removed in API v1.47.
         type: "string"
         default: ""
         example: ""
@@ -1574,7 +1585,8 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: this field is always omitted and must not be used.
+          > **Deprecated**: this field is not part of the image specification and is
+          > always omitted. It must not be used, and will be removed in API v1.47.
         type: "integer"
         default: 10
         x-nullable: true
@@ -2115,6 +2127,7 @@ definitions:
             format: "dateTime"
             example: "2022-02-28T14:40:02.623929178Z"
             x-nullable: true
+
   ImageSummary:
     type: "object"
     x-go-name: "Summary"
