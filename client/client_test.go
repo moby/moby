@@ -342,7 +342,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 
 // TestNegotiateAPIVersionOverride asserts that we honor the DOCKER_API_VERSION
 // environment variable when negotiating versions.
-func TestNegotiateAPVersionOverride(t *testing.T) {
+func TestNegotiateAPIVersionOverride(t *testing.T) {
 	const expected = "9.99"
 	t.Setenv("DOCKER_API_VERSION", expected)
 
@@ -354,9 +354,9 @@ func TestNegotiateAPVersionOverride(t *testing.T) {
 	assert.Equal(t, client.ClientVersion(), expected)
 }
 
-// TestNegotiateAPVersionConnectionFailure asserts that we do not modify the
+// TestNegotiateAPIVersionConnectionFailure asserts that we do not modify the
 // API version when failing to connect.
-func TestNegotiateAPVersionConnectionFailure(t *testing.T) {
+func TestNegotiateAPIVersionConnectionFailure(t *testing.T) {
 	const expected = "9.99"
 
 	client, err := NewClientWithOpts(WithHost("tcp://no-such-host.invalid"))
