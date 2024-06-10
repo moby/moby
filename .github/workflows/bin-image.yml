@@ -21,6 +21,8 @@ env:
   PLATFORM: Moby Engine - Nightly
   PRODUCT: moby-bin
   PACKAGER_NAME: The Moby Project
+  SETUP_BUILDX_VERSION: latest
+  SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
 
 jobs:
   validate-dco:
@@ -112,6 +114,10 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: ${{ env.SETUP_BUILDX_VERSION }}
+          driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
+          buildkitd-flags: --debug
       -
         name: Login to Docker Hub
         if: github.event_name != 'pull_request' && github.repository == 'moby/moby'
@@ -171,6 +177,10 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: ${{ env.SETUP_BUILDX_VERSION }}
+          driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
+          buildkitd-flags: --debug
       -
         name: Login to Docker Hub
         uses: docker/login-action@v3
