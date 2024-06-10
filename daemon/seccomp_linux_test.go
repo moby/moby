@@ -40,7 +40,9 @@ func TestWithSeccomp(t *testing.T) {
 			outSpec: oci.DefaultLinuxSpec(),
 		},
 		{
-			comment: "privileged container w/ custom profile runs unconfined",
+			// Prior to Docker v27, it had resulted in unconfined.
+			// https://github.com/moby/moby/pull/47500
+			comment: "privileged container w/ custom profile",
 			daemon: &Daemon{
 				sysInfo: &sysinfo.SysInfo{Seccomp: true},
 			},
@@ -50,8 +52,15 @@ func TestWithSeccomp(t *testing.T) {
 					Privileged: true,
 				},
 			},
-			inSpec:  oci.DefaultLinuxSpec(),
-			outSpec: oci.DefaultLinuxSpec(),
+			inSpec: oci.DefaultLinuxSpec(),
+			outSpec: func() coci.Spec {
+				s := oci.DefaultLinuxSpec()
+				profile := &specs.LinuxSeccomp{
+					DefaultAction: specs.LinuxSeccompAction("SCMP_ACT_LOG"),
+				}
+				s.Linux.Seccomp = profile
+				return s
+			}(),
 		},
 		{
 			comment: "privileged container w/ default runs unconfined",
