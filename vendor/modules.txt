@@ -429,7 +429,7 @@ github.com/coreos/go-systemd/v22/journal
 # github.com/cpuguy83/tar2go v0.3.1
 ## explicit; go 1.19
 github.com/cpuguy83/tar2go
-# github.com/creack/pty v1.1.18
+# github.com/creack/pty v1.1.21
 ## explicit; go 1.13
 github.com/creack/pty
 # github.com/cyphar/filepath-securejoin v0.2.4
