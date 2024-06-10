@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -35,13 +36,18 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 	}
 
 	if fi.Mode()&os.ModeDir != 0 {
+		opaqueXattrName := "trusted.overlay.opaque"
+		if userns.RunningInUserNS() {
+			opaqueXattrName = "user.overlay.opaque"
+		}
+
 		// convert opaque dirs to AUFS format by writing an empty file with the prefix
-		opaque, err := system.Lgetxattr(path, "trusted.overlay.opaque")
+		opaque, err := system.Lgetxattr(path, opaqueXattrName)
 		if err != nil {
 			return nil, err
 		}
 		if len(opaque) == 1 && opaque[0] == 'y' {
-			delete(hdr.PAXRecords, paxSchilyXattr+"trusted.overlay.opaque")
+			delete(hdr.PAXRecords, paxSchilyXattr+opaqueXattrName)
 
 			// create a header for the whiteout file
 			// it should inherit some properties from the parent, but be a regular file
@@ -69,9 +75,14 @@ func (c overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, path string) (boo
 
 	// if a directory is marked as opaque by the AUFS special file, we need to translate that to overlay
 	if base == WhiteoutOpaqueDir {
-		err := unix.Setxattr(dir, "trusted.overlay.opaque", []byte{'y'}, 0)
+		opaqueXattrName := "trusted.overlay.opaque"
+		if userns.RunningInUserNS() {
+			opaqueXattrName = "user.overlay.opaque"
+		}
+
+		err := unix.Setxattr(dir, opaqueXattrName, []byte{'y'}, 0)
 		if err != nil {
-			return false, errors.Wrapf(err, "setxattr(%q, trusted.overlay.opaque=y)", dir)
+			return false, errors.Wrapf(err, "setxattr(%q, %s=y)", dir, opaqueXattrName)
 		}
 		// don't write the file itself
 		return false, err
