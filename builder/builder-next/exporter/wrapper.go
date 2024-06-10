@@ -1,9 +1,10 @@
-package overrides
+package exporter
 
 import (
 	"context"
 	"strings"
 
+	"github.com/docker/docker/builder/builder-next/exporter/overrides"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 )
@@ -14,7 +15,9 @@ type imageExporterMobyWrapper struct {
 	exp exporter.Exporter
 }
 
-func NewExporterWrapper(exp exporter.Exporter) (exporter.Exporter, error) {
+// NewWrapper returns an exporter wrapper that applies moby specific attributes
+// and hooks the export event.
+func NewWrapper(exp exporter.Exporter) (exporter.Exporter, error) {
 	return &imageExporterMobyWrapper{exp: exp}, nil
 }
 
@@ -23,7 +26,7 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, id int, exporter
 	if exporterAttrs == nil {
 		exporterAttrs = make(map[string]string)
 	}
-	reposAndTags, err := SanitizeRepoAndTags(strings.Split(exporterAttrs[string(exptypes.OptKeyName)], ","))
+	reposAndTags, err := overrides.SanitizeRepoAndTags(strings.Split(exporterAttrs[string(exptypes.OptKeyName)], ","))
 	if err != nil {
 		return nil, err
 	}
