@@ -195,7 +195,6 @@ func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 		if err != nil || notStarted {
 			if p.notStartedWaitingAreUnavailable.Load() {
 				progress.Update(out, id, "Unavailable")
-				ongoing.Remove(j)
 				continue
 			}
 			if cerrdefs.IsNotFound(err) {
