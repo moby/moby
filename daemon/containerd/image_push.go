@@ -182,6 +182,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 
 			// Retry only if the new push candidate is different from the previous one.
 			if newTarget.Digest != target.Digest {
+				orgTarget := target
 				target = newTarget
 				pp.TurnNotStartedIntoUnavailable()
 				err = remotes.PushContent(ctx, pusher, target, store, limiter, platforms.All, handlerWrapper)
@@ -189,7 +190,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 				if err == nil {
 					progress.Aux(out, auxprogress.ManifestPushedInsteadOfIndex{
 						ManifestPushedInsteadOfIndex: true,
-						OriginalIndex:                target,
+						OriginalIndex:                orgTarget,
 						SelectedManifest:             newTarget,
 					})
 				}
