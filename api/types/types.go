@@ -162,12 +162,6 @@ type Container struct {
 	Mounts          []MountPoint
 }
 
-// CopyConfig contains request body of Engine API:
-// POST "/containers/"+containerID+"/copy"
-type CopyConfig struct {
-	Resource string
-}
-
 // ContainerPathStat is used to encode the header from
 // GET "/containers/{name:.*}/archive"
 // "Name" is the file or directory name.

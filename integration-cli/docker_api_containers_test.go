@@ -945,19 +945,6 @@ func (s *DockerAPISuite) TestContainerAPIWait(c *testing.T) {
 	}
 }
 
-func (s *DockerAPISuite) TestContainerAPICopyNotExistsAnyMore(c *testing.T) {
-	const name = "test-container-api-copy"
-	cli.DockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
-
-	postData := types.CopyConfig{
-		Resource: "/test.txt",
-	}
-	// no copy in client/
-	res, _, err := request.Post(testutil.GetContext(c), "/containers/"+name+"/copy", request.JSONBody(postData))
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusNotFound)
-}
-
 func (s *DockerAPISuite) TestContainerAPIDelete(c *testing.T) {
 	id := runSleepingContainer(c)
 	cli.WaitRun(c, id)
