@@ -13,73 +13,65 @@ import (
 
 func TwoPlatform(dir string) (*ocispec.Index, error) {
 	const imageRef = "twoplatform:latest"
-
-	layer1Desc, err := writeLayerWithOneFile(dir, "bash", []byte("layer1"))
-	if err != nil {
-		return nil, err
-	}
-	layer2Desc, err := writeLayerWithOneFile(dir, "bash", []byte("layer2"))
-	if err != nil {
-		return nil, err
-	}
-
-	config1Desc, err := writeJsonBlob(dir, ocispec.MediaTypeImageConfig, ocispec.Image{
-		Platform: platforms.MustParse("linux/amd64"),
-		Config: ocispec.ImageConfig{
-			Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
-		},
-		RootFS: ocispec.RootFS{
-			Type:    "layers",
-			DiffIDs: []digest.Digest{layer1Desc.Digest},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	manifest1Desc, err := writeJsonBlob(dir, ocispec.MediaTypeImageManifest, ocispec.Manifest{
-		MediaType: ocispec.MediaTypeImageManifest,
-		Config:    config1Desc,
-		Layers:    []ocispec.Descriptor{layer1Desc},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	config2Desc, err := writeJsonBlob(dir, ocispec.MediaTypeImageConfig, ocispec.Image{
-		Platform: platforms.MustParse("linux/arm64"),
-		Config: ocispec.ImageConfig{
-			Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
-		},
-		RootFS: ocispec.RootFS{
-			Type:    "layers",
-			DiffIDs: []digest.Digest{layer1Desc.Digest},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	manifest2Desc, err := writeJsonBlob(dir, ocispec.MediaTypeImageManifest, ocispec.Manifest{
-		MediaType: ocispec.MediaTypeImageManifest,
-		Config:    config2Desc,
-		Layers:    []ocispec.Descriptor{layer2Desc},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	index := ocispec.Index{
-		Versioned: specs.Versioned{SchemaVersion: 2},
-		MediaType: ocispec.MediaTypeImageIndex,
-		Manifests: []ocispec.Descriptor{manifest1Desc, manifest2Desc},
-	}
-
 	ref, err := reference.ParseNormalizedNamed(imageRef)
 	if err != nil {
 		return nil, err
 	}
-	return multiPlatformImage(dir, ref, index)
+
+	manifest1Desc, err := oneLayerPlatformManifest(dir, platforms.MustParse("linux/amd64"), FileInLayer{Path: "bash", Content: []byte("layer1")})
+	if err != nil {
+		return nil, err
+	}
+
+	manifest2Desc, err := oneLayerPlatformManifest(dir, platforms.MustParse("linux/arm64"), FileInLayer{Path: "bash", Content: []byte("layer2")})
+	if err != nil {
+		return nil, err
+	}
+
+	return multiPlatformImage(dir, ref, ocispec.Index{
+		Versioned: specs.Versioned{SchemaVersion: 2},
+		MediaType: ocispec.MediaTypeImageIndex,
+		Manifests: []ocispec.Descriptor{manifest1Desc, manifest2Desc},
+	})
+}
+
+type FileInLayer struct {
+	Path    string
+	Content []byte
+}
+
+func oneLayerPlatformManifest(dir string, platform platforms.Platform, f FileInLayer) (ocispec.Descriptor, error) {
+	layerDesc, err := writeLayerWithOneFile(dir, f.Path, f.Content)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	configDesc, err := writeJsonBlob(dir, ocispec.MediaTypeImageConfig, ocispec.Image{
+		Platform: platform,
+		Config: ocispec.ImageConfig{
+			Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
+		},
+		RootFS: ocispec.RootFS{
+			Type:    "layers",
+			DiffIDs: []digest.Digest{layerDesc.Digest},
+		},
+	})
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	manifestDesc, err := writeJsonBlob(dir, ocispec.MediaTypeImageManifest, ocispec.Manifest{
+		MediaType: ocispec.MediaTypeImageManifest,
+		Config:    configDesc,
+		Layers:    []ocispec.Descriptor{layerDesc},
+	})
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+	manifestDesc.Platform = &platform
+
+	return manifestDesc, nil
+
 }
 
 func multiPlatformImage(dir string, ref reference.Named, target ocispec.Index) (*ocispec.Index, error) {

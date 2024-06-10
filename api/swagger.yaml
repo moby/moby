@@ -9023,6 +9023,11 @@ paths:
             details.
           type: "string"
           required: true
+        - name: "platform"
+          in: "query"
+          description: "Select a platform-specific manifest to be pushed. OCI platform (JSON encoded)"
+          type: "string"
+          x-nullable: true
       tags: ["Image"]
   /images/{name}/tag:
     post:

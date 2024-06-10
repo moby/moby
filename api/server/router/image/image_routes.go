@@ -205,7 +205,25 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 		ref = r
 	}
 
-	if err := ir.backend.PushImage(ctx, ref, metaHeaders, authConfig, output); err != nil {
+	var platform *ocispec.Platform
+	// Platform is optional, and only supported in API version 1.46 and later.
+	// However the PushOptions struct previously was an alias for the PullOptions struct
+	// which also contained a Platform field.
+	// This means that older clients may be sending a platform field, even
+	// though it wasn't really supported by the server.
+	// Don't break these clients and just ignore the platform field on older APIs.
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.46") {
+		if formPlatform := r.Form.Get("platform"); formPlatform != "" {
+			p, err := httputils.DecodePlatform(formPlatform)
+			if err != nil {
+				return err
+			}
+			platform = p
+		}
+
+	}
+
+	if err := ir.backend.PushImage(ctx, ref, platform, metaHeaders, authConfig, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/containerd/containerd/content"
@@ -174,7 +175,13 @@ func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pro
 }
 
 type pushProgress struct {
-	Tracker docker.StatusTracker
+	Tracker                         docker.StatusTracker
+	notStartedWaitingAreUnavailable atomic.Bool
+}
+
+// TurnNotStartedIntoUnavailable will mark all not started layers as "Unavailable" instead of "Waiting".
+func (p *pushProgress) TurnNotStartedIntoUnavailable() {
+	p.notStartedWaitingAreUnavailable.Store(true)
 }
 
 func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out progress.Output, start time.Time) error {
@@ -183,7 +190,14 @@ func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 		id := stringid.TruncateID(j.Digest.Encoded())
 
 		status, err := p.Tracker.GetStatus(key)
-		if err != nil {
+
+		notStarted := (status.Total > 0 && status.Offset == 0)
+		if err != nil || notStarted {
+			if p.notStartedWaitingAreUnavailable.Load() {
+				progress.Update(out, id, "Unavailable")
+				ongoing.Remove(j)
+				continue
+			}
 			if cerrdefs.IsNotFound(err) {
 				progress.Update(out, id, "Waiting")
 				continue

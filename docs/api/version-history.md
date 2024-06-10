@@ -26,8 +26,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   `net.ipv4.config.IFNAME.log_martians=1`. In API versions up-to 1.46, top level
   `--sysctl` settings for `eth0` will be migrated to `DriverOpts` when possible. 
   This automatic migration will be removed for API versions 1.47 and greater.
-
 * `GET /containers/json` now returns the annotations of containers.
+* `POST /images/{name}/push` now supports a `platform` parameter (JSON encoded
+  OCI Platform type) that allows selecting a specific platform manifest from
+  the multi-platform image.
 
 ## v1.45 API changes
 

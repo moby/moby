@@ -9,6 +9,7 @@ import (
 	"github.com/containerd/containerd/images"
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/attestation"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -21,8 +22,7 @@ var (
 )
 
 // walkImageManifests calls the handler for each locally present manifest in
-// the image. The image implements the containerd.Image interface, but all
-// operations act on the specific manifest instead of the index.
+// the image.
 func (i *ImageService) walkImageManifests(ctx context.Context, img containerdimages.Image, handler func(img *ImageManifest) error) error {
 	desc := img.Target
 
@@ -48,6 +48,52 @@ func (i *ImageService) walkImageManifests(ctx context.Context, img containerdima
 	return errors.Wrapf(errNotManifestOrIndex, "error walking manifest for %s", img.Name)
 }
 
+// walkReachableImageManifests calls the handler for each manifest in the
+// multiplatform image that can be reached from the given image.
+// The image might not be present locally, but its descriptor is known.
+func (i *ImageService) walkReachableImageManifests(ctx context.Context, img containerdimages.Image, handler func(img *ImageManifest) error) error {
+	desc := img.Target
+
+	handleManifest := func(ctx context.Context, d ocispec.Descriptor) error {
+		platformImg, err := i.NewImageManifest(ctx, img, d)
+		if err != nil {
+			if err == errNotManifest {
+				return nil
+			}
+			return err
+		}
+		return handler(platformImg)
+	}
+
+	if containerdimages.IsManifestType(desc.MediaType) {
+		return handleManifest(ctx, desc)
+	}
+
+	if containerdimages.IsIndexType(desc.MediaType) {
+		return containerdimages.Walk(ctx, containerdimages.HandlerFunc(
+			func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+				err := handleManifest(ctx, desc)
+				if err != nil {
+					return nil, err
+				}
+
+				descs, err := containerdimages.Children(ctx, i.content, desc)
+				if err != nil {
+					if cerrdefs.IsNotFound(err) {
+						return nil, nil
+					}
+					return nil, err
+				}
+				return descs, nil
+			}), desc)
+	}
+
+	return errNotManifestOrIndex
+}
+
+// ImageManifest implements the containerd.Image interface, but all operations
+// act on the specific manifest instead of the index as opposed to the struct
+// returned by containerd.NewImageWithPlatform.
 type ImageManifest struct {
 	containerd.Image
 
@@ -78,21 +124,40 @@ func (im *ImageManifest) Metadata() containerdimages.Image {
 	return md
 }
 
-// IsPseudoImage returns false if the manifest has no layers or any of its layers is a known image layer.
-// Some manifests use the image media type for compatibility, even if they are not a real image.
-func (im *ImageManifest) IsPseudoImage(ctx context.Context) (bool, error) {
-	desc := im.Target()
-
+func (im *ImageManifest) IsAttestation() bool {
 	// Quick check for buildkit attestation manifests
 	// https://github.com/moby/buildkit/blob/v0.11.4/docs/attestations/attestation-storage.md
 	// This would have also been caught by the layer check below, but it requires
 	// an additional content read and deserialization of Manifest.
-	if _, has := desc.Annotations[attestation.DockerAnnotationReferenceType]; has {
+	if _, has := im.Target().Annotations[attestation.DockerAnnotationReferenceType]; has {
+		return true
+	}
+	return false
+}
+
+// IsPseudoImage returns false when any of the below is true:
+// - The manifest has no layers
+// - None of its layers is a known image layer.
+// - The manifest has unknown/unknown platform.
+//
+// Some manifests use the image media type for compatibility, even if they are not a real image.
+func (im *ImageManifest) IsPseudoImage(ctx context.Context) (bool, error) {
+	if im.IsAttestation() {
 		return true, nil
+	}
+
+	plat := im.Target().Platform
+	if plat != nil {
+		if plat.OS == "unknown" && plat.Architecture == "unknown" {
+			return true, nil
+		}
 	}
 
 	mfst, err := im.Manifest(ctx)
 	if err != nil {
+		if cerrdefs.IsNotFound(err) {
+			return false, errdefs.NotFound(errors.Wrapf(err, "failed to read manifest %v", im.Target().Digest))
+		}
 		return true, err
 	}
 	if len(mfst.Layers) == 0 {
@@ -148,4 +213,22 @@ func readManifest(ctx context.Context, store content.Provider, desc ocispec.Desc
 	}
 
 	return mfst, nil
+}
+
+// ImagePlatform returns the platform of the image manifest.
+// If the manifest list doesn't have a platform filled, it will be read from the config.
+func (m *ImageManifest) ImagePlatform(ctx context.Context) (ocispec.Platform, error) {
+	target := m.Target()
+	if target.Platform != nil {
+		return *target.Platform, nil
+	}
+
+	configDesc, err := m.Config(ctx)
+	if err != nil {
+		return ocispec.Platform{}, err
+	}
+
+	var out ocispec.Platform
+	err = readConfig(ctx, m.ContentStore(), configDesc, &out)
+	return out, err
 }
