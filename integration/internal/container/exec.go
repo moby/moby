@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
 
@@ -47,26 +47,26 @@ func (res ExecResult) AssertSuccess(t testing.TB) {
 // containing stdout, stderr, and exit code. Note:
 //   - this is a synchronous operation;
 //   - cmd stdin is closed.
-func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []string, ops ...func(*types.ExecConfig)) (ExecResult, error) {
+func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []string, ops ...func(*container.ExecOptions)) (ExecResult, error) {
 	// prepare exec
-	execConfig := types.ExecConfig{
+	execOptions := container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          cmd,
 	}
 
 	for _, op := range ops {
-		op(&execConfig)
+		op(&execOptions)
 	}
 
-	cresp, err := apiClient.ContainerExecCreate(ctx, id, execConfig)
+	cresp, err := apiClient.ContainerExecCreate(ctx, id, execOptions)
 	if err != nil {
 		return ExecResult{}, err
 	}
 	execID := cresp.ID
 
 	// run it, with stdout/stderr attached
-	aresp, err := apiClient.ContainerExecAttach(ctx, execID, types.ExecStartCheck{})
+	aresp, err := apiClient.ContainerExecAttach(ctx, execID, container.ExecAttachOptions{})
 	if err != nil {
 		return ExecResult{}, err
 	}
@@ -87,7 +87,7 @@ func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []stri
 }
 
 // ExecT calls Exec() and aborts the test if an error occurs.
-func ExecT(ctx context.Context, t testing.TB, apiClient client.APIClient, id string, cmd []string, ops ...func(*types.ExecConfig)) ExecResult {
+func ExecT(ctx context.Context, t testing.TB, apiClient client.APIClient, id string, cmd []string, ops ...func(*container.ExecOptions)) ExecResult {
 	t.Helper()
 	res, err := Exec(ctx, apiClient, id, cmd, ops...)
 	if err != nil {

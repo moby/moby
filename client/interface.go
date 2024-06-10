@@ -50,11 +50,11 @@ type ContainerAPIClient interface {
 	ContainerCommit(ctx context.Context, container string, options container.CommitOptions) (types.IDResponse, error)
 	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error)
 	ContainerDiff(ctx context.Context, container string) ([]container.FilesystemChange, error)
-	ContainerExecAttach(ctx context.Context, execID string, config types.ExecStartCheck) (types.HijackedResponse, error)
-	ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error)
-	ContainerExecInspect(ctx context.Context, execID string) (types.ContainerExecInspect, error)
+	ContainerExecAttach(ctx context.Context, execID string, options container.ExecAttachOptions) (types.HijackedResponse, error)
+	ContainerExecCreate(ctx context.Context, container string, options container.ExecOptions) (types.IDResponse, error)
+	ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
 	ContainerExecResize(ctx context.Context, execID string, options container.ResizeOptions) error
-	ContainerExecStart(ctx context.Context, execID string, config types.ExecStartCheck) error
+	ContainerExecStart(ctx context.Context, execID string, options container.ExecStartOptions) error
 	ContainerExport(ctx context.Context, container string) (io.ReadCloser, error)
 	ContainerInspect(ctx context.Context, container string) (types.ContainerJSON, error)
 	ContainerInspectWithRaw(ctx context.Context, container string, getSize bool) (types.ContainerJSON, []byte, error)
@@ -66,18 +66,18 @@ type ContainerAPIClient interface {
 	ContainerRename(ctx context.Context, container, newContainerName string) error
 	ContainerResize(ctx context.Context, container string, options container.ResizeOptions) error
 	ContainerRestart(ctx context.Context, container string, options container.StopOptions) error
-	ContainerStatPath(ctx context.Context, container, path string) (types.ContainerPathStat, error)
-	ContainerStats(ctx context.Context, container string, stream bool) (types.ContainerStats, error)
-	ContainerStatsOneShot(ctx context.Context, container string) (types.ContainerStats, error)
+	ContainerStatPath(ctx context.Context, container, path string) (container.PathStat, error)
+	ContainerStats(ctx context.Context, container string, stream bool) (container.StatsResponse, error)
+	ContainerStatsOneShot(ctx context.Context, container string) (container.StatsResponse, error)
 	ContainerStart(ctx context.Context, container string, options container.StartOptions) error
 	ContainerStop(ctx context.Context, container string, options container.StopOptions) error
 	ContainerTop(ctx context.Context, container string, arguments []string) (container.ContainerTopOKBody, error)
 	ContainerUnpause(ctx context.Context, container string) error
 	ContainerUpdate(ctx context.Context, container string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error)
 	ContainerWait(ctx context.Context, container string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
-	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, types.ContainerPathStat, error)
-	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error
-	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (types.ContainersPruneReport, error)
+	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, container.PathStat, error)
+	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options container.CopyToContainerOptions) error
+	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (container.PruneReport, error)
 }
 
 // DistributionAPIClient defines API client methods for the registry
@@ -92,17 +92,17 @@ type ImageAPIClient interface {
 	BuildCancel(ctx context.Context, id string) error
 	ImageCreate(ctx context.Context, parentReference string, options image.CreateOptions) (io.ReadCloser, error)
 	ImageHistory(ctx context.Context, image string) ([]image.HistoryResponseItem, error)
-	ImageImport(ctx context.Context, source types.ImageImportSource, ref string, options image.ImportOptions) (io.ReadCloser, error)
+	ImageImport(ctx context.Context, source image.ImportSource, ref string, options image.ImportOptions) (io.ReadCloser, error)
 	ImageInspectWithRaw(ctx context.Context, image string) (types.ImageInspect, []byte, error)
 	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (types.ImageLoadResponse, error)
+	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (image.LoadResponse, error)
 	ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
 	ImagePush(ctx context.Context, ref string, options image.PushOptions) (io.ReadCloser, error)
 	ImageRemove(ctx context.Context, image string, options image.RemoveOptions) ([]image.DeleteResponse, error)
-	ImageSearch(ctx context.Context, term string, options types.ImageSearchOptions) ([]registry.SearchResult, error)
+	ImageSearch(ctx context.Context, term string, options registry.SearchOptions) ([]registry.SearchResult, error)
 	ImageSave(ctx context.Context, images []string) (io.ReadCloser, error)
 	ImageTag(ctx context.Context, image, ref string) error
-	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (types.ImagesPruneReport, error)
+	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)
 }
 
 // NetworkAPIClient defines API client methods for the networks
@@ -165,7 +165,7 @@ type SwarmAPIClient interface {
 
 // SystemAPIClient defines API client methods for the system
 type SystemAPIClient interface {
-	Events(ctx context.Context, options types.EventsOptions) (<-chan events.Message, <-chan error)
+	Events(ctx context.Context, options events.ListOptions) (<-chan events.Message, <-chan error)
 	Info(ctx context.Context) (system.Info, error)
 	RegistryLogin(ctx context.Context, auth registry.AuthConfig) (registry.AuthenticateOKBody, error)
 	DiskUsage(ctx context.Context, options types.DiskUsageOptions) (types.DiskUsage, error)
@@ -179,7 +179,7 @@ type VolumeAPIClient interface {
 	VolumeInspectWithRaw(ctx context.Context, volumeID string) (volume.Volume, []byte, error)
 	VolumeList(ctx context.Context, options volume.ListOptions) (volume.ListResponse, error)
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
-	VolumesPrune(ctx context.Context, pruneFilter filters.Args) (types.VolumesPruneReport, error)
+	VolumesPrune(ctx context.Context, pruneFilter filters.Args) (volume.PruneReport, error)
 	VolumeUpdate(ctx context.Context, volumeID string, version swarm.Version, options volume.UpdateOptions) error
 }
 

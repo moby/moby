@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
@@ -32,21 +32,19 @@ func TestEventsExecDie(t *testing.T) {
 
 	cID := container.Run(ctx, t, client)
 
-	id, err := client.ContainerExecCreate(ctx, cID,
-		types.ExecConfig{
-			Cmd: []string{"echo", "hello"},
-		},
-	)
+	id, err := client.ContainerExecCreate(ctx, cID, containertypes.ExecOptions{
+		Cmd: []string{"echo", "hello"},
+	})
 	assert.NilError(t, err)
 
-	msg, errs := client.Events(ctx, types.EventsOptions{
+	msg, errs := client.Events(ctx, events.ListOptions{
 		Filters: filters.NewArgs(
 			filters.Arg("container", cID),
 			filters.Arg("event", string(events.ActionExecDie)),
 		),
 	})
 
-	err = client.ContainerExecStart(ctx, id.ID, types.ExecStartCheck{
+	err = client.ContainerExecStart(ctx, id.ID, containertypes.ExecStartOptions{
 		Detach: true,
 		Tty:    false,
 	})
@@ -157,7 +155,7 @@ func TestEventsVolumeCreate(t *testing.T) {
 		filters.Arg("event", "create"),
 		filters.Arg("volume", volName),
 	)
-	messages, errs := client.Events(ctx, types.EventsOptions{
+	messages, errs := client.Events(ctx, events.ListOptions{
 		Since:   since,
 		Until:   request.DaemonUnixTime(ctx, t, client, testEnv),
 		Filters: filter,
@@ -173,7 +171,7 @@ func TestEventsVolumeCreate(t *testing.T) {
 		Target: "/tmp/foo",
 	}))
 
-	messages, errs = client.Events(ctx, types.EventsOptions{
+	messages, errs = client.Events(ctx, events.ListOptions{
 		Since:   since,
 		Until:   request.DaemonUnixTime(ctx, t, client, testEnv),
 		Filters: filter,

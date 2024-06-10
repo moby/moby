@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -24,14 +24,14 @@ func TestExecWithCloseStdin(t *testing.T) {
 	cID := container.Run(ctx, t, apiClient)
 
 	const expected = "closeIO"
-	execResp, err := apiClient.ContainerExecCreate(ctx, cID, types.ExecConfig{
+	execResp, err := apiClient.ContainerExecCreate(ctx, cID, containertypes.ExecOptions{
 		AttachStdin:  true,
 		AttachStdout: true,
 		Cmd:          []string{"sh", "-c", "cat && echo " + expected},
 	})
 	assert.NilError(t, err)
 
-	resp, err := apiClient.ContainerExecAttach(ctx, execResp.ID, types.ExecStartCheck{})
+	resp, err := apiClient.ContainerExecAttach(ctx, execResp.ID, containertypes.ExecAttachOptions{})
 	assert.NilError(t, err)
 	defer resp.Close()
 
@@ -79,7 +79,7 @@ func TestExec(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithWorkingDir("/root"))
 
-	id, err := apiClient.ContainerExecCreate(ctx, cID, types.ExecConfig{
+	id, err := apiClient.ContainerExecCreate(ctx, cID, containertypes.ExecOptions{
 		WorkingDir:   "/tmp",
 		Env:          []string{"FOO=BAR"},
 		AttachStdout: true,
@@ -91,7 +91,7 @@ func TestExec(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.ExecID, id.ID))
 
-	resp, err := apiClient.ContainerExecAttach(ctx, id.ID, types.ExecStartCheck{})
+	resp, err := apiClient.ContainerExecAttach(ctx, id.ID, containertypes.ExecAttachOptions{})
 	assert.NilError(t, err)
 	defer resp.Close()
 	r, err := io.ReadAll(resp.Reader)

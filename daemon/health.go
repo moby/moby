@@ -11,7 +11,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
@@ -101,7 +101,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	defer cancelProbe()
 	execErr := make(chan error, 1)
 
-	options := containertypes.ExecStartOptions{
+	options := backend.ExecStartConfig{
 		Stdout: output,
 		Stderr: output,
 	}

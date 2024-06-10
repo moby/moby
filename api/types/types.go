@@ -1,8 +1,6 @@
 package types // import "github.com/docker/docker/api/types"
 
 import (
-	"io"
-	"os"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -162,24 +160,6 @@ type Container struct {
 	Mounts          []MountPoint
 }
 
-// ContainerPathStat is used to encode the header from
-// GET "/containers/{name:.*}/archive"
-// "Name" is the file or directory name.
-type ContainerPathStat struct {
-	Name       string      `json:"name"`
-	Size       int64       `json:"size"`
-	Mode       os.FileMode `json:"mode"`
-	Mtime      time.Time   `json:"mtime"`
-	LinkTarget string      `json:"linkTarget"`
-}
-
-// ContainerStats contains response of Engine API:
-// GET "/stats"
-type ContainerStats struct {
-	Body   io.ReadCloser `json:"body"`
-	OSType string        `json:"ostype"`
-}
-
 // Ping contains response of Engine API:
 // GET "/_ping"
 type Ping struct {
@@ -223,17 +203,6 @@ type Version struct {
 	KernelVersion string `json:",omitempty"`
 	Experimental  bool   `json:",omitempty"`
 	BuildTime     string `json:",omitempty"`
-}
-
-// ExecStartCheck is a temp struct used by execStart
-// Config fields is part of ExecConfig in runconfig package
-type ExecStartCheck struct {
-	// ExecStart will first check if it's detached
-	Detach bool
-	// Check if there's a tty
-	Tty bool
-	// Terminal size [height, width], unused if Tty == false
-	ConsoleSize *[2]uint `json:",omitempty"`
 }
 
 // HealthcheckResult stores information about a single run of a healthcheck probe
@@ -448,27 +417,6 @@ type DiskUsage struct {
 	Volumes     []*volume.Volume
 	BuildCache  []*BuildCache
 	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
-}
-
-// ContainersPruneReport contains the response for Engine API:
-// POST "/containers/prune"
-type ContainersPruneReport struct {
-	ContainersDeleted []string
-	SpaceReclaimed    uint64
-}
-
-// VolumesPruneReport contains the response for Engine API:
-// POST "/volumes/prune"
-type VolumesPruneReport struct {
-	VolumesDeleted []string
-	SpaceReclaimed uint64
-}
-
-// ImagesPruneReport contains the response for Engine API:
-// POST "/images/prune"
-type ImagesPruneReport struct {
-	ImagesDeleted  []image.DeleteResponse
-	SpaceReclaimed uint64
 }
 
 // BuildCachePruneReport contains the response for Engine API:

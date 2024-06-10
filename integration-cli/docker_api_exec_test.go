@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
@@ -65,10 +65,9 @@ func (s *DockerAPISuite) TestExecAPICreateContainerPaused(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	config := types.ExecConfig{
+	_, err = apiClient.ContainerExecCreate(testutil.GetContext(c), name, container.ExecOptions{
 		Cmd: []string{"true"},
-	}
-	_, err = apiClient.ContainerExecCreate(testutil.GetContext(c), name, config)
+	})
 	assert.ErrorContains(c, err, "Container "+name+" is paused, unpause the container before exec", "Expected message when creating exec command with Container %s is paused", name)
 }
 
@@ -126,16 +125,14 @@ func (s *DockerAPISuite) TestExecAPIStartWithDetach(c *testing.T) {
 
 	ctx := testutil.GetContext(c)
 
-	config := types.ExecConfig{
-		Cmd:          []string{"true"},
-		AttachStderr: true,
-	}
-
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	createResp, err := apiClient.ContainerExecCreate(ctx, name, config)
+	createResp, err := apiClient.ContainerExecCreate(ctx, name, container.ExecOptions{
+		Cmd:          []string{"true"},
+		AttachStderr: true,
+	})
 	assert.NilError(c, err)
 
 	_, body, err := request.Post(ctx, fmt.Sprintf("/exec/%s/start", createResp.ID), request.RawString(`{"Detach": true}`), request.JSON)

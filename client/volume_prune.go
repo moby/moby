@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/volume"
 )
 
 // VolumesPrune requests the daemon to delete unused data
-func (cli *Client) VolumesPrune(ctx context.Context, pruneFilters filters.Args) (types.VolumesPruneReport, error) {
-	var report types.VolumesPruneReport
+func (cli *Client) VolumesPrune(ctx context.Context, pruneFilters filters.Args) (volume.PruneReport, error) {
+	var report volume.PruneReport
 
 	if err := cli.NewVersionError(ctx, "1.25", "volume prune"); err != nil {
 		return report, err

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
@@ -211,15 +212,15 @@ func GetRunningTasks(ctx context.Context, t *testing.T, c client.ServiceAPIClien
 }
 
 // ExecTask runs the passed in exec config on the given task
-func ExecTask(ctx context.Context, t *testing.T, d *daemon.Daemon, task swarmtypes.Task, config types.ExecConfig) types.HijackedResponse {
+func ExecTask(ctx context.Context, t *testing.T, d *daemon.Daemon, task swarmtypes.Task, options container.ExecOptions) types.HijackedResponse {
 	t.Helper()
 	apiClient := d.NewClientT(t)
 	defer apiClient.Close()
 
-	resp, err := apiClient.ContainerExecCreate(ctx, task.Status.ContainerStatus.ContainerID, config)
+	resp, err := apiClient.ContainerExecCreate(ctx, task.Status.ContainerStatus.ContainerID, options)
 	assert.NilError(t, err, "error creating exec")
 
-	attach, err := apiClient.ContainerExecAttach(ctx, resp.ID, types.ExecStartCheck{})
+	attach, err := apiClient.ContainerExecAttach(ctx, resp.ID, container.ExecAttachOptions{})
 	assert.NilError(t, err, "error attaching to exec")
 	return attach
 }

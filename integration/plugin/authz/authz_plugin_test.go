@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/image"
@@ -287,7 +286,7 @@ func systemTime(ctx context.Context, t *testing.T, client client.APIClient, test
 }
 
 func systemEventsSince(ctx context.Context, client client.APIClient, since string) (<-chan eventtypes.Message, <-chan error, func()) {
-	eventOptions := types.EventsOptions{
+	eventOptions := eventtypes.ListOptions{
 		Since: since,
 	}
 	ctx, cancel := context.WithCancel(ctx)
@@ -416,7 +415,7 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 	dstDir, preparedArchive, err := archive.PrepareArchiveCopy(srcArchive, srcInfo, archive.CopyInfo{Path: "/test"})
 	assert.NilError(t, err)
 
-	err = c.CopyToContainer(ctx, cID, dstDir, preparedArchive, types.CopyToContainerOptions{})
+	err = c.CopyToContainer(ctx, cID, dstDir, preparedArchive, containertypes.CopyToContainerOptions{})
 	assert.NilError(t, err)
 
 	rdr, _, err := c.CopyFromContainer(ctx, cID, "/test")
@@ -463,7 +462,7 @@ func imageImport(ctx context.Context, client client.APIClient, path string) erro
 	defer file.Close()
 	options := image.ImportOptions{}
 	ref := ""
-	source := types.ImageImportSource{
+	source := image.ImportSource{
 		Source:     file,
 		SourceName: "-",
 	}

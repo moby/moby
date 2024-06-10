@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
@@ -28,7 +27,7 @@ type imageBackend interface {
 	Images(ctx context.Context, opts image.ListOptions) ([]*image.Summary, error)
 	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*dockerimage.Image, error)
 	TagImage(ctx context.Context, id dockerimage.ID, newRef reference.Named) error
-	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
+	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*image.PruneReport, error)
 }
 
 type importExportBackend interface {

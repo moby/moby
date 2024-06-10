@@ -6,11 +6,12 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 )
 
 // ContainerExecCreate creates a new exec configuration to run an exec process.
-func (cli *Client) ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error) {
+func (cli *Client) ContainerExecCreate(ctx context.Context, container string, options container.ExecOptions) (types.IDResponse, error) {
 	var response types.IDResponse
 
 	// Make sure we negotiated (if the client is configured to do so),
@@ -22,14 +23,14 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, container string, co
 		return response, err
 	}
 
-	if err := cli.NewVersionError(ctx, "1.25", "env"); len(config.Env) != 0 && err != nil {
+	if err := cli.NewVersionError(ctx, "1.25", "env"); len(options.Env) != 0 && err != nil {
 		return response, err
 	}
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
-		config.ConsoleSize = nil
+		options.ConsoleSize = nil
 	}
 
-	resp, err := cli.post(ctx, "/containers/"+container+"/exec", nil, config, nil)
+	resp, err := cli.post(ctx, "/containers/"+container+"/exec", nil, options, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return response, err
@@ -39,7 +40,7 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, container string, co
 }
 
 // ContainerExecStart starts an exec process already created in the docker host.
-func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config types.ExecStartCheck) error {
+func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config container.ExecStartOptions) error {
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
 		config.ConsoleSize = nil
 	}
@@ -52,7 +53,7 @@ func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config
 // It returns a types.HijackedConnection with the hijacked connection
 // and the a reader to get output. It's up to the called to close
 // the hijacked connection by calling types.HijackedResponse.Close.
-func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config types.ExecStartCheck) (types.HijackedResponse, error) {
+func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config container.ExecAttachOptions) (types.HijackedResponse, error) {
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
 		config.ConsoleSize = nil
 	}
@@ -62,8 +63,8 @@ func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, confi
 }
 
 // ContainerExecInspect returns information about a specific exec process on the docker host.
-func (cli *Client) ContainerExecInspect(ctx context.Context, execID string) (types.ContainerExecInspect, error) {
-	var response types.ContainerExecInspect
+func (cli *Client) ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
+	var response container.ExecInspect
 	resp, err := cli.get(ctx, "/exec/"+execID+"/json", nil, nil)
 	if err != nil {
 		return response, err

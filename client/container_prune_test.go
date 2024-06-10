@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -93,7 +93,7 @@ func TestContainersPrune(t *testing.T) {
 					actual := query.Get(key)
 					assert.Check(t, is.Equal(expected, actual))
 				}
-				content, err := json.Marshal(types.ContainersPruneReport{
+				content, err := json.Marshal(container.PruneReport{
 					ContainersDeleted: []string{"container_id1", "container_id2"},
 					SpaceReclaimed:    9999,
 				})

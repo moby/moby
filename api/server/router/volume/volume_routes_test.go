@@ -11,7 +11,6 @@ import (
 	"gotest.tools/v3/assert"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
@@ -636,7 +635,7 @@ func (b *fakeVolumeBackend) Remove(_ context.Context, name string, o ...opts.Rem
 	return nil
 }
 
-func (b *fakeVolumeBackend) Prune(_ context.Context, _ filters.Args) (*types.VolumesPruneReport, error) {
+func (b *fakeVolumeBackend) Prune(_ context.Context, _ filters.Args) (*volume.PruneReport, error) {
 	return nil, nil
 }
 

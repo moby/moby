@@ -2,9 +2,16 @@ package image
 
 import (
 	"context"
+	"io"
 
 	"github.com/docker/docker/api/types/filters"
 )
+
+// ImportSource holds source information for ImageImport
+type ImportSource struct {
+	Source     io.Reader // Source is the data to send to the server to create this image from. You must set SourceName to "-" to leverage this.
+	SourceName string    // SourceName is the name of the image to pull. Set to "-" to leverage the Source attribute.
+}
 
 // ImportOptions holds information to import images from the client host.
 type ImportOptions struct {

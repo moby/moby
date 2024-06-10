@@ -8,7 +8,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
@@ -31,7 +30,7 @@ var imagesAcceptedFilters = map[string]bool{
 var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
 
 // ImagesPrune removes unused images
-func (i *ImageService) ImagesPrune(ctx context.Context, fltrs filters.Args) (*types.ImagesPruneReport, error) {
+func (i *ImageService) ImagesPrune(ctx context.Context, fltrs filters.Args) (*image.PruneReport, error) {
 	if !i.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
@@ -62,8 +61,8 @@ func (i *ImageService) ImagesPrune(ctx context.Context, fltrs filters.Args) (*ty
 	return i.pruneUnused(ctx, filterFunc, danglingOnly)
 }
 
-func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFunc, danglingOnly bool) (*types.ImagesPruneReport, error) {
-	report := types.ImagesPruneReport{}
+func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFunc, danglingOnly bool) (*image.PruneReport, error) {
+	report := image.PruneReport{}
 
 	allImages, err := i.images.List(ctx)
 	if err != nil {
