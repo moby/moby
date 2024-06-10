@@ -29,6 +29,47 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 * `GET /containers/json` now returns the annotations of containers.
 
+### Deprecated Config fields in `GET /images/{name}/json` response
+
+The `Config` field returned by this endpoint (used for "image inspect") returns
+additional fields that are not part of the image's configuration and not part of
+the [Docker Image Spec] and the [OCI Image Spec].
+
+These additional fields are included in the response, due to an
+implementation detail, where the [api/types.ImageInspec] type used
+for the response is using the [container.Config] type.
+
+The [container.Config] type is a superset of the image config, and while the
+image's Config is used as a _template_ for containers created from the image,
+the additional fields are set at runtime (from options passed when creating
+the container) and not taken from the image Config.
+
+These fields are never set (and always return the default value for the type),
+but are not omitted in the response when left empty. As these fields were not
+intended to be part of the image configuration response, they are deprecated,
+and will be removed from the API.
+
+The following fields are currently included in the API response, but
+are not part of the underlying image's Config, and deprecated:
+
+- `Hostname`
+- `Domainname`
+- `AttachStdin`
+- `AttachStdout`
+- `AttachStderr`
+- `Tty`
+- `OpenStdin`
+- `StdinOnce`
+- `Image`
+- `NetworkDisabled` (already omitted unless set)
+- `MacAddress` (already omitted unless set)
+- `StopTimeout` (already omitted unless set)
+
+[Docker image spec]: https://github.com/moby/docker-image-spec/blob/v1.3.1/specs-go/v1/image.go#L19-L32
+[OCI Image Spec]: https://github.com/opencontainers/image-spec/blob/v1.1.0/specs-go/v1/config.go#L24-L62
+[api/types.ImageInspec]: https://github.com/moby/moby/blob/v26.1.4/api/types/types.go#L87-L104
+[container.Config]: https://github.com/moby/moby/blob/v26.1.4/api/types/container/config.go#L47-L82
+
 ## v1.45 API changes
 
 [Docker Engine API v1.45](https://docs.docker.com/engine/api/v1.45/) documentation
