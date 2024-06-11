@@ -496,10 +496,10 @@ func TestAddPortMappings(t *testing.T) {
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080},
 			},
-			expReleaseErr: "failed to stop docker-proxy for port mapping tcp/172.19.0.2:22/0.0.0.0:2222: can't stop now\n" +
-				"failed to stop docker-proxy for port mapping tcp/fdf8:b88e:bb5c:3483::2:22/:::2222: can't stop now\n" +
-				"failed to stop docker-proxy for port mapping tcp/172.19.0.2:80/0.0.0.0:8080: can't stop now\n" +
-				"failed to stop docker-proxy for port mapping tcp/fdf8:b88e:bb5c:3483::2:80/:::8080: can't stop now",
+			expReleaseErr: "failed to stop docker-proxy for port mapping 0.0.0.0:2222:172.19.0.2:22/tcp: can't stop now\n" +
+				"failed to stop docker-proxy for port mapping [::]:2222:[fdf8:b88e:bb5c:3483::2]:22/tcp: can't stop now\n" +
+				"failed to stop docker-proxy for port mapping 0.0.0.0:8080:172.19.0.2:80/tcp: can't stop now\n" +
+				"failed to stop docker-proxy for port mapping [::]:8080:[fdf8:b88e:bb5c:3483::2]:80/tcp: can't stop now",
 		},
 		{
 			name:     "disable nat6",
