@@ -17,14 +17,16 @@
 package introspection
 
 import (
-	context "context"
+	"context"
 	"errors"
+
+	"google.golang.org/grpc"
 
 	api "github.com/containerd/containerd/api/services/introspection/v1"
 	"github.com/containerd/containerd/plugin"
 	ptypes "github.com/containerd/containerd/protobuf/types"
 	"github.com/containerd/containerd/services"
-	"google.golang.org/grpc"
+	"github.com/containerd/errdefs"
 )
 
 func init() {
@@ -78,4 +80,8 @@ func (s *server) Plugins(ctx context.Context, req *api.PluginsRequest) (*api.Plu
 
 func (s *server) Server(ctx context.Context, empty *ptypes.Empty) (*api.ServerResponse, error) {
 	return s.local.Server(ctx, empty)
+}
+
+func (s *server) PluginInfo(ctx context.Context, in *api.PluginInfoRequest) (*api.PluginInfoResponse, error) {
+	return nil, errdefs.ToGRPC(errdefs.ErrNotImplemented)
 }

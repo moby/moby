@@ -19,11 +19,12 @@ package containerd
 import (
 	"context"
 
+	"github.com/containerd/errdefs"
+	"github.com/containerd/typeurl/v2"
+
 	eventsapi "github.com/containerd/containerd/api/services/events/v1"
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/protobuf"
-	"github.com/containerd/errdefs"
-	"github.com/containerd/typeurl/v2"
 )
 
 // EventService handles the publish, forward and subscribe of events.

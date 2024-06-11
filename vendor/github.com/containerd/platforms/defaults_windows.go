@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Microsoft/hcsshim/osversion"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sys/windows"
 )
@@ -52,29 +51,29 @@ func (m windowsmatcher) Match(p specs.Platform) bool {
 
 	if match && m.OS == "windows" {
 		// HPC containers do not have OS version filled
-		if p.OSVersion == "" {
+		if m.OSVersion == "" || p.OSVersion == "" {
 			return true
 		}
 
-		hostOsVersion := GetOsVersion(m.osVersionPrefix)
-		ctrOsVersion := GetOsVersion(p.OSVersion)
-		return osversion.CheckHostAndContainerCompat(hostOsVersion, ctrOsVersion)
+		hostOsVersion := getOSVersion(m.osVersionPrefix)
+		ctrOsVersion := getOSVersion(p.OSVersion)
+		return checkHostAndContainerCompat(hostOsVersion, ctrOsVersion)
 	}
 
 	return match
 }
 
-func GetOsVersion(osVersionPrefix string) osversion.OSVersion {
+func getOSVersion(osVersionPrefix string) osVersion {
 	parts := strings.Split(osVersionPrefix, ".")
 	if len(parts) < 3 {
-		return osversion.OSVersion{}
+		return osVersion{}
 	}
 
 	majorVersion, _ := strconv.Atoi(parts[0])
 	minorVersion, _ := strconv.Atoi(parts[1])
 	buildNumber, _ := strconv.Atoi(parts[2])
 
-	return osversion.OSVersion{
+	return osVersion{
 		MajorVersion: uint8(majorVersion),
 		MinorVersion: uint8(minorVersion),
 		Build:        uint16(buildNumber),
