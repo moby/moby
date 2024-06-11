@@ -40,10 +40,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		log.G(context.TODO()).Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
-	if ep.disablegateway {
-		jinfo.DisableGatewayService()
-	}
-
 	return nil
 }
 

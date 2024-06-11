@@ -126,6 +126,14 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		log.G(context.TODO()).Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
+	// From a user standpoint, an overlay network provides North-South/East-West connectivity. However, the reality is
+	// that the overlay netdriver only provides East-West connectivity. When a container is connected to a non-internal
+	// overlay network, the daemon will automatically attach the container to a North-South-only network named
+	// 'docker_gwbridge'. This is communicated by the overlay driver through this 'RequireDefaultGateway' flag.
+	if !n.internal {
+		jinfo.RequireDefaultGateway()
+	}
+
 	return nil
 }
 

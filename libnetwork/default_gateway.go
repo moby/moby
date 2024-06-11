@@ -107,40 +107,30 @@ func (sb *Sandbox) clearDefaultGW() error {
 	return nil
 }
 
-// Evaluate whether the sandbox requires a default gateway based
-// on the endpoints to which it is connected. It does not account
-// for the default gateway network endpoint.
-
+// needDefaultGW evaluates whether the sandbox needs to be connected to the
+// 'docker_gwbridge' network based on the endpoints to which it is connected
+// to (ie. at least one endpoint should require it, and no other endpoint
+// should provide a gateway).
 func (sb *Sandbox) needDefaultGW() bool {
-	var needGW bool
-
 	for _, ep := range sb.Endpoints() {
 		if ep.endpointInGWNetwork() {
-			continue
-		}
-		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
-			continue
-		}
-		if ep.getNetwork().Internal() {
-			continue
-		}
-		// During stale sandbox cleanup, joinInfo may be nil
-		if ep.joinInfo != nil && ep.joinInfo.disableGatewayService {
-			continue
-		}
-		// TODO v6 needs to be handled.
-		if len(ep.Gateway()) > 0 {
+			// There's already an endpoint attached to docker_gwbridge. This sandbox doesn't need to be attached to it
+			// once again.
 			return false
 		}
-		for _, r := range ep.StaticRoutes() {
-			if r.Destination != nil && r.Destination.String() == "0.0.0.0/0" {
-				return false
-			}
+		if ep.isGateway() {
+			// This endpoint already provides a gateway. This sandbox doesn't need to be attached to docker_gwbridge.
+			return false
 		}
-		needGW = true
+		// The 'remote' netdriver shim doesn't store anything across [driverapi.Driver] operations. So, by the time its
+		// Join method gets called, it already lost the information of whether the network is internal. Hence here we
+		// need to check whether the network is internal. Also, during stale sandbox cleanup, joinInfo may be nil.
+		if !ep.getNetwork().Internal() && ep.joinInfo != nil && ep.joinInfo.requireDefaultGateway {
+			return true
+		}
 	}
 
-	return needGW
+	return false
 }
 
 func (sb *Sandbox) getEndpointInGWNetwork() *Endpoint {
@@ -184,9 +174,24 @@ func (sb *Sandbox) getGatewayEndpoint() *Endpoint {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}
-		if len(ep.Gateway()) != 0 {
+		if ep.isGateway() {
 			return ep
 		}
 	}
 	return nil
+}
+
+// isGateway determines whether this endpoint provides a gateway.
+func (ep *Endpoint) isGateway() bool {
+	if len(ep.Gateway()) > 0 {
+		return true
+	}
+
+	for _, r := range ep.StaticRoutes() {
+		if r.Destination != nil && r.Destination.String() == "0.0.0.0/0" {
+			return true
+		}
+	}
+
+	return false
 }

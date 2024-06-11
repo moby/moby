@@ -632,7 +632,7 @@ func (te *testEndpoint) AddTableEntry(tableName string, key string, value []byte
 	return nil
 }
 
-func (te *testEndpoint) DisableGatewayService() {}
+func (te *testEndpoint) RequireDefaultGateway() {}
 
 func TestQueryEndpointInfo(t *testing.T) {
 	testQueryEndpointInfo(t, true)

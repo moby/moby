@@ -57,6 +57,7 @@ type network struct {
 	subnets   []*subnet
 	secure    bool
 	mtu       int
+	internal  bool
 	sync.Mutex
 }
 
@@ -127,6 +128,12 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		}
 		if n.mtu < 0 {
 			return fmt.Errorf("invalid MTU value: %v", n.mtu)
+		}
+	}
+
+	if val, ok := optMap[netlabel.Internal]; ok {
+		if n.internal, err = strconv.ParseBool(val); err != nil {
+			return fmt.Errorf("failed to parse %s=%s", netlabel.Internal, val)
 		}
 	}
 
