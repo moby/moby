@@ -35,7 +35,7 @@ require (
 	github.com/cpuguy83/tar2go v0.3.1
 	github.com/creack/pty v1.1.18
 	github.com/deckarep/golang-set/v2 v2.3.0
-	github.com/distribution/reference v0.5.0
+	github.com/distribution/reference v0.6.0
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c
@@ -61,7 +61,7 @@ require (
 	github.com/miekg/dns v1.1.57
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.14.0-rc2
+	github.com/moby/buildkit v0.14.0
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
@@ -93,7 +93,7 @@ require (
 	github.com/vbatts/tar-split v0.11.5
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.4
-	go.etcd.io/bbolt v1.3.9
+	go.etcd.io/bbolt v1.3.10
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.46.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.46.1
 	go.opentelemetry.io/otel v1.21.0

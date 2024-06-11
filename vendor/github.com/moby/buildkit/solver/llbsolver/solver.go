@@ -53,8 +53,6 @@ const (
 )
 
 type ExporterRequest struct {
-	Type           string
-	Attrs          map[string]string
 	Exporters      []exporter.ExporterInstance
 	CacheExporters []RemoteCacheExporter
 }
@@ -173,11 +171,11 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		CreatedAt:     &st,
 	}
 
-	if exp.Type != "" {
-		rec.Exporters = []*controlapi.Exporter{{
-			Type:  exp.Type,
-			Attrs: exp.Attrs,
-		}}
+	for _, e := range exp.Exporters {
+		rec.Exporters = append(rec.Exporters, &controlapi.Exporter{
+			Type:  e.Type(),
+			Attrs: e.Attrs(),
+		})
 	}
 
 	if err := s.history.Update(ctx, &controlapi.BuildHistoryEvent{

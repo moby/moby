@@ -276,10 +276,10 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		// The `dockerfile.Warnings` *should* only contain warnings about empty continuation
 		// lines, but we'll check the warning message to be sure, so that we don't accidentally
 		// process warnings that are not related to empty continuation lines twice.
-		if warning.URL == linter.RuleNoEmptyContinuations.URL {
+		if warning.URL == linter.RuleNoEmptyContinuation.URL {
 			location := []parser.Range{*warning.Location}
-			msg := linter.RuleNoEmptyContinuations.Format()
-			lint.Run(&linter.RuleNoEmptyContinuations, location, msg)
+			msg := linter.RuleNoEmptyContinuation.Format()
+			lint.Run(&linter.RuleNoEmptyContinuation, location, msg)
 		}
 	}
 

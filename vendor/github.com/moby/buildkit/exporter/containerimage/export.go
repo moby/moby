@@ -20,6 +20,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/cache"
 	cacheconfig "github.com/moby/buildkit/cache/config"
+	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/session"
@@ -68,6 +69,7 @@ func (e *imageExporter) Resolve(ctx context.Context, id int, opt map[string]stri
 	i := &imageExporterInstance{
 		imageExporter: e,
 		id:            id,
+		attrs:         opt,
 		opts: ImageCommitOpts{
 			RefCfg: cacheconfig.RefConfig{
 				Compression: compression.New(compression.Default),
@@ -168,7 +170,8 @@ func (e *imageExporter) Resolve(ctx context.Context, id int, opt map[string]stri
 
 type imageExporterInstance struct {
 	*imageExporter
-	id int
+	id    int
+	attrs map[string]string
 
 	opts                 ImageCommitOpts
 	push                 bool
@@ -192,6 +195,14 @@ func (e *imageExporterInstance) Name() string {
 
 func (e *imageExporterInstance) Config() *exporter.Config {
 	return exporter.NewConfigWithCompression(e.opts.RefCfg.Compression)
+}
+
+func (e *imageExporterInstance) Type() string {
+	return client.ExporterImage
+}
+
+func (e *imageExporterInstance) Attrs() map[string]string {
+	return e.attrs
 }
 
 func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source, inlineCache exptypes.InlineCache, sessionID string) (_ map[string]string, descref exporter.DescriptorReference, err error) {
