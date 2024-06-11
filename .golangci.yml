@@ -134,6 +134,16 @@ issues:
       linters:
         - staticcheck
 
+    - text: "ineffectual assignment to ctx"
+      source: "ctx[, ].*=.*\\(ctx[,)]"
+      linters:
+        - ineffassign
+
+    - text: "SA4006: this value of `ctx` is never used"
+      source: "ctx[, ].*=.*\\(ctx[,)]"
+      linters:
+        - staticcheck
+
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0
 
