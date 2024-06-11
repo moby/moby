@@ -6,6 +6,12 @@ module github.com/docker/docker
 
 go 1.21
 
+// FIXME(thaJeztah); testing https://github.com/containerd/containerd/pull/10189 / https://github.com/containerd/containerd/pull/10278
+replace github.com/containerd/containerd => github.com/dmcgowan/containerd v1.7.16-0.20240528224140-9df456d83c75
+
+// FIXME(thaJeztah); testing https://github.com/containerd/containerd/pull/10276 / https://github.com/containerd/containerd/pull/10279
+replace github.com/containerd/containerd/api => github.com/dmcgowan/containerd/api v0.0.0-20240528224140-9df456d83c75
+
 require (
 	cloud.google.com/go/compute/metadata v0.2.3
 	cloud.google.com/go/logging v1.8.1
@@ -25,11 +31,13 @@ require (
 	github.com/aws/smithy-go v1.19.0
 	github.com/cloudflare/cfssl v1.6.4
 	github.com/containerd/cgroups/v3 v3.0.3
-	github.com/containerd/containerd v1.7.18
+	github.com/containerd/containerd v1.7.18 // release/1.7 head (1.7.18-dev)
+	github.com/containerd/containerd/api v1.8.0-rc.0
 	github.com/containerd/continuity v0.4.3
 	github.com/containerd/errdefs v0.1.0
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
+	github.com/containerd/platforms v0.2.0
 	github.com/containerd/typeurl/v2 v2.1.1
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/cpuguy83/tar2go v0.3.1
@@ -222,7 +230,7 @@ require (
 	google.golang.org/api v0.128.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20231016165738-49dd2c1f3d0b // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.90.1 // indirect
