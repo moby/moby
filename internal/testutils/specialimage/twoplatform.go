@@ -40,7 +40,7 @@ type FileInLayer struct {
 	Content []byte
 }
 
-func oneLayerPlatformManifest(dir string, platform platforms.Platform, f FileInLayer) (ocispec.Descriptor, error) {
+func oneLayerPlatformManifest(dir string, platform ocispec.Platform, f FileInLayer) (ocispec.Descriptor, error) {
 	layerDesc, err := writeLayerWithOneFile(dir, f.Path, f.Content)
 	if err != nil {
 		return ocispec.Descriptor{}, err
