@@ -14,10 +14,16 @@
    limitations under the License.
 */
 
-package introspection
+package platforms
 
-// Not implemented types introduced in later versions and included for API compatibility
-// Use of these types should only use not implemented errors
+// DefaultString returns the default string specifier for the platform,
+// with [PR#6](https://github.com/containerd/platforms/pull/6) the result
+// may now also include the OSVersion from the provided platform specification.
+func DefaultString() string {
+	return FormatAll(DefaultSpec())
+}
 
-type PluginInfoRequest struct{}
-type PluginInfoResponse struct{}
+// DefaultStrict returns strict form of Default.
+func DefaultStrict() MatchComparer {
+	return OnlyStrict(DefaultSpec())
+}

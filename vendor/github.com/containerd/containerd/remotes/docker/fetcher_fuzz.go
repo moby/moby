@@ -25,8 +25,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-
-	refDocker "github.com/containerd/containerd/reference/docker"
 )
 
 func FuzzFetcher(data []byte) int {
@@ -72,10 +70,5 @@ func FuzzFetcher(data []byte) int {
 	if len(b) != len(expected) {
 		panic("len of request is not equal to len of expected but should be")
 	}
-	return 1
-}
-
-func FuzzParseDockerRef(data []byte) int {
-	_, _ = refDocker.ParseDockerRef(string(data))
 	return 1
 }

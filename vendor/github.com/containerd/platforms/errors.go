@@ -16,12 +16,15 @@
 
 package platforms
 
-// DefaultString returns the default string specifier for the platform.
-func DefaultString() string {
-	return Format(DefaultSpec())
-}
+import "errors"
 
-// DefaultStrict returns strict form of Default.
-func DefaultStrict() MatchComparer {
-	return OnlyStrict(DefaultSpec())
-}
+// These errors mirror the errors defined in [github.com/containerd/containerd/errdefs],
+// however, they are not exported as they are not expected to be used as sentinel
+// errors by consumers of this package.
+//
+//nolint:unused // not all errors are used on all platforms.
+var (
+	errNotFound        = errors.New("not found")
+	errInvalidArgument = errors.New("invalid argument")
+	errNotImplemented  = errors.New("not implemented")
+)
