@@ -21,8 +21,6 @@ package platforms
 import (
 	"fmt"
 	"runtime"
-
-	"github.com/containerd/errdefs"
 )
 
 func getCPUVariant() (string, error) {
@@ -49,10 +47,8 @@ func getCPUVariant() (string, error) {
 		default:
 			variant = "unknown"
 		}
-
 	} else {
-		return "", fmt.Errorf("getCPUVariant for OS %s: %v", runtime.GOOS, errdefs.ErrNotImplemented)
-
+		return "", fmt.Errorf("getCPUVariant for OS %s: %v", runtime.GOOS, errNotImplemented)
 	}
 
 	return variant, nil
