@@ -180,6 +180,124 @@ func loopbackUp() error {
 	return nlHandle.LinkSetUp(iface)
 }
 
+func TestValidatePortBindings(t *testing.T) {
+	testcases := []struct {
+		name    string
+		nat4    bool
+		nat6    bool
+		pbs     []types.PortBinding
+		expErrs []string
+	}{
+		{
+			name: "no nat or addrs or ports",
+			pbs: []types.PortBinding{
+				{Proto: types.TCP, Port: 80},
+			},
+		},
+		{
+			name: "no nat with addrs",
+			pbs: []types.PortBinding{
+				{Proto: types.TCP, HostIP: newIPNet(t, "233.252.0.2/24").IP, Port: 80},
+				{Proto: types.TCP, HostIP: newIPNet(t, "2001:db8::2/64").IP, Port: 80},
+			},
+			expErrs: []string{
+				"NAT is disabled, omit host address in port mapping 233.252.0.2::80/tcp, or use 0.0.0.0::80 to open port 80 for IPv4-only",
+				"NAT is disabled, omit host address in port mapping [2001:db8::2]::80/tcp, or use [::]::80 to open port 80 for IPv6-only",
+			},
+		},
+		{
+			name: "no nat with zero addrs",
+			pbs: []types.PortBinding{
+				{Proto: types.TCP, HostIP: newIPNet(t, "0.0.0.0/0").IP, Port: 80},
+				{Proto: types.TCP, HostIP: newIPNet(t, "::/0").IP, Port: 80},
+			},
+		},
+		{
+			name: "no nat with host port",
+			pbs: []types.PortBinding{
+				{Proto: types.TCP, HostPort: 8080, Port: 80},
+			},
+			expErrs: []string{
+				"host port must not be specified in mapping 8080:80/tcp because NAT is disabled",
+			},
+		},
+		{
+			name: "nat4 any addr with host port",
+			nat4: true,
+			pbs: []types.PortBinding{
+				{Proto: types.TCP, HostPort: 8080, Port: 80},
+			},
+		},
+		{
+			name: "nat6 any addr with host port",
+			nat6: true,
+			pbs: []types.PortBinding{
+				{Proto: types.TCP, HostPort: 8080, Port: 80},
+			},
+		},
+		{
+			name: "nat and addrs and ports",
+			nat4: true,
+			nat6: true,
+			pbs: []types.PortBinding{
+				{Proto: types.TCP, HostIP: newIPNet(t, "233.252.0.2/24").IP, HostPort: 8080, Port: 80},
+				{Proto: types.TCP, HostIP: newIPNet(t, "2001:db8::2/64").IP, HostPort: 8080, Port: 80},
+			},
+		},
+		{
+			name: "no nat and addrs and ports",
+			pbs: []types.PortBinding{
+				{Proto: types.TCP, HostIP: newIPNet(t, "233.252.0.2/24").IP, HostPort: 8080, Port: 80},
+				{Proto: types.TCP, HostIP: newIPNet(t, "2001:db8::2/64").IP, HostPort: 8080, Port: 80},
+			},
+			expErrs: []string{
+				"NAT is disabled, omit host address in port mapping 233.252.0.2:8080:80/tcp, or use 0.0.0.0::80 to open port 80 for IPv4-only",
+				"NAT is disabled, omit host address in port mapping [2001:db8::2]:8080:80/tcp, or use [::]::80 to open port 80 for IPv6-only",
+				"host port must not be specified in mapping 233.252.0.2:8080:80/tcp because NAT is disabled",
+				"host port must not be specified in mapping [2001:db8::2]:8080:80/tcp because NAT is disabled",
+			},
+		},
+		{
+			name: "max errs reached",
+			pbs: []types.PortBinding{
+				{Proto: types.TCP, HostPort: 8080, Port: 80},
+				{Proto: types.TCP, HostPort: 8081, Port: 80},
+				{Proto: types.TCP, HostPort: 8082, Port: 80},
+				{Proto: types.TCP, HostPort: 8083, Port: 80},
+				{Proto: types.TCP, HostPort: 8084, Port: 80},
+				{Proto: types.TCP, HostPort: 8085, Port: 80},
+				{Proto: types.TCP, HostPort: 8086, Port: 80},
+			},
+			expErrs: []string{
+				"host port must not be specified in mapping 8080:80/tcp because NAT is disabled",
+				"host port must not be specified in mapping 8081:80/tcp because NAT is disabled",
+				"host port must not be specified in mapping 8082:80/tcp because NAT is disabled",
+				"host port must not be specified in mapping 8083:80/tcp because NAT is disabled",
+				"host port must not be specified in mapping 8084:80/tcp because NAT is disabled",
+				"host port must not be specified in mapping 8085:80/tcp because NAT is disabled",
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			err := validatePortBindings(tc.pbs, tc.nat4, tc.nat6)
+			if tc.expErrs == nil {
+				assert.Check(t, err)
+			} else {
+				assert.Assert(t, err != nil)
+				for _, e := range tc.expErrs {
+					assert.Check(t, is.ErrorContains(err, e))
+				}
+				numErrs := len(err.(interface{ Unwrap() []error }).Unwrap())
+				assert.Check(t, is.Equal(numErrs, len(tc.expErrs)),
+					fmt.Sprintf("expected %d errors, got %d in %s", len(tc.expErrs), numErrs, err.Error()))
+			}
+		})
+	}
+}
+
 func TestCmpPortBindings(t *testing.T) {
 	pb := types.PortBinding{
 		Proto:       types.TCP,

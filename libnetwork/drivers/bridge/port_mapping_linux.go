@@ -56,6 +56,13 @@ func (n *bridgeNetwork) addPortMappings(
 		containerIPv6 = epAddrV6.IP
 	}
 
+	disableNAT4, disableNAT6 := n.getNATDisabled()
+	if err := validatePortBindings(cfg,
+		!disableNAT4 && len(containerIPv4) > 0,
+		!disableNAT6 && len(containerIPv6) > 0); err != nil {
+		return nil, err
+	}
+
 	bindings := make([]portBinding, 0, len(cfg)*2)
 
 	defer func() {
@@ -70,7 +77,6 @@ func (n *bridgeNetwork) addPortMappings(
 	sortAndNormPBs(sortedCfg)
 
 	proxyPath := n.userlandProxyPath()
-	disableNAT4, disableNAT6 := n.getNATDisabled()
 
 	// toBind accumulates port bindings that should be allocated the same host port
 	// (if required by NAT config). If the host address is unspecified, and defHostIP
@@ -128,6 +134,60 @@ func (n *bridgeNetwork) addPortMappings(
 	}
 
 	return bindings, nil
+}
+
+// Limit the number of errors reported, because there may be a lot of port
+// bindings (host port ranges are expanded by the CLI).
+const validationErrLimit = 6
+
+// validatePortBindings checks that, if NAT is disabled for all uses of a
+// PortBinding, no HostPort, or non-zero HostIP, is specified - because they have
+// no meaning. A zero HostIP is allowed, as it's used to determine the address
+// family.
+//
+// The default binding IP is not considered, meaning that no error is raised if
+// there is a default binding address that is not used but could have been.
+//
+// For example, the default is an IPv6 interface address, no HostIP is specified,
+// and NAT6 is disabled; the default is ignored and no error will be raised. (Note
+// that this example may be valid if the container has no IPv6 address, and
+// docker-proxy is used to forward between the default IPv6 address and the
+// container's IPv4. So, simply disallowing a non-zero IPv6 default when NAT6
+// is disabled for the network would be incorrect.)
+func validatePortBindings(pbs []types.PortBinding, nat4, nat6 bool) error {
+	var errs []error
+	for i := range pbs {
+		pb := &pbs[i]
+		disallowHostPort := false
+		if !nat4 && len(pb.HostIP) > 0 && pb.HostIP.To4() != nil && !pb.HostIP.Equal(net.IPv4zero) {
+			// There's no NAT4, so don't allow a nonzero IPv4 host address in the mapping. The port will
+			// accessible via any host interface.
+			errs = append(errs,
+				fmt.Errorf("NAT is disabled, omit host address in port mapping %s, or use 0.0.0.0::%d to open port %d for IPv4-only",
+					pb, pb.Port, pb.Port))
+			// The mapping is IPv4-specific but there's no NAT4, so a host port would make no sense.
+			disallowHostPort = true
+		} else if !nat6 && len(pb.HostIP) > 0 && pb.HostIP.To4() == nil && !pb.HostIP.Equal(net.IPv6zero) {
+			// There's no NAT6, so don't allow an IPv6 host address in the mapping. The port will
+			// accessible via any host interface.
+			errs = append(errs,
+				fmt.Errorf("NAT is disabled, omit host address in port mapping %s, or use [::]::%d to open port %d for IPv6-only",
+					pb, pb.Port, pb.Port))
+			// The mapping is IPv6-specific but there's no NAT6, so a host port would make no sense.
+			disallowHostPort = true
+		} else if !nat4 && !nat6 {
+			// There's no NAT, so it would make no sense to specify a host port.
+			disallowHostPort = true
+		}
+		if disallowHostPort && pb.HostPort != 0 {
+			errs = append(errs,
+				fmt.Errorf("host port must not be specified in mapping %s because NAT is disabled", pb))
+		}
+		if len(errs) >= validationErrLimit {
+			break
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // sortAndNormPBs normalises cfg by making HostPortEnd=HostPort (rather than 0) if the
