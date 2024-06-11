@@ -14,6 +14,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/moby/buildkit/cache"
 	cacheconfig "github.com/moby/buildkit/cache/config"
+	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
@@ -34,8 +35,8 @@ import (
 type ExporterVariant string
 
 const (
-	VariantOCI    = "oci"
-	VariantDocker = "docker"
+	VariantOCI    = client.ExporterOCI
+	VariantDocker = client.ExporterDocker
 )
 
 const (
@@ -62,6 +63,7 @@ func (e *imageExporter) Resolve(ctx context.Context, id int, opt map[string]stri
 	i := &imageExporterInstance{
 		imageExporter: e,
 		id:            id,
+		attrs:         opt,
 		tar:           true,
 		opts: containerimage.ImageCommitOpts{
 			RefCfg: cacheconfig.RefConfig{
@@ -100,7 +102,8 @@ func (e *imageExporter) Resolve(ctx context.Context, id int, opt map[string]stri
 
 type imageExporterInstance struct {
 	*imageExporter
-	id int
+	id    int
+	attrs map[string]string
 
 	opts containerimage.ImageCommitOpts
 	tar  bool
@@ -113,6 +116,14 @@ func (e *imageExporterInstance) ID() int {
 
 func (e *imageExporterInstance) Name() string {
 	return fmt.Sprintf("exporting to %s image format", e.opt.Variant)
+}
+
+func (e *imageExporterInstance) Type() string {
+	return string(e.opt.Variant)
+}
+
+func (e *imageExporterInstance) Attrs() map[string]string {
+	return e.attrs
 }
 
 func (e *imageExporterInstance) Config() *exporter.Config {

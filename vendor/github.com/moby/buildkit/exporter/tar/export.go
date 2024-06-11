@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/moby/buildkit/cache"
+	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/exporter/local"
@@ -37,6 +38,7 @@ func (e *localExporter) Resolve(ctx context.Context, id int, opt map[string]stri
 	li := &localExporterInstance{
 		localExporter: e,
 		id:            id,
+		attrs:         opt,
 	}
 	_, err := li.opts.Load(opt)
 	if err != nil {
@@ -49,7 +51,8 @@ func (e *localExporter) Resolve(ctx context.Context, id int, opt map[string]stri
 
 type localExporterInstance struct {
 	*localExporter
-	id int
+	id    int
+	attrs map[string]string
 
 	opts local.CreateFSOpts
 }
@@ -60,6 +63,14 @@ func (e *localExporterInstance) ID() int {
 
 func (e *localExporterInstance) Name() string {
 	return "exporting to client tarball"
+}
+
+func (e *localExporterInstance) Type() string {
+	return client.ExporterTar
+}
+
+func (e *localExporterInstance) Attrs() map[string]string {
+	return e.attrs
 }
 
 func (e *localExporterInstance) Config() *exporter.Config {

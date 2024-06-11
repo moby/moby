@@ -21,10 +21,10 @@ var (
 			return fmt.Sprintf("'%s' and '%s' keywords' casing do not match", as, from)
 		},
 	}
-	RuleNoEmptyContinuations = LinterRule[func() string]{
-		Name:        "NoEmptyContinuations",
+	RuleNoEmptyContinuation = LinterRule[func() string]{
+		Name:        "NoEmptyContinuation",
 		Description: "Empty continuation lines will become errors in a future release",
-		URL:         "https://docs.docker.com/go/dockerfile/rule/no-empty-continuations/",
+		URL:         "https://docs.docker.com/go/dockerfile/rule/no-empty-continuation/",
 		Format: func() string {
 			return "Empty continuation line"
 		},

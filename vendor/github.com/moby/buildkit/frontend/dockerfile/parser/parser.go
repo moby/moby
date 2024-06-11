@@ -338,7 +338,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 			warnings = append(warnings, Warning{
 				Short:    "Empty continuation line found in: " + line,
 				Detail:   [][]byte{[]byte("Empty continuation lines will become errors in a future release")},
-				URL:      "https://docs.docker.com/go/dockerfile/rule/no-empty-continuations/",
+				URL:      "https://docs.docker.com/go/dockerfile/rule/no-empty-continuation/",
 				Location: &Range{Start: Position{Line: currentLine}, End: Position{Line: currentLine}},
 			})
 		}
