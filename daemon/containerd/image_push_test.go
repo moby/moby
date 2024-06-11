@@ -22,11 +22,11 @@ import (
 
 type pushTestCase struct {
 	name               string
-	indexPlatforms     []platforms.Platform // all platforms supported by the image
-	availablePlatforms []platforms.Platform // platforms available locally
-	requestPlatform    *platforms.Platform  // platform requested by the client (not the platform selected for push!)
+	indexPlatforms     []ocispec.Platform // all platforms supported by the image
+	availablePlatforms []ocispec.Platform // platforms available locally
+	requestPlatform    *ocispec.Platform  // platform requested by the client (not the platform selected for push!)
 	check              func(t *testing.T, img containerdimages.Image, pushDescriptor ocispec.Descriptor, err error)
-	daemonPlatform     *platforms.Platform
+	daemonPlatform     *ocispec.Platform
 }
 
 func TestImagePushIndex(t *testing.T) {
@@ -52,29 +52,29 @@ func TestImagePushIndex(t *testing.T) {
 		{
 			name: "none requested, all present",
 
-			indexPlatforms:     []platforms.Platform{linuxAmd64, darwinArm64, windowsAmd64},
-			availablePlatforms: []platforms.Platform{linuxAmd64, darwinArm64, windowsAmd64},
+			indexPlatforms:     []ocispec.Platform{linuxAmd64, darwinArm64, windowsAmd64},
+			availablePlatforms: []ocispec.Platform{linuxAmd64, darwinArm64, windowsAmd64},
 			check:              wholeIndexSelected,
 		},
 		{
 			name: "none requested, one present",
 
-			indexPlatforms:     []platforms.Platform{linuxAmd64, darwinArm64, windowsAmd64},
-			availablePlatforms: []platforms.Platform{linuxAmd64},
+			indexPlatforms:     []ocispec.Platform{linuxAmd64, darwinArm64, windowsAmd64},
+			availablePlatforms: []ocispec.Platform{linuxAmd64},
 			check:              singleManifestSelected(linuxAmd64),
 		},
 		{
 			name: "none requested, two present, daemon platform available",
 
-			indexPlatforms:     []platforms.Platform{linuxAmd64, darwinArm64, windowsAmd64},
-			availablePlatforms: []platforms.Platform{linuxAmd64, darwinArm64},
+			indexPlatforms:     []ocispec.Platform{linuxAmd64, darwinArm64, windowsAmd64},
+			availablePlatforms: []ocispec.Platform{linuxAmd64, darwinArm64},
 			check:              singleManifestSelected(linuxAmd64),
 		},
 		{
 			name: "none requested, two present, daemon platform NOT available",
 
-			indexPlatforms:     []platforms.Platform{linuxAmd64, darwinArm64, windowsAmd64},
-			availablePlatforms: []platforms.Platform{darwinArm64, windowsAmd64},
+			indexPlatforms:     []ocispec.Platform{linuxAmd64, darwinArm64, windowsAmd64},
+			availablePlatforms: []ocispec.Platform{darwinArm64, windowsAmd64},
 			check:              multipleCandidates,
 		},
 
@@ -82,16 +82,16 @@ func TestImagePushIndex(t *testing.T) {
 		{
 			name: "linux/amd64 requested, all present",
 
-			indexPlatforms:     []platforms.Platform{linuxAmd64, darwinArm64, windowsAmd64},
-			availablePlatforms: []platforms.Platform{linuxAmd64, darwinArm64, windowsAmd64},
+			indexPlatforms:     []ocispec.Platform{linuxAmd64, darwinArm64, windowsAmd64},
+			availablePlatforms: []ocispec.Platform{linuxAmd64, darwinArm64, windowsAmd64},
 			requestPlatform:    &linuxAmd64,
 			check:              singleManifestSelected(linuxAmd64),
 		},
 		{
 			name: "linux/amd64 requested, but not present",
 
-			indexPlatforms:     []platforms.Platform{linuxAmd64, darwinArm64, windowsAmd64},
-			availablePlatforms: []platforms.Platform{darwinArm64, windowsAmd64},
+			indexPlatforms:     []ocispec.Platform{linuxAmd64, darwinArm64, windowsAmd64},
+			availablePlatforms: []ocispec.Platform{darwinArm64, windowsAmd64},
 			requestPlatform:    &linuxAmd64,
 			check:              candidateNotFound,
 		},
@@ -100,32 +100,32 @@ func TestImagePushIndex(t *testing.T) {
 		{
 			name: "linux/arm/v5 requested, but not in index",
 
-			indexPlatforms:     []platforms.Platform{linuxAmd64, linuxArmv7},
-			availablePlatforms: []platforms.Platform{linuxAmd64, linuxArmv7},
+			indexPlatforms:     []ocispec.Platform{linuxAmd64, linuxArmv7},
+			availablePlatforms: []ocispec.Platform{linuxAmd64, linuxArmv7},
 			requestPlatform:    &linuxArmv5,
 			check:              candidateNotFound,
 		},
 		{
 			name: "linux/arm/v5 requested, but not available",
 
-			indexPlatforms:     []platforms.Platform{linuxArm64, linuxArmv7, linuxArmv5},
-			availablePlatforms: []platforms.Platform{linuxArm64, linuxArmv7},
+			indexPlatforms:     []ocispec.Platform{linuxArm64, linuxArmv7, linuxArmv5},
+			availablePlatforms: []ocispec.Platform{linuxArm64, linuxArmv7},
 			requestPlatform:    &linuxArmv5,
 			check:              candidateNotFound,
 		},
 		{
 			name: "linux/arm/v7 requested, but not available",
 
-			indexPlatforms:     []platforms.Platform{linuxArm64, linuxArmv7, linuxArmv5},
-			availablePlatforms: []platforms.Platform{linuxArm64, linuxArmv5},
+			indexPlatforms:     []ocispec.Platform{linuxArm64, linuxArmv7, linuxArmv5},
+			availablePlatforms: []ocispec.Platform{linuxArm64, linuxArmv5},
 			requestPlatform:    &linuxArmv7,
 			check:              candidateNotFound,
 		},
 		{
 			name: "linux/arm/v7 requested on v7 daemon, but not available",
 
-			indexPlatforms:     []platforms.Platform{linuxArm64, linuxArmv7, linuxArmv5},
-			availablePlatforms: []platforms.Platform{linuxArm64, linuxArmv5},
+			indexPlatforms:     []ocispec.Platform{linuxArm64, linuxArmv7, linuxArmv5},
+			availablePlatforms: []ocispec.Platform{linuxArm64, linuxArmv5},
 			daemonPlatform:     &linuxArmv7,
 			requestPlatform:    &linuxArmv7,
 			check:              candidateNotFound,
@@ -133,8 +133,8 @@ func TestImagePushIndex(t *testing.T) {
 		{
 			name: "linux/arm/v7 requested on v5 daemon, all available",
 
-			indexPlatforms:     []platforms.Platform{linuxArm64, linuxArmv7, linuxArmv5},
-			availablePlatforms: []platforms.Platform{linuxArm64, linuxArmv7, linuxArmv5},
+			indexPlatforms:     []ocispec.Platform{linuxArm64, linuxArmv7, linuxArmv5},
+			availablePlatforms: []ocispec.Platform{linuxArm64, linuxArmv7, linuxArmv5},
 			daemonPlatform:     &linuxArmv5,
 			requestPlatform:    &linuxArmv7,
 			check:              singleManifestSelected(linuxArmv7),
@@ -142,8 +142,8 @@ func TestImagePushIndex(t *testing.T) {
 		{
 			name: "linux/arm/v5 requested on v7 daemon, all available",
 
-			indexPlatforms:     []platforms.Platform{linuxArm64, linuxArmv7, linuxArmv5},
-			availablePlatforms: []platforms.Platform{linuxArm64, linuxArmv7, linuxArmv5},
+			indexPlatforms:     []ocispec.Platform{linuxArm64, linuxArmv7, linuxArmv5},
+			availablePlatforms: []ocispec.Platform{linuxArm64, linuxArmv7, linuxArmv5},
 			daemonPlatform:     &linuxArmv7,
 			requestPlatform:    &linuxArmv5,
 			check:              singleManifestSelected(linuxArmv5),
@@ -151,8 +151,8 @@ func TestImagePushIndex(t *testing.T) {
 		{
 			name: "none requested on v5 daemon, arm64 not available",
 
-			indexPlatforms:     []platforms.Platform{linuxArm64, linuxArmv7, linuxArmv5},
-			availablePlatforms: []platforms.Platform{linuxArmv7, linuxArmv5},
+			indexPlatforms:     []ocispec.Platform{linuxArm64, linuxArmv7, linuxArmv5},
+			availablePlatforms: []ocispec.Platform{linuxArmv7, linuxArmv5},
 			daemonPlatform:     &linuxArmv5,
 			requestPlatform:    nil,
 			check:              singleManifestSelected(linuxArmv5),
@@ -160,8 +160,8 @@ func TestImagePushIndex(t *testing.T) {
 		{
 			name: "none requested on v7 daemon, arm64 not available",
 
-			indexPlatforms:     []platforms.Platform{linuxArm64, linuxArmv7, linuxArmv5},
-			availablePlatforms: []platforms.Platform{linuxArmv7, linuxArmv5},
+			indexPlatforms:     []ocispec.Platform{linuxArm64, linuxArmv7, linuxArmv5},
+			availablePlatforms: []ocispec.Platform{linuxArmv7, linuxArmv5},
 			daemonPlatform:     &linuxArmv7,
 			requestPlatform:    nil,
 			check:              singleManifestSelected(linuxArmv7),
@@ -169,8 +169,8 @@ func TestImagePushIndex(t *testing.T) {
 		{
 			name: "none requested on v7 daemon, v7 not available",
 
-			indexPlatforms:     []platforms.Platform{linuxArm64, linuxArmv7, linuxArmv5},
-			availablePlatforms: []platforms.Platform{linuxArm64, linuxArmv5},
+			indexPlatforms:     []ocispec.Platform{linuxArm64, linuxArmv7, linuxArmv5},
+			availablePlatforms: []ocispec.Platform{linuxArm64, linuxArmv5},
 			daemonPlatform:     &linuxArmv7,
 			requestPlatform:    nil,
 			check:              singleManifestSelected(linuxArmv5), // Should it fail, because v5 can't be pushed?
@@ -179,8 +179,8 @@ func TestImagePushIndex(t *testing.T) {
 		{
 			name: "none requested on v7 daemon, v5 in index but not v7, all present",
 
-			indexPlatforms:     []platforms.Platform{linuxArm64, linuxArmv5},
-			availablePlatforms: []platforms.Platform{linuxArm64, linuxArmv5},
+			indexPlatforms:     []ocispec.Platform{linuxArm64, linuxArmv5},
+			availablePlatforms: []ocispec.Platform{linuxArm64, linuxArmv5},
 			daemonPlatform:     &linuxArmv7,
 			requestPlatform:    nil,
 			check:              wholeIndexSelected,
@@ -188,8 +188,8 @@ func TestImagePushIndex(t *testing.T) {
 		{
 			name: "none requested on v7 daemon, v5 in index but not v7, v5 present",
 
-			indexPlatforms:     []platforms.Platform{linuxArm64, linuxArmv5},
-			availablePlatforms: []platforms.Platform{linuxArmv5},
+			indexPlatforms:     []ocispec.Platform{linuxArm64, linuxArmv5},
+			availablePlatforms: []ocispec.Platform{linuxArmv5},
 			daemonPlatform:     &linuxArmv7,
 			requestPlatform:    nil,
 			check:              singleManifestSelected(linuxArmv5),
@@ -228,7 +228,7 @@ func TestImagePushIndex(t *testing.T) {
 	}
 }
 
-func deletePlatform(ctx context.Context, imgSvc *ImageService, img containerdimages.Image, platform platforms.Platform) error {
+func deletePlatform(ctx context.Context, imgSvc *ImageService, img containerdimages.Image, platform ocispec.Platform) error {
 	var blobs []ocispec.Descriptor
 	pm := platforms.OnlyStrict(platform)
 	err := imgSvc.walkImageManifests(ctx, img, func(im *ImageManifest) error {
