@@ -22,7 +22,11 @@ func (ep *Endpoint) DriverInfo() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("could not find network in store for driver info: %v", err)
 	}
 
-	driver, err := n.driver(true)
+	if !n.hasEndpointCapability() {
+		return nil, nil
+	}
+
+	driver, err := ep.driver(true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get driver info: %v", err)
 	}

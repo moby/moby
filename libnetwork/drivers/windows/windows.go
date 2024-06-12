@@ -30,6 +30,9 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
+// Windows driver must implement the EndpointDriver API.
+var _ driverapi.EndpointDriver = (*driver)(nil)
+
 // networkConfiguration for network specific configuration
 type networkConfiguration struct {
 	ID                    string
@@ -142,6 +145,7 @@ func RegisterBuiltinLocalDrivers(r driverapi.Registerer, driverConfig func(strin
 		err = r.RegisterDriver(networkType, d, driverapi.Capability{
 			DataScope:         scope.Local,
 			ConnectivityScope: scope.Local,
+			EndpointDriver:    true,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to register %q driver: %w", networkType, err)

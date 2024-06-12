@@ -41,26 +41,6 @@ func (d *manager) DeleteNetwork(nid string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *manager) DeleteEndpoint(nid, eid string) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *manager) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
-	return nil, types.NotImplementedErrorf("not implemented")
-}
-
-func (d *manager) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *manager) Leave(nid, eid string) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
 func (d *manager) Type() string {
 	return d.networkType
 }

@@ -327,8 +327,9 @@ func (sb *Sandbox) removeEndpoint(ep *Endpoint) {
 }
 
 func (sb *Sandbox) removeEndpointRaw(ep *Endpoint) {
+	epID := ep.ID()
 	for i, e := range sb.endpoints {
-		if e == ep {
+		if e.ID() == epID {
 			sb.endpoints = append(sb.endpoints[:i], sb.endpoints[i+1:]...)
 			return
 		}

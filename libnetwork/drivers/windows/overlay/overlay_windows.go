@@ -14,6 +14,9 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 )
 
+// Windows overlay driver must implement the EndpointDriver API.
+var _ driverapi.EndpointDriver = (*driver)(nil)
+
 const (
 	NetworkType = "overlay"
 )
@@ -34,6 +37,7 @@ func Register(r driverapi.Registerer) error {
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
 		DataScope:         scope.Global,
 		ConnectivityScope: scope.Global,
+		EndpointDriver:    true,
 	})
 }
 

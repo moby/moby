@@ -16,6 +16,9 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 )
 
+// Overlay driver must implement the EndpointDriver API.
+var _ driverapi.EndpointDriver = (*driver)(nil)
+
 const (
 	NetworkType  = "overlay"
 	vethPrefix   = "veth"
@@ -54,6 +57,7 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
 		DataScope:         scope.Global,
 		ConnectivityScope: scope.Global,
+		EndpointDriver:    true,
 	})
 }
 

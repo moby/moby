@@ -644,10 +644,16 @@ type badDriver struct {
 	failNetworkCreation bool
 }
 
+// badDriver must implement EndpointDriver API.
+var _ driverapi.EndpointDriver = (*badDriver)(nil)
+
 var bd = badDriver{failNetworkCreation: true}
 
 func badDriverRegister(reg driverapi.Registerer) error {
-	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: scope.Local})
+	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{
+		DataScope:      scope.Local,
+		EndpointDriver: true,
+	})
 }
 
 func (b *badDriver) CreateNetwork(nid string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
