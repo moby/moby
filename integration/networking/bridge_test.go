@@ -813,8 +813,7 @@ func TestSetInterfaceSysctl(t *testing.T) {
 
 // With a read-only "/proc/sys/net" filesystem (simulated using env var
 // DOCKER_TEST_RO_DISABLE_IPV6), check that if IPv6 can't be disabled on a
-// container interface, container creation fails - unless the error is ignored by
-// setting env var DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1.
+// container interface, container creation fails.
 // Regression test for https://github.com/moby/moby/issues/47751
 func TestReadOnlySlashProc(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
@@ -830,18 +829,11 @@ func TestReadOnlySlashProc(t *testing.T) {
 			name: "Normality",
 		},
 		{
-			name: "Read only no workaround",
+			name: "Read only",
 			daemonEnv: []string{
 				"DOCKER_TEST_RO_DISABLE_IPV6=1",
 			},
-			expErr: "failed to disable IPv6 on container's interface eth0, set env var DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1 to ignore this error",
-		},
-		{
-			name: "Read only with workaround",
-			daemonEnv: []string{
-				"DOCKER_TEST_RO_DISABLE_IPV6=1",
-				"DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1",
-			},
+			expErr: "failed to disable IPv6 on container's interface eth0",
 		},
 	}
 
