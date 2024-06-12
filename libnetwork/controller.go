@@ -167,7 +167,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	setupArrangeUserFilterRule(c)
+	c.setupFirewallReloadHandler()
 	return c, nil
 }
 

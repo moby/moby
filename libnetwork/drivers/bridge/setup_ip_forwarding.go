@@ -47,12 +47,6 @@ func setupIPForwarding(enableIPTables bool, enableIP6Tables bool) error {
 				}
 				return err
 			}
-			iptables.OnReloaded(func() {
-				log.G(context.TODO()).Debug("Setting the default DROP policy on firewall reload")
-				if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-					log.G(context.TODO()).Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
-				}
-			})
 		}
 	}
 
@@ -62,13 +56,22 @@ func setupIPForwarding(enableIPTables bool, enableIP6Tables bool) error {
 		if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
 			log.G(context.TODO()).Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
 		}
-		iptables.OnReloaded(func() {
-			log.G(context.TODO()).Debug("Setting the default DROP policy on firewall reload")
-			if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-				log.G(context.TODO()).Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
-			}
-		})
 	}
 
 	return nil
+}
+
+func replaySetupIPForwarding(enableIPTables, enableIP6Tables bool) {
+	for _, table := range []struct {
+		ipver  iptables.IPVersion
+		enable bool
+	}{
+		{iptables.IPv4, enableIPTables},
+		{iptables.IPv6, enableIP6Tables},
+	} {
+		log.G(context.TODO()).Debugf("%s: Setting the default DROP policy on firewall reload", table.ipver)
+		if err := iptables.GetIptable(table.ipver).SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+			log.G(context.TODO()).WithError(err).Warnf("%s: Setting the default DROP policy on firewall reload failed", table.ipver)
+		}
+	}
 }

@@ -116,6 +116,10 @@ type bridgeEndpoint struct {
 	portMapping     []types.PortBinding // Operation port bindings
 	dbIndex         uint64
 	dbExists        bool
+
+	// Ephemeral state not persisted to the store.
+
+	isLinked bool
 }
 
 type bridgeNetwork struct {
@@ -438,14 +442,6 @@ func (d *driver) configure(option map[string]interface{}) error {
 		if err != nil {
 			return err
 		}
-
-		// Make sure on firewall reload, first thing being re-played is chains creation
-		iptables.OnReloaded(func() {
-			log.G(context.TODO()).Debugf("Recreating iptables chains on firewall reload")
-			if _, _, _, _, err := setupIPChains(config, iptables.IPv4); err != nil {
-				log.G(context.TODO()).WithError(err).Error("Error reloading iptables chains")
-			}
-		})
 	}
 
 	if config.EnableIP6Tables {
@@ -806,12 +802,6 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 
 		// Setup IP6Tables.
 		{config.EnableIPv6 && d.config.EnableIP6Tables, network.setupIP6Tables},
-
-		// We want to track firewalld configuration so that
-		// if it is started/reloaded, the rules can be applied correctly
-		{d.config.EnableIPTables, network.setupFirewalld},
-		// same for IPv6
-		{config.EnableIPv6 && d.config.EnableIP6Tables, network.setupFirewalld6},
 
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},
@@ -1292,7 +1282,8 @@ func (d *driver) Leave(nid, eid string) error {
 	}
 
 	if !network.config.EnableICC {
-		if err = d.link(network, endpoint, false); err != nil {
+		endpoint.isLinked = false
+		if err = network.link(endpoint, false); err != nil {
 			return err
 		}
 	}
@@ -1345,7 +1336,11 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 	}
 
 	if !network.config.EnableICC {
-		return d.link(network, endpoint, true)
+		if err := network.link(endpoint, true); err != nil {
+			return err
+		}
+		// Mark that the endpoint linking needs to be replayed when we reload the firewall ruleset.
+		endpoint.isLinked = true
 	}
 
 	return nil
@@ -1385,7 +1380,7 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable bool) (retErr error) {
+func (network *bridgeNetwork) link(endpoint *bridgeEndpoint, enable bool) (retErr error) {
 	cc := endpoint.containerConfig
 	ec := endpoint.extConnConfig
 	if cc == nil || ec == nil || (len(cc.ParentEndpoints) == 0 && len(cc.ChildEndpoints) == 0) {
