@@ -635,14 +635,9 @@ func setIPv6(nspath, iface string, enable bool) error {
 			}
 		}()
 
-		var (
-			action = "disable"
-			value  = byte('1')
-			path   = fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/disable_ipv6", iface)
-		)
-
+		path := "/proc/sys/net/ipv6/conf/" + iface + "/disable_ipv6"
+		value := byte('1')
 		if enable {
-			action = "enable"
 			value = '0'
 		}
 
@@ -673,9 +668,7 @@ func setIPv6(nspath, iface string, enable bool) error {
 				logger.Warn("Cannot enable IPv6 on container interface, continuing.")
 			} else {
 				logger.Error("Cannot disable IPv6 on container interface.")
-				errCh <- fmt.Errorf(
-					"failed to %s IPv6 on container's interface %s",
-					action, iface)
+				errCh <- errors.New("failed to disable IPv6 on container's interface " + iface)
 			}
 			return
 		}
