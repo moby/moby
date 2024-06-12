@@ -491,17 +491,6 @@ func (s *DockerDaemonSuite) TestDaemonBridgeNone(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "No such network"))
 }
 
-func createInterface(c *testing.T, ifType string, ifName string, ipNet string) {
-	icmd.RunCommand("ip", "link", "add", "name", ifName, "type", ifType).Assert(c, icmd.Success)
-	icmd.RunCommand("ifconfig", ifName, ipNet, "up").Assert(c, icmd.Success)
-}
-
-func deleteInterface(c *testing.T, ifName string) {
-	icmd.RunCommand("ip", "link", "delete", ifName).Assert(c, icmd.Success)
-	icmd.RunCommand("iptables", "-t", "nat", "--flush").Assert(c, icmd.Success)
-	icmd.RunCommand("iptables", "--flush").Assert(c, icmd.Success)
-}
-
 func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *testing.T) {
 	// TestDaemonBridgeIP Steps
 	// 1. Delete the existing docker0 Bridge
