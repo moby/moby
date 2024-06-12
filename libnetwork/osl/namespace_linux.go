@@ -671,20 +671,10 @@ func setIPv6(nspath, iface string, enable bool) error {
 				// The user asked for IPv6 on the interface, and we can't give it to them.
 				// But, in line with the IsNotExist case above, just log.
 				logger.Warn("Cannot enable IPv6 on container interface, continuing.")
-			} else if os.Getenv("DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE") == "1" {
-				// TODO(robmry) - remove this escape hatch for https://github.com/moby/moby/issues/47751
-				//   If the "/proc" file exists but isn't writable, we can't disable IPv6, which is
-				//   https://github.com/moby/moby/security/advisories/GHSA-x84c-p2g9-rqv9 ... so,
-				//   the user is required to override the error (or configure IPv6, or disable IPv6
-				//   by default in the OS, or make the "/proc" file writable). Once it's possible
-				//   to enable IPv6 without having to configure IPAM etc, the env var should be
-				//   removed. Then the user will have to explicitly enable IPv6 if it can't be
-				//   disabled on the interface.
-				logger.Info("Cannot disable IPv6 on container interface but DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1, continuing.")
 			} else {
-				logger.Error("Cannot disable IPv6 on container interface. Set env var DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1 to ignore.")
+				logger.Error("Cannot disable IPv6 on container interface.")
 				errCh <- fmt.Errorf(
-					"failed to %s IPv6 on container's interface %s, set env var DOCKER_ALLOW_IPV6_ON_IPV4_INTERFACE=1 to ignore this error",
+					"failed to %s IPv6 on container's interface %s",
 					action, iface)
 			}
 			return
