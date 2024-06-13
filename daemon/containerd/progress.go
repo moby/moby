@@ -14,7 +14,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
@@ -56,7 +55,7 @@ func (j *jobs) showProgress(ctx context.Context, out progress.Output, updater pr
 					}
 				}
 			case <-ctx.Done():
-				ctx, cancel := context.WithTimeout(compatcontext.WithoutCancel(ctx), time.Millisecond*500)
+				ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Millisecond*500)
 				defer cancel()
 				updater.UpdateProgress(ctx, j, out, start)
 				close(lastUpdate)

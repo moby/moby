@@ -20,7 +20,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/archive"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/opencontainers/go-digest"
@@ -74,7 +73,7 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 		return "", fmt.Errorf("failed to create lease for commit: %w", err)
 	}
 	defer func() {
-		if err := release(compatcontext.WithoutCancel(ctx)); err != nil {
+		if err := release(context.WithoutCancel(ctx)); err != nil {
 			log.G(ctx).WithError(err).Warn("failed to release lease created for commit")
 		}
 	}()

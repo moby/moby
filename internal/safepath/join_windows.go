@@ -8,7 +8,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/internal/cleanups"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 )
@@ -27,9 +26,9 @@ func Join(ctx context.Context, path, subpath string) (*SafePath, error) {
 	}
 	parts := strings.Split(subpart, string(os.PathSeparator))
 
-	cleanups := cleanups.Composite{}
+	cleanupJobs := cleanups.Composite{}
 	defer func() {
-		if cErr := cleanups.Call(compatcontext.WithoutCancel(ctx)); cErr != nil {
+		if cErr := cleanupJobs.Call(context.WithoutCancel(ctx)); cErr != nil {
 			log.G(ctx).WithError(cErr).Warn("failed to close handles after error")
 		}
 	}()
@@ -45,7 +44,7 @@ func Join(ctx context.Context, path, subpath string) (*SafePath, error) {
 			}
 			return nil, errors.Wrapf(err, "failed to lock file %s", fullPath)
 		}
-		cleanups.Add(func(context.Context) error {
+		cleanupJobs.Add(func(context.Context) error {
 			if err := windows.CloseHandle(handle); err != nil {
 				return &os.PathError{Op: "CloseHandle", Path: fullPath, Err: err}
 			}
@@ -75,7 +74,7 @@ func Join(ctx context.Context, path, subpath string) (*SafePath, error) {
 		path:          fullPath,
 		sourceBase:    base,
 		sourceSubpath: subpart,
-		cleanup:       cleanups.Release(),
+		cleanup:       cleanupJobs.Release(),
 	}, nil
 }
 

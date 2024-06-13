@@ -11,7 +11,6 @@ import (
 	"github.com/containerd/log"
 	distref "github.com/distribution/reference"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/layer"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage"
@@ -240,7 +239,7 @@ func (e *imageExporterInstance) newTempReference(ctx context.Context, config []b
 	}
 
 	unlease := func(ctx context.Context) error {
-		err := done(compatcontext.WithoutCancel(ctx))
+		err := done(context.WithoutCancel(ctx))
 		if err != nil {
 			log.G(ctx).WithError(err).Error("failed to delete descriptor reference lease")
 		}

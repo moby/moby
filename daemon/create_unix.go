@@ -13,7 +13,6 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/oci"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	volumeopts "github.com/docker/docker/volume/service/opts"
@@ -117,8 +116,11 @@ func (daemon *Daemon) populateVolume(ctx context.Context, c *container.Container
 		log.G(ctx).WithError(err).Debugf("can't copy data from %s:%s, to %s", c.ID, mnt.Destination, volumePath)
 		return errors.Wrapf(err, "failed to populate volume")
 	}
-	defer mnt.Cleanup(compatcontext.WithoutCancel(ctx))
-	defer cleanup(compatcontext.WithoutCancel(ctx))
+	defer func() {
+		ctx := context.WithoutCancel(ctx)
+		_ = cleanup(ctx)
+		_ = mnt.Cleanup(ctx)
+	}()
 
 	log.G(ctx).Debugf("copying image data from %s:%s, to %s", c.ID, mnt.Destination, volumePath)
 	if err := c.CopyImagePathContent(volumePath, ctrDestPath); err != nil {
