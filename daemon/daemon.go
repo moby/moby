@@ -46,6 +46,7 @@ import (
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/config"
 	ctrd "github.com/docker/docker/daemon/containerd"
+	"github.com/docker/docker/daemon/containerd/migration"
 	"github.com/docker/docker/daemon/events"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
@@ -1145,6 +1146,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		driverName = cfgStore.GraphDriver
 	}
 
+	var migrationConfig migration.Config
 	if !d.usesSnapshotter {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			Root:                      cfgStore.Root,
@@ -1252,6 +1254,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			if ic := d.imageService.CountImages(ctx); ic <= migrationThreshold {
 				log.G(ctx).Infof("Enabling containerd snapshotter because migration set with no containers and %d images in graph driver", ic)
 				d.usesSnapshotter = true
+				migrationConfig.LayerStore = imgSvcConfig.LayerStore
+				migrationConfig.DockerImageStore = imgSvcConfig.ImageStore
+				migrationConfig.ReferenceStore = imgSvcConfig.ReferenceStore
 			} else if migrationThreshold >= 0 {
 				log.G(ctx).Warnf("Not migrating to containerd snapshotter because still have %d images in graph driver", ic)
 			}
@@ -1290,7 +1295,17 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		if oldImageService != nil {
 			if count := oldImageService.CountImages(ctx); count > 0 {
-				log.G(ctx).WithField("image_count", count).Warnf("Enabling containerd snapshotter, images in graph driver %q are no longer visible.", oldImageService.StorageDriver())
+				migrationConfig.Leases = d.containerdClient.LeasesService()
+				migrationConfig.Content = d.containerdClient.ContentStore()
+				migrationConfig.ImageStore = d.containerdClient.ImageService()
+				m := migration.NewLayerMigrator(migrationConfig)
+				err := m.MigrateTocontainerd(ctx, driverName, d.containerdClient.SnapshotService(driverName))
+				if err != nil {
+					log.G(ctx).WithError(err).Errorf("Failed to migrate images to containerd, images in graph driver %q are no longer visible", oldImageService.StorageDriver())
+				} else {
+					log.G(ctx).WithField("image_count", count).Infof("Successfully migrated images from %q to containerd", oldImageService.StorageDriver())
+				}
+
 			}
 		}
 	}
