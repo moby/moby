@@ -392,7 +392,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 	req := &controlapi.SolveRequest{
 		Ref: id,
 		Exporters: []*controlapi.Exporter{
-			&controlapi.Exporter{Type: exporterName, Attrs: exporterAttrs},
+			{Type: exporterName, Attrs: exporterAttrs},
 		},
 		Frontend:      "dockerfile.v0",
 		FrontendAttrs: frontendAttrs,
