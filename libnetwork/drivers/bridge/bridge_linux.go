@@ -279,6 +279,15 @@ func (c *networkConfiguration) Conflicts(o *networkConfiguration) error {
 }
 
 func (c *networkConfiguration) fromLabels(labels map[string]string) error {
+	// DefaultBindingIPv4 is a synonym for DefaultBindingIP. Don't
+	// allow both to be specified.
+	if _, ok := labels[DefaultBindingIPv4]; ok {
+		if _, ok := labels[DefaultBindingIP]; ok {
+			return errdefs.InvalidParameter(errors.New(
+				DefaultBindingIPv4 + " is a synonym for " + DefaultBindingIP + ", use one or the other"))
+		}
+	}
+
 	var err error
 	for label, value := range labels {
 		switch label {
@@ -317,6 +326,10 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 				return parseErr(label, value, err.Error())
 			}
 		case DefaultBindingIP:
+			if c.DefaultBindingIP = net.ParseIP(value); c.DefaultBindingIP == nil {
+				return parseErr(label, value, "nil ip")
+			}
+		case DefaultBindingIPv4:
 			if c.DefaultBindingIP = net.ParseIP(value); c.DefaultBindingIP == nil {
 				return parseErr(label, value, "nil ip")
 			}

@@ -995,3 +995,114 @@ func TestDisableNAT(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultBindingIP(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "bridge driver option doesn't apply to Windows")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	testcases := []struct {
+		name           string
+		defBinding     string
+		defBindingIPv4 string
+		expErr         string
+		expPortMap     nat.PortMap
+	}{
+		{
+			name: "default default binding",
+			expPortMap: nat.PortMap{
+				"80/tcp": []nat.PortBinding{
+					{HostIP: "0.0.0.0", HostPort: "8080"},
+					{HostIP: "::", HostPort: "8080"},
+				},
+			},
+		},
+		{
+			name:       "host_binding_ip is ipv4",
+			defBinding: "127.0.0.1",
+			expPortMap: nat.PortMap{
+				"80/tcp": []nat.PortBinding{
+					{HostIP: "127.0.0.1", HostPort: "8080"},
+				},
+			},
+		},
+		{
+			// There's no way to specify default binding "any IPv4 address" without
+			// getting IPv6 too. (That can only be done using a host address in
+			// individual port mappings, '-p 0.0.0.0:8080:80'.)
+			name:       "host_binding_ip=0.0.0.0 includes IPv6",
+			defBinding: "0.0.0.0",
+			expPortMap: nat.PortMap{
+				"80/tcp": []nat.PortBinding{
+					{HostIP: "0.0.0.0", HostPort: "8080"},
+					{HostIP: "::", HostPort: "8080"},
+				},
+			},
+		},
+		{
+			// Unlike "0.0.0.0", default binding "::" is IPv6-only.
+			name:       "host_binding_ip is any ipv6",
+			defBinding: "::",
+			expPortMap: nat.PortMap{
+				"80/tcp": []nat.PortBinding{
+					{HostIP: "::", HostPort: "8080"},
+				},
+			},
+		},
+		{
+			// Despite its name, DefaultBindingIPv4 accepts IPv6.
+			name:           "host_binding_ipv4 is any ipv6",
+			defBindingIPv4: "::",
+			expPortMap: nat.PortMap{
+				"80/tcp": []nat.PortBinding{
+					{HostIP: "::", HostPort: "8080"},
+				},
+			},
+		},
+		{
+			name:           "duplicate bindings",
+			defBinding:     "::",
+			defBindingIPv4: "::",
+			expErr:         bridge.DefaultBindingIPv4 + " is a synonym for " + bridge.DefaultBindingIP,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			const netName = "testnet"
+			nwOpts := []func(options *networktypes.CreateOptions){network.WithIPv6()}
+			if tc.defBinding != "" {
+				nwOpts = append(nwOpts, network.WithOption(bridge.DefaultBindingIP, tc.defBinding))
+			}
+			if tc.defBindingIPv4 != "" {
+				nwOpts = append(nwOpts, network.WithOption(bridge.DefaultBindingIPv4, tc.defBindingIPv4))
+			}
+			_, err := network.Create(ctx, c, netName, nwOpts...)
+			if tc.expErr != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expErr))
+				return
+			}
+			assert.NilError(t, err)
+			defer network.RemoveNoError(ctx, t, c, netName)
+
+			id := container.Run(ctx, t, c,
+				container.WithNetworkMode(netName),
+				// Add port mapping '-p 8080:80'.
+				container.WithExposedPorts("80"),
+				container.WithPortMap(nat.PortMap{"80": {{HostPort: "8080"}}}),
+			)
+			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+			inspect := container.Inspect(ctx, t, c, id)
+			assert.Check(t, is.DeepEqual(inspect.NetworkSettings.Ports, tc.expPortMap))
+		})
+	}
+}

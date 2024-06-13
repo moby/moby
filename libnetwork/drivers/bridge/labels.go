@@ -19,7 +19,13 @@ const (
 	InhibitIPv4 = "com.docker.network.bridge.inhibit_ipv4"
 
 	// DefaultBindingIP label
-	DefaultBindingIP = "com.docker.network.bridge.host_binding_ipv4"
+	DefaultBindingIP = "com.docker.network.bridge.host_binding_ip"
+
+	// DefaultBindingIPv4 label
+	// 'host_binding_ipv4' existed before 'host_binding_ip', despite the name
+	// it accepted IPv6 addresses. The options are now synonyms, and it is an
+	// error to specify both.
+	DefaultBindingIPv4 = "com.docker.network.bridge.host_binding_ipv4"
 
 	// DefaultBridge label
 	DefaultBridge = "com.docker.network.bridge.default_bridge"
