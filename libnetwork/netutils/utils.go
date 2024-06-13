@@ -1,5 +1,4 @@
-// Network utility functions.
-
+// Package netutils provides network utility functions.
 package netutils
 
 import (
