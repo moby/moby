@@ -92,7 +92,7 @@ type testEndpoint struct {
 	nextHop               string
 	destination           string
 	routeType             int
-	disableGatewayService bool
+	requireDefaultGateway bool
 }
 
 func (test *testEndpoint) Address() *net.IPNet {
@@ -203,8 +203,8 @@ func (test *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, 
 	return nil
 }
 
-func (test *testEndpoint) DisableGatewayService() {
-	test.disableGatewayService = true
+func (test *testEndpoint) RequireDefaultGateway() {
+	test.requireDefaultGateway = true
 }
 
 func (test *testEndpoint) AddTableEntry(tableName string, key string, value []byte) error {

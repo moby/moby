@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -14,10 +15,8 @@ const (
 	gwEPlen = 12
 )
 
-var procGwNetwork = make(chan (bool), 1)
-
 /*
-   libnetwork creates a bridge network "docker_gw_bridge" for providing
+   libnetwork creates a bridge network "docker_gwbridge" for providing
    default gateway for the containers if none of the container's endpoints
    have GW set by the driver. ICC is set to false for the GW_bridge network.
 
@@ -30,21 +29,11 @@ var procGwNetwork = make(chan (bool), 1)
    - its deleted when an endpoint with GW joins the container
 */
 
-func (sb *Sandbox) setupDefaultGW() error {
-	// check if the container already has a GW endpoint
-	if ep := sb.getEndpointInGWNetwork(); ep != nil {
-		return nil
-	}
-
-	c := sb.controller
-
-	// Look for default gw network. In case of error (includes not found),
-	// retry and create it if needed in a serialized execution.
-	n, err := c.NetworkByName(libnGWNetwork)
+func (c *Controller) ConnectToDefaultGw(sb *Sandbox) error {
+	// Look for default gw network, and create it if it doesn't exist.
+	n, err := c.defaultGwNetwork()
 	if err != nil {
-		if n, err = c.defaultGwNetwork(); err != nil {
-			return err
-		}
+		return err
 	}
 
 	createOptions := []EndpointOption{}
@@ -92,11 +81,12 @@ func (sb *Sandbox) setupDefaultGW() error {
 	return nil
 }
 
-// If present, detach and remove the endpoint connecting the sandbox to the default gw network.
-func (sb *Sandbox) clearDefaultGW() error {
-	var ep *Endpoint
-
-	if ep = sb.getEndpointInGWNetwork(); ep == nil {
+// DisconnectFromDefaultGw disconnect sb from the default gw network. It
+// returns an error if it fails to disconnect. No error is returned if sb isn't
+// connected to that network.
+func (c *Controller) DisconnectFromDefaultGw(sb *Sandbox) error {
+	ep := sb.getEndpointInGWNetwork()
+	if ep == nil {
 		return nil
 	}
 	if err := ep.sbLeave(sb, false); err != nil {
@@ -108,40 +98,30 @@ func (sb *Sandbox) clearDefaultGW() error {
 	return nil
 }
 
-// Evaluate whether the sandbox requires a default gateway based
-// on the endpoints to which it is connected. It does not account
-// for the default gateway network endpoint.
-
-func (sb *Sandbox) needDefaultGW() bool {
-	var needGW bool
-
+// NeedDefaultGW evaluates whether the sandbox needs to be connected to the
+// 'docker_gwbridge' network based on the endpoints to which it is connected
+// to (ie. at least one endpoint should require it, and no other endpoint
+// should provide a gateway).
+func (sb *Sandbox) NeedDefaultGW() bool {
 	for _, ep := range sb.Endpoints() {
 		if ep.endpointInGWNetwork() {
-			continue
-		}
-		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
-			continue
-		}
-		if ep.getNetwork().Internal() {
-			continue
-		}
-		// During stale sandbox cleanup, joinInfo may be nil
-		if ep.joinInfo != nil && ep.joinInfo.disableGatewayService {
-			continue
-		}
-		// TODO v6 needs to be handled.
-		if len(ep.Gateway()) > 0 {
+			// There's already an endpoint attached to docker_gwbridge. This sandbox doesn't need to be attached to it
+			// once again.
 			return false
 		}
-		for _, r := range ep.StaticRoutes() {
-			if r.Destination != nil && r.Destination.String() == "0.0.0.0/0" {
-				return false
-			}
+		if ep.isGateway() {
+			// This endpoint already provides a gateway. This sandbox doesn't need to be attached to docker_gwbridge.
+			return false
 		}
-		needGW = true
+		// The 'remote' netdriver shim doesn't store anything across [driverapi.Driver] operations. So, by the time its
+		// Join method gets called, it already lost the information of whether the network is internal. Hence here we
+		// need to check whether the network is internal. Also, during stale sandbox cleanup, joinInfo may be nil.
+		if !ep.getNetwork().Internal() && ep.joinInfo != nil && ep.joinInfo.requireDefaultGateway {
+			return true
+		}
 	}
 
-	return needGW
+	return false
 }
 
 func (sb *Sandbox) getEndpointInGWNetwork() *Endpoint {
@@ -160,15 +140,21 @@ func (ep *Endpoint) endpointInGWNetwork() bool {
 	return false
 }
 
-// Looks for the default gw network and creates it if not there.
-// Parallel executions are serialized.
+// defaultGwNetwork looks for the 'docker_gwbridge' network and creates it if
+// it doesn't exist. It's safe for concurrent use.
 func (c *Controller) defaultGwNetwork() (*Network, error) {
-	procGwNetwork <- true
-	defer func() { <-procGwNetwork }()
-
 	n, err := c.NetworkByName(libnGWNetwork)
 	if _, ok := err.(types.NotFoundError); ok {
 		n, err = c.createGWNetwork()
+		// If two concurrent calls to this method are made, they will both try
+		// to create the 'docker_gwbridge' network concurrently, but ultimately
+		// the Controller will serialize 'NewNetwork' calls. The first call to
+		// win the race will create the network, and other racing calls will
+		// find out it already exists and return a 'NetworkNameError'. Instead
+		// of barfing out, just try to retrieve it once more.
+		if errors.Is(err, NetworkNameError(libnGWNetwork)) {
+			return c.NetworkByName(libnGWNetwork)
+		}
 	}
 	return n, err
 }
@@ -179,9 +165,24 @@ func (sb *Sandbox) getGatewayEndpoint() *Endpoint {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}
-		if len(ep.Gateway()) != 0 {
+		if ep.isGateway() {
 			return ep
 		}
 	}
 	return nil
+}
+
+// isGateway determines whether this endpoint provides a gateway.
+func (ep *Endpoint) isGateway() bool {
+	if len(ep.Gateway()) > 0 {
+		return true
+	}
+
+	for _, r := range ep.StaticRoutes() {
+		if r.Destination != nil && r.Destination.String() == "0.0.0.0/0" {
+			return true
+		}
+	}
+
+	return false
 }

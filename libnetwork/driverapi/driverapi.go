@@ -141,8 +141,10 @@ type JoinInfo interface {
 	// It may be used in addition to or instead of a default gateway (as above).
 	AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error
 
-	// DisableGatewayService tells libnetwork not to provide Default GW for the container
-	DisableGatewayService()
+	// RequireDefaultGateway instruct libnetwork to connect the associated
+	// sandbox to the 'docker_gwbridge' network to provide a default gateway if
+	// it doesn't have one already.
+	RequireDefaultGateway()
 
 	// AddTableEntry adds a table entry to the gossip layer
 	// passing the table name, key and an opaque value.

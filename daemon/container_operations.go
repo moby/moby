@@ -791,6 +791,30 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 		return err
 	}
 
+	if sb.NeedDefaultGW() {
+		if err := daemon.netController.ConnectToDefaultGw(sb); err != nil {
+			return err
+		}
+		defer func() {
+			if retErr != nil {
+				if err := daemon.netController.DisconnectFromDefaultGw(sb); err != nil {
+					log.G(context.TODO()).Errorf("failed to disconnect sb %s from default gw: %v", sb.ID(), err)
+				}
+			}
+		}()
+	} else {
+		if err := daemon.netController.DisconnectFromDefaultGw(sb); err != nil {
+			return err
+		}
+		defer func() {
+			if retErr != nil {
+				if err := daemon.netController.ConnectToDefaultGw(sb); err != nil {
+					log.G(context.TODO()).Errorf("failed to disconnect sb %s from default gw: %v", sb.ID(), err)
+				}
+			}
+		}()
+	}
+
 	if !container.Managed {
 		// add container name/alias to DNS
 		if err := daemon.ActivateContainerServiceBinding(container.Name); err != nil {
@@ -888,6 +912,16 @@ func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n *l
 
 	if err := ep.Leave(sbox); err != nil {
 		return fmt.Errorf("container %s failed to leave network %s: %v", container.ID, n.Name(), err)
+	}
+
+	if sbox.NeedDefaultGW() {
+		if err := daemon.netController.ConnectToDefaultGw(sbox); err != nil {
+			return err
+		}
+	} else {
+		if err := daemon.netController.DisconnectFromDefaultGw(sbox); err != nil {
+			return err
+		}
 	}
 
 	container.NetworkSettings.Ports = getPortMapInfo(sbox)

@@ -318,8 +318,8 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 			}
 		}
 	}
-	if res.DisableGatewayService {
-		jinfo.DisableGatewayService()
+	if !res.DisableGatewayService {
+		jinfo.RequireDefaultGateway()
 	}
 	return nil
 }

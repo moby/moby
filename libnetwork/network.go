@@ -204,7 +204,6 @@ type Network struct {
 	dynamic          bool
 	configOnly       bool
 	configFrom       string
-	loadBalancerIP   net.IP
 	loadBalancerMode string
 	platformNetwork  //nolint:nolintlint,unused // only populated on windows
 	mu               sync.Mutex
@@ -462,7 +461,6 @@ func (n *Network) CopyTo(o datastore.KVObject) error {
 	dstN.ingress = n.ingress
 	dstN.configOnly = n.configOnly
 	dstN.configFrom = n.configFrom
-	dstN.loadBalancerIP = n.loadBalancerIP
 	dstN.loadBalancerMode = n.loadBalancerMode
 
 	// copy labels
@@ -579,7 +577,6 @@ func (n *Network) MarshalJSON() ([]byte, error) {
 	netMap["ingress"] = n.ingress
 	netMap["configOnly"] = n.configOnly
 	netMap["configFrom"] = n.configFrom
-	netMap["loadBalancerIP"] = n.loadBalancerIP
 	netMap["loadBalancerMode"] = n.loadBalancerMode
 	return json.Marshal(netMap)
 }
@@ -691,9 +688,6 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := netMap["configFrom"]; ok {
 		n.configFrom = v.(string)
 	}
-	if v, ok := netMap["loadBalancerIP"]; ok {
-		n.loadBalancerIP = net.ParseIP(v.(string))
-	}
 	n.loadBalancerMode = loadBalancerModeDefault
 	if v, ok := netMap["loadBalancerMode"]; ok {
 		n.loadBalancerMode = v.(string)
@@ -795,13 +789,6 @@ func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ip
 		n.addrSpace = addrSpace
 		n.ipamV4Config = ipV4
 		n.ipamV6Config = ipV6
-	}
-}
-
-// NetworkOptionLBEndpoint function returns an option setter for the configuration of the load balancer endpoint for this network
-func NetworkOptionLBEndpoint(ip net.IP) NetworkOption {
-	return func(n *Network) {
-		n.loadBalancerIP = ip
 	}
 }
 
@@ -982,7 +969,8 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 
 	// Check that the network is empty
 	var emptyCount uint64
-	if n.hasLoadBalancerEndpoint() {
+	lbEp := n.getLoadBalancerEndpoint()
+	if lbEp != nil {
 		emptyCount = 1
 	}
 	if !force && n.getEpCnt().EndpointCnt() > emptyCount {
@@ -992,10 +980,10 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 		return &ActiveEndpointsError{name: n.name, id: n.id}
 	}
 
-	if n.hasLoadBalancerEndpoint() {
+	if lbEp != nil {
 		// If we got to this point, then the following must hold:
 		//  * force is true OR endpoint count == 1
-		if err := n.deleteLoadBalancerSandbox(); err != nil {
+		if err := n.deleteLoadBalancer(lbEp.Sandbox(), lbEp); err != nil {
 			if !force {
 				return err
 			}
@@ -1909,8 +1897,13 @@ func (n *Network) hasSpecialDriver() bool {
 	return n.Type() == "host" || n.Type() == "null"
 }
 
-func (n *Network) hasLoadBalancerEndpoint() bool {
-	return len(n.loadBalancerIP) != 0
+func (n *Network) getLoadBalancerEndpoint() *Endpoint {
+	for _, ep := range n.Endpoints() {
+		if ep.loadBalancer {
+			return ep
+		}
+	}
+	return nil
 }
 
 func (n *Network) ResolveName(ctx context.Context, req string, ipType int) ([]net.IP, bool) {
@@ -2092,50 +2085,45 @@ func (c *Controller) getConfigNetwork(name string) (*Network, error) {
 	return n, nil
 }
 
-func (n *Network) lbSandboxName() string {
-	name := "lb-" + n.name
-	if n.ingress {
-		name = n.name + "-sbox"
+// CreateLoadBalancer creates a load-balancer sandbox and attaches it to nw.
+func (c *Controller) CreateLoadBalancer(nw *Network, lbAddr net.IP) (retErr error) {
+	sbName := "lb-" + nw.Name()
+	if nw.Ingress() {
+		sbName += "-sbox"
 	}
-	return name
-}
 
-func (n *Network) lbEndpointName() string {
-	return n.name + "-endpoint"
-}
-
-func (n *Network) createLoadBalancerSandbox() (retErr error) {
-	sandboxName := n.lbSandboxName()
 	// Mark the sandbox to be a load balancer
-	sbOptions := []SandboxOption{OptionLoadBalancer(n.id)}
-	if n.ingress {
+	sbOptions := []SandboxOption{OptionLoadBalancer(nw.ID())}
+	if nw.Ingress() {
 		sbOptions = append(sbOptions, OptionIngress())
 	}
-	sb, err := n.ctrlr.NewSandbox(sandboxName, sbOptions...)
+
+	sb, err := c.NewSandbox(sbName, sbOptions...)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if retErr != nil {
-			if e := n.ctrlr.SandboxDestroy(sandboxName); e != nil {
-				log.G(context.TODO()).Warnf("could not delete sandbox %s on failure on failure (%v): %v", sandboxName, retErr, e)
+			if err := c.SandboxDestroy(sbName); err != nil {
+				log.G(context.TODO()).Warnf("could not delete sandbox %s on failure (%v): %v", sbName, retErr, err)
 			}
 		}
 	}()
 
-	endpointName := n.lbEndpointName()
+	epName := nw.Name() + "-endpoint"
 	epOptions := []EndpointOption{
-		CreateOptionIpam(n.loadBalancerIP, nil, nil, nil),
+		CreateOptionIpam(lbAddr, nil, nil, nil),
 		CreateOptionLoadBalancer(),
 	}
-	ep, err := n.createEndpoint(endpointName, epOptions...)
+
+	ep, err := nw.CreateEndpoint(epName, epOptions...)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if retErr != nil {
-			if e := ep.Delete(true); e != nil {
-				log.G(context.TODO()).Warnf("could not delete endpoint %s on failure on failure (%v): %v", endpointName, retErr, e)
+			if err := ep.Delete(true); err != nil {
+				log.G(context.TODO()).Warnf("could not delete endpoint %s on failure (%v): %v", epName, retErr, err)
 			}
 		}
 	}()
@@ -2147,38 +2135,18 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 	return sb.EnableService()
 }
 
-func (n *Network) deleteLoadBalancerSandbox() error {
-	n.mu.Lock()
-	c := n.ctrlr
-	name := n.name
-	n.mu.Unlock()
-
-	sandboxName := n.lbSandboxName()
-	endpointName := n.lbEndpointName()
-
-	endpoint, err := n.EndpointByName(endpointName)
-	if err != nil {
-		log.G(context.TODO()).Warnf("Failed to find load balancer endpoint %s on network %s: %v", endpointName, name, err)
-	} else {
-		info := endpoint.Info()
-		if info != nil {
-			sb := info.Sandbox()
-			if sb != nil {
-				if err := sb.DisableService(); err != nil {
-					log.G(context.TODO()).Warnf("Failed to disable service on sandbox %s: %v", sandboxName, err)
-					// Ignore error and attempt to delete the load balancer endpoint
-				}
+// deleteLoadBalancer deletes the load-balancer sandbox attached to n.
+func (n *Network) deleteLoadBalancer(sb *Sandbox, endpoint *Endpoint) error {
+	info := endpoint.Info()
+	if info != nil {
+		sb := info.Sandbox()
+		if sb != nil {
+			if err := sb.DisableService(); err != nil {
+				log.G(context.TODO()).Warnf("Failed to disable service on sandbox %s: %v", sb.id, err)
+				// Ignore error and attempt to delete the load balancer endpoint
 			}
 		}
-
-		if err := endpoint.Delete(true); err != nil {
-			log.G(context.TODO()).Warnf("Failed to delete endpoint %s (%s) in %s: %v", endpoint.Name(), endpoint.ID(), sandboxName, err)
-			// Ignore error and attempt to delete the sandbox.
-		}
 	}
 
-	if err := c.SandboxDestroy(sandboxName); err != nil {
-		return fmt.Errorf("Failed to delete %s sandbox: %v", sandboxName, err)
-	}
-	return nil
+	return sb.delete(true)
 }

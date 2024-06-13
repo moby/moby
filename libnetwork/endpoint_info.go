@@ -160,7 +160,8 @@ type endpointJoinInfo struct {
 	gw6                   net.IP
 	StaticRoutes          []*types.StaticRoute
 	driverTableEntries    []*tableEntry
-	disableGatewayService bool
+	disableGatewayService bool // Deprecated: this field is kept until migration code can be deleted.
+	requireDefaultGateway bool
 }
 
 type tableEntry struct {
@@ -423,6 +424,16 @@ func (ep *Endpoint) DisableGatewayService() {
 	ep.joinInfo.disableGatewayService = true
 }
 
+// RequireDefaultGateway instruct libnetwork to connect the associated
+// sandbox to the 'docker_gwbridge' network to provide a default gateway if
+// it doesn't have one already.
+func (ep *Endpoint) RequireDefaultGateway() {
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
+
+	ep.joinInfo.requireDefaultGateway = true
+}
+
 func (epj *endpointJoinInfo) MarshalJSON() ([]byte, error) {
 	epMap := make(map[string]interface{})
 	if epj.gw != nil {
@@ -431,7 +442,8 @@ func (epj *endpointJoinInfo) MarshalJSON() ([]byte, error) {
 	if epj.gw6 != nil {
 		epMap["gw6"] = epj.gw6.String()
 	}
-	epMap["disableGatewayService"] = epj.disableGatewayService
+	epMap["disableGatewayService"] = !epj.requireDefaultGateway
+	epMap["requireDefaultGateway"] = epj.requireDefaultGateway
 	epMap["StaticRoutes"] = epj.StaticRoutes
 	return json.Marshal(epMap)
 }
@@ -451,6 +463,7 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 		epj.gw6 = net.ParseIP(v.(string))
 	}
 	epj.disableGatewayService = epMap["disableGatewayService"].(bool)
+	epj.requireDefaultGateway = epMap["requireDefaultGateway"].(bool)
 
 	var tStaticRoute []types.StaticRoute
 	if v, ok := epMap["StaticRoutes"]; ok {
@@ -474,7 +487,7 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 }
 
 func (epj *endpointJoinInfo) CopyTo(dstEpj *endpointJoinInfo) error {
-	dstEpj.disableGatewayService = epj.disableGatewayService
+	dstEpj.requireDefaultGateway = epj.requireDefaultGateway
 	dstEpj.StaticRoutes = make([]*types.StaticRoute, len(epj.StaticRoutes))
 	copy(dstEpj.StaticRoutes, epj.StaticRoutes)
 	dstEpj.driverTableEntries = make([]*tableEntry, len(epj.driverTableEntries))

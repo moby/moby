@@ -184,8 +184,6 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 	hnsEndpoint.Policies = append(hnsEndpoint.Policies, pbPolicy...)
 
-	ep.disablegateway = true
-
 	configurationb, err := json.Marshal(hnsEndpoint)
 	if err != nil {
 		return err

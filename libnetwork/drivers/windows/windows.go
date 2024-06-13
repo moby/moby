@@ -854,7 +854,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		}
 	}
 
-	jinfo.DisableGatewayService()
 	return nil
 }
 

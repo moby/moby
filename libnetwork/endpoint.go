@@ -147,6 +147,26 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	jb, _ := json.Marshal(epMap["joinInfo"])
 	json.Unmarshal(jb, &ep.joinInfo) //nolint:errcheck
 
+	// ep.network and ep.joinInfo are nil during some unit tests. In other execution contexts, they should exist.
+	// TODO(aker): remove this migration code after the next major MCR LTS release.
+	if ep.network != nil && ep.joinInfo != nil && !ep.joinInfo.requireDefaultGateway && !ep.joinInfo.disableGatewayService {
+		// Thanks to the way libnetwork is architected, here we've access to `ep.network`. This allows to implement
+		// migration code for requireDefaultGateway. There are two cases where requireDefaultGateway has to be true:
+		// 1. either ep is connected to a non-internal overlay network ; 2. or a remote netdriver is used and it didn't
+		// set disableGatewayService.
+		// Since remote netdrivers are indistinguishable from other netdrivers, we need to test for the name of every
+		// in-tree driver.
+		netdriver := ep.network.networkType
+		if netdriver == "overlay" && !ep.network.internal {
+			ep.joinInfo.requireDefaultGateway = true
+		} else if !ep.joinInfo.disableGatewayService && !ep.network.internal && netdriver != "" && netdriver != "null" &&
+			netdriver != "host" && netdriver != "bridge" && netdriver != "ipvlan" && netdriver != "macvlan" &&
+			netdriver != "transparent" && netdriver != "l2bridge" && netdriver != "l2tunnel" && netdriver != "nat" &&
+			netdriver != "internal" && netdriver != "private" && netdriver != "ics" {
+			ep.joinInfo.requireDefaultGateway = true
+		}
+	}
+
 	tb, _ := json.Marshal(epMap["exposed_ports"])
 	var tPorts []types.TransportPort
 	json.Unmarshal(tb, &tPorts) //nolint:errcheck
@@ -580,10 +600,6 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 		return nil
 	}
 
-	if sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
-		return sb.setupDefaultGW()
-	}
-
 	// Enable upstream forwarding if the sandbox gained external connectivity.
 	if sb.resolver != nil {
 		sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
@@ -623,13 +639,6 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 					"driver failed programming external connectivity on endpoint %s (%s): %v",
 					ep.Name(), ep.ID(), err)
 			}
-		}
-	}
-
-	if !sb.needDefaultGW() {
-		if e := sb.clearDefaultGW(); e != nil {
-			log.G(context.TODO()).Warnf("Failure while disconnecting sandbox %s (%s) from gateway network: %v",
-				sb.ID(), sb.ContainerID(), e)
 		}
 	}
 
@@ -782,9 +791,6 @@ func (ep *Endpoint) sbLeave(sb *Sandbox, force bool) error {
 	}
 
 	sb.deleteHostsEntries(n.getSvcRecords(ep))
-	if !sb.inDelete && sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
-		return sb.setupDefaultGW()
-	}
 
 	// Disable upstream forwarding if the sandbox lost external connectivity.
 	if sb.resolver != nil {
@@ -806,13 +812,6 @@ func (ep *Endpoint) sbLeave(sb *Sandbox, force bool) error {
 		if err := extD.ProgramExternalConnectivity(extEp.network.ID(), extEp.ID(), sb.Labels()); err != nil {
 			log.G(context.TODO()).Warnf("driver failed programming external connectivity on endpoint %s: (%s) %v",
 				extEp.Name(), extEp.ID(), err)
-		}
-	}
-
-	if !sb.needDefaultGW() {
-		if err := sb.clearDefaultGW(); err != nil {
-			log.G(context.TODO()).Warnf("Failure while disconnecting sandbox %s (%s) from gateway network: %v",
-				sb.ID(), sb.ContainerID(), err)
 		}
 	}
 
