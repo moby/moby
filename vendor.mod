@@ -101,7 +101,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.21.0
 	go.opentelemetry.io/otel/trace v1.21.0
 	golang.org/x/mod v0.17.0
-	golang.org/x/net v0.23.0
+	golang.org/x/net v0.24.0
 	golang.org/x/sync v0.5.0
 	golang.org/x/sys v0.18.0
 	golang.org/x/text v0.14.0
