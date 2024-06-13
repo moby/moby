@@ -1026,11 +1026,16 @@ func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
 
 	if portMapping, ok := mapData.([]networktypes.PortBinding); ok {
 		for _, pp := range portMapping {
+			// Use an empty string for the host port if there's no port assigned.
 			natPort, err := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
 			if err != nil {
 				return pm, err
 			}
-			natBndg := nat.PortBinding{HostIP: pp.HostIP.String(), HostPort: strconv.Itoa(int(pp.HostPort))}
+			var hp string
+			if pp.HostPort > 0 {
+				hp = strconv.Itoa(int(pp.HostPort))
+			}
+			natBndg := nat.PortBinding{HostIP: pp.HostIP.String(), HostPort: hp}
 			pm[natPort] = append(pm[natPort], natBndg)
 		}
 	}

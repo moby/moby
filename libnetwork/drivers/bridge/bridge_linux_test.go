@@ -59,22 +59,26 @@ func TestEndpointMarshalling(t *testing.T) {
 				},
 			},
 		},
-		portMapping: []types.PortBinding{
+		portMapping: []portBinding{
 			{
-				Proto:       17,
-				IP:          net.ParseIP("172.33.9.56"),
-				Port:        uint16(99),
-				HostIP:      net.ParseIP("10.10.100.2"),
-				HostPort:    uint16(9900),
-				HostPortEnd: uint16(10000),
+				PortBinding: types.PortBinding{
+					Proto:       17,
+					IP:          net.ParseIP("172.33.9.56"),
+					Port:        uint16(99),
+					HostIP:      net.ParseIP("10.10.100.2"),
+					HostPort:    uint16(9900),
+					HostPortEnd: uint16(10000),
+				},
 			},
 			{
-				Proto:       6,
-				IP:          net.ParseIP("171.33.9.56"),
-				Port:        uint16(55),
-				HostIP:      net.ParseIP("10.11.100.2"),
-				HostPort:    uint16(5500),
-				HostPortEnd: uint16(55000),
+				PortBinding: types.PortBinding{
+					Proto:       6,
+					IP:          net.ParseIP("171.33.9.56"),
+					Port:        uint16(55),
+					HostIP:      net.ParseIP("10.11.100.2"),
+					HostPort:    uint16(5500),
+					HostPortEnd: uint16(55000),
+				},
 			},
 		},
 	}
@@ -93,9 +97,21 @@ func TestEndpointMarshalling(t *testing.T) {
 	if e.id != ee.id || e.nid != ee.nid || e.srcName != ee.srcName || !bytes.Equal(e.macAddress, ee.macAddress) ||
 		!types.CompareIPNet(e.addr, ee.addr) || !types.CompareIPNet(e.addrv6, ee.addrv6) ||
 		!compareContainerConfig(e.containerConfig, ee.containerConfig) ||
-		!compareConnConfig(e.extConnConfig, ee.extConnConfig) ||
-		!compareBindings(e.portMapping, ee.portMapping) {
+		!compareConnConfig(e.extConnConfig, ee.extConnConfig) {
 		t.Fatalf("JSON marsh/unmarsh failed.\nOriginal:\n%#v\nDecoded:\n%#v", e, ee)
+	}
+
+	// On restore, the HostPortEnd in portMapping is set to HostPort (so that
+	// a different port cannot be selected on live-restore if the original is
+	// already in-use). So, fix up portMapping in the original before running
+	// the comparison.
+	epms := make([]portBinding, len(e.portMapping))
+	for i, p := range e.portMapping {
+		epms[i] = p
+		epms[i].HostPortEnd = epms[i].HostPort
+	}
+	if !compareBindings(epms, ee.portMapping) {
+		t.Fatalf("JSON marsh/unmarsh failed.\nOriginal portMapping:\n%#v\nDecoded portMapping:\n%#v", e, ee)
 	}
 }
 
@@ -185,12 +201,12 @@ func comparePortBinding(p *types.PortBinding, o *types.PortBinding) bool {
 	return true
 }
 
-func compareBindings(a, b []types.PortBinding) bool {
+func compareBindings(a, b []portBinding) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for i := 0; i < len(a); i++ {
-		if !comparePortBinding(&a[i], &b[i]) {
+		if !comparePortBinding(&a[i].PortBinding, &b[i].PortBinding) {
 			return false
 		}
 	}
@@ -645,7 +661,7 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
-	d.portAllocator = portallocator.NewInstance()
+	portallocator.Get().ReleaseAll()
 
 	var proxyBinary string
 	var err error
@@ -720,7 +736,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		t.Fatal("Incomplete data for port mapping in endpoint operational data")
 	}
 	for i, pb := range ep.portMapping {
-		if !comparePortBinding(&pb, &pm[i]) {
+		if !comparePortBinding(&pb.PortBinding, &pm[i]) {
 			t.Fatal("Unexpected data for port mapping in endpoint operational data")
 		}
 	}
@@ -1219,7 +1235,7 @@ func TestCreateParallel(t *testing.T) {
 	defer c.Cleanup(t)
 
 	d := newDriver()
-	d.portAllocator = portallocator.NewInstance()
+	portallocator.Get().ReleaseAll()
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)

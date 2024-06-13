@@ -3,10 +3,13 @@ package portallocator
 import (
 	"net"
 	"testing"
+
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func resetPortAllocator() {
-	instance = NewInstance()
+	instance = newInstance()
 }
 
 func TestRequestNewPort(t *testing.T) {
@@ -309,5 +312,49 @@ func TestNoDuplicateBPR(t *testing.T) {
 		t.Fatal(err)
 	} else if port == p.Begin {
 		t.Fatalf("Acquire(0) allocated the same port twice: %d", port)
+	}
+}
+
+func TestRequestPortForMultipleIPs(t *testing.T) {
+	p := Get()
+	defer resetPortAllocator()
+
+	addrs := []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::")}
+
+	// Default port range.
+	port, err := p.RequestPortsInRange(addrs, "tcp", 0, 0)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(port, p.Begin))
+
+	// Single-port range.
+	port, err = p.RequestPortsInRange(addrs, "tcp", 10000, 10000)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(port, 10000))
+
+	// Same single-port range, expect an error.
+	_, err = p.RequestPortsInRange(addrs, "tcp", 10000, 10000)
+	assert.Check(t, is.Error(err, "Bind for 127.0.0.1:10000 failed: port is already allocated"))
+
+	// Release the port from one address.
+	p.ReleasePort(addrs[0], "tcp", 10000)
+
+	// Same single-port range, still expect an error because the port's still held
+	// for the second address.
+	_, err = p.RequestPortsInRange(addrs, "tcp", 10000, 10000)
+	assert.Check(t, is.Error(err, "Bind for :::10000 failed: port is already allocated"))
+
+	// Release the port from the other address.
+	p.ReleasePort(addrs[1], "tcp", 10000)
+
+	// Should now be able to re-allocate the port.
+	port, err = p.RequestPortsInRange(addrs, "tcp", 10000, 10000)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(port, 10000))
+
+	// Multi-port range.
+	for i := 20000; i < 20004; i += 1 {
+		port, err = p.RequestPortsInRange(addrs, "tcp", 20000, 20004)
+		assert.Check(t, err)
+		assert.Check(t, is.Equal(port, i))
 	}
 }

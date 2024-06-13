@@ -1,3 +1,5 @@
+//go:build windows
+
 package portmapper
 
 import (
@@ -12,14 +14,11 @@ import (
 )
 
 type mapping struct {
-	proto         string
-	userlandProxy userlandProxy
-	host          net.Addr
-	container     net.Addr
+	proto             string
+	stopUserlandProxy func() error
+	host              net.Addr
+	container         net.Addr
 }
-
-// newProxy is used to mock out the proxy server in tests
-var newProxy = newProxyCommand
 
 var (
 	// ErrUnknownBackendAddressType refers to an unknown container or unsupported address type
@@ -46,13 +45,8 @@ func NewWithPortAllocator(allocator *portallocator.PortAllocator, proxyPath stri
 	}
 }
 
-// Map maps the specified container transport address to the host's network address and transport port
-func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, useProxy bool) (host net.Addr, _ error) {
-	return pm.MapRange(container, hostIP, hostPort, hostPort, useProxy)
-}
-
 // MapRange maps the specified container transport address to the host's network address and transport port range
-func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart, hostPortEnd int, useProxy bool) (host net.Addr, retErr error) {
+func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart, hostPortEnd int) (host net.Addr, retErr error) {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
@@ -62,7 +56,7 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		allocatedHostPort int
 	)
 
-	switch t := container.(type) {
+	switch container.(type) {
 	case *net.TCPAddr:
 		proto = "tcp"
 
@@ -81,18 +75,6 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 			proto:     proto,
 			host:      &net.TCPAddr{IP: hostIP, Port: allocatedHostPort},
 			container: container,
-		}
-
-		if useProxy {
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, t.IP, t.Port, pm.proxyPath)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			m.userlandProxy, err = newDummyProxy(proto, hostIP, allocatedHostPort)
-			if err != nil {
-				return nil, err
-			}
 		}
 	case *net.UDPAddr:
 		proto = "udp"
@@ -113,18 +95,6 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 			host:      &net.UDPAddr{IP: hostIP, Port: allocatedHostPort},
 			container: container,
 		}
-
-		if useProxy {
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, t.IP, t.Port, pm.proxyPath)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			m.userlandProxy, err = newDummyProxy(proto, hostIP, allocatedHostPort)
-			if err != nil {
-				return nil, err
-			}
-		}
 	case *sctp.SCTPAddr:
 		proto = "sctp"
 
@@ -144,22 +114,6 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 			host:      &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: hostIP}}, Port: allocatedHostPort},
 			container: container,
 		}
-
-		if useProxy {
-			sctpAddr := container.(*sctp.SCTPAddr)
-			if len(sctpAddr.IPAddrs) == 0 {
-				return nil, ErrSCTPAddrNoIP
-			}
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, sctpAddr.IPAddrs[0].IP, sctpAddr.Port, pm.proxyPath)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			m.userlandProxy, err = newDummyProxy(proto, hostIP, allocatedHostPort)
-			if err != nil {
-				return nil, err
-			}
-		}
 	default:
 		return nil, ErrUnknownBackendAddressType
 	}
@@ -174,9 +128,11 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		return nil, err
 	}
 
-	if err := m.userlandProxy.Start(); err != nil {
+	var err error
+	m.stopUserlandProxy, err = newDummyProxy(m.proto, hostIP, allocatedHostPort)
+	if err != nil {
 		// FIXME(thaJeztah): both stopping the proxy and deleting iptables rules can produce an error, and both are not currently handled.
-		m.userlandProxy.Stop()
+		m.stopUserlandProxy()
 		// need to undo the iptables rules before we return
 		pm.DeleteForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
 		return nil, err
@@ -197,8 +153,8 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 		return ErrPortNotMapped
 	}
 
-	if data.userlandProxy != nil {
-		data.userlandProxy.Stop()
+	if data.stopUserlandProxy != nil {
+		data.stopUserlandProxy()
 	}
 
 	delete(pm.currentMappings, key)
@@ -224,20 +180,6 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 	}
 
 	return nil
-}
-
-// ReMapAll re-applies all port mappings
-func (pm *PortMapper) ReMapAll() {
-	pm.lock.Lock()
-	defer pm.lock.Unlock()
-	log.G(context.TODO()).Debugln("Re-applying all port mappings.")
-	for _, data := range pm.currentMappings {
-		containerIP, containerPort := getIPAndPort(data.container)
-		hostIP, hostPort := getIPAndPort(data.host)
-		if err := pm.AppendForwardingTableEntry(data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-			log.G(context.TODO()).Errorf("Error on iptables add: %s", err)
-		}
-	}
 }
 
 func getKey(a net.Addr) string {

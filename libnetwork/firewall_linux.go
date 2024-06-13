@@ -41,7 +41,7 @@ func arrangeUserFilterRule() {
 // that are beyond the daemon's control.
 func setupUserChain(ipVersion iptables.IPVersion) error {
 	ipt := iptables.GetIptable(ipVersion)
-	if _, err := ipt.NewChain(userChain, iptables.Filter, false); err != nil {
+	if _, err := ipt.NewChain(userChain, iptables.Filter); err != nil {
 		return fmt.Errorf("failed to create %s %v chain: %v", userChain, ipVersion, err)
 	}
 	if err := ipt.AddReturnRule(userChain); err != nil {

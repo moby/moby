@@ -20,7 +20,7 @@ func (n *bridgeNetwork) setupFirewalld(config *networkConfiguration, i *bridgeIn
 	}
 
 	iptables.OnReloaded(func() { n.setupIP4Tables(config, i) })
-	iptables.OnReloaded(n.portMapper.ReMapAll)
+	iptables.OnReloaded(n.reapplyPerPortIptables4)
 	return nil
 }
 
@@ -36,6 +36,6 @@ func (n *bridgeNetwork) setupFirewalld6(config *networkConfiguration, i *bridgeI
 	}
 
 	iptables.OnReloaded(func() { n.setupIP6Tables(config, i) })
-	iptables.OnReloaded(n.portMapperV6.ReMapAll)
+	iptables.OnReloaded(n.reapplyPerPortIptables6)
 	return nil
 }

@@ -12,12 +12,31 @@ import (
 	"time"
 )
 
-func newProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.IP, containerPort int, proxyPath string) (userlandProxy, error) {
+// StartProxy starts the proxy process at proxyPath, or instantiates a dummy proxy
+// to bind the host port if proxyPath is the empty string.
+func StartProxy(
+	proto string,
+	hostIP net.IP, hostPort int,
+	containerIP net.IP, containerPort int,
+	proxyPath string,
+) (stop func() error, retErr error) {
+	if proxyPath == "" {
+		return newDummyProxy(proto, hostIP, hostPort)
+	}
+	return newProxyCommand(proto, hostIP, hostPort, containerIP, containerPort, proxyPath)
+}
+
+func newProxyCommand(
+	proto string,
+	hostIP net.IP, hostPort int,
+	containerIP net.IP, containerPort int,
+	proxyPath string,
+) (stop func() error, retErr error) {
 	if proxyPath == "" {
 		return nil, fmt.Errorf("no path provided for userland-proxy binary")
 	}
 
-	return &proxyCommand{
+	p := &proxyCommand{
 		cmd: &exec.Cmd{
 			Path: proxyPath,
 			Args: []string{
@@ -33,7 +52,11 @@ func newProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 			},
 		},
 		wait: make(chan error, 1),
-	}, nil
+	}
+	if err := p.start(); err != nil {
+		return nil, err
+	}
+	return p.stop, nil
 }
 
 // proxyCommand wraps an exec.Cmd to run the userland TCP and UDP
@@ -43,7 +66,7 @@ type proxyCommand struct {
 	wait chan error
 }
 
-func (p *proxyCommand) Start() error {
+func (p *proxyCommand) start() error {
 	r, w, err := os.Pipe()
 	if err != nil {
 		return fmt.Errorf("proxy unable to open os.Pipe %s", err)
@@ -103,7 +126,7 @@ func (p *proxyCommand) Start() error {
 	}
 }
 
-func (p *proxyCommand) Stop() error {
+func (p *proxyCommand) stop() error {
 	if p.cmd.Process != nil {
 		if err := p.cmd.Process.Signal(os.Interrupt); err != nil {
 			return err
