@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/internal/cleanups"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/idtools"
 	volumemounts "github.com/docker/docker/volume/mounts"
 )
@@ -25,33 +24,33 @@ import (
 // an array of runtime spec mounts, not container mounts. Then no need to
 // do multiple transitions.
 func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) ([]container.Mount, func(context.Context) error, error) {
-	cleanups := cleanups.Composite{}
+	mntCleanups := cleanups.Composite{}
 	defer func() {
-		if err := cleanups.Call(compatcontext.WithoutCancel(ctx)); err != nil {
+		if err := mntCleanups.Call(context.WithoutCancel(ctx)); err != nil {
 			log.G(ctx).WithError(err).Warn("failed to cleanup temporary mounts created by MountPoint.Setup")
 		}
 	}()
 
 	var mnts []container.Mount
-	for _, mount := range c.MountPoints { // type is volumemounts.MountPoint
-		if err := daemon.lazyInitializeVolume(c.ID, mount); err != nil {
+	for _, mp := range c.MountPoints { // type is volumemounts.MountPoint
+		if err := daemon.lazyInitializeVolume(c.ID, mp); err != nil {
 			return nil, nil, err
 		}
-		s, c, err := mount.Setup(ctx, c.MountLabel, idtools.Identity{}, nil)
+		s, c, err := mp.Setup(ctx, c.MountLabel, idtools.Identity{}, nil)
 		if err != nil {
 			return nil, nil, err
 		}
-		cleanups.Add(c)
+		mntCleanups.Add(c)
 
 		mnts = append(mnts, container.Mount{
 			Source:      s,
-			Destination: mount.Destination,
-			Writable:    mount.RW,
+			Destination: mp.Destination,
+			Writable:    mp.RW,
 		})
 	}
 
 	sort.Sort(mounts(mnts))
-	return mnts, cleanups.Release(), nil
+	return mnts, mntCleanups.Release(), nil
 }
 
 // setBindModeIfNull is platform specific processing which is a no-op on

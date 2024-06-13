@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -146,7 +145,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 
 	// Workaround for https://github.com/moby/buildkit/issues/3797
 	defer func() {
-		if err := i.unleaseSnapshotsFromDeletedConfigs(compatcontext.WithoutCancel(ctx), possiblyDeletedConfigs); err != nil {
+		if err := i.unleaseSnapshotsFromDeletedConfigs(context.WithoutCancel(ctx), possiblyDeletedConfigs); err != nil {
 			errs = multierror.Append(errs, err)
 		}
 	}()

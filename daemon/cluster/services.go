@@ -21,7 +21,6 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/compatcontext"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
@@ -266,7 +265,7 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 				// "ctx" could make it impossible to create a service
 				// if the registry is slow or unresponsive.
 				var cancel func()
-				ctx = compatcontext.WithoutCancel(ctx)
+				ctx = context.WithoutCancel(ctx)
 				ctx, cancel = context.WithTimeout(ctx, swarmRequestTimeout)
 				defer cancel()
 			}
@@ -382,7 +381,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 				// "ctx" could make it impossible to update a service
 				// if the registry is slow or unresponsive.
 				var cancel func()
-				ctx = compatcontext.WithoutCancel(ctx)
+				ctx = context.WithoutCancel(ctx)
 				ctx, cancel = context.WithTimeout(ctx, swarmRequestTimeout)
 				defer cancel()
 			}

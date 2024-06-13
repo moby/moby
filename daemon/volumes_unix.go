@@ -15,7 +15,6 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/internal/cleanups"
-	"github.com/docker/docker/internal/compatcontext"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/pkg/errors"
 )
@@ -40,7 +39,7 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 
 	cleanups := cleanups.Composite{}
 	defer func() {
-		if err := cleanups.Call(compatcontext.WithoutCancel(ctx)); err != nil {
+		if err := cleanups.Call(context.WithoutCancel(ctx)); err != nil {
 			log.G(ctx).WithError(err).Warn("failed to cleanup temporary mounts created by MountPoint.Setup")
 		}
 	}()

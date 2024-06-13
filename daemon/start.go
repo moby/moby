@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
 )
@@ -98,7 +97,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 			}
 			container.Reset(false)
 
-			daemon.Cleanup(compatcontext.WithoutCancel(ctx), container)
+			daemon.Cleanup(context.WithoutCancel(ctx), container)
 			// if containers AutoRemove flag is set, remove it after clean up
 			if container.HostConfig.AutoRemove {
 				container.Unlock()
@@ -128,7 +127,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 	mnts = append(mnts, m...)
-	defer cleanup(compatcontext.WithoutCancel(ctx))
+	defer cleanup(context.WithoutCancel(ctx))
 
 	spec, err := daemon.createSpec(ctx, daemonCfg, container, mnts)
 	if err != nil {
@@ -172,7 +171,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	}
 	defer func() {
 		if retErr != nil {
-			if err := ctr.Delete(compatcontext.WithoutCancel(ctx)); err != nil {
+			if err := ctr.Delete(context.WithoutCancel(ctx)); err != nil {
 				log.G(ctx).WithError(err).WithField("container", container.ID).
 					Error("failed to delete failed start container")
 			}
@@ -189,7 +188,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	}
 	defer func() {
 		if retErr != nil {
-			if err := tsk.ForceDelete(compatcontext.WithoutCancel(ctx)); err != nil {
+			if err := tsk.ForceDelete(context.WithoutCancel(ctx)); err != nil {
 				log.G(ctx).WithError(err).WithField("container", container.ID).
 					Error("failed to delete task after fail start")
 			}

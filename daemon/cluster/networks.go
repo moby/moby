@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	internalnetwork "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/runconfig"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
@@ -224,7 +223,7 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 	log.G(ctx).Debugf("Successfully attached to network %s with task id %s", target, taskID)
 
 	release := func() {
-		ctx := compatcontext.WithoutCancel(ctx)
+		ctx := context.WithoutCancel(ctx)
 		ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
 		defer cancel()
 		if err := agent.ResourceAllocator().DetachNetwork(ctx, taskID); err != nil {

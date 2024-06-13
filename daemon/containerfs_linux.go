@@ -17,7 +17,6 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/internal/mounttree"
 	"github.com/docker/docker/internal/unshare"
 	"github.com/docker/docker/pkg/fileutils"
@@ -71,7 +70,7 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 		return nil, err
 	}
 	defer func() {
-		ctx := compatcontext.WithoutCancel(ctx)
+		ctx := context.WithoutCancel(ctx)
 		cleanup(ctx)
 		if err != nil {
 			_ = ctr.UnmountVolumes(ctx, daemon.LogVolumeEvent)

@@ -21,7 +21,6 @@ import (
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -195,7 +194,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	logger.Info("image pulled")
 
 	// The pull succeeded, so try to remove any dangling image we have for this target
-	err = i.images.Delete(compatcontext.WithoutCancel(ctx), danglingImageName(img.Target().Digest))
+	err = i.images.Delete(context.WithoutCancel(ctx), danglingImageName(img.Target().Digest))
 	if err != nil && !cerrdefs.IsNotFound(err) {
 		// Image pull succeeded, but cleaning up the dangling image failed. Ignore the
 		// error to not mark the pull as failed.
