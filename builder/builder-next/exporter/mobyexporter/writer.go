@@ -45,6 +45,10 @@ func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History,
 		return nil, errors.Wrap(err, "failed to parse image config for patch")
 	}
 
+	if m == nil {
+		return nil, errors.New("null image config")
+	}
+
 	var rootFS ocispec.RootFS
 	rootFS.Type = "layers"
 	rootFS.DiffIDs = append(rootFS.DiffIDs, dps...)
