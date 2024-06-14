@@ -49,9 +49,9 @@ type KVObject interface {
 	CopyTo(KVObject) error
 }
 
-// ScopeCfg represents Datastore configuration. Use DefaultScope to produce a
-// valid config.
-type ScopeCfg struct {
+// Config represents Datastore configuration. Use NewConfig to produce a valid
+// config.
+type Config struct {
 	Path   string
 	Config *store.Config
 }
@@ -70,8 +70,9 @@ var (
 
 const defaultPrefix = "/var/lib/docker/network/files"
 
-// DefaultScope returns a default scope config for clients to use.
-func DefaultScope(dataDir string) ScopeCfg {
+// NewConfig returns a new datastore Config, with the boltdb stored in dataDir.
+// If dataDir is empty, a default value is used.
+func NewConfig(dataDir string) Config {
 	var dbpath string
 	if dataDir == "" {
 		dbpath = defaultPrefix + "/local-kv.db"
@@ -79,7 +80,7 @@ func DefaultScope(dataDir string) ScopeCfg {
 		dbpath = dataDir + "/network/files/local-kv.db"
 	}
 
-	return ScopeCfg{
+	return Config{
 		Path: dbpath,
 		Config: &store.Config{
 			Bucket:            "libnetwork",
@@ -101,9 +102,9 @@ func Key(key ...string) string {
 }
 
 // New creates a new Store instance.
-func New(cfg ScopeCfg) (*Store, error) {
+func New(cfg Config) (*Store, error) {
 	if cfg.Path == "" {
-		cfg = DefaultScope("")
+		cfg = NewConfig("")
 	}
 
 	if cfg.Config == nil {
