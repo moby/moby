@@ -1019,6 +1019,9 @@ func (daemon *Daemon) releaseNetwork(ctx context.Context, container *container.C
 		return
 	}
 
+	container.NetworkSettings.SandboxID = ""
+	container.NetworkSettings.SandboxKey = ""
+
 	var networks []*libnetwork.Network
 	for n, epSettings := range container.NetworkSettings.Networks {
 		if nw, err := daemon.FindNetwork(getNetworkID(n, epSettings.EndpointSettings)); err == nil {
