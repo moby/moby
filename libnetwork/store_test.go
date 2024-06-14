@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 )
 
-func testLocalBackend(t *testing.T, path string, storeConfig *store.Config) {
+func testLocalBackend(t *testing.T, path string, storeConfig store.Config) {
 	cfgOptions := []config.Option{func(c *config.Config) {
 		c.DatastoreConfig.Path = path
 		c.DatastoreConfig.Config = storeConfig
@@ -76,6 +76,6 @@ func OptionBoltdbWithRandomDBFile(t *testing.T) config.Option {
 
 	return func(c *config.Config) {
 		c.DatastoreConfig.Path = tmp
-		c.DatastoreConfig.Config = &store.Config{Bucket: "testBackend"}
+		c.DatastoreConfig.Config = store.Config{Bucket: "testBackend"}
 	}
 }

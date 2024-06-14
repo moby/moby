@@ -53,7 +53,7 @@ type KVObject interface {
 // config.
 type Config struct {
 	Path   string
-	Config *store.Config
+	Config store.Config
 }
 
 const (
@@ -82,7 +82,7 @@ func NewConfig(dataDir string) Config {
 
 	return Config{
 		Path: dbpath,
-		Config: &store.Config{
+		Config: store.Config{
 			Bucket:            "libnetwork",
 			ConnectionTimeout: time.Minute,
 		},
@@ -107,11 +107,7 @@ func New(cfg Config) (*Store, error) {
 		cfg = NewConfig("")
 	}
 
-	if cfg.Config == nil {
-		cfg.Config = &store.Config{}
-	}
-
-	s, err := boltdb.New(cfg.Path, cfg.Config)
+	s, err := boltdb.New(cfg.Path, &cfg.Config)
 	if err != nil {
 		return nil, err
 	}
