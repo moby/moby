@@ -50,7 +50,8 @@ type KVObject interface {
 	CopyTo(KVObject) error
 }
 
-// ScopeCfg represents Datastore configuration.
+// ScopeCfg represents Datastore configuration. Use DefaultScope to produce a
+// valid config.
 type ScopeCfg struct {
 	Client ScopeClientCfg
 }
@@ -95,15 +96,6 @@ func DefaultScope(dataDir string) ScopeCfg {
 			},
 		},
 	}
-}
-
-// IsValid checks if the scope config has valid configuration.
-func (cfg *ScopeCfg) IsValid() bool {
-	if cfg == nil || strings.TrimSpace(cfg.Client.Provider) == "" || strings.TrimSpace(cfg.Client.Address) == "" {
-		return false
-	}
-
-	return true
 }
 
 // Key provides convenient method to create a Key
