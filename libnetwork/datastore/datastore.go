@@ -118,31 +118,26 @@ func Key(key ...string) string {
 	return b.String()
 }
 
-// newClient used to connect to KV Store
-func newClient(kv string, addr string, config *store.Config) (*Store, error) {
-	if kv != string(store.BOLTDB) {
-		return nil, fmt.Errorf("unsupported KV store")
-	}
-
-	if config == nil {
-		config = &store.Config{}
-	}
-
-	s, err := boltdb.New(addr, config)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Store{store: s, cache: newCache(s)}, nil
-}
-
 // New creates a new Store instance.
 func New(cfg ScopeCfg) (*Store, error) {
 	if cfg.Client.Provider == "" || cfg.Client.Address == "" {
 		cfg = DefaultScope("")
 	}
 
-	return newClient(cfg.Client.Provider, cfg.Client.Address, cfg.Client.Config)
+	if cfg.Client.Provider != string(store.BOLTDB) {
+		return nil, fmt.Errorf("unsupported KV store")
+	}
+
+	if cfg.Client.Config == nil {
+		cfg.Client.Config = &store.Config{}
+	}
+
+	s, err := boltdb.New(cfg.Client.Address, cfg.Client.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Store{store: s, cache: newCache(s)}, nil
 }
 
 // Close closes the data store.
