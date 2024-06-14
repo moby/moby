@@ -38,7 +38,7 @@ func (fl *follow) Do(ctx context.Context, f *os.File, read logPos) {
 	}()
 
 	for {
-		wrote, ok := fl.nextPos(read)
+		wrote, ok := fl.nextPos(ctx, read)
 		if !ok {
 			return
 		}
@@ -100,9 +100,11 @@ func (fl *follow) Do(ctx context.Context, f *os.File, read logPos) {
 
 // nextPos waits until the write position of the LogFile being followed has
 // advanced from current and returns the new position.
-func (fl *follow) nextPos(current logPos) (next logPos, ok bool) {
+func (fl *follow) nextPos(ctx context.Context, current logPos) (next logPos, ok bool) {
 	var st logReadState
 	select {
+	case <-ctx.Done():
+		return current, false
 	case <-fl.Watcher.WatchConsumerGone():
 		return current, false
 	case st = <-fl.LogFile.read:

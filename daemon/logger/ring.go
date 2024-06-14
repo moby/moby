@@ -1,6 +1,7 @@
 package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -20,19 +21,22 @@ type RingLogger struct {
 	wg        sync.WaitGroup
 }
 
-var _ SizedLogger = &RingLogger{}
+var (
+	_ SizedLogger = (*RingLogger)(nil)
+	_ LogReader   = (*ringWithReader)(nil)
+)
 
 type ringWithReader struct {
 	*RingLogger
 }
 
-func (r *ringWithReader) ReadLogs(cfg ReadConfig) *LogWatcher {
+func (r *ringWithReader) ReadLogs(ctx context.Context, cfg ReadConfig) *LogWatcher {
 	reader, ok := r.l.(LogReader)
 	if !ok {
 		// something is wrong if we get here
 		panic("expected log reader")
 	}
-	return reader.ReadLogs(cfg)
+	return reader.ReadLogs(ctx, cfg)
 }
 
 func newRingLogger(driver Logger, logInfo Info, maxSize int64) *RingLogger {

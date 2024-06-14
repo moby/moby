@@ -21,6 +21,8 @@ const (
 	waitInterval       = 250 * time.Millisecond
 )
 
+var _ logger.LogReader = (*journald)(nil)
+
 // Fields which we know are not user-provided attribute fields.
 var wellKnownFields = map[string]bool{
 	"MESSAGE":             true,
@@ -448,7 +450,7 @@ func (r *reader) signalReady() {
 	}
 }
 
-func (s *journald) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
+func (s *journald) ReadLogs(ctx context.Context, config logger.ReadConfig) *logger.LogWatcher {
 	r := &reader{
 		s:          s,
 		logWatcher: logger.NewLogWatcher(),
