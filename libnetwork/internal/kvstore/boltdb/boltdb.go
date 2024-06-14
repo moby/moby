@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	bolt "go.etcd.io/bbolt"
@@ -26,13 +25,9 @@ type BoltDB struct {
 	boltBucket []byte
 	dbIndex    atomic.Uint64
 	path       string
-	timeout    time.Duration
 }
 
-const (
-	libkvmetadatalen = 8
-	transientTimeout = time.Duration(10) * time.Second
-)
+const libkvmetadatalen = 8
 
 // New opens a new BoltDB connection to the specified path and bucket
 func New(endpoint string, options *store.Config) (store.Store, error) {
@@ -52,16 +47,10 @@ func New(endpoint string, options *store.Config) (store.Store, error) {
 		return nil, err
 	}
 
-	timeout := transientTimeout
-	if options.ConnectionTimeout != 0 {
-		timeout = options.ConnectionTimeout
-	}
-
 	b := &BoltDB{
 		client:     db,
 		path:       endpoint,
 		boltBucket: []byte(options.Bucket),
-		timeout:    timeout,
 	}
 
 	return b, nil
