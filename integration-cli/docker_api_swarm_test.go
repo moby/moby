@@ -526,7 +526,6 @@ func (s *DockerSwarmSuite) TestAPISwarmManagerRestore(c *testing.T) {
 
 	err := d3.Kill()
 	assert.NilError(c, err)
-	time.Sleep(1 * time.Second) // time to handle signal
 	d3.StartNode(c)
 	d3.GetService(ctx, c, id)
 }
