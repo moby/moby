@@ -28,7 +28,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 const (
@@ -364,13 +363,6 @@ func TestDockerRegistrySuite(t *testing.T) {
 	suite.Run(ctx, t, &DockerRegistrySuite{ds: &DockerSuite{}})
 }
 
-func TestDockerSchema1RegistrySuite(t *testing.T) {
-	skip.If(t, testEnv.UsingSnapshotter())
-	ctx := testutil.StartSpan(baseContext, t)
-	ensureTestEnvSetup(ctx, t)
-	suite.Run(ctx, t, &DockerSchema1RegistrySuite{ds: &DockerSuite{}})
-}
-
 func TestDockerRegistryAuthHtpasswdSuite(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 	ensureTestEnvSetup(ctx, t)
@@ -469,33 +461,6 @@ func (s *DockerRegistrySuite) SetUpTest(ctx context.Context, c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TearDownTest(ctx context.Context, c *testing.T) {
-	if s.reg != nil {
-		s.reg.Close()
-	}
-	if s.d != nil {
-		s.d.Stop(c)
-	}
-	s.ds.TearDownTest(ctx, c)
-}
-
-type DockerSchema1RegistrySuite struct {
-	ds  *DockerSuite
-	reg *registry.V2
-	d   *daemon.Daemon
-}
-
-func (s *DockerSchema1RegistrySuite) OnTimeout(c *testing.T) {
-	s.d.DumpStackAndQuit()
-}
-
-func (s *DockerSchema1RegistrySuite) SetUpTest(ctx context.Context, c *testing.T) {
-	testRequires(c, DaemonIsLinux, RegistryHosting, NotArm64, testEnv.IsLocalDaemon)
-	s.reg = registry.NewV2(c, registry.Schema1)
-	s.reg.WaitReady(c)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
-}
-
-func (s *DockerSchema1RegistrySuite) TearDownTest(ctx context.Context, c *testing.T) {
 	if s.reg != nil {
 		s.reg.Close()
 	}

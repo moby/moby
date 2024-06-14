@@ -16,9 +16,7 @@ import (
 
 const (
 	// V2binary is the name of the registry v2 binary
-	V2binary = "registry-v2"
-	// V2binarySchema1 is the name of the registry that serve schema1
-	V2binarySchema1 = "registry-v2-schema1"
+	V2binary = "registry"
 	// DefaultURL is the default url that will be used by the registry (if not specified otherwise)
 	DefaultURL = "127.0.0.1:5000"
 )
@@ -36,7 +34,6 @@ type V2 struct {
 
 // Config contains the test registry configuration
 type Config struct {
-	schema1     bool
 	auth        string
 	tokenURL    string
 	registryURL string
@@ -106,13 +103,7 @@ http:
 		t.Fatal(err)
 	}
 
-	binary := V2binary
-	args := []string{"serve", confPath}
-	if c.schema1 {
-		binary = V2binarySchema1
-		args = []string{confPath}
-	}
-	cmd := exec.Command(binary, args...)
+	cmd := exec.Command(V2binary, "serve", confPath)
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 	if err := cmd.Start(); err != nil {
