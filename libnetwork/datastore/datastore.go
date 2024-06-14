@@ -1,7 +1,6 @@
 package datastore
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -58,9 +57,8 @@ type ScopeCfg struct {
 
 // ScopeClientCfg represents Datastore Client-only mode configuration
 type ScopeClientCfg struct {
-	Provider string
-	Address  string
-	Config   *store.Config
+	Address string
+	Config  *store.Config
 }
 
 const (
@@ -88,8 +86,7 @@ func DefaultScope(dataDir string) ScopeCfg {
 
 	return ScopeCfg{
 		Client: ScopeClientCfg{
-			Provider: string(store.BOLTDB),
-			Address:  dbpath,
+			Address: dbpath,
 			Config: &store.Config{
 				Bucket:            "libnetwork",
 				ConnectionTimeout: time.Minute,
@@ -112,12 +109,8 @@ func Key(key ...string) string {
 
 // New creates a new Store instance.
 func New(cfg ScopeCfg) (*Store, error) {
-	if cfg.Client.Provider == "" || cfg.Client.Address == "" {
+	if cfg.Client.Address == "" {
 		cfg = DefaultScope("")
-	}
-
-	if cfg.Client.Provider != string(store.BOLTDB) {
-		return nil, fmt.Errorf("unsupported KV store")
 	}
 
 	if cfg.Client.Config == nil {

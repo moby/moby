@@ -11,7 +11,7 @@ import (
 
 func TestBoltdbBackend(t *testing.T) {
 	tmpPath := filepath.Join(t.TempDir(), "boltdb.db")
-	testLocalBackend(t, "boltdb", tmpPath, &store.Config{
+	testLocalBackend(t, tmpPath, &store.Config{
 		Bucket: "testBackend",
 	})
 }

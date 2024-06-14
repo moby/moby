@@ -23,16 +23,6 @@ func TestKey(t *testing.T) {
 	assert.Check(t, is.Equal(sKey, expected))
 }
 
-func TestInvalidDataStore(t *testing.T) {
-	_, err := New(ScopeCfg{
-		Client: ScopeClientCfg{
-			Provider: "invalid",
-			Address:  "localhost:8500",
-		},
-	})
-	assert.Check(t, is.Error(err, "unsupported KV store"))
-}
-
 func TestKVObjectFlatKey(t *testing.T) {
 	store := NewTestDataStore()
 	expected := dummyKVObject("1000", true)

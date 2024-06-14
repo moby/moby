@@ -5,12 +5,6 @@ import (
 	"time"
 )
 
-// Backend represents a KV Store Backend
-type Backend string
-
-// BOLTDB backend
-const BOLTDB Backend = "boltdb"
-
 var (
 	// ErrBackendNotSupported is thrown when the backend k/v store is not supported by libkv
 	ErrBackendNotSupported = errors.New("Backend storage not supported yet, please choose one of")
