@@ -141,7 +141,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		if !ok {
 			return logger.ErrReadLogsNotSupported{}
 		}
-		logs := cLog.ReadLogs(logger.ReadConfig{Tail: -1})
+		logs := cLog.ReadLogs(context.TODO(), logger.ReadConfig{Tail: -1})
 		defer logs.ConsumerGone()
 
 	LogLoop:

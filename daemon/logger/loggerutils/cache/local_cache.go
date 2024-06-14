@@ -24,6 +24,8 @@ var builtInCacheLogOpts = map[string]bool{
 	cacheDisabledKey: true,
 }
 
+var _ logger.LogReader = (*loggerWithCache)(nil)
+
 // WithLocalCache wraps the passed in logger with a logger caches all writes locally
 // in addition to writing to the passed in logger.
 func WithLocalCache(l logger.Logger, info logger.Info) (logger.Logger, error) {
@@ -85,8 +87,8 @@ func (l *loggerWithCache) Name() string {
 	return l.l.Name()
 }
 
-func (l *loggerWithCache) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
-	return l.cache.(logger.LogReader).ReadLogs(config)
+func (l *loggerWithCache) ReadLogs(ctx context.Context, config logger.ReadConfig) *logger.LogWatcher {
+	return l.cache.(logger.LogReader).ReadLogs(ctx, config)
 }
 
 func (l *loggerWithCache) Close() error {
