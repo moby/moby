@@ -3,18 +3,15 @@ package boltdb
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	bolt "go.etcd.io/bbolt"
 )
-
-// ErrBoltBucketOptionMissing is thrown when boltBucket config option is missing
-var ErrBoltBucketOptionMissing = errors.New("boltBucket config option missing")
 
 const filePerm = 0o644
 
@@ -30,18 +27,14 @@ type BoltDB struct {
 const libkvmetadatalen = 8
 
 // New opens a new BoltDB connection to the specified path and bucket
-func New(endpoint string, options *store.Config) (store.Store, error) {
-	if (options == nil) || (len(options.Bucket) == 0) {
-		return nil, ErrBoltBucketOptionMissing
-	}
-
-	dir, _ := filepath.Split(endpoint)
+func New(path, bucket string) (store.Store, error) {
+	dir, _ := filepath.Split(path)
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
 	}
 
-	db, err := bolt.Open(endpoint, filePerm, &bolt.Options{
-		Timeout: options.ConnectionTimeout,
+	db, err := bolt.Open(path, filePerm, &bolt.Options{
+		Timeout: time.Minute,
 	})
 	if err != nil {
 		return nil, err
@@ -49,8 +42,8 @@ func New(endpoint string, options *store.Config) (store.Store, error) {
 
 	b := &BoltDB{
 		client:     db,
-		path:       endpoint,
-		boltBucket: []byte(options.Bucket),
+		path:       path,
+		boltBucket: []byte(bucket),
 	}
 
 	return b, nil

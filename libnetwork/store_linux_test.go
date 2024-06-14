@@ -12,9 +12,7 @@ import (
 
 func TestBoltdbBackend(t *testing.T) {
 	tmpPath := filepath.Join(t.TempDir(), "boltdb.db")
-	testLocalBackend(t, "boltdb", tmpPath, &store.Config{
-		Bucket: "testBackend",
-	})
+	testLocalBackend(t, tmpPath, "testBackend")
 }
 
 func TestNoPersist(t *testing.T) {

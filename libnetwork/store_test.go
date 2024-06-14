@@ -5,21 +5,18 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/config"
-	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 )
 
-func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Config) {
-	cfgOptions := []config.Option{func(c *config.Config) {
-		c.Scope.Client.Provider = provider
-		c.Scope.Client.Address = url
-		c.Scope.Client.Config = storeConfig
-	}}
-
-	cfgOptions = append(cfgOptions, config.OptionDriverConfig("host", map[string]interface{}{
-		netlabel.GenericData: options.Generic{},
-	}))
+func testLocalBackend(t *testing.T, path, bucket string) {
+	cfgOptions := []config.Option{
+		config.OptionDataDir(path),
+		func(c *config.Config) { c.DatastoreBucket = bucket },
+		config.OptionDriverConfig("host", map[string]interface{}{
+			netlabel.GenericData: options.Generic{},
+		}),
+	}
 
 	testController, err := New(cfgOptions...)
 	if err != nil {
