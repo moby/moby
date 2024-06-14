@@ -103,10 +103,6 @@ func Key(key ...string) string {
 
 // New creates a new Store instance.
 func New(cfg Config) (*Store, error) {
-	if cfg.Path == "" {
-		cfg = NewConfig("")
-	}
-
 	s, err := boltdb.New(cfg.Path, &cfg.Config)
 	if err != nil {
 		return nil, err
