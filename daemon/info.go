@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/system"
-	"github.com/docker/docker/cli/debug"
+	"github.com/docker/docker/cmd/dockerd/debug"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
