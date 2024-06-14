@@ -131,11 +131,11 @@ func (sb *Sandbox) Labels() map[string]interface{} {
 }
 
 // Delete destroys this container after detaching it from all connected endpoints.
-func (sb *Sandbox) Delete() error {
-	return sb.delete(false)
+func (sb *Sandbox) Delete(ctx context.Context) error {
+	return sb.delete(ctx, false)
 }
 
-func (sb *Sandbox) delete(force bool) error {
+func (sb *Sandbox) delete(ctx context.Context, force bool) error {
 	sb.mu.Lock()
 	if sb.inDelete {
 		sb.mu.Unlock()
@@ -166,18 +166,18 @@ func (sb *Sandbox) delete(force bool) error {
 			if !c.isSwarmNode() {
 				retain = true
 			}
-			log.G(context.TODO()).Warnf("Failed getting network for ep %s during sandbox %s delete: %v", ep.ID(), sb.ID(), err)
+			log.G(ctx).Warnf("Failed getting network for ep %s during sandbox %s delete: %v", ep.ID(), sb.ID(), err)
 			continue
 		}
 
 		if !force {
-			if err := ep.Leave(sb); err != nil {
-				log.G(context.TODO()).Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+			if err := ep.Leave(context.WithoutCancel(ctx), sb); err != nil {
+				log.G(ctx).Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 			}
 		}
 
-		if err := ep.Delete(force); err != nil {
-			log.G(context.TODO()).Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
+		if err := ep.Delete(context.WithoutCancel(ctx), force); err != nil {
+			log.G(ctx).Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
 		}
 	}
 
@@ -197,12 +197,12 @@ func (sb *Sandbox) delete(force bool) error {
 
 	if sb.osSbox != nil && !sb.config.useDefaultSandBox {
 		if err := sb.osSbox.Destroy(); err != nil {
-			log.G(context.TODO()).WithError(err).Warn("error destroying network sandbox")
+			log.G(ctx).WithError(err).Warn("error destroying network sandbox")
 		}
 	}
 
 	if err := sb.storeDelete(); err != nil {
-		log.G(context.TODO()).Warnf("Failed to delete sandbox %s from store: %v", sb.ID(), err)
+		log.G(ctx).Warnf("Failed to delete sandbox %s from store: %v", sb.ID(), err)
 	}
 
 	c.mu.Lock()
@@ -244,14 +244,14 @@ func (sb *Sandbox) Rename(name string) error {
 
 // Refresh leaves all the endpoints, resets and re-applies the options,
 // re-joins all the endpoints without destroying the osl sandbox
-func (sb *Sandbox) Refresh(options ...SandboxOption) error {
+func (sb *Sandbox) Refresh(ctx context.Context, options ...SandboxOption) error {
 	// Store connected endpoints
 	epList := sb.Endpoints()
 
 	// Detach from all endpoints
 	for _, ep := range epList {
-		if err := ep.Leave(sb); err != nil {
-			log.G(context.TODO()).Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+		if err := ep.Leave(context.WithoutCancel(ctx), sb); err != nil {
+			log.G(ctx).Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
 	}
 
@@ -260,14 +260,14 @@ func (sb *Sandbox) Refresh(options ...SandboxOption) error {
 	sb.processOptions(options...)
 
 	// Setup discovery files
-	if err := sb.setupResolutionFiles(); err != nil {
+	if err := sb.setupResolutionFiles(ctx); err != nil {
 		return err
 	}
 
 	// Re-connect to all endpoints
 	for _, ep := range epList {
-		if err := ep.Join(sb); err != nil {
-			log.G(context.TODO()).Warnf("Failed attach sandbox %s to endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+		if err := ep.Join(context.WithoutCancel(ctx), sb); err != nil {
+			log.G(ctx).Warnf("Failed attach sandbox %s to endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
 	}
 
@@ -638,7 +638,7 @@ func (sb *Sandbox) clearNetworkResources(origEp *Endpoint) error {
 	// not bother updating the store. The sandbox object will be
 	// deleted anyway
 	if !inDelete {
-		return sb.storeUpdate()
+		return sb.storeUpdate(context.TODO())
 	}
 
 	return nil

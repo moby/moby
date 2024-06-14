@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
+	"go.opentelemetry.io/otel"
 )
 
 // ByNetworkType sorts a [Endpoint] slice based on the network-type
@@ -469,7 +470,7 @@ func (ep *Endpoint) getNetworkFromStore() (*Network, error) {
 
 // Join joins the sandbox to the endpoint and populates into the sandbox
 // the network resources allocated for the endpoint.
-func (ep *Endpoint) Join(sb *Sandbox, options ...EndpointOption) error {
+func (ep *Endpoint) Join(ctx context.Context, sb *Sandbox, options ...EndpointOption) error {
 	if sb == nil || sb.ID() == "" || sb.Key() == "" {
 		return types.InvalidParameterErrorf("invalid Sandbox passed to endpoint join: %v", sb)
 	}
@@ -477,10 +478,13 @@ func (ep *Endpoint) Join(sb *Sandbox, options ...EndpointOption) error {
 	sb.joinLeaveStart()
 	defer sb.joinLeaveEnd()
 
-	return ep.sbJoin(sb, options...)
+	return ep.sbJoin(ctx, sb, options...)
 }
 
-func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
+func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...EndpointOption) (err error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.sbJoin")
+	defer span.End()
+
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return fmt.Errorf("failed to get network from store during join: %v", err)
@@ -518,25 +522,25 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 		return fmt.Errorf("failed to get driver during join: %v", err)
 	}
 
-	err = d.Join(nid, epid, sb.Key(), ep, sb.Labels())
+	err = d.Join(ctx, nid, epid, sb.Key(), ep, sb.Labels())
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
 			if e := d.Leave(nid, epid); e != nil {
-				log.G(context.TODO()).Warnf("driver leave failed while rolling back join: %v", e)
+				log.G(ctx).Warnf("driver leave failed while rolling back join: %v", e)
 			}
 		}
 	}()
 
 	if !n.getController().isAgent() {
 		if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
-			n.updateSvcRecord(ep, true)
+			n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
 		}
 	}
 
-	if err := sb.updateHostsFile(ep.getEtcHostsAddrs()); err != nil {
+	if err := sb.updateHostsFile(ctx, ep.getEtcHostsAddrs()); err != nil {
 		return err
 	}
 
@@ -550,15 +554,15 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 		}
 	}()
 
-	if err = sb.populateNetworkResources(ep); err != nil {
+	if err = sb.populateNetworkResources(ctx, ep); err != nil {
 		return err
 	}
 
-	if err = addEpToResolver(context.TODO(), n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
+	if err = addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
 		return errdefs.System(err)
 	}
 
-	if err = n.getController().updateToStore(ep); err != nil {
+	if err = n.getController().updateToStore(ctx, ep); err != nil {
 		return err
 	}
 
@@ -569,7 +573,7 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 	defer func() {
 		if err != nil {
 			if e := ep.deleteDriverInfoFromCluster(); e != nil {
-				log.G(context.TODO()).Errorf("Could not delete endpoint state for endpoint %s from cluster on join failure: %v", ep.Name(), e)
+				log.G(ctx).Errorf("Could not delete endpoint state for endpoint %s from cluster on join failure: %v", ep.Name(), e)
 			}
 		}
 	}()
@@ -593,7 +597,7 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 	moveExtConn := currentExtEp != extEp
 	if moveExtConn {
 		if extEp != nil {
-			log.G(context.TODO()).Debugf("Revoking external connectivity on endpoint %s (%s)", extEp.Name(), extEp.ID())
+			log.G(ctx).Debugf("Revoking external connectivity on endpoint %s (%s)", extEp.Name(), extEp.ID())
 			extN, err := extEp.getNetworkFromStore()
 			if err != nil {
 				return fmt.Errorf("failed to get network from store for revoking external connectivity during join: %v", err)
@@ -609,16 +613,16 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 			}
 			defer func() {
 				if err != nil {
-					if e := extD.ProgramExternalConnectivity(extEp.network.ID(), extEp.ID(), sb.Labels()); e != nil {
-						log.G(context.TODO()).Warnf("Failed to roll-back external connectivity on endpoint %s (%s): %v",
+					if e := extD.ProgramExternalConnectivity(context.WithoutCancel(ctx), extEp.network.ID(), extEp.ID(), sb.Labels()); e != nil {
+						log.G(ctx).Warnf("Failed to roll-back external connectivity on endpoint %s (%s): %v",
 							extEp.Name(), extEp.ID(), e)
 					}
 				}
 			}()
 		}
 		if !n.internal {
-			log.G(context.TODO()).Debugf("Programming external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())
-			if err = d.ProgramExternalConnectivity(n.ID(), ep.ID(), sb.Labels()); err != nil {
+			log.G(ctx).Debugf("Programming external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())
+			if err = d.ProgramExternalConnectivity(ctx, n.ID(), ep.ID(), sb.Labels()); err != nil {
 				return types.InternalErrorf(
 					"driver failed programming external connectivity on endpoint %s (%s): %v",
 					ep.Name(), ep.ID(), err)
@@ -628,7 +632,7 @@ func (ep *Endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 
 	if !sb.needDefaultGW() {
 		if e := sb.clearDefaultGW(); e != nil {
-			log.G(context.TODO()).Warnf("Failure while disconnecting sandbox %s (%s) from gateway network: %v",
+			log.G(ctx).Warnf("Failure while disconnecting sandbox %s (%s) from gateway network: %v",
 				sb.ID(), sb.ContainerID(), e)
 		}
 	}
@@ -642,7 +646,7 @@ func (ep *Endpoint) rename(name string) error {
 	ep.mu.Unlock()
 
 	// Update the store with the updated name
-	if err := ep.getNetwork().getController().updateToStore(ep); err != nil {
+	if err := ep.getNetwork().getController().updateToStore(context.TODO(), ep); err != nil {
 		return err
 	}
 
@@ -671,14 +675,14 @@ func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
 			return types.InternalErrorf("could not add service state for endpoint %s to cluster on UpdateDNSNames: %v", ep.Name(), err)
 		}
 	} else {
-		nw.updateSvcRecord(ep, false)
+		nw.updateSvcRecord(context.WithoutCancel(context.TODO()), ep, false)
 
 		ep.dnsNames = dnsNames
-		nw.updateSvcRecord(ep, true)
+		nw.updateSvcRecord(context.WithoutCancel(context.TODO()), ep, true)
 	}
 
 	// Update the store with the updated name
-	if err := c.updateToStore(ep); err != nil {
+	if err := c.updateToStore(context.TODO(), ep); err != nil {
 		return err
 	}
 
@@ -693,7 +697,7 @@ func (ep *Endpoint) hasInterface(iName string) bool {
 }
 
 // Leave detaches the network resources populated in the sandbox.
-func (ep *Endpoint) Leave(sb *Sandbox) error {
+func (ep *Endpoint) Leave(ctx context.Context, sb *Sandbox) error {
 	if sb == nil || sb.ID() == "" || sb.Key() == "" {
 		return types.InvalidParameterErrorf("invalid Sandbox passed to endpoint leave: %v", sb)
 	}
@@ -701,10 +705,10 @@ func (ep *Endpoint) Leave(sb *Sandbox) error {
 	sb.joinLeaveStart()
 	defer sb.joinLeaveEnd()
 
-	return ep.sbLeave(sb, false)
+	return ep.sbLeave(ctx, sb, false)
 }
 
-func (ep *Endpoint) sbLeave(sb *Sandbox, force bool) error {
+func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error {
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return fmt.Errorf("failed to get network from store during leave: %v", err)
@@ -742,30 +746,30 @@ func (ep *Endpoint) sbLeave(sb *Sandbox, force bool) error {
 
 	if d != nil {
 		if moveExtConn {
-			log.G(context.TODO()).Debugf("Revoking external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())
+			log.G(ctx).Debugf("Revoking external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())
 			if err := d.RevokeExternalConnectivity(n.id, ep.id); err != nil {
-				log.G(context.TODO()).Warnf("driver failed revoking external connectivity on endpoint %s (%s): %v",
+				log.G(ctx).Warnf("driver failed revoking external connectivity on endpoint %s (%s): %v",
 					ep.Name(), ep.ID(), err)
 			}
 		}
 
 		if err := d.Leave(n.id, ep.id); err != nil {
 			if _, ok := err.(types.MaskableError); !ok {
-				log.G(context.TODO()).Warnf("driver error disconnecting container %s : %v", ep.name, err)
+				log.G(ctx).Warnf("driver error disconnecting container %s : %v", ep.name, err)
 			}
 		}
 	}
 
 	if err := ep.deleteServiceInfoFromCluster(sb, true, "sbLeave"); err != nil {
-		log.G(context.TODO()).Warnf("Failed to clean up service info on container %s disconnect: %v", ep.name, err)
+		log.G(ctx).Warnf("Failed to clean up service info on container %s disconnect: %v", ep.name, err)
 	}
 
 	if err := deleteEpFromResolver(ep.Name(), ep.iface, n.Resolvers()); err != nil {
-		log.G(context.TODO()).Warnf("Failed to clean up resolver info on container %s disconnect: %v", ep.name, err)
+		log.G(ctx).Warnf("Failed to clean up resolver info on container %s disconnect: %v", ep.name, err)
 	}
 
 	if err := sb.clearNetworkResources(ep); err != nil {
-		log.G(context.TODO()).Warnf("Failed to clean up network resources on container %s disconnect: %v", ep.name, err)
+		log.G(ctx).Warnf("Failed to clean up network resources on container %s disconnect: %v", ep.name, err)
 	}
 
 	// Update the store about the sandbox detach only after we
@@ -773,12 +777,12 @@ func (ep *Endpoint) sbLeave(sb *Sandbox, force bool) error {
 	// spurious logs when cleaning up the sandbox when the daemon
 	// ungracefully exits and restarts before completing sandbox
 	// detach but after store has been updated.
-	if err := n.getController().updateToStore(ep); err != nil {
+	if err := n.getController().updateToStore(ctx, ep); err != nil {
 		return err
 	}
 
 	if e := ep.deleteDriverInfoFromCluster(); e != nil {
-		log.G(context.TODO()).Errorf("Failed to delete endpoint state for endpoint %s from cluster: %v", ep.Name(), e)
+		log.G(ctx).Errorf("Failed to delete endpoint state for endpoint %s from cluster: %v", ep.Name(), e)
 	}
 
 	sb.deleteHostsEntries(n.getSvcRecords(ep))
@@ -794,7 +798,7 @@ func (ep *Endpoint) sbLeave(sb *Sandbox, force bool) error {
 	// New endpoint providing external connectivity for the sandbox
 	extEp = sb.getGatewayEndpoint()
 	if moveExtConn && extEp != nil {
-		log.G(context.TODO()).Debugf("Programming external connectivity on endpoint %s (%s)", extEp.Name(), extEp.ID())
+		log.G(ctx).Debugf("Programming external connectivity on endpoint %s (%s)", extEp.Name(), extEp.ID())
 		extN, err := extEp.getNetworkFromStore()
 		if err != nil {
 			return fmt.Errorf("failed to get network from store for programming external connectivity during leave: %v", err)
@@ -803,15 +807,15 @@ func (ep *Endpoint) sbLeave(sb *Sandbox, force bool) error {
 		if err != nil {
 			return fmt.Errorf("failed to get driver for programming external connectivity during leave: %v", err)
 		}
-		if err := extD.ProgramExternalConnectivity(extEp.network.ID(), extEp.ID(), sb.Labels()); err != nil {
-			log.G(context.TODO()).Warnf("driver failed programming external connectivity on endpoint %s: (%s) %v",
+		if err := extD.ProgramExternalConnectivity(context.WithoutCancel(ctx), extEp.network.ID(), extEp.ID(), sb.Labels()); err != nil {
+			log.G(ctx).Warnf("driver failed programming external connectivity on endpoint %s: (%s) %v",
 				extEp.Name(), extEp.ID(), err)
 		}
 	}
 
 	if !sb.needDefaultGW() {
 		if err := sb.clearDefaultGW(); err != nil {
-			log.G(context.TODO()).Warnf("Failure while disconnecting sandbox %s (%s) from gateway network: %v",
+			log.G(ctx).Warnf("Failure while disconnecting sandbox %s (%s) from gateway network: %v",
 				sb.ID(), sb.ContainerID(), err)
 		}
 	}
@@ -820,7 +824,7 @@ func (ep *Endpoint) sbLeave(sb *Sandbox, force bool) error {
 }
 
 // Delete deletes and detaches this endpoint from the network.
-func (ep *Endpoint) Delete(force bool) error {
+func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 	var err error
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
@@ -844,8 +848,8 @@ func (ep *Endpoint) Delete(force bool) error {
 	}
 
 	if sb != nil {
-		if e := ep.sbLeave(sb, force); e != nil {
-			log.G(context.TODO()).Warnf("failed to leave sandbox for endpoint %s : %v", name, e)
+		if e := ep.sbLeave(context.WithoutCancel(ctx), sb, force); e != nil {
+			log.G(ctx).Warnf("failed to leave sandbox for endpoint %s : %v", name, e)
 		}
 	}
 
@@ -856,14 +860,14 @@ func (ep *Endpoint) Delete(force bool) error {
 	defer func() {
 		if err != nil && !force {
 			ep.dbExists = false
-			if e := n.getController().updateToStore(ep); e != nil {
-				log.G(context.TODO()).Warnf("failed to recreate endpoint in store %s : %v", name, e)
+			if e := n.getController().updateToStore(context.WithoutCancel(ctx), ep); e != nil {
+				log.G(ctx).Warnf("failed to recreate endpoint in store %s : %v", name, e)
 			}
 		}
 	}()
 
 	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
-		n.updateSvcRecord(ep, false)
+		n.updateSvcRecord(context.WithoutCancel(ctx), ep, false)
 	}
 
 	if err = ep.deleteEndpoint(force); err != nil && !force {
@@ -873,7 +877,7 @@ func (ep *Endpoint) Delete(force bool) error {
 	ep.releaseAddress()
 
 	if err := n.getEpCnt().DecEndpointCnt(); err != nil {
-		log.G(context.TODO()).Warnf("failed to decrement endpoint count for ep %s: %v", ep.ID(), err)
+		log.G(ctx).Warnf("failed to decrement endpoint count for ep %s: %v", ep.ID(), err)
 	}
 
 	return nil
@@ -1204,7 +1208,7 @@ func (c *Controller) cleanupLocalEndpoints() error {
 				continue
 			}
 			log.G(context.TODO()).Infof("Removing stale endpoint %s (%s)", ep.name, ep.id)
-			if err := ep.Delete(true); err != nil {
+			if err := ep.Delete(context.WithoutCancel(context.TODO()), true); err != nil {
 				log.G(context.TODO()).Warnf("Could not delete local endpoint %s during endpoint cleanup: %v", ep.name, err)
 			}
 		}

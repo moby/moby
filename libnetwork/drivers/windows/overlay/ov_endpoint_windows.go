@@ -93,7 +93,7 @@ func (n *network) removeEndpointWithAddress(addr *net.IPNet) {
 	}
 }
 
-func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	var err error
 	if err = validateID(nid, eid); err != nil {
 		return err
@@ -106,7 +106,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	ep := n.endpoint(eid)
 	if ep != nil {
-		log.G(context.TODO()).Debugf("Deleting stale endpoint %s", eid)
+		log.G(ctx).Debugf("Deleting stale endpoint %s", eid)
 		n.deleteEndpoint(eid)
 		_, err := endpointRequest("DELETE", ep.profileID, "")
 		if err != nil {

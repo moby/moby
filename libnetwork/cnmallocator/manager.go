@@ -1,6 +1,8 @@
 package cnmallocator
 
 import (
+	"context"
+
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
@@ -41,7 +43,7 @@ func (d *manager) DeleteNetwork(nid string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *manager) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
@@ -53,7 +55,7 @@ func (d *manager) EndpointOperInfo(nid, eid string) (map[string]interface{}, err
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *manager) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
@@ -69,7 +71,7 @@ func (d *manager) IsBuiltIn() bool {
 	return true
 }
 
-func (d *manager) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
+func (d *manager) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 

@@ -3,6 +3,7 @@
 package libnetwork
 
 import (
+	"context"
 	"strconv"
 	"testing"
 
@@ -73,7 +74,7 @@ func TestControllerGetSandbox(t *testing.T) {
 	})
 	t.Run("existing sandbox", func(t *testing.T) {
 		const cID = "test-container-id"
-		expected, err := ctrlr.NewSandbox(cID)
+		expected, err := ctrlr.NewSandbox(context.Background(), cID)
 		assert.Check(t, err)
 
 		sb, err := ctrlr.GetSandbox(cID)
@@ -83,7 +84,7 @@ func TestControllerGetSandbox(t *testing.T) {
 		assert.Check(t, is.Equal(sb.Key(), expected.Key()))
 		assert.Check(t, is.Equal(sb.ContainerID(), expected.ContainerID()))
 
-		err = sb.Delete()
+		err = sb.Delete(context.Background())
 		assert.Check(t, err)
 
 		sb, err = ctrlr.GetSandbox(cID)
@@ -95,12 +96,12 @@ func TestControllerGetSandbox(t *testing.T) {
 func TestSandboxAddEmpty(t *testing.T) {
 	ctrlr, _ := getTestEnv(t)
 
-	sbx, err := ctrlr.NewSandbox("sandbox0")
+	sbx, err := ctrlr.NewSandbox(context.Background(), "sandbox0")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := sbx.Delete(); err != nil {
+	if err := sbx.Delete(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -123,34 +124,34 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 
 	ctrlr, nws := getTestEnv(t, opts...)
 
-	sbx, err := ctrlr.NewSandbox("sandbox1")
+	sbx, err := ctrlr.NewSandbox(context.Background(), "sandbox1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	sid := sbx.ID()
 
-	ep1, err := nws[0].CreateEndpoint("ep1")
+	ep1, err := nws[0].CreateEndpoint(context.Background(), "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep2, err := nws[1].CreateEndpoint("ep2")
+	ep2, err := nws[1].CreateEndpoint(context.Background(), "ep2")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep3, err := nws[2].CreateEndpoint("ep3")
+	ep3, err := nws[2].CreateEndpoint(context.Background(), "ep3")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep1.Join(sbx, JoinOptionPriority(1)); err != nil {
+	if err := ep1.Join(context.Background(), sbx, JoinOptionPriority(1)); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep2.Join(sbx, JoinOptionPriority(2)); err != nil {
+	if err := ep2.Join(context.Background(), sbx, JoinOptionPriority(2)); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep3.Join(sbx, JoinOptionPriority(3)); err != nil {
+	if err := ep3.Join(context.Background(), sbx, JoinOptionPriority(3)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -162,14 +163,14 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 		t.Fatal("Expected 3 endpoints to be connected to the sandbox.")
 	}
 
-	if err := ep3.Leave(sbx); err != nil {
+	if err := ep3.Leave(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 	if ctrlr.sandboxes[sid].endpoints[0].ID() != ep2.ID() {
 		t.Fatal("Expected ep2 to be at the top of the heap after removing ep3. But did not find ep2 at the top of the heap")
 	}
 
-	if err := ep2.Leave(sbx); err != nil {
+	if err := ep2.Leave(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 	if ctrlr.sandboxes[sid].endpoints[0].ID() != ep1.ID() {
@@ -177,7 +178,7 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 	}
 
 	// Re-add ep3 back
-	if err := ep3.Join(sbx, JoinOptionPriority(3)); err != nil {
+	if err := ep3.Join(context.Background(), sbx, JoinOptionPriority(3)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -185,7 +186,7 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 		t.Fatal("Expected ep3 to be at the top of the heap after adding ep3 back. But did not find ep3 at the top of the heap")
 	}
 
-	if err := sbx.Delete(); err != nil {
+	if err := sbx.Delete(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -208,44 +209,44 @@ func TestSandboxAddSamePrio(t *testing.T) {
 
 	ctrlr, nws := getTestEnv(t, opts...)
 
-	sbx, err := ctrlr.NewSandbox("sandbox1")
+	sbx, err := ctrlr.NewSandbox(context.Background(), "sandbox1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	sid := sbx.ID()
 
-	epNw1, err := nws[1].CreateEndpoint("ep1")
+	epNw1, err := nws[1].CreateEndpoint(context.Background(), "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	epIPv6, err := nws[2].CreateEndpoint("ep2")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	epInternal, err := nws[3].CreateEndpoint("ep3")
+	epIPv6, err := nws[2].CreateEndpoint(context.Background(), "ep2")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	epNw0, err := nws[0].CreateEndpoint("ep4")
+	epInternal, err := nws[3].CreateEndpoint(context.Background(), "ep3")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := epNw1.Join(sbx); err != nil {
+	epNw0, err := nws[0].CreateEndpoint(context.Background(), "ep4")
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := epIPv6.Join(sbx); err != nil {
+	if err := epNw1.Join(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := epInternal.Join(sbx); err != nil {
+	if err := epIPv6.Join(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := epNw0.Join(sbx); err != nil {
+	if err := epInternal.Join(context.Background(), sbx); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := epNw0.Join(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -264,7 +265,7 @@ func TestSandboxAddSamePrio(t *testing.T) {
 		t.Fatal("Expected epInternal to be at the bottom of the heap. But did not find epInternal at the bottom of the heap")
 	}
 
-	if err := epIPv6.Leave(sbx); err != nil {
+	if err := epIPv6.Leave(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -273,11 +274,11 @@ func TestSandboxAddSamePrio(t *testing.T) {
 		t.Fatal("Expected epNw0 to be at the top of the heap after removing epIPv6. But did not find epNw0 at the top of the heap")
 	}
 
-	if err := epNw1.Leave(sbx); err != nil {
+	if err := epNw1.Leave(context.Background(), sbx); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := sbx.Delete(); err != nil {
+	if err := sbx.Delete(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 

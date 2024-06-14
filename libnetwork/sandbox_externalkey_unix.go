@@ -13,10 +13,14 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -33,6 +37,7 @@ func init() {
 type setKeyData struct {
 	ContainerID string
 	Key         string
+	OTelTrace   propagation.MapCarrier
 }
 
 // processSetKeyReexec is a private function that must be called only on an reexec path
@@ -41,13 +46,21 @@ type setKeyData struct {
 // Refer to https://github.com/opencontainers/runc/pull/160/ for more information
 // The docker exec-root can be specified as "-exec-root" flag. The default value is "/run/docker".
 func processSetKeyReexec() {
-	if err := setKey(); err != nil {
+	tc := propagation.TraceContext{}
+	otel.SetTextMapPropagator(tc)
+	carrier := otelutil.PropagateFromEnvironment()
+	ctx := tc.Extract(context.Background(), carrier)
+
+	if err := setKey(ctx); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func setKey() error {
+func setKey(ctx context.Context) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.setKey", trace.WithSpanKind(trace.SpanKindServer))
+	defer span.End()
+
 	execRoot := flag.String("exec-root", defaultExecRoot, "docker exec root")
 	flag.Parse()
 
@@ -65,11 +78,11 @@ func setKey() error {
 		return err
 	}
 
-	return setExternalKey(shortCtlrID, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid), *execRoot)
+	return setExternalKey(ctx, shortCtlrID, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid), *execRoot)
 }
 
 // setExternalKey provides a convenient way to set an External key to a sandbox
-func setExternalKey(shortCtlrID string, containerID string, key string, execRoot string) error {
+func setExternalKey(ctx context.Context, shortCtlrID string, containerID string, key string, execRoot string) error {
 	uds := filepath.Join(execRoot, execSubdir, shortCtlrID+".sock")
 	c, err := net.Dial("unix", uds)
 	if err != nil {
@@ -77,11 +90,14 @@ func setExternalKey(shortCtlrID string, containerID string, key string, execRoot
 	}
 	defer c.Close()
 
-	err = json.NewEncoder(c).Encode(setKeyData{
+	d := setKeyData{
 		ContainerID: containerID,
 		Key:         key,
-	})
-	if err != nil {
+		OTelTrace:   propagation.MapCarrier{},
+	}
+	otel.GetTextMapPropagator().Inject(ctx, d.OTelTrace)
+
+	if err := json.NewEncoder(c).Encode(d); err != nil {
 		return fmt.Errorf("sendKey failed with : %v", err)
 	}
 	return processReturn(c)
@@ -165,11 +181,12 @@ func (c *Controller) processExternalKey(conn net.Conn) error {
 	if err = json.Unmarshal(buf[0:nr], &s); err != nil {
 		return err
 	}
+	ctx := otel.GetTextMapPropagator().Extract(context.Background(), s.OTelTrace)
 	sb, err := c.GetSandbox(s.ContainerID)
 	if err != nil {
 		return types.InvalidParameterErrorf("failed to get sandbox for %s", s.ContainerID)
 	}
-	return sb.SetKey(s.Key)
+	return sb.SetKey(ctx, s.Key)
 }
 
 func (c *Controller) stopExternalKeyListener() {

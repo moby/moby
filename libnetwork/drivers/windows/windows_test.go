@@ -3,6 +3,7 @@
 package windows
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -42,7 +43,7 @@ func testNetwork(networkType string, t *testing.T) {
 
 	epOptions := make(map[string]interface{})
 	te := &testEndpoint{}
-	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), epOptions)
+	err = d.CreateEndpoint(context.TODO(), "dummy", "ep1", te.Interface(), epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}

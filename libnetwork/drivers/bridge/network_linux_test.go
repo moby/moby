@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"context"
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
@@ -33,7 +34,7 @@ func TestLinkCreate(t *testing.T) {
 	}
 
 	te := newTestEndpoint(ipdList[0].Pool, 10)
-	err = d.CreateEndpoint("dummy", "", te.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "dummy", "", te.Interface(), nil)
 	if err != nil {
 		if _, ok := err.(InvalidEndpointIDError); !ok {
 			t.Fatalf("Failed with a wrong error :%s", err.Error())
@@ -43,12 +44,12 @@ func TestLinkCreate(t *testing.T) {
 	}
 
 	// Good endpoint creation
-	err = d.CreateEndpoint("dummy", "ep", te.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
 
-	err = d.Join("dummy", "ep", "sbox", te, nil)
+	err = d.Join(context.Background(), "dummy", "ep", "sbox", te, nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
@@ -65,7 +66,7 @@ func TestLinkCreate(t *testing.T) {
 	// then we could check the MTU on hostLnk as well.
 
 	te1 := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint("dummy", "ep", te1.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te1.Interface(), nil)
 	if err == nil {
 		t.Fatal("Failed to detect duplicate endpoint id on same network")
 	}
@@ -126,13 +127,13 @@ func TestLinkCreateTwo(t *testing.T) {
 	}
 
 	te1 := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint("dummy", "ep", te1.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te1.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
 
 	te2 := newTestEndpoint(ipdList[0].Pool, 12)
-	err = d.CreateEndpoint("dummy", "ep", te2.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te2.Interface(), nil)
 	if err != nil {
 		if _, ok := err.(driverapi.ErrEndpointExists); !ok {
 			t.Fatalf("Failed with a wrong error: %s", err.Error())
@@ -162,7 +163,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 	te := newTestEndpoint(ipdList[0].Pool, 30)
-	err = d.CreateEndpoint("dummy", "ep", te.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
@@ -199,7 +200,7 @@ func TestLinkDelete(t *testing.T) {
 	}
 
 	te := newTestEndpoint(ipdList[0].Pool, 30)
-	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}

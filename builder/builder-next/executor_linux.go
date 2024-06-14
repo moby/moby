@@ -113,20 +113,20 @@ func (iface *lnInterface) init(c *libnetwork.Controller, n *libnetwork.Network) 
 	defer close(iface.ready)
 	id := identity.NewID()
 
-	ep, err := n.CreateEndpoint(id, libnetwork.CreateOptionDisableResolution())
+	ep, err := n.CreateEndpoint(context.TODO(), id, libnetwork.CreateOptionDisableResolution())
 	if err != nil {
 		iface.err = err
 		return
 	}
 
-	sbx, err := c.NewSandbox(id, libnetwork.OptionUseExternalKey(), libnetwork.OptionHostsPath(filepath.Join(iface.provider.Root, id, "hosts")),
+	sbx, err := c.NewSandbox(context.TODO(), id, libnetwork.OptionUseExternalKey(), libnetwork.OptionHostsPath(filepath.Join(iface.provider.Root, id, "hosts")),
 		libnetwork.OptionResolvConfPath(filepath.Join(iface.provider.Root, id, "resolv.conf")))
 	if err != nil {
 		iface.err = err
 		return
 	}
 
-	if err := ep.Join(sbx); err != nil {
+	if err := ep.Join(context.TODO(), sbx); err != nil {
 		iface.err = err
 		return
 	}
@@ -161,7 +161,7 @@ func (iface *lnInterface) Close() error {
 	<-iface.ready
 	if iface.sbx != nil {
 		go func() {
-			if err := iface.sbx.Delete(); err != nil {
+			if err := iface.sbx.Delete(context.TODO()); err != nil {
 				log.G(context.TODO()).WithError(err).Errorf("failed to delete builder network sandbox")
 			}
 			if err := os.RemoveAll(filepath.Join(iface.provider.Root, iface.sbx.ContainerID())); err != nil {

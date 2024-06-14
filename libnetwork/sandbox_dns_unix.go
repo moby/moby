@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/libnetwork/internal/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 )
 
 const (
@@ -30,12 +31,12 @@ const (
 // finishInitDNS is to be called after the container namespace has been created,
 // before it the user process is started. The container's support for IPv6 can be
 // determined at this point.
-func (sb *Sandbox) finishInitDNS() error {
+func (sb *Sandbox) finishInitDNS(ctx context.Context) error {
 	if err := sb.buildHostsFile(); err != nil {
 		return errdefs.System(err)
 	}
 	for _, ep := range sb.Endpoints() {
-		if err := sb.updateHostsFile(ep.getEtcHostsAddrs()); err != nil {
+		if err := sb.updateHostsFile(ctx, ep.getEtcHostsAddrs()); err != nil {
 			return errdefs.System(err)
 		}
 	}
@@ -80,7 +81,10 @@ func (sb *Sandbox) startResolver(restore bool) {
 	})
 }
 
-func (sb *Sandbox) setupResolutionFiles() error {
+func (sb *Sandbox) setupResolutionFiles(ctx context.Context) error {
+	_, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.setupResolutionFiles")
+	defer span.End()
+
 	// Create a hosts file that can be mounted during container setup. For most
 	// networking modes (not host networking) it will be re-created before the
 	// container start, once its support for IPv6 is known.
@@ -133,7 +137,10 @@ func (sb *Sandbox) buildHostsFile() error {
 	return sb.updateParentHosts()
 }
 
-func (sb *Sandbox) updateHostsFile(ifaceIPs []string) error {
+func (sb *Sandbox) updateHostsFile(ctx context.Context, ifaceIPs []string) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.updateHostsFile")
+	defer span.End()
+
 	if len(ifaceIPs) == 0 {
 		return nil
 	}

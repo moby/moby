@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -282,7 +283,7 @@ func TestCreateFullOptions(t *testing.T) {
 	// Verify the IP address allocated for the endpoint belongs to the container network
 	epOptions := make(map[string]interface{})
 	te := newTestEndpoint(cnw, 10)
-	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), epOptions)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
@@ -397,7 +398,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	// plus --mac-address run option
 	te := newTestEndpoint(ipdList[0].Pool, 20)
 	te.iface.mac = netutils.MustParseMAC("aa:bb:cc:dd:ee:ff")
-	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), map[string]interface{}{})
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -700,17 +701,17 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	sbOptions[netlabel.PortMap] = getPortMapping()
 
 	te := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint("net1", "ep1", te.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "net1", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
-	err = d.Join("net1", "ep1", "sbox", te, sbOptions)
+	err = d.Join(context.Background(), "net1", "ep1", "sbox", te, sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	err = d.ProgramExternalConnectivity("net1", "ep1", sbOptions)
+	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep1", sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
@@ -799,7 +800,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	te1 := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint("net1", "ep1", te1.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "net1", "ep1", te1.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
@@ -808,12 +809,12 @@ func TestLinkContainers(t *testing.T) {
 	sbOptions := make(map[string]interface{})
 	sbOptions[netlabel.ExposedPorts] = exposedPorts
 
-	err = d.Join("net1", "ep1", "sbox", te1, sbOptions)
+	err = d.Join(context.Background(), "net1", "ep1", "sbox", te1, sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	err = d.ProgramExternalConnectivity("net1", "ep1", sbOptions)
+	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep1", sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
@@ -824,7 +825,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	te2 := newTestEndpoint(ipdList[0].Pool, 22)
-	err = d.CreateEndpoint("net1", "ep2", te2.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "net1", "ep2", te2.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
@@ -839,12 +840,12 @@ func TestLinkContainers(t *testing.T) {
 		"ChildEndpoints": []string{"ep1"},
 	}
 
-	err = d.Join("net1", "ep2", "", te2, sbOptions)
+	err = d.Join(context.Background(), "net1", "ep2", "", te2, sbOptions)
 	if err != nil {
 		t.Fatal("Failed to link ep1 and ep2")
 	}
 
-	err = d.ProgramExternalConnectivity("net1", "ep2", sbOptions)
+	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep2", sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
@@ -897,11 +898,11 @@ func TestLinkContainers(t *testing.T) {
 		"ChildEndpoints": []string{"ep1", "ep4"},
 	}
 
-	err = d.Join("net1", "ep2", "", te2, sbOptions)
+	err = d.Join(context.Background(), "net1", "ep2", "", te2, sbOptions)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = d.ProgramExternalConnectivity("net1", "ep2", sbOptions)
+	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep2", sbOptions)
 	if err != nil {
 		out, _ = iptable.Raw("-L", DockerChain)
 		for _, pm := range exposedPorts {
@@ -1107,12 +1108,12 @@ func TestSetDefaultGw(t *testing.T) {
 	}
 
 	te := newTestEndpoint(ipdList[0].Pool, 10)
-	err = d.CreateEndpoint("dummy", "ep", te.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create endpoint: %v", err)
 	}
 
-	err = d.Join("dummy", "ep", "sbox", te, nil)
+	err = d.Join(context.Background(), "dummy", "ep", "sbox", te, nil)
 	if err != nil {
 		t.Fatalf("Failed to join endpoint: %v", err)
 	}

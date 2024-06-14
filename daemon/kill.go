@@ -88,7 +88,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 
 	if !daemon.IsShuttingDown() {
 		container.HasBeenManuallyStopped = true
-		if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+		if err := container.CheckpointTo(context.WithoutCancel(context.TODO()), daemon.containersReplica); err != nil {
 			log.G(context.TODO()).WithFields(log.Fields{
 				"error":     err,
 				"container": container.ID,

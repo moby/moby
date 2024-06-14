@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -26,7 +27,7 @@ func TestNoPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf(`Error creating default "host" network: %v`, err)
 	}
-	ep, err := nw.CreateEndpoint("newendpoint", []EndpointOption{}...)
+	ep, err := nw.CreateEndpoint(context.Background(), "newendpoint", []EndpointOption{}...)
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}

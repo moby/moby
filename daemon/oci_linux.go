@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/container"
 	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/internal/rootless/mountopts"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/oci/caps"
@@ -32,6 +33,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 )
 
 const inContainerInitPath = "/sbin/" + dconfig.DefaultInitBinary
@@ -73,8 +75,13 @@ func withLibnetwork(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Cont
 					s.Hooks = &specs.Hooks{}
 				}
 				shortNetCtlrID := stringid.TruncateID(daemon.netController.ID())
+
+				var carrier otelutil.EnvironCarrier
+				otel.GetTextMapPropagator().Inject(ctx, &carrier)
+
 				s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{ //nolint:staticcheck // FIXME(thaJeztah); replace prestart hook with a non-deprecated one.
 					Path: filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe"),
+					Env:  carrier.Environ(),
 					Args: []string{"libnetwork-setkey", "-exec-root=" + daemonCfg.GetExecRoot(), c.ID, shortNetCtlrID},
 				})
 			}
