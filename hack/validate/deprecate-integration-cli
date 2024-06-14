@@ -11,7 +11,7 @@ new_tests=$(
 
 if [ -n "$new_tests" ]; then
 	{
-		echo "The following new tests were added to integration-cli:"
+		echo "::error::The following new tests were added to integration-cli:"
 		echo
 		echo "$new_tests"
 		echo
@@ -19,7 +19,6 @@ if [ -n "$new_tests" ]; then
 		echo "./integration/COMPONENT/. See ./TESTING.md for more details."
 		echo
 	} >&2
-	false
 else
 	echo 'Congratulations!  No new tests were added to integration-cli.'
 fi
