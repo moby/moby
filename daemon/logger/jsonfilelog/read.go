@@ -12,10 +12,12 @@ import (
 	"github.com/docker/docker/pkg/tailfile"
 )
 
+var _ logger.LogReader = (*JSONFileLogger)(nil)
+
 // ReadLogs implements the logger's LogReader interface for the logs
 // created by this driver.
-func (l *JSONFileLogger) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
-	return l.writer.ReadLogs(config)
+func (l *JSONFileLogger) ReadLogs(ctx context.Context, config logger.ReadConfig) *logger.LogWatcher {
+	return l.writer.ReadLogs(ctx, config)
 }
 
 func decodeLogLine(dec *json.Decoder, l *jsonlog.JSONLog) (*logger.Message, error) {

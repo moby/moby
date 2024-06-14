@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"text/tabwriter"
@@ -78,8 +79,8 @@ func TestTailFiles(t *testing.T) {
 
 	makeOpener := func(ls ...SizeReaderAt) []fileOpener {
 		out := make([]fileOpener, 0, len(ls))
-		for _, rdr := range ls {
-			out = append(out, &sizeReaderAtOpener{rdr})
+		for i, rdr := range ls {
+			out = append(out, &sizeReaderAtOpener{rdr, strconv.Itoa(i)})
 		}
 		return out
 	}
@@ -98,7 +99,7 @@ func TestTailFiles(t *testing.T) {
 	started := make(chan struct{})
 	go func() {
 		close(started)
-		tailFiles(files, watcher, dec, tailReader, config.Tail, fwd)
+		tailFiles(context.TODO(), files, watcher, dec, tailReader, config.Tail, fwd)
 	}()
 	<-started
 
@@ -166,7 +167,7 @@ func TestTailFiles(t *testing.T) {
 		done := make(chan struct{})
 		go func() {
 			close(started)
-			tailFiles(files, watcher, &testJSONStreamDecoder{}, tailReader, config.Tail, fwd)
+			tailFiles(context.TODO(), files, watcher, &testJSONStreamDecoder{}, tailReader, config.Tail, fwd)
 			close(done)
 		}()
 
@@ -249,7 +250,7 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 
 	t.Run("with log reader", func(t *testing.T) {
 		// Make sure rotate works with an active reader
-		lw := l.ReadLogs(logger.ReadConfig{Follow: true, Tail: 1000})
+		lw := l.ReadLogs(context.TODO(), logger.ReadConfig{Follow: true, Tail: 1000})
 		defer lw.ConsumerGone()
 
 		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 0!\n")), ls)
