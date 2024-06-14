@@ -1001,8 +1001,7 @@ func (daemon *Daemon) releaseNetwork(ctx context.Context, container *container.C
 
 	start := time.Now()
 	// If live-restore is enabled, the daemon cleans up dead containers when it starts up. In that case, the
-	// netController hasn't been initialized yet and so we can't proceed.
-	// TODO(aker): If we hit this case, the endpoint state won't be cleaned up (ie. no call to cleanOperationalData).
+	// netController hasn't been initialized yet, and so we can't proceed.
 	if daemon.netController == nil {
 		return
 	}
@@ -1019,6 +1018,9 @@ func (daemon *Daemon) releaseNetwork(ctx context.Context, container *container.C
 	if sid == "" {
 		return
 	}
+
+	container.NetworkSettings.SandboxID = ""
+	container.NetworkSettings.SandboxKey = ""
 
 	var networks []*libnetwork.Network
 	for n, epSettings := range container.NetworkSettings.Networks {
