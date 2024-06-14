@@ -14,8 +14,8 @@ import (
 
 func testLocalBackend(t *testing.T, path string, storeConfig *store.Config) {
 	cfgOptions := []config.Option{func(c *config.Config) {
-		c.Scope.Path = path
-		c.Scope.Config = storeConfig
+		c.DatastoreConfig.Path = path
+		c.DatastoreConfig.Config = storeConfig
 	}}
 
 	cfgOptions = append(cfgOptions, config.OptionDriverConfig("host", map[string]interface{}{
@@ -75,7 +75,7 @@ func OptionBoltdbWithRandomDBFile(t *testing.T) config.Option {
 	}
 
 	return func(c *config.Config) {
-		c.Scope.Path = tmp
-		c.Scope.Config = &store.Config{Bucket: "testBackend"}
+		c.DatastoreConfig.Path = tmp
+		c.DatastoreConfig.Config = &store.Config{Bucket: "testBackend"}
 	}
 }

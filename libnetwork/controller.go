@@ -108,7 +108,7 @@ type Controller struct {
 // New creates a new instance of network controller.
 func New(cfgOptions ...config.Option) (*Controller, error) {
 	cfg := config.New(cfgOptions...)
-	store, err := datastore.New(cfg.Scope)
+	store, err := datastore.New(cfg.DatastoreConfig)
 	if err != nil {
 		return nil, fmt.Errorf("libnet controller initialization: %w", err)
 	}
