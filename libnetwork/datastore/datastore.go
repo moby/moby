@@ -52,11 +52,6 @@ type KVObject interface {
 // ScopeCfg represents Datastore configuration. Use DefaultScope to produce a
 // valid config.
 type ScopeCfg struct {
-	Client ScopeClientCfg
-}
-
-// ScopeClientCfg represents Datastore Client-only mode configuration
-type ScopeClientCfg struct {
 	Path   string
 	Config *store.Config
 }
@@ -85,12 +80,10 @@ func DefaultScope(dataDir string) ScopeCfg {
 	}
 
 	return ScopeCfg{
-		Client: ScopeClientCfg{
-			Path: dbpath,
-			Config: &store.Config{
-				Bucket:            "libnetwork",
-				ConnectionTimeout: time.Minute,
-			},
+		Path: dbpath,
+		Config: &store.Config{
+			Bucket:            "libnetwork",
+			ConnectionTimeout: time.Minute,
 		},
 	}
 }
@@ -109,15 +102,15 @@ func Key(key ...string) string {
 
 // New creates a new Store instance.
 func New(cfg ScopeCfg) (*Store, error) {
-	if cfg.Client.Path == "" {
+	if cfg.Path == "" {
 		cfg = DefaultScope("")
 	}
 
-	if cfg.Client.Config == nil {
-		cfg.Client.Config = &store.Config{}
+	if cfg.Config == nil {
+		cfg.Config = &store.Config{}
 	}
 
-	s, err := boltdb.New(cfg.Client.Path, cfg.Client.Config)
+	s, err := boltdb.New(cfg.Path, cfg.Config)
 	if err != nil {
 		return nil, err
 	}
