@@ -583,15 +583,22 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 		return fmt.Errorf("Error initializing network controller: %v", err)
 	}
 
-	// If port-mapping failed during live-restore of a container, perhaps because
-	// a host port that was previously mapped to a container is now in-use by some
-	// other process - ports will not be mapped for the restored container, but it
-	// will be running. Replace the restored mappings in NetworkSettings with the
-	// current state so that the problem is visible in 'inspect'.
 	for _, c := range containers {
-		if sb, err := daemon.netController.SandboxByID(c.NetworkSettings.SandboxID); err == nil {
-			c.NetworkSettings.Ports = getPortMapInfo(sb)
+		sb, err := daemon.netController.SandboxByID(c.NetworkSettings.SandboxID)
+		if err != nil {
+			// If this container's sandbox doesn't exist anymore, that's because
+			// the netController gc'ed it during its initialization. In that case,
+			// we need to clear all the network-related state carried by that
+			// container.
+			daemon.releaseNetwork(context.WithoutCancel(context.TODO()), c)
+			continue
 		}
+		// If port-mapping failed during live-restore of a container, perhaps because
+		// a host port that was previously mapped to a container is now in-use by some
+		// other process - ports will not be mapped for the restored container, but it
+		// will be running. Replace the restored mappings in NetworkSettings with the
+		// current state so that the problem is visible in 'inspect'.
+		c.NetworkSettings.Ports = getPortMapInfo(sb)
 	}
 
 	// Now that all the containers are registered, register the links
