@@ -56,8 +56,10 @@ func New(opts ...Option) *Config {
 		}
 	}
 
-	// load default scope configs which don't have explicit user specified configs.
+	// Only a couple of tests set cfg.Scope through an Option. Otherwise, it's
+	// always empty.
 	if cfg.Scope == (datastore.ScopeCfg{}) {
+		// Load default scope configs which don't have explicit user specified configs.
 		cfg.Scope = datastore.DefaultScope(cfg.DataDir)
 	}
 	return cfg
