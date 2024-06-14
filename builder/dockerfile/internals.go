@@ -377,6 +377,8 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		Memory:       options.Memory,
 		MemorySwap:   options.MemorySwap,
 		Ulimits:      options.Ulimits,
+		CPUCount:     options.CPUCount,
+		CPUPercent:   options.CPUPercent,
 	}
 
 	// We need to make sure no empty string or "default" NetworkMode is
