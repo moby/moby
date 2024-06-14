@@ -57,8 +57,8 @@ type ScopeCfg struct {
 
 // ScopeClientCfg represents Datastore Client-only mode configuration
 type ScopeClientCfg struct {
-	Address string
-	Config  *store.Config
+	Path   string
+	Config *store.Config
 }
 
 const (
@@ -86,7 +86,7 @@ func DefaultScope(dataDir string) ScopeCfg {
 
 	return ScopeCfg{
 		Client: ScopeClientCfg{
-			Address: dbpath,
+			Path: dbpath,
 			Config: &store.Config{
 				Bucket:            "libnetwork",
 				ConnectionTimeout: time.Minute,
@@ -109,7 +109,7 @@ func Key(key ...string) string {
 
 // New creates a new Store instance.
 func New(cfg ScopeCfg) (*Store, error) {
-	if cfg.Client.Address == "" {
+	if cfg.Client.Path == "" {
 		cfg = DefaultScope("")
 	}
 
@@ -117,7 +117,7 @@ func New(cfg ScopeCfg) (*Store, error) {
 		cfg.Client.Config = &store.Config{}
 	}
 
-	s, err := boltdb.New(cfg.Client.Address, cfg.Client.Config)
+	s, err := boltdb.New(cfg.Client.Path, cfg.Client.Config)
 	if err != nil {
 		return nil, err
 	}
