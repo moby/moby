@@ -430,7 +430,7 @@ type BuildCachePruneReport struct {
 // on the creation of a new secret.
 type SecretCreateResponse struct {
 	// ID is the id of the created secret.
-	ID string
+	ID string `json:"ID"`
 }
 
 // SecretListOptions holds parameters to list secrets
@@ -442,7 +442,7 @@ type SecretListOptions struct {
 // on the creation of a new config.
 type ConfigCreateResponse struct {
 	// ID is the id of the created config.
-	ID string
+	ID string `json:"ID"`
 }
 
 // ConfigListOptions holds parameters to list configs
