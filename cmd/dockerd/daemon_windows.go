@@ -43,6 +43,10 @@ func preNotifyReady() {
 func notifyReady() {
 }
 
+// notifyReloading sends a message to the host when the server got signaled to
+// reloading its configuration. It is a no-op on Windows.
+func notifyReloading() func() { return func() {} }
+
 // notifyStopping sends a message to the host when the server is shutting down
 func notifyStopping() {
 }
