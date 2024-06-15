@@ -333,7 +333,7 @@ func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.
 	if cachedID == "" || err != nil {
 		return false, err
 	}
-	fmt.Fprint(b.Stdout, " ---> Using cache\n")
+	_, _ = fmt.Fprintln(b.Stdout, " ---> Using cache")
 
 	dispatchState.imageID = cachedID
 	return true, nil
@@ -356,11 +356,10 @@ func (b *Builder) create(ctx context.Context, runConfig *container.Config) (stri
 	if err != nil {
 		return "", err
 	}
-	// TODO: could this be moved into containerManager.Create() ?
 	for _, warning := range ctr.Warnings {
-		fmt.Fprintf(b.Stdout, " ---> [Warning] %s\n", warning)
+		_, _ = fmt.Fprintf(b.Stdout, " ---> [Warning] %s\n", warning)
 	}
-	fmt.Fprintf(b.Stdout, " ---> Running in %s\n", stringid.TruncateID(ctr.ID))
+	_, _ = fmt.Fprintf(b.Stdout, " ---> Running in %s\n", stringid.TruncateID(ctr.ID))
 	return ctr.ID, nil
 }
 
