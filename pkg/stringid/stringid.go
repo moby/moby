@@ -22,6 +22,8 @@ var (
 
 // IsShortID determines if id has the correct format and length for a short ID.
 // It checks the IDs length and if it consists of valid characters for IDs (a-f0-9).
+//
+// Deprecated: this function is no longer used, and will be removed in the next release.
 func IsShortID(id string) bool {
 	if len(id) != shortLen {
 		return false
