@@ -52,7 +52,6 @@ const (
 
 	addressKey                = "fluentd-address"
 	asyncKey                  = "fluentd-async"
-	asyncConnectKey           = "fluentd-async-connect" // deprecated option (use fluent-async instead)
 	asyncReconnectIntervalKey = "fluentd-async-reconnect-interval"
 	bufferLimitKey            = "fluentd-buffer-limit"
 	maxRetriesKey             = "fluentd-max-retries"
@@ -149,7 +148,6 @@ func ValidateLogOpt(cfg map[string]string) error {
 
 		case addressKey:
 		case asyncKey:
-		case asyncConnectKey:
 		case asyncReconnectIntervalKey:
 		case bufferLimitKey:
 		case maxRetriesKey:
@@ -201,21 +199,9 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 		maxRetries = int(mr64)
 	}
 
-	if cfg[asyncKey] != "" && cfg[asyncConnectKey] != "" {
-		return config, errors.Errorf("conflicting options: cannot specify both '%s' and '%s", asyncKey, asyncConnectKey)
-	}
-
 	async := false
 	if cfg[asyncKey] != "" {
 		if async, err = strconv.ParseBool(cfg[asyncKey]); err != nil {
-			return config, err
-		}
-	}
-
-	// TODO fluentd-async-connect is deprecated in driver v1.4.0. Remove after two stable releases
-	asyncConnect := false
-	if cfg[asyncConnectKey] != "" {
-		if asyncConnect, err = strconv.ParseBool(cfg[asyncConnectKey]); err != nil {
 			return config, err
 		}
 	}
@@ -256,11 +242,10 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 		RetryWait:              retryWait,
 		MaxRetry:               maxRetries,
 		Async:                  async,
-		AsyncConnect:           asyncConnect,
 		AsyncReconnectInterval: asyncReconnectInterval,
 		SubSecondPrecision:     subSecondPrecision,
 		RequestAck:             requestAck,
-		ForceStopAsyncSend:     async || asyncConnect,
+		ForceStopAsyncSend:     async,
 	}
 
 	return config, nil
