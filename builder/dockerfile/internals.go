@@ -147,7 +147,7 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 	}
 	defer rwLayer.Release()
 
-	destInfo, err := createDestInfo(state.runConfig.WorkingDir, inst, rwLayer, state.operatingSystem)
+	destInfo, err := createDestInfo(state.runConfig.WorkingDir, inst, rwLayer)
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 	return b.exportImage(ctx, state, rwLayer, imgMount.Image(), runConfigWithCommentCmd)
 }
 
-func createDestInfo(workingDir string, inst copyInstruction, rwLayer builder.RWLayer, platform string) (copyInfo, error) {
+func createDestInfo(workingDir string, inst copyInstruction, rwLayer builder.RWLayer) (copyInfo, error) {
 	// Twiddle the destination when it's a relative path - meaning, make it
 	// relative to the WORKINGDIR
 	dest, err := normalizeDest(workingDir, inst.dest)
