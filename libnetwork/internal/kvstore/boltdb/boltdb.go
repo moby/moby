@@ -15,8 +15,10 @@ import (
 )
 
 var (
-	// ErrBoltBucketOptionMissing is thrown when boltBcuket config option is missing
-	ErrBoltBucketOptionMissing = errors.New("boltBucket config option missing")
+	// ErrBoltPathOptionMissing is returned when New is called with an empty path
+	ErrBoltPathOptionMissing = errors.New("path to the boltdb is missing")
+	// ErrBoltBucketOptionMissing is returned when the bucket name is empty
+	ErrBoltBucketOptionMissing = errors.New("boltdb's bucket name is missing")
 )
 
 const filePerm = 0o644
@@ -34,6 +36,9 @@ const libkvmetadatalen = 8
 
 // New opens a new BoltDB connection to the specified path and bucket
 func New(path, bucket string, lockTimeout time.Duration) (store.Store, error) {
+	if path == "" {
+		return nil, ErrBoltPathOptionMissing
+	}
 	if bucket == "" {
 		return nil, ErrBoltBucketOptionMissing
 	}
