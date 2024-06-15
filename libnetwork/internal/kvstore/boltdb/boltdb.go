@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	bolt "go.etcd.io/bbolt"
@@ -19,6 +20,12 @@ var (
 )
 
 const filePerm = 0o644
+
+// Config contains the options for a BoltDB bucket.
+type Config struct {
+	ConnectionTimeout time.Duration
+	Bucket            string
+}
 
 // BoltDB type implements the Store interface
 type BoltDB struct {
@@ -32,7 +39,7 @@ type BoltDB struct {
 const libkvmetadatalen = 8
 
 // New opens a new BoltDB connection to the specified path and bucket
-func New(endpoint string, options *store.Config) (store.Store, error) {
+func New(endpoint string, options *Config) (store.Store, error) {
 	if (options == nil) || (len(options.Bucket) == 0) {
 		return nil, ErrBoltBucketOptionMissing
 	}
