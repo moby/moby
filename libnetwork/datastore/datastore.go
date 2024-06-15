@@ -3,7 +3,6 @@ package datastore
 import (
 	"strings"
 	"sync"
-	"time"
 
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
@@ -52,9 +51,8 @@ type KVObject interface {
 // Config represents Datastore configuration. Use NewConfig to produce a valid
 // config.
 type Config struct {
-	Path              string
-	ConnectionTimeout time.Duration
-	Bucket            string
+	Path   string
+	Bucket string
 }
 
 const (
@@ -82,9 +80,8 @@ func NewConfig(dataDir string) Config {
 	}
 
 	return Config{
-		Path:              dbpath,
-		Bucket:            "libnetwork",
-		ConnectionTimeout: time.Minute,
+		Path:   dbpath,
+		Bucket: "libnetwork",
 	}
 }
 
@@ -102,7 +99,7 @@ func Key(key ...string) string {
 
 // New creates a new Store instance.
 func New(cfg Config) (*Store, error) {
-	s, err := boltdb.New(cfg.Path, cfg.Bucket, cfg.ConnectionTimeout)
+	s, err := boltdb.New(cfg.Path, cfg.Bucket)
 	if err != nil {
 		return nil, err
 	}

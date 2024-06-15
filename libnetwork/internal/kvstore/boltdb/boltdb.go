@@ -19,6 +19,8 @@ var (
 	ErrBoltPathOptionMissing = errors.New("path to the boltdb is missing")
 	// ErrBoltBucketOptionMissing is returned when the bucket name is empty
 	ErrBoltBucketOptionMissing = errors.New("boltdb's bucket name is missing")
+	// ErrDBAlreadyOpen signals that this boltdb is already open by another
+	ErrDBAlreadyOpen = errors.New("the underlying boltdb file is already held open")
 )
 
 const filePerm = 0o644
@@ -35,7 +37,7 @@ type BoltDB struct {
 const libkvmetadatalen = 8
 
 // New opens a new BoltDB connection to the specified path and bucket
-func New(path, bucket string, lockTimeout time.Duration) (store.Store, error) {
+func New(path, bucket string) (store.Store, error) {
 	if path == "" {
 		return nil, ErrBoltPathOptionMissing
 	}
@@ -49,9 +51,20 @@ func New(path, bucket string, lockTimeout time.Duration) (store.Store, error) {
 	}
 
 	db, err := bolt.Open(path, filePerm, &bolt.Options{
-		Timeout: lockTimeout,
+		// The bbolt package opens the underlying db file and then issues an
+		// exclusive flock to ensures that it can safely write to the db. If
+		// it fails, it'll re-issue flocks every few ms until Timeout is
+		// reached.
+		// This nanosecond timeout bypasses that retry loop and make sure the
+		// bbolt package returns an ErrTimeout straight away. That way, the
+		// daemon, and unit tests, will fail fast and loudly instead of
+		// silently introducing delays.
+		Timeout: time.Nanosecond,
 	})
 	if err != nil {
+		if errors.Is(err, bolt.ErrTimeout) {
+			return nil, ErrDBAlreadyOpen
+		}
 		return nil, err
 	}
 
