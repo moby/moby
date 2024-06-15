@@ -10,12 +10,12 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/vishvananda/netlink"
 )
 
 const (
-	dummyPrefix = "dm-" // macvlan prefix for dummy parent interface
+	dummyPrefix   = "dm-" // prefix for dummy macvlan parent interfaces.
+	dummyIDLength = 12    // length for dummy parent interface IDs.
 )
 
 // Create the macvlan slave specifying the source name
@@ -203,5 +203,8 @@ func delDummyLink(linkName string) error {
 
 // getDummyName returns the name of a dummy parent with truncated net ID and driver prefix
 func getDummyName(netID string) string {
-	return dummyPrefix + stringid.TruncateID(netID)
+	if len(netID) > dummyIDLength {
+		netID = netID[:dummyIDLength]
+	}
+	return dummyPrefix + netID
 }
