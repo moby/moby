@@ -52,8 +52,9 @@ type KVObject interface {
 // Config represents Datastore configuration. Use NewConfig to produce a valid
 // config.
 type Config struct {
-	Path   string
-	Config boltdb.Config
+	Path              string
+	ConnectionTimeout time.Duration
+	Bucket            string
 }
 
 const (
@@ -81,11 +82,9 @@ func NewConfig(dataDir string) Config {
 	}
 
 	return Config{
-		Path: dbpath,
-		Config: boltdb.Config{
-			Bucket:            "libnetwork",
-			ConnectionTimeout: time.Minute,
-		},
+		Path:              dbpath,
+		Bucket:            "libnetwork",
+		ConnectionTimeout: time.Minute,
 	}
 }
 
@@ -103,7 +102,7 @@ func Key(key ...string) string {
 
 // New creates a new Store instance.
 func New(cfg Config) (*Store, error) {
-	s, err := boltdb.New(cfg.Path, &cfg.Config)
+	s, err := boltdb.New(cfg.Path, cfg.Bucket, cfg.ConnectionTimeout)
 	if err != nil {
 		return nil, err
 	}

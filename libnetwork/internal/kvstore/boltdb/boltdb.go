@@ -21,12 +21,6 @@ var (
 
 const filePerm = 0o644
 
-// Config contains the options for a BoltDB bucket.
-type Config struct {
-	ConnectionTimeout time.Duration
-	Bucket            string
-}
-
 // BoltDB type implements the Store interface
 type BoltDB struct {
 	mu         sync.Mutex
@@ -39,18 +33,18 @@ type BoltDB struct {
 const libkvmetadatalen = 8
 
 // New opens a new BoltDB connection to the specified path and bucket
-func New(endpoint string, options *Config) (store.Store, error) {
-	if (options == nil) || (len(options.Bucket) == 0) {
+func New(path, bucket string, lockTimeout time.Duration) (store.Store, error) {
+	if bucket == "" {
 		return nil, ErrBoltBucketOptionMissing
 	}
 
-	dir, _ := filepath.Split(endpoint)
+	dir, _ := filepath.Split(path)
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
 	}
 
-	db, err := bolt.Open(endpoint, filePerm, &bolt.Options{
-		Timeout: options.ConnectionTimeout,
+	db, err := bolt.Open(path, filePerm, &bolt.Options{
+		Timeout: lockTimeout,
 	})
 	if err != nil {
 		return nil, err
@@ -58,8 +52,8 @@ func New(endpoint string, options *Config) (store.Store, error) {
 
 	b := &BoltDB{
 		client:     db,
-		path:       endpoint,
-		boltBucket: []byte(options.Bucket),
+		path:       path,
+		boltBucket: []byte(bucket),
 	}
 
 	return b, nil

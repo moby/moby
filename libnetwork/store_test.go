@@ -7,15 +7,14 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/config"
-	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
+	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 )
 
-func testLocalBackend(t *testing.T, path string, storeConfig boltdb.Config) {
+func testLocalBackend(t *testing.T, storeConfig datastore.Config) {
 	cfgOptions := []config.Option{func(c *config.Config) {
-		c.DatastoreConfig.Path = path
-		c.DatastoreConfig.Config = storeConfig
+		c.DatastoreConfig = storeConfig
 	}}
 
 	cfgOptions = append(cfgOptions, config.OptionDriverConfig("host", map[string]interface{}{
@@ -75,7 +74,9 @@ func OptionBoltdbWithRandomDBFile(t *testing.T) config.Option {
 	}
 
 	return func(c *config.Config) {
-		c.DatastoreConfig.Path = tmp
-		c.DatastoreConfig.Config = boltdb.Config{Bucket: "testBackend"}
+		c.DatastoreConfig = datastore.Config{
+			Path:   tmp,
+			Bucket: "testBackend",
+		}
 	}
 }

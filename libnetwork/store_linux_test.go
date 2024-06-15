@@ -6,13 +6,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/docker/libnetwork/datastore"
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
-	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
 )
 
 func TestBoltdbBackend(t *testing.T) {
-	tmpPath := filepath.Join(t.TempDir(), "boltdb.db")
-	testLocalBackend(t, tmpPath, boltdb.Config{
+	testLocalBackend(t, datastore.Config{
+		Path:   filepath.Join(t.TempDir(), "boltdb.db"),
 		Bucket: "testBackend",
 	})
 }
