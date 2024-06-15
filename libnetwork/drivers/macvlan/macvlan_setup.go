@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/ns"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/vishvananda/netlink"
 )
 
@@ -202,5 +203,5 @@ func delDummyLink(linkName string) error {
 
 // getDummyName returns the name of a dummy parent with truncated net ID and driver prefix
 func getDummyName(netID string) string {
-	return dummyPrefix + netID
+	return dummyPrefix + stringid.TruncateID(netID)
 }
