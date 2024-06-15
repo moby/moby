@@ -377,12 +377,11 @@ func killProcessDirectly(container *container.Container) error {
 	}
 
 	if err := unix.Kill(pid, syscall.SIGKILL); err != nil {
-		if err != unix.ESRCH {
-			return errdefs.System(err)
+		if err == unix.ESRCH {
+			log.G(context.TODO()).WithField("container", container.ID).Debugf("cannot kill process (pid=%d) with signal %d: no such process", container.GetPID(), syscall.SIGKILL)
+			return nil
 		}
-		err = errNoSuchProcess{pid, syscall.SIGKILL}
-		log.G(context.TODO()).WithError(err).WithField("container", container.ID).Debug("no such process")
-		return err
+		return errdefs.System(err)
 	}
 
 	// In case there were some exceptions(e.g., state of zombie and D)
