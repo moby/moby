@@ -62,6 +62,8 @@ func GenerateRandomID() string {
 }
 
 // ValidateID checks whether an ID string is a valid, full-length image ID.
+//
+// Deprecated: use [github.com/docker/docker/image/v1.ValidateID] instead. Will be removed in the next release.
 func ValidateID(id string) error {
 	if len(id) != fullLen {
 		return errors.New("image ID '" + id + "' is invalid")
