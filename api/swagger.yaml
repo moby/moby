@@ -442,6 +442,24 @@ definitions:
           Mode:
             description: "The permission mode for the tmpfs mount in an integer."
             type: "integer"
+          Options:
+            description: |
+              The options to be passed to the tmpfs mount. An array of arrays.
+              Flag options should be provided as 1-length arrays. Other types
+              should be provided as as 2-length arrays, where the first item is
+              the key and the second the value.
+            type: "array"
+            properties:
+              items:
+                type: "array"
+                items:
+                  type: "array"
+                  minItems: 1
+                  maxItems: 2
+                  items:
+                    type: "string"
+            example:
+              [["noexec"]]
 
   RestartPolicy:
     description: |

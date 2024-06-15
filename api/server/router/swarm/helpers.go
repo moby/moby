@@ -78,6 +78,16 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 	if cliVersion == "" {
 		return
 	}
+	if versions.LessThan(cliVersion, "1.46") {
+		if service.TaskTemplate.ContainerSpec != nil {
+			for i, mount := range service.TaskTemplate.ContainerSpec.Mounts {
+				if mount.TmpfsOptions != nil {
+					mount.TmpfsOptions.Options = nil
+					service.TaskTemplate.ContainerSpec.Mounts[i] = mount
+				}
+			}
+		}
+	}
 	if versions.LessThan(cliVersion, "1.40") {
 		if service.TaskTemplate.ContainerSpec != nil {
 			// Sysctls for docker swarm services weren't supported before
