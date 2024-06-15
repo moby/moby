@@ -64,18 +64,29 @@ func Kill(pid int) error {
 //
 // [PROC(5)]: https://man7.org/linux/man-pages/man5/proc.5.html
 func Zombie(pid int) (bool, error) {
+	status, err := Status(pid)
+	return status == "Z", err
+}
+
+// Status returns the status of the given process. It only considers positive
+// PIDs; 0 (all processes in the current process group), -1 (all processes with
+// a PID larger than 1), and negative (-n, all processes in process group "n")
+// values for pid are ignored. Refer to [PROC(5)] for details.
+//
+// [PROC(5)]: https://man7.org/linux/man-pages/man5/proc.5.html
+func Status(pid int) (string, error) {
 	if pid < 1 {
-		return false, nil
+		return "", nil
 	}
 	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return false, nil
+			return "", nil
 		}
-		return false, err
+		return "", err
 	}
-	if cols := bytes.SplitN(data, []byte(" "), 4); len(cols) >= 3 && string(cols[2]) == "Z" {
-		return true, nil
+	if cols := bytes.SplitN(data, []byte(" "), 4); len(cols) >= 3 {
+		return string(cols[2]), nil
 	}
-	return false, nil
+	return "", nil
 }
