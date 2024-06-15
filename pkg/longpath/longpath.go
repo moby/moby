@@ -12,17 +12,22 @@ import (
 )
 
 // Prefix is the longpath prefix for Windows file paths.
-const Prefix = `\\?\`
+//
+// Deprecated: this const is only used internally, and will be removed in the next release
+const Prefix = longPathPrefix
+
+// longPathPrefix is the longpath prefix for Windows file paths.
+const longPathPrefix = `\\?\`
 
 // AddPrefix adds the Windows long path prefix to the path provided if
 // it does not already have it.
 func AddPrefix(path string) string {
-	if !strings.HasPrefix(path, Prefix) {
+	if !strings.HasPrefix(path, longPathPrefix) {
 		if strings.HasPrefix(path, `\\`) {
 			// This is a UNC path, so we need to add 'UNC' to the path as well.
-			path = Prefix + `UNC` + path[1:]
+			path = longPathPrefix + `UNC` + path[1:]
 		} else {
-			path = Prefix + path
+			path = longPathPrefix + path
 		}
 	}
 	return path
