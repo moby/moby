@@ -6,9 +6,8 @@ import (
 
 // Dmesg returns last messages from the kernel log, up to size bytes
 func Dmesg(size int) []byte {
-	t := 3 // SYSLOG_ACTION_READ_ALL
 	b := make([]byte, size)
-	amt, err := unix.Klogctl(t, b)
+	amt, err := unix.Klogctl(unix.SYSLOG_ACTION_READ_ALL, b)
 	if err != nil {
 		return []byte{}
 	}
