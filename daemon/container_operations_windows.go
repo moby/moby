@@ -13,16 +13,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
+func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string, error) {
 	return nil, nil
 }
 
-func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
-	if len(c.ConfigReferences) == 0 {
+func (daemon *Daemon) setupConfigDir(ctr *container.Container) (setupErr error) {
+	if len(ctr.ConfigReferences) == 0 {
 		return nil
 	}
 
-	localPath := c.ConfigsDirPath()
+	localPath := ctr.ConfigsDirPath()
 	log.G(context.TODO()).Debugf("configs: setting up config dir: %s", localPath)
 
 	// create local config root
@@ -38,11 +38,11 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 		}
 	}()
 
-	if c.DependencyStore == nil {
+	if ctr.DependencyStore == nil {
 		return fmt.Errorf("config store is not initialized")
 	}
 
-	for _, configRef := range c.ConfigReferences {
+	for _, configRef := range ctr.ConfigReferences {
 		// TODO (ehazlett): use type switch when more are supported
 		if configRef.File == nil {
 			// Runtime configs are not mounted into the container, but they're
@@ -56,14 +56,14 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 			continue
 		}
 
-		fPath, err := c.ConfigFilePath(*configRef)
+		fPath, err := ctr.ConfigFilePath(*configRef)
 		if err != nil {
 			return errors.Wrap(err, "error getting config file path for container")
 		}
 		log := log.G(context.TODO()).WithFields(log.Fields{"name": configRef.File.Name, "path": fPath})
 
 		log.Debug("injecting config")
-		config, err := c.DependencyStore.Configs().Get(configRef.ConfigID)
+		config, err := ctr.DependencyStore.Configs().Get(configRef.ConfigID)
 		if err != nil {
 			return errors.Wrap(err, "unable to get config from config store")
 		}
@@ -75,7 +75,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 	return nil
 }
 
-func (daemon *Daemon) setupIpcDirs(container *container.Container) error {
+func (daemon *Daemon) setupIpcDirs(ctr *container.Container) error {
 	return nil
 }
 
@@ -85,16 +85,16 @@ func (daemon *Daemon) setupIpcDirs(container *container.Container) error {
 // inside the container. Without this fix, docker cp is broken to any
 // container which has a volume, regardless of where the file is inside the
 // container.
-func (daemon *Daemon) mountVolumes(container *container.Container) error {
+func (daemon *Daemon) mountVolumes(ctr *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
-	if len(c.SecretReferences) == 0 {
+func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) {
+	if len(ctr.SecretReferences) == 0 {
 		return nil
 	}
 
-	localMountPath, err := c.SecretMountPath()
+	localMountPath, err := ctr.SecretMountPath()
 	if err != nil {
 		return err
 	}
@@ -113,11 +113,11 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		}
 	}()
 
-	if c.DependencyStore == nil {
+	if ctr.DependencyStore == nil {
 		return fmt.Errorf("secret store is not initialized")
 	}
 
-	for _, s := range c.SecretReferences {
+	for _, s := range ctr.SecretReferences {
 		// TODO (ehazlett): use type switch when more are supported
 		if s.File == nil {
 			log.G(context.TODO()).Error("secret target type is not a file target")
@@ -126,7 +126,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 
 		// secrets are created in the SecretMountPath on the host, at a
 		// single level
-		fPath, err := c.SecretFilePath(*s)
+		fPath, err := ctr.SecretFilePath(*s)
 		if err != nil {
 			return err
 		}
@@ -134,7 +134,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			"name": s.File.Name,
 			"path": fPath,
 		}).Debug("injecting secret")
-		secret, err := c.DependencyStore.Secrets().Get(s.SecretID)
+		secret, err := ctr.DependencyStore.Secrets().Get(s.SecretID)
 		if err != nil {
 			return errors.Wrap(err, "unable to get secret from secret store")
 		}
@@ -146,7 +146,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	return nil
 }
 
-func killProcessDirectly(container *container.Container) error {
+func killProcessDirectly(ctr *container.Container) error {
 	return nil
 }
 
@@ -163,7 +163,7 @@ func serviceDiscoveryOnDefaultNetwork() bool {
 	return true
 }
 
-func buildSandboxPlatformOptions(container *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
+func buildSandboxPlatformOptions(ctr *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
 	// By default, the Windows internal resolver forwards requests to external
 	// resolvers - but forwarding can be disabled using feature flag
 	// "windows-dns-proxy":false.
@@ -173,12 +173,12 @@ func buildSandboxPlatformOptions(container *container.Container, cfg *config.Con
 	return nil
 }
 
-func (daemon *Daemon) initializeNetworkingPaths(container *container.Container, nc *container.Container) error {
+func (daemon *Daemon) initializeNetworkingPaths(ctr *container.Container, nc *container.Container) error {
 	if nc.HostConfig.Isolation.IsHyperV() {
 		return fmt.Errorf("sharing of hyperv containers network is not supported")
 	}
 
-	container.NetworkSharedContainerID = nc.ID
+	ctr.NetworkSharedContainerID = nc.ID
 
 	if nc.NetworkSettings != nil {
 		for n := range nc.NetworkSettings.Networks {
@@ -200,12 +200,12 @@ func (daemon *Daemon) initializeNetworkingPaths(container *container.Container, 
 			if data["GW_INFO"] != nil {
 				gwInfo := data["GW_INFO"].(map[string]interface{})
 				if gwInfo["hnsid"] != nil {
-					container.SharedEndpointList = append(container.SharedEndpointList, gwInfo["hnsid"].(string))
+					ctr.SharedEndpointList = append(ctr.SharedEndpointList, gwInfo["hnsid"].(string))
 				}
 			}
 
 			if data["hnsid"] != nil {
-				container.SharedEndpointList = append(container.SharedEndpointList, data["hnsid"].(string))
+				ctr.SharedEndpointList = append(ctr.SharedEndpointList, data["hnsid"].(string))
 			}
 		}
 	}
