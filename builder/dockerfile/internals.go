@@ -17,11 +17,11 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/builder"
+	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -382,7 +382,7 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 	// This is in line with what the ContainerCreate API endpoint does.
 	networkMode := options.NetworkMode
 	if networkMode == "" || networkMode == network.NetworkDefault {
-		networkMode = runconfig.DefaultDaemonNetworkMode().NetworkName()
+		networkMode = networkSettings.DefaultNetwork
 	}
 
 	hc := &container.HostConfig{

@@ -14,12 +14,12 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/links"
+	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/process"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/runconfig"
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
@@ -30,7 +30,7 @@ func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string,
 	var env []string
 	children := daemon.children(ctr)
 
-	bridgeSettings := ctr.NetworkSettings.Networks[runconfig.DefaultDaemonNetworkMode().NetworkName()]
+	bridgeSettings := ctr.NetworkSettings.Networks[network.DefaultNetwork]
 	if bridgeSettings == nil || bridgeSettings.EndpointSettings == nil {
 		return nil, nil
 	}
@@ -40,7 +40,7 @@ func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string,
 			return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
 		}
 
-		childBridgeSettings := child.NetworkSettings.Networks[runconfig.DefaultDaemonNetworkMode().NetworkName()]
+		childBridgeSettings := child.NetworkSettings.Networks[network.DefaultNetwork]
 		if childBridgeSettings == nil || childBridgeSettings.EndpointSettings == nil {
 			return nil, fmt.Errorf("container %s not attached to default bridge network", child.ID)
 		}
@@ -402,7 +402,7 @@ func killProcessDirectly(ctr *container.Container) error {
 
 func isLinkable(child *container.Container) bool {
 	// A container is linkable only if it belongs to the default network
-	_, ok := child.NetworkSettings.Networks[runconfig.DefaultDaemonNetworkMode().NetworkName()]
+	_, ok := child.NetworkSettings.Networks[network.DefaultNetwork]
 	return ok
 }
 

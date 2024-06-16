@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
-	internalnetwork "github.com/docker/docker/daemon/network"
+	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/runconfig"
 	swarmapi "github.com/moby/swarmkit/v2/api"
@@ -39,7 +39,7 @@ func (c *Cluster) GetNetworks(filter filters.Args) ([]network.Inspect, error) {
 	}
 	filterPredefinedNetworks(&list)
 
-	return internalnetwork.FilterNetworks(list, filter)
+	return networkSettings.FilterNetworks(list, filter)
 }
 
 func filterPredefinedNetworks(networks *[]network.Inspect) {

@@ -160,7 +160,7 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, ctr *container.Con
 	// Legacy Link feature is supported only for the default bridge network.
 	// return if this call to build join options is not for default bridge network
 	// Legacy Link is only supported by docker run --link
-	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
+	defaultNetName := network.DefaultNetwork
 	bridgeSettings, ok := ctr.NetworkSettings.Networks[defaultNetName]
 	if !ok || bridgeSettings.EndpointSettings == nil || bridgeSettings.EndpointID == "" {
 		return sboxOptions, nil
@@ -268,7 +268,7 @@ func (daemon *Daemon) updateEndpointNetworkSettings(cfg *config.Config, ctr *con
 		return err
 	}
 
-	if ctr.HostConfig.NetworkMode == runconfig.DefaultDaemonNetworkMode() {
+	if ctr.HostConfig.NetworkMode == network.DefaultNetwork {
 		ctr.NetworkSettings.Bridge = cfg.BridgeConfig.Iface
 	}
 
@@ -296,7 +296,7 @@ func (daemon *Daemon) updateNetwork(cfg *config.Config, ctr *container.Container
 		if err != nil {
 			continue
 		}
-		if sn.Name() == runconfig.DefaultDaemonNetworkMode().NetworkName() {
+		if sn.Name() == network.DefaultNetwork {
 			n = sn
 			break
 		}
@@ -505,7 +505,7 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 	// network mode support link and we need do some setting
 	// on sandbox initialize for link, but the sandbox only be initialized
 	// on first network connecting.
-	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
+	defaultNetName := network.DefaultNetwork
 	if nConf, ok := ctr.NetworkSettings.Networks[defaultNetName]; ok {
 		cleanOperationalData(nConf)
 		if err := daemon.connectToNetwork(ctx, cfg, ctr, defaultNetName, nConf, updateSettings); err != nil {
