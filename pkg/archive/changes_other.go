@@ -72,17 +72,17 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 			return fmt.Errorf("collectFileInfo: Unexpectedly no parent for %s", relPath)
 		}
 
-		info := &FileInfo{
-			name:     filepath.Base(relPath),
-			children: make(map[string]*FileInfo),
-			parent:   parent,
-		}
-
 		s, err := system.Lstat(path)
 		if err != nil {
 			return err
 		}
-		info.stat = s
+
+		info := &FileInfo{
+			name:     filepath.Base(relPath),
+			children: make(map[string]*FileInfo),
+			parent:   parent,
+			stat:     s,
+		}
 
 		info.capability, _ = system.Lgetxattr(path, "security.capability")
 
