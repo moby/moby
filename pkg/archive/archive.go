@@ -1452,6 +1452,8 @@ func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
 // NewTempArchive reads the content of src into a temporary file, and returns the contents
 // of that file as an archive. The archive can only be read once - as soon as reading completes,
 // the file will be deleted.
+//
+// Deprecated: NewTempArchive is only used in tests and will be removed in the next release.
 func NewTempArchive(src io.Reader, dir string) (*TempArchive, error) {
 	f, err := os.CreateTemp(dir, "")
 	if err != nil {
@@ -1473,6 +1475,8 @@ func NewTempArchive(src io.Reader, dir string) (*TempArchive, error) {
 
 // TempArchive is a temporary archive. The archive can only be read once - as soon as reading completes,
 // the file will be deleted.
+//
+// Deprecated: TempArchive is only used in tests and will be removed in the next release.
 type TempArchive struct {
 	*os.File
 	Size   int64 // Pre-computed from Stat().Size() as a convenience
