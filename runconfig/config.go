@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/docker/docker/api/types/container"
-	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
@@ -13,8 +13,8 @@ import (
 // and the corresponding HostConfig (non-portable).
 type ContainerConfigWrapper struct {
 	*container.Config
-	HostConfig       *container.HostConfig          `json:"HostConfig,omitempty"`
-	NetworkingConfig *networktypes.NetworkingConfig `json:"NetworkingConfig,omitempty"`
+	HostConfig       *container.HostConfig     `json:"HostConfig,omitempty"`
+	NetworkingConfig *network.NetworkingConfig `json:"NetworkingConfig,omitempty"`
 }
 
 // ContainerDecoder implements httputils.ContainerDecoder
@@ -24,7 +24,7 @@ type ContainerDecoder struct {
 }
 
 // DecodeConfig makes ContainerDecoder to implement httputils.ContainerDecoder
-func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
+func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *container.HostConfig, *network.NetworkingConfig, error) {
 	var si *sysinfo.SysInfo
 	if r.GetSysInfo != nil {
 		si = r.GetSysInfo()
@@ -41,7 +41,7 @@ func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *conta
 // on the client, as only the daemon knows what is valid for the platform.
 // Be aware this function is not checking whether the resulted structs are nil,
 // it's your business to do so
-func decodeContainerConfig(src io.Reader, si *sysinfo.SysInfo) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
+func decodeContainerConfig(src io.Reader, si *sysinfo.SysInfo) (*container.Config, *container.HostConfig, *network.NetworkingConfig, error) {
 	var w ContainerConfigWrapper
 	if err := loadJSON(src, &w); err != nil {
 		return nil, nil, nil, err
