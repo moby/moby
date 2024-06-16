@@ -122,7 +122,7 @@ func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *c
 		b   []byte
 		err error
 	)
-	w := ContainerConfigWrapper{
+	w := container.CreateRequest{
 		Config: &container.Config{},
 		HostConfig: &container.HostConfig{
 			NetworkMode: "none",

@@ -12,11 +12,9 @@ import (
 
 // ContainerConfigWrapper is a Config wrapper that holds the container Config (portable)
 // and the corresponding HostConfig (non-portable).
-type ContainerConfigWrapper struct {
-	*container.Config
-	HostConfig       *container.HostConfig     `json:"HostConfig,omitempty"`
-	NetworkingConfig *network.NetworkingConfig `json:"NetworkingConfig,omitempty"`
-}
+//
+// Deprecated: use [container.CreateRequest].
+type ContainerConfigWrapper = container.CreateRequest
 
 // ContainerDecoder implements httputils.ContainerDecoder
 // calling DecodeContainerConfig.
@@ -43,7 +41,7 @@ func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *conta
 // Be aware this function is not checking whether the resulted structs are nil,
 // it's your business to do so
 func decodeContainerConfig(src io.Reader, si *sysinfo.SysInfo) (*container.Config, *container.HostConfig, *network.NetworkingConfig, error) {
-	var w ContainerConfigWrapper
+	var w container.CreateRequest
 	if err := loadJSON(src, &w); err != nil {
 		return nil, nil, nil, err
 	}
