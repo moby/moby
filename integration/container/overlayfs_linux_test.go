@@ -8,7 +8,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/dmesg"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -81,9 +81,15 @@ func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {
 	}
 }
 
-func dmesgLines(bytes int) []string {
-	data := dmesg.Dmesg(bytes)
-	return strings.Split(strings.TrimSpace(string(data)), "\n")
+// dmesgLines returns last messages from the kernel log, up to size bytes,
+// and splits the output by newlines.
+func dmesgLines(size int) []string {
+	data := make([]byte, size)
+	amt, err := unix.Klogctl(unix.SYSLOG_ACTION_READ_ALL, data)
+	if err != nil {
+		return []string{}
+	}
+	return strings.Split(strings.TrimSpace(string(data[:amt])), "\n")
 }
 
 func diffDmesg(prev, next []string) []string {
