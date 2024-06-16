@@ -52,9 +52,9 @@ func copyDir(src, dst string) error {
 type FileType uint32
 
 const (
-	Regular FileType = iota
-	Dir
-	Symlink
+	Regular FileType = 0
+	Dir     FileType = 1
+	Symlink FileType = 2
 )
 
 type FileData struct {

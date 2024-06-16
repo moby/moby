@@ -98,24 +98,16 @@ func NewDefaultArchiver() *Archiver {
 type breakoutError error
 
 const (
-	// Uncompressed represents the uncompressed.
-	Uncompressed Compression = iota
-	// Bzip2 is bzip2 compression algorithm.
-	Bzip2
-	// Gzip is gzip compression algorithm.
-	Gzip
-	// Xz is xz compression algorithm.
-	Xz
-	// Zstd is zstd compression algorithm.
-	Zstd
+	Uncompressed Compression = 0 // Uncompressed represents the uncompressed.
+	Bzip2        Compression = 1 // Bzip2 is bzip2 compression algorithm.
+	Gzip         Compression = 2 // Gzip is gzip compression algorithm.
+	Xz           Compression = 3 // Xz is xz compression algorithm.
+	Zstd         Compression = 4 // Zstd is zstd compression algorithm.
 )
 
 const (
-	// AUFSWhiteoutFormat is the default format for whiteouts
-	AUFSWhiteoutFormat WhiteoutFormat = iota
-	// OverlayWhiteoutFormat formats whiteout according to the overlay
-	// standard.
-	OverlayWhiteoutFormat
+	AUFSWhiteoutFormat    WhiteoutFormat = 0 // AUFSWhiteoutFormat is the default format for whiteouts
+	OverlayWhiteoutFormat WhiteoutFormat = 1 // OverlayWhiteoutFormat formats whiteout according to the overlay standard.
 )
 
 // IsArchivePath checks if the (possibly compressed) file at the given path

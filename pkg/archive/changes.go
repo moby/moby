@@ -23,12 +23,9 @@ import (
 type ChangeType int
 
 const (
-	// ChangeModify represents the modify operation.
-	ChangeModify = iota
-	// ChangeAdd represents the add operation.
-	ChangeAdd
-	// ChangeDelete represents the delete operation.
-	ChangeDelete
+	ChangeModify = 0 // ChangeModify represents the modify operation.
+	ChangeAdd    = 1 // ChangeAdd represents the add operation.
+	ChangeDelete = 2 // ChangeDelete represents the delete operation.
 )
 
 func (c ChangeType) String() string {
