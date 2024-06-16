@@ -77,7 +77,7 @@ func (n *network) removeEndpointWithAddress(addr *net.IPNet) {
 
 	if networkEndpoint != nil {
 		log.G(context.TODO()).Debugf("Removing stale endpoint from HNS")
-		_, err := endpointRequest("DELETE", networkEndpoint.profileID, "")
+		_, err := hcsshim.HNSEndpointRequest("DELETE", networkEndpoint.profileID, "")
 		if err != nil {
 			log.G(context.TODO()).Debugf("Failed to delete stale overlay endpoint (%.7s) from hns", networkEndpoint.id)
 		}
@@ -99,7 +99,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	if ep != nil {
 		log.G(ctx).Debugf("Deleting stale endpoint %s", eid)
 		n.deleteEndpoint(eid)
-		_, err := endpointRequest("DELETE", ep.profileID, "")
+		_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
 		if err != nil {
 			return err
 		}
@@ -182,7 +182,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		return err
 	}
 
-	hnsresponse, err := endpointRequest("POST", "", string(configurationb))
+	hnsresponse, err := hcsshim.HNSEndpointRequest("POST", "", string(configurationb))
 	if err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 
 	ep.portMapping, err = windows.ParsePortBindingPolicies(hnsresponse.Policies)
 	if err != nil {
-		endpointRequest("DELETE", hnsresponse.Id, "")
+		hcsshim.HNSEndpointRequest("DELETE", hnsresponse.Id, "")
 		return err
 	}
 
@@ -230,7 +230,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 	n.deleteEndpoint(eid)
 
-	_, err := endpointRequest("DELETE", ep.profileID, "")
+	_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
 	if err != nil {
 		return err
 	}
@@ -267,8 +267,4 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 	}
 
 	return data, nil
-}
-
-func endpointRequest(method, path, request string) (*hcsshim.HNSEndpoint, error) {
-	return hcsshim.HNSEndpointRequest(method, path, request)
 }
