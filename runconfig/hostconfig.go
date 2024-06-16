@@ -11,6 +11,8 @@ import (
 // to default if it is not populated. This ensures backwards compatibility after
 // the validation of the network mode was moved from the docker CLI to the
 // docker daemon.
+//
+// Deprecated: SetDefaultNetModeIfBlank is no longer used abnd will be removed in the next release.
 func SetDefaultNetModeIfBlank(hc *container.HostConfig) {
 	if hc != nil && hc.NetworkMode == "" {
 		hc.NetworkMode = network.NetworkDefault
