@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/containerd/log"
 	dbus "github.com/godbus/dbus/v5"
@@ -20,6 +21,13 @@ const (
 	Iptables IPV = "ipv4"
 	// IP6Tables point to ipv6 table
 	IP6Tables IPV = "ipv6"
+)
+
+const (
+	// fireWalldInitializationTimeout in milliseconds to wait for firewalld
+	fireWalldInitializationTimeout = 2500 * time.Millisecond
+	// dbusConnectionTimeout in seconds to wait for dbus API calls
+	dbusConnectionTimeout = 1 * time.Second
 )
 
 const (
@@ -52,11 +60,37 @@ func firewalldInit() error {
 	if connection, err = newConnection(); err != nil {
 		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
 	}
-	firewalldRunning = checkRunning()
-	if !firewalldRunning {
-		connection.sysconn.Close()
-		connection = nil
+
+	firewalldRunning, err = checkRunning()
+	if err != nil {
+		return err
 	}
+	// If firewalld is not running on the first check poll
+	if !firewalldRunning {
+		tick := time.NewTicker(500 * time.Millisecond)
+		startTime := time.Now()
+		defer tick.Stop()
+
+		for range tick.C {
+			firewalldRunning, err = checkRunning()
+			if err != nil {
+				log.G(context.TODO()).Debugf("Check Running failed: %v", err)
+			}
+
+			log.G(context.TODO()).Debugf("Checking status of Firewalld")
+
+			if firewalldRunning || time.Since(startTime) >= fireWalldInitializationTimeout {
+				break
+			}
+		}
+	}
+
+	if !firewalldRunning {
+		log.G(context.TODO()).Debugf("The dbus API is accessible but firewalld is currently unavailable continuing.")
+	} else if firewalldRunning {
+		log.G(context.TODO()).Debugf("Firewalld is currently in state running")
+	}
+
 	if connection != nil {
 		go signalHandler()
 		zoneAdded, err := setupDockerZone()
@@ -108,7 +142,7 @@ func signalHandler() {
 	for signal := range connection.signal {
 		switch {
 		case strings.Contains(signal.Name, "NameOwnerChanged"):
-			firewalldRunning = checkRunning()
+			firewalldRunning, _ = checkRunning()
 			dbusConnectionChanged(signal.Body)
 
 		case strings.Contains(signal.Name, "Reloaded"):
@@ -159,13 +193,24 @@ func OnReloaded(callback func()) {
 }
 
 // Call some remote method to see whether the service is actually running.
-func checkRunning() bool {
+func checkRunning() (bool, error) {
+
+	var err error
 	if connection == nil {
-		return false
+		return false, nil
 	}
-	var zone string
-	err := connection.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-	return err == nil
+
+	ctx, cancel := context.WithTimeout(context.Background(), dbusConnectionTimeout)
+	defer cancel()
+
+	var currentState string
+	err = connection.sysObj.CallWithContext(ctx, "org.freedesktop.DBus.Properties.Get", 0, dbusInterface, "state").Store(&currentState)
+
+	if err != nil {
+		return false, fmt.Errorf("failed to get current state of dbus connection: %w", err)
+	}
+
+	return (currentState == "RUNNING" || currentState == "FAILED"), nil
 }
 
 // Passthrough method simply passes args through to iptables/ip6tables
