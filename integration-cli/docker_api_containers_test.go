@@ -800,8 +800,10 @@ func (s *DockerAPISuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
 		"Image":     "busybox",
 		"Cmd":       "ls",
 		"OpenStdin": true,
-		"CpuShares": 100,
-		"Memory":    524287
+		"HostConfig": {
+			"CpuShares": 100,
+			"Memory":    524287
+		}
 	}`
 
 	res, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
