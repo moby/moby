@@ -541,8 +541,10 @@ func newTarAppender(idMapping idtools.IdentityMapping, writer io.Writer, chownOp
 }
 
 // CanonicalTarNameForPath canonicalizes relativePath to a POSIX-style path using
-// forward slashes. It is an alias for filepath.ToSlash, which is a no-op on
+// forward slashes. It is an alias for [filepath.ToSlash], which is a no-op on
 // Linux and Unix.
+//
+// Deprecated: use [filepath.ToSlash]. This function will be removed in the next release.
 func CanonicalTarNameForPath(relativePath string) string {
 	return filepath.ToSlash(relativePath)
 }
