@@ -31,7 +31,6 @@ import (
 	lntypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -290,7 +289,7 @@ func (daemon *Daemon) CreateNetwork(create networktypes.CreateRequest) (*network
 }
 
 func (daemon *Daemon) createNetwork(cfg *config.Config, create networktypes.CreateRequest, id string, agent bool) (*networktypes.CreateResponse, error) {
-	if runconfig.IsPreDefinedNetwork(create.Name) {
+	if network.IsPredefined(create.Name) {
 		return nil, PredefinedNetworkError(create.Name)
 	}
 
@@ -543,13 +542,13 @@ func (daemon *Daemon) DeleteNetwork(networkID string) error {
 }
 
 func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error {
-	if runconfig.IsPreDefinedNetwork(nw.Name()) && !dynamic {
+	if network.IsPredefined(nw.Name()) && !dynamic {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be removed", nw.Name())
 		return errdefs.Forbidden(err)
 	}
 
 	if dynamic && !nw.Dynamic() {
-		if runconfig.IsPreDefinedNetwork(nw.Name()) {
+		if network.IsPredefined(nw.Name()) {
 			// Predefined networks now support swarm services. Make this
 			// a no-op when cluster requests to remove the predefined network.
 			return nil

@@ -5,3 +5,9 @@ package network
 // ([network.NetworkBridge]), and "nat" ([network.NetworkNat]) for Windows
 // containers.
 const DefaultNetwork = defaultNetwork
+
+// IsPredefined indicates if a network is predefined by the daemon.
+func IsPredefined(network string) bool {
+	// TODO(thaJeztah): check if we can align the check for both platforms
+	return isPreDefined(network)
+}

@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/runconfig"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
 )
@@ -269,7 +268,7 @@ func (c *Cluster) DetachNetwork(target string, containerID string) error {
 
 // CreateNetwork creates a new cluster managed network.
 func (c *Cluster) CreateNetwork(s network.CreateRequest) (string, error) {
-	if runconfig.IsPreDefinedNetwork(s.Name) {
+	if networkSettings.IsPredefined(s.Name) {
 		err := notAllowedError(fmt.Sprintf("%s is a pre-defined network and cannot be created", s.Name))
 		return "", errors.WithStack(err)
 	}
@@ -314,7 +313,7 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 		apiNetwork, err := getNetwork(ctx, client, nw.Target)
 		if err != nil {
 			ln, _ := c.config.Backend.FindNetwork(nw.Target)
-			if ln != nil && runconfig.IsPreDefinedNetwork(ln.Name()) {
+			if ln != nil && networkSettings.IsPredefined(ln.Name()) {
 				// Need to retrieve the corresponding predefined swarm network
 				// and use its id for the request.
 				apiNetwork, err = getNetwork(ctx, client, ln.Name())

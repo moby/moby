@@ -14,9 +14,9 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	timetypes "github.com/docker/docker/api/types/time"
+	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/runconfig"
 	"github.com/pkg/errors"
 )
 
@@ -121,7 +121,7 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 			return false
 		}
 		nwName := nw.Name()
-		if runconfig.IsPreDefinedNetwork(nwName) {
+		if networkSettings.IsPredefined(nwName) {
 			return false
 		}
 		if len(nw.Endpoints()) > 0 {

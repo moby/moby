@@ -20,6 +20,8 @@ func DefaultDaemonNetworkMode() container.NetworkMode {
 }
 
 // IsPreDefinedNetwork indicates if a network is predefined by the daemon
+//
+// Deprecated: this function is no longer used and will be removed in the next release.
 func IsPreDefinedNetwork(network string) bool {
 	n := container.NetworkMode(network)
 	return n.IsBridge() || n.IsHost() || n.IsNone() || n.IsDefault()
