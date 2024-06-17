@@ -477,7 +477,7 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 	}
 	// dest.path must be used because destPath has already been cleaned of any
 	// trailing slash
-	if endsInSlash(dest.path) || destExistsAsDir {
+	if destExistsAsDir || strings.HasSuffix(dest.path, string(os.PathSeparator)) {
 		// source.path must be used to get the correct filename when the source
 		// is a symlink
 		destPath = filepath.Join(destPath, filepath.Base(source.path))
@@ -522,10 +522,6 @@ func copyFile(archiver *archive.Archiver, source, dest string, identity *idtools
 		return fixPermissions(source, dest, *identity, false)
 	}
 	return nil
-}
-
-func endsInSlash(path string) bool {
-	return strings.HasSuffix(path, string(filepath.Separator))
 }
 
 // isExistingDirectory returns true if the path exists and is a directory
