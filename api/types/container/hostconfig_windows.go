@@ -26,17 +26,22 @@ func (i Isolation) IsValid() bool {
 
 // NetworkName returns the name of the network stack.
 func (n NetworkMode) NetworkName() string {
-	if n.IsDefault() {
+	switch {
+	case n.IsDefault():
 		return network.NetworkDefault
-	} else if n.IsBridge() {
+	case n.IsBridge():
 		return network.NetworkNat
-	} else if n.IsNone() {
+	case n.IsHost():
+		// Windows currently doesn't support host network-mode, so
+		// this would currently never happen..
+		return network.NetworkHost
+	case n.IsNone():
 		return network.NetworkNone
-	} else if n.IsContainer() {
+	case n.IsContainer():
 		return "container"
-	} else if n.IsUserDefined() {
+	case n.IsUserDefined():
 		return n.UserDefined()
+	default:
+		return ""
 	}
-
-	return ""
 }

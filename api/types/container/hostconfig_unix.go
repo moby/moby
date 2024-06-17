@@ -11,20 +11,22 @@ func (i Isolation) IsValid() bool {
 
 // NetworkName returns the name of the network stack.
 func (n NetworkMode) NetworkName() string {
-	if n.IsBridge() {
-		return network.NetworkBridge
-	} else if n.IsHost() {
-		return network.NetworkHost
-	} else if n.IsContainer() {
-		return "container"
-	} else if n.IsNone() {
-		return network.NetworkNone
-	} else if n.IsDefault() {
+	switch {
+	case n.IsDefault():
 		return network.NetworkDefault
-	} else if n.IsUserDefined() {
+	case n.IsBridge():
+		return network.NetworkBridge
+	case n.IsHost():
+		return network.NetworkHost
+	case n.IsNone():
+		return network.NetworkNone
+	case n.IsContainer():
+		return "container"
+	case n.IsUserDefined():
 		return n.UserDefined()
+	default:
+		return ""
 	}
-	return ""
 }
 
 // IsBridge indicates whether container uses the bridge network stack
