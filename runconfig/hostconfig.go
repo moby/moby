@@ -19,6 +19,11 @@ func SetDefaultNetModeIfBlank(hc *container.HostConfig) {
 	}
 }
 
+// IsPreDefinedNetwork indicates if a network is predefined by the daemon
+func IsPreDefinedNetwork(network string) bool {
+	return !container.NetworkMode(network).IsUserDefined()
+}
+
 // validateNetContainerMode ensures that the various combinations of requested
 // network settings wrt container mode are valid.
 func validateNetContainerMode(c *container.Config, hc *container.HostConfig) error {
