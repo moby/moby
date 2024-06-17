@@ -3,11 +3,18 @@ package runconfig // import "github.com/docker/docker/runconfig"
 import (
 	"encoding/json"
 	"io"
+	"runtime"
 
 	"github.com/docker/docker/api/types/container"
-	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/sysinfo"
 )
+
+// ContainerConfigWrapper is a Config wrapper that holds the container Config (portable)
+// and the corresponding HostConfig (non-portable).
+//
+// Deprecated: use [container.CreateRequest].
+type ContainerConfigWrapper = container.CreateRequest
 
 // ContainerDecoder implements httputils.ContainerDecoder
 // calling DecodeContainerConfig.
@@ -16,7 +23,7 @@ type ContainerDecoder struct {
 }
 
 // DecodeConfig makes ContainerDecoder to implement httputils.ContainerDecoder
-func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
+func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *container.HostConfig, *network.NetworkingConfig, error) {
 	var si *sysinfo.SysInfo
 	if r.GetSysInfo != nil {
 		si = r.GetSysInfo()
@@ -33,16 +40,24 @@ func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *conta
 // on the client, as only the daemon knows what is valid for the platform.
 // Be aware this function is not checking whether the resulted structs are nil,
 // it's your business to do so
-func decodeContainerConfig(src io.Reader, si *sysinfo.SysInfo) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
-	var w ContainerConfigWrapper
+func decodeContainerConfig(src io.Reader, si *sysinfo.SysInfo) (*container.Config, *container.HostConfig, *network.NetworkingConfig, error) {
+	var w container.CreateRequest
 	if err := loadJSON(src, &w); err != nil {
 		return nil, nil, nil, err
 	}
 
-	hc := w.getHostConfig()
+	hc := w.HostConfig
 	if hc == nil {
 		// We may not be passed a host config, such as in the case of docker commit
 		return w.Config, hc, w.NetworkingConfig, nil
+	}
+
+	// Make sure NetworkMode has an acceptable value. We do this to ensure
+	// backwards compatible API behavior.
+	//
+	// TODO(thaJeztah): platform check may be redundant, as other code-paths execute this unconditionally. Also check if this code is still needed here, or already handled elsewhere.
+	if runtime.GOOS != "windows" && hc.NetworkMode == "" {
+		hc.NetworkMode = network.NetworkDefault
 	}
 	if err := validateNetMode(w.Config, hc); err != nil {
 		return nil, nil, nil, err

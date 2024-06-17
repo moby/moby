@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
-	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/pkg/sysinfo"
 )
@@ -117,12 +117,12 @@ func TestDecodeContainerConfigIsolation(t *testing.T) {
 
 // callDecodeContainerConfigIsolation is a utility function to call
 // DecodeContainerConfig for validating isolation
-func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
+func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *container.HostConfig, *network.NetworkingConfig, error) {
 	var (
 		b   []byte
 		err error
 	)
-	w := ContainerConfigWrapper{
+	w := container.CreateRequest{
 		Config: &container.Config{},
 		HostConfig: &container.HostConfig{
 			NetworkMode: "none",

@@ -41,6 +41,13 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
+	// FIXME(thaJeztah): change this to unmarshal just [container.Config]:
+	// The commit endpoint accepts a [container.Config], but the decoder uses a
+	// [container.CreateRequest], which is a superset, and also contains
+	// [container.HostConfig] and [network.NetworkConfig]. Those structs
+	// are discarded here, but decoder.DecodeConfig also performs validation,
+	// so a request containing those additional fields would result in a
+	// validation error.
 	config, _, _, err := s.decoder.DecodeConfig(r.Body)
 	if err != nil && !errors.Is(err, io.EOF) { // Do not fail if body is empty.
 		return err
