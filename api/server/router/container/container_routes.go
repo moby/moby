@@ -924,7 +924,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 	}
 
 	contentType := types.MediaTypeRawStream
-	setupStreams := func(multiplexed bool) (io.ReadCloser, io.Writer, io.Writer, error) {
+	setupStreams := func(multiplexed bool, cancel func()) (io.ReadCloser, io.Writer, io.Writer, error) {
 		conn, _, err := hijacker.Hijack()
 		if err != nil {
 			return nil, nil, nil, err
@@ -941,6 +941,8 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		} else {
 			fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 		}
+
+		go notifyClosed(ctx, conn, cancel)
 
 		closer := func() error {
 			httputils.CloseStreams(conn)
@@ -990,7 +992,7 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 
 	version := httputils.VersionFromContext(ctx)
 
-	setupStreams := func(multiplexed bool) (io.ReadCloser, io.Writer, io.Writer, error) {
+	setupStreams := func(multiplexed bool, cancel func()) (io.ReadCloser, io.Writer, io.Writer, error) {
 		wsChan := make(chan *websocket.Conn)
 		h := func(conn *websocket.Conn) {
 			wsChan <- conn
@@ -1009,6 +1011,8 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		if versions.GreaterThanOrEqualTo(version, "1.28") {
 			conn.PayloadType = websocket.BinaryFrame
 		}
+
+		// TODO: Close notifications
 		return conn, conn, conn, nil
 	}
 
