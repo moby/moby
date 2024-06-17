@@ -1,0 +1,4 @@
+nameserver 127.0.0.11
+
+# Based on host file: '/etc/resolv.conf' (internal resolver)
+# Overrides: []

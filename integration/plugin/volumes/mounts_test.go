@@ -23,7 +23,7 @@ func TestPluginWithDevMounts(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
-	d.Start(t, "--iptables=false")
+	d.Start(t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)

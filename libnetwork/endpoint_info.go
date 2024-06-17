@@ -382,6 +382,31 @@ func (ep *Endpoint) SetGatewayIPv6(gw6 net.IP) error {
 	return nil
 }
 
+// hasGatewayOrDefaultRoute returns true if ep has a gateway, or a route to '0.0.0.0'/'::'.
+func (ep *Endpoint) hasGatewayOrDefaultRoute() bool {
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
+
+	if ep.joinInfo != nil {
+		if len(ep.joinInfo.gw) > 0 {
+			return true
+		}
+		for _, route := range ep.joinInfo.StaticRoutes {
+			if route.Destination.IP.IsUnspecified() && net.IP(route.Destination.Mask).IsUnspecified() {
+				return true
+			}
+		}
+	}
+	if ep.iface != nil {
+		for _, route := range ep.iface.routes {
+			if route.IP.IsUnspecified() && net.IP(route.Mask).IsUnspecified() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (ep *Endpoint) retrieveFromStore() (*Endpoint, error) {
 	n, err := ep.getNetworkFromStore()
 	if err != nil {

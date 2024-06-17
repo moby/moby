@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/snapshots"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log/logtest"
 	imagetypes "github.com/docker/docker/api/types/image"
 	daemonevents "github.com/docker/docker/daemon/events"
@@ -101,6 +103,9 @@ func TestImageList(t *testing.T) {
 	emptyIndex, err := specialimage.EmptyIndex(blobsDir)
 	assert.NilError(t, err)
 
+	configTarget, err := specialimage.ConfigTarget(blobsDir)
+	assert.NilError(t, err)
+
 	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
 
 	for _, tc := range []struct {
@@ -148,6 +153,16 @@ func TestImageList(t *testing.T) {
 			images: imagesFromIndex(multilayer, emptyIndex, twoplatform),
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 2))
+			},
+		},
+		{
+			// Make sure an invalid image target doesn't break the whole operation
+			name:   "one good image, second has config as a target",
+			images: imagesFromIndex(multilayer, configTarget),
+			check: func(t *testing.T, all []*imagetypes.Summary) {
+				assert.Check(t, is.Len(all, 1))
+
+				assert.Check(t, is.Equal(all[0].ID, multilayer.Manifests[0].Digest.String()))
 			},
 		},
 	} {
@@ -231,6 +246,9 @@ func (s *blobsDirContentStore) ReaderAt(ctx context.Context, desc ocispec.Descri
 	p := filepath.Join(s.blobs, desc.Digest.Encoded())
 	r, err := os.Open(p)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("%w: %s", cerrdefs.ErrNotFound, desc.Digest)
+		}
 		return nil, err
 	}
 	return &fileReaderAt{r}, nil
@@ -245,7 +263,8 @@ func (s *blobsDirContentStore) Status(ctx context.Context, _ string) (content.St
 }
 
 func (s *blobsDirContentStore) Delete(ctx context.Context, dgst digest.Digest) error {
-	return fmt.Errorf("read-only")
+	p := filepath.Join(s.blobs, dgst.Encoded())
+	return os.Remove(p)
 }
 
 func (s *blobsDirContentStore) ListStatuses(ctx context.Context, filters ...string) ([]content.Status, error) {
@@ -288,6 +307,9 @@ func (s *blobsDirContentStore) Walk(ctx context.Context, fn content.WalkFunc, fi
 func (s *blobsDirContentStore) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {
 	f, err := os.Open(filepath.Join(s.blobs, dgst.Encoded()))
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return content.Info{}, fmt.Errorf("%w: %s", cerrdefs.ErrNotFound, dgst)
+		}
 		return content.Info{}, err
 	}
 	defer f.Close()

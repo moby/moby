@@ -9,10 +9,19 @@ import (
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.windows_overlay.Join", trace.WithAttributes(
+		attribute.String("nid", nid),
+		attribute.String("eid", eid),
+		attribute.String("sboxKey", sboxKey)))
+	defer span.End()
+
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
@@ -37,7 +46,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	if err := jinfo.AddTableEntry(ovPeerTable, eid, buf); err != nil {
-		log.G(context.TODO()).Errorf("overlay: Failed adding table entry to joininfo: %v", err)
+		log.G(ctx).Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
 	if ep.disablegateway {

@@ -4,10 +4,12 @@ package resolvconf
 
 import (
 	"bytes"
+	"net/netip"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -78,58 +80,58 @@ nameserver 1.2.3.4 # not 4.3.2.1`,
 	}
 }
 
-func TestGetNameserversAsCIDR(t *testing.T) {
+func TestGetNameserversAsPrefix(t *testing.T) {
 	for _, tc := range []struct {
 		input  string
-		result []string
+		result []netip.Prefix
 	}{
 		{
-			input: ``,
+			input:  ``,
+			result: []netip.Prefix{},
 		},
 		{
-			input: `search example.com`,
+			input:  `search example.com`,
+			result: []netip.Prefix{},
 		},
 		{
 			input:  `  nameserver 1.2.3.4   `,
-			result: []string{"1.2.3.4/32"},
+			result: []netip.Prefix{netip.MustParsePrefix("1.2.3.4/32")},
 		},
 		{
 			input: `
 nameserver 1.2.3.4
 nameserver 40.3.200.10
 search example.com`,
-			result: []string{"1.2.3.4/32", "40.3.200.10/32"},
+			result: []netip.Prefix{netip.MustParsePrefix("1.2.3.4/32"), netip.MustParsePrefix("40.3.200.10/32")},
 		},
 		{
 			input: `nameserver 1.2.3.4
 search example.com
 nameserver 4.30.20.100`,
-			result: []string{"1.2.3.4/32", "4.30.20.100/32"},
+			result: []netip.Prefix{netip.MustParsePrefix("1.2.3.4/32"), netip.MustParsePrefix("4.30.20.100/32")},
 		},
 		{
 			input: `search example.com
 nameserver 1.2.3.4
 #nameserver 4.3.2.1`,
-			result: []string{"1.2.3.4/32"},
+			result: []netip.Prefix{netip.MustParsePrefix("1.2.3.4/32")},
 		},
 		{
 			input: `search example.com
 nameserver 1.2.3.4 # not 4.3.2.1`,
-			result: []string{"1.2.3.4/32"},
+			result: []netip.Prefix{netip.MustParsePrefix("1.2.3.4/32")},
 		},
 		{
 			input:  `nameserver fd6f:c490:ec68::1`,
-			result: []string{"fd6f:c490:ec68::1/128"},
+			result: []netip.Prefix{netip.MustParsePrefix("fd6f:c490:ec68::1/128")},
 		},
 		{
 			input:  `nameserver fe80::1234%eth0`,
-			result: []string{"fe80::1234/128"},
+			result: []netip.Prefix{netip.MustParsePrefix("fe80::1234/128")},
 		},
 	} {
-		test := GetNameserversAsCIDR([]byte(tc.input))
-		if !strSlicesEqual(test, tc.result) {
-			t.Errorf("Wrong nameserver string {%s} should be %v. Input: %s", test, tc.result, tc.input)
-		}
+		test := GetNameserversAsPrefix([]byte(tc.input))
+		assert.DeepEqual(t, test, tc.result, cmpopts.EquateComparable(netip.Prefix{}))
 	}
 }
 

@@ -104,8 +104,8 @@ func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
 		memory.DisableOOMKiller = config.OomKillDisable
 	}
 
-	if config.KernelMemory != 0 {
-		memory.Kernel = &config.KernelMemory
+	if config.KernelMemory != 0 { //nolint:staticcheck // ignore SA1019: memory.Kernel is deprecated: kernel-memory limits are not supported in cgroups v2, and were obsoleted in [kernel v5.4]. This field should no longer be used, as it may be ignored by runtimes.
+		memory.Kernel = &config.KernelMemory //nolint:staticcheck // ignore SA1019: memory.Kernel is deprecated: kernel-memory limits are not supported in cgroups v2, and were obsoleted in [kernel v5.4]. This field should no longer be used, as it may be ignored by runtimes.
 	}
 
 	if config.KernelMemoryTCP != 0 {
@@ -737,11 +737,13 @@ func verifyDaemonSettings(conf *config.Config) error {
 	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP != "" {
 		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one")
 	}
-	if !conf.BridgeConfig.EnableIPTables && !conf.BridgeConfig.InterContainerCommunication {
-		return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
-	}
-	if conf.BridgeConfig.EnableIP6Tables && !conf.Experimental {
-		return fmt.Errorf("ip6tables rules are only available if experimental features are enabled")
+	if !conf.BridgeConfig.InterContainerCommunication {
+		if !conf.BridgeConfig.EnableIPTables {
+			return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
+		}
+		if conf.BridgeConfig.EnableIPv6 && !conf.BridgeConfig.EnableIP6Tables {
+			return fmt.Errorf("You specified --ip6tables=false with --icc=false. ICC=false uses ip6tables to function. Please set --icc or --ip6tables to true")
+		}
 	}
 	if !conf.BridgeConfig.EnableIPTables && conf.BridgeConfig.EnableIPMasq {
 		conf.BridgeConfig.EnableIPMasq = false
@@ -833,7 +835,7 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 // network settings. If there's active sandboxes, configuration changes will not
 // take effect.
 func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes map[string]interface{}) error {
-	netOptions, err := daemon.networkOptions(cfg, daemon.PluginStore, activeSandboxes)
+	netOptions, err := daemon.networkOptions(cfg, daemon.PluginStore, daemon.id, activeSandboxes)
 	if err != nil {
 		return err
 	}

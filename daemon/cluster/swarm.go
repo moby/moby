@@ -442,7 +442,7 @@ func (c *Cluster) Info(ctx context.Context) types.Info {
 		info.Error = state.err.Error()
 	}
 
-	ctx, cancel := c.getRequestContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
 	defer cancel()
 
 	if state.IsActiveManager() {

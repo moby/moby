@@ -122,7 +122,7 @@ func (sbs *sbState) CopyTo(o datastore.KVObject) error {
 	return nil
 }
 
-func (sb *Sandbox) storeUpdate() error {
+func (sb *Sandbox) storeUpdate(ctx context.Context) error {
 	sbs := &sbState{
 		c:          sb.controller,
 		ID:         sb.id,
@@ -146,7 +146,7 @@ retry:
 		})
 	}
 
-	err := sb.controller.updateToStore(sbs)
+	err := sb.controller.updateToStore(ctx, sbs)
 	if err == datastore.ErrKeyModified {
 		// When we get ErrKeyModified it is sufficient to just
 		// go back and retry.  No need to get the object from
@@ -159,12 +159,7 @@ retry:
 }
 
 func (sb *Sandbox) storeDelete() error {
-	cs := sb.controller.getStore()
-	if cs == nil {
-		return fmt.Errorf("datastore is not initialized")
-	}
-
-	return cs.DeleteObject(&sbState{
+	return sb.controller.store.DeleteObject(&sbState{
 		c:        sb.controller,
 		ID:       sb.id,
 		Cid:      sb.containerID,
@@ -173,12 +168,7 @@ func (sb *Sandbox) storeDelete() error {
 }
 
 func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) error {
-	store := c.getStore()
-	if store == nil {
-		return fmt.Errorf("could not find local scope store")
-	}
-
-	sandboxStates, err := store.List(&sbState{c: c})
+	sandboxStates, err := c.store.List(&sbState{c: c})
 	if err != nil {
 		if err == datastore.ErrKeyNotFound {
 			// It's normal for no sandboxes to be found. Just bail out.
@@ -259,7 +249,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 
 		if _, ok := activeSandboxes[sb.ID()]; !ok {
 			log.G(context.TODO()).Infof("Removing stale sandbox %s (%s)", sb.id, sb.containerID)
-			if err := sb.delete(true); err != nil {
+			if err := sb.delete(context.WithoutCancel(context.TODO()), true); err != nil {
 				log.G(context.TODO()).Errorf("Failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)
 			}
 			continue
@@ -282,7 +272,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 			if !c.isAgent() {
 				n := ep.getNetwork()
 				if !c.isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
-					n.updateSvcRecord(ep, true)
+					n.updateSvcRecord(context.WithoutCancel(context.TODO()), ep, true)
 				}
 			}
 		}

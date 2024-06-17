@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -618,6 +619,11 @@ func (d *Daemon) Kill() error {
 	}()
 
 	if err := d.cmd.Process.Kill(); err != nil {
+		return err
+	}
+
+	_, err := d.cmd.Process.Wait()
+	if err != nil && !errors.Is(err, syscall.ECHILD) {
 		return err
 	}
 

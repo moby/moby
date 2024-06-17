@@ -8,10 +8,10 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
@@ -191,7 +191,7 @@ func annotateDistributionSourceHandler(manager content.Manager, annotations map[
 			children[i] = child
 
 			info, err := manager.Info(ctx, child.Digest)
-			if errors.Is(err, errdefs.ErrNotFound) {
+			if errors.Is(err, cerrdefs.ErrNotFound) {
 				continue
 			} else if err != nil {
 				return nil, err

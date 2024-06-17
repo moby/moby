@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/builder/builder-next/exporter/overrides"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/idtools"
@@ -76,23 +77,24 @@ var cacheFields = map[string]bool{
 
 // Opt is option struct required for creating the builder
 type Opt struct {
-	SessionManager      *session.Manager
-	Root                string
-	EngineID            string
-	Dist                images.DistributionServices
-	ImageTagger         mobyexporter.ImageTagger
-	NetworkController   *libnetwork.Controller
-	DefaultCgroupParent string
-	RegistryHosts       docker.RegistryHosts
-	BuilderConfig       config.BuilderConfig
-	Rootless            bool
-	IdentityMapping     idtools.IdentityMapping
-	DNSConfig           config.DNSConfig
-	ApparmorProfile     string
-	UseSnapshotter      bool
-	Snapshotter         string
-	ContainerdAddress   string
-	ContainerdNamespace string
+	SessionManager        *session.Manager
+	Root                  string
+	EngineID              string
+	Dist                  images.DistributionServices
+	ImageTagger           mobyexporter.ImageTagger
+	NetworkController     *libnetwork.Controller
+	DefaultCgroupParent   string
+	RegistryHosts         docker.RegistryHosts
+	BuilderConfig         config.BuilderConfig
+	Rootless              bool
+	IdentityMapping       idtools.IdentityMapping
+	DNSConfig             config.DNSConfig
+	ApparmorProfile       string
+	UseSnapshotter        bool
+	Snapshotter           string
+	ContainerdAddress     string
+	ContainerdNamespace   string
+	ImageExportedCallback exporter.ImageExportedByBuildkit
 }
 
 // Builder can build using BuildKit backend
@@ -326,7 +328,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		// TODO: remove once opt.Options.Platform is of type specs.Platform
 		_, err := platforms.Parse(opt.Options.Platform)
 		if err != nil {
-			return nil, err
+			return nil, errdefs.InvalidParameter(err)
 		}
 		frontendAttrs["platform"] = opt.Options.Platform
 	}
@@ -391,7 +393,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 	req := &controlapi.SolveRequest{
 		Ref: id,
 		Exporters: []*controlapi.Exporter{
-			&controlapi.Exporter{Type: exporterName, Attrs: exporterAttrs},
+			{Type: exporterName, Attrs: exporterAttrs},
 		},
 		Frontend:      "dockerfile.v0",
 		FrontendAttrs: frontendAttrs,

@@ -3,11 +3,12 @@
 package libnetwork
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/osl"
 )
 
@@ -24,7 +25,7 @@ ff02::2	ip6-allrouters
 fe90::2	somehost.example.com somehost
 `
 
-	opts := []NetworkOption{NetworkOptionEnableIPv6(true), NetworkOptionIpam(ipamapi.DefaultIPAM, "",
+	opts := []NetworkOption{NetworkOptionEnableIPv6(true), NetworkOptionIpam(defaultipam.DriverName, "",
 		[]*IpamConf{{PreferredPool: "192.168.222.0/24", Gateway: "192.168.222.1"}},
 		[]*IpamConf{{PreferredPool: "fe90::/64", Gateway: "fe90::1"}},
 		nil)}
@@ -37,17 +38,17 @@ fe90::2	somehost.example.com somehost
 	}
 	defer os.Remove(hostsFile.Name())
 
-	sbx, err := ctrlr.NewSandbox("sandbox1", OptionHostsPath(hostsFile.Name()), OptionHostname("somehost.example.com"))
+	sbx, err := ctrlr.NewSandbox(context.Background(), "sandbox1", OptionHostsPath(hostsFile.Name()), OptionHostname("somehost.example.com"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ep1, err := nws[0].CreateEndpoint("ep1")
+	ep1, err := nws[0].CreateEndpoint(context.Background(), "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep1.Join(sbx, JoinOptionPriority(1)); err != nil {
+	if err := ep1.Join(context.Background(), sbx, JoinOptionPriority(1)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -60,7 +61,7 @@ fe90::2	somehost.example.com somehost
 		t.Fatalf("expected the hosts file to read:\n%q\nbut instead got the following:\n%q\n", expectedHostsFile, string(data))
 	}
 
-	if err := sbx.Delete(); err != nil {
+	if err := sbx.Delete(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 

@@ -184,10 +184,10 @@ func (cli *Client) doRequest(req *http.Request) (serverResponse, error) {
 		// `open //./pipe/docker_engine: Le fichier spécifié est introuvable.`
 		if strings.Contains(err.Error(), `open //./pipe/docker_engine`) {
 			// Checks if client is running with elevated privileges
-			if f, elevatedErr := os.Open("\\\\.\\PHYSICALDRIVE0"); elevatedErr == nil {
+			if f, elevatedErr := os.Open(`\\.\PHYSICALDRIVE0`); elevatedErr != nil {
 				err = errors.Wrap(err, "in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect")
 			} else {
-				f.Close()
+				_ = f.Close()
 				err = errors.Wrap(err, "this error may indicate that the docker daemon is not running")
 			}
 		}
@@ -278,7 +278,7 @@ func encodeData(data interface{}) (*bytes.Buffer, error) {
 func ensureReaderClosed(response serverResponse) {
 	if response.body != nil {
 		// Drain up to 512 bytes and close the body to let the Transport reuse the connection
-		io.CopyN(io.Discard, response.body, 512)
-		response.body.Close()
+		_, _ = io.CopyN(io.Discard, response.body, 512)
+		_ = response.body.Close()
 	}
 }

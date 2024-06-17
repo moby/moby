@@ -3,6 +3,8 @@ package ipbits
 import (
 	"net/netip"
 	"testing"
+
+	"gotest.tools/v3/assert"
 )
 
 func TestAdd(t *testing.T) {
@@ -66,5 +68,32 @@ func TestField(t *testing.T) {
 		if got := Field(tt.in, tt.u, tt.v); got != tt.want {
 			t.Errorf("Field(%v, %v, %v) = %v (0x%[4]x); want %v (0x%[5]x)", tt.in, tt.u, tt.v, got, tt.want)
 		}
+	}
+}
+func TestSubnetsBetween(t *testing.T) {
+	tests := []struct {
+		a1, a2 netip.Addr
+		sz     int
+		want   uint64
+	}{
+		{netip.MustParseAddr("10.0.0.0"), netip.MustParseAddr("10.0.0.0"), 8, 0},
+		{netip.MustParseAddr("10.0.0.0"), netip.MustParseAddr("10.0.10.0"), 8, 0},
+		{netip.MustParseAddr("10.0.0.0"), netip.MustParseAddr("10.1.0.0"), 24, 256},
+		{netip.MustParseAddr("10.0.0.0"), netip.MustParseAddr("10.10.0.0"), 16, 10},
+		{netip.MustParseAddr("10.20.0.0"), netip.MustParseAddr("10.20.128.0"), 24, 128},
+		{netip.MustParseAddr("10.0.0.0"), netip.MustParseAddr("10.0.10.0"), 24, 10},
+
+		{netip.MustParseAddr("fc00::"), netip.MustParseAddr("fc00::"), 8, 0x0},
+		{netip.MustParseAddr("fc00::"), netip.MustParseAddr("fc00:1000::"), 16, 0x0},
+		{netip.MustParseAddr("fc00::"), netip.MustParseAddr("fc01::"), 24, 0x100},
+		{netip.MustParseAddr("fc00::"), netip.MustParseAddr("fc01::"), 16, 0x1},
+		{netip.MustParseAddr("fc00::"), netip.MustParseAddr("fc00:1000::"), 24, 0x10},
+		{netip.MustParseAddr("fc00::"), netip.MustParseAddr("fc00:1000::"), 24, 0x10},
+		{netip.MustParseAddr("fc00::"), netip.MustParseAddr("fd00::"), 64, 0x100_0000_0000_0000},
+	}
+
+	for _, tt := range tests {
+		d := SubnetsBetween(tt.a1, tt.a2, tt.sz)
+		assert.Check(t, d == tt.want, "SubnetsBetween(%q, %q, %d) = 0x%x; want: 0x%x", tt.a1, tt.a2, tt.sz, d, tt.want)
 	}
 }

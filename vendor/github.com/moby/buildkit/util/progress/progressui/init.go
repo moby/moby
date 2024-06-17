@@ -13,7 +13,10 @@ var colorCancel aec.ANSI
 var colorWarning aec.ANSI
 var colorError aec.ANSI
 
-var termHeight = 6
+const termHeightMin = 6
+
+var termHeightInitial = termHeightMin
+var termHeight = termHeightMin
 
 func init() {
 	// As recommended on https://no-color.org/
@@ -43,6 +46,7 @@ func init() {
 	if termHeightStr != "" {
 		termHeightVal, err := strconv.Atoi(termHeightStr)
 		if err == nil && termHeightVal > 0 {
+			termHeightInitial = termHeightVal
 			termHeight = termHeightVal
 		}
 	}

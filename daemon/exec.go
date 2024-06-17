@@ -11,7 +11,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/strslice"
@@ -94,42 +94,42 @@ func (daemon *Daemon) getActiveContainer(name string) (*container.Container, err
 }
 
 // ContainerExecCreate sets up an exec in a running container.
-func (daemon *Daemon) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
+func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.ExecOptions) (string, error) {
 	cntr, err := daemon.getActiveContainer(name)
 	if err != nil {
 		return "", err
 	}
 
-	cmd := strslice.StrSlice(config.Cmd)
+	cmd := strslice.StrSlice(options.Cmd)
 	entrypoint, args := daemon.getEntrypointAndArgs(strslice.StrSlice{}, cmd)
 
 	keys := []byte{}
-	if config.DetachKeys != "" {
-		keys, err = term.ToBytes(config.DetachKeys)
+	if options.DetachKeys != "" {
+		keys, err = term.ToBytes(options.DetachKeys)
 		if err != nil {
-			err = fmt.Errorf("Invalid escape keys (%s) provided", config.DetachKeys)
+			err = fmt.Errorf("Invalid escape keys (%s) provided", options.DetachKeys)
 			return "", err
 		}
 	}
 
 	execConfig := container.NewExecConfig(cntr)
-	execConfig.OpenStdin = config.AttachStdin
-	execConfig.OpenStdout = config.AttachStdout
-	execConfig.OpenStderr = config.AttachStderr
+	execConfig.OpenStdin = options.AttachStdin
+	execConfig.OpenStdout = options.AttachStdout
+	execConfig.OpenStderr = options.AttachStderr
 	execConfig.DetachKeys = keys
 	execConfig.Entrypoint = entrypoint
 	execConfig.Args = args
-	execConfig.Tty = config.Tty
-	execConfig.ConsoleSize = config.ConsoleSize
-	execConfig.Privileged = config.Privileged
-	execConfig.User = config.User
-	execConfig.WorkingDir = config.WorkingDir
+	execConfig.Tty = options.Tty
+	execConfig.ConsoleSize = options.ConsoleSize
+	execConfig.Privileged = options.Privileged
+	execConfig.User = options.User
+	execConfig.WorkingDir = options.WorkingDir
 
 	linkedEnv, err := daemon.setupLinkedContainers(cntr)
 	if err != nil {
 		return "", err
 	}
-	execConfig.Env = container.ReplaceOrAppendEnvValues(cntr.CreateDaemonEnvironment(config.Tty, linkedEnv), config.Env)
+	execConfig.Env = container.ReplaceOrAppendEnvValues(cntr.CreateDaemonEnvironment(options.Tty, linkedEnv), options.Env)
 	if len(execConfig.User) == 0 {
 		execConfig.User = cntr.Config.User
 	}
@@ -148,7 +148,7 @@ func (daemon *Daemon) ContainerExecCreate(name string, config *types.ExecConfig)
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
 // If ctx is cancelled, the process is terminated.
-func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, options containertypes.ExecStartOptions) (err error) {
+func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, options backend.ExecStartConfig) (err error) {
 	var (
 		cStdin           io.ReadCloser
 		cStdout, cStderr io.Writer

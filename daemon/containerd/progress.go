@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/containerd/containerd/content"
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
@@ -55,7 +55,7 @@ func (j *jobs) showProgress(ctx context.Context, out progress.Output, updater pr
 					}
 				}
 			case <-ctx.Done():
-				ctx, cancel := context.WithTimeout(compatcontext.WithoutCancel(ctx), time.Millisecond*500)
+				ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Millisecond*500)
 				defer cancel()
 				updater.UpdateProgress(ctx, j, out, start)
 				close(lastUpdate)
@@ -174,7 +174,13 @@ func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pro
 }
 
 type pushProgress struct {
-	Tracker docker.StatusTracker
+	Tracker                         docker.StatusTracker
+	notStartedWaitingAreUnavailable atomic.Bool
+}
+
+// TurnNotStartedIntoUnavailable will mark all not started layers as "Unavailable" instead of "Waiting".
+func (p *pushProgress) TurnNotStartedIntoUnavailable() {
+	p.notStartedWaitingAreUnavailable.Store(true)
 }
 
 func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out progress.Output, start time.Time) error {
@@ -183,7 +189,13 @@ func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 		id := stringid.TruncateID(j.Digest.Encoded())
 
 		status, err := p.Tracker.GetStatus(key)
-		if err != nil {
+
+		notStarted := (status.Total > 0 && status.Offset == 0)
+		if err != nil || notStarted {
+			if p.notStartedWaitingAreUnavailable.Load() {
+				progress.Update(out, id, "Unavailable")
+				continue
+			}
 			if cerrdefs.IsNotFound(err) {
 				progress.Update(out, id, "Waiting")
 				continue

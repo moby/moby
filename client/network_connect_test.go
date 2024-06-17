@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -39,7 +38,7 @@ func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
-			var connect types.NetworkConnect
+			var connect network.ConnectOptions
 			if err := json.NewDecoder(req.Body).Decode(&connect); err != nil {
 				return nil, err
 			}
@@ -78,7 +77,7 @@ func TestNetworkConnect(t *testing.T) {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
-			var connect types.NetworkConnect
+			var connect network.ConnectOptions
 			if err := json.NewDecoder(req.Body).Decode(&connect); err != nil {
 				return nil, err
 			}

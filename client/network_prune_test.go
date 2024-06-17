@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -82,7 +82,7 @@ func TestNetworksPrune(t *testing.T) {
 					actual := query.Get(key)
 					assert.Check(t, is.Equal(expected, actual))
 				}
-				content, err := json.Marshal(types.NetworksPruneReport{
+				content, err := json.Marshal(network.PruneReport{
 					NetworksDeleted: []string{"network_id1", "network_id2"},
 				})
 				if err != nil {

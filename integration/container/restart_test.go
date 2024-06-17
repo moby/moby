@@ -85,7 +85,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 					d := daemon.New(t)
 					apiClient := d.NewClientT(t)
 
-					args := []string{"--iptables=false"}
+					args := []string{"--iptables=false", "--ip6tables=false"}
 					if liveRestoreEnabled {
 						args = append(args, "--live-restore")
 					}
@@ -244,7 +244,7 @@ func TestContainerRestartWithCancelledRequest(t *testing.T) {
 	}()
 
 	// Start listening for events.
-	messages, errs := apiClient.Events(ctx, types.EventsOptions{
+	messages, errs := apiClient.Events(ctx, events.ListOptions{
 		Filters: filters.NewArgs(
 			filters.Arg("container", cID),
 			filters.Arg("event", string(events.ActionRestart)),

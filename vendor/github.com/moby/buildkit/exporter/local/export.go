@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/moby/buildkit/cache"
+	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/exporter/util/epoch"
@@ -38,6 +39,7 @@ func New(opt Opt) (exporter.Exporter, error) {
 func (e *localExporter) Resolve(ctx context.Context, id int, opt map[string]string) (exporter.ExporterInstance, error) {
 	i := &localExporterInstance{
 		id:            id,
+		attrs:         opt,
 		localExporter: e,
 	}
 	_, err := i.opts.Load(opt)
@@ -50,7 +52,8 @@ func (e *localExporter) Resolve(ctx context.Context, id int, opt map[string]stri
 
 type localExporterInstance struct {
 	*localExporter
-	id int
+	id    int
+	attrs map[string]string
 
 	opts CreateFSOpts
 }
@@ -61,6 +64,14 @@ func (e *localExporterInstance) ID() int {
 
 func (e *localExporterInstance) Name() string {
 	return "exporting to client directory"
+}
+
+func (e *localExporterInstance) Type() string {
+	return client.ExporterLocal
+}
+
+func (e *localExporterInstance) Attrs() map[string]string {
+	return e.attrs
 }
 
 func (e *localExporter) Config() *exporter.Config {
@@ -142,7 +153,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 				if e.opts.PlatformSplit {
 					st := fstypes.Stat{
 						Mode: uint32(os.ModeDir | 0755),
-						Path: strings.Replace(k, "/", "_", -1),
+						Path: strings.ReplaceAll(k, "/", "_"),
 					}
 					if e.opts.Epoch != nil {
 						st.ModTime = e.opts.Epoch.UnixNano()

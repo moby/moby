@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptrace"
 
-	"github.com/moby/buildkit/util/bklog"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
@@ -15,6 +14,11 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
+
+	"github.com/pkg/errors"
+
+	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/stack"
 )
 
 // StartSpan starts a new span as a child of the span in context.
@@ -30,14 +34,30 @@ func StartSpan(ctx context.Context, operationName string, opts ...trace.SpanStar
 	return span, ctx
 }
 
+func hasStacktrace(err error) bool {
+	switch e := err.(type) {
+	case interface{ StackTrace() *stack.Stack }:
+		return true
+	case interface{ StackTrace() errors.StackTrace }:
+		return true
+	case interface{ Unwrap() error }:
+		return hasStacktrace(e.Unwrap())
+	case interface{ Unwrap() []error }:
+		for _, ue := range e.Unwrap() {
+			if hasStacktrace(ue) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // FinishWithError finalizes the span and sets the error if one is passed
 func FinishWithError(span trace.Span, err error) {
 	if err != nil {
 		span.RecordError(err)
-		if _, ok := err.(interface {
-			Cause() error
-		}); ok {
-			span.SetAttributes(attribute.String(string(semconv.ExceptionStacktraceKey), fmt.Sprintf("%+v", err)))
+		if hasStacktrace(err) {
+			span.SetAttributes(attribute.String(string(semconv.ExceptionStacktraceKey), fmt.Sprintf("%+v", stack.Formatter(err))))
 		}
 		span.SetStatus(codes.Error, err.Error())
 	}

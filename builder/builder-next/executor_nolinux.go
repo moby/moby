@@ -22,11 +22,11 @@ func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool
 type stubExecutor struct{}
 
 func (w *stubExecutor) Run(ctx context.Context, id string, root executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (resourcetypes.Recorder, error) {
-	return nil, errors.New("buildkit executor not implemented for "+runtime.GOOS)
+	return nil, errors.New("buildkit executor not implemented for " + runtime.GOOS)
 }
 
 func (w *stubExecutor) Exec(ctx context.Context, id string, process executor.ProcessInfo) error {
-	return errors.New("buildkit executor not implemented for "+runtime.GOOS)
+	return errors.New("buildkit executor not implemented for " + runtime.GOOS)
 }
 
 func getDNSConfig(config.DNSConfig) *oci.DNSConfig {

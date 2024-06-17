@@ -14,7 +14,7 @@ import (
 )
 
 // CreateEndpoint assigns the mac, ip and endpoint id for the new container
-func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if opt, ok := epOptions[netlabel.PortMap]; ok {
 		if _, ok := opt.([]types.PortBinding); ok {
 			if len(opt.([]types.PortBinding)) > 0 {
-				log.G(context.TODO()).Warnf("ipvlan driver does not support port mappings")
+				log.G(ctx).Warnf("ipvlan driver does not support port mappings")
 			}
 		}
 	}
@@ -46,7 +46,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if opt, ok := epOptions[netlabel.ExposedPorts]; ok {
 		if _, ok := opt.([]types.TransportPort); ok {
 			if len(opt.([]types.TransportPort)) > 0 {
-				log.G(context.TODO()).Warnf("ipvlan driver does not support port exposures")
+				log.G(ctx).Warnf("ipvlan driver does not support port exposures")
 			}
 		}
 	}

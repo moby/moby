@@ -130,13 +130,15 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 }
 
 func (s *DockerSwarmSuite) TestSwarmInitIPv6(c *testing.T) {
-	testRequires(c, IPv6)
 	ctx := testutil.GetContext(c)
 	d1 := s.AddDaemon(ctx, c, false, false)
-	cli.Docker(cli.Args("swarm", "init", "--listen-add", "::1"), cli.Daemon(d1)).Assert(c, icmd.Success)
+	cli.Docker(cli.Args("swarm", "init", "--listen-addr", "::1"),
+		cli.Daemon(d1)).Assert(c, icmd.Success)
 
+	token := s.daemons[0].JoinTokens(c).Worker
 	d2 := s.AddDaemon(ctx, c, false, false)
-	cli.Docker(cli.Args("swarm", "join", "::1"), cli.Daemon(d2)).Assert(c, icmd.Success)
+	cli.Docker(cli.Args("swarm", "join", "[::1]", "--token", token),
+		cli.Daemon(d2)).Assert(c, icmd.Success)
 
 	out := cli.Docker(cli.Args("info"), cli.Daemon(d2)).Assert(c, icmd.Success).Combined()
 	assert.Assert(c, strings.Contains(out, "Swarm: active"))
@@ -972,14 +974,16 @@ func (s *DockerSwarmSuite) TestDNSConfig(c *testing.T) {
 	id := strings.TrimSpace(out)
 
 	// Compare against expected output.
-	expectedOutput1 := "nameserver 1.2.3.4"
+	expectedOutput1 := "nameserver 127.0.0.11"
 	expectedOutput2 := "search example.com"
 	expectedOutput3 := "options timeout:3"
+	expectedOutput4 := "ExtServers: [1.2.3.4]"
 	out, err = d.Cmd("exec", id, "cat", "/etc/resolv.conf")
 	assert.NilError(c, err, out)
 	assert.Assert(c, strings.Contains(out, expectedOutput1), "Expected '%s', but got %q", expectedOutput1, out)
 	assert.Assert(c, strings.Contains(out, expectedOutput2), "Expected '%s', but got %q", expectedOutput2, out)
 	assert.Assert(c, strings.Contains(out, expectedOutput3), "Expected '%s', but got %q", expectedOutput3, out)
+	assert.Assert(c, strings.Contains(out, expectedOutput4), "Expected '%s', but got %q", expectedOutput4, out)
 }
 
 func (s *DockerSwarmSuite) TestDNSConfigUpdate(c *testing.T) {

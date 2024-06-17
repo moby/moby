@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/containerd/containerd/content"
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdlabels "github.com/containerd/containerd/labels"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

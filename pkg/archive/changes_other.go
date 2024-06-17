@@ -72,19 +72,23 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 			return fmt.Errorf("collectFileInfo: Unexpectedly no parent for %s", relPath)
 		}
 
-		info := &FileInfo{
-			name:     filepath.Base(relPath),
-			children: make(map[string]*FileInfo),
-			parent:   parent,
-		}
-
 		s, err := system.Lstat(path)
 		if err != nil {
 			return err
 		}
-		info.stat = s
 
-		info.capability, _ = system.Lgetxattr(path, "security.capability")
+		info := &FileInfo{
+			name:     filepath.Base(relPath),
+			children: make(map[string]*FileInfo),
+			parent:   parent,
+			stat:     s,
+		}
+
+		// system.Lgetxattr is only implemented on Linux and produces an error
+		// on other platforms. This code is intentionally left commented-out
+		// as a reminder to include this code if this would ever be implemented
+		// on other platforms.
+		// info.capability, _ = system.Lgetxattr(path, "security.capability")
 
 		parent.children[info.name] = info
 

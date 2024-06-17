@@ -14,7 +14,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
@@ -134,18 +133,6 @@ func shouldUnmountRoot(root string, info *mountinfo.Info) bool {
 		return false
 	}
 	return hasMountInfoOption(info.Optional, sharedPropagationOption)
-}
-
-// setupResolvConf sets the appropriate resolv.conf file if not specified
-// When systemd-resolved is running the default /etc/resolv.conf points to
-// localhost. In this case fetch the alternative config file that is in a
-// different path so that containers can use it
-// In all the other cases fallback to the default one
-func setupResolvConf(config *config.Config) {
-	if config.ResolvConf != "" {
-		return
-	}
-	config.ResolvConf = resolvconf.Path()
 }
 
 // ifaceAddrs returns the IPv4 and IPv6 addresses assigned to the network

@@ -292,7 +292,7 @@ func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesWithStdout(c *testing.T) {
 		d.Stop(c)
 		d.Cleanup(c)
 	}()
-	d.StartWithBusybox(ctx, c, "--iptables=false")
+	d.StartWithBusybox(ctx, c, "--iptables=false", "--ip6tables=false")
 
 	out, err := d.Cmd("run", "-d", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 2; done")
 	assert.NilError(c, err)
@@ -349,7 +349,7 @@ func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesNoOutput(c *testing.T) {
 
 	ctx := testutil.GetContext(c)
 
-	d.StartWithBusybox(ctx, c, "--iptables=false")
+	d.StartWithBusybox(ctx, c, "--iptables=false", "--ip6tables=false")
 
 	out, err := d.Cmd("run", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 2; done")
 	assert.NilError(c, err)

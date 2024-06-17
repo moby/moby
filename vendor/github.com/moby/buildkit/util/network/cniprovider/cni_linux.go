@@ -62,7 +62,7 @@ func readFileAt(dirfd int, filename string, buf []byte) (int64, error) {
 	}
 	defer syscall.Close(fd)
 
-	n, err := syscall.Read(fd, buf[:])
+	n, err := syscall.Read(fd, buf)
 	if err != nil {
 		return 0, err
 	}

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
@@ -32,7 +31,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	var list []types.NetworkResource
+	var list []network.Summary
 	nr, err := n.cluster.GetNetworks(filter)
 	if err == nil {
 		list = nr
@@ -60,7 +59,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 	}
 
 	if list == nil {
-		list = []types.NetworkResource{}
+		list = []network.Summary{}
 	}
 
 	return httputils.WriteJSON(w, http.StatusOK, list)
@@ -109,8 +108,8 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 
 	// For full name and partial ID, save the result first, and process later
 	// in case multiple records was found based on the same term
-	listByFullName := map[string]types.NetworkResource{}
-	listByPartialID := map[string]types.NetworkResource{}
+	listByFullName := map[string]network.Inspect{}
+	listByPartialID := map[string]network.Inspect{}
 
 	// TODO(@cpuguy83): All this logic for figuring out which network to return does not belong here
 	// Instead there should be a backend function to just get one network.
@@ -204,7 +203,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	var create types.NetworkCreateRequest
+	var create network.CreateRequest
 	if err := httputils.ReadJSON(r, &create); err != nil {
 		return err
 	}
@@ -226,7 +225,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		if err != nil {
 			return err
 		}
-		nw = &types.NetworkCreateResponse{
+		nw = &network.CreateResponse{
 			ID: id,
 		}
 	}
@@ -239,7 +238,7 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 		return err
 	}
 
-	var connect types.NetworkConnect
+	var connect network.ConnectOptions
 	if err := httputils.ReadJSON(r, &connect); err != nil {
 		return err
 	}
@@ -248,7 +247,7 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 	// The reason is that, In case of attachable network in swarm scope, the actual local network
 	// may not be available at the time. At the same time, inside daemon `ConnectContainerToNetwork`
 	// does the ambiguity check anyway. Therefore, passing the name to daemon would be enough.
-	return n.backend.ConnectContainerToNetwork(connect.Container, vars["id"], connect.EndpointConfig)
+	return n.backend.ConnectContainerToNetwork(ctx, connect.Container, vars["id"], connect.EndpointConfig)
 }
 
 func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -256,7 +255,7 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 		return err
 	}
 
-	var disconnect types.NetworkDisconnect
+	var disconnect network.DisconnectOptions
 	if err := httputils.ReadJSON(r, &disconnect); err != nil {
 		return err
 	}
@@ -311,9 +310,9 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 // For full name and partial ID, save the result first, and process later
 // in case multiple records was found based on the same term
 // TODO (yongtang): should we wrap with version here for backward compatibility?
-func (n *networkRouter) findUniqueNetwork(term string) (types.NetworkResource, error) {
-	listByFullName := map[string]types.NetworkResource{}
-	listByPartialID := map[string]types.NetworkResource{}
+func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) {
+	listByFullName := map[string]network.Inspect{}
+	listByPartialID := map[string]network.Inspect{}
 
 	filter := filters.NewArgs(filters.Arg("idOrName", term))
 	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true})
@@ -363,7 +362,7 @@ func (n *networkRouter) findUniqueNetwork(term string) (types.NetworkResource, e
 		}
 	}
 	if len(listByFullName) > 1 {
-		return types.NetworkResource{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName)))
+		return network.Inspect{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName)))
 	}
 
 	// Find based on partial ID, returns true only if no duplicates
@@ -373,8 +372,8 @@ func (n *networkRouter) findUniqueNetwork(term string) (types.NetworkResource, e
 		}
 	}
 	if len(listByPartialID) > 1 {
-		return types.NetworkResource{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
+		return network.Inspect{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
 	}
 
-	return types.NetworkResource{}, errdefs.NotFound(libnetwork.ErrNoSuchNetwork(term))
+	return network.Inspect{}, errdefs.NotFound(libnetwork.ErrNoSuchNetwork(term))
 }

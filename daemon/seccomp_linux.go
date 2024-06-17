@@ -22,7 +22,11 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			return nil
 		}
 		if c.HostConfig.Privileged {
-			return nil
+			var err error
+			if c.SeccompProfile != "" {
+				s.Linux.Seccomp, err = seccomp.LoadProfile(c.SeccompProfile, s)
+			}
+			return err
 		}
 		if !daemon.RawSysInfo().Seccomp {
 			if c.SeccompProfile != "" && c.SeccompProfile != dconfig.SeccompProfileDefault {

@@ -2,7 +2,9 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -36,9 +38,23 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options image.Pu
 		}
 	}
 
+	if options.Platform != nil {
+		if err := cli.NewVersionError(ctx, "1.46", "platform"); err != nil {
+			return nil, err
+		}
+
+		p := *options.Platform
+		pJson, err := json.Marshal(p)
+		if err != nil {
+			return nil, fmt.Errorf("invalid platform: %v", err)
+		}
+
+		query.Set("platform", string(pJson))
+	}
+
 	resp, err := cli.tryImagePush(ctx, name, query, options.RegistryAuth)
 	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
-		newAuthHeader, privilegeErr := options.PrivilegeFunc()
+		newAuthHeader, privilegeErr := options.PrivilegeFunc(ctx)
 		if privilegeErr != nil {
 			return nil, privilegeErr
 		}

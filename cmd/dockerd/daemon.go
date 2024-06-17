@@ -36,7 +36,7 @@ import (
 	"github.com/docker/docker/api/server/router/volume"
 	buildkit "github.com/docker/docker/builder/builder-next"
 	"github.com/docker/docker/builder/dockerfile"
-	"github.com/docker/docker/cli/debug"
+	"github.com/docker/docker/cmd/dockerd/debug"
 	"github.com/docker/docker/cmd/dockerd/trap"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster"
@@ -64,6 +64,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
@@ -240,18 +241,12 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	setOTLPProtoDefault()
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 
-	// Override BuildKit's default Resource so that it matches the semconv
-	// version that is used in our code.
-	detect.OverrideResource(resource.Default())
+	// Initialize the trace recorder for buildkit.
 	detect.Recorder = detect.NewTraceRecorder()
 
-	tp, err := detect.TracerProvider()
-	if err != nil {
-		log.G(ctx).WithError(err).Warn("Failed to initialize tracing, skipping")
-	} else {
-		otel.SetTracerProvider(tp)
-		log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
-	}
+	tp := newTracerProvider(ctx)
+	otel.SetTracerProvider(tp)
+	log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
 
 	pluginStore := plugin.NewStore()
 
@@ -368,7 +363,9 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return errors.Wrap(err, "shutting down due to ServeAPI error")
 	}
 
-	detect.Shutdown(context.Background())
+	if err := tp.Shutdown(context.Background()); err != nil {
+		log.G(ctx).WithError(err).Error("Failed to shutdown OTEL tracing")
+	}
 
 	log.G(ctx).Info("Daemon shutdown complete")
 	return nil
@@ -397,6 +394,20 @@ func setOTLPProtoDefault() {
 	}
 }
 
+func newTracerProvider(ctx context.Context) *sdktrace.TracerProvider {
+	opts := []sdktrace.TracerProviderOption{
+		sdktrace.WithResource(resource.Default()),
+		sdktrace.WithSyncer(detect.Recorder),
+	}
+
+	if exp, err := detect.NewSpanExporter(ctx); err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to initialize tracing, skipping")
+	} else if !detect.IsNoneSpanExporter(exp) {
+		opts = append(opts, sdktrace.WithBatcher(exp))
+	}
+	return sdktrace.NewTracerProvider(opts...)
+}
+
 type routerOptions struct {
 	sessionManager *session.Manager
 	buildBackend   *buildbackend.Backend
@@ -419,23 +430,24 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 	cgroupParent := newCgroupParent(config)
 
 	bk, err := buildkit.New(ctx, buildkit.Opt{
-		SessionManager:      sm,
-		Root:                filepath.Join(config.Root, "buildkit"),
-		EngineID:            d.ID(),
-		Dist:                d.DistributionServices(),
-		ImageTagger:         d.ImageService(),
-		NetworkController:   d.NetworkController(),
-		DefaultCgroupParent: cgroupParent,
-		RegistryHosts:       d.RegistryHosts,
-		BuilderConfig:       config.Builder,
-		Rootless:            daemon.Rootless(config),
-		IdentityMapping:     d.IdentityMapping(),
-		DNSConfig:           config.DNSConfig,
-		ApparmorProfile:     daemon.DefaultApparmorProfile(),
-		UseSnapshotter:      d.UsesSnapshotter(),
-		Snapshotter:         d.ImageService().StorageDriver(),
-		ContainerdAddress:   config.ContainerdAddr,
-		ContainerdNamespace: config.ContainerdNamespace,
+		SessionManager:        sm,
+		Root:                  filepath.Join(config.Root, "buildkit"),
+		EngineID:              d.ID(),
+		Dist:                  d.DistributionServices(),
+		ImageTagger:           d.ImageService(),
+		NetworkController:     d.NetworkController(),
+		DefaultCgroupParent:   cgroupParent,
+		RegistryHosts:         d.RegistryHosts,
+		BuilderConfig:         config.Builder,
+		Rootless:              daemon.Rootless(config),
+		IdentityMapping:       d.IdentityMapping(),
+		DNSConfig:             config.DNSConfig,
+		ApparmorProfile:       daemon.DefaultApparmorProfile(),
+		UseSnapshotter:        d.UsesSnapshotter(),
+		Snapshotter:           d.ImageService().StorageDriver(),
+		ContainerdAddress:     config.ContainerdAddr,
+		ContainerdNamespace:   config.ContainerdNamespace,
+		ImageExportedCallback: d.ImageExportedByBuildkit,
 	})
 	if err != nil {
 		return routerOptions{}, err
@@ -729,8 +741,9 @@ func initMiddlewares(s *apiserver.Server, cfg *config.Config, pluginStore plugin
 	}
 	s.UseMiddleware(*vm)
 
-	if cfg.CorsHeaders != "" {
-		c := middleware.NewCORSMiddleware(cfg.CorsHeaders)
+	if cfg.CorsHeaders != "" && os.Getenv("DOCKERD_DEPRECATED_CORS_HEADER") != "" {
+		logrus.Warnf(`DEPRECATED: The "api-cors-header" config parameter and the dockerd "--api-cors-header" option will be removed in the next release. Use a reverse proxy if you need CORS headers.`)
+		c := middleware.NewCORSMiddleware(cfg.CorsHeaders) //nolint:staticcheck // ignore SA1019 (NewCORSMiddleware is deprecated); will be removed in the next release.
 		s.UseMiddleware(c)
 	}
 

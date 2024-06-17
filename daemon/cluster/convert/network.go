@@ -3,8 +3,7 @@ package convert // import "github.com/docker/docker/daemon/cluster/convert"
 import (
 	"strings"
 
-	basictypes "github.com/docker/docker/api/types"
-	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/libnetwork/scope"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -23,7 +22,7 @@ func networkAttachmentFromGRPC(na *swarmapi.NetworkAttachment) types.NetworkAtta
 
 func networkFromGRPC(n *swarmapi.Network) types.Network {
 	if n != nil {
-		network := types.Network{
+		nw := types.Network{
 			ID: n.ID,
 			Spec: types.NetworkSpec{
 				IPv6Enabled: n.Spec.Ipv6Enabled,
@@ -37,22 +36,22 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 		}
 
 		if n.Spec.GetNetwork() != "" {
-			network.Spec.ConfigFrom = &networktypes.ConfigReference{
+			nw.Spec.ConfigFrom = &network.ConfigReference{
 				Network: n.Spec.GetNetwork(),
 			}
 		}
 
 		// Meta
-		network.Version.Index = n.Meta.Version.Index
-		network.CreatedAt, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
-		network.UpdatedAt, _ = gogotypes.TimestampFromProto(n.Meta.UpdatedAt)
+		nw.Version.Index = n.Meta.Version.Index
+		nw.CreatedAt, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
+		nw.UpdatedAt, _ = gogotypes.TimestampFromProto(n.Meta.UpdatedAt)
 
 		// Annotations
-		network.Spec.Annotations = annotationsFromGRPC(n.Spec.Annotations)
+		nw.Spec.Annotations = annotationsFromGRPC(n.Spec.Annotations)
 
 		// DriverConfiguration
 		if n.Spec.DriverConfig != nil {
-			network.Spec.DriverConfiguration = &types.Driver{
+			nw.Spec.DriverConfiguration = &types.Driver{
 				Name:    n.Spec.DriverConfig.Name,
 				Options: n.Spec.DriverConfig.Options,
 			}
@@ -60,13 +59,13 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 
 		// DriverState
 		if n.DriverState != nil {
-			network.DriverState = types.Driver{
+			nw.DriverState = types.Driver{
 				Name:    n.DriverState.Name,
 				Options: n.DriverState.Options,
 			}
 		}
 
-		return network
+		return nw
 	}
 	return types.Network{}
 }
@@ -94,8 +93,9 @@ func ipamFromGRPC(i *swarmapi.IPAMOptions) *types.IPAMOptions {
 func endpointSpecFromGRPC(es *swarmapi.EndpointSpec) *types.EndpointSpec {
 	var endpointSpec *types.EndpointSpec
 	if es != nil {
-		endpointSpec = &types.EndpointSpec{}
-		endpointSpec.Mode = types.ResolutionMode(strings.ToLower(es.Mode.String()))
+		endpointSpec = &types.EndpointSpec{
+			Mode: types.ResolutionMode(strings.ToLower(es.Mode.String())),
+		}
 
 		for _, portState := range es.Ports {
 			endpointSpec.Ports = append(endpointSpec.Ports, swarmPortConfigToAPIPortConfig(portState))
@@ -137,27 +137,26 @@ func swarmPortConfigToAPIPortConfig(portConfig *swarmapi.PortConfig) types.PortC
 }
 
 // BasicNetworkFromGRPC converts a grpc Network to a NetworkResource.
-func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
+func BasicNetworkFromGRPC(n swarmapi.Network) network.Inspect {
 	spec := n.Spec
-	var ipam networktypes.IPAM
+	var ipam network.IPAM
 	if n.IPAM != nil {
 		if n.IPAM.Driver != nil {
 			ipam.Driver = n.IPAM.Driver.Name
 			ipam.Options = n.IPAM.Driver.Options
 		}
-		ipam.Config = make([]networktypes.IPAMConfig, 0, len(n.IPAM.Configs))
+		ipam.Config = make([]network.IPAMConfig, 0, len(n.IPAM.Configs))
 		for _, ic := range n.IPAM.Configs {
-			ipamConfig := networktypes.IPAMConfig{
+			ipam.Config = append(ipam.Config, network.IPAMConfig{
 				Subnet:     ic.Subnet,
 				IPRange:    ic.Range,
 				Gateway:    ic.Gateway,
 				AuxAddress: ic.Reserved,
-			}
-			ipam.Config = append(ipam.Config, ipamConfig)
+			})
 		}
 	}
 
-	nr := basictypes.NetworkResource{
+	nr := network.Inspect{
 		ID:         n.ID,
 		Name:       n.Spec.Annotations.Name,
 		Scope:      scope.Swarm,
@@ -171,7 +170,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 	nr.Created, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
 
 	if n.Spec.GetNetwork() != "" {
-		nr.ConfigFrom = networktypes.ConfigReference{
+		nr.ConfigFrom = network.ConfigReference{
 			Network: n.Spec.GetNetwork(),
 		}
 	}
@@ -185,7 +184,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 }
 
 // BasicNetworkCreateToGRPC converts a NetworkCreateRequest to a grpc NetworkSpec.
-func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.NetworkSpec {
+func BasicNetworkCreateToGRPC(create network.CreateRequest) swarmapi.NetworkSpec {
 	ns := swarmapi.NetworkSpec{
 		Annotations: swarmapi.Annotations{
 			Name:   create.Name,
@@ -195,10 +194,12 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 			Name:    create.Driver,
 			Options: create.Options,
 		},
-		Ipv6Enabled: create.EnableIPv6,
-		Internal:    create.Internal,
-		Attachable:  create.Attachable,
-		Ingress:     create.Ingress,
+		Internal:   create.Internal,
+		Attachable: create.Attachable,
+		Ingress:    create.Ingress,
+	}
+	if create.EnableIPv6 != nil {
+		ns.Ipv6Enabled = *create.EnableIPv6
 	}
 	if create.IPAM != nil {
 		driver := create.IPAM.Driver

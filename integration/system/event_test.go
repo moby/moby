@@ -11,11 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -33,26 +32,22 @@ func TestEventsExecDie(t *testing.T) {
 
 	cID := container.Run(ctx, t, client)
 
-	id, err := client.ContainerExecCreate(ctx, cID,
-		types.ExecConfig{
-			Cmd: strslice.StrSlice([]string{"echo", "hello"}),
-		},
-	)
+	id, err := client.ContainerExecCreate(ctx, cID, containertypes.ExecOptions{
+		Cmd: []string{"echo", "hello"},
+	})
 	assert.NilError(t, err)
 
-	msg, errs := client.Events(ctx, types.EventsOptions{
+	msg, errs := client.Events(ctx, events.ListOptions{
 		Filters: filters.NewArgs(
 			filters.Arg("container", cID),
 			filters.Arg("event", string(events.ActionExecDie)),
 		),
 	})
 
-	err = client.ContainerExecStart(ctx, id.ID,
-		types.ExecStartCheck{
-			Detach: true,
-			Tty:    false,
-		},
-	)
+	err = client.ContainerExecStart(ctx, id.ID, containertypes.ExecStartOptions{
+		Detach: true,
+		Tty:    false,
+	})
 	assert.NilError(t, err)
 
 	select {
@@ -115,7 +110,7 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 		}
 	}
 
-	assert.Check(t, containerCreateEvent != nil)
+	assert.Assert(t, containerCreateEvent != nil)
 	assert.Check(t, is.Equal("create", containerCreateEvent.Status))
 	assert.Check(t, is.Equal(cID, containerCreateEvent.ID))
 	assert.Check(t, is.Equal("busybox", containerCreateEvent.From))
@@ -160,7 +155,7 @@ func TestEventsVolumeCreate(t *testing.T) {
 		filters.Arg("event", "create"),
 		filters.Arg("volume", volName),
 	)
-	messages, errs := client.Events(ctx, types.EventsOptions{
+	messages, errs := client.Events(ctx, events.ListOptions{
 		Since:   since,
 		Until:   request.DaemonUnixTime(ctx, t, client, testEnv),
 		Filters: filter,
@@ -176,7 +171,7 @@ func TestEventsVolumeCreate(t *testing.T) {
 		Target: "/tmp/foo",
 	}))
 
-	messages, errs = client.Events(ctx, types.EventsOptions{
+	messages, errs = client.Events(ctx, events.ListOptions{
 		Since:   since,
 		Until:   request.DaemonUnixTime(ctx, t, client, testEnv),
 		Filters: filter,

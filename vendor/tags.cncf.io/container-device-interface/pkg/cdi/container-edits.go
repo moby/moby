@@ -144,6 +144,20 @@ func (e *ContainerEdits) Apply(spec *oci.Spec) error {
 		}
 	}
 
+	if e.IntelRdt != nil {
+		// The specgen is missing functionality to set all parameters so we
+		// just piggy-back on it to initialize all structs and the copy over.
+		specgen.SetLinuxIntelRdtClosID(e.IntelRdt.ClosID)
+		spec.Linux.IntelRdt = e.IntelRdt.ToOCI()
+	}
+
+	for _, additionalGID := range e.AdditionalGIDs {
+		if additionalGID == 0 {
+			continue
+		}
+		specgen.AddProcessAdditionalGid(additionalGID)
+	}
+
 	return nil
 }
 
@@ -171,6 +185,11 @@ func (e *ContainerEdits) Validate() error {
 			return err
 		}
 	}
+	if e.IntelRdt != nil {
+		if err := ValidateIntelRdt(e.IntelRdt); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -192,6 +211,10 @@ func (e *ContainerEdits) Append(o *ContainerEdits) *ContainerEdits {
 	e.DeviceNodes = append(e.DeviceNodes, o.DeviceNodes...)
 	e.Hooks = append(e.Hooks, o.Hooks...)
 	e.Mounts = append(e.Mounts, o.Mounts...)
+	if o.IntelRdt != nil {
+		e.IntelRdt = o.IntelRdt
+	}
+	e.AdditionalGIDs = append(e.AdditionalGIDs, o.AdditionalGIDs...)
 
 	return e
 }
@@ -202,7 +225,25 @@ func (e *ContainerEdits) isEmpty() bool {
 	if e == nil {
 		return false
 	}
-	return len(e.Env)+len(e.DeviceNodes)+len(e.Hooks)+len(e.Mounts) == 0
+	if len(e.Env) > 0 {
+		return false
+	}
+	if len(e.DeviceNodes) > 0 {
+		return false
+	}
+	if len(e.Hooks) > 0 {
+		return false
+	}
+	if len(e.Mounts) > 0 {
+		return false
+	}
+	if len(e.AdditionalGIDs) > 0 {
+		return false
+	}
+	if e.IntelRdt != nil {
+		return false
+	}
+	return true
 }
 
 // ValidateEnv validates the given environment variables.
@@ -276,6 +317,15 @@ func (m *Mount) Validate() error {
 	}
 	if m.ContainerPath == "" {
 		return errors.New("invalid mount, empty container path")
+	}
+	return nil
+}
+
+// ValidateIntelRdt validates the IntelRdt configuration.
+func ValidateIntelRdt(i *specs.IntelRdt) error {
+	// ClosID must be a valid Linux filename
+	if len(i.ClosID) >= 4096 || i.ClosID == "." || i.ClosID == ".." || strings.ContainsAny(i.ClosID, "/\n") {
+		return errors.New("invalid ClosID")
 	}
 	return nil
 }

@@ -4,21 +4,28 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/util/bklog"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-var mu sync.Mutex
-var arr []ocispecs.Platform
+var CacheMaxAge = 20 * time.Second
+
+var (
+	mu          sync.Mutex
+	arr         []ocispecs.Platform
+	lastRefresh time.Time
+)
 
 func SupportedPlatforms(noCache bool) []ocispecs.Platform {
 	mu.Lock()
 	defer mu.Unlock()
-	if !noCache && arr != nil {
+	if arr != nil && (!noCache || CacheMaxAge < 0 || time.Since(lastRefresh) < CacheMaxAge) {
 		return arr
 	}
+	defer func() { lastRefresh = time.Now() }()
 	def := nativePlatform()
 	arr = append([]ocispecs.Platform{}, def)
 

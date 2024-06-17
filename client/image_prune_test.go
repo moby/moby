@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -84,7 +83,7 @@ func TestImagesPrune(t *testing.T) {
 					actual := query.Get(key)
 					assert.Check(t, is.Equal(expected, actual))
 				}
-				content, err := json.Marshal(types.ImagesPruneReport{
+				content, err := json.Marshal(image.PruneReport{
 					ImagesDeleted: []image.DeleteResponse{
 						{
 							Deleted: "image_id1",

@@ -24,7 +24,7 @@ create network namespaces and allocate interfaces for containers to use.
 	// settings will be used for container infos (inspect and such), as well as
 	// iptables rules for port publishing. This info is contained or accessible
 	// from the returned endpoint.
-	ep, err := network.CreateEndpoint("Endpoint1")
+	ep, err := network.CreateEndpoint(context.TODO(), "Endpoint1")
 	if err != nil {
 		return
 	}
@@ -63,6 +63,7 @@ import (
 	remotedriver "github.com/docker/docker/libnetwork/drivers/remote"
 	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/scope"
@@ -72,6 +73,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 )
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -105,19 +107,22 @@ type Controller struct {
 
 // New creates a new instance of network controller.
 func New(cfgOptions ...config.Option) (*Controller, error) {
+	cfg := config.New(cfgOptions...)
+	store, err := datastore.New(cfg.Scope)
+	if err != nil {
+		return nil, fmt.Errorf("libnet controller initialization: %w", err)
+	}
+
 	c := &Controller{
 		id:               stringid.GenerateRandomID(),
-		cfg:              config.New(cfgOptions...),
+		cfg:              cfg,
+		store:            store,
 		sandboxes:        map[string]*Sandbox{},
 		svcRecords:       make(map[string]*svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
 		agentInitDone:    make(chan struct{}),
 		networkLocker:    locker.New(),
 		DiagnosticServer: diagnostic.New(),
-	}
-
-	if err := c.initStores(); err != nil {
-		return nil, err
 	}
 
 	c.drvRegistry.Notify = c
@@ -132,7 +137,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	if err := initIPAMDrivers(&c.ipamRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool); err != nil {
+	if err := ipams.Register(&c.ipamRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool, nil); err != nil {
 		return nil, err
 	}
 
@@ -651,7 +656,7 @@ addToStore:
 	// end up with a datastore containing a network and not an epCnt,
 	// in case of an ungraceful shutdown during this function call.
 	epCnt := &endpointCnt{n: nw}
-	if err := c.updateToStore(epCnt); err != nil {
+	if err := c.updateToStore(context.TODO(), epCnt); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -663,7 +668,7 @@ addToStore:
 	}()
 
 	nw.epCnt = epCnt
-	if err := c.updateToStore(nw); err != nil {
+	if err := c.updateToStore(context.TODO(), nw); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -867,10 +872,13 @@ func (c *Controller) NetworkByID(id string) (*Network, error) {
 }
 
 // NewSandbox creates a new sandbox for containerID.
-func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (_ *Sandbox, retErr error) {
+func (c *Controller) NewSandbox(ctx context.Context, containerID string, options ...SandboxOption) (_ *Sandbox, retErr error) {
 	if containerID == "" {
 		return nil, types.InvalidParameterErrorf("invalid container ID")
 	}
+
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Controller.NewSandbox")
+	defer span.End()
 
 	var sb *Sandbox
 	c.mu.Lock()
@@ -941,7 +949,7 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (_
 		}
 	}()
 
-	if err := sb.setupResolutionFiles(); err != nil {
+	if err := sb.setupResolutionFiles(ctx); err != nil {
 		return nil, err
 	}
 	if err := c.setupOSLSandbox(sb); err != nil {
@@ -959,7 +967,7 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (_
 		}
 	}()
 
-	if err := sb.storeUpdate(); err != nil {
+	if err := sb.storeUpdate(ctx); err != nil {
 		return nil, fmt.Errorf("failed to update the store state of sandbox: %v", err)
 	}
 
@@ -1008,7 +1016,7 @@ func (c *Controller) SandboxByID(id string) (*Sandbox, error) {
 }
 
 // SandboxDestroy destroys a sandbox given a container ID.
-func (c *Controller) SandboxDestroy(id string) error {
+func (c *Controller) SandboxDestroy(ctx context.Context, id string) error {
 	var sb *Sandbox
 	c.mu.Lock()
 	for _, s := range c.sandboxes {
@@ -1024,7 +1032,7 @@ func (c *Controller) SandboxDestroy(id string) error {
 		return nil
 	}
 
-	return sb.Delete()
+	return sb.Delete(ctx)
 }
 
 func (c *Controller) loadDriver(networkType string) error {
@@ -1085,7 +1093,7 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 
 // Stop stops the network controller.
 func (c *Controller) Stop() {
-	c.closeStores()
+	c.store.Close()
 	c.stopExternalKeyListener()
 	osl.GC()
 }

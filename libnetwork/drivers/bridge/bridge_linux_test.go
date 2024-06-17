@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -12,6 +13,9 @@ import (
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
+	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -35,7 +39,6 @@ func TestEndpointMarshalling(t *testing.T) {
 		addrv6:     ip2,
 		macAddress: mac,
 		srcName:    "veth123456",
-		config:     &endpointConfiguration{MacAddress: mac},
 		containerConfig: &containerConfiguration{
 			ParentEndpoints: []string{"one", "due", "three"},
 			ChildEndpoints:  []string{"four", "five", "six"},
@@ -57,22 +60,26 @@ func TestEndpointMarshalling(t *testing.T) {
 				},
 			},
 		},
-		portMapping: []types.PortBinding{
+		portMapping: []portBinding{
 			{
-				Proto:       17,
-				IP:          net.ParseIP("172.33.9.56"),
-				Port:        uint16(99),
-				HostIP:      net.ParseIP("10.10.100.2"),
-				HostPort:    uint16(9900),
-				HostPortEnd: uint16(10000),
+				PortBinding: types.PortBinding{
+					Proto:       17,
+					IP:          net.ParseIP("172.33.9.56"),
+					Port:        uint16(99),
+					HostIP:      net.ParseIP("10.10.100.2"),
+					HostPort:    uint16(9900),
+					HostPortEnd: uint16(10000),
+				},
 			},
 			{
-				Proto:       6,
-				IP:          net.ParseIP("171.33.9.56"),
-				Port:        uint16(55),
-				HostIP:      net.ParseIP("10.11.100.2"),
-				HostPort:    uint16(5500),
-				HostPortEnd: uint16(55000),
+				PortBinding: types.PortBinding{
+					Proto:       6,
+					IP:          net.ParseIP("171.33.9.56"),
+					Port:        uint16(55),
+					HostIP:      net.ParseIP("10.11.100.2"),
+					HostPort:    uint16(5500),
+					HostPortEnd: uint16(55000),
+				},
 			},
 		},
 	}
@@ -90,22 +97,23 @@ func TestEndpointMarshalling(t *testing.T) {
 
 	if e.id != ee.id || e.nid != ee.nid || e.srcName != ee.srcName || !bytes.Equal(e.macAddress, ee.macAddress) ||
 		!types.CompareIPNet(e.addr, ee.addr) || !types.CompareIPNet(e.addrv6, ee.addrv6) ||
-		!compareEpConfig(e.config, ee.config) ||
 		!compareContainerConfig(e.containerConfig, ee.containerConfig) ||
-		!compareConnConfig(e.extConnConfig, ee.extConnConfig) ||
-		!compareBindings(e.portMapping, ee.portMapping) {
+		!compareConnConfig(e.extConnConfig, ee.extConnConfig) {
 		t.Fatalf("JSON marsh/unmarsh failed.\nOriginal:\n%#v\nDecoded:\n%#v", e, ee)
 	}
-}
 
-func compareEpConfig(a, b *endpointConfiguration) bool {
-	if a == b {
-		return true
+	// On restore, the HostPortEnd in portMapping is set to HostPort (so that
+	// a different port cannot be selected on live-restore if the original is
+	// already in-use). So, fix up portMapping in the original before running
+	// the comparison.
+	epms := make([]portBinding, len(e.portMapping))
+	for i, p := range e.portMapping {
+		epms[i] = p
+		epms[i].HostPortEnd = epms[i].HostPort
 	}
-	if a == nil || b == nil {
-		return false
+	if !compareBindings(epms, ee.portMapping) {
+		t.Fatalf("JSON marsh/unmarsh failed.\nOriginal portMapping:\n%#v\nDecoded portMapping:\n%#v", e, ee)
 	}
-	return bytes.Equal(a.MacAddress, b.MacAddress)
 }
 
 func compareContainerConfig(a, b *containerConfiguration) bool {
@@ -194,12 +202,12 @@ func comparePortBinding(p *types.PortBinding, o *types.PortBinding) bool {
 	return true
 }
 
-func compareBindings(a, b []types.PortBinding) bool {
+func compareBindings(a, b []portBinding) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for i := 0; i < len(a); i++ {
-		if !comparePortBinding(&a[i], &b[i]) {
+		if !comparePortBinding(&a[i].PortBinding, &b[i].PortBinding) {
 			return false
 		}
 	}
@@ -207,16 +215,19 @@ func compareBindings(a, b []types.PortBinding) bool {
 }
 
 func getIPv4Data(t *testing.T) []driverapi.IPAMData {
-	ipd := driverapi.IPAMData{AddressSpace: "full"}
-	nw, err := netutils.FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
-	if err != nil {
-		t.Fatal(err)
-	}
-	ipd.Pool = nw
-	// Set network gateway to X.X.X.1
-	ipd.Gateway = types.GetIPNetCopy(nw)
-	ipd.Gateway.IP[len(ipd.Gateway.IP)-1] = 1
-	return []driverapi.IPAMData{ipd}
+	t.Helper()
+
+	a, _ := defaultipam.NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), nil)
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{
+		AddressSpace: "LocalDefault",
+		Exclude:      netutils.InferReservedNetworks(false),
+	})
+	assert.NilError(t, err)
+
+	gw, _, err := a.RequestAddress(alloc.PoolID, nil, nil)
+	assert.NilError(t, err)
+
+	return []driverapi.IPAMData{{AddressSpace: "LocalDefault", Pool: netiputil.ToIPNet(alloc.Pool), Gateway: gw}}
 }
 
 func getIPv6Data(t *testing.T) []driverapi.IPAMData {
@@ -272,7 +283,7 @@ func TestCreateFullOptions(t *testing.T) {
 	// Verify the IP address allocated for the endpoint belongs to the container network
 	epOptions := make(map[string]interface{})
 	te := newTestEndpoint(cnw, 10)
-	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), epOptions)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
@@ -385,10 +396,9 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 
 	// In short here we are testing --fixed-cidr-v6 daemon option
 	// plus --mac-address run option
-	mac, _ := net.ParseMAC("aa:bb:cc:dd:ee:ff")
-	epOptions := map[string]interface{}{netlabel.MacAddress: mac}
 	te := newTestEndpoint(ipdList[0].Pool, 20)
-	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), epOptions)
+	te.iface.mac = netutils.MustParseMAC("aa:bb:cc:dd:ee:ff")
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -652,7 +662,7 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
-	d.portAllocator = portallocator.NewInstance()
+	portallocator.Get().ReleaseAll()
 
 	var proxyBinary string
 	var err error
@@ -691,17 +701,17 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	sbOptions[netlabel.PortMap] = getPortMapping()
 
 	te := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint("net1", "ep1", te.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "net1", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
-	err = d.Join("net1", "ep1", "sbox", te, sbOptions)
+	err = d.Join(context.Background(), "net1", "ep1", "sbox", te, sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	err = d.ProgramExternalConnectivity("net1", "ep1", sbOptions)
+	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep1", sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
@@ -727,7 +737,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		t.Fatal("Incomplete data for port mapping in endpoint operational data")
 	}
 	for i, pb := range ep.portMapping {
-		if !comparePortBinding(&pb, &pm[i]) {
+		if !comparePortBinding(&pb.PortBinding, &pm[i]) {
 			t.Fatal("Unexpected data for port mapping in endpoint operational data")
 		}
 	}
@@ -790,7 +800,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	te1 := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint("net1", "ep1", te1.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "net1", "ep1", te1.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
@@ -799,12 +809,12 @@ func TestLinkContainers(t *testing.T) {
 	sbOptions := make(map[string]interface{})
 	sbOptions[netlabel.ExposedPorts] = exposedPorts
 
-	err = d.Join("net1", "ep1", "sbox", te1, sbOptions)
+	err = d.Join(context.Background(), "net1", "ep1", "sbox", te1, sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	err = d.ProgramExternalConnectivity("net1", "ep1", sbOptions)
+	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep1", sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
@@ -815,7 +825,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	te2 := newTestEndpoint(ipdList[0].Pool, 22)
-	err = d.CreateEndpoint("net1", "ep2", te2.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "net1", "ep2", te2.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
@@ -830,12 +840,12 @@ func TestLinkContainers(t *testing.T) {
 		"ChildEndpoints": []string{"ep1"},
 	}
 
-	err = d.Join("net1", "ep2", "", te2, sbOptions)
+	err = d.Join(context.Background(), "net1", "ep2", "", te2, sbOptions)
 	if err != nil {
 		t.Fatal("Failed to link ep1 and ep2")
 	}
 
-	err = d.ProgramExternalConnectivity("net1", "ep2", sbOptions)
+	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep2", sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
@@ -888,11 +898,11 @@ func TestLinkContainers(t *testing.T) {
 		"ChildEndpoints": []string{"ep1", "ep4"},
 	}
 
-	err = d.Join("net1", "ep2", "", te2, sbOptions)
+	err = d.Join(context.Background(), "net1", "ep2", "", te2, sbOptions)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = d.ProgramExternalConnectivity("net1", "ep2", sbOptions)
+	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep2", sbOptions)
 	if err != nil {
 		out, _ = iptable.Raw("-L", DockerChain)
 		for _, pm := range exposedPorts {
@@ -1012,39 +1022,44 @@ func TestValidateFixedCIDRV6(t *testing.T) {
 			// Overlapping with the standard LL prefix isn't allowed.
 			doc:         "overlapping link-local prefix fe80::/63",
 			input:       "fe80::/63",
-			expectedErr: "clash with the Link-Local prefix 'fe80::/64'",
+			expectedErr: "invalid fixed-cidr-v6: 'fe80::/63' clashes with the Link-Local prefix 'fe80::/64'",
 		},
 		{
 			// Overlapping with the standard LL prefix isn't allowed.
 			doc:         "overlapping link-local subnet fe80::/65",
 			input:       "fe80::/65",
-			expectedErr: "clash with the Link-Local prefix 'fe80::/64'",
+			expectedErr: "invalid fixed-cidr-v6: 'fe80::/65' clashes with the Link-Local prefix 'fe80::/64'",
 		},
 		{
 			// The address has to be valid IPv6 subnet.
 			doc:         "invalid IPv6 subnet",
 			input:       "2000:db8::",
-			expectedErr: "invalid CIDR address: 2000:db8::",
+			expectedErr: "invalid fixed-cidr-v6: netip.ParsePrefix(\"2000:db8::\"): no '/'",
 		},
 		{
 			doc:         "non-IPv6 subnet",
 			input:       "10.3.4.5/24",
-			expectedErr: "fixed-cidr-v6 is not an IPv6 subnet",
+			expectedErr: "invalid fixed-cidr-v6: '10.3.4.5/24' is not a valid IPv6 subnet",
 		},
 		{
 			doc:         "IPv4-mapped subnet 1",
 			input:       "::ffff:10.2.4.0/24",
-			expectedErr: "fixed-cidr-v6 is not an IPv6 subnet",
+			expectedErr: "invalid fixed-cidr-v6: '::ffff:10.2.4.0/24' is not a valid IPv6 subnet",
 		},
 		{
 			doc:         "IPv4-mapped subnet 2",
 			input:       "::ffff:a01:203/24",
-			expectedErr: "fixed-cidr-v6 is not an IPv6 subnet",
+			expectedErr: "invalid fixed-cidr-v6: '::ffff:10.1.2.3/24' is not a valid IPv6 subnet",
 		},
 		{
 			doc:         "invalid subnet",
 			input:       "nonsense",
-			expectedErr: "invalid CIDR address: nonsense",
+			expectedErr: "invalid fixed-cidr-v6: netip.ParsePrefix(\"nonsense\"): no '/'",
+		},
+		{
+			doc:         "multicast IPv6 subnet",
+			input:       "ff05::/64",
+			expectedErr: "invalid fixed-cidr-v6: multicast subnet 'ff05::/64' is not allowed",
 		},
 	}
 	for _, tc := range tests {
@@ -1093,12 +1108,12 @@ func TestSetDefaultGw(t *testing.T) {
 	}
 
 	te := newTestEndpoint(ipdList[0].Pool, 10)
-	err = d.CreateEndpoint("dummy", "ep", te.Interface(), nil)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create endpoint: %v", err)
 	}
 
-	err = d.Join("dummy", "ep", "sbox", te, nil)
+	err = d.Join(context.Background(), "dummy", "ep", "sbox", te, nil)
 	if err != nil {
 		t.Fatalf("Failed to join endpoint: %v", err)
 	}
@@ -1121,9 +1136,13 @@ func TestCleanupIptableRules(t *testing.T) {
 	}
 
 	ipVersions := []iptables.IPVersion{iptables.IPv4, iptables.IPv6}
+	configs := map[iptables.IPVersion]configuration{
+		iptables.IPv4: {EnableIPTables: true},
+		iptables.IPv6: {EnableIP6Tables: true},
+	}
 
 	for _, version := range ipVersions {
-		if _, _, _, _, err := setupIPChains(configuration{EnableIPTables: true}, version); err != nil {
+		if _, _, _, _, err := setupIPChains(configs[version], version); err != nil {
 			t.Fatalf("Error setting up ip chains for %s: %v", version, err)
 		}
 
@@ -1217,7 +1236,7 @@ func TestCreateParallel(t *testing.T) {
 	defer c.Cleanup(t)
 
 	d := newDriver()
-	d.portAllocator = portallocator.NewInstance()
+	portallocator.Get().ReleaseAll()
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)

@@ -843,12 +843,44 @@ func (e *edge) createInputRequests(desiredState edgeStatusType, f *pipeFactory, 
 			addNew := true
 			if dep.req != nil && !dep.req.Status().Completed {
 				if dep.req.Request().(*edgeRequest).desiredState != desiredStateDep {
+					if e.debug {
+						bklog.G(context.TODO()).
+							WithField("edge_vertex_name", e.edge.Vertex.Name()).
+							WithField("edge_vertex_digest", e.edge.Vertex.Digest()).
+							WithField("dep_index", dep.index).
+							WithField("dep_req_desired_state", dep.req.Request().(*edgeRequest).desiredState).
+							WithField("dep_desired_state", desiredStateDep).
+							WithField("dep_state", dep.state).
+							Debug("cancel input request")
+					}
 					dep.req.Cancel()
 				} else {
+					if e.debug {
+						bklog.G(context.TODO()).
+							WithField("edge_vertex_name", e.edge.Vertex.Name()).
+							WithField("edge_vertex_digest", e.edge.Vertex.Digest()).
+							WithField("dep_index", dep.index).
+							WithField("dep_req_desired_state", dep.req.Request().(*edgeRequest).desiredState).
+							WithField("dep_desired_state", desiredStateDep).
+							WithField("dep_state", dep.state).
+							Debug("skip input request based on existing request")
+					}
 					addNew = false
 				}
 			}
 			if addNew {
+				if e.debug {
+					bklog.G(context.TODO()).
+						WithField("edge_vertex_name", e.edge.Vertex.Name()).
+						WithField("edge_vertex_digest", e.edge.Vertex.Digest()).
+						WithField("dep_index", dep.index).
+						WithField("dep_desired_state", desiredStateDep).
+						WithField("dep_state", dep.state).
+						WithField("dep_vertex_name", e.edge.Vertex.Inputs()[dep.index].Vertex.Name()).
+						WithField("dep_vertex_digest", e.edge.Vertex.Inputs()[dep.index].Vertex.Digest()).
+						Debug("add input request")
+				}
+
 				req := f.NewInputRequest(e.edge.Vertex.Inputs()[int(dep.index)], &edgeRequest{
 					currentState: dep.edgeState,
 					desiredState: desiredStateDep,
@@ -858,6 +890,16 @@ func (e *edge) createInputRequests(desiredState edgeStatusType, f *pipeFactory, 
 				dep.req = req
 				addedNew = true
 			}
+		} else if e.debug {
+			bklog.G(context.TODO()).
+				WithField("edge_vertex_name", e.edge.Vertex.Name()).
+				WithField("edge_vertex_digest", e.edge.Vertex.Digest()).
+				WithField("dep_index", dep.index).
+				WithField("dep_desired_state", desiredStateDep).
+				WithField("dep_state", dep.state).
+				WithField("dep_vertex_name", e.edge.Vertex.Inputs()[dep.index].Vertex.Name()).
+				WithField("dep_vertex_digest", e.edge.Vertex.Inputs()[dep.index].Vertex.Digest()).
+				Debug("skip input request based on dep state")
 		}
 		// initialize function to compute cache key based on dependency result
 		if dep.state == edgeStatusComplete && dep.slowCacheReq == nil && (e.slowCacheFunc(dep) != nil || e.preprocessFunc(dep) != nil) && e.cacheMap != nil {

@@ -22,6 +22,8 @@ type ExporterInstance interface {
 	ID() int
 	Name() string
 	Config() *Config
+	Type() string
+	Attrs() map[string]string
 	Export(ctx context.Context, src *Source, inlineCache exptypes.InlineCache, sessionID string) (map[string]string, DescriptorReference, error)
 }
 

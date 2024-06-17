@@ -545,24 +545,36 @@ func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.
 	return nil
 }
 
-// IPv6LoEnabled checks whether the loopback interface has an IPv6 address ('::1'
-// is assigned by the kernel if IPv6 is enabled).
+// IPv6LoEnabled returns true if the loopback interface had an IPv6 address when
+// last checked. It's always checked on the first call, and by RefreshIPv6LoEnabled.
+// ('::1' is assigned by the kernel if IPv6 is enabled.)
 func (n *Namespace) IPv6LoEnabled() bool {
 	n.ipv6LoEnabledOnce.Do(func() {
-		// If anything goes wrong, assume no-IPv6.
-		iface, err := n.nlHandle.LinkByName("lo")
-		if err != nil {
-			log.G(context.TODO()).WithError(err).Warn("Unable to find 'lo' to determine IPv6 support")
-			return
-		}
-		addrs, err := n.nlHandle.AddrList(iface, nl.FAMILY_V6)
-		if err != nil {
-			log.G(context.TODO()).WithError(err).Warn("Unable to get 'lo' addresses to determine IPv6 support")
-			return
-		}
-		n.ipv6LoEnabledCached = len(addrs) > 0
+		n.RefreshIPv6LoEnabled()
 	})
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.ipv6LoEnabledCached
+}
+
+// RefreshIPv6LoEnabled refreshes the cached result returned by IPv6LoEnabled.
+func (n *Namespace) RefreshIPv6LoEnabled() {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	// If anything goes wrong, assume no-IPv6.
+	n.ipv6LoEnabledCached = false
+	iface, err := n.nlHandle.LinkByName("lo")
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Warn("Unable to find 'lo' to determine IPv6 support")
+		return
+	}
+	addrs, err := n.nlHandle.AddrList(iface, nl.FAMILY_V6)
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Warn("Unable to get 'lo' addresses to determine IPv6 support")
+		return
+	}
+	n.ipv6LoEnabledCached = len(addrs) > 0
 }
 
 // ApplyOSTweaks applies operating system specific knobs on the sandbox.
@@ -623,28 +635,41 @@ func setIPv6(nspath, iface string, enable bool) error {
 			}
 		}()
 
-		var (
-			action = "disable"
-			value  = byte('1')
-			path   = fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/disable_ipv6", iface)
-		)
-
+		path := "/proc/sys/net/ipv6/conf/" + iface + "/disable_ipv6"
+		value := byte('1')
 		if enable {
-			action = "enable"
 			value = '0'
 		}
 
-		if _, err := os.Stat(path); err != nil {
+		if curVal, err := os.ReadFile(path); err != nil {
 			if os.IsNotExist(err) {
-				log.G(context.TODO()).WithError(err).Warn("Cannot configure IPv6 forwarding on container interface. Has IPv6 been disabled in this node's kernel?")
+				if enable {
+					log.G(context.TODO()).WithError(err).Warn("Cannot enable IPv6 on container interface. Has IPv6 been disabled in this node's kernel?")
+				} else {
+					log.G(context.TODO()).WithError(err).Debug("Not disabling IPv6 on container interface. Has IPv6 been disabled in this node's kernel?")
+				}
 				return
 			}
 			errCh <- err
 			return
+		} else if len(curVal) > 0 && curVal[0] == value {
+			// Nothing to do, the setting is already correct.
+			return
 		}
 
-		if err = os.WriteFile(path, []byte{value, '\n'}, 0o644); err != nil {
-			errCh <- fmt.Errorf("failed to %s IPv6 forwarding for container's interface %s: %w", action, iface, err)
+		if err = os.WriteFile(path, []byte{value, '\n'}, 0o644); err != nil || os.Getenv("DOCKER_TEST_RO_DISABLE_IPV6") != "" {
+			logger := log.G(context.TODO()).WithFields(log.Fields{
+				"error":     err,
+				"interface": iface,
+			})
+			if enable {
+				// The user asked for IPv6 on the interface, and we can't give it to them.
+				// But, in line with the IsNotExist case above, just log.
+				logger.Warn("Cannot enable IPv6 on container interface, continuing.")
+			} else {
+				logger.Error("Cannot disable IPv6 on container interface.")
+				errCh <- errors.New("failed to disable IPv6 on container's interface " + iface)
+			}
 			return
 		}
 	}()

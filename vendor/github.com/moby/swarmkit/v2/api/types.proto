@@ -311,6 +311,9 @@ message Mount {
 		//
 		// If this is empty, no volume will be created if the volume is missing.
 		Driver driver_config = 3;
+
+		// subpath inside the volume to mount.
+		string subpath = 4 [(gogoproto.customname) = "Subpath"];
 	}
 
 	message TmpfsOptions {

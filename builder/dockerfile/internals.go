@@ -15,11 +15,13 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -128,26 +130,24 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 	commentStr := fmt.Sprintf("%s %s%s in %s ", inst.cmdName, chownComment, srcHash, inst.dest)
 
 	// TODO: should this have been using origPaths instead of srcHash in the comment?
-	runConfigWithCommentCmd := copyRunConfig(
-		state.runConfig,
-		withCmdCommentString(commentStr, state.operatingSystem))
+	runConfigWithCommentCmd := copyRunConfig(state.runConfig, withCmdCommentString(commentStr, state.operatingSystem))
 	hit, err := b.probeCache(state, runConfigWithCommentCmd)
 	if err != nil || hit {
 		return err
 	}
 
-	imageMount, err := b.imageSources.Get(ctx, state.imageID, true, req.builder.platform)
+	imgMount, err := b.imageSources.Get(ctx, state.imageID, true, req.builder.platform)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get destination image %q", state.imageID)
 	}
 
-	rwLayer, err := imageMount.NewRWLayer()
+	rwLayer, err := imgMount.NewRWLayer()
 	if err != nil {
 		return err
 	}
 	defer rwLayer.Release()
 
-	destInfo, err := createDestInfo(state.runConfig.WorkingDir, inst, rwLayer, state.operatingSystem)
+	destInfo, err := createDestInfo(state.runConfig.WorkingDir, inst, rwLayer)
 	if err != nil {
 		return err
 	}
@@ -179,10 +179,10 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 			return errors.Wrapf(err, "failed to copy files")
 		}
 	}
-	return b.exportImage(ctx, state, rwLayer, imageMount.Image(), runConfigWithCommentCmd)
+	return b.exportImage(ctx, state, rwLayer, imgMount.Image(), runConfigWithCommentCmd)
 }
 
-func createDestInfo(workingDir string, inst copyInstruction, rwLayer builder.RWLayer, platform string) (copyInfo, error) {
+func createDestInfo(workingDir string, inst copyInstruction, rwLayer builder.RWLayer) (copyInfo, error) {
 	// Twiddle the destination when it's a relative path - meaning, make it
 	// relative to the WORKINGDIR
 	dest, err := normalizeDest(workingDir, inst.dest)
@@ -278,38 +278,38 @@ func withoutHealthcheck() runConfigModifier {
 }
 
 func copyRunConfig(runConfig *container.Config, modifiers ...runConfigModifier) *container.Config {
-	copy := *runConfig
-	copy.Cmd = copyStringSlice(runConfig.Cmd)
-	copy.Env = copyStringSlice(runConfig.Env)
-	copy.Entrypoint = copyStringSlice(runConfig.Entrypoint)
-	copy.OnBuild = copyStringSlice(runConfig.OnBuild)
-	copy.Shell = copyStringSlice(runConfig.Shell)
+	cfgCopy := *runConfig
+	cfgCopy.Cmd = copyStringSlice(runConfig.Cmd)
+	cfgCopy.Env = copyStringSlice(runConfig.Env)
+	cfgCopy.Entrypoint = copyStringSlice(runConfig.Entrypoint)
+	cfgCopy.OnBuild = copyStringSlice(runConfig.OnBuild)
+	cfgCopy.Shell = copyStringSlice(runConfig.Shell)
 
-	if copy.Volumes != nil {
-		copy.Volumes = make(map[string]struct{}, len(runConfig.Volumes))
+	if cfgCopy.Volumes != nil {
+		cfgCopy.Volumes = make(map[string]struct{}, len(runConfig.Volumes))
 		for k, v := range runConfig.Volumes {
-			copy.Volumes[k] = v
+			cfgCopy.Volumes[k] = v
 		}
 	}
 
-	if copy.ExposedPorts != nil {
-		copy.ExposedPorts = make(nat.PortSet, len(runConfig.ExposedPorts))
+	if cfgCopy.ExposedPorts != nil {
+		cfgCopy.ExposedPorts = make(nat.PortSet, len(runConfig.ExposedPorts))
 		for k, v := range runConfig.ExposedPorts {
-			copy.ExposedPorts[k] = v
+			cfgCopy.ExposedPorts[k] = v
 		}
 	}
 
-	if copy.Labels != nil {
-		copy.Labels = make(map[string]string, len(runConfig.Labels))
+	if cfgCopy.Labels != nil {
+		cfgCopy.Labels = make(map[string]string, len(runConfig.Labels))
 		for k, v := range runConfig.Labels {
-			copy.Labels[k] = v
+			cfgCopy.Labels[k] = v
 		}
 	}
 
 	for _, modifier := range modifiers {
-		modifier(&copy)
+		modifier(&cfgCopy)
 	}
-	return &copy
+	return &cfgCopy
 }
 
 func copyStringSlice(orig []string) []string {
@@ -333,7 +333,7 @@ func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.
 	if cachedID == "" || err != nil {
 		return false, err
 	}
-	fmt.Fprint(b.Stdout, " ---> Using cache\n")
+	_, _ = fmt.Fprintln(b.Stdout, " ---> Using cache")
 
 	dispatchState.imageID = cachedID
 	return true, nil
@@ -352,16 +352,15 @@ func (b *Builder) create(ctx context.Context, runConfig *container.Config) (stri
 	log.G(ctx).Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
 
 	hostConfig := hostConfigFromOptions(b.options)
-	container, err := b.containerManager.Create(ctx, runConfig, hostConfig)
+	ctr, err := b.containerManager.Create(ctx, runConfig, hostConfig)
 	if err != nil {
 		return "", err
 	}
-	// TODO: could this be moved into containerManager.Create() ?
-	for _, warning := range container.Warnings {
-		fmt.Fprintf(b.Stdout, " ---> [Warning] %s\n", warning)
+	for _, warning := range ctr.Warnings {
+		_, _ = fmt.Fprintf(b.Stdout, " ---> [Warning] %s\n", warning)
 	}
-	fmt.Fprintf(b.Stdout, " ---> Running in %s\n", stringid.TruncateID(container.ID))
-	return container.ID, nil
+	_, _ = fmt.Fprintf(b.Stdout, " ---> Running in %s\n", stringid.TruncateID(ctr.ID))
+	return ctr.ID, nil
 }
 
 func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConfig {
@@ -377,12 +376,21 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		Ulimits:      options.Ulimits,
 	}
 
+	// We need to make sure no empty string or "default" NetworkMode is
+	// provided to the daemon as it doesn't support them.
+	//
+	// This is in line with what the ContainerCreate API endpoint does.
+	networkMode := options.NetworkMode
+	if networkMode == "" || networkMode == network.NetworkDefault {
+		networkMode = runconfig.DefaultDaemonNetworkMode().NetworkName()
+	}
+
 	hc := &container.HostConfig{
 		SecurityOpt: options.SecurityOpt,
 		Isolation:   options.Isolation,
 		ShmSize:     options.ShmSize,
 		Resources:   resources,
-		NetworkMode: container.NetworkMode(options.NetworkMode),
+		NetworkMode: container.NetworkMode(networkMode),
 		// Set a log config to override any default value set on the daemon
 		LogConfig:  defaultLogConfig,
 		ExtraHosts: options.ExtraHosts,

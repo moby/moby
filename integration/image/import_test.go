@@ -9,12 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	imagetypes "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -29,7 +30,7 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 
 	// Spin up a new daemon, so that we can run this test in parallel (it's a slow test)
 	d := daemon.New(t)
-	d.Start(t, "--iptables=false")
+	d.Start(t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)
@@ -46,7 +47,7 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 	reference := strings.ToLower(t.Name()) + ":v42"
 
 	_, err = client.ImageImport(ctx,
-		types.ImageImportSource{Source: imageRdr, SourceName: "-"},
+		imagetypes.ImportSource{Source: imageRdr, SourceName: "-"},
 		reference,
 		imagetypes.ImportOptions{})
 	assert.NilError(t, err)
@@ -109,7 +110,7 @@ func TestImportWithCustomPlatform(t *testing.T) {
 			reference := "import-with-platform:tc-" + strconv.Itoa(i)
 
 			_, err = client.ImageImport(ctx,
-				types.ImageImportSource{Source: imageRdr, SourceName: "-"},
+				imagetypes.ImportSource{Source: imageRdr, SourceName: "-"},
 				reference,
 				imagetypes.ImportOptions{Platform: tc.platform})
 			assert.NilError(t, err)
@@ -175,11 +176,12 @@ func TestImportWithCustomPlatformReject(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			reference := "import-with-platform:tc-" + strconv.Itoa(i)
 			_, err = client.ImageImport(ctx,
-				types.ImageImportSource{Source: imageRdr, SourceName: "-"},
+				imagetypes.ImportSource{Source: imageRdr, SourceName: "-"},
 				reference,
 				imagetypes.ImportOptions{Platform: tc.platform})
 
-			assert.ErrorContains(t, err, tc.expectedErr)
+			assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+			assert.Check(t, is.ErrorContains(err, tc.expectedErr))
 		})
 	}
 }

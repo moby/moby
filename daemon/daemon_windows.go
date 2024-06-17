@@ -234,7 +234,7 @@ func configureMaxThreads(config *config.Config) error {
 }
 
 func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSandboxes map[string]interface{}) error {
-	netOptions, err := daemon.networkOptions(daemonCfg, nil, nil)
+	netOptions, err := daemon.networkOptions(daemonCfg, nil, daemon.id, nil)
 	if err != nil {
 		return err
 	}
@@ -554,8 +554,6 @@ func setMayDetachMounts() error {
 func (daemon *Daemon) setupSeccompProfile(*config.Config) error {
 	return nil
 }
-
-func setupResolvConf(config *config.Config) {}
 
 func getSysInfo(*config.Config) *sysinfo.SysInfo {
 	return sysinfo.New()

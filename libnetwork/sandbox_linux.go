@@ -10,7 +10,13 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
+
+// Linux-specific container configuration flags.
+type containerConfigOS struct{} //nolint:nolintlint,unused // only populated on windows
 
 func releaseOSSboxResources(ns *osl.Namespace, ep *Endpoint) {
 	for _, i := range ns.Interfaces() {
@@ -90,12 +96,8 @@ func (sb *Sandbox) updateGateway(ep *Endpoint) error {
 		return fmt.Errorf("failed to set gateway while updating gateway: %v", err)
 	}
 
-	// If IPv6 has been disabled in the sandbox a gateway may still have been
-	// configured, don't attempt to apply it.
-	if ipv6, ok := sb.ipv6Enabled(); !ok || ipv6 {
-		if err := osSbox.SetGatewayIPv6(joinInfo.gw6); err != nil {
-			return fmt.Errorf("failed to set IPv6 gateway while updating gateway: %v", err)
-		}
+	if err := osSbox.SetGatewayIPv6(joinInfo.gw6); err != nil {
+		return fmt.Errorf("failed to set IPv6 gateway while updating gateway: %v", err)
 	}
 
 	return nil
@@ -112,10 +114,10 @@ func (sb *Sandbox) ExecFunc(f func()) error {
 }
 
 // SetKey updates the Sandbox Key.
-func (sb *Sandbox) SetKey(basePath string) error {
+func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
 	start := time.Now()
 	defer func() {
-		log.G(context.TODO()).Debugf("sandbox set key processing took %s for container %s", time.Since(start), sb.ContainerID())
+		log.G(ctx).Debugf("sandbox set key processing took %s for container %s", time.Since(start), sb.ContainerID())
 	}()
 
 	if basePath == "" {
@@ -135,7 +137,7 @@ func (sb *Sandbox) SetKey(basePath string) error {
 		// and destroy the OS snab. We are moving into a new home further down. Note that none
 		// of the network resources gets destroyed during the move.
 		if err := sb.releaseOSSbox(); err != nil {
-			log.G(context.TODO()).WithError(err).Error("Error destroying os sandbox")
+			log.G(ctx).WithError(err).Error("Error destroying os sandbox")
 		}
 	}
 
@@ -155,24 +157,49 @@ func (sb *Sandbox) SetKey(basePath string) error {
 
 		if err := sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err == nil {
 			if err := sb.resolver.Start(); err != nil {
-				log.G(context.TODO()).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+				log.G(ctx).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
 			}
 		} else {
-			log.G(context.TODO()).Errorf("Resolver Setup Function failed for container %s, %q", sb.ContainerID(), err)
+			log.G(ctx).Errorf("Resolver Setup Function failed for container %s, %q", sb.ContainerID(), err)
 		}
 	}
 
-	if err := sb.finishInitDNS(); err != nil {
+	// Set up hosts and resolv.conf files. IPv6 support in the container can't be
+	// determined yet, as sysctls haven't been applied by the runtime. Calling
+	// FinishInit after the container task has been created, when sysctls have been
+	// applied will regenerate these files.
+	if err := sb.finishInitDNS(ctx); err != nil {
 		return err
 	}
 
 	for _, ep := range sb.Endpoints() {
-		if err = sb.populateNetworkResources(ep); err != nil {
+		if err = sb.populateNetworkResources(ctx, ep); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// FinishConfig completes Sandbox configuration. If called after the container task has been
+// created, and sysctl settings applied, the configuration will be based on the container's
+// IPv6 support.
+func (sb *Sandbox) FinishConfig(ctx context.Context) error {
+	if sb.config.useDefaultSandBox {
+		return nil
+	}
+
+	sb.mu.Lock()
+	osSbox := sb.osSbox
+	sb.mu.Unlock()
+	if osSbox == nil {
+		return nil
+	}
+
+	// If sysctl changes have been made, IPv6 may have been enabled/disabled since last checked.
+	osSbox.RefreshIPv6LoEnabled()
+
+	return sb.finishInitDNS(ctx)
 }
 
 // IPv6 support can always be determined for host networking. For other network
@@ -259,7 +286,11 @@ func (sb *Sandbox) restoreOslSandbox() error {
 	return sb.osSbox.Restore(interfaces, routes, gwep.joinInfo.gw, gwep.joinInfo.gw6)
 }
 
-func (sb *Sandbox) populateNetworkResources(ep *Endpoint) error {
+func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.populateNetworkResources", trace.WithAttributes(
+		attribute.String("endpoint.Name", ep.Name())))
+	defer span.End()
+
 	sb.mu.Lock()
 	if sb.osSbox == nil {
 		sb.mu.Unlock()
@@ -283,12 +314,7 @@ func (sb *Sandbox) populateNetworkResources(ep *Endpoint) error {
 
 		ifaceOptions = append(ifaceOptions, osl.WithIPv4Address(i.addr), osl.WithRoutes(i.routes))
 		if i.addrv6 != nil && i.addrv6.IP.To16() != nil {
-			// If IPv6 has been disabled in the Sandbox, an IPv6 address will still have
-			// been allocated. Don't apply it, because doing so would enable IPv6 on the
-			// interface.
-			if ipv6, ok := sb.ipv6Enabled(); !ok || ipv6 {
-				ifaceOptions = append(ifaceOptions, osl.WithIPv6Address(i.addrv6))
-			}
+			ifaceOptions = append(ifaceOptions, osl.WithIPv6Address(i.addrv6))
 		}
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, osl.WithLinkLocalAddresses(i.llAddrs))
@@ -296,8 +322,11 @@ func (sb *Sandbox) populateNetworkResources(ep *Endpoint) error {
 		if i.mac != nil {
 			ifaceOptions = append(ifaceOptions, osl.WithMACAddress(i.mac))
 		}
+		if sysctls := ep.getSysctls(); len(sysctls) > 0 {
+			ifaceOptions = append(ifaceOptions, osl.WithSysctls(sysctls))
+		}
 
-		if err := sb.osSbox.AddInterface(i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
+		if err := sb.osSbox.AddInterface(ctx, i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
 			return fmt.Errorf("failed to add interface %s to sandbox: %v", i.srcName, err)
 		}
 
@@ -346,7 +375,7 @@ func (sb *Sandbox) populateNetworkResources(ep *Endpoint) error {
 	// not bother updating the store. The sandbox object will be
 	// deleted anyway
 	if !inDelete {
-		return sb.storeUpdate()
+		return sb.storeUpdate(ctx)
 	}
 
 	return nil

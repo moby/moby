@@ -37,7 +37,7 @@ func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	d := daemon.New(t)
 	c := d.NewClientT(t)
 
-	d.StartWithBusybox(ctx, t, "--exec-opt", "native.cgroupdriver=systemd", "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--exec-opt", "native.cgroupdriver=systemd", "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	const mem = int64(64 * 1024 * 1024) // 64 MB

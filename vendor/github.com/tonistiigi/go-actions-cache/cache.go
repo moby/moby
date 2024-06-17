@@ -138,16 +138,7 @@ func New(token, url string, opt Opt) (*Cache, error) {
 	}
 	Log("parsed token: scopes: %+v, issued: %v, expires: %v", scopes, nbft, expt)
 
-	if opt.Client == nil {
-		opt.Client = http.DefaultClient
-	}
-	if opt.Timeout == 0 {
-		opt.Timeout = 5 * time.Minute
-	}
-
-	if opt.BackoffPool == nil {
-		opt.BackoffPool = defaultBackoffPool
-	}
+	opt = optsWithDefaults(opt)
 
 	return &Cache{
 		opt:       opt,
@@ -157,6 +148,19 @@ func New(token, url string, opt Opt) (*Cache, error) {
 		IssuedAt:  nbft,
 		ExpiresAt: expt,
 	}, nil
+}
+
+func optsWithDefaults(opt Opt) Opt {
+	if opt.Client == nil {
+		opt.Client = http.DefaultClient
+	}
+	if opt.Timeout == 0 {
+		opt.Timeout = 5 * time.Minute
+	}
+	if opt.BackoffPool == nil {
+		opt.BackoffPool = defaultBackoffPool
+	}
+	return opt
 }
 
 type Scope struct {
@@ -468,6 +472,31 @@ func (c *Cache) doWithRetries(ctx context.Context, r *request) (*http.Response, 
 
 func (c *Cache) url(p string) string {
 	return c.URL + "_apis/artifactcache/" + p
+}
+
+func (c *Cache) AllKeys(ctx context.Context, api *RestAPI, prefix string) (map[string]struct{}, error) {
+	m := map[string]struct{}{}
+	var mu sync.Mutex
+	eg, ctx := errgroup.WithContext(ctx)
+	for _, s := range c.scopes {
+		s := s
+		eg.Go(func() error {
+			keys, err := api.ListKeys(ctx, prefix, s.Scope)
+			if err != nil {
+				return err
+			}
+			mu.Lock()
+			for _, k := range keys {
+				m[k.Key] = struct{}{}
+			}
+			mu.Unlock()
+			return nil
+		})
+	}
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 type ReserveCacheReq struct {

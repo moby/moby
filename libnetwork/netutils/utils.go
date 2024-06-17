@@ -1,12 +1,10 @@
-// Network utility functions.
-
+// Package netutils provides network utility functions.
 package netutils
 
 import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -14,56 +12,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/types"
 )
-
-var (
-	// ErrNetworkOverlapsWithNameservers preformatted error
-	ErrNetworkOverlapsWithNameservers = errors.New("requested network overlaps with nameserver")
-	// ErrNetworkOverlaps preformatted error
-	ErrNetworkOverlaps = errors.New("requested network overlaps with existing network")
-)
-
-// CheckNameserverOverlaps checks whether the passed network overlaps with any of the nameservers
-func CheckNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
-	if len(nameservers) > 0 {
-		for _, ns := range nameservers {
-			_, nsNetwork, err := net.ParseCIDR(ns)
-			if err != nil {
-				return err
-			}
-			if NetworkOverlaps(toCheck, nsNetwork) {
-				return ErrNetworkOverlapsWithNameservers
-			}
-		}
-	}
-	return nil
-}
-
-// NetworkOverlaps detects overlap between one IPNet and another
-func NetworkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
-	return netX.Contains(netY.IP) || netY.Contains(netX.IP)
-}
-
-// NetworkRange calculates the first and last IP addresses in an IPNet
-func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
-	if network == nil {
-		return nil, nil
-	}
-
-	firstIP := network.IP.Mask(network.Mask)
-	lastIP := types.GetIPCopy(firstIP)
-	for i := 0; i < len(firstIP); i++ {
-		lastIP[i] = firstIP[i] | ^network.Mask[i]
-	}
-
-	if network.IP.To4() != nil {
-		firstIP = firstIP.To4()
-		lastIP = lastIP.To4()
-	}
-
-	return firstIP, lastIP
-}
 
 func genMAC(ip net.IP) net.HardwareAddr {
 	hw := make(net.HardwareAddr, 6)
@@ -169,4 +118,13 @@ func IsV6Listenable() bool {
 		}
 	})
 	return v6ListenableCached
+}
+
+// MustParseMAC returns a net.HardwareAddr or panic.
+func MustParseMAC(s string) net.HardwareAddr {
+	mac, err := net.ParseMAC(s)
+	if err != nil {
+		panic(err)
+	}
+	return mac
 }

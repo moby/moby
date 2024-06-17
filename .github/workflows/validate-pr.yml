@@ -11,7 +11,7 @@ jobs:
       - name: Missing `area/` label
         if: contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') && !contains(join(github.event.pull_request.labels.*.name, ','), 'area/')
         run: |
-          echo "Every PR with an \`impact/*\` label should also have an \`area/*\` label"
+          echo "::error::Every PR with an 'impact/*' label should also have an 'area/*' label"
           exit 1
       - name: OK
         run: exit 0
@@ -32,15 +32,31 @@ jobs:
           desc=$(echo "$block" |  awk NF)
 
           if [ -z "$desc" ]; then
-            echo "Changelog section is empty. Please provide a description for the changelog."
+            echo "::error::Changelog section is empty. Please provide a description for the changelog."
             exit 1
           fi
 
           len=$(echo -n "$desc" | wc -c)
           if [[ $len -le 6 ]]; then
-            echo "Description looks too short: $desc"
+            echo "::error::Description looks too short: $desc"
             exit 1
           fi
 
           echo "This PR will be included in the release notes with the following note:"
           echo "$desc"
+
+  check-pr-branch:
+    runs-on: ubuntu-20.04
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+    steps:
+      # Backports or PR that target a release branch directly should mention the target branch in the title, for example:
+      # [X.Y backport] Some change that needs backporting to X.Y
+      # [X.Y] Change directly targeting the X.Y branch
+      - name: Get branch from PR title
+        id: title_branch
+        run: echo "$PR_TITLE" | sed -n 's/^\[\([0-9]*\.[0-9]*\)[^]]*\].*/branch=\1/p' >> $GITHUB_OUTPUT
+
+      - name: Check release branch
+        if: github.event.pull_request.base.ref != steps.title_branch.outputs.branch && !(github.event.pull_request.base.ref == 'master' && steps.title_branch.outputs.branch == '')
+        run: echo "::error::PR title suggests targetting the ${{ steps.title_branch.outputs.branch }} branch, but is opened against ${{ github.event.pull_request.base.ref }}" && exit 1

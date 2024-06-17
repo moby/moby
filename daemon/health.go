@@ -11,7 +11,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
@@ -32,6 +32,10 @@ const (
 	// The time given for the container to start before the health check starts considering
 	// the container unstable. Defaults to none.
 	defaultStartPeriod = 0 * time.Second
+
+	// defaultStartInterval is the default interval between health checks during
+	// the start period.
+	defaultStartInterval = 5 * time.Second
 
 	// Default number of consecutive failures of the health check
 	// for the container to be considered unhealthy.
@@ -97,7 +101,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	defer cancelProbe()
 	execErr := make(chan error, 1)
 
-	options := containertypes.ExecStartOptions{
+	options := backend.ExecStartConfig{
 		Stdout: output,
 		Stderr: output,
 	}
@@ -251,7 +255,7 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 // There is never more than one monitor thread running per container at a time.
 func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe) {
 	probeInterval := timeoutWithDefault(c.Config.Healthcheck.Interval, defaultProbeInterval)
-	startInterval := timeoutWithDefault(c.Config.Healthcheck.StartInterval, probeInterval)
+	startInterval := timeoutWithDefault(c.Config.Healthcheck.StartInterval, defaultStartInterval)
 	startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
 
 	c.Lock()

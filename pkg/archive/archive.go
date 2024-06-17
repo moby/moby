@@ -98,24 +98,16 @@ func NewDefaultArchiver() *Archiver {
 type breakoutError error
 
 const (
-	// Uncompressed represents the uncompressed.
-	Uncompressed Compression = iota
-	// Bzip2 is bzip2 compression algorithm.
-	Bzip2
-	// Gzip is gzip compression algorithm.
-	Gzip
-	// Xz is xz compression algorithm.
-	Xz
-	// Zstd is zstd compression algorithm.
-	Zstd
+	Uncompressed Compression = 0 // Uncompressed represents the uncompressed.
+	Bzip2        Compression = 1 // Bzip2 is bzip2 compression algorithm.
+	Gzip         Compression = 2 // Gzip is gzip compression algorithm.
+	Xz           Compression = 3 // Xz is xz compression algorithm.
+	Zstd         Compression = 4 // Zstd is zstd compression algorithm.
 )
 
 const (
-	// AUFSWhiteoutFormat is the default format for whiteouts
-	AUFSWhiteoutFormat WhiteoutFormat = iota
-	// OverlayWhiteoutFormat formats whiteout according to the overlay
-	// standard.
-	OverlayWhiteoutFormat
+	AUFSWhiteoutFormat    WhiteoutFormat = 0 // AUFSWhiteoutFormat is the default format for whiteouts
+	OverlayWhiteoutFormat WhiteoutFormat = 1 // OverlayWhiteoutFormat formats whiteout according to the overlay standard.
 )
 
 // IsArchivePath checks if the (possibly compressed) file at the given path
@@ -159,7 +151,7 @@ func magicNumberMatcher(m []byte) matcher {
 // zstdMatcher detects zstd compression algorithm.
 // Zstandard compressed data is made of one or more frames.
 // There are two frame formats defined by Zstandard: Zstandard frames and Skippable frames.
-// See https://tools.ietf.org/id/draft-kucherawy-dispatch-zstd-00.html#rfc.section.2 for more details.
+// See https://datatracker.ietf.org/doc/html/rfc8878#section-3 for more details.
 func zstdMatcher() matcher {
 	return func(source []byte) bool {
 		if bytes.HasPrefix(source, zstdMagic) {
@@ -541,8 +533,10 @@ func newTarAppender(idMapping idtools.IdentityMapping, writer io.Writer, chownOp
 }
 
 // CanonicalTarNameForPath canonicalizes relativePath to a POSIX-style path using
-// forward slashes. It is an alias for filepath.ToSlash, which is a no-op on
+// forward slashes. It is an alias for [filepath.ToSlash], which is a no-op on
 // Linux and Unix.
+//
+// Deprecated: use [filepath.ToSlash]. This function will be removed in the next release.
 func CanonicalTarNameForPath(relativePath string) string {
 	return filepath.ToSlash(relativePath)
 }
@@ -885,7 +879,7 @@ func NewTarballer(srcPath string, options *TarOptions) (*Tarballer, error) {
 	return &Tarballer{
 		// Fix the source path to work with long path names. This is a no-op
 		// on platforms other than Windows.
-		srcPath:           fixVolumePathPrefix(srcPath),
+		srcPath:           addLongPathPrefix(srcPath),
 		options:           options,
 		pm:                pm,
 		pipeReader:        pipeReader,
@@ -1452,6 +1446,8 @@ func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
 // NewTempArchive reads the content of src into a temporary file, and returns the contents
 // of that file as an archive. The archive can only be read once - as soon as reading completes,
 // the file will be deleted.
+//
+// Deprecated: NewTempArchive is only used in tests and will be removed in the next release.
 func NewTempArchive(src io.Reader, dir string) (*TempArchive, error) {
 	f, err := os.CreateTemp(dir, "")
 	if err != nil {
@@ -1473,6 +1469,8 @@ func NewTempArchive(src io.Reader, dir string) (*TempArchive, error) {
 
 // TempArchive is a temporary archive. The archive can only be read once - as soon as reading completes,
 // the file will be deleted.
+//
+// Deprecated: TempArchive is only used in tests and will be removed in the next release.
 type TempArchive struct {
 	*os.File
 	Size   int64 // Pre-computed from Stat().Size() as a convenience

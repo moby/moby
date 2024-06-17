@@ -117,18 +117,48 @@ func (p *PortBinding) GetCopy() PortBinding {
 	}
 }
 
-// String returns the PortBinding structure in string form
-func (p *PortBinding) String() string {
-	ret := fmt.Sprintf("%s/", p.Proto)
-	if p.IP != nil {
-		ret += p.IP.String()
+// String returns the PortBinding structure in the form "HostIP:HostPort:IP:Port/Proto",
+// omitting un-set fields apart from Port.
+func (p PortBinding) String() string {
+	var ret strings.Builder
+	if len(p.HostIP) > 0 {
+		is6 := p.HostIP.To4() == nil
+		if is6 {
+			ret.WriteRune('[')
+		}
+		ret.WriteString(p.HostIP.String())
+		if is6 {
+			ret.WriteRune(']')
+		}
+		ret.WriteRune(':')
 	}
-	ret = fmt.Sprintf("%s:%d/", ret, p.Port)
-	if p.HostIP != nil {
-		ret += p.HostIP.String()
+	if p.HostPort != 0 {
+		ret.WriteString(strconv.Itoa(int(p.HostPort)))
+		if p.HostPortEnd != 0 && p.HostPortEnd != p.HostPort {
+			ret.WriteRune('-')
+			ret.WriteString(strconv.Itoa(int(p.HostPortEnd)))
+		}
 	}
-	ret = fmt.Sprintf("%s:%d", ret, p.HostPort)
-	return ret
+	if ret.Len() > 0 {
+		ret.WriteRune(':')
+	}
+	if len(p.IP) > 0 {
+		is6 := p.IP.To4() == nil
+		if is6 {
+			ret.WriteRune('[')
+		}
+		ret.WriteString(p.IP.String())
+		if is6 {
+			ret.WriteRune(']')
+		}
+		ret.WriteRune(':')
+	}
+	ret.WriteString(strconv.Itoa(int(p.Port)))
+	if p.Proto != 0 {
+		ret.WriteRune('/')
+		ret.WriteString(p.Proto.String())
+	}
+	return ret.String()
 }
 
 const (

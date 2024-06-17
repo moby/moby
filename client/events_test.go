@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
@@ -20,17 +19,17 @@ import (
 
 func TestEventsErrorInOptions(t *testing.T) {
 	errorCases := []struct {
-		options       types.EventsOptions
+		options       events.ListOptions
 		expectedError string
 	}{
 		{
-			options: types.EventsOptions{
+			options: events.ListOptions{
 				Since: "2006-01-02TZ",
 			},
 			expectedError: `parsing time "2006-01-02TZ"`,
 		},
 		{
-			options: types.EventsOptions{
+			options: events.ListOptions{
 				Until: "2006-01-02TZ",
 			},
 			expectedError: `parsing time "2006-01-02TZ"`,
@@ -52,7 +51,7 @@ func TestEventsErrorFromServer(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, errs := client.Events(context.Background(), types.EventsOptions{})
+	_, errs := client.Events(context.Background(), events.ListOptions{})
 	err := <-errs
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
@@ -64,13 +63,13 @@ func TestEvents(t *testing.T) {
 	expectedFiltersJSON := fmt.Sprintf(`{"type":{"%s":true}}`, events.ContainerEventType)
 
 	eventsCases := []struct {
-		options             types.EventsOptions
+		options             events.ListOptions
 		events              []events.Message
 		expectedEvents      map[string]bool
 		expectedQueryParams map[string]string
 	}{
 		{
-			options: types.EventsOptions{
+			options: events.ListOptions{
 				Filters: fltrs,
 			},
 			expectedQueryParams: map[string]string{
@@ -80,7 +79,7 @@ func TestEvents(t *testing.T) {
 			expectedEvents: make(map[string]bool),
 		},
 		{
-			options: types.EventsOptions{
+			options: events.ListOptions{
 				Filters: fltrs,
 			},
 			expectedQueryParams: map[string]string{

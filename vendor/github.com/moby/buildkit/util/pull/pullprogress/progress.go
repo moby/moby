@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/progress"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -122,7 +122,7 @@ func trackProgress(ctx context.Context, desc ocispecs.Descriptor, manager PullMa
 				Started: &started,
 			})
 			continue
-		} else if !errors.Is(err, errdefs.ErrNotFound) {
+		} else if !errors.Is(err, cerrdefs.ErrNotFound) {
 			bklog.G(ctx).Errorf("unexpected error getting ingest status of %q: %v", ingestRef, err)
 			return
 		}

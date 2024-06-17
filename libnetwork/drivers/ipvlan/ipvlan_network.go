@@ -41,6 +41,7 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	// if parent interface not specified, create a dummy type link to use named dummy+net_id
 	if config.Parent == "" {
 		config.Parent = getDummyName(stringid.TruncateID(config.ID))
+		config.Internal = true
 	}
 	foundExisting, err := d.createNetwork(config)
 	if err != nil {

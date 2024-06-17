@@ -4,7 +4,8 @@ set -e
 source hack/make/.integration-test-helpers
 
 # The commit or tag to use for testing
-: "${DOCKER_PY_COMMIT:=7.0.0}"
+# TODO(thaJeztah): remove VERSION build-arg once https://github.com/docker/docker-py/pull/3267 is merged and released.
+: "${DOCKER_PY_COMMIT:=7.1.0}"
 
 # custom options to pass py.test
 #
@@ -55,8 +56,9 @@ PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py
 			[ -n "${TESTDEBUG}" ] && set -x
 			[ -z "${TESTDEBUG}" ] && build_opts="--quiet"
 			[ -f /.dockerenv ] || build_opts="${build_opts} --network=host"
+			# TODO(thaJeztah): remove VERSION build-arg once https://github.com/docker/docker-py/pull/3267 is merged and released.
 			# shellcheck disable=SC2086
-			exec docker build ${build_opts} -t "${docker_py_image}" -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
+			exec docker build ${build_opts} -t "${docker_py_image}" --build-arg VERSION="${DOCKER_PY_COMMIT}" -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
 		)
 	fi
 

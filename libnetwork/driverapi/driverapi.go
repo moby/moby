@@ -1,6 +1,9 @@
 package driverapi
 
-import "net"
+import (
+	"context"
+	"net"
+)
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
 const NetworkPluginEndpointType = "NetworkDriver"
@@ -36,7 +39,7 @@ type Driver interface {
 	// specific config. The endpoint information can be either consumed by
 	// the driver or populated by the driver. The config mechanism will
 	// eventually be replaced with labels which are yet to be introduced.
-	CreateEndpoint(nid, eid string, ifInfo InterfaceInfo, options map[string]interface{}) error
+	CreateEndpoint(ctx context.Context, nid, eid string, ifInfo InterfaceInfo, options map[string]interface{}) error
 
 	// DeleteEndpoint invokes the driver method to delete an endpoint
 	// passing the network id and endpoint id.
@@ -46,14 +49,14 @@ type Driver interface {
 	EndpointOperInfo(nid, eid string) (map[string]interface{}, error)
 
 	// Join method is invoked when a Sandbox is attached to an endpoint.
-	Join(nid, eid string, sboxKey string, jinfo JoinInfo, options map[string]interface{}) error
+	Join(ctx context.Context, nid, eid string, sboxKey string, jinfo JoinInfo, options map[string]interface{}) error
 
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
 	Leave(nid, eid string) error
 
 	// ProgramExternalConnectivity invokes the driver method which does the necessary
 	// programming to allow the external connectivity dictated by the passed options
-	ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error
+	ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}) error
 
 	// RevokeExternalConnectivity asks the driver to remove any external connectivity
 	// programming that was done so far

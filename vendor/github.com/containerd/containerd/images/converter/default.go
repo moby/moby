@@ -432,11 +432,11 @@ func ConvertDockerMediaTypeToOCI(mt string) string {
 	case images.MediaTypeDockerSchema2LayerGzip:
 		return ocispec.MediaTypeImageLayerGzip
 	case images.MediaTypeDockerSchema2LayerForeignGzip:
-		return ocispec.MediaTypeImageLayerNonDistributableGzip
+		return ocispec.MediaTypeImageLayerNonDistributableGzip //nolint:staticcheck // deprecated
 	case images.MediaTypeDockerSchema2Layer:
 		return ocispec.MediaTypeImageLayer
 	case images.MediaTypeDockerSchema2LayerForeign:
-		return ocispec.MediaTypeImageLayerNonDistributable
+		return ocispec.MediaTypeImageLayerNonDistributable //nolint:staticcheck // deprecated
 	case images.MediaTypeDockerSchema2Config:
 		return ocispec.MediaTypeImageConfig
 	default:

@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/reference"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
@@ -52,7 +52,7 @@ func (sr *immutableRef) GetRemotes(ctx context.Context, createIfNeeded bool, ref
 	}
 
 	// Search all available remotes that has the topmost blob with the specified
-	// compression with all combination of copmressions
+	// compression with all combination of compressions
 	res := []*solver.Remote{remote}
 	topmost, parentChain := remote.Descriptors[len(remote.Descriptors)-1], remote.Descriptors[:len(remote.Descriptors)-1]
 	vDesc, err := getBlobWithCompression(ctx, sr.cm.ContentStore, topmost, refCfg.Compression.Type)
@@ -301,7 +301,7 @@ type lazyRefProvider struct {
 
 func (p lazyRefProvider) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
 	if desc.Digest != p.desc.Digest {
-		return nil, errdefs.ErrNotFound
+		return nil, cerrdefs.ErrNotFound
 	}
 	if err := p.Unlazy(ctx); err != nil {
 		return nil, err
@@ -311,12 +311,24 @@ func (p lazyRefProvider) ReaderAt(ctx context.Context, desc ocispecs.Descriptor)
 
 func (p lazyRefProvider) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {
 	if dgst != p.desc.Digest {
-		return content.Info{}, errdefs.ErrNotFound
+		return content.Info{}, cerrdefs.ErrNotFound
 	}
-	if err := p.Unlazy(ctx); err != nil {
-		return content.Info{}, errdefs.ErrNotFound
+	info, err := p.ref.cm.ContentStore.Info(ctx, dgst)
+	if err == nil {
+		return info, nil
 	}
-	return p.ref.cm.ContentStore.Info(ctx, dgst)
+
+	if isLazy, err1 := p.ref.isLazy(ctx); err1 != nil {
+		return content.Info{}, err1
+	} else if !isLazy {
+		return content.Info{}, err
+	}
+
+	// for lazy records don't unlazy without read request
+	return content.Info{
+		Digest: p.desc.Digest,
+		Size:   p.desc.Size,
+	}, nil
 }
 
 func (p lazyRefProvider) Unlazy(ctx context.Context) error {

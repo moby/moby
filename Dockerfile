@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG GO_VERSION=1.21.8
+ARG GO_VERSION=1.21.11
 ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.4.0
@@ -8,12 +8,12 @@ ARG XX_VERSION=1.4.0
 ARG VPNKIT_VERSION=0.5.0
 
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
-ARG DOCKERCLI_VERSION=v26.0.0
+ARG DOCKERCLI_VERSION=v26.1.0
 # cli version used for integration-cli tests
 ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v17.06.2-ce
-ARG BUILDX_VERSION=0.13.1
-ARG COMPOSE_VERSION=v2.25.0
+ARG BUILDX_VERSION=0.15.0
+ARG COMPOSE_VERSION=v2.27.1
 
 ARG SYSTEMD="false"
 ARG DOCKER_STATIC=1
@@ -196,7 +196,7 @@ RUN git init . && git remote add origin "https://github.com/containerd/container
 # When updating the binary version you may also need to update the vendor
 # version to pick up bug fixes or new APIs, however, usually the Go packages
 # are built from a commit from the master branch.
-ARG CONTAINERD_VERSION=v1.7.13
+ARG CONTAINERD_VERSION=v1.7.18
 RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS containerd-build
@@ -287,7 +287,7 @@ RUN git init . && git remote add origin "https://github.com/opencontainers/runc.
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged. When updating RUNC_VERSION,
 # consider updating runc in vendor.mod accordingly.
-ARG RUNC_VERSION=v1.1.12
+ARG RUNC_VERSION=v1.1.13
 RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS runc-build

@@ -2,6 +2,7 @@ package container
 
 import (
 	"maps"
+	"slices"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
@@ -47,6 +48,13 @@ func WithNetworkMode(mode string) func(*TestContainerConfig) {
 	}
 }
 
+// WithDNS sets external DNS servers for the container
+func WithDNS(dns []string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.DNS = append([]string(nil), dns...)
+	}
+}
+
 // WithSysctls sets sysctl options for the container
 func WithSysctls(sysctls map[string]string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
@@ -60,6 +68,16 @@ func WithExposedPorts(ports ...string) func(*TestContainerConfig) {
 		c.Config.ExposedPorts = map[nat.Port]struct{}{}
 		for _, port := range ports {
 			c.Config.ExposedPorts[nat.Port(port)] = struct{}{}
+		}
+	}
+}
+
+// WithPortMap sets/replaces port mappings.
+func WithPortMap(pm nat.PortMap) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.PortBindings = nat.PortMap{}
+		for p, b := range pm {
+			c.HostConfig.PortBindings[p] = slices.Clone(b)
 		}
 	}
 }
@@ -273,6 +291,13 @@ func WithIsolation(isolation container.Isolation) func(*TestContainerConfig) {
 func WithConsoleSize(width, height uint) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		c.HostConfig.ConsoleSize = [2]uint{height, width}
+	}
+}
+
+// WithAnnotations set the annotations for the container.
+func WithAnnotations(annotations map[string]string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.Annotations = annotations
 	}
 }
 

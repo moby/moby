@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	networktypes "github.com/docker/docker/api/types/network"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/network"
 	"gotest.tools/v3/assert"
@@ -12,7 +12,7 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func containsNetwork(nws []types.NetworkResource, networkID string) bool {
+func containsNetwork(nws []networktypes.Inspect, networkID string) bool {
 	for _, n := range nws {
 		if n.ID == networkID {
 			return true
@@ -31,7 +31,7 @@ func createAmbiguousNetworks(ctx context.Context, t *testing.T, client dclient.A
 	idPrefixNet := network.CreateNoError(ctx, t, client, testNet[:12])
 	fullIDNet := network.CreateNoError(ctx, t, client, testNet)
 
-	nws, err := client.NetworkList(ctx, types.NetworkListOptions{})
+	nws, err := client.NetworkList(ctx, networktypes.ListOptions{})
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Equal(true, containsNetwork(nws, testNet)), "failed to create network testNet")
@@ -79,7 +79,7 @@ func TestDockerNetworkDeletePreferID(t *testing.T) {
 	assert.NilError(t, err)
 
 	// networks "testNet" and "idPrefixNet" should be removed, but "fullIDNet" should still exist
-	nws, err := client.NetworkList(ctx, types.NetworkListOptions{})
+	nws, err := client.NetworkList(ctx, networktypes.ListOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(false, containsNetwork(nws, testNet)), "Network testNet not removed")
 	assert.Check(t, is.Equal(false, containsNetwork(nws, idPrefixNet)), "Network idPrefixNet not removed")

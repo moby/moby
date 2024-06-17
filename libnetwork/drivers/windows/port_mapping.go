@@ -71,7 +71,7 @@ func allocatePort(portMapper *portmapper.PortMapper, bnd *types.PortBinding, con
 
 	// Try up to maxAllocatePortAttempts times to get a port that's not already allocated.
 	for i := 0; i < maxAllocatePortAttempts; i++ {
-		if host, err = portMapper.MapRange(container, bnd.HostIP, int(bnd.HostPort), int(bnd.HostPortEnd), false); err == nil {
+		if host, err = portMapper.MapRange(container, bnd.HostIP, int(bnd.HostPort), int(bnd.HostPortEnd)); err == nil {
 			break
 		}
 		// There is no point in immediately retrying to map an explicitly chosen port.

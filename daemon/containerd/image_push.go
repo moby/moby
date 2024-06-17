@@ -9,20 +9,20 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	containerdimages "github.com/containerd/containerd/images"
 	containerdlabels "github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/auxprogress"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/opencontainers/go-digest"
@@ -41,7 +41,7 @@ import (
 // pointing to the new target repository. This will allow subsequent pushes
 // to perform cross-repo mounts of the shared content when pushing to a different
 // repository on the same registry.
-func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) (retErr error) {
+func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) (retErr error) {
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
@@ -76,7 +76,7 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 					continue
 				}
 
-				if err := i.pushRef(ctx, named, metaHeaders, authConfig, out); err != nil {
+				if err := i.pushRef(ctx, named, platform, metaHeaders, authConfig, out); err != nil {
 					return err
 				}
 			}
@@ -85,16 +85,16 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 		}
 	}
 
-	return i.pushRef(ctx, sourceRef, metaHeaders, authConfig, out)
+	return i.pushRef(ctx, sourceRef, platform, metaHeaders, authConfig, out)
 }
 
-func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, metaHeaders map[string][]string, authConfig *registry.AuthConfig, out progress.Output) (retErr error) {
+func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, out progress.Output) (retErr error) {
 	leasedCtx, release, err := i.client.WithLease(ctx)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := release(compatcontext.WithoutCancel(leasedCtx)); err != nil {
+		if err := release(context.WithoutCancel(leasedCtx)); err != nil {
 			log.G(ctx).WithField("image", targetRef).WithError(err).Warn("failed to release lease created for push")
 		}
 	}()
@@ -104,12 +104,18 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, m
 		if cerrdefs.IsNotFound(err) {
 			return errdefs.NotFound(fmt.Errorf("tag does not exist: %s", reference.FamiliarString(targetRef)))
 		}
-		return errdefs.NotFound(err)
+		return errdefs.System(err)
 	}
 
 	target := img.Target
-	store := i.content
+	if platform != nil {
+		target, err = i.getPushDescriptor(ctx, img, platform)
+		if err != nil {
+			return err
+		}
+	}
 
+	store := i.content
 	resolver, tracker := i.newResolverFromAuthConfig(ctx, authConfig, targetRef)
 	pp := pushProgress{Tracker: tracker}
 	jobsQueue := newJobs()
@@ -121,7 +127,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, m
 		finishProgress()
 		if retErr == nil {
 			if tagged, ok := targetRef.(reference.Tagged); ok {
-				progress.Messagef(out, "", "%s: digest: %s size: %d", tagged.Tag(), target.Digest, img.Target.Size)
+				progress.Messagef(out, "", "%s: digest: %s size: %d", tagged.Tag(), target.Digest, target.Size)
 			}
 		}
 	}()
@@ -164,16 +170,42 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, m
 
 	err = remotes.PushContent(ctx, pusher, target, store, limiter, platforms.All, handlerWrapper)
 	if err != nil {
-		if containerdimages.IsIndexType(target.MediaType) && cerrdefs.IsNotFound(err) {
-			return errdefs.NotFound(fmt.Errorf(
-				"missing content: %w\n"+
-					"Note: You're trying to push a manifest list/index which "+
-					"references multiple platform specific manifests, but not all of them are available locally "+
-					"or available to the remote repository.\n"+
-					"Make sure you have all the referenced content and try again.",
-				err))
+		// If push failed because of a missing content, no specific platform was requested
+		// and the target is an index, select a platform-specific manifest to push instead.
+		if cerrdefs.IsNotFound(err) && containerdimages.IsIndexType(target.MediaType) && platform == nil {
+			var newTarget ocispec.Descriptor
+			newTarget, err = i.getPushDescriptor(ctx, img, nil)
+			if err != nil {
+				return err
+			}
+
+			// Retry only if the new push candidate is different from the previous one.
+			if newTarget.Digest != target.Digest {
+				orgTarget := target
+				target = newTarget
+				pp.TurnNotStartedIntoUnavailable()
+				err = remotes.PushContent(ctx, pusher, target, store, limiter, platforms.All, handlerWrapper)
+
+				if err == nil {
+					progress.Aux(out, auxprogress.ManifestPushedInsteadOfIndex{
+						ManifestPushedInsteadOfIndex: true,
+						OriginalIndex:                orgTarget,
+						SelectedManifest:             newTarget,
+					})
+				}
+			}
 		}
-		return err
+
+		if err != nil {
+			if !cerrdefs.IsNotFound(err) {
+				return errdefs.System(err)
+			}
+			progress.Aux(out, auxprogress.ContentMissing{
+				ContentMissing: true,
+				Desc:           target,
+			})
+			return errdefs.NotFound(err)
+		}
 	}
 
 	appendDistributionSourceLabel(ctx, realStore, targetRef, target)
@@ -181,6 +213,97 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, m
 	i.LogImageEvent(reference.FamiliarString(targetRef), reference.FamiliarName(targetRef), events.ActionPush)
 
 	return nil
+}
+
+func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimages.Image, platform *ocispec.Platform) (ocispec.Descriptor, error) {
+	// Allow to override the host platform for testing purposes.
+	hostPlatform := i.defaultPlatformOverride
+	if hostPlatform == nil {
+		hostPlatform = platforms.Default()
+	}
+
+	pm := matchAllWithPreference(hostPlatform)
+	if platform != nil {
+		pm = platforms.OnlyStrict(*platform)
+	}
+
+	anyMissing := false
+
+	var bestMatchPlatform ocispec.Platform
+	var bestMatch *ImageManifest
+	var presentMatchingManifests []*ImageManifest
+	err := i.walkReachableImageManifests(ctx, img, func(im *ImageManifest) error {
+		available, err := im.CheckContentAvailable(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to determine availability of image manifest %s: %w", im.Target().Digest, err)
+		}
+
+		if !available {
+			anyMissing = true
+			return nil
+		}
+
+		if im.IsAttestation() {
+			return nil
+		}
+
+		imgPlatform, err := im.ImagePlatform(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to determine platform of image %s: %w", img.Name, err)
+		}
+
+		if !pm.Match(imgPlatform) {
+			return nil
+		}
+
+		presentMatchingManifests = append(presentMatchingManifests, im)
+		if bestMatch == nil || pm.Less(imgPlatform, bestMatchPlatform) {
+			bestMatchPlatform = imgPlatform
+			bestMatch = im
+		}
+
+		return nil
+	})
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	switch len(presentMatchingManifests) {
+	case 0:
+		return ocispec.Descriptor{}, errdefs.NotFound(fmt.Errorf("no suitable image manifest found for platform %s", *platform))
+	case 1:
+		// Only one manifest is available AND matching the requested platform.
+
+		if platform != nil {
+			// Explicit platform was requested
+			return presentMatchingManifests[0].Target(), nil
+		}
+
+		// No specific platform was requested, but only one manifest is available.
+		if anyMissing {
+			return presentMatchingManifests[0].Target(), nil
+		}
+
+		// Index has only one manifest anyway, select the full index.
+		return img.Target, nil
+	default:
+		if platform == nil {
+			if !anyMissing {
+				// No specific platform requested, and all manifests are available, select the full index.
+				return img.Target, nil
+			}
+
+			// No specific platform requested and not all manifests are available.
+			// Select the manifest that matches the host platform the best.
+			if bestMatch != nil && hostPlatform.Match(bestMatchPlatform) {
+				return bestMatch.Target(), nil
+			}
+
+			return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple matching manifests found but no specific platform requested"))
+		}
+
+		return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple manifests found for platform %s", *platform))
+	}
 }
 
 func appendDistributionSourceLabel(ctx context.Context, realStore content.Store, targetRef reference.Named, target ocispec.Descriptor) {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
@@ -19,7 +20,6 @@ import (
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/sys/signal"
@@ -117,7 +117,7 @@ func (daemon *Daemon) Register(c *container.Container) error {
 	defer c.Unlock()
 
 	daemon.containers.Add(c.ID, c)
-	return c.CheckpointTo(daemon.containersReplica)
+	return c.CheckpointTo(context.TODO(), daemon.containersReplica)
 }
 
 func (daemon *Daemon) newContainer(name string, operatingSystem string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
@@ -218,7 +218,9 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 		return err
 	}
 
-	runconfig.SetDefaultNetModeIfBlank(hostConfig)
+	if hostConfig != nil && hostConfig.NetworkMode == "" {
+		hostConfig.NetworkMode = networktypes.NetworkDefault
+	}
 	container.HostConfig = hostConfig
 	return nil
 }
@@ -364,6 +366,6 @@ func translateWorkingDir(config *containertypes.Config) error {
 	if !system.IsAbs(wd) {
 		return fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
 	}
-	config.WorkingDir = wd
+	config.WorkingDir = filepath.Clean(wd)
 	return nil
 }

@@ -1,37 +1,24 @@
 package networking
 
 import (
-	"net"
+	"context"
 	"os"
+	"path"
 	"strings"
 	"testing"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"github.com/miekg/dns"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
-
-// writeTempResolvConf writes a resolv.conf that only contains a single
-// nameserver line, with address addr.
-// It returns the name of the temp file.
-func writeTempResolvConf(t *testing.T, addr string) string {
-	t.Helper()
-	// Not using t.TempDir() here because in rootless mode, while the temporary
-	// directory gets mode 0777, it's a subdir of an 0700 directory owned by root.
-	// So, it's not accessible by the daemon.
-	f, err := os.CreateTemp("", "resolv.conf")
-	assert.NilError(t, err)
-	t.Cleanup(func() { os.Remove(f.Name()) })
-	err = f.Chmod(0644)
-	assert.NilError(t, err)
-	f.Write([]byte("nameserver " + addr + "\n"))
-	return f.Name()
-}
 
 // Regression test for https://github.com/moby/moby/issues/46968
 func TestResolvConfLocalhostIPv6(t *testing.T) {
@@ -40,10 +27,10 @@ func TestResolvConfLocalhostIPv6(t *testing.T) {
 
 	ctx := setupTest(t)
 
-	tmpFileName := writeTempResolvConf(t, "127.0.0.53")
+	tmpFileName := network.WriteTempResolvConf(t, "127.0.0.53")
 
 	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_RESOLV_CONF_PATH="+tmpFileName))
-	d.StartWithBusybox(ctx, t, "--experimental", "--ip6tables")
+	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
@@ -81,43 +68,6 @@ options ndots:0
 `))
 }
 
-const dnsRespAddr = "10.11.12.13"
-
-// startDaftDNS starts and returns a really, really daft DNS server that only
-// responds to type-A requests, and always with address dnsRespAddr.
-func startDaftDNS(t *testing.T, addr string) *dns.Server {
-	serveDNS := func(w dns.ResponseWriter, query *dns.Msg) {
-		if query.Question[0].Qtype == dns.TypeA {
-			resp := &dns.Msg{}
-			resp.SetReply(query)
-			answer := &dns.A{
-				Hdr: dns.RR_Header{
-					Name:   query.Question[0].Name,
-					Rrtype: dns.TypeA,
-					Class:  dns.ClassINET,
-					Ttl:    600,
-				},
-			}
-			answer.A = net.ParseIP(dnsRespAddr)
-			resp.Answer = append(resp.Answer, answer)
-			_ = w.WriteMsg(resp)
-		}
-	}
-
-	conn, err := net.ListenUDP("udp", &net.UDPAddr{
-		IP:   net.ParseIP(addr),
-		Port: 53,
-	})
-	assert.NilError(t, err)
-
-	server := &dns.Server{Handler: dns.HandlerFunc(serveDNS), PacketConn: conn}
-	go func() {
-		_ = server.ActivateAndServe()
-	}()
-
-	return server
-}
-
 // Check that when a container is connected to an internal network, DNS
 // requests sent to daemon's internal DNS resolver are not forwarded to
 // an upstream resolver listening on a localhost address.
@@ -128,13 +78,12 @@ func TestInternalNetworkDNS(t *testing.T) {
 	ctx := setupTest(t)
 
 	// Start a DNS server on the loopback interface.
-	server := startDaftDNS(t, "127.0.0.1")
-	defer server.Shutdown()
+	network.StartDaftDNS(t, "127.0.0.1")
 
 	// Set up a temp resolv.conf pointing at that DNS server, and a daemon using it.
-	tmpFileName := writeTempResolvConf(t, "127.0.0.1")
+	tmpFileName := network.WriteTempResolvConf(t, "127.0.0.1")
 	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_RESOLV_CONF_PATH="+tmpFileName))
-	d.StartWithBusybox(ctx, t, "--experimental", "--ip6tables")
+	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
@@ -160,7 +109,7 @@ func TestInternalNetworkDNS(t *testing.T) {
 	res, err := container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(res.ExitCode, 0))
-	assert.Check(t, is.Contains(res.Stdout(), dnsRespAddr))
+	assert.Check(t, is.Contains(res.Stdout(), network.DNSRespAddr))
 
 	// Connect the container to the internal network as well.
 	// External DNS should still be used.
@@ -169,7 +118,7 @@ func TestInternalNetworkDNS(t *testing.T) {
 	res, err = container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(res.ExitCode, 0))
-	assert.Check(t, is.Contains(res.Stdout(), dnsRespAddr))
+	assert.Check(t, is.Contains(res.Stdout(), network.DNSRespAddr))
 
 	// Disconnect from the external network.
 	// Expect no access to the external DNS.
@@ -187,5 +136,136 @@ func TestInternalNetworkDNS(t *testing.T) {
 	res, err = container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(res.ExitCode, 0))
-	assert.Check(t, is.Contains(res.Stdout(), dnsRespAddr))
+	assert.Check(t, is.Contains(res.Stdout(), network.DNSRespAddr))
+}
+
+// Check that '--dns' can be used to name a server inside a '--internal' network.
+// Regression test for https://github.com/moby/moby/issues/47822
+func TestInternalNetworkLocalDNS(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "No internal networks on Windows")
+	skip.If(t, testEnv.IsRootless, "Can't write an accessible dnsd.conf in rootless mode")
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	intNetName := "intnet"
+	network.CreateNoError(ctx, t, c, intNetName,
+		network.WithDriver("bridge"),
+		network.WithInternal(),
+	)
+	defer network.RemoveNoError(ctx, t, c, intNetName)
+
+	// Write a config file for busybox's dnsd.
+	td := t.TempDir()
+	fname := path.Join(td, "dnsd.conf")
+	err := os.WriteFile(fname, []byte("foo.example 192.0.2.42\n"), 0644)
+	assert.NilError(t, err)
+
+	// Start a DNS server on the internal network.
+	serverId := container.Run(ctx, t, c,
+		container.WithNetworkMode(intNetName),
+		container.WithMount(mount.Mount{
+			Type:   mount.TypeBind,
+			Source: fname,
+			Target: "/etc/dnsd.conf",
+		}),
+		container.WithCmd("dnsd"),
+	)
+	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
+
+	// Get the DNS server's address.
+	inspect := container.Inspect(ctx, t, c, serverId)
+	serverIP := inspect.NetworkSettings.Networks[intNetName].IPAddress
+
+	// Query the internal network's DNS server (via the daemon's internal DNS server).
+	res := container.RunAttach(ctx, t, c,
+		container.WithNetworkMode(intNetName),
+		container.WithDNS([]string{serverIP}),
+		container.WithCmd("nslookup", "-type=A", "foo.example"),
+	)
+	defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+	assert.Check(t, is.Contains(res.Stdout.String(), "192.0.2.42"))
+}
+
+// TestNslookupWindows checks that nslookup gets results from external DNS.
+// Regression test for https://github.com/moby/moby/issues/46792
+func TestNslookupWindows(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
+
+	ctx := setupTest(t)
+	c := testEnv.APIClient()
+
+	attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	res := container.RunAttach(attachCtx, t, c,
+		container.WithCmd("nslookup", "docker.com"),
+	)
+	defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+
+	assert.Check(t, is.Equal(res.ExitCode, 0))
+	// Current default is to forward requests to external servers, which
+	// can only be changed in daemon.json using feature flag "windows-dns-proxy".
+	assert.Check(t, is.Contains(res.Stdout.String(), "Addresses:"))
+}
+
+// Check that containers on the default bridge network can use a host's resolver
+// running on a loopback interface (via the internal resolver), but the internal
+// resolver is not populated with DNS names for containers (no service discovery
+// on the legacy/default bridge network).
+// (Assumes the host does not already have a DNS server on 127.0.0.1.)
+func TestDefaultBridgeDNS(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "No resolv.conf on Windows")
+	skip.If(t, testEnv.IsRootless, "Can't use resolver on host in rootless mode")
+	ctx := setupTest(t)
+
+	// Start a DNS server on the loopback interface.
+	network.StartDaftDNS(t, "127.0.0.1")
+
+	// Set up a temp resolv.conf pointing at that DNS server, and a daemon using it.
+	tmpFileName := network.WriteTempResolvConf(t, "127.0.0.1")
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_RESOLV_CONF_PATH="+tmpFileName))
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	// Create a container on the default bridge network.
+	const ctrName = "ctrname"
+	ctrId := container.Run(ctx, t, c, container.WithName(ctrName))
+	defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+
+	// Expect the external DNS server to respond to a request from the container.
+	t.Run("external dns", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		res, err := container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(res.ExitCode, 0))
+		assert.Check(t, is.Contains(res.Stdout(), network.DNSRespAddr))
+	})
+
+	// Expect the external DNS server to respond to a request from the container
+	// for the container's own name - it won't be recognised as a container name
+	// because there's no service resolution on the default bridge.
+	t.Run("no internal name resolution", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		res, err := container.Exec(ctx, c, ctrId, []string{"nslookup", ctrName})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(res.ExitCode, 0))
+		assert.Check(t, is.Contains(res.Stdout(), network.DNSRespAddr))
+	})
+
+	// Check that inspect output has no DNSNames for the container.
+	t.Run("no dnsnames in inspect", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		inspect := container.Inspect(ctx, t, c, ctrId)
+		net, ok := inspect.NetworkSettings.Networks[networktypes.NetworkBridge]
+		assert.Check(t, ok, "expected to find bridge network in inspect output")
+		assert.Check(t, is.Nil(net.DNSNames))
+	})
 }

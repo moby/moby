@@ -2,13 +2,14 @@ package cnmallocator
 
 import (
 	"context"
+	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	builtinIpam "github.com/docker/docker/libnetwork/ipams/builtin"
-	nullIpam "github.com/docker/docker/libnetwork/ipams/null"
+	"github.com/docker/docker/libnetwork/ipams"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 )
@@ -23,8 +24,12 @@ func initIPAMDrivers(r ipamapi.Registerer, netConfig *networkallocator.Config) e
 	// happens with default address pool option
 	if netConfig != nil {
 		for _, p := range netConfig.DefaultAddrPool {
+			base, err := netip.ParsePrefix(p)
+			if err != nil {
+				return fmt.Errorf("invalid prefix %q: %w", p, err)
+			}
 			addressPool = append(addressPool, &ipamutils.NetworkToSplit{
-				Base: p,
+				Base: base,
 				Size: int(netConfig.SubnetSize),
 			})
 			str.WriteString(p + ",")
@@ -33,20 +38,13 @@ func initIPAMDrivers(r ipamapi.Registerer, netConfig *networkallocator.Config) e
 		str.WriteString(strconv.Itoa(int(netConfig.SubnetSize)))
 
 	}
-	if err := ipamutils.ConfigGlobalScopeDefaultNetworks(addressPool); err != nil {
-		return err
-	}
-	if addressPool != nil {
+
+	if len(addressPool) > 0 {
 		log.G(context.TODO()).Infof("Swarm initialized global default address pool to: " + str.String())
 	}
 
-	for _, fn := range [](func(ipamapi.Registerer) error){
-		builtinIpam.Register,
-		nullIpam.Register,
-	} {
-		if err := fn(r); err != nil {
-			return err
-		}
+	if err := ipams.Register(r, nil, nil, addressPool); err != nil {
+		return err
 	}
 
 	return nil

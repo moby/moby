@@ -12,6 +12,9 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -95,9 +98,13 @@ func (d *driver) populateEndpoints() error {
 	return nil
 }
 
-func (d *driver) storeUpdate(kvObject datastore.KVObject) error {
+func (d *driver) storeUpdate(ctx context.Context, kvObject datastore.KVObject) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.bridge.storeUpdate", trace.WithAttributes(
+		attribute.String("kvObject", fmt.Sprintf("%+v", kvObject.Key()))))
+	defer span.End()
+
 	if d.store == nil {
-		log.G(context.TODO()).Warnf("bridge store not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
+		log.G(ctx).Warnf("bridge store not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
 		return nil
 	}
 
@@ -123,6 +130,8 @@ func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
 	nMap["BridgeName"] = ncfg.BridgeName
 	nMap["EnableIPv6"] = ncfg.EnableIPv6
 	nMap["EnableIPMasquerade"] = ncfg.EnableIPMasquerade
+	nMap["GwModeIPv4"] = ncfg.GwModeIPv4
+	nMap["GwModeIPv6"] = ncfg.GwModeIPv6
 	nMap["EnableICC"] = ncfg.EnableICC
 	nMap["InhibitIPv4"] = ncfg.InhibitIPv4
 	nMap["Mtu"] = ncfg.Mtu
@@ -190,6 +199,12 @@ func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 	ncfg.BridgeName = nMap["BridgeName"].(string)
 	ncfg.EnableIPv6 = nMap["EnableIPv6"].(bool)
 	ncfg.EnableIPMasquerade = nMap["EnableIPMasquerade"].(bool)
+	if v, ok := nMap["GwModeIPv4"]; ok {
+		ncfg.GwModeIPv4, _ = newGwMode(v.(string))
+	}
+	if v, ok := nMap["GwModeIPv6"]; ok {
+		ncfg.GwModeIPv6, _ = newGwMode(v.(string))
+	}
 	ncfg.EnableICC = nMap["EnableICC"].(bool)
 	if v, ok := nMap["InhibitIPv4"]; ok {
 		ncfg.InhibitIPv4 = v.(bool)
@@ -264,7 +279,6 @@ func (ep *bridgeEndpoint) MarshalJSON() ([]byte, error) {
 	if ep.addrv6 != nil {
 		epMap["Addrv6"] = ep.addrv6.String()
 	}
-	epMap["Config"] = ep.config
 	epMap["ContainerConfig"] = ep.containerConfig
 	epMap["ExternalConnConfig"] = ep.extConnConfig
 	epMap["PortMapping"] = ep.portMapping
@@ -300,11 +314,7 @@ func (ep *bridgeEndpoint) UnmarshalJSON(b []byte) error {
 	ep.id = epMap["id"].(string)
 	ep.nid = epMap["nid"].(string)
 	ep.srcName = epMap["SrcName"].(string)
-	d, _ := json.Marshal(epMap["Config"])
-	if err := json.Unmarshal(d, &ep.config); err != nil {
-		log.G(context.TODO()).Warnf("Failed to decode endpoint config %v", err)
-	}
-	d, _ = json.Marshal(epMap["ContainerConfig"])
+	d, _ := json.Marshal(epMap["ContainerConfig"])
 	if err := json.Unmarshal(d, &ep.containerConfig); err != nil {
 		log.G(context.TODO()).Warnf("Failed to decode endpoint container config %v", err)
 	}
@@ -315,6 +325,18 @@ func (ep *bridgeEndpoint) UnmarshalJSON(b []byte) error {
 	d, _ = json.Marshal(epMap["PortMapping"])
 	if err := json.Unmarshal(d, &ep.portMapping); err != nil {
 		log.G(context.TODO()).Warnf("Failed to decode endpoint port mapping %v", err)
+	}
+	// Until release 27.0, HostPortEnd in PortMapping (operational data) was left at
+	// the value it had in ExternalConnConfig.PortBindings (configuration). So, for
+	// example, if the configured host port range was 8000-8009 and the allocated
+	// port was 8004, the stored range was 8004-8009. Also, if allocation for an
+	// explicit (non-ephemeral) range failed because some other process had a port
+	// bound, there was no attempt to retry (because HostPort!=0). Now that's fixed,
+	// on live-restore we don't want to allocate different ports - so, remove the range
+	// from the operational data.
+	// TODO(robmry) - remove once direct upgrade from moby 26.x is no longer supported.
+	for i := range ep.portMapping {
+		ep.portMapping[i].HostPortEnd = ep.portMapping[i].HostPort
 	}
 
 	return nil
@@ -367,17 +389,30 @@ func (ep *bridgeEndpoint) CopyTo(o datastore.KVObject) error {
 	return nil
 }
 
+// restorePortAllocations is used during live-restore. It re-creates iptables
+// forwarding/NAT rules, and restarts docker-proxy, as needed.
+//
+// TODO(robmry) - if any previously-mapped host ports are no longer available, all
+// iptables forwarding/NAT rules get removed and there will be no docker-proxy
+// processes. So, the container will be left running, but inaccessible.
 func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	if ep.extConnConfig == nil ||
 		ep.extConnConfig.ExposedPorts == nil ||
 		ep.extConnConfig.PortBindings == nil {
 		return
 	}
-	tmp := ep.extConnConfig.PortBindings
-	ep.extConnConfig.PortBindings = ep.portMapping
-	_, err := n.allocatePorts(ep, n.config.DefaultBindingIP, n.driver.config.EnableUserlandProxy)
+
+	// ep.portMapping has HostPort=HostPortEnd, the host port allocated last
+	// time around ... use that in place of ep.extConnConfig.PortBindings, which
+	// may specify host port ranges.
+	cfg := make([]types.PortBinding, len(ep.portMapping))
+	for i, b := range ep.portMapping {
+		cfg[i] = b.PortBinding
+	}
+
+	var err error
+	ep.portMapping, err = n.addPortMappings(ep.addr, ep.addrv6, cfg, n.config.DefaultBindingIP)
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to reserve existing port mapping for endpoint %.7s:%v", ep.id, err)
 	}
-	ep.extConnConfig.PortBindings = tmp
 }

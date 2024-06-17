@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.19
+//go:build go1.21
 
 package libnetwork
 
@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"runtime"
 	"strings"
 	"sync"
@@ -17,8 +18,10 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/etchosts"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/internal/setmatrix"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/networkdb"
@@ -192,7 +195,6 @@ type Network struct {
 	dbExists         bool
 	persist          bool
 	drvOnce          *sync.Once
-	resolverOnce     sync.Once //nolint:nolintlint,unused // only used on windows
 	resolver         []*Resolver
 	internal         bool
 	attachable       bool
@@ -204,6 +206,7 @@ type Network struct {
 	configFrom       string
 	loadBalancerIP   net.IP
 	loadBalancerMode string
+	platformNetwork  //nolint:nolintlint,unused // only populated on windows
 	mu               sync.Mutex
 }
 
@@ -242,6 +245,13 @@ func (n *Network) Type() string {
 	defer n.mu.Unlock()
 
 	return n.networkType
+}
+
+func (n *Network) Resolvers() []*Resolver {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	return n.resolver
 }
 
 func (n *Network) Key() []string {
@@ -635,7 +645,7 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := netMap["ipamType"]; ok {
 		n.ipamType = v.(string)
 	} else {
-		n.ipamType = ipamapi.DefaultIPAM
+		n.ipamType = defaultipam.DriverName
 	}
 	if v, ok := netMap["addrSpace"]; ok {
 		n.addrSpace = v.(string)
@@ -777,7 +787,7 @@ func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ip
 	return func(n *Network) {
 		if ipamDriver != "" {
 			n.ipamType = ipamDriver
-			if ipamDriver == ipamapi.DefaultIPAM {
+			if ipamDriver == defaultipam.DriverName {
 				n.ipamType = defaultIpamForNetworkType(n.Type())
 			}
 		}
@@ -1006,7 +1016,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 
 	// Mark the network for deletion
 	n.inDelete = true
-	if err = c.updateToStore(n); err != nil {
+	if err = c.updateToStore(context.TODO(), n); err != nil {
 		return fmt.Errorf("error marking network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
 	}
 
@@ -1097,13 +1107,13 @@ func (n *Network) deleteNetwork() error {
 	return nil
 }
 
-func (n *Network) addEndpoint(ep *Endpoint) error {
+func (n *Network) addEndpoint(ctx context.Context, ep *Endpoint) error {
 	d, err := n.driver(true)
 	if err != nil {
 		return fmt.Errorf("failed to add endpoint: %v", err)
 	}
 
-	err = d.CreateEndpoint(n.id, ep.id, ep.Iface(), ep.generic)
+	err = d.CreateEndpoint(ctx, n.id, ep.id, ep.Iface(), ep.generic)
 	if err != nil {
 		return types.InternalErrorf("failed to create endpoint %s on network %s: %v",
 			ep.Name(), n.Name(), err)
@@ -1114,7 +1124,7 @@ func (n *Network) addEndpoint(ep *Endpoint) error {
 
 // CreateEndpoint creates a new endpoint to this network symbolically identified by the
 // specified unique name. The options parameter carries driver specific options.
-func (n *Network) CreateEndpoint(name string, options ...EndpointOption) (*Endpoint, error) {
+func (n *Network) CreateEndpoint(ctx context.Context, name string, options ...EndpointOption) (*Endpoint, error) {
 	var err error
 	if strings.TrimSpace(name) == "" {
 		return nil, ErrInvalidName(name)
@@ -1131,10 +1141,10 @@ func (n *Network) CreateEndpoint(name string, options ...EndpointOption) (*Endpo
 	n.ctrlr.networkLocker.Lock(n.id)
 	defer n.ctrlr.networkLocker.Unlock(n.id) //nolint:errcheck
 
-	return n.createEndpoint(name, options...)
+	return n.createEndpoint(ctx, name, options...)
 }
 
-func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpoint, error) {
+func (n *Network) createEndpoint(ctx context.Context, name string, options ...EndpointOption) (*Endpoint, error) {
 	var err error
 
 	ep := &Endpoint{name: name, generic: make(map[string]interface{}), iface: &EndpointInterface{}}
@@ -1145,7 +1155,7 @@ func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpo
 	ep.network = n
 	ep.network, err = ep.getNetworkFromStore()
 	if err != nil {
-		log.G(context.TODO()).Errorf("failed to get network during CreateEndpoint: %v", err)
+		log.G(ctx).Errorf("failed to get network during CreateEndpoint: %v", err)
 		return nil, err
 	}
 	n = ep.network
@@ -1188,26 +1198,26 @@ func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpo
 		}
 	}()
 
-	if err = n.addEndpoint(ep); err != nil {
+	if err = n.addEndpoint(ctx, ep); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
 			if e := ep.deleteEndpoint(false); e != nil {
-				log.G(context.TODO()).Warnf("cleaning up endpoint failed %s : %v", name, e)
+				log.G(ctx).Warnf("cleaning up endpoint failed %s : %v", name, e)
 			}
 		}
 	}()
 
 	// We should perform updateToStore call right after addEndpoint
 	// in order to have iface properly configured
-	if err = n.getController().updateToStore(ep); err != nil {
+	if err = n.getController().updateToStore(ctx, ep); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
 			if e := n.getController().deleteFromStore(ep); e != nil {
-				log.G(context.TODO()).Warnf("error rolling back endpoint %s from store: %v", name, e)
+				log.G(ctx).Warnf("error rolling back endpoint %s from store: %v", name, e)
 			}
 		}
 	}()
@@ -1217,10 +1227,10 @@ func (n *Network) createEndpoint(name string, options ...EndpointOption) (*Endpo
 	}
 
 	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
-		n.updateSvcRecord(ep, true)
+		n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
 		defer func() {
 			if err != nil {
-				n.updateSvcRecord(ep, false)
+				n.updateSvcRecord(context.WithoutCancel(ctx), ep, false)
 			}
 		}()
 	}
@@ -1292,7 +1302,12 @@ func (n *Network) EndpointByID(id string) (*Endpoint, error) {
 }
 
 // updateSvcRecord adds or deletes local DNS records for a given Endpoint.
-func (n *Network) updateSvcRecord(ep *Endpoint, isAdd bool) {
+func (n *Network) updateSvcRecord(ctx context.Context, ep *Endpoint, isAdd bool) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.updateSvcRecord", trace.WithAttributes(
+		attribute.String("ep.name", ep.name),
+		attribute.Bool("isAdd", isAdd)))
+	defer span.End()
+
 	iface := ep.Iface()
 	if iface == nil || iface.Address() == nil {
 		return
@@ -1508,60 +1523,6 @@ func (n *Network) ipamAllocate() error {
 	return err
 }
 
-func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, err error) {
-	var tmpPoolLeases []string
-	defer func() {
-		// Prevent repeated lock/unlock in the loop.
-		nwName := n.Name()
-		// Release all pools we held on to.
-		for _, pID := range tmpPoolLeases {
-			if err := ipam.ReleasePool(pID); err != nil {
-				log.G(context.TODO()).Warnf("Failed to release overlapping pool %s while returning from pool request helper for network %s", pool, nwName)
-			}
-		}
-	}()
-
-	for {
-		poolID, pool, meta, err = ipam.RequestPool(addressSpace, requestedPool, requestedSubPool, options, v6)
-		if err != nil {
-			return "", nil, nil, err
-		}
-
-		// If the network pool was explicitly chosen, the network belongs to
-		// global scope, or it is invalid ("0.0.0.0/0"), then we don't perform
-		// check for overlaps.
-		//
-		// FIXME(thaJeztah): why are we ignoring invalid pools here?
-		//
-		// The "invalid" conditions was added in [libnetwork#1095][1], which
-		// moved code to reduce os-specific dependencies in the ipam package,
-		// but also introduced a types.IsIPNetValid() function, which considers
-		// "0.0.0.0/0" invalid, and added it to the conditions below.
-		//
-		// Unfortunately review does not mention this change, so there's no
-		// context why. Possibly this was done to prevent errors further down
-		// the line (when checking for overlaps), but returning an error here
-		// instead would likely have avoided that as well, so we can only guess.
-		//
-		// [1]: https://github.com/moby/libnetwork/commit/5ca79d6b87873264516323a7b76f0af7d0298492#diff-bdcd879439d041827d334846f9aba01de6e3683ed8fdd01e63917dae6df23846
-		if requestedPool != "" || n.Scope() == scope.Global || pool.String() == "0.0.0.0/0" {
-			return poolID, pool, meta, nil
-		}
-
-		// Check for overlap and if none found, we have found the right pool.
-		if _, err := netutils.FindAvailableNetwork([]*net.IPNet{pool}); err == nil {
-			return poolID, pool, meta, nil
-		}
-
-		// Pool obtained in this iteration is overlapping. Hold onto the pool
-		// and don't release it yet, because we don't want IPAM to give us back
-		// the same pool over again. But make sure we still do a deferred release
-		// when we have either obtained a non-overlapping pool or ran out of
-		// pre-defined pools.
-		tmpPoolLeases = append(tmpPoolLeases, poolID)
-	}
-}
-
 func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 	var (
 		cfgList  *[]*IpamConf
@@ -1596,10 +1557,27 @@ func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		(*infoList)[i] = d
 
 		d.AddressSpace = n.addrSpace
-		d.PoolID, d.Pool, d.Meta, err = n.requestPoolHelper(ipam, n.addrSpace, cfg.PreferredPool, cfg.SubPool, n.ipamOptions, ipVer == 6)
+
+		var reserved []netip.Prefix
+		if n.Scope() != scope.Global {
+			reserved = netutils.InferReservedNetworks(ipVer == 6)
+		}
+
+		alloc, err := ipam.RequestPool(ipamapi.PoolRequest{
+			AddressSpace: n.addrSpace,
+			Pool:         cfg.PreferredPool,
+			SubPool:      cfg.SubPool,
+			Options:      n.ipamOptions,
+			Exclude:      reserved,
+			V6:           ipVer == 6,
+		})
 		if err != nil {
 			return err
 		}
+
+		d.PoolID = alloc.PoolID
+		d.Pool = netiputil.ToIPNet(alloc.Pool)
+		d.Meta = alloc.Meta
 
 		defer func() {
 			if err != nil {
@@ -2097,10 +2075,6 @@ func (n *Network) ResolveService(ctx context.Context, name string) ([]*net.SRV, 
 	return srv, ip
 }
 
-func (n *Network) ExecFunc(f func()) error {
-	return types.NotImplementedErrorf("ExecFunc not supported by network")
-}
-
 func (n *Network) NdotsSet() bool {
 	return false
 }
@@ -2142,13 +2116,13 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 	if n.ingress {
 		sbOptions = append(sbOptions, OptionIngress())
 	}
-	sb, err := n.ctrlr.NewSandbox(sandboxName, sbOptions...)
+	sb, err := n.ctrlr.NewSandbox(context.TODO(), sandboxName, sbOptions...)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if retErr != nil {
-			if e := n.ctrlr.SandboxDestroy(sandboxName); e != nil {
+			if e := n.ctrlr.SandboxDestroy(context.WithoutCancel(context.TODO()), sandboxName); e != nil {
 				log.G(context.TODO()).Warnf("could not delete sandbox %s on failure on failure (%v): %v", sandboxName, retErr, e)
 			}
 		}
@@ -2159,19 +2133,19 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 		CreateOptionIpam(n.loadBalancerIP, nil, nil, nil),
 		CreateOptionLoadBalancer(),
 	}
-	ep, err := n.createEndpoint(endpointName, epOptions...)
+	ep, err := n.createEndpoint(context.TODO(), endpointName, epOptions...)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if retErr != nil {
-			if e := ep.Delete(true); e != nil {
+			if e := ep.Delete(context.WithoutCancel(context.TODO()), true); e != nil {
 				log.G(context.TODO()).Warnf("could not delete endpoint %s on failure on failure (%v): %v", endpointName, retErr, e)
 			}
 		}
 	}()
 
-	if err := ep.Join(sb, nil); err != nil {
+	if err := ep.Join(context.TODO(), sb, nil); err != nil {
 		return err
 	}
 
@@ -2202,13 +2176,13 @@ func (n *Network) deleteLoadBalancerSandbox() error {
 			}
 		}
 
-		if err := endpoint.Delete(true); err != nil {
+		if err := endpoint.Delete(context.TODO(), true); err != nil {
 			log.G(context.TODO()).Warnf("Failed to delete endpoint %s (%s) in %s: %v", endpoint.Name(), endpoint.ID(), sandboxName, err)
 			// Ignore error and attempt to delete the sandbox.
 		}
 	}
 
-	if err := c.SandboxDestroy(sandboxName); err != nil {
+	if err := c.SandboxDestroy(context.TODO(), sandboxName); err != nil {
 		return fmt.Errorf("Failed to delete %s sandbox: %v", sandboxName, err)
 	}
 	return nil

@@ -78,10 +78,9 @@ type IPTable struct {
 
 // ChainInfo defines the iptables chain.
 type ChainInfo struct {
-	Name        string
-	Table       Table
-	HairpinMode bool
-	IPVersion   IPVersion
+	Name      string
+	Table     Table
+	IPVersion IPVersion
 }
 
 // ChainError is returned to represent errors during ip table operation.
@@ -173,7 +172,7 @@ func GetIptable(version IPVersion) *IPTable {
 }
 
 // NewChain adds a new chain to ip table.
-func (iptable IPTable) NewChain(name string, table Table, hairpinMode bool) (*ChainInfo, error) {
+func (iptable IPTable) NewChain(name string, table Table) (*ChainInfo, error) {
 	if name == "" {
 		return nil, fmt.Errorf("could not create chain: chain name is empty")
 	}
@@ -189,10 +188,9 @@ func (iptable IPTable) NewChain(name string, table Table, hairpinMode bool) (*Ch
 		}
 	}
 	return &ChainInfo{
-		Name:        name,
-		Table:       table,
-		HairpinMode: hairpinMode,
-		IPVersion:   iptable.ipVersion,
+		Name:      name,
+		Table:     table,
+		IPVersion: iptable.ipVersion,
 	}, nil
 }
 
@@ -308,78 +306,6 @@ func (iptable IPTable) RemoveExistingChain(name string, table Table) error {
 		IPVersion: iptable.ipVersion,
 	}
 	return c.Remove()
-}
-
-// Forward adds forwarding rule to 'filter' table and corresponding nat rule to 'nat' table.
-func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr string, destPort int, bridgeName string) error {
-	iptable := GetIptable(c.IPVersion)
-	daddr := ip.String()
-	if ip.IsUnspecified() {
-		// iptables interprets "0.0.0.0" as "0.0.0.0/32", whereas we
-		// want "0.0.0.0/0". "0/0" is correctly interpreted as "any
-		// value" by both iptables and ip6tables.
-		daddr = "0/0"
-	}
-
-	args := []string{
-		"-p", proto,
-		"-d", daddr,
-		"--dport", strconv.Itoa(port),
-		"-j", "DNAT",
-		"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort)),
-	}
-
-	if !c.HairpinMode {
-		args = append(args, "!", "-i", bridgeName)
-	}
-	if err := iptable.ProgramRule(Nat, c.Name, action, args); err != nil {
-		return err
-	}
-
-	args = []string{
-		"!", "-i", bridgeName,
-		"-o", bridgeName,
-		"-p", proto,
-		"-d", destAddr,
-		"--dport", strconv.Itoa(destPort),
-		"-j", "ACCEPT",
-	}
-	if err := iptable.ProgramRule(Filter, c.Name, action, args); err != nil {
-		return err
-	}
-
-	args = []string{
-		"-p", proto,
-		"-s", destAddr,
-		"-d", destAddr,
-		"--dport", strconv.Itoa(destPort),
-		"-j", "MASQUERADE",
-	}
-
-	if err := iptable.ProgramRule(Nat, "POSTROUTING", action, args); err != nil {
-		return err
-	}
-
-	if proto == "sctp" {
-		// Linux kernel v4.9 and below enables NETIF_F_SCTP_CRC for veth by
-		// the following commit.
-		// This introduces a problem when combined with a physical NIC without
-		// NETIF_F_SCTP_CRC. As for a workaround, here we add an iptables entry
-		// to fill the checksum.
-		//
-		// https://github.com/torvalds/linux/commit/c80fafbbb59ef9924962f83aac85531039395b18
-		args = []string{
-			"-p", proto,
-			"--sport", strconv.Itoa(destPort),
-			"-j", "CHECKSUM",
-			"--checksum-fill",
-		}
-		if err := iptable.ProgramRule(Mangle, "POSTROUTING", action, args); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // Link adds reciprocal ACCEPT rule for two supplied IP addresses.

@@ -251,5 +251,5 @@ func decompress(ctx context.Context, cs content.Store, desc ocispecs.Descriptor)
 			return nil, err
 		}
 	}
-	return &iohelper.ReadCloser{ReadCloser: r, CloseFunc: ra.Close}, nil
+	return iohelper.WithCloser(r, ra.Close), nil
 }

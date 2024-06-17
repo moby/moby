@@ -118,17 +118,19 @@ func (c *CacheChains) Marshal(ctx context.Context) (*CacheConfig, DescriptorProv
 type DescriptorProvider map[digest.Digest]DescriptorProviderPair
 
 type DescriptorProviderPair struct {
-	Descriptor ocispecs.Descriptor
-	Provider   content.Provider
+	Descriptor   ocispecs.Descriptor
+	Provider     content.Provider
+	InfoProvider content.InfoProvider
 }
-
-var _ withCheckDescriptor = DescriptorProviderPair{}
 
 func (p DescriptorProviderPair) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
 	return p.Provider.ReaderAt(ctx, desc)
 }
 
 func (p DescriptorProviderPair) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {
+	if p.InfoProvider != nil {
+		return p.InfoProvider.Info(ctx, dgst)
+	}
 	if dgst != p.Descriptor.Digest {
 		return content.Info{}, errors.Errorf("content not found %s", dgst)
 	}
@@ -154,13 +156,6 @@ func (p DescriptorProviderPair) SnapshotLabels(descs []ocispecs.Descriptor, inde
 	}
 	if cd, ok := p.Provider.(snapshotLabels); ok {
 		return cd.SnapshotLabels(descs, index)
-	}
-	return nil
-}
-
-func (p DescriptorProviderPair) CheckDescriptor(ctx context.Context, desc ocispecs.Descriptor) error {
-	if cd, ok := p.Provider.(withCheckDescriptor); ok {
-		return cd.CheckDescriptor(ctx, desc)
 	}
 	return nil
 }

@@ -14,19 +14,19 @@ import (
 
 // execBackend includes functions to implement to provide exec functionality.
 type execBackend interface {
-	ContainerExecCreate(name string, config *types.ExecConfig) (string, error)
+	ContainerExecCreate(name string, options *container.ExecOptions) (string, error)
 	ContainerExecInspect(id string) (*backend.ExecInspect, error)
 	ContainerExecResize(name string, height, width int) error
-	ContainerExecStart(ctx context.Context, name string, options container.ExecStartOptions) error
+	ContainerExecStart(ctx context.Context, name string, options backend.ExecStartConfig) error
 	ExecExists(name string) (bool, error)
 }
 
 // copyBackend includes functions to implement to provide container copy functionality.
 type copyBackend interface {
-	ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error)
+	ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *container.PathStat, err error)
 	ContainerExport(ctx context.Context, name string, out io.Writer) error
 	ContainerExtractToDir(name, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error
-	ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error)
+	ContainerStatPath(name string, path string) (stat *container.PathStat, err error)
 }
 
 // stateBackend includes functions to implement to provide container state lifecycle functionality.
@@ -62,7 +62,7 @@ type attachBackend interface {
 
 // systemBackend includes functions to implement to provide system wide containers functionality
 type systemBackend interface {
-	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*types.ContainersPruneReport, error)
+	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*container.PruneReport, error)
 }
 
 type commitBackend interface {

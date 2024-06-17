@@ -5,8 +5,7 @@ import (
 	"testing"
 	"time"
 
-	cerrdefs "github.com/containerd/containerd/errdefs"
-	"github.com/docker/docker/api/types"
+	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -41,7 +40,7 @@ func TestPause(t *testing.T) {
 
 	until := request.DaemonUnixTime(ctx, t, apiClient, testEnv)
 
-	messages, errs := apiClient.Events(ctx, types.EventsOptions{
+	messages, errs := apiClient.Events(ctx, events.ListOptions{
 		Since:   since,
 		Until:   until,
 		Filters: filters.NewArgs(filters.Arg(string(events.ContainerEventType), cID)),

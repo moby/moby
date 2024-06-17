@@ -57,20 +57,19 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 		return nil, err
 	}
 
-	layerBlobDigests := make([]digest.Digest, len(layers))
+	layerBlobDigests := make([][]digest.Digest, len(layers))
 
 	descs2 := map[digest.Digest]v1.DescriptorProviderPair{}
 	for i, k := range layers {
 		if v, ok := descs[k]; ok {
 			descs2[k] = v
-			layerBlobDigests[i] = k
-			continue
+			layerBlobDigests[i] = append(layerBlobDigests[i], k)
 		}
 		// fallback for uncompressed digests
 		for _, v := range descs {
 			if uc := v.Descriptor.Annotations[labels.LabelUncompressed]; uc == string(k) {
 				descs2[v.Descriptor.Digest] = v
-				layerBlobDigests[i] = v.Descriptor.Digest
+				layerBlobDigests[i] = append(layerBlobDigests[i], v.Descriptor.Digest)
 			}
 		}
 	}
@@ -92,8 +91,10 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 
 	// reorder layers based on the order in the image
 	blobIndexes := make(map[digest.Digest]int, len(layers))
-	for i, blob := range layerBlobDigests {
-		blobIndexes[blob] = i
+	for i, blobs := range layerBlobDigests {
+		for _, blob := range blobs {
+			blobIndexes[blob] = i
+		}
 	}
 
 	for i, r := range cfg.Records {
@@ -104,8 +105,14 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 			if len(resultBlobs) <= len(layers) {
 				match = true
 				for k, resultBlob := range resultBlobs {
-					layerBlob := layers[k]
-					if resultBlob != layerBlob {
+					matchesBlob := false
+					for _, layerBlob := range layerBlobDigests[k] {
+						if layerBlob == resultBlob {
+							matchesBlob = true
+							break
+						}
+					}
+					if !matchesBlob {
 						match = false
 						break
 					}

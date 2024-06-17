@@ -10,10 +10,7 @@ func InheritSize(pty, tty *os.File) error {
 	if err != nil {
 		return err
 	}
-	if err := Setsize(tty, size); err != nil {
-		return err
-	}
-	return nil
+	return Setsize(tty, size)
 }
 
 // Getsize returns the number of rows (lines) and cols (positions

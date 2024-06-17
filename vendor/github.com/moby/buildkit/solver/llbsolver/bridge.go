@@ -97,11 +97,7 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 		if srcPol != nil {
 			pol = append([]*spb.Policy{srcPol}, pol...)
 		}
-
 		polEngine = sourcepolicy.NewEngine(pol)
-		if err != nil {
-			return nil, err
-		}
 	}
 	var cms []solver.CacheManager
 	for _, im := range cacheImports {

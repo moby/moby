@@ -36,7 +36,7 @@ func GetDiffID(ctx context.Context, cs content.Store, desc ocispec.Descriptor) (
 		MediaTypeDockerSchema2Layer,
 		ocispec.MediaTypeImageLayer,
 		MediaTypeDockerSchema2LayerForeign,
-		ocispec.MediaTypeImageLayerNonDistributable:
+		ocispec.MediaTypeImageLayerNonDistributable: //nolint:staticcheck // deprecated
 		return desc.Digest, nil
 	}
 	info, err := cs.Info(ctx, desc.Digest)

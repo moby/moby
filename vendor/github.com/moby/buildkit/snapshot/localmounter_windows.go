@@ -4,8 +4,8 @@ import (
 	"os"
 
 	"github.com/Microsoft/go-winio/pkg/bindfilter"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/mount"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 )
@@ -26,7 +26,7 @@ func (lm *localMounter) Mount() (string, error) {
 	// Windows can only mount a single mount at a given location.
 	// Parent layers are carried in Options, opaquely to localMounter.
 	if len(lm.mounts) != 1 {
-		return "", errors.Wrapf(errdefs.ErrNotImplemented, "request to mount %d layers, only 1 is supported", len(lm.mounts))
+		return "", errors.Wrapf(cerrdefs.ErrNotImplemented, "request to mount %d layers, only 1 is supported", len(lm.mounts))
 	}
 
 	m := lm.mounts[0]
@@ -66,7 +66,7 @@ func (lm *localMounter) Unmount() error {
 	// Calling Mount() would fail on an instance of the localMounter where mounts contains
 	// anything other than 1 mount.
 	if len(lm.mounts) != 1 {
-		return errors.Wrapf(errdefs.ErrNotImplemented, "request to mount %d layers, only 1 is supported", len(lm.mounts))
+		return errors.Wrapf(cerrdefs.ErrNotImplemented, "request to mount %d layers, only 1 is supported", len(lm.mounts))
 	}
 	m := lm.mounts[0]
 

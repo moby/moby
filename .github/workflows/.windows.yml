@@ -19,7 +19,7 @@ on:
         default: false
 
 env:
-  GO_VERSION: "1.21.8"
+  GO_VERSION: "1.21.11"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
@@ -190,6 +190,7 @@ jobs:
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
+          retention-days: 1
 
   unit-test-report:
     runs-on: ubuntu-latest
@@ -508,6 +509,7 @@ jobs:
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
+          retention-days: 1
 
   integration-test-report:
     runs-on: ubuntu-latest

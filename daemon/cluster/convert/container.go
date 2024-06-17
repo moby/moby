@@ -2,6 +2,7 @@ package convert // import "github.com/docker/docker/daemon/cluster/convert"
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -120,8 +121,9 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 
 		if m.VolumeOptions != nil {
 			mount.VolumeOptions = &mounttypes.VolumeOptions{
-				NoCopy: m.VolumeOptions.NoCopy,
-				Labels: m.VolumeOptions.Labels,
+				NoCopy:  m.VolumeOptions.NoCopy,
+				Labels:  m.VolumeOptions.Labels,
+				Subpath: m.VolumeOptions.Subpath,
 			}
 			if m.VolumeOptions.DriverConfig != nil {
 				mount.VolumeOptions.DriverConfig = &mounttypes.Driver{
@@ -135,6 +137,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 			mount.TmpfsOptions = &mounttypes.TmpfsOptions{
 				SizeBytes: m.TmpfsOptions.SizeBytes,
 				Mode:      m.TmpfsOptions.Mode,
+				Options:   tmpfsOptionsFromGRPC(m.TmpfsOptions.Options),
 			}
 		}
 		containerSpec.Mounts = append(containerSpec.Mounts, mount)
@@ -406,8 +409,9 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 
 		if m.VolumeOptions != nil {
 			mount.VolumeOptions = &swarmapi.Mount_VolumeOptions{
-				NoCopy: m.VolumeOptions.NoCopy,
-				Labels: m.VolumeOptions.Labels,
+				NoCopy:  m.VolumeOptions.NoCopy,
+				Labels:  m.VolumeOptions.Labels,
+				Subpath: m.VolumeOptions.Subpath,
 			}
 			if m.VolumeOptions.DriverConfig != nil {
 				mount.VolumeOptions.DriverConfig = &swarmapi.Driver{
@@ -421,6 +425,7 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 			mount.TmpfsOptions = &swarmapi.Mount_TmpfsOptions{
 				SizeBytes: m.TmpfsOptions.SizeBytes,
 				Mode:      m.TmpfsOptions.Mode,
+				Options:   tmpfsOptionsToGRPC(m.TmpfsOptions.Options),
 			}
 		}
 
@@ -563,4 +568,33 @@ func ulimitsToGRPC(u []*units.Ulimit) []*swarmapi.ContainerSpec_Ulimit {
 	}
 
 	return ulimits
+}
+
+func tmpfsOptionsToGRPC(options [][]string) string {
+	// The shape of the swarmkit API that tmpfs options are a string. The shape
+	// of the docker API has them as a more structured array of arrays of
+	// strings. To smooth this over, we will marshall the array-of-arrays to
+	// json then pass that as the string.
+
+	// Marshalling json can create an error, but only in specific cases which
+	// are not relevant. We can ignore the possibility.
+	jsonBytes, _ := json.Marshal(options)
+	return string(jsonBytes)
+}
+
+func tmpfsOptionsFromGRPC(options string) [][]string {
+	// See tmpfsOptionsToGRPC for the reasoning. We undo what we did.
+	var unstring [][]string
+	// We can't return errors from here, so just don't ever pass anything that
+	// could result in an error.
+	//
+	// Duh.
+	//
+	// If there is something erroneous, then an empty return value will result,
+	// which should not be catastrophic. Because we control the data that is
+	// marshalled (in tmpfsOptionsToGRPC), we can more-or-less ensure that only
+	// valid data is unmarshalled here. If someone does something like muck
+	// with the GRPC API directly, then they get footgun, no apologies.
+	_ = json.Unmarshal([]byte(options), &unstring)
+	return unstring
 }

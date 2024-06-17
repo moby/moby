@@ -40,7 +40,7 @@ func TestConfigDaemonID(t *testing.T) {
 	d := daemon.New(t)
 	defer d.Stop(t)
 
-	d.Start(t, "--iptables=false")
+	d.Start(t, "--iptables=false", "--ip6tables=false")
 	info := d.Info(t)
 	assert.Check(t, info.ID != "")
 	d.Stop(t)
@@ -54,7 +54,7 @@ func TestConfigDaemonID(t *testing.T) {
 	err := os.WriteFile(idFile, []byte(engineID), 0o644)
 	assert.NilError(t, err)
 
-	d.Start(t, "--iptables=false")
+	d.Start(t, "--iptables=false", "--ip6tables=false")
 	info = d.Info(t)
 	assert.Equal(t, info.ID, engineID)
 	d.Stop(t)
@@ -212,7 +212,7 @@ func TestDaemonProxy(t *testing.T) {
 		))
 		c := d.NewClientT(t)
 
-		d.Start(t, "--iptables=false")
+		d.Start(t, "--iptables=false", "--ip6tables=false")
 		defer d.Stop(t)
 
 		info := d.Info(t)
@@ -248,7 +248,7 @@ func TestDaemonProxy(t *testing.T) {
 			"no_proxy=ignore.invalid",
 			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
 		))
-		d.Start(t, "--iptables=false", "--http-proxy", proxyServer.URL, "--https-proxy", proxyServer.URL, "--no-proxy", "example.com")
+		d.Start(t, "--iptables=false", "--ip6tables=false", "--http-proxy", proxyServer.URL, "--https-proxy", proxyServer.URL, "--no-proxy", "example.com")
 		defer d.Stop(t)
 
 		c := d.NewClientT(t)
@@ -305,7 +305,7 @@ func TestDaemonProxy(t *testing.T) {
 		configJSON := fmt.Sprintf(`{"proxies":{"http-proxy":%[1]q, "https-proxy": %[1]q, "no-proxy": "example.com"}}`, proxyServer.URL)
 		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0o644))
 
-		d.Start(t, "--iptables=false", "--config-file", configFile)
+		d.Start(t, "--iptables=false", "--ip6tables=false", "--config-file", configFile)
 		defer d.Stop(t)
 
 		info := d.Info(t)
@@ -370,7 +370,7 @@ func TestDaemonProxy(t *testing.T) {
 		d := daemon.New(t, daemon.WithEnvVars(
 			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
 		))
-		d.Start(t, "--iptables=false", "--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com")
+		d.Start(t, "--iptables=false", "--ip6tables=false", "--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com")
 		defer d.Stop(t)
 		err := d.Signal(syscall.SIGHUP)
 		assert.NilError(t, err)
@@ -398,7 +398,7 @@ func testLiveRestoreAutoRemove(t *testing.T) {
 
 	run := func(t *testing.T) (*daemon.Daemon, func(), string) {
 		d := daemon.New(t)
-		d.StartWithBusybox(ctx, t, "--live-restore", "--iptables=false")
+		d.StartWithBusybox(ctx, t, "--live-restore", "--iptables=false", "--ip6tables=false")
 		t.Cleanup(func() {
 			d.Stop(t)
 			d.Cleanup(t)
@@ -425,7 +425,7 @@ func testLiveRestoreAutoRemove(t *testing.T) {
 	t.Run("engine restart shouldnt kill alive containers", func(t *testing.T) {
 		d, finishContainer, cID := run(t)
 
-		d.Restart(t, "--live-restore", "--iptables=false")
+		d.Restart(t, "--live-restore", "--iptables=false", "--ip6tables=false")
 
 		apiClient := d.NewClientT(t)
 		_, err := apiClient.ContainerInspect(ctx, cID)
@@ -450,7 +450,7 @@ func testLiveRestoreAutoRemove(t *testing.T) {
 		finishContainer()
 		poll.WaitOn(t, process.NotAlive(pid))
 
-		d.Start(t, "--live-restore", "--iptables=false")
+		d.Start(t, "--live-restore", "--iptables=false", "--ip6tables=false")
 
 		poll.WaitOn(t, container.IsRemoved(ctx, apiClient, cID))
 	})
@@ -461,7 +461,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "--live-restore", "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--live-restore", "--iptables=false", "--ip6tables=false")
 	defer func() {
 		d.Stop(t)
 		d.Cleanup(t)
@@ -486,7 +486,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 			defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
 			// Stop the daemon
-			d.Restart(t, "--live-restore", "--iptables=false")
+			d.Restart(t, "--live-restore", "--iptables=false", "--ip6tables=false")
 
 			// Try to remove the volume
 			err = c.VolumeRemove(ctx, volName, false)
@@ -544,7 +544,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 			return poll.Success()
 		})
 
-		d.Restart(t, "--live-restore", "--iptables=false")
+		d.Restart(t, "--live-restore", "--iptables=false", "--ip6tables=false")
 
 		// Try to remove the volume
 		// This should fail since its used by a container
@@ -599,7 +599,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		cID := container.Run(ctx, t, c, container.WithMount(m), container.WithCmd("top"))
 		defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
-		d.Restart(t, "--live-restore", "--iptables=false")
+		d.Restart(t, "--live-restore", "--iptables=false", "--ip6tables=false")
 
 		err := c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 		assert.NilError(t, err)

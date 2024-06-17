@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/moby/buildkit/frontend/dockerfile/command"
+	"github.com/moby/buildkit/frontend/dockerfile/linter"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/util/suggest"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -66,8 +66,12 @@ func newParseRequestFromNode(node *parser.Node) parseRequest {
 	}
 }
 
-// ParseInstruction converts an AST to a typed instruction (either a command or a build stage beginning when encountering a `FROM` statement)
 func ParseInstruction(node *parser.Node) (v interface{}, err error) {
+	return ParseInstructionWithLinter(node, nil)
+}
+
+// ParseInstruction converts an AST to a typed instruction (either a command or a build stage beginning when encountering a `FROM` statement)
+func ParseInstructionWithLinter(node *parser.Node, lint *linter.Linter) (v interface{}, err error) {
 	defer func() {
 		err = parser.WithLocation(err, node.Location())
 	}()
@@ -76,6 +80,8 @@ func ParseInstruction(node *parser.Node) (v interface{}, err error) {
 	case command.Env:
 		return parseEnv(req)
 	case command.Maintainer:
+		msg := linter.RuleMaintainerDeprecated.Format()
+		lint.Run(&linter.RuleMaintainerDeprecated, node.Location(), msg)
 		return parseMaintainer(req)
 	case command.Label:
 		return parseLabel(req)
@@ -84,6 +90,14 @@ func ParseInstruction(node *parser.Node) (v interface{}, err error) {
 	case command.Copy:
 		return parseCopy(req)
 	case command.From:
+		if !isLowerCaseStageName(req.args) {
+			msg := linter.RuleStageNameCasing.Format(req.args[2])
+			lint.Run(&linter.RuleStageNameCasing, node.Location(), msg)
+		}
+		if !doesFromCaseMatchAsCase(req) {
+			msg := linter.RuleFromAsCasing.Format(req.command, req.args[1])
+			lint.Run(&linter.RuleFromAsCasing, node.Location(), msg)
+		}
 		return parseFrom(req)
 	case command.Onbuild:
 		return parseOnBuild(req)
@@ -150,9 +164,9 @@ func (e *parseError) Unwrap() error {
 
 // Parse a Dockerfile into a collection of buildable stages.
 // metaArgs is a collection of ARG instructions that occur before the first FROM.
-func Parse(ast *parser.Node) (stages []Stage, metaArgs []ArgCommand, err error) {
+func Parse(ast *parser.Node, lint *linter.Linter) (stages []Stage, metaArgs []ArgCommand, err error) {
 	for _, n := range ast.Children {
-		cmd, err := ParseInstruction(n)
+		cmd, err := ParseInstructionWithLinter(n, lint)
 		if err != nil {
 			return nil, nil, &parseError{inner: err, node: n}
 		}
@@ -183,18 +197,17 @@ func parseKvps(args []string, cmdName string) (KeyValuePairs, error) {
 	if len(args) == 0 {
 		return nil, errAtLeastOneArgument(cmdName)
 	}
-	if len(args)%2 != 0 {
+	if len(args)%3 != 0 {
 		// should never get here, but just in case
 		return nil, errTooManyArguments(cmdName)
 	}
 	var res KeyValuePairs
-	for j := 0; j < len(args); j += 2 {
+	for j := 0; j < len(args); j += 3 {
 		if len(args[j]) == 0 {
 			return nil, errBlankCommandNames(cmdName)
 		}
-		name := args[j]
-		value := args[j+1]
-		res = append(res, KeyValuePair{Key: name, Value: value})
+		name, value, delim := args[j], args[j+1], args[j+2]
+		res = append(res, KeyValuePair{Key: name, Value: value, NoDelim: delim == ""})
 	}
 	return res, nil
 }
@@ -450,7 +463,7 @@ func parseWorkdir(req parseRequest) (*WorkdirCommand, error) {
 	}, nil
 }
 
-func parseShellDependentCommand(req parseRequest, command string, emptyAsNil bool) (ShellDependantCmdLine, error) {
+func parseShellDependentCommand(req parseRequest, emptyAsNil bool) (ShellDependantCmdLine, error) {
 	var files []ShellInlineFile
 	for _, heredoc := range req.heredocs {
 		file := ShellInlineFile{
@@ -462,12 +475,11 @@ func parseShellDependentCommand(req parseRequest, command string, emptyAsNil boo
 	}
 
 	args := handleJSONArgs(req.args, req.attributes)
-	cmd := strslice.StrSlice(args)
-	if emptyAsNil && len(cmd) == 0 {
-		cmd = nil
+	if emptyAsNil && len(args) == 0 {
+		args = nil
 	}
 	return ShellDependantCmdLine{
-		CmdLine:      cmd,
+		CmdLine:      args,
 		Files:        files,
 		PrependShell: !req.attributes["json"],
 	}, nil
@@ -487,7 +499,7 @@ func parseRun(req parseRequest) (*RunCommand, error) {
 	}
 	cmd.FlagsUsed = req.flags.Used()
 
-	cmdline, err := parseShellDependentCommand(req, "RUN", false)
+	cmdline, err := parseShellDependentCommand(req, false)
 	if err != nil {
 		return nil, err
 	}
@@ -509,7 +521,7 @@ func parseCmd(req parseRequest) (*CmdCommand, error) {
 		return nil, err
 	}
 
-	cmdline, err := parseShellDependentCommand(req, "CMD", false)
+	cmdline, err := parseShellDependentCommand(req, false)
 	if err != nil {
 		return nil, err
 	}
@@ -525,7 +537,7 @@ func parseEntrypoint(req parseRequest) (*EntrypointCommand, error) {
 		return nil, err
 	}
 
-	cmdline, err := parseShellDependentCommand(req, "ENTRYPOINT", true)
+	cmdline, err := parseShellDependentCommand(req, true)
 	if err != nil {
 		return nil, err
 	}
@@ -550,8 +562,10 @@ func parseOptInterval(f *Flag) (time.Duration, error) {
 	if d == 0 {
 		return 0, nil
 	}
-	if d < container.MinimumDuration {
-		return 0, errors.Errorf("Interval %#v cannot be less than %s", f.name, container.MinimumDuration)
+
+	const minimumDuration = time.Millisecond
+	if d < minimumDuration {
+		return 0, errors.Errorf("Interval %#v cannot be less than %s", f.name, minimumDuration)
 	}
 	return d, nil
 }
@@ -569,12 +583,11 @@ func parseHealthcheck(req parseRequest) (*HealthCheckCommand, error) {
 		if len(args) != 0 {
 			return nil, errors.New("HEALTHCHECK NONE takes no arguments")
 		}
-		test := strslice.StrSlice{typ}
-		cmd.Health = &container.HealthConfig{
-			Test: test,
+		cmd.Health = &dockerspec.HealthcheckConfig{
+			Test: []string{typ},
 		}
 	} else {
-		healthcheck := container.HealthConfig{}
+		healthcheck := dockerspec.HealthcheckConfig{}
 
 		flInterval := req.flags.AddString("interval", "")
 		flTimeout := req.flags.AddString("timeout", "")
@@ -597,7 +610,7 @@ func parseHealthcheck(req parseRequest) (*HealthCheckCommand, error) {
 				typ = "CMD-SHELL"
 			}
 
-			healthcheck.Test = strslice.StrSlice(append([]string{typ}, cmdSlice...))
+			healthcheck.Test = append([]string{typ}, cmdSlice...)
 		default:
 			return nil, errors.Errorf("Unknown type %#v in HEALTHCHECK (try CMD)", typ)
 		}
@@ -761,7 +774,7 @@ func parseShell(req parseRequest) (*ShellCommand, error) {
 		// SHELL ["powershell", "-command"]
 
 		return &ShellCommand{
-			Shell:           strslice.StrSlice(shellSlice),
+			Shell:           shellSlice,
 			withNameAndCode: newWithNameAndCode(req),
 		}, nil
 	default:
@@ -814,4 +827,31 @@ func allInstructionNames() []string {
 		i++
 	}
 	return out
+}
+
+func isLowerCaseStageName(cmdArgs []string) bool {
+	if len(cmdArgs) != 3 {
+		return true
+	}
+	stageName := cmdArgs[2]
+	return stageName == strings.ToLower(stageName)
+}
+
+func doesFromCaseMatchAsCase(req parseRequest) bool {
+	if len(req.args) < 3 {
+		return true
+	}
+	// consistent casing for the command is handled elsewhere.
+	// If the command is not consistent, there's no need to
+	// add an additional lint warning for the `as` argument.
+	fromHasLowerCasing := req.command == strings.ToLower(req.command)
+	fromHasUpperCasing := req.command == strings.ToUpper(req.command)
+	if !fromHasLowerCasing && !fromHasUpperCasing {
+		return true
+	}
+
+	if fromHasLowerCasing {
+		return req.args[1] == strings.ToLower(req.args[1])
+	}
+	return req.args[1] == strings.ToUpper(req.args[1])
 }

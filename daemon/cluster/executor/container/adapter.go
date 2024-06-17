@@ -17,12 +17,14 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
-	containerpkg "github.com/docker/docker/container"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/runconfig"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/agent/exec"
@@ -290,20 +292,40 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 }
 
 func (c *containerAdapter) create(ctx context.Context) error {
+	hostConfig := c.container.hostConfig(c.dependencies.Volumes())
+	netConfig := c.container.createNetworkingConfig(c.backend)
+
+	// We need to make sure no empty string or "default" NetworkMode is
+	// provided to the daemon as it doesn't support them.
+	//
+	// This is in line with what the ContainerCreate API endpoint does, but
+	// unlike that endpoint we can't do that in the ServiceCreate endpoint as
+	// the cluster leader and the current node might not be running on the same
+	// OS. Since the normalized value isn't the same on Windows and Linux, we
+	// need to make this normalization happen once we're sure we won't make a
+	// cross-OS API call.
+	if hostConfig.NetworkMode == "" || hostConfig.NetworkMode.IsDefault() {
+		hostConfig.NetworkMode = runconfig.DefaultDaemonNetworkMode()
+		if v, ok := netConfig.EndpointsConfig[network.NetworkDefault]; ok {
+			delete(netConfig.EndpointsConfig, network.NetworkDefault)
+			netConfig.EndpointsConfig[runconfig.DefaultDaemonNetworkMode().NetworkName()] = v
+		}
+	}
+
 	var cr containertypes.CreateResponse
 	var err error
 	if cr, err = c.backend.CreateManagedContainer(ctx, backend.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
-		HostConfig: c.container.hostConfig(c.dependencies.Volumes()),
+		HostConfig: hostConfig,
 		// Use the first network in container create
-		NetworkingConfig: c.container.createNetworkingConfig(c.backend),
+		NetworkingConfig: netConfig,
 	}); err != nil {
 		return err
 	}
 
-	container := c.container.task.Spec.GetContainer()
-	if container == nil {
+	ctr := c.container.task.Spec.GetContainer()
+	if ctr == nil {
 		return errors.New("unable to get container from task spec")
 	}
 
@@ -312,12 +334,12 @@ func (c *containerAdapter) create(ctx context.Context) error {
 	}
 
 	// configure secrets
-	secretRefs := convert.SecretReferencesFromGRPC(container.Secrets)
+	secretRefs := convert.SecretReferencesFromGRPC(ctr.Secrets)
 	if err := c.backend.SetContainerSecretReferences(cr.ID, secretRefs); err != nil {
 		return err
 	}
 
-	configRefs := convert.ConfigReferencesFromGRPC(container.Configs)
+	configRefs := convert.ConfigReferencesFromGRPC(ctr.Configs)
 	if err := c.backend.SetContainerConfigReferences(cr.ID, configRefs); err != nil {
 		return err
 	}
@@ -397,8 +419,8 @@ func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
 	return eventsq
 }
 
-func (c *containerAdapter) wait(ctx context.Context) (<-chan containerpkg.StateStatus, error) {
-	return c.backend.ContainerWait(ctx, c.container.nameOrID(), containerpkg.WaitConditionNotRunning)
+func (c *containerAdapter) wait(ctx context.Context) (<-chan container.StateStatus, error) {
+	return c.backend.ContainerWait(ctx, c.container.nameOrID(), container.WaitConditionNotRunning)
 }
 
 func (c *containerAdapter) shutdown(ctx context.Context) error {

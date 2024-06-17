@@ -10,7 +10,7 @@ SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 tidy() (
 		set -x
-		"${SCRIPTDIR}"/with-go-mod.sh go mod tidy -modfile vendor.mod -compat 1.18
+		"${SCRIPTDIR}"/with-go-mod.sh go mod tidy -modfile vendor.mod
 )
 
 vendor() (

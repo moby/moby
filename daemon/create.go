@@ -231,7 +231,9 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	}
 	// Make sure NetworkMode has an acceptable value. We do this to ensure
 	// backwards API compatibility.
-	runconfig.SetDefaultNetModeIfBlank(ctr.HostConfig)
+	if ctr.HostConfig != nil && ctr.HostConfig.NetworkMode == "" {
+		ctr.HostConfig.NetworkMode = networktypes.NetworkDefault
+	}
 
 	daemon.updateContainerNetworkSettings(ctr, endpointsConfigs)
 	if err := daemon.Register(ctr); err != nil {

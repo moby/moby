@@ -12,13 +12,15 @@ on:
         default: "graphdriver"
 
 env:
-  GO_VERSION: "1.21.8"
+  GO_VERSION: "1.21.9"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   ITG_CLI_MATRIX_SIZE: 6
   DOCKER_EXPERIMENTAL: 1
   DOCKER_GRAPHDRIVER: ${{ inputs.storage == 'snapshotter' && 'overlayfs' || 'overlay2' }}
   TEST_INTEGRATION_USE_SNAPSHOTTER: ${{ inputs.storage == 'snapshotter' && '1' || '' }}
+  SETUP_BUILDX_VERSION: latest
+  SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
 
 jobs:
   unit:
@@ -35,6 +37,10 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: ${{ env.SETUP_BUILDX_VERSION }}
+          driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -70,6 +76,7 @@ jobs:
         with:
           name: test-reports-unit-${{ inputs.storage }}
           path: /tmp/reports/*
+          retention-days: 1
 
   unit-report:
     runs-on: ubuntu-20.04
@@ -116,6 +123,10 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: ${{ env.SETUP_BUILDX_VERSION }}
+          driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -150,6 +161,7 @@ jobs:
         with:
           name: test-reports-docker-py-${{ inputs.storage }}
           path: /tmp/reports/*
+          retention-days: 1
 
   integration-flaky:
     runs-on: ubuntu-20.04
@@ -165,6 +177,10 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: ${{ env.SETUP_BUILDX_VERSION }}
+          driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -219,6 +235,10 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: ${{ env.SETUP_BUILDX_VERSION }}
+          driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -271,6 +291,7 @@ jobs:
         with:
           name: test-reports-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
+          retention-days: 1
 
   integration-report:
     runs-on: ubuntu-20.04
@@ -359,6 +380,10 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: ${{ env.SETUP_BUILDX_VERSION }}
+          driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
+          buildkitd-flags: --debug
       -
         name: Build dev image
         uses: docker/bake-action@v4
@@ -410,6 +435,7 @@ jobs:
         with:
           name: test-reports-integration-cli-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
+          retention-days: 1
 
   integration-cli-report:
     runs-on: ubuntu-20.04

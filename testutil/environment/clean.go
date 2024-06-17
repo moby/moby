@@ -149,7 +149,7 @@ func deleteAllVolumes(ctx context.Context, t testing.TB, c client.VolumeAPIClien
 
 func deleteAllNetworks(ctx context.Context, t testing.TB, c client.NetworkAPIClient, daemonPlatform string, protectedNetworks map[string]struct{}) {
 	t.Helper()
-	networks, err := c.NetworkList(ctx, types.NetworkListOptions{})
+	networks, err := c.NetworkList(ctx, network.ListOptions{})
 	assert.Check(t, err, "failed to list networks")
 
 	for _, n := range networks {

@@ -159,7 +159,7 @@ func newBuilder(ctx context.Context, options builderOptions) (*Builder, error) {
 	if config.Platform != "" {
 		sp, err := platforms.Parse(config.Platform)
 		if err != nil {
-			return nil, err
+			return nil, errdefs.InvalidParameter(err)
 		}
 		b.platform = &sp
 	}
@@ -187,7 +187,7 @@ func buildLabelOptions(labels map[string]string, stages []instructions.Stage) {
 func (b *Builder) build(ctx context.Context, source builder.Source, dockerfile *parser.Result) (*builder.Result, error) {
 	defer b.imageSources.Unmount()
 
-	stages, metaArgs, err := instructions.Parse(dockerfile.AST)
+	stages, metaArgs, err := instructions.Parse(dockerfile.AST, nil)
 	if err != nil {
 		var uiErr *instructions.UnknownInstructionError
 		if errors.As(err, &uiErr) {
@@ -230,7 +230,8 @@ func processMetaArg(meta instructions.ArgCommand, shlex *shell.Lex, args *BuildA
 	// shell.Lex currently only support the concatenated string format
 	envs := convertMapToEnvList(args.GetAllAllowed())
 	if err := meta.Expand(func(word string) (string, error) {
-		return shlex.ProcessWord(word, envs)
+		newword, _, err := shlex.ProcessWord(word, envs)
+		return newword, err
 	}); err != nil {
 		return err
 	}

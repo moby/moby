@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -64,7 +64,7 @@ func TestContainerStatPath(t *testing.T) {
 			if path != expectedPath {
 				return nil, fmt.Errorf("path not set in URL query properly")
 			}
-			content, err := json.Marshal(types.ContainerPathStat{
+			content, err := json.Marshal(container.PathStat{
 				Name: "name",
 				Mode: 0o700,
 			})
@@ -97,7 +97,7 @@ func TestCopyToContainerError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
+	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -105,7 +105,7 @@ func TestCopyToContainerNotFoundError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
-	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
+	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
@@ -115,7 +115,7 @@ func TestCopyToContainerEmptyResponse(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
 	}
-	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
+	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestCopyToContainer(t *testing.T) {
 			}, nil
 		}),
 	}
-	err := client.CopyToContainer(context.Background(), "container_id", expectedPath, bytes.NewReader([]byte("content")), types.CopyToContainerOptions{
+	err := client.CopyToContainer(context.Background(), "container_id", expectedPath, bytes.NewReader([]byte("content")), container.CopyToContainerOptions{
 		AllowOverwriteDirWithFile: false,
 	})
 	if err != nil {
@@ -188,7 +188,7 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 func TestCopyFromContainerEmptyResponse(t *testing.T) {
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			content, err := json.Marshal(types.ContainerPathStat{
+			content, err := json.Marshal(container.PathStat{
 				Name: "path/to/file",
 				Mode: 0o700,
 			})
@@ -242,7 +242,7 @@ func TestCopyFromContainer(t *testing.T) {
 				return nil, fmt.Errorf("path not set in URL query properly, expected '%s', got %s", expectedPath, path)
 			}
 
-			headercontent, err := json.Marshal(types.ContainerPathStat{
+			headercontent, err := json.Marshal(container.PathStat{
 				Name: "name",
 				Mode: 0o700,
 			})

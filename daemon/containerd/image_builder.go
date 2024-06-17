@@ -13,21 +13,22 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
 	dimage "github.com/docker/docker/image"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
@@ -499,7 +500,7 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 		return "", err
 	}
 	defer func() {
-		if err := release(compatcontext.WithoutCancel(ctx)); err != nil {
+		if err := release(context.WithoutCancel(ctx)); err != nil {
 			log.G(ctx).WithError(err).Warn("failed to release lease created for create")
 		}
 	}()
@@ -534,11 +535,14 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 		}
 	}
 
+	id := image.ID(createdImage.Target.Digest)
+	i.LogImageEvent(id.String(), id.String(), events.ActionCreate)
+
 	if err := i.unpackImage(ctx, i.StorageDriver(), img, manifestDesc); err != nil {
 		return "", err
 	}
 
-	return dimage.ID(createdImage.Target.Digest), nil
+	return id, nil
 }
 
 // writeContentsForImage will commit oci image config and manifest into containerd's content store.

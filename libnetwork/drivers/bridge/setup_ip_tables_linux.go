@@ -34,15 +34,16 @@ const (
 
 func setupIPChains(config configuration, version iptables.IPVersion) (natChain *iptables.ChainInfo, filterChain *iptables.ChainInfo, isolationChain1 *iptables.ChainInfo, isolationChain2 *iptables.ChainInfo, retErr error) {
 	// Sanity check.
-	if !config.EnableIPTables {
-		return nil, nil, nil, nil, errors.New("cannot create new chains, EnableIPTable is disabled")
+	if version == iptables.IPv4 && !config.EnableIPTables {
+		return nil, nil, nil, nil, errors.New("cannot create new chains, iptables is disabled")
 	}
-
-	hairpinMode := !config.EnableUserlandProxy
+	if version == iptables.IPv6 && !config.EnableIP6Tables {
+		return nil, nil, nil, nil, errors.New("cannot create new chains, ip6tables is disabled")
+	}
 
 	iptable := iptables.GetIptable(version)
 
-	natChain, err := iptable.NewChain(DockerChain, iptables.Nat, hairpinMode)
+	natChain, err := iptable.NewChain(DockerChain, iptables.Nat)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create NAT chain %s: %v", DockerChain, err)
 	}
@@ -54,7 +55,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		}
 	}()
 
-	filterChain, err = iptable.NewChain(DockerChain, iptables.Filter, false)
+	filterChain, err = iptable.NewChain(DockerChain, iptables.Filter)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER chain %s: %v", DockerChain, err)
 	}
@@ -66,7 +67,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		}
 	}()
 
-	isolationChain1, err = iptable.NewChain(IsolationChain1, iptables.Filter, false)
+	isolationChain1, err = iptable.NewChain(IsolationChain1, iptables.Filter)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER isolation chain: %v", err)
 	}
@@ -78,7 +79,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		}
 	}()
 
-	isolationChain2, err = iptable.NewChain(IsolationChain2, iptables.Filter, false)
+	isolationChain2, err = iptable.NewChain(IsolationChain2, iptables.Filter)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER isolation chain: %v", err)
 	}
@@ -183,12 +184,6 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 		n.registerIptCleanFunc(func() error {
 			return iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
 		})
-
-		if ipVersion == iptables.IPv4 {
-			n.portMapper.SetIptablesChain(natChain, n.getNetworkBridgeName())
-		} else {
-			n.portMapperV6.SetIptablesChain(natChain, n.getNetworkBridgeName())
-		}
 	}
 
 	d.Lock()
@@ -260,8 +255,10 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 		hpNatArgs []string
 	)
 	hostIP := config.HostIPv4
+	nat := !config.GwModeIPv4.natDisabled()
 	if ipVer == iptables.IPv6 {
 		hostIP = config.HostIPv6
+		nat = !config.GwModeIPv6.natDisabled()
 	}
 	// If hostIP is set, the user wants IPv4/IPv6 SNAT with the given address.
 	if hostIP != nil {
@@ -278,15 +275,14 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 	hpNatRule := iptRule{ipv: ipVer, table: iptables.Nat, chain: "POSTROUTING", args: hpNatArgs}
 
 	// Set NAT.
-	if config.EnableIPMasquerade {
+	if nat && config.EnableIPMasquerade {
 		if err := programChainRule(natRule, "NAT", enable); err != nil {
 			return err
 		}
-	}
-
-	if config.EnableIPMasquerade && !hairpin {
-		if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
-			return err
+		if !hairpin {
+			if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
+				return err
+			}
 		}
 	}
 

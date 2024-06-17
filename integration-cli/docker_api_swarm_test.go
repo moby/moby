@@ -20,6 +20,7 @@ import (
 	"github.com/cloudflare/cfssl/initca"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration-cli/checker"
@@ -525,7 +526,6 @@ func (s *DockerSwarmSuite) TestAPISwarmManagerRestore(c *testing.T) {
 
 	err := d3.Kill()
 	assert.NilError(c, err)
-	time.Sleep(1 * time.Second) // time to handle signal
 	d3.StartNode(c)
 	d3.GetService(ctx, c, id)
 }
@@ -861,7 +861,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *testing.T) {
 		for _, d := range nodes {
 			go func(daemon *daemon.Daemon) {
 				defer wg.Done()
-				if err := daemon.StartWithError("--iptables=false"); err != nil {
+				if err := daemon.StartWithError("--iptables=false", "--ip6tables=false"); err != nil {
 					errs <- err
 				}
 			}(d)
@@ -1023,14 +1023,14 @@ func (s *DockerSwarmSuite) TestAPINetworkInspectWithScope(c *testing.T) {
 	name := "test-scoped-network"
 	apiclient := d.NewClientT(c)
 
-	resp, err := apiclient.NetworkCreate(ctx, name, types.NetworkCreate{Driver: "overlay"})
+	resp, err := apiclient.NetworkCreate(ctx, name, network.CreateOptions{Driver: "overlay"})
 	assert.NilError(c, err)
 
-	network, err := apiclient.NetworkInspect(ctx, name, types.NetworkInspectOptions{})
+	nw, err := apiclient.NetworkInspect(ctx, name, network.InspectOptions{})
 	assert.NilError(c, err)
-	assert.Check(c, is.Equal("swarm", network.Scope))
-	assert.Check(c, is.Equal(resp.ID, network.ID))
+	assert.Check(c, is.Equal("swarm", nw.Scope))
+	assert.Check(c, is.Equal(resp.ID, nw.ID))
 
-	_, err = apiclient.NetworkInspect(ctx, name, types.NetworkInspectOptions{Scope: "local"})
+	_, err = apiclient.NetworkInspect(ctx, name, network.InspectOptions{Scope: "local"})
 	assert.Check(c, is.ErrorType(err, errdefs.IsNotFound))
 }

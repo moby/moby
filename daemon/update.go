@@ -45,7 +45,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 			ctr.Lock()
 			if !ctr.RemovalInProgress && !ctr.Dead {
 				ctr.HostConfig = &backupHostConfig
-				ctr.CheckpointTo(daemon.containersReplica)
+				ctr.CheckpointTo(context.WithoutCancel(context.TODO()), daemon.containersReplica)
 			}
 			ctr.Unlock()
 		}
@@ -63,7 +63,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		ctr.Unlock()
 		return errCannotUpdate(ctr.ID, err)
 	}
-	if err := ctr.CheckpointTo(daemon.containersReplica); err != nil {
+	if err := ctr.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
 		restoreConfig = true
 		ctr.Unlock()
 		return errCannotUpdate(ctr.ID, err)

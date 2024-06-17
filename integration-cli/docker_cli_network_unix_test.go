@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/libnetwork/driverapi"
@@ -263,9 +264,9 @@ func assertNwList(c *testing.T, out string, expectNws []string) {
 	assert.DeepEqual(c, nwList, expectNws)
 }
 
-func getNwResource(c *testing.T, name string) *types.NetworkResource {
+func getNwResource(c *testing.T, name string) *network.Inspect {
 	out := cli.DockerCmd(c, "network", "inspect", name).Stdout()
-	var nr []types.NetworkResource
+	var nr []network.Inspect
 	err := json.Unmarshal([]byte(out), &nr)
 	assert.NilError(c, err)
 	return &nr[0]
@@ -418,7 +419,7 @@ func (s *DockerCLINetworkSuite) TestDockerNetworkDeleteMultiple(c *testing.T) {
 
 func (s *DockerCLINetworkSuite) TestDockerNetworkInspect(c *testing.T) {
 	out := cli.DockerCmd(c, "network", "inspect", "host").Stdout()
-	var networkResources []types.NetworkResource
+	var networkResources []network.Inspect
 	err := json.Unmarshal([]byte(out), &networkResources)
 	assert.NilError(c, err)
 	assert.Equal(c, len(networkResources), 1)
@@ -442,7 +443,7 @@ func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetwork(c *testing.T) {
 	result := dockerCmdWithResult("network", "inspect", "host", "none")
 	result.Assert(c, icmd.Success)
 
-	var networkResources []types.NetworkResource
+	var networkResources []network.Inspect
 	err := json.Unmarshal([]byte(result.Stdout()), &networkResources)
 	assert.NilError(c, err)
 	assert.Equal(c, len(networkResources), 2)
@@ -458,7 +459,7 @@ func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetworksIncludingNonexi
 		Out:      "host",
 	})
 
-	var networkResources []types.NetworkResource
+	var networkResources []network.Inspect
 	err := json.Unmarshal([]byte(result.Stdout()), &networkResources)
 	assert.NilError(c, err)
 	assert.Equal(c, len(networkResources), 1)
@@ -481,7 +482,7 @@ func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetworksIncludingNonexi
 		Out:      "host",
 	})
 
-	networkResources = []types.NetworkResource{}
+	networkResources = []network.Inspect{}
 	err = json.Unmarshal([]byte(result.Stdout()), &networkResources)
 	assert.NilError(c, err)
 	assert.Equal(c, len(networkResources), 1)
@@ -504,7 +505,7 @@ func (s *DockerCLINetworkSuite) TestDockerInspectNetworkWithContainerName(c *tes
 	}()
 
 	out = cli.DockerCmd(c, "network", "inspect", "brNetForInspect").Stdout()
-	var networkResources []types.NetworkResource
+	var networkResources []network.Inspect
 	err := json.Unmarshal([]byte(out), &networkResources)
 	assert.NilError(c, err)
 	assert.Equal(c, len(networkResources), 1)
@@ -518,7 +519,7 @@ func (s *DockerCLINetworkSuite) TestDockerInspectNetworkWithContainerName(c *tes
 
 	// check whether network inspect works properly
 	out = cli.DockerCmd(c, "network", "inspect", "brNetForInspect").Stdout()
-	var newNetRes []types.NetworkResource
+	var newNetRes []network.Inspect
 	err = json.Unmarshal([]byte(out), &newNetRes)
 	assert.NilError(c, err)
 	assert.Equal(c, len(newNetRes), 1)

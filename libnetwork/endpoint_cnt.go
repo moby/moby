@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -105,18 +106,15 @@ func (ec *endpointCnt) EndpointCnt() uint64 {
 }
 
 func (ec *endpointCnt) updateStore() error {
-	store := ec.n.getController().getStore()
-	if store == nil {
-		return fmt.Errorf("store not found on endpoint count update")
-	}
+	c := ec.n.getController()
 	// make a copy of count and n to avoid being overwritten by store.GetObject
 	count := ec.EndpointCnt()
 	n := ec.n
 	for {
-		if err := ec.n.getController().updateToStore(ec); err == nil || err != datastore.ErrKeyModified {
+		if err := c.updateToStore(context.TODO(), ec); err == nil || err != datastore.ErrKeyModified {
 			return err
 		}
-		if err := store.GetObject(ec); err != nil {
+		if err := c.store.GetObject(ec); err != nil {
 			return fmt.Errorf("could not update the kvobject to latest on endpoint count update: %v", err)
 		}
 		ec.Lock()
@@ -134,10 +132,7 @@ func (ec *endpointCnt) setCnt(cnt uint64) error {
 }
 
 func (ec *endpointCnt) atomicIncDecEpCnt(inc bool) error {
-	store := ec.n.getController().getStore()
-	if store == nil {
-		return fmt.Errorf("store not found on endpoint count atomic inc/dec")
-	}
+	store := ec.n.getController().store
 
 	tmp := &endpointCnt{n: ec.n}
 	if err := store.GetObject(tmp); err != nil {
@@ -154,7 +149,7 @@ retry:
 	}
 	ec.Unlock()
 
-	if err := ec.n.getController().updateToStore(ec); err != nil {
+	if err := ec.n.getController().updateToStore(context.TODO(), ec); err != nil {
 		if err == datastore.ErrKeyModified {
 			if err := store.GetObject(ec); err != nil {
 				return fmt.Errorf("could not update the kvobject to latest when trying to atomic add endpoint count: %v", err)

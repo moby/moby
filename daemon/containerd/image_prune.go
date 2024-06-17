@@ -4,15 +4,13 @@ import (
 	"context"
 	"strings"
 
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -31,7 +29,7 @@ var imagesAcceptedFilters = map[string]bool{
 var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
 
 // ImagesPrune removes unused images
-func (i *ImageService) ImagesPrune(ctx context.Context, fltrs filters.Args) (*types.ImagesPruneReport, error) {
+func (i *ImageService) ImagesPrune(ctx context.Context, fltrs filters.Args) (*image.PruneReport, error) {
 	if !i.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
@@ -62,8 +60,8 @@ func (i *ImageService) ImagesPrune(ctx context.Context, fltrs filters.Args) (*ty
 	return i.pruneUnused(ctx, filterFunc, danglingOnly)
 }
 
-func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFunc, danglingOnly bool) (*types.ImagesPruneReport, error) {
-	report := types.ImagesPruneReport{}
+func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFunc, danglingOnly bool) (*image.PruneReport, error) {
+	report := image.PruneReport{}
 
 	allImages, err := i.images.List(ctx)
 	if err != nil {
@@ -147,7 +145,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 
 	// Workaround for https://github.com/moby/buildkit/issues/3797
 	defer func() {
-		if err := i.unleaseSnapshotsFromDeletedConfigs(compatcontext.WithoutCancel(ctx), possiblyDeletedConfigs); err != nil {
+		if err := i.unleaseSnapshotsFromDeletedConfigs(context.WithoutCancel(ctx), possiblyDeletedConfigs); err != nil {
 			errs = multierror.Append(errs, err)
 		}
 	}()

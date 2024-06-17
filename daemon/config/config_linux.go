@@ -87,9 +87,7 @@ type Config struct {
 	NoNewPrivileges      bool                      `json:"no-new-privileges,omitempty"`
 	IpcMode              string                    `json:"default-ipc-mode,omitempty"`
 	CgroupNamespaceMode  string                    `json:"default-cgroupns-mode,omitempty"`
-	// ResolvConf is the path to the configuration of the host resolver
-	ResolvConf string `json:"resolv-conf,omitempty"`
-	Rootless   bool   `json:"rootless,omitempty"`
+	Rootless             bool                      `json:"rootless,omitempty"`
 }
 
 // GetExecRoot returns the user configured Exec-root
@@ -134,12 +132,6 @@ func (conf *Config) LookupInitPath() (string, error) {
 
 	// if we checked all the "libexec" directories and found no matches, fall back to PATH
 	return exec.LookPath(binary)
-}
-
-// GetResolvConf returns the appropriate resolv.conf
-// Check setupResolvConf on how this is selected
-func (conf *Config) GetResolvConf() string {
-	return conf.ResolvConf
 }
 
 // IsSwarmCompatible defines if swarm mode can be enabled in this config
@@ -194,6 +186,10 @@ func (conf *Config) ValidatePlatformConfig() error {
 
 	if err := bridge.ValidateFixedCIDRV6(conf.FixedCIDRv6); err != nil {
 		return errors.Wrap(err, "invalid fixed-cidr-v6")
+	}
+
+	if _, ok := conf.Features["windows-dns-proxy"]; ok {
+		return errors.New("feature option 'windows-dns-proxy' is only available on Windows")
 	}
 
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)

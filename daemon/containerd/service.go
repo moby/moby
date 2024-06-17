@@ -7,11 +7,12 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/snapshots"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/container"
@@ -39,6 +40,9 @@ type ImageService struct {
 	pruneRunning        atomic.Bool
 	refCountMounter     snapshotter.Mounter
 	idMapping           idtools.IdentityMapping
+
+	// defaultPlatformOverride is used in tests to override the host platform.
+	defaultPlatformOverride platforms.MatchComparer
 }
 
 type registryResolver interface {

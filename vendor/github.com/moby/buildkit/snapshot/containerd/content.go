@@ -68,7 +68,12 @@ func (c *Store) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content
 }
 
 func (c *Store) Writer(ctx context.Context, opts ...content.WriterOpt) (content.Writer, error) {
-	return c.writer(ctx, 3, opts...)
+	ctx = namespaces.WithNamespace(ctx, c.ns)
+	w, err := c.Store.Writer(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &nsWriter{Writer: w, ns: c.ns}, nil
 }
 
 func (c *Store) WithFallbackNS(ns string) content.Store {
@@ -76,15 +81,6 @@ func (c *Store) WithFallbackNS(ns string) content.Store {
 		main: c,
 		fb:   c.WithNamespace(ns),
 	}
-}
-
-func (c *Store) writer(ctx context.Context, retries int, opts ...content.WriterOpt) (content.Writer, error) {
-	ctx = namespaces.WithNamespace(ctx, c.ns)
-	w, err := c.Store.Writer(ctx, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &nsWriter{Writer: w, ns: c.ns}, nil
 }
 
 type nsWriter struct {

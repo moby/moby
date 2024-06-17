@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes"
+	cerrdefs "github.com/containerd/errdefs"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -41,7 +41,7 @@ func (i *pushingIngester) Writer(ctx context.Context, opts ...content.WriterOpt)
 		}
 	}
 	if wOpts.Ref == "" {
-		return nil, errors.Wrap(errdefs.ErrInvalidArgument, "ref must not be empty")
+		return nil, errors.Wrap(cerrdefs.ErrInvalidArgument, "ref must not be empty")
 	}
 
 	st := time.Now()
@@ -50,7 +50,7 @@ func (i *pushingIngester) Writer(ctx context.Context, opts ...content.WriterOpt)
 	for {
 		if time.Since(st) > time.Hour {
 			i.mu.Unlock()
-			return nil, errors.Wrapf(errdefs.ErrUnavailable, "ref %v locked", wOpts.Desc.Digest)
+			return nil, errors.Wrapf(cerrdefs.ErrUnavailable, "ref %v locked", wOpts.Desc.Digest)
 		}
 		if _, ok := i.active[wOpts.Desc.Digest]; ok {
 			i.c.Wait()

@@ -2,6 +2,7 @@ package container // import "github.com/docker/docker/daemon/cluster/executor/co
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	enginecontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -338,7 +338,8 @@ func convertMount(m api.Mount) enginemount.Mount {
 
 	if m.VolumeOptions != nil {
 		mount.VolumeOptions = &enginemount.VolumeOptions{
-			NoCopy: m.VolumeOptions.NoCopy,
+			NoCopy:  m.VolumeOptions.NoCopy,
+			Subpath: m.VolumeOptions.Subpath,
 		}
 		if m.VolumeOptions.Labels != nil {
 			mount.VolumeOptions.Labels = make(map[string]string, len(m.VolumeOptions.Labels))
@@ -360,9 +361,14 @@ func convertMount(m api.Mount) enginemount.Mount {
 	}
 
 	if m.TmpfsOptions != nil {
+		var options [][]string
+		// see daemon/cluster/convert/container.go, tmpfsOptionsFromGRPC for
+		// details on error handling.
+		_ = json.Unmarshal([]byte(m.TmpfsOptions.Options), &options)
 		mount.TmpfsOptions = &enginemount.TmpfsOptions{
 			SizeBytes: m.TmpfsOptions.SizeBytes,
 			Mode:      m.TmpfsOptions.Mode,
+			Options:   options,
 		}
 	}
 
@@ -620,13 +626,14 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		return clustertypes.NetworkCreateRequest{}, errors.New("container: unknown network referenced")
 	}
 
-	options := types.NetworkCreate{
+	ipv6Enabled := na.Network.Spec.Ipv6Enabled
+	options := network.CreateOptions{
 		// ID:     na.Network.ID,
 		Labels:     na.Network.Spec.Annotations.Labels,
 		Internal:   na.Network.Spec.Internal,
 		Attachable: na.Network.Spec.Attachable,
 		Ingress:    convert.IsIngressNetwork(na.Network),
-		EnableIPv6: na.Network.Spec.Ipv6Enabled,
+		EnableIPv6: &ipv6Enabled,
 		Scope:      scope.Swarm,
 	}
 
@@ -657,9 +664,9 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 
 	return clustertypes.NetworkCreateRequest{
 		ID: na.Network.ID,
-		NetworkCreateRequest: types.NetworkCreateRequest{
+		CreateRequest: network.CreateRequest{
 			Name:          name,
-			NetworkCreate: options,
+			CreateOptions: options,
 		},
 	}, nil
 }

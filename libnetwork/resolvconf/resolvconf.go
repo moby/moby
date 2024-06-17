@@ -3,7 +3,7 @@ package resolvconf
 
 import (
 	"bytes"
-	"fmt"
+	"net/netip"
 	"os"
 	"strings"
 
@@ -83,19 +83,17 @@ func GetNameservers(resolvConf []byte, kind int) []string {
 	return nameservers
 }
 
-// GetNameserversAsCIDR returns nameservers (if any) listed in
+// GetNameserversAsPrefix returns nameservers (if any) listed in
 // /etc/resolv.conf as CIDR blocks (e.g., "1.2.3.4/32")
-// This function's output is intended for net.ParseCIDR
-func GetNameserversAsCIDR(resolvConf []byte) []string {
+func GetNameserversAsPrefix(resolvConf []byte) []netip.Prefix {
 	rc, err := resolvconf.Parse(bytes.NewBuffer(resolvConf), "")
 	if err != nil {
 		return nil
 	}
 	nsAddrs := rc.NameServers()
-	nameservers := make([]string, 0, len(nsAddrs))
+	nameservers := make([]netip.Prefix, 0, len(nsAddrs))
 	for _, addr := range nsAddrs {
-		str := fmt.Sprintf("%s/%d", addr.WithZone("").String(), addr.BitLen())
-		nameservers = append(nameservers, str)
+		nameservers = append(nameservers, netip.PrefixFrom(addr, addr.BitLen()))
 	}
 	return nameservers
 }

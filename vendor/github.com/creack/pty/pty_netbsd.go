@@ -47,7 +47,7 @@ func ptsname(f *os.File) (string, error) {
 	 * ioctl(fd, TIOCPTSNAME, &pm) == -1 ? NULL : pm.sn;
 	 */
 	var ptm ptmget
-	if err := ioctl(f.Fd(), uintptr(ioctl_TIOCPTSNAME), uintptr(unsafe.Pointer(&ptm))); err != nil {
+	if err := ioctl(f, uintptr(ioctl_TIOCPTSNAME), uintptr(unsafe.Pointer(&ptm))); err != nil {
 		return "", err
 	}
 	name := make([]byte, len(ptm.Sn))
@@ -65,5 +65,5 @@ func grantpt(f *os.File) error {
 	 * from grantpt(3): Calling grantpt() is equivalent to:
 	 * ioctl(fd, TIOCGRANTPT, 0);
 	 */
-	return ioctl(f.Fd(), uintptr(ioctl_TIOCGRANTPT), 0)
+	return ioctl(f, uintptr(ioctl_TIOCGRANTPT), 0)
 }

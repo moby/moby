@@ -21,7 +21,9 @@ import (
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
+	"github.com/moby/buildkit/exporter/verifier"
 	"github.com/moby/buildkit/frontend"
+	"github.com/moby/buildkit/frontend/attestations"
 	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
@@ -33,13 +35,13 @@ import (
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/grpcerrors"
+	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/buildkit/util/tracing/detect"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"go.opentelemetry.io/otel/sdk/trace/tracetest"
-	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -51,8 +53,6 @@ const (
 )
 
 type ExporterRequest struct {
-	Type           string
-	Attrs          map[string]string
 	Exporters      []exporter.ExporterInstance
 	CacheExporters []RemoteCacheExporter
 }
@@ -157,15 +157,10 @@ func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
 	return s.bridge(b)
 }
 
-func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend.SolveRequest, exp ExporterRequest, j *solver.Job, usage *resources.SysSampler) (func(*Result, []exporter.DescriptorReference, error) error, error) {
-	var stopTrace func() []tracetest.SpanStub
-
-	if s := trace.SpanFromContext(ctx); s.SpanContext().IsValid() {
-		if exp, _, err := detect.Exporter(); err == nil {
-			if rec, ok := exp.(*detect.TraceRecorder); ok {
-				stopTrace = rec.Record(s.SpanContext().TraceID())
-			}
-		}
+func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend.SolveRequest, exp ExporterRequest, j *solver.Job, usage *resources.SysSampler) (func(context.Context, *Result, []exporter.DescriptorReference, error) error, error) {
+	stopTrace, err := detect.Recorder.Record(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	st := time.Now()
@@ -176,11 +171,11 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		CreatedAt:     &st,
 	}
 
-	if exp.Type != "" {
-		rec.Exporters = []*controlapi.Exporter{{
-			Type:  exp.Type,
-			Attrs: exp.Attrs,
-		}}
+	for _, e := range exp.Exporters {
+		rec.Exporters = append(rec.Exporters, &controlapi.Exporter{
+			Type:  e.Type(),
+			Attrs: e.Attrs(),
+		})
 	}
 
 	if err := s.history.Update(ctx, &controlapi.BuildHistoryEvent{
@@ -190,9 +185,12 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		return nil, err
 	}
 
-	return func(res *Result, descrefs []exporter.DescriptorReference, err error) error {
+	return func(ctx context.Context, res *Result, descrefs []exporter.DescriptorReference, err error) error {
 		en := time.Now()
 		rec.CompletedAt = &en
+
+		span, ctx := tracing.StartSpan(ctx, "create history record")
+		defer span.End()
 
 		j.CloseProgress()
 
@@ -203,8 +201,8 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			}
 		}
 
-		ctx, cancel := context.WithCancelCause(context.Background())
-		ctx, _ = context.WithTimeoutCause(ctx, 20*time.Second, errors.WithStack(context.DeadlineExceeded))
+		ctx, cancel := context.WithCancelCause(ctx)
+		ctx, _ = context.WithTimeoutCause(ctx, 300*time.Second, errors.WithStack(context.DeadlineExceeded))
 		defer cancel(errors.WithStack(context.Canceled))
 
 		var mu sync.Mutex
@@ -217,7 +215,19 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			"capture-usage": "true",
 		}
 
-		makeProvenance := func(res solver.ResultProxy, cap *provenance.Capture) (*controlapi.Descriptor, func(), error) {
+		// infer builder-id from user input if available
+		if attests, err := attestations.Parse(rec.FrontendAttrs); err == nil {
+			if prvAttrs, ok := attests["provenance"]; ok {
+				if builderID, ok := prvAttrs["builder-id"]; ok {
+					attrs["builder-id"] = builderID
+				}
+			}
+		}
+
+		makeProvenance := func(name string, res solver.ResultProxy, cap *provenance.Capture) (*controlapi.Descriptor, func(), error) {
+			span, ctx := tracing.StartSpan(ctx, fmt.Sprintf("create %s history provenance", name))
+			defer span.End()
+
 			prc, err := NewProvenanceCreator(ctx2, cap, res, attrs, j, usage)
 			if err != nil {
 				return nil, nil, err
@@ -260,7 +270,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		if res != nil {
 			if res.Ref != nil {
 				eg.Go(func() error {
-					desc, release, err := makeProvenance(res.Ref, res.Provenance.Ref)
+					desc, release, err := makeProvenance("default", res.Ref, res.Provenance.Ref)
 					if err != nil {
 						return err
 					}
@@ -283,7 +293,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 				k, r := k, r
 				cp := res.Provenance.Refs[k]
 				eg.Go(func() error {
-					desc, release, err := makeProvenance(r, cp)
+					desc, release, err := makeProvenance(k, r, cp)
 					if err != nil {
 						return err
 					}
@@ -506,7 +516,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 			return nil, err1
 		}
 		defer func() {
-			err = rec(resProv, descrefs, err)
+			err = rec(context.WithoutCancel(ctx), resProv, descrefs, err)
 		}()
 	}
 
@@ -530,6 +540,10 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 
 	if res == nil {
 		res = &frontend.Result{}
+	}
+
+	if err := verifier.CaptureFrontendOpts(req.FrontendOpt, res); err != nil {
+		return nil, err
 	}
 
 	releasers = append(releasers, func() {
@@ -581,6 +595,22 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	if err != nil {
 		return nil, err
 	}
+
+	// Functions that create new objects in containerd (eg. content blobs) need to have a lease to ensure
+	// that the object is not garbage collected immediately. This is protected by the indivual components,
+	// but because creating a lease is not cheap and requires a disk write, we create a single lease here
+	// early and let all the exporters, cache export and provenance creation use the same one.
+	lm, err := s.leaseManager()
+	if err != nil {
+		return nil, err
+	}
+	ctx, done, err := leaseutil.WithLease(ctx, lm, leaseutil.MakeTemporary)
+	if err != nil {
+		return nil, err
+	}
+	releasers = append(releasers, func() {
+		done(context.WithoutCancel(ctx))
+	})
 
 	cacheExporters, inlineCacheExporter := splitCacheExporters(exp.CacheExporters)
 
@@ -706,6 +736,11 @@ func runInlineCacheExporter(ctx context.Context, e exporter.ExporterInstance, in
 }
 
 func (s *Solver) runExporters(ctx context.Context, exporters []exporter.ExporterInstance, inlineCacheExporter inlineCacheExporter, job *solver.Job, cached *result.Result[solver.CachedResult], inp *result.Result[cache.ImmutableRef]) (exporterResponse map[string]string, descrefs []exporter.DescriptorReference, err error) {
+	warnings, err := verifier.CheckInvalidPlatforms(ctx, inp)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	eg, ctx := errgroup.WithContext(ctx)
 	resps := make([]map[string]string, len(exporters))
 	descs := make([]exporter.DescriptorReference, len(exporters))
@@ -714,6 +749,18 @@ func (s *Solver) runExporters(ctx context.Context, exporters []exporter.Exporter
 		eg.Go(func() error {
 			id := fmt.Sprint(job.SessionID, "-export-", i)
 			return inBuilderContext(ctx, job, exp.Name(), id, func(ctx context.Context, _ session.Group) error {
+				span, ctx := tracing.StartSpan(ctx, exp.Name())
+				defer span.End()
+
+				if i == 0 && len(warnings) > 0 {
+					pw, _, _ := progress.NewFromContext(ctx)
+					for _, w := range warnings {
+						pw.Write(identity.NewID(), w)
+					}
+					if err := pw.Close(); err != nil {
+						return err
+					}
+				}
 				inlineCache := exptypes.InlineCache(func(ctx context.Context) (*result.Result[*exptypes.InlineCacheEntry], error) {
 					return runInlineCacheExporter(ctx, exp, inlineCacheExporter, job, cached)
 				})
@@ -730,6 +777,19 @@ func (s *Solver) runExporters(ctx context.Context, exporters []exporter.Exporter
 		return nil, nil, err
 	}
 
+	if len(exporters) == 0 && len(warnings) > 0 {
+		err := inBuilderContext(ctx, job, "Verifying build result", identity.NewID(), func(ctx context.Context, _ session.Group) error {
+			pw, _, _ := progress.NewFromContext(ctx)
+			for _, w := range warnings {
+				pw.Write(identity.NewID(), w)
+			}
+			return pw.Close()
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	// TODO: separate these out, and return multiple exporter responses to the
 	// client
 	for _, resp := range resps {
@@ -742,6 +802,14 @@ func (s *Solver) runExporters(ctx context.Context, exporters []exporter.Exporter
 	}
 
 	return exporterResponse, descs, nil
+}
+
+func (s *Solver) leaseManager() (*leaseutil.Manager, error) {
+	w, err := defaultResolver(s.workerController)()
+	if err != nil {
+		return nil, err
+	}
+	return w.LeaseManager(), nil
 }
 
 func splitCacheExporters(exporters []RemoteCacheExporter) (rest []RemoteCacheExporter, inline inlineCacheExporter) {

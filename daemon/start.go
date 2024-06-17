@@ -9,9 +9,11 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // validateState verifies if the container is in a non-conflicting state.
@@ -67,6 +69,11 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoin
 // between containers. The container is left waiting for a signal to
 // begin running.
 func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.containerStart", trace.WithAttributes(
+		attribute.String("container.ID", container.ID),
+		attribute.String("container.Name", container.Name)))
+	defer span.End()
+
 	start := time.Now()
 	container.Lock()
 	defer container.Unlock()
@@ -93,12 +100,12 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 			if container.ExitCode() == 0 {
 				container.SetExitCode(exitUnknown)
 			}
-			if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+			if err := container.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
 				log.G(ctx).Errorf("%s: failed saving state on start failure: %v", container.ID, err)
 			}
 			container.Reset(false)
 
-			daemon.Cleanup(compatcontext.WithoutCancel(ctx), container)
+			daemon.Cleanup(context.WithoutCancel(ctx), container)
 			// if containers AutoRemove flag is set, remove it after clean up
 			if container.HostConfig.AutoRemove {
 				container.Unlock()
@@ -114,7 +121,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 
-	if err := daemon.initializeNetworking(&daemonCfg.Config, container); err != nil {
+	if err := daemon.initializeNetworking(ctx, &daemonCfg.Config, container); err != nil {
 		return err
 	}
 
@@ -128,7 +135,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 	mnts = append(mnts, m...)
-	defer cleanup(compatcontext.WithoutCancel(ctx))
+	defer cleanup(context.WithoutCancel(ctx))
 
 	spec, err := daemon.createSpec(ctx, daemonCfg, container, mnts)
 	if err != nil {
@@ -172,15 +179,16 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	}
 	defer func() {
 		if retErr != nil {
-			if err := ctr.Delete(compatcontext.WithoutCancel(ctx)); err != nil {
+			if err := ctr.Delete(context.WithoutCancel(ctx)); err != nil {
 				log.G(ctx).WithError(err).WithField("container", container.ID).
 					Error("failed to delete failed start container")
 			}
 		}
 	}()
 
+	startupTime := time.Now()
 	// TODO(mlaventure): we need to specify checkpoint options here
-	tsk, err := ctr.NewTask(context.TODO(), // Passing ctx caused integration tests to be stuck in the cleanup phase
+	tsk, err := ctr.NewTask(context.WithoutCancel(ctx), // passing a cancelable ctx caused integration tests to be stuck in the cleanup phase
 		checkpointDir, container.StreamConfig.Stdin() != nil || container.Config.Tty,
 		container.InitializeStdio)
 	if err != nil {
@@ -188,7 +196,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	}
 	defer func() {
 		if retErr != nil {
-			if err := tsk.ForceDelete(compatcontext.WithoutCancel(ctx)); err != nil {
+			if err := tsk.ForceDelete(context.WithoutCancel(ctx)); err != nil {
 				log.G(ctx).WithError(err).WithField("container", container.ID).
 					Error("failed to delete task after fail start")
 			}
@@ -199,18 +207,18 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 
-	if err := tsk.Start(context.TODO()); err != nil { // passing ctx caused integration tests to be stuck in the cleanup phase
+	if err := tsk.Start(context.WithoutCancel(ctx)); err != nil { // passing a cancelable ctx caused integration tests to be stuck in the cleanup phase
 		return setExitCodeFromError(container.SetExitCode, err)
 	}
 
 	container.HasBeenManuallyRestarted = false
-	container.SetRunning(ctr, tsk, true)
+	container.SetRunning(ctr, tsk, startupTime)
 	container.HasBeenStartedBefore = true
 	daemon.setStateCounter(container)
 
 	daemon.initHealthMonitor(container)
 
-	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+	if err := container.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
 		log.G(ctx).WithError(err).WithField("container", container.ID).
 			Errorf("failed to store container")
 	}
@@ -232,7 +240,7 @@ func (daemon *Daemon) Cleanup(ctx context.Context, container *container.Containe
 		}
 	}
 
-	daemon.releaseNetwork(container)
+	daemon.releaseNetwork(ctx, container)
 
 	if err := container.UnmountIpcMount(); err != nil {
 		log.G(ctx).Warnf("%s cleanup: failed to unmount IPC: %s", container.ID, err)

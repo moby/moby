@@ -65,7 +65,7 @@ func open() (pty, tty *os.File, err error) {
 }
 
 func ptsname(f *os.File) (string, error) {
-	dev, err := ptsdev(f.Fd())
+	dev, err := ptsdev(f)
 	if err != nil {
 		return "", err
 	}
@@ -84,12 +84,12 @@ func unlockpt(f *os.File) error {
 		icLen:     0,
 		icDP:      nil,
 	}
-	return ioctl(f.Fd(), I_STR, uintptr(unsafe.Pointer(&istr)))
+	return ioctl(f, I_STR, uintptr(unsafe.Pointer(&istr)))
 }
 
 func minor(x uint64) uint64 { return x & 0377 }
 
-func ptsdev(fd uintptr) (uint64, error) {
+func ptsdev(f *os.File) (uint64, error) {
 	istr := strioctl{
 		icCmd:     ISPTM,
 		icTimeout: 0,
@@ -97,14 +97,33 @@ func ptsdev(fd uintptr) (uint64, error) {
 		icDP:      nil,
 	}
 
-	if err := ioctl(fd, I_STR, uintptr(unsafe.Pointer(&istr))); err != nil {
+	if err := ioctl(f, I_STR, uintptr(unsafe.Pointer(&istr))); err != nil {
 		return 0, err
 	}
-	var status syscall.Stat_t
-	if err := syscall.Fstat(int(fd), &status); err != nil {
+	var errors = make(chan error, 1)
+	var results = make(chan uint64, 1)
+	defer close(errors)
+	defer close(results)
+
+	var err error
+	var sc syscall.RawConn
+	sc, err = f.SyscallConn()
+	if err != nil {
 		return 0, err
 	}
-	return uint64(minor(status.Rdev)), nil
+	err = sc.Control(func(fd uintptr) {
+		var status syscall.Stat_t
+		if err := syscall.Fstat(int(fd), &status); err != nil {
+			results <- 0
+			errors <- err
+		}
+		results <- uint64(minor(status.Rdev))
+		errors <- nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return <-results, <-errors
 }
 
 type ptOwn struct {
@@ -113,7 +132,7 @@ type ptOwn struct {
 }
 
 func grantpt(f *os.File) error {
-	if _, err := ptsdev(f.Fd()); err != nil {
+	if _, err := ptsdev(f); err != nil {
 		return err
 	}
 	pto := ptOwn{
@@ -127,7 +146,7 @@ func grantpt(f *os.File) error {
 		icLen:     int32(unsafe.Sizeof(strioctl{})),
 		icDP:      unsafe.Pointer(&pto),
 	}
-	if err := ioctl(f.Fd(), I_STR, uintptr(unsafe.Pointer(&istr))); err != nil {
+	if err := ioctl(f, I_STR, uintptr(unsafe.Pointer(&istr))); err != nil {
 		return errors.New("access denied")
 	}
 	return nil
@@ -145,8 +164,8 @@ func streamsPush(f *os.File, mod string) error {
 	// but since we are not using libc or XPG4.2, we should not be
 	// double-pushing modules
 
-	if err := ioctl(f.Fd(), I_FIND, uintptr(unsafe.Pointer(&buf[0]))); err != nil {
+	if err := ioctl(f, I_FIND, uintptr(unsafe.Pointer(&buf[0]))); err != nil {
 		return nil
 	}
-	return ioctl(f.Fd(), I_PUSH, uintptr(unsafe.Pointer(&buf[0])))
+	return ioctl(f, I_PUSH, uintptr(unsafe.Pointer(&buf[0])))
 }
