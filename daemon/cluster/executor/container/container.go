@@ -406,6 +406,7 @@ func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *enginecontainer.Ho
 		Sysctls:        c.spec().Sysctls,
 		CapAdd:         c.spec().CapabilityAdd,
 		CapDrop:        c.spec().CapabilityDrop,
+		OomScoreAdj:    int(c.spec().OomScoreAdj),
 	}
 
 	if c.spec().DNSConfig != nil {

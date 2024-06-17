@@ -144,4 +144,12 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 			}
 		}
 	}
+
+	if versions.LessThan(cliVersion, "1.46") {
+		if service.TaskTemplate.ContainerSpec != nil && service.TaskTemplate.ContainerSpec.OomScoreAdj != 0 {
+			// OomScoreAdj was added in API 1.46
+			service.TaskTemplate.ContainerSpec.OomScoreAdj = 0
+		}
+	}
+
 }

@@ -13,6 +13,7 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+
 ## v1.46 API changes
 
 [Docker Engine API v1.46](https://docs.docker.com/engine/api/v1.46/) documentation
@@ -78,6 +79,8 @@ are not part of the underlying image's Config, and deprecated:
 [OCI Image Spec]: https://github.com/opencontainers/image-spec/blob/v1.1.0/specs-go/v1/config.go#L24-L62
 [api/types.ImageInspec]: https://github.com/moby/moby/blob/v26.1.4/api/types/types.go#L87-L104
 [container.Config]: https://github.com/moby/moby/blob/v26.1.4/api/types/container/config.go#L47-L82
+
+* `POST /services/create` and `POST /services/{id}/update` now support OomScoreAdj
 
 ## v1.45 API changes
 
