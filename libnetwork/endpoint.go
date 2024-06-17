@@ -543,6 +543,9 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	if err := sb.updateHostsFile(ctx, ep.getEtcHostsAddrs()); err != nil {
 		return err
 	}
+	if err = sb.updateDNS(n.enableIPv6); err != nil {
+		return err
+	}
 
 	// Current endpoint providing external connectivity for the sandbox
 	extEp := sb.getGatewayEndpoint()
