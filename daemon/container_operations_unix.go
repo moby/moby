@@ -26,11 +26,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
+func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string, error) {
 	var env []string
-	children := daemon.children(container)
+	children := daemon.children(ctr)
 
-	bridgeSettings := container.NetworkSettings.Networks[runconfig.DefaultDaemonNetworkMode().NetworkName()]
+	bridgeSettings := ctr.NetworkSettings.Networks[runconfig.DefaultDaemonNetworkMode().NetworkName()]
 	if bridgeSettings == nil || bridgeSettings.EndpointSettings == nil {
 		return nil, nil
 	}
@@ -100,36 +100,36 @@ func (daemon *Daemon) getPIDContainer(id string) (*container.Container, error) {
 }
 
 // setupContainerDirs sets up base container directories (root, ipc, tmpfs and secrets).
-func (daemon *Daemon) setupContainerDirs(c *container.Container) (_ []container.Mount, err error) {
-	if err := daemon.setupContainerMountsRoot(c); err != nil {
+func (daemon *Daemon) setupContainerDirs(ctr *container.Container) (_ []container.Mount, err error) {
+	if err := daemon.setupContainerMountsRoot(ctr); err != nil {
 		return nil, err
 	}
 
-	if err := daemon.setupIPCDirs(c); err != nil {
+	if err := daemon.setupIPCDirs(ctr); err != nil {
 		return nil, err
 	}
 
-	if err := daemon.setupSecretDir(c); err != nil {
+	if err := daemon.setupSecretDir(ctr); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			daemon.cleanupSecretDir(c)
+			daemon.cleanupSecretDir(ctr)
 		}
 	}()
 
 	var ms []container.Mount
-	if !c.HostConfig.IpcMode.IsPrivate() && !c.HostConfig.IpcMode.IsEmpty() {
-		ms = append(ms, c.IpcMounts()...)
+	if !ctr.HostConfig.IpcMode.IsPrivate() && !ctr.HostConfig.IpcMode.IsEmpty() {
+		ms = append(ms, ctr.IpcMounts()...)
 	}
 
-	tmpfsMounts, err := c.TmpfsMounts()
+	tmpfsMounts, err := ctr.TmpfsMounts()
 	if err != nil {
 		return nil, err
 	}
 	ms = append(ms, tmpfsMounts...)
 
-	secretMounts, err := c.SecretMounts()
+	secretMounts, err := ctr.SecretMounts()
 	if err != nil {
 		return nil, err
 	}
@@ -138,8 +138,8 @@ func (daemon *Daemon) setupContainerDirs(c *container.Container) (_ []container.
 	return ms, nil
 }
 
-func (daemon *Daemon) setupIPCDirs(c *container.Container) error {
-	ipcMode := c.HostConfig.IpcMode
+func (daemon *Daemon) setupIPCDirs(ctr *container.Container) error {
+	ipcMode := ctr.HostConfig.IpcMode
 
 	switch {
 	case ipcMode.IsContainer():
@@ -147,18 +147,18 @@ func (daemon *Daemon) setupIPCDirs(c *container.Container) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to join IPC namespace")
 		}
-		c.ShmPath = ic.ShmPath
+		ctr.ShmPath = ic.ShmPath
 
 	case ipcMode.IsHost():
 		if _, err := os.Stat("/dev/shm"); err != nil {
 			return fmt.Errorf("/dev/shm is not mounted, but must be for --ipc=host")
 		}
-		c.ShmPath = "/dev/shm"
+		ctr.ShmPath = "/dev/shm"
 
 	case ipcMode.IsPrivate(), ipcMode.IsNone():
 		// c.ShmPath will/should not be used, so make it empty.
 		// Container's /dev/shm mount comes from OCI spec.
-		c.ShmPath = ""
+		ctr.ShmPath = ""
 
 	case ipcMode.IsEmpty():
 		// A container was created by an older version of the daemon.
@@ -167,8 +167,8 @@ func (daemon *Daemon) setupIPCDirs(c *container.Container) error {
 
 	case ipcMode.IsShareable():
 		rootIDs := daemon.idMapping.RootPair()
-		if !c.HasMountFor("/dev/shm") {
-			shmPath, err := c.ShmResourcePath()
+		if !ctr.HasMountFor("/dev/shm") {
+			shmPath, err := ctr.ShmResourcePath()
 			if err != nil {
 				return err
 			}
@@ -177,14 +177,14 @@ func (daemon *Daemon) setupIPCDirs(c *container.Container) error {
 				return err
 			}
 
-			shmproperty := "mode=1777,size=" + strconv.FormatInt(c.HostConfig.ShmSize, 10)
-			if err := unix.Mount("shm", shmPath, "tmpfs", uintptr(unix.MS_NOEXEC|unix.MS_NOSUID|unix.MS_NODEV), label.FormatMountLabel(shmproperty, c.GetMountLabel())); err != nil {
+			shmproperty := "mode=1777,size=" + strconv.FormatInt(ctr.HostConfig.ShmSize, 10)
+			if err := unix.Mount("shm", shmPath, "tmpfs", uintptr(unix.MS_NOEXEC|unix.MS_NOSUID|unix.MS_NODEV), label.FormatMountLabel(shmproperty, ctr.GetMountLabel())); err != nil {
 				return fmt.Errorf("mounting shm tmpfs: %s", err)
 			}
 			if err := os.Chown(shmPath, rootIDs.UID, rootIDs.GID); err != nil {
 				return err
 			}
-			c.ShmPath = shmPath
+			ctr.ShmPath = shmPath
 		}
 
 	default:
@@ -194,28 +194,28 @@ func (daemon *Daemon) setupIPCDirs(c *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
-	if len(c.SecretReferences) == 0 && len(c.ConfigReferences) == 0 {
+func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) {
+	if len(ctr.SecretReferences) == 0 && len(ctr.ConfigReferences) == 0 {
 		return nil
 	}
 
-	if err := daemon.createSecretsDir(c); err != nil {
+	if err := daemon.createSecretsDir(ctr); err != nil {
 		return err
 	}
 	defer func() {
 		if setupErr != nil {
-			daemon.cleanupSecretDir(c)
+			daemon.cleanupSecretDir(ctr)
 		}
 	}()
 
-	if c.DependencyStore == nil {
+	if ctr.DependencyStore == nil {
 		return fmt.Errorf("secret store is not initialized")
 	}
 
 	// retrieve possible remapped range start for root UID, GID
 	rootIDs := daemon.idMapping.RootPair()
 
-	for _, s := range c.SecretReferences {
+	for _, s := range ctr.SecretReferences {
 		// TODO (ehazlett): use type switch when more are supported
 		if s.File == nil {
 			log.G(context.TODO()).Error("secret target type is not a file target")
@@ -224,7 +224,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 
 		// secrets are created in the SecretMountPath on the host, at a
 		// single level
-		fPath, err := c.SecretFilePath(*s)
+		fPath, err := ctr.SecretFilePath(*s)
 		if err != nil {
 			return errors.Wrap(err, "error getting secret file path")
 		}
@@ -236,7 +236,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			"name": s.File.Name,
 			"path": fPath,
 		}).Debug("injecting secret")
-		secret, err := c.DependencyStore.Secrets().Get(s.SecretID)
+		secret, err := ctr.DependencyStore.Secrets().Get(s.SecretID)
 		if err != nil {
 			return errors.Wrap(err, "unable to get secret from secret store")
 		}
@@ -261,7 +261,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		}
 	}
 
-	for _, configRef := range c.ConfigReferences {
+	for _, configRef := range ctr.ConfigReferences {
 		// TODO (ehazlett): use type switch when more are supported
 		if configRef.File == nil {
 			// Runtime configs are not mounted into the container, but they're
@@ -275,7 +275,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			continue
 		}
 
-		fPath, err := c.ConfigFilePath(*configRef)
+		fPath, err := ctr.ConfigFilePath(*configRef)
 		if err != nil {
 			return errors.Wrap(err, "error getting config file path for container")
 		}
@@ -287,7 +287,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			"name": configRef.File.Name,
 			"path": fPath,
 		}).Debug("injecting config")
-		config, err := c.DependencyStore.Configs().Get(configRef.ConfigID)
+		config, err := ctr.DependencyStore.Configs().Get(configRef.ConfigID)
 		if err != nil {
 			return errors.Wrap(err, "unable to get config from config store")
 		}
@@ -312,15 +312,15 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		}
 	}
 
-	return daemon.remountSecretDir(c)
+	return daemon.remountSecretDir(ctr)
 }
 
 // createSecretsDir is used to create a dir suitable for storing container secrets.
 // In practice this is using a tmpfs mount and is used for both "configs" and "secrets"
-func (daemon *Daemon) createSecretsDir(c *container.Container) error {
+func (daemon *Daemon) createSecretsDir(ctr *container.Container) error {
 	// retrieve possible remapped range start for root UID, GID
 	rootIDs := daemon.idMapping.RootPair()
-	dir, err := c.SecretMountPath()
+	dir, err := ctr.SecretMountPath()
 	if err != nil {
 		return errors.Wrap(err, "error getting container secrets dir")
 	}
@@ -337,12 +337,12 @@ func (daemon *Daemon) createSecretsDir(c *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) remountSecretDir(c *container.Container) error {
-	dir, err := c.SecretMountPath()
+func (daemon *Daemon) remountSecretDir(ctr *container.Container) error {
+	dir, err := ctr.SecretMountPath()
 	if err != nil {
 		return errors.Wrap(err, "error getting container secrets path")
 	}
-	if err := label.Relabel(dir, c.MountLabel, false); err != nil {
+	if err := label.Relabel(dir, ctr.MountLabel, false); err != nil {
 		log.G(context.TODO()).WithError(err).WithField("dir", dir).Warn("Error while attempting to set selinux label")
 	}
 	rootIDs := daemon.idMapping.RootPair()
@@ -356,10 +356,10 @@ func (daemon *Daemon) remountSecretDir(c *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) cleanupSecretDir(c *container.Container) {
-	dir, err := c.SecretMountPath()
+func (daemon *Daemon) cleanupSecretDir(ctr *container.Container) {
+	dir, err := ctr.SecretMountPath()
 	if err != nil {
-		log.G(context.TODO()).WithError(err).WithField("container", c.ID).Warn("error getting secrets mount path for container")
+		log.G(context.TODO()).WithError(err).WithField("container", ctr.ID).Warn("error getting secrets mount path for container")
 	}
 	if err := mount.RecursiveUnmount(dir); err != nil {
 		log.G(context.TODO()).WithField("dir", dir).WithError(err).Warn("Error while attempting to unmount dir, this may prevent removal of container.")
@@ -369,8 +369,8 @@ func (daemon *Daemon) cleanupSecretDir(c *container.Container) {
 	}
 }
 
-func killProcessDirectly(container *container.Container) error {
-	pid := container.GetPID()
+func killProcessDirectly(ctr *container.Container) error {
+	pid := ctr.GetPID()
 	if pid == 0 {
 		// Ensure that we don't kill ourselves
 		return nil
@@ -381,7 +381,7 @@ func killProcessDirectly(container *container.Container) error {
 			return errdefs.System(err)
 		}
 		err = errNoSuchProcess{pid, syscall.SIGKILL}
-		log.G(context.TODO()).WithError(err).WithField("container", container.ID).Debug("no such process")
+		log.G(context.TODO()).WithError(err).WithField("container", ctr.ID).Debug("no such process")
 		return err
 	}
 
@@ -390,11 +390,11 @@ func killProcessDirectly(container *container.Container) error {
 		// Since we can not kill a zombie pid, add zombie check here
 		isZombie, err := process.Zombie(pid)
 		if err != nil {
-			log.G(context.TODO()).WithError(err).WithField("container", container.ID).Warn("Container state is invalid")
+			log.G(context.TODO()).WithError(err).WithField("container", ctr.ID).Warn("Container state is invalid")
 			return err
 		}
 		if isZombie {
-			return errdefs.System(errors.Errorf("container %s PID %d is zombie and can not be killed. Use the --init option when creating containers to run an init inside the container that forwards signals and reaps processes", stringid.TruncateID(container.ID), pid))
+			return errdefs.System(errors.Errorf("container %s PID %d is zombie and can not be killed. Use the --init option when creating containers to run an init inside the container that forwards signals and reaps processes", stringid.TruncateID(ctr.ID), pid))
 		}
 	}
 	return nil
@@ -417,7 +417,7 @@ func serviceDiscoveryOnDefaultNetwork() bool {
 	return false
 }
 
-func buildSandboxPlatformOptions(container *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
+func buildSandboxPlatformOptions(ctr *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
 	var err error
 
 	// In host-mode networking, the container does not have its own networking
@@ -426,7 +426,7 @@ func buildSandboxPlatformOptions(container *container.Container, cfg *config.Con
 	// the host filesystem.
 	// Note that containers with "container" networking have been handled in
 	// "initializeNetworking()", so do not have to be accounted for here.
-	if container.HostConfig.NetworkMode.IsHost() {
+	if ctr.HostConfig.NetworkMode.IsHost() {
 		*sboxOptions = append(
 			*sboxOptions,
 			libnetwork.OptionOriginHostsPath("/etc/hosts"),
@@ -441,31 +441,31 @@ func buildSandboxPlatformOptions(container *container.Container, cfg *config.Con
 	}
 	*sboxOptions = append(*sboxOptions, libnetwork.OptionOriginResolvConfPath(originResolvConfPath))
 
-	container.HostsPath, err = container.GetRootResourcePath("hosts")
+	ctr.HostsPath, err = ctr.GetRootResourcePath("hosts")
 	if err != nil {
 		return err
 	}
-	*sboxOptions = append(*sboxOptions, libnetwork.OptionHostsPath(container.HostsPath))
+	*sboxOptions = append(*sboxOptions, libnetwork.OptionHostsPath(ctr.HostsPath))
 
-	container.ResolvConfPath, err = container.GetRootResourcePath("resolv.conf")
+	ctr.ResolvConfPath, err = ctr.GetRootResourcePath("resolv.conf")
 	if err != nil {
 		return err
 	}
-	*sboxOptions = append(*sboxOptions, libnetwork.OptionResolvConfPath(container.ResolvConfPath))
+	*sboxOptions = append(*sboxOptions, libnetwork.OptionResolvConfPath(ctr.ResolvConfPath))
 
 	return nil
 }
 
-func (daemon *Daemon) initializeNetworkingPaths(container *container.Container, nc *container.Container) error {
-	container.HostnamePath = nc.HostnamePath
-	container.HostsPath = nc.HostsPath
-	container.ResolvConfPath = nc.ResolvConfPath
+func (daemon *Daemon) initializeNetworkingPaths(ctr *container.Container, nc *container.Container) error {
+	ctr.HostnamePath = nc.HostnamePath
+	ctr.HostsPath = nc.HostsPath
+	ctr.ResolvConfPath = nc.ResolvConfPath
 	return nil
 }
 
-func (daemon *Daemon) setupContainerMountsRoot(c *container.Container) error {
+func (daemon *Daemon) setupContainerMountsRoot(ctr *container.Container) error {
 	// get the root mount path so we can make it unbindable
-	p, err := c.MountsResourcePath("")
+	p, err := ctr.MountsResourcePath("")
 	if err != nil {
 		return err
 	}
