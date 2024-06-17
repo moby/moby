@@ -34,6 +34,7 @@ import (
 	dist "github.com/docker/distribution"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
+	imagetype "github.com/docker/docker/api/types/image"
 	imagetypes "github.com/docker/docker/api/types/image"
 	networktypes "github.com/docker/docker/api/types/network"
 	registrytypes "github.com/docker/docker/api/types/registry"
@@ -919,13 +920,14 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.configStore.Store(cfgStore)
 
 	// TEST_INTEGRATION_USE_SNAPSHOTTER is used for integration tests only.
-	migrationThreshold := -1
+	migrationThreshold := int64(-1)
 	if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
 		d.usesSnapshotter = true
 	} else {
 		log.G(ctx).WithField("features", config.Features).Debug("Checking features for migration")
 		if config.Features["containerd-migration"] {
-			migrationThreshold = math.MaxInt // TODO Make this higher or infinite
+			// TODO: Allow setting the threshold
+			migrationThreshold = math.MaxInt64
 		} else {
 			d.usesSnapshotter = config.Features["containerd-snapshotter"]
 		}
@@ -1255,8 +1257,23 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 				log.G(ctx).Infof("Not migrating to containerd snapshotter, no migration defined for graph driver %q", drv)
 			}
 
-			if ic := d.imageService.CountImages(ctx); ic <= migrationThreshold {
-				log.G(ctx).Infof("Enabling containerd snapshotter because migration set with no containers and %d images in graph driver", ic)
+			var totalSize int64
+			ic := d.imageService.CountImages(ctx)
+			if migrationThreshold >= 0 && ic > 0 {
+				sum, err := d.imageService.Images(ctx, imagetype.ListOptions{All: true})
+				if err != nil {
+					return nil, err
+				}
+				for _, s := range sum {
+					// Just add the size, don't consider shared size since this
+					// represents a maximum size
+					totalSize += s.Size
+				}
+
+			}
+
+			if totalSize <= migrationThreshold {
+				log.G(ctx).WithField("total", totalSize).Infof("Enabling containerd snapshotter because migration set with no containers and %d images in graph driver", ic)
 				d.usesSnapshotter = true
 				migrationConfig.LayerStore = imgSvcConfig.LayerStore
 				migrationConfig.DockerImageStore = imgSvcConfig.ImageStore
@@ -1309,7 +1326,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 				} else {
 					log.G(ctx).WithField("image_count", count).Infof("Successfully migrated images from %q to containerd", oldImageService.StorageDriver())
 				}
-
 			}
 		}
 	}
