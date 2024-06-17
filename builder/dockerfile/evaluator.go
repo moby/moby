@@ -30,7 +30,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/oci"
-	"github.com/docker/docker/runconfig/opts"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	"github.com/pkg/errors"
@@ -243,7 +242,7 @@ func (s *dispatchState) setDefaultPath() {
 	if defaultPath == "" {
 		return
 	}
-	envMap := opts.ConvertKVStringsToMap(s.runConfig.Env)
+	envMap := convertKVStringsToMap(s.runConfig.Env)
 	if _, ok := envMap["PATH"]; !ok {
 		s.runConfig.Env = append(s.runConfig.Env, "PATH="+defaultPath)
 	}
