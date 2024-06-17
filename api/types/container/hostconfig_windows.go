@@ -2,6 +2,11 @@ package container // import "github.com/docker/docker/api/types/container"
 
 import "github.com/docker/docker/api/types/network"
 
+// IsValid indicates if an isolation technology is valid
+func (i Isolation) IsValid() bool {
+	return i.IsDefault() || i.IsHyperV() || i.IsProcess()
+}
+
 // IsBridge indicates whether container uses the bridge network stack
 // in windows it is given the name NAT
 func (n NetworkMode) IsBridge() bool {
@@ -17,11 +22,6 @@ func (n NetworkMode) IsHost() bool {
 // IsUserDefined indicates user-created network
 func (n NetworkMode) IsUserDefined() bool {
 	return !n.IsDefault() && !n.IsNone() && !n.IsBridge() && !n.IsContainer()
-}
-
-// IsValid indicates if an isolation technology is valid
-func (i Isolation) IsValid() bool {
-	return i.IsDefault() || i.IsHyperV() || i.IsProcess()
 }
 
 // NetworkName returns the name of the network stack.
