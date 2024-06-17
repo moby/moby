@@ -4,10 +4,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/containers"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
+	mobyc8dstore "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
@@ -173,7 +176,22 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 
-	ctr, err := libcontainerd.ReplaceContainer(ctx, daemon.containerd, container.ID, spec, shim, createOptions)
+	ctr, err := libcontainerd.ReplaceContainer(ctx, daemon.containerd, container.ID, spec, shim, createOptions, func(ctx context.Context, client *containerd.Client, c *containers.Container) error {
+		// Only set the image if we are using containerd for image storage.
+		// This is for metadata purposes only.
+		// Other lower-level components may make use of this information.
+		is, ok := daemon.imageService.(*mobyc8dstore.ImageService)
+		if !ok {
+			return nil
+		}
+		img, err := is.ResolveImage(ctx, container.Config.Image)
+		if err != nil {
+			log.G(ctx).WithError(err).WithField("container", container.ID).Warn("Failed to resolve containerd image reference")
+			return nil
+		}
+		c.Image = img.Name
+		return nil
+	})
 	if err != nil {
 		return setExitCodeFromError(container.SetExitCode, err)
 	}

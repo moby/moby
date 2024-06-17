@@ -17,6 +17,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.46](https://docs.docker.com/engine/api/v1.46/) documentation
 
+* `GET /info` now includes a `Containerd` field containing information about
+  the location of the containerd API socket and containerd namespaces used
+  by the daemon to run containers and plugins.
 * `POST /containers/create` field `NetworkingConfig.EndpointsConfig.DriverOpts`,
   and `POST /networks/{id}/connect` field `EndpointsConfig.DriverOpts`, now
   support label `com.docker.network.endpoint.sysctls` for setting per-interface

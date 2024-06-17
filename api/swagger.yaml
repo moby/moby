@@ -5824,6 +5824,58 @@ definitions:
         example:
           - "/etc/cdi"
           - "/var/run/cdi"
+      Containerd:
+        $ref: "#/definitions/ContainerdInfo"
+        x-nullable: true
+
+  ContainerdInfo:
+    description: |
+      Information for connecting to the containerd instance that is used by the daemon.
+      This is included for debugging purposes only.
+    type: "object"
+    properties:
+      Address:
+        description: "The address of the containerd socket."
+        type: "string"
+        example: "/run/containerd/containerd.sock"
+      Namespaces:
+        description: |
+          The namespaces that the daemon uses for running containers and
+          plugins in containerd. These namespaces can be configured in the
+          daemon configuration, and are considered to be used exclusively
+          by the daemon, Tampering with the containerd instance may cause
+          unexpected behavior.
+
+          As these namespaces are considered to be exclusively accessed
+          by the daemon, it is not recommended to change these values,
+          or to change them to a value that is used by other systems,
+          such as cri-containerd.
+        type: "object"
+        properties:
+          Containers:
+            description: |
+              The default containerd namespace used for containers managed
+              by the daemon.
+
+              The default namespace for containers is "moby", but will be
+              suffixed with the `<uid>.<gid>` of the remapped `root` if
+              user-namespaces are enabled and the containerd image-store
+              is used.
+            type: "string"
+            default: "moby"
+            example: "moby"
+          Plugins:
+            description: |
+              The default containerd namespace used for plugins managed by
+              the daemon.
+
+              The default namespace for plugins is "plugins.moby", but will be
+              suffixed with the `<uid>.<gid>` of the remapped `root` if
+              user-namespaces are enabled and the containerd image-store
+              is used.
+            type: "string"
+            default: "plugins.moby"
+            example: "plugins.moby"
 
   # PluginsInfo is a temp struct holding Plugins name
   # registered with docker daemon. It is used by Info struct

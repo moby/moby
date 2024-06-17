@@ -273,6 +273,11 @@ func (i *ImageService) resolveDescriptor(ctx context.Context, refOrID string) (o
 	return img.Target, nil
 }
 
+// ResolveImage looks up an image by reference or identifier in the image store.
+func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (containerdimages.Image, error) {
+	return i.resolveImage(ctx, refOrID)
+}
+
 func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (containerdimages.Image, error) {
 	parsed, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
