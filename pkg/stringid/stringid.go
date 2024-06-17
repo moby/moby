@@ -22,6 +22,8 @@ var (
 
 // IsShortID determines if id has the correct format and length for a short ID.
 // It checks the IDs length and if it consists of valid characters for IDs (a-f0-9).
+//
+// Deprecated: this function is no longer used, and will be removed in the next release.
 func IsShortID(id string) bool {
 	if len(id) != shortLen {
 		return false
@@ -62,6 +64,8 @@ func GenerateRandomID() string {
 }
 
 // ValidateID checks whether an ID string is a valid, full-length image ID.
+//
+// Deprecated: use [github.com/docker/docker/image/v1.ValidateID] instead. Will be removed in the next release.
 func ValidateID(id string) error {
 	if len(id) != fullLen {
 		return errors.New("image ID '" + id + "' is invalid")
