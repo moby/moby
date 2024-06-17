@@ -242,7 +242,7 @@ func (ts *tarSum) Read(buf []byte) (int, error) {
 				return 0, err
 			}
 
-			//#nosec G305 -- The joined path is not passed to any filesystem APIs.
+			// #nosec G305 -- The joined path is not passed to any filesystem APIs.
 			ts.currentFile = path.Join(".", path.Join("/", currentHeader.Name))
 			if err := ts.encodeHeader(currentHeader); err != nil {
 				return 0, err
