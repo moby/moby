@@ -77,23 +77,24 @@ var cacheFields = map[string]bool{
 
 // Opt is option struct required for creating the builder
 type Opt struct {
-	SessionManager      *session.Manager
-	Root                string
-	EngineID            string
-	Dist                images.DistributionServices
-	ImageTagger         mobyexporter.ImageTagger
-	NetworkController   *libnetwork.Controller
-	DefaultCgroupParent string
-	RegistryHosts       docker.RegistryHosts
-	BuilderConfig       config.BuilderConfig
-	Rootless            bool
-	IdentityMapping     idtools.IdentityMapping
-	DNSConfig           config.DNSConfig
-	ApparmorProfile     string
-	UseSnapshotter      bool
-	Snapshotter         string
-	ContainerdAddress   string
-	ContainerdNamespace string
+	SessionManager        *session.Manager
+	Root                  string
+	EngineID              string
+	Dist                  images.DistributionServices
+	ImageTagger           mobyexporter.ImageTagger
+	NetworkController     *libnetwork.Controller
+	DefaultCgroupParent   string
+	RegistryHosts         docker.RegistryHosts
+	BuilderConfig         config.BuilderConfig
+	Rootless              bool
+	IdentityMapping       idtools.IdentityMapping
+	DNSConfig             config.DNSConfig
+	ApparmorProfile       string
+	UseSnapshotter        bool
+	Snapshotter           string
+	ContainerdAddress     string
+	ContainerdNamespace   string
+	ImageExportedCallback exporter.ImageExportedByBuildkit
 }
 
 // Builder can build using BuildKit backend

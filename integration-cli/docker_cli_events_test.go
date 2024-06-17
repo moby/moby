@@ -338,9 +338,10 @@ func (s *DockerCLIEventSuite) TestEventsFilterImageLabels(c *testing.T) {
 	label := "io.docker.testing=image"
 
 	// Build a test image.
-	buildImageSuccessfully(c, name, build.WithDockerfile(fmt.Sprintf(`
-		FROM busybox:latest
-		LABEL %s`, label)))
+	buildImageSuccessfully(c, name,
+		build.WithDockerfile("FROM busybox:latest\nLABEL "+label),
+		build.WithoutCache, // Make sure image is actually built
+	)
 	cli.DockerCmd(c, "tag", name, "labelfiltertest:tag1")
 	cli.DockerCmd(c, "tag", name, "labelfiltertest:tag2")
 	cli.DockerCmd(c, "tag", "busybox:latest", "labelfiltertest:tag3")
@@ -560,9 +561,10 @@ func (s *DockerCLIEventSuite) TestEventsFilterType(c *testing.T) {
 	label := "io.docker.testing=image"
 
 	// Build a test image.
-	buildImageSuccessfully(c, name, build.WithDockerfile(fmt.Sprintf(`
-		FROM busybox:latest
-		LABEL %s`, label)))
+	buildImageSuccessfully(c, name,
+		build.WithDockerfile("FROM busybox:latest\nLABEL "+label),
+		build.WithoutCache, // Make sure image is actually built
+	)
 	cli.DockerCmd(c, "tag", name, "labelfiltertest:tag1")
 	cli.DockerCmd(c, "tag", name, "labelfiltertest:tag2")
 	cli.DockerCmd(c, "tag", "busybox:latest", "labelfiltertest:tag3")
@@ -571,7 +573,7 @@ func (s *DockerCLIEventSuite) TestEventsFilterType(c *testing.T) {
 		"events",
 		"--since", since,
 		"--until", daemonUnixTime(c),
-		"--filter", fmt.Sprintf("label=%s", label),
+		"--filter", "label="+label,
 		"--filter", "type=image",
 	).Stdout()
 

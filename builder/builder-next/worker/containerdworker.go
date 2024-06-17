@@ -4,7 +4,6 @@ import (
 	"context"
 
 	mobyexporter "github.com/docker/docker/builder/builder-next/exporter"
-	"github.com/docker/docker/builder/builder-next/exporter/overrides"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/session"
@@ -14,15 +13,16 @@ import (
 // ContainerdWorker is a local worker instance with dedicated snapshotter, cache, and so on.
 type ContainerdWorker struct {
 	*base.Worker
+	callback mobyexporter.ImageExportedByBuildkit
 }
 
 // NewContainerdWorker instantiates a local worker.
-func NewContainerdWorker(ctx context.Context, wo base.WorkerOpt) (*ContainerdWorker, error) {
+func NewContainerdWorker(ctx context.Context, wo base.WorkerOpt, callback mobyexporter.ImageExportedByBuildkit) (*ContainerdWorker, error) {
 	bw, err := base.NewWorker(ctx, wo)
 	if err != nil {
 		return nil, err
 	}
-	return &ContainerdWorker{Worker: bw}, nil
+	return &ContainerdWorker{Worker: bw, callback: callback}, nil
 }
 
 // Exporter returns exporter by name
@@ -33,7 +33,7 @@ func (w *ContainerdWorker) Exporter(name string, sm *session.Manager) (exporter.
 		if err != nil {
 			return nil, err
 		}
-		return overrides.NewExporterWrapper(exp)
+		return mobyexporter.NewWrapper(exp, w.callback)
 	default:
 		return w.Worker.Exporter(name, sm)
 	}
