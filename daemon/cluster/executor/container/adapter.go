@@ -557,16 +557,3 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 	}
 	return msgs, nil
 }
-
-// todo: typed/wrapped errors
-func isContainerCreateNameConflict(err error) bool {
-	return strings.Contains(err.Error(), "Conflict. The name")
-}
-
-func isUnknownContainer(err error) bool {
-	return strings.Contains(err.Error(), "No such container:")
-}
-
-func isStoppedContainer(err error) bool {
-	return strings.Contains(err.Error(), "is already stopped")
-}
