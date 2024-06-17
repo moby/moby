@@ -21,9 +21,9 @@ func init() {
 	sysStat = statUnix
 }
 
-// fixVolumePathPrefix does platform specific processing to ensure that if
-// the path being passed in is not in a volume path format, convert it to one.
-func fixVolumePathPrefix(srcPath string) string {
+// addLongPathPrefix adds the Windows long path prefix to the path provided if
+// it does not already have it. It is a no-op on platforms other than Windows.
+func addLongPathPrefix(srcPath string) string {
 	return srcPath
 }
 

@@ -879,7 +879,7 @@ func NewTarballer(srcPath string, options *TarOptions) (*Tarballer, error) {
 	return &Tarballer{
 		// Fix the source path to work with long path names. This is a no-op
 		// on platforms other than Windows.
-		srcPath:           fixVolumePathPrefix(srcPath),
+		srcPath:           addLongPathPrefix(srcPath),
 		options:           options,
 		pm:                pm,
 		pipeReader:        pipeReader,

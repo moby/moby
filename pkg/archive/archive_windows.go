@@ -4,15 +4,27 @@ import (
 	"archive/tar"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/longpath"
 )
 
-// fixVolumePathPrefix does platform specific processing to ensure that if
-// the path being passed in is not in a volume path format, convert it to one.
-func fixVolumePathPrefix(srcPath string) string {
-	return longpath.AddPrefix(srcPath)
+// longPathPrefix is the longpath prefix for Windows file paths.
+const longPathPrefix = `\\?\`
+
+// addLongPathPrefix adds the Windows long path prefix to the path provided if
+// it does not already have it. It is a no-op on platforms other than Windows.
+//
+// addLongPathPrefix is a copy of [github.com/docker/docker/pkg/longpath.AddPrefix].
+func addLongPathPrefix(srcPath string) string {
+	if strings.HasPrefix(srcPath, longPathPrefix) {
+		return srcPath
+	}
+	if strings.HasPrefix(srcPath, `\\`) {
+		// This is a UNC path, so we need to add 'UNC' to the path as well.
+		return longPathPrefix + `UNC` + srcPath[1:]
+	}
+	return longPathPrefix + srcPath
 }
 
 // getWalkRoot calculates the root path when performing a TarWithOptions.
