@@ -45,6 +45,19 @@ func WithMacvlan(parent string) func(*network.CreateOptions) {
 	}
 }
 
+// WithMacvlanPassthru sets the network as macvlan with the specified parent in passthru mode
+func WithMacvlanPassthru(parent string) func(options *network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		n.Driver = "macvlan"
+		n.Options = map[string]string{
+			"macvlan_mode": "passthru",
+		}
+		if parent != "" {
+			n.Options["parent"] = parent
+		}
+	}
+}
+
 // WithIPvlan sets the network as ipvlan with the specified parent and mode
 func WithIPvlan(parent, mode string) func(*network.CreateOptions) {
 	return func(n *network.CreateOptions) {
