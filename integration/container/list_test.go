@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	typecontainer "github.com/docker/docker/api/types/container"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
@@ -32,15 +32,12 @@ func TestListAnnotations(t *testing.T) {
 		t.Run(fmt.Sprintf("run with version v%s", tc.apiVersion), func(t *testing.T) {
 			apiClient := request.NewAPIClient(t, client.WithVersion(tc.apiVersion))
 			id := container.Create(ctx, t, apiClient, container.WithAnnotations(annotations))
-			defer container.Remove(ctx, t, apiClient, id, typecontainer.RemoveOptions{Force: true})
+			defer container.Remove(ctx, t, apiClient, id, containertypes.RemoveOptions{Force: true})
 
-			containers, err := apiClient.ContainerList(
-				ctx,
-				typecontainer.ListOptions{
-					All:     true,
-					Filters: filters.NewArgs(filters.Arg("id", id)),
-				},
-			)
+			containers, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
+				All:     true,
+				Filters: filters.NewArgs(filters.Arg("id", id)),
+			})
 			assert.NilError(t, err)
 			assert.Assert(t, is.Len(containers, 1))
 			assert.Equal(t, containers[0].ID, id)
