@@ -96,11 +96,10 @@ func (c *Cluster) RemoveVolume(nameOrID string, force bool) error {
 			return err
 		}
 
-		req := &swarmapi.RemoveVolumeRequest{
+		_, err = state.controlClient.RemoveVolume(ctx, &swarmapi.RemoveVolumeRequest{
 			VolumeID: volume.ID,
 			Force:    force,
-		}
-		_, err = state.controlClient.RemoveVolume(ctx, req)
+		})
 		return err
 	})
 }
@@ -125,19 +124,18 @@ func (c *Cluster) UpdateVolume(nameOrID string, version uint64, volume volumetyp
 				v.Spec.Availability = swarmapi.VolumeAvailabilityPause
 			case volumetypes.AvailabilityDrain:
 				v.Spec.Availability = swarmapi.VolumeAvailabilityDrain
+			default:
+				// if default empty value, change nothing.
 			}
-			// if default empty value, change nothing.
 		}
 
-		_, err = state.controlClient.UpdateVolume(
-			ctx, &swarmapi.UpdateVolumeRequest{
-				VolumeID: nameOrID,
-				VolumeVersion: &swarmapi.Version{
-					Index: version,
-				},
-				Spec: &v.Spec,
+		_, err = state.controlClient.UpdateVolume(ctx, &swarmapi.UpdateVolumeRequest{
+			VolumeID: nameOrID,
+			VolumeVersion: &swarmapi.Version{
+				Index: version,
 			},
-		)
+			Spec: &v.Spec,
+		})
 		return err
 	})
 }

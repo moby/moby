@@ -15,7 +15,7 @@ import (
 func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, error) {
 	var r *swarmapi.ListTasksResponse
 
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		filterTransform := func(filter filters.Args) error {
 			if filter.Contains("service") {
 				serviceFilters := filter.Get("service")
@@ -47,18 +47,19 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 			return nil
 		}
 
-		filters, err := newListTasksFilters(options.Filters, filterTransform)
+		f, err := newListTasksFilters(options.Filters, filterTransform)
 		if err != nil {
 			return err
 		}
 
 		r, err = state.controlClient.ListTasks(
 			ctx,
-			&swarmapi.ListTasksRequest{Filters: filters},
+			&swarmapi.ListTasksRequest{Filters: f},
 			grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
 		)
 		return err
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -76,14 +77,15 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 // GetTask returns a task by an ID.
 func (c *Cluster) GetTask(input string) (types.Task, error) {
 	var task *swarmapi.Task
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		t, err := getTask(ctx, state.controlClient, input)
 		if err != nil {
 			return err
 		}
 		task = t
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return types.Task{}, err
 	}
 	return convert.TaskFromGRPC(*task)
