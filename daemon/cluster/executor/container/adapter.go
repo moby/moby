@@ -23,8 +23,8 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/runconfig"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/agent/exec"
@@ -305,10 +305,10 @@ func (c *containerAdapter) create(ctx context.Context) error {
 	// need to make this normalization happen once we're sure we won't make a
 	// cross-OS API call.
 	if hostConfig.NetworkMode == "" || hostConfig.NetworkMode.IsDefault() {
-		hostConfig.NetworkMode = runconfig.DefaultDaemonNetworkMode()
+		hostConfig.NetworkMode = networkSettings.DefaultNetwork
 		if v, ok := netConfig.EndpointsConfig[network.NetworkDefault]; ok {
 			delete(netConfig.EndpointsConfig, network.NetworkDefault)
-			netConfig.EndpointsConfig[runconfig.DefaultDaemonNetworkMode().NetworkName()] = v
+			netConfig.EndpointsConfig[networkSettings.DefaultNetwork] = v
 		}
 	}
 

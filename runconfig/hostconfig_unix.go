@@ -13,6 +13,8 @@ import (
 
 // DefaultDaemonNetworkMode returns the default network stack the daemon should
 // use.
+//
+// Deprecated: this function is no longer in use and will be removed in the next release.
 func DefaultDaemonNetworkMode() container.NetworkMode {
 	return network.NetworkBridge
 }

@@ -15,6 +15,7 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libcontainerd/local"
 	"github.com/docker/docker/libcontainerd/remote"
 	"github.com/docker/docker/libnetwork"
@@ -28,7 +29,6 @@ import (
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/runconfig"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc/mgr"
@@ -309,7 +309,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 
 	defaultNetworkExists := false
 
-	if network, err := daemon.netController.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
+	if network, err := daemon.netController.NetworkByName(network.DefaultNetwork); err == nil {
 		hnsid := network.DriverOptions()[winlibnetwork.HNSID]
 		for _, v := range hnsresponse {
 			if hnsid == v.Id {
@@ -377,10 +377,8 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 
 		// If there is no nat network create one from the first NAT network
 		// encountered if it doesn't already exist
-		if !defaultNetworkExists &&
-			runconfig.DefaultDaemonNetworkMode() == containertypes.NetworkMode(strings.ToLower(v.Type)) &&
-			n == nil {
-			name = runconfig.DefaultDaemonNetworkMode().NetworkName()
+		if !defaultNetworkExists && strings.EqualFold(network.DefaultNetwork, v.Type) && n == nil {
+			name = network.DefaultNetwork
 			defaultNetworkExists = true
 		}
 
@@ -407,12 +405,12 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 }
 
 func initBridgeDriver(controller *libnetwork.Controller, config config.BridgeConfig) error {
-	if _, err := controller.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
+	if _, err := controller.NetworkByName(network.DefaultNetwork); err == nil {
 		return nil
 	}
 
 	netOption := map[string]string{
-		winlibnetwork.NetworkName: runconfig.DefaultDaemonNetworkMode().NetworkName(),
+		winlibnetwork.NetworkName: network.DefaultNetwork,
 	}
 
 	var ipamOption libnetwork.NetworkOption
@@ -429,7 +427,7 @@ func initBridgeDriver(controller *libnetwork.Controller, config config.BridgeCon
 		ipamOption = libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil)
 	}
 
-	_, err := controller.NewNetwork(string(runconfig.DefaultDaemonNetworkMode()), runconfig.DefaultDaemonNetworkMode().NetworkName(), "",
+	_, err := controller.NewNetwork(network.DefaultNetwork, network.DefaultNetwork, "",
 		libnetwork.NetworkOptionGeneric(options.Generic{
 			netlabel.GenericData: netOption,
 		}),

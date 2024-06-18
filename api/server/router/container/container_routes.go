@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	containerpkg "github.com/docker/docker/container"
+	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/pkg/ioutils"
@@ -501,7 +502,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	// Note that this is not the only place where this conversion has to be
 	// done (as there are various other places where containers get created).
 	if hostConfig.NetworkMode == "" || hostConfig.NetworkMode.IsDefault() {
-		hostConfig.NetworkMode = runconfig.DefaultDaemonNetworkMode()
+		hostConfig.NetworkMode = networkSettings.DefaultNetwork
 		if nw, ok := networkingConfig.EndpointsConfig[network.NetworkDefault]; ok {
 			networkingConfig.EndpointsConfig[hostConfig.NetworkMode.NetworkName()] = nw
 			delete(networkingConfig.EndpointsConfig, network.NetworkDefault)

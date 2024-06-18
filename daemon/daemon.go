@@ -75,7 +75,6 @@ import (
 	pluginexec "github.com/docker/docker/plugin/executor/containerd"
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/runconfig"
 	volumesservice "github.com/docker/docker/volume/service"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/resolver"
@@ -391,7 +390,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 				//
 				// TODO(aker): remove this migration code once the next LTM version of MCR is released.
 				if c.HostConfig.NetworkMode.IsDefault() {
-					c.HostConfig.NetworkMode = runconfig.DefaultDaemonNetworkMode()
+					c.HostConfig.NetworkMode = network.DefaultNetwork
 					if nw, ok := c.NetworkSettings.Networks[networktypes.NetworkDefault]; ok {
 						c.NetworkSettings.Networks[c.HostConfig.NetworkMode.NetworkName()] = nw
 						delete(c.NetworkSettings.Networks, networktypes.NetworkDefault)
@@ -1489,13 +1488,11 @@ func isBridgeNetworkDisabled(conf *config.Config) bool {
 }
 
 func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.PluginGetter, hostID string, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
-	dd := runconfig.DefaultDaemonNetworkMode()
-
 	options := []nwconfig.Option{
 		nwconfig.OptionDataDir(conf.Root),
 		nwconfig.OptionExecRoot(conf.GetExecRoot()),
-		nwconfig.OptionDefaultDriver(string(dd)),
-		nwconfig.OptionDefaultNetwork(dd.NetworkName()),
+		nwconfig.OptionDefaultDriver(network.DefaultNetwork),
+		nwconfig.OptionDefaultNetwork(network.DefaultNetwork),
 		nwconfig.OptionLabels(conf.Labels),
 		nwconfig.OptionNetworkControlPlaneMTU(conf.NetworkControlPlaneMTU),
 		driverOptions(conf),
