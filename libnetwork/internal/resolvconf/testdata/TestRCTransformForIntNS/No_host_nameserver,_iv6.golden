@@ -1,0 +1,6 @@
+nameserver 127.0.0.11
+
+# Based on host file: '/etc/resolv.conf' (internal resolver)
+# Used default nameservers.
+# ExtServers: [8.8.8.8 8.8.4.4 2001:4860:4860::8888 2001:4860:4860::8844]
+# Overrides: []

@@ -302,6 +302,27 @@ func (sb *Sandbox) setupDNS() error {
 	return rc.WriteFile(sb.config.resolvConfPath, sb.config.resolvConfHashFile, filePerm)
 }
 
+// Called when an endpoint has joined the sandbox.
+func (sb *Sandbox) updateDNS(ipv6Enabled bool) error {
+	if mod, err := resolvconf.UserModified(sb.config.resolvConfPath, sb.config.resolvConfHashFile); err != nil || mod {
+		return err
+	}
+
+	// Load the host's resolv.conf as a starting point.
+	rc, err := sb.loadResolvConf(sb.config.getOriginResolvConfPath())
+	if err != nil {
+		return err
+	}
+	// For host-networking, no further change is needed.
+	if !sb.config.useDefaultSandBox {
+		// The legacy bridge network has no internal nameserver. So, strip localhost
+		// nameservers from the host's config, then add default nameservers if there
+		// are none remaining.
+		rc.TransformForLegacyNw(ipv6Enabled)
+	}
+	return rc.WriteFile(sb.config.resolvConfPath, sb.config.resolvConfHashFile, filePerm)
+}
+
 // Embedded DNS server has to be enabled for this sandbox. Rebuild the container's resolv.conf.
 func (sb *Sandbox) rebuildDNS() error {
 	// Don't touch the file if the user has modified it.
@@ -347,14 +368,14 @@ func (sb *Sandbox) rebuildDNS() error {
 	// upstream nameservers.
 	sb.setExternalResolvers(extNameServers)
 
-	// Write the file for the container - not updating the hash file (so, no further
-	// updates will be made).
-	//
-	// Once the default resolver is configured, there's not normally any need to change
-	// the container's resolv.conf. A possible exception is if an IPv6 endpoint is added
-	// late, so it becomes possible to make upstream requests to IPv6 resolvers from
-	// the container's network namespace. But, the resolver's ext-servers won't currently
-	// be reconfigured once it's started.
+	// Write the file for the container - preserving old behaviour, not updating the
+	// hash file (so, no further updates will be made).
+	// TODO(robmry) - I think that's probably accidental, I can't find a reason for it,
+	//  and the old resolvconf.Build() function wrote the file but not the hash, which
+	//  is surprising. But, before fixing it, a guard/flag needs to be added to
+	//  sb.updateDNS() to make sure that when an endpoint joins a sandbox that already
+	//  has an internal resolver, the container's resolv.conf is still (re)configured
+	//  for an internal resolver.
 	return rc.WriteFile(sb.config.resolvConfPath, "", filePerm)
 }
 

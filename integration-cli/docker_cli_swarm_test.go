@@ -974,16 +974,14 @@ func (s *DockerSwarmSuite) TestDNSConfig(c *testing.T) {
 	id := strings.TrimSpace(out)
 
 	// Compare against expected output.
-	expectedOutput1 := "nameserver 127.0.0.11"
+	expectedOutput1 := "nameserver 1.2.3.4"
 	expectedOutput2 := "search example.com"
 	expectedOutput3 := "options timeout:3"
-	expectedOutput4 := "ExtServers: [1.2.3.4]"
 	out, err = d.Cmd("exec", id, "cat", "/etc/resolv.conf")
 	assert.NilError(c, err, out)
 	assert.Assert(c, strings.Contains(out, expectedOutput1), "Expected '%s', but got %q", expectedOutput1, out)
 	assert.Assert(c, strings.Contains(out, expectedOutput2), "Expected '%s', but got %q", expectedOutput2, out)
 	assert.Assert(c, strings.Contains(out, expectedOutput3), "Expected '%s', but got %q", expectedOutput3, out)
-	assert.Assert(c, strings.Contains(out, expectedOutput4), "Expected '%s', but got %q", expectedOutput4, out)
 }
 
 func (s *DockerSwarmSuite) TestDNSConfigUpdate(c *testing.T) {
