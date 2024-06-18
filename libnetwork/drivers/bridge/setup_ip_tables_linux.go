@@ -314,6 +314,19 @@ func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
 	return nil
 }
 
+func appendOrDelChainRule(rule iptRule, ruleDescr string, append bool) error {
+	operation := "disable"
+	fn := rule.Delete
+	if append {
+		operation = "enable"
+		fn = rule.Append
+	}
+	if err := fn(); err != nil {
+		return fmt.Errorf("Unable to %s %s rule: %s", operation, ruleDescr, err.Error())
+	}
+	return nil
+}
+
 func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, insert bool) error {
 	args := []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
 	acceptRule := iptRule{ipv: version, table: iptables.Filter, chain: "FORWARD", args: append(args, "ACCEPT")}
