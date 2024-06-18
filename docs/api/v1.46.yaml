@@ -2059,7 +2059,7 @@ definitions:
           Depending on how the image was created, this field may be empty.
         type: "string"
         x-nullable: false
-        example: "20.10.7"
+        example: "27.0.1"
       Author:
         description: |
           Name of the author that was specified when committing the image, or as
@@ -4305,7 +4305,7 @@ definitions:
               `node.platform.os`   | Node operating system          | `node.platform.os==windows`
               `node.platform.arch` | Node architecture              | `node.platform.arch==x86_64`
               `node.labels`        | User-defined node labels       | `node.labels.security==high`
-              `engine.labels`      | Docker Engine's labels         | `engine.labels.operatingsystem==ubuntu-14.04`
+              `engine.labels`      | Docker Engine's labels         | `engine.labels.operatingsystem==ubuntu-24.04`
 
               `engine.labels` apply to Docker Engine labels like operating system,
               drivers, etc. Swarm administrators add `node.labels` for operational
@@ -5302,7 +5302,7 @@ definitions:
                 Version of the component
               type: "string"
               x-nullable: false
-              example: "19.03.12"
+              example: "27.0.1"
             Details:
               description: |
                 Key/value pairs of strings with additional information about the
@@ -5316,17 +5316,17 @@ definitions:
       Version:
         description: "The version of the daemon"
         type: "string"
-        example: "19.03.12"
+        example: "27.0.1"
       ApiVersion:
         description: |
           The default (and highest) API version that is supported by the daemon
         type: "string"
-        example: "1.40"
+        example: "1.46"
       MinAPIVersion:
         description: |
           The minimum API version that is supported by the daemon
         type: "string"
-        example: "1.12"
+        example: "1.24"
       GitCommit:
         description: |
           The Git commit of the source code that was used to build the daemon
@@ -5337,7 +5337,7 @@ definitions:
           The version Go used to compile the daemon, and the version of the Go
           runtime in use.
         type: "string"
-        example: "go1.13.14"
+        example: "go1.21.11"
       Os:
         description: |
           The operating system that the daemon is running on ("linux" or "windows")
@@ -5354,7 +5354,7 @@ definitions:
 
           This field is omitted when empty.
         type: "string"
-        example: "4.19.76-linuxkit"
+        example: "6.8.0-31-generic"
       Experimental:
         description: |
           Indicates if the daemon is started with experimental features enabled.
@@ -5560,13 +5560,13 @@ definitions:
           information is queried from the <kbd>HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\</kbd>
           registry value, for example _"10.0 14393 (14393.1198.amd64fre.rs1_release_sec.170427-1353)"_.
         type: "string"
-        example: "4.9.38-moby"
+        example: "6.8.0-31-generic"
       OperatingSystem:
         description: |
-          Name of the host's operating system, for example: "Ubuntu 16.04.2 LTS"
+          Name of the host's operating system, for example: "Ubuntu 24.04 LTS"
           or "Windows Server 2016 Datacenter"
         type: "string"
-        example: "Alpine Linux v3.5"
+        example: "Ubuntu 24.04 LTS"
       OSVersion:
         description: |
           Version of the host's operating system
@@ -5577,7 +5577,7 @@ definitions:
           > very existence, and the formatting of values, should not be considered
           > stable, and may change without notice.
         type: "string"
-        example: "16.04"
+        example: "24.04"
       OSType:
         description: |
           Generic type of the operating system of the host, as returned by the
@@ -5679,7 +5679,7 @@ definitions:
         description: |
           Version string of the daemon.
         type: "string"
-        example: "24.0.2"
+        example: "27.0.1"
       Runtimes:
         description: |
           List of [OCI compliant](https://github.com/opencontainers/runtime-spec)
