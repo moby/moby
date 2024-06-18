@@ -429,7 +429,8 @@ func (sw *shellWord) processDollar() (string, error) {
 		case '%', '#':
 			// %/# matches the shortest pattern expansion, %%/## the longest
 			greedy := false
-			if word[0] == byte(ch) {
+
+			if len(word) > 0 && word[0] == byte(ch) {
 				greedy = true
 				word = word[1:]
 			}

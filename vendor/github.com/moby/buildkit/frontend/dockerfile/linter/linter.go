@@ -91,8 +91,12 @@ func (rule *LinterRule[F]) Run(warn LintWarnFunc, location []parser.Range, txt .
 	warn(rule.Name, rule.Description, rule.URL, short, location)
 }
 
-func LintFormatShort(rulename, msg string, startLine int) string {
-	return fmt.Sprintf("%s: %s (line %d)", rulename, msg, startLine)
+func LintFormatShort(rulename, msg string, line int) string {
+	msg = fmt.Sprintf("%s: %s", rulename, msg)
+	if line > 0 {
+		msg = fmt.Sprintf("%s (line %d)", msg, line)
+	}
+	return msg
 }
 
 type LintWarnFunc func(rulename, description, url, fmtmsg string, location []parser.Range)

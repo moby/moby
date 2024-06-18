@@ -339,18 +339,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				}
 			}
 			if e.push {
-				if opts.RewriteTimestamp {
-					annotations := map[digest.Digest]map[string]string{}
-					addAnnotations(annotations, *desc)
-					// e.pushImage cannot be used because src ref does not point to the rewritten image
-					//
-					// TODO: change e.pushImage so that it takes Result[Remote] as parameter.
-					// https://github.com/moby/buildkit/pull/4057#discussion_r1324106088
-					err = push.Push(ctx, e.opt.SessionManager, sessionID, e.opt.ImageWriter.opt.ContentStore, e.opt.ImageWriter.ContentStore(),
-						desc.Digest, targetName, e.insecure, e.opt.RegistryHosts, e.pushByDigest, annotations)
-				} else {
-					err = e.pushImage(ctx, src, sessionID, targetName, desc.Digest)
-				}
+				err = e.pushImage(ctx, src, sessionID, targetName, desc.Digest)
 				if err != nil {
 					return nil, nil, errors.Wrapf(err, "failed to push %v", targetName)
 				}

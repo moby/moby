@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -213,13 +214,18 @@ func newDefaultTransport() *http.Transport {
 }
 
 type httpFallback struct {
-	super http.RoundTripper
-	host  string
+	super   http.RoundTripper
+	host    string
+	hostMut sync.Mutex
 }
 
 func (f *httpFallback) RoundTrip(r *http.Request) (*http.Response, error) {
-	// only fall back if the same host had previously fell back
-	if f.host != r.URL.Host {
+	f.hostMut.Lock()
+	// Skip the HTTPS call only if the same host had previously fell back
+	tryHTTPSFirst := f.host != r.URL.Host
+	f.hostMut.Unlock()
+
+	if tryHTTPSFirst {
 		resp, err := f.super.RoundTrip(r)
 		if !isTLSError(err) && !isPortError(err, r.URL.Host) {
 			return resp, err
@@ -232,8 +238,13 @@ func (f *httpFallback) RoundTrip(r *http.Request) (*http.Response, error) {
 	plainHTTPRequest := *r
 	plainHTTPRequest.URL = &plainHTTPUrl
 
-	if f.host != r.URL.Host {
+	// We tried HTTPS first but it failed.
+	// Mark the host so we don't try HTTPS for this host next time
+	// and refresh the request body.
+	if tryHTTPSFirst {
+		f.hostMut.Lock()
 		f.host = r.URL.Host
+		f.hostMut.Unlock()
 
 		// update body on the second attempt
 		if r.Body != nil && r.GetBody != nil {

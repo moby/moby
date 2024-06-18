@@ -29,18 +29,10 @@ var (
 			return "Empty continuation line"
 		},
 	}
-	RuleConsistentInstructionCasing = LinterRule[func(string) string]{
+	RuleConsistentInstructionCasing = LinterRule[func(string, string) string]{
 		Name:        "ConsistentInstructionCasing",
-		Description: "Instructions should be in consistent casing (all lower or all upper)",
-		URL:         "https://docs.docker.com/go/dockerfile/rule/consistent-instruction-casing/",
-		Format: func(command string) string {
-			return fmt.Sprintf("Command '%s' should be consistently cased", command)
-		},
-	}
-	RuleFileConsistentCommandCasing = LinterRule[func(string, string) string]{
-		Name:        "FileConsistentCommandCasing",
 		Description: "All commands within the Dockerfile should use the same casing (either upper or lower)",
-		URL:         "https://docs.docker.com/go/dockerfile/rule/file-consistent-command-casing/",
+		URL:         "https://docs.docker.com/go/dockerfile/rule/consistent-instruction-casing/",
 		Format: func(violatingCommand, correctCasing string) string {
 			return fmt.Sprintf("Command '%s' should match the case of the command majority (%s)", violatingCommand, correctCasing)
 		},
