@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/docker/pkg/stringid"
 )
 
 // CreateNetwork the network for the specified driver type
@@ -40,7 +39,7 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 
 	// if parent interface not specified, create a dummy type link to use named dummy+net_id
 	if config.Parent == "" {
-		config.Parent = getDummyName(stringid.TruncateID(config.ID))
+		config.Parent = getDummyName(config.ID)
 		config.Internal = true
 	}
 	foundExisting, err := d.createNetwork(config)
@@ -71,7 +70,7 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 		if config.Parent == nw.config.Parent {
 			if config.ID != nw.config.ID {
 				return false, fmt.Errorf("network %s is already using parent interface %s",
-					getDummyName(stringid.TruncateID(nw.config.ID)), config.Parent)
+					getDummyName(nw.config.ID), config.Parent)
 			}
 			log.G(context.TODO()).Debugf("Create Network for the same ID %s\n", config.ID)
 			foundExisting = true
@@ -80,7 +79,7 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 	}
 	if !parentExists(config.Parent) {
 		// Create a dummy link if a dummy name is set for parent
-		if dummyName := getDummyName(stringid.TruncateID(config.ID)); dummyName == config.Parent {
+		if dummyName := getDummyName(config.ID); dummyName == config.Parent {
 			err := createDummyLink(config.Parent, dummyName)
 			if err != nil {
 				return false, err
@@ -126,7 +125,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 		// if the interface exists, only delete if it matches iface.vlan or dummy.net_id naming
 		if ok := parentExists(n.config.Parent); ok {
 			// only delete the link if it is named the net_id
-			if n.config.Parent == getDummyName(stringid.TruncateID(nid)) {
+			if n.config.Parent == getDummyName(nid) {
 				err := delDummyLink(n.config.Parent)
 				if err != nil {
 					log.G(context.TODO()).Debugf("link %s was not deleted, continuing the delete network operation: %v",

@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/stringid"
 )
 
 // CreateNetwork the network for the specified driver type
@@ -30,7 +29,7 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 
 	// if parent interface not specified, create a dummy type link to use named dummy+net_id
 	if config.Parent == "" {
-		config.Parent = getDummyName(stringid.TruncateID(config.ID))
+		config.Parent = getDummyName(config.ID)
 		config.Internal = true
 	}
 	foundExisting, err := d.createNetwork(config)
@@ -63,13 +62,13 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 				if config.MacvlanMode == modePassthru {
 					return false, fmt.Errorf(
 						"cannot use mode passthru, macvlan network %s is already using parent interface %s",
-						stringid.TruncateID(nw.config.ID),
+						nw.config.ID,
 						config.Parent,
 					)
 				} else if nw.config.MacvlanMode == modePassthru {
 					return false, fmt.Errorf(
 						"macvlan network %s is already using parent interface %s in mode passthru",
-						stringid.TruncateID(nw.config.ID),
+						nw.config.ID,
 						config.Parent,
 					)
 				}
@@ -82,7 +81,7 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 	}
 	if !parentExists(config.Parent) {
 		// Create a dummy link if a dummy name is set for parent
-		if dummyName := getDummyName(stringid.TruncateID(config.ID)); dummyName == config.Parent {
+		if dummyName := getDummyName(config.ID); dummyName == config.Parent {
 			err := createDummyLink(config.Parent, dummyName)
 			if err != nil {
 				return false, err
@@ -146,7 +145,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	// if the driver created the slave interface and this network is the last user, delete it, otherwise leave it
 	if n.config.CreatedSlaveLink && parentExists(n.config.Parent) && d.parentHasSingleUser(n) {
 		// only delete the link if it is named the net_id
-		if n.config.Parent == getDummyName(stringid.TruncateID(nid)) {
+		if n.config.Parent == getDummyName(nid) {
 			err := delDummyLink(n.config.Parent)
 			if err != nil {
 				log.G(context.TODO()).Debugf("link %s was not deleted, continuing the delete network operation: %v",

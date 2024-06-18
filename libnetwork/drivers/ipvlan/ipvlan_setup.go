@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	dummyPrefix     = "di-" // ipvlan prefix for dummy parent interface
+	dummyPrefix     = "di-" // prefix for dummy ipvlan parent interfaces.
+	dummyIDLength   = 12    // length for dummy parent interface IDs.
 	ipvlanKernelVer = 4     // minimum ipvlan kernel support
 	ipvlanMajorVer  = 2     // minimum ipvlan major kernel support
 )
@@ -222,5 +223,8 @@ func delDummyLink(linkName string) error {
 
 // getDummyName returns the name of a dummy parent with truncated net ID and driver prefix
 func getDummyName(netID string) string {
+	if len(netID) > dummyIDLength {
+		netID = netID[:dummyIDLength]
+	}
 	return dummyPrefix + netID
 }
