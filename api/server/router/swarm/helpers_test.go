@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/go-units"
 )
 
 func TestAdjustForAPIVersion(t *testing.T) {
@@ -39,7 +39,7 @@ func TestAdjustForAPIVersion(t *testing.T) {
 						ConfigName: "configRuntime",
 					},
 				},
-				Ulimits: []*units.Ulimit{
+				Ulimits: []*container.Ulimit{
 					{
 						Name: "nofile",
 						Soft: 100,

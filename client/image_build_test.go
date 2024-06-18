@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
-	units "github.com/docker/go-units"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -123,7 +122,7 @@ func TestImageBuild(t *testing.T) {
 		},
 		{
 			buildOptions: types.ImageBuildOptions{
-				Ulimits: []*units.Ulimit{
+				Ulimits: []*container.Ulimit{
 					{
 						Name: "nproc",
 						Hard: 65557,

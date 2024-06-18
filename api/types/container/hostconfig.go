@@ -360,6 +360,12 @@ type LogConfig struct {
 	Config map[string]string
 }
 
+// Ulimit is an alias for [units.Ulimit], which may be moving to a different
+// location or become a local type. This alias is to help transitioning.
+//
+// Users are recommended to use this alias instead of using [units.Ulimit] directly.
+type Ulimit = units.Ulimit
+
 // Resources contains container's resources (cgroups config, ulimits...)
 type Resources struct {
 	// Applicable to all platforms
@@ -387,14 +393,14 @@ type Resources struct {
 
 	// KernelMemory specifies the kernel memory limit (in bytes) for the container.
 	// Deprecated: kernel 5.4 deprecated kmem.limit_in_bytes.
-	KernelMemory      int64           `json:",omitempty"`
-	KernelMemoryTCP   int64           `json:",omitempty"` // Hard limit for kernel TCP buffer memory (in bytes)
-	MemoryReservation int64           // Memory soft limit (in bytes)
-	MemorySwap        int64           // Total memory usage (memory + swap); set `-1` to enable unlimited swap
-	MemorySwappiness  *int64          // Tuning container memory swappiness behaviour
-	OomKillDisable    *bool           // Whether to disable OOM Killer or not
-	PidsLimit         *int64          // Setting PIDs limit for a container; Set `0` or `-1` for unlimited, or `null` to not change.
-	Ulimits           []*units.Ulimit // List of ulimits to be set in the container
+	KernelMemory      int64     `json:",omitempty"`
+	KernelMemoryTCP   int64     `json:",omitempty"` // Hard limit for kernel TCP buffer memory (in bytes)
+	MemoryReservation int64     // Memory soft limit (in bytes)
+	MemorySwap        int64     // Total memory usage (memory + swap); set `-1` to enable unlimited swap
+	MemorySwappiness  *int64    // Tuning container memory swappiness behaviour
+	OomKillDisable    *bool     // Whether to disable OOM Killer or not
+	PidsLimit         *int64    // Setting PIDs limit for a container; Set `0` or `-1` for unlimited, or `null` to not change.
+	Ulimits           []*Ulimit // List of ulimits to be set in the container
 
 	// Applicable to Windows
 	CPUCount           int64  `json:"CpuCount"`   // CPU count

@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/go-units"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
@@ -544,11 +543,11 @@ func isolationToGRPC(i container.Isolation) swarmapi.ContainerSpec_Isolation {
 	return swarmapi.ContainerIsolationDefault
 }
 
-func ulimitsFromGRPC(u []*swarmapi.ContainerSpec_Ulimit) []*units.Ulimit {
-	ulimits := make([]*units.Ulimit, len(u))
+func ulimitsFromGRPC(u []*swarmapi.ContainerSpec_Ulimit) []*container.Ulimit {
+	ulimits := make([]*container.Ulimit, len(u))
 
 	for i, ulimit := range u {
-		ulimits[i] = &units.Ulimit{
+		ulimits[i] = &container.Ulimit{
 			Name: ulimit.Name,
 			Soft: ulimit.Soft,
 			Hard: ulimit.Hard,
@@ -558,7 +557,7 @@ func ulimitsFromGRPC(u []*swarmapi.ContainerSpec_Ulimit) []*units.Ulimit {
 	return ulimits
 }
 
-func ulimitsToGRPC(u []*units.Ulimit) []*swarmapi.ContainerSpec_Ulimit {
+func ulimitsToGRPC(u []*container.Ulimit) []*swarmapi.ContainerSpec_Ulimit {
 	ulimits := make([]*swarmapi.ContainerSpec_Ulimit, len(u))
 
 	for i, ulimit := range u {

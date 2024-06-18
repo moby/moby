@@ -22,7 +22,6 @@ import (
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/go-connections/nat"
-	"github.com/docker/go-units"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
@@ -483,9 +482,9 @@ func (c *containerConfig) resources() containertypes.Resources {
 		resources.PidsLimit = &pidsLimit
 	}
 
-	resources.Ulimits = make([]*units.Ulimit, len(c.spec().Ulimits))
+	resources.Ulimits = make([]*containertypes.Ulimit, len(c.spec().Ulimits))
 	for i, ulimit := range c.spec().Ulimits {
-		resources.Ulimits[i] = &units.Ulimit{
+		resources.Ulimits[i] = &containertypes.Ulimit{
 			Name: ulimit.Name,
 			Soft: ulimit.Soft,
 			Hard: ulimit.Hard,

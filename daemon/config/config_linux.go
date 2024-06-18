@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/rootless"
-	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 )
 
@@ -72,21 +71,21 @@ type Config struct {
 	CommonConfig
 
 	// Fields below here are platform specific.
-	Runtimes             map[string]system.Runtime `json:"runtimes,omitempty"`
-	DefaultInitBinary    string                    `json:"default-init,omitempty"`
-	CgroupParent         string                    `json:"cgroup-parent,omitempty"`
-	EnableSelinuxSupport bool                      `json:"selinux-enabled,omitempty"`
-	RemappedRoot         string                    `json:"userns-remap,omitempty"`
-	Ulimits              map[string]*units.Ulimit  `json:"default-ulimits,omitempty"`
-	CPURealtimePeriod    int64                     `json:"cpu-rt-period,omitempty"`
-	CPURealtimeRuntime   int64                     `json:"cpu-rt-runtime,omitempty"`
-	Init                 bool                      `json:"init,omitempty"`
-	InitPath             string                    `json:"init-path,omitempty"`
-	SeccompProfile       string                    `json:"seccomp-profile,omitempty"`
-	ShmSize              opts.MemBytes             `json:"default-shm-size,omitempty"`
-	NoNewPrivileges      bool                      `json:"no-new-privileges,omitempty"`
-	IpcMode              string                    `json:"default-ipc-mode,omitempty"`
-	CgroupNamespaceMode  string                    `json:"default-cgroupns-mode,omitempty"`
+	Runtimes             map[string]system.Runtime    `json:"runtimes,omitempty"`
+	DefaultInitBinary    string                       `json:"default-init,omitempty"`
+	CgroupParent         string                       `json:"cgroup-parent,omitempty"`
+	EnableSelinuxSupport bool                         `json:"selinux-enabled,omitempty"`
+	RemappedRoot         string                       `json:"userns-remap,omitempty"`
+	Ulimits              map[string]*container.Ulimit `json:"default-ulimits,omitempty"`
+	CPURealtimePeriod    int64                        `json:"cpu-rt-period,omitempty"`
+	CPURealtimeRuntime   int64                        `json:"cpu-rt-runtime,omitempty"`
+	Init                 bool                         `json:"init,omitempty"`
+	InitPath             string                       `json:"init-path,omitempty"`
+	SeccompProfile       string                       `json:"seccomp-profile,omitempty"`
+	ShmSize              opts.MemBytes                `json:"default-shm-size,omitempty"`
+	NoNewPrivileges      bool                         `json:"no-new-privileges,omitempty"`
+	IpcMode              string                       `json:"default-ipc-mode,omitempty"`
+	CgroupNamespaceMode  string                       `json:"default-cgroupns-mode,omitempty"`
 	// ResolvConf is the path to the configuration of the host resolver
 	ResolvConf string `json:"resolv-conf,omitempty"`
 	Rootless   bool   `json:"rootless,omitempty"`
@@ -209,7 +208,7 @@ func (conf *Config) IsRootless() bool {
 }
 
 func setPlatformDefaults(cfg *Config) error {
-	cfg.Ulimits = make(map[string]*units.Ulimit)
+	cfg.Ulimits = make(map[string]*container.Ulimit)
 	cfg.ShmSize = opts.MemBytes(DefaultShmSize)
 	cfg.SeccompProfile = SeccompProfileDefault
 	cfg.IpcMode = string(DefaultIpcMode)
