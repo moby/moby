@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"sort"
-
-	"github.com/docker/docker/runconfig/opts"
 )
 
 // builtinAllowedBuildArgs is list of built-in allowed build args
@@ -138,7 +136,7 @@ func (b *BuildArgs) getAllFromMapping(source map[string]*string) map[string]stri
 // FilterAllowed returns all allowed args without the filtered args
 func (b *BuildArgs) FilterAllowed(filter []string) []string {
 	envs := []string{}
-	configEnv := opts.ConvertKVStringsToMap(filter)
+	configEnv := convertKVStringsToMap(filter)
 
 	for key, val := range b.GetAllAllowed() {
 		if _, ok := configEnv[key]; !ok {

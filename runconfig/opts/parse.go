@@ -5,6 +5,8 @@ import (
 )
 
 // ConvertKVStringsToMap converts ["key=value"] to {"key":"value"}
+//
+// Deprecated: this function is no longer used, and will be removed in the next release.
 func ConvertKVStringsToMap(values []string) map[string]string {
 	result := make(map[string]string, len(values))
 	for _, value := range values {
