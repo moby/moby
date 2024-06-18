@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
-	units "github.com/docker/go-units"
 )
 
 // NewHijackedResponse intializes a HijackedResponse type
@@ -74,7 +73,7 @@ type ImageBuildOptions struct {
 	NetworkMode    string
 	ShmSize        int64
 	Dockerfile     string
-	Ulimits        []*units.Ulimit
+	Ulimits        []*container.Ulimit
 	// BuildArgs needs to be a *string instead of just a string so that
 	// we can tell the difference between "" (empty string) and no value
 	// at all (nil). See the parsing of buildArgs in

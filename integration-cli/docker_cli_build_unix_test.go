@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/testutil/fakecontext"
-	units "github.com/docker/go-units"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )
@@ -47,7 +47,7 @@ func (s *DockerCLIBuildSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) 
 		CpusetMems string
 		CPUShares  int64
 		CPUQuota   int64
-		Ulimits    []*units.Ulimit
+		Ulimits    []*container.Ulimit
 	}
 
 	cfg := inspectFieldJSON(c, cID, "HostConfig")

@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/go-units"
 )
 
 // DNSConfig specifies DNS related configurations in resolver configuration file (resolv.conf)
@@ -115,6 +114,6 @@ type ContainerSpec struct {
 	Sysctls        map[string]string   `json:",omitempty"`
 	CapabilityAdd  []string            `json:",omitempty"`
 	CapabilityDrop []string            `json:",omitempty"`
-	Ulimits        []*units.Ulimit     `json:",omitempty"`
+	Ulimits        []*container.Ulimit `json:",omitempty"`
 	OomScoreAdj    int64               `json:",omitempty"`
 }

@@ -3,8 +3,8 @@ package config // import "github.com/docker/docker/daemon/config"
 import (
 	"testing"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/opts"
-	units "github.com/docker/go-units"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -43,7 +43,7 @@ func TestGetConflictFreeConfiguration(t *testing.T) {
 
 	assert.Check(t, cc.Debug)
 
-	expectedUlimits := map[string]*units.Ulimit{
+	expectedUlimits := map[string]*container.Ulimit{
 		"nofile": {
 			Name: "nofile",
 			Hard: 2048,
@@ -93,7 +93,7 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 
 	assert.Check(t, is.DeepEqual(expectedLogConfig, cc.LogConfig))
 
-	expectedUlimits := map[string]*units.Ulimit{
+	expectedUlimits := map[string]*container.Ulimit{
 		"nofile": {
 			Name: "nofile",
 			Hard: 2048,
