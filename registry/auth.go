@@ -108,16 +108,18 @@ func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifi
 		return nil, err
 	}
 
-	tokenHandlerOptions := auth.TokenHandlerOptions{
-		Transport:     authTransport,
-		Credentials:   creds,
-		OfflineAccess: true,
-		ClientID:      AuthClientID,
-		Scopes:        scopes,
+	authHandlers := []auth.AuthenticationHandler{
+		auth.NewTokenHandlerWithOptions(auth.TokenHandlerOptions{
+			Transport:     authTransport,
+			Credentials:   creds,
+			OfflineAccess: true,
+			ClientID:      AuthClientID,
+			Scopes:        scopes,
+		}),
+		auth.NewBasicHandler(creds),
 	}
-	tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
-	basicHandler := auth.NewBasicHandler(creds)
-	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
+
+	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, authHandlers...))
 
 	return &http.Client{
 		Transport: transport.NewTransport(authTransport, modifiers...),
