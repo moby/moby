@@ -33,6 +33,9 @@ const (
 
 var bufPool = &sync.Pool{New: func() interface{} { return bytes.NewBuffer(nil) }}
 
+// Exported errors
+var ErrInvalidStdHeader = errors.New("Unrecognized input header")
+
 // stdWriter is wrapper of io.Writer with extra customized info.
 type stdWriter struct {
 	io.Writer
@@ -135,7 +138,7 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 			// to outstream if Systemerr is the stream
 			out = nil
 		default:
-			return 0, fmt.Errorf("Unrecognized input header: %d", buf[stdWriterFdIndex])
+			return 0, fmt.Errorf("%w: %d", ErrInvalidStdHeader, buf[stdWriterFdIndex])
 		}
 
 		// Retrieve the size of the frame
