@@ -6,6 +6,7 @@ import (
 	"net"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/containerd/cgroups/v3"
 	"github.com/containerd/log"
@@ -107,14 +108,13 @@ func (conf *Config) GetInitPath() string {
 	return DefaultInitBinary
 }
 
-// LookupInitPath returns an absolute path to the "docker-init" binary by searching relevant "libexec" directories (per FHS 3.0 & 2.3) followed by PATH
-func (conf *Config) LookupInitPath() (string, error) {
-	binary := conf.GetInitPath()
+// lookupBinPath returns an absolute path to the provided binary by searching relevant "libexec" locations (per FHS 3.0 & 2.3) followed by PATH
+func lookupBinPath(binary string) (string, error) {
 	if filepath.IsAbs(binary) {
 		return binary, nil
 	}
 
-	for _, dir := range []string{
+	lookupPaths := []string{
 		// FHS 3.0: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
 		// https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch04s07.html
 		"/usr/local/libexec/docker",
@@ -124,7 +124,16 @@ func (conf *Config) LookupInitPath() (string, error) {
 		// https://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA
 		"/usr/local/lib/docker",
 		"/usr/lib/docker",
-	} {
+	}
+
+	// According to FHS 3.0, it is not necessary to have a subdir here (see note and reference above).
+	// If the binary has a `docker-` prefix, let's look it up without the dir prefix.
+	if strings.HasPrefix(binary, "docker-") {
+		lookupPaths = append(lookupPaths, "/usr/local/libexec")
+		lookupPaths = append(lookupPaths, "/usr/libexec")
+	}
+
+	for _, dir := range lookupPaths {
 		// exec.LookPath has a fast-path short-circuit for paths that contain "/" (skipping the PATH lookup) that then verifies whether the given path is likely to be an actual executable binary (so we invoke that instead of reimplementing the same checks)
 		if file, err := exec.LookPath(filepath.Join(dir, binary)); err == nil {
 			return file, nil
@@ -133,6 +142,11 @@ func (conf *Config) LookupInitPath() (string, error) {
 
 	// if we checked all the "libexec" directories and found no matches, fall back to PATH
 	return exec.LookPath(binary)
+}
+
+// LookupInitPath returns an absolute path to the "docker-init" binary by searching relevant "libexec" directories (per FHS 3.0 & 2.3) followed by PATH
+func (conf *Config) LookupInitPath() (string, error) {
+	return lookupBinPath(conf.GetInitPath())
 }
 
 // GetResolvConf returns the appropriate resolv.conf
@@ -225,7 +239,7 @@ func setPlatformDefaults(cfg *Config) error {
 
 		var err error
 		// use rootlesskit-docker-proxy for exposing the ports in RootlessKit netns to the initial namespace.
-		cfg.BridgeConfig.UserlandProxyPath, err = exec.LookPath(rootless.RootlessKitDockerProxyBinary)
+		cfg.BridgeConfig.UserlandProxyPath, err = lookupBinPath(rootless.RootlessKitDockerProxyBinary)
 		if err != nil {
 			return errors.Wrapf(err, "running with RootlessKit, but %s not installed", rootless.RootlessKitDockerProxyBinary)
 		}
@@ -244,7 +258,7 @@ func setPlatformDefaults(cfg *Config) error {
 		cfg.Pidfile = filepath.Join(runtimeDir, "docker.pid")
 	} else {
 		var err error
-		cfg.BridgeConfig.UserlandProxyPath, err = exec.LookPath(userlandProxyBinary)
+		cfg.BridgeConfig.UserlandProxyPath, err = lookupBinPath(userlandProxyBinary)
 		if err != nil {
 			// Log, but don't error here. This allows running a daemon with
 			// userland-proxy disabled (which does not require the binary
