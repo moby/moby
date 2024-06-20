@@ -111,8 +111,8 @@ type CopyToContainerOptions = container.CopyToContainerOptions
 // ContainerStats contains response of Engine API:
 // GET "/stats"
 //
-// Deprecated: use [container.StatsResponse].
-type ContainerStats = container.StatsResponse
+// Deprecated: use [container.StatsResponseReader].
+type ContainerStats = container.StatsResponseReader
 
 // EventsOptions holds parameters to filter events with.
 //
