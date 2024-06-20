@@ -12,15 +12,15 @@ import (
 
 	statsV1 "github.com/containerd/cgroups/v3/cgroup1/stats"
 	statsV2 "github.com/containerd/cgroups/v3/cgroup2/stats"
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/pkg/errors"
 )
 
-func copyBlkioEntry(entries []*statsV1.BlkIOEntry) []types.BlkioStatEntry {
-	out := make([]types.BlkioStatEntry, len(entries))
+func copyBlkioEntry(entries []*statsV1.BlkIOEntry) []containertypes.BlkioStatEntry {
+	out := make([]containertypes.BlkioStatEntry, len(entries))
 	for i, re := range entries {
-		out[i] = types.BlkioStatEntry{
+		out[i] = containertypes.BlkioStatEntry{
 			Major: re.Major,
 			Minor: re.Minor,
 			Op:    re.Op,
@@ -30,7 +30,7 @@ func copyBlkioEntry(entries []*statsV1.BlkIOEntry) []types.BlkioStatEntry {
 	return out
 }
 
-func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
+func (daemon *Daemon) stats(c *container.Container) (*containertypes.StatsResponse, error) {
 	c.Lock()
 	task, err := c.GetRunningTask()
 	c.Unlock()
@@ -44,7 +44,7 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 		}
 		return nil, err
 	}
-	s := &types.StatsJSON{}
+	s := &containertypes.StatsResponse{}
 	s.Read = cs.Read
 	stats := cs.Metrics
 	switch t := stats.(type) {
@@ -57,9 +57,9 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	}
 }
 
-func (daemon *Daemon) statsV1(s *types.StatsJSON, stats *statsV1.Metrics) (*types.StatsJSON, error) {
+func (daemon *Daemon) statsV1(s *containertypes.StatsResponse, stats *statsV1.Metrics) (*containertypes.StatsResponse, error) {
 	if stats.Blkio != nil {
-		s.BlkioStats = types.BlkioStats{
+		s.BlkioStats = containertypes.BlkioStats{
 			IoServiceBytesRecursive: copyBlkioEntry(stats.Blkio.IoServiceBytesRecursive),
 			IoServicedRecursive:     copyBlkioEntry(stats.Blkio.IoServicedRecursive),
 			IoQueuedRecursive:       copyBlkioEntry(stats.Blkio.IoQueuedRecursive),
@@ -71,14 +71,14 @@ func (daemon *Daemon) statsV1(s *types.StatsJSON, stats *statsV1.Metrics) (*type
 		}
 	}
 	if stats.CPU != nil {
-		s.CPUStats = types.CPUStats{
-			CPUUsage: types.CPUUsage{
+		s.CPUStats = containertypes.CPUStats{
+			CPUUsage: containertypes.CPUUsage{
 				TotalUsage:        stats.CPU.Usage.Total,
 				PercpuUsage:       stats.CPU.Usage.PerCPU,
 				UsageInKernelmode: stats.CPU.Usage.Kernel,
 				UsageInUsermode:   stats.CPU.Usage.User,
 			},
-			ThrottlingData: types.ThrottlingData{
+			ThrottlingData: containertypes.ThrottlingData{
 				Periods:          stats.CPU.Throttling.Periods,
 				ThrottledPeriods: stats.CPU.Throttling.ThrottledPeriods,
 				ThrottledTime:    stats.CPU.Throttling.ThrottledTime,
@@ -122,7 +122,7 @@ func (daemon *Daemon) statsV1(s *types.StatsJSON, stats *statsV1.Metrics) (*type
 			"total_unevictable":         stats.Memory.TotalUnevictable,
 		}
 		if stats.Memory.Usage != nil {
-			s.MemoryStats = types.MemoryStats{
+			s.MemoryStats = containertypes.MemoryStats{
 				Stats:    raw,
 				Usage:    stats.Memory.Usage.Usage,
 				MaxUsage: stats.Memory.Usage.Max,
@@ -130,7 +130,7 @@ func (daemon *Daemon) statsV1(s *types.StatsJSON, stats *statsV1.Metrics) (*type
 				Failcnt:  stats.Memory.Usage.Failcnt,
 			}
 		} else {
-			s.MemoryStats = types.MemoryStats{
+			s.MemoryStats = containertypes.MemoryStats{
 				Stats: raw,
 			}
 		}
@@ -142,7 +142,7 @@ func (daemon *Daemon) statsV1(s *types.StatsJSON, stats *statsV1.Metrics) (*type
 	}
 
 	if stats.Pids != nil {
-		s.PidsStats = types.PidsStats{
+		s.PidsStats = containertypes.PidsStats{
 			Current: stats.Pids.Current,
 			Limit:   stats.Pids.Limit,
 		}
@@ -151,18 +151,18 @@ func (daemon *Daemon) statsV1(s *types.StatsJSON, stats *statsV1.Metrics) (*type
 	return s, nil
 }
 
-func (daemon *Daemon) statsV2(s *types.StatsJSON, stats *statsV2.Metrics) (*types.StatsJSON, error) {
+func (daemon *Daemon) statsV2(s *containertypes.StatsResponse, stats *statsV2.Metrics) (*containertypes.StatsResponse, error) {
 	if stats.Io != nil {
-		var isbr []types.BlkioStatEntry
+		var isbr []containertypes.BlkioStatEntry
 		for _, re := range stats.Io.Usage {
 			isbr = append(isbr,
-				types.BlkioStatEntry{
+				containertypes.BlkioStatEntry{
 					Major: re.Major,
 					Minor: re.Minor,
 					Op:    "read",
 					Value: re.Rbytes,
 				},
-				types.BlkioStatEntry{
+				containertypes.BlkioStatEntry{
 					Major: re.Major,
 					Minor: re.Minor,
 					Op:    "write",
@@ -170,21 +170,21 @@ func (daemon *Daemon) statsV2(s *types.StatsJSON, stats *statsV2.Metrics) (*type
 				},
 			)
 		}
-		s.BlkioStats = types.BlkioStats{
+		s.BlkioStats = containertypes.BlkioStats{
 			IoServiceBytesRecursive: isbr,
 			// Other fields are unsupported
 		}
 	}
 
 	if stats.CPU != nil {
-		s.CPUStats = types.CPUStats{
-			CPUUsage: types.CPUUsage{
+		s.CPUStats = containertypes.CPUStats{
+			CPUUsage: containertypes.CPUUsage{
 				TotalUsage: stats.CPU.UsageUsec * 1000,
 				// PercpuUsage is not supported
 				UsageInKernelmode: stats.CPU.SystemUsec * 1000,
 				UsageInUsermode:   stats.CPU.UserUsec * 1000,
 			},
-			ThrottlingData: types.ThrottlingData{
+			ThrottlingData: containertypes.ThrottlingData{
 				Periods:          stats.CPU.NrPeriods,
 				ThrottledPeriods: stats.CPU.NrThrottled,
 				ThrottledTime:    stats.CPU.ThrottledUsec * 1000,
@@ -193,7 +193,7 @@ func (daemon *Daemon) statsV2(s *types.StatsJSON, stats *statsV2.Metrics) (*type
 	}
 
 	if stats.Memory != nil {
-		s.MemoryStats = types.MemoryStats{
+		s.MemoryStats = containertypes.MemoryStats{
 			// Stats is not compatible with v1
 			Stats: map[string]uint64{
 				"anon":                   stats.Memory.Anon,
@@ -244,7 +244,7 @@ func (daemon *Daemon) statsV2(s *types.StatsJSON, stats *statsV2.Metrics) (*type
 	}
 
 	if stats.Pids != nil {
-		s.PidsStats = types.PidsStats{
+		s.PidsStats = containertypes.PidsStats{
 			Current: stats.Pids.Current,
 			Limit:   stats.Pids.Limit,
 		}
@@ -267,7 +267,7 @@ func (daemon *Daemon) getNetworkSandboxID(c *container.Container) (string, error
 	return curr.NetworkSettings.SandboxID, nil
 }
 
-func (daemon *Daemon) getNetworkStats(c *container.Container) (map[string]types.NetworkStats, error) {
+func (daemon *Daemon) getNetworkStats(c *container.Container) (map[string]containertypes.NetworkStats, error) {
 	sandboxID, err := daemon.getNetworkSandboxID(c)
 	if err != nil {
 		return nil, err
@@ -283,10 +283,10 @@ func (daemon *Daemon) getNetworkStats(c *container.Container) (map[string]types.
 		return nil, err
 	}
 
-	stats := make(map[string]types.NetworkStats)
+	stats := make(map[string]containertypes.NetworkStats)
 	// Convert libnetwork nw stats into api stats
 	for ifName, ifStats := range lnstats {
-		stats[ifName] = types.NetworkStats{
+		stats[ifName] = containertypes.NetworkStats{
 			RxBytes:   ifStats.RxBytes,
 			RxPackets: ifStats.RxPackets,
 			RxErrors:  ifStats.RxErrors,

@@ -3,13 +3,13 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/platform"
 )
 
-func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
+func (daemon *Daemon) stats(c *container.Container) (*containertypes.StatsResponse, error) {
 	c.Lock()
 	task, err := c.GetRunningTask()
 	c.Unlock()
@@ -27,15 +27,15 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	}
 
 	// Start with an empty structure
-	s := &types.StatsJSON{}
+	s := &containertypes.StatsResponse{}
 	s.Stats.Read = stats.Read
 	s.Stats.NumProcs = platform.NumProcs()
 
 	if stats.HCSStats != nil {
 		hcss := stats.HCSStats
 		// Populate the CPU/processor statistics
-		s.CPUStats = types.CPUStats{
-			CPUUsage: types.CPUUsage{
+		s.CPUStats = containertypes.CPUStats{
+			CPUUsage: containertypes.CPUUsage{
 				TotalUsage:        hcss.Processor.TotalRuntime100ns,
 				UsageInKernelmode: hcss.Processor.RuntimeKernel100ns,
 				UsageInUsermode:   hcss.Processor.RuntimeUser100ns,
@@ -43,14 +43,14 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 		}
 
 		// Populate the memory statistics
-		s.MemoryStats = types.MemoryStats{
+		s.MemoryStats = containertypes.MemoryStats{
 			Commit:            hcss.Memory.UsageCommitBytes,
 			CommitPeak:        hcss.Memory.UsageCommitPeakBytes,
 			PrivateWorkingSet: hcss.Memory.UsagePrivateWorkingSetBytes,
 		}
 
 		// Populate the storage statistics
-		s.StorageStats = types.StorageStats{
+		s.StorageStats = containertypes.StorageStats{
 			ReadCountNormalized:  hcss.Storage.ReadCountNormalized,
 			ReadSizeBytes:        hcss.Storage.ReadSizeBytes,
 			WriteCountNormalized: hcss.Storage.WriteCountNormalized,
@@ -58,9 +58,9 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 		}
 
 		// Populate the network statistics
-		s.Networks = make(map[string]types.NetworkStats)
+		s.Networks = make(map[string]containertypes.NetworkStats)
 		for _, nstats := range hcss.Network {
-			s.Networks[nstats.EndpointId] = types.NetworkStats{
+			s.Networks[nstats.EndpointId] = containertypes.NetworkStats{
 				RxBytes:   nstats.BytesReceived,
 				RxPackets: nstats.PacketsReceived,
 				RxDropped: nstats.DroppedPacketsIncoming,
@@ -74,8 +74,8 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 }
 
 // Windows network stats are obtained directly through HCS, hence this is a no-op.
-func (daemon *Daemon) getNetworkStats(c *container.Container) (map[string]types.NetworkStats, error) {
-	return make(map[string]types.NetworkStats), nil
+func (daemon *Daemon) getNetworkStats(c *container.Container) (map[string]containertypes.NetworkStats, error) {
+	return make(map[string]containertypes.NetworkStats), nil
 }
 
 // getSystemCPUUsage returns the host system's cpu usage in

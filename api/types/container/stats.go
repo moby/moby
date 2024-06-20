@@ -1,6 +1,4 @@
-// Package types is used for API stability in the types and response to the
-// consumers of the API stats endpoint.
-package types // import "github.com/docker/docker/api/types"
+package container
 
 import "time"
 
@@ -169,8 +167,10 @@ type Stats struct {
 	MemoryStats MemoryStats `json:"memory_stats,omitempty"`
 }
 
-// StatsJSON is newly used Networks
-type StatsJSON struct {
+// StatsResponse is newly used Networks.
+//
+// TODO(thaJeztah): unify with [Stats]. This wrapper was to account for pre-api v1.21 changes, see https://github.com/moby/moby/commit/d3379946ec96fb6163cb8c4517d7d5a067045801
+type StatsResponse struct {
 	Stats
 
 	Name string `json:"name,omitempty"`
