@@ -4,7 +4,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/runconfig"
 	"github.com/pkg/errors"
 )
 
@@ -94,9 +93,9 @@ func filterNetworkByUse(nws []network.Inspect, danglingOnly bool) []network.Insp
 
 	filterFunc := func(nw network.Inspect) bool {
 		if danglingOnly {
-			return !runconfig.IsPreDefinedNetwork(nw.Name) && len(nw.Containers) == 0 && len(nw.Services) == 0
+			return !IsPredefined(nw.Name) && len(nw.Containers) == 0 && len(nw.Services) == 0
 		}
-		return runconfig.IsPreDefinedNetwork(nw.Name) || len(nw.Containers) > 0 || len(nw.Services) > 0
+		return IsPredefined(nw.Name) || len(nw.Containers) > 0 || len(nw.Services) > 0
 	}
 
 	for _, nw := range nws {
@@ -113,13 +112,13 @@ func filterNetworkByType(nws []network.Inspect, netType string) ([]network.Inspe
 	switch netType {
 	case "builtin":
 		for _, nw := range nws {
-			if runconfig.IsPreDefinedNetwork(nw.Name) {
+			if IsPredefined(nw.Name) {
 				retNws = append(retNws, nw)
 			}
 		}
 	case "custom":
 		for _, nw := range nws {
-			if !runconfig.IsPreDefinedNetwork(nw.Name) {
+			if !IsPredefined(nw.Name) {
 				retNws = append(retNws, nw)
 			}
 		}
