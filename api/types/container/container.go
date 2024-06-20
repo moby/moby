@@ -31,9 +31,14 @@ type CopyToContainerOptions struct {
 	CopyUIDGID                bool
 }
 
-// StatsResponse contains response of Engine API:
-// GET "/stats"
-type StatsResponse struct {
+// StatsResponseReader wraps an io.ReadCloser to read (a stream of) stats
+// for a container, as produced by the GET "/stats" endpoint.
+//
+// The OSType field is set to the server's platform to allow
+// platform-specific handling of the response.
+//
+// TODO(thaJeztah): remove this wrapper, and make OSType part of [StatsJSON].
+type StatsResponseReader struct {
 	Body   io.ReadCloser `json:"body"`
 	OSType string        `json:"ostype"`
 }
