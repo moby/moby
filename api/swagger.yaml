@@ -449,15 +449,12 @@ definitions:
               should be provided as as 2-length arrays, where the first item is
               the key and the second the value.
             type: "array"
-            properties:
+            items:
+              type: "array"
+              minItems: 1
+              maxItems: 2
               items:
-                type: "array"
-                items:
-                  type: "array"
-                  minItems: 1
-                  maxItems: 2
-                  items:
-                    type: "string"
+                type: "string"
             example:
               [["noexec"]]
 
