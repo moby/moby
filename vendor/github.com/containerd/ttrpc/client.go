@@ -27,7 +27,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -368,7 +368,7 @@ func (c *Client) receiveLoop() error {
 			sid := streamID(msg.header.StreamID)
 			s := c.getStream(sid)
 			if s == nil {
-				logrus.WithField("stream", sid).Errorf("ttrpc: received message on inactive stream")
+				log.G(c.ctx).WithField("stream", sid).Error("ttrpc: received message on inactive stream")
 				continue
 			}
 
@@ -376,7 +376,7 @@ func (c *Client) receiveLoop() error {
 				s.closeWithError(err)
 			} else {
 				if err := s.receive(c.ctx, msg); err != nil {
-					logrus.WithError(err).WithField("stream", sid).Errorf("ttrpc: failed to handle message")
+					log.G(c.ctx).WithFields(log.Fields{"error": err, "stream": sid}).Error("ttrpc: failed to handle message")
 				}
 			}
 		}
