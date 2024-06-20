@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 )
@@ -30,7 +30,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 
 	// If the container is either not running or restarting and requires no stream, return an empty stats.
 	if (!ctr.IsRunning() || ctr.IsRestarting()) && !config.Stream {
-		return enc.Encode(&types.StatsJSON{
+		return enc.Encode(&containertypes.StatsResponse{
 			Name: ctr.Name,
 			ID:   ctr.ID,
 		})
@@ -45,10 +45,10 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		return enc.Encode(stats)
 	}
 
-	var preCPUStats types.CPUStats
+	var preCPUStats containertypes.CPUStats
 	var preRead time.Time
-	getStatJSON := func(v interface{}) *types.StatsJSON {
-		ss := v.(types.StatsJSON)
+	getStatJSON := func(v interface{}) *containertypes.StatsResponse {
+		ss := v.(containertypes.StatsResponse)
 		ss.Name = ctr.Name
 		ss.ID = ctr.ID
 		ss.PreCPUStats = preCPUStats
@@ -99,7 +99,7 @@ func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch cha
 }
 
 // GetContainerStats collects all the stats published by a container
-func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.StatsJSON, error) {
+func (daemon *Daemon) GetContainerStats(container *container.Container) (*containertypes.StatsResponse, error) {
 	stats, err := daemon.stats(container)
 	if err != nil {
 		goto done
@@ -124,7 +124,7 @@ done:
 		return stats, nil
 	case errdefs.ErrConflict, errdefs.ErrNotFound:
 		// return empty stats containing only name and ID if not running or not found
-		return &types.StatsJSON{
+		return &containertypes.StatsResponse{
 			Name: container.Name,
 			ID:   container.ID,
 		}, nil

@@ -37,7 +37,7 @@ type CopyToContainerOptions struct {
 // The OSType field is set to the server's platform to allow
 // platform-specific handling of the response.
 //
-// TODO(thaJeztah): remove this wrapper, and make OSType part of [StatsJSON].
+// TODO(thaJeztah): remove this wrapper, and make OSType part of [StatsResponse].
 type StatsResponseReader struct {
 	Body   io.ReadCloser `json:"body"`
 	OSType string        `json:"ostype"`

@@ -178,7 +178,7 @@ func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
 	case sr := <-bc:
 		dec := json.NewDecoder(sr.stats.Body)
 		defer sr.stats.Body.Close()
-		var s *types.Stats
+		var s *container.Stats
 		// decode only one object from the stream
 		assert.NilError(c, dec.Decode(&s))
 	}

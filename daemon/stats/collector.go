@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/moby/pubsub"
 )
@@ -31,7 +31,7 @@ func NewCollector(supervisor supervisor, interval time.Duration) *Collector {
 
 type supervisor interface {
 	// GetContainerStats collects all the stats related to a container
-	GetContainerStats(container *container.Container) (*types.StatsJSON, error)
+	GetContainerStats(container *container.Container) (*containertypes.StatsResponse, error)
 }
 
 // Collect registers the container with the collector and adds it to
@@ -105,7 +105,7 @@ func (s *Collector) Run() {
 		for _, pair := range pairs {
 			stats, err := s.supervisor.GetContainerStats(pair.container)
 			if err != nil {
-				stats = &types.StatsJSON{
+				stats = &containertypes.StatsResponse{
 					Name: pair.container.Name,
 					ID:   pair.container.ID,
 				}

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
@@ -34,7 +34,7 @@ func (s *DockerAPISuite) TestAPIStatsNoStreamGetCpu(c *testing.T) {
 	assert.Equal(c, resp.Header.Get("Content-Type"), "application/json")
 	assert.Equal(c, resp.Header.Get("Content-Type"), "application/json")
 
-	var v *types.Stats
+	var v *container.Stats
 	err = json.NewDecoder(body).Decode(&v)
 	assert.NilError(c, err)
 	body.Close()
@@ -173,8 +173,8 @@ func (s *DockerAPISuite) TestAPIStatsNetworkStatsVersioning(c *testing.T) {
 	assert.Assert(c, jsonBlobHasGTE121NetworkStats(statsJSONBlob), "Stats JSON blob from API does not look like a >=v1.21 API stats structure", statsJSONBlob)
 }
 
-func getNetworkStats(c *testing.T, id string) map[string]types.NetworkStats {
-	var st *types.StatsJSON
+func getNetworkStats(c *testing.T, id string) map[string]container.NetworkStats {
+	var st *container.StatsResponse
 
 	_, body, err := request.Get(testutil.GetContext(c), "/containers/"+id+"/stats?stream=false")
 	assert.NilError(c, err)
@@ -263,7 +263,7 @@ func (s *DockerAPISuite) TestAPIStatsNoStreamConnectedContainers(c *testing.T) {
 		if resp.Header.Get("Content-Type") != "application/json" {
 			ch <- fmt.Errorf("Invalid 'Content-Type' %v", resp.Header.Get("Content-Type"))
 		}
-		var v *types.Stats
+		var v *container.Stats
 		if err := json.NewDecoder(body).Decode(&v); err != nil {
 			ch <- err
 		}
