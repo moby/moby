@@ -60,7 +60,7 @@ func TestExternalGraphDriver(t *testing.T) {
 	sserver := setupPluginViaSpecFile(t, ec)
 	jserver := setupPluginViaJSONFile(t, ec)
 	// Create daemon
-	d := daemon.New(t, daemon.WithExperimental())
+	d := daemon.New(t, daemon.WithExperimental(), daemon.WithEnvVars("DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS=1"))
 	c := d.NewClientT(t)
 
 	for _, tc := range []struct {
@@ -418,16 +418,16 @@ func TestGraphdriverPluginV2(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	d := daemon.New(t, daemon.WithExperimental())
+	d := daemon.New(t, daemon.WithExperimental(), daemon.WithEnvVars("DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS=1"))
 	d.Start(t)
 	defer d.Stop(t)
 
-	client := d.NewClientT(t)
-	defer client.Close()
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
 
 	// install the plugin
 	plugin := "cpuguy83/docker-overlay2-graphdriver-plugin"
-	responseReader, err := client.PluginInstall(ctx, plugin, types.PluginInstallOptions{
+	responseReader, err := apiClient.PluginInstall(ctx, plugin, types.PluginInstallOptions{
 		RemoteRef:            plugin,
 		AcceptAllPermissions: true,
 	})
@@ -441,7 +441,7 @@ func TestGraphdriverPluginV2(t *testing.T) {
 	d.Stop(t)
 	d.StartWithBusybox(ctx, t, "-s", plugin)
 
-	testGraphDriver(ctx, t, client, plugin, nil)
+	testGraphDriver(ctx, t, apiClient, plugin, nil)
 }
 
 func testGraphDriver(ctx context.Context, t *testing.T, c client.APIClient, driverName string, afterContainerRunFn func(*testing.T)) {
