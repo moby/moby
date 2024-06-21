@@ -251,7 +251,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	pluginStore := plugin.NewStore()
 
 	var apiServer apiserver.Server
-	cli.authzMiddleware, err = initMiddlewares(&apiServer, cli.Config, pluginStore)
+	cli.authzMiddleware, err = initMiddlewares(ctx, &apiServer, cli.Config, pluginStore)
 	if err != nil {
 		return errors.Wrap(err, "failed to start API server")
 	}
@@ -731,7 +731,7 @@ func (opts routerOptions) Build() []router.Router {
 	return routers
 }
 
-func initMiddlewares(s *apiserver.Server, cfg *config.Config, pluginStore plugingetter.PluginGetter) (*authorization.Middleware, error) {
+func initMiddlewares(ctx context.Context, s *apiserver.Server, cfg *config.Config, pluginStore plugingetter.PluginGetter) (*authorization.Middleware, error) {
 	exp := middleware.NewExperimentalMiddleware(cfg.Experimental)
 	s.UseMiddleware(exp)
 
@@ -742,7 +742,7 @@ func initMiddlewares(s *apiserver.Server, cfg *config.Config, pluginStore plugin
 	s.UseMiddleware(*vm)
 
 	if cfg.CorsHeaders != "" && os.Getenv("DOCKERD_DEPRECATED_CORS_HEADER") != "" {
-		logrus.Warnf(`DEPRECATED: The "api-cors-header" config parameter and the dockerd "--api-cors-header" option will be removed in the next release. Use a reverse proxy if you need CORS headers.`)
+		log.G(ctx).Warn(`DEPRECATED: The "api-cors-header" config parameter and the dockerd "--api-cors-header" option will be removed in the next release. Use a reverse proxy if you need CORS headers.`)
 		c := middleware.NewCORSMiddleware(cfg.CorsHeaders) //nolint:staticcheck // ignore SA1019 (NewCORSMiddleware is deprecated); will be removed in the next release.
 		s.UseMiddleware(c)
 	}
