@@ -21,14 +21,15 @@ import (
 	"errors"
 	"io"
 
+	"github.com/containerd/errdefs/errgrpc"
+	"github.com/containerd/typeurl/v2"
+
 	streamingapi "github.com/containerd/containerd/api/services/streaming/v1"
 	transferapi "github.com/containerd/containerd/api/services/transfer/v1"
 	"github.com/containerd/containerd/pkg/streaming"
 	"github.com/containerd/containerd/pkg/transfer"
 	"github.com/containerd/containerd/pkg/transfer/proxy"
 	"github.com/containerd/containerd/protobuf"
-	"github.com/containerd/errdefs"
-	"github.com/containerd/typeurl/v2"
 )
 
 func (c *Client) Transfer(ctx context.Context, src interface{}, dest interface{}, opts ...transfer.Opt) error {
@@ -66,7 +67,7 @@ func (sc *streamCreator) Create(ctx context.Context, id string) (streaming.Strea
 	err = stream.Send(protobuf.FromAny(a))
 	if err != nil {
 		if !errors.Is(err, io.EOF) {
-			err = errdefs.FromGRPC(err)
+			err = errgrpc.ToNative(err)
 		}
 		return nil, err
 	}
@@ -74,7 +75,7 @@ func (sc *streamCreator) Create(ctx context.Context, id string) (streaming.Strea
 	// Receive an ack that stream is init and ready
 	if _, err = stream.Recv(); err != nil {
 		if !errors.Is(err, io.EOF) {
-			err = errdefs.FromGRPC(err)
+			err = errgrpc.ToNative(err)
 		}
 		return nil, err
 	}
@@ -91,7 +92,7 @@ type clientStream struct {
 func (cs *clientStream) Send(a typeurl.Any) (err error) {
 	err = cs.s.Send(protobuf.FromAny(a))
 	if !errors.Is(err, io.EOF) {
-		err = errdefs.FromGRPC(err)
+		err = errgrpc.ToNative(err)
 	}
 	return
 }
@@ -99,7 +100,7 @@ func (cs *clientStream) Send(a typeurl.Any) (err error) {
 func (cs *clientStream) Recv() (a typeurl.Any, err error) {
 	a, err = cs.s.Recv()
 	if !errors.Is(err, io.EOF) {
-		err = errdefs.FromGRPC(err)
+		err = errgrpc.ToNative(err)
 	}
 	return
 }

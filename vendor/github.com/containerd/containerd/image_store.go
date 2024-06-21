@@ -19,16 +19,17 @@ package containerd
 import (
 	"context"
 
+	"github.com/containerd/errdefs/errgrpc"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	imagesapi "github.com/containerd/containerd/api/services/images/v1"
 	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/pkg/epoch"
 	"github.com/containerd/containerd/protobuf"
 	ptypes "github.com/containerd/containerd/protobuf/types"
-	"github.com/containerd/errdefs"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type remoteImages struct {
@@ -47,7 +48,7 @@ func (s *remoteImages) Get(ctx context.Context, name string) (images.Image, erro
 		Name: name,
 	})
 	if err != nil {
-		return images.Image{}, errdefs.FromGRPC(err)
+		return images.Image{}, errgrpc.ToNative(err)
 	}
 
 	return imageFromProto(resp.Image), nil
@@ -58,7 +59,7 @@ func (s *remoteImages) List(ctx context.Context, filters ...string) ([]images.Im
 		Filters: filters,
 	})
 	if err != nil {
-		return nil, errdefs.FromGRPC(err)
+		return nil, errgrpc.ToNative(err)
 	}
 
 	return imagesFromProto(resp.Images), nil
@@ -73,7 +74,7 @@ func (s *remoteImages) Create(ctx context.Context, image images.Image) (images.I
 	}
 	created, err := s.client.Create(ctx, req)
 	if err != nil {
-		return images.Image{}, errdefs.FromGRPC(err)
+		return images.Image{}, errgrpc.ToNative(err)
 	}
 
 	return imageFromProto(created.Image), nil
@@ -95,7 +96,7 @@ func (s *remoteImages) Update(ctx context.Context, image images.Image, fieldpath
 	}
 	updated, err := s.client.Update(ctx, req)
 	if err != nil {
-		return images.Image{}, errdefs.FromGRPC(err)
+		return images.Image{}, errgrpc.ToNative(err)
 	}
 
 	return imageFromProto(updated.Image), nil
@@ -113,7 +114,7 @@ func (s *remoteImages) Delete(ctx context.Context, name string, opts ...images.D
 		Sync: do.Synchronous,
 	})
 
-	return errdefs.FromGRPC(err)
+	return errgrpc.ToNative(err)
 }
 
 func imageToProto(image *images.Image) *imagesapi.Image {

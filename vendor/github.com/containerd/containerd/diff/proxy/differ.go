@@ -19,6 +19,11 @@ package proxy
 import (
 	"context"
 
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/containerd/errdefs/errgrpc"
+
 	diffapi "github.com/containerd/containerd/api/services/diff/v1"
 	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/diff"
@@ -26,9 +31,6 @@ import (
 	"github.com/containerd/containerd/pkg/epoch"
 	"github.com/containerd/containerd/protobuf"
 	ptypes "github.com/containerd/containerd/protobuf/types"
-	"github.com/containerd/errdefs"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -66,7 +68,7 @@ func (r *diffRemote) Apply(ctx context.Context, desc ocispec.Descriptor, mounts 
 	}
 	resp, err := r.client.Apply(ctx, req)
 	if err != nil {
-		return ocispec.Descriptor{}, errdefs.FromGRPC(err)
+		return ocispec.Descriptor{}, errgrpc.ToNative(err)
 	}
 	return toDescriptor(resp.Applied), nil
 }
@@ -95,7 +97,7 @@ func (r *diffRemote) Compare(ctx context.Context, a, b []mount.Mount, opts ...di
 	}
 	resp, err := r.client.Diff(ctx, req)
 	if err != nil {
-		return ocispec.Descriptor{}, errdefs.FromGRPC(err)
+		return ocispec.Descriptor{}, errgrpc.ToNative(err)
 	}
 	return toDescriptor(resp.Diff), nil
 }

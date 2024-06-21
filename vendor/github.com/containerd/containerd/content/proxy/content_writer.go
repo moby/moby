@@ -21,11 +21,12 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/containerd/errdefs/errgrpc"
+	digest "github.com/opencontainers/go-digest"
+
 	contentapi "github.com/containerd/containerd/api/services/content/v1"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/protobuf"
-	"github.com/containerd/errdefs"
-	digest "github.com/opencontainers/go-digest"
 )
 
 type remoteWriter struct {
@@ -58,7 +59,7 @@ func (rw *remoteWriter) Status() (content.Status, error) {
 		Action: contentapi.WriteAction_STAT,
 	})
 	if err != nil {
-		return content.Status{}, fmt.Errorf("error getting writer status: %w", errdefs.FromGRPC(err))
+		return content.Status{}, fmt.Errorf("error getting writer status: %w", errgrpc.ToNative(err))
 	}
 
 	return content.Status{
@@ -83,7 +84,7 @@ func (rw *remoteWriter) Write(p []byte) (n int, err error) {
 		Data:   p,
 	})
 	if err != nil {
-		return 0, fmt.Errorf("failed to send write: %w", errdefs.FromGRPC(err))
+		return 0, fmt.Errorf("failed to send write: %w", errgrpc.ToNative(err))
 	}
 
 	n = int(resp.Offset - offset)
@@ -120,7 +121,7 @@ func (rw *remoteWriter) Commit(ctx context.Context, size int64, expected digest.
 		Labels:   base.Labels,
 	})
 	if err != nil {
-		return fmt.Errorf("commit failed: %w", errdefs.FromGRPC(err))
+		return fmt.Errorf("commit failed: %w", errgrpc.ToNative(err))
 	}
 
 	if size != 0 && resp.Offset != size {

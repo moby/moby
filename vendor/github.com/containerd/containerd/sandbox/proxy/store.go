@@ -19,9 +19,10 @@ package proxy
 import (
 	"context"
 
+	"github.com/containerd/errdefs/errgrpc"
+
 	api "github.com/containerd/containerd/api/services/sandbox/v1"
 	sb "github.com/containerd/containerd/sandbox"
-	"github.com/containerd/errdefs"
 )
 
 // remoteSandboxStore is a low-level containerd client to manage sandbox environments metadata
@@ -41,7 +42,7 @@ func (s *remoteSandboxStore) Create(ctx context.Context, sandbox sb.Sandbox) (sb
 		Sandbox: sb.ToProto(&sandbox),
 	})
 	if err != nil {
-		return sb.Sandbox{}, errdefs.FromGRPC(err)
+		return sb.Sandbox{}, errgrpc.ToNative(err)
 	}
 
 	return sb.FromProto(resp.Sandbox), nil
@@ -53,7 +54,7 @@ func (s *remoteSandboxStore) Update(ctx context.Context, sandbox sb.Sandbox, fie
 		Fields:  fieldpaths,
 	})
 	if err != nil {
-		return sb.Sandbox{}, errdefs.FromGRPC(err)
+		return sb.Sandbox{}, errgrpc.ToNative(err)
 	}
 
 	return sb.FromProto(resp.Sandbox), nil
@@ -64,7 +65,7 @@ func (s *remoteSandboxStore) Get(ctx context.Context, id string) (sb.Sandbox, er
 		SandboxID: id,
 	})
 	if err != nil {
-		return sb.Sandbox{}, errdefs.FromGRPC(err)
+		return sb.Sandbox{}, errgrpc.ToNative(err)
 	}
 
 	return sb.FromProto(resp.Sandbox), nil
@@ -75,7 +76,7 @@ func (s *remoteSandboxStore) List(ctx context.Context, filters ...string) ([]sb.
 		Filters: filters,
 	})
 	if err != nil {
-		return nil, errdefs.FromGRPC(err)
+		return nil, errgrpc.ToNative(err)
 	}
 
 	out := make([]sb.Sandbox, len(resp.List))
@@ -91,5 +92,5 @@ func (s *remoteSandboxStore) Delete(ctx context.Context, id string) error {
 		SandboxID: id,
 	})
 
-	return errdefs.FromGRPC(err)
+	return errgrpc.ToNative(err)
 }
