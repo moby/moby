@@ -13,7 +13,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/pkg/errors"
 )
@@ -192,7 +192,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 					err = errors.New(string(line[0]))
 				}
 			}
-			return nil, errdefs.System(errors.Wrap(err, "ps"))
+			return nil, derrdefs.System(errors.Wrap(err, "ps"))
 		}
 	}
 	procList, err := parsePSOutput(output, procs)

@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
@@ -37,7 +37,7 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 
 	config, err := dockerfile.BuildFromConfig(ctx, &container.Config{}, changes, platform.OS)
 	if err != nil {
-		return "", errdefs.InvalidParameter(err)
+		return "", derrdefs.InvalidParameter(err)
 	}
 
 	inflatedLayerData, err := archive.DecompressStream(layerReader)

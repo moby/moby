@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	clientpkg "github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"

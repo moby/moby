@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,7 +21,7 @@ func TestContainerCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerCreate(context.Background(), nil, nil, nil, nil, "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInternal))
 
 	// 404 doesn't automatically means an unknown image
 	client = &Client{

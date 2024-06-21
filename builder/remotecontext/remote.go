@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"regexp"
 
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 )
@@ -48,10 +48,10 @@ func GetWithStatusError(address string) (resp *http.Response, err error) {
 	if resp, err = http.Get(address); err != nil {
 		if uerr, ok := err.(*url.Error); ok {
 			if derr, ok := uerr.Err.(*net.DNSError); ok && !derr.IsTimeout {
-				return nil, errdefs.NotFound(err)
+				return nil, derrdefs.NotFound(err)
 			}
 		}
-		return nil, errdefs.System(err)
+		return nil, derrdefs.System(err)
 	}
 	if resp.StatusCode < 400 {
 		return resp, nil
@@ -60,21 +60,21 @@ func GetWithStatusError(address string) (resp *http.Response, err error) {
 	body, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		return nil, errdefs.System(errors.New(msg + ": error reading body"))
+		return nil, derrdefs.System(errors.New(msg + ": error reading body"))
 	}
 
 	msg += ": " + string(bytes.TrimSpace(body))
 	switch resp.StatusCode {
 	case http.StatusNotFound:
-		return nil, errdefs.NotFound(errors.New(msg))
+		return nil, derrdefs.NotFound(errors.New(msg))
 	case http.StatusBadRequest:
-		return nil, errdefs.InvalidParameter(errors.New(msg))
+		return nil, derrdefs.InvalidParameter(errors.New(msg))
 	case http.StatusUnauthorized:
-		return nil, errdefs.Unauthorized(errors.New(msg))
+		return nil, derrdefs.Unauthorized(errors.New(msg))
 	case http.StatusForbidden:
-		return nil, errdefs.Forbidden(errors.New(msg))
+		return nil, derrdefs.Forbidden(errors.New(msg))
 	}
-	return nil, errdefs.Unknown(errors.New(msg))
+	return nil, derrdefs.Unknown(errors.New(msg))
 }
 
 // inspectResponse looks into the http response data at r to determine whether its

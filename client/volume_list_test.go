@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -23,7 +23,7 @@ func TestVolumeListError(t *testing.T) {
 	}
 
 	_, err := client.VolumeList(context.Background(), volume.ListOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInternal))
 }
 
 func TestVolumeList(t *testing.T) {

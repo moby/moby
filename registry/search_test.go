@@ -8,10 +8,10 @@ import (
 	"net/http/httputil"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 )
 
@@ -152,7 +152,7 @@ func TestSearchErrors(t *testing.T) {
 				assert.Check(t, errdefs.IsUnknown(err), "got: %T: %v", err, err)
 				return
 			}
-			assert.Check(t, errdefs.IsInvalidParameter(err), "got: %T: %v", err, err)
+			assert.Check(t, errdefs.IsInvalidArgument(err), "got: %T: %v", err, err)
 		})
 	}
 }

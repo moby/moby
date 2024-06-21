@@ -7,7 +7,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	v2 "github.com/docker/docker/plugin/v2"
@@ -169,7 +169,7 @@ func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlug
 	if errors.Is(err, plugins.ErrNotFound) {
 		return nil, errNotFound(name)
 	}
-	return nil, errors.Wrap(errdefs.System(err), "legacy plugin")
+	return nil, errors.Wrap(derrdefs.System(err), "legacy plugin")
 }
 
 // GetAllManagedPluginsByCap returns a list of managed plugins matching the given capability.
@@ -196,7 +196,7 @@ func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, er
 		l := plugins.NewLocalRegistry()
 		pl, err := l.GetAll(capability)
 		if err != nil {
-			return nil, errors.Wrap(errdefs.System(err), "legacy plugin")
+			return nil, errors.Wrap(derrdefs.System(err), "legacy plugin")
 		}
 		for _, p := range pl {
 			result = append(result, p)

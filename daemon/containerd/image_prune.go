@@ -2,15 +2,15 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	containerdimages "github.com/containerd/containerd/images"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
 	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -26,7 +26,7 @@ var imagesAcceptedFilters = map[string]bool{
 
 // errPruneRunning is returned when a prune request is received while
 // one is in progress
-var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
+var errPruneRunning = fmt.Errorf("a prune operation is already running: %w", errdefs.ErrConflict)
 
 // ImagesPrune removes unused images
 func (i *ImageService) ImagesPrune(ctx context.Context, fltrs filters.Args) (*image.PruneReport, error) {
@@ -170,7 +170,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 			continue
 		}
 		err = i.images.Delete(ctx, img.Name, containerdimages.SynchronousDelete())
-		if err != nil && !cerrdefs.IsNotFound(err) {
+		if err != nil && !errdefs.IsNotFound(err) {
 			errs = multierror.Append(errs, err)
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return &report, errs
@@ -188,7 +188,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 		for _, blob := range blobs {
 			_, err := i.content.ReaderAt(ctx, blob)
 
-			if cerrdefs.IsNotFound(err) {
+			if errdefs.IsNotFound(err) {
 				report.ImagesDeleted = append(report.ImagesDeleted,
 					image.DeleteResponse{
 						Deleted: blob.Digest.String(),
@@ -233,7 +233,7 @@ func (i *ImageService) unleaseSnapshotsFromDeletedConfigs(ctx context.Context, p
 	for cfgDigest := range possiblyDeletedConfigs {
 		info, err := i.content.Info(ctx, cfgDigest)
 		if err != nil {
-			if cerrdefs.IsNotFound(err) {
+			if errdefs.IsNotFound(err) {
 				log.G(ctx).WithField("config", cfgDigest).Debug("config already gone")
 			} else {
 				errs = multierror.Append(errs, err)

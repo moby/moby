@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
@@ -90,7 +90,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 				// we really want to avoid that the client must
 				// explicitly force its removal.
 				err := errors.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(ctr.ID), stringid.TruncateID(imgID.String()))
-				return nil, errdefs.Conflict(err)
+				return nil, derrdefs.Conflict(err)
 			}
 		}
 

@@ -38,8 +38,8 @@ linters-settings:
     alias:
       # Enforce alias to prevent it accidentally being used instead of our
       # own errdefs package (or vice-versa).
-      - pkg: github.com/containerd/errdefs
-        alias: cerrdefs
+      - pkg: github.com/docker/docker/errdefs
+        alias: derrdefs
       - pkg: github.com/opencontainers/image-spec/specs-go/v1
         alias: ocispec
 

@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/pkg/errors"
 )
@@ -19,7 +19,7 @@ import (
 // reserved.
 func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 	if oldName == "" || newName == "" {
-		return errdefs.InvalidParameter(errors.New("Neither old nor new names may be empty"))
+		return derrdefs.InvalidParameter(errors.New("Neither old nor new names may be empty"))
 	}
 
 	ctr, err := daemon.GetContainer(oldName)
@@ -34,13 +34,13 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 		newName = "/" + newName
 	}
 	if ctr.Name == newName {
-		return errdefs.InvalidParameter(errors.New("Renaming a container with the same name as its current name"))
+		return derrdefs.InvalidParameter(errors.New("Renaming a container with the same name as its current name"))
 	}
 
 	links := map[string]*container.Container{}
 	for k, v := range daemon.linkIndex.children(ctr) {
 		if !strings.HasPrefix(k, ctr.Name) {
-			return errdefs.InvalidParameter(errors.Errorf("Linked container %s does not match parent %s", k, ctr.Name))
+			return derrdefs.InvalidParameter(errors.Errorf("Linked container %s does not match parent %s", k, ctr.Name))
 		}
 		links[strings.TrimPrefix(k, ctr.Name)] = v
 	}

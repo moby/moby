@@ -5,7 +5,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/status"
 )
@@ -42,7 +42,7 @@ func (e objNotFoundError) NotFound() {}
 
 func errContainerIsRestarting(containerID string) error {
 	cause := errors.Errorf("Container %s is restarting, wait until the container is running", containerID)
-	return errdefs.Conflict(cause)
+	return derrdefs.Conflict(cause)
 }
 
 func errExecNotFound(id string) error {
@@ -51,12 +51,12 @@ func errExecNotFound(id string) error {
 
 func errExecPaused(id string) error {
 	cause := errors.Errorf("Container %s is paused, unpause the container before exec", id)
-	return errdefs.Conflict(cause)
+	return derrdefs.Conflict(cause)
 }
 
 func errNotPaused(id string) error {
 	cause := errors.Errorf("Container %s is already paused", id)
-	return errdefs.Conflict(cause)
+	return derrdefs.Conflict(cause)
 }
 
 type nameConflictError struct {
@@ -171,7 +171,7 @@ func setExitCodeFromError(setExitCode func(exitStatus), err error) error {
 
 	// TODO: it would be nice to get some better errors from containerd so we can return better errors here
 	setExitCode(exitUnknown)
-	return errdefs.Unknown(errors.New(errDesc))
+	return derrdefs.Unknown(errors.New(errDesc))
 }
 
 // isInvalidCommand tries to detect if the reason the container failed to start

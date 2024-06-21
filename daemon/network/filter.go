@@ -3,7 +3,7 @@ package network // import "github.com/docker/docker/daemon/network"
 import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -53,7 +53,7 @@ func FilterNetworks(nws []network.Inspect, filter filters.Args) ([]network.Inspe
 
 	if values := filter.Get("dangling"); len(values) > 0 {
 		if len(values) > 1 {
-			return nil, errdefs.InvalidParameter(errors.New(`got more than one value for filter key "dangling"`))
+			return nil, derrdefs.InvalidParameter(errors.New(`got more than one value for filter key "dangling"`))
 		}
 
 		var danglingOnly bool
@@ -63,7 +63,7 @@ func FilterNetworks(nws []network.Inspect, filter filters.Args) ([]network.Inspe
 		case "1", "true":
 			danglingOnly = true
 		default:
-			return nil, errdefs.InvalidParameter(errors.New(`invalid value for filter 'dangling', must be "true" (or "1"), or "false" (or "0")`))
+			return nil, derrdefs.InvalidParameter(errors.New(`invalid value for filter 'dangling', must be "true" (or "1"), or "false" (or "0")`))
 		}
 
 		displayNet = filterNetworkByUse(displayNet, danglingOnly)

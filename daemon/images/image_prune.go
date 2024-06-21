@@ -7,13 +7,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
 	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
@@ -29,7 +30,7 @@ var imagesAcceptedFilters = map[string]bool{
 
 // errPruneRunning is returned when a prune request is received while
 // one is in progress
-var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
+var errPruneRunning = derrdefs.Conflict(errors.New("a prune operation is already running"))
 
 // ImagesPrune removes unused images
 func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*imagetypes.PruneReport, error) {

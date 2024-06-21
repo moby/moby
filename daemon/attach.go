@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/moby/term"
 	"github.com/pkg/errors"
@@ -24,7 +24,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, req *backend.Containe
 	if req.DetachKeys != "" {
 		keys, err = term.ToBytes(req.DetachKeys)
 		if err != nil {
-			return errdefs.InvalidParameter(errors.Errorf("Invalid detach keys (%s) provided", req.DetachKeys))
+			return derrdefs.InvalidParameter(errors.Errorf("Invalid detach keys (%s) provided", req.DetachKeys))
 		}
 	}
 
@@ -34,11 +34,11 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, req *backend.Containe
 	}
 	if ctr.IsPaused() {
 		err := fmt.Errorf("container %s is paused, unpause the container before attach", prefixOrName)
-		return errdefs.Conflict(err)
+		return derrdefs.Conflict(err)
 	}
 	if ctr.IsRestarting() {
 		err := fmt.Errorf("container %s is restarting, wait until the container is running", prefixOrName)
-		return errdefs.Conflict(err)
+		return derrdefs.Conflict(err)
 	}
 
 	cfg := stream.AttachConfig{

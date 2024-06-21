@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -24,7 +24,7 @@ func TestImageInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.ImageInspectWithRaw(context.Background(), "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInternal))
 }
 
 func TestImageInspectImageNotFound(t *testing.T) {

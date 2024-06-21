@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
@@ -218,7 +218,7 @@ func TestSecretsUpdate(t *testing.T) {
 	// this test will produce an error in func UpdateSecret
 	insp.Spec.Data = []byte("TESTINGDATA2")
 	err = c.SecretUpdate(ctx, secretID, insp.Version, insp.Spec)
-	assert.Check(t, errdefs.IsInvalidParameter(err))
+	assert.Check(t, errdefs.IsInvalidArgument(err))
 	assert.Check(t, is.ErrorContains(err, "only updates to Labels are allowed"))
 }
 

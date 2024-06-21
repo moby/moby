@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/errdefs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -27,7 +26,7 @@ func FromError(err error) int {
 	switch {
 	case errdefs.IsNotFound(err):
 		return http.StatusNotFound
-	case errdefs.IsInvalidParameter(err):
+	case errdefs.IsInvalidArgument(err):
 		return http.StatusBadRequest
 	case errdefs.IsConflict(err):
 		return http.StatusConflict
@@ -35,13 +34,13 @@ func FromError(err error) int {
 		return http.StatusUnauthorized
 	case errdefs.IsUnavailable(err):
 		return http.StatusServiceUnavailable
-	case errdefs.IsForbidden(err):
+	case errdefs.IsPermissionDenied(err):
 		return http.StatusForbidden
 	case errdefs.IsNotModified(err):
 		return http.StatusNotModified
 	case errdefs.IsNotImplemented(err):
 		return http.StatusNotImplemented
-	case errdefs.IsSystem(err) || errdefs.IsUnknown(err) || errdefs.IsDataLoss(err) || errdefs.IsDeadline(err) || errdefs.IsCancelled(err):
+	case errdefs.IsInternal(err) || errdefs.IsUnknown(err) || errdefs.IsDataLoss(err) || errdefs.IsDeadlineExceeded(err) || errdefs.IsCanceled(err):
 		return http.StatusInternalServerError
 	default:
 		if statusCode := statusCodeFromGRPCError(err); statusCode != http.StatusInternalServerError {
@@ -128,17 +127,17 @@ func statusCodeFromDistributionError(err error) int {
 // consumed directly (not through gRPC)
 func statusCodeFromContainerdError(err error) int {
 	switch {
-	case cerrdefs.IsInvalidArgument(err):
+	case errdefs.IsInvalidArgument(err):
 		return http.StatusBadRequest
-	case cerrdefs.IsNotFound(err):
+	case errdefs.IsNotFound(err):
 		return http.StatusNotFound
-	case cerrdefs.IsAlreadyExists(err):
+	case errdefs.IsAlreadyExists(err):
 		return http.StatusConflict
-	case cerrdefs.IsFailedPrecondition(err):
+	case errdefs.IsFailedPrecondition(err):
 		return http.StatusPreconditionFailed
-	case cerrdefs.IsUnavailable(err):
+	case errdefs.IsUnavailable(err):
 		return http.StatusServiceUnavailable
-	case cerrdefs.IsNotImplemented(err):
+	case errdefs.IsNotImplemented(err):
 		return http.StatusNotImplemented
 	default:
 		return http.StatusInternalServerError

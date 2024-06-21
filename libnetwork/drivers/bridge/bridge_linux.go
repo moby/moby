@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
@@ -213,7 +213,7 @@ func ValidateFixedCIDRV6(val string) error {
 	if err == nil {
 		err = validateIPv6Subnet(prefix)
 	}
-	return errdefs.InvalidParameter(errors.Wrap(err, "invalid fixed-cidr-v6"))
+	return derrdefs.InvalidParameter(errors.Wrap(err, "invalid fixed-cidr-v6"))
 }
 
 // Validate performs a static validation on the network configuration parameters.
@@ -236,15 +236,15 @@ func (c *networkConfiguration) Validate() error {
 	if c.EnableIPv6 {
 		// If IPv6 is enabled, AddressIPv6 must have been configured.
 		if c.AddressIPv6 == nil {
-			return errdefs.System(errors.New("no IPv6 address was allocated for the bridge"))
+			return derrdefs.System(errors.New("no IPv6 address was allocated for the bridge"))
 		}
 		// AddressIPv6 must be IPv6, and not overlap with the LL subnet prefix.
 		addr, ok := netiputil.ToPrefix(c.AddressIPv6)
 		if !ok {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid IPv6 address '%s'", c.AddressIPv6))
+			return derrdefs.InvalidParameter(fmt.Errorf("invalid IPv6 address '%s'", c.AddressIPv6))
 		}
 		if err := validateIPv6Subnet(addr); err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 		// If a default gw is specified, it must belong to AddressIPv6's subnet
 		if c.DefaultGatewayIPv6 != nil && !c.AddressIPv6.Contains(c.DefaultGatewayIPv6) {

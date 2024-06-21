@@ -11,7 +11,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	volumemounts "github.com/docker/docker/volume/mounts"
@@ -123,7 +123,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 			return err
 		}
 		if !stat.IsDir() {
-			return errdefs.InvalidParameter(errors.New("extraction point is not a directory"))
+			return derrdefs.InvalidParameter(errors.New("extraction point is not a directory"))
 		}
 
 		// Need to check if the path is in a volume. If it is, it cannot be in a
@@ -135,7 +135,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		}
 
 		if !toVolume && container.HostConfig.ReadonlyRootfs {
-			return errdefs.InvalidParameter(errors.New("container rootfs is marked read-only"))
+			return derrdefs.InvalidParameter(errors.New("container rootfs is marked read-only"))
 		}
 
 		options := daemon.defaultTarCopyOptions(noOverwriteDirNonDir)
@@ -172,7 +172,7 @@ func checkIfPathIsInAVolume(container *container.Container, absPath string) (boo
 			if mnt.RW {
 				break
 			}
-			return false, errdefs.InvalidParameter(errors.New("mounted volume is marked read-only"))
+			return false, derrdefs.InvalidParameter(errors.New("mounted volume is marked read-only"))
 		}
 	}
 	return toVolume, nil

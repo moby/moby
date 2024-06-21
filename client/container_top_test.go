@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +22,7 @@ func TestContainerTopError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerTop(context.Background(), "nothing", []string{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInternal))
 }
 
 func TestContainerTop(t *testing.T) {

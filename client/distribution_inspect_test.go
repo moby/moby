@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

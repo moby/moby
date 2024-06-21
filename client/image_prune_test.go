@@ -10,10 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
-
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -25,7 +24,7 @@ func TestImagesPruneError(t *testing.T) {
 	}
 
 	_, err := client.ImagesPrune(context.Background(), filters.NewArgs())
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInternal))
 }
 
 func TestImagesPrune(t *testing.T) {

@@ -14,12 +14,12 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/process"
 	"github.com/docker/docker/pkg/stdcopy"

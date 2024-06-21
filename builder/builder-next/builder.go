@@ -22,7 +22,7 @@ import (
 	"github.com/docker/docker/builder/builder-next/exporter/overrides"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/idtools"
@@ -328,7 +328,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		// TODO: remove once opt.Options.Platform is of type specs.Platform
 		_, err := platforms.Parse(opt.Options.Platform)
 		if err != nil {
-			return nil, errdefs.InvalidParameter(err)
+			return nil, derrdefs.InvalidParameter(err)
 		}
 		frontendAttrs["platform"] = opt.Options.Platform
 	}

@@ -4,13 +4,13 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 )
 
 func (sr *sessionRouter) startSession(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	err := sr.backend.HandleHTTPRequest(ctx, w, r)
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 	return nil
 }

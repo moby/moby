@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
@@ -106,7 +106,7 @@ func TestStopContainerWithTimeoutCancel(t *testing.T) {
 
 	select {
 	case stoppedErr := <-stoppedCh:
-		assert.Check(t, is.ErrorType(stoppedErr, errdefs.IsCancelled))
+		assert.Check(t, is.ErrorType(stoppedErr, errdefs.IsCanceled))
 	case <-time.After(5 * time.Second):
 		t.Fatal("timeout waiting for stop request to be cancelled")
 	}

@@ -1,8 +1,8 @@
 package quota // import "github.com/docker/docker/quota"
 
-import "github.com/docker/docker/errdefs"
+import derrdefs "github.com/docker/docker/errdefs"
 
-var _ errdefs.ErrNotImplemented = (*errQuotaNotSupported)(nil)
+var _ derrdefs.ErrNotImplemented = (*errQuotaNotSupported)(nil)
 
 // ErrQuotaNotSupported indicates if were found the FS didn't have projects quotas available
 var ErrQuotaNotSupported = errQuotaNotSupported{}

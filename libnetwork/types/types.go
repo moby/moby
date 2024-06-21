@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/ishidawataru/sctp"
 )
 
@@ -428,7 +428,7 @@ type InternalError interface {
 
 // InvalidParameterErrorf creates an instance of InvalidParameterError
 func InvalidParameterErrorf(format string, params ...interface{}) error {
-	return errdefs.InvalidParameter(fmt.Errorf(format, params...))
+	return derrdefs.InvalidParameter(fmt.Errorf(format, params...))
 }
 
 // NotFoundErrorf creates an instance of NotFoundError

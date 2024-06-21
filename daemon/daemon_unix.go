@@ -19,6 +19,7 @@ import (
 
 	"github.com/containerd/cgroups/v3"
 	"github.com/containerd/containerd/pkg/userns"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
@@ -27,7 +28,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/initlayer"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/remote"
 	"github.com/docker/docker/libnetwork"
 	nwconfig "github.com/docker/docker/libnetwork/config"
@@ -1006,7 +1007,7 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 	)
 
 	if cfg.EnableIPv6 && cfg.FixedCIDRv6 == "" {
-		return errdefs.InvalidParameter(errors.New("IPv6 is enabled for the default bridge, but no subnet is configured. Specify an IPv6 subnet using --fixed-cidr-v6"))
+		return derrdefs.InvalidParameter(errors.New("IPv6 is enabled for the default bridge, but no subnet is configured. Specify an IPv6 subnet using --fixed-cidr-v6"))
 	} else if cfg.FixedCIDRv6 != "" {
 		_, fCIDRv6, err := net.ParseCIDR(cfg.FixedCIDRv6)
 		if err != nil {
@@ -1356,7 +1357,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 				// should return an "invalid parameter" error. Returning a "not
 				// found" error here would make the client report the container's
 				// image could not be found (see moby/moby#39823)
-				err = errdefs.InvalidParameter(err)
+				err = derrdefs.InvalidParameter(err)
 			}
 			return errors.Wrapf(err, "could not get container for %s", name)
 		}
@@ -1369,7 +1370,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 					// should return an "invalid parameter" error. Returning a "not
 					// found" error here would make the client report the container's
 					// image could not be found (see moby/moby#39823)
-					err = errdefs.InvalidParameter(err)
+					err = derrdefs.InvalidParameter(err)
 				}
 				return errors.Wrapf(err, "could not get container for %s", cid)
 			}

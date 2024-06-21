@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/types"
 )
 

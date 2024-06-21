@@ -3,22 +3,23 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
-	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/errdefs"
+	"github.com/containerd/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/attestation"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
 var (
-	errNotManifestOrIndex = errdefs.InvalidParameter(errors.New("descriptor is neither a manifest or index"))
-	errNotManifest        = errdefs.InvalidParameter(errors.New("descriptor isn't a manifest"))
+	errNotManifestOrIndex = fmt.Errorf("descriptor is neither a manifest or index: %w", errdefs.ErrInvalidArgument)
+	errNotManifest        = fmt.Errorf("descriptor isn't a manifest: %w", errdefs.ErrInvalidArgument)
 )
 
 // walkImageManifests calls the handler for each locally present manifest in
@@ -79,7 +80,7 @@ func (i *ImageService) walkReachableImageManifests(ctx context.Context, img cont
 
 				descs, err := containerdimages.Children(ctx, i.content, desc)
 				if err != nil {
-					if cerrdefs.IsNotFound(err) {
+					if errdefs.IsNotFound(err) {
 						return nil, nil
 					}
 					return nil, err
@@ -155,8 +156,8 @@ func (im *ImageManifest) IsPseudoImage(ctx context.Context) (bool, error) {
 
 	mfst, err := im.Manifest(ctx)
 	if err != nil {
-		if cerrdefs.IsNotFound(err) {
-			return false, errdefs.NotFound(errors.Wrapf(err, "failed to read manifest %v", im.Target().Digest))
+		if errdefs.IsNotFound(err) {
+			return false, derrdefs.NotFound(errors.Wrapf(err, "failed to read manifest %v", im.Target().Digest))
 		}
 		return true, err
 	}

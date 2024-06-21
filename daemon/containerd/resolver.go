@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/version"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
@@ -109,7 +109,7 @@ func (a *bearerAuthorizer) Authorize(ctx context.Context, req *http.Request) err
 
 func (a *bearerAuthorizer) AddResponses(context.Context, []*http.Response) error {
 	// Return not implemented to prevent retry of the request when bearer did not succeed
-	return cerrdefs.ErrNotImplemented
+	return errdefs.ErrNotImplemented
 }
 
 type httpFallback struct {

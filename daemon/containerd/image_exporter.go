@@ -12,13 +12,13 @@ import (
 	"github.com/containerd/containerd/images/archive"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	dockerarchive "github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/streamformatter"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -70,7 +70,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 	leasesManager := i.client.LeasesService()
 	lease, err := leasesManager.Create(ctx, leases.WithRandomID())
 	if err != nil {
-		return errdefs.System(err)
+		return derrdefs.System(err)
 	}
 	defer func() {
 		if err := leasesManager.Delete(ctx, lease); err != nil {
@@ -122,7 +122,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 	exportRepository := func(ctx context.Context, ref reference.Named) error {
 		imgs, err := i.getAllImagesWithRepository(ctx, ref)
 		if err != nil {
-			return errdefs.System(fmt.Errorf("failed to list all images from repository %s: %w", ref.Name(), err))
+			return derrdefs.System(fmt.Errorf("failed to list all images from repository %s: %w", ref.Name(), err))
 		}
 
 		if len(imgs) == 0 {
@@ -211,10 +211,10 @@ func leaseContent(ctx context.Context, store content.Store, leasesManager leases
 	return containerdimages.Walk(ctx, containerdimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		_, err := store.Info(ctx, desc.Digest)
 		if err != nil {
-			if errors.Is(err, cerrdefs.ErrNotFound) {
+			if errors.Is(err, errdefs.ErrNotFound) {
 				return nil, nil
 			}
-			return nil, errdefs.System(err)
+			return nil, derrdefs.System(err)
 		}
 
 		r := leases.Resource{
@@ -222,7 +222,7 @@ func leaseContent(ctx context.Context, store content.Store, leasesManager leases
 			Type: "content",
 		}
 		if err := leasesManager.AddResource(ctx, lease, r); err != nil {
-			return nil, errdefs.System(err)
+			return nil, derrdefs.System(err)
 		}
 
 		return containerdimages.Children(ctx, store, desc)
@@ -260,7 +260,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 	imgs, err := i.client.Import(ctx, decompressed, opts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Debug("failed to import image to containerd")
-		return errdefs.System(err)
+		return derrdefs.System(err)
 	}
 
 	progress := streamformatter.NewStdoutWriter(outStream)
@@ -301,7 +301,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 				err = platformImg.Unpack(ctx, i.snapshotter)
 
 				if err != nil {
-					return errdefs.System(err)
+					return derrdefs.System(err)
 				}
 			}
 			logger.WithField("alreadyUnpacked", unpacked).WithError(err).Debug("unpack")

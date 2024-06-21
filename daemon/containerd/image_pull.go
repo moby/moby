@@ -13,14 +13,14 @@ import (
 	"github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes/docker"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/distribution"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -182,7 +182,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 			if strings.Contains(err.Error(), "no basic auth credentials") {
 				return err
 			}
-			return errdefs.NotFound(fmt.Errorf("pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(ref)))
+			return derrdefs.NotFound(fmt.Errorf("pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(ref)))
 		}
 		return err
 	}
@@ -195,7 +195,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 
 	// The pull succeeded, so try to remove any dangling image we have for this target
 	err = i.images.Delete(context.WithoutCancel(ctx), danglingImageName(img.Target().Digest))
-	if err != nil && !cerrdefs.IsNotFound(err) {
+	if err != nil && !errdefs.IsNotFound(err) {
 		// Image pull succeeded, but cleaning up the dangling image failed. Ignore the
 		// error to not mark the pull as failed.
 		logger.WithError(err).Warn("unexpected error while removing outdated dangling image reference")

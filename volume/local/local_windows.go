@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -18,7 +18,7 @@ func (r *Root) validateOpts(opts map[string]string) error {
 	if len(opts) == 0 {
 		return nil
 	}
-	return errdefs.InvalidParameter(errors.New("options are not supported on this platform"))
+	return derrdefs.InvalidParameter(errors.New("options are not supported on this platform"))
 }
 
 func (v *localVolume) setOpts(opts map[string]string) error {

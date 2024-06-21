@@ -20,7 +20,7 @@ import (
 	"github.com/containerd/containerd/runtime/v2/shim"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/shimopts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/system"
@@ -218,7 +218,7 @@ func (r *runtimes) Get(name string) (string, interface{}, error) {
 	}
 
 	if !isPermissibleC8dRuntimeName(name) {
-		return "", nil, errdefs.InvalidParameter(errors.Errorf("unknown or invalid runtime name: %s", name))
+		return "", nil, derrdefs.InvalidParameter(errors.Errorf("unknown or invalid runtime name: %s", name))
 	}
 	return name, nil, nil
 }

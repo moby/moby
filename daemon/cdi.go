@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/hashicorp/go-multierror"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -71,10 +71,10 @@ func createCDICache(cdiSpecDirs ...string) (*cdi.Cache, error) {
 // injectCDIDevices injects a set of CDI devices into the specified OCI specification.
 func (c *cdiHandler) injectCDIDevices(s *specs.Spec, dev *deviceInstance) error {
 	if dev.req.Count != 0 {
-		return errdefs.InvalidParameter(errors.New("unexpected count in CDI device request"))
+		return derrdefs.InvalidParameter(errors.New("unexpected count in CDI device request"))
 	}
 	if len(dev.req.Options) > 0 {
-		return errdefs.InvalidParameter(errors.New("unexpected options in CDI device request"))
+		return derrdefs.InvalidParameter(errors.New("unexpected options in CDI device request"))
 	}
 
 	cdiDeviceNames := dev.req.DeviceIDs

@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -91,7 +91,7 @@ func TestPlainTextError(t *testing.T) {
 		client: newMockClient(plainTextErrorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerList(context.Background(), container.ListOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInternal))
 }
 
 func TestInfiniteError(t *testing.T) {
@@ -125,7 +125,7 @@ func TestCanceledContext(t *testing.T) {
 	cancel()
 
 	_, err := client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
-	assert.Check(t, is.ErrorType(err, errdefs.IsCancelled))
+	assert.Check(t, is.ErrorType(err, errdefs.IsCanceled))
 	assert.Check(t, errors.Is(err, context.Canceled))
 }
 
@@ -145,6 +145,6 @@ func TestDeadlineExceededContext(t *testing.T) {
 	<-ctx.Done()
 
 	_, err := client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
-	assert.Check(t, is.ErrorType(err, errdefs.IsDeadline))
+	assert.Check(t, is.ErrorType(err, errdefs.IsDeadlineExceeded))
 	assert.Check(t, errors.Is(err, context.DeadlineExceeded))
 }

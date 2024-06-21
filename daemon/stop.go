@@ -8,7 +8,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/moby/sys/signal"
 	"github.com/pkg/errors"
 )
@@ -32,11 +32,11 @@ func (daemon *Daemon) ContainerStop(ctx context.Context, name string, options co
 		// already in the desired state. It's implemented as an error
 		// to make the code calling this function terminate early (as
 		// no further processing is needed).
-		return errdefs.NotModified(errors.New("container is already stopped"))
+		return derrdefs.NotModified(errors.New("container is already stopped"))
 	}
 	err = daemon.containerStop(ctx, ctr, options)
 	if err != nil {
-		return errdefs.System(errors.Wrapf(err, "cannot stop container: %s", name))
+		return derrdefs.System(errors.Wrapf(err, "cannot stop container: %s", name))
 	}
 	return nil
 }
@@ -59,7 +59,7 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 	if options.Signal != "" {
 		sig, err := signal.ParseSignal(options.Signal)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 		stopSignal = sig
 	}

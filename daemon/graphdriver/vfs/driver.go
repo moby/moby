@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
@@ -102,24 +102,24 @@ func (d *Driver) parseOptions(options []string) error {
 	for _, option := range options {
 		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 		switch key {
 		case "size":
 			size, err := units.RAMInBytes(val)
 			if err != nil {
-				return errdefs.InvalidParameter(err)
+				return derrdefs.InvalidParameter(err)
 			}
 			if err = d.setQuotaOpt(uint64(size)); err != nil {
-				return errdefs.InvalidParameter(errors.Wrap(err, "failed to set option size for vfs"))
+				return derrdefs.InvalidParameter(errors.Wrap(err, "failed to set option size for vfs"))
 			}
 		case xattrsStorageOpt:
 			if val != bestEffortXattrsOptValue {
-				return errdefs.InvalidParameter(errors.Errorf("do not set the " + xattrsStorageOpt + " option unless you are willing to accept the consequences"))
+				return derrdefs.InvalidParameter(errors.Errorf("do not set the " + xattrsStorageOpt + " option unless you are willing to accept the consequences"))
 			}
 			d.bestEffortXattrs = true
 		default:
-			return errdefs.InvalidParameter(errors.Errorf("unknown option %s for vfs", key))
+			return derrdefs.InvalidParameter(errors.Errorf("unknown option %s for vfs", key))
 		}
 	}
 	return nil
@@ -139,11 +139,11 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 				}
 				size, err := units.RAMInBytes(val)
 				if err != nil {
-					return errdefs.InvalidParameter(err)
+					return derrdefs.InvalidParameter(err)
 				}
 				quotaSize = uint64(size)
 			default:
-				return errdefs.InvalidParameter(errors.Errorf("Storage opt %s not supported", key))
+				return derrdefs.InvalidParameter(errors.Errorf("Storage opt %s not supported", key))
 			}
 		}
 	}

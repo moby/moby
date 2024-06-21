@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/logger"
 	logcache "github.com/docker/docker/daemon/logger/loggerutils/cache"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -31,7 +31,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	})
 
 	if !(config.ShowStdout || config.ShowStderr) {
-		return nil, false, errdefs.InvalidParameter(errors.New("You must choose at least one stream"))
+		return nil, false, derrdefs.InvalidParameter(errors.New("You must choose at least one stream"))
 	}
 	ctr, err := daemon.GetContainer(containerName)
 	if err != nil {
@@ -39,7 +39,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	}
 
 	if ctr.RemovalInProgress || ctr.Dead {
-		return nil, false, errdefs.Conflict(errors.New("can not get logs from container which is dead or marked for removal"))
+		return nil, false, derrdefs.Conflict(errors.New("can not get logs from container which is dead or marked for removal"))
 	}
 
 	if ctr.HostConfig.LogConfig.Type == "none" {

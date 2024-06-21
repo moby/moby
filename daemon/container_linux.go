@@ -4,7 +4,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 )
 
 func (daemon *Daemon) saveAppArmorConfig(container *container.Container) error {
@@ -15,7 +15,7 @@ func (daemon *Daemon) saveAppArmorConfig(container *container.Container) error {
 	}
 
 	if err := parseSecurityOpt(&container.SecurityOptions, container.HostConfig); err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 
 	if container.HostConfig.Privileged {

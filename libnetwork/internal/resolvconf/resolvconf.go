@@ -31,7 +31,7 @@ import (
 	"text/template"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -120,7 +120,7 @@ func Parse(reader io.Reader, path string) (ResolvConf, error) {
 		rc.processLine(scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
-		return ResolvConf{}, errdefs.System(err)
+		return ResolvConf{}, derrdefs.System(err)
 	}
 	if _, ok := rc.Option("ndots"); ok {
 		rc.md.NDotsFrom = "host"
@@ -362,10 +362,10 @@ options {{join . " "}}
 	var buf bytes.Buffer
 	templ, err := template.New("summary").Funcs(funcs).Parse(templateText)
 	if err != nil {
-		return nil, errdefs.System(err)
+		return nil, derrdefs.System(err)
 	}
 	if err := templ.Execute(&buf, s); err != nil {
-		return nil, errdefs.System(err)
+		return nil, derrdefs.System(err)
 	}
 	return buf.Bytes(), nil
 }
@@ -382,14 +382,14 @@ func (rc *ResolvConf) WriteFile(path, hashPath string, perm os.FileMode) error {
 	// Write the resolv.conf file - it's bind-mounted into the container, so can't
 	// move a temp file into place, just have to truncate and write it.
 	if err := os.WriteFile(path, content, perm); err != nil {
-		return errdefs.System(err)
+		return derrdefs.System(err)
 	}
 
 	// Write the hash file.
 	if hashPath != "" {
 		hashFile, err := ioutils.NewAtomicFileWriter(hashPath, perm)
 		if err != nil {
-			return errdefs.System(err)
+			return derrdefs.System(err)
 		}
 		defer hashFile.Close()
 

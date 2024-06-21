@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	units "github.com/docker/go-units"
 	"github.com/fluent/fluent-logger-golang/fluent"
 	"github.com/pkg/errors"
@@ -76,17 +76,17 @@ func init() {
 func New(info logger.Info) (logger.Logger, error) {
 	fluentConfig, err := parseConfig(info.Config)
 	if err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 
 	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 	if err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 
 	extra, err := info.ExtraAttributes(nil)
 	if err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 
 	log.G(context.TODO()).WithField("container", info.ContainerID).WithField("config", fluentConfig).

@@ -15,7 +15,7 @@ import (
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/distribution/xfer"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -99,7 +99,7 @@ func translatePullError(err error, ref reference.Named) error {
 		return translatePullError(v.Err, ref)
 	}
 
-	return errdefs.Unknown(err)
+	return derrdefs.Unknown(err)
 }
 
 func isNotFound(err error) bool {

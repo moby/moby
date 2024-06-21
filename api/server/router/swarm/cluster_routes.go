@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -79,7 +79,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
 		err := fmt.Errorf("invalid swarm version '%s': %v", rawVersion, err)
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 
 	var flags types.UpdateFlags
@@ -88,7 +88,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 		rot, err := strconv.ParseBool(value)
 		if err != nil {
 			err := fmt.Errorf("invalid value for rotateWorkerToken: %s", value)
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 
 		flags.RotateWorkerToken = rot
@@ -98,7 +98,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 		rot, err := strconv.ParseBool(value)
 		if err != nil {
 			err := fmt.Errorf("invalid value for rotateManagerToken: %s", value)
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 
 		flags.RotateManagerToken = rot
@@ -107,7 +107,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	if value := r.URL.Query().Get("rotateManagerUnlockKey"); value != "" {
 		rot, err := strconv.ParseBool(value)
 		if err != nil {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid value for rotateManagerUnlockKey: %s", value))
+			return derrdefs.InvalidParameter(fmt.Errorf("invalid value for rotateManagerUnlockKey: %s", value))
 		}
 
 		flags.RotateManagerUnlockKey = rot
@@ -162,7 +162,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 		var err error
 		status, err = strconv.ParseBool(value)
 		if err != nil {
-			return errors.Wrapf(errdefs.InvalidParameter(err), "invalid value for status: %s", value)
+			return errors.Wrapf(derrdefs.InvalidParameter(err), "invalid value for status: %s", value)
 		}
 	}
 
@@ -182,7 +182,7 @@ func (sr *swarmRouter) getService(ctx context.Context, w http.ResponseWriter, r 
 		var err error
 		insertDefaults, err = strconv.ParseBool(value)
 		if err != nil {
-			return errors.Wrapf(errdefs.InvalidParameter(err), "invalid value for insertDefaults: %s", value)
+			return errors.Wrapf(derrdefs.InvalidParameter(err), "invalid value for insertDefaults: %s", value)
 		}
 	}
 
@@ -211,7 +211,7 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 	}
 	// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
 	if service.TaskTemplate.LogDriver != nil && service.TaskTemplate.LogDriver.Name == "logentries" {
-		return errdefs.InvalidParameter(errors.New("the logentries logging driver has been deprecated and removed"))
+		return derrdefs.InvalidParameter(errors.New("the logentries logging driver has been deprecated and removed"))
 	}
 
 	// Get returns "" if the header does not exist
@@ -243,14 +243,14 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	}
 	// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
 	if service.TaskTemplate.LogDriver != nil && service.TaskTemplate.LogDriver.Name == "logentries" {
-		return errdefs.InvalidParameter(errors.New("the logentries logging driver has been deprecated and removed"))
+		return derrdefs.InvalidParameter(errors.New("the logentries logging driver has been deprecated and removed"))
 	}
 
 	rawVersion := r.URL.Query().Get("version")
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
 		err := fmt.Errorf("invalid service version '%s': %v", rawVersion, err)
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 
 	var flags basictypes.ServiceUpdateOptions
@@ -354,7 +354,7 @@ func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r 
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
 		err := fmt.Errorf("invalid node version '%s': %v", rawVersion, err)
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 
 	if err := sr.backend.UpdateNode(vars["id"], version, node); err != nil {
@@ -439,7 +439,7 @@ func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, 
 	}
 	version := httputils.VersionFromContext(ctx)
 	if secret.Templating != nil && versions.LessThan(version, "1.37") {
-		return errdefs.InvalidParameter(errors.Errorf("secret templating is not supported on the specified API version: %s", version))
+		return derrdefs.InvalidParameter(errors.Errorf("secret templating is not supported on the specified API version: %s", version))
 	}
 
 	id, err := sr.backend.CreateSecret(secret)
@@ -479,7 +479,7 @@ func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, 
 	rawVersion := r.URL.Query().Get("version")
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
-		return errdefs.InvalidParameter(fmt.Errorf("invalid secret version"))
+		return derrdefs.InvalidParameter(fmt.Errorf("invalid secret version"))
 	}
 
 	id := vars["id"]
@@ -511,7 +511,7 @@ func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, 
 
 	version := httputils.VersionFromContext(ctx)
 	if config.Templating != nil && versions.LessThan(version, "1.37") {
-		return errdefs.InvalidParameter(errors.Errorf("config templating is not supported on the specified API version: %s", version))
+		return derrdefs.InvalidParameter(errors.Errorf("config templating is not supported on the specified API version: %s", version))
 	}
 
 	id, err := sr.backend.CreateConfig(config)
@@ -551,7 +551,7 @@ func (sr *swarmRouter) updateConfig(ctx context.Context, w http.ResponseWriter, 
 	rawVersion := r.URL.Query().Get("version")
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
-		return errdefs.InvalidParameter(fmt.Errorf("invalid config version"))
+		return derrdefs.InvalidParameter(fmt.Errorf("invalid config version"))
 	}
 
 	id := vars["id"]

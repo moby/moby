@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/moby/sys/signal"
 	"github.com/moby/term"
@@ -163,12 +163,12 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	if ec.ExitCode != nil {
 		ec.Unlock()
 		err := fmt.Errorf("Error: Exec command %s has already run", ec.ID)
-		return errdefs.Conflict(err)
+		return derrdefs.Conflict(err)
 	}
 
 	if ec.Running {
 		ec.Unlock()
-		return errdefs.Conflict(fmt.Errorf("Error: Exec command %s is already running", ec.ID))
+		return derrdefs.Conflict(fmt.Errorf("Error: Exec command %s is already running", ec.ID))
 	}
 	ec.Running = true
 	ec.Unlock()
@@ -307,7 +307,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	case err := <-attachErr:
 		if err != nil {
 			if _, ok := err.(term.EscapeError); !ok {
-				return errdefs.System(errors.Wrap(err, "exec attach failed"))
+				return derrdefs.System(errors.Wrap(err, "exec attach failed"))
 			}
 			daemon.LogContainerEventWithAttributes(ec.Container, events.ActionExecDetach, map[string]string{
 				"execID": ec.ID,

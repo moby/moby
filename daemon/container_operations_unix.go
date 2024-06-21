@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/process"
@@ -63,7 +63,7 @@ func (daemon *Daemon) getIPCContainer(id string) (*container.Container, error) {
 	// Check if the container exists, is running, and not restarting
 	ctr, err := daemon.GetContainer(id)
 	if err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 	if !ctr.IsRunning() {
 		return nil, errNotRunning(id)
@@ -75,10 +75,10 @@ func (daemon *Daemon) getIPCContainer(id string) (*container.Container, error) {
 	// Check the container ipc is shareable
 	if st, err := os.Stat(ctr.ShmPath); err != nil || !st.IsDir() {
 		if err == nil || os.IsNotExist(err) {
-			return nil, errdefs.InvalidParameter(errors.New("container " + id + ": non-shareable IPC (hint: use IpcMode:shareable for the donor container)"))
+			return nil, derrdefs.InvalidParameter(errors.New("container " + id + ": non-shareable IPC (hint: use IpcMode:shareable for the donor container)"))
 		}
 		// stat() failed?
-		return nil, errdefs.System(errors.Wrap(err, "container "+id))
+		return nil, derrdefs.System(errors.Wrap(err, "container "+id))
 	}
 
 	return ctr, nil
@@ -87,7 +87,7 @@ func (daemon *Daemon) getIPCContainer(id string) (*container.Container, error) {
 func (daemon *Daemon) getPIDContainer(id string) (*container.Container, error) {
 	ctr, err := daemon.GetContainer(id)
 	if err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 	if !ctr.IsRunning() {
 		return nil, errNotRunning(id)
@@ -378,7 +378,7 @@ func killProcessDirectly(ctr *container.Container) error {
 
 	if err := unix.Kill(pid, syscall.SIGKILL); err != nil {
 		if err != unix.ESRCH {
-			return errdefs.System(err)
+			return derrdefs.System(err)
 		}
 		err = errNoSuchProcess{pid, syscall.SIGKILL}
 		log.G(context.TODO()).WithError(err).WithField("container", ctr.ID).Debug("no such process")
@@ -394,7 +394,7 @@ func killProcessDirectly(ctr *container.Container) error {
 			return err
 		}
 		if isZombie {
-			return errdefs.System(errors.Errorf("container %s PID %d is zombie and can not be killed. Use the --init option when creating containers to run an init inside the container that forwards signals and reaps processes", stringid.TruncateID(ctr.ID), pid))
+			return derrdefs.System(errors.Errorf("container %s PID %d is zombie and can not be killed. Use the --init option when creating containers to run an init inside the container that forwards signals and reaps processes", stringid.TruncateID(ctr.ID), pid))
 		}
 	}
 	return nil

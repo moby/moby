@@ -15,7 +15,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -125,13 +125,13 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 	resp, err := cli.doRequest(req)
 	switch {
 	case errors.Is(err, context.Canceled):
-		return serverResponse{}, errdefs.Cancelled(err)
+		return serverResponse{}, derrdefs.Cancelled(err)
 	case errors.Is(err, context.DeadlineExceeded):
-		return serverResponse{}, errdefs.Deadline(err)
+		return serverResponse{}, derrdefs.Deadline(err)
 	case err == nil:
 		err = cli.checkResponseErr(resp)
 	}
-	return resp, errdefs.FromStatusCode(err, resp.statusCode)
+	return resp, derrdefs.FromStatusCode(err, resp.statusCode)
 }
 
 // FIXME(thaJeztah): Should this actually return a serverResp when a connection error occurred?

@@ -11,7 +11,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/pkg/progress"
@@ -149,7 +149,7 @@ func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pro
 
 		info, err := p.store.Info(ctx, j.Digest)
 		if err != nil {
-			if !cerrdefs.IsNotFound(err) {
+			if !errdefs.IsNotFound(err) {
 				return err
 			}
 		} else if info.CreatedAt.After(start) {
@@ -196,7 +196,7 @@ func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 				progress.Update(out, id, "Unavailable")
 				continue
 			}
-			if cerrdefs.IsNotFound(err) {
+			if errdefs.IsNotFound(err) {
 				progress.Update(out, id, "Waiting")
 				continue
 			}

@@ -20,7 +20,7 @@ import (
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	lncluster "github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/driverapi"
@@ -78,17 +78,17 @@ func (daemon *Daemon) FindNetwork(term string) (*libnetwork.Network, error) {
 	case len(listByFullName) == 1:
 		return listByFullName[0], nil
 	case len(listByFullName) > 1:
-		return nil, errdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found on name)", term, len(listByFullName)))
+		return nil, derrdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found on name)", term, len(listByFullName)))
 	case len(listByPartialID) == 1:
 		return listByPartialID[0], nil
 	case len(listByPartialID) > 1:
-		return nil, errdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
+		return nil, derrdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
 	}
 
 	// Be very careful to change the error type here, the
 	// libnetwork.ErrNoSuchNetwork error is used by the controller
 	// to retry the creation of the network as managed through the swarm manager
-	return nil, errdefs.NotFound(libnetwork.ErrNoSuchNetwork(term))
+	return nil, derrdefs.NotFound(libnetwork.ErrNoSuchNetwork(term))
 }
 
 // GetNetworkByID function returns a network whose ID matches the given ID.
@@ -300,7 +300,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create networktypes.Crea
 	}
 
 	if driver == "overlay" && !daemon.cluster.IsManager() && !agent {
-		return nil, errdefs.Forbidden(errors.New(`This node is not a swarm manager. Use "docker swarm init" or "docker swarm join" to connect this node to swarm and try again.`))
+		return nil, derrdefs.Forbidden(errors.New(`This node is not a swarm manager. Use "docker swarm init" or "docker swarm join" to connect this node to swarm and try again.`))
 	}
 
 	networkOptions := make(map[string]string)
@@ -323,7 +323,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create networktypes.Crea
 		var err error
 		v, ok := networkOptions[netlabel.EnableIPv6]
 		if enableIPv6, err = strconv.ParseBool(v); ok && err != nil {
-			return nil, errdefs.InvalidParameter(fmt.Errorf("driver-opt %q is not a valid bool", netlabel.EnableIPv6))
+			return nil, derrdefs.InvalidParameter(fmt.Errorf("driver-opt %q is not a valid bool", netlabel.EnableIPv6))
 		}
 	}
 
@@ -360,7 +360,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create networktypes.Crea
 				"network": create.Name,
 			}).Warn("Continuing with validation errors in agent IPAM")
 		} else {
-			return nil, errdefs.InvalidParameter(err)
+			return nil, derrdefs.InvalidParameter(err)
 		}
 	}
 
@@ -544,7 +544,7 @@ func (daemon *Daemon) DeleteNetwork(networkID string) error {
 func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error {
 	if network.IsPredefined(nw.Name()) && !dynamic {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be removed", nw.Name())
-		return errdefs.Forbidden(err)
+		return derrdefs.Forbidden(err)
 	}
 
 	if dynamic && !nw.Dynamic() {
@@ -554,7 +554,7 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 			return nil
 		}
 		err := fmt.Errorf("%s is not a dynamic network", nw.Name())
-		return errdefs.Forbidden(err)
+		return derrdefs.Forbidden(err)
 	}
 
 	if err := nw.Delete(); err != nil {

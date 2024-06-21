@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
@@ -689,7 +689,7 @@ func TestBuildPlatformInvalid(t *testing.T) {
 	})
 
 	assert.Check(t, is.ErrorContains(err, "unknown operating system or architecture"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidArgument))
 }
 
 // TestBuildWorkdirNoCacheMiss is a regression test for https://github.com/moby/moby/issues/47627

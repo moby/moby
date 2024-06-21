@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/nat"
@@ -193,7 +193,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 		if container.Dead {
 			return contJSONBase, nil
 		}
-		return nil, errdefs.System(errors.New("RWLayer of container " + container.ID + " is unexpectedly nil"))
+		return nil, derrdefs.System(errors.New("RWLayer of container " + container.ID + " is unexpectedly nil"))
 	}
 
 	graphDriverData, err := container.RWLayer.Metadata()
@@ -203,7 +203,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 			// have been removed; we can ignore errors.
 			return contJSONBase, nil
 		}
-		return nil, errdefs.System(err)
+		return nil, derrdefs.System(err)
 	}
 
 	contJSONBase.GraphDriver.Data = graphDriverData

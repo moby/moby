@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 )
@@ -26,12 +26,12 @@ func (daemon *Daemon) ContainerExport(ctx context.Context, name string, out io.W
 
 	if ctr.IsDead() {
 		err := fmt.Errorf("You cannot export container %s which is Dead", ctr.ID)
-		return errdefs.Conflict(err)
+		return derrdefs.Conflict(err)
 	}
 
 	if ctr.IsRemovalInProgress() {
 		err := fmt.Errorf("You cannot export container %s which is being removed", ctr.ID)
-		return errdefs.Conflict(err)
+		return derrdefs.Conflict(err)
 	}
 
 	err = daemon.containerExport(ctx, ctr, out)

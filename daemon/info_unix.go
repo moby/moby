@@ -17,7 +17,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/pkg/errors"
@@ -182,7 +182,7 @@ func (daemon *Daemon) fillPlatformVersion(ctx context.Context, v *types.Version,
 	}
 
 	if err := daemon.fillRootlessVersion(ctx, v); err != nil {
-		if errdefs.IsContext(err) {
+		if derrdefs.IsContext(err) {
 			return err
 		}
 		log.G(ctx).WithError(err).Warn("Failed to fill rootless version")
@@ -210,7 +210,7 @@ func (daemon *Daemon) populateInitCommit(ctx context.Context, v *system.Info, cf
 
 	rv, err := exec.CommandContext(ctx, initBinary, "--version").Output()
 	if err != nil {
-		if errdefs.IsContext(err) {
+		if derrdefs.IsContext(err) {
 			return err
 		}
 		log.G(ctx).WithError(err).Warnf("Failed to retrieve %s version", initBinary)
@@ -266,7 +266,7 @@ func (daemon *Daemon) fillRootlessVersion(ctx context.Context, v *types.Version)
 		err = func() error {
 			rv, err := exec.CommandContext(ctx, "slirp4netns", "--version").Output()
 			if err != nil {
-				if errdefs.IsContext(err) {
+				if derrdefs.IsContext(err) {
 					return err
 				}
 				log.G(ctx).WithError(err).Warn("Failed to retrieve slirp4netns version")
@@ -294,7 +294,7 @@ func (daemon *Daemon) fillRootlessVersion(ctx context.Context, v *types.Version)
 		err = func() error {
 			out, err := exec.CommandContext(ctx, "vpnkit", "--version").Output()
 			if err != nil {
-				if errdefs.IsContext(err) {
+				if derrdefs.IsContext(err) {
 					return err
 				}
 				log.G(ctx).WithError(err).Warn("Failed to retrieve vpnkit version")
@@ -430,7 +430,7 @@ func noNewPrivileges(cfg *config.Config) bool {
 func (daemon *Daemon) populateContainerdCommit(ctx context.Context, v *system.Commit) error {
 	rv, err := daemon.containerd.Version(ctx)
 	if err != nil {
-		if errdefs.IsContext(err) {
+		if derrdefs.IsContext(err) {
 			return err
 		}
 		log.G(ctx).WithError(err).Warnf("Failed to retrieve containerd version")
@@ -444,7 +444,7 @@ func (daemon *Daemon) populateContainerdCommit(ctx context.Context, v *system.Co
 func (daemon *Daemon) populateContainerdVersion(ctx context.Context, v *types.Version) error {
 	rv, err := daemon.containerd.Version(ctx)
 	if err != nil {
-		if errdefs.IsContext(err) {
+		if derrdefs.IsContext(err) {
 			return err
 		}
 		log.G(ctx).WithError(err).Warn("Failed to retrieve containerd version")
@@ -485,7 +485,7 @@ func populateInitVersion(ctx context.Context, cfg *configStore, v *types.Version
 
 	rv, err := exec.CommandContext(ctx, initBinary, "--version").Output()
 	if err != nil {
-		if errdefs.IsContext(err) {
+		if derrdefs.IsContext(err) {
 			return err
 		}
 		log.G(ctx).WithError(err).Warnf("Failed to retrieve %s version", initBinary)

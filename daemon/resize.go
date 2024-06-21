@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 )
 
 // ContainerResize changes the size of the TTY of the process running
@@ -52,7 +52,7 @@ func (daemon *Daemon) ContainerExecResize(name string, height, width int) error 
 	case <-ec.Started:
 		// An error may have occurred, so ec.Process may be nil.
 		if ec.Process == nil {
-			return errdefs.InvalidParameter(errors.New("exec process is not started"))
+			return derrdefs.InvalidParameter(errors.New("exec process is not started"))
 		}
 		return ec.Process.Resize(context.Background(), uint32(width), uint32(height))
 	case <-timeout.C:

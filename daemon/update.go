@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -17,7 +18,7 @@ func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostCon
 	daemonCfg := daemon.config()
 	warnings, err := daemon.verifyContainerSettings(daemonCfg, hostConfig, nil, true)
 	if err != nil {
-		return container.ContainerUpdateOKBody{Warnings: warnings}, errdefs.InvalidParameter(err)
+		return container.ContainerUpdateOKBody{Warnings: warnings}, derrdefs.InvalidParameter(err)
 	}
 
 	if err := daemon.update(name, hostConfig); err != nil {
@@ -96,7 +97,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	if err := tsk.UpdateResources(context.TODO(), toContainerdResources(hostConfig.Resources)); err != nil {
 		restoreConfig = true
 		// TODO: it would be nice if containerd responded with better errors here so we can classify this better.
-		return errCannotUpdate(ctr.ID, errdefs.System(err))
+		return errCannotUpdate(ctr.ID, derrdefs.System(err))
 	}
 
 	return nil

@@ -7,11 +7,12 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 )
 
 // ContainerStats writes information about the container to the stream
@@ -23,7 +24,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	}
 
 	if config.Stream && config.OneShot {
-		return errdefs.InvalidParameter(errors.New("cannot have stream=true and one-shot=true"))
+		return derrdefs.InvalidParameter(errors.New("cannot have stream=true and one-shot=true"))
 	}
 
 	enc := json.NewEncoder(config.OutStream())
@@ -119,10 +120,10 @@ func (daemon *Daemon) GetContainerStats(container *container.Container) (*contai
 	}
 
 done:
-	switch err.(type) {
-	case nil:
+	switch {
+	case err == nil:
 		return stats, nil
-	case errdefs.ErrConflict, errdefs.ErrNotFound:
+	case errdefs.IsConflict(err), errdefs.IsNotFound(err):
 		// return empty stats containing only name and ID if not running or not found
 		return &containertypes.StatsResponse{
 			Name: container.Name,

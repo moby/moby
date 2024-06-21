@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/etchosts"
 	"github.com/docker/docker/libnetwork/internal/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
@@ -33,11 +33,11 @@ const (
 // determined at this point.
 func (sb *Sandbox) finishInitDNS(ctx context.Context) error {
 	if err := sb.buildHostsFile(); err != nil {
-		return errdefs.System(err)
+		return derrdefs.System(err)
 	}
 	for _, ep := range sb.Endpoints() {
 		if err := sb.updateHostsFile(ctx, ep.getEtcHostsAddrs()); err != nil {
-			return errdefs.System(err)
+			return derrdefs.System(err)
 		}
 	}
 	return nil

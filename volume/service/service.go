@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -115,7 +115,7 @@ func (s *VolumesService) Mount(ctx context.Context, vol *volumetypes.Volume, ref
 	v, err := s.vs.Get(ctx, vol.Name, opts.WithGetDriver(vol.Driver))
 	if err != nil {
 		if IsNotExist(err) {
-			err = errdefs.NotFound(err)
+			err = derrdefs.NotFound(err)
 		}
 		return "", err
 	}
@@ -132,7 +132,7 @@ func (s *VolumesService) Unmount(ctx context.Context, vol *volumetypes.Volume, r
 	v, err := s.vs.Get(ctx, vol.Name, opts.WithGetDriver(vol.Driver))
 	if err != nil {
 		if IsNotExist(err) {
-			err = errdefs.NotFound(err)
+			err = derrdefs.NotFound(err)
 		}
 		return err
 	}
@@ -164,7 +164,7 @@ func (s *VolumesService) Remove(ctx context.Context, name string, rmOpts ...opts
 	if IsNotExist(err) {
 		err = nil
 	} else if IsInUse(err) {
-		err = errdefs.Conflict(err)
+		err = derrdefs.Conflict(err)
 	} else if IsNotExist(err) && cfg.PurgeOnError {
 		err = nil
 	}
@@ -205,7 +205,7 @@ func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*volumetypes.V
 // be no space reclaimed in this case.
 func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*volumetypes.PruneReport, error) {
 	if !atomic.CompareAndSwapInt32(&s.pruneRunning, 0, 1) {
-		return nil, errdefs.Conflict(errors.New("a prune operation is already running"))
+		return nil, derrdefs.Conflict(errors.New("a prune operation is already running"))
 	}
 	defer atomic.StoreInt32(&s.pruneRunning, 0)
 

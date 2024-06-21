@@ -28,7 +28,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/containerfs"
@@ -221,7 +221,7 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 
 	// revalidate because Pull is public
 	if _, err := reference.ParseNormalizedNamed(name); err != nil {
-		return errors.Wrapf(errdefs.InvalidParameter(err), "failed to parse %q", name)
+		return errors.Wrapf(derrdefs.InvalidParameter(err), "failed to parse %q", name)
 	}
 
 	pm.muGC.RLock()
@@ -264,17 +264,17 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 	// revalidate because Pull is public
 	nameref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
-		return errors.Wrapf(errdefs.InvalidParameter(err), "failed to parse %q", name)
+		return errors.Wrapf(derrdefs.InvalidParameter(err), "failed to parse %q", name)
 	}
 	name = reference.FamiliarString(reference.TagNameOnly(nameref))
 
 	if err := pm.config.Store.validateName(name); err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 
 	tmpRootFSDir, err := os.MkdirTemp(pm.tmpDir(), ".rootfs")
 	if err != nil {
-		return errors.Wrap(errdefs.System(err), "error preparing upgrade")
+		return errors.Wrap(derrdefs.System(err), "error preparing upgrade")
 	}
 	defer os.RemoveAll(tmpRootFSDir)
 

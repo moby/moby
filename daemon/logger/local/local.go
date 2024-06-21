@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 )
@@ -69,7 +69,7 @@ type driver struct {
 // You must provide the `LogPath` in the passed in info argument, this is the file path that logs are written to.
 func New(info logger.Info) (logger.Logger, error) {
 	if info.LogPath == "" {
-		return nil, errdefs.System(errors.New("log path is missing -- this is a bug and should not happen"))
+		return nil, derrdefs.System(errors.New("log path is missing -- this is a bug and should not happen"))
 	}
 
 	cfg := newDefaultConfig()
@@ -77,7 +77,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		var err error
 		cfg.MaxFileSize, err = units.FromHumanSize(capacity)
 		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid value for max-size: %s", capacity))
+			return nil, derrdefs.InvalidParameter(errors.Wrapf(err, "invalid value for max-size: %s", capacity))
 		}
 	}
 
@@ -85,14 +85,14 @@ func New(info logger.Info) (logger.Logger, error) {
 		var err error
 		cfg.MaxFileCount, err = strconv.Atoi(userMaxFileCount)
 		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid value for max-file: %s", userMaxFileCount))
+			return nil, derrdefs.InvalidParameter(errors.Wrapf(err, "invalid value for max-file: %s", userMaxFileCount))
 		}
 	}
 
 	if userCompress, ok := info.Config["compress"]; ok {
 		compressLogs, err := strconv.ParseBool(userCompress)
 		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrap(err, "error reading compress log option"))
+			return nil, derrdefs.InvalidParameter(errors.Wrap(err, "error reading compress log option"))
 		}
 		cfg.DisableCompression = !compressLogs
 	}
@@ -135,7 +135,7 @@ func marshal(m *logger.Message, buffer *[]byte) error {
 
 func newDriver(logPath string, cfg *CreateConfig) (logger.Logger, error) {
 	if err := validateConfig(cfg); err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 
 	lf, err := loggerutils.NewLogFile(logPath, cfg.MaxFileSize, cfg.MaxFileCount, !cfg.DisableCompression, decodeFunc, 0o640, getTailReader)

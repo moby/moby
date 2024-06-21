@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -25,7 +25,7 @@ func (d *driver) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
 func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io.Reader, int, error) {
 	size := r.Size()
 	if req < 0 {
-		return nil, 0, errdefs.InvalidParameter(errors.Errorf("invalid number of lines to tail: %d", req))
+		return nil, 0, derrdefs.InvalidParameter(errors.Errorf("invalid number of lines to tail: %d", req))
 	}
 
 	if size < (encodeBinaryLen*2)+1 {
@@ -51,7 +51,7 @@ func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io
 		}
 
 		if n != encodeBinaryLen {
-			return nil, 0, errdefs.DataLoss(errors.New("unexpected number of bytes read from log message footer"))
+			return nil, 0, derrdefs.DataLoss(errors.New("unexpected number of bytes read from log message footer"))
 		}
 
 		msgLen := binary.BigEndian.Uint32(buf)
@@ -62,11 +62,11 @@ func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io
 		}
 
 		if n != encodeBinaryLen {
-			return nil, 0, errdefs.DataLoss(errors.New("unexpected number of bytes read from log message header"))
+			return nil, 0, derrdefs.DataLoss(errors.New("unexpected number of bytes read from log message header"))
 		}
 
 		if msgLen != binary.BigEndian.Uint32(buf) {
-			return nil, 0, errdefs.DataLoss(errors.New("log message header and footer indicate different message sizes"))
+			return nil, 0, derrdefs.DataLoss(errors.New("log message header and footer indicate different message sizes"))
 		}
 
 		found++

@@ -3,7 +3,7 @@ package container
 import (
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	"github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -97,7 +97,7 @@ func TestValidateRestartPolicy(t *testing.T) {
 			if tc.expectedErr == "" {
 				assert.Check(t, err)
 			} else {
-				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidArgument))
 				assert.Check(t, is.Error(err, tc.expectedErr))
 			}
 		})

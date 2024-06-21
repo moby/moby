@@ -15,7 +15,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 	memdb "github.com/hashicorp/go-memdb"
 )
@@ -105,7 +105,7 @@ type ViewDB struct {
 func NewViewDB() (*ViewDB, error) {
 	store, err := memdb.NewMemDB(schema)
 	if err != nil {
-		return nil, errdefs.System(err)
+		return nil, derrdefs.System(err)
 	}
 	return &ViewDB{store: store}, nil
 }
@@ -114,11 +114,11 @@ func NewViewDB() (*ViewDB, error) {
 // error if an empty prefix was given or if multiple containers match the prefix.
 func (db *ViewDB) GetByPrefix(s string) (string, error) {
 	if s == "" {
-		return "", errdefs.InvalidParameter(errors.New("prefix can't be empty"))
+		return "", derrdefs.InvalidParameter(errors.New("prefix can't be empty"))
 	}
 	iter, err := db.store.Txn(false).Get(memdbContainersTable, memdbIDIndexPrefix, s)
 	if err != nil {
-		return "", errdefs.System(err)
+		return "", derrdefs.System(err)
 	}
 
 	var id string
@@ -128,7 +128,7 @@ func (db *ViewDB) GetByPrefix(s string) (string, error) {
 			break
 		}
 		if id != "" {
-			return "", errdefs.InvalidParameter(errors.New("multiple IDs found with provided prefix: " + s))
+			return "", derrdefs.InvalidParameter(errors.New("multiple IDs found with provided prefix: " + s))
 		}
 		id = item.(*Container).ID
 	}
@@ -137,7 +137,7 @@ func (db *ViewDB) GetByPrefix(s string) (string, error) {
 		return id, nil
 	}
 
-	return "", errdefs.NotFound(errors.New("No such container: " + s))
+	return "", derrdefs.NotFound(errors.New("No such container: " + s))
 }
 
 // Snapshot provides a consistent read-only view of the database.
@@ -152,7 +152,7 @@ func (db *ViewDB) withTxn(cb func(*memdb.Txn) error) error {
 	err := cb(txn)
 	if err != nil {
 		txn.Abort()
-		return errdefs.System(err)
+		return derrdefs.System(err)
 	}
 	txn.Commit()
 	return nil
@@ -191,7 +191,7 @@ func (db *ViewDB) ReserveName(name, containerID string) error {
 	return db.withTxn(func(txn *memdb.Txn) error {
 		s, err := txn.First(memdbNamesTable, memdbIDIndex, name)
 		if err != nil {
-			return errdefs.System(err)
+			return derrdefs.System(err)
 		}
 		if s != nil {
 			if s.(nameAssociation).containerID != containerID {
@@ -221,7 +221,7 @@ func (v *View) All() ([]Snapshot, error) {
 	var all []Snapshot
 	iter, err := v.txn.Get(memdbContainersTable, memdbIDIndex)
 	if err != nil {
-		return nil, errdefs.System(err)
+		return nil, derrdefs.System(err)
 	}
 	for {
 		item := iter.Next()
@@ -238,10 +238,10 @@ func (v *View) All() ([]Snapshot, error) {
 func (v *View) Get(id string) (*Snapshot, error) {
 	s, err := v.txn.First(memdbContainersTable, memdbIDIndex, id)
 	if err != nil {
-		return nil, errdefs.System(err)
+		return nil, derrdefs.System(err)
 	}
 	if s == nil {
-		return nil, errdefs.NotFound(errors.New("No such container: " + id))
+		return nil, derrdefs.NotFound(errors.New("No such container: " + id))
 	}
 	return v.transform(s.(*Container)), nil
 }
@@ -269,7 +269,7 @@ func (v *View) getNames(containerID string) []string {
 func (v *View) GetID(name string) (string, error) {
 	s, err := v.txn.First(memdbNamesTable, memdbIDIndex, name)
 	if err != nil {
-		return "", errdefs.System(err)
+		return "", derrdefs.System(err)
 	}
 	if s == nil {
 		return "", ErrNameNotReserved

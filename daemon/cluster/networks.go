@@ -10,7 +10,7 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	networkSettings "github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
 )
@@ -318,7 +318,7 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 				// and use its id for the request.
 				apiNetwork, err = getNetwork(ctx, client, ln.Name())
 				if err != nil {
-					return errors.Wrap(errdefs.NotFound(err), "could not find the corresponding predefined swarm network")
+					return errors.Wrap(derrdefs.NotFound(err), "could not find the corresponding predefined swarm network")
 				}
 				goto setid
 			}

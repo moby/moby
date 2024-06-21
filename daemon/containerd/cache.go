@@ -7,12 +7,12 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd/content"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/cache"
 	"github.com/docker/docker/internal/multierror"
@@ -57,7 +57,7 @@ func (c cacheAdaptor) Get(id image.ID) (*image.Image, error) {
 
 		info, err := c.is.content.Info(ctx, desc.Digest)
 		if err != nil {
-			if !cerrdefs.IsNotFound(err) {
+			if !errdefs.IsNotFound(err) {
 				log.G(ctx).WithFields(log.Fields{
 					"image": img,
 					"desc":  desc,
@@ -221,7 +221,7 @@ func findContentByUncompressedDigest(ctx context.Context, cs content.Manager, un
 		return out, err
 	}
 	if out.Digest == "" {
-		return out, errdefs.NotFound(errors.New("no content matches this uncompressed digest"))
+		return out, derrdefs.NotFound(errors.New("no content matches this uncompressed digest"))
 	}
 	return out, nil
 }

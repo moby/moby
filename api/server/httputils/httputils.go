@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -75,13 +75,13 @@ func ReadJSON(r *http.Request, out interface{}) error {
 	defer r.Body.Close()
 	if err != nil {
 		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("invalid JSON: got EOF while reading request body"))
+			return derrdefs.InvalidParameter(errors.New("invalid JSON: got EOF while reading request body"))
 		}
-		return errdefs.InvalidParameter(errors.Wrap(err, "invalid JSON"))
+		return derrdefs.InvalidParameter(errors.Wrap(err, "invalid JSON"))
 	}
 
 	if dec.More() {
-		return errdefs.InvalidParameter(errors.New("unexpected content after JSON"))
+		return derrdefs.InvalidParameter(errors.New("unexpected content after JSON"))
 	}
 	return nil
 }
@@ -102,7 +102,7 @@ func ParseForm(r *http.Request) error {
 		return nil
 	}
 	if err := r.ParseForm(); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 	return nil
 }
@@ -125,10 +125,10 @@ func VersionFromContext(ctx context.Context) string {
 func matchesContentType(contentType, expectedType string) error {
 	mimetype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		return errdefs.InvalidParameter(errors.Wrapf(err, "malformed Content-Type header (%s)", contentType))
+		return derrdefs.InvalidParameter(errors.Wrapf(err, "malformed Content-Type header (%s)", contentType))
 	}
 	if mimetype != expectedType {
-		return errdefs.InvalidParameter(errors.Errorf("unsupported Content-Type header (%s): must be '%s'", contentType, expectedType))
+		return derrdefs.InvalidParameter(errors.Errorf("unsupported Content-Type header (%s): must be '%s'", contentType, expectedType))
 	}
 	return nil
 }

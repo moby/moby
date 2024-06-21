@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/pkg/errors"
@@ -362,7 +362,7 @@ func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) 
 		}
 	}
 	if len(listByFullName) > 1 {
-		return network.Inspect{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName)))
+		return network.Inspect{}, derrdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName)))
 	}
 
 	// Find based on partial ID, returns true only if no duplicates
@@ -372,8 +372,8 @@ func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) 
 		}
 	}
 	if len(listByPartialID) > 1 {
-		return network.Inspect{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
+		return network.Inspect{}, derrdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
 	}
 
-	return network.Inspect{}, errdefs.NotFound(libnetwork.ErrNoSuchNetwork(term))
+	return network.Inspect{}, derrdefs.NotFound(libnetwork.ErrNoSuchNetwork(term))
 }

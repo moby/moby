@@ -12,7 +12,7 @@ import (
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/platforms"
-	"github.com/docker/docker/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/exp/slices"

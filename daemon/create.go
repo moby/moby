@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/pkg/idtools"
@@ -59,11 +59,11 @@ func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context
 func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStore, opts createOpts) (containertypes.CreateResponse, error) {
 	start := time.Now()
 	if opts.params.Config == nil {
-		return containertypes.CreateResponse{}, errdefs.InvalidParameter(runconfig.ErrEmptyConfig)
+		return containertypes.CreateResponse{}, derrdefs.InvalidParameter(runconfig.ErrEmptyConfig)
 	}
 	// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
 	if opts.params.HostConfig != nil && opts.params.HostConfig.LogConfig.Type == "logentries" {
-		return containertypes.CreateResponse{}, errdefs.InvalidParameter(fmt.Errorf("the logentries logging driver has been deprecated and removed"))
+		return containertypes.CreateResponse{}, derrdefs.InvalidParameter(fmt.Errorf("the logentries logging driver has been deprecated and removed"))
 	}
 
 	// Normalize some defaults. Doing this "ad-hoc" here for now, as there's
@@ -78,7 +78,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 
 	warnings, err := daemon.verifyContainerSettings(daemonCfg, opts.params.HostConfig, opts.params.Config, false)
 	if err != nil {
-		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
+		return containertypes.CreateResponse{Warnings: warnings}, derrdefs.InvalidParameter(err)
 	}
 
 	if opts.params.Platform == nil && opts.params.Config.Image != "" {
@@ -102,7 +102,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 
 	err = daemon.validateNetworkingConfig(opts.params.NetworkingConfig)
 	if err != nil {
-		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
+		return containertypes.CreateResponse{Warnings: warnings}, derrdefs.InvalidParameter(err)
 	}
 
 	if opts.params.HostConfig == nil {
@@ -110,7 +110,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	}
 	err = daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig)
 	if err != nil {
-		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
+		return containertypes.CreateResponse{Warnings: warnings}, derrdefs.InvalidParameter(err)
 	}
 
 	ctr, err := daemon.create(ctx, &daemonCfg.Config, opts)
@@ -167,11 +167,11 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	}
 
 	if err := daemon.mergeAndVerifyConfig(opts.params.Config, img); err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 
 	if err := daemon.mergeAndVerifyLogConfig(&opts.params.HostConfig.LogConfig); err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 
 	if ctr, err = daemon.newContainer(opts.params.Name, os, opts.params.Config, opts.params.HostConfig, imgID, opts.managed); err != nil {
@@ -204,7 +204,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 		// Set RWLayer for container after mount labels have been set
 		rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
 		if err != nil {
-			return nil, errdefs.System(err)
+			return nil, derrdefs.System(err)
 		}
 		ctr.RWLayer = rwLayer
 	}
@@ -346,7 +346,7 @@ func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.Networking
 	}
 
 	if len(errs) > 0 {
-		return errdefs.InvalidParameter(multierror.Join(errs...))
+		return derrdefs.InvalidParameter(multierror.Join(errs...))
 	}
 
 	return nil

@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	mobyc8dstore "github.com/docker/docker/daemon/containerd"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
@@ -28,17 +28,17 @@ func validateState(ctr *container.Container) error {
 	// BOTH running AND paused. To start a paused (but running) container,
 	// it must be thawed ("un-paused").
 	if ctr.Paused {
-		return errdefs.Conflict(errors.New("cannot start a paused container, try unpause instead"))
+		return derrdefs.Conflict(errors.New("cannot start a paused container, try unpause instead"))
 	} else if ctr.Running {
 		// This is not an actual error, but produces a 304 "not modified"
 		// when returned through the API to indicates the container is
 		// already in the desired state. It's implemented as an error
 		// to make the code calling this function terminate early (as
 		// no further processing is needed).
-		return errdefs.NotModified(errors.New("container is already running"))
+		return derrdefs.NotModified(errors.New("container is already running"))
 	}
 	if ctr.RemovalInProgress || ctr.Dead {
-		return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
+		return derrdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
 	}
 	return nil
 }
@@ -47,7 +47,7 @@ func validateState(ctr *container.Container) error {
 func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error {
 	daemonCfg := daemon.config()
 	if checkpoint != "" && !daemonCfg.Experimental {
-		return errdefs.InvalidParameter(errors.New("checkpoint is only supported in experimental mode"))
+		return derrdefs.InvalidParameter(errors.New("checkpoint is only supported in experimental mode"))
 	}
 
 	ctr, err := daemon.GetContainer(name)
@@ -61,7 +61,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoin
 	// check if hostConfig is in line with the current system settings.
 	// It may happen cgroups are unmounted or the like.
 	if _, err = daemon.verifyContainerSettings(daemonCfg, ctr.HostConfig, nil, false); err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 
 	return daemon.containerStart(ctx, daemonCfg, ctr, checkpoint, checkpointDir, true)
@@ -86,12 +86,12 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	}
 
 	if container.RemovalInProgress || container.Dead {
-		return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
+		return derrdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
 	}
 
 	if checkpointDir != "" {
 		// TODO(mlaventure): how would we support that?
-		return errdefs.Forbidden(errors.New("custom checkpointdir is not supported"))
+		return derrdefs.Forbidden(errors.New("custom checkpointdir is not supported"))
 	}
 
 	// if we encounter an error during start we need to ensure that any other
@@ -152,7 +152,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		// dependent on the current state, for example when starting a container
 		// that shares a namespace with another container, and that container
 		// is not running (or missing).
-		return errdefs.System(err)
+		return derrdefs.System(err)
 	}
 
 	if resetRestartManager {

@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/containerd/errdefs"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/cluster/convert"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
 )
@@ -80,7 +81,7 @@ func (c *Cluster) CreateVolume(v volumetypes.CreateOptions) (*volumetypes.Volume
 		// very helpful at all. Instead, before returning the error, add some
 		// context, and change this to a system-type error, because it's
 		// nothing the user did wrong.
-		return nil, errdefs.System(fmt.Errorf("unable to retrieve created volume: %w", err))
+		return nil, derrdefs.System(fmt.Errorf("unable to retrieve created volume: %w", err))
 	}
 	return &createdVol, nil
 }

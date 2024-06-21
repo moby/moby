@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
@@ -160,11 +160,11 @@ func (s *containerRouter) postContainerExecResize(ctx context.Context, w http.Re
 	}
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 	width, err := strconv.Atoi(r.Form.Get("w"))
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 
 	return s.backend.ContainerExecResize(vars["name"], height, width)
