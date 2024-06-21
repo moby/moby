@@ -2,6 +2,7 @@ package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/docker/docker/errdefs"
@@ -12,6 +13,9 @@ import (
 )
 
 func lookupPlugin(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
+	if os.Getenv("DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS") == "" {
+		return nil, fmt.Errorf("DEPRECATED: Experimental graphdriver plugins are deprecated, and disabled by default. This feature will be removed in the next release. See https://docs.docker.com/go/deprecated/")
+	}
 	if !config.ExperimentalEnabled {
 		return nil, fmt.Errorf("graphdriver plugins are only supported with experimental mode")
 	}
