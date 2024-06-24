@@ -79,6 +79,7 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 	var parentLinks []parentLink
 	var imageIDsStr string
 	var imageRefCount int
+	var safePathRoot string
 
 	for _, m := range manifest {
 		select {
@@ -86,7 +87,12 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 			return ctx.Err()
 		default:
 		}
-		configPath, err := safePath(tmpDir, m.Config)
+		if len(m.LayersRoot) == 0 {
+			safePathRoot = tmpDir
+		} else {
+			safePathRoot = m.LayersRoot
+		}
+		configPath, err := safePath(safePathRoot, m.Config)
 		if err != nil {
 			return err
 		}
@@ -114,7 +120,7 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 				return ctx.Err()
 			default:
 			}
-			layerPath, err := safePath(tmpDir, m.Layers[i])
+			layerPath, err := safePath(safePathRoot, m.Layers[i])
 			if err != nil {
 				return err
 			}
