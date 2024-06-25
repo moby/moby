@@ -1917,7 +1917,7 @@ definitions:
         type: "string"
         example: "4443"
 
-  GraphDriverData:
+  DriverData:
     description: |
       Information about the storage driver used to store the container's and
       image's filesystem.
@@ -2107,7 +2107,7 @@ definitions:
         format: "int64"
         example: 1239828
       GraphDriver:
-        $ref: "#/definitions/GraphDriverData"
+        $ref: "#/definitions/DriverData"
       RootFS:
         description: |
           Information about the image's RootFS, including the layer IDs.
@@ -7123,7 +7123,7 @@ paths:
               HostConfig:
                 $ref: "#/definitions/HostConfig"
               GraphDriver:
-                $ref: "#/definitions/GraphDriverData"
+                $ref: "#/definitions/DriverData"
               SizeRw:
                 description: |
                   The size of files that have been created or changed by this

@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/storage"
 	"github.com/docker/docker/api/types/volume"
 )
 
@@ -260,3 +261,9 @@ type MountPoint = container.MountPoint
 //
 // Deprecated: use [container.Port].
 type Port = container.Port
+
+// GraphDriverData Information about the storage driver used to store the container's and
+// image's filesystem.
+//
+// Deprecated: use [storage.DriverData].
+type GraphDriverData = storage.DriverData

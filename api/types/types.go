@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/storage"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
 )
@@ -122,7 +123,7 @@ type ImageInspect struct {
 
 	// GraphDriver holds information about the storage driver used to store the
 	// container's and image's filesystem.
-	GraphDriver GraphDriverData
+	GraphDriver storage.DriverData
 
 	// RootFS contains information about the image's RootFS, including the
 	// layer IDs.
@@ -242,7 +243,7 @@ type ContainerJSONBase struct {
 	AppArmorProfile string
 	ExecIDs         []string
 	HostConfig      *container.HostConfig
-	GraphDriver     GraphDriverData
+	GraphDriver     storage.DriverData
 	SizeRw          *int64 `json:",omitempty"`
 	SizeRootFs      *int64 `json:",omitempty"`
 }

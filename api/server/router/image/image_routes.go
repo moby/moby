@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/storage"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/dockerversion"
@@ -376,7 +377,7 @@ func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, er
 		Os:              img.OperatingSystem(),
 		OsVersion:       img.OSVersion,
 		Size:            img.Details.Size,
-		GraphDriver: types.GraphDriverData{
+		GraphDriver: storage.DriverData{
 			Name: img.Details.Driver,
 			Data: img.Details.Metadata,
 		},
