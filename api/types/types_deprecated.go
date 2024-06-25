@@ -231,3 +231,21 @@ type DefaultNetworkSettings = container.DefaultNetworkSettings
 //
 // Deprecated: use [container.NetworkSettingsSummary].
 type SummaryNetworkSettings = container.NetworkSettingsSummary
+
+// Health states
+const (
+	NoHealthcheck = container.NoHealthcheck // Deprecated: use [container.NoHealthcheck].
+	Starting      = container.Starting      // Deprecated: use [container.Starting].
+	Healthy       = container.Healthy       // Deprecated: use [container.Healthy].
+	Unhealthy     = container.Unhealthy     // Deprecated: use [container.Unhealthy].
+)
+
+// Health stores information about the container's healthcheck results.
+//
+// Deprecated: use [container.Health].
+type Health = container.Health
+
+// HealthcheckResult stores information about a single run of a healthcheck probe.
+//
+// Deprecated: use [container.HealthcheckResult].
+type HealthcheckResult = container.HealthcheckResult

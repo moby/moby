@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
@@ -14,7 +13,7 @@ import (
 func reset(c *container.Container) {
 	c.State = &container.State{}
 	c.State.Health = &container.Health{}
-	c.State.Health.SetStatus(types.Starting)
+	c.State.Health.SetStatus(containertypes.Starting)
 }
 
 func TestNoneHealthcheck(t *testing.T) {
@@ -87,7 +86,7 @@ func TestHealthStates(t *testing.T) {
 	reset(c)
 
 	handleResult := func(startTime time.Time, exitCode int) {
-		handleProbeResult(daemon, c, &types.HealthcheckResult{
+		handleProbeResult(daemon, c, &containertypes.HealthcheckResult{
 			Start:    startTime,
 			End:      startTime,
 			ExitCode: exitCode,
@@ -112,7 +111,7 @@ func TestHealthStates(t *testing.T) {
 
 	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
 	handleResult(c.State.StartedAt.Add(40*time.Second), 1)
-	if status := c.State.Health.Status(); status != types.Starting {
+	if status := c.State.Health.Status(); status != containertypes.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
 	if c.State.Health.FailingStreak != 2 {
@@ -134,14 +133,14 @@ func TestHealthStates(t *testing.T) {
 	c.Config.Healthcheck.StartPeriod = 30 * time.Second
 
 	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
-	if status := c.State.Health.Status(); status != types.Starting {
+	if status := c.State.Health.Status(); status != containertypes.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
 	if c.State.Health.FailingStreak != 0 {
 		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
 	}
 	handleResult(c.State.StartedAt.Add(50*time.Second), 1)
-	if status := c.State.Health.Status(); status != types.Starting {
+	if status := c.State.Health.Status(); status != containertypes.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
 	if c.State.Health.FailingStreak != 1 {

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"gotest.tools/v3/assert"
@@ -42,9 +42,9 @@ func waitForHealthStatus(c *testing.T, name string, prev string, expected string
 	}
 }
 
-func getHealth(c *testing.T, name string) *types.Health {
+func getHealth(c *testing.T, name string) *container.Health {
 	out := cli.DockerCmd(c, "inspect", "--format={{json .State.Health}}", name).Stdout()
-	var health types.Health
+	var health container.Health
 	err := json.Unmarshal([]byte(out), &health)
 	assert.Equal(c, err, nil)
 	return &health

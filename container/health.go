@@ -5,12 +5,12 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 )
 
 // Health holds the current container health-check state
 type Health struct {
-	types.Health
+	container.Health
 	stop chan struct{} // Write struct{} to stop the monitor
 	mu   sync.Mutex
 }
@@ -20,7 +20,7 @@ func (s *Health) String() string {
 	status := s.Status()
 
 	switch status {
-	case types.Starting:
+	case container.Starting:
 		return "health: starting"
 	default: // Healthy and Unhealthy are clear on their own
 		return status
@@ -36,7 +36,7 @@ func (s *Health) Status() string {
 
 	// This happens when the monitor has yet to be setup.
 	if s.Health.Status == "" {
-		return types.Unhealthy
+		return container.Unhealthy
 	}
 
 	return s.Health.Status
@@ -77,7 +77,7 @@ func (s *Health) CloseMonitorChannel() {
 		close(s.stop)
 		s.stop = nil
 		// unhealthy when the monitor has stopped for compatibility reasons
-		s.Health.Status = types.Unhealthy
+		s.Health.Status = container.Unhealthy
 		log.G(context.TODO()).Debug("CloseMonitorChannel done")
 	}
 }

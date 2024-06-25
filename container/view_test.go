@@ -7,8 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
@@ -37,7 +36,7 @@ func newContainer(t *testing.T) *Container {
 		t.Fatal(err)
 	}
 	c := NewBaseContainer(id, cRoot)
-	c.HostConfig = &containertypes.HostConfig{}
+	c.HostConfig = &container.HostConfig{}
 	return c
 }
 
@@ -171,7 +170,7 @@ func TestViewWithHealthCheck(t *testing.T) {
 		one   = newContainer(t)
 	)
 	one.Health = &Health{
-		Health: types.Health{
+		Health: container.Health{
 			Status: "starting",
 		},
 	}

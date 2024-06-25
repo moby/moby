@@ -301,7 +301,7 @@ func (v *View) GetAllNames() map[string][]string {
 // transform maps a (deep) copied Container object to what queries need.
 // A lock on the Container is not held because these are immutable deep copies.
 func (v *View) transform(ctr *Container) *Snapshot {
-	health := types.NoHealthcheck
+	health := container.NoHealthcheck
 	if ctr.Health != nil {
 		health = ctr.Health.Status()
 	}

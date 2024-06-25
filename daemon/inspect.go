@@ -137,12 +137,12 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 		}
 	}
 
-	var containerHealth *types.Health
+	var containerHealth *containertypes.Health
 	if container.State.Health != nil {
-		containerHealth = &types.Health{
+		containerHealth = &containertypes.Health{
 			Status:        container.State.Health.Status(),
 			FailingStreak: container.State.Health.FailingStreak,
-			Log:           append([]*types.HealthcheckResult{}, container.State.Health.Log...),
+			Log:           append([]*containertypes.HealthcheckResult{}, container.State.Health.Log...),
 		}
 	}
 
