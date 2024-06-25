@@ -304,18 +304,18 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			expectedErr: "invalid max download attempts: -10",
 		},
 		// TODO(thaJeztah) temporarily excluding this test as it assumes defaults are set before validating and applying updated configs
-		/*
-			{
-				name:  "zero max-download-attempts",
-				field: "MaxDownloadAttempts",
-				config: &Config{
-					CommonConfig: CommonConfig{
-						MaxDownloadAttempts: 0,
-					},
+
+		{
+			name:  "zero max-download-attempts",
+			field: "MaxDownloadAttempts",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					MaxDownloadAttempts: 0,
 				},
-				expectedErr: "invalid max download attempts: 0",
 			},
-		*/
+			expectedErr: "invalid max download attempts: 0",
+		},
+
 		{
 			name: "generic resource without =",
 			config: &Config{
@@ -362,7 +362,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			} else {
 				assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
 			}
-			err = Validate(cfg)
+			err = Validate(cfg, nil, "", false)
 			assert.Error(t, err, tc.expectedErr)
 		})
 	}
@@ -498,7 +498,7 @@ func TestValidateConfiguration(t *testing.T) {
 
 			// Check that the override happened :)
 			assert.Check(t, is.DeepEqual(cfg, tc.config, field(tc.field)))
-			err = Validate(cfg)
+			err = Validate(cfg, nil, "", false)
 			assert.NilError(t, err)
 		})
 	}

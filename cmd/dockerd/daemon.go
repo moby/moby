@@ -601,7 +601,7 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		return nil, err
 	}
 
-	if err := config.Validate(conf); err != nil {
+	if err := config.Validate(conf, nil, "", false); err != nil {
 		return nil, err
 	}
 

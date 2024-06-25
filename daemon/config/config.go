@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
 	"dario.cat/mergo"
@@ -382,7 +383,7 @@ func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error
 	// 3. apply the (reloadable) options from the new configuration
 	// 4. validate the merged results
 	// 5. apply the new configuration.
-	if err := Validate(newConfig); err != nil {
+	if err := Validate(newConfig, flags, configFile, true); err != nil {
 		return errors.Wrap(err, "file configuration validation failed")
 	}
 
@@ -412,7 +413,7 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 	}
 
 	// validate the merged fileConfig and flagsConfig
-	if err := Validate(fileConfig); err != nil {
+	if err := Validate(fileConfig, flags, configFile, false); err != nil {
 		return nil, errors.Wrap(err, "merged configuration validation from file and command line flags failed")
 	}
 
@@ -622,7 +623,7 @@ func ValidateMinAPIVersion(ver string) error {
 // Validate validates some specific configs.
 // such as config.DNS, config.Labels, config.DNSSearch,
 // as well as config.MaxConcurrentDownloads, config.MaxConcurrentUploads and config.MaxDownloadAttempts.
-func Validate(config *Config) error {
+func Validate(config *Config, flags *pflag.FlagSet, configFile string, reload bool) error {
 	// validate log-level
 	if config.LogLevel != "" {
 		// FIXME(thaJeztah): find a better way for this; this depends on knowledge of containerd's log package internals.
@@ -660,16 +661,80 @@ func Validate(config *Config) error {
 	}
 
 	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
-	if config.MTU < 0 {
-		return errors.Errorf("invalid default MTU: %d", config.MTU)
+	b, err := os.ReadFile(configFile)
+	if err != nil {
+		b = []byte("")
 	}
-	if config.MaxConcurrentDownloads < 0 {
+
+	//Yes, this uses regex parsing of the json string, unmarshal leads to incorrect validation.
+	//Validate and json unmarhsal have no concept of WHERE the input came from (default struct values or CLI/config input)
+	//As far as I can tell there are no enforced constructors to prevent incorrect initialization
+	//The merging process also overwrites config inputs with default values
+	//The conditionals are specific due to test cases making different assumptions
+	//thaJeztah description saying configuration and validation need a rewrite is an understatement.
+	var unmergedConfig *Config
+	unmergedConfig, _ = New()
+	_ = json.Unmarshal(b, &unmergedConfig)
+
+	searchStr := ".*\"mtu\":.*"
+	inConfigFile, _ := regexp.Match(searchStr, b)
+
+	if reload && !inConfigFile {
+		config.MTU = unmergedConfig.MTU
+	} else if (((flags != nil && flags.Changed("mtu")) || inConfigFile) && config.MTU <= 0) ||
+		(flags == nil && configFile == "" && config.MTU <= 0) ||
+		(inConfigFile && unmergedConfig.MTU <= 0) {
+
+		if inConfigFile && unmergedConfig.MTU <= 0 {
+			config.MTU = unmergedConfig.MTU
+		}
+		return errors.Errorf("invalid default MTU: %d", config.MTU)
+
+	}
+
+	searchStr = ".*\"max-concurrent-downloads\":.*"
+	inConfigFile, _ = regexp.Match(searchStr, b)
+
+	if reload && !inConfigFile {
+		config.MaxConcurrentDownloads = unmergedConfig.MaxConcurrentDownloads
+	} else if (((flags != nil && flags.Changed("max-concurrent-downloads")) || inConfigFile) && config.MaxConcurrentDownloads <= 0) ||
+		(flags == nil && configFile == "" && config.MaxConcurrentDownloads <= 0) ||
+		(inConfigFile && unmergedConfig.MaxConcurrentDownloads <= 0) {
+
+		if inConfigFile && unmergedConfig.MaxConcurrentDownloads <= 0 || reload && !inConfigFile {
+			config.MaxConcurrentDownloads = unmergedConfig.MaxConcurrentDownloads
+		}
 		return errors.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
 	}
-	if config.MaxConcurrentUploads < 0 {
+
+	searchStr = ".*\"max-concurrent-uploads\":.*"
+	inConfigFile, _ = regexp.Match(searchStr, b)
+
+	if reload && !inConfigFile {
+		config.MaxConcurrentUploads = unmergedConfig.MaxConcurrentUploads
+	} else if (((flags != nil && flags.Changed("max-concurrent-uploads")) || inConfigFile) && config.MaxConcurrentUploads <= 0) ||
+		(flags == nil && configFile == "" && config.MaxConcurrentUploads <= 0) ||
+		(inConfigFile && unmergedConfig.MaxConcurrentUploads <= 0) {
+
+		if inConfigFile && unmergedConfig.MaxConcurrentUploads <= 0 || reload && !inConfigFile {
+			config.MaxConcurrentUploads = unmergedConfig.MaxConcurrentUploads
+		}
+
 		return errors.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
 	}
-	if config.MaxDownloadAttempts < 0 {
+
+	searchStr = ".*\"max-download-attempts\":.*"
+	inConfigFile, _ = regexp.Match(searchStr, b)
+
+	if reload && !inConfigFile {
+		config.MaxDownloadAttempts = unmergedConfig.MaxDownloadAttempts
+	} else if (((flags != nil && flags.Changed("max-download-attempts")) || inConfigFile) && config.MaxDownloadAttempts <= 0) ||
+		(flags == nil && configFile == "" && config.MaxDownloadAttempts <= 0) ||
+		(inConfigFile && unmergedConfig.MaxDownloadAttempts <= 0) {
+
+		if inConfigFile && unmergedConfig.MaxDownloadAttempts <= 0 {
+			config.MaxDownloadAttempts = unmergedConfig.MaxDownloadAttempts
+		}
 		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
 
