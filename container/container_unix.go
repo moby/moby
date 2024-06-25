@@ -12,7 +12,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	volumemounts "github.com/docker/docker/volume/mounts"
@@ -336,42 +335,6 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	}
 
 	return nil
-}
-
-// DetachAndUnmount uses a detached mount on all mount destinations, then
-// unmounts each volume normally.
-// This is used from daemon/archive for `docker cp`
-func (container *Container) DetachAndUnmount(volumeEventLog func(name string, action events.Action, attributes map[string]string)) error {
-	ctx := context.TODO()
-
-	networkMounts := container.NetworkMounts()
-	mountPaths := make([]string, 0, len(container.MountPoints)+len(networkMounts))
-
-	for _, mntPoint := range container.MountPoints {
-		dest, err := container.GetResourcePath(mntPoint.Destination)
-		if err != nil {
-			log.G(ctx).Warnf("Failed to get volume destination path for container '%s' at '%s' while lazily unmounting: %v", container.ID, mntPoint.Destination, err)
-			continue
-		}
-		mountPaths = append(mountPaths, dest)
-	}
-
-	for _, m := range networkMounts {
-		dest, err := container.GetResourcePath(m.Destination)
-		if err != nil {
-			log.G(ctx).Warnf("Failed to get volume destination path for container '%s' at '%s' while lazily unmounting: %v", container.ID, m.Destination, err)
-			continue
-		}
-		mountPaths = append(mountPaths, dest)
-	}
-
-	for _, mountPath := range mountPaths {
-		if err := mount.Unmount(mountPath); err != nil {
-			log.G(ctx).WithError(err).WithField("container", container.ID).
-				Warn("Unable to unmount")
-		}
-	}
-	return container.UnmountVolumes(ctx, volumeEventLog)
 }
 
 // ignoreUnsupportedXAttrs ignores errors when extended attributes
