@@ -208,3 +208,26 @@ type ContainerNode struct {
 	Memory    int64
 	Labels    map[string]string
 }
+
+// NetworkSettings exposes the network settings in the api.
+//
+// Deprecated: use [container.NetworkSettings].
+type NetworkSettings = container.NetworkSettings
+
+// NetworkSettingsBase holds networking state for a container when inspecting it.
+//
+// Deprecated: use [container.NetworkSettingsBase].
+type NetworkSettingsBase = container.NetworkSettingsBase
+
+// DefaultNetworkSettings holds network information
+// during the 2 release deprecation period.
+// It will be removed in Docker 1.11.
+//
+// Deprecated: use [container.DefaultNetworkSettings].
+type DefaultNetworkSettings = container.DefaultNetworkSettings
+
+// SummaryNetworkSettings provides a summary of container's networks
+// in /containers/json.
+//
+// Deprecated: use [container.NetworkSettingsSummary].
+type SummaryNetworkSettings = container.NetworkSettingsSummary

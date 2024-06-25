@@ -72,8 +72,8 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 	}
 
 	mountPoints := ctr.GetMountPoints()
-	networkSettings := &types.NetworkSettings{
-		NetworkSettingsBase: types.NetworkSettingsBase{
+	networkSettings := &containertypes.NetworkSettings{
+		NetworkSettingsBase: containertypes.NetworkSettingsBase{
 			Bridge:                 ctr.NetworkSettings.Bridge,
 			SandboxID:              ctr.NetworkSettings.SandboxID,
 			SandboxKey:             ctr.NetworkSettings.SandboxKey,
@@ -247,13 +247,13 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 
 // getDefaultNetworkSettings creates the deprecated structure that holds the information
 // about the bridge network for a container.
-func getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings {
+func getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) containertypes.DefaultNetworkSettings {
 	nw, ok := networks[networktypes.NetworkBridge]
 	if !ok || nw.EndpointSettings == nil {
-		return types.DefaultNetworkSettings{}
+		return containertypes.DefaultNetworkSettings{}
 	}
 
-	return types.DefaultNetworkSettings{
+	return containertypes.DefaultNetworkSettings{
 		EndpointID:          nw.EndpointSettings.EndpointID,
 		Gateway:             nw.EndpointSettings.Gateway,
 		GlobalIPv6Address:   nw.EndpointSettings.GlobalIPv6Address,
