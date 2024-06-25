@@ -71,21 +71,21 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoin
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
 // begin running.
-func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
+func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, ctr *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, "daemon.containerStart", trace.WithAttributes(
-		attribute.String("container.ID", container.ID),
-		attribute.String("container.Name", container.Name)))
+		attribute.String("container.ID", ctr.ID),
+		attribute.String("container.Name", ctr.Name)))
 	defer span.End()
 
 	start := time.Now()
-	container.Lock()
-	defer container.Unlock()
+	ctr.Lock()
+	defer ctr.Unlock()
 
-	if resetRestartManager && container.Running { // skip this check if already in restarting step and resetRestartManager==false
+	if resetRestartManager && ctr.Running { // skip this check if already in restarting step and resetRestartManager==false
 		return nil
 	}
 
-	if container.RemovalInProgress || container.Dead {
+	if ctr.RemovalInProgress || ctr.Dead {
 		return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
 	}
 
@@ -98,49 +98,49 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	// setup has been cleaned up properly
 	defer func() {
 		if retErr != nil {
-			container.SetError(retErr)
+			ctr.SetError(retErr)
 			// if no one else has set it, make sure we don't leave it at zero
-			if container.ExitCode() == 0 {
-				container.SetExitCode(exitUnknown)
+			if ctr.ExitCode() == 0 {
+				ctr.SetExitCode(exitUnknown)
 			}
-			if err := container.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
-				log.G(ctx).Errorf("%s: failed saving state on start failure: %v", container.ID, err)
+			if err := ctr.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
+				log.G(ctx).Errorf("%s: failed saving state on start failure: %v", ctr.ID, err)
 			}
-			container.Reset(false)
+			ctr.Reset(false)
 
-			daemon.Cleanup(context.WithoutCancel(ctx), container)
+			daemon.Cleanup(context.WithoutCancel(ctx), ctr)
 			// if containers AutoRemove flag is set, remove it after clean up
-			if container.HostConfig.AutoRemove {
-				container.Unlock()
-				if err := daemon.containerRm(&daemonCfg.Config, container.ID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
-					log.G(ctx).Errorf("can't remove container %s: %v", container.ID, err)
+			if ctr.HostConfig.AutoRemove {
+				ctr.Unlock()
+				if err := daemon.containerRm(&daemonCfg.Config, ctr.ID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+					log.G(ctx).Errorf("can't remove container %s: %v", ctr.ID, err)
 				}
-				container.Lock()
+				ctr.Lock()
 			}
 		}
 	}()
 
-	if err := daemon.conditionalMountOnStart(container); err != nil {
+	if err := daemon.conditionalMountOnStart(ctr); err != nil {
 		return err
 	}
 
-	if err := daemon.initializeNetworking(ctx, &daemonCfg.Config, container); err != nil {
+	if err := daemon.initializeNetworking(ctx, &daemonCfg.Config, ctr); err != nil {
 		return err
 	}
 
-	mnts, err := daemon.setupContainerDirs(container)
+	mnts, err := daemon.setupContainerDirs(ctr)
 	if err != nil {
 		return err
 	}
 
-	m, cleanup, err := daemon.setupMounts(ctx, container)
+	m, cleanup, err := daemon.setupMounts(ctx, ctr)
 	if err != nil {
 		return err
 	}
 	mnts = append(mnts, m...)
 	defer cleanup(context.WithoutCancel(ctx))
 
-	spec, err := daemon.createSpec(ctx, daemonCfg, container, mnts)
+	spec, err := daemon.createSpec(ctx, daemonCfg, ctr, mnts)
 	if err != nil {
 		// Any error that occurs while creating the spec, even if it's the
 		// result of an invalid container config, must be considered a System
@@ -156,27 +156,27 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	}
 
 	if resetRestartManager {
-		container.ResetRestartManager(true)
-		container.HasBeenManuallyStopped = false
+		ctr.ResetRestartManager(true)
+		ctr.HasBeenManuallyStopped = false
 	}
 
-	if err := daemon.saveAppArmorConfig(container); err != nil {
+	if err := daemon.saveAppArmorConfig(ctr); err != nil {
 		return err
 	}
 
 	if checkpoint != "" {
-		checkpointDir, err = getCheckpointDir(checkpointDir, checkpoint, container.Name, container.ID, container.CheckpointDir(), false)
+		checkpointDir, err = getCheckpointDir(checkpointDir, checkpoint, ctr.Name, ctr.ID, ctr.CheckpointDir(), false)
 		if err != nil {
 			return err
 		}
 	}
 
-	shim, createOptions, err := daemon.getLibcontainerdCreateOptions(daemonCfg, container)
+	shim, createOptions, err := daemon.getLibcontainerdCreateOptions(daemonCfg, ctr)
 	if err != nil {
 		return err
 	}
 
-	ctr, err := libcontainerd.ReplaceContainer(ctx, daemon.containerd, container.ID, spec, shim, createOptions, func(ctx context.Context, client *containerd.Client, c *containers.Container) error {
+	c8dCtr, err := libcontainerd.ReplaceContainer(ctx, daemon.containerd, ctr.ID, spec, shim, createOptions, func(ctx context.Context, client *containerd.Client, c *containers.Container) error {
 		// Only set the image if we are using containerd for image storage.
 		// This is for metadata purposes only.
 		// Other lower-level components may make use of this information.
@@ -184,21 +184,21 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		if !ok {
 			return nil
 		}
-		img, err := is.ResolveImage(ctx, container.Config.Image)
+		img, err := is.ResolveImage(ctx, ctr.Config.Image)
 		if err != nil {
-			log.G(ctx).WithError(err).WithField("container", container.ID).Warn("Failed to resolve containerd image reference")
+			log.G(ctx).WithError(err).WithField("container", ctr.ID).Warn("Failed to resolve containerd image reference")
 			return nil
 		}
 		c.Image = img.Name
 		return nil
 	})
 	if err != nil {
-		return setExitCodeFromError(container.SetExitCode, err)
+		return setExitCodeFromError(ctr.SetExitCode, err)
 	}
 	defer func() {
 		if retErr != nil {
-			if err := ctr.Delete(context.WithoutCancel(ctx)); err != nil {
-				log.G(ctx).WithError(err).WithField("container", container.ID).
+			if err := c8dCtr.Delete(context.WithoutCancel(ctx)); err != nil {
+				log.G(ctx).WithError(err).WithField("container", ctr.ID).
 					Error("failed to delete failed start container")
 			}
 		}
@@ -206,42 +206,42 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 
 	startupTime := time.Now()
 	// TODO(mlaventure): we need to specify checkpoint options here
-	tsk, err := ctr.NewTask(context.WithoutCancel(ctx), // passing a cancelable ctx caused integration tests to be stuck in the cleanup phase
-		checkpointDir, container.StreamConfig.Stdin() != nil || container.Config.Tty,
-		container.InitializeStdio)
+	tsk, err := c8dCtr.NewTask(context.WithoutCancel(ctx), // passing a cancelable ctx caused integration tests to be stuck in the cleanup phase
+		checkpointDir, ctr.StreamConfig.Stdin() != nil || ctr.Config.Tty,
+		ctr.InitializeStdio)
 	if err != nil {
-		return setExitCodeFromError(container.SetExitCode, err)
+		return setExitCodeFromError(ctr.SetExitCode, err)
 	}
 	defer func() {
 		if retErr != nil {
 			if err := tsk.ForceDelete(context.WithoutCancel(ctx)); err != nil {
-				log.G(ctx).WithError(err).WithField("container", container.ID).
+				log.G(ctx).WithError(err).WithField("container", ctr.ID).
 					Error("failed to delete task after fail start")
 			}
 		}
 	}()
 
-	if err := daemon.initializeCreatedTask(ctx, tsk, container, spec); err != nil {
+	if err := daemon.initializeCreatedTask(ctx, tsk, ctr, spec); err != nil {
 		return err
 	}
 
 	if err := tsk.Start(context.WithoutCancel(ctx)); err != nil { // passing a cancelable ctx caused integration tests to be stuck in the cleanup phase
-		return setExitCodeFromError(container.SetExitCode, err)
+		return setExitCodeFromError(ctr.SetExitCode, err)
 	}
 
-	container.HasBeenManuallyRestarted = false
-	container.SetRunning(ctr, tsk, startupTime)
-	container.HasBeenStartedBefore = true
-	daemon.setStateCounter(container)
+	ctr.HasBeenManuallyRestarted = false
+	ctr.SetRunning(c8dCtr, tsk, startupTime)
+	ctr.HasBeenStartedBefore = true
+	daemon.setStateCounter(ctr)
 
-	daemon.initHealthMonitor(container)
+	daemon.initHealthMonitor(ctr)
 
-	if err := container.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
-		log.G(ctx).WithError(err).WithField("container", container.ID).
+	if err := ctr.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
+		log.G(ctx).WithError(err).WithField("container", ctr.ID).
 			Errorf("failed to store container")
 	}
 
-	daemon.LogContainerEvent(container, events.ActionStart)
+	daemon.LogContainerEvent(ctr, events.ActionStart)
 	containerActions.WithValues("start").UpdateSince(start)
 
 	return nil
@@ -249,46 +249,46 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 
 // Cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
-func (daemon *Daemon) Cleanup(ctx context.Context, container *container.Container) {
+func (daemon *Daemon) Cleanup(ctx context.Context, ctr *container.Container) {
 	// Microsoft HCS containers get in a bad state if host resources are
 	// released while the container still exists.
-	if ctr, ok := container.C8dContainer(); ok {
-		if err := ctr.Delete(context.Background()); err != nil {
-			log.G(ctx).Errorf("%s cleanup: failed to delete container from containerd: %v", container.ID, err)
+	if c8dCtr, ok := ctr.C8dContainer(); ok {
+		if err := c8dCtr.Delete(context.Background()); err != nil {
+			log.G(ctx).Errorf("%s cleanup: failed to delete container from containerd: %v", ctr.ID, err)
 		}
 	}
 
-	daemon.releaseNetwork(ctx, container)
+	daemon.releaseNetwork(ctx, ctr)
 
-	if err := container.UnmountIpcMount(); err != nil {
-		log.G(ctx).Warnf("%s cleanup: failed to unmount IPC: %s", container.ID, err)
+	if err := ctr.UnmountIpcMount(); err != nil {
+		log.G(ctx).Warnf("%s cleanup: failed to unmount IPC: %s", ctr.ID, err)
 	}
 
-	if err := daemon.conditionalUnmountOnCleanup(container); err != nil {
+	if err := daemon.conditionalUnmountOnCleanup(ctr); err != nil {
 		// FIXME: remove once reference counting for graphdrivers has been refactored
 		// Ensure that all the mounts are gone
-		if mountid, err := daemon.imageService.GetLayerMountID(container.ID); err == nil {
+		if mountid, err := daemon.imageService.GetLayerMountID(ctr.ID); err == nil {
 			daemon.cleanupMountsByID(mountid)
 		}
 	}
 
-	if err := container.UnmountSecrets(); err != nil {
-		log.G(ctx).Warnf("%s cleanup: failed to unmount secrets: %s", container.ID, err)
+	if err := ctr.UnmountSecrets(); err != nil {
+		log.G(ctx).Warnf("%s cleanup: failed to unmount secrets: %s", ctr.ID, err)
 	}
 
-	if err := recursiveUnmount(container.Root); err != nil {
-		log.G(ctx).WithError(err).WithField("container", container.ID).Warn("Error while cleaning up container resource mounts.")
+	if err := recursiveUnmount(ctr.Root); err != nil {
+		log.G(ctx).WithError(err).WithField("container", ctr.ID).Warn("Error while cleaning up container resource mounts.")
 	}
 
-	for _, eConfig := range container.ExecCommands.Commands() {
-		daemon.unregisterExecCommand(container, eConfig)
+	for _, eConfig := range ctr.ExecCommands.Commands() {
+		daemon.unregisterExecCommand(ctr, eConfig)
 	}
 
-	if container.BaseFS != "" {
-		if err := container.UnmountVolumes(ctx, daemon.LogVolumeEvent); err != nil {
-			log.G(ctx).Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
+	if ctr.BaseFS != "" {
+		if err := ctr.UnmountVolumes(ctx, daemon.LogVolumeEvent); err != nil {
+			log.G(ctx).Warnf("%s cleanup: Failed to umount volumes: %v", ctr.ID, err)
 		}
 	}
 
-	container.CancelAttachContext()
+	ctr.CancelAttachContext()
 }
