@@ -255,3 +255,8 @@ type HealthcheckResult = container.HealthcheckResult
 //
 // Deprecated: use [container.MountPoint].
 type MountPoint = container.MountPoint
+
+// Port An open port on a container
+//
+// Deprecated: use [container.Port].
+type Port = container.Port

@@ -143,7 +143,7 @@ type Container struct {
 	ImageID    string
 	Command    string
 	Created    int64
-	Ports      []Port
+	Ports      []container.Port
 	SizeRw     int64 `json:",omitempty"`
 	SizeRootFs int64 `json:",omitempty"`
 	Labels     map[string]string
