@@ -19,29 +19,6 @@ const (
 	MediaTypeMultiplexedStream = "application/vnd.docker.multiplexed-stream"
 )
 
-// Container contains response of Engine API:
-// GET "/containers/json"
-type Container struct {
-	ID         string `json:"Id"`
-	Names      []string
-	Image      string
-	ImageID    string
-	Command    string
-	Created    int64
-	Ports      []container.Port
-	SizeRw     int64 `json:",omitempty"`
-	SizeRootFs int64 `json:",omitempty"`
-	Labels     map[string]string
-	State      string
-	Status     string
-	HostConfig struct {
-		NetworkMode string            `json:",omitempty"`
-		Annotations map[string]string `json:",omitempty"`
-	}
-	NetworkSettings *container.NetworkSettingsSummary
-	Mounts          []container.MountPoint
-}
-
 // Ping contains response of Engine API:
 // GET "/_ping"
 type Ping struct {
@@ -149,7 +126,7 @@ type DiskUsageOptions struct {
 type DiskUsage struct {
 	LayersSize  int64
 	Images      []*image.Summary
-	Containers  []*Container
+	Containers  []*container.Summary
 	Volumes     []*volume.Volume
 	BuildCache  []*BuildCache
 	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.

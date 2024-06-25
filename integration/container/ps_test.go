@@ -3,7 +3,6 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
@@ -20,7 +19,7 @@ func TestPsFilter(t *testing.T) {
 	top := container.Create(ctx, t, apiClient)
 	next := container.Create(ctx, t, apiClient)
 
-	containerIDs := func(containers []types.Container) []string {
+	containerIDs := func(containers []containertypes.Summary) []string {
 		var entries []string
 		for _, c := range containers {
 			entries = append(entries, c.ID)

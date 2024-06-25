@@ -105,3 +105,26 @@ type State struct {
 	FinishedAt string
 	Health     *Health `json:",omitempty"`
 }
+
+// Summary contains response of Engine API:
+// GET "/containers/json"
+type Summary struct {
+	ID         string `json:"Id"`
+	Names      []string
+	Image      string
+	ImageID    string
+	Command    string
+	Created    int64
+	Ports      []Port
+	SizeRw     int64 `json:",omitempty"`
+	SizeRootFs int64 `json:",omitempty"`
+	Labels     map[string]string
+	State      string
+	Status     string
+	HostConfig struct {
+		NetworkMode string            `json:",omitempty"`
+		Annotations map[string]string `json:",omitempty"`
+	}
+	NetworkSettings *NetworkSettingsSummary
+	Mounts          []MountPoint
+}

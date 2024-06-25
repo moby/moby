@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
@@ -49,7 +50,7 @@ func TestDiskUsage(t *testing.T) {
 				assert.DeepEqual(t, du, types.DiskUsage{
 					LayersSize: expectedLayersSize,
 					Images:     []*image.Summary{},
-					Containers: []*types.Container{},
+					Containers: []*containertypes.Summary{},
 					Volumes:    []*volume.Volume{},
 					BuildCache: []*types.BuildCache{},
 				})

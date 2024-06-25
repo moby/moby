@@ -210,6 +210,12 @@ type ContainerNode struct {
 	Labels    map[string]string
 }
 
+// Container contains response of Engine API:
+// GET "/containers/json"
+//
+// Deprecated: use [container.Summary].
+type Container = container.Summary
+
 // ContainerState stores container's running state
 //
 // Deprecated: use [container.State].

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
@@ -39,7 +38,7 @@ var (
 // Snapshot is a read only view for Containers. It holds all information necessary to serve container queries in a
 // versioned ACID in-memory store.
 type Snapshot struct {
-	types.Container
+	container.Summary
 
 	// additional info queries need to filter on
 	// preserve nanosec resolution for queries
@@ -306,7 +305,7 @@ func (v *View) transform(ctr *Container) *Snapshot {
 		health = ctr.Health.Status()
 	}
 	snapshot := &Snapshot{
-		Container: types.Container{
+		Summary: container.Summary{
 			ID:      ctr.ID,
 			Names:   v.getNames(ctr.ID),
 			ImageID: ctr.ImageID.String(),
@@ -335,8 +334,8 @@ func (v *View) transform(ctr *Container) *Snapshot {
 	}
 
 	if ctr.HostConfig != nil {
-		snapshot.Container.HostConfig.NetworkMode = string(ctr.HostConfig.NetworkMode)
-		snapshot.Container.HostConfig.Annotations = maps.Clone(ctr.HostConfig.Annotations)
+		snapshot.Summary.HostConfig.NetworkMode = string(ctr.HostConfig.NetworkMode)
+		snapshot.Summary.HostConfig.Annotations = maps.Clone(ctr.HostConfig.Annotations)
 		snapshot.HostConfig.Isolation = string(ctr.HostConfig.Isolation)
 		for binding := range ctr.HostConfig.PortBindings {
 			snapshot.PortBindings[binding] = struct{}{}
