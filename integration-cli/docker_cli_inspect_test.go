@@ -194,7 +194,7 @@ func (s *DockerCLIInspectSuite) TestInspectBindMountPoint(c *testing.T) {
 
 	vol := inspectFieldJSON(c, "test", "Mounts")
 
-	var mp []types.MountPoint
+	var mp []container.MountPoint
 	err := json.Unmarshal([]byte(vol), &mp)
 	assert.NilError(c, err)
 
@@ -218,7 +218,7 @@ func (s *DockerCLIInspectSuite) TestInspectNamedMountPoint(c *testing.T) {
 
 	vol := inspectFieldJSON(c, "test", "Mounts")
 
-	var mp []types.MountPoint
+	var mp []container.MountPoint
 	err := json.Unmarshal([]byte(vol), &mp)
 	assert.NilError(c, err)
 

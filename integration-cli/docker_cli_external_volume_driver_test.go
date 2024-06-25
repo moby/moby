@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -494,7 +494,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c 
 	s.d.Restart(c)
 
 	cli.DockerCmd(c, "run", "--name=test", "-v", "abc1:/foo", "busybox", "true")
-	var mounts []types.MountPoint
+	var mounts []container.MountPoint
 	inspectFieldAndUnmarshall(c, "test", "Mounts", &mounts)
 	assert.Equal(c, len(mounts), 1)
 	assert.Equal(c, mounts[0].Driver, volumePluginName)

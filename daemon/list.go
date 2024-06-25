@@ -463,7 +463,7 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 	}
 
 	if filter.filters.Contains("volume") {
-		volumesByName := make(map[string]types.MountPoint)
+		volumesByName := make(map[string]containertypes.MountPoint)
 		for _, m := range container.Mounts {
 			if m.Name != "" {
 				volumesByName[m.Name] = m
@@ -471,7 +471,7 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 				volumesByName[m.Source] = m
 			}
 		}
-		volumesByDestination := make(map[string]types.MountPoint)
+		volumesByDestination := make(map[string]containertypes.MountPoint)
 		for _, m := range container.Mounts {
 			if m.Destination != "" {
 				volumesByDestination[m.Destination] = m

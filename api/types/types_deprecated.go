@@ -249,3 +249,9 @@ type Health = container.Health
 //
 // Deprecated: use [container.HealthcheckResult].
 type HealthcheckResult = container.HealthcheckResult
+
+// MountPoint represents a mount point configuration inside the container.
+// This is used for reporting the mountpoints in use by a container.
+//
+// Deprecated: use [container.MountPoint].
+type MountPoint = container.MountPoint
