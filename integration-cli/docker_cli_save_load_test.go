@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/internal/testutils/specialimage"
@@ -171,7 +171,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadRepoFlags(c *testing.T) {
 
 	afterStr := cli.DockerCmd(c, "inspect", imgRepoName).Stdout()
 
-	var before, after []types.ImageInspect
+	var before, after []image.InspectResponse
 	err = json.Unmarshal([]byte(beforeStr), &before)
 	assert.NilError(c, err, "failed to parse inspect 'before' output")
 	err = json.Unmarshal([]byte(afterStr), &after)

@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/opencontainers/go-digest"
@@ -412,7 +412,7 @@ func (s *DockerRegistrySuite) TestInspectImageWithDigests(c *testing.T) {
 
 	out := cli.DockerCmd(c, "inspect", imageReference).Stdout()
 
-	var imageJSON []types.ImageInspect
+	var imageJSON []image.InspectResponse
 	err = json.Unmarshal([]byte(out), &imageJSON)
 	assert.NilError(c, err)
 	assert.Equal(c, len(imageJSON), 1)

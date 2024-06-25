@@ -267,3 +267,14 @@ type Port = container.Port
 //
 // Deprecated: use [storage.DriverData].
 type GraphDriverData = storage.DriverData
+
+// RootFS returns Image's RootFS description including the layer IDs.
+//
+// Deprecated: use [image.RootFS].
+type RootFS = image.RootFS
+
+// ImageInspect contains response of Engine API:
+// GET "/images/{name:.*}/json"
+//
+// Deprecated: use [image.InspectResponse].
+type ImageInspect = image.InspectResponse

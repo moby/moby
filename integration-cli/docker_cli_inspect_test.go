@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"gotest.tools/v3/assert"
@@ -376,7 +376,7 @@ func (s *DockerCLIInspectSuite) TestInspectRootFS(c *testing.T) {
 	out, _, err := dockerCmdWithError("inspect", "busybox")
 	assert.NilError(c, err)
 
-	var imageJSON []types.ImageInspect
+	var imageJSON []image.InspectResponse
 	err = json.Unmarshal([]byte(out), &imageJSON)
 	assert.NilError(c, err)
 	assert.Assert(c, len(imageJSON[0].RootFS.Layers) >= 1)

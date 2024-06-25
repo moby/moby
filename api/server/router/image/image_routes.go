@@ -14,7 +14,6 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -331,7 +330,7 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
 }
 
-func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, error) {
+func (ir *imageRouter) toImageInspect(img *image.Image) (*imagetypes.InspectResponse, error) {
 	var repoTags, repoDigests []string
 	for _, ref := range img.Details.References {
 		switch ref.(type) {
@@ -360,7 +359,7 @@ func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, er
 		created = img.Created.Format(time.RFC3339Nano)
 	}
 
-	return &types.ImageInspect{
+	return &imagetypes.InspectResponse{
 		ID:              img.ID().String(),
 		RepoTags:        repoTags,
 		RepoDigests:     repoDigests,
@@ -388,12 +387,12 @@ func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, er
 	}, nil
 }
 
-func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
+func rootFSToAPIType(rootfs *image.RootFS) imagetypes.RootFS {
 	var layers []string
 	for _, l := range rootfs.DiffIDs {
 		layers = append(layers, l.String())
 	}
-	return types.RootFS{
+	return imagetypes.RootFS{
 		Type:   rootfs.Type,
 		Layers: layers,
 	}
