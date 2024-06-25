@@ -87,23 +87,6 @@ type Version struct {
 	BuildTime     string `json:",omitempty"`
 }
 
-// ContainerState stores container's running state
-// it's part of ContainerJSONBase and will return by "inspect" command
-type ContainerState struct {
-	Status     string // String representation of the container state. Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
-	Running    bool
-	Paused     bool
-	Restarting bool
-	OOMKilled  bool
-	Dead       bool
-	Pid        int
-	ExitCode   int
-	Error      string
-	StartedAt  string
-	FinishedAt string
-	Health     *container.Health `json:",omitempty"`
-}
-
 // ContainerJSONBase contains response of Engine API:
 // GET "/containers/{name:.*}/json"
 type ContainerJSONBase struct {
@@ -111,7 +94,7 @@ type ContainerJSONBase struct {
 	Created         string
 	Path            string
 	Args            []string
-	State           *ContainerState
+	State           *container.State
 	Image           string
 	ResolvConfPath  string
 	HostnamePath    string

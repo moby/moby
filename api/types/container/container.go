@@ -88,3 +88,20 @@ type MountPoint struct {
 	// This field is not used on Windows.
 	Propagation mount.Propagation
 }
+
+// State stores container's running state
+// it's part of ContainerJSONBase and will return by "inspect" command
+type State struct {
+	Status     string // String representation of the container state. Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
+	Running    bool
+	Paused     bool
+	Restarting bool
+	OOMKilled  bool
+	Dead       bool
+	Pid        int
+	ExitCode   int
+	Error      string
+	StartedAt  string
+	FinishedAt string
+	Health     *Health `json:",omitempty"`
+}

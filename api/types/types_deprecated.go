@@ -210,6 +210,11 @@ type ContainerNode struct {
 	Labels    map[string]string
 }
 
+// ContainerState stores container's running state
+//
+// Deprecated: use [container.State].
+type ContainerState = container.State
+
 // NetworkSettings exposes the network settings in the api.
 //
 // Deprecated: use [container.NetworkSettings].

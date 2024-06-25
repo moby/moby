@@ -146,7 +146,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 		}
 	}
 
-	containerState := &types.ContainerState{
+	containerState := &containertypes.State{
 		Status:     container.State.StateString(),
 		Running:    container.State.Running,
 		Paused:     container.State.Paused,
