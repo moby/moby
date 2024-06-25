@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	realcontainer "github.com/docker/docker/container"
@@ -73,7 +72,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	assert.Check(t, err, "failed to start test container")
 }
 
-func getContainerdShimPid(t *testing.T, c types.ContainerJSON) int {
+func getContainerdShimPid(t *testing.T, c containertypes.InspectResponse) int {
 	statB, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", c.State.Pid))
 	assert.Check(t, err, "error looking up containerd-shim pid")
 

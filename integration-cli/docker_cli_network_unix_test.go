@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -1017,7 +1017,7 @@ func (s *DockerCLINetworkSuite) TestInspectAPIMultipleNetworks(c *testing.T) {
 
 	// Current API version (API v1.21 and up)
 	body := getInspectBody(c, "", id)
-	var inspectCurrent types.ContainerJSON
+	var inspectCurrent container.InspectResponse
 	err := json.Unmarshal(body, &inspectCurrent)
 	assert.NilError(c, err)
 	assert.Equal(c, len(inspectCurrent.NetworkSettings.Networks), 3)

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/errdefs"
@@ -610,7 +610,7 @@ func (r *controller) checkClosed() error {
 	}
 }
 
-func parseContainerStatus(ctnr types.ContainerJSON) (*api.ContainerStatus, error) {
+func parseContainerStatus(ctnr container.InspectResponse) (*api.ContainerStatus, error) {
 	status := &api.ContainerStatus{
 		ContainerID: ctnr.ID,
 		PID:         int32(ctnr.State.Pid),
@@ -620,7 +620,7 @@ func parseContainerStatus(ctnr types.ContainerJSON) (*api.ContainerStatus, error
 	return status, nil
 }
 
-func parsePortStatus(ctnr types.ContainerJSON) (*api.PortStatus, error) {
+func parsePortStatus(ctnr container.InspectResponse) (*api.PortStatus, error) {
 	status := &api.PortStatus{}
 
 	if ctnr.NetworkSettings != nil && len(ctnr.NetworkSettings.Ports) > 0 {

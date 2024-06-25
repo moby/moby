@@ -196,19 +196,23 @@ type ImageImportSource image.ImportSource
 // Deprecated: use [image.LoadResponse].
 type ImageLoadResponse = image.LoadResponse
 
+// ContainerJSONBase contains response of Engine API GET "/containers/{name:.*}/json"
+// for API version 1.18 and older.
+//
+// Deprecated: use [container.InspectResponse] or [container.InspectBase]. It will be removed in the next release.
+type ContainerJSONBase = container.InspectBase
+
+// ContainerJSON is the response for the GET "/containers/{name:.*}/json"
+// endpoint.
+//
+// Deprecated: use [container.InspectResponse]. It will be removed in the next release.
+type ContainerJSON = container.InspectResponse
+
 // ContainerNode stores information about the node that a container
 // is running on.  It's only used by the Docker Swarm standalone API.
 //
 // Deprecated: ContainerNode was used for the classic Docker Swarm standalone API. It will be removed in the next release.
-type ContainerNode struct {
-	ID        string
-	IPAddress string `json:"IP"`
-	Addr      string
-	Name      string
-	Cpus      int
-	Memory    int64
-	Labels    map[string]string
-}
+type ContainerNode = container.ContainerNode //nolint:staticcheck // Ignore SA1019: container.ContainerNode is deprecated.
 
 // Container contains response of Engine API:
 // GET "/containers/json"

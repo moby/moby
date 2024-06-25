@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
@@ -52,8 +52,8 @@ func TestContainerInspect(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			content, err := json.Marshal(types.ContainerJSON{
-				ContainerJSONBase: &types.ContainerJSONBase{
+			content, err := json.Marshal(container.InspectResponse{
+				InspectBase: &container.InspectBase{
 					ID:    "container_id",
 					Image: "image",
 					Name:  "name",

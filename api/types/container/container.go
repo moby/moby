@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/storage"
 )
 
 // PruneReport contains the response for Engine API:
@@ -90,7 +91,7 @@ type MountPoint struct {
 }
 
 // State stores container's running state
-// it's part of ContainerJSONBase and will return by "inspect" command
+// it's part of InspectBase and returned by "inspect" command
 type State struct {
 	Status     string // String representation of the container state. Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
 	Running    bool
@@ -127,4 +128,62 @@ type Summary struct {
 	}
 	NetworkSettings *NetworkSettingsSummary
 	Mounts          []MountPoint
+}
+
+// ContainerNode stores information about the node that a container
+// is running on.  It's only used by the Docker Swarm standalone API.
+//
+// Deprecated: ContainerNode was used for the classic Docker Swarm standalone API. It will be removed in the next release.
+type ContainerNode struct {
+	ID        string
+	IPAddress string `json:"IP"`
+	Addr      string
+	Name      string
+	Cpus      int
+	Memory    int64
+	Labels    map[string]string
+}
+
+// InspectBase contains response of Engine API GET "/containers/{name:.*}/json"
+// for API version 1.18 and older.
+//
+// TODO(thaJeztah): combine InspectBase and InspectResponse into a single struct.
+// The split between InspectBase (ContainerJSONBase) and InspectResponse (InspectResponse)
+// was done in commit 6deaa58ba5f051039643cedceee97c8695e2af74 (https://github.com/moby/moby/pull/13675).
+// ContainerJSONBase contained all fields for API < 1.19, and InspectResponse
+// held fields that were added in API 1.19 and up. Given that the minimum
+// supported API version is now 1.24, we no longer use the separate type.
+type InspectBase struct {
+	ID              string `json:"Id"`
+	Created         string
+	Path            string
+	Args            []string
+	State           *State
+	Image           string
+	ResolvConfPath  string
+	HostnamePath    string
+	HostsPath       string
+	LogPath         string
+	Node            *ContainerNode `json:",omitempty"` // Deprecated: Node was only propagated by Docker Swarm standalone API. It sill be removed in the next release.
+	Name            string
+	RestartCount    int
+	Driver          string
+	Platform        string
+	MountLabel      string
+	ProcessLabel    string
+	AppArmorProfile string
+	ExecIDs         []string
+	HostConfig      *HostConfig
+	GraphDriver     storage.DriverData
+	SizeRw          *int64 `json:",omitempty"`
+	SizeRootFs      *int64 `json:",omitempty"`
+}
+
+// InspectResponse is the response for the GET "/containers/{name:.*}/json"
+// endpoint.
+type InspectResponse struct {
+	*InspectBase
+	Mounts          []MountPoint
+	Config          *Config
+	NetworkSettings *NetworkSettings
 }

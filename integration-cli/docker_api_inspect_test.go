@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
@@ -98,7 +98,7 @@ func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings121(c *testing.T) {
 
 	body := getInspectBody(c, "", containerID)
 
-	var inspectJSON types.ContainerJSON
+	var inspectJSON container.InspectResponse
 	err := json.Unmarshal(body, &inspectJSON)
 	assert.NilError(c, err)
 

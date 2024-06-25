@@ -13,7 +13,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -372,13 +371,13 @@ func (c *containerAdapter) start(ctx context.Context) error {
 	return c.backend.ContainerStart(ctx, c.container.name(), "", "")
 }
 
-func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, error) {
+func (c *containerAdapter) inspect(ctx context.Context) (containertypes.InspectResponse, error) {
 	cs, err := c.backend.ContainerInspectCurrent(ctx, c.container.name(), false)
 	if ctx.Err() != nil {
-		return types.ContainerJSON{}, ctx.Err()
+		return containertypes.InspectResponse{}, ctx.Err()
 	}
 	if err != nil {
-		return types.ContainerJSON{}, err
+		return containertypes.InspectResponse{}, err
 	}
 	return *cs, nil
 }

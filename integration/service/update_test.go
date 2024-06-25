@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	networktypes "github.com/docker/docker/api/types/network"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
@@ -324,7 +325,7 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-func getServiceTaskContainer(ctx context.Context, t *testing.T, cli client.APIClient, serviceID string) types.ContainerJSON {
+func getServiceTaskContainer(ctx context.Context, t *testing.T, cli client.APIClient, serviceID string) container.InspectResponse {
 	t.Helper()
 	tasks, err := cli.TaskList(ctx, types.TaskListOptions{
 		Filters: filters.NewArgs(

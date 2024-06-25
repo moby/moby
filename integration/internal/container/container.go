@@ -162,7 +162,7 @@ func Remove(ctx context.Context, t *testing.T, apiClient client.APIClient, conta
 	assert.NilError(t, err)
 }
 
-func Inspect(ctx context.Context, t *testing.T, apiClient client.APIClient, containerRef string) types.ContainerJSON {
+func Inspect(ctx context.Context, t *testing.T, apiClient client.APIClient, containerRef string) container.InspectResponse {
 	t.Helper()
 
 	c, err := apiClient.ContainerInspect(ctx, containerRef)

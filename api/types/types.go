@@ -6,7 +6,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/storage"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
 )
@@ -62,42 +61,6 @@ type Version struct {
 	KernelVersion string `json:",omitempty"`
 	Experimental  bool   `json:",omitempty"`
 	BuildTime     string `json:",omitempty"`
-}
-
-// ContainerJSONBase contains response of Engine API:
-// GET "/containers/{name:.*}/json"
-type ContainerJSONBase struct {
-	ID              string `json:"Id"`
-	Created         string
-	Path            string
-	Args            []string
-	State           *container.State
-	Image           string
-	ResolvConfPath  string
-	HostnamePath    string
-	HostsPath       string
-	LogPath         string
-	Node            *ContainerNode `json:",omitempty"` // Deprecated: Node was only propagated by Docker Swarm standalone API. It sill be removed in the next release.
-	Name            string
-	RestartCount    int
-	Driver          string
-	Platform        string
-	MountLabel      string
-	ProcessLabel    string
-	AppArmorProfile string
-	ExecIDs         []string
-	HostConfig      *container.HostConfig
-	GraphDriver     storage.DriverData
-	SizeRw          *int64 `json:",omitempty"`
-	SizeRootFs      *int64 `json:",omitempty"`
-}
-
-// ContainerJSON is newly used struct along with MountPoint
-type ContainerJSON struct {
-	*ContainerJSONBase
-	Mounts          []container.MountPoint
-	Config          *container.Config
-	NetworkSettings *container.NetworkSettings
 }
 
 // DiskUsageObject represents an object type used for disk usage query filtering.

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -49,7 +48,7 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, size bo
 
 // ContainerInspectCurrent returns low-level information about a
 // container in a most recent api version.
-func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, size bool) (*types.ContainerJSON, error) {
+func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, size bool) (*containertypes.InspectResponse, error) {
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
@@ -104,15 +103,15 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 		base.SizeRootFs = &sizeRootFs
 	}
 
-	return &types.ContainerJSON{
-		ContainerJSONBase: base,
-		Mounts:            mountPoints,
-		Config:            ctr.Config,
-		NetworkSettings:   networkSettings,
+	return &containertypes.InspectResponse{
+		InspectBase:     base,
+		Mounts:          mountPoints,
+		Config:          ctr.Config,
+		NetworkSettings: networkSettings,
 	}, nil
 }
 
-func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *container.Container) (*types.ContainerJSONBase, error) {
+func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *container.Container) (*containertypes.InspectBase, error) {
 	// make a copy to play with
 	hostConfig := *container.HostConfig
 
@@ -161,7 +160,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 		Health:     containerHealth,
 	}
 
-	contJSONBase := &types.ContainerJSONBase{
+	contJSONBase := &containertypes.InspectBase{
 		ID:           container.ID,
 		Created:      container.Created.Format(time.RFC3339Nano),
 		Path:         container.Path,
