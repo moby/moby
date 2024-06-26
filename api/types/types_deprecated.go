@@ -194,3 +194,17 @@ type ImageImportSource image.ImportSource
 //
 // Deprecated: use [image.LoadResponse].
 type ImageLoadResponse = image.LoadResponse
+
+// ContainerNode stores information about the node that a container
+// is running on.  It's only used by the Docker Swarm standalone API.
+//
+// Deprecated: ContainerNode was used for the classic Docker Swarm standalone API. It will be removed in the next release.
+type ContainerNode struct {
+	ID        string
+	IPAddress string `json:"IP"`
+	Addr      string
+	Name      string
+	Cpus      int
+	Memory    int64
+	Labels    map[string]string
+}
