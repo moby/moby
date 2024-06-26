@@ -245,18 +245,6 @@ type ContainerState struct {
 	Health     *Health `json:",omitempty"`
 }
 
-// ContainerNode stores information about the node that a container
-// is running on.  It's only used by the Docker Swarm standalone API
-type ContainerNode struct {
-	ID        string
-	IPAddress string `json:"IP"`
-	Addr      string
-	Name      string
-	Cpus      int
-	Memory    int64
-	Labels    map[string]string
-}
-
 // ContainerJSONBase contains response of Engine API:
 // GET "/containers/{name:.*}/json"
 type ContainerJSONBase struct {
@@ -270,7 +258,7 @@ type ContainerJSONBase struct {
 	HostnamePath    string
 	HostsPath       string
 	LogPath         string
-	Node            *ContainerNode `json:",omitempty"` // Node is only propagated by Docker Swarm standalone API
+	Node            *ContainerNode `json:",omitempty"` // Deprecated: Node was only propagated by Docker Swarm standalone API. It sill be removed in the next release.
 	Name            string
 	RestartCount    int
 	Driver          string
