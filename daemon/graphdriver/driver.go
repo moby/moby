@@ -187,6 +187,16 @@ type Options struct {
 }
 
 // New creates the driver and initializes it at the specified root.
+//
+// It is recommended to pass a name for the driver to use, but If no name
+// is provided, it attempts to detect the prior storage driver based on
+// existing state, or otherwise selects a storage driver based on a priority
+// list and the underlying filesystem.
+//
+// It returns an error if the requested storage driver is not supported,
+// if scanning prior drivers is ambiguous (i.e., if state is found for
+// multiple drivers), or if no compatible driver is available for the
+// platform and underlying filesystem.
 func New(name string, config Options) (Driver, error) {
 	ctx := context.TODO()
 	if name != "" {
@@ -198,6 +208,8 @@ func New(name string, config Options) (Driver, error) {
 	}
 
 	// Guess for prior driver
+	//
+	// TODO(thaJeztah): move detecting prior drivers separate from New(), and make "name" a required argument.
 	driversMap := scanPriorDrivers(config.Root)
 	priorityList := strings.Split(priority, ",")
 	log.G(ctx).Debugf("[graphdriver] priority list: %v", priorityList)
