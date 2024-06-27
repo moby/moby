@@ -10,7 +10,6 @@ import (
 // This is used to log the image creation event for untagged images.
 // When no tag is given, buildkit doesn't call the image service so it has no
 // way of knowing the image was created.
-func (daemon *Daemon) ImageExportedByBuildkit(ctx context.Context, id string, desc ocispec.Descriptor) error {
+func (daemon *Daemon) ImageExportedByBuildkit(ctx context.Context, id string, desc ocispec.Descriptor) {
 	daemon.imageService.LogImageEvent(id, id, "create")
-	return nil
 }

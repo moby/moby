@@ -11,7 +11,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-type ImageExportedByBuildkit = func(ctx context.Context, id string, desc ocispec.Descriptor) error
+type ImageExportedByBuildkit = func(ctx context.Context, id string, desc ocispec.Descriptor)
 
 // Wraps the containerimage exporter's Resolve method to apply moby-specific
 // overrides to the exporter attributes.
