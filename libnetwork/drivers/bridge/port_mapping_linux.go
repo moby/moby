@@ -571,9 +571,11 @@ func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName stri
 func (n *bridgeNetwork) reapplyPerPortIptables4() {
 	n.reapplyPerPortIptables(func(b portBinding) bool { return b.IP.To4() != nil })
 }
+
 func (n *bridgeNetwork) reapplyPerPortIptables6() {
 	n.reapplyPerPortIptables(func(b portBinding) bool { return b.IP.To4() == nil })
 }
+
 func (n *bridgeNetwork) reapplyPerPortIptables(needsReconfig func(portBinding) bool) {
 	n.Lock()
 	var allPBs []portBinding

@@ -14,10 +14,8 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-var (
-	// ErrBoltBucketOptionMissing is thrown when boltBcuket config option is missing
-	ErrBoltBucketOptionMissing = errors.New("boltBucket config option missing")
-)
+// ErrBoltBucketOptionMissing is thrown when boltBcuket config option is missing
+var ErrBoltBucketOptionMissing = errors.New("boltBucket config option missing")
 
 const filePerm = 0o644
 
