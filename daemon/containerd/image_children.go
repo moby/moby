@@ -13,7 +13,6 @@ import (
 // getImagesWithLabel returns all images that have the matching label key and value.
 func (i *ImageService) getImagesWithLabel(ctx context.Context, labelKey string, labelValue string) ([]image.ID, error) {
 	imgs, err := i.images.List(ctx, "labels."+labelKey+"=="+labelValue)
-
 	if err != nil {
 		return []image.ID{}, errdefs.System(errors.Wrap(err, "failed to list all images"))
 	}

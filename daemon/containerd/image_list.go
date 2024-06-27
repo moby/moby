@@ -209,7 +209,6 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platformMatcher platforms.MatchComparer,
 	opts imagetypes.ListOptions, tagsByDigest map[digest.Digest][]string,
 ) (_ *imagetypes.Summary, allChainIDs []digest.Digest, _ error) {
-
 	// Total size of the image including all its platform
 	var totalSize int64
 
