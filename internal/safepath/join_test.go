@@ -122,7 +122,6 @@ func TestJoinWithSymlinkReplace(t *testing.T) {
 	assert.NilError(t, err, "failed to read file")
 
 	assert.Check(t, is.Equal(string(data), "bar"))
-
 }
 
 func TestJoinCloseInvalidates(t *testing.T) {
