@@ -236,7 +236,6 @@ func loadWithRetry(name string, retry bool) (*Plugin, error) {
 		storage.Unlock()
 
 		err = pl.activate()
-
 		if err != nil {
 			storage.Lock()
 			delete(storage.plugins, name)
