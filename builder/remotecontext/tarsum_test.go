@@ -33,7 +33,6 @@ func TestCloseRootDirectory(t *testing.T) {
 
 	src := makeTestArchiveContext(t, contextDir)
 	err = src.Close()
-
 	if err != nil {
 		t.Fatalf("Error while executing Close: %s", err)
 	}
