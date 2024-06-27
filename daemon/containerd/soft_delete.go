@@ -23,7 +23,6 @@ func (i *ImageService) softImageDelete(ctx context.Context, img containerdimages
 	// Create dangling image if this is the last image pointing to this target.
 	if len(imgs) == 1 {
 		err := i.ensureDanglingImage(context.WithoutCancel(ctx), img)
-
 		// Error out in case we couldn't persist the old image.
 		if err != nil {
 			return errdefs.System(errors.Wrapf(err, "failed to create a dangling image for the replaced image %s with digest %s",

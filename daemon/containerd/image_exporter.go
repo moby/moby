@@ -131,7 +131,6 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 
 		for _, img := range imgs {
 			ref, err := reference.ParseNamed(img.Name)
-
 			if err != nil {
 				log.G(ctx).WithFields(log.Fields{
 					"image": img.Name,
@@ -299,7 +298,6 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 
 			if !unpacked {
 				err = platformImg.Unpack(ctx, i.snapshotter)
-
 				if err != nil {
 					return errdefs.System(err)
 				}

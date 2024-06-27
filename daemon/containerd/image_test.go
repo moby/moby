@@ -267,7 +267,6 @@ func desc(size int64) ocispec.Descriptor {
 		Size:      size,
 		MediaType: ocispec.MediaTypeImageIndex,
 	}
-
 }
 
 func digestFor(i int64) digest.Digest {
@@ -284,7 +283,7 @@ func newTestDB(ctx context.Context, t testing.TB) *metadata.DB {
 	t.Helper()
 
 	p := filepath.Join(t.TempDir(), "metadata")
-	bdb, err := bbolt.Open(p, 0600, &bbolt.Options{})
+	bdb, err := bbolt.Open(p, 0o600, &bbolt.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

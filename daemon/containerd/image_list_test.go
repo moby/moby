@@ -192,7 +192,6 @@ func TestImageList(t *testing.T) {
 			tc.check(t, all)
 		})
 	}
-
 }
 
 func fakeImageService(t testing.TB, ctx context.Context, cs content.Store) *ImageService {
