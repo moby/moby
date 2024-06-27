@@ -450,6 +450,7 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 		ContainerdNamespace: config.ContainerdNamespace,
 		Callbacks: exporter.BuildkitCallbacks{
 			Exported: d.ImageExportedByBuildkit,
+			Named:    d.ImageNamedByBuildkit,
 		},
 	})
 	if err != nil {
