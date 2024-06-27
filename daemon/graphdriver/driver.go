@@ -156,8 +156,15 @@ func Register(name string, initFunc InitFunc) error {
 	return nil
 }
 
-// GetDriver initializes and returns the registered driver
+// GetDriver initializes and returns the registered driver.
+//
+// It is exported for use in (integration-)tests, but should be considered internal.
 func GetDriver(name string, config Options) (Driver, error) {
+	return getDriver(name, config)
+}
+
+// getDriver initializes and returns the registered driver.
+func getDriver(name string, config Options) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.IDMap)
 	}
@@ -168,15 +175,6 @@ func GetDriver(name string, config Options) (Driver, error) {
 		return nil, fmt.Errorf("DEPRECATED: Support for experimental graphdriver plugins has been removed. See https://docs.docker.com/go/deprecated/")
 	}
 
-	return nil, ErrNotSupported
-}
-
-// getBuiltinDriver initializes and returns the registered driver, but does not try to load from plugins
-func getBuiltinDriver(name, home string, options []string, idMap idtools.IdentityMapping) (Driver, error) {
-	if initFunc, exists := drivers[name]; exists {
-		return initFunc(filepath.Join(home, name), options, idMap)
-	}
-	log.G(context.TODO()).Errorf("Failed to built-in GetDriver graph %s %s", name, home)
 	return nil, ErrNotSupported
 }
 
@@ -196,7 +194,7 @@ func New(name string, config Options) (Driver, error) {
 		if err := checkRemoved(name); err != nil {
 			return nil, err
 		}
-		return GetDriver(name, config)
+		return getDriver(name, config)
 	}
 
 	// Guess for prior driver
@@ -207,7 +205,7 @@ func New(name string, config Options) (Driver, error) {
 		if _, prior := driversMap[name]; prior {
 			// of the state found from prior drivers, check in order of our priority
 			// which we would prefer
-			driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.IDMap)
+			driver, err := getDriver(name, config)
 			if err != nil {
 				// unlike below, we will return error here, because there is prior
 				// state, and now it is no longer supported/prereq/compatible, so
@@ -238,7 +236,7 @@ func New(name string, config Options) (Driver, error) {
 	// If no prior state was found, continue with automatic selection, and pick
 	// the first supported, non-deprecated, storage driver (in order of priorityList).
 	for _, name := range priorityList {
-		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.IDMap)
+		driver, err := getDriver(name, config)
 		if err != nil {
 			if IsDriverNotSupported(err) {
 				continue
