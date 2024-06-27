@@ -318,17 +318,17 @@ func DriverTestSetQuota(t *testing.T, drivername string, required bool) {
 		t.Fatal(err)
 	}
 
-	quota := uint64(50 * units.MiB)
+	const sizeQuota = uint64(50 * units.MiB)
 
 	// Try to write a file smaller than quota, and ensure it works
-	err = writeRandomFile(path.Join(mountPath, "smallfile"), quota/2)
+	err = writeRandomFile(path.Join(mountPath, "smallfile"), sizeQuota/2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(path.Join(mountPath, "smallfile"))
 
 	// Try to write a file bigger than quota. We've already filled up half the quota, so hitting the limit should be easy
-	err = writeRandomFile(path.Join(mountPath, "bigfile"), quota)
+	err = writeRandomFile(path.Join(mountPath, "bigfile"), sizeQuota)
 	if err == nil {
 		t.Fatalf("expected write to fail(), instead had success")
 	}
