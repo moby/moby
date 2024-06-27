@@ -30,11 +30,16 @@ type Driver struct {
 }
 
 func newDriver(t testing.TB, name string, options []string) *Driver {
+	if name == "" {
+		// Prevent graphdriver.New() from auto-detecting / picking a storage driver.
+		t.Fatal("newDriver requires a name for the storage driver to use")
+	}
+
 	root, err := os.MkdirTemp("", "docker-graphtest-")
 	assert.NilError(t, err)
 
 	assert.NilError(t, os.MkdirAll(root, 0o755))
-	d, err := graphdriver.GetDriver(name, graphdriver.Options{DriverOptions: options, Root: root})
+	d, err := graphdriver.New(name, graphdriver.Options{DriverOptions: options, Root: root})
 	if err != nil {
 		t.Logf("graphdriver: %v\n", err)
 		if graphdriver.IsDriverNotSupported(err) {

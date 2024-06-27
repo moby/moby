@@ -158,7 +158,7 @@ func Register(name string, initFunc InitFunc) error {
 
 // GetDriver initializes and returns the registered driver.
 //
-// It is exported for use in (integration-)tests, but should be considered internal.
+// Deprecated: this function was exported for (integration-)tests, but no longer used, and will be removed in the next release.
 func GetDriver(name string, config Options) (Driver, error) {
 	return getDriver(name, config)
 }

@@ -26,7 +26,7 @@ func init() {
 }
 
 func newVFSGraphDriver(td string) (graphdriver.Driver, error) {
-	return graphdriver.GetDriver("vfs", graphdriver.Options{
+	return graphdriver.New("vfs", graphdriver.Options{
 		Root: td,
 		IDMap: idtools.IdentityMapping{
 			UIDMaps: []idtools.IDMap{{
