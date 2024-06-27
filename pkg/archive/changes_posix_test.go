@@ -24,7 +24,7 @@ func TestHardLinkOrder(t *testing.T) {
 	defer os.RemoveAll(src)
 	for _, name := range names {
 		func() {
-			err := os.WriteFile(path.Join(src, name), msg, 0666)
+			err := os.WriteFile(path.Join(src, name), msg, 0o666)
 			if err != nil {
 				t.Fatal(err)
 			}
