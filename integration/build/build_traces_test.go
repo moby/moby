@@ -113,5 +113,4 @@ func TestBuildkitHistoryTracePropagation(t *testing.T) {
 		}
 		return poll.Continue("trace not available yet")
 	}, poll.WithDelay(time.Second), poll.WithTimeout(30*time.Second))
-
 }

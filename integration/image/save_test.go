@@ -208,7 +208,6 @@ func TestSaveOCI(t *testing.T) {
 			t.Run("OCI reference tag", func(t *testing.T) {
 				assert.Check(t, is.Equal(index.Manifests[0].Annotations["org.opencontainers.image.ref.name"], tc.expectedOCIRef))
 			})
-
 		})
 	}
 }

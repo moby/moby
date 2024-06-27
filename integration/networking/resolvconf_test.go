@@ -161,7 +161,7 @@ func TestInternalNetworkLocalDNS(t *testing.T) {
 	// Write a config file for busybox's dnsd.
 	td := t.TempDir()
 	fname := path.Join(td, "dnsd.conf")
-	err := os.WriteFile(fname, []byte("foo.example 192.0.2.42\n"), 0644)
+	err := os.WriteFile(fname, []byte("foo.example 192.0.2.42\n"), 0o644)
 	assert.NilError(t, err)
 
 	// Start a DNS server on the internal network.

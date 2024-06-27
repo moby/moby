@@ -23,7 +23,7 @@ func WriteTempResolvConf(t *testing.T, addr string) string {
 	f, err := os.CreateTemp("", "resolv.conf")
 	assert.NilError(t, err)
 	t.Cleanup(func() { os.Remove(f.Name()) })
-	err = f.Chmod(0644)
+	err = f.Chmod(0o644)
 	assert.NilError(t, err)
 	f.Write([]byte("nameserver " + addr + "\n"))
 	return f.Name()
