@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	containerdimages "github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/tracing"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
@@ -75,6 +76,10 @@ func (i *ImageService) ImagesPrune(ctx context.Context, fltrs filters.Args) (*im
 // In case a digested and tagged reference was used (e.g. `docker run alpine:latest@sha256:82d1e9d7ed48a7523bdebc18cf6290bdb97b82302a8a9c27d4fe885949ea94d1`),
 // the alpine:latest image will be kept.
 func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFunc, danglingOnly bool) (*image.PruneReport, error) {
+	ctx, span := tracing.StartSpan(ctx, "ImageService.pruneUnused")
+	span.SetAttributes(tracing.Attribute("danglingOnly", danglingOnly))
+	defer span.End()
+
 	allImages, err := i.images.List(ctx)
 	if err != nil {
 		return nil, err
@@ -125,6 +130,10 @@ func filterImagesUsedByContainers(ctx context.Context,
 	allContainers []*container.Container,
 	imagesToPrune map[string]containerdimages.Image,
 ) (usedDigests map[digest.Digest]struct{}) {
+	ctx, span := tracing.StartSpan(ctx, "filterImagesUsedByContainers")
+	span.SetAttributes(tracing.Attribute("count", len(allContainers)))
+	defer span.End()
+
 	// Image specified by digests that are used by containers.
 	usedDigests = map[digest.Digest]struct{}{}
 
@@ -178,6 +187,10 @@ func filterImagesUsedByContainers(ctx context.Context,
 // pruneAll deletes all images in the imagesToPrune map.
 func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]containerdimages.Image) (*image.PruneReport, error) {
 	report := image.PruneReport{}
+
+	ctx, span := tracing.StartSpan(ctx, "ImageService.pruneAll")
+	span.SetAttributes(tracing.Attribute("count", len(imagesToPrune)))
+	defer span.End()
 
 	possiblyDeletedConfigs := map[digest.Digest]struct{}{}
 	var errs error
