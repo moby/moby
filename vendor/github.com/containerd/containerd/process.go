@@ -23,10 +23,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containerd/errdefs"
+	"github.com/containerd/errdefs/errgrpc"
+
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/protobuf"
-	"github.com/containerd/errdefs"
 )
 
 // Process represents a system process
@@ -128,7 +130,7 @@ func (p *process) Start(ctx context.Context) error {
 			p.io.Wait()
 			p.io.Close()
 		}
-		return errdefs.FromGRPC(err)
+		return errgrpc.ToNative(err)
 	}
 	p.pid = r.Pid
 	return nil
@@ -147,7 +149,7 @@ func (p *process) Kill(ctx context.Context, s syscall.Signal, opts ...KillOpts) 
 		ExecID:      p.id,
 		All:         i.All,
 	})
-	return errdefs.FromGRPC(err)
+	return errgrpc.ToNative(err)
 }
 
 func (p *process) Wait(ctx context.Context) (<-chan ExitStatus, error) {
@@ -184,7 +186,7 @@ func (p *process) CloseIO(ctx context.Context, opts ...IOCloserOpts) error {
 	}
 	r.Stdin = i.Stdin
 	_, err := p.task.client.TaskService().CloseIO(ctx, r)
-	return errdefs.FromGRPC(err)
+	return errgrpc.ToNative(err)
 }
 
 func (p *process) IO() cio.IO {
@@ -198,7 +200,7 @@ func (p *process) Resize(ctx context.Context, w, h uint32) error {
 		Height:      h,
 		ExecID:      p.id,
 	})
-	return errdefs.FromGRPC(err)
+	return errgrpc.ToNative(err)
 }
 
 func (p *process) Delete(ctx context.Context, opts ...ProcessDeleteOpts) (*ExitStatus, error) {
@@ -220,7 +222,7 @@ func (p *process) Delete(ctx context.Context, opts ...ProcessDeleteOpts) (*ExitS
 		ExecID:      p.id,
 	})
 	if err != nil {
-		return nil, errdefs.FromGRPC(err)
+		return nil, errgrpc.ToNative(err)
 	}
 	if p.io != nil {
 		p.io.Cancel()
@@ -236,7 +238,7 @@ func (p *process) Status(ctx context.Context) (Status, error) {
 		ExecID:      p.id,
 	})
 	if err != nil {
-		return Status{}, errdefs.FromGRPC(err)
+		return Status{}, errgrpc.ToNative(err)
 	}
 	return Status{
 		Status:     ProcessStatus(strings.ToLower(r.Process.Status.String())),

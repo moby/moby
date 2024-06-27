@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 

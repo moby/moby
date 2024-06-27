@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	req "github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"

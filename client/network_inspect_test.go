@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -98,6 +98,6 @@ func TestNetworkInspect(t *testing.T) {
 	t.Run("server error", func(t *testing.T) {
 		// Just testing that an internal server error is converted correctly by the client
 		_, err := client.NetworkInspect(context.Background(), "test-500-response", network.InspectOptions{})
-		assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+		assert.Check(t, is.ErrorType(err, errdefs.IsInternal))
 	})
 }

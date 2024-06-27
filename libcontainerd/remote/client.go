@@ -22,10 +22,10 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/protobuf"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/typeurl/v2"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/queue"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/ioutils"
@@ -130,8 +130,8 @@ func (c *client) NewContainer(ctx context.Context, id string, ociSpec *specs.Spe
 
 	ctr, err := c.client.NewContainer(ctx, id, opts...)
 	if err != nil {
-		if cerrdefs.IsAlreadyExists(err) {
-			return nil, errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
+		if errdefs.IsAlreadyExists(err) {
+			return nil, errors.WithStack(derrdefs.Conflict(errors.New("id already in use")))
 		}
 		return nil, wrapError(err)
 	}
@@ -288,8 +288,8 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 	})
 	if err != nil {
 		close(stdinCloseSync)
-		if cerrdefs.IsAlreadyExists(err) {
-			return nil, errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
+		if errdefs.IsAlreadyExists(err) {
+			return nil, errors.WithStack(derrdefs.Conflict(errors.New("id already in use")))
 		}
 		return nil, wrapError(err)
 	}
@@ -440,11 +440,11 @@ func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit 
 
 	b, err := content.ReadBlob(ctx, t.ctr.client.client.ContentStore(), img.Target())
 	if err != nil {
-		return errdefs.System(errors.Wrapf(err, "failed to retrieve checkpoint data"))
+		return derrdefs.System(errors.Wrapf(err, "failed to retrieve checkpoint data"))
 	}
 	var index ocispec.Index
 	if err := json.Unmarshal(b, &index); err != nil {
-		return errdefs.System(errors.Wrapf(err, "failed to decode checkpoint data"))
+		return derrdefs.System(errors.Wrapf(err, "failed to decode checkpoint data"))
 	}
 
 	var cpDesc *ocispec.Descriptor
@@ -456,17 +456,17 @@ func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit 
 		}
 	}
 	if cpDesc == nil {
-		return errdefs.System(errors.Wrapf(err, "invalid checkpoint"))
+		return derrdefs.System(errors.Wrapf(err, "invalid checkpoint"))
 	}
 
 	rat, err := t.ctr.client.client.ContentStore().ReaderAt(ctx, *cpDesc)
 	if err != nil {
-		return errdefs.System(errors.Wrapf(err, "failed to get checkpoint reader"))
+		return derrdefs.System(errors.Wrapf(err, "failed to get checkpoint reader"))
 	}
 	defer rat.Close()
 	_, err = archive.Apply(ctx, checkpointDir, content.NewReader(rat))
 	if err != nil {
-		return errdefs.System(errors.Wrapf(err, "failed to read checkpoint reader"))
+		return derrdefs.System(errors.Wrapf(err, "failed to read checkpoint reader"))
 	}
 
 	return err
@@ -476,8 +476,8 @@ func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit 
 func (c *client) LoadContainer(ctx context.Context, id string) (libcontainerdtypes.Container, error) {
 	ctr, err := c.client.LoadContainer(ctx, id)
 	if err != nil {
-		if cerrdefs.IsNotFound(err) {
-			return nil, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
+		if errdefs.IsNotFound(err) {
+			return nil, errors.WithStack(derrdefs.NotFound(errors.New("no such container")))
 		}
 		return nil, wrapError(err)
 	}
@@ -742,14 +742,14 @@ func wrapError(err error) error {
 	switch {
 	case err == nil:
 		return nil
-	case cerrdefs.IsNotFound(err):
-		return errdefs.NotFound(err)
+	case errdefs.IsNotFound(err):
+		return derrdefs.NotFound(err)
 	}
 
 	msg := err.Error()
 	for _, s := range []string{"container does not exist", "not found", "no such container"} {
 		if strings.Contains(msg, s) {
-			return errdefs.NotFound(err)
+			return derrdefs.NotFound(err)
 		}
 	}
 	return err

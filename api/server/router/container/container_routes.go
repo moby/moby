@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	containerpkg "github.com/docker/docker/container"
 	networkSettings "github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/runconfig"
@@ -56,7 +56,7 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 
 	ref, err := httputils.RepoTagReference(r.Form.Get("repo"), r.Form.Get("tag"))
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 
 	imgID, err := s.backend.CreateImageFromContainer(ctx, r.Form.Get("container"), &backend.CreateImageConfig{
@@ -158,7 +158,7 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	// with the appropriate status code.
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
 	if !(stdout || stderr) {
-		return errdefs.InvalidParameter(errors.New("Bad parameters: you must choose at least one stream"))
+		return derrdefs.InvalidParameter(errors.New("Bad parameters: you must choose at least one stream"))
 	}
 
 	containerName := vars["name"]
@@ -209,7 +209,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	//
 	// A non-nil json object is at least 7 characters.
 	if r.ContentLength > 7 || r.ContentLength == -1 {
-		return errdefs.InvalidParameter(errors.New("starting container with non-empty request body was deprecated since API v1.22 and removed in v1.24"))
+		return derrdefs.InvalidParameter(errors.New("starting container with non-empty request body was deprecated since API v1.22 and removed in v1.24"))
 	}
 
 	if err := httputils.ParseForm(r); err != nil {
@@ -345,7 +345,7 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 				waitCondition = containerpkg.WaitConditionRemoved
 				legacyRemovalWaitPre134 = versions.LessThan(version, "1.34")
 			default:
-				return errdefs.InvalidParameter(errors.Errorf("invalid condition: %q", v))
+				return derrdefs.InvalidParameter(errors.Errorf("invalid condition: %q", v))
 			}
 		}
 	}
@@ -476,13 +476,13 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	config, hostConfig, networkingConfig, err := s.decoder.DecodeConfig(r.Body)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			return errdefs.InvalidParameter(errors.New("invalid JSON: got EOF while reading request body"))
+			return derrdefs.InvalidParameter(errors.New("invalid JSON: got EOF while reading request body"))
 		}
 		return err
 	}
 
 	if config == nil {
-		return errdefs.InvalidParameter(runconfig.ErrEmptyConfig)
+		return derrdefs.InvalidParameter(runconfig.ErrEmptyConfig)
 	}
 	if hostConfig == nil {
 		hostConfig = &container.HostConfig{}
@@ -545,7 +545,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		if v := r.Form.Get("platform"); v != "" {
 			p, err := platforms.Parse(v)
 			if err != nil {
-				return errdefs.InvalidParameter(err)
+				return derrdefs.InvalidParameter(err)
 			}
 			platform = &p
 		}
@@ -583,13 +583,13 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.KernelMemory = 0
 		for _, m := range hostConfig.Mounts {
 			if o := m.VolumeOptions; o != nil && m.Type != mount.TypeVolume {
-				return errdefs.InvalidParameter(fmt.Errorf("VolumeOptions must not be specified on mount type %q", m.Type))
+				return derrdefs.InvalidParameter(fmt.Errorf("VolumeOptions must not be specified on mount type %q", m.Type))
 			}
 			if o := m.BindOptions; o != nil && m.Type != mount.TypeBind {
-				return errdefs.InvalidParameter(fmt.Errorf("BindOptions must not be specified on mount type %q", m.Type))
+				return derrdefs.InvalidParameter(fmt.Errorf("BindOptions must not be specified on mount type %q", m.Type))
 			}
 			if o := m.TmpfsOptions; o != nil && m.Type != mount.TypeTmpfs {
-				return errdefs.InvalidParameter(fmt.Errorf("TmpfsOptions must not be specified on mount type %q", m.Type))
+				return derrdefs.InvalidParameter(fmt.Errorf("TmpfsOptions must not be specified on mount type %q", m.Type))
 			}
 		}
 	}
@@ -620,7 +620,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 					// the expectation that the failing to apply recursive read-only
 					// is enforced, so we decided to produce an error instead,
 					// instead of silently ignoring.
-					return errdefs.InvalidParameter(errors.New("BindOptions.ReadOnlyForceRecursive needs API v1.44 or newer"))
+					return derrdefs.InvalidParameter(errors.New("BindOptions.ReadOnlyForceRecursive needs API v1.44 or newer"))
 				}
 			}
 		}
@@ -631,14 +631,14 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			for k := range networkingConfig.EndpointsConfig {
 				l = append(l, k)
 			}
-			return errdefs.InvalidParameter(errors.Errorf("Container cannot be created with multiple network endpoints: %s", strings.Join(l, ", ")))
+			return derrdefs.InvalidParameter(errors.Errorf("Container cannot be created with multiple network endpoints: %s", strings.Join(l, ", ")))
 		}
 	}
 
 	if versions.LessThan(version, "1.45") {
 		for _, m := range hostConfig.Mounts {
 			if m.VolumeOptions != nil && m.VolumeOptions.Subpath != "" {
-				return errdefs.InvalidParameter(errors.New("VolumeOptions.Subpath needs API v1.45 or newer"))
+				return derrdefs.InvalidParameter(errors.New("VolumeOptions.Subpath needs API v1.45 or newer"))
 			}
 		}
 	}
@@ -722,7 +722,7 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 		if ep.MacAddress == "" {
 			ep.MacAddress = deprecatedMacAddress
 		} else if ep.MacAddress != deprecatedMacAddress {
-			return "", errdefs.InvalidParameter(errors.New("the container-wide MAC address must match the endpoint-specific MAC address for the main network, or be left empty"))
+			return "", derrdefs.InvalidParameter(errors.New("the container-wide MAC address must match the endpoint-specific MAC address for the main network, or be left empty"))
 		}
 	}
 	warning = "The container-wide MacAddress field is now deprecated. It should be specified in EndpointsConfig instead."
@@ -864,7 +864,7 @@ func epConfigForNetMode(
 	// reject the request ...
 	ep, ok := netConfig.EndpointsConfig[nwName]
 	if !ok {
-		return nil, errdefs.InvalidParameter(
+		return nil, derrdefs.InvalidParameter(
 			errors.New("HostConfig.NetworkMode must match the identity of a network in NetworkSettings.Networks"))
 	}
 
@@ -899,11 +899,11 @@ func (s *containerRouter) postContainersResize(ctx context.Context, w http.Respo
 
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 	width, err := strconv.Atoi(r.Form.Get("w"))
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 
 	return s.backend.ContainerResize(vars["name"], height, width)
@@ -921,7 +921,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
-		return errdefs.InvalidParameter(errors.Errorf("error attaching to container %s, hijack connection missing", containerName))
+		return derrdefs.InvalidParameter(errors.Errorf("error attaching to container %s, hijack connection missing", containerName))
 	}
 
 	contentType := types.MediaTypeRawStream

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +22,7 @@ func TestNetworkConnectError(t *testing.T) {
 	}
 
 	err := client.NetworkConnect(context.Background(), "network_id", "container_id", nil)
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInternal))
 }
 
 func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {

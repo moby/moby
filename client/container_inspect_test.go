@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -23,7 +23,7 @@ func TestContainerInspectError(t *testing.T) {
 	}
 
 	_, err := client.ContainerInspect(context.Background(), "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInternal))
 }
 
 func TestContainerInspectContainerNotFound(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -120,17 +120,17 @@ func DecodePlatform(platformJSON string) (*ocispec.Platform, error) {
 	var p ocispec.Platform
 
 	if err := json.Unmarshal([]byte(platformJSON), &p); err != nil {
-		return nil, errdefs.InvalidParameter(errors.Wrap(err, "failed to parse platform"))
+		return nil, derrdefs.InvalidParameter(errors.Wrap(err, "failed to parse platform"))
 	}
 
 	hasAnyOptional := (p.Variant != "" || p.OSVersion != "" || len(p.OSFeatures) > 0)
 
 	if p.OS == "" && p.Architecture == "" && hasAnyOptional {
-		return nil, errdefs.InvalidParameter(errors.New("optional platform fields provided, but OS and Architecture are missing"))
+		return nil, derrdefs.InvalidParameter(errors.New("optional platform fields provided, but OS and Architecture are missing"))
 	}
 
 	if p.OS == "" || p.Architecture == "" {
-		return nil, errdefs.InvalidParameter(errors.New("both OS and Architecture must be provided"))
+		return nil, derrdefs.InvalidParameter(errors.New("both OS and Architecture must be provided"))
 	}
 
 	return &p, nil

@@ -22,7 +22,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
@@ -56,7 +56,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		if p := r.FormValue("platform"); p != "" {
 			sp, err := platforms.Parse(p)
 			if err != nil {
-				return errdefs.InvalidParameter(err)
+				return derrdefs.InvalidParameter(err)
 			}
 			platform = &sp
 		}
@@ -77,7 +77,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 
 		ref, err := reference.ParseNormalizedNamed(imgName)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 
 		// TODO(thaJeztah) this could use a WithTagOrDigest() utility
@@ -91,12 +91,12 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 				ref, err = reference.WithTag(ref, tag)
 			}
 			if err != nil {
-				return errdefs.InvalidParameter(err)
+				return derrdefs.InvalidParameter(err)
 			}
 		}
 
 		if err := validateRepoName(ref); err != nil {
-			return errdefs.Forbidden(err)
+			return derrdefs.Forbidden(err)
 		}
 
 		// For a pull it is not an error if no auth was given. Ignore invalid
@@ -108,7 +108,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 
 		tagRef, err := httputils.RepoTagReference(repo, tag)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 
 		if len(comment) == 0 {
@@ -125,7 +125,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 			}
 			u, err := url.Parse(src)
 			if err != nil {
-				return errdefs.InvalidParameter(err)
+				return derrdefs.InvalidParameter(err)
 			}
 
 			resp, err := remotecontext.GetWithStatusError(u.String())
@@ -194,13 +194,13 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 	if tag != "" {
 		r, err := httputils.RepoTagReference(img, tag)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 		ref = r
 	} else {
 		r, err := reference.ParseNormalizedNamed(img)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 		ref = r
 	}
@@ -473,17 +473,17 @@ func (ir *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter,
 
 	ref, err := httputils.RepoTagReference(r.Form.Get("repo"), r.Form.Get("tag"))
 	if ref == nil || err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 
 	refName := reference.FamiliarName(ref)
 	if refName == string(digest.Canonical) {
-		return errdefs.InvalidParameter(errors.New("refusing to create an ambiguous tag using digest algorithm as name"))
+		return derrdefs.InvalidParameter(errors.New("refusing to create an ambiguous tag using digest algorithm as name"))
 	}
 
 	img, err := ir.backend.GetImage(ctx, vars["name"], backend.GetImageOpts{})
 	if err != nil {
-		return errdefs.NotFound(err)
+		return derrdefs.NotFound(err)
 	}
 
 	if err := ir.backend.TagImage(ctx, img.ID(), ref); err != nil {
@@ -503,7 +503,7 @@ func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWrite
 		var err error
 		limit, err = strconv.Atoi(r.Form.Get("limit"))
 		if err != nil || limit < 0 {
-			return errdefs.InvalidParameter(errors.Wrap(err, "invalid limit specified"))
+			return derrdefs.InvalidParameter(errors.Wrap(err, "invalid limit specified"))
 		}
 	}
 	searchFilters, err := filters.FromJSON(r.Form.Get("filters"))

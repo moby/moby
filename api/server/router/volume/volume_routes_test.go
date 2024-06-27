@@ -10,10 +10,11 @@ import (
 
 	"gotest.tools/v3/assert"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume/service/opts"
 )
 
@@ -592,7 +593,7 @@ func (b *fakeVolumeBackend) Get(_ context.Context, name string, _ ...opts.GetOpt
 	if v, ok := b.volumes[name]; ok {
 		return v, nil
 	}
-	return nil, errdefs.NotFound(fmt.Errorf("volume %s not found", name))
+	return nil, derrdefs.NotFound(fmt.Errorf("volume %s not found", name))
 }
 
 func (b *fakeVolumeBackend) Create(_ context.Context, name, driverName string, _ ...opts.CreateOption) (*volume.Volume, error) {
@@ -624,10 +625,10 @@ func (b *fakeVolumeBackend) Remove(_ context.Context, name string, o ...opts.Rem
 
 	if v, ok := b.volumes[name]; !ok {
 		if !removeOpts.PurgeOnError {
-			return errdefs.NotFound(fmt.Errorf("volume %s not found", name))
+			return derrdefs.NotFound(fmt.Errorf("volume %s not found", name))
 		}
 	} else if v.Name == "inuse" {
-		return errdefs.Conflict(fmt.Errorf("volume in use"))
+		return derrdefs.Conflict(fmt.Errorf("volume in use"))
 	}
 
 	delete(b.volumes, name)
@@ -648,9 +649,9 @@ type fakeClusterBackend struct {
 
 func (c *fakeClusterBackend) checkSwarm() error {
 	if !c.swarm {
-		return errdefs.Unavailable(fmt.Errorf("this node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again"))
+		return derrdefs.Unavailable(fmt.Errorf("this node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again"))
 	} else if !c.manager {
-		return errdefs.Unavailable(fmt.Errorf("this node is not a swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager"))
+		return derrdefs.Unavailable(fmt.Errorf("this node is not a swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager"))
 	}
 
 	return nil
@@ -668,7 +669,7 @@ func (c *fakeClusterBackend) GetVolume(nameOrID string) (volume.Volume, error) {
 	if v, ok := c.volumes[nameOrID]; ok {
 		return *v, nil
 	}
-	return volume.Volume{}, errdefs.NotFound(fmt.Errorf("volume %s not found", nameOrID))
+	return volume.Volume{}, derrdefs.NotFound(fmt.Errorf("volume %s not found", nameOrID))
 }
 
 func (c *fakeClusterBackend) GetVolumes(options volume.ListOptions) ([]*volume.Volume, error) {
@@ -726,11 +727,11 @@ func (c *fakeClusterBackend) RemoveVolume(nameOrID string, force bool) error {
 
 	v, ok := c.volumes[nameOrID]
 	if !ok {
-		return errdefs.NotFound(fmt.Errorf("volume %s not found", nameOrID))
+		return derrdefs.NotFound(fmt.Errorf("volume %s not found", nameOrID))
 	}
 
 	if _, mustforce := v.Options["mustforce"]; mustforce && !force {
-		return errdefs.Conflict(fmt.Errorf("volume %s must be force removed", nameOrID))
+		return derrdefs.Conflict(fmt.Errorf("volume %s must be force removed", nameOrID))
 	}
 
 	delete(c.volumes, nameOrID)
@@ -752,7 +753,7 @@ func (c *fakeClusterBackend) UpdateVolume(nameOrID string, version uint64, _ vol
 		// volume object. let's just increment the version so we can see the
 		// call happened.
 	} else {
-		return errdefs.NotFound(fmt.Errorf("volume %q not found", nameOrID))
+		return derrdefs.NotFound(fmt.Errorf("volume %q not found", nameOrID))
 	}
 
 	return nil

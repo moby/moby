@@ -14,8 +14,8 @@ import (
 	"testing/iotest"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -30,7 +30,7 @@ func TestContainerWaitError(t *testing.T) {
 	case result := <-resultC:
 		t.Fatalf("expected to not get a wait result, got %d", result.StatusCode)
 	case err := <-errC:
-		assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+		assert.Check(t, is.ErrorType(err, errdefs.IsInternal))
 	}
 }
 

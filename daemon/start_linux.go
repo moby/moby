@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/oci"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -22,7 +22,7 @@ func (daemon *Daemon) initializeCreatedTask(ctx context.Context, tsk types.Task,
 		if ok && nspath == "" { // the runtime has been instructed to create a new network namespace for tsk.
 			sb, err := daemon.netController.GetSandbox(container.ID)
 			if err != nil {
-				return errdefs.System(err)
+				return derrdefs.System(err)
 			}
 			return sb.FinishConfig(ctx)
 		}

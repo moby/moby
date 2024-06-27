@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/quota"
 	units "github.com/docker/go-units"
 	"github.com/moby/sys/mount"
@@ -53,32 +53,32 @@ func (r *Root) validateOpts(opts map[string]string) error {
 	}
 	for opt := range opts {
 		if _, ok := validOpts[opt]; !ok {
-			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
+			return derrdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
 		}
 	}
 	if typeOpt, deviceOpt := opts["type"], opts["device"]; typeOpt == "cifs" && deviceOpt != "" {
 		deviceURL, err := url.Parse(deviceOpt)
 		if err != nil {
-			return errdefs.InvalidParameter(errors.Wrapf(err, "error parsing mount device url"))
+			return derrdefs.InvalidParameter(errors.Wrapf(err, "error parsing mount device url"))
 		}
 		if deviceURL.Port() != "" {
-			return errdefs.InvalidParameter(errors.New("port not allowed in CIFS device URL, include 'port' in 'o='"))
+			return derrdefs.InvalidParameter(errors.New("port not allowed in CIFS device URL, include 'port' in 'o='"))
 		}
 	}
 	if val, ok := opts["size"]; ok {
 		size, err := units.RAMInBytes(val)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 		if size > 0 && r.quotaCtl == nil {
-			return errdefs.InvalidParameter(errors.New("quota size requested but no quota support"))
+			return derrdefs.InvalidParameter(errors.New("quota size requested but no quota support"))
 		}
 	}
 	for opt, reqopts := range mandatoryOpts {
 		if _, ok := opts[opt]; ok {
 			for _, reqopt := range reqopts {
 				if _, ok := opts[reqopt]; !ok {
-					return errdefs.InvalidParameter(errors.Errorf("missing required option: %q", reqopt))
+					return derrdefs.InvalidParameter(errors.Errorf("missing required option: %q", reqopt))
 				}
 			}
 		}
@@ -98,10 +98,10 @@ func (v *localVolume) setOpts(opts map[string]string) error {
 	if val, ok := opts["size"]; ok {
 		size, err := units.RAMInBytes(val)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 		if size > 0 && v.quotaCtl == nil {
-			return errdefs.InvalidParameter(errors.New("quota size requested but no quota support"))
+			return derrdefs.InvalidParameter(errors.New("quota size requested but no quota support"))
 		}
 		v.opts.Quota.Size = uint64(size)
 	}
@@ -195,7 +195,7 @@ func (v *localVolume) unmount() error {
 	if v.needsMount() {
 		if err := mount.Unmount(v.path); err != nil {
 			if mounted, mErr := mountinfo.Mounted(v.path); mounted || mErr != nil {
-				return errdefs.System(err)
+				return derrdefs.System(err)
 			}
 		}
 		v.active.mounted = false

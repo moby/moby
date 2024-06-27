@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -328,12 +328,12 @@ func TestInvalidTags(t *testing.T) {
 	ref, err := reference.ParseNormalizedNamed("sha256:abc")
 	assert.NilError(t, err)
 	err = store.AddTag(ref, id, true)
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidArgument))
 
 	// setting digest as a tag
 	ref, err = reference.ParseNormalizedNamed("registry@sha256:367eb40fd0330a7e464777121e39d2f5b3e8e23a1e159342e53ab05c9e4d94e6")
 	assert.NilError(t, err)
 
 	err = store.AddTag(ref, id, true)
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidArgument))
 }

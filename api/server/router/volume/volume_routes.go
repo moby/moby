@@ -6,12 +6,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
 )
@@ -131,7 +132,7 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 
 func (v *volumeRouter) putVolumesUpdate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if !v.cluster.IsManager() {
-		return errdefs.Unavailable(errors.New("volume update only valid for cluster volumes, but swarm is unavailable"))
+		return derrdefs.Unavailable(errors.New("volume update only valid for cluster volumes, but swarm is unavailable"))
 	}
 
 	if err := httputils.ParseForm(r); err != nil {
@@ -142,7 +143,7 @@ func (v *volumeRouter) putVolumesUpdate(ctx context.Context, w http.ResponseWrit
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
 		err = fmt.Errorf("invalid swarm object version '%s': %v", rawVersion, err)
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 
 	var req volume.UpdateOptions

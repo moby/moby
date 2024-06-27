@@ -27,7 +27,7 @@ require (
 	github.com/containerd/cgroups/v3 v3.0.3
 	github.com/containerd/containerd v1.7.18
 	github.com/containerd/continuity v0.4.3
-	github.com/containerd/errdefs v0.1.0
+	github.com/containerd/errdefs v0.1.1-0.20240601002953-038bb7bc3611
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/typeurl/v2 v2.1.1
@@ -229,3 +229,5 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v0.7.0 // indirect
 )
+
+replace github.com/containerd/containerd => github.com/dmcgowan/containerd v0.0.0-20240621012812-8da0f4202fa3

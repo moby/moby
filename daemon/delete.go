@@ -9,14 +9,14 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/leases"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
@@ -40,7 +40,7 @@ func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *backend
 	// Container state RemovalInProgress should be used to avoid races.
 	if inProgress := ctr.SetRemovalInProgress(); inProgress {
 		err := fmt.Errorf("removal of container %s is already in progress", name)
-		return errdefs.Conflict(err)
+		return derrdefs.Conflict(err)
 	}
 	defer ctr.ResetRemovalInProgress()
 
@@ -91,9 +91,9 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ba
 	if container.IsRunning() {
 		if !config.ForceRemove {
 			if state := container.StateString(); state == "paused" {
-				return errdefs.Conflict(fmt.Errorf("cannot remove container %q: container is %s and must be unpaused first", container.Name, state))
+				return derrdefs.Conflict(fmt.Errorf("cannot remove container %q: container is %s and must be unpaused first", container.Name, state))
 			} else {
-				return errdefs.Conflict(fmt.Errorf("cannot remove container %q: container is %s: stop the container before removing or force remove", container.Name, state))
+				return derrdefs.Conflict(fmt.Errorf("cannot remove container %q: container is %s: stop the container before removing or force remove", container.Name, state))
 			}
 		}
 		if err := daemon.Kill(container); err != nil && !isNotRunning(err) {
@@ -149,7 +149,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ba
 				ID: container.ID,
 			}
 			if err := ls.Delete(context.Background(), lease, leases.SynchronousDelete); err != nil {
-				if !cerrdefs.IsNotFound(err) {
+				if !errdefs.IsNotFound(err) {
 					container.SetRemovalError(err)
 					return err
 				}

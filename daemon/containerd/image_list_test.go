@@ -19,7 +19,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/snapshots"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log/logtest"
 	imagetypes "github.com/docker/docker/api/types/image"
 	daemonevents "github.com/docker/docker/daemon/events"
@@ -247,7 +247,7 @@ func (s *blobsDirContentStore) ReaderAt(ctx context.Context, desc ocispec.Descri
 	r, err := os.Open(p)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("%w: %s", cerrdefs.ErrNotFound, desc.Digest)
+			return nil, fmt.Errorf("%w: %s", errdefs.ErrNotFound, desc.Digest)
 		}
 		return nil, err
 	}
@@ -308,7 +308,7 @@ func (s *blobsDirContentStore) Info(ctx context.Context, dgst digest.Digest) (co
 	f, err := os.Open(filepath.Join(s.blobs, dgst.Encoded()))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return content.Info{}, fmt.Errorf("%w: %s", cerrdefs.ErrNotFound, dgst)
+			return content.Info{}, fmt.Errorf("%w: %s", errdefs.ErrNotFound, dgst)
 		}
 		return content.Info{}, err
 	}

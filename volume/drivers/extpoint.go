@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	getter "github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/volume"
@@ -73,7 +73,7 @@ func (driverNotFoundError) NotFound() {}
 // there is a VolumeDriver plugin available with the given name.
 func (s *Store) lookup(name string, mode int) (volume.Driver, error) {
 	if name == "" {
-		return nil, errdefs.InvalidParameter(errors.New("driver name cannot be empty"))
+		return nil, derrdefs.InvalidParameter(errors.New("driver name cannot be empty"))
 	}
 	s.driverLock.Lock(name)
 	defer s.driverLock.Unlock(name)
@@ -220,7 +220,7 @@ func makePluginAdapter(p getter.CompatPlugin) (*volumeDriverAdapter, error) {
 
 	pa, ok := p.(getter.PluginAddr)
 	if !ok {
-		return nil, errdefs.System(errors.Errorf("got unknown plugin instance %T", p))
+		return nil, derrdefs.System(errors.Errorf("got unknown plugin instance %T", p))
 	}
 
 	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {

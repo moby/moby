@@ -15,7 +15,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/names"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/quota"
@@ -158,12 +158,12 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 
 	// Root dir does not need to be accessed by the remapped root
 	if err := idtools.MkdirAllAndChown(v.rootPath, 0o701, idtools.CurrentIdentity()); err != nil {
-		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume root path '%s'", v.rootPath)
+		return nil, errors.Wrapf(derrdefs.System(err), "error while creating volume root path '%s'", v.rootPath)
 	}
 
 	// Remapped root does need access to the data path
 	if err := idtools.MkdirAllAndChown(v.path, 0o755, r.rootIdentity); err != nil {
-		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume data path '%s'", v.path)
+		return nil, errors.Wrapf(derrdefs.System(err), "error while creating volume data path '%s'", v.path)
 	}
 
 	var err error
@@ -191,11 +191,11 @@ func (r *Root) Remove(v volume.Volume) error {
 
 	lv, ok := v.(*localVolume)
 	if !ok {
-		return errdefs.System(errors.Errorf("unknown volume type %T", v))
+		return derrdefs.System(errors.Errorf("unknown volume type %T", v))
 	}
 
 	if lv.active.count > 0 {
-		return errdefs.System(errors.New("volume has active mounts"))
+		return derrdefs.System(errors.New("volume has active mounts"))
 	}
 
 	if err := lv.unmount(); err != nil {
@@ -214,7 +214,7 @@ func (r *Root) Remove(v volume.Volume) error {
 	}
 
 	if realPath == r.path || !strings.HasPrefix(realPath, r.path) {
-		return errdefs.System(errors.Errorf("unable to remove a directory outside of the local volume root %s: %s", r.path, realPath))
+		return derrdefs.System(errors.Errorf("unable to remove a directory outside of the local volume root %s: %s", r.path, realPath))
 	}
 
 	if err := removePath(realPath); err != nil {
@@ -230,7 +230,7 @@ func removePath(path string) error {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return errdefs.System(errors.Wrapf(err, "error removing volume path '%s'", path))
+		return derrdefs.System(errors.Wrapf(err, "error removing volume path '%s'", path))
 	}
 	return nil
 }
@@ -253,10 +253,10 @@ func (r *Root) Scope() string {
 
 func (r *Root) validateName(name string) error {
 	if len(name) == 1 {
-		return errdefs.InvalidParameter(errors.New("volume name is too short, names should be at least two alphanumeric characters"))
+		return derrdefs.InvalidParameter(errors.New("volume name is too short, names should be at least two alphanumeric characters"))
 	}
 	if !volumeNameRegex.MatchString(name) {
-		return errdefs.InvalidParameter(errors.Errorf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, names.RestrictedNameChars))
+		return derrdefs.InvalidParameter(errors.Errorf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, names.RestrictedNameChars))
 	}
 	return nil
 }
@@ -311,7 +311,7 @@ func (v *localVolume) Mount(id string) (string, error) {
 		if !v.active.mounted {
 			logger.Debug("Mounting volume")
 			if err := v.mount(); err != nil {
-				return "", errdefs.System(err)
+				return "", derrdefs.System(err)
 			}
 			v.active.mounted = true
 		}
@@ -391,7 +391,7 @@ func (v *localVolume) saveOpts() error {
 	}
 	err = ioutils.AtomicWriteFile(filepath.Join(v.rootPath, "opts.json"), b, 0o600)
 	if err != nil {
-		return errdefs.System(errors.Wrap(err, "error while persisting volume options"))
+		return derrdefs.System(errors.Wrap(err, "error while persisting volume options"))
 	}
 	return nil
 }

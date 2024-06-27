@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -25,7 +26,7 @@ import (
 	"github.com/docker/docker/daemon/logger/local"
 	"github.com/docker/docker/daemon/logger/loggerutils/cache"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
@@ -437,7 +438,7 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 			return nil, err
 		}
 		if err := os.MkdirAll(logDir, 0o700); err != nil {
-			return nil, errdefs.System(errors.Wrap(err, "error creating local logs dir"))
+			return nil, derrdefs.System(errors.Wrap(err, "error creating local logs dir"))
 		}
 		info.LogPath = filepath.Join(logDir, "container.log")
 	}
@@ -800,11 +801,11 @@ func (container *Container) RestoreTask(ctx context.Context, client libcontainer
 // The container lock must be held when calling this method.
 func (container *Container) GetRunningTask() (libcontainerdtypes.Task, error) {
 	if !container.Running {
-		return nil, errdefs.Conflict(fmt.Errorf("container %s is not running", container.ID))
+		return nil, derrdefs.Conflict(fmt.Errorf("container %s is not running", container.ID))
 	}
 	tsk, ok := container.Task()
 	if !ok {
-		return nil, errdefs.System(errors.WithStack(fmt.Errorf("container %s is in Running state but has no containerd Task set", container.ID)))
+		return nil, derrdefs.System(errors.WithStack(fmt.Errorf("container %s is in Running state but has no containerd Task set", container.ID)))
 	}
 	return tsk, nil
 }

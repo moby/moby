@@ -12,12 +12,12 @@ import (
 
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/opencontainers/go-digest"
@@ -130,13 +130,13 @@ func (i *ImageService) presentImages(ctx context.Context, desc containerdimages.
 	err := i.walkImageManifests(ctx, desc, func(img *ImageManifest) error {
 		conf, err := img.Config(ctx)
 		if err != nil {
-			if cerrdefs.IsNotFound(err) {
+			if errdefs.IsNotFound(err) {
 				log.G(ctx).WithFields(log.Fields{
 					"manifestDescriptor": img.Target(),
 				}).Debug("manifest was present, but accessing its config failed, ignoring")
 				return nil
 			}
-			return errdefs.System(fmt.Errorf("failed to get config descriptor: %w", err))
+			return derrdefs.System(fmt.Errorf("failed to get config descriptor: %w", err))
 		}
 
 		var ociimage imagespec.DockerOCIImage
@@ -148,7 +148,7 @@ func (i *ImageService) presentImages(ctx context.Context, desc containerdimages.
 				}).Debug("manifest present, but its config is missing, ignoring")
 				return nil
 			}
-			return errdefs.System(fmt.Errorf("failed to read config of the manifest %v: %w", img.Target().Digest, err))
+			return derrdefs.System(fmt.Errorf("failed to read config of the manifest %v: %w", img.Target().Digest, err))
 		}
 
 		if platform.Match(ociimage.Platform) {
@@ -203,9 +203,9 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 
 		if options.Platform != nil {
 			if plat == nil {
-				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: nil", refOrID, platforms.Format(*options.Platform)))
+				return nil, derrdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: nil", refOrID, platforms.Format(*options.Platform)))
 			} else if !platform.Match(*plat) {
-				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(*options.Platform), platforms.Format(*plat)))
+				return nil, derrdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(*options.Platform), platforms.Format(*plat)))
 			}
 		}
 
@@ -215,22 +215,22 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 	if containerdimages.IsIndexType(desc.MediaType) {
 		childManifests, err := containerdimages.LimitManifests(containerdimages.ChildrenHandler(cs), platform, 1)(ctx, desc)
 		if err != nil {
-			if cerrdefs.IsNotFound(err) {
-				return nil, errdefs.NotFound(err)
+			if !errdefs.IsNotFound(err) {
+				err = derrdefs.System(err)
 			}
-			return nil, errdefs.System(err)
+			return nil, err
 		}
 
 		// len(childManifests) == 1 since we requested 1 and if none
 		// were found LimitManifests would have thrown an error
 		if !containerdimages.IsManifestType(childManifests[0].MediaType) {
-			return nil, errdefs.NotFound(fmt.Errorf("manifest has incorrect mediatype: %s", childManifests[0].MediaType))
+			return nil, derrdefs.NotFound(fmt.Errorf("manifest has incorrect mediatype: %s", childManifests[0].MediaType))
 		}
 
 		return &childManifests[0], nil
 	}
 
-	return nil, errdefs.NotFound(errors.New("failed to find manifest"))
+	return nil, derrdefs.NotFound(errors.New("failed to find manifest"))
 }
 
 // size returns the total size of the image's packed resources.
@@ -243,7 +243,7 @@ func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platfo
 	var wh containerdimages.HandlerFunc = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		children, err := handler(ctx, desc)
 		if err != nil {
-			if !cerrdefs.IsNotFound(err) {
+			if !errdefs.IsNotFound(err) {
 				return nil, err
 			}
 		}
@@ -281,7 +281,7 @@ func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (contai
 func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (containerdimages.Image, error) {
 	parsed, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
-		return containerdimages.Image{}, errdefs.InvalidParameter(err)
+		return containerdimages.Image{}, derrdefs.InvalidParameter(err)
 	}
 
 	digested, ok := parsed.(reference.Digested)
@@ -321,7 +321,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 		return img, nil
 	} else {
 		// TODO(containerd): error translation can use common function
-		if !cerrdefs.IsNotFound(err) {
+		if !errdefs.IsNotFound(err) {
 			return containerdimages.Image{}, err
 		}
 	}
@@ -351,7 +351,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 			}
 
 			if len(digests) > 1 {
-				return containerdimages.Image{}, errdefs.NotFound(errors.New("ambiguous reference"))
+				return containerdimages.Image{}, derrdefs.NotFound(errors.New("ambiguous reference"))
 			}
 		}
 
@@ -385,14 +385,14 @@ func imageFamiliarName(img containerdimages.Image) string {
 func (i *ImageService) getImageLabelByDigest(ctx context.Context, target digest.Digest, labelKey string) (string, error) {
 	imgs, err := i.images.List(ctx, "target.digest=="+target.String()+",labels."+labelKey)
 	if err != nil {
-		return "", errdefs.System(err)
+		return "", derrdefs.System(err)
 	}
 
 	var value string
 	for _, img := range imgs {
 		if v, ok := img.Labels[labelKey]; ok {
 			if value != "" && value != v {
-				return value, errdefs.Conflict(fmt.Errorf("conflicting label value %q and %q", value, v))
+				return value, derrdefs.Conflict(fmt.Errorf("conflicting label value %q and %q", value, v))
 			}
 			value = v
 		}
@@ -430,7 +430,7 @@ func convertError(err error) error {
 func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string) (*containerdimages.Image, []containerdimages.Image, error) {
 	parsed, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
-		return nil, nil, errdefs.InvalidParameter(err)
+		return nil, nil, derrdefs.InvalidParameter(err)
 	}
 	var dgst digest.Digest
 	var img *containerdimages.Image
@@ -445,7 +445,7 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 					log.G(ctx).WithField("image", refOrID).WithField("target", cimg.Target.Digest).Warn("digest reference points to image with a different digest")
 					dgst = cimg.Target.Digest
 				}
-			} else if !cerrdefs.IsNotFound(err) {
+			} else if !errdefs.IsNotFound(err) {
 				return nil, nil, convertError(err)
 			} else {
 				dgst = d.Digest()
@@ -473,7 +473,7 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 				}
 				if dgst != "" {
 					if limg.Target.Digest != dgst {
-						return nil, nil, errdefs.NotFound(errors.New("ambiguous reference"))
+						return nil, nil, derrdefs.NotFound(errors.New("ambiguous reference"))
 					}
 				} else {
 					dgst = limg.Target.Digest
@@ -488,7 +488,7 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 	} else {
 		named, ok := parsed.(reference.Named)
 		if !ok {
-			return nil, nil, errdefs.InvalidParameter(errors.New("invalid name reference"))
+			return nil, nil, derrdefs.InvalidParameter(errors.New("invalid name reference"))
 		}
 
 		digested, ok := parsed.(reference.Digested)
@@ -500,7 +500,7 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 
 		cimg, err := i.images.Get(ctx, name)
 		if err != nil {
-			if !cerrdefs.IsNotFound(err) {
+			if !errdefs.IsNotFound(err) {
 				return nil, nil, convertError(err)
 			}
 			// If digest is given, continue looking up for matching targets.

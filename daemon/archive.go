@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 )
 
 // ContainerStatPath stats the filesystem resource at the specified path in the
@@ -24,7 +24,7 @@ func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *contain
 	if os.IsNotExist(err) {
 		return nil, containerFileNotFound{path, name}
 	}
-	return nil, errdefs.System(err)
+	return nil, derrdefs.System(err)
 }
 
 // ContainerArchivePath creates an archive of the filesystem resource at the
@@ -44,7 +44,7 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 	if os.IsNotExist(err) {
 		return nil, nil, containerFileNotFound{path, name}
 	}
-	return nil, nil, errdefs.System(err)
+	return nil, nil, derrdefs.System(err)
 }
 
 // ContainerExtractToDir extracts the given archive to the specified location
@@ -67,5 +67,5 @@ func (daemon *Daemon) ContainerExtractToDir(name, path string, copyUIDGID, noOve
 	if os.IsNotExist(err) {
 		return containerFileNotFound{path, name}
 	}
-	return errdefs.System(err)
+	return derrdefs.System(err)
 }

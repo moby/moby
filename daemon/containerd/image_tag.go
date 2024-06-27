@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	containerdimages "github.com/containerd/containerd/images"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/pkg/errors"
 )
@@ -29,15 +29,15 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 
 	_, err = i.images.Create(ctx, newImg)
 	if err != nil {
-		if !cerrdefs.IsAlreadyExists(err) {
-			return errdefs.System(errors.Wrapf(err, "failed to create image with name %s and target %s", newImg.Name, newImg.Target.Digest.String()))
+		if !errdefs.IsAlreadyExists(err) {
+			return derrdefs.System(errors.Wrapf(err, "failed to create image with name %s and target %s", newImg.Name, newImg.Target.Digest.String()))
 		}
 
 		replacedImg, all, err := i.resolveAllReferences(ctx, newImg.Name)
 		if err != nil {
-			return errdefs.Unknown(errors.Wrapf(err, "creating image %s failed because it already exists, but accessing it also failed", newImg.Name))
+			return derrdefs.Unknown(errors.Wrapf(err, "creating image %s failed because it already exists, but accessing it also failed", newImg.Name))
 		} else if replacedImg == nil {
-			return errdefs.Unknown(fmt.Errorf("creating image %s failed because it already exists, but failed to resolve", newImg.Name))
+			return derrdefs.Unknown(fmt.Errorf("creating image %s failed because it already exists, but failed to resolve", newImg.Name))
 		}
 
 		// Check if image we would replace already resolves to the same target.
@@ -53,7 +53,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 		}
 
 		if _, err = i.images.Create(context.WithoutCancel(ctx), newImg); err != nil {
-			return errdefs.System(errors.Wrapf(err, "failed to create an image %s with target %s after deleting the existing one",
+			return derrdefs.System(errors.Wrapf(err, "failed to create an image %s with target %s after deleting the existing one",
 				newImg.Name, imageID.String()))
 		}
 	}

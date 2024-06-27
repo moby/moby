@@ -6,7 +6,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 )
 
 // GetRepositories returns a list of repositories configured for the given
@@ -19,11 +19,11 @@ import (
 func GetRepositories(ctx context.Context, ref reference.Named, config *ImagePullConfig) ([]distribution.Repository, error) {
 	repoInfo, err := config.RegistryService.ResolveRepository(ref)
 	if err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 	// makes sure name is not empty or `scratch`
 	if err := validateRepoName(repoInfo.Name); err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 
 	endpoints, err := config.RegistryService.LookupPullEndpoints(reference.Domain(repoInfo.Name))

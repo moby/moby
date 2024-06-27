@@ -8,10 +8,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/events"
 	containerpkg "github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/moby/sys/signal"
 	"github.com/pkg/errors"
 )
@@ -39,10 +40,10 @@ func (daemon *Daemon) ContainerKill(name, stopSignal string) error {
 	if stopSignal != "" {
 		sig, err = signal.ParseSignal(stopSignal)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 		if !signal.ValidSignalForPlatform(sig) {
-			return errdefs.InvalidParameter(errors.Errorf("the %s daemon does not support signal %d", runtime.GOOS, sig))
+			return derrdefs.InvalidParameter(errors.Errorf("the %s daemon does not support signal %d", runtime.GOOS, sig))
 		}
 	}
 	container, err := daemon.GetContainer(name)

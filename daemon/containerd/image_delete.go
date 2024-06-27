@@ -8,7 +8,7 @@ import (
 
 	"github.com/containerd/containerd/images"
 	containerdimages "github.com/containerd/containerd/images"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
@@ -381,7 +381,7 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img images.Image, 
 				CreatedAt: time.Now(),
 				Labels:    img.Labels,
 			}
-			if _, err = i.images.Create(ctx, img); err != nil && !cerrdefs.IsAlreadyExists(err) {
+			if _, err = i.images.Create(ctx, img); err != nil && !errdefs.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create dangling image: %w", err)
 			}
 		}

@@ -13,7 +13,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/docker/volume/service"
@@ -90,12 +90,12 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 	for _, v := range hostConfig.VolumesFrom {
 		containerID, mode, err := parser.ParseVolumesFrom(v)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 
 		c, err := daemon.GetContainer(containerID)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 
 		for _, m := range c.MountPoints {
@@ -175,7 +175,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 	for _, cfg := range hostConfig.Mounts {
 		mp, err := parser.ParseMountSpec(cfg)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 		needsSlavePropagation, err := daemon.validateBindDaemonRoot(mp.Spec)
 		if err != nil {

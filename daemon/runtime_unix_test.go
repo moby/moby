@@ -12,9 +12,9 @@ import (
 	runtimeoptions_v1 "github.com/containerd/containerd/pkg/runtimeoptions/v1"
 	"github.com/containerd/containerd/plugin"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
@@ -343,7 +343,7 @@ func TestGetRuntime(t *testing.T) {
 			} else {
 				assert.Check(t, is.Equal(shim, ""))
 				assert.Check(t, is.Nil(opts))
-				assert.Check(t, errdefs.IsInvalidParameter(err), "[%T] %[1]v", err)
+				assert.Check(t, errdefs.IsInvalidArgument(err), "[%T] %[1]v", err)
 			}
 		})
 	}

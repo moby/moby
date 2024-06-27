@@ -14,7 +14,7 @@ import (
 	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/snapshots"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
@@ -22,7 +22,7 @@ import (
 	imagetypes "github.com/docker/docker/api/types/image"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
@@ -342,7 +342,7 @@ func (i *ImageService) singlePlatformSize(ctx context.Context, imgMfst *ImageMan
 	imageSnapshotID := identity.ChainID(diffIDs).String()
 	unpackedUsage, err := calculateSnapshotTotalUsage(ctx, snapshotter, imageSnapshotID)
 	if err != nil {
-		if !cerrdefs.IsNotFound(err) {
+		if !errdefs.IsNotFound(err) {
 			log.G(ctx).WithError(err).WithFields(log.Fields{
 				"image":      imgMfst.Name(),
 				"snapshotID": imageSnapshotID,
@@ -660,7 +660,7 @@ func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, s
 		if err != nil {
 			// Several images might share the same layer and neither of them
 			// might be unpacked (for example if it's a non-host platform).
-			if cerrdefs.IsNotFound(err) {
+			if errdefs.IsNotFound(err) {
 				continue
 			}
 			return 0, err
@@ -675,8 +675,8 @@ func readConfig(ctx context.Context, store content.Provider, desc ocispec.Descri
 	data, err := content.ReadBlob(ctx, store, desc)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to read config content")
-		if cerrdefs.IsNotFound(err) {
-			return errdefs.NotFound(err)
+		if errdefs.IsNotFound(err) {
+			return derrdefs.NotFound(err)
 		}
 		return err
 	}
@@ -684,8 +684,8 @@ func readConfig(ctx context.Context, store content.Provider, desc ocispec.Descri
 	err = json.Unmarshal(data, out)
 	if err != nil {
 		err = errors.Wrapf(err, "could not deserialize image config")
-		if cerrdefs.IsNotFound(err) {
-			return errdefs.NotFound(err)
+		if errdefs.IsNotFound(err) {
+			return derrdefs.NotFound(err)
 		}
 		return err
 	}

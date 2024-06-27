@@ -12,13 +12,13 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/builder/dockerfile"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/pools"
@@ -46,7 +46,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 
 	ctx, release, err := i.client.WithLease(ctx)
 	if err != nil {
-		return "", errdefs.System(err)
+		return "", derrdefs.System(err)
 	}
 	defer func() {
 		if err := release(context.WithoutCancel(ctx)); err != nil {
@@ -62,7 +62,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 	imageConfig, err := dockerfile.BuildFromConfig(ctx, &container.Config{}, changes, platform.OS)
 	if err != nil {
 		logger.WithError(err).Debug("failed to process changes")
-		return "", errdefs.InvalidParameter(err)
+		return "", derrdefs.InvalidParameter(err)
 	}
 
 	cs := i.content
@@ -192,7 +192,7 @@ func saveArchive(ctx context.Context, cs content.Store, layerReader io.Reader) (
 	case archive.Bzip2, archive.Xz:
 		r, err := archive.DecompressStream(bufRd)
 		if err != nil {
-			return "", "", "", errdefs.InvalidParameter(err)
+			return "", "", "", derrdefs.InvalidParameter(err)
 		}
 		defer r.Close()
 		uncompressedReader = r
@@ -209,7 +209,7 @@ func saveArchive(ctx context.Context, cs content.Store, layerReader io.Reader) (
 		return compressedDigest, uncompressedDigest, mediaType, nil
 	}
 
-	return "", "", "", errdefs.InvalidParameter(errors.New("unsupported archive compression"))
+	return "", "", "", derrdefs.InvalidParameter(errors.New("unsupported archive compression"))
 }
 
 // writeCompressedBlob writes the blob and simultaneously computes the digest of the uncompressed data.
@@ -240,9 +240,9 @@ func writeCompressedBlob(ctx context.Context, cs content.Store, mediaType string
 	compressedDigest := <-c
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return "", "", errdefs.Cancelled(err)
+			return "", "", derrdefs.Cancelled(err)
 		}
-		return "", "", errdefs.System(err)
+		return "", "", derrdefs.System(err)
 	}
 
 	uncompressedDigest := digester.Digest()
@@ -257,7 +257,7 @@ func compressAndWriteBlob(ctx context.Context, cs content.Store, compression arc
 
 	compressor, err := archive.CompressStream(pw, compression)
 	if err != nil {
-		return "", "", errdefs.InvalidParameter(err)
+		return "", "", derrdefs.InvalidParameter(err)
 	}
 
 	writeChan := make(chan digest.Digest)
@@ -279,9 +279,9 @@ func compressAndWriteBlob(ctx context.Context, cs content.Store, compression arc
 	compressedDigest := <-writeChan
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return "", "", errdefs.Cancelled(err)
+			return "", "", derrdefs.Cancelled(err)
 		}
-		return "", "", errdefs.System(err)
+		return "", "", derrdefs.System(err)
 	}
 
 	return compressedDigest, uncompressedDigester.Digest(), err
@@ -291,7 +291,7 @@ func compressAndWriteBlob(ctx context.Context, cs content.Store, compression arc
 func writeBlobAndReturnDigest(ctx context.Context, cs content.Store, mt string, reader io.Reader) (digest.Digest, error) {
 	digester := digest.Canonical.Digester()
 	if err := content.WriteBlob(ctx, cs, uuid.New().String(), io.TeeReader(reader, digester.Hash()), ocispec.Descriptor{MediaType: mt}); err != nil {
-		return "", errdefs.System(err)
+		return "", derrdefs.System(err)
 	}
 	return digester.Digest(), nil
 }
@@ -299,12 +299,12 @@ func writeBlobAndReturnDigest(ctx context.Context, cs content.Store, mt string, 
 // saveImage creates an image in the ImageService or updates it if it exists.
 func (i *ImageService) saveImage(ctx context.Context, img images.Image) error {
 	if _, err := i.images.Update(ctx, img); err != nil {
-		if cerrdefs.IsNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			if _, err := i.images.Create(ctx, img); err != nil {
-				return errdefs.Unknown(err)
+				return derrdefs.Unknown(err)
 			}
 		} else {
-			return errdefs.Unknown(err)
+			return derrdefs.Unknown(err)
 		}
 	}
 
@@ -319,8 +319,8 @@ func (i *ImageService) unpackImage(ctx context.Context, snapshotter string, img 
 	}
 
 	if err := c8dImg.Unpack(ctx, snapshotter); err != nil {
-		if !cerrdefs.IsAlreadyExists(err) {
-			return errdefs.System(fmt.Errorf("failed to unpack image: %w", err))
+		if !errdefs.IsAlreadyExists(err) {
+			return derrdefs.System(fmt.Errorf("failed to unpack image: %w", err))
 		}
 	}
 
@@ -337,7 +337,7 @@ func detectCompression(bufRd *bufio.Reader) (archive.Compression, error) {
 		// cases we'll just treat it as a non-compressed stream and
 		// that means just create an empty layer.
 		// See Issue 18170
-		return archive.Uncompressed, errdefs.Unknown(err)
+		return archive.Uncompressed, derrdefs.Unknown(err)
 	}
 
 	return archive.DetectCompression(bs), nil
@@ -348,14 +348,14 @@ func detectCompression(bufRd *bufio.Reader) (archive.Compression, error) {
 func fillUncompressedLabel(ctx context.Context, cs content.Store, compressedDigest digest.Digest, uncompressedDigest digest.Digest) (int64, error) {
 	info, err := cs.Info(ctx, compressedDigest)
 	if err != nil {
-		return 0, errdefs.Unknown(errors.Wrapf(err, "couldn't open previously written blob"))
+		return 0, derrdefs.Unknown(errors.Wrapf(err, "couldn't open previously written blob"))
 	}
 	size := info.Size
 	info.Labels = map[string]string{"containerd.io/uncompressed": uncompressedDigest.String()}
 
 	_, err = cs.Update(ctx, info, "labels.*")
 	if err != nil {
-		return 0, errdefs.System(errors.Wrapf(err, "couldn't set uncompressed label"))
+		return 0, derrdefs.System(errors.Wrapf(err, "couldn't set uncompressed label"))
 	}
 	return size, nil
 }
@@ -364,11 +364,11 @@ func fillUncompressedLabel(ctx context.Context, cs content.Store, compressedDige
 func storeJson(ctx context.Context, cs content.Ingester, mt string, obj interface{}, labels map[string]string) (ocispec.Descriptor, error) {
 	configData, err := json.Marshal(obj)
 	if err != nil {
-		return ocispec.Descriptor{}, errdefs.InvalidParameter(err)
+		return ocispec.Descriptor{}, derrdefs.InvalidParameter(err)
 	}
 	configDigest := digest.FromBytes(configData)
 	if err != nil {
-		return ocispec.Descriptor{}, errdefs.InvalidParameter(err)
+		return ocispec.Descriptor{}, derrdefs.InvalidParameter(err)
 	}
 	desc := ocispec.Descriptor{
 		MediaType: mt,
@@ -383,7 +383,7 @@ func storeJson(ctx context.Context, cs content.Ingester, mt string, obj interfac
 
 	err = content.WriteBlob(ctx, cs, configDigest.String(), bytes.NewReader(configData), desc, opts...)
 	if err != nil {
-		return ocispec.Descriptor{}, errdefs.System(err)
+		return ocispec.Descriptor{}, derrdefs.System(err)
 	}
 	return desc, nil
 }

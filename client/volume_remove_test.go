@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	"github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -20,7 +20,7 @@ func TestVolumeRemoveError(t *testing.T) {
 	}
 
 	err := client.VolumeRemove(context.Background(), "volume_id", false)
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInternal))
 }
 
 // TestVolumeRemoveConnectionError verifies that connection errors occurring

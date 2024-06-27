@@ -5,7 +5,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	containerdlabels "github.com/containerd/containerd/labels"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -35,7 +35,7 @@ func (p fakeStoreWithSources) Delete(ctx context.Context, dgst digest.Digest) er
 func (p fakeStoreWithSources) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {
 	info, err := p.s.Info(ctx, dgst)
 	if err != nil {
-		if !cerrdefs.IsNotFound(err) {
+		if !errdefs.IsNotFound(err) {
 			return info, err
 		}
 		source, ok := p.sources[dgst]

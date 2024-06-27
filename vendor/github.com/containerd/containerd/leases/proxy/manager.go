@@ -19,10 +19,11 @@ package proxy
 import (
 	"context"
 
+	"github.com/containerd/errdefs/errgrpc"
+
 	leasesapi "github.com/containerd/containerd/api/services/leases/v1"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/protobuf"
-	"github.com/containerd/errdefs"
 )
 
 type proxyManager struct {
@@ -49,7 +50,7 @@ func (pm *proxyManager) Create(ctx context.Context, opts ...leases.Opt) (leases.
 		Labels: l.Labels,
 	})
 	if err != nil {
-		return leases.Lease{}, errdefs.FromGRPC(err)
+		return leases.Lease{}, errgrpc.ToNative(err)
 	}
 
 	return leases.Lease{
@@ -71,7 +72,7 @@ func (pm *proxyManager) Delete(ctx context.Context, l leases.Lease, opts ...leas
 		ID:   l.ID,
 		Sync: do.Synchronous,
 	})
-	return errdefs.FromGRPC(err)
+	return errgrpc.ToNative(err)
 }
 
 func (pm *proxyManager) List(ctx context.Context, filters ...string) ([]leases.Lease, error) {
@@ -79,7 +80,7 @@ func (pm *proxyManager) List(ctx context.Context, filters ...string) ([]leases.L
 		Filters: filters,
 	})
 	if err != nil {
-		return nil, errdefs.FromGRPC(err)
+		return nil, errgrpc.ToNative(err)
 	}
 	l := make([]leases.Lease, len(resp.Leases))
 	for i := range resp.Leases {
@@ -101,7 +102,7 @@ func (pm *proxyManager) AddResource(ctx context.Context, lease leases.Lease, r l
 			Type: r.Type,
 		},
 	})
-	return errdefs.FromGRPC(err)
+	return errgrpc.ToNative(err)
 }
 
 func (pm *proxyManager) DeleteResource(ctx context.Context, lease leases.Lease, r leases.Resource) error {
@@ -112,7 +113,7 @@ func (pm *proxyManager) DeleteResource(ctx context.Context, lease leases.Lease, 
 			Type: r.Type,
 		},
 	})
-	return errdefs.FromGRPC(err)
+	return errgrpc.ToNative(err)
 }
 
 func (pm *proxyManager) ListResources(ctx context.Context, lease leases.Lease) ([]leases.Resource, error) {
@@ -120,7 +121,7 @@ func (pm *proxyManager) ListResources(ctx context.Context, lease leases.Lease) (
 		ID: lease.ID,
 	})
 	if err != nil {
-		return nil, errdefs.FromGRPC(err)
+		return nil, errgrpc.ToNative(err)
 	}
 
 	rs := make([]leases.Resource, 0, len(resp.Resources))

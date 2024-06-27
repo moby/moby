@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
@@ -48,7 +48,7 @@ func (s *VolumeStore) getMeta(name string) (volumeMetadata, error) {
 func getMeta(tx *bolt.Tx, name string, meta *volumeMetadata) error {
 	b := tx.Bucket(volumeBucketName)
 	if b == nil {
-		return errdefs.NotFound(errors.New("volume bucket does not exist"))
+		return derrdefs.NotFound(errors.New("volume bucket does not exist"))
 	}
 	val := b.Get([]byte(name))
 	if len(val) == 0 {

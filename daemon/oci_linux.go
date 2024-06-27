@@ -18,7 +18,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	dconfig "github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/internal/rootless/mountopts"
 	"github.com/docker/docker/oci"
@@ -303,7 +303,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// ipc
 		ipcMode := c.HostConfig.IpcMode
 		if !ipcMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid IPC mode: %v", ipcMode))
+			return derrdefs.InvalidParameter(errors.Errorf("invalid IPC mode: %v", ipcMode))
 		}
 		switch {
 		case ipcMode.IsContainer():
@@ -339,7 +339,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// pid
 		pidMode := c.HostConfig.PidMode
 		if !pidMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid PID mode: %v", pidMode))
+			return derrdefs.InvalidParameter(errors.Errorf("invalid PID mode: %v", pidMode))
 		}
 		switch {
 		case pidMode.IsContainer():
@@ -370,7 +370,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		// uts
 		if !c.HostConfig.UTSMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid UTS mode: %v", c.HostConfig.UTSMode))
+			return derrdefs.InvalidParameter(errors.Errorf("invalid UTS mode: %v", c.HostConfig.UTSMode))
 		}
 		if c.HostConfig.UTSMode.IsHost() {
 			oci.RemoveNamespace(s, specs.UTSNamespace)
@@ -379,7 +379,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		// cgroup
 		if !c.HostConfig.CgroupnsMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid cgroup namespace mode: %v", c.HostConfig.CgroupnsMode))
+			return derrdefs.InvalidParameter(errors.Errorf("invalid cgroup namespace mode: %v", c.HostConfig.CgroupnsMode))
 		}
 		if c.HostConfig.CgroupnsMode.IsPrivate() {
 			setNamespace(s, specs.LinuxNamespace{

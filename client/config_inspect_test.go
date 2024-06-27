@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -52,7 +52,7 @@ func TestConfigInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInternal))
 }
 
 func TestConfigInspectConfigNotFound(t *testing.T) {

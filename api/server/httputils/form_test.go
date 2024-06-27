@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/containerd/containerd/platforms"
-	"github.com/docker/docker/errdefs"
+	"github.com/containerd/errdefs"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -126,7 +126,7 @@ func TestParsePlatformInvalid(t *testing.T) {
 			assert.NilError(t, err)
 
 			_, err = DecodePlatform(string(js))
-			assert.Check(t, errdefs.IsInvalidParameter(err))
+			assert.Check(t, errdefs.IsInvalidArgument(err))
 		})
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/api/types/plugins/logdriver"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	getter "github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
@@ -52,7 +52,7 @@ func makePluginClient(p getter.CompatPlugin) (logPlugin, error) {
 	}
 	pa, ok := p.(getter.PluginAddr)
 	if !ok {
-		return nil, errdefs.System(errors.Errorf("got unknown plugin type %T", p))
+		return nil, derrdefs.System(errors.Errorf("got unknown plugin type %T", p))
 	}
 
 	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {

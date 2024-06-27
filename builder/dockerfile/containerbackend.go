@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	containerpkg "github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 )

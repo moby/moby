@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/go-digest/digestset"
@@ -146,12 +146,12 @@ func (is *store) Create(config []byte) (ID, error) {
 		}
 	}
 	if layerCounter > len(img.RootFS.DiffIDs) {
-		return "", errdefs.InvalidParameter(errors.New("too many non-empty layers in History section"))
+		return "", derrdefs.InvalidParameter(errors.New("too many non-empty layers in History section"))
 	}
 
 	imageDigest, err := is.fs.Set(config)
 	if err != nil {
-		return "", errdefs.InvalidParameter(err)
+		return "", derrdefs.InvalidParameter(err)
 	}
 
 	is.Lock()
@@ -171,7 +171,7 @@ func (is *store) Create(config []byte) (ID, error) {
 		}
 		l, err = is.lss.Get(layerID)
 		if err != nil {
-			return "", errdefs.InvalidParameter(errors.Wrapf(err, "failed to get layer %s", layerID))
+			return "", derrdefs.InvalidParameter(errors.Wrapf(err, "failed to get layer %s", layerID))
 		}
 	}
 
@@ -182,7 +182,7 @@ func (is *store) Create(config []byte) (ID, error) {
 
 	if err = is.digestSet.Add(imageDigest); err != nil {
 		delete(is.images, imageID)
-		return "", errdefs.InvalidParameter(err)
+		return "", derrdefs.InvalidParameter(err)
 	}
 
 	return imageID, nil
@@ -212,12 +212,12 @@ func (is *store) Get(id ID) (*Image, error) {
 	// todo: Detect manual insertions and start using them
 	config, err := is.fs.Get(id.Digest())
 	if err != nil {
-		return nil, errdefs.NotFound(err)
+		return nil, derrdefs.NotFound(err)
 	}
 
 	img, err := NewFromJSON(config)
 	if err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 	img.computedID = id
 
@@ -235,11 +235,11 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 
 	imgMeta := is.images[id]
 	if imgMeta == nil {
-		return nil, errdefs.NotFound(fmt.Errorf("unrecognized image ID %s", id.String()))
+		return nil, derrdefs.NotFound(fmt.Errorf("unrecognized image ID %s", id.String()))
 	}
 	_, err := is.Get(id)
 	if err != nil {
-		return nil, errdefs.NotFound(fmt.Errorf("unrecognized image %s, %v", id.String(), err))
+		return nil, derrdefs.NotFound(fmt.Errorf("unrecognized image %s, %v", id.String(), err))
 	}
 	for cID := range imgMeta.children {
 		is.fs.DeleteMetadata(cID.Digest(), "parent")
@@ -265,7 +265,7 @@ func (is *store) SetParent(id, parentID ID) error {
 	defer is.Unlock()
 	parentMeta := is.images[parentID]
 	if parentMeta == nil {
-		return errdefs.NotFound(fmt.Errorf("unknown parent image ID %s", parentID.String()))
+		return derrdefs.NotFound(fmt.Errorf("unknown parent image ID %s", parentID.String()))
 	}
 	if parent, err := is.GetParent(id); err == nil && is.images[parent] != nil {
 		delete(is.images[parent].children, id)
@@ -277,7 +277,7 @@ func (is *store) SetParent(id, parentID ID) error {
 func (is *store) GetParent(id ID) (ID, error) {
 	d, err := is.fs.GetMetadata(id.Digest(), "parent")
 	if err != nil {
-		return "", errdefs.NotFound(err)
+		return "", derrdefs.NotFound(err)
 	}
 	return ID(d), nil // todo: validate?
 }

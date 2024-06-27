@@ -21,14 +21,15 @@ import (
 	"errors"
 	"io"
 
+	"github.com/containerd/errdefs/errgrpc"
+	"github.com/containerd/typeurl/v2"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	containersapi "github.com/containerd/containerd/api/services/containers/v1"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/protobuf"
 	ptypes "github.com/containerd/containerd/protobuf/types"
-	"github.com/containerd/errdefs"
-	"github.com/containerd/typeurl/v2"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type remoteContainers struct {
@@ -49,7 +50,7 @@ func (r *remoteContainers) Get(ctx context.Context, id string) (containers.Conta
 		ID: id,
 	})
 	if err != nil {
-		return containers.Container{}, errdefs.FromGRPC(err)
+		return containers.Container{}, errgrpc.ToNative(err)
 	}
 
 	return containerFromProto(resp.Container), nil
@@ -71,7 +72,7 @@ func (r *remoteContainers) list(ctx context.Context, filters ...string) ([]conta
 		Filters: filters,
 	})
 	if err != nil {
-		return nil, errdefs.FromGRPC(err)
+		return nil, errgrpc.ToNative(err)
 	}
 	return containersFromProto(resp.Containers), nil
 }
@@ -83,7 +84,7 @@ func (r *remoteContainers) stream(ctx context.Context, filters ...string) ([]con
 		Filters: filters,
 	})
 	if err != nil {
-		return nil, errdefs.FromGRPC(err)
+		return nil, errgrpc.ToNative(err)
 	}
 	var containers []containers.Container
 	for {
@@ -97,7 +98,7 @@ func (r *remoteContainers) stream(ctx context.Context, filters ...string) ([]con
 					return nil, errStreamNotAvailable
 				}
 			}
-			return nil, errdefs.FromGRPC(err)
+			return nil, errgrpc.ToNative(err)
 		}
 		select {
 		case <-ctx.Done():
@@ -113,7 +114,7 @@ func (r *remoteContainers) Create(ctx context.Context, container containers.Cont
 		Container: containerToProto(&container),
 	})
 	if err != nil {
-		return containers.Container{}, errdefs.FromGRPC(err)
+		return containers.Container{}, errgrpc.ToNative(err)
 	}
 
 	return containerFromProto(created.Container), nil
@@ -133,7 +134,7 @@ func (r *remoteContainers) Update(ctx context.Context, container containers.Cont
 		UpdateMask: updateMask,
 	})
 	if err != nil {
-		return containers.Container{}, errdefs.FromGRPC(err)
+		return containers.Container{}, errgrpc.ToNative(err)
 	}
 
 	return containerFromProto(updated.Container), nil
@@ -145,7 +146,7 @@ func (r *remoteContainers) Delete(ctx context.Context, id string) error {
 		ID: id,
 	})
 
-	return errdefs.FromGRPC(err)
+	return errgrpc.ToNative(err)
 
 }
 

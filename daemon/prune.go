@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	timetypes "github.com/docker/docker/api/types/time"
 	networkSettings "github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/pkg/errors"
 )
@@ -23,7 +23,7 @@ import (
 var (
 	// errPruneRunning is returned when a prune request is received while
 	// one is in progress
-	errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
+	errPruneRunning = derrdefs.Conflict(errors.New("a prune operation is already running"))
 
 	containersAcceptedFilters = map[string]bool{
 		"label":  true,
@@ -231,15 +231,15 @@ func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
 	}
 	untilFilters := pruneFilters.Get("until")
 	if len(untilFilters) > 1 {
-		return until, errdefs.InvalidParameter(errors.New("more than one until filter specified"))
+		return until, derrdefs.InvalidParameter(errors.New("more than one until filter specified"))
 	}
 	ts, err := timetypes.GetTimestamp(untilFilters[0], time.Now())
 	if err != nil {
-		return until, errdefs.InvalidParameter(err)
+		return until, derrdefs.InvalidParameter(err)
 	}
 	seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
 	if err != nil {
-		return until, errdefs.InvalidParameter(err)
+		return until, derrdefs.InvalidParameter(err)
 	}
 	until = time.Unix(seconds, nanoseconds)
 	return until, nil

@@ -8,11 +8,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	volumeopts "github.com/docker/docker/volume/service/opts"

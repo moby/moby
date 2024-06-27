@@ -15,8 +15,8 @@ import (
 	"github.com/containerd/containerd/content/local"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/testutil/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
@@ -34,7 +34,7 @@ func TestImagePullPlatformInvalid(t *testing.T) {
 	_, err := client.ImagePull(ctx, "docker.io/library/hello-world:latest", image.PullOptions{Platform: "foobar"})
 	assert.Assert(t, err != nil)
 	assert.Check(t, is.ErrorContains(err, "unknown operating system or architecture"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidArgument))
 }
 
 func createTestImage(ctx context.Context, t testing.TB, store content.Store) ocispec.Descriptor {

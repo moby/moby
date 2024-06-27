@@ -7,8 +7,8 @@ import (
 	"net"
 	"strings"
 
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"

@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	metrics "github.com/docker/go-metrics"
@@ -149,7 +149,7 @@ func makePluginAdapter(p plugingetter.CompatPlugin) (metricsPlugin, error) {
 
 	pa, ok := p.(plugingetter.PluginAddr)
 	if !ok {
-		return nil, errdefs.System(errors.Errorf("got unknown plugin type %T", p))
+		return nil, derrdefs.System(errors.Errorf("got unknown plugin type %T", p))
 	}
 
 	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {

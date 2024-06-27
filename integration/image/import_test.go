@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	imagetypes "github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -180,7 +180,7 @@ func TestImportWithCustomPlatformReject(t *testing.T) {
 				reference,
 				imagetypes.ImportOptions{Platform: tc.platform})
 
-			assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+			assert.Check(t, is.ErrorType(err, errdefs.IsInvalidArgument))
 			assert.Check(t, is.ErrorContains(err, tc.expectedErr))
 		})
 	}

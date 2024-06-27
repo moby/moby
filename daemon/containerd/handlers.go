@@ -5,7 +5,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	containerdimages "github.com/containerd/containerd/images"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -24,7 +24,7 @@ func presentChildrenHandler(store content.Store, h containerdimages.HandlerFunc)
 	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		_, err := store.Info(ctx, desc.Digest)
 		if err != nil {
-			if cerrdefs.IsNotFound(err) {
+			if errdefs.IsNotFound(err) {
 				return nil, nil
 			}
 			return nil, err

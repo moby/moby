@@ -4,7 +4,7 @@ import (
 	"context"
 
 	containerdimages "github.com/containerd/containerd/images"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -15,7 +15,7 @@ func (i *ImageService) getImagesWithLabel(ctx context.Context, labelKey string, 
 	imgs, err := i.images.List(ctx, "labels."+labelKey+"=="+labelValue)
 
 	if err != nil {
-		return []image.ID{}, errdefs.System(errors.Wrap(err, "failed to list all images"))
+		return []image.ID{}, derrdefs.System(errors.Wrap(err, "failed to list all images"))
 	}
 
 	var children []image.ID

@@ -12,14 +12,14 @@ import (
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/snapshots"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/snapshotter"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/registry"
@@ -112,7 +112,7 @@ func (i *ImageService) CountImages(ctx context.Context) int {
 // called from create.go
 // TODO: accept an opt struct instead of container?
 func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
-	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("not implemented")))
+	return nil, errdefs.ErrNotImplemented
 }
 
 // LayerStoreStatus returns the status for each layer store
@@ -128,7 +128,7 @@ func (i *ImageService) LayerStoreStatus() [][2]string {
 // called from daemon.go Daemon.Shutdown(), and Daemon.Cleanup() (cleanup is actually continerCleanup)
 // TODO: needs to be refactored to Unmount (see callers), or removed and replaced with GetLayerByID
 func (i *ImageService) GetLayerMountID(cid string) (string, error) {
-	return "", errdefs.NotImplemented(errors.New("not implemented"))
+	return "", errdefs.ErrNotImplemented
 }
 
 // Cleanup resources before the process is shutdown.
@@ -146,7 +146,7 @@ func (i *ImageService) StorageDriver() string {
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
 func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
-	return errdefs.NotImplemented(errors.New("not implemented"))
+	return errdefs.ErrNotImplemented
 }
 
 // LayerDiskUsage returns the number of bytes used by layer stores
@@ -183,15 +183,15 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 	snapshotter := i.client.SnapshotService(ctr.Driver)
 	rwLayerUsage, err := snapshotter.Usage(ctx, containerID)
 	if err != nil {
-		if cerrdefs.IsNotFound(err) {
-			return 0, 0, errdefs.NotFound(fmt.Errorf("rw layer snapshot not found for container %s", containerID))
+		if errdefs.IsNotFound(err) {
+			return 0, 0, fmt.Errorf("rw layer snapshot not found for container %s: %w", containerID, err)
 		}
-		return 0, 0, errdefs.System(errors.Wrapf(err, "snapshotter.Usage failed for %s", containerID))
+		return 0, 0, derrdefs.System(errors.Wrapf(err, "snapshotter.Usage failed for %s", containerID))
 	}
 
 	unpackedUsage, err := calculateSnapshotParentUsage(ctx, snapshotter, containerID)
 	if err != nil {
-		if cerrdefs.IsNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			log.G(ctx).WithField("ctr", containerID).Warn("parent of container snapshot no longer present")
 		} else {
 			log.G(ctx).WithError(err).WithField("ctr", containerID).Warn("unexpected error when calculating usage of the parent snapshots")

@@ -1,10 +1,6 @@
 package containerd
 
-import (
-	"errors"
-
-	"github.com/docker/docker/errdefs"
-)
+import "github.com/containerd/errdefs"
 
 // SquashImage creates a new image with the diff of the specified image and
 // the specified parent. This new image contains only the layers from its
@@ -13,5 +9,5 @@ import (
 // image with the diff of all the specified image's layers merged into a new
 // layer that has no parents.
 func (i *ImageService) SquashImage(id, parent string) (string, error) {
-	return "", errdefs.NotImplemented(errors.New("not implemented"))
+	return "", errdefs.ErrNotImplemented
 }

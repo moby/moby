@@ -6,7 +6,7 @@ import (
 	apitypes "github.com/docker/docker/api/types"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
 )
@@ -70,7 +70,7 @@ func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) 
 	return c.lockedManagerAction(func(_ context.Context, state nodeState) error {
 		nodeSpec, err := convert.NodeSpecToGRPC(spec)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 
 		ctx := context.TODO()

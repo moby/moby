@@ -18,7 +18,7 @@ import (
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	dimage "github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -219,7 +219,7 @@ func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *Ima
 	snapshotter := i.StorageDriver()
 	_, lease, err := createLease(ctx, i.client.LeasesService())
 	if err != nil {
-		return nil, errdefs.System(fmt.Errorf("failed to lease image snapshot %s: %w", imageSnapshotID, err))
+		return nil, derrdefs.System(fmt.Errorf("failed to lease image snapshot %s: %w", imageSnapshotID, err))
 	}
 
 	return &rolayer{
@@ -367,7 +367,7 @@ func (rw *rwlayer) Commit() (_ builder.ROLayer, outErr error) {
 	}
 
 	err = snapshotter.Commit(ctx, key, rw.key)
-	if err != nil && !cerrdefs.IsAlreadyExists(err) {
+	if err != nil && !errdefs.IsAlreadyExists(err) {
 		return nil, err
 	}
 
@@ -526,7 +526,7 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 
 	createdImage, err := i.images.Update(ctx, img)
 	if err != nil {
-		if !cerrdefs.IsNotFound(err) {
+		if !errdefs.IsNotFound(err) {
 			return "", err
 		}
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/poll"
 )

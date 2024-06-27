@@ -16,7 +16,7 @@ import (
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/cleanup"
 	"github.com/containerd/containerd/snapshots"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/image"
@@ -291,7 +291,7 @@ func (i *ImageService) applyDiffLayer(ctx context.Context, name string, containe
 	}
 
 	if err = sn.Commit(ctx, name, key); err != nil {
-		if cerrdefs.IsAlreadyExists(err) {
+		if errdefs.IsAlreadyExists(err) {
 			return nil
 		}
 		return err

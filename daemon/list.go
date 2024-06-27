@@ -7,13 +7,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
@@ -233,7 +234,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 	err := psFilters.WalkValues("exited", func(value string) error {
 		code, err := strconv.Atoi(value)
 		if err != nil {
-			return errdefs.InvalidParameter(errors.Wrapf(err, "invalid filter 'exited=%s'", value))
+			return derrdefs.InvalidParameter(errors.Wrapf(err, "invalid filter 'exited=%s'", value))
 		}
 		filtExited = append(filtExited, code)
 		return nil
@@ -244,7 +245,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 
 	err = psFilters.WalkValues("status", func(value string) error {
 		if !container.IsValidStateString(value) {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'status=%s'", value))
+			return derrdefs.InvalidParameter(fmt.Errorf("invalid filter 'status=%s'", value))
 		}
 
 		config.All = true
@@ -262,7 +263,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 
 	err = psFilters.WalkValues("health", func(value string) error {
 		if !container.IsValidHealthString(value) {
-			return errdefs.InvalidParameter(fmt.Errorf("unrecognized filter value for health: %s", value))
+			return derrdefs.InvalidParameter(fmt.Errorf("unrecognized filter value for health: %s", value))
 		}
 
 		return nil

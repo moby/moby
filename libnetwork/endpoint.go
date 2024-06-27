@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamapi"
@@ -562,7 +562,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	}
 
 	if err = addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
-		return errdefs.System(err)
+		return derrdefs.System(err)
 	}
 
 	if err = n.getController().updateToStore(ctx, ep); err != nil {

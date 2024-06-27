@@ -9,8 +9,8 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -141,7 +141,7 @@ func (e *Executor) IsRunning(id string) (bool, error) {
 	p := e.plugins[id]
 	e.mu.Unlock()
 	if p == nil {
-		return false, errdefs.NotFound(fmt.Errorf("unknown plugin %q", id))
+		return false, fmt.Errorf("unknown plugin %q: %w", id, errdefs.ErrNotFound)
 	}
 	status, err := p.tsk.Status(context.Background())
 	return status.Status == containerd.Running, err
@@ -153,7 +153,7 @@ func (e *Executor) Signal(id string, signal syscall.Signal) error {
 	p := e.plugins[id]
 	e.mu.Unlock()
 	if p == nil {
-		return errdefs.NotFound(fmt.Errorf("unknown plugin %q", id))
+		return fmt.Errorf("unknown plugin %q: %w", id, errdefs.ErrNotFound)
 	}
 	return p.tsk.Kill(context.Background(), signal)
 }

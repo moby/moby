@@ -14,7 +14,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 )
@@ -166,7 +166,7 @@ func authorizeClient(client *http.Client, authConfig *registry.AuthConfig, endpo
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return errdefs.System(errors.New("cookiejar.New is not supposed to return an error"))
+		return derrdefs.System(errors.New("cookiejar.New is not supposed to return an error"))
 	}
 	client.Jar = jar
 
@@ -202,17 +202,17 @@ func (r *session) searchRepositories(term string, limit int) (*registry.SearchRe
 	req.Header.Set("X-Docker-Token", "true")
 	res, err := r.client.Do(req)
 	if err != nil {
-		return nil, errdefs.System(err)
+		return nil, derrdefs.System(err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		// TODO(thaJeztah): return upstream response body for errors (see https://github.com/moby/moby/issues/27286).
-		return nil, errdefs.Unknown(fmt.Errorf("Unexpected status code %d", res.StatusCode))
+		return nil, derrdefs.Unknown(fmt.Errorf("Unexpected status code %d", res.StatusCode))
 	}
 	result := &registry.SearchResults{}
 	err = json.NewDecoder(res.Body).Decode(result)
 	if err != nil {
-		return nil, errdefs.System(errors.Wrap(err, "error decoding registry search results"))
+		return nil, derrdefs.System(errors.Wrap(err, "error decoding registry search results"))
 	}
 	return result, nil
 }

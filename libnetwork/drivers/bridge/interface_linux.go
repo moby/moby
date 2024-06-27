@@ -7,7 +7,7 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/vishvananda/netlink"
 )
@@ -77,7 +77,7 @@ func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) err
 
 	addrPrefix, ok := netiputil.ToPrefix(config.AddressIPv6)
 	if !ok {
-		return errdefs.System(
+		return derrdefs.System(
 			fmt.Errorf("failed to convert bridge IPv6 address '%s' to netip.Prefix",
 				config.AddressIPv6.String()))
 	}
@@ -85,13 +85,13 @@ func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) err
 	// Get the IPv6 addresses currently assigned to the bridge, if any.
 	existingAddrs, err := i.addresses(netlink.FAMILY_V6)
 	if err != nil {
-		return errdefs.System(err)
+		return derrdefs.System(err)
 	}
 	// Remove addresses that aren't required.
 	for _, existingAddr := range existingAddrs {
 		ea, ok := netip.AddrFromSlice(existingAddr.IP)
 		if !ok {
-			return errdefs.System(
+			return derrdefs.System(
 				fmt.Errorf("Failed to convert IPv6 address '%s' to netip.Addr", config.AddressIPv6))
 		}
 		// Don't delete the kernel-assigned link local address (or fe80::1 - if it was
@@ -133,7 +133,7 @@ func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) err
 	// length of an assigned address is not used to determine whether an address is
 	// "on-link" (RFC-5942).
 	if err := i.nlh.AddrReplace(i.Link, &netlink.Addr{IPNet: netiputil.ToIPNet(addrPrefix)}); err != nil {
-		return errdefs.System(fmt.Errorf("failed to add IPv6 address %s to bridge: %v", i.bridgeIPv6, err))
+		return derrdefs.System(fmt.Errorf("failed to add IPv6 address %s to bridge: %v", i.bridgeIPv6, err))
 	}
 	return nil
 }

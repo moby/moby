@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
 	volumesservice "github.com/docker/docker/volume/service"

@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/registry"
 	distributionpkg "github.com/docker/docker/distribution"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -31,7 +31,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	// TODO why is reference.ParseAnyReference() / reference.ParseNormalizedNamed() not using the reference.ErrTagInvalidFormat (and so on) errors?
 	ref, err := reference.ParseAnyReference(imgName)
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 	namedRef, ok := ref.(reference.Named)
 	if !ok {
@@ -39,7 +39,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 			// full image ID
 			return errors.Errorf("no manifest found for full image ID")
 		}
-		return errdefs.InvalidParameter(errors.Errorf("unknown image reference format: %s", imgName))
+		return derrdefs.InvalidParameter(errors.Errorf("unknown image reference format: %s", imgName))
 	}
 
 	// For a search it is not an error if no auth was given. Ignore invalid
@@ -83,7 +83,7 @@ func (s *distributionRouter) fetchManifest(ctx context.Context, distrepo distrib
 
 		taggedRef, ok := namedRef.(reference.NamedTagged)
 		if !ok {
-			return registry.DistributionInspect{}, errdefs.InvalidParameter(errors.Errorf("image reference not tagged: %s", namedRef))
+			return registry.DistributionInspect{}, derrdefs.InvalidParameter(errors.Errorf("image reference not tagged: %s", namedRef))
 		}
 
 		descriptor, err := distrepo.Tags(ctx).Get(ctx, taggedRef.Tag())
@@ -117,7 +117,7 @@ func (s *distributionRouter) fetchManifest(ctx context.Context, distrepo distrib
 			reference.ErrNameEmpty,
 			reference.ErrNameTooLong,
 			reference.ErrNameNotCanonical:
-			return registry.DistributionInspect{}, errdefs.InvalidParameter(err)
+			return registry.DistributionInspect{}, derrdefs.InvalidParameter(err)
 		}
 		return registry.DistributionInspect{}, err
 	}

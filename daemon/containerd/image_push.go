@@ -15,14 +15,14 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/auxprogress"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	dimages "github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/opencontainers/go-digest"
@@ -101,10 +101,10 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 
 	img, err := i.images.Get(ctx, targetRef.String())
 	if err != nil {
-		if cerrdefs.IsNotFound(err) {
-			return errdefs.NotFound(fmt.Errorf("tag does not exist: %s", reference.FamiliarString(targetRef)))
+		if errdefs.IsNotFound(err) {
+			return derrdefs.NotFound(fmt.Errorf("tag does not exist: %s", reference.FamiliarString(targetRef)))
 		}
-		return errdefs.System(err)
+		return derrdefs.System(err)
 	}
 
 	target := img.Target
@@ -172,7 +172,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 	if err != nil {
 		// If push failed because of a missing content, no specific platform was requested
 		// and the target is an index, select a platform-specific manifest to push instead.
-		if cerrdefs.IsNotFound(err) && containerdimages.IsIndexType(target.MediaType) && platform == nil {
+		if errdefs.IsNotFound(err) && containerdimages.IsIndexType(target.MediaType) && platform == nil {
 			var newTarget ocispec.Descriptor
 			newTarget, err = i.getPushDescriptor(ctx, img, nil)
 			if err != nil {
@@ -197,14 +197,14 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 		}
 
 		if err != nil {
-			if !cerrdefs.IsNotFound(err) {
-				return errdefs.System(err)
+			if !errdefs.IsNotFound(err) {
+				return derrdefs.System(err)
 			}
 			progress.Aux(out, auxprogress.ContentMissing{
 				ContentMissing: true,
 				Desc:           target,
 			})
-			return errdefs.NotFound(err)
+			return derrdefs.NotFound(err)
 		}
 	}
 
@@ -270,7 +270,7 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimag
 
 	switch len(presentMatchingManifests) {
 	case 0:
-		return ocispec.Descriptor{}, errdefs.NotFound(fmt.Errorf("no suitable image manifest found for platform %s", *platform))
+		return ocispec.Descriptor{}, derrdefs.NotFound(fmt.Errorf("no suitable image manifest found for platform %s", *platform))
 	case 1:
 		// Only one manifest is available AND matching the requested platform.
 
@@ -299,10 +299,10 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimag
 				return bestMatch.Target(), nil
 			}
 
-			return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple matching manifests found but no specific platform requested"))
+			return ocispec.Descriptor{}, derrdefs.Conflict(errors.Errorf("multiple matching manifests found but no specific platform requested"))
 		}
 
-		return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple manifests found for platform %s", *platform))
+		return ocispec.Descriptor{}, derrdefs.Conflict(errors.Errorf("multiple manifests found for platform %s", *platform))
 	}
 }
 
@@ -344,8 +344,8 @@ func findMissingMountable(ctx context.Context, store content.Store, queue *jobs,
 	handler := func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		_, err := store.Info(ctx, desc.Digest)
 		if err != nil {
-			if !cerrdefs.IsNotFound(err) {
-				return nil, errdefs.System(errors.Wrapf(err, "failed to get metadata of content %s", desc.Digest.String()))
+			if !errdefs.IsNotFound(err) {
+				return nil, derrdefs.System(errors.Wrapf(err, "failed to get metadata of content %s", desc.Digest.String()))
 			}
 
 			for _, source := range sources {
@@ -374,15 +374,15 @@ func findMissingMountable(ctx context.Context, store content.Store, queue *jobs,
 func getDigestSources(ctx context.Context, store content.Manager, digest digest.Digest) ([]distributionSource, error) {
 	info, err := store.Info(ctx, digest)
 	if err != nil {
-		if cerrdefs.IsNotFound(err) {
-			return nil, errdefs.NotFound(err)
+		if errdefs.IsNotFound(err) {
+			return nil, derrdefs.NotFound(err)
 		}
-		return nil, errdefs.System(err)
+		return nil, derrdefs.System(err)
 	}
 
 	sources := extractDistributionSources(info.Labels)
 	if sources == nil {
-		return nil, errdefs.NotFound(fmt.Errorf("label %q is not attached to %s", containerdlabels.LabelDistributionSource, digest.String()))
+		return nil, derrdefs.NotFound(fmt.Errorf("label %q is not attached to %s", containerdlabels.LabelDistributionSource, digest.String()))
 	}
 
 	return sources, nil

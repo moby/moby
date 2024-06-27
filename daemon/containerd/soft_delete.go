@@ -4,8 +4,8 @@ import (
 	"context"
 
 	containerdimages "github.com/containerd/containerd/images"
-	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/errdefs"
+	"github.com/containerd/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -26,7 +26,7 @@ func (i *ImageService) softImageDelete(ctx context.Context, img containerdimages
 
 		// Error out in case we couldn't persist the old image.
 		if err != nil {
-			return errdefs.System(errors.Wrapf(err, "failed to create a dangling image for the replaced image %s with digest %s",
+			return derrdefs.System(errors.Wrapf(err, "failed to create a dangling image for the replaced image %s with digest %s",
 				img.Name, img.Target.Digest.String()))
 		}
 	}
@@ -35,8 +35,8 @@ func (i *ImageService) softImageDelete(ctx context.Context, img containerdimages
 	// TODO: Add with target option
 	err := i.images.Delete(context.WithoutCancel(ctx), img.Name)
 	if err != nil {
-		if !cerrdefs.IsNotFound(err) {
-			return errdefs.System(errors.Wrapf(err, "failed to delete image %s which existed a moment before", img.Name))
+		if !errdefs.IsNotFound(err) {
+			return derrdefs.System(errors.Wrapf(err, "failed to delete image %s which existed a moment before", img.Name))
 		}
 	}
 
@@ -59,7 +59,7 @@ func (i *ImageService) ensureDanglingImage(ctx context.Context, from containerdi
 
 	_, err := i.images.Create(context.WithoutCancel(ctx), danglingImage)
 	// If it already exists, then just continue.
-	if cerrdefs.IsAlreadyExists(err) {
+	if errdefs.IsAlreadyExists(err) {
 		return nil
 	}
 

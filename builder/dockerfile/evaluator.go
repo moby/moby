@@ -27,7 +27,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/oci"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
@@ -39,7 +39,7 @@ func dispatch(ctx context.Context, d dispatchRequest, cmd instructions.Command) 
 	if c, ok := cmd.(instructions.PlatformSpecific); ok {
 		err := c.CheckPlatform(d.state.operatingSystem)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 	}
 	runConfigEnv := d.state.runConfig.Env
@@ -51,7 +51,7 @@ func dispatch(ctx context.Context, d dispatchRequest, cmd instructions.Command) 
 			return newword, err
 		})
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return derrdefs.InvalidParameter(err)
 		}
 	}
 

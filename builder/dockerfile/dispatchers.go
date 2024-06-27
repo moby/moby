@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/go-connections/nat"
@@ -166,7 +166,7 @@ func initializeStage(ctx context.Context, d dispatchRequest, cmd *instructions.S
 
 		p, err := platforms.Parse(v)
 		if err != nil {
-			return errors.Wrapf(errdefs.InvalidParameter(err), "failed to parse platform %s", v)
+			return errors.Wrapf(derrdefs.InvalidParameter(err), "failed to parse platform %s", v)
 		}
 		platform = &p
 	}
@@ -568,7 +568,7 @@ func dispatchVolume(ctx context.Context, d dispatchRequest, c *instructions.Volu
 func dispatchStopSignal(ctx context.Context, d dispatchRequest, c *instructions.StopSignalCommand) error {
 	_, err := signal.ParseSignal(c.Signal)
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 	d.state.runConfig.StopSignal = c.Signal
 	return d.builder.commit(ctx, d.state, fmt.Sprintf("STOPSIGNAL %v", c.Signal))

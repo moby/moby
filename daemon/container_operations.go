@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -20,7 +21,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork"
@@ -344,7 +345,7 @@ func (daemon *Daemon) findAndAttachNetwork(ctr *container.Container, idOrName st
 			containerName := strings.TrimPrefix(ctr.Name, "/")
 			if nw, ok := ctr.NetworkSettings.Networks[networkName]; ok && nw.EndpointID != "" {
 				err := fmt.Errorf("%s is already attached to network %s", containerName, networkName)
-				return n, nil, errdefs.Conflict(err)
+				return n, nil, derrdefs.Conflict(err)
 			}
 		}
 	}
@@ -664,7 +665,7 @@ func (daemon *Daemon) updateNetworkConfig(ctr *container.Container, n *libnetwor
 	}
 
 	if err := validateEndpointSettings(n, n.Name(), endpointConfig); err != nil {
-		return errdefs.InvalidParameter(err)
+		return derrdefs.InvalidParameter(err)
 	}
 
 	if updateSettings {
@@ -988,7 +989,7 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID st
 		return nil, fmt.Errorf("cannot join own network")
 	}
 	if !nc.IsRunning() {
-		return nil, errdefs.Conflict(fmt.Errorf("cannot join network of a non running container: %s", connectedContainerID))
+		return nil, derrdefs.Conflict(fmt.Errorf("cannot join network of a non running container: %s", connectedContainerID))
 	}
 	if nc.IsRestarting() {
 		return nil, errContainerIsRestarting(connectedContainerID)

@@ -10,11 +10,11 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
-	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
@@ -54,7 +54,7 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.Image, platform ocispec.Platform) (bool, error) {
 	ls, err := i.leases.ListResources(ctx, leases.Lease{ID: imageKey(img.ID().String())})
 	if err != nil {
-		if cerrdefs.IsNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			return false, nil
 		}
 		log.G(ctx).WithFields(log.Fields{
@@ -92,7 +92,7 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 
 		ra, err := i.content.ReaderAt(ctx, ocispec.Descriptor{Digest: digest.Digest(r.ID)})
 		if err != nil {
-			if cerrdefs.IsNotFound(err) {
+			if errdefs.IsNotFound(err) {
 				continue
 			}
 			logger.WithError(err).Error("Error looking up referenced manifest list for image")
@@ -238,11 +238,11 @@ func (i *ImageService) getImage(ctx context.Context, refOrID string, options bac
 		//   This may be confusing.
 		//   The alternative to this is to return an errdefs.Conflict error with a helpful message, but clients will not be
 		//   able to automatically tell what causes the conflict.
-		retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(p), platforms.Format(imgPlat)))
+		retErr = derrdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(p), platforms.Format(imgPlat)))
 	}()
 	ref, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 	namedRef, ok := ref.(reference.Named)
 	if !ok {

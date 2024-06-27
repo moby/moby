@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -159,7 +159,7 @@ func newBuilder(ctx context.Context, options builderOptions) (*Builder, error) {
 	if config.Platform != "" {
 		sp, err := platforms.Parse(config.Platform)
 		if err != nil {
-			return nil, errdefs.InvalidParameter(err)
+			return nil, derrdefs.InvalidParameter(err)
 		}
 		b.platform = &sp
 	}
@@ -193,13 +193,13 @@ func (b *Builder) build(ctx context.Context, source builder.Source, dockerfile *
 		if errors.As(err, &uiErr) {
 			buildsFailed.WithValues(metricsUnknownInstructionError).Inc()
 		}
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 	if b.options.Target != "" {
 		targetIx, found := instructions.HasStage(stages, b.options.Target)
 		if !found {
 			buildsFailed.WithValues(metricsBuildTargetNotReachableError).Inc()
-			return nil, errdefs.InvalidParameter(errors.Errorf("target stage %q could not be found", b.options.Target))
+			return nil, derrdefs.InvalidParameter(errors.Errorf("target stage %q could not be found", b.options.Target))
 		}
 		stages = stages[:targetIx+1]
 	}
@@ -328,7 +328,7 @@ func BuildFromConfig(ctx context.Context, config *container.Config, changes []st
 
 	dockerfile, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, derrdefs.InvalidParameter(err)
 	}
 
 	b, err := newBuilder(ctx, builderOptions{
@@ -341,7 +341,7 @@ func BuildFromConfig(ctx context.Context, config *container.Config, changes []st
 	// ensure that the commands are valid
 	for _, n := range dockerfile.AST.Children {
 		if !validCommitCommands[strings.ToLower(n.Value)] {
-			return nil, errdefs.InvalidParameter(errors.Errorf("%s is not a valid change command", n.Value))
+			return nil, derrdefs.InvalidParameter(errors.Errorf("%s is not a valid change command", n.Value))
 		}
 	}
 
@@ -353,7 +353,7 @@ func BuildFromConfig(ctx context.Context, config *container.Config, changes []st
 	for _, n := range dockerfile.AST.Children {
 		cmd, err := instructions.ParseCommand(n)
 		if err != nil {
-			return nil, errdefs.InvalidParameter(err)
+			return nil, derrdefs.InvalidParameter(err)
 		}
 		commands = append(commands, cmd)
 	}
@@ -366,7 +366,7 @@ func BuildFromConfig(ctx context.Context, config *container.Config, changes []st
 	for _, cmd := range commands {
 		err := dispatch(ctx, dispatchRequest, cmd)
 		if err != nil {
-			return nil, errdefs.InvalidParameter(err)
+			return nil, derrdefs.InvalidParameter(err)
 		}
 		dispatchRequest.state.updateRunConfig()
 	}

@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/opts"
@@ -134,7 +134,7 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 		if config.Hostname == "" {
 			config.Hostname, err = os.Hostname()
 			if err != nil {
-				return nil, errdefs.System(err)
+				return nil, derrdefs.System(err)
 			}
 		}
 	} else {

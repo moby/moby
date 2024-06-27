@@ -19,11 +19,12 @@ package proxy
 import (
 	"context"
 
-	api "github.com/containerd/containerd/api/services/sandbox/v1"
-	"github.com/containerd/containerd/sandbox"
-	"github.com/containerd/errdefs"
+	"github.com/containerd/errdefs/errgrpc"
 	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
 	"google.golang.org/protobuf/types/known/anypb"
+
+	api "github.com/containerd/containerd/api/services/sandbox/v1"
+	"github.com/containerd/containerd/sandbox"
 )
 
 // remoteSandboxController is a low level GRPC client for containerd's sandbox controller service
@@ -53,7 +54,7 @@ func (s *remoteSandboxController) Create(ctx context.Context, sandboxID string, 
 		NetnsPath: options.NetNSPath,
 	})
 	if err != nil {
-		return errdefs.FromGRPC(err)
+		return errgrpc.ToNative(err)
 	}
 
 	return nil
@@ -62,7 +63,7 @@ func (s *remoteSandboxController) Create(ctx context.Context, sandboxID string, 
 func (s *remoteSandboxController) Start(ctx context.Context, sandboxID string) (sandbox.ControllerInstance, error) {
 	resp, err := s.client.Start(ctx, &api.ControllerStartRequest{SandboxID: sandboxID})
 	if err != nil {
-		return sandbox.ControllerInstance{}, errdefs.FromGRPC(err)
+		return sandbox.ControllerInstance{}, errgrpc.ToNative(err)
 	}
 
 	return sandbox.ControllerInstance{
@@ -76,7 +77,7 @@ func (s *remoteSandboxController) Start(ctx context.Context, sandboxID string) (
 func (s *remoteSandboxController) Platform(ctx context.Context, sandboxID string) (imagespec.Platform, error) {
 	resp, err := s.client.Platform(ctx, &api.ControllerPlatformRequest{SandboxID: sandboxID})
 	if err != nil {
-		return imagespec.Platform{}, errdefs.FromGRPC(err)
+		return imagespec.Platform{}, errgrpc.ToNative(err)
 	}
 
 	platform := resp.GetPlatform()
@@ -98,7 +99,7 @@ func (s *remoteSandboxController) Stop(ctx context.Context, sandboxID string, op
 	}
 	_, err := s.client.Stop(ctx, req)
 	if err != nil {
-		return errdefs.FromGRPC(err)
+		return errgrpc.ToNative(err)
 	}
 
 	return nil
@@ -107,7 +108,7 @@ func (s *remoteSandboxController) Stop(ctx context.Context, sandboxID string, op
 func (s *remoteSandboxController) Shutdown(ctx context.Context, sandboxID string) error {
 	_, err := s.client.Shutdown(ctx, &api.ControllerShutdownRequest{SandboxID: sandboxID})
 	if err != nil {
-		return errdefs.FromGRPC(err)
+		return errgrpc.ToNative(err)
 	}
 
 	return nil
@@ -116,7 +117,7 @@ func (s *remoteSandboxController) Shutdown(ctx context.Context, sandboxID string
 func (s *remoteSandboxController) Wait(ctx context.Context, sandboxID string) (sandbox.ExitStatus, error) {
 	resp, err := s.client.Wait(ctx, &api.ControllerWaitRequest{SandboxID: sandboxID})
 	if err != nil {
-		return sandbox.ExitStatus{}, errdefs.FromGRPC(err)
+		return sandbox.ExitStatus{}, errgrpc.ToNative(err)
 	}
 
 	return sandbox.ExitStatus{
@@ -128,7 +129,7 @@ func (s *remoteSandboxController) Wait(ctx context.Context, sandboxID string) (s
 func (s *remoteSandboxController) Status(ctx context.Context, sandboxID string, verbose bool) (sandbox.ControllerStatus, error) {
 	resp, err := s.client.Status(ctx, &api.ControllerStatusRequest{SandboxID: sandboxID, Verbose: verbose})
 	if err != nil {
-		return sandbox.ControllerStatus{}, errdefs.FromGRPC(err)
+		return sandbox.ControllerStatus{}, errgrpc.ToNative(err)
 	}
 	return sandbox.ControllerStatus{
 		SandboxID: sandboxID,

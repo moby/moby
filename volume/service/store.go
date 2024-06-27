@@ -11,7 +11,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/errdefs"
+	derrdefs "github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	volumemounts "github.com/docker/docker/volume/mounts"
@@ -327,7 +327,7 @@ func (s *VolumeStore) filter(ctx context.Context, vols *[]volume.Volume, by By) 
 		}
 		filter(vols, filterFunc(f))
 	default:
-		return nil, errdefs.InvalidParameter(errors.Errorf("unsupported filter: %T", f))
+		return nil, derrdefs.InvalidParameter(errors.Errorf("unsupported filter: %T", f))
 	}
 	return warnings, nil
 }
@@ -355,7 +355,7 @@ func (s *VolumeStore) Find(ctx context.Context, by By) (vols []volume.Volume, wa
 		warnings, err = s.filter(ctx, f.ls, f.by)
 	default:
 		// Really shouldn't be possible, but makes sure that any new By's are added to this check.
-		err = errdefs.InvalidParameter(errors.Errorf("unsupported filter type: %T", f))
+		err = derrdefs.InvalidParameter(errors.Errorf("unsupported filter type: %T", f))
 	}
 	if err != nil {
 		return nil, nil, &OpErr{Err: err, Op: "list"}
@@ -668,7 +668,7 @@ func (s *VolumeStore) Get(ctx context.Context, name string, getOptions ...opts.G
 		return nil, &OpErr{Err: err, Name: name, Op: "get"}
 	}
 	if cfg.Driver != "" && v.DriverName() != cfg.Driver {
-		return nil, &OpErr{Name: name, Op: "get", Err: errdefs.Conflict(errors.New("found volume driver does not match passed in driver"))}
+		return nil, &OpErr{Name: name, Op: "get", Err: derrdefs.Conflict(errors.New("found volume driver does not match passed in driver"))}
 	}
 	s.setNamed(v, cfg.Reference)
 	return v, nil
@@ -689,7 +689,7 @@ func (s *VolumeStore) getVolume(ctx context.Context, name, driverName string) (v
 			meta.Driver = driverName
 		}
 		if driverName != meta.Driver {
-			return nil, errdefs.Conflict(errors.New("provided volume driver does not match stored driver"))
+			return nil, derrdefs.Conflict(errors.New("provided volume driver does not match stored driver"))
 		}
 	}
 

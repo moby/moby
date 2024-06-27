@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	ctr "github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/oci"
@@ -91,7 +91,7 @@ func TestCreateLinkToNonExistingContainer(t *testing.T) {
 		"",
 	)
 	assert.Check(t, is.ErrorContains(err, "could not get container for no-such-container"))
-	assert.Check(t, errdefs.IsInvalidParameter(err))
+	assert.Check(t, errdefs.IsInvalidArgument(err))
 }
 
 func TestCreateWithInvalidEnv(t *testing.T) {
@@ -132,7 +132,7 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 				"",
 			)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
-			assert.Check(t, errdefs.IsInvalidParameter(err))
+			assert.Check(t, errdefs.IsInvalidArgument(err))
 		})
 	}
 }
@@ -179,7 +179,7 @@ func TestCreateTmpfsMountsTarget(t *testing.T) {
 			"",
 		)
 		assert.Check(t, is.ErrorContains(err, tc.expectedError))
-		assert.Check(t, errdefs.IsInvalidParameter(err))
+		assert.Check(t, errdefs.IsInvalidArgument(err))
 	}
 }
 
@@ -422,7 +422,7 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 
 			resp, err := apiClient.ContainerCreate(ctx, &cfg, &container.HostConfig{}, nil, nil, "")
 			assert.Check(t, is.Equal(len(resp.Warnings), 0))
-			assert.Check(t, errdefs.IsInvalidParameter(err))
+			assert.Check(t, errdefs.IsInvalidArgument(err))
 			assert.ErrorContains(t, err, tc.expectedErr)
 		})
 	}
@@ -518,7 +518,7 @@ func TestCreateVolumesFromNonExistingContainer(t *testing.T) {
 		nil,
 		"",
 	)
-	assert.Check(t, errdefs.IsInvalidParameter(err))
+	assert.Check(t, errdefs.IsInvalidArgument(err))
 }
 
 // Test that we can create a container from an image that is for a different platform even if a platform was not specified
@@ -589,7 +589,7 @@ func TestCreateInvalidHostConfig(t *testing.T) {
 			}
 			resp, err := apiClient.ContainerCreate(ctx, &cfg, &tc.hc, nil, nil, "")
 			assert.Check(t, is.Equal(len(resp.Warnings), 0))
-			assert.Check(t, errdefs.IsInvalidParameter(err), "got: %T", err)
+			assert.Check(t, errdefs.IsInvalidArgument(err), "got: %T", err)
 			assert.Error(t, err, tc.expectedErr)
 		})
 	}
