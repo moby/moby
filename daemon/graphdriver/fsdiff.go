@@ -64,12 +64,12 @@ func (gdw *NaiveDiffDriver) Diff(id, parent string) (arch io.ReadCloser, err err
 	}()
 
 	if parent == "" {
-		archive, err := archive.Tar(layerFs, archive.Uncompressed)
+		tarArchive, err := archive.Tar(layerFs, archive.Uncompressed)
 		if err != nil {
 			return nil, err
 		}
-		return ioutils.NewReadCloserWrapper(archive, func() error {
-			err := archive.Close()
+		return ioutils.NewReadCloserWrapper(tarArchive, func() error {
+			err := tarArchive.Close()
 			driver.Put(id)
 			return err
 		}), nil
@@ -86,13 +86,13 @@ func (gdw *NaiveDiffDriver) Diff(id, parent string) (arch io.ReadCloser, err err
 		return nil, err
 	}
 
-	archive, err := archive.ExportChanges(layerFs, changes, gdw.IDMap)
+	tarArchive, err := archive.ExportChanges(layerFs, changes, gdw.IDMap)
 	if err != nil {
 		return nil, err
 	}
 
-	return ioutils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
+	return ioutils.NewReadCloserWrapper(tarArchive, func() error {
+		err := tarArchive.Close()
 		driver.Put(id)
 
 		// NaiveDiffDriver compares file metadata with parent layers. Parent layers
