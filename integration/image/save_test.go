@@ -108,10 +108,10 @@ func TestSaveOCI(t *testing.T) {
 
 	testCases := []testCase{
 		// Busybox by tagged name
-		testCase{image: busybox, expectedContainerdRef: "docker.io/library/busybox:latest", expectedOCIRef: "latest"},
+		{image: busybox, expectedContainerdRef: "docker.io/library/busybox:latest", expectedOCIRef: "latest"},
 
 		// Busybox by ID
-		testCase{image: inspectBusybox.ID},
+		{image: inspectBusybox.ID},
 	}
 
 	if testEnv.DaemonInfo.OSType != "windows" {
