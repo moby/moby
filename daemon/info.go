@@ -229,7 +229,6 @@ func (daemon *Daemon) fillDebugInfo(ctx context.Context, v *system.Info) {
 	v.NFd = fileutils.GetTotalUsedFds(ctx)
 	v.NGoroutines = runtime.NumGoroutine()
 	v.NEventsListener = daemon.EventsService.SubscribersCount()
-
 }
 
 // fillContainerdInfo provides information about the containerd configuration
