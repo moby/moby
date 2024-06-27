@@ -204,6 +204,7 @@ func (pm *Manager) reload() error { // todo: restore
 
 		go func(p *v2.Plugin) {
 			defer wg.Done()
+			// TODO(thaJeztah): make this fail if the plugin has "graphdriver" capability ?
 			if err := pm.restorePlugin(p, c); err != nil {
 				log.G(context.TODO()).WithError(err).WithField("id", p.GetID()).Error("Failed to restore plugin")
 				return
@@ -218,6 +219,11 @@ func (pm *Manager) reload() error { // todo: restore
 				if (typ.Capability == "volumedriver" || typ.Capability == "graphdriver" || typ.Capability == "csinode" || typ.Capability == "csicontroller") && typ.Prefix == "docker" && strings.HasPrefix(typ.Version, "1.") {
 					if p.PluginObj.Config.PropagatedMount != "" {
 						propRoot := filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
+
+						if typ.Capability == "graphdriver" {
+							// TODO(thaJeztah): remove this for next release.
+							log.G(context.TODO()).WithError(err).WithField("dir", propRoot).Warn("skipping migrating propagated mount storage for deprecated graphdriver plugin")
+						}
 
 						// check if we need to migrate an older propagated mount from before
 						// these mounts were stored outside the plugin rootfs

@@ -1154,7 +1154,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			GraphDriver:               driverName,
 			GraphDriverOptions:        cfgStore.GraphOptions,
 			IDMapping:                 idMapping,
-			PluginGetter:              d.PluginStore,
 			ExperimentalEnabled:       cfgStore.Experimental,
 		})
 		if err != nil {

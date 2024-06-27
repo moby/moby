@@ -52,7 +52,6 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 		GraphDriver:               d.StorageDriver(),
 		GraphDriverOptions:        nil,
 		IDMapping:                 idtools.IdentityMapping{},
-		PluginGetter:              nil,
 		ExperimentalEnabled:       false,
 	})
 	i := images.NewImageService(images.ImageServiceConfig{
