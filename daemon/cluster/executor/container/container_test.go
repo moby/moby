@@ -167,7 +167,7 @@ func TestTmpfsConversion(t *testing.T) {
 					Target: "/bar",
 					Type:   mount.TypeTmpfs,
 					TmpfsOptions: &mount.TmpfsOptions{
-						Options: [][]string{[]string{"exec"}},
+						Options: [][]string{{"exec"}},
 					},
 				},
 			},
@@ -190,7 +190,7 @@ func TestTmpfsConversion(t *testing.T) {
 					Target: "/bar",
 					Type:   mount.TypeTmpfs,
 					TmpfsOptions: &mount.TmpfsOptions{
-						Options: [][]string{[]string{"noexec"}},
+						Options: [][]string{{"noexec"}},
 					},
 				},
 			},
