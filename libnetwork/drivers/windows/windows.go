@@ -738,7 +738,6 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	endpoint.epConnectivity = epConnectivity
 	endpoint.epOption = epOption
 	endpoint.portMapping, err = ParsePortBindingPolicies(hnsresponse.Policies)
-
 	if err != nil {
 		hcsshim.HNSEndpointRequest("DELETE", hnsresponse.Id, "")
 		return err

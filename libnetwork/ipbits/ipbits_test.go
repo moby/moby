@@ -70,6 +70,7 @@ func TestField(t *testing.T) {
 		}
 	}
 }
+
 func TestSubnetsBetween(t *testing.T) {
 	tests := []struct {
 		a1, a2 netip.Addr

@@ -718,7 +718,6 @@ func TestServiceNetworkUpdate(t *testing.T) {
 
 	assert.Check(t, na.IsServiceAllocated(s))
 	assert.Check(t, is.Len(s.Endpoint.VirtualIPs, 1))
-
 }
 
 type mockIpam struct {
