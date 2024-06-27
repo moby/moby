@@ -34,7 +34,7 @@ func newDriver(t testing.TB, name string, options []string) *Driver {
 	assert.NilError(t, err)
 
 	assert.NilError(t, os.MkdirAll(root, 0o755))
-	d, err := graphdriver.GetDriver(name, nil, graphdriver.Options{DriverOptions: options, Root: root})
+	d, err := graphdriver.GetDriver(name, graphdriver.Options{DriverOptions: options, Root: root})
 	if err != nil {
 		t.Logf("graphdriver: %v\n", err)
 		if graphdriver.IsDriverNotSupported(err) {

@@ -26,23 +26,21 @@ func init() {
 }
 
 func newVFSGraphDriver(td string) (graphdriver.Driver, error) {
-	uidMap := []idtools.IDMap{
-		{
-			ContainerID: 0,
-			HostID:      os.Getuid(),
-			Size:        1,
+	return graphdriver.GetDriver("vfs", graphdriver.Options{
+		Root: td,
+		IDMap: idtools.IdentityMapping{
+			UIDMaps: []idtools.IDMap{{
+				ContainerID: 0,
+				HostID:      os.Getuid(),
+				Size:        1,
+			}},
+			GIDMaps: []idtools.IDMap{{
+				ContainerID: 0,
+				HostID:      os.Getgid(),
+				Size:        1,
+			}},
 		},
-	}
-	gidMap := []idtools.IDMap{
-		{
-			ContainerID: 0,
-			HostID:      os.Getgid(),
-			Size:        1,
-		},
-	}
-
-	options := graphdriver.Options{Root: td, IDMap: idtools.IdentityMapping{UIDMaps: uidMap, GIDMaps: gidMap}}
-	return graphdriver.GetDriver("vfs", nil, options)
+	})
 }
 
 func newTestGraphDriver(t *testing.T) (graphdriver.Driver, func()) {

@@ -11,7 +11,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/pkg/errors"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -158,16 +157,17 @@ func Register(name string, initFunc InitFunc) error {
 }
 
 // GetDriver initializes and returns the registered driver
-func GetDriver(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
+func GetDriver(name string, config Options) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.IDMap)
 	}
+	log.G(context.TODO()).WithFields(log.Fields{"driver": name, "home-dir": config.Root}).Error("Failed to GetDriver graph")
 
-	pluginDriver, err := lookupPlugin(name, pg, config)
-	if err == nil {
-		return pluginDriver, nil
+	// TODO(thaJeztah): remove in next release.
+	if config.ExperimentalEnabled && os.Getenv("DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS") != "" {
+		return nil, fmt.Errorf("DEPRECATED: Support for experimental graphdriver plugins has been removed. See https://docs.docker.com/go/deprecated/")
 	}
-	log.G(context.TODO()).WithError(err).WithField("driver", name).WithField("home-dir", config.Root).Error("Failed to GetDriver graph")
+
 	return nil, ErrNotSupported
 }
 
@@ -189,14 +189,14 @@ type Options struct {
 }
 
 // New creates the driver and initializes it at the specified root.
-func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
+func New(name string, config Options) (Driver, error) {
 	ctx := context.TODO()
 	if name != "" {
 		log.G(ctx).Infof("[graphdriver] trying configured driver: %s", name)
 		if err := checkRemoved(name); err != nil {
 			return nil, err
 		}
-		return GetDriver(name, pg, config)
+		return GetDriver(name, config)
 	}
 
 	// Guess for prior driver
