@@ -9,7 +9,7 @@ set -e
 # the containerd project first, and update both after that is merged.
 #
 # When updating RUNC_VERSION, consider updating runc in vendor.mod accordingly
-: "${RUNC_VERSION:=v1.1.13}"
+: "${RUNC_VERSION:=v1.2.0-rc.2}"
 
 install_runc() {
 	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp"}"
@@ -23,7 +23,8 @@ install_runc() {
 	else
 		target="$1"
 	fi
-	make BUILDTAGS="$RUNC_BUILDTAGS" "$target"
+	CGO_ENABLED=1 go generate -tags "seccomp urfave_cli_no_docs " ./libcontainer/dmz
+	CGO_ENABLED=1 go build -x -v -trimpath "-buildmode=pie"  -tags "seccomp urfave_cli_no_docs " -ldflags "-X main.gitCommit=v1.2.0-rc.2-0-gf2d2ee5 -X main.version=1.2.0-rc.2 " -o runc .
 	mkdir -p "${PREFIX}"
 	cp runc "${PREFIX}/runc"
 }
