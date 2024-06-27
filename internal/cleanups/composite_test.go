@@ -12,12 +12,12 @@ import (
 
 func TestCall(t *testing.T) {
 	c := Composite{}
-	var err1 = errors.New("error1")
-	var err2 = errors.New("error2")
-	var errX = errors.New("errorX")
-	var errY = errors.New("errorY")
-	var errZ = errors.New("errorZ")
-	var errYZ = errors.Join(errY, errZ)
+	err1 := errors.New("error1")
+	err2 := errors.New("error2")
+	errX := errors.New("errorX")
+	errY := errors.New("errorY")
+	errZ := errors.New("errorZ")
+	errYZ := errors.Join(errY, errZ)
 
 	c.Add(func(ctx context.Context) error {
 		return err1
