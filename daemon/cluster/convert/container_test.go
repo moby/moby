@@ -8,8 +8,8 @@ import (
 
 func TestTmpfsOptionsToGRPC(t *testing.T) {
 	options := [][]string{
-		[]string{"noexec"},
-		[]string{"uid", "12345"},
+		{"noexec"},
+		{"uid", "12345"},
 	}
 
 	expected := `[["noexec"],["uid","12345"]]`
@@ -21,8 +21,8 @@ func TestTmpfsOptionsFromGRPC(t *testing.T) {
 	options := `[["noexec"],["uid","12345"]]`
 
 	expected := [][]string{
-		[]string{"noexec"},
-		[]string{"uid", "12345"},
+		{"noexec"},
+		{"uid", "12345"},
 	}
 	actual := tmpfsOptionsFromGRPC(options)
 
