@@ -20,7 +20,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
@@ -675,9 +674,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 		inUserns, bestEffortXattrs bool
 		chownOpts                  *idtools.Identity
 	)
+
+	// TODO(thaJeztah): make opts a required argument.
 	if opts != nil {
 		Lchown = !opts.NoLchown
-		inUserns = opts.InUserNS
+		inUserns = opts.InUserNS // TODO(thaJeztah): consider deprecating opts.InUserNS and detect locally.
 		chownOpts = opts.ChownOpts
 		bestEffortXattrs = opts.BestEffortXattrs
 	}
@@ -712,6 +713,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 
 	case tar.TypeBlock, tar.TypeChar:
 		if inUserns { // cannot create devices in a userns
+			log.G(context.TODO()).WithFields(log.Fields{"path": path, "type": hdr.Typeflag}).Debug("skipping device nodes in a userns")
 			return nil
 		}
 		// Handle this is an OS-specific way
@@ -722,6 +724,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 	case tar.TypeFifo:
 		// Handle this is an OS-specific way
 		if err := handleTarTypeBlockCharFifo(hdr, path); err != nil {
+			if inUserns && errors.Is(err, syscall.EPERM) {
+				// In most cases, cannot create a fifo if running in user namespace
+				log.G(context.TODO()).WithFields(log.Fields{"error": err, "path": path, "type": hdr.Typeflag}).Debug("creating fifo node in a userns")
+				return nil
+			}
 			return err
 		}
 
@@ -765,7 +772,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 		}
 		if err := os.Lchown(path, chownOpts.UID, chownOpts.GID); err != nil {
 			msg := "failed to Lchown %q for UID %d, GID %d"
-			if errors.Is(err, syscall.EINVAL) && userns.RunningInUserNS() {
+			if inUserns && errors.Is(err, syscall.EINVAL) {
 				msg += " (try increasing the number of subordinate IDs in /etc/subuid and /etc/subgid)"
 			}
 			return errors.Wrapf(err, msg, path, hdr.Uid, hdr.Gid)
@@ -871,11 +878,6 @@ func NewTarballer(srcPath string, options *TarOptions) (*Tarballer, error) {
 		return nil, err
 	}
 
-	whiteoutConverter, err := getWhiteoutConverter(options.WhiteoutFormat, options.InUserNS)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Tarballer{
 		// Fix the source path to work with long path names. This is a no-op
 		// on platforms other than Windows.
@@ -885,7 +887,7 @@ func NewTarballer(srcPath string, options *TarOptions) (*Tarballer, error) {
 		pipeReader:        pipeReader,
 		pipeWriter:        pipeWriter,
 		compressWriter:    compressWriter,
-		whiteoutConverter: whiteoutConverter,
+		whiteoutConverter: getWhiteoutConverter(options.WhiteoutFormat),
 	}, nil
 }
 
@@ -1080,10 +1082,7 @@ func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) err
 	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
-	whiteoutConverter, err := getWhiteoutConverter(options.WhiteoutFormat, options.InUserNS)
-	if err != nil {
-		return err
-	}
+	whiteoutConverter := getWhiteoutConverter(options.WhiteoutFormat)
 
 	// Iterate through the files in the archive.
 loop:
