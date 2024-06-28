@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
@@ -678,7 +679,6 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 		return d.naiveDiff.ApplyDiff(id, parent, diff)
 	}
 
-	// never reach here if we are running in UserNS
 	applyDir := d.getDiffPath(id)
 
 	logger.Debugf("Applying tar in %s", applyDir)
@@ -686,6 +686,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 	if err := untar(diff, applyDir, &archive.TarOptions{
 		IDMap:          d.idMap,
 		WhiteoutFormat: archive.OverlayWhiteoutFormat,
+		InUserNS:       userns.RunningInUserNS(),
 	}); err != nil {
 		return 0, err
 	}
