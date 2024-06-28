@@ -2746,3 +2746,114 @@ func (s *DockerDaemonSuite) TestFailedPluginRemove(c *testing.T) {
 	// plugin should be gone since the config.json is gone
 	assert.ErrorContains(c, err, "")
 }
+
+func (s *DockerDaemonSuite) TestMigrateSnapshotter(c *testing.T) {
+	s.d.StartWithBusybox(testutil.GetContext(c), c)
+
+	info, err := s.d.NewClientT(c).Info(testutil.GetContext(c))
+	assert.NilError(c, err)
+	assert.Equal(c, info.Containers, 0)
+	assert.Equal(c, info.Images, 1)
+
+	driver := info.Driver
+
+	cli.Docker(
+		cli.Args("run", "--rm", "--network", "none", "busybox:latest", "echo", "hello"),
+		cli.Daemon(s.d),
+	).Assert(c, icmd.Success)
+
+	s.d.Restart(c, "--feature", "containerd-migration")
+
+	info, err = s.d.NewClientT(c).Info(testutil.GetContext(c))
+	assert.NilError(c, err)
+
+	assert.Equal(c, info.Containers, 0)
+	assert.Assert(c, driver != info.Driver, "expected different driver to migrate from %s to containerd snapshotter", driver)
+}
+
+func (s *DockerDaemonSuite) TestMigrateSnapshotterWithContainers(c *testing.T) {
+	s.d.StartWithBusybox(testutil.GetContext(c), c)
+
+	info, err := s.d.NewClientT(c).Info(testutil.GetContext(c))
+	assert.NilError(c, err)
+
+	driver := info.Driver
+
+	cli.Docker(
+		cli.Args("run", "--network", "none", "-d", "--name", "top1", "-p", "1234:80", "--restart", "always", "busybox:latest", "top"),
+		cli.Daemon(s.d),
+	).Assert(c, icmd.Success)
+
+	cli.Docker(
+		cli.Args("run", "-d", "--network", "none", "--name", "top2", "-p", "80", "busybox:latest", "top"),
+		cli.Daemon(s.d),
+	).Assert(c, icmd.Success)
+
+	testRun := func(m map[string]bool, prefix string) {
+		var format string
+		for cont, shouldRun := range m {
+			out := cli.Docker(cli.Args("ps"), cli.Daemon(s.d)).Assert(c, icmd.Success).Combined()
+			if shouldRun {
+				format = "%scontainer %q is not running"
+			} else {
+				format = "%scontainer %q is running"
+			}
+			if shouldRun != strings.Contains(out, cont) {
+				c.Fatalf(format, prefix, cont)
+			}
+		}
+	}
+
+	testRun(map[string]bool{"top1": true, "top2": true}, "")
+
+	s.d.Restart(c, "--feature", "containerd-migration")
+
+	info, err = s.d.NewClientT(c).Info(testutil.GetContext(c))
+	assert.NilError(c, err)
+	assert.Equal(c, info.Containers, 2)
+	assert.Equal(c, info.Images, 1)
+
+	assert.Assert(c, driver == info.Driver, "expected no migration, got from %s to %s", driver, info.Driver)
+
+	testRun(map[string]bool{"top1": true, "top2": false}, "After daemon restart: ")
+}
+
+func (s *DockerDaemonSuite) TestMigrateSnapshotterImages(c *testing.T) {
+	s.d.StartWithBusybox(testutil.GetContext(c), c)
+
+	info, err := s.d.NewClientT(c).Info(testutil.GetContext(c))
+	assert.NilError(c, err)
+	assert.Equal(c, info.Containers, 0)
+	assert.Equal(c, info.Images, 1)
+
+	driver := info.Driver
+	if driver != "overlay2" { // && driver != "vfs" {
+		c.Skipf("Image migration only implemented for overlay2, currently using %q", driver)
+	}
+
+	cli.Docker(
+		cli.Args("run", "--network", "none", "--rm", "busybox:latest", "echo", "hello"),
+		cli.Daemon(s.d),
+	).Assert(c, icmd.Success)
+
+	s.d.Restart(c, "--feature", "containerd-migration")
+
+	info, err = s.d.NewClientT(c).Info(testutil.GetContext(c))
+	assert.NilError(c, err)
+
+	assert.Equal(c, info.Containers, 0)
+	assert.Equal(c, info.Images, 1)
+	assert.Assert(c, driver != info.Driver, "expected driver to migrate from %s to containerd snapshotter", driver)
+	assert.Equal(c, info.Driver, "overlayfs")
+
+	cli.Docker(
+		cli.Args("run", "--network", "none", "--rm", "busybox:latest", "echo", "hello"),
+		cli.Daemon(s.d),
+	).Assert(c, icmd.Success)
+
+	info, err = s.d.NewClientT(c).Info(testutil.GetContext(c))
+	assert.NilError(c, err)
+	assert.Equal(c, info.Images, 1)
+
+	// TODO: Test image exports and imports
+}

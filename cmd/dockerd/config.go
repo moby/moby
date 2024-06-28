@@ -28,6 +28,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.StringVar(&conf.ExecRoot, "exec-root", conf.ExecRoot, "Root directory for execution state files")
 	flags.StringVar(&conf.ContainerdAddr, "containerd", "", "containerd grpc address")
 	flags.BoolVar(&conf.CriContainerd, "cri-containerd", false, "start containerd with cri")
+	flags.Var(opts.NewNamedSetOpts("feature", conf.Features), "feature", "Enable feature in the daemon")
 
 	flags.Var(opts.NewNamedMapMapOpts("default-network-opts", conf.DefaultNetworkOpts, nil), "default-network-opt", "Default network options")
 	flags.IntVar(&conf.MTU, "mtu", conf.MTU, `Set the MTU for the default "bridge" network`)
