@@ -7484,6 +7484,33 @@ paths:
           type: "string"
           default: "all"
       tags: ["Container"]
+  /containers/{id}/logs/clear:
+    post:
+      summary: "Clear logs of a container"
+      description: |
+        Clear the logs of a container by emptying the log file of the container in disk.
+      operationId: "ContainerLogsClear"
+      responses:
+        204:
+          description: "no error"
+        404:
+          description: "no such container"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+          examples:
+            application/json:
+              message: "No such container: c2ada9df5af8"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          description: "ID or name of the container"
+          type: "string"
+      tags: ["Container"]
   /containers/{id}/changes:
     get:
       summary: "Get changes on a container’s filesystem"

@@ -57,6 +57,7 @@ func (r *containerRouter) initRoutes() {
 		router.NewPostRoute("/containers/{name:.*}/resize", r.postContainersResize),
 		router.NewPostRoute("/containers/{name:.*}/attach", r.postContainersAttach),
 		router.NewPostRoute("/containers/{name:.*}/exec", r.postContainerExecCreate),
+		router.NewPostRoute("/containers/{name:.*}/logs/clear", r.postContainersLogsClear),
 		router.NewPostRoute("/exec/{name:.*}/start", r.postContainerExecStart),
 		router.NewPostRoute("/exec/{name:.*}/resize", r.postContainerExecResize),
 		router.NewPostRoute("/containers/{name:.*}/rename", r.postContainerRename),
