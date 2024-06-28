@@ -102,7 +102,7 @@ type configStore struct {
 type Daemon struct {
 	id                    string
 	repository            string
-	containers            container.Store
+	containers            *container.MemoryStore
 	containersReplica     *container.ViewDB
 	execCommands          *container.ExecStore
 	imageService          ImageService
