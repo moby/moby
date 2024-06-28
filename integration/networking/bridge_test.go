@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -1054,4 +1055,39 @@ func TestPortMappedHairpin(t *testing.T) {
 	)
 	defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
 	assert.Check(t, is.Contains(res.Stderr.String(), "404 Not Found"))
+}
+
+// Check that a container on an IPv4-only network can have a port mapping
+// from a specific IPv6 host address (using docker-proxy).
+// Regression test for https://github.com/moby/moby/issues/48067 (which
+// is about incorrectly reporting this as invalid config).
+func TestProxy4To6(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "uses bridge network and docker-proxy")
+	skip.If(t, testEnv.IsRootless)
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const netName = "ipv4net"
+	network.CreateNoError(ctx, t, c, netName)
+
+	serverId := container.Run(ctx, t, c,
+		container.WithNetworkMode(netName),
+		container.WithExposedPorts("80"),
+		container.WithPortMap(nat.PortMap{"80": {{HostIP: "::1"}}}),
+		container.WithCmd("httpd", "-f"),
+	)
+	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
+
+	inspect := container.Inspect(ctx, t, c, serverId)
+	hostPort := inspect.NetworkSettings.Ports["80/tcp"][0].HostPort
+
+	resp, err := http.Get("http://[::1]:" + hostPort)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(resp.StatusCode, 404))
 }

@@ -186,6 +186,7 @@ func TestValidatePortBindings(t *testing.T) {
 		name    string
 		nat4    bool
 		nat6    bool
+		ctrIPv6 net.IP
 		pbs     []types.PortBinding
 		expErrs []string
 	}{
@@ -196,7 +197,8 @@ func TestValidatePortBindings(t *testing.T) {
 			},
 		},
 		{
-			name: "no nat with addrs",
+			name:    "no nat with addrs",
+			ctrIPv6: newIPNet(t, "fd2c:b48c:69fb::2/128").IP,
 			pbs: []types.PortBinding{
 				{Proto: types.TCP, HostIP: newIPNet(t, "233.252.0.2/24").IP, Port: 80},
 				{Proto: types.TCP, HostIP: newIPNet(t, "2001:db8::2/64").IP, Port: 80},
@@ -246,7 +248,16 @@ func TestValidatePortBindings(t *testing.T) {
 			},
 		},
 		{
-			name: "no nat and addrs and ports",
+			name: "nat4 and addrs and ports",
+			nat4: true,
+			pbs: []types.PortBinding{
+				{Proto: types.TCP, HostIP: newIPNet(t, "233.252.0.2/24").IP, HostPort: 8080, Port: 80},
+				{Proto: types.TCP, HostIP: newIPNet(t, "2001:db8::2/64").IP, HostPort: 8080, Port: 80},
+			},
+		},
+		{
+			name:    "no nat and addrs and ports",
+			ctrIPv6: newIPNet(t, "fd2c:b48c:69fb::2/128").IP,
 			pbs: []types.PortBinding{
 				{Proto: types.TCP, HostIP: newIPNet(t, "233.252.0.2/24").IP, HostPort: 8080, Port: 80},
 				{Proto: types.TCP, HostIP: newIPNet(t, "2001:db8::2/64").IP, HostPort: 8080, Port: 80},
@@ -256,6 +267,17 @@ func TestValidatePortBindings(t *testing.T) {
 				"NAT is disabled, omit host address in port mapping [2001:db8::2]:8080:80/tcp, or use [::]::80 to open port 80 for IPv6-only",
 				"host port must not be specified in mapping 233.252.0.2:8080:80/tcp because NAT is disabled",
 				"host port must not be specified in mapping [2001:db8::2]:8080:80/tcp because NAT is disabled",
+			},
+		},
+		{
+			name: "no nat no ctrIPv6 and addrs and ports",
+			pbs: []types.PortBinding{
+				{Proto: types.TCP, HostIP: newIPNet(t, "233.252.0.2/24").IP, HostPort: 8080, Port: 80},
+				{Proto: types.TCP, HostIP: newIPNet(t, "2001:db8::2/64").IP, HostPort: 8080, Port: 80},
+			},
+			expErrs: []string{
+				"NAT is disabled, omit host address in port mapping 233.252.0.2:8080:80/tcp, or use 0.0.0.0::80 to open port 80 for IPv4-only",
+				"host port must not be specified in mapping 233.252.0.2:8080:80/tcp because NAT is disabled",
 			},
 		},
 		{
@@ -283,7 +305,7 @@ func TestValidatePortBindings(t *testing.T) {
 	for _, tc := range testcases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			err := validatePortBindings(tc.pbs, tc.nat4, tc.nat6)
+			err := validatePortBindings(tc.pbs, tc.nat4, tc.nat6, tc.ctrIPv6)
 			if tc.expErrs == nil {
 				assert.Check(t, err)
 			} else {
