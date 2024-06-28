@@ -53,7 +53,7 @@ func TestAdjustForAPIVersion(t *testing.T) {
 						Target: "/bar",
 						TmpfsOptions: &mount.TmpfsOptions{
 							Options: [][]string{
-								[]string{"exec"},
+								{"exec"},
 							},
 						},
 					},
@@ -73,7 +73,7 @@ func TestAdjustForAPIVersion(t *testing.T) {
 	adjustForAPIVersion("1.46", spec)
 	if !reflect.DeepEqual(
 		spec.TaskTemplate.ContainerSpec.Mounts[0].TmpfsOptions.Options,
-		[][]string{[]string{"exec"}},
+		[][]string{{"exec"}},
 	) {
 		t.Error("TmpfsOptions.Options was stripped from spec")
 	}
