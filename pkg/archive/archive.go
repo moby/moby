@@ -20,7 +20,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
@@ -675,9 +674,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 		inUserns, bestEffortXattrs bool
 		chownOpts                  *idtools.Identity
 	)
+
+	// TODO(thaJeztah): make opts a required argument.
 	if opts != nil {
 		Lchown = !opts.NoLchown
-		inUserns = opts.InUserNS
+		inUserns = opts.InUserNS // TODO(thaJeztah): consider deprecating opts.InUserNS and detect locally.
 		chownOpts = opts.ChownOpts
 		bestEffortXattrs = opts.BestEffortXattrs
 	}
@@ -771,7 +772,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 		}
 		if err := os.Lchown(path, chownOpts.UID, chownOpts.GID); err != nil {
 			msg := "failed to Lchown %q for UID %d, GID %d"
-			if errors.Is(err, syscall.EINVAL) && userns.RunningInUserNS() {
+			if inUserns && errors.Is(err, syscall.EINVAL) {
 				msg += " (try increasing the number of subordinate IDs in /etc/subuid and /etc/subgid)"
 			}
 			return errors.Wrapf(err, msg, path, hdr.Uid, hdr.Gid)
