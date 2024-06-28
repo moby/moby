@@ -164,8 +164,6 @@ func (aSpace *addrSpace) allocatePredefinedPool(reserved []netip.Prefix) (netip.
 		pdf := aSpace.predefined[pdfID]
 
 		if allocated.Overlaps(pdf.Base) {
-			it.Inc()
-
 			if allocated.Bits() <= pdf.Base.Bits() {
 				// The current 'allocated' prefix is bigger than the 'pdf'
 				// network, thus the block is fully overlapped.
@@ -194,6 +192,8 @@ func (aSpace *addrSpace) allocatePredefinedPool(reserved []netip.Prefix) (netip.
 				// 'prevAlloc' and before 'allocated'.
 				return makeAlloc(afterPrev), nil
 			}
+
+			it.Inc()
 
 			if netiputil.LastAddr(allocated) == netiputil.LastAddr(pdf.Base) {
 				// The last address of the current 'allocated' prefix is the

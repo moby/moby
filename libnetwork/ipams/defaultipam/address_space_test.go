@@ -1,6 +1,7 @@
 package defaultipam
 
 import (
+	"fmt"
 	"net/netip"
 	"testing"
 
@@ -386,4 +387,114 @@ func TestStaticAllocation(t *testing.T) {
 		netip.MustParsePrefix("192.168.0.0/16"),
 		netip.MustParsePrefix("192.168.3.0/24"),
 	}, cmpopts.EquateComparable(netip.Prefix{})))
+}
+
+// Regression test for https://github.com/moby/moby/issues/48069
+func TestPoolAllocateAndRelease(t *testing.T) {
+	type testClosures struct {
+		alloc   func(netname string)
+		release func(netname string)
+	}
+
+	testcases := []struct {
+		name       string
+		predefined []*ipamutils.NetworkToSplit
+		reserved   []netip.Prefix
+		calls      []func(tcs testClosures)
+		tcs        testClosures
+	}{
+		{
+			name: "allocate after reserved",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("10.0.0.0/24"), Size: 24},
+				{Base: netip.MustParsePrefix("10.0.1.0/24"), Size: 24},
+				{Base: netip.MustParsePrefix("10.1.0.0/16"), Size: 24},
+			},
+			reserved: []netip.Prefix{
+				netip.MustParsePrefix("10.0.0.0/16"),
+			},
+			calls: []func(tcs testClosures){
+				func(tcs testClosures) { tcs.alloc("n1") },
+				func(tcs testClosures) { tcs.alloc("n2") },
+			},
+		},
+		{
+			name: "reallocate first subnet",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("10.0.0.0/8"), Size: 24},
+			},
+			calls: []func(tcs testClosures){
+				func(tcs testClosures) { tcs.alloc("n1") },
+				func(tcs testClosures) { tcs.alloc("n2") },
+				func(tcs testClosures) { tcs.alloc("n3") },
+				func(tcs testClosures) { tcs.release("n1") },
+				func(tcs testClosures) { tcs.alloc("n4") },
+				func(tcs testClosures) { tcs.alloc("n5") },
+			},
+		},
+		{
+			name: "reallocate after release",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("10.0.0.0/8"), Size: 24},
+			},
+			calls: []func(tcs testClosures){
+				func(tcs testClosures) { tcs.alloc("n1") },
+				func(tcs testClosures) { tcs.alloc("n2") },
+				func(tcs testClosures) { tcs.alloc("n3") },
+				func(tcs testClosures) { tcs.alloc("n4") },
+				func(tcs testClosures) { tcs.release("n2") },
+				func(tcs testClosures) { tcs.release("n3") },
+				func(tcs testClosures) { tcs.alloc("n5") },
+				func(tcs testClosures) { tcs.alloc("n6") },
+				func(tcs testClosures) { tcs.alloc("n7") },
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			as, err := newAddrSpace(tc.predefined)
+			assert.NilError(t, err)
+			subnetToNetname := map[netip.Prefix]string{}
+			netnameToSubnet := map[string]netip.Prefix{}
+
+			// To avoid passing as,subnetToNetname,netnameToSubnet into each of the
+			// functions in tc.calls (cluttering the list of testcases), create closures
+			// that use them and pass those.
+			tcs := testClosures{
+				// Allocate a pool for netname, check that a subnet is returned that
+				// isn't already allocated, and doesn't overlap with a reserved range.
+				alloc: func(netname string) {
+					subnet, err := as.allocatePredefinedPool(tc.reserved)
+					assert.NilError(t, err)
+
+					otherNetname, exists := subnetToNetname[subnet]
+					assert.Assert(t, !exists, fmt.Sprintf(
+						"subnet %s allocated to %s, reallocated for %s", subnet, otherNetname, netname))
+					for _, reserved := range tc.reserved {
+						assert.Assert(t, !reserved.Overlaps(subnet),
+							fmt.Sprintf("subnet %s allocated in reserved range %s", subnet, reserved))
+					}
+
+					subnetToNetname[subnet] = netname
+					netnameToSubnet[netname] = subnet
+				},
+				// Release a pool for a netname - the test must ensure netname currently
+				// has an allocated subnet.
+				release: func(netname string) {
+					subnet, ok := netnameToSubnet[netname]
+					assert.Assert(t, ok)
+					err := as.releaseSubnet(subnet, netip.Prefix{})
+					assert.NilError(t, err)
+
+					delete(netnameToSubnet, netname)
+					delete(subnetToNetname, subnet)
+				},
+			}
+
+			for _, f := range tc.calls {
+				f(tcs)
+			}
+		})
+	}
 }
