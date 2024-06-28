@@ -92,7 +92,7 @@ func TestXattrUnsupportedByBackingFS(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			subdir := filepath.Join(rootdir, tt.name)
 			assert.NilError(t, os.Mkdir(subdir, 0o755))
-			d, err := graphdriver.GetDriver("vfs", graphdriver.Options{
+			d, err := graphdriver.New("vfs", graphdriver.Options{
 				DriverOptions: tt.opts,
 				Root:          subdir,
 			})
