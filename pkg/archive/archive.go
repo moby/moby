@@ -712,6 +712,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 
 	case tar.TypeBlock, tar.TypeChar:
 		if inUserns { // cannot create devices in a userns
+			log.G(context.TODO()).WithFields(log.Fields{"path": path, "type": hdr.Typeflag}).Debug("skipping device nodes in a userns")
 			return nil
 		}
 		// Handle this is an OS-specific way
@@ -722,6 +723,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 	case tar.TypeFifo:
 		// Handle this is an OS-specific way
 		if err := handleTarTypeBlockCharFifo(hdr, path); err != nil {
+			if inUserns && errors.Is(err, syscall.EPERM) {
+				// In most cases, cannot create a fifo if running in user namespace
+				log.G(context.TODO()).WithFields(log.Fields{"error": err, "path": path, "type": hdr.Typeflag}).Debug("creating fifo node in a userns")
+				return nil
+			}
 			return err
 		}
 
