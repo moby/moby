@@ -15,14 +15,6 @@ import (
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
-// FsMagic unsigned id of the filesystem in use.
-type FsMagic uint32
-
-const (
-	// FsMagicUnsupported is a predefined constant value other than a valid filesystem id.
-	FsMagicUnsupported = FsMagic(0x00000000)
-)
-
 // All registered drivers
 var drivers map[string]InitFunc
 

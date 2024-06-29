@@ -17,6 +17,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
+	"github.com/docker/docker/daemon/internal/fstype"
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -97,7 +98,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 	d := &Driver{
 		home:   home,
 		idMap:  idMap,
-		ctr:    graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicFUSE)),
+		ctr:    graphdriver.NewRefCounter(graphdriver.NewFsChecker(fstype.FsMagicFUSE)),
 		locker: locker.New(),
 	}
 

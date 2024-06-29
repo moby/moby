@@ -19,6 +19,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
+	"github.com/docker/docker/daemon/internal/fstype"
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -142,11 +143,11 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, graphdriver.ErrNotSupported
 	}
 
-	fsMagic, err := graphdriver.GetFSMagic(testdir)
+	fsMagic, err := fstype.GetFSMagic(testdir)
 	if err != nil {
 		return nil, err
 	}
-	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
+	if fsName, ok := fstype.FsNames[fsMagic]; ok {
 		backingFs = fsName
 	}
 
@@ -178,7 +179,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 	d := &Driver{
 		home:          home,
 		idMap:         idMap,
-		ctr:           graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
+		ctr:           graphdriver.NewRefCounter(graphdriver.NewFsChecker(fstype.FsMagicOverlay)),
 		supportsDType: supportsDType,
 		usingMetacopy: usingMetacopy,
 		locker:        locker.New(),
