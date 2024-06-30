@@ -15,11 +15,9 @@ import (
 )
 
 // installConfigFlags adds flags to the pflag.FlagSet to configure the daemon
-func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
+func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	// First handle install flags which are consistent cross-platform
-	if err := installCommonConfigFlags(conf, flags); err != nil {
-		return err
-	}
+	installCommonConfigFlags(conf, flags)
 
 	// Then platform-specific install flags
 	flags.Var(opts.NewNamedRuntimeOpt("runtimes", &conf.Runtimes, config.StockRuntimeName), "add-runtime", "Register an additional OCI compatible runtime")
@@ -58,7 +56,6 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	// Note that conf.BridgeConfig.UserlandProxyPath and honorXDG are configured according to the value of rootless.RunningWithRootlessKit, not the value of --rootless.
 	flags.BoolVar(&conf.Rootless, "rootless", conf.Rootless, "Enable rootless mode; typically used with RootlessKit")
 	flags.StringVar(&conf.CgroupNamespaceMode, "default-cgroupns-mode", conf.CgroupNamespaceMode, `Default mode for containers cgroup namespace ("host" | "private")`)
-	return nil
 }
 
 // configureCertsDir configures registry.CertsDir() depending on if the daemon
