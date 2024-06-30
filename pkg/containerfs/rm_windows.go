@@ -1,6 +1,8 @@
-package containerfs // import "github.com/docker/docker/pkg/containerfs"
+package containerfs
 
 import "os"
 
-// EnsureRemoveAll is an alias to os.RemoveAll on Windows
-var EnsureRemoveAll = os.RemoveAll
+// EnsureRemoveAll is an alias to [os.RemoveAll] on Windows.
+func EnsureRemoveAll(path string) error {
+	return os.RemoveAll(path)
+}
