@@ -538,25 +538,48 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 func (container *Container) UnmountVolumes(ctx context.Context, volumeEventLog func(name string, action events.Action, attributes map[string]string), unmountIDs map[string]string) error {
 	var errs []string
 	for _, volumeMount := range container.MountPoints {
+		var volumeName, volumeDriverName string
 		if volumeMount.Volume == nil {
-			continue
+			volumeName = volumeMount.Source + " -> " + volumeMount.Destination
+			volumeDriverName = "-"
+		} else {
+			volumeName = volumeMount.Volume.Name()
+			volumeDriverName = volumeMount.Volume.DriverName()
 		}
 
 		unmountID := unmountIDs[volumeMount.Destination]
 
 		if unmountID == "" {
-			fmt.Printf("Very much oops. Destination=%s\n", volumeMount.Destination)
-			debug.PrintStack()
-			errs = append(errs, fmt.Sprintf("could not find unmound ID for the volume at %s", volumeMount.Destination))
-			continue
+			// No unmount id? This can mean one of two things.
+			// 1. This is an attempt to unmount a mountpoint that is not mounted. No big deal.
+			// 2. Someone is trying to unmount a mountpoint but didn't specify which mount of it. Shall not happen.
+			//
+			// So, check which one:
+
+			isMountedAnywhere := false
+			for _, mounted := range volumeMount.MountedIDs {
+				if mounted {
+					isMountedAnywhere = true
+				}
+			}
+
+			if !isMountedAnywhere {
+				// Mountpoint is not mounted, nothing to do
+				continue
+			} else {
+				// Don't know what ID to Cleanup the mountpoint with
+				errs = append(errs, fmt.Sprintf("no id provided to unmount mountpoint %s", volumeName))
+				debug.PrintStack()
+				continue
+			}
 		}
 
 		if err := volumeMount.Cleanup(ctx, unmountID); err != nil {
 			errs = append(errs, err.Error())
 			continue
 		}
-		volumeEventLog(volumeMount.Volume.Name(), events.ActionUnmount, map[string]string{
-			"driver":    volumeMount.Volume.DriverName(),
+		volumeEventLog(volumeName, events.ActionUnmount, map[string]string{
+			"driver":    volumeDriverName,
 			"container": container.ID,
 		})
 	}

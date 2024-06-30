@@ -92,7 +92,7 @@ type MountPoint struct {
 // returned by Setup that hasn't been cleaned up by the caller.
 func (m *MountPoint) Cleanup(ctx context.Context, id string) error {
 	mounted := m.MountedIDs[id]
-	if !mounted || m.Volume == nil {
+	if !mounted {
 		// TODO Q: attempting to cleanup a mountpoint that is not mounted should be an error, shouldn't it?
 		//         Why `return nil`?
 		return nil
@@ -115,8 +115,10 @@ func (m *MountPoint) Cleanup(ctx context.Context, id string) error {
 		}).Warn("cleaning up SafePath that hasn't been cleaned up by the caller")
 	}
 
-	if err := m.Volume.Unmount(id); err != nil {
-		return errors.Wrapf(err, "error unmounting volume %s", m.Volume.Name())
+	if m.Volume != nil {
+		if err := m.Volume.Unmount(id); err != nil {
+			return errors.Wrapf(err, "error unmounting volume %s", m.Volume.Name())
+		}
 	}
 
 	m.MountedIDs[id] = false
@@ -190,7 +192,7 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 	}()
 
 	if asPrimary && m.PrimaryID != "" {
-		return "", "", noCleanup, fmt.Errorf("mountpoint is already mounted with PrimaryID=%s", m.PrimaryID)
+		return "", "", noCleanup, fmt.Errorf("mountpoint at %s is already mounted with PrimaryID=%s", m.Destination, m.PrimaryID)
 	}
 
 	if m.Volume != nil {
