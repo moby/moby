@@ -10,14 +10,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
-// IsPreDefinedNetwork indicates if a network is predefined by the daemon
-//
-// Deprecated: this function is no longer used and will be removed in the next release.
-func IsPreDefinedNetwork(network string) bool {
-	n := container.NetworkMode(network)
-	return n.IsBridge() || n.IsHost() || n.IsNone() || n.IsDefault()
-}
-
 // validateNetMode ensures that the various combinations of requested
 // network settings are valid.
 func validateNetMode(c *container.Config, hc *container.HostConfig) error {
