@@ -133,7 +133,8 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 
-	m, cleanup, err := daemon.setupMounts(ctx, ctr)
+	m, cleanup, err := daemon.setupMounts(ctx, ctr, true /* container start => mount as primary */)
+	ctr.PrimaryUnmountIDs = toUnmountIDs(m)
 	if err != nil {
 		return err
 	}
@@ -285,7 +286,7 @@ func (daemon *Daemon) Cleanup(ctx context.Context, ctr *container.Container) {
 	}
 
 	if ctr.BaseFS != "" {
-		if err := ctr.UnmountVolumes(ctx, daemon.LogVolumeEvent); err != nil {
+		if err := ctr.UnmountVolumes(ctx, daemon.LogVolumeEvent, ctr.PrimaryUnmountIDs); err != nil {
 			log.G(ctx).Warnf("%s cleanup: Failed to umount volumes: %v", ctr.ID, err)
 		}
 	}

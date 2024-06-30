@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
@@ -98,6 +99,10 @@ type Container struct {
 	LogCopier      *logger.Copier `json:"-"`
 	restartManager *restartmanager.RestartManager
 	attachContext  *attachContext
+
+	// PrimaryUnmountIDs are the unmount ids (as accepted by `Container.UnmountVolumes`) corresponding to the primary
+	// mounts of `MountPoints` (i.e., mounts used for the container operation, rather than `docker cp`)
+	PrimaryUnmountIDs map[string]string `json:"-"`
 
 	// Fields here are specific to Unix platforms
 	SecurityOptions
@@ -521,15 +526,32 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 	}
 }
 
-// UnmountVolumes unmounts all volumes
-func (container *Container) UnmountVolumes(ctx context.Context, volumeEventLog func(name string, action events.Action, attributes map[string]string)) error {
+// TODO Q: I doubt that `Container.UnmountVolumes` should be a method of `Container`!
+//         Firstly, there is no technical reason for it to be (the method body only uses public fields of `Container`).
+//         Secondly, `Container.UnmountVolumes` essentially undoes what the `daemon.setupMounts` does. So why did the
+//         two end up in different namespaces?
+
+// UnmountVolumes unmounts all volumes.
+//
+// `unmountIDs` is a mapping from mountpoint destination to mount id (to be passed to `MountPoint.Cleanup`). The ids are
+// obtained from `Daemon.setupVolumes`.
+func (container *Container) UnmountVolumes(ctx context.Context, volumeEventLog func(name string, action events.Action, attributes map[string]string), unmountIDs map[string]string) error {
 	var errs []string
 	for _, volumeMount := range container.MountPoints {
 		if volumeMount.Volume == nil {
 			continue
 		}
 
-		if err := volumeMount.Cleanup(ctx); err != nil {
+		unmountID := unmountIDs[volumeMount.Destination]
+
+		if unmountID == "" {
+			fmt.Printf("Very much oops. Destination=%s\n", volumeMount.Destination)
+			debug.PrintStack()
+			errs = append(errs, fmt.Sprintf("could not find unmound ID for the volume at %s", volumeMount.Destination))
+			continue
+		}
+
+		if err := volumeMount.Cleanup(ctx, unmountID); err != nil {
 			errs = append(errs, err.Error())
 			continue
 		}

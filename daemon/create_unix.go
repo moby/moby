@@ -108,7 +108,7 @@ func (daemon *Daemon) populateVolume(ctx context.Context, c *container.Container
 		return err
 	}
 
-	volumePath, cleanup, err := mnt.Setup(ctx, c.MountLabel, daemon.idMapping.RootPair(), nil)
+	volumePath, mountID, cleanup, err := mnt.Setup(ctx, c.MountLabel, daemon.idMapping.RootPair(), nil, false /* temporary mount */)
 	if err != nil {
 		if errdefs.IsNotFound(err) {
 			return nil
@@ -119,7 +119,7 @@ func (daemon *Daemon) populateVolume(ctx context.Context, c *container.Container
 	defer func() {
 		ctx := context.WithoutCancel(ctx)
 		_ = cleanup(ctx)
-		_ = mnt.Cleanup(ctx)
+		_ = mnt.Cleanup(ctx, mountID)
 	}()
 
 	log.G(ctx).Debugf("copying image data from %s:%s, to %s", c.ID, mnt.Destination, volumePath)
