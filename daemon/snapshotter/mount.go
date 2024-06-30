@@ -32,7 +32,7 @@ func NewMounter(home string, snapshotter string, idMap idtools.IdentityMapping) 
 			snapshotter: snapshotter,
 			idMap:       idMap,
 		},
-		rc:     graphdriver.NewRefCounter(checker()),
+		rc:     graphdriver.NewRefCounter(isMounted),
 		locker: locker.New(),
 	}
 }

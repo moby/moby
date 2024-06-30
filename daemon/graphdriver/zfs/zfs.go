@@ -118,10 +118,17 @@ func Init(base string, opt []string, idMap idtools.IdentityMapping) (graphdriver
 		options:          options,
 		filesystemsCache: filesystemsCache,
 		idMap:            idMap,
-		ctr:              graphdriver.NewRefCounter(graphdriver.NewDefaultChecker()),
+		ctr:              graphdriver.NewRefCounter(isMounted),
 		locker:           locker.New(),
 	}
 	return graphdriver.NewNaiveDiffDriver(d, idMap), nil
+}
+
+// isMounted parses /proc/mountinfo to check whether the specified path
+// is mounted.
+func isMounted(path string) bool {
+	m, _ := mountinfo.Mounted(path)
+	return m
 }
 
 func parseOptions(opt []string) (zfsOptions, error) {

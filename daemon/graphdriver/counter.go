@@ -9,16 +9,20 @@ type minfo struct {
 
 // RefCounter is a generic counter for use by graphdriver Get/Put calls
 type RefCounter struct {
-	counts  map[string]*minfo
-	mu      sync.Mutex
-	checker Checker
+	counts    map[string]*minfo
+	mu        sync.Mutex
+	isMounted Checker
 }
 
-// NewRefCounter returns a new RefCounter
+// Checker checks whether the provided path is mounted.
+type Checker func(path string) bool
+
+// NewRefCounter returns a new RefCounter. It accepts a [Checker] to
+// determine whether a path is mounted.
 func NewRefCounter(c Checker) *RefCounter {
 	return &RefCounter{
-		checker: c,
-		counts:  make(map[string]*minfo),
+		isMounted: c,
+		counts:    make(map[string]*minfo),
 	}
 }
 
@@ -48,7 +52,7 @@ func (c *RefCounter) incdec(path string, infoOp func(minfo *minfo)) int {
 	// count if it is mounted as it is in use.
 	if !m.check {
 		m.check = true
-		if c.checker.IsMounted(path) {
+		if c.isMounted(path) {
 			m.count++
 		}
 	}

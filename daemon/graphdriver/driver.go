@@ -128,12 +128,6 @@ type FileGetCloser interface {
 	Close() error
 }
 
-// Checker makes checks on specified filesystems.
-type Checker interface {
-	// IsMounted returns true if the provided path is mounted for the specific checker
-	IsMounted(path string) bool
-}
-
 func init() {
 	drivers = make(map[string]InitFunc)
 }

@@ -98,13 +98,19 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 	d := &Driver{
 		home:   home,
 		idMap:  idMap,
-		ctr:    graphdriver.NewRefCounter(graphdriver.NewFsChecker(fstype.FsMagicFUSE)),
+		ctr:    graphdriver.NewRefCounter(isMounted),
 		locker: locker.New(),
 	}
 
 	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, idMap)
 
 	return d, nil
+}
+
+// isMounted checks whether the given path is a [fstype.FsMagicFUSE] mount.
+func isMounted(path string) bool {
+	fsType, _ := fstype.GetFSMagic(path)
+	return fsType == fstype.FsMagicFUSE
 }
 
 func (d *Driver) String() string {

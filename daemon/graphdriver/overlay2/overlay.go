@@ -179,7 +179,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 	d := &Driver{
 		home:          home,
 		idMap:         idMap,
-		ctr:           graphdriver.NewRefCounter(graphdriver.NewFsChecker(fstype.FsMagicOverlay)),
+		ctr:           graphdriver.NewRefCounter(isMounted),
 		supportsDType: supportsDType,
 		usingMetacopy: usingMetacopy,
 		locker:        locker.New(),
@@ -223,6 +223,12 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		backingFs, projectQuotaSupported, usingMetacopy, indexOff, userxattr)
 
 	return d, nil
+}
+
+// isMounted checks whether the given path is a [fstype.FsMagicOverlay] mount.
+func isMounted(path string) bool {
+	fsType, _ := fstype.GetFSMagic(path)
+	return fsType == fstype.FsMagicOverlay
 }
 
 func parseOptions(options []string) (*overlayOptions, error) {

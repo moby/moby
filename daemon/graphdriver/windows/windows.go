@@ -72,12 +72,6 @@ func init() {
 	}
 }
 
-type checker struct{}
-
-func (c *checker) IsMounted(path string) bool {
-	return false
-}
-
 type storageOptions struct {
 	size uint64
 }
@@ -132,10 +126,16 @@ func InitFilter(home string, options []string, _ idtools.IdentityMapping) (graph
 			Flavour: filterDriver,
 		},
 		cache:              make(map[string]string),
-		ctr:                graphdriver.NewRefCounter(&checker{}),
+		ctr:                graphdriver.NewRefCounter(isMounted),
 		defaultStorageOpts: opts,
 	}
 	return d, nil
+}
+
+// isMounted checks whether the given path is mounted. It always returns
+// false for the WindowsFilter graphdriver.
+func isMounted(string) bool {
+	return false
 }
 
 // String returns the string representation of a driver. This should match
