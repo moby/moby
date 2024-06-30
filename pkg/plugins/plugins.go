@@ -201,7 +201,7 @@ func (p *Plugin) implements(kind string) bool {
 	return false
 }
 
-func loadWithRetry(name string, retry bool) (*Plugin, error) {
+func loadWithRetry(name string) (*Plugin, error) {
 	registry := NewLocalRegistry()
 	start := time.Now()
 	var testTimeOut int
@@ -213,10 +213,6 @@ func loadWithRetry(name string, retry bool) (*Plugin, error) {
 	for {
 		pl, err := registry.Plugin(name)
 		if err != nil {
-			if !retry {
-				return nil, err
-			}
-
 			timeOff := backoff(retries)
 			if abort(start, timeOff, testTimeOut) {
 				return nil, err
@@ -254,7 +250,7 @@ func get(name string) (*Plugin, error) {
 	if ok {
 		return pl, pl.activate()
 	}
-	return loadWithRetry(name, true)
+	return loadWithRetry(name)
 }
 
 // Get returns the plugin given the specified name and requested implementation.
@@ -323,7 +319,7 @@ func (l *LocalRegistry) GetAll(imp string) ([]*Plugin, error) {
 		wg.Add(1)
 		go func(name string) {
 			defer wg.Done()
-			pl, err := loadWithRetry(name, false)
+			pl, err := l.Plugin(name)
 			chPl <- &plLoad{pl, err}
 		}(name)
 	}
