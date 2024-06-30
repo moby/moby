@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/daemon/internal/fstype"
+	"github.com/docker/docker/daemon/internal/mountref"
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -93,7 +94,7 @@ type overlayOptions struct {
 type Driver struct {
 	home          string
 	idMap         idtools.IdentityMapping
-	ctr           *graphdriver.RefCounter
+	ctr           *mountref.Counter
 	quotaCtl      *quota.Control
 	options       overlayOptions
 	naiveDiff     graphdriver.DiffDriver
@@ -179,7 +180,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 	d := &Driver{
 		home:          home,
 		idMap:         idMap,
-		ctr:           graphdriver.NewRefCounter(isMounted),
+		ctr:           mountref.NewCounter(isMounted),
 		supportsDType: supportsDType,
 		usingMetacopy: usingMetacopy,
 		locker:        locker.New(),

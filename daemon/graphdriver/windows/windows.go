@@ -26,6 +26,7 @@ import (
 	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/internal/mountref"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
@@ -80,7 +81,7 @@ type storageOptions struct {
 type Driver struct {
 	// info stores the shim driver information
 	info hcsshim.DriverInfo
-	ctr  *graphdriver.RefCounter
+	ctr  *mountref.Counter
 	// it is safe for windows to use a cache here because it does not support
 	// restoring containers when the daemon dies.
 	cacheMu            sync.Mutex
@@ -126,7 +127,7 @@ func InitFilter(home string, options []string, _ idtools.IdentityMapping) (graph
 			Flavour: filterDriver,
 		},
 		cache:              make(map[string]string),
-		ctr:                graphdriver.NewRefCounter(isMounted),
+		ctr:                mountref.NewCounter(isMounted),
 		defaultStorageOpts: opts,
 	}
 	return d, nil

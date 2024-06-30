@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/daemon/internal/fstype"
+	"github.com/docker/docker/daemon/internal/mountref"
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -59,7 +60,7 @@ const (
 type Driver struct {
 	home      string
 	idMap     idtools.IdentityMapping
-	ctr       *graphdriver.RefCounter
+	ctr       *mountref.Counter
 	naiveDiff graphdriver.DiffDriver
 	locker    *locker.Locker
 }
@@ -98,7 +99,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 	d := &Driver{
 		home:   home,
 		idMap:  idMap,
-		ctr:    graphdriver.NewRefCounter(isMounted),
+		ctr:    mountref.NewCounter(isMounted),
 		locker: locker.New(),
 	}
 
