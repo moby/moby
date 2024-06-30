@@ -4,20 +4,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 )
-
-// SetDefaultNetModeIfBlank changes the NetworkMode in a HostConfig structure
-// to default if it is not populated. This ensures backwards compatibility after
-// the validation of the network mode was moved from the docker CLI to the
-// docker daemon.
-//
-// Deprecated: SetDefaultNetModeIfBlank is no longer used abnd will be removed in the next release.
-func SetDefaultNetModeIfBlank(hc *container.HostConfig) {
-	if hc != nil && hc.NetworkMode == "" {
-		hc.NetworkMode = network.NetworkDefault
-	}
-}
 
 // validateNetContainerMode ensures that the various combinations of requested
 // network settings wrt container mode are valid.
