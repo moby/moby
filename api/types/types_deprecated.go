@@ -10,12 +10,6 @@ import (
 	"github.com/docker/docker/api/types/volume"
 )
 
-// ImagesPruneReport contains the response for Engine API:
-// POST "/images/prune"
-//
-// Deprecated: use [image.PruneReport].
-type ImagesPruneReport = image.PruneReport
-
 // VolumesPruneReport contains the response for Engine API:
 // POST "/volumes/prune".
 //
