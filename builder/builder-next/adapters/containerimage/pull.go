@@ -953,15 +953,11 @@ func applySourcePolicies(ctx context.Context, str string, spls []*spb.Policy) (s
 	}
 
 	if mut {
-		var (
-			t  string
-			ok bool
-		)
 		t, newRef, ok := strings.Cut(op.GetIdentifier(), "://")
 		if !ok {
 			return "", errors.Errorf("could not parse ref: %s", op.GetIdentifier())
 		}
-		if ok && t != srctypes.DockerImageScheme {
+		if t != srctypes.DockerImageScheme {
 			return "", &imageutil.ResolveToNonImageError{Ref: str, Updated: newRef}
 		}
 		ref, err = cdreference.Parse(newRef)
