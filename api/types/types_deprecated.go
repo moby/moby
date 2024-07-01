@@ -6,11 +6,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// ImageLoadResponse returns information to the client about a load process.
-//
-// Deprecated: use [image.LoadResponse].
-type ImageLoadResponse = image.LoadResponse
-
 // ContainerJSONBase contains response of Engine API GET "/containers/{name:.*}/json"
 // for API version 1.18 and older.
 //
