@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/diagnostic"
+	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/networkdb"
 	events "github.com/docker/go-events"
 )
@@ -80,13 +81,6 @@ func watchTableEntries(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleTableEvents(tableName string, ch *events.Channel) {
-	var (
-		// nid   string
-		eid   string
-		value []byte
-		isAdd bool
-	)
-
 	log.G(context.TODO()).Infof("Started watching table:%s", tableName)
 	for {
 		select {
@@ -95,27 +89,19 @@ func handleTableEvents(tableName string, ch *events.Channel) {
 			return
 
 		case evt := <-ch.C:
-			log.G(context.TODO()).Infof("Recevied new event on:%s", tableName)
-			switch event := evt.(type) {
-			case networkdb.CreateEvent:
-				// nid = event.NetworkID
-				eid = event.Key
-				value = event.Value
-				isAdd = true
-			case networkdb.DeleteEvent:
-				// nid = event.NetworkID
-				eid = event.Key
-				value = event.Value
-				isAdd = false
-			default:
-				log.G(context.TODO()).Fatalf("Unexpected table event = %#v", event)
-			}
-			if isAdd {
-				// log.G(ctx).Infof("Add %s %s", tableName, eid)
-				clientWatchTable[tableName].entries[eid] = string(value)
-			} else {
-				// log.G(ctx).Infof("Del %s %s", tableName, eid)
-				delete(clientWatchTable[tableName].entries, eid)
+			if event, ok := evt.(networkdb.Event); ok {
+				log.G(context.TODO()).Infof("Recevied new event on:%s", tableName)
+				switch event.Type {
+				case driverapi.Create:
+					// log.G(ctx).Infof("Add %s %s", tableName, event.Key)
+					clientWatchTable[tableName].entries[event.Key] = string(event.Value)
+				case driverapi.Delete:
+					// log.G(ctx).Infof("Del %s %s", tableName, event.Key)
+					delete(clientWatchTable[tableName].entries, event.Key)
+				default:
+					log.G(context.TODO()).Fatalf("Unexpected table event = %#v", event)
+					// FIXME(thaJeztah): old code would fall-through and call "delete" without key, or with the previously set key.
+				}
 			}
 		}
 	}

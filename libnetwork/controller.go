@@ -384,37 +384,33 @@ func (c *Controller) BuiltinIPAMDrivers() []string {
 	return drivers
 }
 
-func (c *Controller) processNodeDiscovery(nodes []net.IP, add bool) {
+func (c *Controller) processNodeDiscovery(nodeAddress net.IP, add bool) {
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		if d, ok := driver.(discoverapi.Discover); ok {
-			c.pushNodeDiscovery(d, capability, nodes, add)
+			c.pushNodeDiscovery(d, capability, nodeAddress, add)
 		}
 		return false
 	})
 }
 
-func (c *Controller) pushNodeDiscovery(d discoverapi.Discover, capability driverapi.Capability, nodes []net.IP, add bool) {
+func (c *Controller) pushNodeDiscovery(d discoverapi.Discover, capability driverapi.Capability, nodeAddress net.IP, add bool) {
+	if d == nil || capability.ConnectivityScope != scope.Global || nodeAddress == nil {
+		return
+	}
 	var self net.IP
 	// try swarm-mode config
 	if agent := c.getAgent(); agent != nil {
 		self = net.ParseIP(agent.advertiseAddr)
 	}
-
-	if d == nil || capability.ConnectivityScope != scope.Global || nodes == nil {
-		return
+	nodeData := discoverapi.NodeDiscoveryData{Address: nodeAddress.String(), Self: nodeAddress.Equal(self)}
+	var err error
+	if add {
+		err = d.DiscoverNew(discoverapi.NodeDiscovery, nodeData)
+	} else {
+		err = d.DiscoverDelete(discoverapi.NodeDiscovery, nodeData)
 	}
-
-	for _, node := range nodes {
-		nodeData := discoverapi.NodeDiscoveryData{Address: node.String(), Self: node.Equal(self)}
-		var err error
-		if add {
-			err = d.DiscoverNew(discoverapi.NodeDiscovery, nodeData)
-		} else {
-			err = d.DiscoverDelete(discoverapi.NodeDiscovery, nodeData)
-		}
-		if err != nil {
-			log.G(context.TODO()).Debugf("discovery notification error: %v", err)
-		}
+	if err != nil {
+		log.G(context.TODO()).Debugf("discovery notification error: %v", err)
 	}
 }
 

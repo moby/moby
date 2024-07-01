@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
@@ -155,21 +156,13 @@ func testWatch(t *testing.T, ch chan events.Event, ev interface{}, tname, nid, k
 	select {
 	case rcvdEv := <-ch:
 		assert.Check(t, is.Equal(fmt.Sprintf("%T", rcvdEv), fmt.Sprintf("%T", ev)))
-		switch typ := rcvdEv.(type) {
-		case CreateEvent:
-			assert.Check(t, is.Equal(tname, typ.Table))
-			assert.Check(t, is.Equal(nid, typ.NetworkID))
-			assert.Check(t, is.Equal(key, typ.Key))
-			assert.Check(t, is.Equal(value, string(typ.Value)))
-		case UpdateEvent:
-			assert.Check(t, is.Equal(tname, typ.Table))
-			assert.Check(t, is.Equal(nid, typ.NetworkID))
-			assert.Check(t, is.Equal(key, typ.Key))
-			assert.Check(t, is.Equal(value, string(typ.Value)))
-		case DeleteEvent:
-			assert.Check(t, is.Equal(tname, typ.Table))
-			assert.Check(t, is.Equal(nid, typ.NetworkID))
-			assert.Check(t, is.Equal(key, typ.Key))
+		if event, ok := rcvdEv.(Event); ok {
+			assert.Check(t, is.Equal(tname, event.Table))
+			assert.Check(t, is.Equal(nid, event.NetworkID))
+			assert.Check(t, is.Equal(key, event.Key))
+			if event.Type != driverapi.Delete {
+				assert.Check(t, is.Equal(value, string(event.Value)))
+			}
 		}
 	case <-time.After(time.Second):
 		t.Fail()
@@ -372,17 +365,17 @@ func TestNetworkDBWatch(t *testing.T) {
 	err = dbs[0].CreateEntry("test_table", "network1", "test_key", []byte("test_value"))
 	assert.NilError(t, err)
 
-	testWatch(t, ch.C, CreateEvent{}, "test_table", "network1", "test_key", "test_value")
+	testWatch(t, ch.C, Event{Type: driverapi.Create}, "test_table", "network1", "test_key", "test_value")
 
 	err = dbs[0].UpdateEntry("test_table", "network1", "test_key", []byte("test_updated_value"))
 	assert.NilError(t, err)
 
-	testWatch(t, ch.C, UpdateEvent{}, "test_table", "network1", "test_key", "test_updated_value")
+	testWatch(t, ch.C, Event{Type: driverapi.Update}, "test_table", "network1", "test_key", "test_updated_value")
 
 	err = dbs[0].DeleteEntry("test_table", "network1", "test_key")
 	assert.NilError(t, err)
 
-	testWatch(t, ch.C, DeleteEvent{}, "test_table", "network1", "test_key", "")
+	testWatch(t, ch.C, Event{Type: driverapi.Delete}, "test_table", "network1", "test_key", "")
 
 	cancel()
 	closeNetworkDBInstances(t, dbs)
