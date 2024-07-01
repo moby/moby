@@ -9,11 +9,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// NetworkCreateResponse is the response message sent by the server for network create call.
-//
-// Deprecated: use [network.CreateResponse].
-type NetworkCreateResponse = network.CreateResponse
-
 // NetworkInspectOptions holds parameters to inspect network.
 //
 // Deprecated: use [network.InspectOptions].
