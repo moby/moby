@@ -9,11 +9,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// NetworkInspectOptions holds parameters to inspect network.
-//
-// Deprecated: use [network.InspectOptions].
-type NetworkInspectOptions = network.InspectOptions
-
 // NetworkConnect represents the data to be used to connect a container to the network
 //
 // Deprecated: use [network.ConnectOptions].
