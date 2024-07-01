@@ -8,13 +8,13 @@ import (
 
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	"github.com/docker/docker/errdefs"
-	getter "github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 )
 
-var pluginGetter getter.PluginGetter
+var pluginGetter plugingetter.PluginGetter
 
 const extName = "LogDriver"
 
@@ -27,8 +27,8 @@ type logPlugin interface {
 }
 
 // RegisterPluginGetter sets the plugingetter
-func RegisterPluginGetter(plugingetter getter.PluginGetter) {
-	pluginGetter = plugingetter
+func RegisterPluginGetter(g plugingetter.PluginGetter) {
+	pluginGetter = g
 }
 
 // getPlugin returns a logging driver by its name.
@@ -46,11 +46,11 @@ func getPlugin(name string, mode int) (Creator, error) {
 	return makePluginCreator(name, client, p.ScopedPath), nil
 }
 
-func makePluginClient(p getter.CompatPlugin) (logPlugin, error) {
-	if pc, ok := p.(getter.PluginWithV1Client); ok {
+func makePluginClient(p plugingetter.CompatPlugin) (logPlugin, error) {
+	if pc, ok := p.(plugingetter.PluginWithV1Client); ok {
 		return &logPluginProxy{pc.Client()}, nil
 	}
-	pa, ok := p.(getter.PluginAddr)
+	pa, ok := p.(plugingetter.PluginAddr)
 	if !ok {
 		return nil, errdefs.System(errors.Errorf("got unknown plugin type %T", p))
 	}
@@ -71,7 +71,7 @@ func makePluginCreator(name string, l logPlugin, scopePath func(s string) string
 	return func(logCtx Info) (logger Logger, err error) {
 		defer func() {
 			if err != nil {
-				pluginGetter.Get(name, extName, getter.Release)
+				pluginGetter.Get(name, extName, plugingetter.Release)
 			}
 		}()
 
