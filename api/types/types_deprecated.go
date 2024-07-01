@@ -8,67 +8,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// ThrottlingData stores CPU throttling stats of one running container.
-// Not used on Windows.
-//
-// Deprecated: use [container.ThrottlingData].
-type ThrottlingData = container.ThrottlingData
-
-// CPUUsage stores All CPU stats aggregated since container inception.
-//
-// Deprecated: use [container.CPUUsage].
-type CPUUsage = container.CPUUsage
-
-// CPUStats aggregates and wraps all CPU related info of container
-//
-// Deprecated: use [container.CPUStats].
-type CPUStats = container.CPUStats
-
-// MemoryStats aggregates all memory stats since container inception on Linux.
-// Windows returns stats for commit and private working set only.
-//
-// Deprecated: use [container.MemoryStats].
-type MemoryStats = container.MemoryStats
-
-// BlkioStatEntry is one small entity to store a piece of Blkio stats
-// Not used on Windows.
-//
-// Deprecated: use [container.BlkioStatEntry].
-type BlkioStatEntry = container.BlkioStatEntry
-
-// BlkioStats stores All IO service stats for data read and write.
-// This is a Linux specific structure as the differences between expressing
-// block I/O on Windows and Linux are sufficiently significant to make
-// little sense attempting to morph into a combined structure.
-//
-// Deprecated: use [container.BlkioStats].
-type BlkioStats = container.BlkioStats
-
-// StorageStats is the disk I/O stats for read/write on Windows.
-//
-// Deprecated: use [container.StorageStats].
-type StorageStats = container.StorageStats
-
-// NetworkStats aggregates the network stats of one container
-//
-// Deprecated: use [container.NetworkStats].
-type NetworkStats = container.NetworkStats
-
-// PidsStats contains the stats of a container's pids
-//
-// Deprecated: use [container.PidsStats].
-type PidsStats = container.PidsStats
-
-// Stats is Ultimate struct aggregating all types of stats of one container
-//
-// Deprecated: use [container.Stats].
-type Stats = container.Stats
-
-// StatsJSON is newly used Networks
-//
-// Deprecated: use [container.StatsResponse].
-type StatsJSON = container.StatsResponse
-
 // EventsOptions holds parameters to filter events with.
 //
 // Deprecated: use [events.ListOptions].
