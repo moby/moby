@@ -107,7 +107,7 @@ func compress(in io.Reader) (io.ReadCloser, chan struct{}) {
 	pipeReader, pipeWriter := io.Pipe()
 	// Use a bufio.Writer to avoid excessive chunking in HTTP request.
 	bufWriter := bufio.NewWriterSize(pipeWriter, compressionBufSize)
-	compressor := gzip.NewWriter(bufWriter)
+	compressor, _ := gzip.NewWriterLevel(bufWriter, 1)
 
 	go func() {
 		_, err := io.Copy(compressor, in)
