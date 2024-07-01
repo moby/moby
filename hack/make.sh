@@ -83,7 +83,7 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
-if ${PKG_CONFIG} 'libsystemd' 2> /dev/null; then
+if [[ ${SYSTEMD:-1} == 1 ]] && ${PKG_CONFIG} 'libsystemd' 2> /dev/null; then
 	DOCKER_BUILDTAGS+=" journald"
 fi
 
