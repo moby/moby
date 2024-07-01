@@ -8,12 +8,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// ContainerStats contains response of Engine API:
-// GET "/stats"
-//
-// Deprecated: use [container.StatsResponseReader].
-type ContainerStats = container.StatsResponseReader
-
 // ThrottlingData stores CPU throttling stats of one running container.
 // Not used on Windows.
 //
