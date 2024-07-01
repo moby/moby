@@ -9,11 +9,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// NetworkConnect represents the data to be used to connect a container to the network
-//
-// Deprecated: use [network.ConnectOptions].
-type NetworkConnect = network.ConnectOptions
-
 // NetworkDisconnect represents the data to be used to disconnect a container from the network
 //
 // Deprecated: use [network.DisconnectOptions].
