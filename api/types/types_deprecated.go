@@ -8,11 +8,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// ContainerExecInspect holds information returned by exec inspect.
-//
-// Deprecated: use [container.ExecInspect].
-type ContainerExecInspect = container.ExecInspect
-
 // ContainersPruneReport contains the response for Engine API:
 // POST "/containers/prune"
 //
