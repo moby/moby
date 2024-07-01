@@ -39,29 +39,71 @@ func TestInfoAPI(t *testing.T) {
 	}
 }
 
+// TestInfoAPIWarnings verifies that the daemon returns a warning when
+// exposing the API on an insecure connection.
+//
+// This test is slow, because the daemon adds a 15-second delay when
+// configured with an insecure connection.
 func TestInfoAPIWarnings(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	d := daemon.New(t)
-	c := d.NewClientT(t)
+	// daemon adds a 15-second delay (cmd/dockerd/loadListeners()) when
+	// configured with an insecure connection, so run in parallel.
+	// t.Parallel()
 
-	d.Start(t, "-H=0.0.0.0:23756", "-H="+d.Sock())
-	defer d.Stop(t)
+	const detectWarning = `WARNING: API is accessible on`
+	const expectedWarning = `WARNING: API is accessible on http://%s without encryption.
+         Access to the remote API is equivalent to root access on the host. Refer
+         to the 'Docker daemon attack surface' section in the documentation for
+         more information: https://docs.docker.com/go/attack-surface/`
 
-	info, err := c.Info(ctx)
-	assert.NilError(t, err)
-
-	stringsToCheck := []string{
-		"Access to the remote API is equivalent to root access",
-		"http://0.0.0.0:23756",
+	// TODO(thaJeztah): add IPv6 (loopback-)addresses (tcp://[::]:1234, tcp://[::3]:2345), but IPv6 is disabled by default inside the container ("/proc/sys/net/ipv6/conf/all/disable_ipv6")
+	tests := []struct {
+		name            string
+		daemonArgs      []string
+		expectedWarning string
+	}{
+		{
+			name: "default should not warn",
+		},
+		{
+			name:            "insecure on 127.0.0.1:23750 should warn",
+			daemonArgs:      []string{"--host", "tcp://127.0.0.1:23750", "--iptables=false"}, // Make sure each test uses a unique port, to allow running in parallel!
+			expectedWarning: fmt.Sprintf(expectedWarning, "127.0.0.1:23750"),
+		},
+		{
+			name:            "insecure on 0.0.0.0:23752 should warn",
+			daemonArgs:      []string{"--host", "tcp://0.0.0.0:23752", "--iptables=false"}, // Make sure each test uses a unique port, to allow running in parallel!
+			expectedWarning: fmt.Sprintf(expectedWarning, "0.0.0.0:23752"),
+		},
+		{
+			name:            "insecure on 0.0.0.0:23754 with explicit TLS disabled",
+			daemonArgs:      []string{"--host", "tcp://0.0.0.0:23754", "--tls=false", "--iptables=false"}, // Make sure each test uses a unique port, to allow running in parallel!
+			expectedWarning: fmt.Sprintf(expectedWarning, "0.0.0.0:23754"),
+		},
 	}
-
-	out := fmt.Sprintf("%+v", info)
-	for _, linePrefix := range stringsToCheck {
-		assert.Check(t, is.Contains(out, linePrefix))
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			d := daemon.New(t)
+			c := d.NewClientT(t)
+			d.Start(t, tc.daemonArgs...)
+			defer d.Stop(t)
+			info, err := c.Info(ctx)
+			assert.NilError(t, err)
+			if tc.expectedWarning == "" {
+				for _, w := range info.Warnings {
+					if is.Contains(w, detectWarning)().Success() {
+						t.Errorf("should not contain, but did: %+v", w)
+					}
+				}
+			} else {
+				assert.Check(t, is.Contains(info.Warnings, tc.expectedWarning))
+			}
+		})
 	}
 }
 
