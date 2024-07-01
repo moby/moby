@@ -4,16 +4,9 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/storage"
 )
-
-// NetworksPruneReport contains the response for Engine API:
-// POST "/networks/prune"
-//
-// Deprecated: use [network.PruneReport].
-type NetworksPruneReport = network.PruneReport
 
 // ExecConfig is a small subset of the Config struct that holds the configuration
 // for the exec feature of docker.
