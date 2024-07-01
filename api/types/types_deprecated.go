@@ -8,12 +8,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// ContainersPruneReport contains the response for Engine API:
-// POST "/containers/prune"
-//
-// Deprecated: use [container.PruneReport].
-type ContainersPruneReport = container.PruneReport
-
 // ContainerPathStat is used to encode the header from
 // GET "/containers/{name:.*}/archive"
 // "Name" is the file or directory name.
