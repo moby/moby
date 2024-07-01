@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/containerfs"
+	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/quota"

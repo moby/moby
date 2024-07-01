@@ -37,7 +37,7 @@ import (
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/containerfs"
+	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	units "github.com/docker/go-units"

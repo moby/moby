@@ -1,6 +1,6 @@
 //go:build !darwin && !windows
 
-package containerfs // import "github.com/docker/docker/pkg/containerfs"
+package containerfs
 
 import (
 	"os"
@@ -11,18 +11,18 @@ import (
 	"github.com/pkg/errors"
 )
 
-// EnsureRemoveAll wraps `os.RemoveAll` to check for specific errors that can
+// EnsureRemoveAll wraps [os.RemoveAll] to check for specific errors that can
 // often be remedied.
-// Only use `EnsureRemoveAll` if you really want to make every effort to remove
+// Only use [EnsureRemoveAll] if you really want to make every effort to remove
 // a directory.
 //
-// Because of the way `os.Remove` (and by extension `os.RemoveAll`) works, there
+// Because of the way [os.Remove] (and by extension [os.RemoveAll]) works, there
 // can be a race between reading directory entries and then actually attempting
 // to remove everything in the directory.
 // These types of errors do not need to be returned since it's ok for the dir to
 // be gone we can just retry the remove operation.
 //
-// This should not return a `os.ErrNotExist` kind of error under any circumstances
+// This should not return a [os.ErrNotExist] kind of error under any circumstances.
 func EnsureRemoveAll(dir string) error {
 	notExistErr := make(map[string]bool)
 
