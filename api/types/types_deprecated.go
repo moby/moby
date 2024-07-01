@@ -9,11 +9,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// NetworkDisconnect represents the data to be used to disconnect a container from the network
-//
-// Deprecated: use [network.DisconnectOptions].
-type NetworkDisconnect = network.DisconnectOptions
-
 // EndpointResource contains network resources allocated and used for a container in a network.
 //
 // Deprecated: use [network.EndpointResource].
