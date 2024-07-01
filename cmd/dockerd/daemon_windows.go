@@ -90,7 +90,6 @@ func newCgroupParent(config *config.Config) string {
 }
 
 func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
-	// use system containerd at the given address.
 	defer func() { system.EnableContainerdRuntime(cli.ContainerdAddr) }()
 
 	if cli.ContainerdAddr != "" {
