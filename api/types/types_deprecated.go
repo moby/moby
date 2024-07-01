@@ -8,13 +8,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// ContainerPathStat is used to encode the header from
-// GET "/containers/{name:.*}/archive"
-// "Name" is the file or directory name.
-//
-// Deprecated: use [container.PathStat].
-type ContainerPathStat = container.PathStat
-
 // CopyToContainerOptions holds information
 // about files to copy into a container.
 //
