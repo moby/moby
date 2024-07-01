@@ -108,7 +108,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 
 		// Make sure the image has a tag, otherwise it will pull all tags.
 		ref := reference.TagNameOnly(named)
-		err := c.imageBackend.PullImage(ctx, ref, nil, metaHeaders, authConfig, pw)
+		err := c.imageBackend.PullImage(ctx, ref, nil, false, metaHeaders, authConfig, pw)
 		pw.CloseWithError(err)
 	}()
 

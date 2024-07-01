@@ -11,6 +11,9 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/pkg/snapshotters"
+	"github.com/containerd/containerd/pkg/transfer"
+	"github.com/containerd/containerd/pkg/transfer/image"
+	"github.com/containerd/containerd/pkg/transfer/registry"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes/docker"
 	cerrdefs "github.com/containerd/errdefs"
@@ -30,7 +33,7 @@ import (
 
 // PullImage initiates a pull operation. baseRef is the image to pull.
 // If reference is not tagged, all tags are pulled.
-func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, outStream io.Writer) (retErr error) {
+func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, platform *ocispec.Platform, allPlatforms bool, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, outStream io.Writer) (retErr error) {
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
@@ -38,6 +41,10 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 		}
 	}()
 	out := streamformatter.NewJSONProgressOutput(outStream, false)
+
+	if allPlatforms {
+		return i.pullWithTransfer(ctx, baseRef, platform, true, metaHeaders, authConfig, out)
+	}
 
 	if !reference.IsNameOnly(baseRef) {
 		return i.pullTag(ctx, baseRef, platform, metaHeaders, authConfig, out)
@@ -62,7 +69,12 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 			continue
 		}
 
-		if err := i.pullTag(ctx, ref, platform, metaHeaders, authConfig, out); err != nil {
+		if allPlatforms {
+			err = i.pullWithTransfer(ctx, ref, platform, true, metaHeaders, authConfig, out)
+		} else {
+			err = i.pullTag(ctx, ref, platform, metaHeaders, authConfig, out)
+		}
+		if err != nil {
 			return fmt.Errorf("error pulling %s: %w", ref, err)
 		}
 	}
@@ -70,7 +82,101 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 	return nil
 }
 
+type authConfigCreds struct {
+	*registrytypes.AuthConfig
+}
+
+func (c authConfigCreds) GetCredentials(ctx context.Context, ref, host string) (registry.Credentials, error) {
+	if host == c.ServerAddress {
+		if c.RegistryToken != "" {
+			return registry.Credentials{
+				Host:   c.ServerAddress,
+				Header: fmt.Sprintf("Bearer %s", c.RegistryToken),
+			}, nil
+		}
+		if c.IdentityToken != "" {
+			return registry.Credentials{
+				Host:   c.ServerAddress,
+				Secret: c.IdentityToken,
+			}, nil
+		}
+		if c.Password != "" {
+			return registry.Credentials{
+				Host:     c.ServerAddress,
+				Username: c.Username,
+				Secret:   c.Password,
+			}, nil
+		}
+	}
+
+	return registry.Credentials{}, nil
+}
+
+func progressHandler(_ context.Context, out progress.Output) transfer.ProgressFunc {
+	return func(p transfer.Progress) {
+		//log.G(ctx).Info("progress", p)
+		out.WriteProgress(progress.Progress{
+			ID: p.Name,
+			// Message:
+			Action:  p.Event,
+			Current: p.Progress,
+			Total:   p.Total,
+			// Aux: parents?
+			// LastUpdate ?
+		})
+	}
+}
+
+func (i *ImageService) pullWithTransfer(ctx context.Context, ref reference.Named, platform *ocispec.Platform, allPlatforms bool, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
+	var sopts []image.StoreOpt
+
+	if platform == nil {
+		var p = platforms.DefaultSpec()
+		platform = &p
+	}
+
+	// If sync, pull with all platforms
+	if !allPlatforms {
+		sopts = append(sopts, image.WithPlatforms(*platform))
+	}
+	// TODO: Consider supported WithAllMetadata
+	//sopts = append(sopts, image.WithAllMetadata)
+
+	// Set unpack configuration, only unpack on single platform
+	sopts = append(sopts, image.WithUnpack(*platform, i.snapshotter))
+
+	// TODO: Interface improved in 2.0
+	reg := registry.NewOCIRegistry(ref.String(), metaHeaders, authConfigCreds{authConfig})
+	is := image.NewStore(ref.String(), sopts...)
+
+	pf := progressHandler(ctx, out)
+
+	if err := i.transfer.Transfer(ctx, reg, is, transfer.WithProgress(pf)); err != nil {
+		return err
+	}
+
+	i.LogImageEvent(reference.FamiliarString(ref), reference.FamiliarName(ref), events.ActionPull)
+
+	// TODO: Requires 2.0 updates to transfer service progress to get target image descriptor
+	// The pull succeeded, so try to remove any dangling image we have for this target
+	//err = i.images.Delete(compatcontext.WithoutCancel(ctx), danglingImageName(img.Target().Digest))
+	//if err != nil && !cerrdefs.IsNotFound(err) {
+	//	// Image pull succeeded, but cleaning up the dangling image failed. Ignore the
+	//	// error to not mark the pull as failed.
+	//	logger.WithError(err).Warn("unexpected error while removing outdated dangling image reference")
+	//}
+	//
+	//progress.Message(out, "", "Digest: "+img.Target().Digest.String())
+	//writeStatus(out, reference.FamiliarString(ref), old.Digest != img.Target().Digest)
+
+	return nil
+}
+
 func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
+	if err := i.pullWithTransfer(ctx, ref, platform, false, metaHeaders, authConfig, out); !cerrdefs.IsNotImplemented(err) {
+		return err
+	}
+
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.Format(*platform)))

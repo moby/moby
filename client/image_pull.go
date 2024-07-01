@@ -33,6 +33,9 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options image.P
 	if options.Platform != "" {
 		query.Set("platform", strings.ToLower(options.Platform))
 	}
+	if options.AllPlatforms {
+		query.Set("allPlatforms", "true")
+	}
 
 	resp, err := cli.tryImageCreate(ctx, query, options.RegistryAuth)
 	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {

@@ -8,6 +8,9 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/pkg/transfer"
+	"github.com/containerd/containerd/pkg/transfer/local"
+	"github.com/containerd/containerd/pkg/unpack"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/remotes/docker"
@@ -40,6 +43,7 @@ type ImageService struct {
 	pruneRunning        atomic.Bool
 	refCountMounter     snapshotter.Mounter
 	idMapping           idtools.IdentityMapping
+	transfer            transfer.Transferrer
 
 	// defaultPlatformOverride is used in tests to override the host platform.
 	defaultPlatformOverride platforms.MatchComparer
@@ -65,10 +69,34 @@ type ImageServiceConfig struct {
 
 // NewService creates a new ImageService.
 func NewService(config ImageServiceConfig) *ImageService {
+	is := config.Client.ImageService()
+	cs := config.Client.ContentStore()
+	lm := config.Client.LeasesService()
+	tc := local.TransferConfig{
+		UnpackPlatforms: []unpack.Platform{
+			{
+				Platform: platforms.Default(),
+
+				SnapshotterKey: config.Snapshotter,
+				Snapshotter:    config.Client.SnapshotService(config.Snapshotter),
+				//SnapshotOpts   []snapshots.Opt
+
+				Applier: config.Client.DiffService(),
+				//ApplyOpts []diff.ApplyOpt
+			},
+		},
+		// MaxConcurrentDownloads int
+		// MaxConcurrentUploadedLayers int
+		// DuplicationSuppressor kmutex.KeyedLocker
+		// BaseHandlers []images.Handler
+		RegistryConfigPath: "/etc/docker", // TODO: Get this passed in
+	}
+	ts := local.NewTransferService(lm, cs, is, &tc)
+
 	return &ImageService{
 		client:  config.Client,
-		images:  config.Client.ImageService(),
-		content: config.Client.ContentStore(),
+		images:  is,
+		content: cs,
 		snapshotterServices: map[string]snapshots.Snapshotter{
 			config.Snapshotter: config.Client.SnapshotService(config.Snapshotter),
 		},
@@ -79,6 +107,7 @@ func NewService(config ImageServiceConfig) *ImageService {
 		eventsService:   config.EventsService,
 		refCountMounter: config.RefCountMounter,
 		idMapping:       config.IDMapping,
+		transfer:        ts,
 	}
 }
 

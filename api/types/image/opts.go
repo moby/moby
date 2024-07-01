@@ -41,6 +41,9 @@ type PullOptions struct {
 	// Also see [github.com/docker/docker/api/types.RequestPrivilegeFunc].
 	PrivilegeFunc func(context.Context) (string, error)
 	Platform      string
+
+	// AllPlatforms indicates that all image resources should be pulled for all platforms
+	AllPlatforms bool
 }
 
 // PushOptions holds information to push images.
