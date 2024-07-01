@@ -39,7 +39,7 @@ type Config struct {
 	ClusterProvider        cluster.Provider
 	NetworkControlPlaneMTU int
 	DefaultAddressPool     []*ipamutils.NetworkToSplit
-	Scope                  datastore.ScopeCfg
+	DatastoreConfig        datastore.Config
 	ActiveSandboxes        map[string]interface{}
 	PluginGetter           plugingetter.PluginGetter
 }
@@ -56,10 +56,12 @@ func New(opts ...Option) *Config {
 		}
 	}
 
-	// load default scope configs which don't have explicit user specified configs.
-	if cfg.Scope == (datastore.ScopeCfg{}) {
-		cfg.Scope = datastore.DefaultScope(cfg.DataDir)
+	// Only a couple of tests set cfg.DatastoreConfig through an Option.
+	// Otherwise, it's always empty.
+	if cfg.DatastoreConfig == (datastore.Config{}) {
+		cfg.DatastoreConfig = datastore.NewConfig(cfg.DataDir)
 	}
+
 	return cfg
 }
 

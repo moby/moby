@@ -1,10 +1,8 @@
 package datastore
 
 import (
-	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
@@ -50,16 +48,11 @@ type KVObject interface {
 	CopyTo(KVObject) error
 }
 
-// ScopeCfg represents Datastore configuration.
-type ScopeCfg struct {
-	Client ScopeClientCfg
-}
-
-// ScopeClientCfg represents Datastore Client-only mode configuration
-type ScopeClientCfg struct {
-	Provider string
-	Address  string
-	Config   *store.Config
+// Config represents Datastore configuration. Use NewConfig to produce a valid
+// config.
+type Config struct {
+	Path   string
+	Bucket string
 }
 
 const (
@@ -76,8 +69,9 @@ var (
 
 const defaultPrefix = "/var/lib/docker/network/files"
 
-// DefaultScope returns a default scope config for clients to use.
-func DefaultScope(dataDir string) ScopeCfg {
+// NewConfig returns a new datastore Config, with the boltdb stored in dataDir.
+// If dataDir is empty, a default value is used.
+func NewConfig(dataDir string) Config {
 	var dbpath string
 	if dataDir == "" {
 		dbpath = defaultPrefix + "/local-kv.db"
@@ -85,25 +79,10 @@ func DefaultScope(dataDir string) ScopeCfg {
 		dbpath = dataDir + "/network/files/local-kv.db"
 	}
 
-	return ScopeCfg{
-		Client: ScopeClientCfg{
-			Provider: string(store.BOLTDB),
-			Address:  dbpath,
-			Config: &store.Config{
-				Bucket:            "libnetwork",
-				ConnectionTimeout: time.Minute,
-			},
-		},
+	return Config{
+		Path:   dbpath,
+		Bucket: "libnetwork",
 	}
-}
-
-// IsValid checks if the scope config has valid configuration.
-func (cfg *ScopeCfg) IsValid() bool {
-	if cfg == nil || strings.TrimSpace(cfg.Client.Provider) == "" || strings.TrimSpace(cfg.Client.Address) == "" {
-		return false
-	}
-
-	return true
 }
 
 // Key provides convenient method to create a Key
@@ -118,31 +97,14 @@ func Key(key ...string) string {
 	return b.String()
 }
 
-// newClient used to connect to KV Store
-func newClient(kv string, addr string, config *store.Config) (*Store, error) {
-	if kv != string(store.BOLTDB) {
-		return nil, fmt.Errorf("unsupported KV store")
-	}
-
-	if config == nil {
-		config = &store.Config{}
-	}
-
-	s, err := boltdb.New(addr, config)
+// New creates a new Store instance.
+func New(cfg Config) (*Store, error) {
+	s, err := boltdb.New(cfg.Path, cfg.Bucket)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Store{store: s, cache: newCache(s)}, nil
-}
-
-// New creates a new Store instance.
-func New(cfg ScopeCfg) (*Store, error) {
-	if cfg.Client.Provider == "" || cfg.Client.Address == "" {
-		cfg = DefaultScope("")
-	}
-
-	return newClient(cfg.Client.Provider, cfg.Client.Address, cfg.Client.Config)
 }
 
 // Close closes the data store.

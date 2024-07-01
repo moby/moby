@@ -2,14 +2,7 @@ package kvstore
 
 import (
 	"errors"
-	"time"
 )
-
-// Backend represents a KV Store Backend
-type Backend string
-
-// BOLTDB backend
-const BOLTDB Backend = "boltdb"
 
 var (
 	// ErrBackendNotSupported is thrown when the backend k/v store is not supported by libkv
@@ -23,12 +16,6 @@ var (
 	// ErrKeyExists is thrown when the previous value exists in the case of an AtomicPut
 	ErrKeyExists = errors.New("Previous K/V pair exists, cannot complete Atomic operation")
 )
-
-// Config contains the options for a storage client
-type Config struct {
-	ConnectionTimeout time.Duration
-	Bucket            string
-}
 
 // Store represents the backend K/V storage
 // Each store should support every call listed
