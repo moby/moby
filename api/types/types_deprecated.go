@@ -8,12 +8,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// ExecStartCheck is a temp struct used by execStart
-// Config fields is part of ExecConfig in runconfig package
-//
-// Deprecated: use [container.ExecStartOptions] or [container.ExecAttachOptions].
-type ExecStartCheck = container.ExecStartOptions
-
 // ContainerExecInspect holds information returned by exec inspect.
 //
 // Deprecated: use [container.ExecInspect].
