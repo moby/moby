@@ -9,11 +9,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// EndpointResource contains network resources allocated and used for a container in a network.
-//
-// Deprecated: use [network.EndpointResource].
-type EndpointResource = network.EndpointResource
-
 // NetworkResource is the body of the "get network" http response message/
 //
 // Deprecated: use [network.Inspect] or [network.Summary] (for list operations).
