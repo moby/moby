@@ -9,11 +9,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// NetworkCreateRequest is the request message sent to the server for network create call.
-//
-// Deprecated: use [network.CreateRequest].
-type NetworkCreateRequest = network.CreateRequest
-
 // NetworkCreate is the expected body of the "create network" http request message
 //
 // Deprecated: use [network.CreateOptions].
