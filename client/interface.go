@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -103,6 +104,7 @@ type ImageAPIClient interface {
 	ImageSave(ctx context.Context, images []string) (io.ReadCloser, error)
 	ImageTag(ctx context.Context, image, ref string) error
 	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)
+	ImageConvert(ctx context.Context, src string, dst []reference.NamedTagged, options image.ConvertOptions) error
 }
 
 // NetworkAPIClient defines API client methods for the networks

@@ -83,3 +83,10 @@ type RemoveOptions struct {
 	Force         bool
 	PruneChildren bool
 }
+
+// ConvertOptions holds parameters to convert images.
+type ConvertOptions struct {
+	OnlyAvailablePlatforms bool
+	Platforms              []ocispec.Platform
+	NoAttestations         bool
+}
