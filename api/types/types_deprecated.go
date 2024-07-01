@@ -9,11 +9,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// NetworkListOptions holds parameters to filter the list of networks with.
-//
-// Deprecated: use [network.ListOptions].
-type NetworkListOptions = network.ListOptions
-
 // NetworkCreateResponse is the response message sent by the server for network create call.
 //
 // Deprecated: use [network.CreateResponse].
