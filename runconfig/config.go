@@ -10,12 +10,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
-// ContainerConfigWrapper is a Config wrapper that holds the container Config (portable)
-// and the corresponding HostConfig (non-portable).
-//
-// Deprecated: use [container.CreateRequest].
-type ContainerConfigWrapper = container.CreateRequest
-
 // ContainerDecoder implements httputils.ContainerDecoder
 // calling DecodeContainerConfig.
 type ContainerDecoder struct {

@@ -4,24 +4,8 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/sysinfo"
 )
-
-// DefaultDaemonNetworkMode returns the default network stack the daemon should
-// use.
-//
-// Deprecated: this function is no longer in use and will be removed in the next release.
-func DefaultDaemonNetworkMode() container.NetworkMode {
-	return network.NetworkNat
-}
-
-// IsPreDefinedNetwork indicates if a network is predefined by the daemon.
-//
-// Deprecated: this function is no longer used and will be removed in the next release.
-func IsPreDefinedNetwork(network string) bool {
-	return !container.NetworkMode(network).IsUserDefined()
-}
 
 // validateNetMode ensures that the various combinations of requested
 // network settings are valid.
