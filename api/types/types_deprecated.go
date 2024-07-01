@@ -6,11 +6,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// ImageImportSource holds source information for ImageImport
-//
-// Deprecated: use [image.ImportSource].
-type ImageImportSource image.ImportSource
-
 // ImageLoadResponse returns information to the client about a load process.
 //
 // Deprecated: use [image.LoadResponse].
