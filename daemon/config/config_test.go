@@ -557,7 +557,6 @@ func TestValidateMinAPIVersion(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestConfigInvalidDNS(t *testing.T) {

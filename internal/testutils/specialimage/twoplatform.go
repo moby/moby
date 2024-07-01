@@ -71,7 +71,6 @@ func oneLayerPlatformManifest(dir string, platform ocispec.Platform, f FileInLay
 	manifestDesc.Platform = &platform
 
 	return manifestDesc, nil
-
 }
 
 func multiPlatformImage(dir string, ref reference.Named, target ocispec.Index) (*ocispec.Index, error) {

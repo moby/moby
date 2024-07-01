@@ -220,7 +220,6 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 			}
 			platform = p
 		}
-
 	}
 
 	if err := ir.backend.PushImage(ctx, ref, platform, metaHeaders, authConfig, output); err != nil {

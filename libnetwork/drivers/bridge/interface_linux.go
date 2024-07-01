@@ -114,7 +114,8 @@ func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) err
 			if err != nil {
 				log.G(context.TODO()).WithFields(log.Fields{
 					"error":   err,
-					"address": existingAddr.IPNet},
+					"address": existingAddr.IPNet,
+				},
 				).Warnf("Failed to remove residual IPv6 address from bridge")
 			}
 		}
