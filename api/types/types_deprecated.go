@@ -8,12 +8,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// ExecConfig is a small subset of the Config struct that holds the configuration
-// for the exec feature of docker.
-//
-// Deprecated: use [container.ExecOptions].
-type ExecConfig = container.ExecOptions
-
 // ExecStartCheck is a temp struct used by execStart
 // Config fields is part of ExecConfig in runconfig package
 //
