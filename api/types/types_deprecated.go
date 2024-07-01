@@ -9,11 +9,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// NetworkResource is the body of the "get network" http response message/
-//
-// Deprecated: use [network.Inspect] or [network.Summary] (for list operations).
-type NetworkResource = network.Inspect
-
 // NetworksPruneReport contains the response for Engine API:
 // POST "/networks/prune"
 //
