@@ -9,11 +9,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// NetworkCreate is the expected body of the "create network" http request message
-//
-// Deprecated: use [network.CreateOptions].
-type NetworkCreate = network.CreateOptions
-
 // NetworkListOptions holds parameters to filter the list of networks with.
 //
 // Deprecated: use [network.ListOptions].
