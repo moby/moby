@@ -2,16 +2,10 @@ package types
 
 import (
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/storage"
 )
-
-// EventsOptions holds parameters to filter events with.
-//
-// Deprecated: use [events.ListOptions].
-type EventsOptions = events.ListOptions
 
 // ImageSearchOptions holds parameters to search images with.
 //
