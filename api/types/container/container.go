@@ -130,20 +130,6 @@ type Summary struct {
 	Mounts          []MountPoint
 }
 
-// ContainerNode stores information about the node that a container
-// is running on.  It's only used by the Docker Swarm standalone API.
-//
-// Deprecated: ContainerNode was used for the classic Docker Swarm standalone API. It will be removed in the next release.
-type ContainerNode struct {
-	ID        string
-	IPAddress string `json:"IP"`
-	Addr      string
-	Name      string
-	Cpus      int
-	Memory    int64
-	Labels    map[string]string
-}
-
 // InspectBase contains response of Engine API GET "/containers/{name:.*}/json"
 // for API version 1.18 and older.
 //
@@ -164,7 +150,6 @@ type InspectBase struct {
 	HostnamePath    string
 	HostsPath       string
 	LogPath         string
-	Node            *ContainerNode `json:",omitempty"` // Deprecated: Node was only propagated by Docker Swarm standalone API. It sill be removed in the next release.
 	Name            string
 	RestartCount    int
 	Driver          string

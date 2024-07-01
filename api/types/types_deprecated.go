@@ -18,12 +18,6 @@ type ContainerJSONBase = container.InspectBase
 // Deprecated: use [container.InspectResponse]. It will be removed in the next release.
 type ContainerJSON = container.InspectResponse
 
-// ContainerNode stores information about the node that a container
-// is running on.  It's only used by the Docker Swarm standalone API.
-//
-// Deprecated: ContainerNode was used for the classic Docker Swarm standalone API. It will be removed in the next release.
-type ContainerNode = container.ContainerNode //nolint:staticcheck // Ignore SA1019: container.ContainerNode is deprecated.
-
 // Container contains response of Engine API:
 // GET "/containers/json"
 //
