@@ -3,14 +3,8 @@ package types
 import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/storage"
 )
-
-// ImageSearchOptions holds parameters to search images with.
-//
-// Deprecated: use [registry.SearchOptions].
-type ImageSearchOptions = registry.SearchOptions
 
 // ImageImportSource holds source information for ImageImport
 //
