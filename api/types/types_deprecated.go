@@ -7,14 +7,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/storage"
-	"github.com/docker/docker/api/types/volume"
 )
-
-// VolumesPruneReport contains the response for Engine API:
-// POST "/volumes/prune".
-//
-// Deprecated: use [volume.PruneReport].
-type VolumesPruneReport = volume.PruneReport
 
 // NetworkCreateRequest is the request message sent to the server for network create call.
 //
