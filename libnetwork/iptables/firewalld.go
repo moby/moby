@@ -56,7 +56,11 @@ func firewalldInit() error {
 	if !firewalldRunning {
 		connection.sysconn.Close()
 		connection = nil
+	} else {
+
+		log.G(context.TODO()).Debugf("Firewalld is currently in state running")
 	}
+
 	if connection != nil {
 		go signalHandler()
 		zoneAdded, err := setupDockerZone()
@@ -163,9 +167,19 @@ func checkRunning() bool {
 	if connection == nil {
 		return false
 	}
-	var zone string
-	err := connection.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-	return err == nil
+	var currentState dbus.Variant
+	currentState, err := connection.sysObj.GetProperty(dbusInterface + ".state")
+
+	var running bool
+	if err == nil {
+		value, ok := currentState.Value().(string)
+
+		if ok && value == "RUNNING" {
+			running = true
+		}
+	}
+
+	return running
 }
 
 // Passthrough method simply passes args through to iptables/ip6tables

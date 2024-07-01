@@ -4,6 +4,7 @@ package iptables
 
 import (
 	"net"
+	"regexp"
 	"strconv"
 	"testing"
 
@@ -18,9 +19,13 @@ func skipIfNoFirewalld(t *testing.T) {
 	}
 	defer conn.Close()
 
-	var zone string
-	err = conn.Object(dbusInterface, dbusPath).Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-	if err != nil {
+	currentState, err := connection.sysObj.GetProperty(dbusInterface + ".state")
+	var running bool
+	if err == nil {
+		running, _ = regexp.MatchString(".*RUNNING.*", currentState.Value().(string))
+	}
+
+	if err != nil || !running {
 		t.Skipf("firewalld is not running: %v", err)
 	}
 }
