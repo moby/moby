@@ -8,12 +8,6 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// CopyToContainerOptions holds information
-// about files to copy into a container.
-//
-// Deprecated: use [container.CopyToContainerOptions],
-type CopyToContainerOptions = container.CopyToContainerOptions
-
 // ContainerStats contains response of Engine API:
 // GET "/stats"
 //
