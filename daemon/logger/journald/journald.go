@@ -62,8 +62,8 @@ type journald struct {
 	// Overrides for unit tests.
 
 	sendToJournal   func(message string, priority journal.Priority, vars map[string]string) error
-	journalReadDir  string //nolint:unused // Referenced in read.go, which has more restrictive build constraints.
-	readSyncTimeout time.Duration
+	journalReadDir  string        //nolint:unused // Referenced in read.go, which has more restrictive build constraints.
+	readSyncTimeout time.Duration //nolint:unused // Referenced in read.go, which has more restrictive build constraints.
 }
 
 func init() {
