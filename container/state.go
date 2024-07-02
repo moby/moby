@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	units "github.com/docker/go-units"
 )
@@ -110,10 +110,10 @@ func (s *State) String() string {
 
 // IsValidHealthString checks if the provided string is a valid container health status or not.
 func IsValidHealthString(s string) bool {
-	return s == types.Starting ||
-		s == types.Healthy ||
-		s == types.Unhealthy ||
-		s == types.NoHealthcheck
+	return s == container.Starting ||
+		s == container.Healthy ||
+		s == container.Unhealthy ||
+		s == container.NoHealthcheck
 }
 
 // StateString returns a single string to describe state

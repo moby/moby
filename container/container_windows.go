@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
@@ -188,10 +187,10 @@ func (container *Container) BuildHostnameFile() error {
 }
 
 // GetMountPoints gives a platform specific transformation to types.MountPoint. Callers must hold a Container lock.
-func (container *Container) GetMountPoints() []types.MountPoint {
-	mountPoints := make([]types.MountPoint, 0, len(container.MountPoints))
+func (container *Container) GetMountPoints() []containertypes.MountPoint {
+	mountPoints := make([]containertypes.MountPoint, 0, len(container.MountPoints))
 	for _, m := range container.MountPoints {
-		mountPoints = append(mountPoints, types.MountPoint{
+		mountPoints = append(mountPoints, containertypes.MountPoint{
 			Type:        m.Type,
 			Name:        m.Name,
 			Source:      m.Path(),

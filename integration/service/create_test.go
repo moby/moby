@@ -64,7 +64,7 @@ func testServiceCreateInit(ctx context.Context, daemonEnabled bool) func(t *test
 	}
 }
 
-func inspectServiceContainer(ctx context.Context, t *testing.T, client client.APIClient, serviceID string) types.ContainerJSON {
+func inspectServiceContainer(ctx context.Context, t *testing.T, client client.APIClient, serviceID string) container.InspectResponse {
 	t.Helper()
 	containers, err := client.ContainerList(ctx, container.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", "com.docker.swarm.service.id="+serviceID)),

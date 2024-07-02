@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
@@ -30,7 +29,7 @@ func TestHealthCheckWorkdir(t *testing.T) {
 		}
 	})
 
-	poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, cID, types.Healthy), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, cID, containertypes.Healthy), poll.WithDelay(100*time.Millisecond))
 }
 
 // GitHub #37263

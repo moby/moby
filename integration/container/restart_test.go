@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -111,7 +110,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 						err = apiClient.ContainerStart(ctx, resp.ID, container.StartOptions{})
 						assert.NilError(t, err)
 						if tc.xHealthCheck {
-							poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, resp.ID, types.Healthy), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
+							poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, resp.ID, container.Healthy), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
 							testContainer.ExecT(ctx, t, apiClient, resp.ID, []string{"touch", "/tmp/unhealthy"}).AssertSuccess(t)
 						}
 					}
@@ -132,11 +131,11 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 						// to become healthy, which gives us the entire StartPeriod (60s) to assert that
 						// the container's health state is Starting before we have to worry about racing
 						// the health monitor.
-						assert.Equal(t, testContainer.Inspect(ctx, t, apiClient, resp.ID).State.Health.Status, types.Starting)
+						assert.Equal(t, testContainer.Inspect(ctx, t, apiClient, resp.ID).State.Health.Status, container.Starting)
 						poll.WaitOn(t, pollForNewHealthCheck(ctx, apiClient, startTime, resp.ID), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
 
 						testContainer.ExecT(ctx, t, apiClient, resp.ID, []string{"rm", "/tmp/unhealthy"}).AssertSuccess(t)
-						poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, resp.ID, types.Healthy), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
+						poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, resp.ID, container.Healthy), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
 					}
 					// TODO(cpuguy83): test pause states... this seems to be rather undefined currently
 				})

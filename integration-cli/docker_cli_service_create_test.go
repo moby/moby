@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
@@ -57,7 +57,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .Mounts}}", task.Status.ContainerStatus.ContainerID)
 	assert.NilError(c, err, out)
 
-	var mounts []types.MountPoint
+	var mounts []container.MountPoint
 	assert.Assert(c, json.Unmarshal([]byte(out), &mounts) == nil)
 	assert.Equal(c, len(mounts), 1)
 
@@ -407,7 +407,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .Mounts}}", task.Status.ContainerStatus.ContainerID)
 	assert.NilError(c, err, out)
 
-	var mounts []types.MountPoint
+	var mounts []container.MountPoint
 	assert.Assert(c, json.Unmarshal([]byte(out), &mounts) == nil)
 	assert.Equal(c, len(mounts), 1)
 

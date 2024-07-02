@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 )
 
@@ -14,10 +14,10 @@ func TestIsValidHealthString(t *testing.T) {
 		Health   string
 		Expected bool
 	}{
-		{types.Healthy, true},
-		{types.Unhealthy, true},
-		{types.Starting, true},
-		{types.NoHealthcheck, true},
+		{container.Healthy, true},
+		{container.Unhealthy, true},
+		{container.Starting, true},
+		{container.NoHealthcheck, true},
 		{"fail", false},
 	}
 

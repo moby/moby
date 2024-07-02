@@ -1,13 +1,13 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/api/types/container"
+	containerpkg "github.com/docker/docker/container"
 )
 
 // This sets platform-specific fields
-func setPlatformSpecificContainerFields(container *container.Container, contJSONBase *types.ContainerJSONBase) *types.ContainerJSONBase {
+func setPlatformSpecificContainerFields(container *containerpkg.Container, contJSONBase *container.InspectBase) *container.InspectBase {
 	contJSONBase.AppArmorProfile = container.AppArmorProfile
 	contJSONBase.ResolvConfPath = container.ResolvConfPath
 	contJSONBase.HostnamePath = container.HostnamePath
@@ -16,7 +16,7 @@ func setPlatformSpecificContainerFields(container *container.Container, contJSON
 	return contJSONBase
 }
 
-func inspectExecProcessConfig(e *container.ExecConfig) *backend.ExecProcessConfig {
+func inspectExecProcessConfig(e *containerpkg.ExecConfig) *backend.ExecProcessConfig {
 	return &backend.ExecProcessConfig{
 		Tty:        e.Tty,
 		Entrypoint: e.Entrypoint,

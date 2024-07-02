@@ -4,6 +4,9 @@ import (
 	"io"
 	"os"
 	"time"
+
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/storage"
 )
 
 // PruneReport contains the response for Engine API:
@@ -41,4 +44,146 @@ type CopyToContainerOptions struct {
 type StatsResponseReader struct {
 	Body   io.ReadCloser `json:"body"`
 	OSType string        `json:"ostype"`
+}
+
+// MountPoint represents a mount point configuration inside the container.
+// This is used for reporting the mountpoints in use by a container.
+type MountPoint struct {
+	// Type is the type of mount, see `Type<foo>` definitions in
+	// github.com/docker/docker/api/types/mount.Type
+	Type mount.Type `json:",omitempty"`
+
+	// Name is the name reference to the underlying data defined by `Source`
+	// e.g., the volume name.
+	Name string `json:",omitempty"`
+
+	// Source is the source location of the mount.
+	//
+	// For volumes, this contains the storage location of the volume (within
+	// `/var/lib/docker/volumes/`). For bind-mounts, and `npipe`, this contains
+	// the source (host) part of the bind-mount. For `tmpfs` mount points, this
+	// field is empty.
+	Source string
+
+	// Destination is the path relative to the container root (`/`) where the
+	// Source is mounted inside the container.
+	Destination string
+
+	// Driver is the volume driver used to create the volume (if it is a volume).
+	Driver string `json:",omitempty"`
+
+	// Mode is a comma separated list of options supplied by the user when
+	// creating the bind/volume mount.
+	//
+	// The default is platform-specific (`"z"` on Linux, empty on Windows).
+	Mode string
+
+	// RW indicates whether the mount is mounted writable (read-write).
+	RW bool
+
+	// Propagation describes how mounts are propagated from the host into the
+	// mount point, and vice-versa. Refer to the Linux kernel documentation
+	// for details:
+	// https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt
+	//
+	// This field is not used on Windows.
+	Propagation mount.Propagation
+}
+
+// State stores container's running state
+// it's part of InspectBase and returned by "inspect" command
+type State struct {
+	Status     string // String representation of the container state. Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
+	Running    bool
+	Paused     bool
+	Restarting bool
+	OOMKilled  bool
+	Dead       bool
+	Pid        int
+	ExitCode   int
+	Error      string
+	StartedAt  string
+	FinishedAt string
+	Health     *Health `json:",omitempty"`
+}
+
+// Summary contains response of Engine API:
+// GET "/containers/json"
+type Summary struct {
+	ID         string `json:"Id"`
+	Names      []string
+	Image      string
+	ImageID    string
+	Command    string
+	Created    int64
+	Ports      []Port
+	SizeRw     int64 `json:",omitempty"`
+	SizeRootFs int64 `json:",omitempty"`
+	Labels     map[string]string
+	State      string
+	Status     string
+	HostConfig struct {
+		NetworkMode string            `json:",omitempty"`
+		Annotations map[string]string `json:",omitempty"`
+	}
+	NetworkSettings *NetworkSettingsSummary
+	Mounts          []MountPoint
+}
+
+// ContainerNode stores information about the node that a container
+// is running on.  It's only used by the Docker Swarm standalone API.
+//
+// Deprecated: ContainerNode was used for the classic Docker Swarm standalone API. It will be removed in the next release.
+type ContainerNode struct {
+	ID        string
+	IPAddress string `json:"IP"`
+	Addr      string
+	Name      string
+	Cpus      int
+	Memory    int64
+	Labels    map[string]string
+}
+
+// InspectBase contains response of Engine API GET "/containers/{name:.*}/json"
+// for API version 1.18 and older.
+//
+// TODO(thaJeztah): combine InspectBase and InspectResponse into a single struct.
+// The split between InspectBase (ContainerJSONBase) and InspectResponse (InspectResponse)
+// was done in commit 6deaa58ba5f051039643cedceee97c8695e2af74 (https://github.com/moby/moby/pull/13675).
+// ContainerJSONBase contained all fields for API < 1.19, and InspectResponse
+// held fields that were added in API 1.19 and up. Given that the minimum
+// supported API version is now 1.24, we no longer use the separate type.
+type InspectBase struct {
+	ID              string `json:"Id"`
+	Created         string
+	Path            string
+	Args            []string
+	State           *State
+	Image           string
+	ResolvConfPath  string
+	HostnamePath    string
+	HostsPath       string
+	LogPath         string
+	Node            *ContainerNode `json:",omitempty"` // Deprecated: Node was only propagated by Docker Swarm standalone API. It sill be removed in the next release.
+	Name            string
+	RestartCount    int
+	Driver          string
+	Platform        string
+	MountLabel      string
+	ProcessLabel    string
+	AppArmorProfile string
+	ExecIDs         []string
+	HostConfig      *HostConfig
+	GraphDriver     storage.DriverData
+	SizeRw          *int64 `json:",omitempty"`
+	SizeRootFs      *int64 `json:",omitempty"`
+}
+
+// InspectResponse is the response for the GET "/containers/{name:.*}/json"
+// endpoint.
+type InspectResponse struct {
+	*InspectBase
+	Mounts          []MountPoint
+	Config          *Config
+	NetworkSettings *NetworkSettings
 }

@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
@@ -1807,7 +1806,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 
 	type testCase struct {
 		spec     mount.Mount
-		expected types.MountPoint
+		expected container.MountPoint
 	}
 
 	var selinuxSharedLabel string
@@ -1820,23 +1819,23 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 		// Validation of the actual `Mount` struct is done in another test is not needed here
 		{
 			spec:     mount.Mount{Type: "volume", Target: destPath},
-			expected: types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
+			expected: container.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 		},
 		{
 			spec:     mount.Mount{Type: "volume", Target: destPath + slash},
-			expected: types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
+			expected: container.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 		},
 		{
 			spec:     mount.Mount{Type: "volume", Target: destPath, Source: "test1"},
-			expected: types.MountPoint{Type: "volume", Name: "test1", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
+			expected: container.MountPoint{Type: "volume", Name: "test1", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 		},
 		{
 			spec:     mount.Mount{Type: "volume", Target: destPath, ReadOnly: true, Source: "test2"},
-			expected: types.MountPoint{Type: "volume", Name: "test2", RW: false, Destination: destPath, Mode: selinuxSharedLabel},
+			expected: container.MountPoint{Type: "volume", Name: "test2", RW: false, Destination: destPath, Mode: selinuxSharedLabel},
 		},
 		{
 			spec:     mount.Mount{Type: "volume", Target: destPath, Source: "test3", VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{Name: volume.DefaultDriverName}}},
-			expected: types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", Name: "test3", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
+			expected: container.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", Name: "test3", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 		},
 	}
 
@@ -1852,7 +1851,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 					Source: tmpDir1,
 					Target: destPath,
 				},
-				expected: types.MountPoint{
+				expected: container.MountPoint{
 					Type:        "bind",
 					RW:          true,
 					Destination: destPath,
@@ -1861,7 +1860,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			},
 			{
 				spec:     mount.Mount{Type: "bind", Source: tmpDir1, Target: destPath, ReadOnly: true},
-				expected: types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir1},
+				expected: container.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir1},
 			},
 		}...)
 
@@ -1875,15 +1874,15 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 				cases = append(cases, []testCase{
 					{
 						spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath},
-						expected: types.MountPoint{Type: "bind", RW: true, Destination: destPath, Source: tmpDir3},
+						expected: container.MountPoint{Type: "bind", RW: true, Destination: destPath, Source: tmpDir3},
 					},
 					{
 						spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true},
-						expected: types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3},
+						expected: container.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3},
 					},
 					{
 						spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true, BindOptions: &mount.BindOptions{Propagation: "shared"}},
-						expected: types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3, Propagation: "shared"},
+						expected: container.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3, Propagation: "shared"},
 					},
 				}...)
 			}
@@ -1894,19 +1893,19 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 		cases = append(cases, []testCase{
 			{
 				spec:     mount.Mount{Type: "volume", Target: destPath, VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
-				expected: types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
+				expected: container.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 			},
 			{
 				spec:     mount.Mount{Type: "volume", Target: destPath + slash, VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
-				expected: types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
+				expected: container.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 			},
 			{
 				spec:     mount.Mount{Type: "volume", Target: destPath, Source: "test4", VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
-				expected: types.MountPoint{Type: "volume", Name: "test4", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
+				expected: container.MountPoint{Type: "volume", Name: "test4", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 			},
 			{
 				spec:     mount.Mount{Type: "volume", Target: destPath, Source: "test5", ReadOnly: true, VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
-				expected: types.MountPoint{Type: "volume", Name: "test5", RW: false, Destination: destPath, Mode: selinuxSharedLabel},
+				expected: container.MountPoint{Type: "volume", Name: "test5", RW: false, Destination: destPath, Mode: selinuxSharedLabel},
 			},
 		}...)
 	}

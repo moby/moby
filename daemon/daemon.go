@@ -32,7 +32,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	dist "github.com/docker/distribution"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -136,7 +135,7 @@ type Daemon struct {
 	seccompProfile     []byte
 	seccompProfilePath string
 
-	usageContainers singleflight.Group[struct{}, []*types.Container]
+	usageContainers singleflight.Group[struct{}, []*containertypes.Summary]
 	usageImages     singleflight.Group[struct{}, []*imagetypes.Summary]
 	usageVolumes    singleflight.Group[struct{}, []*volume.Volume]
 	usageLayer      singleflight.Group[struct{}, int64]

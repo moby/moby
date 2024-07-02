@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -99,14 +98,14 @@ func (r byCreatedDescending) Less(i, j int) bool {
 }
 
 // Containers returns the list of containers to show given the user's filtering.
-func (daemon *Daemon) Containers(ctx context.Context, config *containertypes.ListOptions) ([]*types.Container, error) {
+func (daemon *Daemon) Containers(ctx context.Context, config *containertypes.ListOptions) ([]*containertypes.Summary, error) {
 	if err := config.Filters.Validate(acceptedPsFilterTags); err != nil {
 		return nil, err
 	}
 
 	var (
 		view       = daemon.containersReplica.Snapshot()
-		containers = []*types.Container{}
+		containers = []*containertypes.Summary{}
 	)
 
 	filter, err := daemon.foldFilter(ctx, view, config)
@@ -463,7 +462,7 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 	}
 
 	if filter.filters.Contains("volume") {
-		volumesByName := make(map[string]types.MountPoint)
+		volumesByName := make(map[string]containertypes.MountPoint)
 		for _, m := range container.Mounts {
 			if m.Name != "" {
 				volumesByName[m.Name] = m
@@ -471,7 +470,7 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 				volumesByName[m.Source] = m
 			}
 		}
-		volumesByDestination := make(map[string]types.MountPoint)
+		volumesByDestination := make(map[string]containertypes.MountPoint)
 		for _, m := range container.Mounts {
 			if m.Destination != "" {
 				volumesByDestination[m.Destination] = m
@@ -576,8 +575,8 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 // $ docker ps -a
 // CONTAINER ID   IMAGE          COMMAND   CREATED       STATUS                  PORTS     NAMES
 // b0318bca5aef   3fbc63216742   "sh"      3 years ago   Exited (0) 3 years ago            ecstatic_beaver
-func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot) (*types.Container, error) {
-	c := s.Container
+func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot) (*containertypes.Summary, error) {
+	c := s.Summary
 
 	// s.Image is the image reference passed by the user to create an image
 	//         can be a:

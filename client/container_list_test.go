@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
@@ -60,7 +59,7 @@ func TestContainerList(t *testing.T) {
 				return nil, fmt.Errorf("expected filters incoherent '%v' with actual filters %v", expectedFilters, fltrs)
 			}
 
-			b, err := json.Marshal([]types.Container{
+			b, err := json.Marshal([]container.Summary{
 				{
 					ID: "container_id1",
 				},

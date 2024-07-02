@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
@@ -38,7 +38,7 @@ var (
 // Snapshot is a read only view for Containers. It holds all information necessary to serve container queries in a
 // versioned ACID in-memory store.
 type Snapshot struct {
-	types.Container
+	container.Summary
 
 	// additional info queries need to filter on
 	// preserve nanosec resolution for queries
@@ -299,33 +299,33 @@ func (v *View) GetAllNames() map[string][]string {
 
 // transform maps a (deep) copied Container object to what queries need.
 // A lock on the Container is not held because these are immutable deep copies.
-func (v *View) transform(container *Container) *Snapshot {
-	health := types.NoHealthcheck
-	if container.Health != nil {
-		health = container.Health.Status()
+func (v *View) transform(ctr *Container) *Snapshot {
+	health := container.NoHealthcheck
+	if ctr.Health != nil {
+		health = ctr.Health.Status()
 	}
 	snapshot := &Snapshot{
-		Container: types.Container{
-			ID:      container.ID,
-			Names:   v.getNames(container.ID),
-			ImageID: container.ImageID.String(),
-			Ports:   []types.Port{},
-			Mounts:  container.GetMountPoints(),
-			State:   container.State.StateString(),
-			Status:  container.State.String(),
-			Created: container.Created.Unix(),
+		Summary: container.Summary{
+			ID:      ctr.ID,
+			Names:   v.getNames(ctr.ID),
+			ImageID: ctr.ImageID.String(),
+			Ports:   []container.Port{},
+			Mounts:  ctr.GetMountPoints(),
+			State:   ctr.State.StateString(),
+			Status:  ctr.State.String(),
+			Created: ctr.Created.Unix(),
 		},
-		CreatedAt:    container.Created,
-		StartedAt:    container.StartedAt,
-		Name:         container.Name,
-		Pid:          container.Pid,
-		Managed:      container.Managed,
+		CreatedAt:    ctr.Created,
+		StartedAt:    ctr.StartedAt,
+		Name:         ctr.Name,
+		Pid:          ctr.Pid,
+		Managed:      ctr.Managed,
 		ExposedPorts: make(nat.PortSet),
 		PortBindings: make(nat.PortSet),
 		Health:       health,
-		Running:      container.Running,
-		Paused:       container.Paused,
-		ExitCode:     container.ExitCode(),
+		Running:      ctr.Running,
+		Paused:       ctr.Paused,
+		ExitCode:     ctr.ExitCode(),
 	}
 
 	if snapshot.Names == nil {
@@ -333,26 +333,26 @@ func (v *View) transform(container *Container) *Snapshot {
 		snapshot.Names = []string{}
 	}
 
-	if container.HostConfig != nil {
-		snapshot.Container.HostConfig.NetworkMode = string(container.HostConfig.NetworkMode)
-		snapshot.Container.HostConfig.Annotations = maps.Clone(container.HostConfig.Annotations)
-		snapshot.HostConfig.Isolation = string(container.HostConfig.Isolation)
-		for binding := range container.HostConfig.PortBindings {
+	if ctr.HostConfig != nil {
+		snapshot.Summary.HostConfig.NetworkMode = string(ctr.HostConfig.NetworkMode)
+		snapshot.Summary.HostConfig.Annotations = maps.Clone(ctr.HostConfig.Annotations)
+		snapshot.HostConfig.Isolation = string(ctr.HostConfig.Isolation)
+		for binding := range ctr.HostConfig.PortBindings {
 			snapshot.PortBindings[binding] = struct{}{}
 		}
 	}
 
-	if container.Config != nil {
-		snapshot.Image = container.Config.Image
-		snapshot.Labels = container.Config.Labels
-		for exposed := range container.Config.ExposedPorts {
+	if ctr.Config != nil {
+		snapshot.Image = ctr.Config.Image
+		snapshot.Labels = ctr.Config.Labels
+		for exposed := range ctr.Config.ExposedPorts {
 			snapshot.ExposedPorts[exposed] = struct{}{}
 		}
 	}
 
-	if len(container.Args) > 0 {
+	if len(ctr.Args) > 0 {
 		var args []string
-		for _, arg := range container.Args {
+		for _, arg := range ctr.Args {
 			if strings.Contains(arg, " ") {
 				args = append(args, fmt.Sprintf("'%s'", arg))
 			} else {
@@ -360,15 +360,15 @@ func (v *View) transform(container *Container) *Snapshot {
 			}
 		}
 		argsAsString := strings.Join(args, " ")
-		snapshot.Command = fmt.Sprintf("%s %s", container.Path, argsAsString)
+		snapshot.Command = fmt.Sprintf("%s %s", ctr.Path, argsAsString)
 	} else {
-		snapshot.Command = container.Path
+		snapshot.Command = ctr.Path
 	}
 
-	snapshot.Ports = []types.Port{}
+	snapshot.Ports = []container.Port{}
 	networks := make(map[string]*network.EndpointSettings)
-	if container.NetworkSettings != nil {
-		for name, netw := range container.NetworkSettings.Networks {
+	if ctr.NetworkSettings != nil {
+		for name, netw := range ctr.NetworkSettings.Networks {
 			if netw == nil || netw.EndpointSettings == nil {
 				continue
 			}
@@ -390,14 +390,14 @@ func (v *View) transform(container *Container) *Snapshot {
 				}
 			}
 		}
-		for port, bindings := range container.NetworkSettings.Ports {
+		for port, bindings := range ctr.NetworkSettings.Ports {
 			p, err := nat.ParsePort(port.Port())
 			if err != nil {
 				log.G(context.TODO()).WithError(err).Warn("invalid port map")
 				continue
 			}
 			if len(bindings) == 0 {
-				snapshot.Ports = append(snapshot.Ports, types.Port{
+				snapshot.Ports = append(snapshot.Ports, container.Port{
 					PrivatePort: uint16(p),
 					Type:        port.Proto(),
 				})
@@ -409,7 +409,7 @@ func (v *View) transform(container *Container) *Snapshot {
 					log.G(context.TODO()).WithError(err).Warn("invalid host port map")
 					continue
 				}
-				snapshot.Ports = append(snapshot.Ports, types.Port{
+				snapshot.Ports = append(snapshot.Ports, container.Port{
 					PrivatePort: uint16(p),
 					PublicPort:  uint16(h),
 					Type:        port.Proto(),
@@ -418,7 +418,7 @@ func (v *View) transform(container *Container) *Snapshot {
 			}
 		}
 	}
-	snapshot.NetworkSettings = &types.SummaryNetworkSettings{Networks: networks}
+	snapshot.NetworkSettings = &container.NetworkSettingsSummary{Networks: networks}
 
 	return snapshot
 }

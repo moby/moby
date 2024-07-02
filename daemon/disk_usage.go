@@ -16,8 +16,8 @@ import (
 
 // containerDiskUsage obtains information about container data disk usage
 // and makes sure that only one calculation is performed at the same time.
-func (daemon *Daemon) containerDiskUsage(ctx context.Context) ([]*types.Container, error) {
-	res, _, err := daemon.usageContainers.Do(ctx, struct{}{}, func(ctx context.Context) ([]*types.Container, error) {
+func (daemon *Daemon) containerDiskUsage(ctx context.Context) ([]*container.Summary, error) {
+	res, _, err := daemon.usageContainers.Do(ctx, struct{}{}, func(ctx context.Context) ([]*container.Summary, error) {
 		// Retrieve container list
 		containers, err := daemon.Containers(ctx, &container.ListOptions{
 			Size: true,
@@ -81,7 +81,7 @@ func (daemon *Daemon) layerDiskUsage(ctx context.Context) (int64, error) {
 func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts system.DiskUsageOptions) (*types.DiskUsage, error) {
 	eg, ctx := errgroup.WithContext(ctx)
 
-	var containers []*types.Container
+	var containers []*container.Summary
 	if opts.Containers {
 		eg.Go(func() error {
 			var err error
