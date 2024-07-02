@@ -1,4 +1,4 @@
-package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
+package mountref
 
 import "sync"
 
@@ -7,36 +7,40 @@ type minfo struct {
 	count int
 }
 
-// RefCounter is a generic counter for use by graphdriver Get/Put calls
-type RefCounter struct {
-	counts  map[string]*minfo
-	mu      sync.Mutex
-	checker Checker
+// Counter is a generic counter for use by graphdriver Get/Put calls
+type Counter struct {
+	counts    map[string]*minfo
+	mu        sync.Mutex
+	isMounted Checker
 }
 
-// NewRefCounter returns a new RefCounter
-func NewRefCounter(c Checker) *RefCounter {
-	return &RefCounter{
-		checker: c,
-		counts:  make(map[string]*minfo),
+// Checker checks whether the provided path is mounted.
+type Checker func(path string) bool
+
+// NewCounter returns a new Counter. It accepts a [Checker] to
+// determine whether a path is mounted.
+func NewCounter(c Checker) *Counter {
+	return &Counter{
+		isMounted: c,
+		counts:    make(map[string]*minfo),
 	}
 }
 
 // Increment increases the ref count for the given id and returns the current count
-func (c *RefCounter) Increment(path string) int {
+func (c *Counter) Increment(path string) int {
 	return c.incdec(path, func(minfo *minfo) {
 		minfo.count++
 	})
 }
 
 // Decrement decreases the ref count for the given id and returns the current count
-func (c *RefCounter) Decrement(path string) int {
+func (c *Counter) Decrement(path string) int {
 	return c.incdec(path, func(minfo *minfo) {
 		minfo.count--
 	})
 }
 
-func (c *RefCounter) incdec(path string, infoOp func(minfo *minfo)) int {
+func (c *Counter) incdec(path string, infoOp func(minfo *minfo)) int {
 	c.mu.Lock()
 	m := c.counts[path]
 	if m == nil {
@@ -48,7 +52,7 @@ func (c *RefCounter) incdec(path string, infoOp func(minfo *minfo)) int {
 	// count if it is mounted as it is in use.
 	if !m.check {
 		m.check = true
-		if c.checker.IsMounted(path) {
+		if c.isMounted(path) {
 			m.count++
 		}
 	}
