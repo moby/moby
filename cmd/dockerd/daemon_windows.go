@@ -89,9 +89,19 @@ func newCgroupParent(config *config.Config) string {
 	return ""
 }
 
-func (cli *DaemonCli) initContainerd(_ context.Context) (func(time.Duration) error, error) {
-	system.InitContainerdRuntime(cli.ContainerdAddr)
-	return nil, nil
+func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
+	defer func() { system.EnableContainerdRuntime(cli.ContainerdAddr) }()
+
+	if cli.ContainerdAddr != "" {
+		// use system containerd at the given address.
+		return nil, nil
+	}
+
+	if cli.DefaultRuntime != config.WindowsV2RuntimeName {
+		return nil, nil
+	}
+
+	return cli.initializeContainerd(ctx)
 }
 
 func validateCPURealtimeOptions(_ *config.Config) error {
