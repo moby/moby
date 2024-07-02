@@ -239,7 +239,8 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 			defer m.Shutdown()
 
 			p = s.GetAll()[p.GetID()] // refresh `p` with what the manager knows
-			if p.Client() == nil {
+
+			if p.Client() == nil { //nolint:staticcheck // FIXME(thaJeztah): p.Client is deprecated: use p.Addr() and manually create the client
 				t.Fatal("plugin client should not be nil")
 			}
 		})
