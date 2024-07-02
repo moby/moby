@@ -304,18 +304,18 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			expectedErr: "invalid max download attempts: -10",
 		},
 		// TODO(thaJeztah) temporarily excluding this test as it assumes defaults are set before validating and applying updated configs
-		/*
-			{
-				name:  "zero max-download-attempts",
-				field: "MaxDownloadAttempts",
-				config: &Config{
-					CommonConfig: CommonConfig{
-						MaxDownloadAttempts: 0,
-					},
+
+		{
+			name:  "zero max-download-attempts",
+			field: "MaxDownloadAttempts",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					MaxDownloadAttempts: 0,
 				},
-				expectedErr: "invalid max download attempts: 0",
 			},
-		*/
+			expectedErr: "invalid max download attempts: 0",
+		},
+
 		{
 			name: "generic resource without =",
 			config: &Config{

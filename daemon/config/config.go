@@ -514,6 +514,11 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		return nil, err
 	}
 
+	if (flags == nil || !flags.Changed("max-download-attempts")) && config.MaxDownloadAttempts <= 0 {
+
+		config.MaxDownloadAttempts = DefaultDownloadAttempts
+	}
+
 	return &config, nil
 }
 
@@ -669,7 +674,7 @@ func Validate(config *Config) error {
 	if config.MaxConcurrentUploads < 0 {
 		return errors.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
 	}
-	if config.MaxDownloadAttempts < 0 {
+	if config.MaxDownloadAttempts <= 0 {
 		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
 
