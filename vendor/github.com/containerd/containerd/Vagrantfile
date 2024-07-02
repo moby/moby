@@ -17,7 +17,7 @@
 
 # Vagrantfile for Fedora and EL
 Vagrant.configure("2") do |config|
-  config.vm.box = ENV["BOX"] ? ENV["BOX"].split("@")[0] : "fedora/37-cloud-base"
+  config.vm.box = ENV["BOX"] ? ENV["BOX"].split("@")[0] : "fedora/39-cloud-base"
   # BOX_VERSION is deprecated. Use "BOX=<BOX>@<BOX_VERSION>".
   config.vm.box_version = ENV["BOX_VERSION"] || (ENV["BOX"].split("@")[1] if ENV["BOX"])
 
@@ -29,11 +29,13 @@ Vagrant.configure("2") do |config|
     v.cpus = cpus
     # Needs env var VAGRANT_EXPERIMENTAL="disks"
     o.vm.disk :disk, size: "#{disk_size}GB", primary: true
+    v.customize ["modifyvm", :id, "--firmware", "efi"]
   end
   config.vm.provider :libvirt do |v|
     v.memory = memory
     v.cpus = cpus
     v.machine_virtual_size = disk_size
+    v.loader = "/usr/share/OVMF/OVMF_CODE.fd"
   end
 
   config.vm.synced_folder ".", "/vagrant", type: "rsync"
@@ -323,31 +325,6 @@ EOF
         trap cleanup EXIT
         ctr version
         critest --parallel=$[$(nproc)+2] --ginkgo.skip='HostIpc is true' --report-dir="${REPORT_DIR}"
-    SHELL
-  end
-
-  # Rootless Podman is used for testing CRI-in-UserNS
-  # (We could use rootless nerdctl, but we are using Podman here because it is available in dnf)
-  config.vm.provision "install-rootless-podman", type: "shell", run: "never" do |sh|
-    sh.upload_path = "/tmp/vagrant-install-rootless-podman"
-    sh.inline = <<~SHELL
-        #!/usr/bin/env bash
-        set -eux -o pipefail
-        # Delegate cgroup v2 controllers to rootless
-        mkdir -p /etc/systemd/system/user@.service.d
-        cat > /etc/systemd/system/user@.service.d/delegate.conf << EOF
-[Service]
-Delegate=yes
-EOF
-        systemctl daemon-reload
-        # Install Podman
-        dnf install -y podman
-        # Configure Podman to resolve `golang` to `docker.io/library/golang`
-        mkdir -p /etc/containers
-        cat > /etc/containers/registries.conf <<EOF
-[registries.search]
-registries = ['docker.io']
-EOF
     SHELL
   end
 

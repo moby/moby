@@ -19,12 +19,12 @@ package platforms
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
 	"strings"
 
-	"github.com/containerd/errdefs"
 	"golang.org/x/sys/unix"
 )
 
@@ -70,7 +70,7 @@ func getCPUInfo(pattern string) (info string, err error) {
 		return "", err
 	}
 
-	return "", fmt.Errorf("getCPUInfo for pattern %s: %w", pattern, errdefs.ErrNotFound)
+	return "", fmt.Errorf("getCPUInfo for pattern %s: %w", pattern, errNotFound)
 }
 
 // getCPUVariantFromArch get CPU variant from arch through a system call
@@ -83,7 +83,7 @@ func getCPUVariantFromArch(arch string) (string, error) {
 	if arch == "aarch64" {
 		variant = "8"
 	} else if arch[0:4] == "armv" && len(arch) >= 5 {
-		//Valid arch format is in form of armvXx
+		// Valid arch format is in form of armvXx
 		switch arch[3:5] {
 		case "v8":
 			variant = "8"
@@ -101,7 +101,7 @@ func getCPUVariantFromArch(arch string) (string, error) {
 			variant = "unknown"
 		}
 	} else {
-		return "", fmt.Errorf("getCPUVariantFromArch invalid arch: %s, %w", arch, errdefs.ErrInvalidArgument)
+		return "", fmt.Errorf("getCPUVariantFromArch invalid arch: %s, %w", arch, errInvalidArgument)
 	}
 	return variant, nil
 }
@@ -112,11 +112,10 @@ func getCPUVariantFromArch(arch string) (string, error) {
 // This is to cover running ARM in emulated environment on x86 host as this field in /proc/cpuinfo
 // was not present.
 func getCPUVariant() (string, error) {
-
 	variant, err := getCPUInfo("Cpu architecture")
 	if err != nil {
-		if errdefs.IsNotFound(err) {
-			//Let's try getting CPU variant from machine architecture
+		if errors.Is(err, errNotFound) {
+			// Let's try getting CPU variant from machine architecture
 			arch, err := getMachineArch()
 			if err != nil {
 				return "", fmt.Errorf("failure getting machine architecture: %v", err)
