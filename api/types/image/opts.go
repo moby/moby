@@ -38,7 +38,7 @@ type PullOptions struct {
 	// authentication header value in base64 encoded format, or an error if the
 	// privilege request fails.
 	//
-	// Also see [github.com/docker/docker/api/types.RequestPrivilegeFunc].
+	// For details, refer to [github.com/docker/docker/api/types/registry.RequestAuthConfig].
 	PrivilegeFunc func(context.Context) (string, error)
 	Platform      string
 }
@@ -53,7 +53,7 @@ type PushOptions struct {
 	// authentication header value in base64 encoded format, or an error if the
 	// privilege request fails.
 	//
-	// Also see [github.com/docker/docker/api/types.RequestPrivilegeFunc].
+	// For details, refer to [github.com/docker/docker/api/types/registry.RequestAuthConfig].
 	PrivilegeFunc func(context.Context) (string, error)
 
 	// Platform is an optional field that selects a specific platform to push
