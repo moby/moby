@@ -2966,6 +2966,7 @@ definitions:
 
   PluginMount:
     type: "object"
+    x-go-name: "Mount"
     x-nullable: false
     required: [Name, Description, Settable, Source, Destination, Type, Options]
     properties:
@@ -3002,6 +3003,7 @@ definitions:
 
   PluginDevice:
     type: "object"
+    x-go-name: "Device"
     required: [Name, Description, Settable, Path]
     x-nullable: false
     properties:
@@ -3021,6 +3023,7 @@ definitions:
 
   PluginEnv:
     type: "object"
+    x-go-name: "Env"
     x-nullable: false
     required: [Name, Description, Settable, Value]
     properties:
@@ -3039,6 +3042,7 @@ definitions:
 
   PluginInterfaceType:
     type: "object"
+    x-go-name: "InterfaceType"
     x-nullable: false
     required: [Prefix, Capability, Version]
     properties:
@@ -3057,7 +3061,7 @@ definitions:
       Describes a permission the user has to accept upon installing
       the plugin.
     type: "object"
-    x-go-name: "PluginPrivilege"
+    x-go-name: "Privilege"
     properties:
       Name:
         type: "string"
@@ -3074,6 +3078,7 @@ definitions:
   Plugin:
     description: "A plugin for the Engine API"
     type: "object"
+    x-go-name: "Plugin"
     required: [Settings, Enabled, Config, Name]
     properties:
       Id:
@@ -3091,8 +3096,9 @@ definitions:
         x-nullable: false
         example: true
       Settings:
-        description: "Settings that can be modified by users."
+        description: "user-configurable settings for the plugin."
         type: "object"
+        x-go-name: "Settings"
         x-nullable: false
         required: [Args, Devices, Env, Mounts]
         properties:
@@ -3117,11 +3123,13 @@ definitions:
       PluginReference:
         description: "plugin remote reference used to push/pull the plugin"
         type: "string"
+        x-go-name: "PluginReference"
         x-nullable: false
         example: "localhost:5000/tiborvass/sample-volume-plugin:latest"
       Config:
         description: "The config of a plugin."
         type: "object"
+        x-go-name: "Config"
         x-nullable: false
         required:
           - Description
@@ -3155,6 +3163,7 @@ definitions:
             description: "The interface between Docker and the plugin"
             x-nullable: false
             type: "object"
+            x-go-name: "Interface"
             required: [Types, Socket]
             properties:
               Types:
@@ -3187,6 +3196,7 @@ definitions:
             example: "/bin/"
           User:
             type: "object"
+            x-go-name: "User"
             x-nullable: false
             properties:
               UID:
@@ -3199,6 +3209,7 @@ definitions:
                 example: 1000
           Network:
             type: "object"
+            x-go-name: "NetworkConfig"
             x-nullable: false
             required: [Type]
             properties:
@@ -3208,6 +3219,7 @@ definitions:
                 example: "host"
           Linux:
             type: "object"
+            x-go-name: "LinuxConfig"
             x-nullable: false
             required: [Capabilities, AllowAllDevices, Devices]
             properties:
@@ -3253,6 +3265,7 @@ definitions:
                 Value: "0"
           Args:
             type: "object"
+            x-go-name: "Args"
             x-nullable: false
             required: [Name, Description, Settable, Value]
             properties:
@@ -3274,6 +3287,7 @@ definitions:
                   type: "string"
           rootfs:
             type: "object"
+            x-go-name: "RootFS"
             properties:
               type:
                 type: "string"

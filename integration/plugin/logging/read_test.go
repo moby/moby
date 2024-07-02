@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -32,7 +32,7 @@ func TestReadPluginNoRead(t *testing.T) {
 	assert.Assert(t, err)
 	createPlugin(ctx, t, client, "test", "discard", asLogDriver)
 
-	err = client.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
+	err = client.PluginEnable(ctx, "test", plugin.EnableOptions{Timeout: 30})
 	assert.Check(t, err)
 	d.Stop(t)
 

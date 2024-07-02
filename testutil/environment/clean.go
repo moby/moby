@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
@@ -181,7 +181,7 @@ func deleteAllPlugins(ctx context.Context, t testing.TB, c client.PluginAPIClien
 		if _, ok := protectedPlugins[p.Name]; ok {
 			continue
 		}
-		err := c.PluginRemove(ctx, p.Name, types.PluginRemoveOptions{Force: true})
+		err := c.PluginRemove(ctx, p.Name, plugin.RemoveOptions{Force: true})
 		assert.Check(t, err, "failed to remove plugin %s", p.ID)
 	}
 }

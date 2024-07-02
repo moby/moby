@@ -25,7 +25,7 @@ import (
 
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/creack/pty"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -2718,7 +2718,7 @@ func (s *DockerDaemonSuite) TestFailedPluginRemove(c *testing.T) {
 	defer cancel()
 
 	name := "test-plugin-rm-fail"
-	out, err := apiClient.PluginInstall(ctx, name, types.PluginInstallOptions{
+	out, err := apiClient.PluginInstall(ctx, name, plugin.InstallOptions{
 		Disabled:             true,
 		AcceptAllPermissions: true,
 		RemoteRef:            "cpuguy83/docker-logdriver-test",
