@@ -85,7 +85,7 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 			return errors.WithStack(err)
 		}
 
-		p.SetPClient(client)
+		p.SetPClient(client) //nolint:staticcheck // FIXME(thaJeztah): p.SetPClient is deprecated: Hardcoded plugin client is deprecated
 	}
 
 	// Initial sleep before net Dial to allow plugin to listen on socket.

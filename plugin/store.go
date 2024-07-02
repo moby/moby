@@ -244,7 +244,7 @@ func (ps *Store) RegisterRuntimeOpt(cap string, opts ...SpecOpt) {
 func (ps *Store) CallHandler(p *v2.Plugin) {
 	for _, typ := range p.GetTypes() {
 		for _, handler := range ps.handlers[typ.String()] {
-			handler(p.Name(), p.Client())
+			handler(p.Name(), p.Client()) //nolint:staticcheck // FIXME(thaJeztah): p.Client is deprecated: use p.Addr() and manually create the client
 		}
 	}
 }
