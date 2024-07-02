@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/plugin"
 )
 
 // PluginInspectWithRaw inspects an existing plugin
-func (cli *Client) PluginInspectWithRaw(ctx context.Context, name string) (*types.Plugin, []byte, error) {
+func (cli *Client) PluginInspectWithRaw(ctx context.Context, name string) (*plugin.Plugin, []byte, error) {
 	name, err := trimID("plugin", name)
 	if err != nil {
 		return nil, nil, err
@@ -25,7 +25,7 @@ func (cli *Client) PluginInspectWithRaw(ctx context.Context, name string) (*type
 	if err != nil {
 		return nil, nil, err
 	}
-	var p types.Plugin
+	var p plugin.Plugin
 	rdr := bytes.NewReader(body)
 	err = json.NewDecoder(rdr).Decode(&p)
 	return &p, body, err

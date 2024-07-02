@@ -3,42 +3,42 @@ package plugin
 import (
 	"testing"
 
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/plugin"
 )
 
 func TestValidatePrivileges(t *testing.T) {
 	testData := map[string]struct {
-		requiredPrivileges types.PluginPrivileges
-		privileges         types.PluginPrivileges
+		requiredPrivileges plugin.Privileges
+		privileges         plugin.Privileges
 		result             bool
 	}{
 		"diff-len": {
-			requiredPrivileges: []types.PluginPrivilege{
+			requiredPrivileges: []plugin.Privilege{
 				{Name: "Privilege1", Description: "Description", Value: []string{"abc", "def", "ghi"}},
 			},
-			privileges: []types.PluginPrivilege{
+			privileges: []plugin.Privilege{
 				{Name: "Privilege1", Description: "Description", Value: []string{"abc", "def", "ghi"}},
 				{Name: "Privilege2", Description: "Description", Value: []string{"123", "456", "789"}},
 			},
 			result: false,
 		},
 		"diff-value": {
-			requiredPrivileges: []types.PluginPrivilege{
+			requiredPrivileges: []plugin.Privilege{
 				{Name: "Privilege1", Description: "Description", Value: []string{"abc", "def", "GHI"}},
 				{Name: "Privilege2", Description: "Description", Value: []string{"123", "456", "***"}},
 			},
-			privileges: []types.PluginPrivilege{
+			privileges: []plugin.Privilege{
 				{Name: "Privilege1", Description: "Description", Value: []string{"abc", "def", "ghi"}},
 				{Name: "Privilege2", Description: "Description", Value: []string{"123", "456", "789"}},
 			},
 			result: false,
 		},
 		"diff-order-but-same-value": {
-			requiredPrivileges: []types.PluginPrivilege{
+			requiredPrivileges: []plugin.Privilege{
 				{Name: "Privilege1", Description: "Description", Value: []string{"abc", "def", "GHI"}},
 				{Name: "Privilege2", Description: "Description", Value: []string{"123", "456", "789"}},
 			},
-			privileges: []types.PluginPrivilege{
+			privileges: []plugin.Privilege{
 				{Name: "Privilege2", Description: "Description", Value: []string{"123", "456", "789"}},
 				{Name: "Privilege1", Description: "Description", Value: []string{"GHI", "abc", "def"}},
 			},
