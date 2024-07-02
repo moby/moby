@@ -25,7 +25,7 @@ import (
 //
 // The cleanup function should be called as soon as the container has been
 // started.
-func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) ([]container.Mount, func(context.Context) error, error) {
+func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container, mountAsPrimary bool) ([]container.Mount, func(context.Context) error, error) {
 	var mounts []container.Mount
 	// TODO: tmpfs mounts should be part of Mountpoints
 	tmpfsMounts := make(map[string]bool)
@@ -62,7 +62,7 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 			return nil
 		}
 
-		path, clean, err := m.Setup(ctx, c.MountLabel, daemon.idMapping.RootPair(), checkfunc)
+		path, mountID, clean, err := m.Setup(ctx, c.MountLabel, daemon.idMapping.RootPair(), checkfunc, mountAsPrimary)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -70,6 +70,7 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 
 		if !c.TrySetNetworkMount(m.Destination, path) {
 			mnt := container.Mount{
+				ID:          mountID,
 				Source:      path,
 				Destination: m.Destination,
 				Writable:    m.RW,

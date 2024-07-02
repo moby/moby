@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"syscall"
 
 	"github.com/containerd/log"
@@ -59,9 +58,21 @@ type MountPoint struct {
 	// Use a pointer here so we can tell if the user set this value explicitly
 	// This allows us to error out when the user explicitly enabled copy but we can't copy due to the volume being populated
 	CopyData bool `json:"-"`
-	// ID is the opaque ID used to pass to the volume driver.
-	// This should be set by calls to `Mount` and unset by calls to `Unmount`
-	ID string `json:",omitempty"`
+
+	// MountedIDs contains opaque IDs corresponding to mounts of this mountpoint (used to pass to a volume driver).
+	// There may be more than one mount of a mountpoint during a `docker cp`.
+	//
+	// If `mnt.MountedIDs[someId]` is true, `mnt` is currently mounted under the id `someId`.
+	MountedIDs map[string]bool `json:"-"`
+
+	// PrimaryID is the ID of the primary mount of the mountpoint (a primary mount is the one created for the container
+	// to operate; a secondary mount is a mount created for other purposes, such as `docker cp`).
+	//
+	// If `PrimaryID` is an empty string, there is no primary mount for the mountpoint at the moment; if `PrimaryID` is
+	// set to a non-empty value, the primary mount of this mountpoint has that ID
+	// (thus, `mnt.MountedIDs[mnt.PrimaryID]` shall be true).
+	// TODO Q: I don't think this field should be exported. Why is it?
+	PrimaryID string `json:"ID,omitempty"`
 
 	// Spec is a copy of the API request that created this mount.
 	Spec mounttypes.Mount
@@ -72,11 +83,6 @@ type MountPoint struct {
 	// where a bind dir existed during validation was removed before reaching the setup code.
 	SkipMountpointCreation bool
 
-	// Track usage of this mountpoint
-	// Specifically needed for containers which are running and calls to `docker cp`
-	// because both these actions require mounting the volumes.
-	active int
-
 	// SafePaths created by Setup that should be cleaned up before unmounting
 	// the volume.
 	safePaths []*safepath.SafePath
@@ -84,19 +90,15 @@ type MountPoint struct {
 
 // Cleanup frees resources used by the mountpoint and cleans up all the paths
 // returned by Setup that hasn't been cleaned up by the caller.
-func (m *MountPoint) Cleanup(ctx context.Context) error {
-	if m.Volume == nil || m.ID == "" {
+func (m *MountPoint) Cleanup(ctx context.Context, id string) error {
+	mounted := m.MountedIDs[id]
+	if !mounted {
+		// TODO Q: attempting to cleanup a mountpoint that is not mounted should be an error, shouldn't it?
+		//         Why `return nil`?
 		return nil
 	}
 
-	logger := log.G(ctx).WithFields(log.Fields{"active": m.active, "id": m.ID})
-
-	// TODO: Remove once the real bug is fixed: https://github.com/moby/moby/issues/46508
-	if m.active == 0 {
-		logger.Error("An attempt to decrement a zero mount count")
-		logger.Error(string(debug.Stack()))
-		return nil
-	}
+	logger := log.G(ctx).WithFields(log.Fields{"primaryID": m.PrimaryID, "mountedIDs": m.MountedIDs})
 
 	for _, p := range m.safePaths {
 		if !p.IsValid() {
@@ -113,15 +115,18 @@ func (m *MountPoint) Cleanup(ctx context.Context) error {
 		}).Warn("cleaning up SafePath that hasn't been cleaned up by the caller")
 	}
 
-	if err := m.Volume.Unmount(m.ID); err != nil {
-		return errors.Wrapf(err, "error unmounting volume %s", m.Volume.Name())
+	if m.Volume != nil {
+		if err := m.Volume.Unmount(id); err != nil {
+			return errors.Wrapf(err, "error unmounting volume %s", m.Volume.Name())
+		}
 	}
 
-	m.active--
-	logger.Debug("MountPoint.Cleanup Decrement active count")
-
-	if m.active == 0 {
-		m.ID = ""
+	m.MountedIDs[id] = false
+	if id == m.PrimaryID {
+		m.PrimaryID = ""
+		logger.Debugf("MountPoint.Cleanup: %s unmounted (primary mount)", id)
+	} else {
+		logger.Debugf("MountPoint.Cleanup: %s unmounted (non-primary mount)", id)
 	}
 	return nil
 }
@@ -138,9 +143,26 @@ func (m *MountPoint) Cleanup(ctx context.Context) error {
 // still points to the same target (to avoid TOCTOU attack).
 //
 // Cleanup function doesn't need to be called when error is returned.
-func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtools.Identity, checkFun func(m *MountPoint) error) (path string, cleanup func(context.Context) error, retErr error) {
+func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtools.Identity, checkFun func(m *MountPoint) error, asPrimary bool) (path string, mountID string, cleanup func(context.Context) error, retErr error) {
+	if m.MountedIDs == nil {
+		log.G(ctx).Debug("Initializing m.MountedIDs")
+		m.MountedIDs = make(map[string]bool)
+	}
+
+	// Generate the mount ID but only set it at the end of the Setup operation if it succeeds.
+	id := stringid.GenerateRandomID()
+	defer func() {
+		log.G(ctx).Debugf("Setting id=%s for a new mount. Source=%s", id, m.Source)
+		if retErr == nil {
+			m.MountedIDs[id] = true
+			if asPrimary {
+				m.PrimaryID = id
+			}
+		}
+	}()
+
 	if m.SkipMountpointCreation {
-		return m.Source, noCleanup, nil
+		return m.Source, id, noCleanup, nil
 	}
 
 	defer func() {
@@ -169,17 +191,16 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 		}
 	}()
 
+	if asPrimary && m.PrimaryID != "" {
+		return "", "", noCleanup, fmt.Errorf("mountpoint at %s is already mounted with PrimaryID=%s", m.Destination, m.PrimaryID)
+	}
+
 	if m.Volume != nil {
-		id := m.ID
-		if id == "" {
-			id = stringid.GenerateRandomID()
-		}
 		volumePath, err := m.Volume.Mount(id)
 		if err != nil {
-			return "", noCleanup, errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
+			return "", "", noCleanup, errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
 		}
 
-		m.ID = id
 		clean := noCleanup
 		if m.Spec.VolumeOptions != nil && m.Spec.VolumeOptions.Subpath != "" {
 			subpath := m.Spec.VolumeOptions.Subpath
@@ -189,7 +210,7 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 				if err := m.Volume.Unmount(id); err != nil {
 					log.G(ctx).WithError(err).Error("failed to unmount after safepath.Join failed")
 				}
-				return "", noCleanup, err
+				return "", "", noCleanup, err
 			}
 			m.safePaths = append(m.safePaths, safePath)
 			log.G(ctx).Debugf("mounting (%s|%s) via %s", volumePath, subpath, safePath.Path())
@@ -198,12 +219,11 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 			volumePath = safePath.Path()
 		}
 
-		m.active++
-		return volumePath, clean, nil
+		return volumePath, id, clean, nil
 	}
 
 	if len(m.Source) == 0 {
-		return "", noCleanup, fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
+		return "", "", noCleanup, fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
 	}
 
 	if m.Type == mounttypes.TypeBind {
@@ -212,7 +232,7 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 		// the process of shutting down.
 		if checkFun != nil {
 			if err := checkFun(m); err != nil {
-				return "", noCleanup, err
+				return "", "", noCleanup, err
 			}
 		}
 
@@ -221,12 +241,12 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 		if err := idtools.MkdirAllAndChownNew(m.Source, 0o755, rootIDs); err != nil {
 			if perr, ok := err.(*os.PathError); ok {
 				if perr.Err != syscall.ENOTDIR {
-					return "", noCleanup, errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
+					return "", "", noCleanup, errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
 				}
 			}
 		}
 	}
-	return m.Source, noCleanup, nil
+	return m.Source, id, noCleanup, nil
 }
 
 func (m *MountPoint) LiveRestore(ctx context.Context) error {
@@ -241,7 +261,15 @@ func (m *MountPoint) LiveRestore(ctx context.Context) error {
 		return nil
 	}
 
-	id := m.ID
+	// TODO Q: I didn't figure out how `LiveRestore` is used. E.g., in what scenario may it happen that a volume is
+	//         being restored and already has a mount id?
+	//         Could you give more context on when `LiveRestore` is used and what it should do?
+	//        (would it make sense to commit your answer as a docstring for the function?)
+	//
+	// Note: right now `MountPoint.LiveRestore` is the only place that depends on `MountPoint.PrimaryID`. If we fix
+	// that, there's no need to treat primary and secondary mounts separately at all!  :party:
+
+	id := m.PrimaryID
 	if id == "" {
 		id = stringid.GenerateRandomID()
 	}
@@ -250,8 +278,8 @@ func (m *MountPoint) LiveRestore(ctx context.Context) error {
 		return errors.Wrapf(err, "error while restoring volume '%s'", m.Source)
 	}
 
-	m.ID = id
-	m.active++
+	m.PrimaryID = id
+	m.MountedIDs[id] = true
 	return nil
 }
 

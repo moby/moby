@@ -19,6 +19,8 @@ import (
 // containerStatPath stats the filesystem resource at the specified path in this
 // container. Returns stat info about the resource.
 func (daemon *Daemon) containerStatPath(container *container.Container, path string) (stat *containertypes.PathStat, err error) {
+	// TODO: fix windows
+
 	container.Lock()
 	defer container.Unlock()
 

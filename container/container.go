@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
@@ -97,6 +98,10 @@ type Container struct {
 	LogCopier      *logger.Copier `json:"-"`
 	restartManager *restartmanager.RestartManager
 	attachContext  *attachContext
+
+	// PrimaryUnmountIDs are the unmount ids (as accepted by `Container.UnmountVolumes`) corresponding to the primary
+	// mounts of `MountPoints` (i.e., mounts used for the container operation, rather than `docker cp`)
+	PrimaryUnmountIDs map[string]string `json:"-"`
 
 	// Fields here are specific to Unix platforms
 	SecurityOptions
@@ -532,20 +537,60 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 	}
 }
 
-// UnmountVolumes unmounts all volumes
-func (container *Container) UnmountVolumes(ctx context.Context, volumeEventLog func(name string, action events.Action, attributes map[string]string)) error {
+// TODO Q: I doubt that `Container.UnmountVolumes` should be a method of `Container`!
+//         Firstly, there is no technical reason for it to be (the method body only uses public fields of `Container`).
+//         Secondly, `Container.UnmountVolumes` essentially undoes what the `daemon.setupMounts` does. So why did the
+//         two end up in different namespaces?
+
+// UnmountVolumes unmounts all volumes.
+//
+// `unmountIDs` is a mapping from mountpoint destination to mount id (to be passed to `MountPoint.Cleanup`). The ids are
+// obtained from `Daemon.setupVolumes`.
+func (container *Container) UnmountVolumes(ctx context.Context, volumeEventLog func(name string, action events.Action, attributes map[string]string), unmountIDs map[string]string) error {
 	var errs []string
 	for _, volumeMount := range container.MountPoints {
+		var volumeName, volumeDriverName string
 		if volumeMount.Volume == nil {
-			continue
+			volumeName = volumeMount.Source + " -> " + volumeMount.Destination
+			volumeDriverName = "-"
+		} else {
+			volumeName = volumeMount.Volume.Name()
+			volumeDriverName = volumeMount.Volume.DriverName()
 		}
 
-		if err := volumeMount.Cleanup(ctx); err != nil {
+		unmountID := unmountIDs[volumeMount.Destination]
+
+		if unmountID == "" {
+			// No unmount id? This can mean one of two things.
+			// 1. This is an attempt to unmount a mountpoint that is not mounted. No big deal.
+			// 2. Someone is trying to unmount a mountpoint but didn't specify which mount of it. Shall not happen.
+			//
+			// So, check which one:
+
+			isMountedAnywhere := false
+			for _, mounted := range volumeMount.MountedIDs {
+				if mounted {
+					isMountedAnywhere = true
+				}
+			}
+
+			if !isMountedAnywhere {
+				// Mountpoint is not mounted, nothing to do
+				continue
+			} else {
+				// Don't know what ID to Cleanup the mountpoint with
+				errs = append(errs, fmt.Sprintf("no id provided to unmount mountpoint %s", volumeName))
+				debug.PrintStack()
+				continue
+			}
+		}
+
+		if err := volumeMount.Cleanup(ctx, unmountID); err != nil {
 			errs = append(errs, err.Error())
 			continue
 		}
-		volumeEventLog(volumeMount.Volume.Name(), events.ActionUnmount, map[string]string{
-			"driver":    volumeMount.Volume.DriverName(),
+		volumeEventLog(volumeName, events.ActionUnmount, map[string]string{
+			"driver":    volumeDriverName,
 			"container": container.ID,
 		})
 	}
