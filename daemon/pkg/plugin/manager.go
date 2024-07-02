@@ -20,8 +20,8 @@ import (
 	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
 	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/docker/docker/pkg/authorization"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/pubsub"
 	"github.com/moby/sys/atomicwriter"
 	"github.com/opencontainers/go-digest"
@@ -336,7 +336,7 @@ func makeLoggerStreams(id string) (stdout, stderr io.WriteCloser) {
 	return logger.WriterLevel(log.InfoLevel), logger.WriterLevel(log.ErrorLevel)
 }
 
-func validatePrivileges(requiredPrivileges, privileges types.PluginPrivileges) error {
+func validatePrivileges(requiredPrivileges, privileges plugin.Privileges) error {
 	if !isEqual(requiredPrivileges, privileges, isEqualPrivilege) {
 		return errors.New("incorrect privileges")
 	}
@@ -344,7 +344,7 @@ func validatePrivileges(requiredPrivileges, privileges types.PluginPrivileges) e
 	return nil
 }
 
-func isEqual(arrOne, arrOther types.PluginPrivileges, compare func(x, y types.PluginPrivilege) bool) bool {
+func isEqual(arrOne, arrOther plugin.Privileges, compare func(x, y plugin.Privilege) bool) bool {
 	if len(arrOne) != len(arrOther) {
 		return false
 	}
@@ -361,7 +361,7 @@ func isEqual(arrOne, arrOther types.PluginPrivileges, compare func(x, y types.Pl
 	return true
 }
 
-func isEqualPrivilege(a, b types.PluginPrivilege) bool {
+func isEqualPrivilege(a, b plugin.Privilege) bool {
 	if a.Name != b.Name {
 		return false
 	}

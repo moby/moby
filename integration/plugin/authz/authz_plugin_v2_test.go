@@ -145,12 +145,11 @@ func TestAuthZPluginV2NonexistentFailsDaemonStart(t *testing.T) {
 	d.Start(t)
 }
 
-func pluginInstallGrantAllPermissions(ctx context.Context, c client.APIClient, name string) error {
-	options := client.PluginInstallOptions{
+func pluginInstallGrantAllPermissions(ctx context.Context, apiClient client.APIClient, name string) error {
+	responseReader, err := apiClient.PluginInstall(ctx, "", client.PluginInstallOptions{
 		RemoteRef:            name,
 		AcceptAllPermissions: true,
-	}
-	responseReader, err := c.PluginInstall(ctx, "", options)
+	})
 	if err != nil {
 		return err
 	}
