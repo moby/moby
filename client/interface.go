@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/system"
@@ -127,16 +128,16 @@ type NodeAPIClient interface {
 
 // PluginAPIClient defines API client methods for the plugins
 type PluginAPIClient interface {
-	PluginList(ctx context.Context, filter filters.Args) (types.PluginsListResponse, error)
-	PluginRemove(ctx context.Context, name string, options types.PluginRemoveOptions) error
-	PluginEnable(ctx context.Context, name string, options types.PluginEnableOptions) error
-	PluginDisable(ctx context.Context, name string, options types.PluginDisableOptions) error
-	PluginInstall(ctx context.Context, name string, options types.PluginInstallOptions) (io.ReadCloser, error)
-	PluginUpgrade(ctx context.Context, name string, options types.PluginInstallOptions) (io.ReadCloser, error)
+	PluginList(ctx context.Context, filter filters.Args) (plugin.ListResponse, error)
+	PluginRemove(ctx context.Context, name string, options plugin.RemoveOptions) error
+	PluginEnable(ctx context.Context, name string, options plugin.EnableOptions) error
+	PluginDisable(ctx context.Context, name string, options plugin.DisableOptions) error
+	PluginInstall(ctx context.Context, name string, options plugin.InstallOptions) (io.ReadCloser, error)
+	PluginUpgrade(ctx context.Context, name string, options plugin.InstallOptions) (io.ReadCloser, error)
 	PluginPush(ctx context.Context, name string, registryAuth string) (io.ReadCloser, error)
 	PluginSet(ctx context.Context, name string, args []string) error
-	PluginInspectWithRaw(ctx context.Context, name string) (*types.Plugin, []byte, error)
-	PluginCreate(ctx context.Context, createContext io.Reader, options types.PluginCreateOptions) error
+	PluginInspectWithRaw(ctx context.Context, name string) (*plugin.Plugin, []byte, error)
+	PluginCreate(ctx context.Context, createContext io.Reader, options plugin.CreateOptions) error
 }
 
 // ServiceAPIClient defines API client methods for the services
