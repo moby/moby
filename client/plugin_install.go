@@ -8,14 +8,14 @@ import (
 	"net/url"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
 // PluginInstall installs a plugin
-func (cli *Client) PluginInstall(ctx context.Context, name string, options types.PluginInstallOptions) (rc io.ReadCloser, err error) {
+func (cli *Client) PluginInstall(ctx context.Context, name string, options plugin.InstallOptions) (rc io.ReadCloser, err error) {
 	query := url.Values{}
 	if _, err := reference.ParseNormalizedNamed(options.RemoteRef); err != nil {
 		return nil, errors.Wrap(err, "invalid remote reference")
@@ -62,7 +62,7 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 			return
 		}
 
-		enableErr := cli.PluginEnable(ctx, name, types.PluginEnableOptions{Timeout: 0})
+		enableErr := cli.PluginEnable(ctx, name, plugin.EnableOptions{Timeout: 0})
 		pw.CloseWithError(enableErr)
 	}()
 	return pr, nil
@@ -74,13 +74,13 @@ func (cli *Client) tryPluginPrivileges(ctx context.Context, query url.Values, re
 	})
 }
 
-func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, privileges types.PluginPrivileges, registryAuth string) (serverResponse, error) {
+func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, privileges plugin.Privileges, registryAuth string) (serverResponse, error) {
 	return cli.post(ctx, "/plugins/pull", query, privileges, http.Header{
 		registry.AuthHeader: {registryAuth},
 	})
 }
 
-func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values, options types.PluginInstallOptions) (types.PluginPrivileges, error) {
+func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values, options plugin.InstallOptions) (plugin.Privileges, error) {
 	resp, err := cli.tryPluginPrivileges(ctx, query, options.RegistryAuth)
 	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		// todo: do inspect before to check existing name before checking privileges
@@ -97,7 +97,7 @@ func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values,
 		return nil, err
 	}
 
-	var privileges types.PluginPrivileges
+	var privileges plugin.Privileges
 	if err := json.NewDecoder(resp.body).Decode(&privileges); err != nil {
 		ensureReaderClosed(resp)
 		return nil, err

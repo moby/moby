@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/plugin"
 )
 
 // Event is emitted for actions performed on the plugin manager
@@ -21,7 +21,7 @@ type Event interface {
 // If no interfaces are listed, all are matched.
 type EventCreate struct {
 	Interfaces map[string]bool
-	Plugin     types.Plugin
+	Plugin     plugin.Plugin
 }
 
 func (e EventCreate) matches(observed Event) bool {
@@ -44,9 +44,9 @@ func (e EventCreate) matches(observed Event) bool {
 }
 
 // EventRemove is an event which is emitted when a plugin is removed
-// It maches on the passed in plugin's ID only.
+// It matches on the passed in plugin's ID only.
 type EventRemove struct {
-	Plugin types.Plugin
+	Plugin plugin.Plugin
 }
 
 func (e EventRemove) matches(observed Event) bool {
@@ -58,9 +58,9 @@ func (e EventRemove) matches(observed Event) bool {
 }
 
 // EventDisable is an event that is emitted when a plugin is disabled
-// It maches on the passed in plugin's ID only.
+// It matches on the passed in plugin's ID only.
 type EventDisable struct {
-	Plugin types.Plugin
+	Plugin plugin.Plugin
 }
 
 func (e EventDisable) matches(observed Event) bool {
@@ -72,9 +72,9 @@ func (e EventDisable) matches(observed Event) bool {
 }
 
 // EventEnable is an event that is emitted when a plugin is disabled
-// It maches on the passed in plugin's ID only.
+// It matches on the passed in plugin's ID only.
 type EventEnable struct {
-	Plugin types.Plugin
+	Plugin plugin.Plugin
 }
 
 func (e EventEnable) matches(observed Event) bool {
