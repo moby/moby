@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/plugin"
 )
 
 // PluginCreate creates a plugin
-func (cli *Client) PluginCreate(ctx context.Context, createContext io.Reader, createOptions types.PluginCreateOptions) error {
+func (cli *Client) PluginCreate(ctx context.Context, createContext io.Reader, createOptions plugin.CreateOptions) error {
 	headers := http.Header(make(map[string][]string))
 	headers.Set("Content-Type", "application/x-tar")
 

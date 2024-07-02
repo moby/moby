@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
+	plugintypes "github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/plugin"
@@ -22,11 +22,11 @@ import (
 // creating it
 type CreateOpt func(*Config)
 
-// Config wraps types.PluginConfig to provide some extra state for options
+// Config wraps [plugintypes.Config] to provide some extra state for options
 // extra customizations on the plugin details, such as using a custom binary to
 // create the plugin with.
 type Config struct {
-	*types.PluginConfig
+	*plugintypes.Config
 	binPath        string
 	RegistryConfig registrypkg.ServiceOptions
 }
@@ -49,7 +49,7 @@ func WithBinary(bin string) CreateOpt {
 // CreateClient is the interface used for `BuildPlugin` to interact with the
 // daemon.
 type CreateClient interface {
-	PluginCreate(context.Context, io.Reader, types.PluginCreateOptions) error
+	PluginCreate(context.Context, io.Reader, plugintypes.CreateOptions) error
 }
 
 // Create creates a new plugin with the specified name
@@ -69,7 +69,7 @@ func Create(ctx context.Context, c CreateClient, name string, opts ...CreateOpt)
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	return c.PluginCreate(ctx, tar, types.PluginCreateOptions{RepoName: name})
+	return c.PluginCreate(ctx, tar, plugintypes.CreateOptions{RepoName: name})
 }
 
 // CreateInRegistry makes a plugin (locally) and pushes it to a registry.
@@ -91,8 +91,9 @@ func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfi
 		return errors.Wrap(err, "error creating plugin root")
 	}
 
-	var cfg Config
-	cfg.PluginConfig = &types.PluginConfig{}
+	cfg := Config{
+		Config: &plugintypes.Config{},
+	}
 	for _, o := range opts {
 		o(&cfg)
 	}
@@ -127,7 +128,7 @@ func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfi
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	if err := manager.CreateFromContext(ctx, tar, &types.PluginCreateOptions{RepoName: repo}); err != nil {
+	if err := manager.CreateFromContext(ctx, tar, &plugintypes.CreateOptions{RepoName: repo}); err != nil {
 		return err
 	}
 
@@ -139,15 +140,15 @@ func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfi
 }
 
 func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
-	p := &types.PluginConfig{
-		Interface: types.PluginConfigInterface{
+	p := &plugintypes.Config{
+		Interface: plugintypes.Interface{
 			Socket: "basic.sock",
-			Types:  []types.PluginInterfaceType{{Capability: "docker.dummy/1.0"}},
+			Types:  []plugintypes.InterfaceType{{Capability: "docker.dummy/1.0"}},
 		},
 		Entrypoint: []string{"/basic"},
 	}
 	cfg := &Config{
-		PluginConfig: p,
+		Config: p,
 	}
 	for _, o := range opts {
 		o(cfg)
