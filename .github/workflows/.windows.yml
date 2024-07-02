@@ -384,6 +384,10 @@ jobs:
             If (-not (Get-Process -Name containerd -ErrorAction:SilentlyContinue)) {
               Throw "containerd process is not running"
             }
+            $containerdProcesses = Get-CimInstance Win32_Process | Where-Object { $_.Name -eq "containerd.exe" }
+            foreach ($process in $containerdProcesses) {
+              Write-Output "containerd binary Path: "$process.ExecutablePath
+            }
           }
         env:
           DOCKER_HOST: npipe:////./pipe/docker_engine
