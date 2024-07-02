@@ -34,10 +34,9 @@ type AuthConfig struct {
 }
 
 // EncodeAuthConfig serializes the auth configuration as a base64url encoded
-// RFC4648, section 5) JSON string for sending through the X-Registry-Auth header.
+// ([RFC4648, section 5]) JSON string for sending through the X-Registry-Auth header.
 //
-// For details on base64url encoding, see:
-// - RFC4648, section 5:   https://tools.ietf.org/html/rfc4648#section-5
+// [RFC4648, section 5]: https://tools.ietf.org/html/rfc4648#section-5
 func EncodeAuthConfig(authConfig AuthConfig) (string, error) {
 	buf, err := json.Marshal(authConfig)
 	if err != nil {
@@ -46,15 +45,14 @@ func EncodeAuthConfig(authConfig AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-// DecodeAuthConfig decodes base64url encoded (RFC4648, section 5) JSON
+// DecodeAuthConfig decodes base64url encoded ([RFC4648, section 5]) JSON
 // authentication information as sent through the X-Registry-Auth header.
 //
-// This function always returns an AuthConfig, even if an error occurs. It is up
+// This function always returns an [AuthConfig], even if an error occurs. It is up
 // to the caller to decide if authentication is required, and if the error can
 // be ignored.
 //
-// For details on base64url encoding, see:
-// - RFC4648, section 5:   https://tools.ietf.org/html/rfc4648#section-5
+// [RFC4648, section 5]: https://tools.ietf.org/html/rfc4648#section-5
 func DecodeAuthConfig(authEncoded string) (*AuthConfig, error) {
 	if authEncoded == "" {
 		return &AuthConfig{}, nil
@@ -69,7 +67,7 @@ func DecodeAuthConfig(authEncoded string) (*AuthConfig, error) {
 // clients and API versions. Current clients and API versions expect authentication
 // to be provided through the X-Registry-Auth header.
 //
-// Like DecodeAuthConfig, this function always returns an AuthConfig, even if an
+// Like [DecodeAuthConfig], this function always returns an [AuthConfig], even if an
 // error occurs. It is up to the caller to decide if authentication is required,
 // and if the error can be ignored.
 func DecodeAuthConfigBody(rdr io.ReadCloser) (*AuthConfig, error) {
