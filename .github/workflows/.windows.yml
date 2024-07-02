@@ -19,7 +19,7 @@ on:
         default: false
 
 env:
-  GO_VERSION: "1.21.11"
+  GO_VERSION:  "1.23.0-rc.1"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
@@ -82,7 +82,6 @@ jobs:
           & docker build `
             --build-arg WINDOWS_BASE_IMAGE `
             --build-arg WINDOWS_BASE_IMAGE_TAG `
-            --build-arg GO_VERSION `
             -t ${{ env.TEST_IMAGE_NAME }} `
             -f Dockerfile.windows .
       -
@@ -162,7 +161,6 @@ jobs:
           & docker build `
             --build-arg WINDOWS_BASE_IMAGE `
             --build-arg WINDOWS_BASE_IMAGE_TAG `
-            --build-arg GO_VERSION `
             -t ${{ env.TEST_IMAGE_NAME }} `
             -f Dockerfile.windows .
       -
