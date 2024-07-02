@@ -1,4 +1,4 @@
-package directory // import "github.com/docker/docker/pkg/directory"
+package directory
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// calcSize walks a directory tree and returns its total calcSize in bytes.
+// calcSize walks a directory tree and returns its total size in bytes.
 func calcSize(ctx context.Context, dir string) (int64, error) {
 	var size int64
 	err := filepath.Walk(dir, func(d string, fileInfo os.FileInfo, err error) error {
