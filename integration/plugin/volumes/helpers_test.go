@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	plugintypes "github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
@@ -64,7 +64,7 @@ func createPlugin(ctx context.Context, t *testing.T, client plugin.CreateClient,
 }
 
 func asVolumeDriver(cfg *plugin.Config) {
-	cfg.Interface.Types = []types.PluginInterfaceType{
+	cfg.Interface.Types = []plugintypes.InterfaceType{
 		{Capability: "volumedriver", Prefix: "docker", Version: "1.0"},
 	}
 }

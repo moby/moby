@@ -7,8 +7,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	plugintypes "github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/errdefs"
@@ -46,8 +46,8 @@ type Backend interface {
 	Disable(name string, config *backend.PluginDisableConfig) error
 	Enable(name string, config *backend.PluginEnableConfig) error
 	Remove(name string, config *backend.PluginRmConfig) error
-	Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...plugin.CreateOpt) error
-	Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) error
+	Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges plugintypes.Privileges, outStream io.Writer, opts ...plugin.CreateOpt) error
+	Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges plugintypes.Privileges, outStream io.Writer) error
 	Get(name string) (*v2.Plugin, error)
 	SubscribeEvents(buffer int, events ...plugin.Event) (eventCh <-chan interface{}, cancel func())
 }
@@ -248,10 +248,10 @@ func (p *Controller) Close() error {
 	return nil
 }
 
-func convertPrivileges(ls []*runtime.PluginPrivilege) types.PluginPrivileges {
-	var out types.PluginPrivileges
+func convertPrivileges(ls []*runtime.PluginPrivilege) plugintypes.Privileges {
+	var out plugintypes.Privileges
 	for _, p := range ls {
-		pp := types.PluginPrivilege{
+		pp := plugintypes.Privilege{
 			Name:        p.Name,
 			Description: p.Description,
 			Value:       p.Value,

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
@@ -43,7 +43,7 @@ func TestPluginInspect(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			content, err := json.Marshal(types.Plugin{
+			content, err := json.Marshal(plugin.Plugin{
 				ID: "plugin_id",
 			})
 			if err != nil {
