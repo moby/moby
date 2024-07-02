@@ -77,9 +77,6 @@ type Info struct {
 
 	Containerd *ContainerdInfo `json:",omitempty"`
 
-	// Legacy API fields for older API versions.
-	legacyFields
-
 	// Warnings contains a slice of warnings that occurred  while collecting
 	// system information. These warnings are intended to be informational
 	// messages for the user, and are not intended to be parsed / used for
@@ -122,10 +119,6 @@ type ContainerdNamespaces struct {
 	// user-namespaces are enabled and the containerd image-store
 	// is used.
 	Plugins string
-}
-
-type legacyFields struct {
-	ExecutionDriver string `json:",omitempty"` // Deprecated: deprecated since API v1.25, but returned for older versions.
 }
 
 // PluginsInfo is a temp struct holding Plugins name

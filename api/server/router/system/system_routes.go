@@ -81,7 +81,6 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 				nameOnly = append(nameOnly, so.Name)
 			}
 			info.SecurityOptions = nameOnly
-			info.ExecutionDriver = "<not supported>" //nolint:staticcheck // ignore SA1019 (ExecutionDriver is deprecated)
 		}
 		if versions.LessThan(version, "1.39") {
 			if info.KernelVersion == "" {
