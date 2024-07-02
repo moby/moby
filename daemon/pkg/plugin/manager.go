@@ -15,8 +15,8 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/containerd/log"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/v2/daemon/internal/containerfs"
 	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 	v2 "github.com/moby/moby/v2/daemon/pkg/plugin/v2"
@@ -264,16 +264,16 @@ func (pm *Manager) Get(idOrName string) (*v2.Plugin, error) {
 }
 
 func (pm *Manager) loadPlugin(id string) (*v2.Plugin, error) {
-	p := filepath.Join(pm.config.Root, id, configFileName)
-	dt, err := os.ReadFile(p)
+	pluginJSON := filepath.Join(pm.config.Root, id, configFileName)
+	dt, err := os.ReadFile(pluginJSON)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error reading %v", p)
+		return nil, errors.Wrapf(err, "error reading %v", pluginJSON)
 	}
-	var plugin v2.Plugin
-	if err := json.Unmarshal(dt, &plugin); err != nil {
-		return nil, errors.Wrapf(err, "error decoding %v", p)
+	var pl v2.Plugin
+	if err := json.Unmarshal(dt, &pl); err != nil {
+		return nil, errors.Wrapf(err, "error decoding %v", pluginJSON)
 	}
-	return &plugin, nil
+	return &pl, nil
 }
 
 func (pm *Manager) save(p *v2.Plugin) error {
@@ -336,7 +336,7 @@ func makeLoggerStreams(id string) (stdout, stderr io.WriteCloser) {
 	return logger.WriterLevel(log.InfoLevel), logger.WriterLevel(log.ErrorLevel)
 }
 
-func validatePrivileges(requiredPrivileges, privileges types.PluginPrivileges) error {
+func validatePrivileges(requiredPrivileges, privileges plugin.Privileges) error {
 	if !isEqual(requiredPrivileges, privileges, isEqualPrivilege) {
 		return errors.New("incorrect privileges")
 	}
@@ -344,7 +344,7 @@ func validatePrivileges(requiredPrivileges, privileges types.PluginPrivileges) e
 	return nil
 }
 
-func isEqual(arrOne, arrOther types.PluginPrivileges, compare func(x, y types.PluginPrivilege) bool) bool {
+func isEqual(arrOne, arrOther plugin.Privileges, compare func(x, y plugin.Privilege) bool) bool {
 	if len(arrOne) != len(arrOther) {
 		return false
 	}
@@ -361,7 +361,7 @@ func isEqual(arrOne, arrOther types.PluginPrivileges, compare func(x, y types.Pl
 	return true
 }
 
-func isEqualPrivilege(a, b types.PluginPrivilege) bool {
+func isEqualPrivilege(a, b plugin.Privilege) bool {
 	if a.Name != b.Name {
 		return false
 	}

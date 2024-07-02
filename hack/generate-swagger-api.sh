@@ -2,7 +2,7 @@
 set -eu
 
 swagger generate model -f api/swagger.yaml \
-	-t api -m types -C api/swagger-gen.yaml \
+	-t api -m types/plugin -C api/swagger-gen.yaml \
 	-T api/templates --allow-template-override \
 	-n Plugin \
 	-n PluginDevice \

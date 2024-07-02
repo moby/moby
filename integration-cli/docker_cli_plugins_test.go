@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types"
+	plugintypes "github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/daemon"
 	"github.com/moby/moby/v2/testutil"
@@ -172,12 +172,12 @@ func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
 
 	// Create a new plugin with extra settings
 	err := plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
-		cfg.Env = []types.PluginEnv{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
-		cfg.Mounts = []types.PluginMount{
+		cfg.Env = []plugintypes.Env{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
+		cfg.Mounts = []plugintypes.Mount{
 			{Name: "pmount1", Settable: []string{"source"}, Type: "none", Source: &mntSrc},
 			{Name: "pmount2", Settable: []string{"source"}, Type: "none"}, // Mount without source is invalid.
 		}
-		cfg.Linux.Devices = []types.PluginDevice{
+		cfg.Linux.Devices = []plugintypes.Device{
 			{Name: "pdev1", Path: &devPath, Settable: []string{"path"}},
 			{Name: "pdev2", Settable: []string{"path"}}, // Device without Path is invalid.
 		}
@@ -212,7 +212,7 @@ func (ps *DockerPluginSuite) TestPluginInstallArgs(c *testing.T) {
 	defer cancel()
 
 	plugin.CreateInRegistry(ctx, pluginName, nil, func(cfg *plugin.Config) {
-		cfg.Env = []types.PluginEnv{{Name: "DEBUG", Settable: []string{"value"}}}
+		cfg.Env = []plugintypes.Env{{Name: "DEBUG", Settable: []string{"value"}}}
 	})
 
 	out := cli.DockerCmd(c, "plugin", "install", "--grant-all-permissions", "--disable", pluginName, "DEBUG=1").Stdout()
@@ -349,7 +349,7 @@ func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
 	initialValue := "0"
 	err := plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
-		cfg.Env = []types.PluginEnv{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
+		cfg.Env = []plugintypes.Env{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
 	})
 	cancel()
 

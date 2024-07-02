@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/v2/daemon/internal/containerfs"
@@ -78,10 +77,10 @@ func newTestPlugin(t *testing.T, name, capability, root string) *v2.Plugin {
 		t.Fatal(err)
 	}
 
-	p := v2.Plugin{PluginObj: types.Plugin{ID: id, Name: name}}
+	p := v2.Plugin{PluginObj: plugin.Plugin{ID: id, Name: name}}
 	p.Rootfs = rootfs
 	iType := plugin.CapabilityID{Capability: capability, Prefix: "docker", Version: "1.0"}
-	i := types.PluginConfigInterface{Socket: "plugin.sock", Types: []plugin.CapabilityID{iType}}
+	i := plugin.Interface{Socket: "plugin.sock", Types: []plugin.CapabilityID{iType}}
 	p.PluginObj.Config.Interface = i
 	p.PluginObj.ID = id
 

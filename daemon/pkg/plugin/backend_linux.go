@@ -26,6 +26,7 @@ import (
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/internal/containerfs"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
@@ -98,7 +99,7 @@ func (pm *Manager) Enable(refOrID string, config *backend.PluginEnableConfig) er
 }
 
 // Inspect examines a plugin config
-func (pm *Manager) Inspect(refOrID string) (*types.Plugin, error) {
+func (pm *Manager) Inspect(refOrID string) (*plugin.Plugin, error) {
 	p, err := pm.config.Store.GetV2Plugin(refOrID)
 	if err != nil {
 		return nil, err
@@ -107,24 +108,24 @@ func (pm *Manager) Inspect(refOrID string) (*types.Plugin, error) {
 	return &p.PluginObj, nil
 }
 
-func computePrivileges(c types.PluginConfig) types.PluginPrivileges {
-	var privileges types.PluginPrivileges
+func computePrivileges(c plugin.Config) plugin.Privileges {
+	var privileges plugin.Privileges
 	if c.Network.Type != "null" && c.Network.Type != "bridge" && c.Network.Type != "" {
-		privileges = append(privileges, types.PluginPrivilege{
+		privileges = append(privileges, plugin.Privilege{
 			Name:        "network",
 			Description: "permissions to access a network",
 			Value:       []string{c.Network.Type},
 		})
 	}
 	if c.IpcHost {
-		privileges = append(privileges, types.PluginPrivilege{
+		privileges = append(privileges, plugin.Privilege{
 			Name:        "host ipc namespace",
 			Description: "allow access to host ipc namespace",
 			Value:       []string{"true"},
 		})
 	}
 	if c.PidHost {
-		privileges = append(privileges, types.PluginPrivilege{
+		privileges = append(privileges, plugin.Privilege{
 			Name:        "host pid namespace",
 			Description: "allow access to host pid namespace",
 			Value:       []string{"true"},
@@ -132,7 +133,7 @@ func computePrivileges(c types.PluginConfig) types.PluginPrivileges {
 	}
 	for _, mnt := range c.Mounts {
 		if mnt.Source != nil {
-			privileges = append(privileges, types.PluginPrivilege{
+			privileges = append(privileges, plugin.Privilege{
 				Name:        "mount",
 				Description: "host path to mount",
 				Value:       []string{*mnt.Source},
@@ -141,7 +142,7 @@ func computePrivileges(c types.PluginConfig) types.PluginPrivileges {
 	}
 	for _, device := range c.Linux.Devices {
 		if device.Path != nil {
-			privileges = append(privileges, types.PluginPrivilege{
+			privileges = append(privileges, plugin.Privilege{
 				Name:        "device",
 				Description: "host device to access",
 				Value:       []string{*device.Path},
@@ -149,14 +150,14 @@ func computePrivileges(c types.PluginConfig) types.PluginPrivileges {
 		}
 	}
 	if c.Linux.AllowAllDevices {
-		privileges = append(privileges, types.PluginPrivilege{
+		privileges = append(privileges, plugin.Privilege{
 			Name:        "allow-all-devices",
 			Description: "allow 'rwm' access to all devices",
 			Value:       []string{"true"},
 		})
 	}
 	if len(c.Linux.Capabilities) > 0 {
-		privileges = append(privileges, types.PluginPrivilege{
+		privileges = append(privileges, plugin.Privilege{
 			Name:        "capabilities",
 			Description: "list of additional capabilities required",
 			Value:       c.Linux.Capabilities,
@@ -167,9 +168,9 @@ func computePrivileges(c types.PluginConfig) types.PluginPrivileges {
 }
 
 // Privileges pulls a plugin config and computes the privileges required to install it.
-func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHeader http.Header, authConfig *registry.AuthConfig) (types.PluginPrivileges, error) {
+func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHeader http.Header, authConfig *registry.AuthConfig) (plugin.Privileges, error) {
 	var (
-		config     types.PluginConfig
+		config     plugin.Config
 		configSeen bool
 	)
 
@@ -202,11 +203,11 @@ func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHead
 	}
 
 	if err := pm.fetch(ctx, ref, authConfig, progress.DiscardOutput(), metaHeader, c8dimages.HandlerFunc(h)); err != nil {
-		return types.PluginPrivileges{}, nil
+		return plugin.Privileges{}, nil
 	}
 
 	if !configSeen {
-		return types.PluginPrivileges{}, errors.Errorf("did not find plugin config for specified reference %s", ref)
+		return plugin.Privileges{}, errors.Errorf("did not find plugin config for specified reference %s", ref)
 	}
 
 	return computePrivileges(config), nil
@@ -215,7 +216,7 @@ func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHead
 // Upgrade upgrades a plugin
 //
 // TODO: replace reference package usage with simpler url.Parse semantics
-func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) error {
+func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges plugin.Privileges, outStream io.Writer) error {
 	p, err := pm.config.Store.GetV2Plugin(name)
 	if err != nil {
 		return err
@@ -263,7 +264,7 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 // Pull pulls a plugin, check if the correct privileges are provided and install the plugin.
 //
 // TODO: replace reference package usage with simpler url.Parse semantics
-func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...CreateOpt) error {
+func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges plugin.Privileges, outStream io.Writer, opts ...CreateOpt) error {
 	pm.muGC.RLock()
 	defer pm.muGC.RUnlock()
 
@@ -318,7 +319,7 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 }
 
 // List displays the list of plugins and associated metadata.
-func (pm *Manager) List(pluginFilters filters.Args) ([]types.Plugin, error) {
+func (pm *Manager) List(pluginFilters filters.Args) ([]plugin.Plugin, error) {
 	if err := pluginFilters.Validate(acceptedPluginFilterTags); err != nil {
 		return nil, err
 	}
@@ -339,7 +340,7 @@ func (pm *Manager) List(pluginFilters filters.Args) ([]types.Plugin, error) {
 	}
 
 	plugins := pm.config.Store.GetAll()
-	out := make([]types.Plugin, 0, len(plugins))
+	out := make([]plugin.Plugin, 0, len(plugins))
 
 next:
 	for _, p := range plugins {
@@ -680,7 +681,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 		return errors.Wrap(err, "error closing gzip writer")
 	}
 
-	var config types.PluginConfig
+	var config plugin.Config
 	if err := json.Unmarshal(configJSON, &config); err != nil {
 		return errors.Wrap(err, "failed to parse config")
 	}
@@ -701,7 +702,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 		}
 	}()
 
-	config.Rootfs = &types.PluginConfigRootfs{
+	config.Rootfs = &plugin.RootFS{
 		Type:    "layers",
 		DiffIds: []string{rootFSBlob.Digest().String()},
 	}
@@ -744,7 +745,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	return nil
 }
 
-func (pm *Manager) validateConfig(config types.PluginConfig) error {
+func (pm *Manager) validateConfig(config plugin.Config) error {
 	return nil // TODO:
 }
 

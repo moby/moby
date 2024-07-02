@@ -13,6 +13,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
@@ -147,7 +148,7 @@ type NodeAPIClient interface {
 
 // PluginAPIClient defines API client methods for the plugins
 type PluginAPIClient interface {
-	PluginList(ctx context.Context, filter filters.Args) (types.PluginsListResponse, error)
+	PluginList(ctx context.Context, filter filters.Args) (plugin.ListResponse, error)
 	PluginRemove(ctx context.Context, name string, options PluginRemoveOptions) error
 	PluginEnable(ctx context.Context, name string, options PluginEnableOptions) error
 	PluginDisable(ctx context.Context, name string, options PluginDisableOptions) error
@@ -155,7 +156,7 @@ type PluginAPIClient interface {
 	PluginUpgrade(ctx context.Context, name string, options PluginInstallOptions) (io.ReadCloser, error)
 	PluginPush(ctx context.Context, name string, registryAuth string) (io.ReadCloser, error)
 	PluginSet(ctx context.Context, name string, args []string) error
-	PluginInspectWithRaw(ctx context.Context, name string) (*types.Plugin, []byte, error)
+	PluginInspectWithRaw(ctx context.Context, name string) (*plugin.Plugin, []byte, error)
 	PluginCreate(ctx context.Context, createContext io.Reader, options PluginCreateOptions) error
 }
 

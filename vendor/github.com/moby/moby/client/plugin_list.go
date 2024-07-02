@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/versions"
 )
 
 // PluginList returns the installed plugins
-func (cli *Client) PluginList(ctx context.Context, filter filters.Args) (types.PluginsListResponse, error) {
-	var plugins types.PluginsListResponse
+func (cli *Client) PluginList(ctx context.Context, filter filters.Args) (plugin.ListResponse, error) {
+	var plugins plugin.ListResponse
 	query := url.Values{}
 
 	if filter.Len() > 0 {

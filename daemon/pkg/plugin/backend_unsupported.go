@@ -9,8 +9,8 @@ import (
 	"net/http"
 
 	"github.com/distribution/reference"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/server/backend"
 )
@@ -28,27 +28,27 @@ func (pm *Manager) Enable(name string, config *backend.PluginEnableConfig) error
 }
 
 // Inspect examines a plugin config
-func (pm *Manager) Inspect(refOrID string) (*types.Plugin, error) {
+func (pm *Manager) Inspect(refOrID string) (*plugin.Plugin, error) {
 	return nil, errNotSupported
 }
 
 // Privileges pulls a plugin config and computes the privileges required to install it.
-func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHeader http.Header, authConfig *registry.AuthConfig) (types.PluginPrivileges, error) {
+func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHeader http.Header, authConfig *registry.AuthConfig) (plugin.Privileges, error) {
 	return nil, errNotSupported
 }
 
 // Pull pulls a plugin, check if the correct privileges are provided and install the plugin.
-func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, out io.Writer, opts ...CreateOpt) error {
+func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges plugin.Privileges, out io.Writer, opts ...CreateOpt) error {
 	return errNotSupported
 }
 
 // Upgrade pulls a plugin, check if the correct privileges are provided and install the plugin.
-func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) error {
+func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges plugin.Privileges, outStream io.Writer) error {
 	return errNotSupported
 }
 
 // List displays the list of plugins and associated metadata.
-func (pm *Manager) List(pluginFilters filters.Args) ([]types.Plugin, error) {
+func (pm *Manager) List(pluginFilters filters.Args) ([]plugin.Plugin, error) {
 	return nil, errNotSupported
 }
 

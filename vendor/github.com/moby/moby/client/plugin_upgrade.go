@@ -8,7 +8,7 @@ import (
 	"net/url"
 
 	"github.com/distribution/reference"
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 )
 
@@ -40,7 +40,7 @@ func (cli *Client) PluginUpgrade(ctx context.Context, name string, options Plugi
 	return resp.Body, nil
 }
 
-func (cli *Client) tryPluginUpgrade(ctx context.Context, query url.Values, privileges types.PluginPrivileges, name, registryAuth string) (*http.Response, error) {
+func (cli *Client) tryPluginUpgrade(ctx context.Context, query url.Values, privileges plugin.Privileges, name, registryAuth string) (*http.Response, error) {
 	return cli.post(ctx, "/plugins/"+name+"/upgrade", query, privileges, http.Header{
 		registry.AuthHeader: {registryAuth},
 	})

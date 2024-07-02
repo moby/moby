@@ -11,7 +11,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/moby/moby/api/types"
+	plugintypes "github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/pkg/plugin"
@@ -362,9 +362,9 @@ func (m *mockBackend) Remove(name string, config *backend.PluginRmConfig) error 
 	return nil
 }
 
-func (m *mockBackend) Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...plugin.CreateOpt) error {
+func (m *mockBackend) Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges plugintypes.Privileges, outStream io.Writer, opts ...plugin.CreateOpt) error {
 	m.p = &v2.Plugin{
-		PluginObj: types.Plugin{
+		PluginObj: plugintypes.Plugin{
 			ID:              "1234",
 			Name:            name,
 			PluginReference: ref.String(),
@@ -373,7 +373,7 @@ func (m *mockBackend) Pull(ctx context.Context, ref reference.Named, name string
 	return nil
 }
 
-func (m *mockBackend) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) error {
+func (m *mockBackend) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges plugintypes.Privileges, outStream io.Writer) error {
 	m.p.PluginObj.PluginReference = pluginTestRemoteUpgrade
 	return nil
 }
