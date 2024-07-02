@@ -88,11 +88,9 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 		}
 	}
 
-	if !useBuildKit {
-		stdout := config.ProgressWriter.StdoutFormatter
-		fmt.Fprintf(stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
-	}
 	if imageID != "" && !useBuildKit {
+		stdout := config.ProgressWriter.StdoutFormatter
+		_, _ = fmt.Fprintf(stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
 		err = tagImages(ctx, b.imageComponent, config.ProgressWriter.StdoutFormatter, image.ID(imageID), tags)
 	}
 	return imageID, err

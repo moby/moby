@@ -10,7 +10,6 @@ import (
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/log"
 	distref "github.com/distribution/reference"
-	builderexporter "github.com/docker/docker/builder/builder-next/exporter"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/moby/buildkit/exporter"
@@ -38,7 +37,7 @@ type Opt struct {
 	ImageTagger           ImageTagger
 	ContentStore          content.Store
 	LeaseManager          leases.Manager
-	ImageExportedCallback builderexporter.ImageExportedByBuildkit
+	ImageExportedCallback func(ctx context.Context, id string, desc ocispec.Descriptor)
 }
 
 type imageExporter struct {
