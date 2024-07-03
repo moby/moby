@@ -428,7 +428,7 @@ jobs:
         name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.12
+          go-version: ${{ env.GO_VERSION }}
       -
         name: Test integration
         if: matrix.test == './...'
