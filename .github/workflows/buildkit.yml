@@ -13,7 +13,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.21.11"
+  GO_VERSION: "1.21.12"
   DESTDIR: ./build
   SETUP_BUILDX_VERSION: latest
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest

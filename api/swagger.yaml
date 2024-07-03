@@ -5334,7 +5334,7 @@ definitions:
           The version Go used to compile the daemon, and the version of the Go
           runtime in use.
         type: "string"
-        example: "go1.21.11"
+        example: "go1.21.12"
       Os:
         description: |
           The operating system that the daemon is running on ("linux" or "windows")
