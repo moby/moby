@@ -119,20 +119,13 @@ func NewGitCLI(opts ...Option) *GitCLI {
 // New returns a new git client with the same config as the current one, but
 // with the given options applied on top.
 func (cli *GitCLI) New(opts ...Option) *GitCLI {
-	c := &GitCLI{
-		git:           cli.git,
-		dir:           cli.dir,
-		workTree:      cli.workTree,
-		gitDir:        cli.gitDir,
-		args:          append([]string{}, cli.args...),
-		streams:       cli.streams,
-		sshAuthSock:   cli.sshAuthSock,
-		sshKnownHosts: cli.sshKnownHosts,
-	}
+	clone := *cli
+	clone.args = append([]string{}, cli.args...)
+
 	for _, opt := range opts {
-		opt(c)
+		opt(&clone)
 	}
-	return c
+	return &clone
 }
 
 // Run executes a git command with the given args.

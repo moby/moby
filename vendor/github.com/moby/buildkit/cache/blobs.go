@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"strconv"
 
@@ -232,9 +233,7 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 					if err != nil {
 						return nil, errors.Wrapf(err, "failed to finalize compression")
 					}
-					for k, v := range a {
-						desc.Annotations[k] = v
-					}
+					maps.Copy(desc.Annotations, a)
 				}
 				info, err := sr.cm.ContentStore.Info(ctx, desc.Digest)
 				if err != nil {

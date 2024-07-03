@@ -114,7 +114,6 @@ type Heredoc struct {
 var (
 	dispatch      map[string]func(string, *directives) (*Node, map[string]bool, error)
 	reWhitespace  = regexp.MustCompile(`[\t\v\f\r ]+`)
-	reComment     = regexp.MustCompile(`^#.*$`)
 	reHeredoc     = regexp.MustCompile(`^(\d*)<<(-?)([^<]*)$`)
 	reLeadingTabs = regexp.MustCompile(`(?m)^\t+`)
 )
@@ -169,8 +168,8 @@ func (d *directives) setEscapeToken(s string) error {
 // possibleParserDirective looks for parser directives, eg '# escapeToken=<char>'.
 // Parser directives must precede any builder instruction or other comments,
 // and cannot be repeated.
-func (d *directives) possibleParserDirective(line string) error {
-	directive, err := d.parser.ParseLine([]byte(line))
+func (d *directives) possibleParserDirective(line []byte) error {
+	directive, err := d.parser.ParseLine(line)
 	if err != nil {
 		return err
 	}
@@ -284,6 +283,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 	scanner.Split(scanLines)
 	warnings := []Warning{}
 	var comments []string
+	buf := &bytes.Buffer{}
 
 	var err error
 	for scanner.Scan() {
@@ -307,10 +307,12 @@ func Parse(rwc io.Reader) (*Result, error) {
 		currentLine++
 
 		startLine := currentLine
-		line, isEndOfLine := trimContinuationCharacter(string(bytesRead), d)
-		if isEndOfLine && line == "" {
+		bytesRead, isEndOfLine := trimContinuationCharacter(bytesRead, d)
+		if isEndOfLine && len(bytesRead) == 0 {
 			continue
 		}
+		buf.Reset()
+		buf.Write(bytesRead)
 
 		var hasEmptyContinuationLine bool
 		for !isEndOfLine && scanner.Scan() {
@@ -329,10 +331,11 @@ func Parse(rwc io.Reader) (*Result, error) {
 				continue
 			}
 
-			continuationLine := string(bytesRead)
-			continuationLine, isEndOfLine = trimContinuationCharacter(continuationLine, d)
-			line += continuationLine
+			bytesRead, isEndOfLine = trimContinuationCharacter(bytesRead, d)
+			buf.Write(bytesRead)
 		}
+
+		line := buf.String()
 
 		if hasEmptyContinuationLine {
 			warnings = append(warnings, Warning{
@@ -348,7 +351,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 			return nil, withLocation(err, startLine, currentLine)
 		}
 
-		if child.canContainHeredoc() {
+		if child.canContainHeredoc() && strings.Contains(line, "<<") {
 			heredocs, err := heredocsFromLine(line)
 			if err != nil {
 				return nil, withLocation(err, startLine, currentLine)
@@ -415,7 +418,7 @@ func heredocFromMatch(match []string) (*Heredoc, error) {
 	// If there are quotes in one but not the other, then we know that some
 	// part of the heredoc word is quoted, so we shouldn't expand the content.
 	shlex.RawQuotes = false
-	words, err := shlex.ProcessWords(rest, []string{})
+	words, err := shlex.ProcessWords(rest, emptyEnvs{})
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +428,7 @@ func heredocFromMatch(match []string) (*Heredoc, error) {
 	}
 
 	shlex.RawQuotes = true
-	wordsRaw, err := shlex.ProcessWords(rest, []string{})
+	wordsRaw, err := shlex.ProcessWords(rest, emptyEnvs{})
 	if err != nil {
 		return nil, err
 	}
@@ -466,7 +469,7 @@ func heredocsFromLine(line string) ([]Heredoc, error) {
 	shlex.RawQuotes = true
 	shlex.RawEscapes = true
 	shlex.SkipUnsetEnv = true
-	words, _ := shlex.ProcessWords(line, []string{})
+	words, _ := shlex.ProcessWords(line, emptyEnvs{})
 
 	var docs []Heredoc
 	for _, word := range words {
@@ -487,7 +490,10 @@ func ChompHeredocContent(src string) string {
 }
 
 func trimComments(src []byte) []byte {
-	return reComment.ReplaceAll(src, []byte{})
+	if !isComment(src) {
+		return src
+	}
+	return nil
 }
 
 func trimLeadingWhitespace(src []byte) []byte {
@@ -501,7 +507,8 @@ func trimNewline(src []byte) []byte {
 }
 
 func isComment(line []byte) bool {
-	return reComment.Match(trimLeadingWhitespace(trimNewline(line)))
+	line = trimLeadingWhitespace(line)
+	return len(line) > 0 && line[0] == '#'
 }
 
 func isEmptyContinuationLine(line []byte) bool {
@@ -510,9 +517,9 @@ func isEmptyContinuationLine(line []byte) bool {
 
 var utf8bom = []byte{0xEF, 0xBB, 0xBF}
 
-func trimContinuationCharacter(line string, d *directives) (string, bool) {
-	if d.lineContinuationRegex.MatchString(line) {
-		line = d.lineContinuationRegex.ReplaceAllString(line, "$1")
+func trimContinuationCharacter(line []byte, d *directives) ([]byte, bool) {
+	if d.lineContinuationRegex.Match(line) {
+		line = d.lineContinuationRegex.ReplaceAll(line, []byte("$1"))
 		return line, false
 	}
 	return line, true
@@ -525,7 +532,7 @@ func processLine(d *directives, token []byte, stripLeftWhitespace bool) ([]byte,
 	if stripLeftWhitespace {
 		token = trimLeadingWhitespace(token)
 	}
-	return trimComments(token), d.possibleParserDirective(string(token))
+	return trimComments(token), d.possibleParserDirective(token)
 }
 
 // Variation of bufio.ScanLines that preserves the line endings
@@ -549,4 +556,14 @@ func handleScannerError(err error) error {
 	default:
 		return err
 	}
+}
+
+type emptyEnvs struct{}
+
+func (emptyEnvs) Get(string) (string, bool) {
+	return "", false
+}
+
+func (emptyEnvs) Keys() []string {
+	return nil
 }

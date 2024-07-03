@@ -73,11 +73,12 @@ func (cm *combinedCacheManager) Load(ctx context.Context, rec *CacheRecord) (res
 		return nil, err
 	}
 	defer func() {
+		ctx := context.WithoutCancel(ctx)
 		for i, res := range results {
 			if err == nil && i == 0 {
 				continue
 			}
-			res.Result.Release(context.TODO())
+			res.Result.Release(ctx)
 		}
 	}()
 	if rec.cacheManager != cm.main && cm.main != nil {

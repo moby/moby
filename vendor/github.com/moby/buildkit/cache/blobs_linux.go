@@ -46,12 +46,13 @@ func (sr *immutableRef) tryComputeOverlayBlob(ctx context.Context, lower, upper 
 
 	defer func() {
 		if cw != nil {
+			ctx = context.WithoutCancel(ctx)
 			// after commit success cw will be set to nil, if cw isn't nil, error
 			// happened before commit, we should abort this ingest, and because the
 			// error may incured by ctx cancel, use a new context here. And since
 			// cm.Close will unlock this ref in the content store, we invoke abort
 			// to remove the ingest root in advance.
-			if aerr := sr.cm.ContentStore.Abort(context.Background(), ref); aerr != nil {
+			if aerr := sr.cm.ContentStore.Abort(ctx, ref); aerr != nil {
 				bklog.G(ctx).WithError(aerr).Warnf("failed to abort writer %q", ref)
 			}
 			if cerr := cw.Close(); cerr != nil {

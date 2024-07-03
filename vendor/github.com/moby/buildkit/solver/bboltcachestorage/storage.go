@@ -278,8 +278,10 @@ func (s *Store) emptyBranchWithParents(tx *bolt.Tx, id []byte) error {
 				}
 
 				if isEmptyBucket(subLinks) {
-					if err := tx.Bucket([]byte(linksBucket)).DeleteBucket(k); err != nil {
-						return err
+					if subResult := tx.Bucket([]byte(resultBucket)).Bucket(k); isEmptyBucket(subResult) {
+						if err := tx.Bucket([]byte(linksBucket)).DeleteBucket(k); err != nil {
+							return err
+						}
 					}
 				}
 			}

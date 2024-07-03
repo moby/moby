@@ -9,11 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend/attestations"
+	"github.com/moby/buildkit/frontend/dockerfile/linter"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
@@ -65,7 +66,7 @@ type Config struct {
 	ShmSize          int64
 	Target           string
 	Ulimits          []pb.Ulimit
-	LinterConfig     *string
+	LinterConfig     *linter.Config
 
 	CacheImports           []client.CacheOptionsEntry
 	TargetPlatforms        []ocispecs.Platform // nil means default
@@ -78,8 +79,7 @@ type Client struct {
 	Config
 	client      client.Client
 	ignoreCache []string
-	bctx        *buildContext
-	g           flightcontrol.Group[*buildContext]
+	g           flightcontrol.CachedGroup[*buildContext]
 	bopts       client.BuildOpts
 
 	dockerignore     []byte
@@ -281,21 +281,17 @@ func (bc *Client) init() error {
 	bc.Hostname = opts[keyHostname]
 
 	if v, ok := opts[keyDockerfileLintArg]; ok {
-		bc.LinterConfig = &v
+		bc.LinterConfig, err = linter.ParseLintOptions(v)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse %s", keyDockerfileLintArg)
+		}
 	}
 	return nil
 }
 
 func (bc *Client) buildContext(ctx context.Context) (*buildContext, error) {
 	return bc.g.Do(ctx, "initcontext", func(ctx context.Context) (*buildContext, error) {
-		if bc.bctx != nil {
-			return bc.bctx, nil
-		}
-		bctx, err := bc.initContext(ctx)
-		if err == nil {
-			bc.bctx = bctx
-		}
-		return bctx, err
+		return bc.initContext(ctx)
 	})
 }
 

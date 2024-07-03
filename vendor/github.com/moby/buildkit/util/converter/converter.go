@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"sync"
 	"time"
 
@@ -172,9 +173,7 @@ func (c *conversion) convert(ctx context.Context, cs content.Store, desc ocispec
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed finalize compression")
 		}
-		for k, v := range a {
-			newDesc.Annotations[k] = v
-		}
+		maps.Copy(newDesc.Annotations, a)
 	}
 	return &newDesc, nil
 }

@@ -19,6 +19,9 @@ import (
 	"fmt"
 
 	"github.com/containernetworking/cni/pkg/types"
+	_ "github.com/containernetworking/cni/pkg/types/020"
+	_ "github.com/containernetworking/cni/pkg/types/040"
+	_ "github.com/containernetworking/cni/pkg/types/100"
 	convert "github.com/containernetworking/cni/pkg/types/internal"
 )
 

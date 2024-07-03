@@ -1,17 +1,15 @@
 package identity
 
 import (
-	cryptorand "crypto/rand"
+	"crypto/rand"
 	"io"
 	"math/big"
-
-	"github.com/pkg/errors"
 )
 
 var (
 	// idReader is used for random id generation. This declaration allows us to
 	// replace it for testing.
-	idReader = cryptorand.Reader
+	idReader = rand.Reader
 )
 
 // parameters for random identifier generation. We can tweak this when there is
@@ -46,7 +44,7 @@ func NewID() string {
 	var p [randomIDEntropyBytes]byte
 
 	if _, err := io.ReadFull(idReader, p[:]); err != nil {
-		panic(errors.Wrap(err, "failed to read random bytes: %v"))
+		panic("failed to read random bytes: " + err.Error())
 	}
 
 	p[0] |= 0x80 // set high bit to avoid the need for padding

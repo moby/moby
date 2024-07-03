@@ -3,6 +3,7 @@ package attestation
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -140,6 +141,9 @@ func unbundle(root string, bundle exporter.Attestation) ([]exporter.Attestation,
 		var stmt intoto.Statement
 		if err := dec.Decode(&stmt); err != nil {
 			return nil, errors.Wrap(err, "cannot decode in-toto statement")
+		}
+		if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+			return nil, errors.New("in-toto statement is not a single JSON object")
 		}
 		if bundle.InToto.PredicateType != "" && stmt.PredicateType != bundle.InToto.PredicateType {
 			return nil, errors.Errorf("bundle entry %s does not match required predicate type %s", stmt.PredicateType, bundle.InToto.PredicateType)

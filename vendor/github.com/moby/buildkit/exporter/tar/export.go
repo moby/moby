@@ -177,7 +177,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 		return nil, nil, err
 	}
 	report := progress.OneOff(ctx, "sending tarball")
-	if err := fsutil.WriteTar(ctx, fs, w); err != nil {
+	if err := writeTar(ctx, fs, w); err != nil {
 		w.Close()
 		return nil, nil, report(err)
 	}

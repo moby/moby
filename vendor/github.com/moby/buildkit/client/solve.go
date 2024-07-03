@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -219,13 +220,8 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		})
 	}
 
-	frontendAttrs := map[string]string{}
-	for k, v := range opt.FrontendAttrs {
-		frontendAttrs[k] = v
-	}
-	for k, v := range cacheOpt.frontendAttrs {
-		frontendAttrs[k] = v
-	}
+	frontendAttrs := maps.Clone(opt.FrontendAttrs)
+	maps.Copy(frontendAttrs, cacheOpt.frontendAttrs)
 
 	solveCtx, cancelSolve := context.WithCancelCause(ctx)
 	var res *SolveResponse

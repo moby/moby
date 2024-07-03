@@ -283,18 +283,23 @@ func (c *Controller) ListenBuildHistory(req *controlapi.BuildHistoryRequest, srv
 }
 
 func (c *Controller) UpdateBuildHistory(ctx context.Context, req *controlapi.UpdateBuildHistoryRequest) (*controlapi.UpdateBuildHistoryResponse, error) {
-	if !req.Delete {
-		err := c.history.UpdateRef(ctx, req.Ref, func(r *controlapi.BuildHistoryRecord) error {
-			if req.Pinned == r.Pinned {
-				return nil
-			}
-			r.Pinned = req.Pinned
-			return nil
-		})
+	if req.Delete {
+		err := c.history.Delete(ctx, req.Ref)
 		return &controlapi.UpdateBuildHistoryResponse{}, err
 	}
 
-	err := c.history.Delete(ctx, req.Ref)
+	if req.Finalize {
+		err := c.history.Finalize(ctx, req.Ref)
+		return &controlapi.UpdateBuildHistoryResponse{}, err
+	}
+
+	err := c.history.UpdateRef(ctx, req.Ref, func(r *controlapi.BuildHistoryRecord) error {
+		if req.Pinned == r.Pinned {
+			return nil
+		}
+		r.Pinned = req.Pinned
+		return nil
+	})
 	return &controlapi.UpdateBuildHistoryResponse{}, err
 }
 
