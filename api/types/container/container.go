@@ -91,7 +91,7 @@ type MountPoint struct {
 }
 
 // State stores container's running state
-// it's part of InspectBase and returned by "inspect" command
+// it's part of ContainerJSONBase and returned by "inspect" command
 type State struct {
 	Status     string // String representation of the container state. Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
 	Running    bool
@@ -130,16 +130,16 @@ type Summary struct {
 	Mounts          []MountPoint
 }
 
-// InspectBase contains response of Engine API GET "/containers/{name:.*}/json"
+// ContainerJSONBase contains response of Engine API GET "/containers/{name:.*}/json"
 // for API version 1.18 and older.
 //
-// TODO(thaJeztah): combine InspectBase and InspectResponse into a single struct.
-// The split between InspectBase (ContainerJSONBase) and InspectResponse (InspectResponse)
+// TODO(thaJeztah): combine ContainerJSONBase and InspectResponse into a single struct.
+// The split between ContainerJSONBase (ContainerJSONBase) and InspectResponse (InspectResponse)
 // was done in commit 6deaa58ba5f051039643cedceee97c8695e2af74 (https://github.com/moby/moby/pull/13675).
 // ContainerJSONBase contained all fields for API < 1.19, and InspectResponse
 // held fields that were added in API 1.19 and up. Given that the minimum
 // supported API version is now 1.24, we no longer use the separate type.
-type InspectBase struct {
+type ContainerJSONBase struct {
 	ID              string `json:"Id"`
 	Created         string
 	Path            string
@@ -167,7 +167,7 @@ type InspectBase struct {
 // InspectResponse is the response for the GET "/containers/{name:.*}/json"
 // endpoint.
 type InspectResponse struct {
-	*InspectBase
+	*ContainerJSONBase
 	Mounts          []MountPoint
 	Config          *Config
 	NetworkSettings *NetworkSettings

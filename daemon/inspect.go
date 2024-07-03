@@ -104,14 +104,14 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 	}
 
 	return &containertypes.InspectResponse{
-		InspectBase:     base,
-		Mounts:          mountPoints,
-		Config:          ctr.Config,
-		NetworkSettings: networkSettings,
+		ContainerJSONBase: base,
+		Mounts:            mountPoints,
+		Config:            ctr.Config,
+		NetworkSettings:   networkSettings,
 	}, nil
 }
 
-func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *container.Container) (*containertypes.InspectBase, error) {
+func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *container.Container) (*containertypes.ContainerJSONBase, error) {
 	// make a copy to play with
 	hostConfig := *container.HostConfig
 
@@ -160,7 +160,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 		Health:     containerHealth,
 	}
 
-	contJSONBase := &containertypes.InspectBase{
+	contJSONBase := &containertypes.ContainerJSONBase{
 		ID:           container.ID,
 		Created:      container.Created.Format(time.RFC3339Nano),
 		Path:         container.Path,
