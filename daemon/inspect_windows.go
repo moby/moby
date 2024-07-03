@@ -7,7 +7,7 @@ import (
 )
 
 // This sets platform-specific fields
-func setPlatformSpecificContainerFields(container *containerpkg.Container, contJSONBase *container.InspectBase) *container.InspectBase {
+func setPlatformSpecificContainerFields(container *containerpkg.Container, contJSONBase *container.ContainerJSONBase) *container.ContainerJSONBase {
 	return contJSONBase
 }
 

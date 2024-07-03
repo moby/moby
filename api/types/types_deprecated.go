@@ -9,8 +9,8 @@ import (
 // ContainerJSONBase contains response of Engine API GET "/containers/{name:.*}/json"
 // for API version 1.18 and older.
 //
-// Deprecated: use [container.InspectResponse] or [container.InspectBase]. It will be removed in the next release.
-type ContainerJSONBase = container.InspectBase
+// Deprecated: use [container.InspectResponse] or [container.ContainerJSONBase]. It will be removed in the next release.
+type ContainerJSONBase = container.ContainerJSONBase
 
 // ContainerJSON is the response for the GET "/containers/{name:.*}/json"
 // endpoint.
