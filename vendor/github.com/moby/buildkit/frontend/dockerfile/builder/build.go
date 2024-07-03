@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/frontend"
@@ -34,6 +34,7 @@ const (
 )
 
 func Build(ctx context.Context, c client.Client) (_ *client.Result, err error) {
+	c = &withResolveCache{Client: c}
 	bc, err := dockerui.NewClient(c)
 	if err != nil {
 		return nil, err
@@ -87,7 +88,7 @@ func Build(ctx context.Context, c client.Client) (_ *client.Result, err error) {
 
 	if res, ok, err := bc.HandleSubrequest(ctx, dockerui.RequestHandler{
 		Outline: func(ctx context.Context) (*outline.Outline, error) {
-			return dockerfile2llb.Dockefile2Outline(ctx, src.Data, convertOpt)
+			return dockerfile2llb.Dockerfile2Outline(ctx, src.Data, convertOpt)
 		},
 		ListTargets: func(ctx context.Context) (*targets.List, error) {
 			return dockerfile2llb.ListTargets(ctx, src.Data)

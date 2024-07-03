@@ -21,10 +21,6 @@ type Stream interface {
 	RecvMsg(m interface{}) error
 }
 
-func sendDiffCopy(stream Stream, fs fsutil.FS, progress progressCb) error {
-	return errors.WithStack(fsutil.Send(stream.Context(), stream, fs, progress))
-}
-
 func newStreamWriter(stream grpc.ClientStream) io.WriteCloser {
 	wc := &streamWriterCloser{ClientStream: stream}
 	return &bufferedWriteCloser{Writer: bufio.NewWriter(wc), Closer: wc}

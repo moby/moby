@@ -10,9 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 
-	iradix "github.com/hashicorp/go-immutable-radix"
-	"github.com/hashicorp/golang-lru/simplelru"
+	iradix "github.com/hashicorp/go-immutable-radix/v2"
+	simplelru "github.com/hashicorp/golang-lru/v2/simplelru"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
@@ -31,7 +32,7 @@ var defaultManagerOnce sync.Once
 
 func getDefaultManager() *cacheManager {
 	defaultManagerOnce.Do(func() {
-		lru, _ := simplelru.NewLRU(20, nil) // error is impossible on positive size
+		lru, _ := simplelru.NewLRU[string, *cacheContext](20, nil) // error is impossible on positive size
 		defaultManager = &cacheManager{lru: lru, locker: locker.New()}
 	})
 	return defaultManager
@@ -85,7 +86,7 @@ type includedPath struct {
 
 type cacheManager struct {
 	locker *locker.Locker
-	lru    *simplelru.LRU
+	lru    *simplelru.LRU[string, *cacheContext]
 	lruMu  sync.Mutex
 }
 
@@ -110,10 +111,10 @@ func (cm *cacheManager) GetCacheContext(ctx context.Context, md cache.RefMetadat
 	cm.lruMu.Unlock()
 	if ok {
 		cm.locker.Unlock(md.ID())
-		v.(*cacheContext).mu.Lock() // locking is required because multiple ImmutableRefs can reach this code; however none of them use the linkMap.
-		v.(*cacheContext).linkMap = map[string][][]byte{}
-		v.(*cacheContext).mu.Unlock()
-		return v.(*cacheContext), nil
+		v.mu.Lock() // locking is required because multiple ImmutableRefs can reach this code; however none of them use the linkMap.
+		v.linkMap = map[string][][]byte{}
+		v.mu.Unlock()
+		return v, nil
 	}
 	cc, err := newCacheContext(md)
 	if err != nil {
@@ -159,12 +160,12 @@ func (cm *cacheManager) clearCacheContext(id string) {
 type cacheContext struct {
 	mu    sync.RWMutex
 	md    cacheMetadata
-	tree  *iradix.Tree
+	tree  *iradix.Tree[*CacheRecord]
 	dirty bool // needs to be persisted to disk
 
 	// used in HandleChange
-	txn      *iradix.Txn
-	node     *iradix.Node
+	txn      *iradix.Txn[*CacheRecord]
+	node     *iradix.Node[*CacheRecord]
 	dirtyMap map[string]struct{}
 	linkMap  map[string][][]byte
 }
@@ -224,7 +225,7 @@ func (m *mount) clean() error {
 func newCacheContext(md cache.RefMetadata) (*cacheContext, error) {
 	cc := &cacheContext{
 		md:       cacheMetadata{md},
-		tree:     iradix.New(),
+		tree:     iradix.New[*CacheRecord](),
 		dirtyMap: map[string]struct{}{},
 		linkMap:  map[string][][]byte{},
 	}
@@ -263,10 +264,10 @@ func (cc *cacheContext) save() error {
 
 	var l CacheRecords
 	node := cc.tree.Root()
-	node.Walk(func(k []byte, v interface{}) bool {
+	node.Walk(func(k []byte, v *CacheRecord) bool {
 		l.Paths = append(l.Paths, &CacheRecordWithPath{
 			Path:   string(k),
-			Record: v.(*CacheRecord),
+			Record: v,
 		})
 		return false
 	})
@@ -294,7 +295,7 @@ func (cc *cacheContext) HandleChange(kind fsutil.ChangeKind, p string, fi os.Fil
 
 	deleteDir := func(cr *CacheRecord) {
 		if cr.Type == CacheRecordTypeDir {
-			cc.node.WalkPrefix(append(k, 0), func(k []byte, v interface{}) bool {
+			cc.node.WalkPrefix(append(k, 0), func(k []byte, v *CacheRecord) bool {
 				cc.txn.Delete(k)
 				return false
 			})
@@ -322,7 +323,7 @@ func (cc *cacheContext) HandleChange(kind fsutil.ChangeKind, p string, fi os.Fil
 	if kind == fsutil.ChangeKindDelete {
 		v, ok := cc.txn.Delete(k)
 		if ok {
-			deleteDir(v.(*CacheRecord))
+			deleteDir(v)
 		}
 		d := path.Dir(p)
 		if d == "/" {
@@ -344,7 +345,7 @@ func (cc *cacheContext) HandleChange(kind fsutil.ChangeKind, p string, fi os.Fil
 
 	v, ok := cc.node.Get(k)
 	if ok {
-		deleteDir(v.(*CacheRecord))
+		deleteDir(v)
 	}
 
 	cr := &CacheRecord{
@@ -371,7 +372,7 @@ func (cc *cacheContext) HandleChange(kind fsutil.ChangeKind, p string, fi os.Fil
 		ln := path.Join("/", filepath.ToSlash(stat.Linkname))
 		v, ok := cc.txn.Get(convertPathToKey(ln))
 		if ok {
-			cp := *v.(*CacheRecord)
+			cp := *v
 			cr = &cp
 		}
 		cc.linkMap[ln] = append(cc.linkMap[ln], k)
@@ -496,7 +497,7 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 	root = txn.Root()
 	var (
 		updated        bool
-		iter           *iradix.Iterator
+		iter           *iradix.Iterator[*CacheRecord]
 		k              []byte
 		keyOk          bool
 		origPrefix     string
@@ -716,7 +717,7 @@ func shouldIncludePath(
 	return true, nil
 }
 
-func wildcardPrefix(root *iradix.Node, p string) (string, []byte, bool, error) {
+func wildcardPrefix(root *iradix.Node[*CacheRecord], p string) (string, []byte, bool, error) {
 	// For consistency with what the copy implementation in fsutil
 	// does: split pattern into non-wildcard prefix and rest of
 	// pattern, then follow symlinks when resolving the non-wildcard
@@ -849,7 +850,7 @@ func (cc *cacheContext) scanChecksum(ctx context.Context, m *mount, p string, fo
 	return cr, err
 }
 
-func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node, txn *iradix.Txn, m *mount, k []byte, followTrailing bool) (*CacheRecord, bool, error) {
+func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node[*CacheRecord], txn *iradix.Txn[*CacheRecord], m *mount, k []byte, followTrailing bool) (*CacheRecord, bool, error) {
 	origk := k
 	k, cr, err := getFollowLinks(root, k, followTrailing)
 	if err != nil {
@@ -928,31 +929,64 @@ func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node, txn *ir
 	return cr2, true, nil
 }
 
+// pathSet is a set of path prefixes that can be used to see if a given path is
+// lexically a child of any path in the set. All paths provided to this set
+// MUST be absolute and use / as the separator.
+type pathSet struct {
+	// prefixes contains paths of the form "/a/b/", so that we correctly detect
+	// /a/b as being a parent of /a/b/c but not /a/bc.
+	prefixes []string
+}
+
+// add a path to the set. This is a no-op if includes(path) == true.
+func (s *pathSet) add(p string) {
+	// Ensure the path is absolute and clean.
+	p = path.Join("/", p)
+	if !s.includes(p) {
+		if p != "/" {
+			p += "/"
+		}
+		s.prefixes = append(s.prefixes, p)
+	}
+}
+
+// includes returns true iff there is a path in the pathSet which is a lexical
+// parent of the given path. The provided path MUST be an absolute path and
+// MUST NOT contain any ".." components, as they will be path.Clean'd.
+func (s pathSet) includes(p string) bool {
+	// Ensure the path is absolute and clean.
+	p = path.Join("/", p)
+	if p != "/" {
+		p += "/"
+	}
+	for _, prefix := range s.prefixes {
+		if strings.HasPrefix(p, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // needsScan returns false if path is in the tree or a parent path is in tree
 // and subpath is missing.
-func (cc *cacheContext) needsScan(root *iradix.Node, path string, followTrailing bool) (bool, error) {
+func (cc *cacheContext) needsScan(root *iradix.Node[*CacheRecord], path string, followTrailing bool) (bool, error) {
 	var (
-		lastGoodPath    string
+		goodPaths       pathSet
 		hasParentInTree bool
 	)
 	k := convertPathToKey(path)
 	_, cr, err := getFollowLinksCallback(root, k, followTrailing, func(subpath string, cr *CacheRecord) error {
+		// If we found a path that exists in the cache, add it to the set of
+		// known-scanned paths. Otherwise, verify whether the not-found subpath
+		// is inside a known-scanned path (we might have hit a "..", taking us
+		// out of the scanned paths, or we might hit a non-existent path inside
+		// a scanned path). getFollowLinksCallback iterates left-to-right, so
+		// we will always hit ancestors first.
 		if cr != nil {
-			// If the path is not a symlink, then for now we have a parent in
-			// the tree. Otherwise, we reset hasParentInTree because we
-			// might've jumped to a part of the tree that hasn't been scanned.
-			hasParentInTree = (cr.Type != CacheRecordTypeSymlink)
-			if hasParentInTree {
-				lastGoodPath = subpath
-			}
-		} else if hasParentInTree {
-			// If the current component was something like ".." and the subpath
-			// couldn't be found, then we need to invalidate hasParentInTree.
-			// In practice this means that our subpath needs to be prefixed by
-			// the last good path. We add a trailing slash to make sure the
-			// prefix is a proper lexical prefix (as opposed to /a/b being seen
-			// as a prefix of /a/bc).
-			hasParentInTree = strings.HasPrefix(subpath+"/", lastGoodPath+"/")
+			hasParentInTree = cr.Type != CacheRecordTypeSymlink
+			goodPaths.add(subpath)
+		} else {
+			hasParentInTree = goodPaths.includes(subpath)
 		}
 		return nil
 	})
@@ -961,6 +995,13 @@ func (cc *cacheContext) needsScan(root *iradix.Node, path string, followTrailing
 	}
 	return cr == nil && !hasParentInTree, nil
 }
+
+// Only used by TestNeedScanChecksumRegression to make sure scanPath is not
+// called for paths we have already scanned.
+var (
+	scanCounterEnable bool
+	scanCounter       atomic.Uint64
+)
 
 func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string, followTrailing bool) (retErr error) {
 	p = path.Join("/", p)
@@ -994,6 +1035,9 @@ func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string, follow
 	}
 
 	err = filepath.Walk(scanPath, func(itemPath string, fi os.FileInfo, err error) error {
+		if scanCounterEnable {
+			scanCounter.Add(1)
+		}
 		if err != nil {
 			// If the root doesn't exist, ignore the error.
 			if itemPath == scanPath && errors.Is(err, os.ErrNotExist) {
@@ -1005,11 +1049,7 @@ func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string, follow
 		if err != nil {
 			return err
 		}
-		p := path.Join("/", filepath.ToSlash(rel))
-		if p == "/" {
-			p = ""
-		}
-		k := convertPathToKey(p)
+		k := convertPathToKey(keyPath(rel))
 		if _, ok := n.Get(k); !ok {
 			cr := &CacheRecord{
 				Type: CacheRecordTypeFile,
@@ -1047,7 +1087,7 @@ func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string, follow
 type followLinksCallback func(path string, cr *CacheRecord) error
 
 // getFollowLinks is shorthand for getFollowLinksCallback(..., nil).
-func getFollowLinks(root *iradix.Node, k []byte, followTrailing bool) ([]byte, *CacheRecord, error) {
+func getFollowLinks(root *iradix.Node[*CacheRecord], k []byte, followTrailing bool) ([]byte, *CacheRecord, error) {
 	return getFollowLinksCallback(root, k, followTrailing, nil)
 }
 
@@ -1060,13 +1100,22 @@ func getFollowLinks(root *iradix.Node, k []byte, followTrailing bool) ([]byte, *
 // Linux APIs), followTrailing is obeyed even if the key has a trailing slash
 // (though paths like "foo/link/." will cause the link to be resolved).
 //
-// The callback cb is called after each cache lookup done by
-// getFollowLinksCallback, except for the first lookup where the verbatim key
-// is looked up in the cache.
-func getFollowLinksCallback(root *iradix.Node, k []byte, followTrailing bool, cb followLinksCallback) ([]byte, *CacheRecord, error) {
+// cb is a callback that is called for each path component encountered during
+// path resolution (after the path component is looked up in the cache). This
+// means for a path like /a/b/c, the callback will be called for at least
+//
+//	{/, /a, /a/b, /a/b/c}
+//
+// Note that if any of the components are symlinks, the paths will depend on
+// the symlink contents and there will be more callbacks. If the requested key
+// has a trailing slash, the callback will also be called for the final
+// trailing-slash lookup (/a/b/c/ in the above example). Note that
+// getFollowLinksCallback will try to look up the original key directly first
+// and the callback is not called for this first lookup.
+func getFollowLinksCallback(root *iradix.Node[*CacheRecord], k []byte, followTrailing bool, cb followLinksCallback) ([]byte, *CacheRecord, error) {
 	v, ok := root.Get(k)
-	if ok && (!followTrailing || v.(*CacheRecord).Type != CacheRecordTypeSymlink) {
-		return k, v.(*CacheRecord), nil
+	if ok && (!followTrailing || v.Type != CacheRecordTypeSymlink) {
+		return k, v, nil
 	}
 	if len(k) == 0 {
 		return k, nil, nil
@@ -1093,22 +1142,13 @@ func getFollowLinksCallback(root *iradix.Node, k []byte, followTrailing bool, cb
 		// Apply the component to the path. Since it is a single component, and
 		// our current path contains no symlinks, we can just apply it
 		// leixically.
-		nextPath := path.Join("/", currentPath, part)
-		if nextPath == "/" {
-			// If we hit the root, just treat it as a directory.
-			currentPath = "/"
-			continue
-		}
-		if nextPath == currentPath {
-			// noop component
-			continue
-		}
+		nextPath := keyPath(path.Join("/", currentPath, part))
+		// In contrast to rootPath, we don't skip lookups for no-op components
+		// or / because we need to call the callback for every path component
+		// we hit (including /) and we need to make sure that the CacheRecord
+		// we return is correct after every iteration.
 
-		cr = nil
-		v, ok := root.Get(convertPathToKey(nextPath))
-		if ok {
-			cr = v.(*CacheRecord)
-		}
+		cr, ok = root.Get(convertPathToKey(nextPath))
 		if cb != nil {
 			if err := cb(nextPath, cr); err != nil {
 				return nil, nil, err
@@ -1137,12 +1177,8 @@ func getFollowLinksCallback(root *iradix.Node, k []byte, followTrailing bool, cb
 	// trailing slash in the original path, we need to do the lookup again with
 	// the slash applied.
 	if hadTrailingSlash {
-		cr = nil
 		currentPath += "/"
-		v, ok := root.Get(convertPathToKey(currentPath))
-		if ok {
-			cr = v.(*CacheRecord)
-		}
+		cr, _ = root.Get(convertPathToKey(currentPath))
 		if cb != nil {
 			if err := cb(currentPath, cr); err != nil {
 				return nil, nil, err

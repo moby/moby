@@ -3,7 +3,7 @@ package provenance
 import (
 	"strings"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	slsa "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common"
 	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
 	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"

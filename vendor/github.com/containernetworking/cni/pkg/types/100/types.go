@@ -26,9 +26,10 @@ import (
 	convert "github.com/containernetworking/cni/pkg/types/internal"
 )
 
-const ImplementedSpecVersion string = "1.0.0"
+// The types did not change between v1.0 and v1.1
+const ImplementedSpecVersion string = "1.1.0"
 
-var supportedVersions = []string{ImplementedSpecVersion}
+var supportedVersions = []string{"1.0.0", "1.1.0"}
 
 // Register converters for all versions less than the implemented spec version
 func init() {
@@ -38,10 +39,14 @@ func init() {
 	convert.RegisterConverter("0.3.0", supportedVersions, convertFrom04x)
 	convert.RegisterConverter("0.3.1", supportedVersions, convertFrom04x)
 	convert.RegisterConverter("0.4.0", supportedVersions, convertFrom04x)
+	convert.RegisterConverter("1.0.0", []string{"1.1.0"}, convertFrom100)
 
 	// Down-converters
 	convert.RegisterConverter("1.0.0", []string{"0.3.0", "0.3.1", "0.4.0"}, convertTo04x)
 	convert.RegisterConverter("1.0.0", []string{"0.1.0", "0.2.0"}, convertTo02x)
+	convert.RegisterConverter("1.1.0", []string{"0.3.0", "0.3.1", "0.4.0"}, convertTo04x)
+	convert.RegisterConverter("1.1.0", []string{"0.1.0", "0.2.0"}, convertTo02x)
+	convert.RegisterConverter("1.1.0", []string{"1.0.0"}, convertFrom100)
 
 	// Creator
 	convert.RegisterCreator(supportedVersions, NewResult)
@@ -90,12 +95,49 @@ type Result struct {
 	DNS        types.DNS      `json:"dns,omitempty"`
 }
 
+// Note: DNS should be omit if DNS is empty but default Marshal function
+// will output empty structure hence need to write a Marshal function
+func (r *Result) MarshalJSON() ([]byte, error) {
+	// use type alias to escape recursion for json.Marshal() to MarshalJSON()
+	type fixObjType = Result
+
+	bytes, err := json.Marshal(fixObjType(*r)) //nolint:all
+	if err != nil {
+		return nil, err
+	}
+
+	fixupObj := make(map[string]interface{})
+	if err := json.Unmarshal(bytes, &fixupObj); err != nil {
+		return nil, err
+	}
+
+	if r.DNS.IsEmpty() {
+		delete(fixupObj, "dns")
+	}
+
+	return json.Marshal(fixupObj)
+}
+
+// convertFrom100 does nothing except set the version; the types are the same
+func convertFrom100(from types.Result, toVersion string) (types.Result, error) {
+	fromResult := from.(*Result)
+
+	result := &Result{
+		CNIVersion: toVersion,
+		Interfaces: fromResult.Interfaces,
+		IPs:        fromResult.IPs,
+		Routes:     fromResult.Routes,
+		DNS:        fromResult.DNS,
+	}
+	return result, nil
+}
+
 func convertFrom02x(from types.Result, toVersion string) (types.Result, error) {
 	result040, err := convert.Convert(from, "0.4.0")
 	if err != nil {
 		return nil, err
 	}
-	result100, err := convertFrom04x(result040, ImplementedSpecVersion)
+	result100, err := convertFrom04x(result040, toVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -226,9 +268,12 @@ func (r *Result) PrintTo(writer io.Writer) error {
 
 // Interface contains values about the created interfaces
 type Interface struct {
-	Name    string `json:"name"`
-	Mac     string `json:"mac,omitempty"`
-	Sandbox string `json:"sandbox,omitempty"`
+	Name       string `json:"name"`
+	Mac        string `json:"mac,omitempty"`
+	Mtu        int    `json:"mtu,omitempty"`
+	Sandbox    string `json:"sandbox,omitempty"`
+	SocketPath string `json:"socketPath,omitempty"`
+	PciID      string `json:"pciID,omitempty"`
 }
 
 func (i *Interface) String() string {

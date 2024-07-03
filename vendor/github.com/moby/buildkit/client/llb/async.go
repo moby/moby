@@ -6,16 +6,12 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 type asyncState struct {
-	f      func(context.Context, State, *Constraints) (State, error)
-	prev   State
-	target State
-	set    bool
-	err    error
-	g      flightcontrol.Group[State]
+	f    func(context.Context, State, *Constraints) (State, error)
+	prev State
+	g    flightcontrol.CachedGroup[State]
 }
 
 func (as *asyncState) Output() Output {
@@ -23,59 +19,33 @@ func (as *asyncState) Output() Output {
 }
 
 func (as *asyncState) Vertex(ctx context.Context, c *Constraints) Vertex {
-	err := as.Do(ctx, c)
+	target, err := as.Do(ctx, c)
 	if err != nil {
 		return &errVertex{err}
 	}
-	if as.set {
-		out := as.target.Output()
-		if out == nil {
-			return nil
-		}
-		return out.Vertex(ctx, c)
+	out := target.Output()
+	if out == nil {
+		return nil
 	}
-	return nil
+	return out.Vertex(ctx, c)
 }
 
 func (as *asyncState) ToInput(ctx context.Context, c *Constraints) (*pb.Input, error) {
-	err := as.Do(ctx, c)
+	target, err := as.Do(ctx, c)
 	if err != nil {
 		return nil, err
 	}
-	if as.set {
-		out := as.target.Output()
-		if out == nil {
-			return nil, nil
-		}
-		return out.ToInput(ctx, c)
+	out := target.Output()
+	if out == nil {
+		return nil, nil
 	}
-	return nil, nil
+	return out.ToInput(ctx, c)
 }
 
-func (as *asyncState) Do(ctx context.Context, c *Constraints) error {
-	_, err := as.g.Do(ctx, "", func(ctx context.Context) (State, error) {
-		if as.set {
-			return as.target, as.err
-		}
-		res, err := as.f(ctx, as.prev, c)
-		if err != nil {
-			select {
-			case <-ctx.Done():
-				if errors.Is(err, context.Cause(ctx)) {
-					return res, err
-				}
-			default:
-			}
-		}
-		as.target = res
-		as.err = err
-		as.set = true
-		return res, err
+func (as *asyncState) Do(ctx context.Context, c *Constraints) (State, error) {
+	return as.g.Do(ctx, "", func(ctx context.Context) (State, error) {
+		return as.f(ctx, as.prev, c)
 	})
-	if err != nil {
-		return err
-	}
-	return as.err
 }
 
 type errVertex struct {

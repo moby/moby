@@ -1,10 +1,10 @@
 package attestations
 
 import (
-	"encoding/csv"
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/tonistiigi/go-csvvalue"
 )
 
 const (
@@ -63,8 +63,7 @@ func Parse(values map[string]string) (map[string]map[string]string, error) {
 		if v == "" {
 			continue
 		}
-		csvReader := csv.NewReader(strings.NewReader(v))
-		fields, err := csvReader.Read()
+		fields, err := csvvalue.Fields(v, nil)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to parse %s", k)
 		}

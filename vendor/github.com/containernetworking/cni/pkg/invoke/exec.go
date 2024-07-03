@@ -81,17 +81,17 @@ func fixupResultVersion(netconf, result []byte) (string, []byte, error) {
 // object to ExecPluginWithResult() to verify the incoming stdin and environment
 // and provide a tailored response:
 //
-//import (
+// import (
 //	"encoding/json"
 //	"path"
 //	"strings"
-//)
+// )
 //
-//type fakeExec struct {
+// type fakeExec struct {
 //	version.PluginDecoder
-//}
+// }
 //
-//func (f *fakeExec) ExecPlugin(pluginPath string, stdinData []byte, environ []string) ([]byte, error) {
+// func (f *fakeExec) ExecPlugin(pluginPath string, stdinData []byte, environ []string) ([]byte, error) {
 //	net := &types.NetConf{}
 //	err := json.Unmarshal(stdinData, net)
 //	if err != nil {
@@ -109,14 +109,14 @@ func fixupResultVersion(netconf, result []byte) (string, []byte, error) {
 //		}
 //	}
 //	return []byte("{\"CNIVersion\":\"0.4.0\"}"), nil
-//}
+// }
 //
-//func (f *fakeExec) FindInPath(plugin string, paths []string) (string, error) {
+// func (f *fakeExec) FindInPath(plugin string, paths []string) (string, error) {
 //	if len(paths) > 0 {
 //		return path.Join(paths[0], plugin), nil
 //	}
 //	return "", fmt.Errorf("failed to find plugin %s in paths %v", plugin, paths)
-//}
+// }
 
 func ExecPluginWithResult(ctx context.Context, pluginPath string, netconf []byte, args CNIArgs, exec Exec) (types.Result, error) {
 	if exec == nil {

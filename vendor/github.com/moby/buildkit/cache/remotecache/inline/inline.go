@@ -3,6 +3,7 @@ package inline
 import (
 	"context"
 	"encoding/json"
+	"slices"
 
 	"github.com/containerd/containerd/labels"
 	"github.com/moby/buildkit/cache/remotecache"
@@ -167,8 +168,6 @@ func layerToBlobs(idx int, layers []v1.CacheLayer) []digest.Digest {
 		idx = layer.ParentIndex
 	}
 	// reverse so they go lowest to highest
-	for i, j := 0, len(ds)-1; i < j; i, j = i+1, j-1 {
-		ds[i], ds[j] = ds[j], ds[i]
-	}
+	slices.Reverse(ds)
 	return ds
 }

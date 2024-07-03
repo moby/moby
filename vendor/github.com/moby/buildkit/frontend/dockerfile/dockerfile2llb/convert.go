@@ -5,17 +5,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"math"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/buildkit/client/llb"
@@ -49,6 +53,11 @@ const (
 
 	sbomScanContext = "BUILDKIT_SBOM_SCAN_CONTEXT"
 	sbomScanStage   = "BUILDKIT_SBOM_SCAN_STAGE"
+)
+
+var (
+	secretsRegexpOnce sync.Once
+	secretsRegexp     *regexp.Regexp
 )
 
 var nonEnvArgs = map[string]struct{}{
@@ -103,7 +112,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (st *llb.Sta
 	return &ds.state, &ds.image, ds.baseImg, sbom, nil
 }
 
-func Dockefile2Outline(ctx context.Context, dt []byte, opt ConvertOpt) (*outline.Outline, error) {
+func Dockerfile2Outline(ctx context.Context, dt []byte, opt ConvertOpt) (*outline.Outline, error) {
 	ds, err := toDispatchState(ctx, dt, opt)
 	if err != nil {
 		return nil, err
@@ -168,59 +177,17 @@ func ListTargets(ctx context.Context, dt []byte) (*targets.List, error) {
 	return l, nil
 }
 
-func parseLintOptions(checkStr string) (*linter.Config, error) {
-	checkStr = strings.TrimSpace(checkStr)
-	if checkStr == "" {
-		return &linter.Config{}, nil
-	}
-
-	parts := strings.SplitN(checkStr, ";", 2)
-	var skipSet []string
-	var errorOnWarn, skipAll bool
-	for _, p := range parts {
-		k, v, ok := strings.Cut(p, "=")
-		if !ok {
-			return nil, errors.Errorf("invalid check option %q", p)
-		}
-		k = strings.TrimSpace(k)
-		switch k {
-		case "skip":
-			v = strings.TrimSpace(v)
-			if v == "all" {
-				skipAll = true
-			} else {
-				skipSet = strings.Split(v, ",")
-				for i, rule := range skipSet {
-					skipSet[i] = strings.TrimSpace(rule)
-				}
-			}
-		case "error":
-			v, err := strconv.ParseBool(strings.TrimSpace(v))
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to parse check option %q", p)
-			}
-			errorOnWarn = v
-		default:
-			return nil, errors.Errorf("invalid check option %q", k)
-		}
-	}
-	return &linter.Config{
-		SkipRules:     skipSet,
-		SkipAll:       skipAll,
-		ReturnAsError: errorOnWarn,
-	}, nil
-}
-
 func newRuleLinter(dt []byte, opt *ConvertOpt) (*linter.Linter, error) {
-	var lintOptionStr string
+	var lintConfig *linter.Config
 	if opt.Client != nil && opt.Client.LinterConfig != nil {
-		lintOptionStr = *opt.Client.LinterConfig
+		lintConfig = opt.Client.LinterConfig
 	} else {
-		lintOptionStr, _, _, _ = parser.ParseDirective("check", dt)
-	}
-	lintConfig, err := parseLintOptions(lintOptionStr)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse check options")
+		var err error
+		lintOptionStr, _, _, _ := parser.ParseDirective("check", dt)
+		lintConfig, err = linter.ParseLintOptions(lintOptionStr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse check options")
+		}
 	}
 	lintConfig.Warn = opt.Warn
 	return linter.New(lintConfig), nil
@@ -296,27 +263,15 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 	shlex := shell.NewLex(dockerfile.EscapeToken)
 	outline := newOutlineCapture()
 
-	for _, cmd := range metaArgs {
-		for _, metaArg := range cmd.Args {
-			info := argInfo{definition: metaArg, location: cmd.Location()}
-			if v, ok := opt.BuildArgs[metaArg.Key]; !ok {
-				if metaArg.Value != nil {
-					result, err := shlex.ProcessWordWithMatches(*metaArg.Value, metaArgsToMap(optMetaArgs))
-					if err != nil {
-						return nil, parser.WithLocation(err, cmd.Location())
-					}
-					*metaArg.Value = result.Result
-					info.deps = result.Matched
-				}
-			} else {
-				metaArg.Value = &v
-			}
-			optMetaArgs = append(optMetaArgs, metaArg)
-			if metaArg.Value != nil {
-				info.value = *metaArg.Value
-			}
-			outline.allArgs[metaArg.Key] = info
-		}
+	// Validate that base images continue to be valid even
+	// when no build arguments are used.
+	validateBaseImagesWithDefaultArgs(stages, shlex, metaArgs, optMetaArgs, lint)
+
+	// Rebuild the arguments using the provided build arguments
+	// for the remainder of the build.
+	optMetaArgs, outline.allArgs, err = buildMetaArgs(optMetaArgs, shlex, metaArgs, opt.BuildArgs)
+	if err != nil {
+		return nil, err
 	}
 
 	metaResolver := opt.MetaResolver
@@ -328,9 +283,13 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 
 	// set base state for every image
 	for i, st := range stages {
-		nameMatch, err := shlex.ProcessWordWithMatches(st.BaseName, metaArgsToMap(optMetaArgs))
+		env := metaArgsToEnvs(optMetaArgs)
+		nameMatch, err := shlex.ProcessWordWithMatches(st.BaseName, env)
 		reportUnusedFromArgs(metaArgsKeys(optMetaArgs), nameMatch.Unmatched, st.Location, lint)
 		used := nameMatch.Matched
+		if used == nil {
+			used = map[string]struct{}{}
+		}
 
 		if err != nil {
 			return nil, parser.WithLocation(err, st.Location)
@@ -352,8 +311,10 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		}
 
 		if v := st.Platform; v != "" {
-			platMatch, err := shlex.ProcessWordWithMatches(v, metaArgsToMap(optMetaArgs))
+			platEnv := metaArgsToEnvs(optMetaArgs)
+			platMatch, err := shlex.ProcessWordWithMatches(v, platEnv)
 			reportUnusedFromArgs(metaArgsKeys(optMetaArgs), platMatch.Unmatched, st.Location, lint)
+			reportRedundantTargetPlatform(st.Platform, platMatch, st.Location, platEnv, lint)
 
 			if err != nil {
 				return nil, parser.WithLocation(errors.Wrapf(err, "failed to process arguments for platform %s", platMatch.Result), st.Location)
@@ -607,7 +568,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 							dfCmd(d.stage.SourceCode),
 							llb.Platform(*platform),
 							opt.ImageResolveMode,
-							llb.WithCustomName(prefixCommand(d, "FROM "+d.stage.BaseName, opt.MultiPlatformRequested, platform, nil)),
+							llb.WithCustomName(prefixCommand(d, "FROM "+d.stage.BaseName, opt.MultiPlatformRequested, platform, emptyEnvs{})),
 							location(opt.SourceMap, d.stage.Location),
 						)
 						if reachable {
@@ -643,7 +604,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		}
 
 		// make sure that PATH is always set
-		if _, ok := shell.BuildEnvs(d.image.Config.Env)["PATH"]; !ok {
+		if _, ok := shell.EnvsFromSlice(d.image.Config.Env).Get("PATH"); !ok {
 			var osName string
 			if d.platform != nil {
 				osName = d.platform.OS
@@ -726,9 +687,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 	if len(opt.Labels) != 0 && target.image.Config.Labels == nil {
 		target.image.Config.Labels = make(map[string]string, len(opt.Labels))
 	}
-	for k, v := range opt.Labels {
-		target.image.Config.Labels[k] = v
-	}
+	maps.Copy(target.image.Config.Labels, opt.Labels)
 
 	// If lint.Error() returns an error, it means that
 	// there were warnings, and that our linter has been
@@ -771,14 +730,38 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 	return target, nil
 }
 
-func metaArgsToMap(metaArgs []instructions.KeyValuePairOptional) map[string]string {
-	m := map[string]string{}
+func metaArgsToEnvs(metaArgs []instructions.KeyValuePairOptional) shell.EnvGetter {
+	return &envsFromKeyValuePairs{in: metaArgs}
+}
 
-	for _, arg := range metaArgs {
-		m[arg.Key] = arg.ValueString()
+type envsFromKeyValuePairs struct {
+	in   []instructions.KeyValuePairOptional
+	once sync.Once
+	m    map[string]string
+}
+
+func (e *envsFromKeyValuePairs) init() {
+	if len(e.in) == 0 {
+		return
 	}
+	e.m = make(map[string]string, len(e.in))
+	for _, kv := range e.in {
+		e.m[kv.Key] = kv.ValueString()
+	}
+}
 
-	return m
+func (e *envsFromKeyValuePairs) Get(key string) (string, bool) {
+	e.once.Do(e.init)
+	v, ok := e.m[key] // windows: case-insensitive
+	return v, ok
+}
+
+func (e *envsFromKeyValuePairs) Keys() []string {
+	keys := make([]string, len(e.in))
+	for i, kp := range e.in {
+		keys[i] = kp.Key
+	}
+	return keys
 }
 
 func metaArgsKeys(metaArgs []instructions.KeyValuePairOptional) []string {
@@ -841,17 +824,41 @@ type dispatchOpt struct {
 	lint              *linter.Linter
 }
 
+func getEnv(state llb.State) shell.EnvGetter {
+	return &envsFromState{state: &state}
+}
+
+type envsFromState struct {
+	state *llb.State
+	once  sync.Once
+	env   shell.EnvGetter
+}
+
+func (e *envsFromState) init() {
+	env, err := e.state.Env(context.TODO())
+	if err != nil {
+		return
+	}
+	e.env = env
+}
+
+func (e *envsFromState) Get(key string) (string, bool) {
+	e.once.Do(e.init)
+	return e.env.Get(key)
+}
+
+func (e *envsFromState) Keys() []string {
+	e.once.Do(e.init)
+	return e.env.Keys()
+}
+
 func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 	var err error
 	// ARG command value could be ignored, so defer handling the expansion error
 	_, isArg := cmd.Command.(*instructions.ArgCommand)
 	if ex, ok := cmd.Command.(instructions.SupportsSingleWordExpansion); ok && !isArg {
 		err := ex.Expand(func(word string) (string, error) {
-			env, err := d.state.Env(context.TODO())
-			if err != nil {
-				return "", err
-			}
-
+			env := getEnv(d.state)
 			newword, unmatched, err := opt.shlex.ProcessWord(word, env)
 			reportUnmatchedVariables(cmd, d.buildArgs, env, unmatched, &opt)
 			return newword, err
@@ -862,12 +869,9 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 	}
 	if ex, ok := cmd.Command.(instructions.SupportsSingleWordExpansionRaw); ok {
 		err := ex.ExpandRaw(func(word string) (string, error) {
-			env, err := d.state.Env(context.TODO())
-			if err != nil {
-				return "", err
-			}
 			lex := shell.NewLex('\\')
 			lex.SkipProcessQuotes = true
+			env := getEnv(d.state)
 			newword, unmatched, err := lex.ProcessWord(word, env)
 			reportUnmatchedVariables(cmd, d.buildArgs, env, unmatched, &opt)
 			return newword, err
@@ -1112,6 +1116,7 @@ func dispatchEnv(d *dispatchState, c *instructions.EnvCommand, lint *linter.Lint
 			msg := linter.RuleLegacyKeyValueFormat.Format(c.Name())
 			lint.Run(&linter.RuleLegacyKeyValueFormat, c.Location(), msg)
 		}
+		validateNoSecretKey("ENV", e.Key, c.Location(), lint)
 		commitMessage.WriteString(" " + e.String())
 		d.state = d.state.AddEnv(e.Key, e.Value)
 		d.image.Config.Env = addEnv(d.image.Config.Env, e.Key, e.Value)
@@ -1186,10 +1191,6 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 		args = withShell(d.image, args)
 	}
 
-	env, err := d.state.Env(context.TODO())
-	if err != nil {
-		return err
-	}
 	opt = append(opt, llb.Args(args), dfCmd(c), location(dopt.sourceMap, c.Location()))
 	if d.ignoreCache {
 		opt = append(opt, llb.IgnoreCache)
@@ -1234,6 +1235,7 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 	if err != nil {
 		return err
 	}
+	env := getEnv(d.state)
 	opt = append(opt, llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(&shlex, customname, env)), d.prefixPlatform, pl, env)))
 	for _, h := range dopt.extraHosts {
 		opt = append(opt, llb.AddExtraHost(h.Host, h.IP))
@@ -1252,7 +1254,7 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 	}
 
 	d.state = d.state.Run(opt...).Root()
-	return commitToHistory(&d.image, "RUN "+runCommandString(args, d.buildArgs, shell.BuildEnvs(env)), true, &d.state, d.epoch)
+	return commitToHistory(&d.image, "RUN "+runCommandString(args, d.buildArgs, env), true, &d.state, d.epoch)
 }
 
 func dispatchWorkdir(d *dispatchState, c *instructions.WorkdirCommand, commit bool, opt *dispatchOpt) error {
@@ -1298,10 +1300,7 @@ func dispatchWorkdir(d *dispatchState, c *instructions.WorkdirCommand, commit bo
 			if d.platform != nil {
 				platform = *d.platform
 			}
-			env, err := d.state.Env(context.TODO())
-			if err != nil {
-				return err
-			}
+			env := getEnv(d.state)
 			d.state = d.state.File(llb.Mkdir(wd, 0755, mkdirOpt...),
 				llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, c.String(), env)), d.prefixPlatform, &platform, env)),
 				location(opt.sourceMap, c.Location()),
@@ -1350,7 +1349,7 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 			return errors.New("checksum can't be specified for multiple sources")
 		}
 		if !isHTTPSource(cfg.params.SourcePaths[0]) {
-			return errors.New("checksum can't be specified for non-HTTP sources")
+			return errors.New("checksum can't be specified for non-HTTP(S) sources")
 		}
 	}
 
@@ -1376,11 +1375,7 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 		platform = *d.platform
 	}
 
-	env, err := d.state.Env(context.TODO())
-	if err != nil {
-		return err
-	}
-
+	env := getEnv(d.state)
 	name := uppercaseCmd(processCmdEnv(cfg.opt.shlex, cfg.cmdToPrint.String(), env))
 	pgName := prefixCommand(d, name, d.prefixPlatform, &platform, env)
 
@@ -1637,10 +1632,7 @@ func dispatchHealthcheck(d *dispatchState, c *instructions.HealthCheckCommand, l
 
 func dispatchExpose(d *dispatchState, c *instructions.ExposeCommand, shlex *shell.Lex) error {
 	ports := []string{}
-	env, err := d.state.Env(context.TODO())
-	if err != nil {
-		return err
-	}
+	env := getEnv(d.state)
 	for _, p := range c.Ports {
 		ps, err := shlex.ProcessWords(p, env)
 		if err != nil {
@@ -1703,6 +1695,7 @@ func dispatchShell(d *dispatchState, c *instructions.ShellCommand) error {
 func dispatchArg(d *dispatchState, c *instructions.ArgCommand, opt *dispatchOpt) error {
 	commitStrs := make([]string, 0, len(c.Args))
 	for _, arg := range c.Args {
+		validateNoSecretKey("ARG", arg.Key, c.Location(), opt.lint)
 		_, hasValue := opt.buildArgValues[arg.Key]
 		hasDefault := arg.Value != nil
 
@@ -1721,10 +1714,7 @@ func dispatchArg(d *dispatchState, c *instructions.ArgCommand, opt *dispatchOpt)
 			v := opt.buildArgValues[arg.Key]
 			arg.Value = &v
 		} else if hasDefault {
-			env, err := d.state.Env(context.TODO())
-			if err != nil {
-				return err
-			}
+			env := getEnv(d.state)
 			v, unmatched, err := opt.shlex.ProcessWord(*arg.Value, env)
 			reportUnmatchedVariables(c, d.buildArgs, env, unmatched, opt)
 			if err != nil {
@@ -1764,9 +1754,6 @@ func pathRelativeToWorkingDir(s llb.State, p string, platform ocispecs.Platform)
 		return "", err
 	}
 
-	if len(p) == 0 {
-		return dir, nil
-	}
 	p, err = system.CheckSystemDriveAndRemoveDriveLetter(p, platform.OS)
 	if err != nil {
 		return "", errors.Wrap(err, "removing drive letter")
@@ -1774,6 +1761,12 @@ func pathRelativeToWorkingDir(s llb.State, p string, platform ocispecs.Platform)
 
 	if system.IsAbs(p, platform.OS) {
 		return system.NormalizePath("/", p, platform.OS, true)
+	}
+
+	// add slashes for "" and "." paths
+	// "" is treated as current directory and not necessariy root
+	if p == "." || p == "" {
+		p = "./"
 	}
 	return system.NormalizePath(dir, p, platform.OS, true)
 }
@@ -1825,10 +1818,10 @@ func dfCmd(cmd interface{}) llb.ConstraintsOpt {
 	})
 }
 
-func runCommandString(args []string, buildArgs []instructions.KeyValuePairOptional, envMap map[string]string) string {
+func runCommandString(args []string, buildArgs []instructions.KeyValuePairOptional, env shell.EnvGetter) string {
 	var tmpBuildEnv []string
 	for _, arg := range buildArgs {
-		v, ok := envMap[arg.Key]
+		v, ok := env.Get(arg.Key)
 		if !ok {
 			v = arg.ValueString()
 		}
@@ -2007,7 +2000,7 @@ func uppercaseCmd(str string) string {
 	return strings.Join(p, " ")
 }
 
-func processCmdEnv(shlex *shell.Lex, cmd string, env []string) string {
+func processCmdEnv(shlex *shell.Lex, cmd string, env shell.EnvGetter) string {
 	w, _, err := shlex.ProcessWord(cmd, env)
 	if err != nil {
 		return cmd
@@ -2015,7 +2008,7 @@ func processCmdEnv(shlex *shell.Lex, cmd string, env []string) string {
 	return w
 }
 
-func prefixCommand(ds *dispatchState, str string, prefixPlatform bool, platform *ocispecs.Platform, env []string) string {
+func prefixCommand(ds *dispatchState, str string, prefixPlatform bool, platform *ocispecs.Platform, env shell.EnvGetter) string {
 	if ds.cmdTotal == 0 {
 		return str
 	}
@@ -2058,26 +2051,26 @@ func formatTargetPlatform(base ocispecs.Platform, target *ocispecs.Platform) str
 }
 
 // platformFromEnv returns defined platforms based on TARGET* environment variables
-func platformFromEnv(env []string) *ocispecs.Platform {
+func platformFromEnv(env shell.EnvGetter) *ocispecs.Platform {
 	var p ocispecs.Platform
 	var set bool
-	for _, v := range env {
-		parts := strings.SplitN(v, "=", 2)
-		switch parts[0] {
+	for _, key := range env.Keys() {
+		switch key {
 		case "TARGETPLATFORM":
-			p, err := platforms.Parse(parts[1])
+			v, _ := env.Get(key)
+			p, err := platforms.Parse(v)
 			if err != nil {
 				continue
 			}
 			return &p
 		case "TARGETOS":
-			p.OS = parts[1]
+			p.OS, _ = env.Get(key)
 			set = true
 		case "TARGETARCH":
-			p.Architecture = parts[1]
+			p.Architecture, _ = env.Get(key)
 			set = true
 		case "TARGETVARIANT":
-			p.Variant = parts[1]
+			p.Variant, _ = env.Get(key)
 			set = true
 		}
 	}
@@ -2126,7 +2119,14 @@ func commonImageNames() []string {
 }
 
 func isHTTPSource(src string) bool {
-	return strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://")
+	if !strings.HasPrefix(src, "http://") && !strings.HasPrefix(src, "https://") {
+		return false
+	}
+	// https://github.com/ORG/REPO.git is a git source, not an http source
+	if gitRef, gitErr := gitutil.ParseGitRef(src); gitRef != nil && gitErr == nil {
+		return false
+	}
+	return true
 }
 
 func isEnabledForStage(stage string, value string) bool {
@@ -2200,7 +2200,7 @@ func validateStageNames(stages []instructions.Stage, lint *linter.Linter) {
 	}
 }
 
-func reportUnmatchedVariables(cmd instructions.Command, buildArgs []instructions.KeyValuePairOptional, env []string, unmatched map[string]struct{}, opt *dispatchOpt) {
+func reportUnmatchedVariables(cmd instructions.Command, buildArgs []instructions.KeyValuePairOptional, env shell.EnvGetter, unmatched map[string]struct{}, opt *dispatchOpt) {
 	if len(unmatched) == 0 {
 		return
 	}
@@ -2211,15 +2211,12 @@ func reportUnmatchedVariables(cmd instructions.Command, buildArgs []instructions
 		return
 	}
 	options := metaArgsKeys(opt.metaArgs)
-	for _, envVar := range env {
-		key, _ := parseKeyValue(envVar)
-		options = append(options, key)
-	}
+	options = append(options, env.Keys()...)
 	for cmdVar := range unmatched {
 		if _, nonEnvOk := nonEnvArgs[cmdVar]; nonEnvOk {
 			continue
 		}
-		match, _ := suggest.Search(cmdVar, options, true)
+		match, _ := suggest.Search(cmdVar, options, runtime.GOOS != "windows")
 		msg := linter.RuleUndefinedVar.Format(cmdVar, match)
 		opt.lint.Run(&linter.RuleUndefinedVar, cmd.Location(), msg)
 	}
@@ -2283,6 +2280,26 @@ func reportUnusedFromArgs(values []string, unmatched map[string]struct{}, locati
 	}
 }
 
+func reportRedundantTargetPlatform(platformVar string, nameMatch shell.ProcessWordResult, location []parser.Range, env shell.EnvGetter, lint *linter.Linter) {
+	// Only match this rule if there was only one matched name.
+	// It's psosible there were multiple args and that one of them expanded to an empty
+	// string and we don't want to report a warning when that happens.
+	if len(nameMatch.Matched) == 1 && len(nameMatch.Unmatched) == 0 {
+		const targetPlatform = "TARGETPLATFORM"
+		// If target platform is the only environment variable that was substituted and the result
+		// matches the target platform exactly, we can infer that the input was ${TARGETPLATFORM} or
+		// $TARGETPLATFORM.
+		if _, ok := nameMatch.Matched[targetPlatform]; !ok {
+			return
+		}
+
+		if result, _ := env.Get(targetPlatform); nameMatch.Result == result {
+			msg := linter.RuleRedundantTargetPlatform.Format(platformVar)
+			lint.Run(&linter.RuleRedundantTargetPlatform, location, msg)
+		}
+	}
+}
+
 type instructionTracker struct {
 	Loc   []parser.Range
 	IsSet bool
@@ -2321,4 +2338,98 @@ func validateBaseImagePlatform(name string, expected, actual ocispecs.Platform, 
 		msg := linter.RuleInvalidBaseImagePlatform.Format(name, expectedStr, actualStr)
 		lint.Run(&linter.RuleInvalidBaseImagePlatform, location, msg)
 	}
+}
+
+func getSecretsRegex() *regexp.Regexp {
+	// Check for either full value or first/last word.
+	// Examples: api_key, DATABASE_PASSWORD, GITHUB_TOKEN, secret_MESSAGE, AUTH
+	// Case insensitive.
+	secretsRegexpOnce.Do(func() {
+		secretTokens := []string{
+			"apikey",
+			"auth",
+			"credential",
+			"credentials",
+			"key",
+			"password",
+			"pword",
+			"passwd",
+			"secret",
+			"token",
+		}
+		pattern := `(?i)(?:_|^)(?:` + strings.Join(secretTokens, "|") + `)(?:_|$)`
+		secretsRegexp = regexp.MustCompile(pattern)
+	})
+	return secretsRegexp
+}
+
+func validateNoSecretKey(instruction, key string, location []parser.Range, lint *linter.Linter) {
+	pattern := getSecretsRegex()
+	if pattern.MatchString(key) {
+		msg := linter.RuleSecretsUsedInArgOrEnv.Format(instruction, key)
+		lint.Run(&linter.RuleSecretsUsedInArgOrEnv, location, msg)
+	}
+}
+
+func validateBaseImagesWithDefaultArgs(stages []instructions.Stage, shlex *shell.Lex, metaArgs []instructions.ArgCommand, optMetaArgs []instructions.KeyValuePairOptional, lint *linter.Linter) {
+	// Build the arguments as if no build options were given
+	// and using only defaults.
+	optMetaArgs, _, err := buildMetaArgs(optMetaArgs, shlex, metaArgs, nil)
+	if err != nil {
+		// Abandon running the linter. We'll likely fail after this point
+		// with the same error but we shouldn't error here inside
+		// of the linting check.
+		return
+	}
+
+	for _, st := range stages {
+		nameMatch, err := shlex.ProcessWordWithMatches(st.BaseName, metaArgsToEnvs(optMetaArgs))
+		if err != nil {
+			return
+		}
+
+		// Verify the image spec is potentially valid.
+		if _, err := reference.ParseNormalizedNamed(nameMatch.Result); err != nil {
+			msg := linter.RuleInvalidDefaultArgInFrom.Format(st.BaseName)
+			lint.Run(&linter.RuleInvalidDefaultArgInFrom, st.Location, msg)
+		}
+	}
+}
+
+func buildMetaArgs(metaArgs []instructions.KeyValuePairOptional, shlex *shell.Lex, argCommands []instructions.ArgCommand, buildArgs map[string]string) ([]instructions.KeyValuePairOptional, map[string]argInfo, error) {
+	allArgs := make(map[string]argInfo)
+
+	for _, cmd := range argCommands {
+		for _, metaArg := range cmd.Args {
+			info := argInfo{definition: metaArg, location: cmd.Location()}
+			if v, ok := buildArgs[metaArg.Key]; !ok {
+				if metaArg.Value != nil {
+					result, err := shlex.ProcessWordWithMatches(*metaArg.Value, metaArgsToEnvs(metaArgs))
+					if err != nil {
+						return nil, nil, parser.WithLocation(err, cmd.Location())
+					}
+					metaArg.Value = &result.Result
+					info.deps = result.Matched
+				}
+			} else {
+				metaArg.Value = &v
+			}
+			metaArgs = append(metaArgs, metaArg)
+			if metaArg.Value != nil {
+				info.value = *metaArg.Value
+			}
+			allArgs[metaArg.Key] = info
+		}
+	}
+	return metaArgs, allArgs, nil
+}
+
+type emptyEnvs struct{}
+
+func (emptyEnvs) Get(string) (string, bool) {
+	return "", false
+}
+
+func (emptyEnvs) Keys() []string {
+	return nil
 }

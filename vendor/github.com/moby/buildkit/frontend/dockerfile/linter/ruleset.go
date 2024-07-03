@@ -124,4 +124,28 @@ var (
 			return fmt.Sprintf("Base image %s was pulled with platform %q, expected %q for current build", image, actual, expected)
 		},
 	}
+	RuleRedundantTargetPlatform = LinterRule[func(string) string]{
+		Name:        "RedundantTargetPlatform",
+		Description: "Setting platform to predefined $TARGETPLATFORM in FROM is redundant as this is the default behavior",
+		URL:         "https://docs.docker.com/go/dockerfile/rule/redundant-target-platform/",
+		Format: func(platformVar string) string {
+			return fmt.Sprintf("Setting platform to predefined %s in FROM is redundant as this is the default behavior", platformVar)
+		},
+	}
+	RuleSecretsUsedInArgOrEnv = LinterRule[func(string, string) string]{
+		Name:        "SecretsUsedInArgOrEnv",
+		Description: "Sensitive data should not be used in the ARG or ENV commands",
+		URL:         "https://docs.docker.com/go/dockerfile/rule/secrets-used-in-arg-or-env/",
+		Format: func(instruction, secretKey string) string {
+			return fmt.Sprintf("Do not use ARG or ENV instructions for sensitive data (%s %q)", instruction, secretKey)
+		},
+	}
+	RuleInvalidDefaultArgInFrom = LinterRule[func(string) string]{
+		Name:        "InvalidDefaultArgInFrom",
+		Description: "Default value for global ARG results in an empty or invalid base image name",
+		URL:         "https://docs.docker.com/go/dockerfile/rule/invalid-default-arg-in-from/",
+		Format: func(baseName string) string {
+			return fmt.Sprintf("Default value for ARG %v results in empty or invalid base image name", baseName)
+		},
+	}
 )

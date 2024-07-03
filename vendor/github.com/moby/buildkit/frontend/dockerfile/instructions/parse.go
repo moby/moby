@@ -73,7 +73,9 @@ func ParseInstruction(node *parser.Node) (v interface{}, err error) {
 // ParseInstruction converts an AST to a typed instruction (either a command or a build stage beginning when encountering a `FROM` statement)
 func ParseInstructionWithLinter(node *parser.Node, lint *linter.Linter) (v interface{}, err error) {
 	defer func() {
-		err = parser.WithLocation(err, node.Location())
+		if err != nil {
+			err = parser.WithLocation(err, node.Location())
+		}
 	}()
 	req := newParseRequestFromNode(node)
 	switch strings.ToLower(node.Value) {

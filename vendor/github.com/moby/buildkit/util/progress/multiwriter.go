@@ -1,6 +1,7 @@
 package progress
 
 import (
+	"maps"
 	"sort"
 	"sync"
 	"time"
@@ -83,9 +84,7 @@ func (ps *MultiWriter) WriteRawProgress(p *Progress) error {
 	meta := p.meta
 	if len(ps.meta) > 0 {
 		meta = map[string]interface{}{}
-		for k, v := range p.meta {
-			meta[k] = v
-		}
+		maps.Copy(meta, p.meta)
 		for k, v := range ps.meta {
 			if _, ok := meta[k]; !ok {
 				meta[k] = v
