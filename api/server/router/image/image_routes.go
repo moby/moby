@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"

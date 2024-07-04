@@ -18,7 +18,6 @@ import (
 	"github.com/containerd/containerd/gc"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/platforms"
 	cdreference "github.com/containerd/containerd/reference"
 	ctdreference "github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
@@ -26,6 +25,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker/schema1" //nolint:staticcheck // Ignore SA1019: "github.com/containerd/containerd/remotes/docker/schema1" is deprecated: use images formatted in Docker Image Manifest v2, Schema 2, or OCI Image Spec v1.
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	distreference "github.com/distribution/reference"
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/distribution/metadata"

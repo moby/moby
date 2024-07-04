@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/docker/docker/errdefs"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

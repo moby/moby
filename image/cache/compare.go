@@ -3,7 +3,7 @@ package cache // import "github.com/docker/docker/image/cache"
 import (
 	"strings"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types/container"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

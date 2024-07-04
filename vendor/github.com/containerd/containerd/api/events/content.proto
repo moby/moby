@@ -18,10 +18,10 @@ syntax = "proto3";
 
 package containerd.events;
 
-import "github.com/containerd/containerd/protobuf/plugin/fieldpath.proto";
+import "github.com/containerd/containerd/api/types/fieldpath.proto";
 
 option go_package = "github.com/containerd/containerd/api/events;events";
-option (containerd.plugin.fieldpath_all) = true;
+option (containerd.types.fieldpath_all) = true;
 
 message ContentDelete {
 	string digest = 1;

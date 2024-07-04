@@ -17,10 +17,7 @@
 package platforms
 
 import (
-	"fmt"
-
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/sys/windows"
 )
 
 // NewMatcher returns a Windows matcher that will match on osVersionPrefix if
@@ -34,9 +31,4 @@ func newDefaultMatcher(platform specs.Platform) Matcher {
 			Platform: Normalize(platform),
 		},
 	}
-}
-
-func GetWindowsOsVersion() string {
-	major, minor, build := windows.RtlGetNtVersionNumbers()
-	return fmt.Sprintf("%d.%d.%d", major, minor, build)
 }
