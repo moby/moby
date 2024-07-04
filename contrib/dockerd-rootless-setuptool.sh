@@ -314,6 +314,7 @@ install_systemd() {
 			[Unit]
 			Description=Docker Application Container Engine (Rootless)
 			Documentation=https://docs.docker.com/go/rootless/
+			Requires=dbus.socket
 
 			[Service]
 			Environment=PATH=$BIN:/sbin:/usr/sbin:$PATH
