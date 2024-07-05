@@ -2,14 +2,11 @@ package bridge
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/netip"
 	"os"
-	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/vishvananda/netlink"
 )
 
 // Standard link local prefix
@@ -39,24 +36,6 @@ func setupBridgeIPv6(config *networkConfiguration, i *bridgeInterface) error {
 	if err := i.programIPv6Addresses(config); err != nil {
 		return err
 	}
-
-	// Setting route to global IPv6 subnet
-	// TODO(robmry) - remove this? The bridge is 'down' at this point so I think it
-	//  always fails, and the route is added anyway when the bridge is set 'up'.
-	log.G(context.TODO()).Debugf("Adding route to IPv6 network %s via device %s", config.AddressIPv6.String(), config.BridgeName)
-	err = i.nlh.RouteAdd(&netlink.Route{
-		Scope:     netlink.SCOPE_UNIVERSE,
-		LinkIndex: i.Link.Attrs().Index,
-		Dst:       config.AddressIPv6,
-	})
-	if err != nil && !os.IsExist(err) {
-		if errors.Is(err, syscall.ENETDOWN) {
-			log.G(context.TODO()).Debugf("Could not add route to IPv6 network %s via device %s: %s", config.AddressIPv6.String(), config.BridgeName, err)
-		} else {
-			log.G(context.TODO()).Errorf("Could not add route to IPv6 network %s via device %s: %s", config.AddressIPv6.String(), config.BridgeName, err)
-		}
-	}
-
 	return nil
 }
 
