@@ -78,6 +78,3 @@ func (proxy *TCPProxy) Close() { proxy.listener.Close() }
 
 // FrontendAddr returns the TCP address on which the proxy is listening.
 func (proxy *TCPProxy) FrontendAddr() net.Addr { return proxy.frontendAddr }
-
-// BackendAddr returns the TCP proxied address.
-func (proxy *TCPProxy) BackendAddr() net.Addr { return proxy.backendAddr }
