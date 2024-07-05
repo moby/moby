@@ -6,7 +6,6 @@ import (
 	"context"
 	"runtime"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/containerd/log"
@@ -216,7 +215,7 @@ func (r *reader) wait() (bool, error) {
 			return false, nil
 		case <-r.s.closed:
 			// Container is gone; don't wait indefinitely for journal entries that will never arrive.
-			if r.maxOrdinal >= atomic.LoadUint64(&r.s.ordinal) {
+			if r.maxOrdinal >= r.s.ordinal.Load() {
 				return false, nil
 			}
 			if r.drainDeadline.IsZero() {
@@ -320,7 +319,7 @@ func (r *reader) drainJournal() (bool, error) {
 }
 
 func (r *reader) readJournal() error {
-	caughtUp := atomic.LoadUint64(&r.s.ordinal)
+	caughtUp := r.s.ordinal.Load()
 	if more, err := r.drainJournal(); err != nil || !more {
 		return err
 	}
@@ -336,7 +335,7 @@ func (r *reader) readJournal() error {
 		select {
 		case <-r.s.closed:
 			// container is gone, drain journal
-			lastSeq := atomic.LoadUint64(&r.s.ordinal)
+			lastSeq := r.s.ordinal.Load()
 			if r.maxOrdinal >= lastSeq {
 				// All caught up with the logger!
 				return nil
@@ -467,7 +466,7 @@ func waitUntilFlushedImpl(s *journald) error {
 		return nil
 	}
 
-	ordinal := atomic.LoadUint64(&s.ordinal)
+	ordinal := s.ordinal.Load()
 	if ordinal == 0 {
 		return nil // No logs were sent; nothing to wait for.
 	}
