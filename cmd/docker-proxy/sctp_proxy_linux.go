@@ -82,6 +82,3 @@ func (proxy *SCTPProxy) Close() { proxy.listener.Close() }
 
 // FrontendAddr returns the SCTP address on which the proxy is listening.
 func (proxy *SCTPProxy) FrontendAddr() net.Addr { return proxy.frontendAddr }
-
-// BackendAddr returns the SCTP proxied address.
-func (proxy *SCTPProxy) BackendAddr() net.Addr { return proxy.backendAddr }
