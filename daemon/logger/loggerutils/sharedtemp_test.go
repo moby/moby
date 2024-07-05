@@ -89,7 +89,7 @@ func TestSharedTempFileConverter(t *testing.T) {
 		name := filepath.Join(dir, "test.txt")
 		createFile(t, name, "hi there")
 
-		var conversions int32
+		var conversions atomic.Uint32
 		notify := make(chan chan struct{}, 1)
 		firstConversionStarted := make(chan struct{})
 		notify <- firstConversionStarted
@@ -104,7 +104,7 @@ func TestSharedTempFileConverter(t *testing.T) {
 				default:
 				}
 				<-unblock
-				atomic.AddInt32(&conversions, 1)
+				conversions.Add(1)
 				return copyTransform(strings.ToUpper)(dst, src)
 			},
 		)
@@ -143,7 +143,7 @@ func TestSharedTempFileConverter(t *testing.T) {
 			assert.Check(t, c.Close())
 		}
 
-		assert.Check(t, is.Equal(int32(1), conversions))
+		assert.Check(t, is.Equal(uint32(1), conversions.Load()))
 
 		assert.NilError(t, os.Remove(name))
 		checkDirEmpty(t, dir)
