@@ -235,7 +235,7 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 
 // size returns the total size of the image's packed resources.
 func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platform platforms.MatchComparer) (int64, error) {
-	var size int64
+	var size atomic.Int64
 
 	cs := i.content
 	handler := containerdimages.LimitManifests(containerdimages.ChildrenHandler(cs), platform, 1)
@@ -248,7 +248,7 @@ func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platfo
 			}
 		}
 
-		atomic.AddInt64(&size, desc.Size)
+		size.Add(desc.Size)
 
 		return children, nil
 	}
@@ -258,7 +258,7 @@ func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platfo
 		return 0, err
 	}
 
-	return size, nil
+	return size.Load(), nil
 }
 
 // resolveDescriptor searches for a descriptor based on the given
