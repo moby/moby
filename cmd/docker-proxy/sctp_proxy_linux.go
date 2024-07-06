@@ -79,6 +79,3 @@ func (proxy *SCTPProxy) Run() {
 
 // Close stops forwarding the traffic.
 func (proxy *SCTPProxy) Close() { proxy.listener.Close() }
-
-// FrontendAddr returns the SCTP address on which the proxy is listening.
-func (proxy *SCTPProxy) FrontendAddr() net.Addr { return proxy.frontendAddr }
