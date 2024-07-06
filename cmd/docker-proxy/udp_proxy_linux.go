@@ -147,9 +147,6 @@ func (proxy *UDPProxy) Close() {
 	}
 }
 
-// FrontendAddr returns the UDP address on which the proxy is listening.
-func (proxy *UDPProxy) FrontendAddr() net.Addr { return proxy.frontendAddr }
-
 func isClosedError(err error) bool {
 	/* This comparison is ugly, but unfortunately, net.go doesn't export errClosing.
 	 * See:

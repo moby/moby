@@ -2,8 +2,6 @@
 // and UDP.
 package main
 
-import "net"
-
 // ipVersion refers to IP version - v4 or v6
 type ipVersion string
 
@@ -25,6 +23,4 @@ type Proxy interface {
 	Run()
 	// Close stops forwarding traffic and close both ends of the Proxy.
 	Close()
-	// FrontendAddr returns the address on which the proxy is listening.
-	FrontendAddr() net.Addr
 }
