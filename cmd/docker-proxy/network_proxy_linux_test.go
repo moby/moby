@@ -1,3 +1,5 @@
+//go:build !windows
+
 package main
 
 import (
@@ -5,13 +7,13 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"runtime"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ishidawataru/sctp"
-	"gotest.tools/v3/skip"
+	"gotest.tools/v3/assert"
 )
 
 var (
@@ -39,6 +41,8 @@ type UDPEchoServer struct {
 	conn    net.PacketConn
 	testCtx *testing.T
 }
+
+const hopefullyFreePort = 25587
 
 func NewEchoServer(t *testing.T, proto, address string, opts EchoServerOptions) EchoServer {
 	var server EchoServer
@@ -128,7 +132,31 @@ func (server *UDPEchoServer) Run() {
 func (server *UDPEchoServer) LocalAddr() net.Addr { return server.conn.LocalAddr() }
 func (server *UDPEchoServer) Close()              { server.conn.Close() }
 
+func tcpListener(t *testing.T, nw string, addr *net.TCPAddr) (*os.File, *net.TCPAddr) {
+	t.Helper()
+	l, err := net.ListenTCP(nw, addr)
+	assert.NilError(t, err)
+	osFile, err := l.File()
+	assert.NilError(t, err)
+	tcpAddr := l.Addr().(*net.TCPAddr)
+	err = l.Close()
+	assert.NilError(t, err)
+	return osFile, tcpAddr
+}
+
+func udpListener(t *testing.T, nw string, addr *net.UDPAddr) (*os.File, *net.UDPAddr) {
+	t.Helper()
+	l, err := net.ListenUDP(nw, addr)
+	assert.NilError(t, err)
+	osFile, err := l.File()
+	assert.NilError(t, err)
+	err = l.Close()
+	assert.NilError(t, err)
+	return osFile, l.LocalAddr().(*net.UDPAddr)
+}
+
 func testProxyAt(t *testing.T, proto string, proxy Proxy, addr string, halfClose bool) {
+	t.Helper()
 	defer proxy.Close()
 	go proxy.Run()
 	var client net.Conn
@@ -167,98 +195,169 @@ func testProxyAt(t *testing.T, proto string, proxy Proxy, addr string, halfClose
 	}
 }
 
-func testProxy(t *testing.T, proto string, proxy Proxy, halfClose bool) {
-	testProxyAt(t, proto, proxy, proxy.FrontendAddr().String(), halfClose)
-}
-
-func testTCP4Proxy(t *testing.T, halfClose bool) {
+func testTCP4Proxy(t *testing.T, halfClose bool, hostPort int) {
+	t.Helper()
 	backend := NewEchoServer(t, "tcp", "127.0.0.1:0", EchoServerOptions{TCPHalfClose: halfClose})
 	defer backend.Close()
 	backend.Run()
+	backendAddr := backend.LocalAddr().(*net.TCPAddr)
+	var listener *os.File
 	frontendAddr := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
-	proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
+	if hostPort == 0 {
+		listener, frontendAddr = tcpListener(t, "tcp4", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	} else {
+		frontendAddr.Port = hostPort
+	}
+	config := ProxyConfig{
+		Proto:         "tcp",
+		HostIP:        frontendAddr.IP,
+		HostPort:      frontendAddr.Port,
+		ContainerIP:   backendAddr.IP,
+		ContainerPort: backendAddr.Port,
+		ListenSock:    listener,
+	}
+	proxy, err := newProxy(config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	testProxy(t, "tcp", proxy, halfClose)
+	testProxyAt(t, "tcp", proxy, frontendAddr.String(), halfClose)
 }
 
 func TestTCP4Proxy(t *testing.T) {
-	testTCP4Proxy(t, false)
+	testTCP4Proxy(t, false, 0)
+}
+
+func TestTCP4ProxyNoListener(t *testing.T) {
+	testTCP4Proxy(t, false, hopefullyFreePort)
 }
 
 func TestTCP4ProxyHalfClose(t *testing.T) {
-	testTCP4Proxy(t, true)
+	testTCP4Proxy(t, true, 0)
 }
 
 func TestTCP6Proxy(t *testing.T) {
-	t.Skip("Need to start CI docker with --ipv6")
 	backend := NewEchoServer(t, "tcp", "[::1]:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
-	frontendAddr := &net.TCPAddr{IP: net.IPv6loopback, Port: 0}
-	proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
+	backendAddr := backend.LocalAddr().(*net.TCPAddr)
+	listener, frontendAddr := tcpListener(t, "tcp6", &net.TCPAddr{IP: net.IPv6loopback, Port: 0})
+	config := ProxyConfig{
+		Proto:         "tcp",
+		HostIP:        frontendAddr.IP,
+		HostPort:      frontendAddr.Port,
+		ContainerIP:   backendAddr.IP,
+		ContainerPort: backendAddr.Port,
+		ListenSock:    listener,
+	}
+	proxy, err := newProxy(config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	testProxy(t, "tcp", proxy, false)
+	testProxyAt(t, "tcp", proxy, frontendAddr.String(), false)
 }
 
 func TestTCPDualStackProxy(t *testing.T) {
-	// If I understand `godoc -src net favoriteAddrFamily` (used by the
-	// net.Listen* functions) correctly this should work, but it doesn't.
-	t.Skip("No support for dual stack yet")
 	backend := NewEchoServer(t, "tcp", "[::1]:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
-	frontendAddr := &net.TCPAddr{IP: net.IPv6loopback, Port: 0}
-	proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
+	backendAddr := backend.LocalAddr().(*net.TCPAddr)
+	listener, frontendAddr := tcpListener(t, "tcp", &net.TCPAddr{IP: net.IPv6zero, Port: 0})
+	config := ProxyConfig{
+		Proto:         "tcp",
+		HostIP:        frontendAddr.IP,
+		HostPort:      frontendAddr.Port,
+		ContainerIP:   backendAddr.IP,
+		ContainerPort: backendAddr.Port,
+		ListenSock:    listener,
+	}
+	proxy, err := newProxy(config)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ipv4ProxyAddr := &net.TCPAddr{
 		IP:   net.IPv4(127, 0, 0, 1),
-		Port: proxy.FrontendAddr().(*net.TCPAddr).Port,
+		Port: frontendAddr.Port,
 	}
 	testProxyAt(t, "tcp", proxy, ipv4ProxyAddr.String(), false)
 }
 
-func TestUDP4Proxy(t *testing.T) {
+func testUDP4Proxy(t *testing.T, hostPort int) {
+	t.Helper()
 	backend := NewEchoServer(t, "udp", "127.0.0.1:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
+	var listener *os.File
 	frontendAddr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
-	proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
+	if hostPort == 0 {
+		listener, frontendAddr = udpListener(t, "udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	} else {
+		frontendAddr.Port = hostPort
+	}
+	backendAddr := backend.LocalAddr().(*net.UDPAddr)
+	config := ProxyConfig{
+		Proto:         "udp",
+		HostIP:        frontendAddr.IP,
+		HostPort:      frontendAddr.Port,
+		ContainerIP:   backendAddr.IP,
+		ContainerPort: backendAddr.Port,
+		ListenSock:    listener,
+	}
+	proxy, err := newProxy(config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	testProxy(t, "udp", proxy, false)
+	testProxyAt(t, "udp", proxy, frontendAddr.String(), false)
+}
+
+func TestUDP4Proxy(t *testing.T) {
+	testUDP4Proxy(t, 0)
+}
+
+func TestUDP4ProxyNoListener(t *testing.T) {
+	testUDP4Proxy(t, hopefullyFreePort)
 }
 
 func TestUDP6Proxy(t *testing.T) {
-	t.Skip("Need to start CI docker with --ipv6")
 	backend := NewEchoServer(t, "udp", "[::1]:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
-	frontendAddr := &net.UDPAddr{IP: net.IPv6loopback, Port: 0}
-	proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
+	listener, frontendAddr := udpListener(t, "udp6", &net.UDPAddr{IP: net.IPv6loopback, Port: 0})
+	backendAddr := backend.LocalAddr().(*net.UDPAddr)
+	config := ProxyConfig{
+		Proto:         "udp",
+		HostIP:        frontendAddr.IP,
+		HostPort:      frontendAddr.Port,
+		ContainerIP:   backendAddr.IP,
+		ContainerPort: backendAddr.Port,
+		ListenSock:    listener,
+	}
+	proxy, err := newProxy(config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	testProxy(t, "udp", proxy, false)
+	testProxyAt(t, "udp", proxy, frontendAddr.String(), false)
 }
 
 func TestUDPWriteError(t *testing.T) {
 	frontendAddr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
 	// Hopefully, this port will be free: */
-	backendAddr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 25587}
-	proxy, err := NewProxy(frontendAddr, backendAddr)
+	backendAddr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: hopefullyFreePort}
+	listener, frontendAddr := udpListener(t, "udp4", frontendAddr)
+	config := ProxyConfig{
+		Proto:         "udp",
+		HostIP:        frontendAddr.IP,
+		HostPort:      frontendAddr.Port,
+		ContainerIP:   backendAddr.IP,
+		ContainerPort: backendAddr.Port,
+		ListenSock:    listener,
+	}
+	proxy, err := newProxy(config)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer proxy.Close()
 	go proxy.Run()
-	client, err := net.Dial("udp", "127.0.0.1:25587")
+	client, err := net.Dial("udp", frontendAddr.String())
 	if err != nil {
 		t.Fatalf("Can't connect to the proxy: %v", err)
 	}
@@ -266,7 +365,7 @@ func TestUDPWriteError(t *testing.T) {
 	// Make sure the proxy doesn't stop when there is no actual backend:
 	client.Write(testBuf)
 	client.Write(testBuf)
-	backend := NewEchoServer(t, "udp", "127.0.0.1:25587", EchoServerOptions{})
+	backend := NewEchoServer(t, "udp", backendAddr.String(), EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
 	client.SetDeadline(time.Now().Add(10 * time.Second))
@@ -282,31 +381,36 @@ func TestUDPWriteError(t *testing.T) {
 	}
 }
 
-func TestSCTP4Proxy(t *testing.T) {
-	skip.If(t, runtime.GOOS == "windows", "sctp is not supported on windows")
-
+func TestSCTP4ProxyNoListener(t *testing.T) {
 	backend := NewEchoServer(t, "sctp", "127.0.0.1:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
-	frontendAddr := &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: net.IPv4(127, 0, 0, 1)}}, Port: 0}
-	proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
-	if err != nil {
-		t.Fatal(err)
+	backendAddr := backend.LocalAddr().(*sctp.SCTPAddr)
+	config := ProxyConfig{
+		Proto:         "sctp",
+		HostIP:        net.IPv4(127, 0, 0, 1),
+		HostPort:      hopefullyFreePort,
+		ContainerIP:   backendAddr.IPAddrs[0].IP,
+		ContainerPort: backendAddr.Port,
 	}
-	testProxy(t, "sctp", proxy, false)
+	proxy, err := newProxy(config)
+	assert.NilError(t, err)
+	testProxyAt(t, "sctp", proxy, fmt.Sprintf("%s:%d", config.HostIP, config.HostPort), false)
 }
 
-func TestSCTP6Proxy(t *testing.T) {
-	t.Skip("Need to start CI docker with --ipv6")
-	skip.If(t, runtime.GOOS == "windows", "sctp is not supported on windows")
-
+func TestSCTP6ProxyNoListener(t *testing.T) {
 	backend := NewEchoServer(t, "sctp", "[::1]:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
-	frontendAddr := &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: net.IPv6loopback}}, Port: 0}
-	proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
-	if err != nil {
-		t.Fatal(err)
+	backendAddr := backend.LocalAddr().(*sctp.SCTPAddr)
+	config := ProxyConfig{
+		Proto:         "sctp",
+		HostIP:        net.IPv6loopback,
+		HostPort:      hopefullyFreePort,
+		ContainerIP:   backendAddr.IPAddrs[0].IP,
+		ContainerPort: backendAddr.Port,
 	}
-	testProxy(t, "sctp", proxy, false)
+	proxy, err := newProxy(config)
+	assert.NilError(t, err)
+	testProxyAt(t, "sctp", proxy, fmt.Sprintf("[%s]:%d", config.HostIP, config.HostPort), false)
 }

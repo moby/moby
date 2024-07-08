@@ -1,9 +1,9 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -13,11 +13,27 @@ import (
 	"github.com/ishidawataru/sctp"
 )
 
-func main() {
-	f := os.NewFile(3, "signal-parent")
-	host, container := parseFlags()
+// The caller is expected to pass-in open file descriptors ...
+const (
+	// Pipe for reporting status, as a string. "0\n" if the proxy
+	// started normally. "1\n<error message>" otherwise.
+	parentPipeFd uintptr = 3 + iota
+	// If -use-listen-fd=true, a listening socket ready to accept TCP
+	// connections or receive UDP. (Without that option on the command
+	// line, the listener needs to be opened by docker-proxy, for
+	// compatibility with older docker daemons. In this case fd 4
+	// may belong to the Go runtime.)
+	listenSockFd
+)
 
-	p, err := NewProxy(host, container)
+func main() {
+	config := parseFlags()
+	p, err := newProxy(config)
+	if config.ListenSock != nil {
+		config.ListenSock.Close()
+	}
+
+	f := os.NewFile(parentPipeFd, "signal-parent")
 	if err != nil {
 		fmt.Fprintf(f, "1\n%s", err)
 		f.Close()
@@ -31,41 +47,114 @@ func main() {
 	p.Run()
 }
 
+func newProxy(config ProxyConfig) (p Proxy, err error) {
+	ipv := ipv4
+	if config.HostIP.To4() == nil {
+		ipv = ipv6
+	}
+
+	switch config.Proto {
+	case "tcp":
+		var listener *net.TCPListener
+		if config.ListenSock == nil {
+			// Fall back to HostIP:HostPort if no socket on fd 4, for compatibility with older daemons.
+			hostAddr := &net.TCPAddr{IP: config.HostIP, Port: config.HostPort}
+			listener, err = net.ListenTCP("tcp"+string(ipv), hostAddr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to listen on %s: %w", hostAddr, err)
+			}
+		} else {
+			l, err := net.FileListener(config.ListenSock)
+			if err != nil {
+				return nil, err
+			}
+			var ok bool
+			listener, ok = l.(*net.TCPListener)
+			if !ok {
+				return nil, fmt.Errorf("unexpected socket type for listener fd: %s", l.Addr().Network())
+			}
+		}
+		container := &net.TCPAddr{IP: config.ContainerIP, Port: config.ContainerPort}
+		p, err = NewTCPProxy(listener, container)
+	case "udp":
+		var listener *net.UDPConn
+		if config.ListenSock == nil {
+			// Fall back to HostIP:HostPort if no socket on fd 4, for compatibility with older daemons.
+			hostAddr := &net.UDPAddr{IP: config.HostIP, Port: config.HostPort}
+			listener, err = net.ListenUDP("udp"+string(ipv), hostAddr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to listen on %s: %w", hostAddr, err)
+			}
+		} else {
+			l, err := net.FilePacketConn(config.ListenSock)
+			if err != nil {
+				return nil, err
+			}
+			var ok bool
+			listener, ok = l.(*net.UDPConn)
+			if !ok {
+				return nil, fmt.Errorf("unexpected socket type for listener fd: %s", l.LocalAddr().Network())
+			}
+		}
+		container := &net.UDPAddr{IP: config.ContainerIP, Port: config.ContainerPort}
+		p, err = NewUDPProxy(listener, container)
+	case "sctp":
+		var listener *sctp.SCTPListener
+		if config.ListenSock != nil {
+			// There's no way to construct an SCTPListener from a file descriptor at the moment.
+			// If a socket has been passed in, it's probably from a newer daemon using a version
+			// of the sctp module that does allow it.
+			return nil, errors.New("cannot use supplied SCTP socket, check the latest docker-proxy is in your $PATH")
+		}
+		hostAddr := &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: config.HostIP}}, Port: config.HostPort}
+		container := &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: config.ContainerIP}}, Port: config.ContainerPort}
+		listener, err = sctp.ListenSCTP("sctp"+string(ipv), hostAddr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to listen on %s: %w", hostAddr, err)
+		}
+		p, err = NewSCTPProxy(listener, container)
+	default:
+		return nil, fmt.Errorf("unsupported protocol %s", config.Proto)
+	}
+
+	return p, err
+}
+
+type ProxyConfig struct {
+	Proto                   string
+	HostIP, ContainerIP     net.IP
+	HostPort, ContainerPort int
+	ListenSock              *os.File
+}
+
 // parseFlags parses the flags passed on reexec to create the TCP/UDP/SCTP
 // net.Addrs to map the host and container ports.
-func parseFlags() (host net.Addr, container net.Addr) {
+func parseFlags() ProxyConfig {
 	var (
-		proto         = flag.String("proto", "tcp", "proxy protocol")
-		hostIP        = flag.String("host-ip", "", "host ip")
-		hostPort      = flag.Int("host-port", -1, "host port")
-		containerIP   = flag.String("container-ip", "", "container ip")
-		containerPort = flag.Int("container-port", -1, "container port")
-		printVer      = flag.Bool("v", false, "print version information and quit")
-		printVersion  = flag.Bool("version", false, "print version information and quit")
+		config      ProxyConfig
+		useListenFd bool
+		printVer    bool
 	)
-
+	flag.StringVar(&config.Proto, "proto", "tcp", "proxy protocol")
+	flag.TextVar(&config.HostIP, "host-ip", net.IPv4zero, "host ip")
+	flag.IntVar(&config.HostPort, "host-port", -1, "host port")
+	flag.TextVar(&config.ContainerIP, "container-ip", net.IPv4zero, "container ip")
+	flag.IntVar(&config.ContainerPort, "container-port", -1, "container port")
+	flag.BoolVar(&useListenFd, "use-listen-fd", false, "use a supplied listen fd")
+	flag.BoolVar(&printVer, "v", false, "print version information and quit")
+	flag.BoolVar(&printVer, "version", false, "print version information and quit")
 	flag.Parse()
 
-	if *printVer || *printVersion {
+	if printVer {
 		fmt.Printf("docker-proxy (commit %s) version %s\n", dockerversion.GitCommit, dockerversion.Version)
 		os.Exit(0)
 	}
 
-	switch *proto {
-	case "tcp":
-		host = &net.TCPAddr{IP: net.ParseIP(*hostIP), Port: *hostPort}
-		container = &net.TCPAddr{IP: net.ParseIP(*containerIP), Port: *containerPort}
-	case "udp":
-		host = &net.UDPAddr{IP: net.ParseIP(*hostIP), Port: *hostPort}
-		container = &net.UDPAddr{IP: net.ParseIP(*containerIP), Port: *containerPort}
-	case "sctp":
-		host = &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: net.ParseIP(*hostIP)}}, Port: *hostPort}
-		container = &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: net.ParseIP(*containerIP)}}, Port: *containerPort}
-	default:
-		log.Fatalf("unsupported protocol %s", *proto)
+	if useListenFd {
+		config.ListenSock = os.NewFile(listenSockFd, "listen-sock")
 	}
 
-	return host, container
+	return config
 }
 
 func handleStopSignals(p Proxy) {

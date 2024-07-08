@@ -16,18 +16,7 @@ type TCPProxy struct {
 }
 
 // NewTCPProxy creates a new TCPProxy.
-func NewTCPProxy(frontendAddr, backendAddr *net.TCPAddr) (*TCPProxy, error) {
-	// detect version of hostIP to bind only to correct version
-	ipVersion := ipv4
-	if frontendAddr.IP.To4() == nil {
-		ipVersion = ipv6
-	}
-	listener, err := net.ListenTCP("tcp"+string(ipVersion), frontendAddr)
-	if err != nil {
-		return nil, err
-	}
-	// If the port in frontendAddr was 0 then ListenTCP will have a picked
-	// a port to listen on, hence the call to Addr to get that actual port:
+func NewTCPProxy(listener *net.TCPListener, backendAddr *net.TCPAddr) (*TCPProxy, error) {
 	return &TCPProxy{
 		listener:     listener,
 		frontendAddr: listener.Addr().(*net.TCPAddr),
