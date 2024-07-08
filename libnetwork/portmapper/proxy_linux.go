@@ -1,78 +1,61 @@
 package portmapper
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/docker/docker/libnetwork/types"
 )
 
-// StartProxy starts the proxy process at proxyPath, or instantiates a dummy proxy
-// to bind the host port if proxyPath is the empty string.
-func StartProxy(
-	proto string,
-	hostIP net.IP, hostPort int,
-	containerIP net.IP, containerPort int,
+// StartProxy starts the proxy process at proxyPath.
+// If listenSock is not nil, it must be a bound socket that can be passed to
+// the proxy process for it to listen on.
+func StartProxy(pb types.PortBinding,
 	proxyPath string,
-) (stop func() error, retErr error) {
-	if proxyPath == "" {
-		return newDummyProxy(proto, hostIP, hostPort)
-	}
-	return newProxyCommand(proto, hostIP, hostPort, containerIP, containerPort, proxyPath)
-}
-
-func newProxyCommand(
-	proto string,
-	hostIP net.IP, hostPort int,
-	containerIP net.IP, containerPort int,
-	proxyPath string,
+	listenSock *os.File,
 ) (stop func() error, retErr error) {
 	if proxyPath == "" {
 		return nil, fmt.Errorf("no path provided for userland-proxy binary")
 	}
-
-	p := &proxyCommand{
-		cmd: &exec.Cmd{
-			Path: proxyPath,
-			Args: []string{
-				proxyPath,
-				"-proto", proto,
-				"-host-ip", hostIP.String(),
-				"-host-port", strconv.Itoa(hostPort),
-				"-container-ip", containerIP.String(),
-				"-container-port", strconv.Itoa(containerPort),
-			},
-			SysProcAttr: &syscall.SysProcAttr{
-				Pdeathsig: syscall.SIGTERM, // send a sigterm to the proxy if the creating thread in the daemon process dies (https://go.dev/issue/27505)
-			},
-		},
-		wait: make(chan error, 1),
-	}
-	if err := p.start(); err != nil {
-		return nil, err
-	}
-	return p.stop, nil
-}
-
-// proxyCommand wraps an exec.Cmd to run the userland TCP and UDP
-// proxies as separate processes.
-type proxyCommand struct {
-	cmd  *exec.Cmd
-	wait chan error
-}
-
-func (p *proxyCommand) start() error {
 	r, w, err := os.Pipe()
 	if err != nil {
-		return fmt.Errorf("proxy unable to open os.Pipe %s", err)
+		return nil, fmt.Errorf("proxy unable to open os.Pipe %s", err)
 	}
-	defer r.Close()
-	p.cmd.ExtraFiles = []*os.File{w}
+	defer func() {
+		if w != nil {
+			w.Close()
+		}
+		r.Close()
+	}()
+
+	cmd := &exec.Cmd{
+		Path: proxyPath,
+		Args: []string{
+			proxyPath,
+			"-proto", pb.Proto.String(),
+			"-host-ip", pb.HostIP.String(),
+			"-host-port", strconv.FormatUint(uint64(pb.HostPort), 10),
+			"-container-ip", pb.IP.String(),
+			"-container-port", strconv.FormatUint(uint64(pb.Port), 10),
+		},
+		ExtraFiles: []*os.File{w},
+		SysProcAttr: &syscall.SysProcAttr{
+			Pdeathsig: syscall.SIGTERM, // send a sigterm to the proxy if the creating thread in the daemon process dies (https://go.dev/issue/27505)
+		},
+	}
+	if listenSock != nil {
+		cmd.Args = append(cmd.Args, "-use-listen-fd")
+		cmd.ExtraFiles = append(cmd.ExtraFiles, listenSock)
+	}
+
+	wait := make(chan error, 1)
 
 	// As p.cmd.SysProcAttr.Pdeathsig is set, the signal will be sent to the
 	// process when the OS thread on which p.cmd.Start() was executed dies.
@@ -88,17 +71,18 @@ func (p *proxyCommand) start() error {
 	go func() {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		err := p.cmd.Start()
+		err := cmd.Start()
 		started <- err
 		if err != nil {
 			return
 		}
-		p.wait <- p.cmd.Wait()
+		wait <- cmd.Wait()
 	}()
 	if err := <-started; err != nil {
-		return err
+		return nil, err
 	}
 	w.Close()
+	w = nil
 
 	errchan := make(chan error, 1)
 	go func() {
@@ -108,11 +92,16 @@ func (p *proxyCommand) start() error {
 		if string(buf) != "0\n" {
 			errStr, err := io.ReadAll(r)
 			if err != nil {
-				errchan <- fmt.Errorf("Error reading exit status from userland proxy: %v", err)
+				errchan <- fmt.Errorf("error reading exit status from userland proxy: %v", err)
 				return
 			}
-
-			errchan <- fmt.Errorf("Error starting userland proxy: %s", errStr)
+			// If the user has an old docker-proxy in their PATH, and we passed "-use-listen-fd"
+			// on the command line, it exits with no response on the pipe.
+			if listenSock != nil && buf[0] == 0 && len(errStr) == 0 {
+				errchan <- errors.New("failed to start docker-proxy, check that the current version is in your $PATH")
+				return
+			}
+			errchan <- fmt.Errorf("error starting userland proxy: %s", errStr)
 			return
 		}
 		errchan <- nil
@@ -120,18 +109,21 @@ func (p *proxyCommand) start() error {
 
 	select {
 	case err := <-errchan:
-		return err
+		if err != nil {
+			return nil, err
+		}
 	case <-time.After(16 * time.Second):
-		return fmt.Errorf("Timed out proxy starting the userland proxy")
+		return nil, fmt.Errorf("timed out starting the userland proxy")
 	}
-}
 
-func (p *proxyCommand) stop() error {
-	if p.cmd.Process != nil {
-		if err := p.cmd.Process.Signal(os.Interrupt); err != nil {
+	stopFn := func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		if err := cmd.Process.Signal(os.Interrupt); err != nil {
 			return err
 		}
-		return <-p.wait
+		return <-wait
 	}
-	return nil
+	return stopFn, nil
 }

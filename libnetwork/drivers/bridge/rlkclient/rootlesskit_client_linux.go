@@ -99,7 +99,8 @@ func (c *PortDriverClient) AddPort(
 	hostIP netip.Addr,
 	childIP netip.Addr,
 	hostPort int,
-) (func() error, error) { // proto is like "tcp", but we need to convert it to "tcp4" or "tcp6" explicitly
+) (func() error, error) {
+	// proto is like "tcp", but we need to convert it to "tcp4" or "tcp6" explicitly
 	// for libnetwork >= 20201216
 	//
 	// See https://github.com/moby/libnetwork/pull/2604/files#diff-8fa48beed55dd033bf8e4f8c40b31cf69d0b2cc5d4bb53cde8594670ea6c938aR20
