@@ -15,14 +15,6 @@ import (
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
-// FsMagic unsigned id of the filesystem in use.
-type FsMagic uint32
-
-const (
-	// FsMagicUnsupported is a predefined constant value other than a valid filesystem id.
-	FsMagicUnsupported = FsMagic(0x00000000)
-)
-
 // All registered drivers
 var drivers map[string]InitFunc
 
@@ -134,12 +126,6 @@ type FileGetCloser interface {
 	storage.FileGetter
 	// Close cleans up any resources associated with the FileGetCloser.
 	Close() error
-}
-
-// Checker makes checks on specified filesystems.
-type Checker interface {
-	// IsMounted returns true if the provided path is mounted for the specific checker
-	IsMounted(path string) bool
 }
 
 func init() {

@@ -15,6 +15,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/internal/mountref"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	zfs "github.com/mistifyio/go-zfs/v3"
@@ -118,10 +119,17 @@ func Init(base string, opt []string, idMap idtools.IdentityMapping) (graphdriver
 		options:          options,
 		filesystemsCache: filesystemsCache,
 		idMap:            idMap,
-		ctr:              graphdriver.NewRefCounter(graphdriver.NewDefaultChecker()),
+		ctr:              mountref.NewCounter(isMounted),
 		locker:           locker.New(),
 	}
 	return graphdriver.NewNaiveDiffDriver(d, idMap), nil
+}
+
+// isMounted parses /proc/mountinfo to check whether the specified path
+// is mounted.
+func isMounted(path string) bool {
+	m, _ := mountinfo.Mounted(path)
+	return m
 }
 
 func parseOptions(opt []string) (zfsOptions, error) {
@@ -175,7 +183,7 @@ type Driver struct {
 	sync.Mutex       // protects filesystem cache against concurrent access
 	filesystemsCache map[string]bool
 	idMap            idtools.IdentityMapping
-	ctr              *graphdriver.RefCounter
+	ctr              *mountref.Counter
 	locker           *locker.Locker
 }
 

@@ -37,6 +37,7 @@ import (
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/internal/fstype"
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
@@ -68,12 +69,12 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		testdir = filepath.Dir(testdir)
 	}
 
-	fsMagic, err := graphdriver.GetFSMagic(testdir)
+	fsMagic, err := fstype.GetFSMagic(testdir)
 	if err != nil {
 		return nil, err
 	}
 
-	if fsMagic != graphdriver.FsMagicBtrfs {
+	if fsMagic != fstype.FsMagicBtrfs {
 		return nil, graphdriver.ErrPrerequisites
 	}
 

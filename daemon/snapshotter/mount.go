@@ -7,7 +7,7 @@ import (
 
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/internal/mountref"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mountinfo"
@@ -32,13 +32,13 @@ func NewMounter(home string, snapshotter string, idMap idtools.IdentityMapping) 
 			snapshotter: snapshotter,
 			idMap:       idMap,
 		},
-		rc:     graphdriver.NewRefCounter(checker()),
+		rc:     mountref.NewCounter(isMounted),
 		locker: locker.New(),
 	}
 }
 
 type refCountMounter struct {
-	rc     *graphdriver.RefCounter
+	rc     *mountref.Counter
 	locker *locker.Locker
 	base   mounter
 }
