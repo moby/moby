@@ -396,18 +396,17 @@ func (nDB *NetworkDB) reapTableEntries() {
 	// The lock is taken at the beginning of the cycle and the deletion is inline
 	for _, nid := range nodeNetworks {
 		nDB.Lock()
-		nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid), func(path []byte, v interface{}) bool {
+		nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid), func(path []byte, v *entry) bool {
 			// timeCompensation compensate in case the lock took some time to be released
 			timeCompensation := time.Since(cycleStart)
-			entry, ok := v.(*entry)
-			if !ok || !entry.deleting {
+			if !v.deleting {
 				return false
 			}
 
 			// In this check we are adding an extra 1 second to guarantee that when the number is truncated to int32 to fit the packet
 			// for the tableEvent the number is always strictly > 1 and never 0
-			if entry.reapTime > reapPeriod+timeCompensation+time.Second {
-				entry.reapTime -= reapPeriod + timeCompensation
+			if v.reapTime > reapPeriod+timeCompensation+time.Second {
+				v.reapTime -= reapPeriod + timeCompensation
 				return false
 			}
 
@@ -629,28 +628,23 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	}
 
 	for _, nid := range networks {
-		nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid), func(path []byte, v interface{}) bool {
-			entry, ok := v.(*entry)
-			if !ok {
-				return false
-			}
-
+		nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid), func(path []byte, v *entry) bool {
 			eType := TableEventTypeCreate
-			if entry.deleting {
+			if v.deleting {
 				eType = TableEventTypeDelete
 			}
 
 			params := strings.Split(string(path[1:]), "/")
 			tEvent := TableEvent{
 				Type:      eType,
-				LTime:     entry.ltime,
-				NodeName:  entry.node,
+				LTime:     v.ltime,
+				NodeName:  v.node,
 				NetworkID: nid,
 				TableName: params[1],
 				Key:       params[2],
-				Value:     entry.value,
+				Value:     v.value,
 				// The duration in second is a float that below would be truncated
-				ResidualReapTime: int32(entry.reapTime.Seconds()),
+				ResidualReapTime: int32(v.reapTime.Seconds()),
 			}
 
 			msg, err := encodeMessage(MessageTypeTableEvent, &tEvent)
