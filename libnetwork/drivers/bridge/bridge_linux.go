@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/drivers/bridge/rlkclient"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/rlkclient"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -139,7 +139,9 @@ type portDriverClient interface {
 }
 
 // Allow unit tests to supply a dummy RootlessKit port driver client.
-var newPortDriverClient = func() (portDriverClient, error) { return rlkclient.NewPortDriverClient() }
+var newPortDriverClient = func(ctx context.Context) (portDriverClient, error) {
+	return rlkclient.NewPortDriverClient(ctx)
+}
 
 type driver struct {
 	config            configuration
@@ -558,9 +560,9 @@ func (d *driver) configure(option map[string]interface{}) error {
 		}
 	}
 
-	if config.EnableUserlandProxy && config.Rootless {
+	if config.Rootless {
 		var err error
-		pdc, err = newPortDriverClient()
+		pdc, err = newPortDriverClient(context.TODO())
 		if err != nil {
 			return err
 		}

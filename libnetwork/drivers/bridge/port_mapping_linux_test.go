@@ -764,6 +764,22 @@ func TestAddPortMappings(t *testing.T) {
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: firstEphemPort + 1},
 			},
 		},
+		{
+			name:     "rootless without proxy",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 22},
+				{Proto: types.TCP, Port: 80},
+			},
+			rootless: true,
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: firstEphemPort},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero, HostPort: firstEphemPort},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort + 1},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: firstEphemPort + 1},
+			},
+		},
 	}
 
 	for _, tc := range testcases {
@@ -802,7 +818,9 @@ func TestAddPortMappings(t *testing.T) {
 			// Mock the RootlessKit port driver.
 			origNewPortDriverClient := newPortDriverClient
 			defer func() { newPortDriverClient = origNewPortDriverClient }()
-			newPortDriverClient = func() (portDriverClient, error) { return newMockPortDriverClient() }
+			newPortDriverClient = func(ctx context.Context) (portDriverClient, error) {
+				return newMockPortDriverClient(ctx)
+			}
 
 			if len(tc.hostAddrs) > 0 {
 				dummyLink := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: "br-dummy"}}
@@ -1005,7 +1023,7 @@ type mockPortDriverClient struct {
 	openPorts map[mockPortDriverPort]bool
 }
 
-func newMockPortDriverClient() (*mockPortDriverClient, error) {
+func newMockPortDriverClient(_ context.Context) (*mockPortDriverClient, error) {
 	return &mockPortDriverClient{
 		openPorts: map[mockPortDriverPort]bool{},
 	}, nil
