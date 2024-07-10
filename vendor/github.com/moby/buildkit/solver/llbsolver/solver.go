@@ -180,6 +180,9 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		Type:   controlapi.BuildHistoryEventType_STARTED,
 		Record: rec,
 	}); err != nil {
+		if stopTrace != nil {
+			stopTrace()
+		}
 		return nil, err
 	}
 
@@ -377,9 +380,10 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		}()
 
 		if err != nil {
-			status, desc, release, err := s.history.ImportError(ctx, err)
-			if err != nil {
-				return err
+			status, desc, release, err1 := s.history.ImportError(ctx, err)
+			if err1 != nil {
+				// don't replace the build error with this import error
+				bklog.G(ctx).Errorf("failed to import error to build record: %+v", err1)
 			}
 			rec.ExternalError = desc
 			releasers = append(releasers, release)
