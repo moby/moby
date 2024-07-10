@@ -718,7 +718,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.15.0-rc1
+# github.com/moby/buildkit v0.15.0-rc2
 ## explicit; go 1.21.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1109,7 +1109,7 @@ github.com/tonistiigi/go-actions-cache
 # github.com/tonistiigi/go-archvariant v1.0.0
 ## explicit; go 1.17
 github.com/tonistiigi/go-archvariant
-# github.com/tonistiigi/go-csvvalue v0.0.0-20240619222358-bb8dd5cba3c2
+# github.com/tonistiigi/go-csvvalue v0.0.0-20240710180619-ddb21b71c0b4
 ## explicit; go 1.16
 github.com/tonistiigi/go-csvvalue
 # github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea

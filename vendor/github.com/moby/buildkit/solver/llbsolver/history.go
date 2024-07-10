@@ -710,7 +710,7 @@ func (w *Writer) Commit(ctx context.Context) (*ocispecs.Descriptor, func(), erro
 		}, nil
 }
 
-func (h *HistoryQueue) ImportError(ctx context.Context, err error) (*rpc.Status, *controlapi.Descriptor, func(), error) {
+func (h *HistoryQueue) ImportError(ctx context.Context, err error) (_ *rpc.Status, _ *controlapi.Descriptor, _ func(), retErr error) {
 	st, ok := grpcerrors.AsGRPCStatus(grpcerrors.ToGRPC(ctx, err))
 	if !ok {
 		st = status.New(codes.Unknown, err.Error())
@@ -727,7 +727,11 @@ func (h *HistoryQueue) ImportError(ctx context.Context, err error) (*rpc.Status,
 		return nil, nil, nil, err
 	}
 
-	defer w.Discard()
+	defer func() {
+		if retErr != nil {
+			w.Discard()
+		}
+	}()
 
 	if _, err := w.Write(dt); err != nil {
 		return nil, nil, nil, err
