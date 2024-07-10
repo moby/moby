@@ -9,6 +9,7 @@ package rlkclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -17,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/api/client"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/port"
 )
@@ -29,7 +29,7 @@ type PortDriverClient struct {
 	childIP        netip.Addr
 }
 
-func NewPortDriverClient() (*PortDriverClient, error) {
+func NewPortDriverClient(ctx context.Context) (*PortDriverClient, error) {
 	stateDir := os.Getenv("ROOTLESSKIT_STATE_DIR")
 	if stateDir == "" {
 		return nil, errors.New("$ROOTLESSKIT_STATE_DIR needs to be set")
@@ -40,7 +40,7 @@ func NewPortDriverClient() (*PortDriverClient, error) {
 		return nil, fmt.Errorf("error while connecting to RootlessKit API socket: %w", err)
 	}
 
-	info, err := c.Info(context.Background())
+	info, err := c.Info(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call info API, probably RootlessKit binary is too old (needs to be v0.14.0 or later): %w", err)
 	}
@@ -82,6 +82,9 @@ func NewPortDriverClient() (*PortDriverClient, error) {
 // mappings from host IP addresses, and DNAT rules, must use this child
 // address in place of the real host address.
 func (c *PortDriverClient) ChildHostIP(hostIP netip.Addr) netip.Addr {
+	if c == nil {
+		return hostIP
+	}
 	if c.childIP.IsValid() {
 		return c.childIP
 	}
@@ -100,6 +103,9 @@ func (c *PortDriverClient) AddPort(
 	childIP netip.Addr,
 	hostPort int,
 ) (func() error, error) {
+	if c == nil {
+		return func() error { return nil }, nil
+	}
 	// proto is like "tcp", but we need to convert it to "tcp4" or "tcp6" explicitly
 	// for libnetwork >= 20201216
 	//

@@ -27,12 +27,23 @@ const (
 )
 
 func main() {
+	// Mark any files we expect to inherit as close-on-exec
+	// so that they are not unexpectedly inherited by any child processes
+	// if we ever need docker-proxy to exec something.
+	// This is safe to do even if the fd belongs to the Go runtime
+	// as it would be a no-op:
+	// the Go runtime marks all file descriptors it opens as close-on-exec.
+	// See the godoc for syscall.ForkLock for more information.
+	syscall.CloseOnExec(int(parentPipeFd))
+	syscall.CloseOnExec(int(listenSockFd))
+
 	config := parseFlags()
 	p, err := newProxy(config)
 	if config.ListenSock != nil {
 		config.ListenSock.Close()
 	}
 
+	_ = syscall.SetNonblock(int(parentPipeFd), true)
 	f := os.NewFile(parentPipeFd, "signal-parent")
 	if err != nil {
 		fmt.Fprintf(f, "1\n%s", err)
@@ -151,6 +162,7 @@ func parseFlags() ProxyConfig {
 	}
 
 	if useListenFd {
+		_ = syscall.SetNonblock(int(listenSockFd), true)
 		config.ListenSock = os.NewFile(listenSockFd, "listen-sock")
 	}
 
