@@ -13,6 +13,14 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.47 API changes
+
+[Docker Engine API v1.47](https://docs.docker.com/engine/api/v1.47/) documentation
+
+* `POST /images/create` endpoint now supports `fromJSON` field parameter to
+  specify that the request body will contain an OCI image index of the image.
+  WARNING: This is experimental and may change at any time without any backward
+  compatibility.
 
 ## v1.46 API changes
 

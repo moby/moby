@@ -28,6 +28,7 @@ type imageBackend interface {
 	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*dockerimage.Image, error)
 	TagImage(ctx context.Context, id dockerimage.ID, newRef reference.Named) error
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*image.PruneReport, error)
+	ImageCreateFromJSON(ctx context.Context, ref reference.NamedTagged, jsonReader io.Reader) (ocispec.Descriptor, error)
 }
 
 type importExportBackend interface {

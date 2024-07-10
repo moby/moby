@@ -2,6 +2,7 @@ package image // import "github.com/docker/docker/api/server/router/image"
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -60,6 +61,33 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 			}
 			platform = &sp
 		}
+	}
+
+	if _, ok := r.Form["fromJSON"]; ok {
+		defer r.Body.Close()
+
+		if versions.LessThan(version, "1.47") {
+			return errdefs.InvalidParameter(errors.New("fromJSON is not supported in this API version"))
+		}
+
+		if img != "" {
+			return errdefs.InvalidParameter(errors.New("fromManifests and fromImage cannot be used together"))
+		}
+
+		tagRef, err := httputils.RepoTagReference(repo, tag)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+
+		desc, err := ir.backend.ImageCreateFromJSON(ctx, tagRef, r.Body)
+		if err != nil {
+			if !output.Flushed() {
+				return err
+			}
+			_, _ = output.Write(streamformatter.FormatError(err))
+		}
+
+		return json.NewEncoder(output).Encode(desc)
 	}
 
 	if img != "" { // pull

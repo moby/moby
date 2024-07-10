@@ -43,6 +43,7 @@ type ImageService interface {
 	ImageHistory(ctx context.Context, name string) ([]*imagetype.HistoryResponseItem, error)
 	CommitImage(ctx context.Context, c backend.CommitConfig) (image.ID, error)
 	SquashImage(id, parent string) (string, error)
+	ImageCreateFromJSON(ctx context.Context, ref reference.NamedTagged, jsonReader io.Reader) (ocispec.Descriptor, error)
 
 	// Containerd related methods
 
