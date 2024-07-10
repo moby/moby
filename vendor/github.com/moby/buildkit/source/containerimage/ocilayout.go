@@ -105,7 +105,7 @@ func (r *ociLayoutResolver) info(ctx context.Context, ref reference.Spec) (conte
 	err := r.withCaller(ctx, func(ctx context.Context, caller session.Caller) error {
 		store := sessioncontent.NewCallerStore(caller, "oci:"+r.store.StoreID)
 
-		_, dgst := reference.SplitObject(ref.Object)
+		dgst := ref.Digest()
 		if dgst == "" {
 			return errors.Errorf("reference %q does not contain a digest", ref.String())
 		}

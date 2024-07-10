@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"maps"
 	"strconv"
 
 	"github.com/containerd/containerd/content"
@@ -163,9 +164,7 @@ func (dsl *withDistributionSourceLabel) SnapshotLabels(descs []ocispecs.Descript
 	if labels == nil {
 		labels = make(map[string]string)
 	}
-	for k, v := range estargz.SnapshotLabels(dsl.ref, descs, index) {
-		labels[k] = v
-	}
+	maps.Copy(labels, estargz.SnapshotLabels(dsl.ref, descs, index))
 	return labels
 }
 

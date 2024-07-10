@@ -2,8 +2,9 @@ package llb
 
 import (
 	"io"
+	"maps"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/solver/pb"
 	digest "github.com/opencontainers/go-digest"
 )
@@ -18,24 +19,17 @@ type Definition struct {
 }
 
 func (def *Definition) ToPB() *pb.Definition {
-	md := make(map[digest.Digest]pb.OpMetadata, len(def.Metadata))
-	for k, v := range def.Metadata {
-		md[k] = v
-	}
 	return &pb.Definition{
 		Def:      def.Def,
 		Source:   def.Source,
-		Metadata: md,
+		Metadata: maps.Clone(def.Metadata),
 	}
 }
 
 func (def *Definition) FromPB(x *pb.Definition) {
 	def.Def = x.Def
 	def.Source = x.Source
-	def.Metadata = make(map[digest.Digest]pb.OpMetadata)
-	for k, v := range x.Metadata {
-		def.Metadata[k] = v
-	}
+	def.Metadata = maps.Clone(x.Metadata)
 }
 
 func (def *Definition) Head() (digest.Digest, error) {

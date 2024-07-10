@@ -20,7 +20,7 @@ func WithLease(ctx context.Context, ls leases.Manager, opts ...leases.Opt) (cont
 
 	lr, ctx, err := NewLease(ctx, ls, opts...)
 	if err != nil {
-		return nil, nil, err
+		return ctx, nil, err
 	}
 
 	return ctx, func(ctx context.Context) error {
@@ -31,7 +31,7 @@ func WithLease(ctx context.Context, ls leases.Manager, opts ...leases.Opt) (cont
 func NewLease(ctx context.Context, lm leases.Manager, opts ...leases.Opt) (*LeaseRef, context.Context, error) {
 	l, err := lm.Create(ctx, append([]leases.Opt{leases.WithRandomID(), leases.WithExpiration(time.Hour)}, opts...)...)
 	if err != nil {
-		return nil, nil, err
+		return nil, ctx, err
 	}
 
 	ctx = leases.WithLease(ctx, l.ID)

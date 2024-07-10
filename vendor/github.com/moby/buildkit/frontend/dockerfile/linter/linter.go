@@ -2,6 +2,7 @@ package linter
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -38,7 +39,7 @@ func New(config *Config) *Linter {
 }
 
 func (lc *Linter) Run(rule LinterRuleI, location []parser.Range, txt ...string) {
-	if lc == nil || lc.Warn == nil || lc.SkipAll {
+	if lc == nil || lc.Warn == nil || lc.SkipAll || rule.IsDeprecated() {
 		return
 	}
 	rulename := rule.RuleName()
@@ -70,11 +71,13 @@ func (lc *Linter) Error() error {
 type LinterRuleI interface {
 	RuleName() string
 	Run(warn LintWarnFunc, location []parser.Range, txt ...string)
+	IsDeprecated() bool
 }
 
 type LinterRule[F any] struct {
 	Name        string
 	Description string
+	Deprecated  bool
 	URL         string
 	Format      F
 }
@@ -91,6 +94,10 @@ func (rule *LinterRule[F]) Run(warn LintWarnFunc, location []parser.Range, txt .
 	warn(rule.Name, rule.Description, rule.URL, short, location)
 }
 
+func (rule *LinterRule[F]) IsDeprecated() bool {
+	return rule.Deprecated
+}
+
 func LintFormatShort(rulename, msg string, line int) string {
 	msg = fmt.Sprintf("%s: %s", rulename, msg)
 	if line > 0 {
@@ -100,3 +107,46 @@ func LintFormatShort(rulename, msg string, line int) string {
 }
 
 type LintWarnFunc func(rulename, description, url, fmtmsg string, location []parser.Range)
+
+func ParseLintOptions(checkStr string) (*Config, error) {
+	checkStr = strings.TrimSpace(checkStr)
+	if checkStr == "" {
+		return &Config{}, nil
+	}
+
+	parts := strings.SplitN(checkStr, ";", 2)
+	var skipSet []string
+	var errorOnWarn, skipAll bool
+	for _, p := range parts {
+		k, v, ok := strings.Cut(p, "=")
+		if !ok {
+			return nil, errors.Errorf("invalid check option %q", p)
+		}
+		k = strings.TrimSpace(k)
+		switch k {
+		case "skip":
+			v = strings.TrimSpace(v)
+			if v == "all" {
+				skipAll = true
+			} else {
+				skipSet = strings.Split(v, ",")
+				for i, rule := range skipSet {
+					skipSet[i] = strings.TrimSpace(rule)
+				}
+			}
+		case "error":
+			v, err := strconv.ParseBool(strings.TrimSpace(v))
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to parse check option %q", p)
+			}
+			errorOnWarn = v
+		default:
+			return nil, errors.Errorf("invalid check option %q", k)
+		}
+	}
+	return &Config{
+		SkipRules:     skipSet,
+		SkipAll:       skipAll,
+		ReturnAsError: errorOnWarn,
+	}, nil
+}

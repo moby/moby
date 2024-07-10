@@ -43,7 +43,7 @@ func dispatch(ctx context.Context, d dispatchRequest, cmd instructions.Command) 
 		}
 	}
 	runConfigEnv := d.state.runConfig.Env
-	envs := append(runConfigEnv, d.state.buildArgs.FilterAllowed(runConfigEnv)...)
+	envs := shell.EnvsFromSlice(append(runConfigEnv, d.state.buildArgs.FilterAllowed(runConfigEnv)...))
 
 	if ex, ok := cmd.(instructions.SupportsSingleWordExpansion); ok {
 		err := ex.Expand(func(word string) (string, error) {

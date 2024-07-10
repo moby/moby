@@ -51,25 +51,34 @@ func DelegateAdd(ctx context.Context, delegatePlugin string, netconf []byte, exe
 // DelegateCheck calls the given delegate plugin with the CNI CHECK action and
 // JSON configuration
 func DelegateCheck(ctx context.Context, delegatePlugin string, netconf []byte, exec Exec) error {
+	return delegateNoResult(ctx, delegatePlugin, netconf, exec, "CHECK")
+}
+
+func delegateNoResult(ctx context.Context, delegatePlugin string, netconf []byte, exec Exec, verb string) error {
 	pluginPath, realExec, err := delegateCommon(delegatePlugin, exec)
 	if err != nil {
 		return err
 	}
 
-	// DelegateCheck will override the original CNI_COMMAND env from process with CHECK
-	return ExecPluginWithoutResult(ctx, pluginPath, netconf, delegateArgs("CHECK"), realExec)
+	return ExecPluginWithoutResult(ctx, pluginPath, netconf, delegateArgs(verb), realExec)
 }
 
 // DelegateDel calls the given delegate plugin with the CNI DEL action and
 // JSON configuration
 func DelegateDel(ctx context.Context, delegatePlugin string, netconf []byte, exec Exec) error {
-	pluginPath, realExec, err := delegateCommon(delegatePlugin, exec)
-	if err != nil {
-		return err
-	}
+	return delegateNoResult(ctx, delegatePlugin, netconf, exec, "DEL")
+}
 
-	// DelegateDel will override the original CNI_COMMAND env from process with DEL
-	return ExecPluginWithoutResult(ctx, pluginPath, netconf, delegateArgs("DEL"), realExec)
+// DelegateStatus calls the given delegate plugin with the CNI STATUS action and
+// JSON configuration
+func DelegateStatus(ctx context.Context, delegatePlugin string, netconf []byte, exec Exec) error {
+	return delegateNoResult(ctx, delegatePlugin, netconf, exec, "STATUS")
+}
+
+// DelegateGC calls the given delegate plugin with the CNI GC action and
+// JSON configuration
+func DelegateGC(ctx context.Context, delegatePlugin string, netconf []byte, exec Exec) error {
+	return delegateNoResult(ctx, delegatePlugin, netconf, exec, "GC")
 }
 
 // return CNIArgs used by delegation

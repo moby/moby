@@ -224,7 +224,7 @@ func (d *dispatchRequest) getExpandedString(shlex *shell.Lex, str string) (strin
 		substitutionArgs = append(substitutionArgs, key+"="+value)
 	}
 
-	name, _, err := shlex.ProcessWord(str, substitutionArgs)
+	name, _, err := shlex.ProcessWord(str, shell.EnvsFromSlice(substitutionArgs))
 	if err != nil {
 		return "", err
 	}
@@ -508,7 +508,7 @@ func dispatchEntrypoint(ctx context.Context, d dispatchRequest, c *instructions.
 //
 // Expose ports for links and port mappings. This all ends up in
 // req.runConfig.ExposedPorts for runconfig.
-func dispatchExpose(ctx context.Context, d dispatchRequest, c *instructions.ExposeCommand, envs []string) error {
+func dispatchExpose(ctx context.Context, d dispatchRequest, c *instructions.ExposeCommand, envs shell.EnvGetter) error {
 	// custom multi word expansion
 	// expose $FOO with FOO="80 443" is expanded as EXPOSE [80,443]. This is the only command supporting word to words expansion
 	// so the word processing has been de-generalized

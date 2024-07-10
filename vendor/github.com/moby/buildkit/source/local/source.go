@@ -208,7 +208,7 @@ func (ls *localSourceHandler) snapshot(ctx context.Context, caller session.Calle
 				bklog.G(ctx).Errorf("failed to reset mutable cachepolicy: %v", err)
 			}
 			contenthash.ClearCacheContext(mutable)
-			go mutable.Release(context.TODO())
+			go mutable.Release(context.WithoutCancel(ctx))
 		}
 	}()
 

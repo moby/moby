@@ -1,13 +1,13 @@
 package progressui
 
 import (
-	"encoding/csv"
 	"errors"
 	"strconv"
 	"strings"
 
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/morikuni/aec"
+	"github.com/tonistiigi/go-csvvalue"
 )
 
 var termColorMap = map[string]aec.ANSI{
@@ -59,9 +59,9 @@ func setUserDefinedTermColors(colorsEnv string) {
 }
 
 func readBuildkitColorsEnv(colorsEnv string) []string {
-	csvReader := csv.NewReader(strings.NewReader(colorsEnv))
+	csvReader := csvvalue.NewParser()
 	csvReader.Comma = ':'
-	fields, err := csvReader.Read()
+	fields, err := csvReader.Fields(colorsEnv, nil)
 	if err != nil {
 		bklog.L.WithError(err).Warnf("Could not parse BUILDKIT_COLORS. Falling back to defaults.")
 		return nil
@@ -70,8 +70,7 @@ func readBuildkitColorsEnv(colorsEnv string) []string {
 }
 
 func readRGB(v string) aec.ANSI {
-	csvReader := csv.NewReader(strings.NewReader(v))
-	fields, err := csvReader.Read()
+	fields, err := csvvalue.Fields(v, nil)
 	if err != nil {
 		bklog.L.WithError(err).Warnf("Could not parse value %s as valid comma-separated RGB color. Ignoring.", v)
 		return nil

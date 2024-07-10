@@ -3,6 +3,7 @@ package containerimage
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"runtime"
 	"time"
 
@@ -150,9 +151,8 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (cach
 				if labels == nil {
 					labels = make(map[string]string)
 				}
-				for k, v := range estargz.SnapshotLabels(p.manifest.Ref, p.manifest.Descriptors, i) {
-					labels[k] = v
-				}
+				maps.Copy(labels, estargz.SnapshotLabels(p.manifest.Ref, p.manifest.Descriptors, i))
+
 				p.descHandlers[desc.Digest] = &cache.DescHandler{
 					Provider:       p.manifest.Provider,
 					Progress:       progressController,
@@ -218,14 +218,14 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (ir cache.Immuta
 	}
 	defer func() {
 		if p.releaseTmpLeases != nil {
-			p.releaseTmpLeases(context.TODO())
+			p.releaseTmpLeases(context.WithoutCancel(ctx))
 		}
 	}()
 
 	var current cache.ImmutableRef
 	defer func() {
 		if err != nil && current != nil {
-			current.Release(context.TODO())
+			current.Release(context.WithoutCancel(ctx))
 		}
 	}()
 
@@ -255,7 +255,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (ir cache.Immuta
 			if err != nil {
 				return nil, err
 			}
-			defer done(ctx)
+			defer done(context.WithoutCancel(ctx))
 
 			if _, err := p.PullManifests(ctx, getResolver); err != nil {
 				return nil, err

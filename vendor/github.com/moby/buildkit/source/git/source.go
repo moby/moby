@@ -470,6 +470,7 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		if !isCommitSHA(ref) { // TODO: find a branch from ls-remote?
 			args = append(args, "--depth=1", "--no-tags")
 		} else {
+			args = append(args, "--tags")
 			if _, err := os.Lstat(filepath.Join(gitDir, "shallow")); err == nil {
 				args = append(args, "--unshallow")
 			}
@@ -497,7 +498,7 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 
 	defer func() {
 		if retErr != nil && checkoutRef != nil {
-			checkoutRef.Release(context.TODO())
+			checkoutRef.Release(context.WithoutCancel(ctx))
 		}
 	}()
 
@@ -646,7 +647,7 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 
 	defer func() {
 		if retErr != nil {
-			snap.Release(context.TODO())
+			snap.Release(context.WithoutCancel(ctx))
 		}
 	}()
 

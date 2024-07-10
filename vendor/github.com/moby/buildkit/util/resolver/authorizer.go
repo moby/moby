@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"net/http"
 	"sort"
 	"strings"
@@ -96,11 +97,9 @@ func (a *authHandlerNS) set(host, session string, h *authHandler) {
 }
 
 func (a *authHandlerNS) delete(h *authHandler) {
-	for k, v := range a.handlers {
-		if v == h {
-			delete(a.handlers, k)
-		}
-	}
+	maps.DeleteFunc(a.handlers, func(_ string, v *authHandler) bool {
+		return v == h
+	})
 }
 
 type dockerAuthorizer struct {

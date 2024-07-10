@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/url"
 	"strings"
 
@@ -39,7 +40,7 @@ func (sr *immutableRef) GetRemotes(ctx context.Context, createIfNeeded bool, ref
 	if err != nil {
 		return nil, err
 	}
-	defer done(ctx)
+	defer done(context.WithoutCancel(ctx))
 
 	// fast path if compression variants aren't required
 	// NOTE: compressionopt is applied only to *newly created layers* if Force != true.
@@ -235,9 +236,7 @@ func (sr *immutableRef) getRemote(ctx context.Context, createIfNeeded bool, refC
 				for _, k := range addAnnotations {
 					newDesc.Annotations[k] = desc.Annotations[k]
 				}
-				for k, v := range blobDesc.Annotations {
-					newDesc.Annotations[k] = v
-				}
+				maps.Copy(newDesc.Annotations, blobDesc.Annotations)
 				desc = newDesc
 			}
 		}

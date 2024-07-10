@@ -354,7 +354,7 @@ func (s *FileOpSolver) Solve(ctx context.Context, inputs []fileoptypes.Ref, acti
 	defer func() {
 		for _, in := range s.ins {
 			if in.ref == nil && in.mount != nil {
-				in.mount.Release(context.TODO())
+				in.mount.Release(context.WithoutCancel(ctx))
 			}
 		}
 	}()
@@ -432,6 +432,7 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 
 		defer func() {
 			if err != nil && inpMount != nil {
+				ctx := context.WithoutCancel(ctx)
 				inputRes := make([]solver.Result, len(inputs))
 				for i, input := range inputs {
 					inputRes[i] = worker.NewWorkerRefResult(input.(cache.ImmutableRef), s.w)
@@ -458,8 +459,9 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 
 				err = errdefs.WithExecErrorWithContext(ctx, err, inputRes, outputRes)
 			}
+			ctx := context.WithoutCancel(ctx)
 			for _, m := range toRelease {
-				m.Release(context.TODO())
+				m.Release(ctx)
 			}
 		}()
 
