@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -420,6 +422,7 @@ func TestAddPortMappings(t *testing.T) {
 		defHostIP    net.IP
 		proxyPath    string
 		busyPortIPv4 int
+		rootless     bool
 
 		expErr          string
 		expPBs          []types.PortBinding
@@ -720,6 +723,23 @@ func TestAddPortMappings(t *testing.T) {
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 12345, HostIP: net.IPv6zero, HostPort: 12346},
 			},
 		},
+		{
+			name:     "rootless",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 22},
+				{Proto: types.TCP, Port: 80},
+			},
+			proxyPath: "/dummy/path/to/proxy",
+			rootless:  true,
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: firstEphemPort},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero, HostPort: firstEphemPort},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort + 1},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: firstEphemPort + 1},
+			},
+		},
 	}
 
 	for _, tc := range testcases {
@@ -756,6 +776,11 @@ func TestAddPortMappings(t *testing.T) {
 				}, nil
 			}
 
+			// Mock the RootlessKit port driver.
+			origNewPortDriverClient := newPortDriverClient
+			defer func() { newPortDriverClient = origNewPortDriverClient }()
+			newPortDriverClient = func() (portDriverClient, error) { return newMockPortDriverClient() }
+
 			n := &bridgeNetwork{
 				config: &networkConfiguration{
 					BridgeName: "dummybridge",
@@ -771,10 +796,22 @@ func TestAddPortMappings(t *testing.T) {
 					EnableIP6Tables:     true,
 					EnableUserlandProxy: tc.proxyPath != "",
 					UserlandProxyPath:   tc.proxyPath,
+					Rootless:            tc.rootless,
 				},
 			}
 			err := n.driver.configure(genericOption)
 			assert.NilError(t, err)
+
+			assert.Check(t, is.Equal(n.driver.portDriverClient == nil, !tc.rootless))
+			expChildIP := func(hostIP net.IP) net.IP {
+				if !tc.rootless {
+					return hostIP
+				}
+				if hostIP.To4() == nil {
+					return net.ParseIP("::1")
+				}
+				return net.ParseIP("127.0.0.1")
+			}
 
 			err = portallocator.Get().ReleaseAll()
 			assert.NilError(t, err)
@@ -852,16 +889,37 @@ func TestAddPortMappings(t *testing.T) {
 			// Check a docker-proxy was started and stopped for each expected port binding.
 			expProxies := map[proxyCall]bool{}
 			for _, expPB := range tc.expPBs {
-				is4 := expPB.HostIP.To4() != nil
+				hip := expChildIP(expPB.HostIP)
+				is4 := hip.To4() != nil
 				if (is4 && tc.gwMode4.natDisabled()) || (!is4 && tc.gwMode6.natDisabled()) {
 					continue
 				}
 				p := newProxyCall(expPB.Proto.String(),
-					expPB.HostIP, int(expPB.HostPort),
+					hip, int(expPB.HostPort),
 					expPB.IP, int(expPB.Port), tc.proxyPath)
 				expProxies[p] = tc.expReleaseErr != ""
 			}
 			assert.Check(t, is.DeepEqual(expProxies, proxies))
+
+			// Check the port driver has seen the expected port mappings and no others,
+			// and that they have all been closed.
+			if n.driver.portDriverClient != nil {
+				pdc := n.driver.portDriverClient.(*mockPortDriverClient)
+				expPorts := map[mockPortDriverPort]bool{}
+				for _, expPB := range tc.expPBs {
+					if expPB.HostPort == 0 {
+						continue
+					}
+					pdp := mockPortDriverPort{
+						proto:    expPB.Proto.String(),
+						hostIP:   expPB.HostIP.String(),
+						childIP:  expChildIP(expPB.HostIP).String(),
+						hostPort: int(expPB.HostPort),
+					}
+					expPorts[pdp] = false
+				}
+				assert.Check(t, is.DeepEqual(pdc.openPorts, expPorts))
+			}
 		})
 	}
 }
@@ -880,4 +938,49 @@ func newProxyCall(proto string,
 		container: fmt.Sprintf("%v:%v", containerIP, containerPort),
 		proxyPath: proxyPath,
 	}
+}
+
+// Types for tracking calls to the port driver client (mock for RootlessKit client).
+
+type mockPortDriverPort struct {
+	proto    string
+	hostIP   string
+	childIP  string
+	hostPort int
+}
+
+func (p mockPortDriverPort) String() string {
+	return p.hostIP + ":" + strconv.Itoa(p.hostPort) + "/" + p.proto
+}
+
+type mockPortDriverClient struct {
+	openPorts map[mockPortDriverPort]bool
+}
+
+func newMockPortDriverClient() (*mockPortDriverClient, error) {
+	return &mockPortDriverClient{
+		openPorts: map[mockPortDriverPort]bool{},
+	}, nil
+}
+
+func (c *mockPortDriverClient) ChildHostIP(hostIP netip.Addr) netip.Addr {
+	if hostIP.Is6() {
+		return netip.IPv6Loopback()
+	}
+	return netip.MustParseAddr("127.0.0.1")
+}
+
+func (c *mockPortDriverClient) AddPort(_ context.Context, proto string, hostIP, childIP netip.Addr, hostPort int) (func() error, error) {
+	key := mockPortDriverPort{proto: proto, hostIP: hostIP.String(), childIP: childIP.String(), hostPort: hostPort}
+	if _, exists := c.openPorts[key]; exists {
+		return nil, fmt.Errorf("mockPortDriverClient: port %s is already open", key)
+	}
+	c.openPorts[key] = true
+	return func() error {
+		if !c.openPorts[key] {
+			return fmt.Errorf("mockPortDriverClient: port %s is not open", key)
+		}
+		c.openPorts[key] = false
+		return nil
+	}, nil
 }

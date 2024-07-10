@@ -34,7 +34,6 @@ const (
 	StockRuntimeName = "runc"
 
 	// userlandProxyBinary is the name of the userland-proxy binary.
-	// In rootless-mode, [rootless.RootlessKitDockerProxyBinary] is used instead.
 	userlandProxyBinary = "docker-proxy"
 )
 
@@ -234,15 +233,24 @@ func setPlatformDefaults(cfg *Config) error {
 		cfg.CgroupNamespaceMode = string(DefaultCgroupNamespaceMode)
 	}
 
+	var err error
+	cfg.BridgeConfig.UserlandProxyPath, err = lookupBinPath(userlandProxyBinary)
+	if err != nil {
+		// Log, but don't error here. This allows running a daemon with
+		// userland-proxy disabled (which does not require the binary
+		// to be present).
+		//
+		// An error is still produced by [Config.ValidatePlatformConfig] if
+		// userland-proxy is enabled in the configuration.
+		//
+		// We log this at "debug" level, as this code is also executed
+		// when running "--version", and we don't want to print logs in
+		// that case..
+		log.G(context.TODO()).WithError(err).Debug("failed to lookup default userland-proxy binary")
+	}
+
 	if rootless.RunningWithRootlessKit() {
 		cfg.Rootless = true
-
-		var err error
-		// use rootlesskit-docker-proxy for exposing the ports in RootlessKit netns to the initial namespace.
-		cfg.BridgeConfig.UserlandProxyPath, err = lookupBinPath(rootless.RootlessKitDockerProxyBinary)
-		if err != nil {
-			return errors.Wrapf(err, "running with RootlessKit, but %s not installed", rootless.RootlessKitDockerProxyBinary)
-		}
 
 		dataHome, err := homedir.GetDataHome()
 		if err != nil {
@@ -257,21 +265,6 @@ func setPlatformDefaults(cfg *Config) error {
 		cfg.ExecRoot = filepath.Join(runtimeDir, "docker")
 		cfg.Pidfile = filepath.Join(runtimeDir, "docker.pid")
 	} else {
-		var err error
-		cfg.BridgeConfig.UserlandProxyPath, err = lookupBinPath(userlandProxyBinary)
-		if err != nil {
-			// Log, but don't error here. This allows running a daemon with
-			// userland-proxy disabled (which does not require the binary
-			// to be present).
-			//
-			// An error is still produced by [Config.ValidatePlatformConfig] if
-			// userland-proxy is enabled in the configuration.
-			//
-			// We log this at "debug" level, as this code is also executed
-			// when running "--version", and we don't want to print logs in
-			// that case..
-			log.G(context.TODO()).WithError(err).Debug("failed to lookup default userland-proxy binary")
-		}
 		cfg.Root = "/var/lib/docker"
 		cfg.ExecRoot = "/var/run/docker"
 		cfg.Pidfile = "/var/run/docker.pid"

@@ -915,6 +915,7 @@ func driverOptions(config *config.Config) nwconfig.Option {
 			"EnableIP6Tables":     config.BridgeConfig.EnableIP6Tables,
 			"EnableUserlandProxy": config.BridgeConfig.EnableUserlandProxy,
 			"UserlandProxyPath":   config.BridgeConfig.UserlandProxyPath,
+			"Rootless":            config.Rootless,
 		},
 	})
 }
