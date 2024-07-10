@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
 	"slices"
 	"strconv"
 
@@ -545,7 +546,7 @@ func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName stri
 		return err
 	}
 
-	if b.Proto == types.SCTP {
+	if b.Proto == types.SCTP && os.Getenv("DOCKER_IPTABLES_SCTP_CHECKSUM") == "1" {
 		// Linux kernel v4.9 and below enables NETIF_F_SCTP_CRC for veth by
 		// the following commit.
 		// This introduces a problem when combined with a physical NIC without
