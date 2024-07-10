@@ -22,12 +22,28 @@ import (
 
 type portBinding struct {
 	types.PortBinding
+	// childHostIP is the host IP address, as seen from the daemon. This
+	// is normally the same as PortBinding.HostIP but, in rootless mode, it
+	// will be an address in the rootless network namespace. RootlessKit
+	// binds the port on the real (parent) host address and maps it to the
+	// same port number on the address dockerd sees in the child namespace.
+	// So, for example, docker-proxy and DNAT rules need to use the child
+	// namespace's host address. (PortBinding.HostIP isn't replaced by the
+	// child address, because it's stored as user-config and the child
+	// address may change if RootlessKit is configured differently.)
+	childHostIP net.IP
+	// portDriverRemove is a function that will inform the RootlessKit
+	// port driver about removal of a port binding, or nil.
+	portDriverRemove func() error
+	// stopProxy is a function to stop the userland proxy for this binding,
+	// if a proxy has been started - else nil.
 	stopProxy func() error
 }
 
 type portBindingReq struct {
 	types.PortBinding
-	disableNAT bool
+	childHostIP net.IP
+	disableNAT  bool
 }
 
 // addPortMappings takes cfg, the configuration for port mappings, selects host
@@ -78,6 +94,7 @@ func (n *bridgeNetwork) addPortMappings(
 	sortAndNormPBs(sortedCfg)
 
 	proxyPath := n.userlandProxyPath()
+	pdc := n.getPortDriverClient()
 
 	// toBind accumulates port bindings that should be allocated the same host port
 	// (if required by NAT config). If the host address is unspecified, and defHostIP
@@ -90,7 +107,7 @@ func (n *bridgeNetwork) addPortMappings(
 	// bindings to collect, they're applied and toBind is reset.
 	var toBind []portBindingReq
 	for i, c := range sortedCfg {
-		if bindingIPv4, ok := configurePortBindingIPv4(disableNAT4, c, containerIPv4, defHostIP); ok {
+		if bindingIPv4, ok := configurePortBindingIPv4(pdc, disableNAT4, c, containerIPv4, defHostIP); ok {
 			toBind = append(toBind, bindingIPv4)
 		}
 
@@ -106,7 +123,7 @@ func (n *bridgeNetwork) addPortMappings(
 		if proxyPath != "" && (containerIPv6 == nil) {
 			containerIP = containerIPv4
 		}
-		if bindingIPv6, ok := configurePortBindingIPv6(disableNAT6, c, containerIP, defHostIP); ok {
+		if bindingIPv6, ok := configurePortBindingIPv6(pdc, disableNAT6, c, containerIP, defHostIP); ok {
 			toBind = append(toBind, bindingIPv6)
 		}
 
@@ -128,8 +145,24 @@ func (n *bridgeNetwork) addPortMappings(
 		toBind = toBind[:0]
 	}
 
-	for _, b := range bindings {
-		if err := n.setPerPortIptables(b, true); err != nil {
+	for i := range bindings {
+		if pdc != nil && bindings[i].HostPort != 0 {
+			var err error
+			b := &bindings[i]
+			hip, ok := netip.AddrFromSlice(b.HostIP)
+			if !ok {
+				return nil, fmt.Errorf("invalid host IP address in %s", b)
+			}
+			chip, ok := netip.AddrFromSlice(b.childHostIP)
+			if !ok {
+				return nil, fmt.Errorf("invalid child host IP address %s in %s", b.childHostIP, b)
+			}
+			b.portDriverRemove, err = pdc.AddPort(context.TODO(), b.Proto.String(), hip, chip, int(b.HostPort))
+			if err != nil {
+				return nil, err
+			}
+		}
+		if err := n.setPerPortIptables(bindings[i], true); err != nil {
 			return nil, err
 		}
 	}
@@ -262,7 +295,7 @@ func needSamePort(a, b types.PortBinding) bool {
 
 // configurePortBindingIPv4 returns a new port binding with the HostIP field populated
 // if a binding is required, else nil.
-func configurePortBindingIPv4(disableNAT bool, bnd types.PortBinding, containerIPv4, defHostIP net.IP) (portBindingReq, bool) {
+func configurePortBindingIPv4(pdc portDriverClient, disableNAT bool, bnd types.PortBinding, containerIPv4, defHostIP net.IP) (portBindingReq, bool) {
 	if len(containerIPv4) == 0 {
 		return portBindingReq{}, false
 	}
@@ -281,15 +314,15 @@ func configurePortBindingIPv4(disableNAT bool, bnd types.PortBinding, containerI
 	// Unmap the addresses if they're IPv4-mapped IPv6.
 	bnd.HostIP = bnd.HostIP.To4()
 	bnd.IP = containerIPv4.To4()
-	return portBindingReq{
+	return setChildHostIP(pdc, portBindingReq{
 		PortBinding: bnd,
 		disableNAT:  disableNAT,
-	}, true
+	}), true
 }
 
 // configurePortBindingIPv6 returns a new port binding with the HostIP field populated
 // if a binding is required, else nil.
-func configurePortBindingIPv6(disableNAT bool, bnd types.PortBinding, containerIP, defHostIP net.IP) (portBindingReq, bool) {
+func configurePortBindingIPv6(pdc portDriverClient, disableNAT bool, bnd types.PortBinding, containerIP, defHostIP net.IP) (portBindingReq, bool) {
 	if containerIP == nil {
 		return portBindingReq{}, false
 	}
@@ -316,10 +349,20 @@ func configurePortBindingIPv6(disableNAT bool, bnd types.PortBinding, containerI
 		}
 	}
 	bnd.IP = containerIP
-	return portBindingReq{
+	return setChildHostIP(pdc, portBindingReq{
 		PortBinding: bnd,
 		disableNAT:  disableNAT,
-	}, true
+	}), true
+}
+
+func setChildHostIP(pdc portDriverClient, req portBindingReq) portBindingReq {
+	if pdc == nil {
+		req.childHostIP = req.HostIP
+		return req
+	}
+	hip, _ := netip.AddrFromSlice(req.HostIP)
+	req.childHostIP = pdc.ChildHostIP(hip).AsSlice()
+	return req
 }
 
 // bindHostPorts allocates ports and starts docker-proxy for the given cfg. The
@@ -409,7 +452,7 @@ func attemptBindHostPorts(
 		if c.disableNAT {
 			pb.HostPort = 0
 		} else {
-			pb.stopProxy, err = startProxy(c.Proto.String(), c.HostIP, port, c.IP, int(c.Port), proxyPath)
+			pb.stopProxy, err = startProxy(c.Proto.String(), c.childHostIP, port, c.IP, int(c.Port), proxyPath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to bind port %s:%d/%s: %w", c.HostIP, port, c.Proto, err)
 			}
@@ -423,6 +466,7 @@ func attemptBindHostPorts(
 			pb.HostPort = uint16(port)
 		}
 		pb.HostPortEnd = pb.HostPort
+		pb.childHostIP = c.childHostIP
 		res = append(res, pb)
 	}
 	return res, nil
@@ -441,7 +485,10 @@ func (n *bridgeNetwork) releasePorts(ep *bridgeEndpoint) error {
 func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 	var errs []error
 	for _, pb := range pbs {
-		var errP error
+		var errPD, errP error
+		if pb.portDriverRemove != nil {
+			errPD = pb.portDriverRemove()
+		}
 		if pb.stopProxy != nil {
 			errP = pb.stopProxy()
 			if errP != nil {
@@ -455,7 +502,7 @@ func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 		if pb.HostPort > 0 {
 			portallocator.Get().ReleasePort(pb.HostIP, pb.Proto.String(), int(pb.HostPort))
 		}
-		errs = append(errs, errP, errN)
+		errs = append(errs, errPD, errP, errN)
 	}
 	return errors.Join(errs...)
 }
