@@ -45,28 +45,30 @@ const (
 
 	// Don't forget to update frontend documentation if you add
 	// a new build-arg: frontend/dockerfile/docs/reference.md
-	keyCacheNSArg           = "build-arg:BUILDKIT_CACHE_MOUNT_NS"
-	keyMultiPlatformArg     = "build-arg:BUILDKIT_MULTI_PLATFORM"
-	keyHostnameArg          = "build-arg:BUILDKIT_SANDBOX_HOSTNAME"
-	keyDockerfileLintArg    = "build-arg:BUILDKIT_DOCKERFILE_CHECK"
-	keyContextKeepGitDirArg = "build-arg:BUILDKIT_CONTEXT_KEEP_GIT_DIR"
-	keySourceDateEpoch      = "build-arg:SOURCE_DATE_EPOCH"
+	keyCacheNSArg              = "build-arg:BUILDKIT_CACHE_MOUNT_NS"
+	keyMultiPlatformArg        = "build-arg:BUILDKIT_MULTI_PLATFORM"
+	keyHostnameArg             = "build-arg:BUILDKIT_SANDBOX_HOSTNAME"
+	keyDockerfileLintArg       = "build-arg:BUILDKIT_DOCKERFILE_CHECK"
+	keyContextKeepGitDirArg    = "build-arg:BUILDKIT_CONTEXT_KEEP_GIT_DIR"
+	keySourceDateEpoch         = "build-arg:SOURCE_DATE_EPOCH"
+	keyCopyIgnoredCheckEnabled = "build-arg:BUILDKIT_DOCKERFILE_CHECK_COPYIGNORED_EXPERIMENT"
 )
 
 type Config struct {
-	BuildArgs        map[string]string
-	CacheIDNamespace string
-	CgroupParent     string
-	Epoch            *time.Time
-	ExtraHosts       []llb.HostIP
-	Hostname         string
-	ImageResolveMode llb.ResolveMode
-	Labels           map[string]string
-	NetworkMode      pb.NetMode
-	ShmSize          int64
-	Target           string
-	Ulimits          []pb.Ulimit
-	LinterConfig     *linter.Config
+	BuildArgs               map[string]string
+	CacheIDNamespace        string
+	CgroupParent            string
+	Epoch                   *time.Time
+	ExtraHosts              []llb.HostIP
+	Hostname                string
+	ImageResolveMode        llb.ResolveMode
+	Labels                  map[string]string
+	NetworkMode             pb.NetMode
+	ShmSize                 int64
+	Target                  string
+	Ulimits                 []pb.Ulimit
+	LinterConfig            *linter.Config
+	CopyIgnoredCheckEnabled bool
 
 	CacheImports           []client.CacheOptionsEntry
 	TargetPlatforms        []ocispecs.Platform // nil means default
@@ -286,6 +288,16 @@ func (bc *Client) init() error {
 			return errors.Wrapf(err, "failed to parse %s", keyDockerfileLintArg)
 		}
 	}
+
+	// CopyIgnoredCheckEnabled is an experimental feature to check if COPY is ignored by .dockerignore,
+	// and it is disabled by default. It is expected that this feature will be enabled by default in a future
+	// release, and this build-arg will be removed.
+	if v, ok := opts[keyCopyIgnoredCheckEnabled]; ok {
+		bc.CopyIgnoredCheckEnabled, err = strconv.ParseBool(v)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse %s", keyCopyIgnoredCheckEnabled)
+		}
+	}
 	return nil
 }
 
@@ -410,44 +422,9 @@ func (bc *Client) MainContext(ctx context.Context, opts ...llb.LocalOption) (*ll
 		return bctx.context, nil
 	}
 
-	if bc.dockerignore == nil {
-		st := llb.Local(bctx.contextLocalName,
-			llb.SessionID(bc.bopts.SessionID),
-			llb.FollowPaths([]string{DefaultDockerignoreName}),
-			llb.SharedKeyHint(bctx.contextLocalName+"-"+DefaultDockerignoreName),
-			WithInternalName("load "+DefaultDockerignoreName),
-			llb.Differ(llb.DiffNone, false),
-		)
-		def, err := st.Marshal(ctx, bc.marshalOpts()...)
-		if err != nil {
-			return nil, err
-		}
-		res, err := bc.client.Solve(ctx, client.SolveRequest{
-			Definition: def.ToPB(),
-		})
-		if err != nil {
-			return nil, err
-		}
-		ref, err := res.SingleRef()
-		if err != nil {
-			return nil, err
-		}
-		dt, _ := ref.ReadFile(ctx, client.ReadRequest{ // ignore error
-			Filename: DefaultDockerignoreName,
-		})
-		if dt == nil {
-			dt = []byte{}
-		}
-		bc.dockerignore = dt
-		bc.dockerignoreName = DefaultDockerignoreName
-	}
-
-	var excludes []string
-	if len(bc.dockerignore) != 0 {
-		excludes, err = ignorefile.ReadAll(bytes.NewBuffer(bc.dockerignore))
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed parsing %s", bc.dockerignoreName)
-		}
+	excludes, err := bc.dockerIgnorePatterns(ctx, bctx)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to read dockerignore patterns")
 	}
 
 	opts = append([]llb.LocalOption{
@@ -493,6 +470,21 @@ func (bc *Client) IsNoCache(name string) bool {
 	return false
 }
 
+func (bc *Client) DockerIgnorePatterns(ctx context.Context) ([]string, error) {
+	if bc == nil {
+		return nil, nil
+	}
+	bctx, err := bc.buildContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if bctx.context != nil {
+		return nil, nil
+	}
+
+	return bc.dockerIgnorePatterns(ctx, bctx)
+}
+
 func DefaultMainContext(opts ...llb.LocalOption) *llb.State {
 	opts = append([]llb.LocalOption{
 		llb.SharedKeyHint(DefaultLocalNameContext),
@@ -504,4 +496,47 @@ func DefaultMainContext(opts ...llb.LocalOption) *llb.State {
 
 func WithInternalName(name string) llb.ConstraintsOpt {
 	return llb.WithCustomName("[internal] " + name)
+}
+
+func (bc *Client) dockerIgnorePatterns(ctx context.Context, bctx *buildContext) ([]string, error) {
+	if bc.dockerignore == nil {
+		st := llb.Local(bctx.contextLocalName,
+			llb.SessionID(bc.bopts.SessionID),
+			llb.FollowPaths([]string{DefaultDockerignoreName}),
+			llb.SharedKeyHint(bctx.contextLocalName+"-"+DefaultDockerignoreName),
+			WithInternalName("load "+DefaultDockerignoreName),
+			llb.Differ(llb.DiffNone, false),
+		)
+		def, err := st.Marshal(ctx, bc.marshalOpts()...)
+		if err != nil {
+			return nil, err
+		}
+		res, err := bc.client.Solve(ctx, client.SolveRequest{
+			Definition: def.ToPB(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		ref, err := res.SingleRef()
+		if err != nil {
+			return nil, err
+		}
+		dt, _ := ref.ReadFile(ctx, client.ReadRequest{ // ignore error
+			Filename: DefaultDockerignoreName,
+		})
+		if dt == nil {
+			dt = []byte{}
+		}
+		bc.dockerignore = dt
+		bc.dockerignoreName = DefaultDockerignoreName
+	}
+	var err error
+	var excludes []string
+	if len(bc.dockerignore) != 0 {
+		excludes, err = ignorefile.ReadAll(bytes.NewBuffer(bc.dockerignore))
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed parsing %s", bc.dockerignoreName)
+		}
+	}
+	return excludes, nil
 }

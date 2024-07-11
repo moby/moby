@@ -40,6 +40,7 @@ import (
 	"github.com/moby/buildkit/util/suggest"
 	"github.com/moby/buildkit/util/system"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
+	"github.com/moby/patternmatcher"
 	"github.com/moby/sys/signal"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -258,6 +259,9 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 	if err != nil {
 		return nil, err
 	}
+	if len(stages) == 0 {
+		return nil, errors.New("dockerfile contains no stages to build")
+	}
 	validateStageNames(stages, lint)
 
 	shlex := shell.NewLex(dockerfile.EscapeToken)
@@ -315,6 +319,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			platMatch, err := shlex.ProcessWordWithMatches(v, platEnv)
 			reportUnusedFromArgs(metaArgsKeys(optMetaArgs), platMatch.Unmatched, st.Location, lint)
 			reportRedundantTargetPlatform(st.Platform, platMatch, st.Location, platEnv, lint)
+			reportConstPlatformDisallowed(st.Name, platMatch, st.Location, lint)
 
 			if err != nil {
 				return nil, parser.WithLocation(errors.Wrapf(err, "failed to process arguments for platform %s", platMatch.Result), st.Location)
@@ -590,6 +595,20 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 	buildContext := &mutableOutput{}
 	ctxPaths := map[string]struct{}{}
 
+	var dockerIgnoreMatcher *patternmatcher.PatternMatcher
+	if opt.Client != nil && opt.Client.CopyIgnoredCheckEnabled {
+		dockerIgnorePatterns, err := opt.Client.DockerIgnorePatterns(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(dockerIgnorePatterns) > 0 {
+			dockerIgnoreMatcher, err = patternmatcher.New(dockerIgnorePatterns)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	for _, d := range allDispatchStates.states {
 		if !opt.AllStages {
 			if _, ok := allReachable[d]; !ok || d.noinit {
@@ -630,24 +649,27 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 				return nil, parser.WithLocation(err, d.stage.Location)
 			}
 		}
+
 		d.state = d.state.Network(opt.NetworkMode)
+
 		opt := dispatchOpt{
-			allDispatchStates: allDispatchStates,
-			metaArgs:          optMetaArgs,
-			buildArgValues:    opt.BuildArgs,
-			shlex:             shlex,
-			buildContext:      llb.NewState(buildContext),
-			proxyEnv:          proxyEnv,
-			cacheIDNamespace:  opt.CacheIDNamespace,
-			buildPlatforms:    platformOpt.buildPlatforms,
-			targetPlatform:    platformOpt.targetPlatform,
-			extraHosts:        opt.ExtraHosts,
-			shmSize:           opt.ShmSize,
-			ulimit:            opt.Ulimits,
-			cgroupParent:      opt.CgroupParent,
-			llbCaps:           opt.LLBCaps,
-			sourceMap:         opt.SourceMap,
-			lint:              lint,
+			allDispatchStates:   allDispatchStates,
+			metaArgs:            optMetaArgs,
+			buildArgValues:      opt.BuildArgs,
+			shlex:               shlex,
+			buildContext:        llb.NewState(buildContext),
+			proxyEnv:            proxyEnv,
+			cacheIDNamespace:    opt.CacheIDNamespace,
+			buildPlatforms:      platformOpt.buildPlatforms,
+			targetPlatform:      platformOpt.targetPlatform,
+			extraHosts:          opt.ExtraHosts,
+			shmSize:             opt.ShmSize,
+			ulimit:              opt.Ulimits,
+			cgroupParent:        opt.CgroupParent,
+			llbCaps:             opt.LLBCaps,
+			sourceMap:           opt.SourceMap,
+			lint:                lint,
+			dockerIgnoreMatcher: dockerIgnoreMatcher,
 		}
 
 		if err = dispatchOnBuildTriggers(d, d.image.Config.OnBuild, opt); err != nil {
@@ -806,22 +828,23 @@ func toCommand(ic instructions.Command, allDispatchStates *dispatchStates) (comm
 }
 
 type dispatchOpt struct {
-	allDispatchStates *dispatchStates
-	metaArgs          []instructions.KeyValuePairOptional
-	buildArgValues    map[string]string
-	shlex             *shell.Lex
-	buildContext      llb.State
-	proxyEnv          *llb.ProxyEnv
-	cacheIDNamespace  string
-	targetPlatform    ocispecs.Platform
-	buildPlatforms    []ocispecs.Platform
-	extraHosts        []llb.HostIP
-	shmSize           int64
-	ulimit            []pb.Ulimit
-	cgroupParent      string
-	llbCaps           *apicaps.CapSet
-	sourceMap         *llb.SourceMap
-	lint              *linter.Linter
+	allDispatchStates   *dispatchStates
+	metaArgs            []instructions.KeyValuePairOptional
+	buildArgValues      map[string]string
+	shlex               *shell.Lex
+	buildContext        llb.State
+	proxyEnv            *llb.ProxyEnv
+	cacheIDNamespace    string
+	targetPlatform      ocispecs.Platform
+	buildPlatforms      []ocispecs.Platform
+	extraHosts          []llb.HostIP
+	shmSize             int64
+	ulimit              []pb.Ulimit
+	cgroupParent        string
+	llbCaps             *apicaps.CapSet
+	sourceMap           *llb.SourceMap
+	lint                *linter.Linter
+	dockerIgnoreMatcher *patternmatcher.PatternMatcher
 }
 
 func getEnv(state llb.State) shell.EnvGetter {
@@ -908,6 +931,7 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 				keepGitDir:      c.KeepGitDir,
 				checksum:        checksum,
 				location:        c.Location(),
+				ignoreMatcher:   opt.dockerIgnoreMatcher,
 				opt:             opt,
 			})
 		}
@@ -942,12 +966,15 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 		err = dispatchArg(d, c, &opt)
 	case *instructions.CopyCommand:
 		l := opt.buildContext
+		var ignoreMatcher *patternmatcher.PatternMatcher
 		if len(cmd.sources) != 0 {
 			src := cmd.sources[0]
 			if !src.noinit {
 				return errors.Errorf("cannot copy from stage %q, it needs to be defined before current stage %q", c.From, d.stageName)
 			}
 			l = src.state
+		} else {
+			ignoreMatcher = opt.dockerIgnoreMatcher
 		}
 		err = dispatchCopy(d, copyConfig{
 			params:          c.SourcesAndDest,
@@ -960,6 +987,7 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 			link:            c.Link,
 			parents:         c.Parents,
 			location:        c.Location(),
+			ignoreMatcher:   ignoreMatcher,
 			opt:             opt,
 		})
 		if err == nil {
@@ -1438,6 +1466,7 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 				a = a.Copy(st, f, dest, opts...)
 			}
 		} else {
+			validateCopySourcePath(src, &cfg)
 			var patterns []string
 			if cfg.parents {
 				// detect optional pivot point
@@ -1554,6 +1583,7 @@ type copyConfig struct {
 	checksum        digest.Digest
 	parents         bool
 	location        []parser.Range
+	ignoreMatcher   *patternmatcher.PatternMatcher
 	opt             dispatchOpt
 }
 
@@ -1865,6 +1895,27 @@ func addReachableStages(s *dispatchState, stages map[*dispatchState]struct{}) {
 	for d := range s.deps {
 		addReachableStages(d, stages)
 	}
+}
+
+func validateCopySourcePath(src string, cfg *copyConfig) error {
+	if cfg.ignoreMatcher == nil {
+		return nil
+	}
+	cmd := "Copy"
+	if cfg.isAddCommand {
+		cmd = "Add"
+	}
+
+	ok, err := cfg.ignoreMatcher.MatchesOrParentMatches(src)
+	if err != nil {
+		return err
+	}
+	if ok {
+		msg := linter.RuleCopyIgnoredFile.Format(cmd, src)
+		cfg.opt.lint.Run(&linter.RuleCopyIgnoredFile, cfg.location, msg)
+	}
+
+	return nil
 }
 
 func validateCircularDependency(states []*dispatchState) error {
@@ -2298,6 +2349,31 @@ func reportRedundantTargetPlatform(platformVar string, nameMatch shell.ProcessWo
 			lint.Run(&linter.RuleRedundantTargetPlatform, location, msg)
 		}
 	}
+}
+
+func reportConstPlatformDisallowed(stageName string, nameMatch shell.ProcessWordResult, location []parser.Range, lint *linter.Linter) {
+	if len(nameMatch.Matched) > 0 || len(nameMatch.Unmatched) > 0 {
+		// Some substitution happened so the platform was not a constant.
+		// Disable checking for this warning.
+		return
+	}
+
+	// Attempt to parse the platform result. If this fails, then it will fail
+	// later so just ignore.
+	p, err := platforms.Parse(nameMatch.Result)
+	if err != nil {
+		return
+	}
+
+	// Check if the platform os or architecture is used in the stage name
+	// at all. If it is, then disable this warning.
+	if strings.Contains(stageName, p.OS) || strings.Contains(stageName, p.Architecture) {
+		return
+	}
+
+	// Report the linter warning.
+	msg := linter.RuleFromPlatformFlagConstDisallowed.Format(nameMatch.Result)
+	lint.Run(&linter.RuleFromPlatformFlagConstDisallowed, location, msg)
 }
 
 type instructionTracker struct {

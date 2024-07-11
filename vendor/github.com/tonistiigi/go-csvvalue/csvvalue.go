@@ -126,6 +126,7 @@ parseField:
 					appendToLast(dst, "\"")
 					line = line[quoteLen:]
 					pos += quoteLen
+					halfOpen = true
 				case rn == r.Comma:
 					// `",` sequence (end of field).
 					line = line[commaLen:]
