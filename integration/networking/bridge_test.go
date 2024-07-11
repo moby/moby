@@ -789,7 +789,9 @@ func TestNoIP6Tables(t *testing.T) {
 	}
 }
 
-// Test that it's possible to set a sysctl on an interface in the container.
+// Test that it's possible to set a sysctl on an interface in the container
+// when using API 1.46 (in later versions of the API, per-interface sysctls
+// must be set using driver option 'com.docker.network.endpoint.sysctls').
 // Regression test for https://github.com/moby/moby/issues/47619
 func TestSetInterfaceSysctl(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no sysctl on Windows")
@@ -799,7 +801,7 @@ func TestSetInterfaceSysctl(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	c := d.NewClientT(t)
+	c := d.NewClientT(t, client.WithVersion("1.46"))
 	defer c.Close()
 
 	const scName = "net.ipv4.conf.eth0.forwarding"
