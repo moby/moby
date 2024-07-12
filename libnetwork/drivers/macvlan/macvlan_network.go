@@ -20,7 +20,7 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	// reject a null v4 network if ipv4 is required
 	if v, ok := option[netlabel.EnableIPv4]; ok && v.(bool) {
 		if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
-			return fmt.Errorf("ipv4 pool is empty")
+			return errdefs.InvalidParameter(fmt.Errorf("ipv4 pool is empty"))
 		}
 	}
 	// reject a null v6 network if ipv6 is required
