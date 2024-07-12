@@ -129,8 +129,10 @@ func (sb *Sandbox) needDefaultGW() bool {
 		if ep.joinInfo != nil && ep.joinInfo.disableGatewayService {
 			continue
 		}
-		// TODO v6 needs to be handled.
 		if len(ep.Gateway()) > 0 {
+			return false
+		}
+		if len(ep.GatewayIPv6()) > 0 {
 			return false
 		}
 		for _, r := range ep.StaticRoutes() {
