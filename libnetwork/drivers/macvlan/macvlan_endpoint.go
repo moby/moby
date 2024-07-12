@@ -31,9 +31,6 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		addrv6: ifInfo.AddressIPv6(),
 		mac:    ifInfo.MacAddress(),
 	}
-	if ep.addr == nil && ep.addrv6 == nil {
-		return errdefs.InvalidParameter(fmt.Errorf("create endpoint was not passed an IP address"))
-	}
 	if ep.mac == nil {
 		if ep.addr != nil {
 			ep.mac = netutils.GenerateMACFromIP(ep.addr.IP)
