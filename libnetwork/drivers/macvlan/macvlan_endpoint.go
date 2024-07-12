@@ -30,11 +30,17 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		addrv6: ifInfo.AddressIPv6(),
 		mac:    ifInfo.MacAddress(),
 	}
-	if ep.addr == nil {
+	if ep.addr == nil && ep.addrv6 == nil {
 		return fmt.Errorf("create endpoint was not passed an IP address")
 	}
 	if ep.mac == nil {
-		ep.mac = netutils.GenerateMACFromIP(ep.addr.IP)
+		if ep.addr != nil {
+			ep.mac = netutils.GenerateMACFromIP(ep.addr.IP)
+		} else {
+			// TODO(robmry) - generate an unsolicited ARP to associate this MAC
+			//  address with the IP.
+			ep.mac = netutils.GenerateRandomMAC()
+		}
 		if err := ifInfo.SetMacAddress(ep.mac); err != nil {
 			return err
 		}
