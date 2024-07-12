@@ -1075,8 +1075,6 @@ func JoinOptionPriority(prio int) EndpointOption {
 }
 
 func (ep *Endpoint) assignAddress(ipam ipamapi.Ipam, assignIPv4, assignIPv6 bool) error {
-	var err error
-
 	n := ep.getNetwork()
 	if n.hasSpecialDriver() {
 		return nil
@@ -1085,16 +1083,18 @@ func (ep *Endpoint) assignAddress(ipam ipamapi.Ipam, assignIPv4, assignIPv6 bool
 	log.G(context.TODO()).Debugf("Assigning addresses for endpoint %s's interface on network %s", ep.Name(), n.Name())
 
 	if assignIPv4 {
-		if err = ep.assignAddressVersion(4, ipam); err != nil {
+		if err := ep.assignAddressVersion(4, ipam); err != nil {
 			return err
 		}
 	}
 
 	if assignIPv6 {
-		err = ep.assignAddressVersion(6, ipam)
+		if err := ep.assignAddressVersion(6, ipam); err != nil {
+			return err
+		}
 	}
 
-	return err
+	return nil
 }
 
 func (ep *Endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
