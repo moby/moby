@@ -1,4 +1,4 @@
-### README first
+# README first
 
 This section of the documentation contains a guide for Moby project users who want to
 contribute code or documentation to the Moby Engine project. As a community, we
