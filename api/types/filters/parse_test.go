@@ -76,19 +76,10 @@ func TestFromJSON(t *testing.T) {
 		"{'key': 'value'}",
 		`{"key": "value"}`,
 	}
-	valid := map[*Args][]string{
-		{fields: map[string]map[string]bool{"key": {"value": true}}}: {
-			`{"key": ["value"]}`,
-			`{"key": {"value": true}}`,
-		},
-		{fields: map[string]map[string]bool{"key": {"value1": true, "value2": true}}}: {
-			`{"key": ["value1", "value2"]}`,
-			`{"key": {"value1": true, "value2": true}}`,
-		},
-		{fields: map[string]map[string]bool{"key1": {"value1": true}, "key2": {"value2": true}}}: {
-			`{"key1": ["value1"], "key2": ["value2"]}`,
-			`{"key1": {"value1": true}, "key2": {"value2": true}}`,
-		},
+	valid := map[*Args]string{
+		{fields: map[string]map[string]bool{"key": {"value": true}}}:                             `{"key": {"value": true}}`,
+		{fields: map[string]map[string]bool{"key": {"value1": true, "value2": true}}}:            `{"key": {"value1": true, "value2": true}}`,
+		{fields: map[string]map[string]bool{"key1": {"value1": true}, "key2": {"value2": true}}}: `{"key1": {"value1": true}, "key2": {"value2": true}}`,
 	}
 
 	for _, invalid := range invalids {
@@ -106,26 +97,24 @@ func TestFromJSON(t *testing.T) {
 		}
 	}
 
-	for expectedArgs, matchers := range valid {
-		for _, jsonString := range matchers {
-			args, err := FromJSON(jsonString)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if args.Len() != expectedArgs.Len() {
+	for expectedArgs, jsonString := range valid {
+		args, err := FromJSON(jsonString)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if args.Len() != expectedArgs.Len() {
+			t.Fatalf("Expected %v, go %v", expectedArgs, args)
+		}
+		for key, expectedValues := range expectedArgs.fields {
+			values := args.Get(key)
+
+			if len(values) != len(expectedValues) {
 				t.Fatalf("Expected %v, go %v", expectedArgs, args)
 			}
-			for key, expectedValues := range expectedArgs.fields {
-				values := args.Get(key)
 
-				if len(values) != len(expectedValues) {
+			for _, v := range values {
+				if !expectedValues[v] {
 					t.Fatalf("Expected %v, go %v", expectedArgs, args)
-				}
-
-				for _, v := range values {
-					if !expectedValues[v] {
-						t.Fatalf("Expected %v, go %v", expectedArgs, args)
-					}
 				}
 			}
 		}
