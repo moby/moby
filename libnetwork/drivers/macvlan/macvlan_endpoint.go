@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/pkg/errors"
 )
 
 // CreateEndpoint assigns the mac, ip and endpoint id for the new container
@@ -31,9 +30,6 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		addr:   ifInfo.Address(),
 		addrv6: ifInfo.AddressIPv6(),
 		mac:    ifInfo.MacAddress(),
-	}
-	if ep.addr == nil && ep.addrv6 == nil {
-		return errdefs.InvalidParameter(errors.New("create endpoint was not passed an IP address"))
 	}
 	if ep.mac == nil {
 		if ep.addr != nil {
