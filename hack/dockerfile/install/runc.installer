@@ -12,7 +12,7 @@ set -e
 : "${RUNC_VERSION:=0cf10d4964ba953b0e955f60d727b7c5c09aee1e}"
 
 install_runc() {
-	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp runc_nodmz"}"
+	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"runc_nodmz"}"
 
 	echo "Install runc version $RUNC_VERSION (build tags: $RUNC_BUILDTAGS)"
 	git clone https://github.com/rata/runc.git "$GOPATH/src/github.com/opencontainers/runc"
@@ -23,7 +23,7 @@ install_runc() {
 	else
 		target="$1"
 	fi
-	make BUILDTAGS="$RUNC_BUILDTAGS" "$target"
+	make EXTRA_BUILDTAGS="$RUNC_BUILDTAGS" "$target"
 	mkdir -p "${PREFIX}"
 	cp runc "${PREFIX}/runc"
 }
