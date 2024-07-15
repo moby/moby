@@ -2139,12 +2139,42 @@ func isV6Listenable() bool {
 	return v6ListenableCached
 }
 
+func TestBridgeRequiresIPAM(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+	controller := newController(t)
+
+	_, err := controller.NewNetwork(bridgeNetType, "testnetwork", "",
+		libnetwork.NetworkOptionIpam(null.DriverName, "", nil, nil, nil),
+	)
+	assert.Check(t, is.ErrorContains(err, "IPv4 or IPv6 must be enabled"))
+}
+
 func TestNullIpam(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
-	_, err := controller.NewNetwork(bridgeNetType, "testnetworkinternal", "", libnetwork.NetworkOptionIpam(null.DriverName, "", nil, nil, nil))
-	if err == nil || err.Error() != "ipv4 pool is empty" {
-		t.Fatal("bridge network should complain empty pool")
+	tests := []struct {
+		networkType string
+	}{
+		{networkType: bridgeNetType},
+		{networkType: "macvlan"},
+		{networkType: "ipvlan"},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.networkType, func(t *testing.T) {
+			_, err := controller.NewNetwork(tc.networkType, "tnet1-"+tc.networkType, "",
+				libnetwork.NetworkOptionEnableIPv4(true),
+				libnetwork.NetworkOptionIpam(null.DriverName, "", nil, nil, nil),
+			)
+			assert.Check(t, is.ErrorContains(err, "ipv4 pool is empty"))
+
+			_, err = controller.NewNetwork(tc.networkType, "tnet2-"+tc.networkType, "",
+				libnetwork.NetworkOptionEnableIPv6(true),
+				libnetwork.NetworkOptionIpam(null.DriverName, "", nil, nil, nil),
+			)
+			assert.Check(t, is.ErrorContains(err, "ipv6 pool is empty"))
+		})
 	}
 }

@@ -379,16 +379,14 @@ func TestUpdateSvcRecord(t *testing.T) {
 				{Hosts: "id-ep4", IP: netip.MustParseAddr("172.16.0.2")},
 			},
 		},
-		/* TODO(robmry) - add this test when the bridge driver understands v6-only
 		{
 			name:   "v6only",
 			epName: "ep6",
 			addr6:  "fde6:045d:b2aa::2/64",
 			expSvcRecs: []etchosts.Record{
-				{Hosts: "id-ep6", IP: "fde6:45d:b2aa::2"},
+				{Hosts: "id-ep6", IP: netip.MustParseAddr("fde6:45d:b2aa::2")},
 			},
 		},
-		*/
 		{
 			name:   "dual-stack",
 			epName: "ep46",

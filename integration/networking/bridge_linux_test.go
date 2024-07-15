@@ -616,6 +616,61 @@ func TestDisableIPv6Addrs(t *testing.T) {
 	}
 }
 
+// Check that a container in a network with IPv4 disabled doesn't get
+// IPv4 addresses.
+func TestDisableIPv4(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t, daemon.WithExperimental())
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	testcases := []struct {
+		name       string
+		apiVersion string
+		expIPv4    bool
+	}{
+		{
+			name:    "disable ipv4",
+			expIPv4: false,
+		},
+		{
+			name:       "old api ipv4 not disabled",
+			apiVersion: "1.46",
+			expIPv4:    true,
+		},
+	}
+
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
+
+			const netName = "testnet"
+			network.CreateNoError(ctx, t, c, netName,
+				network.WithIPv4(false),
+				network.WithIPv6(),
+			)
+			defer network.RemoveNoError(ctx, t, c, netName)
+
+			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
+			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+			loRes := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "lo"})
+			assert.Check(t, is.Contains(loRes.Combined(), " inet ")) // 127.0.0.1
+			assert.Check(t, is.Contains(loRes.Combined(), " inet6 "))
+
+			eth0Res := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "eth0"})
+			if tc.expIPv4 {
+				assert.Check(t, is.Contains(eth0Res.Combined(), " inet "))
+			} else {
+				assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet "),
+					"result.Combined(): %s", eth0Res.Combined())
+			}
+			assert.Check(t, is.Contains(eth0Res.Combined(), " inet6 "))
+		})
+	}
+}
+
 // Check that an interface to an '--ipv6=false' network has no IPv6
 // address - either IPAM assigned, or kernel-assigned LL, but the loopback
 // interface does still have an IPv6 address ('::1').
