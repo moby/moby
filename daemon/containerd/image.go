@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/lazyregexp"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -26,7 +27,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-var truncatedID = regexp.MustCompile(`^(sha256:)?([a-f0-9]{4,64})$`)
+var truncatedID = lazyregexp.CompileOnce(`^(sha256:)?([a-f0-9]{4,64})$`)
 
 var errInconsistentData error = errors.New("consistency error: data changed during operation, retry")
 
@@ -327,7 +328,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 	}
 
 	// If the identifier could be a short ID, attempt to match
-	if truncatedID.MatchString(refOrID) {
+	if truncatedID().MatchString(refOrID) {
 		idWithoutAlgo := strings.TrimPrefix(refOrID, "sha256:")
 		filters := []string{
 			fmt.Sprintf("name==%q", ref), // Or it could just look like one.
@@ -435,7 +436,7 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 	var dgst digest.Digest
 	var img *containerdimages.Image
 
-	if truncatedID.MatchString(refOrID) {
+	if truncatedID().MatchString(refOrID) {
 		if d, ok := parsed.(reference.Digested); ok {
 			if cimg, err := i.images.Get(ctx, d.String()); err == nil {
 				img = &cimg
