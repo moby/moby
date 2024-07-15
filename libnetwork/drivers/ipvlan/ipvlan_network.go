@@ -7,12 +7,14 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/pkg/errors"
 )
 
 // CreateNetwork the network for the specified driver type
@@ -29,7 +31,7 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	// reject a null v4 network if ipv4 is required
 	if v, ok := option[netlabel.EnableIPv4]; ok && v.(bool) {
 		if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
-			return fmt.Errorf("ipv4 pool is empty")
+			return errdefs.InvalidParameter(errors.New("ipv4 pool is empty"))
 		}
 	}
 	// reject a null v6 network if ipv6 is required
