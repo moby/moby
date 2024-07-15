@@ -26,9 +26,17 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 		return fmt.Errorf("kernel version failed to meet the minimum ipvlan kernel requirement of %d.%d, found %d.%d.%d",
 			ipvlanKernelVer, ipvlanMajorVer, kv.Kernel, kv.Major, kv.Minor)
 	}
-	// reject a null v4 network
-	if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
-		return fmt.Errorf("ipv4 pool is empty")
+	// reject a null v4 network if ipv4 is required
+	if v, ok := option[netlabel.EnableIPv4]; ok && v.(bool) {
+		if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
+			return fmt.Errorf("ipv4 pool is empty")
+		}
+	}
+	// reject a null v6 network if ipv6 is required
+	if v, ok := option[netlabel.EnableIPv6]; ok && v.(bool) {
+		if len(ipV6Data) == 0 || ipV6Data[0].Pool.String() == "::/0" {
+			return errdefs.InvalidParameter(errors.New("ipv6 pool is empty"))
+		}
 	}
 	// parse and validate the config and bind to networkConfiguration
 	config, err := parseNetworkOptions(nid, option)
