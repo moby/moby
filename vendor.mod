@@ -7,7 +7,7 @@ module github.com/docker/docker
 go 1.21.0
 
 require (
-	cloud.google.com/go/compute/metadata v0.2.3
+	cloud.google.com/go/compute/metadata v0.3.0
 	cloud.google.com/go/logging v1.8.1
 	code.cloudfoundry.org/clock v1.1.0
 	dario.cat/mergo v1.0.0
@@ -118,7 +118,6 @@ require (
 
 require (
 	cloud.google.com/go v0.110.8 // indirect
-	cloud.google.com/go/compute v1.23.1 // indirect
 	cloud.google.com/go/longrunning v0.5.2 // indirect
 	github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20230306123547-8075edf89bb0 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
