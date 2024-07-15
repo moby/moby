@@ -4,13 +4,13 @@ import (
 	"context"
 	"net"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 // ServiceOptions holds command line options.
@@ -57,7 +57,7 @@ var (
 	}
 
 	emptyServiceConfig, _ = newServiceConfig(ServiceOptions{})
-	validHostPortRegex    = regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
+	validHostPortRegex    = lazyregexp.New(`^` + reference.DomainRegexp.String() + `$`)
 
 	// certsDir is used to override defaultCertsDir.
 	certsDir string
