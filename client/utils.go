@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"regexp"
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/lazyregexp"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-var headerRegexp = regexp.MustCompile(`\ADocker/.+\s\((.+)\)\z`)
+var headerRegexp = lazyregexp.New(`\ADocker/.+\s\((.+)\)\z`)
 
 // getDockerOS returns the operating system based on the server header from the daemon.
 func getDockerOS(serverHeader string) string {
