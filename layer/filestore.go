@@ -7,19 +7,19 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
 var (
-	stringIDRegexp      = regexp.MustCompile(`^[a-f0-9]{64}(-init)?$`)
+	stringIDRegexp      = lazyregexp.CompileOnce(`^[a-f0-9]{64}(-init)?$`)
 	supportedAlgorithms = []digest.Algorithm{
 		digest.SHA256,
 		// digest.SHA384, // Currently not used
@@ -262,7 +262,7 @@ func (fms *fileMetadataStore) GetMountID(mount string) (string, error) {
 	}
 	content := strings.TrimSpace(string(contentBytes))
 
-	if !stringIDRegexp.MatchString(content) {
+	if !stringIDRegexp().MatchString(content) {
 		return "", errors.New("invalid mount id value")
 	}
 
@@ -279,7 +279,7 @@ func (fms *fileMetadataStore) GetInitID(mount string) (string, error) {
 	}
 	content := strings.TrimSpace(string(contentBytes))
 
-	if !stringIDRegexp.MatchString(content) {
+	if !stringIDRegexp().MatchString(content) {
 		return "", errors.New("invalid init id value")
 	}
 
