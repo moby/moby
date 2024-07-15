@@ -11,8 +11,6 @@ import (
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/go-connections/nat"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 // TestNatNetworkICC tries to ping container ctr1 from container ctr2 using its hostname.
@@ -111,4 +109,19 @@ func TestPortMappedHairpinWindows(t *testing.T) {
 	)
 	defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
 	assert.Check(t, is.Contains(res.Stderr.String(), "404 Not Found"))
+}
+
+func TestWindowsNoDisableIPv4(t *testing.T) {
+	ctx := setupTest(t)
+	c := testEnv.APIClient()
+
+	_, err := network.Create(ctx, c, "ipv6only",
+		network.WithDriver("nat"),
+		network.WithIPv4(false),
+	)
+	// This error message should change to "IPv4 cannot be disabled on Windows"
+	// when "--experimental" is no longer required to disable IPv4. But, there's
+	// no way to start a second daemon with "--experimental" in Windows CI.
+	assert.Check(t, is.ErrorContains(err,
+		"IPv4 can only be disabled if experimental features are enabled"))
 }

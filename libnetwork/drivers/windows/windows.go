@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -283,6 +284,12 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	genData, ok := option[netlabel.GenericData].(map[string]string)
 	if !ok {
 		return fmt.Errorf("Unknown generic data option")
+	}
+
+	if v, ok := option[netlabel.EnableIPv4]; ok {
+		if enable_IPv4, ok := v.(bool); ok && !enable_IPv4 {
+			return errors.New("IPv4 cannot be disabled on Windows")
+		}
 	}
 
 	// Parse and validate the config. It should not conflict with existing networks' config
