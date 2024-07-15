@@ -2,9 +2,9 @@ package oci // import "github.com/docker/docker/oci"
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -15,7 +15,7 @@ import (
 // that *only* passes `a` as value: `echo a > /sys/fs/cgroup/1/devices.allow, which would be
 // the "implicit" equivalent of "a *:* rwm". Source-code also looks to confirm this, and returns
 // early for "a" (all); https://github.com/torvalds/linux/blob/v5.10/security/device_cgroup.c#L614-L642
-var deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$") //nolint: gosimple
+var deviceCgroupRuleRegex = lazyregexp.New("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$") //nolint: gosimple
 
 // SetCapabilities sets the provided capabilities on the spec
 // All capabilities are added if privileged is true.
