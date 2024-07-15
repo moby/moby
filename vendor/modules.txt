@@ -1,10 +1,7 @@
 # cloud.google.com/go v0.110.8
 ## explicit; go 1.19
 cloud.google.com/go
-# cloud.google.com/go/compute v1.23.1
-## explicit; go 1.19
-cloud.google.com/go/compute/internal
-# cloud.google.com/go/compute/metadata v0.2.3
+# cloud.google.com/go/compute/metadata v0.3.0
 ## explicit; go 1.19
 cloud.google.com/go/compute/metadata
 # cloud.google.com/go/logging v1.8.1
