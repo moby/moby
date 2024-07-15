@@ -24,7 +24,7 @@ type BoltDB struct {
 	mu         sync.Mutex
 	client     *bolt.DB
 	boltBucket []byte
-	dbIndex    uint64
+	dbIndex    atomic.Uint64
 	path       string
 	timeout    time.Duration
 }
@@ -78,7 +78,7 @@ func (b *BoltDB) Put(key string, value []byte) error {
 			return err
 		}
 
-		dbIndex := atomic.AddUint64(&b.dbIndex, 1)
+		dbIndex := b.dbIndex.Add(1)
 		dbval := make([]byte, libkvmetadatalen)
 		binary.LittleEndian.PutUint64(dbval, dbIndex)
 		dbval = append(dbval, value...)
@@ -228,8 +228,8 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair) (*s
 				return store.ErrKeyModified
 			}
 		}
-		dbIndex = atomic.AddUint64(&b.dbIndex, 1)
-		binary.LittleEndian.PutUint64(dbval, b.dbIndex)
+		dbIndex = b.dbIndex.Add(1)
+		binary.LittleEndian.PutUint64(dbval, dbIndex)
 		dbval = append(dbval, value...)
 		return bucket.Put([]byte(key), dbval)
 	})

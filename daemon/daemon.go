@@ -140,7 +140,7 @@ type Daemon struct {
 	usageVolumes    singleflight.Group[struct{}, []*volume.Volume]
 	usageLayer      singleflight.Group[struct{}, int64]
 
-	pruneRunning int32
+	pruneRunning atomic.Bool
 	hosts        map[string]bool // hosts stores the addresses the daemon is listening on
 	startupDone  chan struct{}
 

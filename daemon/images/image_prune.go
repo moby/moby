@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/containerd/log"
@@ -33,10 +32,10 @@ var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already 
 
 // ImagesPrune removes unused images
 func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*imagetypes.PruneReport, error) {
-	if !atomic.CompareAndSwapInt32(&i.pruneRunning, 0, 1) {
+	if !i.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
-	defer atomic.StoreInt32(&i.pruneRunning, 0)
+	defer i.pruneRunning.Store(false)
 
 	// make sure that only accepted filters have been received
 	err := pruneFilters.Validate(imagesAcceptedFilters)

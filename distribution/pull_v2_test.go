@@ -231,7 +231,7 @@ func TestPullSchema2Config(t *testing.T) {
 		name           string
 		handler        func(callCount int, w http.ResponseWriter)
 		expectError    string
-		expectAttempts int64
+		expectAttempts uint64
 	}{
 		{
 			name: "success first time",
@@ -297,7 +297,7 @@ func TestPullSchema2Config(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			var callCount int64
+			var callCount atomic.Uint64
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				t.Logf("HTTP %s %s", r.Method, r.URL.Path)
 				defer r.Body.Close()
@@ -305,7 +305,7 @@ func TestPullSchema2Config(t *testing.T) {
 				case r.Method == "GET" && r.URL.Path == "/v2":
 					w.WriteHeader(http.StatusOK)
 				case r.Method == "GET" && r.URL.Path == "/v2/docker.io/library/testremotename/blobs/"+expectedDigest.String():
-					tt.handler(int(atomic.AddInt64(&callCount, 1)), w)
+					tt.handler(int(callCount.Add(1)), w)
 				default:
 					w.WriteHeader(http.StatusNotFound)
 				}
@@ -333,8 +333,8 @@ func TestPullSchema2Config(t *testing.T) {
 				}
 			}
 
-			if callCount != tt.expectAttempts {
-				t.Fatalf("got callCount=%d but expected=%d", callCount, tt.expectAttempts)
+			if cc := callCount.Load(); cc != tt.expectAttempts {
+				t.Fatalf("got callCount=%d but expected=%d", cc, tt.expectAttempts)
 			}
 		})
 	}

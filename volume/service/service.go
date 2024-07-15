@@ -35,7 +35,7 @@ type VolumeEventLogger interface {
 type VolumesService struct {
 	vs           *VolumeStore
 	ds           ds
-	pruneRunning int32
+	pruneRunning atomic.Bool
 	eventLogger  VolumeEventLogger
 }
 
@@ -204,10 +204,10 @@ func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*volumetypes.V
 // Note that this intentionally skips volumes with mount options as there would
 // be no space reclaimed in this case.
 func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*volumetypes.PruneReport, error) {
-	if !atomic.CompareAndSwapInt32(&s.pruneRunning, 0, 1) {
+	if !s.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errdefs.Conflict(errors.New("a prune operation is already running"))
 	}
-	defer atomic.StoreInt32(&s.pruneRunning, 0)
+	defer s.pruneRunning.Store(false)
 
 	if err := withPrune(filter); err != nil {
 		return nil, err

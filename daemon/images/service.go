@@ -3,6 +3,7 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"os"
+	"sync/atomic"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/leases"
@@ -71,7 +72,7 @@ type ImageService struct {
 	eventsService             *daemonevents.Events
 	imageStore                image.Store
 	layerStore                layer.Store
-	pruneRunning              int32
+	pruneRunning              atomic.Bool
 	referenceStore            dockerreference.Store
 	registryService           distribution.RegistryResolver
 	uploadManager             *xfer.LayerUploadManager

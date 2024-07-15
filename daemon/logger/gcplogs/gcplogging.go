@@ -31,7 +31,7 @@ const (
 
 var (
 	// The number of logs the gcplogs driver has dropped.
-	droppedLogs uint64
+	droppedLogs atomic.Uint64
 
 	onGCE bool
 
@@ -187,7 +187,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	// we overflow and every 1000th time after.
 	c.OnError = func(err error) {
 		if err == logging.ErrOverflow {
-			if i := atomic.AddUint64(&droppedLogs, 1); i%1000 == 1 {
+			if i := droppedLogs.Add(1); i%1000 == 1 {
 				log.G(context.TODO()).Errorf("gcplogs driver has dropped %v logs", i)
 			}
 		} else {

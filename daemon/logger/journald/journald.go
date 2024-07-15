@@ -47,13 +47,13 @@ const (
 var waitUntilFlushed func(*journald) error
 
 type journald struct {
-	// Sequence number of the most recent message sent by this instance of
-	// the log driver, starting from 1. Corollary: ordinal == 0 implies no
-	// messages have been sent by this instance.
-	ordinal uint64 // Placed first in struct to ensure 8-byte alignment for atomic ops.
 	// Epoch identifier to distinguish sequence numbers from this instance
 	// vs. other instances.
 	epoch string
+	// Sequence number of the most recent message sent by this instance of
+	// the log driver, starting from 1. Corollary: ordinal == 0 implies no
+	// messages have been sent by this instance.
+	ordinal atomic.Uint64
 
 	vars map[string]string // additional variables and values to send to the journal along with the log message
 
@@ -176,7 +176,7 @@ func (s *journald) Log(msg *logger.Message) error {
 	source := msg.Source
 	logger.PutMessage(msg)
 
-	seq := atomic.AddUint64(&s.ordinal, 1)
+	seq := s.ordinal.Add(1)
 	vars[fieldLogOrdinal] = strconv.FormatUint(seq, 10)
 
 	if source == "stderr" {

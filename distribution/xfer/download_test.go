@@ -156,7 +156,7 @@ func (ls *mockLayerStore) DriverName() string {
 }
 
 type mockDownloadDescriptor struct {
-	currentDownloads *int32
+	currentDownloads *atomic.Int32
 	id               string
 	diffID           layer.DiffID
 	registeredDiffID layer.DiffID
@@ -199,9 +199,9 @@ func (d *mockDownloadDescriptor) mockTarStream() io.ReadCloser {
 // Download is called to perform the download.
 func (d *mockDownloadDescriptor) Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error) {
 	if d.currentDownloads != nil {
-		defer atomic.AddInt32(d.currentDownloads, -1)
+		defer d.currentDownloads.Add(-1)
 
-		if atomic.AddInt32(d.currentDownloads, 1) > maxDownloadConcurrency {
+		if d.currentDownloads.Add(1) > maxDownloadConcurrency {
 			return nil, 0, errors.New("concurrency limit exceeded")
 		}
 	}
@@ -227,7 +227,7 @@ func (d *mockDownloadDescriptor) Download(ctx context.Context, progressOutput pr
 func (d *mockDownloadDescriptor) Close() {
 }
 
-func downloadDescriptors(currentDownloads *int32) []DownloadDescriptor {
+func downloadDescriptors(currentDownloads *atomic.Int32) []DownloadDescriptor {
 	return []DownloadDescriptor{
 		&mockDownloadDescriptor{
 			currentDownloads: currentDownloads,
@@ -283,7 +283,7 @@ func TestSuccessfulDownload(t *testing.T) {
 		close(progressDone)
 	}()
 
-	var currentDownloads int32
+	var currentDownloads atomic.Int32
 	descriptors := downloadDescriptors(&currentDownloads)
 
 	firstDescriptor := descriptors[0].(*mockDownloadDescriptor)
@@ -412,7 +412,7 @@ func TestMaxDownloadAttempts(t *testing.T) {
 				close(progressDone)
 			}()
 
-			var currentDownloads int32
+			var currentDownloads atomic.Int32
 			descriptors := downloadDescriptors(&currentDownloads)
 			descriptors[4].(*mockDownloadDescriptor).simulateRetries = tc.simulateRetries
 

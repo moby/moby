@@ -69,14 +69,14 @@ func TestTransfer(t *testing.T) {
 
 func TestConcurrencyLimit(t *testing.T) {
 	const concurrencyLimit = 3
-	var runningJobs int32
+	var runningJobs atomic.Int32
 
 	makeXferFunc := func(id string) doFunc {
 		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) transfer {
 			xfer := newTransfer()
 			go func() {
 				<-start
-				totalJobs := atomic.AddInt32(&runningJobs, 1)
+				totalJobs := runningJobs.Add(1)
 				if int(totalJobs) > concurrencyLimit {
 					t.Errorf("%s: too many jobs running (%d > %d)", id, totalJobs, concurrencyLimit)
 				}
@@ -84,7 +84,7 @@ func TestConcurrencyLimit(t *testing.T) {
 					progressChan <- progress.Progress{ID: id, Action: "testing", Current: int64(i), Total: 10}
 					time.Sleep(10 * time.Millisecond)
 				}
-				atomic.AddInt32(&runningJobs, -1)
+				runningJobs.Add(-1)
 				close(progressChan)
 			}()
 			return xfer
@@ -127,7 +127,7 @@ func TestConcurrencyLimit(t *testing.T) {
 
 func TestInactiveJobs(t *testing.T) {
 	const concurrencyLimit = 3
-	var runningJobs int32
+	var runningJobs atomic.Int32
 	testDone := make(chan struct{})
 
 	makeXferFunc := func(id string) doFunc {
@@ -135,7 +135,7 @@ func TestInactiveJobs(t *testing.T) {
 			xfer := newTransfer()
 			go func() {
 				<-start
-				totalJobs := atomic.AddInt32(&runningJobs, 1)
+				totalJobs := runningJobs.Add(1)
 				if int(totalJobs) > concurrencyLimit {
 					t.Errorf("%s: too many jobs running (%d > %d)", id, totalJobs, concurrencyLimit)
 				}
@@ -143,7 +143,7 @@ func TestInactiveJobs(t *testing.T) {
 					progressChan <- progress.Progress{ID: id, Action: "testing", Current: int64(i), Total: 10}
 					time.Sleep(10 * time.Millisecond)
 				}
-				atomic.AddInt32(&runningJobs, -1)
+				runningJobs.Add(-1)
 				close(inactive)
 				<-testDone
 				close(progressChan)
@@ -319,11 +319,11 @@ func TestWatchFinishedTransfer(t *testing.T) {
 func TestDuplicateTransfer(t *testing.T) {
 	ready := make(chan struct{})
 
-	var xferFuncCalls int32
+	var xferFuncCalls atomic.Uint32
 
 	makeXferFunc := func(id string) doFunc {
 		return func(progressChan chan<- progress.Progress, _ <-chan struct{}, _ chan<- struct{}) transfer {
-			atomic.AddInt32(&xferFuncCalls, 1)
+			xferFuncCalls.Add(1)
 			xfer := newTransfer()
 			go func() {
 				defer func() {
@@ -384,7 +384,7 @@ func TestDuplicateTransfer(t *testing.T) {
 	}
 
 	// Confirm that the transfer function was called exactly once.
-	if xferFuncCalls != 1 {
+	if xferFuncCalls.Load() != 1 {
 		t.Fatal("transfer function wasn't called exactly once")
 	}
 

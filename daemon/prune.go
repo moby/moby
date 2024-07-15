@@ -4,7 +4,6 @@ import (
 	"context"
 	"regexp"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/containerd/log"
@@ -40,10 +39,10 @@ var (
 
 // ContainersPrune removes unused containers
 func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*container.PruneReport, error) {
-	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
+	if !daemon.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
-	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+	defer daemon.pruneRunning.Store(false)
 
 	rep := &container.PruneReport{}
 
@@ -189,10 +188,10 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters fil
 
 // NetworksPrune removes unused networks
 func (daemon *Daemon) NetworksPrune(ctx context.Context, pruneFilters filters.Args) (*network.PruneReport, error) {
-	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
+	if !daemon.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
-	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+	defer daemon.pruneRunning.Store(false)
 
 	// make sure that only accepted filters have been received
 	err := pruneFilters.Validate(networksAcceptedFilters)

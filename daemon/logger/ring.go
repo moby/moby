@@ -16,7 +16,7 @@ type RingLogger struct {
 	buffer    *messageRing
 	l         Logger
 	logInfo   Info
-	closeFlag int32
+	closeFlag atomic.Bool
 	wg        sync.WaitGroup
 }
 
@@ -82,11 +82,11 @@ func (r *RingLogger) Name() string {
 }
 
 func (r *RingLogger) closed() bool {
-	return atomic.LoadInt32(&r.closeFlag) == 1
+	return r.closeFlag.Load()
 }
 
 func (r *RingLogger) setClosed() {
-	atomic.StoreInt32(&r.closeFlag, 1)
+	r.closeFlag.Store(true)
 }
 
 // Close closes the logger

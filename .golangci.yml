@@ -6,6 +6,7 @@ linters:
     - gosec
     - gosimple
     - govet
+    - forbidigo
     - importas
     - ineffassign
     - misspell
@@ -31,6 +32,12 @@ linters-settings:
       - "true"    # some tests use this as expected output
       - "false"   # some tests use this as expected output
       - "root"    # for tests using "ls" output with files owned by "root:root"
+  forbidigo:
+    forbid:
+      - pkg: ^sync/atomic$
+        p: ^atomic\.(Add|CompareAndSwap|Load|Store|Swap).
+        msg: Go 1.19 atomic types should be used instead.
+    analyze-types: true
   importas:
     # Do not allow unaliased imports of aliased packages.
     no-unaliased: true

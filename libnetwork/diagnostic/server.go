@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/containerd/log"
@@ -20,7 +19,7 @@ import (
 // This data structure is protected by the Agent mutex so does not require and additional mutex here
 type Server struct {
 	mu       sync.Mutex
-	enable   int32
+	enable   bool
 	srv      *http.Server
 	port     int
 	mux      *http.ServeMux
@@ -78,7 +77,7 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 
 	s.port = port
 
-	if s.enable == 1 {
+	if s.enable {
 		log.G(context.TODO()).Info("The server is already up and running")
 		return
 	}
@@ -90,12 +89,14 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
 	}
 	s.srv = srv
-	s.enable = 1
+	s.enable = true
 	go func(n *Server) {
 		// Ignore ErrServerClosed that is returned on the Shutdown call
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.G(context.TODO()).Errorf("ListenAndServe error: %s", err)
-			atomic.SwapInt32(&n.enable, 0)
+			n.mu.Lock()
+			defer n.mu.Unlock()
+			n.enable = false
 		}
 	}(s)
 }
@@ -107,7 +108,7 @@ func (s *Server) DisableDiagnostic() {
 
 	s.srv.Shutdown(context.Background()) //nolint:errcheck
 	s.srv = nil
-	s.enable = 0
+	s.enable = false
 	log.G(context.TODO()).Info("Disabling the diagnostic server")
 }
 
@@ -115,7 +116,7 @@ func (s *Server) DisableDiagnostic() {
 func (s *Server) IsDiagnosticEnabled() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.enable == 1
+	return s.enable
 }
 
 func notImplemented(w http.ResponseWriter, r *http.Request) {
