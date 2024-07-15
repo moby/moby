@@ -550,6 +550,9 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	if (caps.DataScope == scope.Global || nw.scope == scope.Swarm) &&
 		c.isSwarmNode() && !nw.dynamic {
 		if c.isManager() {
+			if !nw.enableIPv4 {
+				return nil, types.InvalidParameterErrorf("IPv4 cannot be disabled in a Swarm scoped network")
+			}
 			// For non-distributed controlled environment, globalscoped non-dynamic networks are redirected to Manager
 			return nil, ManagerRedirectError(name)
 		}
