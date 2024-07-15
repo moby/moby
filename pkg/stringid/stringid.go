@@ -5,9 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 const (
@@ -16,8 +17,8 @@ const (
 )
 
 var (
-	validShortID = regexp.MustCompile("^[a-f0-9]{12}$")
-	validHex     = regexp.MustCompile(`^[a-f0-9]{64}$`)
+	validShortID = lazyregexp.CompileOnce("^[a-f0-9]{12}$")
+	validHex     = lazyregexp.CompileOnce(`^[a-f0-9]{64}$`)
 )
 
 // IsShortID determines if id has the correct format and length for a short ID.
@@ -28,7 +29,7 @@ func IsShortID(id string) bool {
 	if len(id) != shortLen {
 		return false
 	}
-	return validShortID.MatchString(id)
+	return validShortID().MatchString(id)
 }
 
 // TruncateID returns a shorthand version of a string identifier for convenience.
@@ -70,7 +71,7 @@ func ValidateID(id string) error {
 	if len(id) != fullLen {
 		return errors.New("image ID '" + id + "' is invalid")
 	}
-	if !validHex.MatchString(id) {
+	if !validHex().MatchString(id) {
 		return errors.New("image ID '" + id + "' is invalid")
 	}
 	return nil
