@@ -2,7 +2,6 @@ package environment // import "github.com/docker/docker/testutil/environment"
 
 import (
 	"context"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/lazyregexp"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
 )
@@ -63,7 +63,8 @@ func getPausedContainers(ctx context.Context, t testing.TB, client client.Contai
 	return containers
 }
 
-var alreadyExists = regexp.MustCompile(`Error response from daemon: removal of container (\w+) is already in progress`)
+// FIXME(thaJeztah): can we rewrite this check to not do string-matching, and instead detect error-type?
+var alreadyExists = lazyregexp.New(`Error response from daemon: removal of container (\w+) is already in progress`)
 
 func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.ContainerAPIClient, protectedContainers map[string]struct{}) {
 	t.Helper()
