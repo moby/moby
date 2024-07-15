@@ -2,10 +2,10 @@ package system // import "github.com/docker/docker/pkg/system"
 
 import (
 	"os"
-	"regexp"
 	"syscall"
 	"unsafe"
 
+	"github.com/docker/docker/internal/lazyregexp"
 	"golang.org/x/sys/windows"
 )
 
@@ -15,7 +15,7 @@ const SddlAdministratorsLocalSystem = "D:P(A;OICI;GA;;;BA)(A;OICI;GA;;;SY)"
 // volumePath is a regular expression to check if a path is a Windows
 // volume path (e.g., "\\?\Volume{4c1b02c1-d990-11dc-99ae-806e6f6e6963}"
 // or "\\?\Volume{4c1b02c1-d990-11dc-99ae-806e6f6e6963}\").
-var volumePath = regexp.MustCompile(`^\\\\\?\\Volume{[a-z0-9-]+}\\?$`)
+var volumePath = lazyregexp.CompileOnce(`^\\\\\?\\Volume{[a-z0-9-]+}\\?$`)
 
 // MkdirAllWithACL is a custom version of os.MkdirAll modified for use on Windows
 // so that it is both volume path aware, and can create a directory with
@@ -38,7 +38,7 @@ func MkdirAll(path string, _ os.FileMode) error {
 // so that it is both volume path aware, and can create a directory with
 // a DACL.
 func mkdirall(path string, perm *windows.SecurityAttributes) error {
-	if volumePath.MatchString(path) {
+	if volumePath().MatchString(path) {
 		return nil
 	}
 
