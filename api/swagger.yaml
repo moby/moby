@@ -2484,6 +2484,11 @@ definitions:
           `overlay`).
         type: "string"
         example: "overlay"
+      EnableIPv4:
+        description: |
+          Whether the network was created with IPv4 enabled.
+        type: "boolean"
+        example: true
       EnableIPv6:
         description: |
           Whether the network was created with IPv6 enabled.
@@ -10377,6 +10382,7 @@ paths:
                 Created: "2016-10-19T06:21:00.416543526Z"
                 Scope: "local"
                 Driver: "bridge"
+                EnableIPv4: true
                 EnableIPv6: false
                 Internal: false
                 Attachable: false
@@ -10398,6 +10404,7 @@ paths:
                 Created: "0001-01-01T00:00:00Z"
                 Scope: "local"
                 Driver: "null"
+                EnableIPv4: false
                 EnableIPv6: false
                 Internal: false
                 Attachable: false
@@ -10412,6 +10419,7 @@ paths:
                 Created: "0001-01-01T00:00:00Z"
                 Scope: "local"
                 Driver: "host"
+                EnableIPv4: false
                 EnableIPv6: false
                 Internal: false
                 Attachable: false
@@ -10597,6 +10605,10 @@ paths:
               IPAM:
                 description: "Optional custom IP scheme for the network."
                 $ref: "#/definitions/IPAM"
+              EnableIPv4:
+                description: "Enable IPv4 on the network."
+                type: "boolean"
+                example: true
               EnableIPv6:
                 description: "Enable IPv6 on the network."
                 type: "boolean"

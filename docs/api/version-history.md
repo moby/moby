@@ -19,6 +19,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 * `Sysctls` in `HostConfig` (top level `--sysctl` settings) for `eth0` are no
   longer migrated to `DriverOpts`, as described in the changes for v1.46.
+* `POST /networks/create` now has an `EnableIPv4` field. Setting it to `false`
+  disables IPv4 IPAM for the network. It can only be set to `false` if the
+  daemon has experimental features enabled.
+* `GET /networks/{id}` now returns an `EnableIPv4` field showing whether the
+  network has IPv4 IPAM enabled.
 
 ## v1.46 API changes
 
