@@ -6,15 +6,15 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 )
 
-var pattern = regexp.MustCompile(`^[a-zA-Z]:\.$`)
+var pattern = lazyregexp.New(`^[a-zA-Z]:\.$`)
 
 // normalizeWorkdir normalizes a user requested working directory in a
 // platform semantically consistent way.
