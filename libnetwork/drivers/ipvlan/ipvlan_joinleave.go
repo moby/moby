@@ -123,6 +123,10 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 				log.G(ctx).Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s, Gateway: %s, Ipvlan_Mode: %s, Parent: %s",
 					ep.addrv6.IP.String(), v6gw.String(), n.config.IpvlanMode, n.config.Parent)
 			}
+			if len(n.config.Ipv4Subnets) == 0 && len(n.config.Ipv6Subnets) == 0 {
+				// With no addresses, don't need a gateway.
+				jinfo.DisableGatewayService()
+			}
 		}
 	} else {
 		if len(n.config.Ipv4Subnets) > 0 {
