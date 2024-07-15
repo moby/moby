@@ -40,11 +40,12 @@ func TestPortMappingConfig(t *testing.T) {
 	sbOptions := make(map[string]interface{})
 	sbOptions[netlabel.PortMap] = portBindings
 
-	netConfig := &networkConfiguration{
-		BridgeName: DefaultBridgeName,
+	netOptions := map[string]interface{}{
+		netlabel.GenericData: &networkConfiguration{
+			BridgeName: DefaultBridgeName,
+			EnableIPv4: true,
+		},
 	}
-	netOptions := make(map[string]interface{})
-	netOptions[netlabel.GenericData] = netConfig
 
 	ipdList4 := getIPv4Data(t)
 	err := d.CreateNetwork("dummy", netOptions, nil, ipdList4, getIPv6Data(t))
@@ -759,6 +760,7 @@ func TestAddPortMappings(t *testing.T) {
 			n := &bridgeNetwork{
 				config: &networkConfiguration{
 					BridgeName: "dummybridge",
+					EnableIPv4: tc.epAddrV4 != nil,
 					EnableIPv6: tc.epAddrV6 != nil,
 					GwModeIPv4: tc.gwMode4,
 					GwModeIPv6: tc.gwMode6,

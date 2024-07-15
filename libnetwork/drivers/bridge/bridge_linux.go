@@ -62,6 +62,7 @@ type configuration struct {
 type networkConfiguration struct {
 	ID                   string
 	BridgeName           string
+	EnableIPv4           bool
 	EnableIPv6           bool
 	EnableIPMasquerade   bool
 	GwModeIPv4           gwMode
@@ -223,8 +224,11 @@ func (c *networkConfiguration) Validate() error {
 		return ErrInvalidMtu(c.Mtu)
 	}
 
-	// If bridge v4 subnet is specified
-	if c.AddressIPv4 != nil {
+	if c.EnableIPv4 {
+		// If IPv4 is enabled, AddressIPv4 must have been configured.
+		if c.AddressIPv4 == nil {
+			return errdefs.System(errors.New("no IPv4 address was allocated for the bridge"))
+		}
 		// If default gw is specified, it must be part of bridge subnet
 		if c.DefaultGatewayIPv4 != nil {
 			if !c.AddressIPv4.Contains(c.DefaultGatewayIPv4) {
@@ -289,6 +293,10 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 			c.BridgeName = value
 		case netlabel.DriverMTU:
 			if c.Mtu, err = strconv.Atoi(value); err != nil {
+				return parseErr(label, value, err.Error())
+			}
+		case netlabel.EnableIPv4:
+			if c.EnableIPv4, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
 		case netlabel.EnableIPv6:
@@ -609,16 +617,16 @@ func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []d
 		return types.ForbiddenErrorf("bridge driver doesn't support multiple subnets")
 	}
 
-	if len(ipamV4Data) == 0 {
-		return types.InvalidParameterErrorf("bridge network %s requires ipv4 configuration", id)
-	}
+	if len(ipamV4Data) > 0 {
+		c.AddressIPv4 = ipamV4Data[0].Pool
 
-	if ipamV4Data[0].Gateway != nil {
-		c.AddressIPv4 = types.GetIPNetCopy(ipamV4Data[0].Gateway)
-	}
+		if ipamV4Data[0].Gateway != nil {
+			c.AddressIPv4 = types.GetIPNetCopy(ipamV4Data[0].Gateway)
+		}
 
-	if gw, ok := ipamV4Data[0].AuxAddresses[DefaultGatewayV4AuxKey]; ok {
-		c.DefaultGatewayIPv4 = gw.IP
+		if gw, ok := ipamV4Data[0].AuxAddresses[DefaultGatewayV4AuxKey]; ok {
+			c.DefaultGatewayIPv4 = gw.IP
+		}
 	}
 
 	if len(ipamV6Data) > 0 {
@@ -650,6 +658,9 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 	}
 
 	// Process well-known labels next
+	if val, ok := option[netlabel.EnableIPv4]; ok {
+		config.EnableIPv4 = val.(bool)
+	}
 	if val, ok := option[netlabel.EnableIPv6]; ok {
 		config.EnableIPv6 = val.(bool)
 	}
@@ -708,9 +719,6 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 
 // Create a new network using bridge plugin
 func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
-	if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
-		return types.InvalidParameterErrorf("ipv4 pool is empty")
-	}
 	// Sanity checks
 	d.Lock()
 	if _, ok := d.networks[id]; ok {
@@ -723,6 +731,16 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	config, err := parseNetworkOptions(id, option)
 	if err != nil {
 		return err
+	}
+
+	if !config.EnableIPv4 && !config.EnableIPv6 {
+		return types.InvalidParameterErrorf("IPv4 or IPv6 must be enabled")
+	}
+	if config.EnableIPv4 && (len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0") {
+		return types.InvalidParameterErrorf("ipv4 pool is empty")
+	}
+	if config.EnableIPv6 && (len(ipV6Data) == 0 || ipV6Data[0].Pool.String() == "::/0") {
+		return types.InvalidParameterErrorf("ipv6 pool is empty")
 	}
 
 	// Add IP addresses/gateways to the configuration.
@@ -842,9 +860,6 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		bridgeSetup.queueStep(setupMTU)
 	}
 
-	// Even if a bridge exists try to setup IPv4.
-	bridgeSetup.queueStep(setupBridgeIPv4)
-
 	enableIPv6Forwarding := config.EnableIPv6 && d.config.EnableIPForwarding
 
 	// Conditionally queue setup steps depending on configuration values.
@@ -852,6 +867,9 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		Condition bool
 		Fn        setupStep
 	}{
+		// Even if a bridge exists try to setup IPv4.
+		{config.EnableIPv4, setupBridgeIPv4},
+
 		// Enable IPv6 on the bridge if required. We do this even for a
 		// previously  existing bridge, as it may be here from a previous
 		// installation where IPv6 wasn't supported yet and needs to be
@@ -860,7 +878,7 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 
 		// Ensure the bridge has the expected IPv4 addresses in the case of a previously
 		// existing device.
-		{bridgeAlreadyExists && !config.InhibitIPv4, setupVerifyAndReconcileIPv4},
+		{config.EnableIPv4 && bridgeAlreadyExists && !config.InhibitIPv4, setupVerifyAndReconcileIPv4},
 
 		// Enable IPv6 Forwarding
 		{enableIPv6Forwarding, setupIPv6Forwarding},
@@ -869,14 +887,14 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		{!d.config.EnableUserlandProxy, setupLoopbackAddressesRouting},
 
 		// Setup IPTables.
-		{d.config.EnableIPTables, network.setupIP4Tables},
+		{config.EnableIPv4 && d.config.EnableIPTables, network.setupIP4Tables},
 
 		// Setup IP6Tables.
 		{config.EnableIPv6 && d.config.EnableIP6Tables, network.setupIP6Tables},
 
 		// We want to track firewalld configuration so that
 		// if it is started/reloaded, the rules can be applied correctly
-		{d.config.EnableIPTables, network.setupFirewalld},
+		{config.EnableIPv4 && d.config.EnableIPTables, network.setupFirewalld},
 		// same for IPv6
 		{config.EnableIPv6 && d.config.EnableIP6Tables, network.setupFirewalld6},
 
@@ -1148,7 +1166,12 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	// that if a container is disconnected and reconnected in a short timeframe,
 	// stale ARP entries will still point to the right container.
 	if endpoint.macAddress == nil {
-		endpoint.macAddress = netutils.GenerateMACFromIP(endpoint.addr.IP)
+		if endpoint.addr != nil {
+			endpoint.macAddress = netutils.GenerateMACFromIP(endpoint.addr.IP)
+		} else {
+			// TODO(robmry) - generate unsolicited ARP?
+			endpoint.macAddress = netutils.GenerateRandomMAC()
+		}
 		if err := ifInfo.SetMacAddress(endpoint.macAddress); err != nil {
 			return err
 		}

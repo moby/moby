@@ -11,7 +11,7 @@ import (
 // setupVerifyAndReconcileIPv4 checks what IPv4 addresses the given i interface has
 // and ensures that they match the passed network config.
 func setupVerifyAndReconcileIPv4(config *networkConfiguration, i *bridgeInterface) error {
-	// Fetch a slice of IPv4 addresses and a slice of IPv6 addresses from the bridge.
+	// Fetch a slice of IPv4 addresses from the bridge.
 	addrsv4, err := i.addresses(netlink.FAMILY_V4)
 	if err != nil {
 		return fmt.Errorf("Failed to verify ip addresses: %v", err)
