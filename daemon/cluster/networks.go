@@ -3,6 +3,7 @@ package cluster // import "github.com/docker/docker/daemon/cluster"
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/filters"
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/libnetwork/netlabel"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
 )
@@ -271,6 +273,18 @@ func (c *Cluster) CreateNetwork(s network.CreateRequest) (string, error) {
 	if networkSettings.IsPredefined(s.Name) {
 		err := notAllowedError(fmt.Sprintf("%s is a pre-defined network and cannot be created", s.Name))
 		return "", errors.WithStack(err)
+	}
+	enableIPv4 := true
+	if s.EnableIPv4 != nil {
+		enableIPv4 = *s.EnableIPv4
+	} else if v, ok := s.Options[netlabel.EnableIPv4]; ok {
+		var err error
+		if enableIPv4, err = strconv.ParseBool(v); err != nil {
+			return "", errdefs.InvalidParameter(fmt.Errorf("driver-opt %q is not a valid bool", netlabel.EnableIPv4))
+		}
+	}
+	if !enableIPv4 {
+		return "", errors.WithStack(notAllowedError("IPv4 cannot be disabled in a Swarm scoped network"))
 	}
 
 	var resp *swarmapi.CreateNetworkResponse
