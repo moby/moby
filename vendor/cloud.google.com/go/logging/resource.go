@@ -126,7 +126,7 @@ func detectCloudFunction() *mrpb.MonitoredResource {
 	}
 }
 
-func (r *resource) isCloudRun() bool {
+func (r *resource) isCloudRunService() bool {
 	config := r.attrs.EnvVar("K_CONFIGURATION")
 	// note that this envvar is also present in Cloud Function environments
 	service := r.attrs.EnvVar("K_SERVICE")
@@ -134,7 +134,23 @@ func (r *resource) isCloudRun() bool {
 	return config != "" && service != "" && revision != ""
 }
 
-func detectCloudRunResource() *mrpb.MonitoredResource {
+func (r *resource) isCloudRunJob() bool {
+	if r.attrs.EnvVar("CLOUD_RUN_JOB") == "" {
+		return false
+	}
+	if r.attrs.EnvVar("CLOUD_RUN_EXECUTION") == "" {
+		return false
+	}
+	if r.attrs.EnvVar("CLOUD_RUN_TASK_INDEX") == "" {
+		return false
+	}
+	if r.attrs.EnvVar("CLOUD_RUN_TASK_ATTEMPT") == "" {
+		return false
+	}
+	return true
+}
+
+func detectCloudRunServiceResource() *mrpb.MonitoredResource {
 	projectID := detectedResource.metadataProjectID()
 	if projectID == "" {
 		return nil
@@ -155,6 +171,23 @@ func detectCloudRunResource() *mrpb.MonitoredResource {
 	}
 }
 
+func detectCloudRunJobResource() *mrpb.MonitoredResource {
+	projectID := detectedResource.metadataProjectID()
+	if projectID == "" {
+		return nil
+	}
+	region := detectedResource.metadataRegion()
+	job := detectedResource.attrs.EnvVar("CLOUD_RUN_JOB")
+	return &mrpb.MonitoredResource{
+		Type: "cloud_run_job",
+		Labels: map[string]string{
+			"project_id": projectID,
+			"location":   region,
+			"job_name":   job,
+		},
+	}
+}
+
 func (r *resource) isKubernetesEngine() bool {
 	clusterName := r.attrs.Metadata("instance/attributes/cluster-name")
 	if clusterName == "" {
@@ -168,8 +201,8 @@ func detectKubernetesResource() *mrpb.MonitoredResource {
 	if projectID == "" {
 		return nil
 	}
-	zone := detectedResource.metadataZone()
 	clusterName := detectedResource.attrs.Metadata("instance/attributes/cluster-name")
+	clusterLocation := detectedResource.attrs.Metadata("instance/attributes/cluster-location")
 	namespaceName := detectedResource.attrs.ReadAll("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if namespaceName == "" {
 		// if automountServiceAccountToken is disabled allow to customize
@@ -184,7 +217,7 @@ func detectKubernetesResource() *mrpb.MonitoredResource {
 		Type: "k8s_container",
 		Labels: map[string]string{
 			"cluster_name":   clusterName,
-			"location":       zone,
+			"location":       clusterLocation,
 			"project_id":     projectID,
 			"pod_name":       podName,
 			"namespace_name": namespaceName,
@@ -226,8 +259,12 @@ func detectResource() *mrpb.MonitoredResource {
 				detectedResource.pb = detectAppEngineResource()
 			case name == "Google Cloud Functions", detectedResource.isCloudFunction():
 				detectedResource.pb = detectCloudFunction()
-			case name == "Google Cloud Run", detectedResource.isCloudRun():
-				detectedResource.pb = detectCloudRunResource()
+			// cannot use name validation for Cloud Run resources because
+			// both of them set product name to "Google Cloud Run"
+			case detectedResource.isCloudRunService():
+				detectedResource.pb = detectCloudRunServiceResource()
+			case detectedResource.isCloudRunJob():
+				detectedResource.pb = detectCloudRunJobResource()
 			// cannot use name validation for GKE and GCE because
 			// both of them set product name to "Google Compute Engine"
 			case detectedResource.isKubernetesEngine():
