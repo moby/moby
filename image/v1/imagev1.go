@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"regexp"
 	"strings"
 
 	"github.com/containerd/log"
@@ -22,8 +21,6 @@ const (
 
 	fullLen = 64
 )
-
-var validHex = regexp.MustCompile(`^[a-f0-9]{64}$`)
 
 // HistoryFromConfig creates a History struct from v1 configuration JSON
 func HistoryFromConfig(imageJSON []byte, emptyLayer bool) (image.History, error) {
@@ -126,8 +123,10 @@ func ValidateID(id string) error {
 	if len(id) != fullLen {
 		return errors.New("image ID '" + id + "' is invalid")
 	}
-	if !validHex.MatchString(id) {
-		return errors.New("image ID '" + id + "' is invalid")
+	for _, c := range id {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return errors.New("image ID '" + id + "' is invalid")
+		}
 	}
 	return nil
 }
