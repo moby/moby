@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/log"
+	"github.com/moby/sys/user/userns"
 	"github.com/pkg/errors"
 )
 
