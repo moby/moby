@@ -13,7 +13,9 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.21.10"
+  GO_VERSION: "1.21.12"
+  GIT_PAGER: "cat"
+  PAGER: "cat"
 
 jobs:
   validate-dco:

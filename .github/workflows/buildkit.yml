@@ -13,7 +13,8 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.21.10"
+  GO_VERSION: "1.21.12"
+  ALPINE_VERSION: "3.19"
   DESTDIR: ./build
 
 jobs:
