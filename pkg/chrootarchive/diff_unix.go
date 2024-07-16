@@ -6,8 +6,8 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/sys/user/userns"
 )
 
 // applyLayerHandler parses a diff in the standard layer format from `layer`, and

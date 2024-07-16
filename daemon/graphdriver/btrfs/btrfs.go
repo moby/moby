@@ -34,7 +34,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/internal/fstype"
@@ -43,6 +42,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	units "github.com/docker/go-units"
 	"github.com/moby/sys/mount"
+	"github.com/moby/sys/user/userns"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
