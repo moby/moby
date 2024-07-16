@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -26,8 +27,8 @@ const (
 )
 
 var (
-	pushDigestRegex = regexp.MustCompile(`[\S]+: digest: ([\S]+) size: [0-9]+`)
-	digestRegex     = regexp.MustCompile(`Digest: ([\S]+)`)
+	pushDigestRegex = lazyregexp.CompileOnce(`[\S]+: digest: ([\S]+) size: [0-9]+`)
+	digestRegex     = lazyregexp.CompileOnce(`Digest: ([\S]+)`)
 )
 
 func setupImage(c *testing.T) (digest.Digest, error) {
@@ -55,7 +56,7 @@ func setupImageWithTag(c *testing.T, tag string) (digest.Digest, error) {
 	// delete our local repo that we previously tagged
 	cli.DockerCmd(c, "rmi", repoAndTag)
 
-	matches := pushDigestRegex.FindStringSubmatch(out)
+	matches := pushDigestRegex().FindStringSubmatch(out)
 	assert.Equal(c, len(matches), 2, "unable to parse digest from push output: %s", out)
 	pushDigest := matches[1]
 
@@ -71,7 +72,7 @@ func testPullByTagDisplaysDigest(c *testing.T) {
 	out := cli.DockerCmd(c, "pull", repoName).Combined()
 
 	// the pull output includes "Digest: <digest>", so find that
-	matches := digestRegex.FindStringSubmatch(out)
+	matches := digestRegex().FindStringSubmatch(out)
 	assert.Equal(c, len(matches), 2, "unable to parse digest from push output: %s", out)
 	pullDigest := matches[1]
 
@@ -97,7 +98,7 @@ func testPullByDigest(c *testing.T) {
 	out := cli.DockerCmd(c, "pull", imageReference).Combined()
 
 	// the pull output includes "Digest: <digest>", so find that
-	matches := digestRegex.FindStringSubmatch(out)
+	matches := digestRegex().FindStringSubmatch(out)
 	assert.Equal(c, len(matches), 2, "unable to parse digest from push output: %s", out)
 	pullDigest := matches[1]
 

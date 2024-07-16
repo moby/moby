@@ -251,7 +251,7 @@ func (ps *Store) CallHandler(p *v2.Plugin) {
 
 // resolvePluginID must be protected by ps.RLock
 func (ps *Store) resolvePluginID(idOrName string) (string, error) {
-	if validFullID.MatchString(idOrName) {
+	if validFullID().MatchString(idOrName) {
 		return idOrName, nil
 	}
 

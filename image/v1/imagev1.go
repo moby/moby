@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"regexp"
 	"strings"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 )
@@ -23,7 +23,7 @@ const (
 	fullLen = 64
 )
 
-var validHex = regexp.MustCompile(`^[a-f0-9]{64}$`)
+var validHex = lazyregexp.CompileOnce(`^[a-f0-9]{64}$`)
 
 // HistoryFromConfig creates a History struct from v1 configuration JSON
 func HistoryFromConfig(imageJSON []byte, emptyLayer bool) (image.History, error) {
@@ -123,10 +123,7 @@ func rawJSON(value interface{}) *json.RawMessage {
 
 // ValidateID checks whether an ID string is a valid image ID.
 func ValidateID(id string) error {
-	if len(id) != fullLen {
-		return errors.New("image ID '" + id + "' is invalid")
-	}
-	if !validHex.MatchString(id) {
+	if len(id) != fullLen || !validHex().MatchString(id) {
 		return errors.New("image ID '" + id + "' is invalid")
 	}
 	return nil
