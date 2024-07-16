@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/system"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/sys/user/userns"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
