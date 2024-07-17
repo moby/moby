@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -18,14 +17,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	stringIDRegexp      = regexp.MustCompile(`^[a-f0-9]{64}(-init)?$`)
-	supportedAlgorithms = []digest.Algorithm{
-		digest.SHA256,
-		// digest.SHA384, // Currently not used
-		// digest.SHA512, // Currently not used
-	}
-)
+var supportedAlgorithms = []digest.Algorithm{
+	digest.SHA256,
+	// digest.SHA384, // Currently not used
+	// digest.SHA512, // Currently not used
+}
 
 type fileMetadataStore struct {
 	root string
@@ -262,7 +258,7 @@ func (fms *fileMetadataStore) GetMountID(mount string) (string, error) {
 	}
 	content := strings.TrimSpace(string(contentBytes))
 
-	if !stringIDRegexp.MatchString(content) {
+	if !isValidID(content) {
 		return "", errors.New("invalid mount id value")
 	}
 
@@ -279,7 +275,7 @@ func (fms *fileMetadataStore) GetInitID(mount string) (string, error) {
 	}
 	content := strings.TrimSpace(string(contentBytes))
 
-	if !stringIDRegexp.MatchString(content) {
+	if !isValidID(content) {
 		return "", errors.New("invalid init id value")
 	}
 
@@ -430,4 +426,19 @@ func (fms *fileMetadataStore) Remove(layer ChainID, cache string) error {
 
 func (fms *fileMetadataStore) RemoveMount(mount string) error {
 	return os.RemoveAll(fms.getMountDirectory(mount))
+}
+
+// isValidID checks if mount/init id is valid. It is similar to
+// regexp.MustCompile(`^[a-f0-9]{64}(-init)?$`).MatchString(id).
+func isValidID(id string) bool {
+	id = strings.TrimSuffix(id, "-init")
+	if len(id) != 64 {
+		return false
+	}
+	for _, c := range id {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
 }
