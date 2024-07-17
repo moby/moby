@@ -104,7 +104,7 @@ func execute(ctx gcontext.Context, timeout time.Duration, f func() error) error 
 	}()
 	select {
 	case <-ctx.Done():
-		if ctx.Err() == gcontext.DeadlineExceeded {
+		if ctx.Err() == gcontext.DeadlineExceeded { //nolint:errorlint
 			log.G(ctx).WithField(logfields.Timeout, trueTimeout).
 				Warning("Syscall did not complete within operation timeout. This may indicate a platform issue. " +
 					"If it appears to be making no forward progress, obtain the stacks and see if there is a syscall " +
@@ -150,7 +150,7 @@ func HcsCreateComputeSystem(ctx gcontext.Context, id string, configuration strin
 		if result != "" {
 			span.AddAttributes(trace.StringAttribute("result", result))
 		}
-		if hr != errVmcomputeOperationPending {
+		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
 			oc.SetSpanStatus(span, hr)
 		}
 	}()
@@ -205,7 +205,7 @@ func HcsStartComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, option
 		if result != "" {
 			span.AddAttributes(trace.StringAttribute("result", result))
 		}
-		if hr != errVmcomputeOperationPending {
+		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
 			oc.SetSpanStatus(span, hr)
 		}
 	}()
@@ -228,7 +228,7 @@ func HcsShutdownComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, opt
 		if result != "" {
 			span.AddAttributes(trace.StringAttribute("result", result))
 		}
-		if hr != errVmcomputeOperationPending {
+		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
 			oc.SetSpanStatus(span, hr)
 		}
 	}()
@@ -251,7 +251,7 @@ func HcsTerminateComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, op
 		if result != "" {
 			span.AddAttributes(trace.StringAttribute("result", result))
 		}
-		if hr != errVmcomputeOperationPending {
+		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
 			oc.SetSpanStatus(span, hr)
 		}
 	}()
@@ -274,7 +274,7 @@ func HcsPauseComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, option
 		if result != "" {
 			span.AddAttributes(trace.StringAttribute("result", result))
 		}
-		if hr != errVmcomputeOperationPending {
+		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
 			oc.SetSpanStatus(span, hr)
 		}
 	}()
@@ -297,7 +297,7 @@ func HcsResumeComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, optio
 		if result != "" {
 			span.AddAttributes(trace.StringAttribute("result", result))
 		}
-		if hr != errVmcomputeOperationPending {
+		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
 			oc.SetSpanStatus(span, hr)
 		}
 	}()
@@ -621,7 +621,7 @@ func HcsSaveComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, options
 		if result != "" {
 			span.AddAttributes(trace.StringAttribute("result", result))
 		}
-		if hr != errVmcomputeOperationPending {
+		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
 			oc.SetSpanStatus(span, hr)
 		}
 	}()

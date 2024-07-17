@@ -16,7 +16,9 @@ import (
 	"github.com/Microsoft/hcsshim/internal/security"
 )
 
-const defaultVHDXBlockSizeInMB = 1
+const (
+	defaultVHDXBlockSizeInMB = 1
+)
 
 // SetupContainerBaseLayer is a helper to setup a containers scratch. It
 // will create and format the vhdx's inside and the size is configurable with the sizeInGB

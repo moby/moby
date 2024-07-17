@@ -4,6 +4,7 @@ package hcn
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"syscall"
 
@@ -378,7 +379,8 @@ func (namespace *HostComputeNamespace) Sync() error {
 	shimPath := runhcs.VMPipePath(cfg.HostUniqueID)
 	if err := runhcs.IssueVMRequest(shimPath, &req); err != nil {
 		// The shim is likely gone. Simply ignore the sync as if it didn't exist.
-		if perr, ok := err.(*os.PathError); ok && perr.Err == syscall.ERROR_FILE_NOT_FOUND {
+		var perr *os.PathError
+		if errors.As(err, &perr) && errors.Is(perr.Err, syscall.ERROR_FILE_NOT_FOUND) {
 			// Remove the reg key there is no point to try again
 			_ = cfg.Remove()
 			return nil

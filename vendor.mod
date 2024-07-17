@@ -6,11 +6,6 @@ module github.com/docker/docker
 
 go 1.22.0
 
-// We pin hcsshim to the v0.11.x version matching the version of containerd 1.7.
-// hcsshim v0.12.x comes with many (indirect) dependency updates that are not
-// desirable for minor releases.
-replace github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.11.7
-
 require (
 	cloud.google.com/go/compute/metadata v0.3.0
 	cloud.google.com/go/logging v1.9.0
@@ -20,7 +15,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0
 	github.com/Microsoft/go-winio v0.6.2
-	github.com/Microsoft/hcsshim v0.12.8 // pinned to v0.11.x for the 27.x branch to match containerd
+	github.com/Microsoft/hcsshim v0.12.5
 	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 	github.com/aws/aws-sdk-go-v2 v1.24.1
 	github.com/aws/aws-sdk-go-v2/config v1.26.6
@@ -146,7 +141,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cilium/ebpf v0.12.3 // indirect
 	github.com/container-storage-interface/spec v1.5.0 // indirect
-	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/containerd/console v1.0.4 // indirect
 	github.com/containerd/go-cni v1.1.10 // indirect
 	github.com/containerd/go-runc v1.1.0 // indirect

@@ -20,24 +20,45 @@ linters:
     # - typecheck
     # - unused
 
+    - errorlint # error wrapping (eg, not using `errors.Is`, using `%s` instead of `%w` in `fmt.Errorf`)
     - gofmt # whether code was gofmt-ed
+    - govet # enabled by default, but just to be sure
     - nolintlint # ill-formed or insufficient nolint directives
     - stylecheck # golint replacement
     - thelper #  test helpers without t.Helper()
 
 linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      # struct order is often for Win32 compat
+      # also, ignore pointer bytes/GC issues for now until performance becomes an issue
+      - fieldalignment
+    check-shadowing: true
+
   stylecheck:
     # https://staticcheck.io/docs/checks
     checks: ["all"]
 
 issues:
   exclude-rules:
+    # err is very often shadowed in nested scopes
+    - linters:
+        - govet
+      text: '^shadow: declaration of "err" shadows declaration'
+
     # path is relative to module root, which is ./test/
     - path: cri-containerd
       linters:
         - stylecheck
       text: "^ST1003: should not use underscores in package names$"
       source: "^package cri_containerd$"
+
+    # don't bother with propper error wrapping in test code
+    - path: cri-containerd
+      linters:
+        - errorlint
+      text: "non-wrapping format verb for fmt.Errorf"
 
     # This repo has a LOT of generated schema files, operating system bindings, and other
     # things that ST1003 from stylecheck won't like (screaming case Windows api constants for example).
@@ -135,7 +156,7 @@ issues:
       linters:
         - stylecheck
       Text: "ST1003:"
-    
+
     # v0 APIs are deprecated, but still retained for backwards compatability
     - path: cmd\\ncproxy\\
       linters:
@@ -146,3 +167,8 @@ issues:
       linters:
         - staticcheck
       text: "^SA1019: .*nodenetsvc[/]?v0"
+
+    - path: internal\\vhdx\\info
+      linters:
+        - stylecheck
+      Text: "ST1003:"
