@@ -29,10 +29,19 @@ var mutatedUtilityVMFiles = map[string]bool{
 }
 
 const (
-	filesPath          = `Files`
-	hivesPath          = `Hives`
-	utilityVMPath      = `UtilityVM`
-	utilityVMFilesPath = `UtilityVM\Files`
+	filesPath           = `Files`
+	HivesPath           = `Hives`
+	UtilityVMPath       = `UtilityVM`
+	UtilityVMFilesPath  = `UtilityVM\Files`
+	RegFilesPath        = `Files\Windows\System32\config`
+	BcdFilePath         = `UtilityVM\Files\EFI\Microsoft\Boot\BCD`
+	BootMgrFilePath     = `UtilityVM\Files\EFI\Microsoft\Boot\bootmgfw.efi`
+	ContainerBaseVhd    = `blank-base.vhdx`
+	ContainerScratchVhd = `blank.vhdx`
+	UtilityVMBaseVhd    = `SystemTemplateBase.vhdx`
+	UtilityVMScratchVhd = `SystemTemplate.vhdx`
+	LayoutFileName      = `layout`
+	UvmBuildFileName    = `uvmbuildversion`
 )
 
 func openFileOrDir(path string, mode uint32, createDisposition uint32) (file *os.File, err error) {
@@ -145,7 +154,7 @@ func (r *legacyLayerReader) walkUntilCancelled() error {
 		}
 		return nil
 	})
-	if err == errorIterationCanceled {
+	if err == errorIterationCanceled { //nolint:errorlint // explicitly returned
 		return nil
 	}
 	if err == nil {
@@ -187,7 +196,7 @@ func findBackupStreamSize(r io.Reader) (int64, error) {
 	for {
 		hdr, err := br.Next()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = nil
 			}
 			return 0, err
@@ -243,11 +252,11 @@ func (r *legacyLayerReader) Next() (path string, size int64, fileInfo *winio.Fil
 	if !hasPathPrefix(path, filesPath) {
 		size = fe.fi.Size()
 		r.backupReader = winio.NewBackupFileReader(f, false)
-		if path == hivesPath || path == filesPath {
+		if path == HivesPath || path == filesPath {
 			// The Hives directory has a non-deterministic file time because of the
 			// nature of the import process. Use the times from System_Delta.
 			var g *os.File
-			g, err = os.Open(filepath.Join(r.root, hivesPath, `System_Delta`))
+			g, err = os.Open(filepath.Join(r.root, HivesPath, `System_Delta`))
 			if err != nil {
 				return
 			}
@@ -409,7 +418,7 @@ func (w *legacyLayerWriter) CloseRoots() {
 
 func (w *legacyLayerWriter) initUtilityVM() error {
 	if !w.HasUtilityVM {
-		err := safefile.MkdirRelative(utilityVMPath, w.destRoot)
+		err := safefile.MkdirRelative(UtilityVMPath, w.destRoot)
 		if err != nil {
 			return err
 		}
@@ -417,9 +426,9 @@ func (w *legacyLayerWriter) initUtilityVM() error {
 		// clone the utility VM from the parent layer into this layer. Use hard
 		// links to avoid unnecessary copying, since most of the files are
 		// immutable.
-		err = cloneTree(w.parentRoots[0], w.destRoot, utilityVMFilesPath, mutatedUtilityVMFiles)
+		err = cloneTree(w.parentRoots[0], w.destRoot, UtilityVMFilesPath, mutatedUtilityVMFiles)
 		if err != nil {
-			return fmt.Errorf("cloning the parent utility VM image failed: %s", err)
+			return fmt.Errorf("cloning the parent utility VM image failed: %w", err)
 		}
 		w.HasUtilityVM = true
 	}
@@ -442,7 +451,7 @@ func (w *legacyLayerWriter) reset() error {
 
 		for {
 			bhdr, err := br.Next()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				// end of backupstream data
 				break
 			}
@@ -592,7 +601,7 @@ func (w *legacyLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) erro
 		return err
 	}
 
-	if name == utilityVMPath {
+	if name == UtilityVMPath {
 		return w.initUtilityVM()
 	}
 
@@ -601,11 +610,11 @@ func (w *legacyLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) erro
 	}
 
 	name = filepath.Clean(name)
-	if hasPathPrefix(name, utilityVMPath) {
+	if hasPathPrefix(name, UtilityVMPath) {
 		if !w.HasUtilityVM {
 			return errors.New("missing UtilityVM directory")
 		}
-		if !hasPathPrefix(name, utilityVMFilesPath) && name != utilityVMFilesPath {
+		if !hasPathPrefix(name, UtilityVMFilesPath) && name != UtilityVMFilesPath {
 			return errors.New("invalid UtilityVM layer")
 		}
 		createDisposition := uint32(winapi.FILE_OPEN)
@@ -699,7 +708,7 @@ func (w *legacyLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) erro
 		return err
 	}
 
-	if hasPathPrefix(name, hivesPath) {
+	if hasPathPrefix(name, HivesPath) {
 		w.backupWriter = winio.NewBackupFileWriter(f, false)
 		w.bufWriter.Reset(w.backupWriter)
 	} else {
@@ -731,14 +740,14 @@ func (w *legacyLayerWriter) AddLink(name string, target string) error {
 		// Look for cross-layer hard link targets in the parent layers, since
 		// nothing is in the destination path yet.
 		roots = w.parentRoots
-	} else if hasPathPrefix(target, utilityVMFilesPath) {
+	} else if hasPathPrefix(target, UtilityVMFilesPath) {
 		// Since the utility VM is fully cloned into the destination path
 		// already, look for cross-layer hard link targets directly in the
 		// destination path.
 		roots = []*os.File{w.destRoot}
 	}
 
-	if roots == nil || (!hasPathPrefix(name, filesPath) && !hasPathPrefix(name, utilityVMFilesPath)) {
+	if roots == nil || (!hasPathPrefix(name, filesPath) && !hasPathPrefix(name, UtilityVMFilesPath)) {
 		return errors.New("invalid hard link in layer")
 	}
 
@@ -777,7 +786,7 @@ func (w *legacyLayerWriter) Remove(name string) error {
 	name = filepath.Clean(name)
 	if hasPathPrefix(name, filesPath) {
 		w.Tombstones = append(w.Tombstones, name)
-	} else if hasPathPrefix(name, utilityVMFilesPath) {
+	} else if hasPathPrefix(name, UtilityVMFilesPath) {
 		err := w.initUtilityVM()
 		if err != nil {
 			return err

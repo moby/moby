@@ -167,7 +167,7 @@ func Create(ctx context.Context, options *Options) (_ *JobObject, err error) {
 //
 // Returns a JobObject structure and an error if there is one.
 func Open(ctx context.Context, options *Options) (_ *JobObject, err error) {
-	if options == nil || (options != nil && options.Name == "") {
+	if options == nil || options.Name == "" {
 		return nil, errors.New("no job object name specified to open")
 	}
 
@@ -374,7 +374,7 @@ func (job *JobObject) Pids() ([]uint32, error) {
 		return []uint32{}, nil
 	}
 
-	if err != winapi.ERROR_MORE_DATA {
+	if err != winapi.ERROR_MORE_DATA { //nolint:errorlint
 		return nil, fmt.Errorf("failed initial query for PIDs in job object: %w", err)
 	}
 
