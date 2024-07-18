@@ -5323,7 +5323,7 @@ definitions:
         description: |
           The default (and highest) API version that is supported by the daemon
         type: "string"
-        example: "1.46"
+        example: "1.47"
       MinAPIVersion:
         description: |
           The minimum API version that is supported by the daemon
