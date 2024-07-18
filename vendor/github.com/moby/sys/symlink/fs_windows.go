@@ -1,3 +1,15 @@
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE.BSD file.
+
+// This code is a modified version of [path/filepath/symlink_windows.go]
+// and [path/filepath/symlink.go] from the Go 1.4.2 standard library, and
+// added in [docker@9b648df].
+//
+// [path/filepath/symlink_windows.go]: https://github.com/golang/go/blob/go1.4.2/src/path/filepath/symlink_windows.go
+// [path/filepath/symlink.go]: https://github.com/golang/go/blob/go1.4.2/src/path/filepath/symlink.go
+// [docker@9b648df]: https://github.com/moby/moby/commit/9b648dfac6453de5944ee4bb749115d85a253a05
+
 package symlink
 
 import (
