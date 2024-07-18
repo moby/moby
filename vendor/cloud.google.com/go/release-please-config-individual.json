@@ -8,6 +8,9 @@
     "auth": {
       "component": "auth"
     },
+    "auth/oauth2adapt": {
+      "component": "auth/oauth2adapt"
+    },
     "bigquery": {
       "component": "bigquery"
     },
