@@ -23,7 +23,7 @@ func Mount(device, target, mType, options string) error {
 // a normal unmount. If target is not a mount point, no error is returned.
 func Unmount(target string) error {
 	err := unix.Unmount(target, mntDetach)
-	if err == nil || err == unix.EINVAL { //nolint:errorlint // unix errors are bare
+	if err == nil || err == unix.EINVAL {
 		// Ignore "not mounted" error here. Note the same error
 		// can be returned if flags are invalid, so this code
 		// assumes that the flags value is always correct.
@@ -71,7 +71,8 @@ func RecursiveUnmount(target string) error {
 		if err != nil {
 			if i == lastMount {
 				if suberr != nil {
-					return fmt.Errorf("%w (possible cause: %s)", err, suberr)
+					// TODO: switch to %w for suberr once we stop supporting go < 1.20.
+					return fmt.Errorf("%w (possible cause: %s)", err, suberr.Error())
 				}
 				return err
 			}
