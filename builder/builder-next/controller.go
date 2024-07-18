@@ -149,7 +149,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	}
 	wo.Executor = exec
 
-	w, err := mobyworker.NewContainerdWorker(ctx, wo, opt.ImageExportedCallback)
+	w, err := mobyworker.NewContainerdWorker(ctx, wo, opt.Callbacks)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +332,8 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		Differ:                differ,
 		ImageTagger:           opt.ImageTagger,
 		LeaseManager:          lm,
-		ImageExportedCallback: opt.ImageExportedCallback,
+		ImageExportedCallback: opt.Callbacks.Exported,
+		// Callbacks.Named is not used here because the tag operation is handled directly by the image service.
 	})
 	if err != nil {
 		return nil, err
