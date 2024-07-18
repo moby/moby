@@ -35,6 +35,7 @@ import (
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
 	buildkit "github.com/docker/docker/builder/builder-next"
+	"github.com/docker/docker/builder/builder-next/exporter"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/cmd/dockerd/debug"
 	"github.com/docker/docker/cmd/dockerd/trap"
@@ -430,24 +431,27 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 	cgroupParent := newCgroupParent(config)
 
 	bk, err := buildkit.New(ctx, buildkit.Opt{
-		SessionManager:        sm,
-		Root:                  filepath.Join(config.Root, "buildkit"),
-		EngineID:              d.ID(),
-		Dist:                  d.DistributionServices(),
-		ImageTagger:           d.ImageService(),
-		NetworkController:     d.NetworkController(),
-		DefaultCgroupParent:   cgroupParent,
-		RegistryHosts:         d.RegistryHosts,
-		BuilderConfig:         config.Builder,
-		Rootless:              daemon.Rootless(config),
-		IdentityMapping:       d.IdentityMapping(),
-		DNSConfig:             config.DNSConfig,
-		ApparmorProfile:       daemon.DefaultApparmorProfile(),
-		UseSnapshotter:        d.UsesSnapshotter(),
-		Snapshotter:           d.ImageService().StorageDriver(),
-		ContainerdAddress:     config.ContainerdAddr,
-		ContainerdNamespace:   config.ContainerdNamespace,
-		ImageExportedCallback: d.ImageExportedByBuildkit,
+		SessionManager:      sm,
+		Root:                filepath.Join(config.Root, "buildkit"),
+		EngineID:            d.ID(),
+		Dist:                d.DistributionServices(),
+		ImageTagger:         d.ImageService(),
+		NetworkController:   d.NetworkController(),
+		DefaultCgroupParent: cgroupParent,
+		RegistryHosts:       d.RegistryHosts,
+		BuilderConfig:       config.Builder,
+		Rootless:            daemon.Rootless(config),
+		IdentityMapping:     d.IdentityMapping(),
+		DNSConfig:           config.DNSConfig,
+		ApparmorProfile:     daemon.DefaultApparmorProfile(),
+		UseSnapshotter:      d.UsesSnapshotter(),
+		Snapshotter:         d.ImageService().StorageDriver(),
+		ContainerdAddress:   config.ContainerdAddr,
+		ContainerdNamespace: config.ContainerdNamespace,
+		Callbacks: exporter.BuildkitCallbacks{
+			Exported: d.ImageExportedByBuildkit,
+			Named:    d.ImageNamedByBuildkit,
+		},
 	})
 	if err != nil {
 		return routerOptions{}, err

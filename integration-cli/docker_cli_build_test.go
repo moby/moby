@@ -6193,40 +6193,70 @@ func (s *DockerCLIBuildSuite) TestBuildIidFileCleanupOnFail(c *testing.T) {
 	assert.Equal(c, os.IsNotExist(err), true)
 }
 
-func (s *DockerCLIBuildSuite) TestBuildEmitsImageCreateEvent(t *testing.T) {
-	for _, tc := range []struct {
+func (s *DockerCLIBuildSuite) TestBuildEmitsEvents(t *testing.T) {
+	for _, builder := range []struct {
 		buildkit bool
 	}{
 		{buildkit: false},
 		{buildkit: true},
 	} {
-		tc := tc
-		t.Run(fmt.Sprintf("buildkit=%v", tc.buildkit), func(t *testing.T) {
-			skip.If(t, DaemonIsWindows, "Buildkit is not supported on Windows")
+		builder := builder
+		for _, tc := range []struct {
+			name  string
+			args  []string
+			check func(t *testing.T, stdout string)
+		}{
+			{
+				name: "no tag",
+				args: []string{},
+				check: func(t *testing.T, stdout string) {
+					assert.Check(t, is.Contains(stdout, "image create"))
+					assert.Check(t, !strings.Contains(stdout, "image tag"))
+				},
+			},
+			{
+				name: "with tag",
+				args: []string{"-t", "testbuildemitsimagetagevent"},
+				check: func(t *testing.T, stdout string) {
+					assert.Check(t, is.Contains(stdout, "image create"))
+					assert.Check(t, is.Contains(stdout, "image tag"))
+					assert.Check(t, is.Contains(stdout, "testbuildemitsimagetagevent"))
+				},
+			},
+		} {
+			tc := tc
+			t.Run(fmt.Sprintf("buildkit=%v/%s", builder.buildkit, tc.name), func(t *testing.T) {
+				skip.If(t, DaemonIsWindows, "Buildkit is not supported on Windows")
 
-			before := time.Now()
+				time.Sleep(time.Second)
+				before := time.Now()
 
-			b := cli.Docker(cli.Args("build"),
-				build.WithoutCache,
-				build.WithDockerfile("FROM busybox\nRUN echo hi >/hello"),
-				build.WithBuildkit(tc.buildkit),
-			)
-			b.Assert(t, icmd.Success)
-			t.Log(b.Stdout())
-			t.Log(b.Stderr())
+				args := []string{"build"}
+				args = append(args, tc.args...)
 
-			cmd := cli.Docker(
-				cli.Args("events",
-					"--filter", "action=create,type=image",
-					"--since", before.Format(time.RFC3339),
-				),
-				cli.WithTimeout(time.Millisecond*300),
-				cli.WithEnvironmentVariables("DOCKER_API_VERSION=v1.46"), // FIXME(thaJeztah): integration-cli runs docker CLI 17.06; we're "upgrading" the API version to a version it doesn't support here ;)
-			)
+				b := cli.Docker(cli.Args(args...),
+					build.WithoutCache,
+					build.WithDockerfile("FROM busybox\nRUN echo hi >/hello"),
+					build.WithBuildkit(builder.buildkit),
+				)
+				b.Assert(t, icmd.Success)
+				t.Log(b.Stdout())
+				t.Log(b.Stderr())
 
-			t.Log(cmd.Stdout())
+				cmd := cli.Docker(
+					cli.Args("events",
+						"--filter", "type=image",
+						"--since", before.Format(time.RFC3339),
+					),
+					cli.WithTimeout(time.Millisecond*300),
+					cli.WithEnvironmentVariables("DOCKER_API_VERSION=v1.46"), // FIXME(thaJeztah): integration-cli runs docker CLI 17.06; we're "upgrading" the API version to a version it doesn't support here ;)
+				)
 
-			assert.Check(t, is.Contains(cmd.Stdout(), "image create"))
-		})
+				stdout := cmd.Stdout()
+				t.Log(stdout)
+
+				tc.check(t, stdout)
+			})
+		}
 	}
 }
