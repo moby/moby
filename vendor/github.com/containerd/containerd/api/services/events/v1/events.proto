@@ -18,7 +18,7 @@ syntax = "proto3";
 
 package containerd.services.events.v1;
 
-import "github.com/containerd/containerd/protobuf/plugin/fieldpath.proto";
+import "github.com/containerd/containerd/api/types/fieldpath.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
@@ -63,7 +63,7 @@ message SubscribeRequest {
 }
 
 message Envelope {
-	option (containerd.plugin.fieldpath) = true;
+	option (containerd.types.fieldpath) = true;
 	google.protobuf.Timestamp timestamp = 1;
 	string namespace = 2;
 	string topic = 3;

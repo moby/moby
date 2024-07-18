@@ -1,10 +1,12 @@
 package containerimage
 
 import (
+	"maps"
+
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 )
 
@@ -73,24 +75,15 @@ func (ag AnnotationsGroup) Platform(p *ocispecs.Platform) *Annotations {
 	}
 
 	for _, a := range ag {
-		for k, v := range a.Index {
-			res.Index[k] = v
-		}
-		for k, v := range a.IndexDescriptor {
-			res.IndexDescriptor[k] = v
-		}
+		maps.Copy(res.Index, a.Index)
+		maps.Copy(res.IndexDescriptor, a.IndexDescriptor)
 	}
 	for _, pk := range ps {
 		if _, ok := ag[pk]; !ok {
 			continue
 		}
-
-		for k, v := range ag[pk].Manifest {
-			res.Manifest[k] = v
-		}
-		for k, v := range ag[pk].ManifestDescriptor {
-			res.ManifestDescriptor[k] = v
-		}
+		maps.Copy(res.Manifest, ag[pk].Manifest)
+		maps.Copy(res.ManifestDescriptor, ag[pk].ManifestDescriptor)
 	}
 	return res
 }
@@ -122,18 +115,10 @@ func (a *Annotations) merge(other *Annotations) *Annotations {
 		}
 	}
 
-	for k, v := range other.Index {
-		a.Index[k] = v
-	}
-	for k, v := range other.IndexDescriptor {
-		a.IndexDescriptor[k] = v
-	}
-	for k, v := range other.Manifest {
-		a.Manifest[k] = v
-	}
-	for k, v := range other.ManifestDescriptor {
-		a.ManifestDescriptor[k] = v
-	}
+	maps.Copy(a.Index, other.Index)
+	maps.Copy(a.IndexDescriptor, other.IndexDescriptor)
+	maps.Copy(a.Manifest, other.Manifest)
+	maps.Copy(a.ManifestDescriptor, other.ManifestDescriptor)
 
 	return a
 }

@@ -11,9 +11,9 @@ import (
 	ctd "github.com/containerd/containerd"
 	"github.com/containerd/containerd/content/local"
 	ctdmetadata "github.com/containerd/containerd/metadata"
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
@@ -109,11 +109,22 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 	dns := getDNSConfig(opt.DNSConfig)
 
-	wo, err := containerd.NewWorkerOpt(opt.Root, opt.ContainerdAddress, opt.Snapshotter, opt.ContainerdNamespace,
-		opt.Rootless, map[string]string{
+	workerOpts := containerd.WorkerOptions{
+		Root:            opt.Root,
+		Address:         opt.ContainerdAddress,
+		SnapshotterName: opt.Snapshotter,
+		Namespace:       opt.ContainerdNamespace,
+		Rootless:        opt.Rootless,
+		Labels: map[string]string{
 			label.Snapshotter: opt.Snapshotter,
-		}, dns, nc, opt.ApparmorProfile, false, nil, "", nil, ctd.WithTimeout(60*time.Second),
-	)
+		},
+		DNS:             dns,
+		NetworkOpt:      nc,
+		ApparmorProfile: opt.ApparmorProfile,
+		Selinux:         false,
+	}
+
+	wo, err := containerd.NewWorkerOpt(workerOpts, ctd.WithTimeout(60*time.Second))
 	if err != nil {
 		return nil, err
 	}

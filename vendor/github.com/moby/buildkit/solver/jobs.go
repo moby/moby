@@ -912,7 +912,7 @@ func (s *sharedOp) LoadCache(ctx context.Context, rec *CacheRecord) (Result, err
 func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessFunc, f ResultBasedCacheFunc, res Result) (dgst digest.Digest, err error) {
 	defer func() {
 		err = WrapSlowCache(err, index, NewSharedResult(res).Clone())
-		err = errdefs.WithOp(err, s.st.vtx.Sys())
+		err = errdefs.WithOp(err, s.st.vtx.Sys(), s.st.vtx.Options().Description)
 		err = errdefs.WrapVertex(err, s.st.origDigest)
 	}()
 	flightControlKey := fmt.Sprintf("slow-compute-%d", index)
@@ -989,7 +989,7 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessF
 
 func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp, err error) {
 	defer func() {
-		err = errdefs.WithOp(err, s.st.vtx.Sys())
+		err = errdefs.WithOp(err, s.st.vtx.Sys(), s.st.vtx.Options().Description)
 		err = errdefs.WrapVertex(err, s.st.origDigest)
 	}()
 	op, err := s.getOp()
@@ -1062,7 +1062,7 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 
 func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result, exporters []ExportableCacheKey, err error) {
 	defer func() {
-		err = errdefs.WithOp(err, s.st.vtx.Sys())
+		err = errdefs.WithOp(err, s.st.vtx.Sys(), s.st.vtx.Options().Description)
 		err = errdefs.WrapVertex(err, s.st.origDigest)
 	}()
 	op, err := s.getOp()

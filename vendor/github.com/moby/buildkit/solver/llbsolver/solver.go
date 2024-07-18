@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"strings"
 	"sync"
@@ -34,7 +35,6 @@ import (
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/entitlements"
-	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/tracing"
@@ -43,8 +43,6 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const (
@@ -182,6 +180,9 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		Type:   controlapi.BuildHistoryEventType_STARTED,
 		Record: rec,
 	}); err != nil {
+		if stopTrace != nil {
+			stopTrace()
+		}
 		return nil, err
 	}
 
@@ -379,12 +380,18 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		}()
 
 		if err != nil {
-			st, ok := grpcerrors.AsGRPCStatus(grpcerrors.ToGRPC(ctx, err))
-			if !ok {
-				st = status.New(codes.Unknown, err.Error())
+			status, desc, release, err1 := s.history.ImportError(ctx, err)
+			if err1 != nil {
+				// don't replace the build error with this import error
+				bklog.G(ctx).Errorf("failed to import error to build record: %+v", err1)
 			}
-			rec.Error = grpcerrors.ToRPCStatus(st.Proto())
+			rec.ExternalError = desc
+			releasers = append(releasers, release)
+			rec.Error = status
 		}
+
+		ready, done := s.history.AcquireFinalizer(rec.Ref)
+
 		if err1 := s.history.Update(ctx, &controlapi.BuildHistoryEvent{
 			Type:   controlapi.BuildHistoryEventType_COMPLETE,
 			Record: rec,
@@ -396,10 +403,17 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 
 		if stopTrace == nil {
 			bklog.G(ctx).Warn("no trace recorder found, skipping")
+			done()
 			return err
 		}
 		go func() {
-			time.Sleep(3 * time.Second)
+			defer done()
+
+			// if there is no finalizer request then stop tracing after 3 seconds
+			select {
+			case <-time.After(3 * time.Second):
+			case <-ready:
+			}
 			spans := stopTrace()
 
 			if len(spans) == 0 {
@@ -506,7 +520,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		if err := s.gatewayForwarder.RegisterBuild(ctx, id, fwd); err != nil {
 			return nil, err
 		}
-		defer s.gatewayForwarder.UnregisterBuild(ctx, id)
+		defer s.gatewayForwarder.UnregisterBuild(context.WithoutCancel(ctx), id)
 	}
 
 	if !internal {
@@ -706,12 +720,10 @@ func runCacheExporters(ctx context.Context, exporters []RemoteCacheExporter, j *
 	// TODO: separate these out, and return multiple cache exporter responses
 	// to the client
 	for _, resp := range resps {
-		for k, v := range resp {
-			if cacheExporterResponse == nil {
-				cacheExporterResponse = make(map[string]string)
-			}
-			cacheExporterResponse[k] = v
+		if cacheExporterResponse == nil {
+			cacheExporterResponse = make(map[string]string)
 		}
+		maps.Copy(cacheExporterResponse, resp)
 	}
 	return cacheExporterResponse, nil
 }

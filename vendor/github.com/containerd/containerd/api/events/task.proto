@@ -20,10 +20,10 @@ package containerd.events;
 
 import "google/protobuf/timestamp.proto";
 import "github.com/containerd/containerd/api/types/mount.proto";
-import "github.com/containerd/containerd/protobuf/plugin/fieldpath.proto";
+import "github.com/containerd/containerd/api/types/fieldpath.proto";
 
 option go_package = "github.com/containerd/containerd/api/events;events";
-option (containerd.plugin.fieldpath_all) = true;
+option (containerd.types.fieldpath_all) = true;
 
 message TaskCreate {
 	string container_id = 1;

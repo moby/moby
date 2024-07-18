@@ -26,8 +26,8 @@ import (
 type UnmarshallableBool bool
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
-// Returns boolean true if the string is "1" or "[Tt]rue"
-// Returns boolean false if the string is "0" or "[Ff]alse"
+// Returns boolean true if the string is "1" or "true" or "True"
+// Returns boolean false if the string is "0" or "false" or "False”
 func (b *UnmarshallableBool) UnmarshalText(data []byte) error {
 	s := strings.ToLower(string(data))
 	switch s {

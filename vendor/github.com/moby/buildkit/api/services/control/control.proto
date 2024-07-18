@@ -211,6 +211,7 @@ message BuildHistoryRecord {
 	int32 numCachedSteps = 15;
 	int32 numTotalSteps = 16;
 	int32 numCompletedSteps = 17;
+	Descriptor externalError = 18;
 	// TODO: tags
 	// TODO: unclipped logs
 }
@@ -219,6 +220,7 @@ message UpdateBuildHistoryRequest {
 	string Ref = 1;
 	bool Pinned = 2;
 	bool Delete = 3;
+	bool Finalize = 4;
 }
 
 message UpdateBuildHistoryResponse {}

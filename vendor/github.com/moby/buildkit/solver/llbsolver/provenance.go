@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/client/llb/sourceresolver"

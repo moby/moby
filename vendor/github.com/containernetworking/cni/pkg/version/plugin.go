@@ -142,3 +142,27 @@ func GreaterThanOrEqualTo(version, otherVersion string) (bool, error) {
 	}
 	return false, nil
 }
+
+// GreaterThan returns true if the first version is greater than the second
+func GreaterThan(version, otherVersion string) (bool, error) {
+	firstMajor, firstMinor, firstMicro, err := ParseVersion(version)
+	if err != nil {
+		return false, err
+	}
+
+	secondMajor, secondMinor, secondMicro, err := ParseVersion(otherVersion)
+	if err != nil {
+		return false, err
+	}
+
+	if firstMajor > secondMajor {
+		return true, nil
+	} else if firstMajor == secondMajor {
+		if firstMinor > secondMinor {
+			return true, nil
+		} else if firstMinor == secondMinor && firstMicro > secondMicro {
+			return true, nil
+		}
+	}
+	return false, nil
+}
