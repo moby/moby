@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.110.8
+# cloud.google.com/go v0.110.10
 ## explicit; go 1.19
 cloud.google.com/go
 # cloud.google.com/go/compute/metadata v0.3.0
@@ -10,7 +10,7 @@ cloud.google.com/go/logging
 cloud.google.com/go/logging/apiv2
 cloud.google.com/go/logging/apiv2/loggingpb
 cloud.google.com/go/logging/internal
-# cloud.google.com/go/longrunning v0.5.2
+# cloud.google.com/go/longrunning v0.5.4
 ## explicit; go 1.19
 cloud.google.com/go/longrunning
 cloud.google.com/go/longrunning/autogen
@@ -258,7 +258,7 @@ github.com/containerd/cgroups/v3/cgroup2/stats
 # github.com/containerd/console v1.0.4
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd v1.7.19
+# github.com/containerd/containerd v1.7.20
 ## explicit; go 1.21
 github.com/containerd/containerd
 github.com/containerd/containerd/archive
@@ -1429,12 +1429,12 @@ google.golang.org/api/support/bundler
 google.golang.org/api/transport/grpc
 google.golang.org/api/transport/http
 google.golang.org/api/transport/http/internal/propagation
-# google.golang.org/genproto v0.0.0-20231016165738-49dd2c1f3d0b
+# google.golang.org/genproto v0.0.0-20231211222908-989df2bf70f3
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/logging/type
 google.golang.org/genproto/internal
 google.golang.org/genproto/protobuf/field_mask
-# google.golang.org/genproto/googleapis/api v0.0.0-20231016165738-49dd2c1f3d0b
+# google.golang.org/genproto/googleapis/api v0.0.0-20231120223509-83a465c0220f
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
@@ -1443,7 +1443,7 @@ google.golang.org/genproto/googleapis/api/httpbody
 google.golang.org/genproto/googleapis/api/label
 google.golang.org/genproto/googleapis/api/metric
 google.golang.org/genproto/googleapis/api/monitoredres
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20231212172506-995d672761c0
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/rpc/code
 google.golang.org/genproto/googleapis/rpc/errdetails

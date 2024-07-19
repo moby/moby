@@ -24,6 +24,8 @@
 //
 // The functions ToGRPC and FromGRPC can be used to map server-side and
 // client-side errors to the correct types.
+//
+// Deprecated: use [github.com/containerd/errdefs].
 package errdefs
 
 import (
