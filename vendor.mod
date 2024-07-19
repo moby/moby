@@ -71,7 +71,7 @@ require (
 	github.com/moby/swarmkit/v2 v2.0.0-20240611172349-ea1a7cec35cb
 	github.com/moby/sys/mount v0.3.4
 	github.com/moby/sys/mountinfo v0.7.2
-	github.com/moby/sys/sequential v0.5.0
+	github.com/moby/sys/sequential v0.6.0
 	github.com/moby/sys/signal v0.7.1
 	github.com/moby/sys/symlink v0.3.0
 	github.com/moby/sys/user v0.1.0
