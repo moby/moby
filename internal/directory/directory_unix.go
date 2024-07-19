@@ -1,6 +1,6 @@
 //go:build linux || freebsd || darwin
 
-package directory // import "github.com/docker/docker/pkg/directory"
+package directory
 
 import (
 	"context"
@@ -22,6 +22,7 @@ func calcSize(ctx context.Context, dir string) (int64, error) {
 			}
 			return err
 		}
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
