@@ -57,12 +57,12 @@ jobs:
         id: title_branch
         run: |
           # get the intended major version prefix ("[27.1 backport]" -> "27.") from the PR title.
-          [[ "$PR_TITLE" =~ ^\[\([0-9]*\.\)[^]]*\] ]] && branch="${BASH_REMATCH[1]}"
+          [[ "$PR_TITLE" =~ ^\[([0-9]*\.)[^]]*\] ]] && branch="${BASH_REMATCH[1]}"
 
           # get major version prefix from the release branch ("27.x -> "27.")
-          [[ "$GITHUB_BASE_REF" =~ ^\([0-9]*\.\) ]] && target_branch="${BASH_REMATCH[1]}"
+          [[ "$GITHUB_BASE_REF" =~ ^([0-9]*\.) ]] && target_branch="${BASH_REMATCH[1]}" || target_branch="$GITHUB_BASE_REF"
 
-          if [[ "$GITHUB_BASE_REF" != "$branch" ]] && ! [[ "$GITHUB_BASE_REF" == "master" && "$branch" == "" ]]; then
+          if [[ "$target_branch" != "$branch" ]] && ! [[ "$GITHUB_BASE_REF" == "master" && "$branch" == "" ]]; then
               echo "::error::PR is opened against the $GITHUB_BASE_REF branch, but its title suggests otherwise."
               exit 1
           fi
