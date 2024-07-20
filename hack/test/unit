@@ -41,12 +41,25 @@ if [ -n "${libnetwork_pkg_list}" ]; then
 	# libnetwork tests invoke iptables, and cannot be run in parallel. Execute
 	# tests within /libnetwork with '-p=1' to run them sequentially. See
 	# https://github.com/moby/moby/issues/42458#issuecomment-873216754 for details.
-	gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report-libnetwork.json --junitfile=bundles/junit-report-libnetwork.xml -- \
-		"${BUILDFLAGS[@]}" \
-		-cover \
-		-coverprofile=bundles/coverage-libnetwork.out \
-		-covermode=atomic \
-		-p=1 \
-		${TESTFLAGS} \
-		${libnetwork_pkg_list}
+
+	if [ -n "${DELVE_PORT:-}" ]; then
+		dlv --listen="0.0.0.0:${DELVE_PORT##*:}" \
+			--headless=true \
+			--api-version=2 \
+			--only-same-user=false \
+			--check-go-version=false \
+			--accept-multiclient \
+			test ${libnetwork_pkg_list} -- \
+			-test.parallel=1 \
+			${TESTFLAGS}
+	else
+		gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report-libnetwork.json --junitfile=bundles/junit-report-libnetwork.xml -- \
+			"${BUILDFLAGS[@]}" \
+			-cover \
+			-coverprofile=bundles/coverage-libnetwork.out \
+			-covermode=atomic \
+			-p=1 \
+			${TESTFLAGS} \
+			${libnetwork_pkg_list}
+	fi
 fi
