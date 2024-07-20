@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/pkg/stringid"
 	v2 "github.com/docker/docker/plugin/v2"
@@ -79,10 +79,10 @@ func newTestPlugin(t *testing.T, name, cap, root string) *v2.Plugin {
 		t.Fatal(err)
 	}
 
-	p := v2.Plugin{PluginObj: types.Plugin{ID: id, Name: name}}
+	p := v2.Plugin{PluginObj: plugin.Plugin{ID: id, Name: name}}
 	p.Rootfs = rootfs
-	iType := types.PluginInterfaceType{Capability: cap, Prefix: "docker", Version: "1.0"}
-	i := types.PluginConfigInterface{Socket: "plugin.sock", Types: []types.PluginInterfaceType{iType}}
+	iType := plugin.InterfaceType{Capability: cap, Prefix: "docker", Version: "1.0"}
+	i := plugin.Interface{Socket: "plugin.sock", Types: []plugin.InterfaceType{iType}}
 	p.PluginObj.Config.Interface = i
 	p.PluginObj.ID = id
 
@@ -239,7 +239,8 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 			defer m.Shutdown()
 
 			p = s.GetAll()[p.GetID()] // refresh `p` with what the manager knows
-			if p.Client() == nil {
+
+			if p.Client() == nil { //nolint:staticcheck // FIXME(thaJeztah): p.Client is deprecated: use p.Addr() and manually create the client
 				t.Fatal("plugin client should not be nil")
 			}
 		})

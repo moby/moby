@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -32,9 +32,9 @@ func TestContinueAfterPluginCrash(t *testing.T) {
 
 	ctxT, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	assert.Assert(t, client.PluginEnable(ctxT, "test", types.PluginEnableOptions{Timeout: 30}))
+	assert.Assert(t, client.PluginEnable(ctxT, "test", plugin.EnableOptions{Timeout: 30}))
 	cancel()
-	defer client.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})
+	defer client.PluginRemove(ctx, "test", plugin.RemoveOptions{Force: true})
 
 	ctxT, cancel = context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()

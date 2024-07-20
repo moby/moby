@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	plugintypes "github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fixtures/plugin"
@@ -35,21 +35,21 @@ func TestPluginWithDevMounts(t *testing.T) {
 	createPlugin(ctx, t, c, "test", "dummy", asVolumeDriver, func(c *plugin.Config) {
 		root := "/"
 		dev := "/dev"
-		mounts := []types.PluginMount{
+		mounts := []plugintypes.Mount{
 			{Type: "bind", Source: &root, Destination: "/host", Options: []string{"rbind"}},
 			{Type: "bind", Source: &dev, Destination: "/dev", Options: []string{"rbind"}},
 			{Type: "bind", Source: &testDir, Destination: "/etc/foo", Options: []string{"rbind"}},
 		}
-		c.PluginConfig.Mounts = append(c.PluginConfig.Mounts, mounts...)
+		c.Config.Mounts = append(c.Config.Mounts, mounts...)
 		c.PropagatedMount = "/propagated"
-		c.Network = types.PluginConfigNetwork{Type: "host"}
+		c.Network = plugintypes.NetworkConfig{Type: "host"}
 		c.IpcHost = true
 	})
 
-	err = c.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
+	err = c.PluginEnable(ctx, "test", plugintypes.EnableOptions{Timeout: 30})
 	assert.NilError(t, err)
 	defer func() {
-		err := c.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})
+		err := c.PluginRemove(ctx, "test", plugintypes.RemoveOptions{Force: true})
 		assert.Check(t, err)
 	}()
 
