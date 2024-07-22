@@ -857,9 +857,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 	rootIDs := idMapping.RootPair()
-	if err := setMayDetachMounts(); err != nil {
-		log.G(ctx).WithError(err).Warn("Could not set may_detach_mounts kernel parameter")
-	}
 
 	// set up the tmpDir to use a canonical path
 	tmp, err := prepareTempDir(config.Root)

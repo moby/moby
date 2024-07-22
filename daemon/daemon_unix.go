@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/containerd/cgroups/v3"
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
@@ -1401,35 +1400,6 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 // daemon to run in. This is only applicable on Windows
 func (daemon *Daemon) setDefaultIsolation(*config.Config) error {
 	return nil
-}
-
-// This is used to allow removal of mountpoints that may be mounted in other
-// namespaces on RHEL based kernels starting from RHEL 7.4.
-// Without this setting, removals on these RHEL based kernels may fail with
-// "device or resource busy".
-// This setting is not available in upstream kernels as it is not configurable,
-// but has been in the upstream kernels since 3.15.
-func setMayDetachMounts() error {
-	f, err := os.OpenFile("/proc/sys/fs/may_detach_mounts", os.O_WRONLY, 0)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return errors.Wrap(err, "error opening may_detach_mounts kernel config file")
-	}
-	defer f.Close()
-
-	_, err = f.WriteString("1")
-	if os.IsPermission(err) {
-		// Setting may_detach_mounts does not work in an
-		// unprivileged container. Ignore the error, but log
-		// it if we appear not to be in that situation.
-		if !userns.RunningInUserNS() {
-			log.G(context.TODO()).Debugf("Permission denied writing %q to /proc/sys/fs/may_detach_mounts", "1")
-		}
-		return nil
-	}
-	return err
 }
 
 func (daemon *Daemon) initCPURtController(cfg *config.Config, mnt, path string) error {
