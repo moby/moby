@@ -13,7 +13,7 @@ type containerConfigOS struct {
 
 func releaseOSSboxResources(*osl.Namespace, *Endpoint) {}
 
-func (sb *Sandbox) updateGateway(*Endpoint) error {
+func (sb *Sandbox) updateGateway(_, _ *Endpoint) error {
 	// not implemented on Windows (Sandbox.osSbox is always nil)
 	return nil
 }

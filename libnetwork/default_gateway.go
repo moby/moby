@@ -176,14 +176,26 @@ func (c *Controller) defaultGwNetwork() (*Network, error) {
 }
 
 // Returns the endpoint which is providing external connectivity to the sandbox
-func (sb *Sandbox) getGatewayEndpoint() *Endpoint {
-	for _, ep := range sb.Endpoints() {
+func (sb *Sandbox) getGatewayEndpoint() (ep4, ep6 *Endpoint) {
+	return selectGatewayEndpoint(sb.Endpoints())
+}
+
+func selectGatewayEndpoint(endpoints []*Endpoint) (ep4, ep6 *Endpoint) {
+	for _, ep := range endpoints {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}
-		if len(ep.Gateway()) != 0 {
-			return ep
+		gw4 := len(ep.Gateway()) != 0
+		gw6 := len(ep.GatewayIPv6()) != 0
+		if gw4 && gw6 {
+			return ep, ep
+		}
+		if gw4 && ep4 == nil {
+			ep4 = ep
+		}
+		if gw6 && ep6 == nil {
+			ep6 = ep
 		}
 	}
-	return nil
+	return ep4, ep6
 }
