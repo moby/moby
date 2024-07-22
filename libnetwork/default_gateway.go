@@ -175,15 +175,31 @@ func (c *Controller) defaultGwNetwork() (*Network, error) {
 	return n, err
 }
 
-// Returns the endpoint which is providing external connectivity to the sandbox
-func (sb *Sandbox) getGatewayEndpoint() *Endpoint {
-	for _, ep := range sb.Endpoints() {
+// getGatewayEndpoint returns the endpoints providing external connectivity to
+// the sandbox. If the gateway is dual-stack, ep4 and ep6 will point at the same
+// endpoint. If there is no IPv4/IPv6 connectivity, nil pointers will be returned.
+func (sb *Sandbox) getGatewayEndpoint() (ep4, ep6 *Endpoint) {
+	return selectGatewayEndpoint(sb.Endpoints())
+}
+
+// selectGatewayEndpoint is like getGatewayEndpoint, but selects only from
+// endpoints.
+func selectGatewayEndpoint(endpoints []*Endpoint) (ep4, ep6 *Endpoint) {
+	for _, ep := range endpoints {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}
-		if len(ep.Gateway()) != 0 {
-			return ep
+		gw4 := len(ep.Gateway()) != 0
+		gw6 := len(ep.GatewayIPv6()) != 0
+		if gw4 && gw6 {
+			return ep, ep
+		}
+		if gw4 && ep4 == nil {
+			ep4 = ep
+		}
+		if gw6 && ep6 == nil {
+			ep6 = ep
 		}
 	}
-	return nil
+	return ep4, ep6
 }
