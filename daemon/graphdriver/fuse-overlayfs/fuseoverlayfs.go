@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/daemon/internal/fstype"
 	"github.com/docker/docker/daemon/internal/mountref"
 	"github.com/docker/docker/internal/containerfs"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/locker"
@@ -76,9 +75,6 @@ func init() {
 func Init(home string, options []string, idMap user.IdentityMapping) (graphdriver.Driver, error) {
 	if _, err := exec.LookPath(binary); err != nil {
 		logger.Error(err)
-		return nil, graphdriver.ErrNotSupported
-	}
-	if !kernel.CheckKernelVersion(4, 18, 0) {
 		return nil, graphdriver.ErrNotSupported
 	}
 
