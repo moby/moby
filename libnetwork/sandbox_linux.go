@@ -74,9 +74,16 @@ func (sb *Sandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
 	return m, nil
 }
 
-func (sb *Sandbox) updateGateway(ep *Endpoint) error {
+func (sb *Sandbox) updateGateway(ep4, ep6 *Endpoint) error {
+	var populated4, populated6 bool
 	sb.mu.Lock()
 	osSbox := sb.osSbox
+	if ep4 != nil {
+		_, populated4 = sb.populatedEndpoints[ep4.ID()]
+	}
+	if ep6 != nil {
+		_, populated6 = sb.populatedEndpoints[ep6.ID()]
+	}
 	sb.mu.Unlock()
 	if osSbox == nil {
 		return nil
@@ -84,20 +91,24 @@ func (sb *Sandbox) updateGateway(ep *Endpoint) error {
 	osSbox.UnsetGateway()     //nolint:errcheck
 	osSbox.UnsetGatewayIPv6() //nolint:errcheck
 
-	if ep == nil {
-		return nil
+	if populated4 {
+		ep4.mu.Lock()
+		joinInfo := ep4.joinInfo
+		ep4.mu.Unlock()
+
+		if err := osSbox.SetGateway(joinInfo.gw); err != nil {
+			return fmt.Errorf("failed to set gateway while updating gateway: %v", err)
+		}
 	}
 
-	ep.mu.Lock()
-	joinInfo := ep.joinInfo
-	ep.mu.Unlock()
+	if populated6 {
+		ep6.mu.Lock()
+		joinInfo := ep6.joinInfo
+		ep6.mu.Unlock()
 
-	if err := osSbox.SetGateway(joinInfo.gw); err != nil {
-		return fmt.Errorf("failed to set gateway while updating gateway: %v", err)
-	}
-
-	if err := osSbox.SetGatewayIPv6(joinInfo.gw6); err != nil {
-		return fmt.Errorf("failed to set IPv6 gateway while updating gateway: %v", err)
+		if err := osSbox.SetGatewayIPv6(joinInfo.gw6); err != nil {
+			return fmt.Errorf("failed to set IPv6 gateway while updating gateway: %v", err)
+		}
 	}
 
 	return nil
@@ -254,13 +265,19 @@ func (sb *Sandbox) restoreOslSandbox() error {
 		}
 	}
 
-	gwep := sb.getGatewayEndpoint()
-	if gwep == nil {
-		return nil
+	gwep4, gwep6 := sb.getGatewayEndpoint()
+	if gwep4 != nil {
+		if err := sb.osSbox.Restore(interfaces, routes, gwep4.joinInfo.gw, gwep4.joinInfo.gw6); err != nil {
+			return err
+		}
+	}
+	if gwep6 != nil {
+		if err := sb.osSbox.Restore(interfaces, routes, gwep6.joinInfo.gw, gwep6.joinInfo.gw6); err != nil {
+			return err
+		}
 	}
 
-	// restore osl sandbox
-	return sb.osSbox.Restore(interfaces, routes, gwep.joinInfo.gw, gwep.joinInfo.gw6)
+	return nil
 }
 
 func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) error {
@@ -329,17 +346,17 @@ func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) e
 		}
 	}
 
-	if ep == sb.getGatewayEndpoint() {
-		if err := sb.updateGateway(ep); err != nil {
-			return err
-		}
-	}
-
 	// Make sure to add the endpoint to the populated endpoint set
-	// before populating loadbalancers.
+	// before updating gateways or populating loadbalancers.
 	sb.mu.Lock()
 	sb.populatedEndpoints[ep.ID()] = struct{}{}
 	sb.mu.Unlock()
+
+	if gw4, gw6 := sb.getGatewayEndpoint(); ep == gw4 || ep == gw6 {
+		if err := sb.updateGateway(gw4, gw6); err != nil {
+			return err
+		}
+	}
 
 	// Populate load balancer only after updating all the other
 	// information including gateway and other routes so that

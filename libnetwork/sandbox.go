@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -584,40 +585,21 @@ func (sb *Sandbox) clearNetworkResources(origEp *Endpoint) error {
 		return nil
 	}
 
-	var (
-		gwepBefore, gwepAfter *Endpoint
-		index                 = -1
-	)
-	for i, e := range sb.endpoints {
-		if e == ep {
-			index = i
-		}
-		if len(e.Gateway()) > 0 && gwepBefore == nil {
-			gwepBefore = e
-		}
-		if index != -1 && gwepBefore != nil {
-			break
-		}
-	}
-
-	if index == -1 {
+	if !slices.Contains(sb.endpoints, ep) {
 		log.G(context.TODO()).Warnf("Endpoint %s has already been deleted", ep.Name())
 		sb.mu.Unlock()
 		return nil
 	}
 
+	gwepBefore4, gwepBefore6 := selectGatewayEndpoint(sb.endpoints)
 	sb.removeEndpointRaw(ep)
-	for _, e := range sb.endpoints {
-		if len(e.Gateway()) > 0 {
-			gwepAfter = e
-			break
-		}
-	}
+	gwepAfter4, gwepAfter6 := selectGatewayEndpoint(sb.endpoints)
 	delete(sb.epPriority, ep.ID())
+
 	sb.mu.Unlock()
 
-	if gwepAfter != nil && gwepBefore != gwepAfter {
-		if err := sb.updateGateway(gwepAfter); err != nil {
+	if (gwepAfter4 != nil && gwepBefore4 != gwepAfter4) || (gwepAfter6 != nil && gwepBefore6 != gwepAfter6) {
+		if err := sb.updateGateway(gwepAfter4, gwepAfter6); err != nil {
 			return err
 		}
 	}
