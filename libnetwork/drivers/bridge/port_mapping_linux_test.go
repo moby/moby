@@ -421,6 +421,7 @@ func TestAddPortMappings(t *testing.T) {
 		defHostIP    net.IP
 		proxyPath    string
 		busyPortIPv4 int
+		noProxy6To4  bool
 
 		expErr          string
 		expPBs          []types.PortBinding
@@ -571,6 +572,18 @@ func TestAddPortMappings(t *testing.T) {
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv6zero, HostPort: firstEphemPort},
+			},
+		},
+		{
+			name:     "map host ipv6 to ipv4 container with proxy but noProxy6To4",
+			epAddrV4: ctrIP4,
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, HostIP: net.IPv4zero, Port: 80},
+			},
+			proxyPath:   "/dummy/path/to/proxy",
+			noProxy6To4: true,
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 			},
 		},
 		{
@@ -781,7 +794,7 @@ func TestAddPortMappings(t *testing.T) {
 			err = portallocator.Get().ReleaseAll()
 			assert.NilError(t, err)
 
-			pbs, err := n.addPortMappings(tc.epAddrV4, tc.epAddrV6, tc.cfg, tc.defHostIP)
+			pbs, err := n.addPortMappings(tc.epAddrV4, tc.epAddrV6, tc.cfg, tc.defHostIP, tc.noProxy6To4)
 			if tc.expErr != "" {
 				assert.ErrorContains(t, err, tc.expErr)
 				return

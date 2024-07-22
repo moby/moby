@@ -106,6 +106,7 @@ type containerConfiguration struct {
 type connectivityConfiguration struct {
 	PortBindings []types.PortBinding
 	ExposedPorts []types.TransportPort
+	NoProxy6To4  bool
 }
 
 type bridgeEndpoint struct {
@@ -1446,6 +1447,7 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 			endpoint.addrv6,
 			endpoint.extConnConfig.PortBindings,
 			network.config.DefaultBindingIP,
+			endpoint.extConnConfig.NoProxy6To4,
 		)
 		if err != nil {
 			return err
@@ -1635,6 +1637,14 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 			cc.ExposedPorts = ports
 		} else {
 			return nil, types.InvalidParameterErrorf("invalid exposed ports data in connectivity configuration: %v", opt)
+		}
+	}
+
+	if opt, ok := cOptions[netlabel.NoProxy6To4]; ok {
+		if noProxy6To4, ok := opt.(bool); ok {
+			cc.NoProxy6To4 = noProxy6To4
+		} else {
+			return nil, types.InvalidParameterErrorf("invalid "+netlabel.NoProxy6To4+" in connectivity configuration: %v", opt)
 		}
 	}
 
