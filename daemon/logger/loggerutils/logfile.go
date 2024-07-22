@@ -605,7 +605,7 @@ func (cfo *compressedFileOpener) ReaderAt(ctx context.Context) (_ sizeReaderAtCl
 	}
 	defer gzr.Close()
 
-	// Extract the last log entry timestramp from the gzip header
+	// Extract the last log entry timestamp from the gzip header
 	// Use this to determine if we even need to read this file based on inputs
 	extra := &rotateFileMetadata{}
 	err = json.Unmarshal(gzr.Header.Extra, extra)
@@ -803,6 +803,7 @@ func tailFiles(ctx context.Context, files []fileOpener, watcher *logger.LogWatch
 	}()
 
 	for _, ra := range readers {
+		ra := ra
 		select {
 		case <-watcher.WatchConsumerGone():
 			return false
@@ -812,6 +813,12 @@ func tailFiles(ctx context.Context, files []fileOpener, watcher *logger.LogWatch
 		}
 
 		dec.Reset(ra)
+
+		cancel := context.AfterFunc(ctx, func() {
+			if err := ra.Close(); err != nil {
+				log.G(ctx).WithError(err).Debug("Error closing log reader")
+			}
+		})
 
 		ok := fwd.Do(ctx, watcher, func() (*logger.Message, error) {
 			msg, err := dec.Decode()
@@ -827,11 +834,8 @@ func tailFiles(ctx context.Context, files []fileOpener, watcher *logger.LogWatch
 			}
 			return msg, err
 		})
-		if err := ra.Close(); err != nil {
-			log.G(ctx).WithError(err).Debug("Error closing log reader")
-		}
+		cancel()
 		idx++
-
 		if !ok {
 			return false
 		}

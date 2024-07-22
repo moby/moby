@@ -150,14 +150,14 @@ func TestTailFiles(t *testing.T) {
 		f3 := bytes.NewBuffer(nil)
 		writeMsg(f3, msg5)
 
-		// [bytes.Buffer] is not a SizeReaderAt, so we need to convert it here
+		// [bytes.Buffer] is not a SizeReaderAt, so we need to convert it here.
 		files := makeOpener(bytes.NewReader(f1.Bytes()), bytes.NewReader(f2.Bytes()), bytes.NewReader(f3.Bytes()))
 
 		// At this point we our log "files" should have 4 log messages in it
-		// intersperesed with some junk that is invalid json
+		// interspersed with some junk that is invalid json.
 
 		// We need a zero size watcher so that we can tell the decoder to give us
-		// a syntax error
+		// a syntax error.
 		watcher := logger.NewLogWatcher()
 
 		config := logger.ReadConfig{Tail: 4}
