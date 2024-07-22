@@ -160,7 +160,7 @@ type CommonConfig struct {
 	Root                  string   `json:"data-root,omitempty"`
 	ExecRoot              string   `json:"exec-root,omitempty"`
 	SocketGroup           string   `json:"group,omitempty"`
-	CorsHeaders           string   `json:"api-cors-header,omitempty"` // Deprecated: CORS headers should not be set on the API. This feature will be removed in the next release.
+	CorsHeaders           string   `json:"api-cors-header,omitempty"` // Deprecated: CORS headers should not be set on the API. This feature will be removed in the next release. // TODO(thaJeztah): option is used to produce error when used; remove in next release
 
 	// Proxies holds the proxies that are configured for the daemon.
 	Proxies `json:"proxies"`
@@ -681,6 +681,11 @@ func Validate(config *Config) error {
 		if _, err := opts.ValidateHost(h); err != nil {
 			return err
 		}
+	}
+
+	if config.CorsHeaders != "" {
+		// TODO(thaJeztah): option is used to produce error when used; remove in next release
+		return errors.New(`DEPRECATED: The "api-cors-header" config parameter and the dockerd "--api-cors-header" option have been removed; use a reverse proxy if you need CORS headers`)
 	}
 
 	// validate platform-specific settings
