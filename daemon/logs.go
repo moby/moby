@@ -27,9 +27,7 @@ import (
 func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *containertypes.LogsOptions) (messages <-chan *backend.LogMessage, isTTY bool, retErr error) {
 	ctx, span := tracing.StartSpan(ctx, "daemon.ContainerLogs")
 	defer func() {
-		if retErr != nil {
-			span.SetStatus(retErr)
-		}
+		span.SetStatus(retErr)
 		span.End()
 	}()
 
