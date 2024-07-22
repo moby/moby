@@ -290,6 +290,7 @@ func TestAddPortMappings(t *testing.T) {
 		busyPortIPv4 int
 		rootless     bool
 		hostAddrs    []string
+		noProxy6To4  bool
 
 		expErr          string
 		expLogs         []string
@@ -451,6 +452,18 @@ func TestAddPortMappings(t *testing.T) {
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv6zero, HostPort: firstEphemPort},
+			},
+		},
+		{
+			name:     "map to ipv4 container with proxy but noProxy6To4",
+			epAddrV4: ctrIP4,
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 80},
+			},
+			proxyPath:   "/dummy/path/to/proxy",
+			noProxy6To4: true,
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 			},
 		},
 		{
@@ -854,7 +867,7 @@ func TestAddPortMappings(t *testing.T) {
 				}
 			})
 
-			pbs, err := n.addPortMappings(ctx, tc.epAddrV4, tc.epAddrV6, tc.cfg, tc.defHostIP)
+			pbs, err := n.addPortMappings(ctx, tc.epAddrV4, tc.epAddrV6, tc.cfg, tc.defHostIP, tc.noProxy6To4)
 			if tc.expErr != "" {
 				assert.ErrorContains(t, err, tc.expErr)
 				return
