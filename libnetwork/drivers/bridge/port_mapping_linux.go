@@ -80,6 +80,7 @@ func (n *bridgeNetwork) addPortMappings(
 	epAddrV4, epAddrV6 *net.IPNet,
 	cfg []types.PortBinding,
 	defHostIP net.IP,
+	noProxy6To4 bool,
 ) (_ []portBinding, retErr error) {
 	if len(defHostIP) == 0 {
 		defHostIP = net.IPv4zero
@@ -132,7 +133,7 @@ func (n *bridgeNetwork) addPortMappings(
 		// by setting up the binding with the IPv4 interface if the userland proxy is enabled
 		// This change was added to keep backward compatibility
 		containerIP := containerIPv6
-		if containerIPv6 == nil {
+		if containerIPv6 == nil && !noProxy6To4 {
 			if proxyPath == "" {
 				// There's no way to map from host-IPv6 to container-IPv4 with the userland proxy
 				// disabled.
