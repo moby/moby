@@ -134,7 +134,11 @@ func WithScheme(scheme string) Opt {
 }
 
 // WithTLSClientConfig applies a TLS config to the client transport.
-func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
+func WithTLSClientConfig(cacertPath, certPath, keyPath string, skipVerify ...bool) Opt {
+	insecureSkipVerify := false
+	if len(skipVerify) > 0 {
+		insecureSkipVerify = skipVerify[0]
+	}
 	return func(c *Client) error {
 		transport, ok := c.client.Transport.(*http.Transport)
 		if !ok {
@@ -145,6 +149,7 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 			CertFile:           certPath,
 			KeyFile:            keyPath,
 			ExclusiveRootPools: true,
+			InsecureSkipVerify: insecureSkipVerify,
 		})
 		if err != nil {
 			return errors.Wrap(err, "failed to create tls config")
