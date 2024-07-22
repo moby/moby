@@ -803,6 +803,7 @@ func tailFiles(ctx context.Context, files []fileOpener, watcher *logger.LogWatch
 	}()
 
 	for _, ra := range readers {
+		ra := ra
 		select {
 		case <-watcher.WatchConsumerGone():
 			return false
@@ -812,6 +813,17 @@ func tailFiles(ctx context.Context, files []fileOpener, watcher *logger.LogWatch
 		}
 
 		dec.Reset(ra)
+
+		// Wait for the context to be cancelled in a separate goroutine so the we
+		// can close the underlying reader while a the decoder may be waiting for
+		// data. This should trigger an early return from the decoder.
+		ctx, cancel := context.WithCancel(ctx)
+		go func() {
+			<-ctx.Done()
+			if err := ra.Close(); err != nil {
+				log.G(ctx).WithError(err).Debug("Error closing log reader")
+			}
+		}()
 
 		ok := fwd.Do(ctx, watcher, func() (*logger.Message, error) {
 			msg, err := dec.Decode()
@@ -827,11 +839,8 @@ func tailFiles(ctx context.Context, files []fileOpener, watcher *logger.LogWatch
 			}
 			return msg, err
 		})
-		if err := ra.Close(); err != nil {
-			log.G(ctx).WithError(err).Debug("Error closing log reader")
-		}
+		cancel()
 		idx++
-
 		if !ok {
 			return false
 		}
