@@ -79,6 +79,7 @@ func (n *bridgeNetwork) addPortMappings(
 	epAddrV4, epAddrV6 *net.IPNet,
 	cfg []types.PortBinding,
 	defHostIP net.IP,
+	noProxy6To4 bool,
 ) (_ []portBinding, retErr error) {
 	if len(defHostIP) == 0 {
 		defHostIP = net.IPv4zero
@@ -140,11 +141,13 @@ func (n *bridgeNetwork) addPortMappings(
 		//  - the mapping's host address is IPv6, or
 		//  - the mapping has no host address, but the default address is IPv6.
 		containerIP := containerIPv6
-		if proxyPath != "" && (containerIPv6 == nil) {
+		if proxyPath != "" && !noProxy6To4 && containerIPv6 == nil {
 			containerIP = containerIPv4
 		}
-		if bindingIPv6, ok := configurePortBindingIPv6(pdc, disableNAT6, c, containerIP, defHostIP); ok {
-			toBind = append(toBind, bindingIPv6)
+		if containerIP != nil {
+			if bindingIPv6, ok := configurePortBindingIPv6(pdc, disableNAT6, c, containerIP, defHostIP); ok {
+				toBind = append(toBind, bindingIPv6)
+			}
 		}
 
 		if i < len(sortedCfg)-1 && needSamePort(c, sortedCfg[i+1]) {
