@@ -13,6 +13,10 @@ type wrapErr interface {
 	Unwrap() error
 }
 
+type wrapErrs interface {
+	Unwrap() []error
+}
+
 func getImplementer(err error) error {
 	switch e := err.(type) {
 	case
@@ -34,48 +38,76 @@ func getImplementer(err error) error {
 		return getImplementer(e.Cause())
 	case wrapErr:
 		return getImplementer(e.Unwrap())
+	case wrapErrs:
+		for _, err := range e.Unwrap() {
+			switch err := getImplementer(err).(type) {
+			case
+				ErrNotFound,
+				ErrInvalidParameter,
+				ErrConflict,
+				ErrUnauthorized,
+				ErrUnavailable,
+				ErrForbidden,
+				ErrSystem,
+				ErrNotModified,
+				ErrNotImplemented,
+				ErrCancelled,
+				ErrDeadline,
+				ErrDataLoss,
+				ErrUnknown:
+				return err
+			}
+		}
+		return err
 	default:
 		return err
 	}
 }
 
-// IsNotFound returns if the passed in error is an ErrNotFound
+// IsNotFound returns true if the first instances of one of the expected types
+// implements ErrNotFound, otherwise false.
 func IsNotFound(err error) bool {
 	_, ok := getImplementer(err).(ErrNotFound)
 	return ok
 }
 
-// IsInvalidParameter returns if the passed in error is an ErrInvalidParameter
+// IsInvalidParameter true if the first instances of one of the expected types
+// implements ErrInvalidParameter, otherwise false.
 func IsInvalidParameter(err error) bool {
 	_, ok := getImplementer(err).(ErrInvalidParameter)
 	return ok
 }
 
-// IsConflict returns if the passed in error is an ErrConflict
+// IsConflict true if the first instances of one of the expected types
+// implements ErrConflict, otherwise false.
 func IsConflict(err error) bool {
 	_, ok := getImplementer(err).(ErrConflict)
 	return ok
 }
 
-// IsUnauthorized returns if the passed in error is an ErrUnauthorized
+// IsUnauthorized true if the first instances of one of the expected types
+// implements ErrUnauthorized, otherwise false.
 func IsUnauthorized(err error) bool {
 	_, ok := getImplementer(err).(ErrUnauthorized)
 	return ok
 }
 
-// IsUnavailable returns if the passed in error is an ErrUnavailable
+// IsUnavailable true if the first instances of one of the expected types
+// implements ErrUnavailable, otherwise false.
 func IsUnavailable(err error) bool {
 	_, ok := getImplementer(err).(ErrUnavailable)
 	return ok
 }
 
-// IsForbidden returns if the passed in error is an ErrForbidden
+// IsForbidden true if the first instances of one of the expected types
+// implements ErrForbidden, otherwise false.
 func IsForbidden(err error) bool {
 	_, ok := getImplementer(err).(ErrForbidden)
 	return ok
 }
 
-// IsSystem returns if the passed in error is an ErrSystem
+// IsSystem true if the first instances of one of the expected types
+// implements ErrSystem, otherwise false.
 func IsSystem(err error) bool {
 	_, ok := getImplementer(err).(ErrSystem)
 	return ok
@@ -87,31 +119,36 @@ func IsNotModified(err error) bool {
 	return ok
 }
 
-// IsNotImplemented returns if the passed in error is an ErrNotImplemented
+// IsNotImplemented true if the first instances of one of the expected types
+// implements ErrNotImplemented, otherwise false.
 func IsNotImplemented(err error) bool {
 	_, ok := getImplementer(err).(ErrNotImplemented)
 	return ok
 }
 
-// IsUnknown returns if the passed in error is an ErrUnknown
+// IsUnknown true if the first instances of one of the expected types
+// implements ErrUnknown, otherwise false.
 func IsUnknown(err error) bool {
 	_, ok := getImplementer(err).(ErrUnknown)
 	return ok
 }
 
-// IsCancelled returns if the passed in error is an ErrCancelled
+// IsCancelled true if the first instances of one of the expected types
+// implements ErrCancelled, otherwise false.
 func IsCancelled(err error) bool {
 	_, ok := getImplementer(err).(ErrCancelled)
 	return ok
 }
 
-// IsDeadline returns if the passed in error is an ErrDeadline
+// IsDeadline true if the first instances of one of the expected types
+// implements ErrDeadline, otherwise false.
 func IsDeadline(err error) bool {
 	_, ok := getImplementer(err).(ErrDeadline)
 	return ok
 }
 
-// IsDataLoss returns if the passed in error is an ErrDataLoss
+// IsDataLoss true if the first instances of one of the expected types
+// implements ErrDataLoss, otherwise false.
 func IsDataLoss(err error) bool {
 	_, ok := getImplementer(err).(ErrDataLoss)
 	return ok
