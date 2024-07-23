@@ -90,8 +90,8 @@ func TestDockerNetworkMacvlan(t *testing.T) {
 			name: "Addressing",
 			test: testMacvlanAddressing,
 		}, {
-			name: "NoIPv6",
-			test: testMacvlanNoIPv6,
+			name: "MacvlanExperimentalV4Only",
+			test: testMacvlanExperimentalV4Only,
 		},
 	} {
 		tc := tc
@@ -440,30 +440,117 @@ func testMacvlanAddressing(t *testing.T, ctx context.Context, client client.APIC
 	assert.Check(t, strings.Contains(result.Combined(), "default via 2001:db8:abca::254 dev eth0"))
 }
 
+// Check that '--ipv4=false' is only allowed with '--experimental'.
+// (Remember to remove `--experimental' from TestMacvlanIPAM when it's
+// no longer needed, and maybe use a single daemon for all of its tests.)
+func testMacvlanExperimentalV4Only(t *testing.T, ctx context.Context, client client.APIClient) {
+	_, err := net.Create(ctx, client, "testnet",
+		net.WithMacvlan(""),
+		net.WithIPv4(false),
+	)
+	defer client.NetworkRemove(ctx, "testnet")
+	assert.Assert(t, is.ErrorContains(err, "IPv4 can only be disabled if experimental features are enabled"))
+}
+
 // Check that a macvlan interface with '--ipv6=false' doesn't get kernel-assigned
 // IPv6 addresses, but the loopback interface does still have an IPv6 address ('::1').
-func testMacvlanNoIPv6(t *testing.T, ctx context.Context, client client.APIClient) {
-	const netName = "macvlannet"
+// Also check that with '--ipv4=false', there's no IPAM-assigned IPv4 address.
+func TestMacvlanIPAM(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
-	net.CreateNoError(ctx, t, client, netName,
-		net.WithMacvlan(""),
-		net.WithOption("macvlan_mode", "bridge"),
-	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	ctx := testutil.StartSpan(baseContext, t)
 
-	id := container.Run(ctx, t, client, container.WithNetworkMode(netName))
+	testcases := []struct {
+		name       string
+		apiVersion string
+		enableIPv4 bool
+		enableIPv6 bool
+		expIPv4    bool
+	}{
+		{
+			name:       "dual stack",
+			enableIPv4: true,
+			enableIPv6: true,
+		},
+		{
+			name:       "v4 only",
+			enableIPv4: true,
+		},
+		{
+			name:       "v6 only",
+			enableIPv6: true,
+		},
+		{
+			name: "no ipam",
+		},
+		{
+			name:       "enableIPv4 ignored",
+			apiVersion: "1.46",
+			enableIPv4: false,
+			expIPv4:    true,
+		},
+	}
 
-	loRes := container.ExecT(ctx, t, client, id, []string{"ip", "a", "show", "dev", "lo"})
-	assert.Check(t, is.Contains(loRes.Combined(), " inet "))
-	assert.Check(t, is.Contains(loRes.Combined(), " inet6 "))
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
 
-	eth0Res := container.ExecT(ctx, t, client, id, []string{"ip", "a", "show", "dev", "eth0"})
-	assert.Check(t, is.Contains(eth0Res.Combined(), " inet "))
-	assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet6 "),
-		"result.Combined(): %s", eth0Res.Combined())
+			var daemonOpts []daemon.Option
+			if !tc.enableIPv4 {
+				daemonOpts = append(daemonOpts, daemon.WithExperimental())
+			}
+			d := daemon.New(t, daemonOpts...)
+			d.StartWithBusybox(ctx, t)
+			t.Cleanup(func() { d.Stop(t) })
+			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
 
-	sysctlRes := container.ExecT(ctx, t, client, id, []string{"sysctl", "-n", "net.ipv6.conf.eth0.disable_ipv6"})
-	assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), "1"))
+			netOpts := []func(*network.CreateOptions){
+				net.WithMacvlan(""),
+				net.WithOption("macvlan_mode", "bridge"),
+				net.WithIPv4(tc.enableIPv4),
+			}
+			if tc.enableIPv6 {
+				netOpts = append(netOpts, net.WithIPv6())
+			}
+
+			const netName = "macvlannet"
+			net.CreateNoError(ctx, t, c, netName, netOpts...)
+			defer c.NetworkRemove(ctx, netName)
+			assert.Check(t, n.IsNetworkAvailable(ctx, c, netName))
+
+			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
+			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+			loRes := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "lo"})
+			assert.Check(t, is.Contains(loRes.Combined(), " inet "))
+			assert.Check(t, is.Contains(loRes.Combined(), " inet6 "))
+
+			eth0Res := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "eth0"})
+			if tc.enableIPv4 || tc.expIPv4 {
+				assert.Check(t, is.Contains(eth0Res.Combined(), " inet "),
+					"Expected IPv4 in: %s", eth0Res.Combined())
+			} else {
+				assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet "),
+					"Expected no IPv4 in: %s", eth0Res.Combined())
+			}
+			if tc.enableIPv6 {
+				assert.Check(t, is.Contains(eth0Res.Combined(), " inet6 "),
+					"Expected IPv6 in: %s", eth0Res.Combined())
+			} else {
+				assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet6 "),
+					"Expected no IPv6 in: %s", eth0Res.Combined())
+			}
+
+			sysctlRes := container.ExecT(ctx, t, c, id, []string{"sysctl", "-n", "net.ipv6.conf.eth0.disable_ipv6"})
+			expDisableIPv6 := "1"
+			if tc.enableIPv6 {
+				expDisableIPv6 = "0"
+			}
+			assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), expDisableIPv6))
+		})
+	}
 }
 
 // TestMACVlanDNS checks whether DNS is forwarded, with/without a parent
