@@ -13,6 +13,12 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.47 API changes
+
+[Docker Engine API v1.47](https://docs.docker.com/engine/api/v1.47/) documentation
+
+* `Sysctls` in `HostConfig` (top level `--sysctl` settings) for `eth0` are no
+  longer migrated to `DriverOpts`, as described in the changes for v1.46.
 
 ## v1.46 API changes
 
