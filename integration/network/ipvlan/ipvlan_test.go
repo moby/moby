@@ -95,8 +95,8 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 			name: "L3Addressing",
 			test: testIpvlanL3Addressing,
 		}, {
-			name: "NoIPv6",
-			test: testIpvlanNoIPv6,
+			name: "IpvlanExperimentalV4Only",
+			test: testIpvlanExperimentalV4Only,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -443,26 +443,116 @@ func testIpvlanL3Addressing(t *testing.T, ctx context.Context, client dclient.AP
 	assert.Check(t, is.Contains(result.Combined(), "default dev eth0"))
 }
 
+// Check that '--ipv4=false' is only allowed with '--experimental'.
+// (Remember to remove `--experimental' from TestMacvlanIPAM when it's
+// no longer needed, and maybe use a single daemon for all of its tests.)
+func testIpvlanExperimentalV4Only(t *testing.T, ctx context.Context, client dclient.APIClient) {
+	_, err := net.Create(ctx, client, "testnet",
+		net.WithIPvlan("", "l3"),
+		net.WithIPv4(false),
+	)
+	defer client.NetworkRemove(ctx, "testnet")
+	assert.Assert(t, is.ErrorContains(err, "IPv4 can only be disabled if experimental features are enabled"))
+}
+
 // Check that an ipvlan interface with '--ipv6=false' doesn't get kernel-assigned
 // IPv6 addresses, but the loopback interface does still have an IPv6 address ('::1').
-func testIpvlanNoIPv6(t *testing.T, ctx context.Context, client dclient.APIClient) {
-	const netName = "ipvlannet"
-	net.CreateNoError(ctx, t, client, netName, net.WithIPvlan("", "l3"))
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+// Also check that with '--ipv4=false', there's no IPAM-assigned IPv4 address.
+func TestIpvlanIPAM(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
-	id := container.Run(ctx, t, client, container.WithNetworkMode(netName))
+	ctx := testutil.StartSpan(baseContext, t)
 
-	loRes := container.ExecT(ctx, t, client, id, []string{"ip", "a", "show", "dev", "lo"})
-	assert.Check(t, is.Contains(loRes.Combined(), " inet "))
-	assert.Check(t, is.Contains(loRes.Combined(), " inet6 "))
+	testcases := []struct {
+		name       string
+		apiVersion string
+		enableIPv4 bool
+		enableIPv6 bool
+		expIPv4    bool
+	}{
+		{
+			name:       "dual stack",
+			enableIPv4: true,
+			enableIPv6: true,
+		},
+		{
+			name:       "v4 only",
+			enableIPv4: true,
+		},
+		{
+			name:       "v6 only",
+			enableIPv6: true,
+		},
+		{
+			name: "no ipam",
+		},
+		{
+			name:       "enableIPv4 ignored",
+			apiVersion: "1.46",
+			enableIPv4: false,
+			expIPv4:    true,
+		},
+	}
 
-	eth0Res := container.ExecT(ctx, t, client, id, []string{"ip", "a", "show", "dev", "eth0"})
-	assert.Check(t, is.Contains(eth0Res.Combined(), " inet "))
-	assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet6 "),
-		"result.Combined(): %s", eth0Res.Combined())
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
 
-	sysctlRes := container.ExecT(ctx, t, client, id, []string{"sysctl", "-n", "net.ipv6.conf.eth0.disable_ipv6"})
-	assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), "1"))
+			var daemonOpts []daemon.Option
+			if !tc.enableIPv4 {
+				daemonOpts = append(daemonOpts, daemon.WithExperimental())
+			}
+			d := daemon.New(t, daemonOpts...)
+			d.StartWithBusybox(ctx, t)
+			t.Cleanup(func() { d.Stop(t) })
+			c := d.NewClientT(t, dclient.WithVersion(tc.apiVersion))
+
+			netOpts := []func(*network.CreateOptions){
+				net.WithIPvlan("", "l3"),
+				net.WithIPv4(tc.enableIPv4),
+			}
+			if tc.enableIPv6 {
+				netOpts = append(netOpts, net.WithIPv6())
+			}
+
+			const netName = "ipvlannet"
+			net.CreateNoError(ctx, t, c, netName, netOpts...)
+			defer c.NetworkRemove(ctx, netName)
+			assert.Check(t, n.IsNetworkAvailable(ctx, c, netName))
+
+			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
+			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+			loRes := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "lo"})
+			assert.Check(t, is.Contains(loRes.Combined(), " inet "))
+			assert.Check(t, is.Contains(loRes.Combined(), " inet6 "))
+
+			eth0Res := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "eth0"})
+			if tc.enableIPv4 || tc.expIPv4 {
+				assert.Check(t, is.Contains(eth0Res.Combined(), " inet "),
+					"Expected IPv4 in: %s", eth0Res.Combined())
+			} else {
+				assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet "),
+					"Expected no IPv4 in: %s", eth0Res.Combined())
+			}
+			if tc.enableIPv6 {
+				assert.Check(t, is.Contains(eth0Res.Combined(), " inet6 "),
+					"Expected IPv6 in: %s", eth0Res.Combined())
+			} else {
+				assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet6 "),
+					"Expected no IPv6 in: %s", eth0Res.Combined())
+			}
+
+			sysctlRes := container.ExecT(ctx, t, c, id, []string{"sysctl", "-n", "net.ipv6.conf.eth0.disable_ipv6"})
+			expDisableIPv6 := "1"
+			if tc.enableIPv6 {
+				expDisableIPv6 = "0"
+			}
+			assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), expDisableIPv6))
+		})
+	}
 }
 
 // TestIPVlanDNS checks whether DNS is forwarded, for combinations of l2/l3 mode,
