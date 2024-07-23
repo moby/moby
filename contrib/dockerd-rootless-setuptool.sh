@@ -269,13 +269,6 @@ init() {
 	# - sysctl: "net.ipv4.ip_unprivileged_port_start"
 	# - external binary: slirp4netns
 	# - external binary: fuse-overlayfs
-
-	# check RootlessKit functionality. RootlessKit will print hints if something is still unsatisfied.
-	# (e.g., `kernel.apparmor_restrict_unprivileged_userns` constraint)
-	if ! rootlesskit true; then
-		ERROR "RootlessKit failed, see the error messages and https://rootlesscontaine.rs/getting-started/common/ ."
-		exit 1
-	fi
 }
 
 # CLI subcommand: "check"
@@ -400,7 +393,16 @@ cli_ctx_rm() {
 # CLI subcommand: "install"
 cmd_entrypoint_install() {
 	init
-	# requirements are already checked in init()
+	# Most requirements are already checked in init(), except the smoke test below for RootlessKit.
+	# https://github.com/docker/docker-install/issues/417
+
+	# check RootlessKit functionality. RootlessKit will print hints if something is still unsatisfied.
+	# (e.g., `kernel.apparmor_restrict_unprivileged_userns` constraint)
+	if ! rootlesskit true; then
+		ERROR "RootlessKit failed, see the error messages and https://rootlesscontaine.rs/getting-started/common/ ."
+		exit 1
+	fi
+
 	if [ -z "$SYSTEMD" ]; then
 		install_nonsystemd
 	else
