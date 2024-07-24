@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -152,6 +153,10 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 
 		request.reset(ctx)
 		resp, err := d.client.Do(request.Request)
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) && urlErr.Temporary() {
+			return newResponseError(http.Header{})
+		}
 		if err != nil {
 			return err
 		}
@@ -172,8 +177,11 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 			if _, err := io.Copy(&respData, resp.Body); err != nil {
 				return err
 			}
+			if respData.Len() == 0 {
+				return nil
+			}
 
-			if respData.Len() != 0 {
+			if resp.Header.Get("Content-Type") == "application/x-protobuf" {
 				var respProto coltracepb.ExportTraceServiceResponse
 				if err := proto.Unmarshal(respData.Bytes(), &respProto); err != nil {
 					return err
@@ -190,7 +198,10 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 			}
 			return nil
 
-		case sc == http.StatusTooManyRequests, sc == http.StatusServiceUnavailable:
+		case sc == http.StatusTooManyRequests,
+			sc == http.StatusBadGateway,
+			sc == http.StatusServiceUnavailable,
+			sc == http.StatusGatewayTimeout:
 			// Retry-able failures.  Drain the body to reuse the connection.
 			if _, err := io.Copy(io.Discard, resp.Body); err != nil {
 				otel.Handle(err)
