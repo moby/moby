@@ -50,7 +50,7 @@ func (f *Flock) lock(locked *bool, flag int) error {
 	}
 
 	if f.fh == nil {
-		if err := f.setFh(); err != nil {
+		if err := f.setFh(f.flag); err != nil {
 			return err
 		}
 
@@ -147,7 +147,7 @@ func (f *Flock) try(locked *bool, flag int) (bool, error) {
 	}
 
 	if f.fh == nil {
-		if err := f.setFh(); err != nil {
+		if err := f.setFh(f.flag); err != nil {
 			return false, err
 		}
 
@@ -183,6 +183,7 @@ retry:
 // This comes from `util-linux/sys-utils/flock.c`:
 // > Since Linux 3.4 (commit 55725513)
 // > Probably NFSv4 where flock() is emulated by fcntl().
+// > https://github.com/util-linux/util-linux/blob/198e920aa24743ef6ace4e07cf6237de527f9261/sys-utils/flock.c#L374-L390
 func (f *Flock) reopenFDOnError(err error) (bool, error) {
 	if !errors.Is(err, unix.EIO) && !errors.Is(err, unix.EBADF) {
 		return false, nil
@@ -197,16 +198,13 @@ func (f *Flock) reopenFDOnError(err error) (bool, error) {
 		return false, nil
 	}
 
-	_ = f.fh.Close()
-	f.fh = nil
+	f.resetFh()
 
 	// reopen in read-write mode and set the file handle
-	fh, err := os.OpenFile(f.path, f.flag, f.perm)
+	err = f.setFh(f.flag | os.O_RDWR)
 	if err != nil {
 		return false, err
 	}
-
-	f.fh = fh
 
 	return true, nil
 }
