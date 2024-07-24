@@ -190,6 +190,7 @@ jobs:
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
+          retention-days: 1
 
   unit-test-report:
     runs-on: ubuntu-latest
@@ -508,6 +509,7 @@ jobs:
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
+          retention-days: 1
 
   integration-test-report:
     runs-on: ubuntu-latest

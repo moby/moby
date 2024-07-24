@@ -51,14 +51,6 @@ jobs:
         name: Check artifacts
         run: |
           find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
-      -
-        name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.target }}
-          path: ${{ env.DESTDIR }}
-          if-no-files-found: error
-          retention-days: 7
 
   prepare-cross:
     runs-on: ubuntu-latest
@@ -119,11 +111,3 @@ jobs:
         name: Check artifacts
         run: |
           find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
-      -
-        name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: cross-${{ env.PLATFORM_PAIR }}
-          path: ${{ env.DESTDIR }}
-          if-no-files-found: error
-          retention-days: 7
